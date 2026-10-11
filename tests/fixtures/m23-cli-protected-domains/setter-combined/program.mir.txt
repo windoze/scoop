@@ -55,6 +55,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       assign $new.1
@@ -244,6 +246,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun inspect @fn2(this: GenericOwner<Int>) -> Int
     bb0 entry
       call @fn4 direct
@@ -276,6 +280,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun guarded @fn5(this: GenericOwner<String>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -284,6 +290,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- inspect
   instance mi1 function=@fn3 <- inspect
   instance mi2 function=@fn4 <- guarded

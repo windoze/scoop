@@ -91,9 +91,12 @@ fn recursive_named_fields_lower_by_exact_type_in_declaration_order() {
         fun("main", vec![]),
     ]);
     let module = lower_user(source).expect("recursive field patterns must lower");
-    let hir::Pattern::Struct { fields, .. } =
-        case_pattern(&function_when(&module, "check").arms[0])
-    else {
+    let hir::Pattern::Struct { fields, .. } = case_pattern(
+        function_when(&module, "check")
+            .arms()
+            .next()
+            .expect("when arm"),
+    ) else {
         panic!("outer pattern must resolve to a struct")
     };
 
@@ -173,9 +176,12 @@ fn generic_named_field_subpatterns_use_instantiated_field_types() {
         fun("main", vec![]),
     ]);
     let module = lower_user(source).expect("generic field type must be instantiated");
-    let hir::Pattern::Struct { fields, .. } =
-        case_pattern(&function_when(&module, "check").arms[0])
-    else {
+    let hir::Pattern::Struct { fields, .. } = case_pattern(
+        function_when(&module, "check")
+            .arms()
+            .next()
+            .expect("when arm"),
+    ) else {
         panic!("Box field pattern must resolve to a struct")
     };
     assert_eq!(fields.len(), 2);
@@ -373,8 +379,8 @@ fn named_field_rows_prove_exhaustiveness_and_report_recursive_witnesses() {
     ]);
     let module = lower_user(complete).expect("both named Boolean rows are exhaustive");
     assert!(matches!(
-        &function_when(&module, "check").fallback,
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix { .. })
+        &function_when(&module, "check").fallback(),
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
     ));
 
     let missing = file(vec![

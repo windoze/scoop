@@ -644,6 +644,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.VirtualChild.$c0 @fn26(this: VirtualChild<Later>, value: Later, other: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -665,9 +667,13 @@ Module
         Type Later
         Local other
       return
+        Type Unit
+        UnitLiteral
   fun init.Choosing.$c1 @fn27(this: Choosing<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.VirtualChild.$c0 @fn28(this: VirtualChild<Int>, value: Int, other: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -689,9 +695,13 @@ Module
         Type Int
         Local other
       return
+        Type Unit
+        UnitLiteral
   fun init.Choosing.$c1 @fn29(this: Choosing<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.VirtualBox.$c2 @fn30(this: VirtualBox<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -700,6 +710,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.VirtualBox.$c2 @fn31(this: VirtualBox<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -708,6 +720,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn32(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -730,6 +744,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -743,6 +759,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -754,6 +772,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

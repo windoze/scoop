@@ -142,10 +142,7 @@ impl<'a> CfgLowerer<'a> {
                     mir::Expr::new(receiver_ty.clone(), mir::ExprKind::Local(receiver)),
                 );
                 self.emit_lowered_call(
-                    mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: *initializer,
-                    },
+                    mir::CallTarget::Direct(*initializer),
                     args,
                     mir::Type::Unit,
                     None,
@@ -297,6 +294,9 @@ impl<'a> CfgLowerer<'a> {
                 receiver: Box::new(self.lower_expr(receiver, span)?),
                 index: *index,
             },
+            smir::ExprKind::CoroutineSuspend { method, receiver } => {
+                return self.lower_suspend(*method, receiver, &expr.ty, None, span);
+            }
             smir::ExprKind::Call(call) => {
                 let value = self.lower_call(call, None, span)?;
                 if value.ty == expr.ty {

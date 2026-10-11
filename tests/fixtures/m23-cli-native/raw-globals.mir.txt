@@ -297,6 +297,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$scoopCounter @fn2() -> Int <no-gc>
     bb0 entry
       return
@@ -308,6 +310,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$scoopTlsCounter @fn4() -> Int <no-gc>
     bb0 entry
       return
@@ -319,6 +323,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$pair @fn6() -> NativePair <no-gc>
     bb0 entry
       return
@@ -330,6 +336,8 @@ Module
         Type NativePair
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$emptyPointer @fn8() -> Option<Ptr<Int>> <no-gc>
     bb0 entry
       return
@@ -341,6 +349,8 @@ Module
         Type Option<Ptr<Int>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$emptyCallback @fn10() -> Option<FunPtr<(Int) -> Int>> <no-gc>
     bb0 entry
       return
@@ -352,6 +362,8 @@ Module
         Type Option<FunPtr<(Int) -> Int>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn12(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -398,6 +410,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.NativePair.$c0 @fn14(left: Int, right: Int) -> NativePair <no-gc>
     bb0 entry
       return

@@ -14,11 +14,7 @@ fn protocol_import_resolves_actual_provider_ids_in_the_shared_session() {
         let (surface, foundation) = standalone_at(origin);
         let imported = import(origin, &foundation);
         let protocols = ImportedCoreProtocols::import(&imported, &surface).unwrap();
-        let CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(expected)) =
-            surface.fundamental_types().entries()[9]
-        else {
-            panic!("Boolean role")
-        };
+        let expected = surface.fundamental_types().boolean;
         assert_eq!(imported.origin(), origin);
         assert_eq!(
             protocols.fundamental_types().boolean().persistent(),
@@ -68,9 +64,7 @@ fn protocol_callable_import_requires_its_shared_definition_origin() {
     let (surface, mut foundation) = standalone_at(ConeIdentity::CORE);
     foundation.set_definition_origins(vec![]).unwrap();
     let imported = import(ConeIdentity::CORE, &foundation);
-    let CoreProtocolEntryV1::Callable(callable) = &surface.iteration_protocol().entries()[1] else {
-        panic!("iteration next is a callable")
-    };
+    let callable = &surface.iteration_protocol().next;
     assert_eq!(
         ImportedCoreProtocols::import(&imported, &surface).unwrap_err(),
         CoreProtocolImportError::MissingDefinitionOrigin {
@@ -84,11 +78,7 @@ fn protocol_import_rejects_same_named_declarations_from_another_provider() {
     let (surface, _) = standalone_at(ConeIdentity::CORE);
     let (_, other) = standalone_at(crate::core_protocol_test_support::ordinary_origin());
     let imported = import(crate::core_protocol_test_support::ordinary_origin(), &other);
-    let CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(expected)) =
-        surface.fundamental_types().entries()[1]
-    else {
-        panic!("integer role")
-    };
+    let expected = surface.fundamental_types().int8;
     assert_eq!(
         ImportedCoreProtocols::import(&imported, &surface).unwrap_err(),
         CoreProtocolImportError::MissingIdentity {

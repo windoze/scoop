@@ -353,6 +353,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c2 @fn14(this: Host<Int>, item: Item<Int>, action: () -> Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<Int>
@@ -374,6 +376,8 @@ Module
         Type () -> Int
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn15(this: Local<Int>, item: Item<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: Item<Int>
@@ -390,6 +394,8 @@ Module
         Type Item<Int>
         Local $dependency.parameter.item
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn16(this: Base<Int>, item: Item<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -398,6 +404,8 @@ Module
         Type Item<Int>
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn17($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

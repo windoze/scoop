@@ -84,7 +84,10 @@ impl<'a> CfgLowerer<'a> {
                 message: message.clone(),
             }),
             smir::StatementKind::Expr(expr) => {
-                let is_call = matches!(expr.kind, smir::ExprKind::Call(_));
+                let is_call = matches!(
+                    expr.kind,
+                    smir::ExprKind::Call(_) | smir::ExprKind::CoroutineSuspend { .. }
+                );
                 let Some(expr) = self.lower_expr(expr, span) else {
                     return;
                 };
@@ -93,6 +96,13 @@ impl<'a> CfgLowerer<'a> {
                 }
             }
             smir::StatementKind::ValDecl { local, init } => {
+                if let smir::ExprKind::CoroutineSuspend { method, receiver } = &init.kind
+                    && init.ty != mir::Type::Unit
+                    && self.locals[*local].ty == init.ty
+                {
+                    self.lower_suspend(*method, receiver, &init.ty, Some(*local), span);
+                    return;
+                }
                 if let smir::ExprKind::Call(call) = &init.kind
                     && call.return_ty != mir::Type::Unit
                     && call.return_ty == init.ty
@@ -173,7 +183,7 @@ impl<'a> CfgLowerer<'a> {
                     span,
                 );
             }
-            smir::StatementKind::Return { value } => self.lower_return(value.as_ref(), span),
+            smir::StatementKind::Return { value } => self.lower_return(value, span),
             smir::StatementKind::Break { target } => self.lower_break(*target),
             smir::StatementKind::Continue { target } => self.lower_continue(*target),
             smir::StatementKind::If {
@@ -201,7 +211,7 @@ impl<'a> CfgLowerer<'a> {
         }
     }
 
-    pub(super) fn lower_return(&mut self, value: Option<&smir::Expr>, span: Span) {
+    pub(super) fn lower_return(&mut self, value: &smir::Expr, span: Span) {
         let Some(payload) = self.prepare_return(value, span) else {
             return;
         };

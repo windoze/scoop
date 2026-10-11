@@ -80,7 +80,7 @@ fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     let negation = integer_unary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::UnaryMinus,
+        hir::IntegerUnaryOperator::UnaryMinus,
         one,
     );
     let main = h.user_fn(
@@ -251,7 +251,7 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, false)),
+                value: bool_lit(&h, false),
             })],
         },
     );
@@ -303,7 +303,7 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
         panic!("the condition side effect is emitted once in the loop header")
     };
     let (call, destination) = statement_call(setup);
-    let mir::Callee::User(callee) = call.target.callee else {
+    let mir::CallTarget::Direct(mir::Callee::User(callee)) = call.target else {
         panic!("the condition setup keeps its exact user-call target")
     };
     assert_eq!(module.functions[callee].name, "condition");
@@ -337,7 +337,7 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
                 mir::CallEffect::Unit(call) => call,
                 mir::CallEffect::Value { call, .. } => call,
             };
-            matches!(call.target.callee, mir::Callee::User(id) if module.functions[id].name == "condition")
+            matches!(call.target, mir::CallTarget::Direct(mir::Callee::User(id)) if module.functions[id].name == "condition")
         })
         .count();
     assert_eq!(setup_call_count, 1, "HIR condition setup is lowered once");
@@ -354,7 +354,9 @@ fn terminating_while_still_marks_its_loop_header_poll() {
             statements: vec![
                 stmt(hir::StatementKind::While {
                     target: hir::LoopId::from_raw(0),
-                    condition_setup: vec![stmt(hir::StatementKind::Return { value: None })],
+                    condition_setup: vec![stmt(hir::StatementKind::Return {
+                        value: expr(hir::ExprKind::UnitLiteral, h.unit),
+                    })],
                     cond: bool_lit(&h, true),
                     body: vec![expr_stmt(call(
                         &h,
@@ -385,7 +387,12 @@ fn terminating_while_still_marks_its_loop_header_poll() {
     assert!(header.statements.is_empty());
     assert!(matches!(
         header.terminator,
-        mir::Terminator::Return { value: None }
+        mir::Terminator::Return {
+            value: mir::Expr {
+                ty: mir::Type::Unit,
+                kind: mir::ExprKind::UnitLiteral
+            }
+        }
     ));
     assert!(
         body.blocks
@@ -578,7 +585,7 @@ fn non_unit_return_is_saved_before_finally_and_resumed_after_it() {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Try(hir::Try {
                 body: vec![stmt(hir::StatementKind::Return {
-                    value: Some(int_lit(&h, 9)),
+                    value: int_lit(&h, 9),
                 })],
                 catches: Vec::new(),
                 finally_body: Some(vec![expr_stmt(int_lit(&h, 41))]),
@@ -620,16 +627,16 @@ fn non_unit_return_is_saved_before_finally_and_resumed_after_it() {
     assert!(matches!(
         &finally_block.terminator,
         mir::Terminator::Return {
-            value: Some(mir::Expr {
+            value: mir::Expr {
                 kind: mir::ExprKind::Local(local),
                 ..
-            })
+            }
         } if *local == return_slot
     ));
 }
 
 #[test]
-fn generic_unit_return_runs_finally_before_bare_return() {
+fn generic_unit_return_evaluates_result_before_finally() {
     let mut h = Harness::new();
     let unit = h.unit;
     let producer = identity_fn(&mut h, "produce");
@@ -648,11 +655,11 @@ fn generic_unit_return_runs_finally_before_bare_return() {
             locals,
             statements: vec![stmt(hir::StatementKind::Try(hir::Try {
                 body: vec![stmt(hir::StatementKind::Return {
-                    value: Some(generic_call(
+                    value: generic_call(
                         producer_for_type_param,
                         vec![local_ref(value, type_param)],
                         type_param,
-                    )),
+                    ),
                 })],
                 catches: Vec::new(),
                 finally_body: Some(vec![expr_stmt(int_lit(&h, 41))]),
@@ -709,9 +716,8 @@ fn generic_unit_return_runs_finally_before_bare_return() {
             (function.name == "produce" && function.return_ty == mir::Type::Unit).then_some(id)
         })
         .expect("produce<Unit> is lowered");
-    assert_eq!(
-        call.target.callee,
-        mir::Callee::Monomorphized(instance_id(&module, producer))
+    assert!(
+        matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Monomorphized(instance_id(&module, producer)))
     );
     assert!(
         try_body.unwind.is_some(),
@@ -724,7 +730,12 @@ fn generic_unit_return_runs_finally_before_bare_return() {
     assert!(block_contains_int(finally_block, 41));
     assert!(matches!(
         &finally_block.terminator,
-        mir::Terminator::Return { value: None }
+        mir::Terminator::Return {
+            value: mir::Expr {
+                ty: mir::Type::Unit,
+                kind: mir::ExprKind::UnitLiteral
+            }
+        }
     ));
 }
 
@@ -920,7 +931,9 @@ fn finally_return_overrides_a_pending_setup_break_without_opening_the_exit() {
                     condition_setup: vec![stmt(hir::StatementKind::Try(hir::Try {
                         body: vec![stmt(hir::StatementKind::Break { target })],
                         catches: Vec::new(),
-                        finally_body: Some(vec![stmt(hir::StatementKind::Return { value: None })]),
+                        finally_body: Some(vec![stmt(hir::StatementKind::Return {
+                            value: expr(hir::ExprKind::UnitLiteral, h.unit),
+                        })]),
                     }))],
                     cond: bool_lit(&h, true),
                     body: vec![expr_stmt(int_lit(&h, 99))],
@@ -1054,8 +1067,8 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
                     body: vec![
-                        stmt(hir::StatementKind::When(hir::When {
-                            subject: Some(local_ref(subject, option_boolean)),
+                        stmt(hir::StatementKind::When(hir::When::Subject {
+                            subject: local_ref(subject, option_boolean),
                             arms: vec![hir::WhenArm {
                                 condition: hir::WhenCondition::Case(hir::Pattern::Variant {
                                     application: h.enum_variant_ref(option_application, 0),

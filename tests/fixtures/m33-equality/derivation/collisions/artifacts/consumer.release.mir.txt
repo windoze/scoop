@@ -272,6 +272,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb11 inline.cont.11
       val $call.3: Boolean
         Type Boolean
@@ -353,6 +355,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Generic.$c0 @fn3(value: Int) -> Generic<Int> <no-gc>
     bb0 entry
       return

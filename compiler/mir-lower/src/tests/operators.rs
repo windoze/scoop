@@ -28,9 +28,8 @@ fn typed_string_concat_lowers_to_its_runtime_target() {
         .expect("test module is executable")]
     .body;
     let (call, destination) = statement_call(&entry_statements(body)[0]);
-    assert_eq!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::StringConcat)
+    assert!(
+        matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::StringConcat))
     );
     let destination = destination.expect("String concatenation returns String");
     assert_eq!(body.locals[destination].name, "s");
@@ -47,28 +46,28 @@ fn typed_primitive_intrinsics_map_to_primitive_mir_ops() {
     // statement sequence — see
     // `division_by_zero_throws_arithmetic_exception`.
     let cases = [
-        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Add),
-        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Sub),
-        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Mul),
+        (hir::IntegerKind::SIGNED_32, hir::IntegerBinaryOperator::Add),
+        (hir::IntegerKind::SIGNED_32, hir::IntegerBinaryOperator::Sub),
+        (hir::IntegerKind::SIGNED_32, hir::IntegerBinaryOperator::Mul),
         (
             hir::IntegerKind::SIGNED_32,
-            hir::NoGcIntegerOperation::CompareTo,
+            hir::IntegerBinaryOperator::CompareTo,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::Add,
+            hir::IntegerBinaryOperator::Add,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::Sub,
+            hir::IntegerBinaryOperator::Sub,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::Mul,
+            hir::IntegerBinaryOperator::Mul,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::CompareTo,
+            hir::IntegerBinaryOperator::CompareTo,
         ),
     ];
     for (kind, operation) in cases {
@@ -129,14 +128,14 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
     let int_inc = integer_unary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::Inc,
+        hir::IntegerUnaryOperator::Inc,
         int_one,
     );
     let uint_two = integer_lit(&h, hir::IntegerKind::UNSIGNED_32, 2);
     let uint_dec = integer_unary(
         &mut h,
         hir::IntegerKind::UNSIGNED_32,
-        hir::NoGcIntegerOperation::Dec,
+        hir::IntegerUnaryOperator::Dec,
         uint_two,
     );
     let main = h.user_fn(
@@ -195,9 +194,8 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
         })
     ));
     let (compare, destination) = statement_call(&statements[3]);
-    assert_eq!(
-        compare.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::StringCompare)
+    assert!(
+        matches!(compare.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::StringCompare))
     );
     let destination = destination.expect("the runtime String compare returns Long");
     assert_eq!(
@@ -273,7 +271,7 @@ fn shifts_mask_long_counts_then_convert_to_the_operand_kind() {
         statements.push(expr_stmt(integer_binary(
             &mut h,
             kind,
-            hir::NoGcIntegerOperation::Shl,
+            hir::IntegerBinaryOperator::Shl,
             value,
             count,
         )));
@@ -434,7 +432,7 @@ fn short_circuit_rhs_calls_stay_on_rhs_edges() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, true)),
+                value: bool_lit(&h, true),
             })],
         },
     );
@@ -483,7 +481,9 @@ fn short_circuit_rhs_calls_stay_on_rhs_edges() {
     assert_eq!(rhs_blocks.len(), 2);
     for block in rhs_blocks {
         let (call, destination) = statement_call(&block.statements[0]);
-        assert_eq!(call.target.callee, mir::Callee::User(module.top_level[0]));
+        assert!(
+            matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[0]))
+        );
         assert!(destination.is_some());
     }
     assert!(body.blocks.iter().all(|(_, block)| {
@@ -519,7 +519,7 @@ fn nested_calls_are_normalized_left_to_right() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(first_result),
+                value: first_result,
             })],
         },
     );
@@ -532,7 +532,7 @@ fn nested_calls_are_normalized_left_to_right() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(second_result),
+                value: second_result,
             })],
         },
     );
@@ -547,7 +547,7 @@ fn nested_calls_are_normalized_left_to_right() {
         hir::Body {
             locals: outer_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(a, int)),
+                value: local_ref(a, int),
             })],
         },
     );
@@ -581,20 +581,17 @@ fn nested_calls_are_normalized_left_to_right() {
 
     let (first_call, first_destination) = statement_call(&statements[0]);
     let first_destination = first_destination.expect("first returns Int");
-    assert_eq!(
-        first_call.target.callee,
-        mir::Callee::User(module.top_level[0])
+    assert!(
+        matches!(first_call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[0]))
     );
     let (second_call, second_destination) = statement_call(&statements[1]);
     let second_destination = second_destination.expect("second returns Int");
-    assert_eq!(
-        second_call.target.callee,
-        mir::Callee::User(module.top_level[1])
+    assert!(
+        matches!(second_call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[1]))
     );
     let (outer_call, outer_destination) = statement_call(&statements[2]);
-    assert_eq!(
-        outer_call.target.callee,
-        mir::Callee::User(module.top_level[2])
+    assert!(
+        matches!(outer_call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[2]))
     );
     assert!(matches!(outer_call.args.as_slice(), [first, second]
             if matches!(first.kind, mir::ExprKind::Local(local) if local == first_destination)

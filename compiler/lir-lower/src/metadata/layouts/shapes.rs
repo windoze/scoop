@@ -35,63 +35,57 @@ pub(crate) fn struct_shape(
     enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
     definition: &mir::StructDef,
 ) -> StorageResult<(Vec<lir::FieldLayout>, u64, u64)> {
-    let mir::StructRepresentation::Declared {
-        c_layout, fields, ..
-    } = &definition.representation
-    else {
-        return Ok(match definition.representation {
-            mir::StructRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::MaybeUninit { ref value },
-            ) => {
-                let (size, align) = size_align(context, module, enum_shape, value)?;
-                (Vec::new(), size, align)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Unit) => {
-                (Vec::new(), 0, 1)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Integer(
-                kind,
-            )) => {
-                let layout = context.integer_layout(integer_kind(kind));
-                (Vec::new(), layout.size, layout.align)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(kind)) => {
-                let layout = context.float_layout(kind);
-                (Vec::new(), layout.size, layout.align)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char) => {
-                let layout = context.scalar_layout(lir::BackendScalarKind::I32);
-                (Vec::new(), layout.size, layout.align)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Boolean) => {
-                let layout = context.scalar_layout(lir::BackendScalarKind::I1);
-                (Vec::new(), layout.size, layout.align)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Ptr {
-                ..
-            }) => {
-                let layout = context.pointer_layout(lir::PointerKind::Raw);
-                (Vec::new(), layout.size, layout.align)
-            }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::FunPtr {
-                ..
-            }) => {
-                let layout = context.pointer_layout(lir::PointerKind::Code);
-                (Vec::new(), layout.size, layout.align)
-            }
-            mir::StructRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::String
-                | mir::IntrinsicTypeRepresentation::Atomic(_)
-                | mir::IntrinsicTypeRepresentation::Any
-                | mir::IntrinsicTypeRepresentation::Nothing
-                | mir::IntrinsicTypeRepresentation::Array { .. }
-                | mir::IntrinsicTypeRepresentation::MutableArray { .. },
-            ) => {
-                unreachable!("the registry fixes intrinsic declaration targets")
-            }
-            mir::StructRepresentation::Declared { .. } => unreachable!(),
-        });
+    match &definition.representation {
+        mir::StructRepresentation::Declared(declared) => {
+            declared_struct_shape(context, module, enum_shape, declared)
+        }
+        mir::StructRepresentation::Intrinsic(intrinsic) => {
+            let (size, align) = intrinsic_struct_shape(context, module, enum_shape, intrinsic)?;
+            Ok((Vec::new(), size, align))
+        }
+    }
+}
+
+pub(crate) fn intrinsic_struct_shape(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
+    representation: &mir::IntrinsicStructRepresentation,
+) -> StorageResult<(u64, u64)> {
+    let layout = match representation {
+        mir::IntrinsicStructRepresentation::MaybeUninit { value } => {
+            return size_align(context, module, enum_shape, value);
+        }
+        mir::IntrinsicStructRepresentation::Unit => return Ok((0, 1)),
+        mir::IntrinsicStructRepresentation::Integer(kind) => {
+            context.integer_layout(integer_kind(*kind))
+        }
+        mir::IntrinsicStructRepresentation::Float(kind) => context.float_layout(*kind),
+        mir::IntrinsicStructRepresentation::Char => {
+            context.scalar_layout(lir::BackendScalarKind::I32)
+        }
+        mir::IntrinsicStructRepresentation::Boolean => {
+            context.scalar_layout(lir::BackendScalarKind::I1)
+        }
+        mir::IntrinsicStructRepresentation::Ptr { .. } => {
+            context.pointer_layout(lir::PointerKind::Raw)
+        }
+        mir::IntrinsicStructRepresentation::FunPtr { .. } => {
+            context.pointer_layout(lir::PointerKind::Code)
+        }
     };
+    Ok((layout.size, layout.align))
+}
+
+pub(crate) fn declared_struct_shape(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
+    declared: &mir::DeclaredStruct,
+) -> StorageResult<(Vec<lir::FieldLayout>, u64, u64)> {
+    let mir::DeclaredStruct {
+        c_layout, fields, ..
+    } = declared;
     if c_layout.is_some() && fields.is_empty() {
         return Err(lir::StorageReplayError::EmptyCLayout.into());
     }

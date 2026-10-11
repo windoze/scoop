@@ -77,6 +77,8 @@ Module
         Local $new.2
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   str @str0 "singleton"
   str @str1 "illegal state"
   output executable @fn0

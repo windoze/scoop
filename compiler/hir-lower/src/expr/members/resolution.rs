@@ -200,11 +200,8 @@ impl Lowerer {
             .map(|parameter| self.instantiate_ty(parameter.ty, type_args))
             .collect();
         let return_type = self.instantiate_ty(signature.return_ty, type_args);
-        let signature_type =
+        let instantiated_signature =
             self.intern_function_type(signature.is_suspend, parameter_types, return_type);
-        let Type::Function(instantiated_signature) = self.types[signature_type] else {
-            unreachable!("interned function signatures have function type identity")
-        };
         let value = hir::BoundCallableRef {
             receiver_type: self.intern_type(Type::Param(receiver_parameter)),
             source: bound_source,

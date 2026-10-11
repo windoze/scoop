@@ -44,6 +44,8 @@ Module
   fun init.Deferred.$c0 @fn5(this: Deferred) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Deferred> @fn6(task: SuspendTask<Deferred>, completion: Continuation<Deferred>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -66,6 +68,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn1 interface Continuation<Deferred>[0]
         Type Continuation<Deferred>
@@ -79,6 +83,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn2 interface Continuation<Deferred>[1]
         Type Continuation<Deferred>
@@ -90,6 +96,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

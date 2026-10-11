@@ -110,11 +110,9 @@ impl Lowerer {
                 else {
                     return Ok(None);
                 };
-                Ok(Some(self.intern_function_type(
-                    signature.is_suspend,
-                    parameters,
-                    return_type,
-                )))
+                let function =
+                    self.intern_function_type(signature.is_suspend, parameters, return_type);
+                Ok(Some(self.function_types[function].canonical_type))
             }
             Type::Ptr(pointee) => {
                 let Some(pointee) = self.materialize_type(session, bindings, pointee, origin)?
@@ -137,10 +135,7 @@ impl Lowerer {
                 };
                 let function =
                     self.intern_function_type(signature.is_suspend, parameters, return_type);
-                let Type::Function(signature) = self.types[function] else {
-                    unreachable!("materialized function signature has function type")
-                };
-                Ok(Some(self.intern_type(Type::FunPtr(signature))))
+                Ok(Some(self.intern_type(Type::FunPtr(function))))
             }
             _ => Ok(Some(ty)),
         }

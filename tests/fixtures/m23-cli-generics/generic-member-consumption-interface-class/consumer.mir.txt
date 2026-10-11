@@ -107,9 +107,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractReader.$c1 @fn9(this: AbstractReader<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- AbstractReader.get
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- get

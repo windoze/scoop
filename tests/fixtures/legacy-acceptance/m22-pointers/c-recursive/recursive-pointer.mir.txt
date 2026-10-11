@@ -142,6 +142,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: Int
         Type Int
@@ -203,6 +205,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
@@ -227,6 +231,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn6(this: Continuation<Node>, value: Node) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -270,6 +276,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -283,6 +291,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -294,6 +304,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

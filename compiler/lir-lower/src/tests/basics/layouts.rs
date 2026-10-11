@@ -185,7 +185,7 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         name: "Ptr<UInt16>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Intrinsic(
-            mir::IntrinsicTypeRepresentation::Ptr {
+            mir::IntrinsicStructRepresentation::Ptr {
                 pointee: mir::Type::Integer(mir::IntegerKind::UNSIGNED_16),
             },
         ),
@@ -195,7 +195,7 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         name: "FunPtr<(Int8, Ptr<Unit>) -> Unit>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Intrinsic(
-            mir::IntrinsicTypeRepresentation::FunPtr { signature },
+            mir::IntrinsicStructRepresentation::FunPtr { signature },
         ),
     });
     let main = builder.main(Arena::new(), Vec::new());

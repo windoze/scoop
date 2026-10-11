@@ -30,7 +30,8 @@ fn compiler_protocol_surface_is_a_closed_nine_field_product() {
 #[test]
 fn compiler_protocol_surface_rejects_wrong_callable_kinds() {
     let (mut surface, foundation) = test_support::standalone();
-    surface.exception_protocol.0.entries[1] = surface.source_location_protocol.0.entries[1].clone();
+    surface.exception_protocol.throwable_constructor =
+        surface.source_location_protocol.current.clone();
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -45,7 +46,7 @@ fn compiler_protocol_surface_rejects_wrong_callable_kinds() {
 #[test]
 fn fixed_intrinsic_roles_preserve_signature_and_effect_checks_without_a_total_table() {
     let (surface, foundation) = test_support::standalone();
-    let original = callable_entry_ref(surface.source_location_protocol.entries(), 1);
+    let original = &surface.source_location_protocol.current;
     for signature in [
         SignatureCallableShape::new(
             Effect::Suspend,
@@ -57,13 +58,12 @@ fn fixed_intrinsic_roles_preserve_signature_and_effect_checks_without_a_total_ta
             Effect::Ordinary,
             None,
             vec![],
-            SignatureTypeKey::Nominal(concrete_entry(surface.fundamental_types.entries(), 0)),
+            SignatureTypeKey::Nominal(surface.fundamental_types.unit),
         ),
     ] {
         let mut invalid = surface.clone();
-        invalid.source_location_protocol.0.entries[1] = CoreProtocolEntryV1::Callable(
-            CoreProtocolCallableV1::for_test(original.definition(), signature),
-        );
+        invalid.source_location_protocol.current =
+            CoreProtocolCallableV1::for_test(original.definition(), signature);
         assert_eq!(
             decode(&invalid).validate_against(&foundation),
             Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -74,7 +74,8 @@ fn fixed_intrinsic_roles_preserve_signature_and_effect_checks_without_a_total_ta
         );
     }
     let mut invalid = surface.clone();
-    invalid.coroutine_protocol.0.entries[12] = invalid.coroutine_protocol.0.entries[11].clone();
+    invalid.coroutine_protocol.suspend_coroutine =
+        invalid.coroutine_protocol.start_coroutine.clone();
     assert_eq!(
         decode(&invalid).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -86,17 +87,16 @@ fn fixed_intrinsic_roles_preserve_signature_and_effect_checks_without_a_total_ta
 #[test]
 fn compiler_protocol_surface_rejects_fixed_callable_signature_tampering() {
     let (mut surface, foundation) = test_support::standalone();
-    let original = callable_entry_ref(surface.iteration_protocol.entries(), 1).clone();
-    surface.iteration_protocol.0.entries[1] =
-        CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
-            original.definition(),
-            SignatureCallableShape::new(
-                Effect::Ordinary,
-                None,
-                Vec::new(),
-                SignatureTypeKey::Nominal(concrete_entry(surface.fundamental_types.entries(), 0)),
-            ),
-        ));
+    let original = surface.iteration_protocol.next.clone();
+    surface.iteration_protocol.next = CoreProtocolCallableV1::for_test(
+        original.definition(),
+        SignatureCallableShape::new(
+            Effect::Ordinary,
+            None,
+            Vec::new(),
+            SignatureTypeKey::Nominal(surface.fundamental_types.unit),
+        ),
+    );
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -108,7 +108,12 @@ fn compiler_protocol_surface_rejects_fixed_callable_signature_tampering() {
     );
 
     let (mut surface, foundation) = test_support::standalone();
-    surface.exception_protocol.0.entries.swap(11, 12);
+    std::mem::swap(
+        &mut surface
+            .exception_protocol
+            .illegal_state_exception_constructor,
+        &mut surface.exception_protocol.initialization_cycle_thrower,
+    );
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -123,7 +128,7 @@ fn compiler_protocol_surface_rejects_fixed_callable_signature_tampering() {
 #[test]
 fn compiler_protocol_surface_replays_owner_variant_and_dispatch_relations() {
     let (mut surface, foundation) = test_support::standalone();
-    surface.ffi_protocol.0.entries[4] = surface.source_location_protocol.0.entries[1].clone();
+    surface.ffi_protocol.ptr_to_ulong = surface.source_location_protocol.current.clone();
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(
@@ -135,14 +140,15 @@ fn compiler_protocol_surface_replays_owner_variant_and_dispatch_relations() {
     );
 
     let (mut surface, foundation) = test_support::standalone();
-    surface.option_protocol.0.entries[1] = surface.foreign_callback_protocol.0.entries[2].clone();
+    surface.option_protocol.some = surface.foreign_callback_protocol.reusable;
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::OptionOwnerMismatch)
     );
 
     let (mut surface, foundation) = test_support::standalone();
-    surface.iteration_protocol.0.entries[2] = surface.coroutine_protocol.0.entries[2].clone();
+    surface.iteration_protocol.next_dispatch =
+        surface.coroutine_protocol.continuation_resume_dispatch;
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(

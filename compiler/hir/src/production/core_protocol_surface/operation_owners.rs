@@ -6,80 +6,58 @@ pub(super) fn expected_operation_owner(
     surface: &CoreCompilerProtocolSurfaceV1,
     kind: IntrinsicFunctionKind,
 ) -> Option<DefinitionOwnerAtom> {
-    let fundamental = surface.fundamental_types.entries();
+    let fundamental = &surface.fundamental_types;
     match kind {
         IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_) => {
             unreachable!("these intrinsics use their ordinary nominal owner")
         }
         IntrinsicFunctionKind::Float(kind) => {
-            let index = match kind.owner() {
-                crate::IntrinsicTypeKind::Float(crate::FloatKind::F32) => 16,
-                crate::IntrinsicTypeKind::Float(crate::FloatKind::F64) => 17,
-                crate::IntrinsicTypeKind::Integer(integer) => {
-                    1 + crate::IntegerKind::ALL
-                        .iter()
-                        .position(|kind| *kind == integer)
-                        .expect("closed integer kind")
-                }
+            let owner = match kind.owner() {
+                crate::IntrinsicTypeKind::Float(crate::FloatKind::F32) => fundamental.float,
+                crate::IntrinsicTypeKind::Float(crate::FloatKind::F64) => fundamental.double,
+                crate::IntrinsicTypeKind::Integer(integer) => fundamental.integer(integer),
                 _ => unreachable!("floating operations have numeric owners"),
             };
-            Some(DefinitionOwnerAtom::Type(concrete_entry(
-                fundamental,
-                index,
-            )))
+            Some(DefinitionOwnerAtom::Type(owner))
         }
-        IntrinsicFunctionKind::Char(kind) => Some(DefinitionOwnerAtom::Type(concrete_entry(
-            fundamental,
+        IntrinsicFunctionKind::Char(kind) => Some(DefinitionOwnerAtom::Type(
             if kind == crate::CharIntrinsic::FromCodeUnchecked {
-                3
+                fundamental.int32
             } else {
-                15
+                fundamental.character
             },
-        ))),
+        )),
         IntrinsicFunctionKind::Integer(kind) => {
             let source = match kind {
                 crate::IntegerIntrinsicKind::NoGcOperation { kind, .. }
                 | crate::IntegerIntrinsicKind::ManagedOperation { kind, .. } => kind,
                 crate::IntegerIntrinsicKind::Conversion { source, .. } => source,
             };
-            let index = crate::IntegerKind::ALL
-                .iter()
-                .position(|candidate| *candidate == source)
-                .expect("every integer intrinsic uses one canonical integer owner");
-            Some(DefinitionOwnerAtom::Type(concrete_entry(
-                fundamental,
-                index + 1,
-            )))
+            Some(DefinitionOwnerAtom::Type(fundamental.integer(source)))
         }
         IntrinsicFunctionKind::PrimitiveUnary(_) => {
-            Some(DefinitionOwnerAtom::Type(concrete_entry(fundamental, 9)))
+            Some(DefinitionOwnerAtom::Type(fundamental.boolean))
         }
         IntrinsicFunctionKind::PrimitiveBinary(_) => {
-            Some(DefinitionOwnerAtom::Type(concrete_entry(fundamental, 10)))
+            Some(DefinitionOwnerAtom::Type(fundamental.string))
         }
-        IntrinsicFunctionKind::ArrayAccess(kind) => {
-            Some(DefinitionOwnerAtom::GenericType(generic_entry(
-                fundamental,
-                if kind == crate::ArrayAccessKind::ImmutableGet {
-                    11
-                } else {
-                    12
-                },
-            )))
-        }
-        IntrinsicFunctionKind::Array(kind) => {
-            Some(DefinitionOwnerAtom::GenericType(generic_entry(
-                fundamental,
-                if matches!(
-                    kind,
-                    crate::ArrayIntrinsic::ToImmutable | crate::ArrayIntrinsic::MutableLength
-                ) {
-                    12
-                } else {
-                    11
-                },
-            )))
-        }
+        IntrinsicFunctionKind::ArrayAccess(kind) => Some(DefinitionOwnerAtom::GenericType(
+            if kind == crate::ArrayAccessKind::ImmutableGet {
+                fundamental.array
+            } else {
+                fundamental.mutable_array
+            },
+        )),
+        IntrinsicFunctionKind::Array(kind) => Some(DefinitionOwnerAtom::GenericType(
+            if matches!(
+                kind,
+                crate::ArrayIntrinsic::ToImmutable | crate::ArrayIntrinsic::MutableLength
+            ) {
+                fundamental.mutable_array
+            } else {
+                fundamental.array
+            },
+        )),
         IntrinsicFunctionKind::Pointer(
             crate::PointerIntrinsic::ToULong
             | crate::PointerIntrinsic::Cast
@@ -89,10 +67,7 @@ pub(super) fn expected_operation_owner(
             | crate::PointerIntrinsic::StoreOffset
             | crate::PointerIntrinsic::Plus
             | crate::PointerIntrinsic::Minus,
-        ) => Some(DefinitionOwnerAtom::GenericType(generic_entry(
-            fundamental,
-            13,
-        ))),
+        ) => Some(DefinitionOwnerAtom::GenericType(fundamental.ptr)),
         IntrinsicFunctionKind::GcPinRaw
         | IntrinsicFunctionKind::GcUnpinRaw
         | IntrinsicFunctionKind::GcGetHandleRaw

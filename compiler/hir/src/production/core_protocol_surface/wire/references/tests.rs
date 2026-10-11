@@ -9,11 +9,7 @@ fn protocol_enum_members_require_an_actual_source_enum_owner() {
         crate::core_protocol_test_support::ordinary_origin(),
     ] {
         let (surface, foundation) = test_support::standalone_at(origin);
-        let CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(option)) =
-            surface.option_protocol().entries()[0]
-        else {
-            panic!("Option role")
-        };
+        let option = surface.option_protocol().option;
         assert_eq!(
             require_source_enum_owner(
                 &foundation,
@@ -21,11 +17,7 @@ fn protocol_enum_members_require_an_actual_source_enum_owner() {
             ),
             Ok(())
         );
-        let CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(boolean)) =
-            surface.fundamental_types().entries()[9]
-        else {
-            panic!("Boolean role")
-        };
+        let boolean = surface.fundamental_types().boolean;
         assert_eq!(
             require_source_enum_owner(
                 &foundation,

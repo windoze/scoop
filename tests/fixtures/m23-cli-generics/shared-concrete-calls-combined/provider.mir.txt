@@ -31,6 +31,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun $get$count @fn2() -> Int <no-gc>
     bb0 entry
       return
@@ -42,4 +44,6 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

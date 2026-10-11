@@ -40,10 +40,10 @@ pub(super) fn lower<'root>(
         if let mir::Type::Struct(id) = ty
             && matches!(
                 module.structs[*id].representation,
-                mir::StructRepresentation::Declared {
+                mir::StructRepresentation::Declared(mir::DeclaredStruct {
                     c_layout: Some(_),
                     ..
-                }
+                })
             )
         {
             builder.storage(ty)?;

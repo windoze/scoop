@@ -43,8 +43,9 @@ fn source_and_dependency_class_instances_share_fields_bases_and_interfaces() {
                     for (_, instance) in instances {
                         let argument = instance.type_arguments[0];
                         assert!(!module.types[instance.canonical_type].gc_free);
-                        let hir::concrete::ClassRepresentation::Declared { fields, base_class } =
-                            &instance.representation
+                        let hir::concrete::ClassRepresentation::Declared(
+                            hir::concrete::DeclaredClass { fields, base_class },
+                        ) = &instance.representation
                         else {
                             panic!("{name} retains its declared field layout");
                         };
@@ -139,7 +140,12 @@ fn class_definitions_keep_recursive_fields_in_their_original_binder_domain() {
                 .collect::<Vec<_>>();
             assert_eq!(instances.len(), 3);
             for (_, instance) in instances {
-                assert_eq!(instance.declared_fields()[0].ty, instance.type_arguments[0]);
+                let hir::concrete::ClassRepresentation::Declared(declared) =
+                    &instance.representation
+                else {
+                    panic!("Link has declared fields")
+                };
+                assert_eq!(declared.fields[0].ty, instance.type_arguments[0]);
             }
             let foundation = hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
             if case == "combined" {

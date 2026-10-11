@@ -536,6 +536,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb31 inline.cont.31
       val $dependency.argument.0: Long
         Type Long
@@ -854,6 +856,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2(args: Array<String>) -> Int
     bb0 entry
       val $inline.14.this: Array<String>
@@ -1755,6 +1759,8 @@ Module
         Local $parameter.value
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb13 inline.cont.13
       val gate: Gate
         Type Gate
@@ -1812,6 +1818,8 @@ Module
         Local $inline.13.this
         Type AtomicLong
         Local $inline.13.address
+      Type Unit
+      UnitLiteral
       goto bb13
   fun iterator @fn5(this: Array<UInt8>) -> Iterator<UInt8>
     bb0 entry
@@ -1873,6 +1881,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn6(this: Array<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -2006,6 +2016,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn9(this: MutableArray<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -2415,6 +2427,8 @@ Module
         Local $parameter.value
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb10 inline.9.entry
       branch bb11 bb12
         Type Boolean
@@ -2489,9 +2503,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type2> closure[function_type2]
         Type (Ptr<UInt8>, Long) -> Unit
@@ -2615,6 +2629,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn18(this: Array<String>, index: Long) -> String
     bb0 entry
@@ -2712,6 +2728,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn21($closure: (Ptr<UInt8>, Long) -> Unit, pointer: Ptr<UInt8>, count: Long) -> Unit
     bb0 entry
       val $dependency.receiver: Ptr<UInt8>
@@ -2890,6 +2908,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb8 while.exit.8
       return
+        Type Unit
+        UnitLiteral
     bb9 while.body.9
       call @scoop_rt_gc_collect direct
       var offset: Long
@@ -3173,9 +3193,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type2> closure[function_type2]
         Type (Ptr<UInt8>, Long) -> Unit
@@ -3672,6 +3692,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn30(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -3724,6 +3746,8 @@ Module
         Type AtomicLong
         Local address
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn36(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3742,6 +3766,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn37(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3760,6 +3786,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn38(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       val $inline.1.this: Ptr<UInt8>

@@ -175,7 +175,7 @@ impl ReferenceCollector<'_> {
             }
             hir::ExprKind::VariantTest { operand, variant } => {
                 self.expression(operand);
-                let owner = variant.owner;
+                let owner = self.lowerer.enum_applications[variant.owner].canonical_type;
                 self.type_reference(owner, origin);
             }
             hir::ExprKind::VariantPayloadProject { operand, field } => {
@@ -351,9 +351,9 @@ impl ReferenceCollector<'_> {
                 self.type_reference(function_type, origin);
                 self.expressions(args);
             }
-            hir::ExprKind::IntegerOperation { arguments, .. } => match arguments {
-                hir::HirIntegerOperationArguments::Unary(operand) => self.expression(operand),
-                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+            hir::ExprKind::IntegerOperation(arguments) => match arguments {
+                hir::IntegerExpression::Unary { operand, .. } => self.expression(operand),
+                hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                     self.expression(lhs);
                     self.expression(rhs);
                 }

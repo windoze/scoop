@@ -152,6 +152,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun AbstractReader.read @fn3(this: AbstractReader) -> Int
     bb0 entry
       trap "call to abstract method `AbstractReader.read`"
@@ -587,6 +589,8 @@ Module
       resume
     bb15 try.end.15
       return
+        Type Unit
+        UnitLiteral
     bb16 try.body.16 unwind bb9
       val $receiver: Reader
         Type Reader
@@ -696,6 +700,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -720,6 +726,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.localRead @fn12() -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -781,6 +789,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn14(this: Continuation<Request>, value: Request) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -870,12 +880,18 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ReaderImpl.$c1 @fn24(this: ReaderImpl) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractReader.$c2 @fn25(this: AbstractReader) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ConcreteReader.$c3 @fn26(this: ConcreteReader) -> Unit
     bb0 entry
       call @fn25 direct
@@ -884,9 +900,13 @@ Module
           Type ConcreteReader
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Calculator.$c4 @fn27(this: Calculator) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Request> @fn28(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -909,6 +929,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Request>[0]
         Type Continuation<Request>
@@ -922,6 +944,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Request>[1]
         Type Continuation<Request>
@@ -933,6 +957,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

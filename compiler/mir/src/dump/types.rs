@@ -15,13 +15,13 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
             &module.structs[*id].type_arguments,
         ),
         Type::Class(id) => match &module.classes[*id].representation {
-            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+            ClassRepresentation::Intrinsic(IntrinsicClassRepresentation::Array { element }) => {
                 format!("Array<{}>", type_name(module, element))
             }
-            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray {
+            ClassRepresentation::Intrinsic(IntrinsicClassRepresentation::MutableArray {
                 element,
             }) => format!("MutableArray<{}>", type_name(module, element)),
-            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Atomic(storage)) => {
+            ClassRepresentation::Intrinsic(IntrinsicClassRepresentation::Atomic(storage)) => {
                 match storage {
                     scoop_identity::AtomicStorage::Reference(value) => {
                         format!("AtomicRef<{}>", type_name(module, value))
@@ -29,19 +29,16 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
                     _ => storage.kind().source_name().to_owned(),
                 }
             }
-            ClassRepresentation::Declared { .. }
+            ClassRepresentation::Declared(DeclaredClass { .. })
             | ClassRepresentation::Intrinsic(
-                IntrinsicTypeRepresentation::String
-                | IntrinsicTypeRepresentation::Any
-                | IntrinsicTypeRepresentation::Nothing,
+                IntrinsicClassRepresentation::String
+                | IntrinsicClassRepresentation::Any
+                | IntrinsicClassRepresentation::Nothing,
             ) => nominal_name(
                 module,
                 &module.classes[*id].name,
                 &module.classes[*id].type_arguments,
             ),
-            ClassRepresentation::Intrinsic(_) => {
-                unreachable!("the intrinsic registry fixes declaration targets")
-            }
         },
         Type::Interface(id) => nominal_name(
             module,

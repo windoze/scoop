@@ -192,6 +192,8 @@ Module
       goto bb9
     bb9 if.merge.9
       return
+        Type Unit
+        UnitLiteral
     bb10 inline.cont.10
       val $array_value.5: Long
         Type Long
@@ -286,6 +288,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn3(this: MutableArray<Long>) -> Iterator<Long>
     bb0 entry
       val $dependency.local.1: List<Long>
@@ -346,6 +350,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn4(this: MutableArray<Long>, index: Long) -> Long
     bb0 entry
@@ -494,6 +500,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn8(this: ListIterator<Long>) -> Option<Long>
     bb0 entry
       branch bb1 bb2
@@ -613,6 +621,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Long) -> Long, arg0: Any) -> Any
     bb0 entry
       call $call.1: Long = <closure:function_type0> closure[function_type0]

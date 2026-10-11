@@ -73,9 +73,13 @@ Module
   fun init.DefaultContainer.$c0 @fn10(this: DefaultContainer) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DefaultContainer.Nested.$c2 @fn11(this: DefaultContainer.Nested) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<DefaultContainer.Nested> @fn12(task: SuspendTask<DefaultContainer.Nested>, completion: Continuation<DefaultContainer.Nested>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -98,6 +102,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<DefaultContainer.Nested>[0]
         Type Continuation<DefaultContainer.Nested>
@@ -111,6 +117,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<DefaultContainer.Nested>[1]
         Type Continuation<DefaultContainer.Nested>
@@ -122,6 +130,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -179,6 +189,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<DefaultContainer>[0]
         Type Continuation<DefaultContainer>
@@ -192,6 +204,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<DefaultContainer>[1]
         Type Continuation<DefaultContainer>
@@ -203,6 +217,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

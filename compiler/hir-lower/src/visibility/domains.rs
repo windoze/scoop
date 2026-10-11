@@ -203,7 +203,7 @@ impl Lowerer {
                 }
             }
             hir::ExportDefaultConstructorTarget::Variant(variant) => {
-                self.type_access_domain(variant.owner)
+                self.type_access_domain(self.enum_applications[variant.owner].canonical_type)
             }
         }
     }

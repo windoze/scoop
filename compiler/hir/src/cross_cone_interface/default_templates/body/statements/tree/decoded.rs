@@ -71,6 +71,10 @@ impl DecodedDefaultStatementV1 {
         R: DefaultStatementReferenceResolver<E>,
         L: TemplateLocalSelectorResolver,
     {
+        let definition_origin = self
+            .definition_origin
+            .resolve(resolver)
+            .map_err(DefaultStatementResolutionError::DefinitionOrigin)?;
         let kind = match self.kind {
             DecodedDefaultStatementKindV1::ContextScope { value, body } => {
                 DefaultStatementKindV1::ContextScope {
@@ -102,9 +106,15 @@ impl DecodedDefaultStatementV1 {
                         .map_err(DefaultStatementResolutionError::InitializationUnit)?,
                 )
             }
-            DecodedDefaultStatementKindV1::Return(value) => DefaultStatementKindV1::Return(
-                resolve_optional_expression(value, resolver, locals, 4, 1)?,
-            ),
+            DecodedDefaultStatementKindV1::Return(value) => {
+                let value = match resolve_optional_expression(value, resolver, locals, 4, 1)? {
+                    OptionalDefaultExpressionV1::Present(value) => value,
+                    OptionalDefaultExpressionV1::Absent => Box::new(
+                        crate::DefaultExpressionV1::unit_at(definition_origin.clone()),
+                    ),
+                };
+                DefaultStatementKindV1::Return(value)
+            }
             DecodedDefaultStatementKindV1::ValDecl { pattern, init } => {
                 DefaultStatementKindV1::ValDecl {
                     pattern: pattern
@@ -175,10 +185,6 @@ impl DecodedDefaultStatementV1 {
                 resolve_expression(*value, resolver, locals, 14, 1)?,
             )),
         };
-        let definition_origin = self
-            .definition_origin
-            .resolve(resolver)
-            .map_err(DefaultStatementResolutionError::DefinitionOrigin)?;
         DefaultStatementV1::try_new(kind, definition_origin)
             .map_err(DefaultStatementResolutionError::Record)
     }

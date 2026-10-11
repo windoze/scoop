@@ -92,6 +92,8 @@ Module
         Type String
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun EffectiveDelegate.getValue @fn3(this: EffectiveDelegate, thisRef: Unit) -> Int
     bb0 entry
       return
@@ -107,6 +109,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Seed.provideDelegate @fn5(this: Seed) -> EffectiveDelegate
     bb0 entry
       val $dependency.argument.0: String
@@ -197,6 +201,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun makeUnitDelegate @fn9() -> UnitDelegate
     bb0 entry
       val $dependency.argument.0: String
@@ -345,6 +351,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn12() -> Unit
     bb0 entry
       call $call.1: ExtensionDelegate = @fn10 direct
@@ -355,6 +363,8 @@ Module
         Type ExtensionDelegate
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn13() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -379,6 +389,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -475,6 +487,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$1 @fn16() -> Unit
     bb0 entry
       call $call.1: UnitDelegate = @fn9 direct
@@ -485,6 +499,8 @@ Module
         Type UnitDelegate
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -509,6 +525,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -605,6 +623,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$2 @fn20() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -628,6 +648,8 @@ Module
         Type EffectiveDelegate
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn21() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -652,6 +674,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -748,6 +772,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn24(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -772,6 +798,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn25(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -796,6 +824,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn26(this: Continuation<ExtensionDelegate>, value: ExtensionDelegate) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -816,6 +846,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.UnitDelegate.$c0 @fn31(this: UnitDelegate, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -824,6 +856,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.EffectiveDelegate.$c3 @fn32(this: EffectiveDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -832,6 +866,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Seed.$c2 @fn33(this: Seed, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -840,6 +876,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<ExtensionDelegate> @fn34(task: SuspendTask<ExtensionDelegate>, completion: Continuation<ExtensionDelegate>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -862,6 +900,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn26 interface Continuation<ExtensionDelegate>[0]
         Type Continuation<ExtensionDelegate>
@@ -875,6 +915,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn27 interface Continuation<ExtensionDelegate>[1]
         Type Continuation<ExtensionDelegate>
@@ -886,6 +928,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

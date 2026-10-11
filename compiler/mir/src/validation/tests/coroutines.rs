@@ -4,7 +4,6 @@ mod signatures;
 
 struct CoroutineFixture {
     module: Module,
-    wrapper: FunctionId,
     driver: FunctionId,
     success_entry: BlockId,
     failure_entry: BlockId,
@@ -19,10 +18,10 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -40,10 +39,10 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "ContinuationAdapter".to_string(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: vec![continuation],
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -133,7 +132,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "CoroutineFrame$pending".to_string(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: vec![
                 Field {
                     name: "state".to_string(),
@@ -160,7 +159,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
                 },
             ],
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -209,7 +208,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         )
         .unwrap(),
     );
-    module.classes[adapter].representation = ClassRepresentation::Declared {
+    module.classes[adapter].representation = ClassRepresentation::Declared(DeclaredClass {
         fields: vec![
             Field {
                 name: "frame".to_string(),
@@ -221,7 +220,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
             },
         ],
         base_class: None,
-    };
+    });
 
     let resume = callback(&mut module, "resume", adapter, result.clone());
     let resume_failure = callback(
@@ -435,7 +434,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     install_generated_callables(&mut module);
     CoroutineFixture {
         module,
-        wrapper,
         driver,
         success_entry,
         failure_entry,
@@ -548,7 +546,15 @@ fn continuation_adapter_fields_must_match_its_identity_storage() {
         .next()
         .unwrap();
     let adapter = point.adapter();
-    fixture.module.classes[adapter].declared_fields_mut()[0].ty = Type::Unit;
+    {
+        let ClassRepresentation::Declared(declared) =
+            &mut fixture.module.classes[adapter].representation
+        else {
+            panic!("test fixture has declared fields")
+        };
+        &mut declared.fields[0]
+    }
+    .ty = Type::Unit;
 
     assert!(matches!(
         fixture.module.validate(),
@@ -660,38 +666,6 @@ fn continuation_adapter_identity_must_retain_its_protocol_signatures() {
             ..
         })
     ));
-}
-
-#[test]
-fn final_validation_rejects_a_transient_pending_call_context() {
-    let mut fixture = coroutine_fixture(false);
-    let function = fixture.wrapper;
-    let block = fixture.module.functions[function].body.entry;
-    fixture.module.functions[function].body.blocks[block]
-        .statements
-        .push(Statement {
-            kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget {
-                    kind: CallKind::Direct,
-                    callee: Callee::Runtime(RuntimeFn::GcCollect),
-                },
-                args: Vec::new(),
-                pending: CoroutinePendingContext::Chain(NonEmptyCoroutinePendingChain::new(
-                    CoroutinePendingSourceTransfer::Fallthrough(
-                        CoroutineCleanupFallthroughTarget::new(block),
-                    ),
-                    Vec::new(),
-                )),
-            })),
-            span: SourceSpan::new(0, 0).unwrap(),
-        });
-    assert_eq!(
-        fixture.module.validate(),
-        Err(MirValidationError {
-            location: MirValidationLocation::FunctionBlock { function, block },
-            kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
-        })
-    );
 }
 
 #[test]

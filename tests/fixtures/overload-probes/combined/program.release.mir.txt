@@ -93,6 +93,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       call $inline.1.$call.1: String = @fn7 direct
         Type (Int) -> String
@@ -216,6 +218,8 @@ Module
         Local $inline.7.this
         Type String
         Local $inline.7.text
+      Type Unit
+      UnitLiteral
       goto bb7
   fun $lambda.0 @fn3($closure: (Int) -> String, value: Int) -> String
     bb0 entry
@@ -259,6 +263,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.0 @fn5($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $argument.0: Int
@@ -317,6 +323,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.1 @fn7($closure: (Int) -> String, value: Int) -> String
     bb0 entry
       val nested: () -> String
@@ -464,6 +472,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn13($source: (Int) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type2> closure[function_type2]

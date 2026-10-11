@@ -1009,6 +1009,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Local.$c0 @fn14(enabled: Boolean, label: String, value: Option<Payload>) -> Local<Payload> <no-gc>
     bb0 entry
       return
@@ -1075,6 +1077,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -1088,6 +1092,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -1099,6 +1105,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

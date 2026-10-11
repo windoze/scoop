@@ -342,6 +342,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun roundTrip @fn3(value: LaterValue) -> LaterValue
     bb0 entry
       val $dependency.local.1: LaterValue
@@ -571,11 +573,9 @@ Module
       val $dependency.local.2: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.1
-      Type Unit
-      PtrLoad Unit
-        Type Ptr<Unit>
-        Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn12(value: LaterValue) -> LaterValue
     bb0 entry
       val $dependency.local.1: Ptr<LaterValue>
@@ -732,6 +732,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun ctor.LaterValue.$c0 @fn24(number: Int) -> LaterValue <no-gc>
     bb0 entry
       return
@@ -761,6 +763,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<LaterValue>[0]
         Type Continuation<LaterValue>
@@ -774,6 +778,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<LaterValue>[1]
         Type Continuation<LaterValue>
@@ -785,6 +791,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

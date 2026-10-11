@@ -109,6 +109,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Base.get @fn1(this: Base<Int>) -> Int
     bb0 entry
       return
@@ -172,6 +174,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun read @fn7(base: Base<String>) -> String
     bb0 entry
       val $receiver: Base<String>
@@ -207,6 +211,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Base.choose @fn9(this: Base<Int>, other: String) -> String
     bb0 entry
       return
@@ -233,6 +239,8 @@ Module
         Type Int
         Local childValue
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn11(this: Derived<String>, childValue: String) -> Unit
     bb0 entry
       val $argument.0: String
@@ -254,6 +262,8 @@ Module
         Type String
         Local childValue
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn12(this: Base<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -262,6 +272,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn13(this: Base<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -270,6 +282,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- Base.get
   instance mi1 function=@fn2 <- Base.get
   instance mi2 function=@fn3 <- Derived.get

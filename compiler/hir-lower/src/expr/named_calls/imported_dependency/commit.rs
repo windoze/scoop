@@ -191,12 +191,16 @@ impl Lowerer {
         if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
             candidate.interface().declaration()
         {
+            let hir::Type::Enum(owner) = self.types[result_type] else {
+                self.error(
+                    call_span,
+                    "an enum variant constructor must return its enum application".into(),
+                );
+                return None;
+            };
             return Some(hir::Expr {
                 kind: hir::ExprKind::VariantConstruct {
-                    variant: hir::EnumVariantApplication {
-                        owner: result_type,
-                        variant,
-                    },
+                    variant: hir::EnumVariantApplication { owner, variant },
                     args: parameter_values,
                 },
                 ty: result_type,

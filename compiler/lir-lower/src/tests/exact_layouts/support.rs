@@ -38,7 +38,7 @@ impl Fixture {
             ));
         }
         for (id, definition) in module.structs.iter_mut() {
-            if let mir::StructRepresentation::Declared { fields, .. } =
+            if let mir::StructRepresentation::Declared(mir::DeclaredStruct { fields, .. }) =
                 &mut definition.representation
             {
                 let owner = nominal(&mir::Type::Struct(id));

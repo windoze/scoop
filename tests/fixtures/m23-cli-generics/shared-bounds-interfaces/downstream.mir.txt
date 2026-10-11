@@ -622,24 +622,22 @@ Module
         Local $call.1
   fun read @fn19(this: LocalHolder<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type LocalHolder<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn20(this: Holder<Unit>) -> Unit
     bb0 entry
       call @fn29 direct
         Type Holder<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn21(this: Bridge<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Bridge<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun readLocal @fn22(source: LocalHolder<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: LocalReader<Unit>
@@ -654,6 +652,8 @@ Module
         Type LocalReader<Unit>
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun readBound @fn23(value: Holder<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Holder<Unit>
@@ -663,6 +663,8 @@ Module
         Type Holder<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun readBound @fn24(value: Bridge<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Bridge<Unit>
@@ -672,6 +674,8 @@ Module
         Type Bridge<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun value @fn25(this: Holder<Later>) -> Later
     bb0 entry
       return
@@ -710,11 +714,9 @@ Module
         Local $call.1
   fun value @fn29(this: Holder<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Holder<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun readBase @fn30(source: LocalReader<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: LocalReader<Unit>
@@ -724,6 +726,8 @@ Module
         Type LocalReader<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun LocalReader.read @fn31(this: LocalReader<Later>) -> Later
     bb0 entry
       trap "call to abstract method `LocalReader.read`"
@@ -753,6 +757,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHolder.$c0 @fn39(this: LocalHolder<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -761,6 +767,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c1 @fn40(this: Holder<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -769,6 +777,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Bridge.$c2 @fn41(this: Bridge<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -777,6 +787,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHolder.$c0 @fn42(this: LocalHolder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -785,6 +797,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c1 @fn43(this: Holder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -793,6 +807,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Bridge.$c2 @fn44(this: Bridge<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -801,6 +817,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHolder.$c0 @fn45(this: LocalHolder<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -809,6 +827,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c1 @fn46(this: Holder<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -817,6 +837,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Bridge.$c2 @fn47(this: Bridge<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -825,6 +847,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn48(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -847,6 +871,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -860,6 +886,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -871,6 +899,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

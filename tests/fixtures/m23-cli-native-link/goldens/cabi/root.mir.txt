@@ -681,6 +681,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn3(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -724,6 +726,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
@@ -748,6 +752,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -772,6 +778,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -796,6 +804,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
@@ -820,6 +830,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
@@ -844,6 +856,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn10(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
@@ -868,6 +882,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
@@ -892,6 +908,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun envelope @fn12(marker: Marker, value: Envelope, callback: FunPtr<(Envelope) -> Envelope>) -> Envelope
     bb0 entry
       val $dependency.local.3: Envelope
@@ -938,6 +956,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun pointer @fn14(marker: Marker, value: Ptr<Int>, other: Option<Ptr<Int>>, callback: Option<FunPtr<(Int) -> Int>>) -> Int
     bb0 entry
       val $dependency.local.4: Ptr<Int>
@@ -992,6 +1012,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn16(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -1035,6 +1057,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for shiftEnvelope @fn19($result: Ptr<Envelope>, $arg0: Ptr<Envelope>) -> Unit <no-gc>
     bb0 entry
       call $value: Envelope = @fn1 direct
@@ -1049,6 +1073,8 @@ Module
         Type Envelope
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- equalTo
   instance mi1 function=@fn4 <- println
   instance mi2 function=@fn5 <- println

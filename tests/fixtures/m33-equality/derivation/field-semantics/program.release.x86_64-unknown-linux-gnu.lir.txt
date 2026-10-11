@@ -1023,6 +1023,7 @@ Module
     heap_store local261 +16 integer<Int>(0x00000002)
     heap_store local261 +20 integer<Int>(0x00000002)
     heap_store local261 +24 local264
+    t72 = aggregate () : {}
     br @inline.cont.39
   block inline.cont.41
     store local192 -> local86
@@ -1032,8 +1033,8 @@ Module
     store integer<Int>(0x00000002) -> local83
     store integer<Int>(0x00000002) -> local84
     store local82 -> local85
-    call managed-direct-target4 sp<managed-call:15> live=[local32:ptr<managed>@0, local49:struct1@0+8, local85:ptr<managed>@0, local86:ptr<managed>@0, local90:struct1@0+8] t72 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
-    store t72 -> local193
+    call managed-direct-target4 sp<managed-call:15> live=[local32:ptr<managed>@0, local49:struct1@0+8, local85:ptr<managed>@0, local86:ptr<managed>@0, local90:struct1@0+8] t73 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t73 -> local193
     store local193 -> local261
     store integer<Int>(0x00000002) -> local262
     store integer<Int>(0x00000002) -> local263
@@ -1043,25 +1044,26 @@ Module
     heap_store local265 +16 integer<Int>(0x00000003)
     heap_store local265 +20 integer<Int>(0x00000001)
     heap_store local265 +24 local268
+    t74 = aggregate () : {}
     br @inline.cont.41
   block inline.cont.43
     store local269 -> local191
     store local66 -> local373
     store local191 -> local374
-    call managed-direct-target5 sp<managed-call:11> live=[local32:ptr<managed>@0, local49:struct1@0+8, local373:struct1@0+8, local374:struct1@0+8] t73 = sig=direct5 (indirect<struct1 size=16 align=8 scan=refs[0, 8]>, indirect<struct1 size=16 align=8 scan=refs[0, 8]>) -> i1 local-fn3(indirect local373, indirect local374)
-    store t73 -> local67
+    call managed-direct-target5 sp<managed-call:11> live=[local32:ptr<managed>@0, local49:struct1@0+8, local373:struct1@0+8, local374:struct1@0+8] t75 = sig=direct5 (indirect<struct1 size=16 align=8 scan=refs[0, 8]>, indirect<struct1 size=16 align=8 scan=refs[0, 8]>) -> i1 local-fn3(indirect local373, indirect local374)
+    store t75 -> local67
     store local67 -> local68
     call managed-void-target17 sp<managed-call:12> live=[local32:ptr<managed>@0, local49:struct1@0+8] sig=void17 (i1) local-fn11(local68)
-    t74 = aggregate () : {}
-    t75 = heap_load local32 +16 : i32
-    store t75 -> local69
+    t76 = aggregate () : {}
+    t77 = heap_load local32 +16 : i32
+    store t77 -> local69
     store integer<Int>(0x0000000c) -> local70
     store integer<Int>(0x0000000c) -> local71
-    t76 = integer_compare_Equal<Int> local69, integer<Int>(0x0000000c) : i1
-    store t76 -> local72
+    t78 = integer_compare_Equal<Int> local69, integer<Int>(0x0000000c) : i1
+    store t78 -> local72
     store local72 -> local73
     call managed-void-target18 sp<managed-call:13> live=[local32:ptr<managed>@0, local49:struct1@0+8] sig=void18 (i1) local-fn11(local73)
-    t77 = aggregate () : {}
+    t79 = aggregate () : {}
     heap_store local32 +16 integer<Int>(0x00000000)
     store local49 -> local90
     store integer<Int>(0x00000003) -> local74
@@ -1070,16 +1072,16 @@ Module
     store integer<Int>(0x00000003) -> local77
     store integer<Int>(0x00000001) -> local78
     store local76 -> local79
-    call managed-direct-target6 sp<managed-call:14> live=[local32:ptr<managed>@0, local49:struct1@0+8, local79:ptr<managed>@0, local90:struct1@0+8] t78 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
-    store t78 -> local192
+    call managed-direct-target6 sp<managed-call:14> live=[local32:ptr<managed>@0, local49:struct1@0+8, local79:ptr<managed>@0, local90:struct1@0+8] t80 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t80 -> local192
     store local192 -> local265
     store integer<Int>(0x00000003) -> local266
     store integer<Int>(0x00000001) -> local267
     store local79 -> local268
     br @inline.41.entry
   block inline.43.entry
-    t79 = aggregate (local270, local271) : struct1
-    store t79 -> local269
+    t81 = aggregate (local270, local271) : struct1
+    store t81 -> local269
     br @inline.cont.43
   block inline.cont.45
     store local190 -> local63
@@ -1092,6 +1094,7 @@ Module
     heap_store local272 +16 integer<Int>(0x00000002)
     heap_store local272 +20 integer<Int>(0x00000002)
     heap_store local272 +24 local275
+    t82 = aggregate () : {}
     br @inline.cont.45
   block inline.cont.47
     store local189 -> local62
@@ -1101,8 +1104,8 @@ Module
     store integer<Int>(0x00000002) -> local59
     store integer<Int>(0x00000002) -> local60
     store local58 -> local61
-    call managed-direct-target7 sp<managed-call:10> live=[local32:ptr<managed>@0, local49:struct1@0+8, local61:ptr<managed>@0, local62:ptr<managed>@0, local66:struct1@0+8] t80 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
-    store t80 -> local190
+    call managed-direct-target7 sp<managed-call:10> live=[local32:ptr<managed>@0, local49:struct1@0+8, local61:ptr<managed>@0, local62:ptr<managed>@0, local66:struct1@0+8] t83 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t83 -> local190
     store local190 -> local272
     store integer<Int>(0x00000002) -> local273
     store integer<Int>(0x00000002) -> local274
@@ -1112,6 +1115,7 @@ Module
     heap_store local276 +16 integer<Int>(0x00000001)
     heap_store local276 +20 integer<Int>(0x00000001)
     heap_store local276 +24 local279
+    t84 = aggregate () : {}
     br @inline.cont.47
   block inline.cont.49
     store local280 -> local49
@@ -1122,16 +1126,16 @@ Module
     store integer<Int>(0x00000001) -> local53
     store integer<Int>(0x00000001) -> local54
     store local52 -> local55
-    call managed-direct-target8 sp<managed-call:9> live=[local32:ptr<managed>@0, local49:struct1@0+8, local55:ptr<managed>@0, local66:struct1@0+8] t81 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
-    store t81 -> local189
+    call managed-direct-target8 sp<managed-call:9> live=[local32:ptr<managed>@0, local49:struct1@0+8, local55:ptr<managed>@0, local66:struct1@0+8] t85 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t85 -> local189
     store local189 -> local276
     store integer<Int>(0x00000001) -> local277
     store integer<Int>(0x00000001) -> local278
     store local55 -> local279
     br @inline.47.entry
   block inline.49.entry
-    t82 = aggregate (local281, local282) : struct1
-    store t82 -> local280
+    t86 = aggregate (local281, local282) : struct1
+    store t86 -> local280
     br @inline.cont.49
   block inline.cont.51
     store local188 -> local46
@@ -1144,6 +1148,7 @@ Module
     heap_store local283 +16 integer<Int>(0x00000002)
     heap_store local283 +20 integer<Int>(0x00000002)
     heap_store local283 +24 local286
+    t87 = aggregate () : {}
     br @inline.cont.51
   block inline.cont.53
     store local187 -> local45
@@ -1153,8 +1158,8 @@ Module
     store integer<Int>(0x00000002) -> local42
     store integer<Int>(0x00000002) -> local43
     store local41 -> local44
-    call managed-direct-target9 sp<managed-call:8> live=[local32:ptr<managed>@0, local44:ptr<managed>@0, local45:ptr<managed>@0] t83 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
-    store t83 -> local188
+    call managed-direct-target9 sp<managed-call:8> live=[local32:ptr<managed>@0, local44:ptr<managed>@0, local45:ptr<managed>@0] t88 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t88 -> local188
     store local188 -> local283
     store integer<Int>(0x00000002) -> local284
     store integer<Int>(0x00000002) -> local285
@@ -1164,6 +1169,7 @@ Module
     heap_store local287 +16 integer<Int>(0x00000001)
     heap_store local287 +20 integer<Int>(0x00000001)
     heap_store local287 +24 local290
+    t89 = aggregate () : {}
     br @inline.cont.53
   block inline.cont.55
     store local186 -> local32
@@ -1173,8 +1179,8 @@ Module
     store integer<Int>(0x00000001) -> local36
     store integer<Int>(0x00000001) -> local37
     store local35 -> local38
-    call managed-direct-target10 sp<managed-call:7> live=[local32:ptr<managed>@0, local38:ptr<managed>@0] t84 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
-    store t84 -> local187
+    call managed-direct-target10 sp<managed-call:7> live=[local32:ptr<managed>@0, local38:ptr<managed>@0] t90 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t90 -> local187
     store local187 -> local287
     store integer<Int>(0x00000001) -> local288
     store integer<Int>(0x00000001) -> local289
@@ -1182,26 +1188,27 @@ Module
     br @inline.53.entry
   block inline.55.entry
     heap_store local291 +16 integer<Int>(0x00000000)
+    t91 = aggregate () : {}
     br @inline.cont.55
   block inline.cont.57
     store local293 -> local185
-    t85 = Not local185 : i1
-    store t85 -> local28
+    t92 = Not local185 : i1
+    store t92 -> local28
     store local28 -> local29
     call managed-void-target19 sp<managed-call:5> live=[] sig=void19 (i1) local-fn11(local29)
-    t86 = aggregate () : {}
+    t93 = aggregate () : {}
     store integer<Int>(0x00000000) -> local30
     store integer<Int>(0x00000000) -> local31
-    call managed-direct-target11 sp<managed-call:6> live=[] t87 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t87 -> local186
+    call managed-direct-target11 sp<managed-call:6> live=[] t94 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
+    store t94 -> local186
     store local186 -> local291
     store integer<Int>(0x00000000) -> local292
     br @inline.55.entry
   block inline.57.entry
-    t88 = extract local294, 0 : ptr<managed>
-    store t88 -> local344
-    t89 = extract local295, 0 : ptr<managed>
-    store t89 -> local345
+    t95 = extract local294, 0 : ptr<managed>
+    store t95 -> local344
+    t96 = extract local295, 0 : ptr<managed>
+    store t96 -> local345
     br @inline.87.entry
   block inline.cont.59
     store local297 -> local184
@@ -1209,8 +1216,8 @@ Module
     store local184 -> local295
     br @inline.57.entry
   block inline.59.entry
-    t90 = aggregate (local298) : struct0
-    store t90 -> local297
+    t97 = aggregate (local298) : struct0
+    store t97 -> local297
     br @inline.cont.59
   block inline.cont.61
     store local183 -> local25
@@ -1229,15 +1236,15 @@ Module
     store integer<Int>(0x00000002) -> local22
     store integer<Int>(0x0000000a) -> local23
     store integer<Int>(0x00000002) -> local24
-    call managed-direct-target12 sp<managed-call:4> live=[local27:struct0@0] t91 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
-    store t91 -> local183
+    call managed-direct-target12 sp<managed-call:4> live=[local27:struct0@0] t98 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
+    store t98 -> local183
     store local183 -> local299
     store integer<Int>(0x0000000a) -> local300
     store integer<Int>(0x00000002) -> local301
     br @inline.61.entry
   block inline.63.entry
-    t92 = aggregate (local305) : struct0
-    store t92 -> local304
+    t99 = aggregate (local305) : struct0
+    store t99 -> local304
     br @inline.cont.63
   block inline.cont.65
     store local182 -> local19
@@ -1254,22 +1261,22 @@ Module
     store local311 -> local13
     store local13 -> local14
     call managed-void-target20 sp<managed-call:2> live=[] sig=void20 (i1) local-fn11(local14)
-    t93 = aggregate () : {}
+    t100 = aggregate () : {}
     store integer<Int>(0x0000000a) -> local15
     store integer<Int>(0x00000001) -> local16
     store integer<Int>(0x0000000a) -> local17
     store integer<Int>(0x00000001) -> local18
-    call managed-direct-target13 sp<managed-call:3> live=[] t94 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
-    store t94 -> local182
+    call managed-direct-target13 sp<managed-call:3> live=[] t101 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
+    store t101 -> local182
     store local182 -> local306
     store integer<Int>(0x0000000a) -> local307
     store integer<Int>(0x00000001) -> local308
     br @inline.65.entry
   block inline.67.entry
-    t95 = extract local312, 0 : ptr<managed>
-    store t95 -> local334
-    t96 = extract local313, 0 : ptr<managed>
-    store t96 -> local335
+    t102 = extract local312, 0 : ptr<managed>
+    store t102 -> local334
+    t103 = extract local313, 0 : ptr<managed>
+    store t103 -> local335
     br @inline.81.entry
   block inline.cont.69
     store local315 -> local181
@@ -1277,8 +1284,8 @@ Module
     store local181 -> local313
     br @inline.67.entry
   block inline.69.entry
-    t97 = aggregate (local316) : struct0
-    store t97 -> local315
+    t104 = aggregate (local316) : struct0
+    store t104 -> local315
     br @inline.cont.69
   block inline.cont.71
     store local180 -> local10
@@ -1297,15 +1304,15 @@ Module
     store integer<Int>(0x00000001) -> local7
     store integer<Int>(0x00000014) -> local8
     store integer<Int>(0x00000001) -> local9
-    call managed-direct-target14 sp<managed-call:1> live=[local12:struct0@0] t98 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
-    store t98 -> local180
+    call managed-direct-target14 sp<managed-call:1> live=[local12:struct0@0] t105 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
+    store t105 -> local180
     store local180 -> local317
     store integer<Int>(0x00000014) -> local318
     store integer<Int>(0x00000001) -> local319
     br @inline.71.entry
   block inline.73.entry
-    t99 = aggregate (local323) : struct0
-    store t99 -> local322
+    t106 = aggregate (local323) : struct0
+    store t106 -> local322
     br @inline.cont.73
   block inline.cont.75
     store local179 -> local4
@@ -1320,53 +1327,61 @@ Module
     br @inline.77.entry
   block inline.cont.77
     heap_store local324 +24 integer<Int>(0x0000000a)
+    t107 = aggregate () : {}
     br @inline.cont.75
   block inline.77.entry
     heap_store local329 +16 integer<Int>(0x00000001)
+    t108 = aggregate () : {}
     br @inline.cont.77
   block inline.cont.79
     heap_store local317 +24 integer<Int>(0x00000014)
+    t109 = aggregate () : {}
     br @inline.cont.71
   block inline.79.entry
     heap_store local331 +16 integer<Int>(0x00000001)
+    t110 = aggregate () : {}
     br @inline.cont.79
   block inline.cont.81
     store local333 -> local314
     store local314 -> local311
     br @inline.cont.67
   block inline.81.entry
-    t100 = heap_load local334 +16 : i32
-    store t100 -> local336
-    t101 = heap_load local335 +16 : i32
-    store t101 -> local337
+    t111 = heap_load local334 +16 : i32
+    store t111 -> local336
+    t112 = heap_load local335 +16 : i32
+    store t112 -> local337
     store local337 -> local338
-    t102 = integer_compare_Equal<Int> local336, local338 : i1
-    store t102 -> local333
+    t113 = integer_compare_Equal<Int> local336, local338 : i1
+    store t113 -> local333
     br @inline.cont.81
   block inline.cont.83
     heap_store local306 +24 integer<Int>(0x0000000a)
+    t114 = aggregate () : {}
     br @inline.cont.65
   block inline.83.entry
     heap_store local339 +16 integer<Int>(0x00000001)
+    t115 = aggregate () : {}
     br @inline.cont.83
   block inline.cont.85
     heap_store local299 +24 integer<Int>(0x0000000a)
+    t116 = aggregate () : {}
     br @inline.cont.61
   block inline.85.entry
     heap_store local341 +16 integer<Int>(0x00000002)
+    t117 = aggregate () : {}
     br @inline.cont.85
   block inline.cont.87
     store local343 -> local296
     store local296 -> local293
     br @inline.cont.57
   block inline.87.entry
-    t103 = heap_load local344 +16 : i32
-    store t103 -> local346
-    t104 = heap_load local345 +16 : i32
-    store t104 -> local347
+    t118 = heap_load local344 +16 : i32
+    store t118 -> local346
+    t119 = heap_load local345 +16 : i32
+    store t119 -> local347
     store local347 -> local348
-    t105 = integer_compare_Equal<Int> local346, local348 : i1
-    store t105 -> local343
+    t120 = integer_compare_Equal<Int> local346, local348 : i1
+    store t120 -> local343
     br @inline.cont.87
   block inline.cont.89
     store local349 -> local231
@@ -1374,12 +1389,12 @@ Module
     br @inline.cont.19
   block inline.89.entry
     store local350 -> local352
-    t106 = ptr_to_ulong local352 : i64
-    store t106 -> local354
+    t121 = ptr_to_ulong local352 : i64
+    store t121 -> local354
     store local351 -> local353
-    t107 = ptr_to_ulong local353 : i64
-    t108 = integer_compare_Equal<ULong> local354, t107 : i1
-    store t108 -> local349
+    t122 = ptr_to_ulong local353 : i64
+    t123 = integer_compare_Equal<ULong> local354, t122 : i1
+    store t123 -> local349
     br @inline.cont.89
   block inline.cont.91
     store local355 -> local225
@@ -1387,12 +1402,12 @@ Module
     br @inline.cont.15
   block inline.91.entry
     store local356 -> local358
-    t109 = ptr_to_ulong local358 : i64
-    store t109 -> local360
+    t124 = ptr_to_ulong local358 : i64
+    store t124 -> local360
     store local357 -> local359
-    t110 = ptr_to_ulong local359 : i64
-    t111 = integer_compare_Equal<ULong> local360, t110 : i1
-    store t111 -> local355
+    t125 = ptr_to_ulong local359 : i64
+    t126 = integer_compare_Equal<ULong> local360, t125 : i1
+    store t126 -> local355
     br @inline.cont.91
   block inline.cont.93
     store local361 -> local221
@@ -1400,12 +1415,12 @@ Module
     br @inline.cont.13
   block inline.93.entry
     store local362 -> local364
-    t112 = ptr_to_ulong local364 : i64
-    store t112 -> local366
+    t127 = ptr_to_ulong local364 : i64
+    store t127 -> local366
     store local363 -> local365
-    t113 = ptr_to_ulong local365 : i64
-    t114 = integer_compare_Equal<ULong> local366, t113 : i1
-    store t114 -> local361
+    t128 = ptr_to_ulong local365 : i64
+    t129 = integer_compare_Equal<ULong> local366, t128 : i1
+    store t129 -> local361
     br @inline.cont.93
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
@@ -1448,6 +1463,7 @@ Module
     ret
   block inline.1.entry
     heap_store local2 +16 local3
+    t0 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$d3c41a05b1cc9a25a14e252c285242194e2163494d4920fe64e14941240e287c(ptr<managed>, i32) -> void
   block entry

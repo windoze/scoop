@@ -55,8 +55,9 @@ fn project<'a>(
             .nominal_specialization(ty)
             .is_some()
             && let concrete::TypeKind::Class(class) = local.types[ty].kind
-            && let concrete::ClassRepresentation::Declared { fields, .. } =
-                &local.classes[class].representation
+            && let concrete::ClassRepresentation::Declared(concrete::DeclaredClass {
+                fields, ..
+            }) = &local.classes[class].representation
         {
             for field in fields {
                 projector.visit_exact(projector.exact(field.ty)?, false)?;
@@ -197,9 +198,11 @@ impl FactProjector<'_> {
                 zero
             }
             concrete::TypeKind::Struct(id) => match &self.local.structs[*id].representation {
-                concrete::StructRepresentation::Declared {
-                    attributes, fields, ..
-                } if attributes.c_layout.is_none() => {
+                concrete::StructRepresentation::Declared(concrete::DeclaredStruct {
+                    attributes,
+                    fields,
+                    ..
+                }) if attributes.c_layout.is_none() => {
                     let mut zero = true;
                     for field in fields {
                         zero &= self.is_zero_sized(self.exact(field.ty)?)?;

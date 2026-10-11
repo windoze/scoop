@@ -21,7 +21,7 @@ pub(super) fn validate_foreign_callback_metadata(
         if family.callback.into_raw().into_u32() as usize >= module.structs.len() {
             return Err(fail("callback struct reference is out of bounds"));
         }
-        let StructRepresentation::Declared { fields, .. } =
+        let StructRepresentation::Declared(DeclaredStruct { fields, .. }) =
             &module.structs[family.callback].representation
         else {
             return Err(fail("callback type must be a declared struct"));

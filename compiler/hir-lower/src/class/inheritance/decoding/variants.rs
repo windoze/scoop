@@ -3,6 +3,7 @@ use super::*;
 impl Lowerer {
     pub(super) fn decode_variants(
         &mut self,
+        application: hir::EnumApplicationId,
         context: CodingContext,
         decoder: hir::Expr,
         span: Span,
@@ -40,7 +41,7 @@ impl Lowerer {
         let result = self.alloc_hidden("decoded_variant", context.target);
         let mut names = std::collections::HashSet::new();
         let mut branches = Vec::new();
-        for variant in self.enum_variants(context.target) {
+        for variant in self.enum_variants(application) {
             let (wire, record) = self.decoding_variant_shape(&variant, span)?;
             if !names.insert(wire.clone()) {
                 self.error(
@@ -105,9 +106,7 @@ impl Lowerer {
         variant: &crate::types::EnumVariant,
         span: Span,
     ) -> Option<(String, DecodeRecord)> {
-        let application = self
-            .nominal_application(variant.application.owner)
-            .expect("a variant belongs to a nominal application");
+        let application = self.enum_applications[variant.application.owner].clone();
         let index = self.enum_variant_index(variant.application);
         let keyed = variant.style != hir::VariantStyle::Positional;
         if let Some(enumeration) = self.source_enum_id(application.template) {
@@ -120,7 +119,7 @@ impl Lowerer {
                 )
                 .expect("variants cannot be Transient");
             let mut record = self.current_decoding_record(
-                variant.application.owner,
+                application.canonical_type,
                 NominalConstructorSource::Variant(source),
                 keyed,
                 span,
@@ -142,7 +141,7 @@ impl Lowerer {
                 )
                 .expect("variants cannot be Transient");
             let mut record = self.dependency_decoding_record(
-                variant.application.owner,
+                application.canonical_type,
                 scoop_identity::CallableTemplateOrigin::VariantConstructor(
                     variant.application.variant,
                 ),

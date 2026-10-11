@@ -6,10 +6,7 @@ impl Concretizer<'_> {
         source: export::EnumVariantApplication,
         substitution: &[concrete::TypeId],
     ) -> concrete::EnumVariantRef {
-        let owner = self.lower_type(source.owner, substitution);
-        let concrete::TypeKind::Enum(enumeration) = self.types[owner].kind else {
-            unreachable!("an enum variant retains its complete enum owner")
-        };
+        let enumeration = self.lower_enum_application(source.owner, substitution);
         let index = self.enums[enumeration]
             .variants
             .iter()
@@ -46,7 +43,7 @@ impl Concretizer<'_> {
     ) -> concrete::EnumVariantRef {
         self.lower_enum_variant(
             export::EnumVariantApplication {
-                owner: self.source.enum_applications[source.application()].canonical_type,
+                owner: source.application(),
                 variant: self.source.enum_member_identities[source.declaration()].id(),
             },
             substitution,
@@ -62,7 +59,7 @@ impl Concretizer<'_> {
         self.lower_enum_variant_field(
             export::EnumVariantFieldApplication {
                 variant: export::EnumVariantApplication {
-                    owner: self.source.enum_applications[variant.application()].canonical_type,
+                    owner: variant.application(),
                     variant: self.source.enum_member_identities[variant.declaration()].id(),
                 },
                 field: self.source.enum_member_identities[source.declaration()].id(),

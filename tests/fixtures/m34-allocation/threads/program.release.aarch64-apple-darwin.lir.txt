@@ -358,27 +358,28 @@ Module
     cbr t33 then @logic.short.10 else @logic.rhs.9
   block inline.32.entry
     heap_store local75 +16 local76
+    t34 = aggregate () : {}
     br @inline.cont.32
   block inline.cont.34
     store local77 -> local7
     store local7 -> local8
-    t34 = integer_compare_to<Long> local6, local8 : i64
-    t35 = integer_compare_Less<Long> t34, integer<Long>(0x0000000000000000) : i1
-    cbr t35 then @while.body.8 else @while.exit.7
+    t35 = integer_compare_to<Long> local6, local8 : i64
+    t36 = integer_compare_Less<Long> t35, integer<Long>(0x0000000000000000) : i1
+    cbr t36 then @while.body.8 else @while.exit.7
   block inline.34.entry
     store local78 -> local79
-    t36 = array_len array0 local79 : i64
-    store t36 -> local77
+    t37 = array_len array0 local79 : i64
+    store t37 -> local77
     br @inline.cont.34
   block inline.cont.36
     store local80 -> local56
     array_set array0 local54 local55 local56
-    t37 = integer_Add<Long> local55, integer<Long>(0x0000000000000001) : i64
-    store t37 -> local55
+    t38 = integer_Add<Long> local55, integer<Long>(0x0000000000000001) : i64
+    store t38 -> local55
     br @while.cond.3
   block inline.36.entry
-    t38 = enum_wrap e0 v1 () : enum0
-    store t38 -> local80
+    t39 = enum_wrap e0 v1 () : enum0
+    store t39 -> local80
     br @inline.cont.36
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 action: ptr<managed>
@@ -601,6 +602,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$877c9b518d5a2e661449b8f6622f6f61f1607cec5c876c0e6d53384eff89adba(ptr<managed>, i64) -> enum0
     local %0 $dependency.local.2: ptr<managed>

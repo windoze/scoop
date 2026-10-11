@@ -152,6 +152,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Alternate.$c0 @fn9(this: Alternate<Payload>, value: Payload) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Payload
@@ -174,6 +176,8 @@ Module
         Type Int
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Alternate.$c2 @fn10(this: Alternate<Payload>, value: Payload, adjustment: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Payload
@@ -248,6 +252,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn11(this: Box<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -297,6 +303,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Payload> @fn12(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -319,6 +327,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -332,6 +342,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -343,6 +355,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

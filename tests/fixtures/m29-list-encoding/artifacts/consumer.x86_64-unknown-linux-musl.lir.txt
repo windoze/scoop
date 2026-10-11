@@ -1426,7 +1426,6 @@ Module
     local %4 $dependency.local.6: i64
     local %5 $dependency.local.7: i64
     local %6 $dependency.local.8: struct3 <logical-zst c7bce41107776f40e80e03464ff27656e8c0303f7af839c1e118ba1365e5b9b4>
-    local %7 $maybe.1: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
@@ -1440,7 +1439,6 @@ Module
     store local4 -> local5
     call managed-elided-zst-target0 sp<managed-call:1> live=[local3:ptr<managed>@0] t2 = sig=elided-zst0 (ptr<managed>, i64) -> elided-zst<struct3 size=0 align=1> local-fn19(local3, local5)
     store t2 -> local6
-    local7 = maybe_uninit.assume_init MaybeUninit local6 : {}
     ret
   fun @scoop$1$cb$40c59cb2f76f88c8dc2d82739dbe1bb68f094ac5ee5c83139bb93505caf301fd(ptr<managed>) -> i64
   block entry

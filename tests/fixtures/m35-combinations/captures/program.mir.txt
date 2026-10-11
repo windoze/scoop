@@ -438,6 +438,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn7($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -641,6 +643,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun exact @fn15(input: Any, fallback: Int) -> () -> Int
     bb0 entry
       val $when.subject.7: Any
@@ -731,6 +735,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.local @fn18($capture.value: Any, left: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -847,6 +853,8 @@ Module
   fun init.Both.$c0 @fn28(this: Both) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Construct.$c1 @fn29(this: Construct, value: Any) -> Unit
     bb0 entry
       val $when.subject.0: Any
@@ -880,6 +888,8 @@ Module
         Type () -> Int
         Local $result.1
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Payload.$c0 @fn30(number: Int, label: String) -> Payload <no-gc>
     bb0 entry
       return

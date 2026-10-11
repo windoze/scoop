@@ -7,10 +7,10 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, Callee, ConeMirInput,
-    CoreBootstrapBridgeSectionV1, CoroutinePendingContext, DependencyMirOutput,
-    DependencyMirOutputError, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
-    Module, SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
+    BasicBlock, Body, Call, CallEffect, CallTarget, Callee, ConeMirInput,
+    CoreBootstrapBridgeSectionV1, DependencyMirOutput, DependencyMirOutputError,
+    EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput, Module, SourceSpan, Statement,
+    StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
 };
 
 mod external;
@@ -23,16 +23,14 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
         name: "entry".to_string(),
         statements: vec![Statement {
             kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget {
-                    kind: CallKind::Direct,
-                    callee: Callee::External(callable),
-                },
+                target: CallTarget::Direct(Callee::External(callable)),
                 args: Vec::new(),
-                pending: CoroutinePendingContext::Root,
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         }],
-        terminator: Terminator::Return { value: None },
+        terminator: Terminator::Return {
+            value: crate::Expr::unit(),
+        },
         unwind: None,
     });
     let mut functions = Arena::new();

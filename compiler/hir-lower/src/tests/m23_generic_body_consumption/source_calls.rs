@@ -36,7 +36,7 @@ fn checked_source_and_decoded_bodies_share_direct_call_targets() {
                     for statement in &body.statements {
                         let expression = match &statement.kind {
                             hir::StatementKind::ValDecl { init, .. } => init,
-                            hir::StatementKind::Return { value: Some(value) }
+                            hir::StatementKind::Return { value }
                             | hir::StatementKind::Expr(value) => value,
                             _ => continue,
                         };

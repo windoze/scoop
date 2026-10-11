@@ -207,6 +207,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun read @fn3(this: Cell<Int>) -> Int
     bb0 entry
       return
@@ -1468,11 +1470,9 @@ Module
       trap "call to abstract method `Readable.read`"
   fun read @fn14(this: Cell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Cell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn15(this: Readable<Unit>, action: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -1607,9 +1607,9 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun hasNext @fn20(value: Cell<Unit>) -> Boolean
     bb0 entry
       val $when.1: Option<Link<Unit>>
@@ -2075,6 +2075,8 @@ Module
         Type Cell<Unit>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn43(this: Link<String>, cell: Cell<String>) -> Unit
     bb0 entry
       field_set 0
@@ -2083,6 +2085,8 @@ Module
         Type Cell<String>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn44(this: Link<Int>, cell: Cell<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -2091,6 +2095,8 @@ Module
         Type Cell<Int>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Cell.$c1 @fn45(value: Int, next: Option<Link<Int>>) -> Cell<Int> <no-gc>
     bb0 entry
       return
@@ -2126,6 +2132,8 @@ Module
           Type box<Cell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Cell<Unit>> Readable.apply((Unit) -> Int) @fn49(this: box<Cell<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn15 direct

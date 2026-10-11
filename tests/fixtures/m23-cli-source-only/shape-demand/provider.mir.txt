@@ -340,9 +340,13 @@ Module
         Type DeferredGeneric<Int>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredBase.$c1 @fn56(this: DeferredBase) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredDerived.$c2 @fn57(this: DeferredDerived) -> Unit
     bb0 entry
       call @fn56 direct
@@ -351,18 +355,28 @@ Module
           Type DeferredDerived
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyDirect.$c3 @fn58(this: ReadyDirect) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyPrivateConstructor.$c4 @fn59(this: ReadyPrivateConstructor, value: DeferredStorage) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyOuter.$c5 @fn60(this: ReadyOuter) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyOuter.DeferredNested.$c6 @fn61(this: ReadyOuter.DeferredNested) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<DeferredSuspend> @fn62(task: SuspendTask<DeferredSuspend>, completion: Continuation<DeferredSuspend>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -385,6 +399,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<DeferredSuspend>[0]
         Type Continuation<DeferredSuspend>
@@ -398,6 +414,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<DeferredSuspend>[1]
         Type Continuation<DeferredSuspend>
@@ -409,6 +427,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -466,6 +486,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<DeferredSetter>[0]
         Type Continuation<DeferredSetter>
@@ -479,6 +501,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<DeferredSetter>[1]
         Type Continuation<DeferredSetter>
@@ -490,6 +514,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -547,6 +573,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn39 interface Continuation<ReadyPrivateConstructor>[0]
         Type Continuation<ReadyPrivateConstructor>
@@ -560,6 +588,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn40 interface Continuation<ReadyPrivateConstructor>[1]
         Type Continuation<ReadyPrivateConstructor>
@@ -571,6 +601,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -628,6 +660,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<DeferredStorage>[0]
         Type Continuation<DeferredStorage>
@@ -641,6 +675,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<DeferredStorage>[1]
         Type Continuation<DeferredStorage>
@@ -652,6 +688,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -709,6 +747,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<DeferredDerived>[0]
         Type Continuation<DeferredDerived>
@@ -722,6 +762,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<DeferredDerived>[1]
         Type Continuation<DeferredDerived>
@@ -733,6 +775,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -790,6 +834,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn35 interface Continuation<ReadyDirect>[0]
         Type Continuation<ReadyDirect>
@@ -803,6 +849,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn36 interface Continuation<ReadyDirect>[1]
         Type Continuation<ReadyDirect>
@@ -814,6 +862,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -871,6 +921,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<DeferredBase>[0]
         Type Continuation<DeferredBase>
@@ -884,6 +936,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<DeferredBase>[1]
         Type Continuation<DeferredBase>
@@ -895,6 +949,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -952,6 +1008,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn43 interface Continuation<ReadyOuter>[0]
         Type Continuation<ReadyOuter>
@@ -965,6 +1023,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn44 interface Continuation<ReadyOuter>[1]
         Type Continuation<ReadyOuter>
@@ -976,6 +1036,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1033,6 +1095,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn47 interface Continuation<ReadyOuter.DeferredNested>[0]
         Type Continuation<ReadyOuter.DeferredNested>
@@ -1046,6 +1110,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn48 interface Continuation<ReadyOuter.DeferredNested>[1]
         Type Continuation<ReadyOuter.DeferredNested>
@@ -1057,6 +1123,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1114,6 +1182,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<DeferredGetter>[0]
         Type Continuation<DeferredGetter>
@@ -1127,6 +1197,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<DeferredGetter>[1]
         Type Continuation<DeferredGetter>
@@ -1138,6 +1210,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1195,6 +1269,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<DeferredEnum>[0]
         Type Continuation<DeferredEnum>
@@ -1208,6 +1284,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<DeferredEnum>[1]
         Type Continuation<DeferredEnum>
@@ -1219,6 +1297,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

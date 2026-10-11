@@ -31,10 +31,7 @@ impl Lowerer {
 
     pub(crate) fn enum_variant(&mut self, application: hir::EnumVariantApplication) -> EnumVariant {
         let index = self.enum_variant_index(application) as usize;
-        let Type::Enum(owner) = self.types[application.owner] else {
-            unreachable!("a variant query retains its complete enum owner")
-        };
-        let owner = self.enum_applications[owner].clone();
+        let owner = self.enum_applications[application.owner].clone();
         let owner_name = self.nominal_template_name(owner.template).to_owned();
         let variant = self.enum_definition(owner.template).variants[index].clone();
         let fields = variant
@@ -51,10 +48,10 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn enum_variants(&mut self, owner: TypeId) -> Vec<EnumVariant> {
-        let Type::Enum(application) = self.types[owner] else {
-            unreachable!("variant enumeration requires an enum application")
-        };
+    pub(crate) fn enum_variants(
+        &mut self,
+        application: hir::EnumApplicationId,
+    ) -> Vec<EnumVariant> {
         let count = self
             .enum_definition(self.enum_applications[application].template)
             .variants

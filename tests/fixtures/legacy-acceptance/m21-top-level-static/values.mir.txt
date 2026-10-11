@@ -159,6 +159,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$answer @fn1() -> Int <no-gc>
     bb0 entry
       return
@@ -180,6 +182,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$maybe @fn5() -> Option<String>
     bb0 entry
       return
@@ -191,6 +195,8 @@ Module
         Type Option<String>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$explicitNone @fn7() -> Option<String>
     bb0 entry
       return
@@ -202,6 +208,8 @@ Module
         Type Option<String>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$adjusted @fn9() -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -239,6 +247,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -263,6 +273,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -287,6 +299,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn13(this: Option<String>, other: Option<String>) -> Boolean
     bb0 entry
       val $when.1: Option<String>
@@ -398,6 +412,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn11 <- println
   instance mi1 function=@fn12 <- println
   instance mi2 function=@fn14 <- println

@@ -80,12 +80,8 @@ fn function_signatures_params_and_calls() {
         vec![call_value(
             r,
             mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(add),
-                },
+                target: mir::CallTarget::Direct(mir::Callee::User(add)),
                 args: vec![int_expr(40), int_expr(2)],
-                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );
@@ -238,7 +234,7 @@ fn return_inside_a_branch_seals_its_block() {
         then_block,
         Vec::new(),
         mir::Terminator::Return {
-            value: Some(local_expr(x, INT)),
+            value: local_expr(x, INT),
         },
         None,
     );
@@ -246,9 +242,7 @@ fn return_inside_a_branch_seals_its_block() {
         &mut blocks,
         merge,
         Vec::new(),
-        mir::Terminator::Return {
-            value: Some(int_expr(0)),
-        },
+        mir::Terminator::Return { value: int_expr(0) },
         None,
     );
     let f = b.user_fn_body(

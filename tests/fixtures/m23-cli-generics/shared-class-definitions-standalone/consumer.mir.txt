@@ -1919,6 +1919,8 @@ Module
         Type Option<Link<String>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn20(this: Link<String>) -> Option<Link<String>>
     bb0 entry
       return
@@ -1961,11 +1963,13 @@ Module
         Type Base<Unit, Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn26(this: Base<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn27(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -2239,6 +2243,8 @@ Module
         Type Option<Link<Unit>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn36(this: Link<Unit>) -> Option<Link<Unit>>
     bb0 entry
       return
@@ -2248,31 +2254,27 @@ Module
           Local this
   fun value @fn37(this: Link<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Link<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun echoed @fn38(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 2
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun second @fn39(this: Base<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Base<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun readLink @fn40(value: Unit, link: Link<Unit>) -> Unit
     bb0 entry
       call @fn37 direct
         Type Link<Unit>
         Local link
       return
+        Type Unit
+        UnitLiteral
   fun read @fn41(this: Base<Unit, Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn53 direct
@@ -2535,6 +2537,8 @@ Module
         Type Option<Link<Int>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn51(this: Link<Int>) -> Option<Link<Int>>
     bb0 entry
       return
@@ -2961,6 +2965,8 @@ Module
         Type Option<Link<String>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn74(this: Remote<String>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2994,6 +3000,8 @@ Module
             Type Remote<String>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn75(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
     bb0 entry
       field_set 0
@@ -3007,6 +3015,8 @@ Module
         Type Option<Link<Unit>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn76(this: Remote<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -3040,6 +3050,8 @@ Module
             Type Remote<Unit>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn77(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -3053,6 +3065,8 @@ Module
         Type Option<Link<Int>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn78(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -3086,6 +3100,8 @@ Module
             Type Remote<Int>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn79(this: ListIterator<Link<String>>, source: List<Link<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3104,6 +3120,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn80(this: ListIterator<Link<Unit>>, source: List<Link<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3122,6 +3140,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn81(this: ListIterator<Link<Int>>, source: List<Link<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3140,6 +3160,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn82(this: Base<Unit, String>, first: Unit, second: String) -> Unit
     bb0 entry
       field_set 0
@@ -3153,6 +3175,8 @@ Module
         Type String
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn83(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -3166,6 +3190,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn84(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -3179,6 +3205,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wrapper.$c1 @fn85(head: Link<String>) -> Wrapper<String> <no-gc>
     bb0 entry
       return

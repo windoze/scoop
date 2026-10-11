@@ -234,34 +234,22 @@ pub(super) fn instructions_without_polls(block: &lir::BasicBlock) -> Vec<&lir::I
 
 pub(super) fn runtime_call(function: mir::RuntimeFn, args: Vec<mir::Expr>) -> mir::Call {
     mir::Call {
-        target: mir::CallTarget {
-            kind: mir::CallKind::Direct,
-            callee: mir::Callee::Runtime(function),
-        },
+        target: mir::CallTarget::Direct(mir::Callee::Runtime(function)),
         args,
-        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
 pub(super) fn extern_call(function: mir::ExternFunctionId, args: Vec<mir::Expr>) -> mir::Call {
     mir::Call {
-        target: mir::CallTarget {
-            kind: mir::CallKind::Direct,
-            callee: mir::Callee::Extern(function),
-        },
+        target: mir::CallTarget::Direct(mir::Callee::Extern(function)),
         args,
-        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
 pub(super) fn user_call(function: mir::FunctionId) -> mir::Call {
     mir::Call {
-        target: mir::CallTarget {
-            kind: mir::CallKind::Direct,
-            callee: mir::Callee::User(function),
-        },
+        target: mir::CallTarget::Direct(mir::Callee::User(function)),
         args: Vec::new(),
-        pending: mir::CoroutinePendingContext::Root,
     }
 }
 
@@ -305,11 +293,7 @@ pub(super) fn body_with_terminator(
 }
 
 pub(super) fn returning_body(locals: Arena<mir::Local>, value: mir::Expr) -> mir::Body {
-    body_with_terminator(
-        locals,
-        Vec::new(),
-        mir::Terminator::Return { value: Some(value) },
-    )
+    body_with_terminator(locals, Vec::new(), mir::Terminator::Return { value })
 }
 
 pub(super) fn cfg_block(blocks: &mut Arena<mir::BasicBlock>, name: &str) -> mir::BlockId {
@@ -430,7 +414,9 @@ pub(super) fn single_catch_body(
         &mut blocks,
         end,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     set_cfg_block(

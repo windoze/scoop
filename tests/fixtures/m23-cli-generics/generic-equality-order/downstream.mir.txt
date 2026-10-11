@@ -1634,6 +1634,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun pair @fn7(first: Tracked<Later>, second: Tracked<Later>) -> Choice<Tracked<Later>>
     bb0 entry
       val $dependency.local.2: Tracked<Later>
@@ -1966,6 +1968,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun pair @fn14(first: Tracked<Int>, second: Tracked<Int>) -> Choice<Tracked<Int>>
     bb0 entry
       val $dependency.local.2: Tracked<Int>
@@ -2224,6 +2228,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Trace.$c0 @fn28(this: Trace<Later>, visits: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2232,6 +2238,8 @@ Module
         Type Int
         Local visits
       return
+        Type Unit
+        UnitLiteral
   fun init.Tracked.$c1 @fn29(this: Tracked<Later>, payload: Later, trace: Trace<Later>, number: Int, digit: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2255,6 +2263,8 @@ Module
         Type Int
         Local digit
       return
+        Type Unit
+        UnitLiteral
   fun init.Trace.$c0 @fn30(this: Trace<Int>, visits: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2263,6 +2273,8 @@ Module
         Type Int
         Local visits
       return
+        Type Unit
+        UnitLiteral
   fun init.Tracked.$c1 @fn31(this: Tracked<Int>, payload: Int, trace: Trace<Int>, number: Int, digit: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2286,6 +2298,8 @@ Module
         Type Int
         Local digit
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wide.$c2 @fn32(first: Tracked<Later>, second: Tracked<Later>, third: Tracked<Later>) -> Wide<Tracked<Later>> <no-gc>
     bb0 entry
       return
@@ -2330,6 +2344,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2343,6 +2359,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2354,6 +2372,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

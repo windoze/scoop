@@ -97,7 +97,7 @@ impl<'a> Projection<'a> {
         match (source.representation(), ty) {
             (Kind::MaybeUninit { value }, mir::Type::Struct(id)) => {
                 let mir::StructRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::MaybeUninit { value: actual },
+                    mir::IntrinsicStructRepresentation::MaybeUninit { value: actual },
                 ) = &self.module.structs[*id].representation
                 else {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
@@ -116,8 +116,8 @@ impl<'a> Projection<'a> {
             }
             (Kind::InlineArray { element }, mir::Type::Class(id)) => {
                 let mir::ClassRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::Array { element: actual }
-                    | mir::IntrinsicTypeRepresentation::MutableArray { element: actual },
+                    mir::IntrinsicClassRepresentation::Array { element: actual }
+                    | mir::IntrinsicClassRepresentation::MutableArray { element: actual },
                 ) = &self.module.classes[*id].representation
                 else {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
@@ -128,7 +128,7 @@ impl<'a> Projection<'a> {
                 Ok(())
             }
             (Kind::AtomicReference { value }, mir::Type::Class(id)) => {
-                let mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+                let mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(
                     scoop_identity::AtomicStorage::Reference(actual),
                 )) = &self.module.classes[*id].representation
                 else {
@@ -152,21 +152,21 @@ impl<'a> Projection<'a> {
                     (
                         Intrinsic::AtomicInt,
                         mir::ClassRepresentation::Intrinsic(
-                            mir::IntrinsicTypeRepresentation::Atomic(
+                            mir::IntrinsicClassRepresentation::Atomic(
                                 scoop_identity::AtomicStorage::Int
                             )
                         )
                     ) | (
                         Intrinsic::AtomicLong,
                         mir::ClassRepresentation::Intrinsic(
-                            mir::IntrinsicTypeRepresentation::Atomic(
+                            mir::IntrinsicClassRepresentation::Atomic(
                                 scoop_identity::AtomicStorage::Long
                             )
                         )
                     ) | (
                         Intrinsic::AtomicBoolean,
                         mir::ClassRepresentation::Intrinsic(
-                            mir::IntrinsicTypeRepresentation::Atomic(
+                            mir::IntrinsicClassRepresentation::Atomic(
                                 scoop_identity::AtomicStorage::Boolean
                             )
                         )
@@ -178,13 +178,13 @@ impl<'a> Projection<'a> {
                     Err(ExactLayoutLoweringError::SourceRepresentation(exact))
                 }
             }
-            (Kind::Intrinsic(Intrinsic::Float(expected)), mir::Type::Struct(id)) if matches!(self.module.structs[*id].representation, mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(actual)) if actual == *expected) => {
+            (Kind::Intrinsic(Intrinsic::Float(expected)), mir::Type::Struct(id)) if matches!(self.module.structs[*id].representation, mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Float(actual)) if actual == *expected) => {
                 Ok(())
             }
             (Kind::Intrinsic(Intrinsic::Char), mir::Type::Struct(id))
                 if matches!(
                     self.module.structs[*id].representation,
-                    mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                    mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Char)
                 ) =>
             {
                 Ok(())
@@ -197,7 +197,7 @@ impl<'a> Projection<'a> {
             (Kind::Intrinsic(Intrinsic::Nothing), mir::Type::Class(id))
                 if matches!(
                     self.module.classes[*id].representation,
-                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)
                 ) =>
             {
                 Ok(())
@@ -216,12 +216,12 @@ impl<'a> Projection<'a> {
                 mir::Type::Struct(id),
             ) => {
                 let definition = &self.module.structs[*id];
-                let mir::StructRepresentation::Declared {
+                let mir::StructRepresentation::Declared(mir::DeclaredStruct {
                     fields: actual,
                     c_layout: actual_c,
                     interior_mutable: actual_mutable,
                     ..
-                } = &definition.representation
+                }) = &definition.representation
                 else {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
                 };

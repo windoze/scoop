@@ -126,6 +126,8 @@ Module
         Type Ptr<Unit>
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun rewriteParameter @fn5(value: Int) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Int>
@@ -495,6 +497,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: Int
         Type Int
@@ -613,6 +617,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn12(this: Ptr<Slot>, other: Ptr<Slot>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Slot>
@@ -712,6 +718,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for rewriteParameter @fn21($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn5 direct
@@ -726,6 +734,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Slot> @fn22(task: SuspendTask<Slot>, completion: Continuation<Slot>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -748,6 +758,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<Slot>[0]
         Type Continuation<Slot>
@@ -761,6 +773,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<Slot>[1]
         Type Continuation<Slot>
@@ -772,6 +786,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

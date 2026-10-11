@@ -68,7 +68,10 @@ pub enum Pattern {
     /// `_`
     Wildcard { span: Span },
     /// A literal matched by equality (`0`, `-1u`, `"x"`, `true`).
-    Literal { expr: Box<Expr>, span: Span },
+    Literal {
+        value: crate::LiteralPattern,
+        span: Span,
+    },
     /// `Path?(p1, p2)` — enum positional variant or struct positional;
     /// `rest` is the `..` marker.
     Positional {

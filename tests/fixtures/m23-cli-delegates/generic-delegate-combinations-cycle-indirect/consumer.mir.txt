@@ -346,6 +346,8 @@ Module
         Type TokenSlot<Int>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Token<T0>:cycleLeft$ensure @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -370,6 +372,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -451,6 +455,8 @@ Module
         Type TokenSlot<Int>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Token<T0>:cycleRight$ensure @fn10() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -475,6 +481,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -638,6 +646,8 @@ Module
   fun init.Token.$c0 @fn13(this: Token<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.TokenSlot.$c1 @fn14() -> TokenSlot<Int> <no-gc>
     bb0 entry
       return

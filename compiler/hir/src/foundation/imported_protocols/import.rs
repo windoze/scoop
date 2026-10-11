@@ -4,56 +4,7 @@ use std::fmt;
 
 use super::*;
 
-pub(super) fn import_product<const N: usize>(
-    foundation: &ImportedHirFoundation,
-    entries: &[CoreProtocolEntryV1; N],
-) -> Result<ImportedCoreProtocolProduct<N>, CoreProtocolImportError> {
-    let entries = entries
-        .iter()
-        .map(|entry| import_entry(foundation, entry))
-        .collect::<Result<Vec<_>, _>>()?;
-    let Ok(entries) = entries.try_into() else {
-        unreachable!("a fixed protocol product retains its array length")
-    };
-    Ok(ImportedCoreProtocolProduct { entries })
-}
-
-fn import_entry(
-    foundation: &ImportedHirFoundation,
-    entry: &CoreProtocolEntryV1,
-) -> Result<ImportedCoreProtocolEntry, CoreProtocolImportError> {
-    match entry {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(id)) => foundation
-            .source_nominal(*id)
-            .map(ImportedCoreProtocolNominal::Type)
-            .map(ImportedCoreProtocolEntry::Nominal)
-            .ok_or_else(|| missing(CoreProtocolIdentityKind::Type, *id)),
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => foundation
-            .generic_nominal(*id)
-            .map(ImportedCoreProtocolNominal::GenericType)
-            .map(ImportedCoreProtocolEntry::Nominal)
-            .ok_or_else(|| missing(CoreProtocolIdentityKind::GenericType, *id)),
-        CoreProtocolEntryV1::Callable(callable) => {
-            import_callable(foundation, callable).map(ImportedCoreProtocolEntry::Callable)
-        }
-        CoreProtocolEntryV1::EnumVariant(id) => foundation
-            .identity(*id)
-            .map(ImportedCoreProtocolEntry::EnumVariant)
-            .ok_or_else(|| missing(CoreProtocolIdentityKind::EnumVariant, *id)),
-        CoreProtocolEntryV1::EnumVariantField(id) => foundation
-            .identity(*id)
-            .map(ImportedCoreProtocolEntry::EnumVariantField)
-            .ok_or_else(|| missing(CoreProtocolIdentityKind::EnumVariantField, *id)),
-        CoreProtocolEntryV1::DispatchSlot(id) => foundation
-            .identity(*id)
-            .map(ImportedCoreProtocolEntry::DispatchSlot)
-            .ok_or_else(|| missing(CoreProtocolIdentityKind::DispatchSlot, *id)),
-        CoreProtocolEntryV1::ExactType(id) => foundation
-            .identity(*id)
-            .map(ImportedCoreProtocolEntry::ExactType)
-            .ok_or_else(|| missing(CoreProtocolIdentityKind::ExactType, *id)),
-    }
-}
+mod products;
 
 pub(super) fn import_callable(
     foundation: &ImportedHirFoundation,

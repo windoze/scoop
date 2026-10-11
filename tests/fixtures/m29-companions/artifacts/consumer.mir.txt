@@ -104,6 +104,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.receiver: Int
@@ -1042,6 +1044,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb57 try.body.57 unwind bb52
       val $dependency.receiver: Factory<String>
         Type Factory<String>
@@ -1242,6 +1246,8 @@ Module
         Type Option<String>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun echo @fn13(this: Factory<String>, value: String) -> String
     bb0 entry
       return
@@ -1340,6 +1346,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Factory$initialize$Initializer @fn21() -> Unit
     bb0 entry
       assign $new.1
@@ -1352,6 +1360,8 @@ Module
         Type Factory<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Factory$initialize$Ensure @fn22() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1376,6 +1386,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1462,6 +1474,8 @@ Module
         Type Factory<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Factory$initialize$Ensure @fn24() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1486,6 +1500,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1572,6 +1588,8 @@ Module
         Type Companion<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn26() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1596,6 +1614,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1682,6 +1702,8 @@ Module
         Type Companion<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn28() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1706,6 +1728,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1788,6 +1812,8 @@ Module
         Type Option<Int>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn30($argument.0: () -> String) -> String
     bb0 entry
       return
@@ -1908,6 +1934,8 @@ Module
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
       return
+        Type Unit
+        UnitLiteral
   fun init.Factory.$c0 @fn39(this: Factory<String>) -> Unit
     bb0 entry
       call @fn28 direct
@@ -1945,6 +1973,8 @@ Module
         Type () -> Int
         ClosureAlloc cc2 $Closure$lambda2
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c2 @fn40(this: Companion<Int>) -> Unit
     bb0 entry
       call $call.1: Int = external7 direct
@@ -1954,6 +1984,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c2 @fn41(this: Companion<String>) -> Unit
     bb0 entry
       call $call.1: Int = external7 direct
@@ -1963,6 +1995,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Box.$c1 @fn42(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return

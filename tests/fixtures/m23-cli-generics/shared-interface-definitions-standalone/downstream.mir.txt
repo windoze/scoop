@@ -1634,13 +1634,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn33(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -1745,13 +1741,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet MutableArray<Unit>
-        Type MutableArray<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn36(this: MutableArray<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Unit>
@@ -1793,14 +1785,14 @@ Module
       trap "call to abstract method `View.$get$second`"
   fun choose @fn40(this: View<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn41(this: Swap<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun peer @fn42(this: View<Unit, Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       return
@@ -1904,6 +1896,8 @@ Module
   fun first @fn44(this: Remote<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn45(this: Remote<Later>) -> Later
     bb0 entry
       return
@@ -2009,6 +2003,8 @@ Module
   fun first @fn47(this: Remote<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn48(this: Remote<Int>) -> Int
     bb0 entry
       return
@@ -2117,13 +2113,13 @@ Module
   fun first @fn50(this: Remote<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn51(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun List.$get$size @fn52(this: List<Later>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
@@ -2272,6 +2268,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Remote> Swap.same @fn72(this: Remote<Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn38 direct
@@ -2294,6 +2292,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Later.$c0 @fn74(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2302,6 +2302,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn75(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2320,6 +2322,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn76(this: Remote<Later>, second: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2328,6 +2332,8 @@ Module
         Type Later
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn77(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2346,6 +2352,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn78(this: Remote<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2354,6 +2362,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn79(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2372,6 +2382,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn80(this: Remote<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2380,6 +2392,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn81(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2402,6 +2416,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn58 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2415,6 +2431,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn59 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2426,6 +2444,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

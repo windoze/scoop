@@ -104,10 +104,14 @@ Module
     bb0 entry
       call extern3 @m13_callback_barrier direct
       return
+        Type Unit
+        UnitLiteral
   fun disturb @fn5() -> Unit <no-gc>
     bb0 entry
       call extern4 @m33_errno_disturb direct
       return
+        Type Unit
+        UnitLiteral
   fun expect @fn6(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -143,6 +147,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn7(input: Int) -> Int
     bb0 entry
       val $argument.0: Int
@@ -617,6 +623,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb10 pattern.pass.10
       val $default.local.0: String
         Type String
@@ -704,6 +712,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn12(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -712,6 +722,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn13($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

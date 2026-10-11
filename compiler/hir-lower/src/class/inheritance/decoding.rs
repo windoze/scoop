@@ -68,7 +68,7 @@ impl Lowerer {
                 let before = state.diagnostics.len();
                 if let Some(value) = state.decode_result(context, decoder, span, &mut statements) {
                     statements.push(hir::Statement {
-                        kind: hir::StatementKind::Return { value: Some(value) },
+                        kind: hir::StatementKind::Return { value },
                         span,
                     });
                 } else if state.diagnostics.len() == before {
@@ -93,7 +93,9 @@ impl Lowerer {
                 let inputs = self.read_decoding_record(context, &record, decoder, span, sink)?;
                 self.finish_decoding_record(context.target, &record, inputs, span, sink)
             }
-            Type::Enum(_) => self.decode_variants(context, decoder, span, sink),
+            Type::Enum(application) => {
+                self.decode_variants(application, context, decoder, span, sink)
+            }
             Type::Tuple(fields) => {
                 let codecs = fields
                     .into_iter()

@@ -457,6 +457,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb21 if.merge.21
       val $dependency.receiver: String
         Type String
@@ -595,6 +597,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb29 if.merge.29
       call external21 direct
       val $dependency.receiver: Companion
@@ -810,6 +814,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb42 if.merge.42
       val $argument.0: Long
         Type Long
@@ -1000,6 +1006,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb55 if.merge.55
       val $dependency.receiver: Long
         Type Long
@@ -1138,6 +1146,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb60 if.merge.60
       goto bb56
     bb61 while.cond.61 <loop-header-poll>
@@ -1404,6 +1414,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb74 if.merge.74
       goto bb61
     bb75 if.then.75
@@ -1531,6 +1543,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb85 if.merge.85
       val $dependency.argument.0: Int
         Type Int
@@ -1542,6 +1556,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn1(this: MutableArray<Char>) -> Iterator<Char>
     bb0 entry
       val $dependency.local.1: List<Char>
@@ -1943,6 +1959,8 @@ Module
         Type MaybeUninit<Char>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn11(this: ArrayList<Char>, value: Char) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Char>
@@ -2053,6 +2071,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn12(this: ArrayList<Char>, index: Long, value: Char) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -2368,6 +2388,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn13(this: ArrayList<Char>, index: Long) -> Char
     bb0 entry
       val $dependency.local.5: ArrayList<Char>
@@ -2679,6 +2701,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Char>>
         Type MutableArray<MaybeUninit<Char>>
@@ -3391,6 +3415,8 @@ Module
         Type MaybeUninit<Int8>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn31(this: ArrayList<Int8>, value: Int8) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Int8>
@@ -3501,6 +3527,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn32(this: ArrayList<Int8>, index: Long, value: Int8) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -3816,6 +3844,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn33(this: ArrayList<Int8>, index: Long) -> Int8
     bb0 entry
       val $dependency.local.5: ArrayList<Int8>
@@ -4127,6 +4157,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Int8>>
         Type MutableArray<MaybeUninit<Int8>>
@@ -4243,6 +4275,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn37($closure: (Long) -> Char, index: Long) -> Char
     bb0 entry
       val $dependency.receiver: Long
@@ -4402,6 +4436,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn41(this: ListIterator<Char>) -> Option<Char>
     bb0 entry
       branch bb1 bb2
@@ -4659,6 +4695,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn44(this: ArrayList<Char>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -4719,6 +4757,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -4864,6 +4904,8 @@ Module
         Type MutableArray<MaybeUninit<Char>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<Char> = <closure:function_type2> closure[function_type2]
         Type (Long) -> MaybeUninit<Char>
@@ -5237,6 +5279,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn49(this: ArrayList<Int8>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -5297,6 +5341,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -5442,6 +5488,8 @@ Module
         Type MutableArray<MaybeUninit<Int8>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<Int8> = <closure:function_type3> closure[function_type3]
         Type (Long) -> MaybeUninit<Int8>
@@ -5678,6 +5726,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: MaybeUninit<Char> = <closure:function_type2> closure[function_type2]
         Type (Long) -> MaybeUninit<Char>
@@ -5766,6 +5816,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: MaybeUninit<Int8> = <closure:function_type3> closure[function_type3]
         Type (Long) -> MaybeUninit<Int8>
@@ -5805,6 +5857,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn67(this: ListIterator<MaybeUninit<Char>>, source: List<MaybeUninit<Char>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5823,6 +5877,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn68(this: ListIterator<Int8>, source: List<Int8>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5841,6 +5897,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn69(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5859,6 +5917,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn70(this: ListIterator<MaybeUninit<Int8>>, source: List<MaybeUninit<Int8>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5877,6 +5937,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn71($source: (Long) -> Char, arg0: Any) -> Any
     bb0 entry
       call $call.1: Char = <closure:function_type0> closure[function_type0]

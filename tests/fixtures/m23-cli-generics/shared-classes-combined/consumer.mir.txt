@@ -88,6 +88,8 @@ Module
         Type State
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn1() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -112,6 +114,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1425,17 +1429,21 @@ Module
         Type Base<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn24(this: Base<Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun select @fn25(this: Remote<Unit>, other: Unit) -> Unit
     bb0 entry
       call @fn36 direct
         Type Remote<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun Local.select @fn26(this: Local<Unit>, other: Unit) -> Unit
     bb0 entry
       call @fn36 direct
@@ -1444,6 +1452,8 @@ Module
           Type Local<Unit>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn27(this: Array<Local<Unit>>) -> Iterator<Local<Unit>>
     bb0 entry
       val $dependency.local.1: List<Local<Unit>>
@@ -1695,21 +1705,17 @@ Module
         Local $new.1
   fun value @fn34(this: Base<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun ValueSource.read @fn35(this: ValueSource<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `ValueSource.read`"
   fun alternate @fn36(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn37(this: Base<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn48 direct
@@ -2330,6 +2336,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn65(this: Local<String>, value: String, remote: Remote<String>) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -2351,6 +2359,8 @@ Module
         Type Remote<String>
         Local remote
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn66(this: Local<Unit>, value: Unit, remote: Remote<Unit>) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
@@ -2372,6 +2382,8 @@ Module
         Type Remote<Unit>
         Local remote
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn67(this: Local<Int>, value: Int, remote: Remote<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -2393,6 +2405,8 @@ Module
         Type Remote<Int>
         Local remote
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn68(this: ListIterator<Local<String>>, source: List<Local<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2411,6 +2425,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn69(this: Remote<String>, value: String, alternate: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -2432,6 +2448,8 @@ Module
         Type String
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn70(this: ListIterator<Local<Unit>>, source: List<Local<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2450,6 +2468,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn71(this: Remote<Unit>, value: Unit, alternate: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2471,6 +2491,8 @@ Module
         Type Unit
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn72(this: ListIterator<Local<Int>>, source: List<Local<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2489,6 +2511,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn73(this: Remote<Int>, value: Int, alternate: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2510,6 +2534,8 @@ Module
         Type Int
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn74(this: Base<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -2518,6 +2544,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn75(this: Base<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2526,6 +2554,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn76(this: Base<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2534,6 +2564,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<State> @fn77(task: SuspendTask<State>, completion: Continuation<State>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2556,6 +2588,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn60 interface Continuation<State>[0]
         Type Continuation<State>
@@ -2569,6 +2603,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn61 interface Continuation<State>[1]
         Type Continuation<State>
@@ -2580,6 +2616,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

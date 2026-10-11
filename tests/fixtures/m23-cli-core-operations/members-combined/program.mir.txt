@@ -330,6 +330,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for pure @fn15($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn10 direct
@@ -344,6 +346,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "!"
   str @str1 "z"
   output executable @fn14

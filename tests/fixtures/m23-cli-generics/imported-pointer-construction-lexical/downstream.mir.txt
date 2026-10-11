@@ -507,6 +507,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.() -> Any @fn13($source: () -> Number) -> Any
     bb0 entry
       call $call.1: Number = <closure:function_type0> closure[function_type0]

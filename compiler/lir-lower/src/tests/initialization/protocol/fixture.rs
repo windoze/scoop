@@ -129,12 +129,8 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     ordinary_module.functions[caller].body.blocks[entry]
         .statements
         .push(call_stmt(mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::External(imported_use),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::External(imported_use)),
             args: vec![local_expr(caller_argument, mir::Type::String)],
-            pending: mir::CoroutinePendingContext::Root,
         }));
     let ordinary_output = mir::DependencyMirOutput::try_new(ordinary_module, selected_mir).unwrap();
     let ordinary_foundation = ordinary_output.strong_foundation().unwrap();

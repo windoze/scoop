@@ -538,15 +538,23 @@ impl Concretizer<'_> {
                 binding,
                 args,
                 receiver,
-            } => concrete::ExprKind::Call {
-                binding: binding.clone(),
-                receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
-                callee: self.lower_callable_target(*callee, substitution),
-                args: args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument, substitution, locals))
-                    .collect(),
-            },
+            } => {
+                let binding = binding.clone();
+                let receiver = receiver.map(|ty| self.lower_type(ty, substitution));
+                let callee = self.lower_callable_target(*callee, substitution);
+                match self.lower_data_borrow_call(callee, args, substitution, locals) {
+                    Some(borrow) => concrete::ExprKind::DataBorrow(borrow),
+                    None => concrete::ExprKind::Call {
+                        binding,
+                        receiver,
+                        callee,
+                        args: args
+                            .iter()
+                            .map(|argument| self.lower_expr(argument, substitution, locals))
+                            .collect(),
+                    },
+                }
+            }
 
             export::ExprKind::CallableCall {
                 callee,
@@ -573,32 +581,14 @@ impl Concretizer<'_> {
                     operand: Box::new(self.lower_expr(operand, substitution, locals)),
                 }
             }
-            export::ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                let operation = *operation;
-                if matches!(operation, concrete::IntegerOperation::Managed { .. }) {
+            export::ExprKind::IntegerOperation(operation) => {
+                if operation.is_managed() {
                     self.lower_arithmetic_exception_type();
                 }
-                let arguments =
-                    match arguments {
-                        export::HirIntegerOperationArguments::Unary(operand) => {
-                            concrete::HirIntegerOperationArguments::Unary(Box::new(
-                                self.lower_expr(operand, substitution, locals),
-                            ))
-                        }
-                        export::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                            concrete::HirIntegerOperationArguments::Binary {
-                                lhs: Box::new(self.lower_expr(lhs, substitution, locals)),
-                                rhs: Box::new(self.lower_expr(rhs, substitution, locals)),
-                            }
-                        }
-                    };
-                concrete::ExprKind::IntegerOperation {
-                    operation,
-                    arguments,
-                }
+                concrete::ExprKind::IntegerOperation(
+                    operation
+                        .map(|operand| Box::new(self.lower_expr(operand, substitution, locals))),
+                )
             }
             export::ExprKind::IntegerConversion {
                 conversion,

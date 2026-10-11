@@ -348,7 +348,7 @@ fn smart_cast_applies_in_negated_else_and_and_rhs() {
             else_body: Some(else_body),
             ..
         } => match &else_body[0].kind {
-            hir::StatementKind::Return { value: Some(value) } => match &value.kind {
+            hir::StatementKind::Return { value } => match &value.kind {
                 hir::ExprKind::FieldAccess { receiver, .. } => {
                     assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));
                 }

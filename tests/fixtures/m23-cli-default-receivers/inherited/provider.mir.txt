@@ -73,6 +73,8 @@ Module
   fun init.Parent.$c0 @fn10(this: Parent) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn11(this: Child) -> Unit
     bb0 entry
       call @fn10 direct
@@ -81,6 +83,8 @@ Module
           Type Child
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Child> @fn12(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -103,6 +107,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Child>[0]
         Type Continuation<Child>
@@ -116,6 +122,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Child>[1]
         Type Continuation<Child>
@@ -127,6 +135,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -184,6 +194,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Parent>[0]
         Type Continuation<Parent>
@@ -197,6 +209,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Parent>[1]
         Type Continuation<Parent>
@@ -208,6 +222,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

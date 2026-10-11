@@ -239,14 +239,11 @@ impl BodyLowerer<'_> {
                     init: smir::Expr::new(
                         element_ty.clone(),
                         smir::ExprKind::Call(smir::Call {
-                            target: mir::CallTarget {
-                                kind: mir::CallKind::Closure { function_type },
-                                callee: mir::Callee::Closure(function_type),
+                            target: mir::CallTarget::Closure {
+                                function_type,
+                                receiver: Box::new(smir::Expr::local(closure, closure_ty)),
                             },
-                            args: vec![
-                                smir::Expr::local(closure, closure_ty),
-                                smir::Expr::local(index, long_ty.clone()),
-                            ],
+                            args: vec![smir::Expr::local(index, long_ty.clone())],
                             return_ty: element_ty.clone(),
                         }),
                     ),

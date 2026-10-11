@@ -10,8 +10,9 @@ impl Lowerer {
     /// value method. Concrete HIR supplies the exact implementation function
     /// for each typed interface slot.
     pub(crate) fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
-        let class_id = self.boxed.order[index];
-        let payload = self.classes[class_id].declared_fields()[0].ty.clone();
+        let entry = &self.boxed.entries[index];
+        let class_id = entry.class;
+        let payload = entry.payload.clone();
         if matches!(
             self.source_exact_types.get(&payload).map(|source| source.owner()),
             Some(mir::SourceExactTypeOwner::Cone(provider)) if provider != module.cone
@@ -295,10 +296,7 @@ impl Lowerer {
         let call = smir::Expr::new(
             implementation_return.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee,
-                },
+                target: mir::CallTarget::Direct(callee),
                 args,
                 return_ty: implementation_return.clone(),
             }),
@@ -307,13 +305,13 @@ impl Lowerer {
             smir::StatementKind::Expr(call)
         } else {
             smir::StatementKind::Return {
-                value: Some(self.adapt_variance_bridge(
+                value: self.adapt_variance_bridge(
                     module,
                     call,
                     &implementation_return,
                     module.exact_type_identities[implementation_result].id(),
                     &return_ty,
-                )),
+                ),
             }
         };
         let parameter_names = target_params

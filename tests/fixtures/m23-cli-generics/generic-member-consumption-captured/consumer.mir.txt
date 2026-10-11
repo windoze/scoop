@@ -59,6 +59,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- captured
   instance mi1 function=@fn2 <- readValue
   str @str0 "owner"

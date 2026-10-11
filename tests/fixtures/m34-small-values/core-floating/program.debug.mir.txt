@@ -85,6 +85,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $argument.0: String
@@ -648,6 +650,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb31 if.then.31
       val $uw.16: Double
         Type Double
@@ -955,6 +959,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn11(this: Ptr<Float>, other: Ptr<Float>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Float>

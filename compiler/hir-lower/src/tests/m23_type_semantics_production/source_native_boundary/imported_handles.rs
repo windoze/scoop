@@ -51,10 +51,10 @@ fn imported_handles_keep_the_c_projection_without_a_provider_native_use() {
                 assert_eq!(native.c_abi(), projection);
                 assert!(output.output().local.structs.iter().any(|(_, definition)| {
                     matches!(&definition.representation,
-                        hir::concrete::StructRepresentation::Declared {
+                        hir::concrete::StructRepresentation::Declared (hir::concrete::DeclaredStruct {
                             c_abi: hir::concrete::StructCAbi::UInt64Field { field: actual },
                             fields, ..
-                        } if *actual == field.field() && fields.len() == 1 && definition.gc_free)
+                        }) if *actual == field.field() && fields.len() == 1 && definition.gc_free)
                 }));
             }
         });

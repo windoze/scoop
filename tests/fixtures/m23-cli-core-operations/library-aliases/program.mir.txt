@@ -29,4 +29,6 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   output executable @fn1

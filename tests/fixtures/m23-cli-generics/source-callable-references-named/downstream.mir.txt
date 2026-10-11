@@ -360,6 +360,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn10($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

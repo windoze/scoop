@@ -407,6 +407,7 @@ Module
     br @try.body.6
   block inline.9.entry
     heap_store local19 +16 integer<Long>(0x0000000000000014)
+    t23 = aggregate () : {}
     br @inline.cont.9
   block invoke.normal.1
     store t8 -> local11

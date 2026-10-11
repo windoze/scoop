@@ -215,6 +215,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn6(this: PropertyItem<Int>, next: Int) -> Unit
     bb0 entry
       call @fn5 direct
@@ -223,6 +225,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn7(this: PropertyItem<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn4 direct
@@ -268,6 +272,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn12(this: PropertyItem<Later>, next: Later) -> Unit
     bb0 entry
       call @fn11 direct
@@ -276,6 +282,8 @@ Module
         Type Later
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn13(this: PropertyItem<Later>) -> Later
     bb0 entry
       call $call.1: Later = @fn10 direct
@@ -368,6 +376,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.PropertyItem.$c0 @fn28(this: PropertyItem<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -376,6 +386,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn29(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -384,6 +396,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.PropertyItem.$c0 @fn30(this: PropertyItem<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -392,6 +406,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn31(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -400,6 +416,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn32(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -422,6 +440,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -435,6 +455,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -446,6 +468,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

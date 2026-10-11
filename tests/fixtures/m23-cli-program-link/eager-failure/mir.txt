@@ -69,6 +69,8 @@ Module
         Type Option<Ptr<Int8>>
         Local $parameter.stream
       return
+        Type Unit
+        UnitLiteral
   fun fail @fn3() -> Int
     bb0 entry
       val $argument.0: Long
@@ -114,6 +116,8 @@ Module
         Type Long
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn5() -> Unit
     bb0 entry
       call $call.1: Int = @fn3 direct
@@ -121,6 +125,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -145,6 +151,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -271,6 +279,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn8 <- equals
   instance mi2 function=@fn9 <- println

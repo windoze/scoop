@@ -771,6 +771,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.RebuiltCell.$c1 @fn19(this: RebuiltCell<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -779,6 +781,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn20($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

@@ -64,7 +64,8 @@ fn class_fields_are_base_prefix_then_own() {
     let base_def = &module.classes[class_index(0)];
     let derived_def = &module.classes[class_index(1)];
     let field_names = |def: &mir::ClassDef| {
-        def.declared_fields()
+        declared_class(def)
+            .fields
             .iter()
             .map(|field| field.name.clone())
             .collect::<Vec<_>>()
@@ -73,7 +74,7 @@ fn class_fields_are_base_prefix_then_own() {
     // The base prefix comes first; HIR's `ClassField` indices
     // follow the same flattened order.
     assert_eq!(field_names(derived_def), ["a", "b"]);
-    assert_eq!(derived_def.declared_fields()[1].ty, mir::Type::String);
+    assert_eq!(declared_class(derived_def).fields[1].ty, mir::Type::String);
     assert_eq!(derived_def.base_class(), Some(class_index(0)));
     assert_eq!(derived_def.modifier, mir::ClassModifier::Final);
     assert_eq!(base_def.modifier, mir::ClassModifier::Open);

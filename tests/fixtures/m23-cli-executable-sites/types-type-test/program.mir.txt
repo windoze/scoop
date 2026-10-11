@@ -97,6 +97,8 @@ Module
         Local $new.1
     bb8 if.merge.8
       return
+        Type Unit
+        UnitLiteral
   str @str0 "text"
   str @str1 "illegal state"
   output executable @fn0

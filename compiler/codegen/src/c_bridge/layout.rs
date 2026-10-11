@@ -54,15 +54,16 @@ fn physical_layout_fingerprints(
     }
     let records = module.meta.canonical_c_abi.layouts();
     let mut actual = std::collections::BTreeSet::new();
-    for (id, definition) in module.structs.iter() {
-        if !definition.is_c_layout() || !surface.defines_struct(id) {
+    for (reference, view) in module.structs.iter_c() {
+        let definition = view.definition;
+        if !surface.defines_struct(reference) {
             continue;
         }
         let matches = records
             .iter()
             .filter(|record| planned.contains(&record.fingerprint()))
             .filter(|record| {
-                physical_layout_matches(module, id, record.layout(), records, &mut HashSet::new())
+                physical_layout_matches(module, view, record.layout(), records, &mut HashSet::new())
             })
             .map(scoop_lir::CanonicalCAbiLayoutFingerprintRecord::fingerprint)
             .collect::<Vec<_>>();
@@ -83,15 +84,13 @@ fn physical_layout_fingerprints(
 
 fn physical_layout_matches(
     module: &Module,
-    id: scoop_lir::StructDefId,
+    view: scoop_lir::CStructView<'_>,
     canonical: &scoop_lir::CanonicalCAbiLayout,
     records: &[scoop_lir::CanonicalCAbiLayoutFingerprintRecord],
     visiting: &mut HashSet<(usize, scoop_lir::CanonicalCAbiLayoutFingerprint)>,
 ) -> bool {
-    let definition = &module.structs[id];
-    let Some(contract) = definition.c_layout() else {
-        return false;
-    };
+    let definition = view.definition;
+    let contract = view.contract;
     if definition.size != canonical.byte_size()
         || definition.align != canonical.alignment().get()
         || c_layout_override(contract.aligned) != canonical.aligned()
@@ -99,9 +98,7 @@ fn physical_layout_matches(
     {
         return false;
     }
-    let Some(fields) = definition.c_fields() else {
-        return false;
-    };
+    let fields = view.fields;
     if fields.len() != canonical.fields().len() {
         return false;
     }
@@ -198,7 +195,7 @@ fn physical_storage_matches(
                 .is_some_and(|record| {
                     physical_layout_matches(
                         module,
-                        reference.definition(),
+                        module.structs.c(*reference),
                         record.layout(),
                         records,
                         visiting,
@@ -272,11 +269,12 @@ fn render_c_layout_assertions(
 
     fn visit(
         module: &Module,
-        id: scoop_lir::StructDefId,
+        reference: scoop_lir::CStructRef,
         visiting: &mut HashSet<usize>,
         visited: &mut HashSet<usize>,
-        order: &mut Vec<scoop_lir::StructDefId>,
+        order: &mut Vec<scoop_lir::CStructRef>,
     ) -> Result<(), CodegenError> {
+        let id = reference.definition();
         let raw = arena_index(id);
         if visited.contains(&raw) {
             return Ok(());
@@ -287,44 +285,34 @@ fn render_c_layout_assertions(
                 module.structs[id].name
             )));
         }
-        let fields = module.structs[id]
-            .c_fields()
-            .expect("C-layout traversal starts from a C struct");
-        for field in fields {
-            if let scoop_lir::CType::Struct(reference) = field.ty {
-                let nested = reference.definition();
-                if !module.structs[nested].is_c_layout() {
-                    return Err(CodegenError(format!(
-                        "C layout `{}` contains ordinary struct `{}`",
-                        module.structs[id].name, module.structs[nested].name
-                    )));
-                }
+        for field in module.structs.c(reference).fields {
+            if let scoop_lir::CType::Struct(nested) = field.ty {
                 visit(module, nested, visiting, visited, order)?;
             }
         }
         visiting.remove(&raw);
         visited.insert(raw);
-        order.push(id);
+        order.push(reference);
         Ok(())
     }
 
     let mut order = Vec::new();
     let mut visiting = HashSet::new();
     let mut visited = HashSet::new();
-    for (id, definition) in module.structs.iter() {
-        if definition.is_c_layout() && surface.defines_struct(id) {
-            visit(module, id, &mut visiting, &mut visited, &mut order)?;
+    for (reference, _) in module.structs.iter_c() {
+        if surface.defines_struct(reference) {
+            visit(module, reference, &mut visiting, &mut visited, &mut order)?;
         }
     }
 
     let mut out = target_profile_assertions(module.meta.target_profile)?;
     out.push_str(&c_struct_forward_declarations(module, surface));
     out.push_str(&renderer.function_pointer_typedefs()?);
-    for id in order {
-        let definition = &module.structs[id];
-        let fields = definition
-            .c_fields()
-            .expect("only C-layout structs enter C assertion emission");
+    for reference in order {
+        let id = reference.definition();
+        let view = module.structs.c(reference);
+        let definition = view.definition;
+        let fields = view.fields;
         let name = format!("scoop_c_layout_{}", arena_index(id));
         out.push_str(&format!(
             "struct __attribute__((packed, aligned({}))) {} {{\n",

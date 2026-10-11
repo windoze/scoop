@@ -316,6 +316,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb20 if.merge.20
       assign $new.1
         Type StringBuilder
@@ -1176,6 +1178,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$globalSingle @fn3() -> Float <no-gc>
     bb0 entry
       return
@@ -1187,6 +1191,8 @@ Module
         Type Float
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$globalDouble @fn5() -> Double <no-gc>
     bb0 entry
       return
@@ -1198,6 +1204,8 @@ Module
         Type Double
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn7(this: MutableArray<MaybeUninit<String>>) -> Iterator<MaybeUninit<String>>
     bb0 entry
       val $dependency.local.1: List<MaybeUninit<String>>
@@ -1488,6 +1496,8 @@ Module
         Type MaybeUninit<String>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn14(this: ArrayList<String>, value: String) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<String>
@@ -1598,6 +1608,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn15(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -1913,6 +1925,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn16(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.5: ArrayList<String>
@@ -2224,6 +2238,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<String>>
         Type MutableArray<MaybeUninit<String>>
@@ -2337,6 +2353,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun add @fn19(this: StringBuilder, part: Float) -> StringBuilder
     bb0 entry
       val $dependency.local.3: Float
@@ -2415,6 +2433,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun add @fn22(this: StringBuilder, part: Int8) -> StringBuilder
     bb0 entry
       val $dependency.local.3: Int8
@@ -2780,6 +2800,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn29(this: ArrayList<String>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -2840,6 +2862,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -2985,6 +3009,8 @@ Module
         Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<String> = <closure:function_type0> closure[function_type0]
         Type (Long) -> MaybeUninit<String>
@@ -3090,6 +3116,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn36(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3108,6 +3136,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn37($source: (Long) -> MaybeUninit<String>, arg0: Any) -> Any
     bb0 entry
       call $call.1: MaybeUninit<String> = <closure:function_type0> closure[function_type0]

@@ -24,10 +24,7 @@ pub(super) fn with_layout_operations(
     let FunctionKind::User(body) = &mut function.kind else {
         panic!("materialized source body")
     };
-    let StatementKind::Return {
-        value: Some(expression),
-    } = &body.statements[0].kind
-    else {
+    let StatementKind::Return { value: expression } = &body.statements[0].kind else {
         panic!("source type test")
     };
     let expression = expression.clone();

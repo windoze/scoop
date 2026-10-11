@@ -175,6 +175,8 @@ Module
         Type Measure
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun check @fn6(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -210,6 +212,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn7(value: Measure) -> Measure
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -931,6 +935,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb68 try.body.68 unwind bb63
       call @scoop_rt_gc_collect direct
       call $receiver: Measure = @fn11 direct
@@ -1620,6 +1626,8 @@ Module
         Local $inline.104.this
         Type Measure
         Local $inline.104.value
+      Type Unit
+      UnitLiteral
       goto bb104
     bb106 inline.cont.106
       val holder: Holder
@@ -1666,6 +1674,8 @@ Module
         Local $inline.106.this
         Type Pair
         Local $inline.106.pair
+      Type Unit
+      UnitLiteral
       goto bb106
     bb108 inline.cont.108
       val $argument.1: Pair
@@ -1893,6 +1903,8 @@ Module
         Local $parameter.value
       goto bb119
     bb121 inline.120.entry
+      Type Unit
+      UnitLiteral
       goto bb120
     bb122 inline.cont.122
       val $call.2: Measure
@@ -2114,6 +2126,8 @@ Module
         IntegerLiteral Int value=21 bits=0x00000015
       goto bb131
     bb130 inline.cont.130
+      Type Unit
+      UnitLiteral
       goto bb128
     bb131 inline.130.entry
       field_set 0
@@ -2121,6 +2135,8 @@ Module
         Local $inline.130.this
         Type Int
         IntegerLiteral Int value=21 bits=0x00000015
+      Type Unit
+      UnitLiteral
       goto bb130
     bb132 inline.cont.132
       val $inline.118.$call.1: Measure
@@ -2271,6 +2287,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn14(this: MutableArray<Measure>, index: Long) -> Measure
     bb0 entry
@@ -2458,6 +2476,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn20(this: ListIterator<Measure>) -> Option<Measure>
     bb0 entry
       branch bb1 bb2
@@ -2748,6 +2768,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Leaf.$c1 @fn46(this: Leaf) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -2767,16 +2789,22 @@ Module
       goto bb2
     bb1 inline.cont.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Item
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=21 bits=0x00000015
+      Type Unit
+      UnitLiteral
       goto bb1
   fun init.EchoUser.$c2 @fn47(this: EchoUser) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c3 @fn48(this: Holder, item: Measure, pair: Pair) -> Unit
     bb0 entry
       field_set 0
@@ -2790,6 +2818,8 @@ Module
         Type Pair
         Local pair
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn49(this: ListIterator<Measure>, source: List<Measure>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2808,6 +2838,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Small.$c0 @fn50(number: Int) -> Small <no-gc>
     bb0 entry
       return
@@ -2883,6 +2915,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Measure>[0]
         Type Continuation<Measure>
@@ -2896,6 +2930,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Measure>[1]
         Type Continuation<Measure>
@@ -2907,6 +2943,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2964,6 +3002,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Empty>[0]
         Type Continuation<Empty>
@@ -2977,6 +3017,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Empty>[1]
         Type Continuation<Empty>
@@ -2988,6 +3030,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3045,6 +3089,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Parent>[0]
         Type Continuation<Parent>
@@ -3058,6 +3104,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Parent>[1]
         Type Continuation<Parent>
@@ -3069,6 +3117,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

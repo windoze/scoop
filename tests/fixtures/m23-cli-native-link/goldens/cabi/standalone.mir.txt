@@ -66,6 +66,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -90,6 +92,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -114,6 +118,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packed.$c0 @fn4(flag: Boolean, value: Int) -> Packed <no-gc>
     bb0 entry
       return

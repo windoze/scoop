@@ -142,7 +142,7 @@ fn class_bound_member_resolves_to_a_concrete_class_method() {
         .iter()
         .rev()
         .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::concrete::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("the specialization returns its bound call");
@@ -366,7 +366,7 @@ fn class_bound_exposes_an_abstract_interface_capability() {
         .iter()
         .rev()
         .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::concrete::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("render returns the interface capability call");

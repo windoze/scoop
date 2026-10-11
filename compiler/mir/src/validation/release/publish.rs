@@ -31,17 +31,18 @@ pub(super) fn validate(
     let StatementKind::Call(CallEffect::Unit(call)) = &block.statements[index - 1].kind else {
         return Err(failure());
     };
-    if call.target.kind != CallKind::Direct
-        || !call.args.first().is_some_and(|arg| {
-            arg.ty == receiver.ty && matches!(arg.kind, ExprKind::Local(id) if id == local)
-        })
-        || !matches!(&block.statements[index - 2].kind,
+    let CallTarget::Direct(callee) = call.target else {
+        return Err(failure());
+    };
+    if !call.args.first().is_some_and(|arg| {
+        arg.ty == receiver.ty && matches!(arg.kind, ExprKind::Local(id) if id == local)
+    }) || !matches!(&block.statements[index - 2].kind,
             StatementKind::Assign { local: allocated, value: Expr { kind: ExprKind::ClassAlloc { class_id }, .. } }
             if *allocated == local && *class_id == class)
     {
         return Err(failure());
     }
-    let constructor = match call.target.callee {
+    let constructor = match callee {
         Callee::User(function) => local_constructor(module, function),
         Callee::Monomorphized(instance) => arena_get(&module.meta.instances, instance)
             .is_some_and(|instance| local_constructor(module, instance.function)),

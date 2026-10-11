@@ -59,23 +59,21 @@ impl Lowerer {
     ) -> hir::Expr {
         let kind = match intrinsic {
             hir::IntegerIntrinsicKind::NoGcOperation { kind, operation } => {
-                ExprKind::IntegerOperation {
-                    operation: hir::IntegerOperation::NoGc { kind, operation },
-                    arguments: integer_operation_arguments(operation.arity(), receiver, args),
-                }
+                ExprKind::IntegerOperation(integer_expression(
+                    hir::IntegerOperation::NoGc { kind, operation },
+                    receiver,
+                    args,
+                ))
             }
             hir::IntegerIntrinsicKind::ManagedOperation { kind, operation } => {
                 if let Err(error) = self.prepare_arithmetic_exception_type() {
                     self.error(span, error.diagnostic("integer division exception type"));
                 }
-                ExprKind::IntegerOperation {
-                    operation: hir::IntegerOperation::Managed { kind, operation },
-                    arguments: integer_operation_arguments(
-                        hir::IntegerOperationArity::Binary,
-                        receiver,
-                        args,
-                    ),
-                }
+                ExprKind::IntegerOperation(integer_expression(
+                    hir::IntegerOperation::Managed { kind, operation },
+                    receiver,
+                    args,
+                ))
             }
             hir::IntegerIntrinsicKind::Conversion {
                 source,
@@ -100,21 +98,25 @@ impl Lowerer {
     }
 }
 
-fn integer_operation_arguments(
-    arity: hir::IntegerOperationArity,
+fn integer_expression(
+    descriptor: hir::IntegerOperation,
     receiver: hir::Expr,
     args: &[hir::Expr],
-) -> hir::HirIntegerOperationArguments {
-    match arity {
-        hir::IntegerOperationArity::Unary => {
-            debug_assert!(args.is_empty());
-            hir::HirIntegerOperationArguments::Unary(Box::new(receiver))
-        }
-        hir::IntegerOperationArity::Binary => {
+) -> hir::HirIntegerOperation {
+    let kind = descriptor.kind();
+    match descriptor.classify() {
+        hir::IntegerOperator::Unary(operation) => hir::IntegerExpression::Unary {
+            kind,
+            operation,
+            operand: Box::new(receiver),
+        },
+        hir::IntegerOperator::Binary(operation) => {
             let [rhs] = args else {
-                unreachable!("validated binary integer intrinsic has one argument")
+                unreachable!("the selected binary intrinsic has one declared value parameter")
             };
-            hir::HirIntegerOperationArguments::Binary {
+            hir::IntegerExpression::Binary {
+                kind,
+                operation,
                 lhs: Box::new(receiver),
                 rhs: Box::new(rhs.clone()),
             }

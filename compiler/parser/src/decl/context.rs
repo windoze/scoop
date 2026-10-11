@@ -53,7 +53,7 @@ impl Parser {
             || !prefix.annotations.is_empty()
             || !matches!(prefix.visibility, VisibilitySyntax::Omitted)
             || prefix.modifiers.method_modifier.is_some()
-            || prefix.modifiers.is_override
+            || prefix.modifiers.override_span.is_some()
         {
             return Err(Diagnostic::at(
                 self.peek().span,

@@ -130,6 +130,8 @@ Module
         Type Envelope.Cache
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn4() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -154,6 +156,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -303,6 +307,8 @@ Module
   fun init.StorageBase.$c0 @fn29(this: StorageBase) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.SecretStorage.$c1 @fn30(this: SecretStorage) -> Unit
     bb0 entry
       call @fn29 direct
@@ -311,6 +317,8 @@ Module
           Type SecretStorage
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.$c2 @fn31(this: Envelope) -> Unit
     bb0 entry
       assign $new.1
@@ -325,12 +333,18 @@ Module
         Type SecretStorage
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.Hidden.$c3 @fn32(this: Envelope.Hidden) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.Hidden.Nested.$c4 @fn33(this: Envelope.Hidden.Nested) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.Cache.$c5 @fn34(this: Envelope.Cache) -> Unit
     bb0 entry
       field_set 0
@@ -339,6 +353,8 @@ Module
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<StorageBase> @fn35(task: SuspendTask<StorageBase>, completion: Continuation<StorageBase>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -361,6 +377,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<StorageBase>[0]
         Type Continuation<StorageBase>
@@ -374,6 +392,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<StorageBase>[1]
         Type Continuation<StorageBase>
@@ -385,6 +405,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -442,6 +464,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Envelope.Hidden>[0]
         Type Continuation<Envelope.Hidden>
@@ -455,6 +479,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Envelope.Hidden>[1]
         Type Continuation<Envelope.Hidden>
@@ -466,6 +492,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -523,6 +551,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Envelope>[0]
         Type Continuation<Envelope>
@@ -536,6 +566,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Envelope>[1]
         Type Continuation<Envelope>
@@ -547,6 +579,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -604,6 +638,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Envelope.Hidden.Nested>[0]
         Type Continuation<Envelope.Hidden.Nested>
@@ -617,6 +653,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Envelope.Hidden.Nested>[1]
         Type Continuation<Envelope.Hidden.Nested>
@@ -628,6 +666,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -685,6 +725,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<Envelope.Cache>[0]
         Type Continuation<Envelope.Cache>
@@ -698,6 +740,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<Envelope.Cache>[1]
         Type Continuation<Envelope.Cache>
@@ -709,6 +753,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -766,6 +812,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<SecretStorage>[0]
         Type Continuation<SecretStorage>
@@ -779,6 +827,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<SecretStorage>[1]
         Type Continuation<SecretStorage>
@@ -790,6 +840,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

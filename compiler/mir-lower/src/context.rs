@@ -34,17 +34,17 @@ pub(super) fn type_context(
     let mut shell_structs = Arena::new();
     for (_, def) in structs.iter() {
         let representation = match &def.representation {
-            mir::StructRepresentation::Declared {
+            mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 c_layout,
                 c_abi,
                 interior_mutable,
                 ..
-            } => mir::StructRepresentation::Declared {
+            }) => mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 c_layout: *c_layout,
                 c_abi: *c_abi,
                 interior_mutable: *interior_mutable,
                 fields: Vec::new(),
-            },
+            }),
             mir::StructRepresentation::Intrinsic(representation) => {
                 mir::StructRepresentation::Intrinsic(representation.clone())
             }
@@ -68,10 +68,12 @@ pub(super) fn type_context(
     let mut shell_classes = Arena::new();
     for (_, def) in classes.iter() {
         let representation = match &def.representation {
-            mir::ClassRepresentation::Declared { .. } => mir::ClassRepresentation::Declared {
-                fields: Vec::new(),
-                base_class: None,
-            },
+            mir::ClassRepresentation::Declared(mir::DeclaredClass { .. }) => {
+                mir::ClassRepresentation::Declared(mir::DeclaredClass {
+                    fields: Vec::new(),
+                    base_class: None,
+                })
+            }
             mir::ClassRepresentation::Intrinsic(representation) => {
                 mir::ClassRepresentation::Intrinsic(representation.clone())
             }

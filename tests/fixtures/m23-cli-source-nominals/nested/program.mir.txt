@@ -59,6 +59,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call value: Envelope = external1 direct
@@ -291,6 +293,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun boxed @fn2(this: Envelope, value: Marker) -> Marker
     bb0 entry
       call @fn14 direct
@@ -554,6 +558,8 @@ Module
         Type Companion<Marker>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn14() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -578,6 +584,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -670,9 +678,13 @@ Module
   fun init.GenericOuter.$c1 @fn18(this: GenericOuter<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericOuter.$c1 @fn19(this: GenericOuter<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericChild.$c2 @fn20(this: GenericChild<String>, item: String) -> Unit
     bb0 entry
       field_set 0
@@ -681,6 +693,8 @@ Module
         Type String
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericChild.$c2 @fn21(this: GenericChild<Int>, item: Int) -> Unit
     bb0 entry
       field_set 0
@@ -689,6 +703,8 @@ Module
         Type Int
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c3 @fn22(this: Box<Marker>, item: Marker) -> Unit
     bb0 entry
       call @fn24 direct
@@ -702,12 +718,18 @@ Module
         Type Marker
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c0 @fn23(this: Companion<Marker>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericBase.$c4 @fn24(this: GenericBase<Marker>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- boxed
   instance mi1 function=@fn3 <- outer
   instance mi2 function=@fn4 <- childValue

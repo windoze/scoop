@@ -195,6 +195,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalItem.$c0 @fn14(this: LocalItem<Later>, value: Later) -> Unit
     bb0 entry
       call @fn15 direct
@@ -208,9 +210,13 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractReader.$c1 @fn15(this: AbstractReader<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn16(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -233,6 +239,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -246,6 +254,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -257,6 +267,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -88,6 +88,8 @@ Module
         Type Int
         Local $dependency.parameter.extra
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn5(this: Box<Int>, value: Int, extra: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -122,6 +124,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn6(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -171,6 +175,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- echoed
   instance mi1 function=@fn2 <- count
   instance mi2 function=@fn3 <- keep

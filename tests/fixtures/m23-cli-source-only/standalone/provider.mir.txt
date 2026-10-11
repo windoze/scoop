@@ -79,6 +79,8 @@ Module
   fun init.DeferredRoot.$c0 @fn9(this: DeferredRoot) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ReadyValue.$c0 @fn10(value: Int) -> ReadyValue <no-gc>
     bb0 entry
       return
@@ -108,6 +110,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn1 interface Continuation<ReadyValue>[0]
         Type Continuation<ReadyValue>
@@ -121,6 +125,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn2 interface Continuation<ReadyValue>[1]
         Type Continuation<ReadyValue>
@@ -132,6 +138,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -189,6 +197,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<DeferredRoot>[0]
         Type Continuation<DeferredRoot>
@@ -202,6 +212,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<DeferredRoot>[1]
         Type Continuation<DeferredRoot>
@@ -213,6 +225,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

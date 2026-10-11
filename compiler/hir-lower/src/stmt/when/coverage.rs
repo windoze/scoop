@@ -14,7 +14,7 @@ impl Lowerer {
             let ast::WhenCondition::Expression(source) = condition else {
                 continue;
             };
-            if is_literal(source)
+            if let Some(value) = ast::LiteralPattern::from_expr(source)
                 && (matches!(
                     self.types[ty],
                     Type::Boolean | Type::Unit | Type::String | Type::Integer(_)
@@ -26,7 +26,7 @@ impl Lowerer {
                 let mut probe = self.clone();
                 if let Some(pattern) = probe.lower_pattern(
                     &ast::Pattern::Literal {
-                        expr: Box::new(source.clone()),
+                        value,
                         span: source.span(),
                     },
                     ty,
@@ -64,25 +64,5 @@ impl Lowerer {
             }
         }
         rows
-    }
-}
-
-fn is_literal(expr: &ast::Expr) -> bool {
-    match expr {
-        ast::Expr::IntLiteral(_)
-        | ast::Expr::FloatLiteral(_)
-        | ast::Expr::BoolLiteral { .. }
-        | ast::Expr::CharLiteral { .. }
-        | ast::Expr::StringLiteral { .. }
-        | ast::Expr::UnitLiteral { .. } => true,
-        ast::Expr::Unary {
-            op: ast::UnOp::Neg | ast::UnOp::Plus,
-            operand,
-            ..
-        } => matches!(
-            operand.as_ref(),
-            ast::Expr::IntLiteral(_) | ast::Expr::FloatLiteral(_)
-        ),
-        _ => false,
     }
 }

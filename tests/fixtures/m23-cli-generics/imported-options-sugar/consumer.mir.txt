@@ -176,6 +176,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun exercise @fn7(value: Int) -> Int
     bb0 entry
       call @fn6 direct
@@ -885,6 +887,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Cell> @fn15(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -907,6 +911,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -920,6 +926,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -931,6 +939,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

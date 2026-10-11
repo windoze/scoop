@@ -213,6 +213,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -237,6 +239,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Sensor.$c0 @fn3(this: Sensor, calibration: Double) -> Unit
     bb0 entry
       field_set 0
@@ -245,6 +249,8 @@ Module
         Type Double
         Local calibration
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Sample.$c0 @fn4(value: Float) -> Sample <no-gc>
     bb0 entry
       return

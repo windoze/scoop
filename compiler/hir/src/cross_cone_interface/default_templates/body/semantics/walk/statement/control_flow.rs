@@ -1,5 +1,5 @@
 use crate::{
-    DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenConditionV1, DefaultWhenFallbackV1,
+    DefaultCatchV1, DefaultTryV1, DefaultWhenArmRefV1, DefaultWhenConditionV1,
     DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1, ExportDefinitionSourceV1,
     OptionalDefaultStatementListViewV1,
 };
@@ -24,7 +24,7 @@ where
                 definition_origin,
             },
         )?;
-        for arm in value.arms().iter().rev() {
+        for arm in value.arms().rev() {
             self.push_child(pending, BodyNode::WhenArm(arm))?;
         }
         if let Some(subject) = value.subject() {
@@ -35,7 +35,7 @@ where
 
     pub(in super::super) fn process_when_arm<'body>(
         &mut self,
-        arm: &'body DefaultWhenArmV1,
+        arm: DefaultWhenArmRefV1<'body>,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_statements(pending, arm.body())?;
@@ -86,11 +86,11 @@ where
 
     pub(in super::super) fn process_when_fallback<'body>(
         &mut self,
-        fallback: &'body DefaultWhenFallbackV1,
+        fallback: DefaultWhenFallbackViewV1<'body>,
         definition_origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        match fallback.view() {
+        match fallback {
             DefaultWhenFallbackViewV1::Fallthrough => Ok(()),
             DefaultWhenFallbackViewV1::Else(statements) => {
                 self.push_statements(pending, statements)

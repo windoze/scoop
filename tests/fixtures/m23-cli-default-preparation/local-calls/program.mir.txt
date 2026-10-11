@@ -86,6 +86,8 @@ Module
         Type String
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.copy @fn2(value: String) -> String
     bb0 entry
       return

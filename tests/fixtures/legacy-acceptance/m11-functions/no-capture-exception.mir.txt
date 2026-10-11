@@ -88,6 +88,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -151,6 +153,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -175,6 +179,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn4($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct

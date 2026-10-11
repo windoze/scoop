@@ -183,6 +183,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.argument.0: String
         Type String
@@ -236,6 +238,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -260,6 +264,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Tagged.$c0 @fn5(tag: String, pair: (Int, String)) -> Tagged <no-gc>
     bb0 entry
       return

@@ -101,6 +101,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun printConstructor @fn5(value: ConstructorEvent) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -126,6 +128,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn6() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -491,6 +495,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -515,6 +521,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -539,6 +547,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Token.$c0 @fn9(this: Token, text: String) -> Unit
     bb0 entry
       field_set 0
@@ -547,6 +557,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Point.$c0 @fn10(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return

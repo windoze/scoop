@@ -31,10 +31,10 @@ fn module_validation_rejects_a_descriptor_class_without_an_exact_identity() {
         modifier: ClassModifier::Final,
         name: "MissingIdentity".to_string(),
         type_arguments: Vec::new(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -453,10 +453,10 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
         modifier: ClassModifier::Final,
         name: "Throwable".to_string(),
         type_arguments: Vec::new(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),

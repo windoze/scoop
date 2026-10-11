@@ -1344,6 +1344,8 @@ Module
         Type ForeignCallback<(Float, Ptr<Unit>) -> Float>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn24(this: Ptr<Float>, other: Ptr<Float>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Float>
@@ -1434,6 +1436,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn28($closure: (Float) -> Float, value: Float) -> Float
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -1492,6 +1496,8 @@ Module
         Type Float
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for identityWide @fn34($result: Ptr<Double>, $arg0: Ptr<Double>) -> Unit <no-gc>
     bb0 entry
       call $value: Double = @fn22 direct
@@ -1506,6 +1512,8 @@ Module
         Type Double
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn35($closure: (Float) -> Float, $snapshot: internal<context-node>, $result: Ptr<Float>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

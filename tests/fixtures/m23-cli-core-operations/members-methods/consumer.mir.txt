@@ -220,6 +220,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "!"
   str @str1 "z"
   output library

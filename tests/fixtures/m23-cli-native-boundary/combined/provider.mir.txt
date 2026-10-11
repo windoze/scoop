@@ -34,6 +34,8 @@ Module
         Type ULong
         Local arg8
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packed.$c0 @fn1(value: Int8, flag: Boolean) -> Packed <no-gc>
     bb0 entry
       return

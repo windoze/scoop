@@ -33,7 +33,7 @@ impl Lowerer {
                 let mut statements = Vec::new();
                 if state.encode_target(context, value, encoder, span, &mut statements).is_some() {
                     statements.push(hir::Statement {
-                        kind: hir::StatementKind::Return { value: None },
+                        kind: hir::StatementKind::Return { value: state.unit_expression(span) },
                         span,
                     });
                 } else if state.diagnostics.len() == before {
@@ -56,7 +56,9 @@ impl Lowerer {
         match self.types[context.target].clone() {
             Type::Struct(_) => self.encode_struct(context, value, encoder, span, sink),
             Type::Class(_) => self.encode_class(context, value, encoder, span, sink),
-            Type::Enum(_) => self.encode_enum(context, value, encoder, span, sink),
+            Type::Enum(application) => {
+                self.encode_enum(application, context, value, encoder, span, sink)
+            }
             Type::Tuple(fields) => {
                 let codecs = fields
                     .into_iter()

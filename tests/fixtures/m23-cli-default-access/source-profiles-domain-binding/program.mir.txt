@@ -51,9 +51,13 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun unitValue @fn1() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       call samples: Samples = external1 direct
@@ -290,6 +294,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn3(this: Unit, other: Unit) -> Boolean
     bb0 entry
       return

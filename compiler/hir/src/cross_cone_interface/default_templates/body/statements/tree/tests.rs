@@ -8,8 +8,37 @@ use crate::{
     DecodedOptionalDefaultWhenGuardV1, DefaultAssignTargetV1, DefaultCatchV1,
     DefaultExpressionKindV1, DefaultExpressionV1, DefaultLocalFunctionV1, DefaultPatternV1,
     DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
-    OptionalDefaultExpressionV1, OptionalDefaultStatementListV1, OptionalDefaultWhenGuardV1,
+    OptionalDefaultStatementListV1, OptionalDefaultWhenGuardV1,
 };
+
+#[test]
+fn legacy_bare_return_resolves_to_a_unit_value_at_the_statement_origin() {
+    let fixture = Fixture::new();
+    let mut bytes = vec![0xa2, 1, 0xa2, 0, 4, 1, 0xa1, 0, 1, 2];
+    bytes.extend(encode(&fixture.origin()).unwrap());
+    let decoded: DecodedDefaultStatementV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    let resolved = decoded
+        .resolve(&mut fixture.resolver(), &mut fixture.locals())
+        .unwrap();
+    let DefaultStatementKindV1::Return(value) = resolved.kind() else {
+        panic!("a legacy bare return remains a return")
+    };
+    assert_eq!(value.kind(), &DefaultExpressionKindV1::UnitLiteral);
+    assert_eq!(
+        value.result_type(),
+        &scoop_identity::SignatureTypeKey::Nominal(
+            scoop_identity::CoreBuiltinNominal::Unit
+                .identity_record()
+                .id()
+        )
+    );
+    assert_eq!(value.definition_origin(), &fixture.origin());
+    assert_eq!(
+        value.evaluation_origin(),
+        &scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin())
+    );
+}
 
 #[test]
 fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
@@ -37,7 +66,7 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
             &fixture,
         ),
         statement(
-            DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::absent()),
+            DefaultStatementKindV1::Return(Box::new(unit(&fixture))),
             &fixture,
         ),
         statement(
@@ -149,14 +178,15 @@ fn every_when_fallback_variant_keeps_its_frozen_wire_tag() {
     let fixture = Fixture::new();
     let fallbacks = vec![
         DefaultWhenFallbackV1::try_else(vec![break_statement(&fixture)]).unwrap(),
-        DefaultWhenFallbackV1::irrefutable_arm(fixture.value_type()),
-        DefaultWhenFallbackV1::pattern_matrix(fixture.value_type()),
-        DefaultWhenFallbackV1::enum_pattern_matrix(fixture.value_type(), fixture.value_type()),
+        DefaultWhenFallbackV1::Impossible(crate::ExhaustivenessProof::IrrefutableArm),
+        DefaultWhenFallbackV1::Impossible(crate::ExhaustivenessProof::PatternMatrix),
+        DefaultWhenFallbackV1::Impossible(crate::ExhaustivenessProof::EnumPatternMatrix),
         DefaultWhenFallbackV1::fallthrough(),
     ];
 
     for (expected_tag, fallback) in (1_u8..=5).zip(fallbacks) {
-        let bytes = encode(&fallback.index_locals(&mut fixture.locals()).unwrap()).unwrap();
+        let when = DefaultWhenV1::try_subject(unit(&fixture), Vec::new(), fallback).unwrap();
+        let bytes = encode(&when.fallback().index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(bytes[2], expected_tag);
         let decoded: DecodedDefaultWhenFallbackV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
@@ -252,10 +282,10 @@ fn when_value(fixture: &Fixture) -> DefaultWhenV1 {
         fixture.origin(),
     )
     .unwrap();
-    DefaultWhenV1::try_new(
-        crate::OptionalDefaultExpressionV1::present(unit(fixture)),
+    DefaultWhenV1::try_subject(
+        unit(fixture),
         vec![arm],
-        DefaultWhenFallbackV1::pattern_matrix(fixture.value_type()),
+        DefaultWhenFallbackV1::Impossible(crate::ExhaustivenessProof::PatternMatrix),
     )
     .unwrap()
 }
@@ -334,45 +364,12 @@ fn ordinary_when_round_trips_without_a_subject_and_preserves_predicate_setup() {
         )
         .unwrap(),
     ];
-    let when = DefaultWhenV1::try_new(
-        OptionalDefaultExpressionV1::absent(),
-        arms,
-        DefaultWhenFallbackV1::fallthrough(),
-    )
-    .unwrap();
+    let when = DefaultWhenV1::try_conditions(arms, DefaultWhenFallbackV1::fallthrough()).unwrap();
     let bytes = encode(&when.index_locals(&mut fixture.locals()).unwrap()).unwrap();
     let decoded: crate::DecodedDefaultWhenV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
         Ok(when)
-    );
-}
-
-#[test]
-fn case_and_exhaustive_fallback_require_a_subject_at_the_format_boundary() {
-    let fixture = Fixture::new();
-    let arm = DefaultWhenArmV1::try_new(
-        crate::DefaultWhenConditionV1::Case(DefaultPatternV1::wildcard()),
-        OptionalDefaultWhenGuardV1::absent(),
-        Vec::new(),
-        fixture.origin(),
-    )
-    .unwrap();
-    assert_eq!(
-        DefaultWhenV1::try_new(
-            OptionalDefaultExpressionV1::absent(),
-            vec![arm],
-            DefaultWhenFallbackV1::fallthrough()
-        ),
-        Err(crate::DefaultControlFlowBuildError::MissingWhenSubject)
-    );
-    assert_eq!(
-        DefaultWhenV1::try_new(
-            OptionalDefaultExpressionV1::absent(),
-            Vec::new(),
-            DefaultWhenFallbackV1::pattern_matrix(fixture.value_type())
-        ),
-        Err(crate::DefaultControlFlowBuildError::MissingWhenSubject)
     );
 }

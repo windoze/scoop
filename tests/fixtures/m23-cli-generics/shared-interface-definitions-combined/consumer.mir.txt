@@ -1274,6 +1274,8 @@ Module
   fun Inline.$get$first @fn10(this: Inline<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Inline.$get$second @fn11(this: Inline<String>) -> String
     bb0 entry
       return
@@ -1289,6 +1291,8 @@ Module
   fun Local.$get$first @fn13(this: Local<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Local.$get$second @fn14(this: Local<String>) -> String
     bb0 entry
       return
@@ -1384,13 +1388,13 @@ Module
   fun Inline.$get$first @fn20(this: Inline<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Inline.$get$second @fn21(this: Inline<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Inline<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun same @fn22(this: Swap<Unit, Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       return
@@ -1399,13 +1403,13 @@ Module
   fun Local.$get$first @fn23(this: Local<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Local.$get$second @fn24(this: Local<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Local<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun View.$get$second @fn25(this: View<Unit, Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `View.$get$second`"
@@ -1500,6 +1504,8 @@ Module
   fun Inline.$get$first @fn30(this: Inline<Pair<Int, Unit>>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Inline.$get$second @fn31(this: Inline<Pair<Int, Unit>>) -> Pair<Int, Unit>
     bb0 entry
       return
@@ -1515,6 +1521,8 @@ Module
   fun Local.$get$first @fn33(this: Local<Pair<Int, Unit>>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Local.$get$second @fn34(this: Local<Pair<Int, Unit>>) -> Pair<Int, Unit>
     bb0 entry
       return
@@ -1610,6 +1618,8 @@ Module
   fun Inline.$get$first @fn40(this: Inline<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Inline.$get$second @fn41(this: Inline<Int>) -> Int
     bb0 entry
       return
@@ -1625,6 +1635,8 @@ Module
   fun Local.$get$first @fn43(this: Local<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Local.$get$second @fn44(this: Local<Int>) -> Int
     bb0 entry
       return
@@ -1720,6 +1732,8 @@ Module
   fun first @fn50(this: Remote<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn51(this: Remote<String>) -> String
     bb0 entry
       return
@@ -1734,24 +1748,24 @@ Module
         Local next
   fun choose @fn53(this: View<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun first @fn54(this: Remote<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn55(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn56(this: Swap<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn57(this: View<Unit, Pair<Int, Unit>>, next: Pair<Int, Unit>) -> Pair<Int, Unit>
     bb0 entry
       return
@@ -1760,6 +1774,8 @@ Module
   fun first @fn58(this: Remote<Pair<Int, Unit>>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn59(this: Remote<Pair<Int, Unit>>) -> Pair<Int, Unit>
     bb0 entry
       return
@@ -1780,6 +1796,8 @@ Module
   fun first @fn62(this: Remote<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn63(this: Remote<Int>) -> Int
     bb0 entry
       return
@@ -1799,9 +1817,9 @@ Module
         Local next
   fun Restored.choose @fn66(this: Restored<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun Restored.choose @fn67(this: Restored<Unit, Pair<Int, Unit>>, next: Pair<Int, Unit>) -> Pair<Int, Unit>
     bb0 entry
       return
@@ -1906,6 +1924,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Local> Swap.choose @fn77(this: Local<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn66 direct
@@ -1916,6 +1936,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Local> View.choose @fn78(this: Local<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn66 direct
@@ -1926,6 +1948,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Local> Diamond.peer @fn79(this: Local<Pair<Int, Unit>>, other: View<Unit, Pair<Int, Unit>>) -> View<Unit, Pair<Int, Unit>>
     bb0 entry
       call $call.1: View<Unit, Pair<Int, Unit>> = @fn29 direct
@@ -2116,6 +2140,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Remote> Swap.same @fn95(this: Remote<Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn22 direct
@@ -2138,6 +2164,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Remote> Swap.peer @fn97(this: Remote<Pair<Int, Unit>>, other: View<Unit, Pair<Int, Unit>>) -> View<Unit, Pair<Int, Unit>>
     bb0 entry
       call $call.1: View<Unit, Pair<Int, Unit>> = @fn29 direct
@@ -2242,6 +2270,8 @@ Module
         Type String
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn106(this: Local<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2250,6 +2280,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn107(this: Local<Pair<Int, Unit>>, second: Pair<Int, Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -2258,6 +2290,8 @@ Module
         Type Pair<Int, Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn108(this: Local<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2266,6 +2300,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn109(this: Remote<String>, second: String) -> Unit
     bb0 entry
       field_set 0
@@ -2274,6 +2310,8 @@ Module
         Type String
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn110(this: Remote<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2282,6 +2320,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn111(this: Remote<Pair<Int, Unit>>, second: Pair<Int, Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -2290,6 +2330,8 @@ Module
         Type Pair<Int, Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn112(this: Remote<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2298,6 +2340,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn113(first: Int, second: Unit) -> Pair<Int, Unit> <no-gc>
     bb0 entry
       return
@@ -2355,6 +2399,8 @@ Module
           Type box<Inline<String>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<String>> Restored.second() @fn120(this: box<Inline<String>>) -> String
     bb0 entry
       call $call.1: String = @fn11 direct
@@ -2409,6 +2455,8 @@ Module
           Type box<Inline<String>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<String>> Swap.second() @fn125(this: box<Inline<String>>) -> String
     bb0 entry
       call $call.1: String = @fn11 direct
@@ -2475,6 +2523,8 @@ Module
           Type box<Inline<String>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<String>> View.second() @fn131(this: box<Inline<String>>) -> String
     bb0 entry
       call $call.1: String = @fn11 direct
@@ -2505,6 +2555,8 @@ Module
           Type box<Inline<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> Restored.second() @fn134(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn21 direct
@@ -2513,6 +2565,8 @@ Module
           Type box<Inline<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> Restored.same(Swap<Unit, Unit>) @fn135(this: box<Inline<Unit>>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn22 direct
@@ -2535,6 +2589,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> Swap.peer(View<Unit, Unit>) @fn137(this: box<Inline<Unit>>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       call $call.1: View<Unit, Unit> = @fn19 direct
@@ -2555,6 +2611,8 @@ Module
           Type box<Inline<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> Swap.second() @fn139(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn21 direct
@@ -2563,6 +2621,8 @@ Module
           Type box<Inline<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> Swap.choose(Unit) @fn140(this: box<Inline<Unit>>, next: Unit) -> Unit
     bb0 entry
       call @fn66 direct
@@ -2573,6 +2633,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> Swap.same(Swap<Unit, Unit>) @fn141(this: box<Inline<Unit>>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn22 direct
@@ -2595,6 +2657,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> View.peer(View<Unit, Unit>) @fn143(this: box<Inline<Unit>>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       call $call.1: View<Unit, Unit> = @fn19 direct
@@ -2615,6 +2679,8 @@ Module
           Type box<Inline<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Unit>> View.second() @fn145(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn21 direct
@@ -2623,6 +2689,8 @@ Module
           Type box<Inline<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Pair<Int, Unit>>> Restored.peer(View<Unit, Pair<Int, Unit>>) @fn146(this: box<Inline<Pair<Int, Unit>>>, other: View<Unit, Pair<Int, Unit>>) -> View<Unit, Pair<Int, Unit>>
     bb0 entry
       call $call.1: View<Unit, Pair<Int, Unit>> = @fn29 direct
@@ -2643,6 +2711,8 @@ Module
           Type box<Inline<Pair<Int, Unit>>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Pair<Int, Unit>>> Restored.second() @fn148(this: box<Inline<Pair<Int, Unit>>>) -> Pair<Int, Unit>
     bb0 entry
       call $call.1: Pair<Int, Unit> = @fn31 direct
@@ -2697,6 +2767,8 @@ Module
           Type box<Inline<Pair<Int, Unit>>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Pair<Int, Unit>>> Swap.second() @fn153(this: box<Inline<Pair<Int, Unit>>>) -> Pair<Int, Unit>
     bb0 entry
       call $call.1: Pair<Int, Unit> = @fn31 direct
@@ -2763,6 +2835,8 @@ Module
           Type box<Inline<Pair<Int, Unit>>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Pair<Int, Unit>>> View.second() @fn159(this: box<Inline<Pair<Int, Unit>>>) -> Pair<Int, Unit>
     bb0 entry
       call $call.1: Pair<Int, Unit> = @fn31 direct
@@ -2793,6 +2867,8 @@ Module
           Type box<Inline<Int>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Int>> Restored.second() @fn162(this: box<Inline<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn41 direct
@@ -2847,6 +2923,8 @@ Module
           Type box<Inline<Int>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Int>> Swap.second() @fn167(this: box<Inline<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn41 direct
@@ -2913,6 +2991,8 @@ Module
           Type box<Inline<Int>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Inline<Int>> View.second() @fn173(this: box<Inline<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn41 direct

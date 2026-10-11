@@ -158,6 +158,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Pair.equals @fn1(this: Pair<Int>, other: Pair<Int>) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -217,6 +219,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Maybe.equals @fn3(this: Maybe<String>, other: Maybe<String>) -> Boolean
     bb0 entry
       val $when.1: Maybe<String>

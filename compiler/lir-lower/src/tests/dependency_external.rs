@@ -316,16 +316,12 @@ fn dependency_input(
     module.functions[caller].body.blocks[entry]
         .statements
         .push(call_stmt(mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::External(imported),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::External(imported)),
             args: if has_receiver {
                 vec![mir::Expr::unit()]
             } else {
                 Vec::new()
             },
-            pending: mir::CoroutinePendingContext::Root,
         }));
 
     let mir_output = mir::DependencyMirOutput::try_new(module, selected_mir).unwrap();

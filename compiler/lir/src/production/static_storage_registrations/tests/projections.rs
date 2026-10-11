@@ -15,7 +15,7 @@ fn plan(encoded: bool) -> StrongStaticStorageSemanticPlanV1 {
     let state = if encoded {
         LirStaticInitialState::EncodedStaticValue {
             payload: LirConstantImage::Struct {
-                struct_id: empty,
+                struct_id: empty.definition(),
                 fields: Vec::new(),
             },
         }
@@ -25,7 +25,7 @@ fn plan(encoded: bool) -> StrongStaticStorageSemanticPlanV1 {
     let mut globals = Arena::new();
     globals.alloc(storage_global(
         "token",
-        LirType::Struct(empty),
+        LirType::Struct(empty.definition()),
         RefScan::None,
         state,
     ));

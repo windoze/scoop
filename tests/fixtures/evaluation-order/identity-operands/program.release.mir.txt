@@ -38,6 +38,8 @@ Module
         Type Ref
         Local $new.1
     bb2 inline.1.entry
+      Type Unit
+      UnitLiteral
       goto bb1
   fun main @fn1() -> Unit
     bb0 entry
@@ -112,12 +114,16 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb7 inline.cont.7
       assign $result.1
         Type Ref
         Local $new.3
       goto bb6
     bb8 inline.7.entry
+      Type Unit
+      UnitLiteral
       goto bb7
     bb9 inline.cont.9
       assign $result.0
@@ -125,6 +131,8 @@ Module
         Local $new.1
       goto bb3
     bb10 inline.9.entry
+      Type Unit
+      UnitLiteral
       goto bb9
   fun println @fn2(value: String) -> Unit
     bb0 entry
@@ -150,6 +158,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -174,9 +184,13 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Ref.$c0 @fn4(this: Ref) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   instance mi1 function=@fn3 <- println
   str @str0 "left"

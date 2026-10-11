@@ -1,5 +1,8 @@
 use super::*;
 
+mod when;
+pub use when::*;
+
 #[derive(Debug, Clone)]
 pub struct Body {
     pub locals: Arena<Local>,
@@ -50,8 +53,8 @@ pub enum StatementKind {
     /// `Module::local_functions`; executing this statement has no effect.
     LocalFunction(LocalFunctionId),
     Return {
-        /// Absent in `Unit` functions (bare `return`).
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     ValDecl {
         pattern: Pattern,
@@ -125,62 +128,6 @@ pub enum AssignTarget {
         field: InitializingClassFieldRef,
         origin: ExpressionOrigin,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct When {
-    pub subject: Option<Expr>,
-    pub arms: Vec<WhenArm>,
-    pub fallback: WhenFallback,
-}
-
-/// The total fallback edge of a checked `when`.
-///
-/// An absent source `else` is not enough to make the edge unreachable:
-/// HIR carries the exhaustiveness proof that established this fact.
-#[derive(Debug, Clone)]
-pub enum WhenFallback {
-    Else(Vec<Statement>),
-    /// A permitted statement-position fallthrough.
-    Fallthrough,
-    Impossible(ExhaustivenessProof),
-}
-
-/// A typed witness produced by the HIR exhaustiveness checker.
-#[derive(Debug, Clone)]
-pub enum ExhaustivenessProof {
-    /// An unguarded recursively-irrefutable arm covers the subject type.
-    IrrefutableArm { subject_ty: TypeId },
-    /// A recursive pattern matrix covers a tuple, struct, or exact integer
-    /// domain even though no individual arm is irrefutable.
-    PatternMatrix { subject_ty: TypeId },
-    /// Every constructor of this exact enum application, including each
-    /// constructor's recursive payload matrix, is covered.
-    EnumPatternMatrix { subject_ty: TypeId },
-}
-
-#[derive(Debug, Clone)]
-pub struct WhenArm {
-    pub condition: WhenCondition,
-    pub guard: Option<WhenGuard>,
-    pub body: Vec<Statement>,
-    pub span: Span,
-}
-
-/// Ordinary predicates retain their ordered local setup; multiple source
-/// conditions use the existing short-circuit Boolean control flow.
-#[derive(Debug, Clone)]
-pub enum WhenCondition {
-    Case(Pattern),
-    Predicate(WhenGuard),
-    /// The primary condition of a guarded fallback.
-    Always,
-}
-
-#[derive(Debug, Clone)]
-pub struct WhenGuard {
-    pub setup: Vec<Statement>,
-    pub condition: Expr,
 }
 
 /// A fully resolved pattern (spec 4.6 / 5): variant/field positions
@@ -467,10 +414,7 @@ pub enum ExprKind {
     /// A compiler-recognized integer member after ordinary call resolution.
     /// The registry entry retains the exact operand kind and an effect-refined
     /// source target; source intrinsic text is no longer representable.
-    IntegerOperation {
-        operation: HirIntegerOperation,
-        arguments: HirIntegerOperationArguments,
-    },
+    IntegerOperation(HirIntegerOperation),
     IntegerConversion {
         conversion: HirIntegerConversion,
         operand: Box<Expr>,
@@ -514,11 +458,7 @@ pub enum StringConstantOwner<P> {
     Property(P),
 }
 
-#[derive(Debug, Clone)]
-pub enum HirIntegerOperationArguments {
-    Unary(Box<Expr>),
-    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
-}
+pub type HirIntegerOperation = IntegerExpression<Box<Expr>>;
 
 #[derive(Debug, Clone)]
 pub struct ArrayAssembly {
@@ -648,7 +588,7 @@ pub enum UnOp {
 /// An original variant in one complete, possibly symbolic enum application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EnumVariantApplication {
-    pub owner: TypeId,
+    pub owner: crate::EnumApplicationId,
     pub variant: scoop_identity::PersistentEnumVariantId,
 }
 

@@ -122,7 +122,7 @@ fn materialized_exception_at(body: &mir::Body, target: mir::CoroutineUnwindTarge
             else {
                 return None;
             };
-            (call.target.callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
+            (matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)))
                 .then_some((index, *destination))
         })
         .unwrap_or_else(|| {
@@ -188,7 +188,7 @@ fn assert_per_scope_exception_storage(body: &mir::Body, minimum: usize) {
             else {
                 continue;
             };
-            if call.target.callee != mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)
+            if !matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
                 || !body.locals[*destination]
                     .name
                     .starts_with("$coroutine_exception")
@@ -257,7 +257,9 @@ fn one_suspending_finally_has_distinct_fallthrough_return_and_throw_contexts() {
                 body: vec![
                     stmt(hir::StatementKind::If {
                         cond: local_ref(returns, boolean),
-                        then_body: vec![stmt(hir::StatementKind::Return { value: None })],
+                        then_body: vec![stmt(hir::StatementKind::Return {
+                            value: expr(hir::ExprKind::UnitLiteral, h.unit),
+                        })],
                         else_body: None,
                     }),
                     stmt(hir::StatementKind::If {
@@ -342,7 +344,7 @@ fn nested_finally_catches_site_failure_without_losing_outer_return_or_throw() {
             locals: return_locals,
             statements: vec![stmt(hir::StatementKind::Try(hir::Try {
                 body: vec![stmt(hir::StatementKind::Return {
-                    value: Some(int_lit(&h, 17)),
+                    value: int_lit(&h, 17),
                 })],
                 catches: Vec::new(),
                 finally_body: Some(vec![nested_finally_with_caught_suspend(

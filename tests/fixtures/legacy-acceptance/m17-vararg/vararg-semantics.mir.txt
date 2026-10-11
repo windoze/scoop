@@ -338,6 +338,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: Array<Int>
         Type Array<Int>
@@ -1093,6 +1095,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn17(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -1212,6 +1216,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn19(this: Array<Token>) -> Iterator<Token>
     bb0 entry
       val $dependency.local.1: List<Token>
@@ -1355,6 +1361,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn24(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -1379,6 +1387,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn25(this: Array<String>) -> Iterator<String>
     bb0 entry
       val $dependency.local.1: List<String>
@@ -1514,6 +1524,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun pack @fn29(values: Array<String>) -> Array<String>
     bb0 entry
       return
@@ -1755,6 +1767,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Token.$c1 @fn44(this: Token, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1763,9 +1777,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.MemberCollector.$c2 @fn45(this: MemberCollector) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn46(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1784,6 +1802,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn47(this: ListIterator<Token>, source: List<Token>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1802,6 +1822,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn48(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1820,6 +1842,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Values.$c0 @fn49(values: Array<Int>) -> Values <no-gc>
     bb0 entry
       return
@@ -1849,6 +1873,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn38 interface Continuation<Token>[0]
         Type Continuation<Token>
@@ -1862,6 +1888,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn39 interface Continuation<Token>[1]
         Type Continuation<Token>
@@ -1873,6 +1901,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

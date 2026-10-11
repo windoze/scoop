@@ -1149,21 +1149,21 @@ Module
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun localIdentity @fn22(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun Source.get @fn23(this: Source<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Source.get`"
   fun get @fn24(this: Local<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Local<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn25(value: Unit) -> () -> Unit
     bb0 entry
       return
@@ -1184,6 +1184,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun defaulted @fn27(value: Unit, select: (Unit) -> Unit) -> Unit
     bb0 entry
       call <closure:function_type12> closure[function_type12]
@@ -1192,6 +1194,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn28($argument.0: (Unit, Unit) -> Int, $argument.1: Unit, $argument.2: Unit) -> Int
     bb0 entry
       val $dependency.local.4: (Unit) -> Int
@@ -1233,9 +1237,9 @@ Module
         Local $call.1
   fun unchecked @fn30(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn31($argument.0: (Unit, Int) -> Int, $argument.1: Unit, $argument.2: Int) -> Int
     bb0 entry
       call $dependency.local.2: Int = <closure:function_type2> closure[function_type2]
@@ -1575,11 +1579,9 @@ Module
         Local value
   fun value @fn60(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn61($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -1594,11 +1596,13 @@ Module
         Type Unit
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn62(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn63(this: Box<String>) -> String
     bb0 entry
       return
@@ -1681,6 +1685,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn71($argument.0: String) -> String
     bb0 entry
       val $dependency.local.1: String
@@ -1729,6 +1735,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn78(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1737,6 +1745,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn79(this: Local<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1745,6 +1755,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn80(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1753,6 +1765,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn81(this: Local<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1761,6 +1775,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn82(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1769,6 +1785,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn83(this: Local<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1777,6 +1795,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn84(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1785,6 +1805,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn85(this: Local<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1793,6 +1815,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn86(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1815,6 +1839,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn73 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1828,6 +1854,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn74 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1839,6 +1867,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

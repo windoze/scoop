@@ -100,6 +100,8 @@ Module
         Type SourceRegistry
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn4() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -124,6 +126,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -241,6 +245,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn11(this: Continuation<SourcePacket>, value: SourcePacket) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -280,12 +286,18 @@ Module
   fun init.SourceRegistry.$c3 @fn23(this: SourceRegistry) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.SourceHost.$c2 @fn24(this: SourceHost<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.SourceHost.$c2 @fn25(this: SourceHost<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.SourcePacket.$c0 @fn26(value: Int) -> SourcePacket <no-gc>
     bb0 entry
       return
@@ -315,6 +327,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<SourceRegistry>[0]
         Type Continuation<SourceRegistry>
@@ -328,6 +342,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<SourceRegistry>[1]
         Type Continuation<SourceRegistry>
@@ -339,6 +355,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -396,6 +414,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<SourcePacket>[0]
         Type Continuation<SourcePacket>
@@ -409,6 +429,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<SourcePacket>[1]
         Type Continuation<SourcePacket>
@@ -420,6 +442,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -477,6 +501,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<SourceChoice>[0]
         Type Continuation<SourceChoice>
@@ -490,6 +516,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<SourceChoice>[1]
         Type Continuation<SourceChoice>
@@ -501,6 +529,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

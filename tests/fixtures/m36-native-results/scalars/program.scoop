@@ -1,0 +1,19 @@
+struct Empty() {}
+
+@Extern(lib = "m36_results", name = "m36_result_touch", abi = "scoop")
+fun touch()
+@Extern(lib = "m36_results", name = "m36_result_empty", abi = "scoop")
+fun empty(): Empty
+@Extern(lib = "m36_results", name = "m36_result_number", abi = "scoop")
+fun number(): Long
+@Extern(lib = "m36_results", name = "m36_result_echo", abi = "scoop")
+fun echo(value: String): String
+
+fun main() {
+    touch()
+    val marker = empty()
+    println(marker == Empty())
+    val value = number()
+    println(value)
+    println(echo("native" + value.toString()))
+}

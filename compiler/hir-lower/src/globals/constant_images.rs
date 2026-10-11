@@ -53,6 +53,9 @@ impl Lowerer {
 
     pub(super) fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
         self.as_option(ty)?;
+        let hir::Type::Enum(owner) = self.types[ty] else {
+            return None;
+        };
         let variant = match &self.core {
             crate::CoreLoweringAuthority::Imported(protocols) => {
                 protocols.option().none().persistent()
@@ -60,7 +63,7 @@ impl Lowerer {
             _ => self.enum_member_identities.as_ref()?[self.option_core?.none()].id(),
         };
         Some(hir::HirConstantImage::EnumUnit {
-            variant: hir::EnumVariantApplication { owner: ty, variant },
+            variant: hir::EnumVariantApplication { owner, variant },
         })
     }
 
@@ -69,9 +72,10 @@ impl Lowerer {
         expression: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
-        if !matches!(self.types[expected], hir::Type::Enum(_))
-            || !matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_))
-        {
+        let hir::Type::Enum(owner) = self.types[expected] else {
+            return None;
+        };
+        if !matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_)) {
             return None;
         }
         let mut probe = self.clone();
@@ -90,7 +94,7 @@ impl Lowerer {
         self.dependencies = probe.dependencies;
         Some(hir::HirConstantImage::EnumUnit {
             variant: hir::EnumVariantApplication {
-                owner: expected,
+                owner,
                 variant: variant.variant,
             },
         })

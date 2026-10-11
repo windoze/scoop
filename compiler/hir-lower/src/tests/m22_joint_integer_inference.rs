@@ -127,8 +127,7 @@ fn operators_and_explicit_members_join_literal_candidates_before_defaulting() {
     for name in ["equalityForward", "equalityReverse"] {
         assert_eq!(local_init(body, name).ty, module.boolean, "{name}");
     }
-    let hir::ExprKind::IntegerOperation { operation, .. } =
-        &local_init(body, "compareResultIsLong").kind
+    let hir::ExprKind::IntegerOperation(operation) = &local_init(body, "compareResultIsLong").kind
     else {
         panic!("compareTo must normalize to a typed integer operation")
     };

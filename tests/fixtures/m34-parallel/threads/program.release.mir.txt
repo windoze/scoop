@@ -161,6 +161,8 @@ Module
     bb0 entry
       call extern1 @m34_parallel_begin direct
       return
+        Type Unit
+        UnitLiteral
   fun markedOnce @fn4() -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @m34_parallel_check direct
@@ -216,6 +218,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun worker @fn7(seed: Int, count: Long, captured: Value) -> Int
     bb0 entry
       val $argument.0: Long
@@ -1358,6 +1362,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb35 inline.34.entry
       val $inline.34.$dependency.local.1: ULong
         Type ULong
@@ -1499,6 +1505,8 @@ Module
         Local $inline.40.this
         Type Option<Node>
         Local $inline.40.next
+      Type Unit
+      UnitLiteral
       goto bb40
     bb42 inline.cont.42
       val $inline.38.$call.1: PinnedPtr<Value>
@@ -1597,6 +1605,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn11(this: MutableArray<Value>, index: Long) -> Value
     bb0 entry
@@ -1730,6 +1740,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn14(this: Array<Value>, index: Long) -> Value
     bb0 entry
@@ -1867,6 +1879,8 @@ Module
         Local $inline.1.this
         Type Option<Node>
         Local $inline.1.next
+      Type Unit
+      UnitLiteral
       goto bb1
   fun $lambda.1 @fn17($closure: (Long) -> Value, index: Long) -> Value
     bb0 entry
@@ -1981,6 +1995,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn22(this: ListIterator<Value>) -> Option<Value>
     bb0 entry
       branch bb1 bb2
@@ -2122,6 +2138,8 @@ Module
         Type Option<Node>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn35(this: ListIterator<Value>, source: List<Value>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2140,6 +2158,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.PinnedPtr.$c1 @fn36(raw: ULong) -> PinnedPtr<Value> <no-gc>
     bb0 entry
       return
@@ -2244,6 +2264,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -2257,6 +2279,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -2268,6 +2292,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2325,6 +2351,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -2338,6 +2366,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -2349,6 +2379,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

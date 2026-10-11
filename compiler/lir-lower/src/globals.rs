@@ -224,10 +224,10 @@ pub(super) fn static_storage_layout(
         mir::Type::Struct(id)
             if matches!(
                 &module.structs[*id].representation,
-                mir::StructRepresentation::Declared {
+                mir::StructRepresentation::Declared(mir::DeclaredStruct {
                     c_layout: Some(_),
                     ..
-                }
+                })
             ) =>
         {
             RepresentationRole::CValue

@@ -22,12 +22,20 @@ pub(in crate::validation) fn validate_expression(
             if *class != module.release_hooks[hook].owner {
                 return Err(invalid("release field read must use its own exact owner"));
             }
-            let ClassRepresentation::Declared { fields, base_class } =
+            let ClassRepresentation::Declared(DeclaredClass { fields, base_class }) =
                 &module.classes[*class].representation
             else {
                 return Err(invalid("release field read requires a declared class"));
             };
-            let first = base_class.map_or(0, |base| module.classes[base].declared_fields().len());
+            let first = match base_class {
+                Some(base) => match &module.classes[*base].representation {
+                    ClassRepresentation::Declared(base) => base.fields.len(),
+                    ClassRepresentation::Intrinsic(_) => {
+                        return Err(invalid("release class requires a declared base class"));
+                    }
+                },
+                None => 0,
+            };
             if (*index as usize) < first
                 || fields
                     .get(*index as usize)
@@ -96,7 +104,6 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::Box(_)
         | ExprKind::Unbox(_)
         | ExprKind::IsInstance { .. }
-        | ExprKind::Cast { .. }
         | ExprKind::ArrayAllocate { .. }
         | ExprKind::ArrayLiteral { .. }
         | ExprKind::ArrayAssembly { .. }

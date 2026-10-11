@@ -428,6 +428,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn18(this: Derived<Later>, payload: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -444,6 +446,8 @@ Module
         Type Later
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn19(this: Base<Later>, payload: Later) -> Unit
     bb0 entry
       field_set 0
@@ -452,6 +456,8 @@ Module
         Type Later
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GenericValue.$c1 @fn20(payload: Later, number: Int) -> GenericValue<Later> <no-gc>
     bb0 entry
       return
@@ -483,6 +489,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -496,6 +504,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -507,6 +517,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

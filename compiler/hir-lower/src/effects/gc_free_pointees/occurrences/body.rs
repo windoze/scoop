@@ -58,9 +58,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 collect_expr_type_occurrences(lowerer, expression, out);
             }
             hir::StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    collect_expr_type_occurrences(lowerer, value, out);
-                }
+                collect_expr_type_occurrences(lowerer, value, out);
             }
             hir::StatementKind::ValDecl { pattern, init } => {
                 collect_pattern_type_occurrences(lowerer, pattern, file, statement.span, out);
@@ -123,26 +121,26 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 collect_statement_type_occurrences(lowerer, body, file, out);
             }
             hir::StatementKind::When(when) => {
-                if let Some(subject) = &when.subject {
+                if let Some(subject) = when.subject() {
                     collect_expr_type_occurrences(lowerer, subject, out);
                 }
-                for arm in &when.arms {
-                    if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                for arm in when.arms() {
+                    if let hir::WhenConditionRef::Case(pattern) = arm.condition {
                         collect_pattern_type_occurrences(lowerer, pattern, file, arm.span, out);
                     }
-                    for guard in match &arm.condition {
-                        hir::WhenCondition::Predicate(condition) => Some(condition),
+                    for guard in match arm.condition {
+                        hir::WhenConditionRef::Predicate(condition) => Some(condition),
                         _ => None,
                     }
                     .into_iter()
-                    .chain(arm.guard.iter())
+                    .chain(arm.guard)
                     {
                         collect_statement_type_occurrences(lowerer, &guard.setup, file, out);
                         collect_expr_type_occurrences(lowerer, &guard.condition, out);
                     }
-                    collect_statement_type_occurrences(lowerer, &arm.body, file, out);
+                    collect_statement_type_occurrences(lowerer, arm.body, file, out);
                 }
-                if let hir::WhenFallback::Else(body) = &when.fallback {
+                if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                     collect_statement_type_occurrences(lowerer, body, file, out);
                 }
             }
@@ -194,7 +192,7 @@ fn collect_pattern_type_occurrences(
             ..
         } => {
             out.push(TypeOccurrence {
-                ty: application.owner,
+                ty: lowerer.enum_applications[application.owner].canonical_type,
                 file,
                 span,
             });
@@ -302,17 +300,29 @@ pub(in super::super) fn collect_expr_type_occurrences(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            push_type_at_expression(variant.owner, expression, out);
+            push_type_at_expression(
+                lowerer.enum_applications[variant.owner].canonical_type,
+                expression,
+                out,
+            );
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            push_type_at_expression(variant.owner, expression, out);
+            push_type_at_expression(
+                lowerer.enum_applications[variant.owner].canonical_type,
+                expression,
+                out,
+            );
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            push_type_at_expression(field.variant.owner, expression, out);
+            push_type_at_expression(
+                lowerer.enum_applications[field.variant.owner].canonical_type,
+                expression,
+                out,
+            );
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::Lambda(id) => {
@@ -562,11 +572,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
-        ExprKind::IntegerOperation { arguments, .. } => match arguments {
-            hir::HirIntegerOperationArguments::Unary(operand) => {
+        ExprKind::IntegerOperation(arguments) => match arguments {
+            hir::IntegerExpression::Unary { operand, .. } => {
                 collect_expr_type_occurrences(lowerer, operand, out);
             }
-            hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+            hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                 collect_expr_type_occurrences(lowerer, lhs, out);
                 collect_expr_type_occurrences(lowerer, rhs, out);
             }

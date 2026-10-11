@@ -53,13 +53,13 @@ fn export_loop_targets(statements: &[hir::Statement], out: &mut Vec<hir::LoopId>
                 }
             }
             hir::StatementKind::When(when) => {
-                for arm in &when.arms {
+                for arm in when.arms() {
                     if let Some(guard) = &arm.guard {
                         export_loop_targets(&guard.setup, out);
                     }
-                    export_loop_targets(&arm.body, out);
+                    export_loop_targets(arm.body, out);
                 }
-                if let hir::WhenFallback::Else(body) = &when.fallback {
+                if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                     export_loop_targets(body, out);
                 }
             }
@@ -104,13 +104,13 @@ fn concrete_loop_targets(
                 }
             }
             hir::concrete::StatementKind::When(when) => {
-                for arm in &when.arms {
+                for arm in when.arms() {
                     if let Some(guard) = &arm.guard {
                         concrete_loop_targets(&guard.setup, out);
                     }
-                    concrete_loop_targets(&arm.body, out);
+                    concrete_loop_targets(arm.body, out);
                 }
-                if let hir::concrete::WhenFallback::Else(body) = &when.fallback {
+                if let hir::concrete::WhenFallbackRef::Else(body) = when.fallback() {
                     concrete_loop_targets(body, out);
                 }
             }

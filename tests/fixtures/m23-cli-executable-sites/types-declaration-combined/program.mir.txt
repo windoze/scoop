@@ -98,6 +98,8 @@ Module
         Local $new.4
     bb4 if.merge.4
       return
+        Type Unit
+        UnitLiteral
   str @str0 "storage"
   str @str1 "illegal state"
   str @str2 "changed"

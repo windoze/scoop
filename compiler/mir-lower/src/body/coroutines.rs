@@ -18,10 +18,7 @@ impl BodyLowerer<'_> {
         self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
             mir::Type::Unit,
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee,
-                },
+                target: mir::CallTarget::Direct(callee),
                 args: vec![task, completion],
                 return_ty: mir::Type::Unit,
             }),
@@ -38,23 +35,18 @@ impl BodyLowerer<'_> {
             unreachable!("hir-lower validates suspendCoroutine's one parameter")
         };
         let result = self.lower_type(protocol.result_type);
-        let mut target = crate::coroutine_registry::protocol_call(
+        let method = crate::coroutine_registry::protocol_call(
             self.module,
             self.instances,
             self.interfaces,
             protocol.suspend_registration_register,
         );
-        let mir::Callee::Monomorphized(register) = target.callee else {
-            unreachable!("a coroutine protocol member has a concrete application")
-        };
-        target.callee = mir::Callee::CoroutineSuspend { register };
         smir::Expr::new(
-            result.clone(),
-            smir::ExprKind::Call(smir::Call {
-                target,
-                args: vec![self.lower_expr(registration)],
-                return_ty: result,
-            }),
+            result,
+            smir::ExprKind::CoroutineSuspend {
+                method,
+                receiver: Box::new(self.lower_expr(registration)),
+            },
         )
     }
 

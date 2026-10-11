@@ -9,8 +9,12 @@ Module
   fun main @fn0() -> Unit <no-gc>
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for main @fn1() -> Unit <no-gc>
     bb0 entry
       call @fn0 direct
       return
+        Type Unit
+        UnitLiteral
   output executable @fn0

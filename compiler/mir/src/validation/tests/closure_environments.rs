@@ -172,7 +172,9 @@ fn install_closure_allocation(
             kind: StatementKind::Expr(allocation),
             span: SourceSpan::new(0, 0).unwrap(),
         }],
-        terminator: Terminator::Return { value: None },
+        terminator: Terminator::Return {
+            value: Expr::unit(),
+        },
         unwind: None,
     });
     module.functions[module

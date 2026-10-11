@@ -165,7 +165,7 @@ fn concrete_variant_and_struct_field_refs_are_checked() {
         owner: None,
         type_arguments: Vec::new(),
         gc_free: true,
-        representation: StructRepresentation::Declared {
+        representation: StructRepresentation::Declared(DeclaredStruct {
             c_abi: StructCAbi::SourceRepresentation,
             attributes: StructAttributes::default(),
             fields: vec![DeclaredStructField {
@@ -173,14 +173,22 @@ fn concrete_variant_and_struct_field_refs_are_checked() {
                 name: "value".to_string(),
                 ty,
             }],
-        },
+        }),
         direct_interfaces: Vec::new(),
         interfaces: Vec::new(),
         interface_implementations: Vec::new(),
         methods: Vec::new(),
         span: Span::new(0, 0),
     });
-    assert!(StructFieldRef::checked(&structs, declared, 0).is_some());
-    assert!(StructFieldRef::checked(&structs, declared, 1).is_none());
-    assert!(StructFieldRef::checked(&structs, StructId::from_raw(99.into()), 0).is_none());
+    let field = field_identity("Record", "value");
+    assert_eq!(
+        StructFieldRef::resolve(&structs, declared, field)
+            .unwrap()
+            .local_index(),
+        0
+    );
+    assert!(
+        StructFieldRef::resolve(&structs, declared, field_identity("Record", "missing")).is_none()
+    );
+    assert!(StructFieldRef::resolve(&structs, StructId::from_raw(99.into()), field).is_none());
 }

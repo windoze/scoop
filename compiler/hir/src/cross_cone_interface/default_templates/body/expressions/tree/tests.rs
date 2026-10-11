@@ -8,9 +8,9 @@ use crate::{
     DefaultCallableDeclarationV1, DefaultCallableReferenceTargetV1, DefaultCallableReferenceV1,
     DefaultClassConstructorIdV1, DefaultConstructorRefV1, DefaultEnumVariantFieldRefV1,
     DefaultEnumVariantRefV1, DefaultFieldRefV1, DefaultForeignCallbackOperationV1,
-    DefaultIntegerKindV1, DefaultIntegerOperationV1, DefaultLambdaV1, DefaultMethodCalleeV1,
-    DefaultNoGcIntegerOperationV1, DefaultPlaceV1, DefaultPrimitiveBinaryKindV1,
-    DefaultPrimitiveUnaryKindV1, DefaultStringOwnerV1, DefaultUnaryOperatorV1,
+    DefaultIntegerKindV1, DefaultLambdaV1, DefaultMethodCalleeV1, DefaultPlaceV1,
+    DefaultPrimitiveBinaryKindV1, DefaultPrimitiveUnaryKindV1, DefaultStringOwnerV1,
+    DefaultUnaryOperatorV1,
 };
 
 mod receivers;
@@ -217,13 +217,12 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             kind: DefaultPrimitiveUnaryKindV1::BooleanNot,
             operand: Box::new(unit(&fixture)),
         },
-        DefaultExpressionKindV1::IntegerOperation {
-            operation: DefaultIntegerOperationV1::NoGc {
-                kind: DefaultIntegerKindV1::Signed32,
-                operation: DefaultNoGcIntegerOperationV1::Add,
-            },
-            arguments: DefaultIntegerArgumentsV1::binary(unit(&fixture), unit(&fixture)),
-        },
+        DefaultExpressionKindV1::IntegerOperation(crate::IntegerExpression::Binary {
+            kind: crate::IntegerKind::SIGNED_32,
+            operation: crate::IntegerBinaryOperator::Add,
+            lhs: Box::new(unit(&fixture)),
+            rhs: Box::new(unit(&fixture)),
+        }),
         DefaultExpressionKindV1::IntegerConversion {
             source_kind: DefaultIntegerKindV1::Signed32,
             target_kind: DefaultIntegerKindV1::Unsigned64,

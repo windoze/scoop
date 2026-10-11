@@ -59,6 +59,8 @@ Module
   fun Protocols.empty @fn2(this: Protocols) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun Protocols.ignored @fn3(this: Protocols, value: Int) -> Int
     bb0 entry
       return
@@ -101,6 +103,8 @@ Module
         Type Int
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packet.$c0 @fn14(count: Int) -> Packet <no-gc>
     bb0 entry
       return
@@ -130,6 +134,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<Packet>[0]
         Type Continuation<Packet>
@@ -143,6 +149,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<Packet>[1]
         Type Continuation<Packet>
@@ -154,6 +162,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -211,6 +221,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Protocols>[0]
         Type Continuation<Protocols>
@@ -224,6 +236,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Protocols>[1]
         Type Continuation<Protocols>
@@ -235,6 +249,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

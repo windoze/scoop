@@ -1,5 +1,8 @@
 use super::*;
 
+mod conditions;
+use conditions::ArmMatch;
+
 impl BodyLowerer<'_> {
     pub(super) fn lower_when(
         &mut self,
@@ -7,28 +10,53 @@ impl BodyLowerer<'_> {
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
-        let subject = when.subject.as_ref().map(|value| {
-            let ty = self.lower_type(value.ty);
-            let init = self.lower_expr(value);
-            self.drain_prelude(span, out);
-            let local = self.new_hidden("when", ty.clone(), false);
-            out.push(smir::Statement {
-                kind: smir::StatementKind::ValDecl { local, init },
-                span,
-            });
-            (local, ty)
-        });
-        out.extend(self.lower_arms(&when.arms, subject.as_ref(), &when.fallback, span));
+        match when {
+            hir::When::Subject {
+                subject,
+                arms,
+                fallback,
+            } => {
+                let ty = self.lower_type(subject.ty);
+                let init = self.lower_expr(subject);
+                self.drain_prelude(span, out);
+                let local = self.new_hidden("when", ty.clone(), false);
+                out.push(smir::Statement {
+                    kind: smir::StatementKind::ValDecl { local, init },
+                    span,
+                });
+                let subject = (local, ty);
+                out.extend(
+                    self.lower_arms(arms, fallback, span, |this, condition, span| {
+                        this.lower_subject_condition(condition, &subject, span)
+                    }),
+                );
+            }
+            hir::When::Conditions { arms, fallback } => {
+                out.extend(
+                    self.lower_arms(
+                        arms,
+                        fallback,
+                        span,
+                        |this, condition, span| match condition {
+                            hir::WhenPredicate::Predicate(predicate) => {
+                                this.lower_when_predicate(predicate, span)
+                            }
+                            hir::WhenPredicate::Always => ArmMatch::Always,
+                        },
+                    ),
+                );
+            }
+        }
     }
 
-    /// Each false condition or guard enters the remaining decision sequence.
-    /// Exhaustiveness affects only its final edge, never an arm's runtime test.
-    fn lower_arms(
+    /// Conditions and guards retain their source order; only the final edge
+    /// uses the checked fallback category.
+    fn lower_arms<C, P>(
         &mut self,
-        arms: &[hir::WhenArm],
-        subject: Option<&(mir::LocalId, mir::Type)>,
-        fallback: &hir::WhenFallback,
+        arms: &[hir::WhenArm<C>],
+        fallback: &hir::WhenFallback<P>,
         fallback_span: Span,
+        condition: impl Copy + Fn(&mut Self, &C, Span) -> ArmMatch,
     ) -> Vec<smir::Statement> {
         let Some((arm, rest)) = arms.split_first() else {
             return match fallback {
@@ -40,75 +68,43 @@ impl BodyLowerer<'_> {
                 }],
             };
         };
-        match &arm.condition {
-            hir::WhenCondition::Always => {
-                self.lower_matched_arm(arm, rest, subject, fallback, fallback_span)
+        match condition(self, &arm.condition, arm.span) {
+            ArmMatch::Always => {
+                self.lower_matched_arm(arm, rest, fallback, fallback_span, condition)
             }
-            hir::WhenCondition::Predicate(condition) => {
-                let mut out = self.lower_statements(&condition.setup);
-                let cond = self.lower_expr(&condition.condition);
-                self.drain_prelude(arm.span, &mut out);
-                let then_body = self.lower_matched_arm(arm, rest, subject, fallback, fallback_span);
-                let next = self.lower_arms(rest, subject, fallback, fallback_span);
-                out.push(smir::Statement {
+            ArmMatch::Predicate { mut setup, value } => {
+                let then_body =
+                    self.lower_matched_arm(arm, rest, fallback, fallback_span, condition);
+                let next = self.lower_arms(rest, fallback, fallback_span, condition);
+                setup.push(smir::Statement {
                     kind: smir::StatementKind::If {
-                        cond,
+                        cond: value,
                         then_body,
                         else_body: non_empty(next),
                     },
                     span: arm.span,
                 });
-                out
+                setup
             }
-            hir::WhenCondition::Case(pattern) => {
-                let (subject_local, subject_ty) = subject.expect("a case has a subject");
-                let mut path = Vec::new();
-                let mut steps = Vec::new();
-                let mut bindings = Vec::new();
-                let decision_subject = if pattern_requires_stable_variant_subject(pattern) {
-                    self.new_hidden("pattern.subject", subject_ty.clone(), false)
-                } else {
-                    *subject_local
-                };
-                self.lower_pattern(
-                    pattern,
-                    decision_subject,
-                    &mut path,
-                    subject_ty,
-                    &mut steps,
-                    &mut bindings,
-                );
-                if decision_subject != *subject_local {
-                    steps.insert(
-                        0,
-                        smir::PatternDecisionStep::Materialize {
-                            local: decision_subject,
-                            init: smir::Expr::local(*subject_local, subject_ty.clone()),
-                        },
-                    );
-                }
-                let mut then_body: Vec<_> = bindings
-                    .into_iter()
-                    .map(|(local, init)| smir::Statement {
-                        kind: smir::StatementKind::ValDecl { local, init },
-                        span: arm.span,
-                    })
-                    .collect();
-                then_body.extend(self.lower_matched_arm(
+            ArmMatch::Pattern {
+                steps,
+                mut bindings,
+            } => {
+                bindings.extend(self.lower_matched_arm(
                     arm,
                     rest,
-                    subject,
                     fallback,
                     fallback_span,
+                    condition,
                 ));
                 if steps.is_empty() {
-                    return then_body;
+                    return bindings;
                 }
-                let else_body = self.lower_arms(rest, subject, fallback, fallback_span);
+                let else_body = self.lower_arms(rest, fallback, fallback_span, condition);
                 vec![smir::Statement {
                     kind: smir::StatementKind::PatternDecision(smir::PatternDecision {
                         steps,
-                        then_body,
+                        then_body: bindings,
                         else_body,
                     }),
                     span: arm.span,
@@ -117,13 +113,13 @@ impl BodyLowerer<'_> {
         }
     }
 
-    fn lower_matched_arm(
+    fn lower_matched_arm<C, P>(
         &mut self,
-        arm: &hir::WhenArm,
-        rest: &[hir::WhenArm],
-        subject: Option<&(mir::LocalId, mir::Type)>,
-        fallback: &hir::WhenFallback,
+        arm: &hir::WhenArm<C>,
+        rest: &[hir::WhenArm<C>],
+        fallback: &hir::WhenFallback<P>,
         fallback_span: Span,
+        condition: impl Copy + Fn(&mut Self, &C, Span) -> ArmMatch,
     ) -> Vec<smir::Statement> {
         let Some(guard) = &arm.guard else {
             return self.lower_statements(&arm.body);
@@ -132,7 +128,7 @@ impl BodyLowerer<'_> {
         let cond = self.lower_expr(&guard.condition);
         self.drain_prelude(arm.span, &mut out);
         let then_body = self.lower_statements(&arm.body);
-        let next = self.lower_arms(rest, subject, fallback, fallback_span);
+        let next = self.lower_arms(rest, fallback, fallback_span, condition);
         out.push(smir::Statement {
             kind: smir::StatementKind::If {
                 cond,

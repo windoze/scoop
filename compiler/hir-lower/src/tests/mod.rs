@@ -364,7 +364,7 @@ fn return_value(statements: &[hir::Statement]) -> &hir::Expr {
         .iter()
         .rev()
         .find_map(|statement| match &statement.kind {
-            hir::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("a return with a value must exist")
@@ -382,9 +382,9 @@ fn local_method_callable(module: &hir::Module, callee: hir::MethodCallee) -> hir
     callable
 }
 
-fn case_pattern(arm: &hir::WhenArm) -> &hir::Pattern {
-    match &arm.condition {
-        hir::WhenCondition::Case(pattern) => pattern,
+fn case_pattern(arm: hir::WhenArmRef<'_>) -> &hir::Pattern {
+    match arm.condition {
+        hir::WhenConditionRef::Case(pattern) => pattern,
         _ => panic!("expected case arm"),
     }
 }

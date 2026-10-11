@@ -180,6 +180,8 @@ Module
         Local $new.4
     bb10 if.merge.10
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.keep @fn2($capture.copy: Int, unused: Int) -> Int
     bb0 entry
       return

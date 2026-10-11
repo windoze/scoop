@@ -14,7 +14,7 @@ impl Lowerer {
         let application = self.derived_equality_applications[application].clone();
         let [
             hir::Statement {
-                kind: hir::StatementKind::Return { value: Some(value) },
+                kind: hir::StatementKind::Return { value },
                 ..
             },
         ] = application.body.statements.as_slice()

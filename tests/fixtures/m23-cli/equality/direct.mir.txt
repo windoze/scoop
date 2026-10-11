@@ -456,6 +456,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -480,6 +482,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Generic.equals @fn2(this: Generic<Flag>, other: Generic<Flag>) -> Boolean
     bb0 entry
       call $call.1: Boolean = external8 direct
@@ -531,6 +535,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Generic.$c0 @fn5(value: Flag) -> Generic<Flag> <no-gc>
     bb0 entry
       return

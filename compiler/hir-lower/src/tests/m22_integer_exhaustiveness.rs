@@ -84,13 +84,13 @@ fn every_int8_singleton_produces_a_typed_exhaustiveness_proof() {
     .expect("all 256 Int8 bit patterns must prove a direct when exhaustive");
 
     assert!(matches!(
-        export_when(&output.export, "checkInt8").fallback,
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix { .. })
+        export_when(&output.export, "checkInt8").fallback(),
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::PatternMatrix)
     ));
     assert!(matches!(
-        concrete_when(&output.local, "checkInt8").fallback,
-        hir::concrete::WhenFallback::Impossible(
-            hir::concrete::ExhaustivenessProof::PatternMatrix { .. }
+        concrete_when(&output.local, "checkInt8").fallback(),
+        hir::concrete::WhenFallbackRef::Impossible(
+            hir::concrete::ExhaustivenessProof::PatternMatrix
         )
     ));
 }
@@ -125,8 +125,8 @@ fn complete_uint8_singletons_compose_with_a_wildcard_tail_partition() {
     .expect("singleton rows plus the symbolic other rows must cover a product");
 
     assert!(matches!(
-        export_when(&output.export, "checkProduct").fallback,
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix { .. })
+        export_when(&output.export, "checkProduct").fallback(),
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::PatternMatrix)
     ));
 }
 

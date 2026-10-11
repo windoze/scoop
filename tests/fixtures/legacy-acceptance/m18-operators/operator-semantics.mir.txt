@@ -595,6 +595,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun Cell.plusAssign @fn15(this: Cell, delta: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Int
@@ -618,6 +620,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun Coordinates.component1 @fn16(this: Coordinates) -> Int
     bb0 entry
       return
@@ -1789,6 +1793,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn25(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -1813,6 +1819,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn26(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -1837,6 +1845,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn27(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -1861,6 +1871,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn28(this: Continuation<Score>, value: Score) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1881,6 +1893,8 @@ Module
         Type Int
         Local expected
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c1 @fn33(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1889,6 +1903,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Coordinates.$c2 @fn34(this: Coordinates, x: Int, y: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1902,6 +1918,8 @@ Module
         Type Int
         Local y
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Score.$c0 @fn35(value: Int) -> Score <no-gc>
     bb0 entry
       return
@@ -1931,6 +1949,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn28 interface Continuation<Score>[0]
         Type Continuation<Score>
@@ -1944,6 +1964,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn29 interface Continuation<Score>[1]
         Type Continuation<Score>
@@ -1955,6 +1977,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -348,6 +348,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun makeLambda @fn1(value: Int) -> () -> Int
     bb0 entry
       return
@@ -502,6 +504,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn16(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -526,6 +530,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn17($closure: () -> Int) -> Int
     bb0 entry
       return

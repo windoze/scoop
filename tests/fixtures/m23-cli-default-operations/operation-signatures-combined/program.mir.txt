@@ -50,6 +50,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call samples: Samples = external1 direct
@@ -340,6 +342,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun pair @fn2(this: Box<String>, value: Int) -> (String, Int)
     bb0 entry
       call $call.1: String = @fn10 direct
@@ -435,6 +439,8 @@ Module
         Type String
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn12(this: Box<Int>, seed: Int) -> Unit
     bb0 entry
       field_set 0
@@ -443,6 +449,8 @@ Module
         Type Int
         Local seed
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- pair
   instance mi1 function=@fn3 <- method
   instance mi2 function=@fn5 <- echo

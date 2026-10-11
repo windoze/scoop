@@ -10,12 +10,7 @@ impl<'a> Traversal<'a> {
             StatementKind::Expr(value) | StatementKind::Throw(value) => {
                 self.push(Item::Expression(value))
             }
-            StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    self.push(Item::Expression(value))?;
-                }
-                Ok(())
-            }
+            StatementKind::Return { value } => self.push(Item::Expression(value)),
             StatementKind::ValDecl { pattern, init } => {
                 self.push(Item::Expression(init))?;
                 self.push(Item::Pattern(pattern))
@@ -55,25 +50,25 @@ impl<'a> Traversal<'a> {
                 self.statements(condition_setup)
             }
             StatementKind::When(when) => {
-                if let WhenFallback::Else(body) = &when.fallback {
+                if let WhenFallbackRef::Else(body) = when.fallback() {
                     self.statements(body)?;
                 }
-                for arm in when.arms.iter().rev() {
-                    self.statements(&arm.body)?;
-                    if let Some(guard) = &arm.guard {
+                for arm in when.arms().rev() {
+                    self.statements(arm.body)?;
+                    if let Some(guard) = arm.guard {
                         self.push(Item::Expression(&guard.condition))?;
                         self.statements(&guard.setup)?;
                     }
-                    match &arm.condition {
-                        WhenCondition::Case(pattern) => self.push(Item::Pattern(pattern))?,
-                        WhenCondition::Predicate(predicate) => {
+                    match arm.condition {
+                        WhenConditionRef::Case(pattern) => self.push(Item::Pattern(pattern))?,
+                        WhenConditionRef::Predicate(predicate) => {
                             self.push(Item::Expression(&predicate.condition))?;
                             self.statements(&predicate.setup)?;
                         }
-                        WhenCondition::Always => {}
+                        WhenConditionRef::Always => {}
                     }
                 }
-                if let Some(subject) = &when.subject {
+                if let Some(subject) = when.subject() {
                     self.push(Item::Expression(subject))?;
                 }
                 Ok(())

@@ -139,7 +139,10 @@ pub(super) fn dump_expr(
             let (_, name, _, _) = enum_variant_names(module, *variant);
             out.push_str(&format!(
                 "{pad}VariantTest {}.{name} : {ty}\n",
-                type_name(module, variant.owner)
+                type_name(
+                    module,
+                    module.enum_applications[variant.owner].canonical_type
+                )
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
@@ -147,7 +150,10 @@ pub(super) fn dump_expr(
             let (_, name, _, _) = enum_variant_names(module, field.variant);
             out.push_str(&format!(
                 "{pad}VariantPayloadProject {}.{name}.{} : {ty}\n",
-                type_name(module, field.variant.owner),
+                type_name(
+                    module,
+                    module.enum_applications[field.variant.owner].canonical_type
+                ),
                 enum_field_name(module, *field)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
@@ -407,11 +413,8 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}PrimitiveUnary {kind:?} : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::IntegerOperation {
-            operation,
-            arguments,
-        } => {
-            match operation {
+        ExprKind::IntegerOperation(arguments) => {
+            match arguments.descriptor() {
                 IntegerOperation::NoGc { kind, operation } => out.push_str(&format!(
                     "{pad}IntegerOperation {}.{} <no-gc> : {ty}\n",
                     kind.registry_key(),
@@ -423,14 +426,8 @@ pub(super) fn dump_expr(
                     operation.registry_key()
                 )),
             }
-            match arguments {
-                HirIntegerOperationArguments::Unary(operand) => {
-                    dump_expr(module, locals, operand, indent + 1, out);
-                }
-                HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                    dump_expr(module, locals, lhs, indent + 1, out);
-                    dump_expr(module, locals, rhs, indent + 1, out);
-                }
+            for operand in arguments.operands() {
+                dump_expr(module, locals, operand, indent + 1, out);
             }
         }
         ExprKind::IntegerConversion {

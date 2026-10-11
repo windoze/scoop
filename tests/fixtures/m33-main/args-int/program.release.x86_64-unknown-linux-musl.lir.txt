@@ -188,43 +188,45 @@ Module
     store t20 -> local37
     unreachable
   block inline.11.if.merge.2
+    t21 = aggregate () : {}
     br @inline.cont.11
   block inline.cont.15
     store param0 -> local5
     store integer<Long>(0x0000000000000001) -> local6
     store integer<Long>(0x0000000000000001) -> local7
-    call managed-direct-target6 sp<managed-call:0> live=[param0:ptr<managed>@0, local5:ptr<managed>@0] t21 = sig=direct7 (ptr<managed>, i64) -> ptr<managed> local-fn7(local5, integer<Long>(0x0000000000000001))
-    store t21 -> local8
+    call managed-direct-target6 sp<managed-call:0> live=[param0:ptr<managed>@0, local5:ptr<managed>@0] t22 = sig=direct7 (ptr<managed>, i64) -> ptr<managed> local-fn7(local5, integer<Long>(0x0000000000000001))
+    store t22 -> local8
     store global1 -> local9
     store local9 -> local10
-    call managed-direct-target7 sp<managed-call:1> live=[param0:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t22 = sig=direct8 (ptr<managed>, ptr<managed>) -> i1 external-fn1(local8, local10)
-    store t22 -> local29
+    call managed-direct-target7 sp<managed-call:1> live=[param0:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t23 = sig=direct8 (ptr<managed>, ptr<managed>) -> i1 external-fn1(local8, local10)
+    store t23 -> local29
     cbr local29 then @if.then.1 else @if.merge.2
   block inline.15.entry
     store local38 -> local39
-    t23 = Not local39 : i1
-    cbr t23 then @inline.15.if.then.1 else @inline.15.if.merge.2
+    t24 = Not local39 : i1
+    cbr t24 then @inline.15.if.then.1 else @inline.15.if.merge.2
   block inline.15.if.then.1
     store integer<Int>(0x00000063) -> local40
     store integer<Int>(0x00000063) -> local41
-    call managed-direct-target8 sp<managed-call:11> live=[] t24 = sig=direct9 (i32) -> ptr<managed> external-fn0(integer<Int>(0x00000063))
-    store t24 -> local42
+    call managed-direct-target8 sp<managed-call:11> live=[] t25 = sig=direct9 (i32) -> ptr<managed> external-fn0(integer<Int>(0x00000063))
+    store t25 -> local42
     unreachable
   block inline.15.if.merge.2
+    t26 = aggregate () : {}
     br @inline.cont.15
   block inline.cont.19
     store local43 -> local0
     store integer<Long>(0x0000000000000002) -> local1
     store integer<Long>(0x0000000000000002) -> local2
-    t25 = integer_compare_Equal<Long> local0, integer<Long>(0x0000000000000002) : i1
-    store t25 -> local3
+    t27 = integer_compare_Equal<Long> local0, integer<Long>(0x0000000000000002) : i1
+    store t27 -> local3
     store local3 -> local4
     store local4 -> local38
     br @inline.15.entry
   block inline.19.entry
     store local44 -> local45
-    t26 = array_len array0 local45 : i64
-    store t26 -> local43
+    t28 = array_len array0 local45 : i64
+    store t28 -> local43
     br @inline.cont.19
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
@@ -288,6 +290,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$5e8dcfe4f924331833525ed99119c4de294319fcd36de4dc5e79b7024f899e90(ptr<managed>, i64) -> ptr<managed>
     local %0 $dependency.local.2: ptr<managed>

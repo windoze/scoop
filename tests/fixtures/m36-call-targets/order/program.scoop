@@ -1,0 +1,63 @@
+interface Reader {
+    fun read(value: Int): Int
+}
+
+open class Base {
+    open fun read(value: Int): Int = value
+}
+
+class Derived(val id: Int): Base(), Reader {
+    override fun read(value: Int): Int = id * 100 + value
+}
+
+class State(var base: Base, var reader: Reader, var operation: (Int) -> Int)
+
+fun select(state: State): Base {
+    println("receiver")
+    return state.base
+}
+
+fun change(state: State): Int {
+    println("argument")
+    state.base = Derived(9)
+    state.reader = Derived(9)
+    state.operation = { value -> 900 + value }
+    gcCollect()
+    return 7
+}
+
+fun accept(value: Any): Int = 1000
+
+fun stop(): Nothing {
+    println("stop")
+    throw IllegalStateException()
+}
+
+fun main() {
+    val state = State(Derived(1), Derived(2), { value -> 600 + value })
+    println(state.base.read(change(state)))
+    state.base = Derived(3)
+    println(select(state).read(change(state)))
+    state.reader = Derived(5)
+    println(state.reader.read(change(state)))
+    state.operation = { value -> 600 + value }
+    println(state.operation(change(state)))
+
+    var base: Base = Derived(7)
+    println(base.read(if (true) { base = Derived(8); gcCollect(); 7 } else { 0 }))
+    println(base.read(8))
+
+    val bound = select(state)::read
+    println(bound(change(state)))
+    val exact: (Any) -> Int = ::accept
+    val erased: Any = exact
+    val checked = erased as (Int) -> Any
+    println(checked(change(state)) as Int)
+    try {
+        select(state).read(stop())
+    } catch (error: IllegalStateException) {
+        println("caught")
+    } finally {
+        println("cleanup")
+    }
+}

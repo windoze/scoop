@@ -83,6 +83,8 @@ Module
           Local $for.next.3
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $for.element.4: Int
         Type Int
@@ -137,6 +139,8 @@ Module
           Local $for.next.8
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $for.element.9: Long
         Type Long
@@ -191,6 +195,8 @@ Module
           Local $for.next.13
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $for.element.14: UInt
         Type UInt
@@ -245,6 +251,8 @@ Module
           Local $for.next.18
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $for.element.19: ULong
         Type ULong
@@ -310,6 +318,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: String
         Type String
@@ -371,6 +381,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: String
         Type String
@@ -432,6 +444,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: String
         Type String
@@ -493,6 +507,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: String
         Type String
@@ -535,6 +551,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $dependency.receiver: IntRange
         Type IntRange
@@ -635,6 +653,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $dependency.receiver: LongRange
         Type LongRange
@@ -735,6 +755,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $dependency.receiver: UIntRange
         Type UIntRange
@@ -835,6 +857,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $dependency.receiver: ULongRange
         Type ULongRange
@@ -1244,6 +1268,8 @@ Module
         Type LongRange
         Local $parameter.range
       return
+        Type Unit
+        UnitLiteral
   fun namedConstruction @fn13() -> Unit
     bb0 entry
       val $argument.0: String
@@ -1359,6 +1385,8 @@ Module
         Type IntRange
         Local $parameter.range
       return
+        Type Unit
+        UnitLiteral
   fun emptySingletonAndDirection @fn14() -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -2166,6 +2194,8 @@ Module
         Type IntRange
         Local $parameter.range
       return
+        Type Unit
+        UnitLiteral
   fun containsAndAlignment @fn15() -> Unit
     bb0 entry
       val $dependency.receiver: Int
@@ -2995,6 +3025,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun fullDomainsHaveFiniteIterators @fn16() -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -3302,6 +3334,8 @@ Module
         Type Iterator<ULong>
         Local $parameter.iterator
       return
+        Type Unit
+        UnitLiteral
   fun endpointsDoNotWrap @fn17() -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -3789,6 +3823,8 @@ Module
         Type Iterator<UInt>
         Local $parameter.iterator
       return
+        Type Unit
+        UnitLiteral
   fun cursorsAreFreshAndStayExhausted @fn18() -> Unit
     bb0 entry
       val $dependency.receiver: Int
@@ -3954,6 +3990,8 @@ Module
         Type Iterator<ULong>
         Local $parameter.iterator
       return
+        Type Unit
+        UnitLiteral
   fun invalidStepsThrow @fn19() -> Unit
     bb0 entry
       val $argument.0: String
@@ -4245,6 +4283,8 @@ Module
         Type ULong
         Local $parameter.amount
       return
+        Type Unit
+        UnitLiteral
   fun main @fn20() -> Unit
     bb0 entry
       call @fn12 direct
@@ -4256,6 +4296,8 @@ Module
       call @fn18 direct
       call @fn19 direct
       return
+        Type Unit
+        UnitLiteral
   fun println @fn21(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -4280,6 +4322,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn22(this: Iterator<Int>) -> Option<Int>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
@@ -4307,6 +4351,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn24(this: Iterator<Long>) -> Option<Long>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
@@ -4334,6 +4380,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn26(this: Iterator<UInt>) -> Option<UInt>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
@@ -4361,6 +4409,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn28(this: Iterator<ULong>) -> Option<ULong>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
@@ -4388,6 +4438,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn30(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -4412,6 +4464,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn21 <- println
   instance mi1 function=@fn22 <- Iterator.next
   instance mi2 function=@fn23 <- println

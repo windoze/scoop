@@ -5,8 +5,8 @@ use super::ExportDefaultReferenceOccurrenceSiteV1;
 use crate::{
     CanonicalTemplateLocalTableV1, DefaultAssignTargetV1, DefaultCaptureV1, DefaultCatchV1,
     DefaultExpressionV1, DefaultLocalFunctionV1, DefaultPatternV1, DefaultStatementV1,
-    DefaultWhenArmV1, ExportDefaultBodyV1, ExportDefinitionSourceV1, ExportGenericCallableBodyV1,
-    TemplateLocalDefinitionV1, TemplateLocalRecordV1,
+    DefaultWhenArmRefV1, ExportDefaultBodyV1, ExportDefinitionSourceV1,
+    ExportGenericCallableBodyV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 pub use super::compare::{
@@ -46,7 +46,7 @@ pub enum DefaultBodyReferenceMetadataV1<'a> {
     Statement(&'a DefaultStatementV1),
     Pattern(&'a DefaultPatternV1),
     Assignment(&'a DefaultAssignTargetV1),
-    WhenArm(&'a DefaultWhenArmV1),
+    WhenArm(DefaultWhenArmRefV1<'a>),
     Catch(&'a DefaultCatchV1),
     Capture(&'a DefaultCaptureV1),
     LocalFunction(&'a DefaultLocalFunctionV1),

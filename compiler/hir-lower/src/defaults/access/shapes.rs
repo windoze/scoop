@@ -107,7 +107,9 @@ impl ReferenceCollector<'_> {
                 let owner = self.lowerer.class_constructor_applications[id].owner;
                 self.lowerer.class_applications[owner].canonical_type
             }
-            hir::ExportDefaultConstructorTarget::Variant(variant) => variant.owner,
+            hir::ExportDefaultConstructorTarget::Variant(variant) => {
+                self.lowerer.enum_applications[variant.owner].canonical_type
+            }
         };
         self.type_reference(owner, origin);
         self.record_constructor(target, origin);
@@ -131,7 +133,7 @@ impl ReferenceCollector<'_> {
         field: hir::EnumVariantFieldApplication,
         origin: hir::DefinitionOrigin,
     ) {
-        let owner = field.variant.owner;
+        let owner = self.lowerer.enum_applications[field.variant.owner].canonical_type;
         self.type_reference(owner, origin);
     }
 

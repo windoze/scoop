@@ -90,10 +90,7 @@ impl BodyLowerer<'_> {
                         smir::Expr::new(
                             mir::Type::Boolean,
                             smir::ExprKind::Call(smir::Call {
-                                target: mir::CallTarget {
-                                    kind: mir::CallKind::Direct,
-                                    callee,
-                                },
+                                target: mir::CallTarget::Direct(callee),
                                 args: vec![self.accessed(root, path), self.lower_expr(value)],
                                 return_ty: mir::Type::Boolean,
                             }),
@@ -146,7 +143,10 @@ impl BodyLowerer<'_> {
                 };
                 let element_types = element_types.clone();
                 for (index, sub) in elements.iter().enumerate() {
-                    path.push(Access::Field(index as u32));
+                    path.push(Access::Field {
+                        index: index as u32,
+                        ty: element_types[index].clone(),
+                    });
                     self.lower_pattern(sub, root, path, &element_types[index], steps, bindings);
                     path.pop();
                 }
@@ -155,13 +155,21 @@ impl BodyLowerer<'_> {
                 let mir::Type::Struct(struct_id) = ty else {
                     unreachable!("a struct pattern matches a struct value")
                 };
-                let field_types: Vec<mir::Type> = self.structs.defs[*struct_id]
-                    .declared_fields()
+                let mir::StructRepresentation::Declared(declared) =
+                    &self.structs.defs[*struct_id].representation
+                else {
+                    unreachable!("source struct patterns have declared fields")
+                };
+                let field_types: Vec<mir::Type> = declared
+                    .fields
                     .iter()
                     .map(|field| field.ty.clone())
                     .collect();
                 for (index, sub) in fields {
-                    path.push(Access::Field(*index));
+                    path.push(Access::Field {
+                        index: *index,
+                        ty: field_types[*index as usize].clone(),
+                    });
                     self.lower_pattern(
                         sub,
                         root,

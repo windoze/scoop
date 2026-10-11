@@ -26,11 +26,8 @@ pub(super) fn project(
                 .iter()
                 .find(|boxed| boxed.class() == class)
                 .expect("validated MIR identifies every finite value box");
-            let fields = module.classes[class].declared_fields();
-            let [payload] = fields else {
-                unreachable!("validated boxes have exactly one payload field")
-            };
-            if matches!(payload.ty, Type::Tuple(_) | Type::Ptr(_)) {
+            let payload = boxed.payload();
+            if matches!(payload, Type::Tuple(_) | Type::Ptr(_)) {
                 bases.interfaces = module.classes[class]
                     .interfaces
                     .iter()
@@ -49,7 +46,7 @@ pub(super) fn project(
                 MirTypeRepresentationV1::BoxedValue {
                     payload: MirRepresentationFieldV1 {
                         field: boxed.identity().payload_field_record().id(),
-                        value: exact(module, &payload.ty),
+                        value: exact(module, payload),
                     },
                 },
             )

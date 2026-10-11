@@ -1,6 +1,6 @@
 use super::*;
 
-fn push_external_call(module: &mut Module, kind: CallKind) -> (FunctionId, BlockId) {
+fn push_external_call(module: &mut Module) -> (FunctionId, BlockId) {
     let function = module
         .output
         .executable_entry()
@@ -11,12 +11,8 @@ fn push_external_call(module: &mut Module, kind: CallKind) -> (FunctionId, Block
         .statements
         .push(Statement {
             kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget {
-                    kind,
-                    callee: Callee::External(callable),
-                },
+                target: CallTarget::Direct(Callee::External(callable)),
                 args: Vec::new(),
-                pending: CoroutinePendingContext::Root,
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         });
@@ -26,7 +22,7 @@ fn push_external_call(module: &mut Module, kind: CallKind) -> (FunctionId, Block
 #[test]
 fn external_call_requires_an_imported_callable_entry() {
     let (mut module, _) = module_with_variants(Vec::new());
-    let (function, block) = push_external_call(&mut module, CallKind::Direct);
+    let (function, block) = push_external_call(&mut module);
     let callable = ExternalCallableUseId::from_raw(0.into());
 
     assert_eq!(

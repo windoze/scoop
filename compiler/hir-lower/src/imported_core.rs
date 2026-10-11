@@ -150,11 +150,12 @@ impl Lowerer {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let result = self.imported_signature_type_with_bindings(result, bindings)?;
-                Ok(self.intern_function_type(
+                let function = self.intern_function_type(
                     *effect == scoop_identity::Effect::Suspend,
                     parameters,
                     result,
-                ))
+                );
+                Ok(self.function_types[function].canonical_type)
             }
             SignatureTypeKey::RawPointer(pointee) => {
                 let pointee = self.imported_signature_type_with_bindings(pointee, bindings)?;
@@ -170,10 +171,7 @@ impl Lowerer {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let result = self.imported_signature_type_with_bindings(result, bindings)?;
-                let signature = self.intern_function_type(false, parameters, result);
-                let hir::Type::Function(function) = self.types[signature] else {
-                    unreachable!("interned function signatures have function types")
-                };
+                let function = self.intern_function_type(false, parameters, result);
                 Ok(self.intern_type(hir::Type::FunPtr(function)))
             }
         }

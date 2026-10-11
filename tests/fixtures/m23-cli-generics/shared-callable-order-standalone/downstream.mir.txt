@@ -2509,11 +2509,9 @@ Module
         Local $dependency.local.2
         Type Int
         Local $dependency.local.4
-      Type Unit
-      ClosureCapture cc14 1
-        Type (Int, Int) -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn22(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -2534,6 +2532,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn27(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2556,6 +2556,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2569,6 +2571,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2580,6 +2584,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

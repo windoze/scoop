@@ -525,6 +525,16 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 每项功能独立 fixture 与组合验收，按批次验证和提交，最终完成正式 CLI 回归。
 - 2026-10-10 实现与验收完成：Darwin Rust 5,437 项、Linux Rust 5,468 项及两机公共 runner 44 项通过；正式 CLI 按实际来源去重，Darwin 3,049 项、GNU 344 项、musl 306 项通过，分别另有 16／20／17 项不适用。三个 target 均覆盖全部 131 个 M35 新用例；Linux 聚焦实际后端变化与平台组合，保留额外通过记录，未完成候选不计通过。HIR cross-cone interface／type semantics 为 72／29，runtime ABI 保持不变。
 
+### M36 编译器输入与 IR 的类型完备性（已完成，[设计](milestone36/DESIGN.md)，[实施记录](milestone36/PROGRESS.md)，[验收](milestone36/ACCEPTANCE.md)）
+
+- 收紧调用目标、固定元数 intrinsic、when、return 与最终 MIR 临时态边界；保留已有求值顺序、异常、协程与 GC 合同。
+- 保留函数／enum 等窄身份，分离 declared 与 C/Scoop 表示专用数据，core protocol 改为具名 typed 字段。
+- NativeBorrowed 结果发布与 codegen 调用准备一次构造；parser 修饰符与 literal pattern 使用完整数据。
+- 按功能提交，本机针对性验证后在 Linux 完整验证；不新增语言功能、认证、预算或通用状态机。
+- 2026-10-11 实现与验收完成：12 项功能分别提交；Linux 完整 Rust 5,474 项及最后修复的 29 项定向测试通过，最终不同测试覆盖 5,475 项，两机公共 runner 各 44 项通过。普通 CLI 按实际来源去重，Darwin 236 项、GNU 3,061 项、musl 188 项通过，GNU 另有 30 项不适用；GNU 使用正式全量加失败补验，三个 target 均覆盖全部 26 个 M36 新用例。wire section 编号／版本与 runtime ABI 保持不变。
+
+M37 的语言语法与类型能力补齐在 M36 之后实施。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。

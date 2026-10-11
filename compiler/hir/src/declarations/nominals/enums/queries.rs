@@ -60,10 +60,7 @@ impl Module {
     }
 
     pub fn enum_variant_index(&self, application: EnumVariantApplication) -> usize {
-        let Type::Enum(owner) = self.types[application.owner] else {
-            unreachable!("an enum variant retains its complete enum owner")
-        };
-        let owner = self.enum_applications[owner].template;
+        let owner = self.enum_applications[application.owner].template;
         match self.loaded_enum_definitions.get(&owner) {
             Some(definition) => definition
                 .variant_index(application.variant)
@@ -77,10 +74,7 @@ impl Module {
     }
 
     pub fn enum_field_index(&self, application: EnumVariantFieldApplication) -> usize {
-        let Type::Enum(owner) = self.types[application.variant.owner] else {
-            unreachable!("an enum field retains its complete enum owner")
-        };
-        let owner = self.enum_applications[owner].template;
+        let owner = self.enum_applications[application.variant.owner].template;
         match self.loaded_enum_definitions.get(&owner) {
             Some(definition) => definition
                 .field_index(

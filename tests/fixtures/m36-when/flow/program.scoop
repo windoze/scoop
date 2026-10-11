@@ -1,0 +1,52 @@
+class Token(val text: String)
+context(token: Token)
+fun current(): String = token.text
+
+class Payload(val text: String)
+class Store(var value: Option<Payload>)
+class Gate: SuspendRegistration<Unit> {
+    var pending: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) {
+        pending = Some(continuation)
+    }
+    fun complete() {
+        val continuation = pending!!
+        pending = None
+        gcCollect()
+        continuation.resume(Unit)
+    }
+}
+class Done: Continuation<String> {
+    public override fun resume(value: String) { println(value); println(current()) }
+    public override fun resumeWithException(exception: Throwable) { println("wrong") }
+}
+
+suspend fun reject(gate: Gate): Boolean {
+    suspendCoroutine(gate)
+    gcCollect()
+    println(current())
+    return false
+}
+suspend fun <T> choose(gate: Gate, value: Option<T>, render: (T) -> String): String =
+    when (val saved = value) {
+        case Some(item) if reject(gate) -> "wrong"
+        case Some(item) -> when { true -> render(item); else -> "wrong" }
+        case None -> "none"
+    }
+
+fun main() {
+    val gate = Gate()
+    val store = Store(Some(Payload("kept")))
+    context(Token("root")) {
+        startCoroutine(suspend {
+            try { choose(gate, store.value, { item -> item.text }) }
+            finally { println("cleanup"); println(current()) }
+        }, Done())
+        store.value = Some(Payload("changed"))
+        println("waiting")
+        context(Token("resumer")) { gate.complete(); println(current()) }
+        startCoroutine(suspend { choose(gate, Some(Unit), { item -> "unit" }) }, Done())
+        println("waiting-unit")
+        gate.complete()
+    }
+}

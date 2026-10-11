@@ -109,18 +109,15 @@ impl Lowerer {
                 self.release_expression(lhs, values, facts);
                 self.release_expression(rhs, values, facts);
             }
-            E::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                if matches!(operation, hir::IntegerOperation::Managed { .. }) {
+            E::IntegerOperation(arguments) => {
+                if arguments.is_managed() {
                     facts.requirements = None;
                 }
                 match arguments {
-                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                    hir::IntegerExpression::Unary { operand, .. } => {
                         self.release_expression(operand, values, facts);
                     }
-                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                    hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                         self.release_expression(lhs, values, facts);
                         self.release_expression(rhs, values, facts);
                     }

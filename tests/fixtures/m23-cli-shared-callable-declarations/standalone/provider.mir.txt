@@ -78,6 +78,8 @@ Module
   fun init.Token.$c0 @fn11(this: Token) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c1 @fn12(this: Holder, token: Token) -> Unit
     bb0 entry
       field_set 0
@@ -86,6 +88,8 @@ Module
         Type Token
         Local token
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Token> @fn13(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -108,6 +112,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn3 interface Continuation<Token>[0]
         Type Continuation<Token>
@@ -121,6 +127,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn4 interface Continuation<Token>[1]
         Type Continuation<Token>
@@ -132,6 +140,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -189,6 +199,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Holder>[0]
         Type Continuation<Holder>
@@ -202,6 +214,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Holder>[1]
         Type Continuation<Holder>
@@ -213,6 +227,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

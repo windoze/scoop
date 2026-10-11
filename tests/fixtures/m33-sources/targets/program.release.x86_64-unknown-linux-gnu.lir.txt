@@ -91,12 +91,13 @@ Module
     cbr t7 then @if.then.1 else @if.merge.2
   block inline.3.entry
     heap_store local21 +16 integer<Int>(0x0000002a)
+    t8 = aggregate () : {}
     br @inline.cont.3
   block inline.cont.5
     store integer<Int>(0x0000002a) -> local8
     store integer<Int>(0x0000002a) -> local9
-    call managed-direct-target1 sp<managed-call:0> live=[] t8 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
-    store t8 -> local19
+    call managed-direct-target1 sp<managed-call:0> live=[] t9 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
+    store t9 -> local19
     store local19 -> local21
     store integer<Int>(0x0000002a) -> local22
     br @inline.3.entry

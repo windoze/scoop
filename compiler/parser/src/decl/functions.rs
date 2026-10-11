@@ -14,7 +14,7 @@ impl Parser {
             let token = self.peek().clone();
             match &token.kind {
                 TokenKind::Suspend => {
-                    if modifiers.is_suspend {
+                    if modifiers.suspend_span.is_some() {
                         let location = if context == FunctionContext::TopLevel {
                             "top-level "
                         } else {
@@ -26,7 +26,6 @@ impl Parser {
                         ));
                     }
                     self.bump();
-                    modifiers.is_suspend = true;
                     modifiers.suspend_span = Some(token.span);
                     modifiers.start = modifiers.start.or(Some(token.span.start));
                 }
@@ -56,11 +55,12 @@ impl Parser {
             }
         }
         if !matches!(self.peek().kind, TokenKind::Fun) {
-            if modifiers.is_suspend && modifiers.operator.is_none() && modifiers.infix.is_none() {
+            if let Some(span) = modifiers.suspend_span
+                && modifiers.operator.is_none()
+                && modifiers.infix.is_none()
+            {
                 return Err(Diagnostic::at(
-                    modifiers
-                        .suspend_span
-                        .expect("suspend modifier has a source span"),
+                    span,
                     "`suspend` modifier is only allowed on function declarations",
                 ));
             }
@@ -190,7 +190,8 @@ impl Parser {
             .unwrap_or(params_close.span.end);
         let (body, end) = match self.peek().kind {
             TokenKind::LBrace | TokenKind::Equal
-                if modifiers.method_modifier == Some(MethodModifier::Abstract) =>
+                if modifiers.method_modifier.map(|modifier| modifier.kind)
+                    == Some(MethodModifier::Abstract) =>
             {
                 return Err(Diagnostic::at(
                     self.peek().span,
@@ -208,7 +209,8 @@ impl Parser {
                 let end = expr.span().end;
                 (FunctionBody::Expr(Box::new(expr)), end)
             }
-            _ if modifiers.method_modifier == Some(MethodModifier::Abstract)
+            _ if modifiers.method_modifier.map(|modifier| modifier.kind)
+                == Some(MethodModifier::Abstract)
                 || context == FunctionContext::Interface =>
             {
                 (FunctionBody::None, signature_end)
@@ -226,27 +228,30 @@ impl Parser {
             })
             .min()
             .unwrap_or(fun.span.start);
-        let modifier = modifiers.method_modifier.unwrap_or_else(|| {
-            if context == FunctionContext::Interface {
-                if matches!(&body, FunctionBody::None) {
-                    MethodModifier::Abstract
-                } else {
+        let modifier = modifiers
+            .method_modifier
+            .map(|modifier| modifier.kind)
+            .unwrap_or_else(|| {
+                if context == FunctionContext::Interface {
+                    if matches!(&body, FunctionBody::None) {
+                        MethodModifier::Abstract
+                    } else {
+                        MethodModifier::Open
+                    }
+                } else if modifiers.override_span.is_some() {
+                    // Kotlin-compatible rule (spec 9.1): overrides stay
+                    // open unless explicitly closed with `final`.
                     MethodModifier::Open
+                } else {
+                    MethodModifier::Final
                 }
-            } else if modifiers.is_override {
-                // Kotlin-compatible rule (spec 9.1): overrides stay
-                // open unless explicitly closed with `final`.
-                MethodModifier::Open
-            } else {
-                MethodModifier::Final
-            }
-        });
+            });
         Ok(FunctionDecl {
             context_parameters: modifiers.context_parameters,
             annotations,
             visibility,
-            is_suspend: modifiers.is_suspend,
-            is_override: modifiers.is_override,
+            is_suspend: modifiers.suspend_span.is_some(),
+            is_override: modifiers.override_span.is_some(),
             operator: modifiers.operator,
             infix: modifiers.infix,
             modifier,

@@ -38,9 +38,7 @@ impl LocalFunctionCallPatcher<'_> {
                     self.expression(expr)
                 }
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.expression(value);
-                    }
+                    self.expression(value);
                 }
                 hir::StatementKind::LocalFunction(_)
                 | hir::StatementKind::Break { .. }
@@ -91,26 +89,25 @@ impl LocalFunctionCallPatcher<'_> {
                     self.statements(body);
                 }
                 hir::StatementKind::When(when) => {
-                    if let Some(subject) = &mut when.subject {
+                    if let Some(subject) = when.subject_mut() {
                         self.expression(subject);
                     }
-                    for arm in &mut when.arms {
-                        if let hir::WhenCondition::Case(pattern) = &mut arm.condition {
-                            self.pattern(pattern);
-                        }
-                        for guard in match &mut arm.condition {
-                            hir::WhenCondition::Predicate(condition) => Some(condition),
-                            _ => None,
-                        }
-                        .into_iter()
-                        .chain(arm.guard.iter_mut())
-                        {
+                    for arm in when.arms_mut() {
+                        let predicate = match arm.condition {
+                            hir::WhenConditionMut::Case(pattern) => {
+                                self.pattern(pattern);
+                                None
+                            }
+                            hir::WhenConditionMut::Predicate(condition) => Some(condition),
+                            hir::WhenConditionMut::Always => None,
+                        };
+                        for guard in predicate.into_iter().chain(arm.guard) {
                             self.statements(&mut guard.setup);
                             self.expression(&mut guard.condition);
                         }
-                        self.statements(&mut arm.body);
+                        self.statements(arm.body);
                     }
-                    if let hir::WhenFallback::Else(body) = &mut when.fallback {
+                    if let Some(body) = when.else_body_mut() {
                         self.statements(body);
                     }
                 }
@@ -331,15 +328,11 @@ impl LocalFunctionCallPatcher<'_> {
                 self.expression(lhs);
                 self.expression(rhs);
             }
-            hir::ExprKind::IntegerOperation { arguments, .. } => match arguments {
-                hir::HirIntegerOperationArguments::Unary(operand) => {
+            hir::ExprKind::IntegerOperation(operation) => {
+                for operand in operation.operands_mut() {
                     self.expression(operand);
                 }
-                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                    self.expression(lhs);
-                    self.expression(rhs);
-                }
-            },
+            }
             hir::ExprKind::IntegerConversion { operand, .. }
             | hir::ExprKind::FloatUnary { operand, .. }
             | hir::ExprKind::FloatConversion { operand, .. } => {

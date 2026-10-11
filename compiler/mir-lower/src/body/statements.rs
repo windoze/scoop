@@ -29,10 +29,9 @@ impl BodyLowerer<'_> {
                 smir::StatementKind::Expr(smir::Expr::new(
                     mir::Type::Unit,
                     smir::ExprKind::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::User(self.function_map[&function]),
-                        },
+                        target: mir::CallTarget::Direct(mir::Callee::User(
+                            self.function_map[&function],
+                        )),
                         args: Vec::new(),
                         return_ty: mir::Type::Unit,
                     }),
@@ -44,7 +43,7 @@ impl BodyLowerer<'_> {
                 smir::StatementKind::Expr(expr)
             }
             hir::StatementKind::Return { value } => {
-                let value = value.as_ref().map(|value| self.lower_expr(value));
+                let value = self.lower_expr(value);
                 self.drain_prelude(span, out);
                 smir::StatementKind::Return { value }
             }

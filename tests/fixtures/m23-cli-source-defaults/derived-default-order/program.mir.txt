@@ -204,6 +204,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn6() -> Unit
     bb0 entry
       call $argument.0: Boolean = @fn4 direct
@@ -333,6 +335,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn7(this: Holder, same: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -341,6 +345,8 @@ Module
         Type Boolean
         Local same
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Empty.$c0 @fn8() -> Empty <no-gc>
     bb0 entry
       return

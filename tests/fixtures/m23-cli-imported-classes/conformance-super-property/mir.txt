@@ -163,6 +163,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun primary @fn3() -> Counter
     bb0 entry
       assign $new.1
@@ -221,6 +223,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun receiver<LocalProperty> LocalProcedure.clear @fn13(this: LocalProperty) -> Unit
     bb0 entry
       call @fn12 direct
@@ -229,6 +233,8 @@ Module
           Type LocalProperty
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalProperty.$c0 @fn14(this: LocalProperty) -> Unit
     bb0 entry
       field_set 0
@@ -237,6 +243,8 @@ Module
         Type Long
         IntegerLiteral Long value=1000 bits=0x00000000000003e8
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<LocalProperty> @fn15(task: SuspendTask<LocalProperty>, completion: Continuation<LocalProperty>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -259,6 +267,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<LocalProperty>[0]
         Type Continuation<LocalProperty>
@@ -272,6 +282,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<LocalProperty>[1]
         Type Continuation<LocalProperty>
@@ -283,6 +295,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -340,6 +354,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<LocalProcedure>[0]
         Type Continuation<LocalProcedure>
@@ -353,6 +369,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<LocalProcedure>[1]
         Type Continuation<LocalProcedure>
@@ -364,6 +382,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

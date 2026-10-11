@@ -34,7 +34,7 @@ fn aggregate_zst_alignment_and_managed_leaves_share_checked_placement() {
     let enums = lir::EnumDefs::default();
     let fields = vec![
         lir::LirType::I8,
-        lir::LirType::Struct(aligned_zst),
+        lir::LirType::Struct(aligned_zst.definition()),
         lir::LirType::Ptr(lir::PointerKind::Managed),
         lir::LirType::Aggregate(Vec::new()),
     ];
@@ -64,7 +64,12 @@ fn abi_classification_propagates_invalid_geometry_and_void_value_errors() {
         Vec::new(),
     );
     assert_eq!(
-        crate::abi::classify_argument(&context(), lir::LirType::Struct(invalid), &structs, &enums,),
+        crate::abi::classify_argument(
+            &context(),
+            lir::LirType::Struct(invalid.definition()),
+            &structs,
+            &enums,
+        ),
         Err(StorageLoweringError::Shape(
             lir::TypeInstanceShapeError::ZeroAlignment
         ))
@@ -93,7 +98,10 @@ fn aggregate_target_extent_and_scan_translation_overflow_return_errors() {
         false,
         Vec::new(),
     );
-    let ty = lir::LirType::Aggregate(vec![lir::LirType::Struct(large), lir::LirType::I8]);
+    let ty = lir::LirType::Aggregate(vec![
+        lir::LirType::Struct(large.definition()),
+        lir::LirType::I8,
+    ]);
     assert!(matches!(
         lir_size_align(&context(), &ty, &structs, &enums),
         Err(StorageLoweringError::Shape(
@@ -170,7 +178,7 @@ fn recursive_value_roots_return_cycle_error() {
     structs.set_scoop_fields(
         id,
         vec![lir::StructField {
-            ty: lir::LirType::Struct(id),
+            ty: lir::LirType::Struct(id.definition()),
             layout: lir::FieldLayout {
                 offset: 0,
                 access_align: 8,
@@ -180,7 +188,7 @@ fn recursive_value_roots_return_cycle_error() {
     assert_eq!(
         root_scan(
             &context(),
-            &lir::LirType::Struct(id),
+            &lir::LirType::Struct(id.definition()),
             &structs,
             &lir::EnumDefs::default(),
             0

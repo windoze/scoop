@@ -21,9 +21,7 @@ impl Lowerer {
                 | hir::StatementKind::Break { .. }
                 | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.collect_generic_calls_in_expr(value, out);
-                    }
+                    self.collect_generic_calls_in_expr(value, out);
                 }
                 hir::StatementKind::ValDecl { pattern, init } => {
                     self.collect_generic_calls_in_pattern(pattern, out);
@@ -68,26 +66,26 @@ impl Lowerer {
                     self.collect_generic_calls_in_statements(body, out);
                 }
                 hir::StatementKind::When(when) => {
-                    if let Some(subject) = &when.subject {
+                    if let Some(subject) = when.subject() {
                         self.collect_generic_calls_in_expr(subject, out);
                     }
-                    for arm in &when.arms {
-                        if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                    for arm in when.arms() {
+                        if let hir::WhenConditionRef::Case(pattern) = arm.condition {
                             self.collect_generic_calls_in_pattern(pattern, out);
                         }
-                        for guard in match &arm.condition {
-                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                        for guard in match arm.condition {
+                            hir::WhenConditionRef::Predicate(condition) => Some(condition),
                             _ => None,
                         }
                         .into_iter()
-                        .chain(arm.guard.iter())
+                        .chain(arm.guard)
                         {
                             self.collect_generic_calls_in_statements(&guard.setup, out);
                             self.collect_generic_calls_in_expr(&guard.condition, out);
                         }
-                        self.collect_generic_calls_in_statements(&arm.body, out);
+                        self.collect_generic_calls_in_statements(arm.body, out);
                     }
-                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                    if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                         self.collect_generic_calls_in_statements(body, out);
                     }
                 }

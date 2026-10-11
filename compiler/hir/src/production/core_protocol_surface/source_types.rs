@@ -1,28 +1,25 @@
-use super::{CoreCompilerProtocolSurfaceV1, generic_entry};
+use super::CoreCompilerProtocolSurfaceV1;
 use scoop_identity::PersistentGenericTypeId;
 
 impl CoreCompilerProtocolSurfaceV1 {
     pub fn float_source_type(&self, kind: crate::FloatKind) -> scoop_identity::PersistentTypeId {
-        super::concrete_entry(
-            self.fundamental_types().entries(),
-            match kind {
-                crate::FloatKind::F32 => 16,
-                crate::FloatKind::F64 => 17,
-            },
-        )
+        match kind {
+            crate::FloatKind::F32 => self.fundamental_types.float,
+            crate::FloatKind::F64 => self.fundamental_types.double,
+        }
     }
 
     pub fn character_source_type(&self) -> scoop_identity::PersistentTypeId {
-        super::concrete_entry(self.fundamental_types().entries(), 15)
+        self.fundamental_types().character
     }
 
     /// Source declarations behind normalized pointer signatures. Their access
     /// and representation still come from the actual provider's nominal table.
     pub fn pointer_source_type(&self) -> PersistentGenericTypeId {
-        generic_entry(self.fundamental_types.entries(), 13)
+        self.fundamental_types.ptr
     }
 
     pub fn function_pointer_source_type(&self) -> PersistentGenericTypeId {
-        generic_entry(self.fundamental_types.entries(), 14)
+        self.fundamental_types.fun_ptr
     }
 }

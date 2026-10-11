@@ -57,6 +57,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -325,6 +327,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun throughGeneric @fn2(value: Cell, number: Int) -> Cell
     bb0 entry
       val $dependency.local.2: Int
@@ -471,6 +475,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn5(this: Cell, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -479,6 +485,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- throughGeneric
   instance mi1 function=@fn3 <- throughGeneric
   instance mi2 function=@fn4 <- println

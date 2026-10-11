@@ -67,7 +67,12 @@ impl Concretizer<'_> {
                 let concrete::TypeKind::Struct(concrete_struct) = self.types[owner].kind else {
                     unreachable!("a checked struct pattern has a concrete struct subject")
                 };
-                let definition = self.structs[concrete_struct].declared_fields().to_vec();
+                let concrete::StructRepresentation::Declared(declared) =
+                    &self.structs[concrete_struct].representation
+                else {
+                    unreachable!("source struct patterns have declared fields")
+                };
+                let definition = declared.fields.clone();
                 concrete::Pattern::Struct {
                     struct_id: concrete_struct,
                     fields: fields

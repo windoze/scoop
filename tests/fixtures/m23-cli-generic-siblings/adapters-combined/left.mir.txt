@@ -481,6 +481,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Marker.$c0 @fn7(this: Marker<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -489,6 +491,8 @@ Module
         Type Payload
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $adapter.(Any) -> Payload.(Payload) -> Any @fn8($closure: (Payload) -> Any, arg0: Payload) -> Any
     bb0 entry
       call $call.1: Payload = <closure:function_type2> closure[function_type2]

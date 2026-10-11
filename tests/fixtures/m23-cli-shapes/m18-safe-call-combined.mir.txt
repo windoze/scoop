@@ -185,6 +185,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun SafeRegistration.register @fn1(this: SafeRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
       val $place.receiver: SafeGate
@@ -206,6 +208,8 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
+        Type Unit
+        UnitLiteral
   fun SafeTask.run @fn2(this: SafeTask, $completion: Continuation<String>) -> CoroutineStep<String>
     bb0 entry
       val $frame: CoroutineFrame<SafeTask.run>
@@ -274,6 +278,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun SafeCompletion.resumeWithException @fn4(this: SafeCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -286,6 +292,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun awaitSafe @fn5(gate: SafeGate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitSafe>
@@ -710,6 +718,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn9(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -796,6 +806,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn12($closure: (SafePayload) -> String, payload: SafePayload) -> String
     bb0 entry
       val $dependency.receiver: String
@@ -892,6 +904,8 @@ Module
         Type Option<String>
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   fun init.SafePayload.$c1 @fn33(this: SafePayload, text: String) -> Unit
     bb0 entry
       field_set 0
@@ -900,6 +914,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun init.SafeGate.$c2 @fn34(this: SafeGate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -908,6 +924,8 @@ Module
         Type Option<Continuation<Int>>
         Local waiter
       return
+        Type Unit
+        UnitLiteral
   fun init.SafeRegistration.$c3 @fn35(this: SafeRegistration, gate: SafeGate) -> Unit
     bb0 entry
       field_set 0
@@ -916,6 +934,8 @@ Module
         Type SafeGate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.SafeTask.$c5 @fn36(this: SafeTask, maybe: Option<AsyncSafeBox<SafePayload>>, prefix: String) -> Unit
     bb0 entry
       field_set 0
@@ -929,6 +949,8 @@ Module
         Type String
         Local prefix
       return
+        Type Unit
+        UnitLiteral
   fun init.SafeCompletion.$c6 @fn37(this: SafeCompletion, label: String) -> Unit
     bb0 entry
       field_set 0
@@ -937,6 +959,8 @@ Module
         Type String
         Local label
       return
+        Type Unit
+        UnitLiteral
   fun init.AsyncSafeBox.$c4 @fn38(this: AsyncSafeBox<SafePayload>, gate: SafeGate, payload: SafePayload, label: String) -> Unit
     bb0 entry
       field_set 0
@@ -955,6 +979,8 @@ Module
         Type String
         Local label
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<SafePayload> @fn39(task: SuspendTask<SafePayload>, completion: Continuation<SafePayload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -977,6 +1003,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn24 interface Continuation<SafePayload>[0]
         Type Continuation<SafePayload>
@@ -990,6 +1018,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn25 interface Continuation<SafePayload>[1]
         Type Continuation<SafePayload>
@@ -1001,6 +1031,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1058,6 +1090,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn20 interface Continuation<SafeFailure>[0]
         Type Continuation<SafeFailure>
@@ -1071,6 +1105,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn21 interface Continuation<SafeFailure>[1]
         Type Continuation<SafeFailure>
@@ -1082,6 +1118,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1139,6 +1177,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn28 interface Continuation<SafeGate>[0]
         Type Continuation<SafeGate>
@@ -1152,6 +1192,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn29 interface Continuation<SafeGate>[1]
         Type Continuation<SafeGate>
@@ -1163,6 +1205,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1563,12 +1607,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<SafeTask.run>
@@ -1591,6 +1639,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1732,12 +1782,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<SafeTask.run>
@@ -1760,6 +1814,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2261,12 +2317,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitSafe>
@@ -2289,6 +2349,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2394,6 +2456,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2461,12 +2525,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitSafe>
@@ -2489,6 +2557,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2594,6 +2664,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2967,12 +3039,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncSafeBox.apply>
@@ -2995,6 +3071,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -3136,12 +3214,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncSafeBox.apply>
@@ -3164,6 +3246,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch

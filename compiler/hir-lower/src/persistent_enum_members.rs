@@ -31,7 +31,7 @@ impl Lowerer {
         variant: hir::AppliedEnumVariantRef,
     ) -> hir::EnumVariantApplication {
         hir::EnumVariantApplication {
-            owner: self.enum_applications[variant.application()].canonical_type,
+            owner: variant.application(),
             variant: self
                 .enum_member_identities
                 .as_ref()
@@ -48,7 +48,7 @@ impl Lowerer {
         let owner = &self.enum_applications[application];
         if let Some(definition) = self.loaded_enum_definitions.get(&owner.template) {
             return hir::EnumVariantApplication {
-                owner: owner.canonical_type,
+                owner: application,
                 variant: definition.variant_identity(index as usize),
             };
         }
@@ -66,10 +66,7 @@ impl Lowerer {
     }
 
     pub(crate) fn enum_variant_index(&self, application: hir::EnumVariantApplication) -> u32 {
-        let hir::Type::Enum(owner) = self.types[application.owner] else {
-            unreachable!("an enum variant retains its complete enum owner")
-        };
-        let owner = self.enum_applications[owner].template;
+        let owner = self.enum_applications[application.owner].template;
         if let Some(definition) = self.loaded_enum_definitions.get(&owner) {
             return definition
                 .variant_index(application.variant)
@@ -88,10 +85,7 @@ impl Lowerer {
         variant: hir::EnumVariantApplication,
         index: u32,
     ) -> hir::EnumVariantFieldApplication {
-        let hir::Type::Enum(owner) = self.types[variant.owner] else {
-            unreachable!("a variant field retains its enum owner")
-        };
-        let template = self.enum_applications[owner].template;
+        let template = self.enum_applications[variant.owner].template;
         let field = if let Some(definition) = self.loaded_enum_definitions.get(&template) {
             definition.field_identity(self.enum_variant_index(variant) as usize, index as usize)
         } else {

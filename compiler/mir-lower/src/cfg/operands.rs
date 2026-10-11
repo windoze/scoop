@@ -1,6 +1,19 @@
 use super::*;
 
 impl CfgLowerer<'_> {
+    pub(super) fn lower_call_receiver(
+        &mut self,
+        receiver: &smir::Expr,
+        args: &[smir::Expr],
+        span: Span,
+    ) -> Option<Box<mir::Expr>> {
+        let mut receiver = self.lower_expr(receiver, span)?;
+        if args.iter().any(emits_cfg) {
+            receiver = self.save_operand(receiver, span);
+        }
+        Some(Box::new(receiver))
+    }
+
     pub(super) fn lower_pair(
         &mut self,
         lhs: &smir::Expr,
@@ -75,6 +88,7 @@ fn emits_cfg(expr: &smir::Expr) -> bool {
     use smir::ExprKind;
     match &expr.kind {
         ExprKind::Call(_)
+        | ExprKind::CoroutineSuspend { .. }
         | ExprKind::ClassNew { .. }
         | ExprKind::ShortCircuit { .. }
         | ExprKind::Unreachable

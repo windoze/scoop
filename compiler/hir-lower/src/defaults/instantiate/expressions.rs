@@ -383,25 +383,9 @@ impl Lowerer {
                 kind: *kind,
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
             },
-            hir::ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => hir::ExprKind::IntegerOperation {
-                operation: *operation,
-                arguments: match arguments {
-                    hir::HirIntegerOperationArguments::Unary(operand) => {
-                        hir::HirIntegerOperationArguments::Unary(Box::new(
-                            self.instantiate_default_expr(operand, context),
-                        ))
-                    }
-                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                        hir::HirIntegerOperationArguments::Binary {
-                            lhs: Box::new(self.instantiate_default_expr(lhs, context)),
-                            rhs: Box::new(self.instantiate_default_expr(rhs, context)),
-                        }
-                    }
-                },
-            },
+            hir::ExprKind::IntegerOperation(operation) => hir::ExprKind::IntegerOperation(
+                operation.map(|operand| Box::new(self.instantiate_default_expr(operand, context))),
+            ),
             hir::ExprKind::IntegerConversion {
                 conversion,
                 operand,

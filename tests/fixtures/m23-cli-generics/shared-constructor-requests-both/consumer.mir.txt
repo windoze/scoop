@@ -604,6 +604,8 @@ Module
         Type Int
         Local $result.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c2 @fn15(this: Shell<Int, Unit>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -685,6 +687,8 @@ Module
         Type Int
         Local $result.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c2 @fn16(this: Shell<Int, String>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -766,6 +770,8 @@ Module
         Type Int
         Local $result.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c3 @fn17(this: Current<Int, Unit>, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -790,6 +796,8 @@ Module
         Type Boolean
         Local $parameter.flag
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn18(this: Base<Int, Unit>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -798,6 +806,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn19(this: Base<Int, String>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -806,6 +816,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Carrier.$c0 @fn20(value: Shell<Int, Unit>) -> Carrier<Shell<Int, Unit>, String> <no-gc>
     bb0 entry
       return

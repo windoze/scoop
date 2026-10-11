@@ -12,7 +12,7 @@ impl Lowerer {
         if source == target
             || matches!(source, mir::Type::Class(id)
                 if matches!(self.classes[*id].representation,
-                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)))
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)))
         {
             return value;
         }
@@ -114,14 +114,15 @@ impl Lowerer {
             ty: mir::Type::Function(target),
             local: closure,
         }];
-        let mut args = vec![smir::Expr::new(
+        let receiver = smir::Expr::new(
             mir::Type::Function(source),
             smir::ExprKind::ClosureCapture {
                 closure: Box::new(smir::Expr::local(closure, mir::Type::Function(target))),
                 class,
                 index: 0,
             },
-        )];
+        );
+        let mut args = Vec::with_capacity(target_signature.parameter_types.len());
         for (index, (target_ty, source_ty)) in target_signature
             .parameter_types
             .iter()
@@ -149,11 +150,9 @@ impl Lowerer {
         let call = smir::Expr::new(
             source_signature.return_type.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Closure {
-                        function_type: source,
-                    },
-                    callee: mir::Callee::Closure(source),
+                target: mir::CallTarget::Closure {
+                    function_type: source,
+                    receiver: Box::new(receiver),
                 },
                 args,
                 return_ty: source_signature.return_type.clone(),
@@ -166,20 +165,22 @@ impl Lowerer {
                     span,
                 },
                 smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span,
                 },
             ]
         } else {
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(self.adapt_variance_bridge(
+                    value: self.adapt_variance_bridge(
                         module,
                         call,
                         &source_signature.return_type,
                         source_identity.result(),
                         &target_signature.return_type,
-                    )),
+                    ),
                 },
                 span,
             }]

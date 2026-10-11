@@ -1035,23 +1035,28 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
     });
     let mut targets = CallTargets::default();
-    let mut site = void_site(
-        &mut targets,
-        TestCallProtocol::NativeBorrowed {
-            safepoint: 701,
+    let signature = targets.void_signatures.alloc(VoidCallSignature::new(
+        Vec::new(),
+        scoop_lir::CallingConvention::Cdecl,
+    ));
+    let target = targets
+        .native_borrowed_targets
+        .void
+        .alloc(scoop_lir::CallTarget {
             destination: scoop_lir::NativeBorrowedCallDestination::extern_function(external),
-            result: NativeBorrowedResultRoot::GcFree,
+            signature,
+        });
+    let site = CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
+        call: scoop_lir::NativeBorrowedTypedCall::Void {
+            target,
+            args: Vec::new(),
         },
-        Vec::new(),
-        Vec::new(),
-    );
-    let CallSite::NativeBorrowed(native_site) = &mut site else {
-        unreachable!("test constructs a native-borrowed call")
-    };
-    native_site.roots = scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
-        source: scoop_lir::CallerRootSource::Param(0),
-        scan: scoop_lir::NonEmptyRefScan::new(scan).expect("test root scan is non-empty"),
-    }]);
+        safepoint: test_safepoint(701),
+        roots: scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
+            source: scoop_lir::CallerRootSource::Param(0),
+            scan: scoop_lir::NonEmptyRefScan::new(scan).expect("test root scan is non-empty"),
+        }]),
+    });
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),

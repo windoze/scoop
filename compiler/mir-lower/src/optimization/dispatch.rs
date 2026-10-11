@@ -8,12 +8,17 @@ pub(super) fn resolve(
     call: &mir::Call,
     result: &mir::Type,
     actual: ActualType,
-) -> Option<(mir::Callee, mir::Type)> {
-    let target = match (actual, &call.target.kind) {
-        (ActualType::Class(class), mir::CallKind::Virtual { slot }) => {
+) -> Option<(mir::DispatchCallee, mir::Type)> {
+    let target = match (actual, &call.target) {
+        (ActualType::Class(class), mir::CallTarget::Virtual { slot, .. }) => {
             slot_target(module.classes[class].vtable.get(*slot as usize)?)?
         }
-        (ActualType::Class(class), mir::CallKind::Interface { interface, slot }) => {
+        (
+            ActualType::Class(class),
+            mir::CallTarget::Interface {
+                interface, slot, ..
+            },
+        ) => {
             let table = module.classes[class]
                 .itables
                 .iter()
@@ -22,8 +27,8 @@ pub(super) fn resolve(
         }
         (
             ActualType::Closure(class),
-            mir::CallKind::Closure { function_type }
-            | mir::CallKind::FunctionBridge { function_type },
+            mir::CallTarget::Closure { function_type, .. }
+            | mir::CallTarget::FunctionBridge { function_type, .. },
         ) => {
             let class = &module.closure_classes[class];
             let function = if class.function_type == *function_type {
@@ -35,63 +40,54 @@ pub(super) fn resolve(
                     .find(|bridge| bridge.target == *function_type)?
                     .function
             };
-            mir::Callee::User(function)
+            mir::DispatchCallee::User(function)
         }
         _ => return None,
     };
-    let receiver = match target {
-        mir::Callee::User(function) => {
-            let function = &module.functions[function];
-            if function.return_ty != *result
-                || function.params.len() != call.args.len()
-                || !function
-                    .params
-                    .iter()
-                    .skip(1)
-                    .zip(call.args.iter().skip(1))
-                    .all(|(parameter, argument)| parameter.ty == argument.ty)
-            {
-                return None;
+    let receiver =
+        match target {
+            mir::DispatchCallee::User(function) => {
+                local_receiver(&module.functions[function], call, result)?
             }
-            function.params.first()?.ty.clone()
-        }
-        mir::Callee::External(id) => {
-            let external = module.meta.external_callables[id];
-            let signature = selected.resolve_callable(external.reference())?.signature();
-            if Some(signature.result()) != exact(module, result)
-                || signature.parameters().len() + 1 != call.args.len()
-                || !signature
-                    .parameters()
-                    .iter()
-                    .zip(call.args.iter().skip(1))
-                    .all(|(parameter, argument)| Some(*parameter) == exact(module, &argument.ty))
-            {
-                return None;
-            }
-            let receiver = signature.receiver().into_option()?;
-            if let Some(source) = module.meta.source_exact_types.get_by_identity(receiver) {
-                source.ty().clone()
-            } else {
-                match module
-                    .meta
-                    .generated_exact_types
-                    .get_by_identity(receiver)?
-                    .location()
+            mir::DispatchCallee::Monomorphized(instance) => local_receiver(
+                &module.functions[module.meta.instances[instance].function],
+                call,
+                result,
+            )?,
+            mir::DispatchCallee::External(id) => {
+                let external = module.meta.external_callables[id];
+                let signature = selected.resolve_callable(external.reference())?.signature();
+                if Some(signature.result()) != exact(module, result)
+                    || signature.parameters().len() != call.args.len()
+                    || !signature.parameters().iter().zip(call.args.iter()).all(
+                        |(parameter, argument)| Some(*parameter) == exact(module, &argument.ty),
+                    )
                 {
-                    mir::GeneratedExactTypeLocation::Class(class) => mir::Type::Class(class),
-                    _ => return None,
+                    return None;
+                }
+                let receiver = signature.receiver().into_option()?;
+                if let Some(source) = module.meta.source_exact_types.get_by_identity(receiver) {
+                    source.ty().clone()
+                } else {
+                    match module
+                        .meta
+                        .generated_exact_types
+                        .get_by_identity(receiver)?
+                        .location()
+                    {
+                        mir::GeneratedExactTypeLocation::Class(class) => mir::Type::Class(class),
+                        _ => return None,
+                    }
                 }
             }
-        }
-        _ => unreachable!("dispatch tables and closure entries name ordinary implementations"),
-    };
+        };
     Some((target, receiver))
 }
 
-fn slot_target(slot: &mir::TableSlot) -> Option<mir::Callee> {
+fn slot_target(slot: &mir::TableSlot) -> Option<mir::DispatchCallee> {
     match slot {
-        mir::TableSlot::Function(function) => Some(mir::Callee::User(*function)),
-        mir::TableSlot::External(function) => Some(mir::Callee::External(*function)),
+        mir::TableSlot::Function(function) => Some(mir::DispatchCallee::User(*function)),
+        mir::TableSlot::External(function) => Some(mir::DispatchCallee::External(*function)),
         mir::TableSlot::Runtime(_) => None,
     }
 }
@@ -114,4 +110,23 @@ fn exact(module: &mir::Module, ty: &mir::Type) -> Option<PersistentExactTypeId> 
             .exact_record()
             .id(),
     )
+}
+
+fn local_receiver(
+    function: &mir::Function,
+    call: &mir::Call,
+    result: &mir::Type,
+) -> Option<mir::Type> {
+    if function.return_ty != *result
+        || function.params.len() != call.args.len() + 1
+        || !function
+            .params
+            .iter()
+            .skip(1)
+            .zip(&call.args)
+            .all(|(parameter, argument)| parameter.ty == argument.ty)
+    {
+        return None;
+    }
+    Some(function.params.first()?.ty.clone())
 }

@@ -201,6 +201,8 @@ Module
           Type Ptr<Unit>
           Local $dependency.parameter._1
       return
+        Type Unit
+        UnitLiteral
   fun FailureTask.run @fn2(this: FailureTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<FailureTask.run>
@@ -258,6 +260,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun FailureCompletion.resumeWithException @fn4(this: FailureCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -270,6 +274,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun startOne @fn5(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern0 @m13_start_one direct
@@ -494,6 +500,8 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn8(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -578,6 +586,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -602,6 +612,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -626,6 +638,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun isNone @fn13(value: Option<Throwable>) -> Boolean
     bb0 entry
       val $when.1: Option<Throwable>
@@ -707,6 +721,8 @@ Module
         Type String
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun init.FailureGate.$c1 @fn19(this: FailureGate, job: Option<Ptr<Unit>>, observer: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -720,6 +736,8 @@ Module
         Type Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
         Local observer
       return
+        Type Unit
+        UnitLiteral
   fun init.FailureRegistration.$c2 @fn20(this: FailureRegistration, gate: FailureGate) -> Unit
     bb0 entry
       field_set 0
@@ -728,6 +746,8 @@ Module
         Type FailureGate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.FailureTask.$c3 @fn21(this: FailureTask, gate: FailureGate) -> Unit
     bb0 entry
       field_set 0
@@ -736,9 +756,13 @@ Module
         Type FailureGate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.FailureCompletion.$c4 @fn22(this: FailureCompletion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn23($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1344,12 +1368,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<FailureTask.run>
@@ -1372,6 +1400,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1477,6 +1507,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -1544,12 +1576,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<FailureTask.run>
@@ -1572,6 +1608,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1677,6 +1715,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>

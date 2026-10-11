@@ -163,7 +163,10 @@ impl Concretizer<'_> {
             export::HirConstantImage::Float(value) => concrete::HirConstantImage::Float(*value),
             export::HirConstantImage::Char(value) => concrete::HirConstantImage::Char(*value),
             export::HirConstantImage::EnumUnit { variant } => {
-                let ty = self.lower_type(variant.owner, &[]);
+                let ty = self.lower_type(
+                    self.source.enum_applications[variant.owner].canonical_type,
+                    &[],
+                );
                 let concrete::TypeKind::Enum(enumeration) = self.types[ty].kind else {
                     unreachable!("an enum constant retains its enum type")
                 };

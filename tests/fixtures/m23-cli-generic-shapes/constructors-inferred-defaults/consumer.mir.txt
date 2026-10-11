@@ -189,6 +189,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Locked.$c2 @fn6(this: Locked<Int>, value: Int, marker: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -203,6 +205,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Locked.$c3 @fn7(this: Locked<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -211,6 +215,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn8(first: Int, second: Int) -> Pair<Int> <no-gc>
     bb0 entry
       return

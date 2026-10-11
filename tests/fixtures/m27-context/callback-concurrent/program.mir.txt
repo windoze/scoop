@@ -83,6 +83,8 @@ Module
     bb0 entry
       call extern1 @m13_callback_barrier direct
       return
+        Type Unit
+        UnitLiteral
   fun attachedThreads @fn3() -> Int
     bb0 entry
       call $call.1: Int = extern2 @m13_attached_thread_count direct
@@ -161,6 +163,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun register @fn6() -> ForeignCallback<(Int, Ptr<Unit>) -> Int>
     bb0 entry
       val $argument.0: Int
@@ -283,6 +287,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -744,6 +750,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Request.$c0 @fn11(this: Request, id: Int) -> Unit
     bb0 entry
       field_set 0
@@ -752,6 +760,8 @@ Module
         Type Int
         Local id
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn12($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

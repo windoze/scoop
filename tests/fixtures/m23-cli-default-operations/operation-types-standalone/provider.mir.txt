@@ -30,9 +30,9 @@ Module
   generated_callable gc0 function=@fn18 id=49c5b5b73df75747d8b4dbc1dcb87845100c75c7ae0d449dc9500c9be3551738
   fun Values.unit @fn0(this: Values, seed: Unit, value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun Values.boolean @fn1(this: Values, seed: Boolean, value: Boolean) -> Boolean
     bb0 entry
       return
@@ -108,6 +108,8 @@ Module
   fun init.Values.$c0 @fn17(this: Values) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Values> @fn18(task: SuspendTask<Values>, completion: Continuation<Values>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -130,6 +132,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Values>[0]
         Type Continuation<Values>
@@ -143,6 +147,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Values>[1]
         Type Continuation<Values>
@@ -154,6 +160,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

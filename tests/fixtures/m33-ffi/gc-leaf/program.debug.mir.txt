@@ -98,6 +98,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun argument @fn5(value: Int) -> Int
     bb0 entry
       val $argument.0: Int
@@ -557,6 +559,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb21 while.body.21
       val $argument.0: Int
         Type Int
@@ -709,6 +713,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn11(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -717,6 +723,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn12(number: Int, fraction: Double) -> Pair <no-gc>
     bb0 entry
       return
@@ -740,6 +748,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn9 <- genericCaller
   instance mi1 function=@fn10 <- println
   str @str0 "illegal state"

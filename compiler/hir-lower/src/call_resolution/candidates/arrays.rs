@@ -64,7 +64,7 @@ impl Lowerer {
                 ValueParameter {
                     name: "init".into(),
                     calling: ValueParameterCalling::Required,
-                    ty: initializer,
+                    ty: self.function_types[initializer].canonical_type,
                 },
             ]
         } else {

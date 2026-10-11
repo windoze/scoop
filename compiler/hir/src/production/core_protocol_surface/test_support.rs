@@ -18,7 +18,7 @@ mod operations;
 mod surface;
 
 use builder::FixtureBuilder;
-use operations::{fixture_operation_owner, operation_entry};
+use operations::operation_entry;
 use surface::install_at;
 
 type TypeRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
@@ -120,18 +120,6 @@ pub(crate) fn install(
     install_at(foundation, existing, ConeIdentity::CORE)
 }
 
-fn product<const N: usize>(entries: [CoreProtocolEntryV1; N]) -> CoreProtocolProductV1<N> {
-    CoreProtocolProductV1 { entries }
-}
-
-fn concrete_entry(id: PersistentTypeId) -> CoreProtocolEntryV1 {
-    CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(id))
-}
-
-fn generic_entry(id: PersistentGenericTypeId) -> CoreProtocolEntryV1 {
-    CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id))
-}
-
 fn signature_application(
     origin: PersistentGenericTypeId,
     argument: SignatureTypeKey,
@@ -139,33 +127,6 @@ fn signature_application(
     SignatureTypeKey::NominalApplication {
         origin,
         arguments: NonEmptyVec::from_first(argument, []),
-    }
-}
-
-fn generic_protocol_id(entry: &CoreProtocolEntryV1) -> PersistentGenericTypeId {
-    match entry {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => *id,
-        _ => unreachable!("the fixture protocol nominal is generic"),
-    }
-}
-
-fn concrete_entry_ref<const N: usize>(
-    entries: &[CoreProtocolEntryV1; N],
-    index: usize,
-) -> PersistentTypeId {
-    match entries[index] {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(id)) => id,
-        _ => unreachable!("the fixture fundamental role is a concrete nominal"),
-    }
-}
-
-fn generic_entry_ref<const N: usize>(
-    entries: &[CoreProtocolEntryV1; N],
-    index: usize,
-) -> PersistentGenericTypeId {
-    match entries[index] {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => id,
-        _ => unreachable!("the fixture fundamental role is a generic nominal"),
     }
 }
 

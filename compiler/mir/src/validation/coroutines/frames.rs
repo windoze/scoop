@@ -143,7 +143,7 @@ pub(super) fn validate_frame(
     let Some(class) = arena_get(&module.classes, frame.class()) else {
         return Err(error(location, "frame refers to an unknown class"));
     };
-    let ClassRepresentation::Declared { fields, .. } = &class.representation else {
+    let ClassRepresentation::Declared(DeclaredClass { fields, .. }) = &class.representation else {
         return Err(error(
             location,
             "frame class must have a declared representation",

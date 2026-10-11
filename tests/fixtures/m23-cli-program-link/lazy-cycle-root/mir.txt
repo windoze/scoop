@@ -26,6 +26,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun failure @fn1() -> IllegalStateException
     bb0 entry
       goto bb8
@@ -314,6 +316,8 @@ Module
         Type Long
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -338,6 +342,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- println
   str @str0 "illegal state"
   str @str1 "illegal state"

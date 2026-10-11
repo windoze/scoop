@@ -104,14 +104,14 @@ impl Lowerer {
             });
             for (_, block) in function.body.blocks.iter_mut() {
                 if let mir::Terminator::Return { value } = &mut block.terminator {
-                    let completed = value.take().unwrap_or_else(mir::Expr::unit);
-                    *value = Some(mir::Expr::new(
+                    let completed = value.clone();
+                    *value = mir::Expr::new(
                         step_ty.clone(),
                         mir::ExprKind::VariantConstruct {
                             variant: completed_variant,
                             fields: vec![completed],
                         },
-                    ));
+                    );
                 }
             }
             function.return_ty = step_ty;

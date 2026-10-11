@@ -355,6 +355,7 @@ Module
     cbr t40 then @if.then.1 else @if.else.2
   block inline.16.entry
     heap_store local71 +16 integer<Int>(0x0000002a)
+    t41 = aggregate () : {}
     br @inline.cont.16
   fun @scoop$1$cb$b7264cfefa7c62d9574916d93301147bc799008ece8714a89b202a54c6db245c() -> i32
   block entry

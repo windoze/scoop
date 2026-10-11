@@ -359,6 +359,8 @@ Module
   fun Surface.$set$state @fn2(this: Surface, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun UnrelatedTop.excluded @fn3(this: UnrelatedTop) -> Int
     bb0 entry
       return
@@ -472,6 +474,8 @@ Module
         Type Surface.Nested.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -496,6 +500,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -716,6 +722,8 @@ Module
         Type Surface.Generic.Companion<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn19() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -740,6 +748,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -826,6 +836,8 @@ Module
         Type Surface.Generic.Companion<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn21() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -850,6 +862,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1011,6 +1025,8 @@ Module
   fun init.Surface.$c1 @fn50(this: Surface) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.PublishedSurface.$c0 @fn51(this: PublishedSurface) -> Unit
     bb0 entry
       call @fn50 direct
@@ -1019,39 +1035,63 @@ Module
           Type PublishedSurface
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.UnrelatedTop.$c2 @fn52(this: UnrelatedTop) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Nested.$c3 @fn53(this: Surface.Nested, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Nested.Companion.$c9 @fn54(this: Surface.Nested.Companion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Nested.Hidden.$c4 @fn55(this: Surface.Nested.Hidden) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Nested.Child.$c5 @fn56(this: Surface.Nested.Child) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Unrelated.$c7 @fn57(this: Surface.Unrelated) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.UnrelatedTop.Ignored.$c8 @fn58(this: UnrelatedTop.Ignored) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Generic.$c6 @fn59(this: Surface.Generic<Int>, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Generic.$c6 @fn60(this: Surface.Generic<String>, value: String) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Generic.Companion.$c10 @fn61(this: Surface.Generic.Companion<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Surface.Generic.Companion.$c10 @fn62(this: Surface.Generic.Companion<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<PublishedSurface> @fn63(task: SuspendTask<PublishedSurface>, completion: Continuation<PublishedSurface>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1074,6 +1114,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<PublishedSurface>[0]
         Type Continuation<PublishedSurface>
@@ -1087,6 +1129,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<PublishedSurface>[1]
         Type Continuation<PublishedSurface>
@@ -1098,6 +1142,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1155,6 +1201,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn26 interface Continuation<Surface>[0]
         Type Continuation<Surface>
@@ -1168,6 +1216,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn27 interface Continuation<Surface>[1]
         Type Continuation<Surface>
@@ -1179,6 +1229,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1236,6 +1288,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Surface.Nested.Companion>[0]
         Type Continuation<Surface.Nested.Companion>
@@ -1249,6 +1303,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Surface.Nested.Companion>[1]
         Type Continuation<Surface.Nested.Companion>
@@ -1260,6 +1316,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1317,6 +1375,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<Surface.Nested.Child>[0]
         Type Continuation<Surface.Nested.Child>
@@ -1330,6 +1390,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<Surface.Nested.Child>[1]
         Type Continuation<Surface.Nested.Child>
@@ -1341,6 +1403,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1398,6 +1462,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn46 interface Continuation<Surface.Unrelated>[0]
         Type Continuation<Surface.Unrelated>
@@ -1411,6 +1477,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn47 interface Continuation<Surface.Unrelated>[1]
         Type Continuation<Surface.Unrelated>
@@ -1422,6 +1490,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1479,6 +1549,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<Surface.Nested>[0]
         Type Continuation<Surface.Nested>
@@ -1492,6 +1564,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<Surface.Nested>[1]
         Type Continuation<Surface.Nested>
@@ -1503,6 +1577,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1560,6 +1636,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn38 interface Continuation<Surface.Nested.Hidden>[0]
         Type Continuation<Surface.Nested.Hidden>
@@ -1573,6 +1651,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn39 interface Continuation<Surface.Nested.Hidden>[1]
         Type Continuation<Surface.Nested.Hidden>
@@ -1584,6 +1664,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

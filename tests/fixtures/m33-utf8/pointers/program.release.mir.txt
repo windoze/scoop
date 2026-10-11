@@ -162,6 +162,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -786,6 +788,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb44 inline.cont.44
       val $array_value.5: UInt8
         Type UInt8
@@ -910,6 +914,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn6(this: MutableArray<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -1190,6 +1196,8 @@ Module
         Local $parameter.value
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withUtf8Bytes @fn12(this: String, block: (Ptr<UInt8>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: String
@@ -1229,9 +1237,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type4> closure[function_type4]
         Type (Ptr<UInt8>, Long) -> Unit
@@ -1284,6 +1292,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn14(this: ListIterator<UInt8>) -> Option<UInt8>
     bb0 entry
       branch bb1 bb2
@@ -1403,6 +1413,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn18(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       val $inline.1.this: Ptr<UInt8>

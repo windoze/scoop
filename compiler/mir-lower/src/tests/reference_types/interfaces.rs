@@ -25,8 +25,8 @@ fn default_interface_bodies_have_a_concrete_receiver_adapter() {
     assert_eq!(function.params.len(), 1);
     assert_eq!(function.params[0].ty, mir::Type::Class(adjust.class()));
     let (call, _) = statement_call(&entry_statements(&function.body)[0]);
-    assert_eq!(call.target.kind, mir::CallKind::Direct);
-    let mir::Callee::User(target) = call.target.callee else {
+    assert!(matches!(call.target, mir::CallTarget::Direct(_)));
+    let mir::CallTarget::Direct(mir::Callee::User(target)) = call.target else {
         panic!("the adapter forwards to the available default body")
     };
     assert_eq!(module.functions[target].name, "Named.name");

@@ -1008,8 +1008,7 @@ Module
     ret local7
   fun @scoop$1$cb$7a63f5356cece5406105aec9ba8626dc3907bd91f5ff10f9d541ac4ce0a9d582(indirect<struct4 size=8 align=8 scan=refs[0]>) -> void
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct4@0]
-    t0 = extract param0, 0 : {}
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop$1$cb$90d28c2db3348f12740899ccf8dde463159066578b9e4ed40c109d43e0254561(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> i32
     local %0 $dependency.local.2: interface{object,itab}
@@ -1029,8 +1028,7 @@ Module
     ret local2
   fun @scoop$1$cb$28657e52d1c480e4c5177e3cc8e90bb9eaf52e6a1ee76020d1ba1fccc9df8b51(indirect<struct5 size=8 align=8 scan=refs[0]>) -> void
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct5@0]
-    t0 = extract param0, 0 : {}
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
   fun @scoop$1$cb$183fff71423fc35821266b6bd0aee12475e10c420d43f88d4ab870f8721bb755(elided-zst<{} size=0 align=1>) -> sret<struct4 size=8 align=8 scan=refs[0]>
     local %0 $dependency.local.1: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>

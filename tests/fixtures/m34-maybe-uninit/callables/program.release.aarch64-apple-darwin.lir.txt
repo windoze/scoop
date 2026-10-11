@@ -30,6 +30,7 @@ Module
     ret
   block inline.1.entry
     heap_store local1 +16 integer<Int>(0x00000000)
+    t1 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$54791d79970be5065ff184c0e01e51fb433651d8fdd70df14f702f11f597fe4d() -> void
     local %0 $init.state: machine<initialization-outcome>
@@ -340,6 +341,7 @@ Module
     global_store global6, local0
     ret
   block inline.1.entry
+    t1 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$ab59221fe10970514bb1bc3415f1478cb54489929332d5486146be84677711b7() -> void
     local %0 $init.state: machine<initialization-outcome>
@@ -463,6 +465,7 @@ Module
     global_store global7, local0
     ret
   block inline.1.entry
+    t1 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$899b23a2dbe5784403908584be9557f94c3eb746ad2d1cd862bb26f8723b525d() -> void
     local %0 $init.state: machine<initialization-outcome>

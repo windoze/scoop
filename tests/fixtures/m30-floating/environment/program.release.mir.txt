@@ -440,6 +440,8 @@ Module
         Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn7(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -486,6 +488,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn9($closure: (Float, Double) -> Double, single: Float, wide: Double) -> Double
     bb0 entry
       call @scoop_rt_gc_collect direct

@@ -401,10 +401,10 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(expr(
+                value: expr(
                     hir::ExprKind::SomeWrap(Box::new(int_lit(&h, 7))),
                     option_int,
-                )),
+                ),
             })],
         },
     );
@@ -416,7 +416,7 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(&h, 9)),
+                value: int_lit(&h, 9),
             })],
         },
     );
@@ -472,7 +472,7 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
                 mir::CallEffect::Unit(call) => call,
                 mir::CallEffect::Value { call, .. } => call,
             };
-            let mir::Callee::User(callee) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::User(callee)) = call.target else {
                 continue;
             };
             match module.functions[callee].name.as_str() {
@@ -571,7 +571,7 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             span: SPAN,
         });
         let variant = hir::EnumVariantApplication {
-            owner: ty,
+            owner: variant.application(),
             variant: export.enum_member_identities[variant.declaration()].id(),
         };
         let actual_global = export.globals.alloc(hir::Global {

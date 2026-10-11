@@ -60,6 +60,8 @@ Module
         Type Ptr<Char>
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       val $argument.0: Int8
@@ -332,6 +334,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb20 if.merge.20
       val $dependency.argument.0: Int
         Type Int
@@ -343,6 +347,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn5(this: Ptr<Char>, other: Ptr<Char>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Char>
@@ -389,6 +395,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -413,6 +421,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packet.$c0 @fn8(prefix: Int8, character: Char, tail: Long) -> Packet <no-gc>
     bb0 entry
       return

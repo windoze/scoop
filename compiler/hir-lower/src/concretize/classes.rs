@@ -68,10 +68,10 @@ impl Concretizer<'_> {
         );
         let representation = match &definition.representation {
             ResolvedClassRepresentation::Declared { .. } => {
-                concrete::ClassRepresentation::Declared {
+                concrete::ClassRepresentation::Declared(concrete::DeclaredClass {
                     fields: Vec::new(),
                     base_class: None,
-                }
+                })
             }
             ResolvedClassRepresentation::Intrinsic {
                 declaration,
@@ -82,7 +82,7 @@ impl Concretizer<'_> {
             },
         };
         let kind = match &representation {
-            concrete::ClassRepresentation::Declared { .. }
+            concrete::ClassRepresentation::Declared(concrete::DeclaredClass { .. })
             | concrete::ClassRepresentation::Intrinsic {
                 application:
                     concrete::IntrinsicTypeRepresentation::Array { .. }
@@ -149,7 +149,10 @@ impl Concretizer<'_> {
                 base
             });
             self.classes[id].representation =
-                concrete::ClassRepresentation::Declared { fields, base_class };
+                concrete::ClassRepresentation::Declared(concrete::DeclaredClass {
+                    fields,
+                    base_class,
+                });
         }
         let mut methods = self
             .request_concrete_methods(definition.methods, method_owner)

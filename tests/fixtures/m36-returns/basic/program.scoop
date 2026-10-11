@@ -1,0 +1,18 @@
+fun bare() { return }
+fun mark(): Unit { println("mark"); return }
+fun explicit(): Unit { return mark() }
+fun expression(): Unit = mark()
+fun fail(): Nothing { throw UnwrapException() }
+fun never(): Int {
+    try { return fail() } finally { println("never-finally") }
+}
+fun replacement(): Int {
+    try { return 1 } finally { return 2 }
+}
+fun main() {
+    bare()
+    explicit()
+    expression()
+    try { println(never()) } catch (failure: UnwrapException) { println("caught") }
+    println(replacement())
+}

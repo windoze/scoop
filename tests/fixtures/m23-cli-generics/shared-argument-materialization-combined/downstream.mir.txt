@@ -4576,11 +4576,9 @@ Module
           Local this
   fun value @fn33(this: Calculator<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Calculator<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun receiver @fn34(tape: Tape, value: Calculator<Unit>) -> Calculator<Unit>
     bb0 entry
       val $dependency.local.2: Tape
@@ -4789,6 +4787,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Calculator.$c0 @fn48(this: Calculator<Later>, value: Later, tape: Tape, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -4812,6 +4812,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionCalculator.$c1 @fn49(this: ExtensionCalculator<Later>, value: Later, tape: Tape) -> Unit
     bb0 entry
       field_set 0
@@ -4825,6 +4827,8 @@ Module
         Type Tape
         Local tape
       return
+        Type Unit
+        UnitLiteral
   fun init.Calculator.$c0 @fn50(this: Calculator<String>, value: String, tape: Tape, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -4848,6 +4852,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionCalculator.$c1 @fn51(this: ExtensionCalculator<String>, value: String, tape: Tape) -> Unit
     bb0 entry
       field_set 0
@@ -4861,6 +4867,8 @@ Module
         Type Tape
         Local tape
       return
+        Type Unit
+        UnitLiteral
   fun init.Calculator.$c0 @fn52(this: Calculator<Unit>, value: Unit, tape: Tape, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -4884,6 +4892,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionCalculator.$c1 @fn53(this: ExtensionCalculator<Unit>, value: Unit, tape: Tape) -> Unit
     bb0 entry
       field_set 0
@@ -4897,6 +4907,8 @@ Module
         Type Tape
         Local tape
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn54(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4915,6 +4927,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn55(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -4937,6 +4951,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn43 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -4950,6 +4966,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn44 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -4961,6 +4979,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -2003,6 +2003,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn2(this: Array<Int8>) -> Iterator<Int8>
     bb0 entry
       val $dependency.local.1: List<Int8>
@@ -2915,6 +2917,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn27(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
@@ -2939,6 +2943,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn28(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
@@ -2963,6 +2969,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn29(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -2987,6 +2995,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn30(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -3011,6 +3021,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn31(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
@@ -3035,6 +3047,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn32(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
@@ -3059,6 +3073,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn33(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
@@ -3083,6 +3099,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn34(value: Int8) -> Int8
     bb0 entry
       return
@@ -3158,6 +3176,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun render @fn44(value: Int16) -> String
     bb0 entry
       val $dependency.receiver: Int16
@@ -3286,6 +3306,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equalValuesHaveEqualHashes @fn53(left: Int16, right: Int16) -> Boolean
     bb0 entry
       val $dependency.receiver: Int16
@@ -4301,6 +4323,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn85(this: ListIterator<Int16>, source: List<Int16>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4319,6 +4343,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn86(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4337,6 +4363,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn87(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4355,6 +4383,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn88(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4373,6 +4403,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn89(this: ListIterator<UInt16>, source: List<UInt16>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4391,6 +4423,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn90(this: ListIterator<UInt>, source: List<UInt>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4409,6 +4443,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn91(this: ListIterator<ULong>, source: List<ULong>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4427,6 +4463,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Widths.$c0 @fn92(i8: Int8, i16: Int16, i32: Int, i64: Long, u8: UInt8, u16: UInt16, u32: UInt, u64: ULong) -> Widths <no-gc>
     bb0 entry
       return

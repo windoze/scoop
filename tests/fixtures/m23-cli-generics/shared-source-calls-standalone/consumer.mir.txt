@@ -386,19 +386,19 @@ Module
         Local copy
   fun identity @fn12(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn13(value: Unit, copy: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local copy
       return
+        Type Unit
+        UnitLiteral
   fun localDefault @fn14(value: Unit, copy: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local copy
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn15(value: Int) -> Int
     bb0 entry
       return
@@ -428,6 +428,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

@@ -120,7 +120,8 @@ fn validate_class(
     {
         return invalid(location, "the generated box has an invalid class shape");
     }
-    let ClassRepresentation::Declared { fields, base_class } = &class.representation else {
+    let ClassRepresentation::Declared(DeclaredClass { fields, base_class }) = &class.representation
+    else {
         return invalid(
             location,
             "the generated box must have a declared representation",

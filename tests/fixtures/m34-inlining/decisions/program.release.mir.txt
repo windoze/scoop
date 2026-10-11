@@ -54,6 +54,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun medium @fn1(value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -2174,12 +2176,16 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb51 inline.50.entry
       val $inline.50.$dependency.receiver: Boolean
         Type Boolean
         BoolLiteral true
       goto bb52
     bb52 inline.50.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb50
     bb53 inline.cont.53
       val $argument.0: UInt8
@@ -2198,6 +2204,8 @@ Module
         BoolLiteral true
       goto bb55
     bb55 inline.53.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb53
     bb56 inline.cont.56
       val $inline.48.$call.1: Int
@@ -2237,6 +2245,8 @@ Module
         BoolLiteral true
       goto bb60
     bb60 inline.58.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb58
     bb61 inline.cont.61
       val $inline.56.$call.1: Int
@@ -2322,6 +2332,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn23 <- println
   str @str0 "illegal state"
   str @str1 "inlined decisions"

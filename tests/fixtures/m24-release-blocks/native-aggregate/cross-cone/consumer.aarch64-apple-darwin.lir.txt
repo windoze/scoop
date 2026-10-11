@@ -177,7 +177,6 @@ Module
     ret t0
   fun @scoop$1$cb$d0eb7f7e1f533042ac886f4e4da55a05491b60f9dac746b6dbdd173d9e709a57(elided-zst<struct2 size=0 align=1>) -> void <no-gc>
   block entry
-    t0 = extract param0, 0 : {}
     ret
   fun @scoop$1$cb$07c914cdf6cf8f9963ae4f07097b89d86e9af0046c7409ce14d51a4a051962be(i32, indirect<struct0 size=24 align=8 scan=none>) -> i32
     local %0 $dependency.local.2: struct0

@@ -321,6 +321,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun RenderBox.toString @fn8(this: RenderBox<Point>) -> String
     bb0 entry
       val $dependency.receiver: Point
@@ -438,6 +440,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -462,6 +466,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn13(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -486,6 +492,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn14(value: RenderBox<Point>) -> Unit
     bb0 entry
       val $dependency.local.1: RenderBox<Point>
@@ -510,6 +518,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn15(value: RenderPair<Point>) -> Unit
     bb0 entry
       val $dependency.local.1: RenderPair<Point>
@@ -534,6 +544,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn16(value: RenderState<Point>) -> Unit
     bb0 entry
       val $dependency.local.1: RenderState<Point>
@@ -558,6 +570,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun render @fn17(value: Point) -> String
     bb0 entry
       val $dependency.receiver: Point
@@ -593,6 +607,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn19(this: Continuation<Point>, value: Point) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -640,6 +656,8 @@ Module
         Type Int
         Local id
       return
+        Type Unit
+        UnitLiteral
   fun init.RenderBox.$c1 @fn33(this: RenderBox<Point>, value: Point) -> Unit
     bb0 entry
       field_set 0
@@ -648,6 +666,8 @@ Module
         Type Point
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Point.$c0 @fn34(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
@@ -688,6 +708,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Label>[0]
         Type Continuation<Label>
@@ -701,6 +723,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Label>[1]
         Type Continuation<Label>
@@ -712,6 +736,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -769,6 +795,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<User>[0]
         Type Continuation<User>
@@ -782,6 +810,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<User>[1]
         Type Continuation<User>
@@ -793,6 +823,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -850,6 +882,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<Point>[0]
         Type Continuation<Point>
@@ -863,6 +897,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<Point>[1]
         Type Continuation<Point>
@@ -874,6 +910,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

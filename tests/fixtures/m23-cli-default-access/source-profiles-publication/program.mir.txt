@@ -50,6 +50,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: Plain = external2 direct
@@ -196,6 +198,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun defaultGeneric @fn2() -> Generic<Int>
     bb0 entry
       assign $new.1
@@ -259,9 +263,13 @@ Module
   fun init.Generic.$c0 @fn8(this: Generic<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Generic.$c0 @fn9(this: Generic<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- defaultGeneric
   instance mi1 function=@fn3 <- checkOwner
   instance mi2 function=@fn4 <- defaultGeneric

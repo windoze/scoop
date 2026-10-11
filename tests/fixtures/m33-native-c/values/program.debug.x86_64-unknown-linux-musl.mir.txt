@@ -146,6 +146,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn8() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -428,6 +430,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun expectedPlatform @fn9() -> Int
     bb0 entry
       return
@@ -547,6 +551,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn14(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -555,6 +561,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn15(number: Int, flag: Boolean, fraction: Double) -> Pair <no-gc>
     bb0 entry
       return

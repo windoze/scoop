@@ -171,7 +171,9 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
         body_with_terminator(
             callee_locals,
             Vec::new(),
-            mir::Terminator::Return { value: None },
+            mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
         ),
     );
 
@@ -181,15 +183,11 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
     let caught = locals.alloc(local("caught", reference_ty.clone()));
     let sink = locals.alloc(local("sink", reference_ty.clone()));
     let call = mir::Call {
-        target: mir::CallTarget {
-            kind: mir::CallKind::Direct,
-            callee: mir::Callee::User(callee),
-        },
+        target: mir::CallTarget::Direct(mir::Callee::User(callee)),
         args: vec![
             local_expr(live_on_both_edges, reference_ty.clone()),
             local_expr(argument_only, reference_ty.clone()),
         ],
-        pending: mir::CoroutinePendingContext::Root,
     };
     let body = single_catch_body(
         locals,

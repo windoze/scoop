@@ -182,6 +182,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -206,6 +208,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -230,6 +234,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun isPresent @fn5(value: Option<Describable>) -> Boolean
     bb0 entry
       val $when.1: Option<Describable>
@@ -293,6 +299,8 @@ Module
         Type String
         Local title
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Tag.$c0 @fn12(v: Int) -> Tag <no-gc>
     bb0 entry
       return
@@ -322,6 +330,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Describable>[0]
         Type Continuation<Describable>
@@ -335,6 +345,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Describable>[1]
         Type Continuation<Describable>
@@ -346,6 +358,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

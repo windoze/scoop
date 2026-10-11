@@ -125,10 +125,10 @@ fn generic_equality_resolves_the_exact_operator_bound_member() {
     };
     let hir::concrete::StatementKind::Return {
         value:
-            Some(hir::concrete::Expr {
+            hir::concrete::Expr {
                 kind: hir::concrete::ExprKind::MethodCall { callee, .. },
                 ..
-            }),
+            },
     } = &body.statements[0].kind
     else {
         panic!("the concrete body returns the resolved operator call")
@@ -179,14 +179,11 @@ fn derived_equality_normalizes_integer_field_winners_before_concretization() {
     for comparison in [lhs.as_ref(), rhs.as_ref()] {
         assert!(matches!(
             comparison.kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
-                    kind: hir::IntegerKind::SIGNED_32,
-                    operation: hir::NoGcIntegerOperation::Equals,
-                    ..
-                },
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::IntegerBinaryOperator::Equals,
                 ..
-            }
+            })
         ));
     }
 
@@ -203,7 +200,7 @@ fn derived_equality_normalizes_integer_field_winners_before_concretization() {
         .statements
         .iter()
         .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::concrete::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("derived equality returns its comparison");
@@ -218,14 +215,11 @@ fn derived_equality_normalizes_integer_field_winners_before_concretization() {
     for comparison in [lhs.as_ref(), rhs.as_ref()] {
         assert!(matches!(
             comparison.kind,
-            hir::concrete::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
-                    kind: hir::IntegerKind::SIGNED_32,
-                    operation: hir::NoGcIntegerOperation::Equals,
-                    ..
-                },
+            hir::concrete::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::IntegerBinaryOperator::Equals,
                 ..
-            }
+            })
         ));
     }
 }

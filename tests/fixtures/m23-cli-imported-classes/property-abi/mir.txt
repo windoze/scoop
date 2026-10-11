@@ -36,6 +36,8 @@ Module
         Type Counter
         Local reference
       return
+        Type Unit
+        UnitLiteral
   fun primary @fn1() -> Counter
     bb0 entry
       call $dependency.argument.0: Token = external3 direct

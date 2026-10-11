@@ -104,6 +104,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- $extension.extensionKind
   instance mi1 function=@fn2 <- $extension.extensionSelect
   instance mi2 function=@fn3 <- value

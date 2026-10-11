@@ -141,6 +141,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$kind @fn1(this: Cell<Int>) -> String
     bb0 entry
       return
@@ -177,6 +179,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$set$content @fn4(this: Cell<Int>, next: Int) -> Unit
     bb0 entry
       field_set 0
@@ -185,6 +189,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$content @fn5(this: Cell<Int>) -> Int
     bb0 entry
       return
@@ -216,6 +222,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$item @fn7(this: Cell<String>) -> String
     bb0 entry
       return
@@ -231,6 +239,8 @@ Module
         Type String
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$content @fn9(this: Cell<String>) -> String
     bb0 entry
       return
@@ -251,6 +261,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn12(this: Cell<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -259,6 +271,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- $extension.$get$item
   instance mi1 function=@fn3 <- println
   instance mi2 function=@fn4 <- $extension.$set$content

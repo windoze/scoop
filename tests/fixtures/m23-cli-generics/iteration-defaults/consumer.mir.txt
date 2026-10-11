@@ -2179,6 +2179,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn51(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2197,6 +2199,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn52(this: ListIterator<Reference>, source: List<Reference>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2215,6 +2219,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn53(this: Sequence<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -2223,6 +2229,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn54(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -2236,6 +2244,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn55(this: DiamondCursor<Int>, inner: Cursor<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -2244,6 +2254,8 @@ Module
         Type Cursor<Int>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ValueCursor.$c2 @fn56(inner: Cursor<Int>) -> ValueCursor<Int> <no-gc>
     bb0 entry
       return
@@ -2301,6 +2313,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -2314,6 +2328,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -2325,6 +2341,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

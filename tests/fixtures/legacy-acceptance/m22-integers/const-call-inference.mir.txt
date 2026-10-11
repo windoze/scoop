@@ -99,6 +99,8 @@ Module
         Type Int8
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn2() -> Unit
     bb0 entry
       val $receiver: Int8
@@ -119,6 +121,8 @@ Module
         Type Int8
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn3() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -143,6 +147,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -247,6 +253,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -271,6 +279,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
@@ -295,6 +305,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- println
   instance mi1 function=@fn6 <- println
   instance mi2 function=@fn7 <- println

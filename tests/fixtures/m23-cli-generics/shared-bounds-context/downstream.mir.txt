@@ -672,6 +672,8 @@ Module
         Type Holder<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn16($argument.0: (Unit) -> Int, $argument.1: Unit) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
@@ -726,11 +728,9 @@ Module
           Local this
   fun value @fn21(this: Holder<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Holder<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn22(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -751,6 +751,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn27(this: Holder<Any>, value: Any) -> Unit
     bb0 entry
       field_set 0
@@ -759,6 +761,8 @@ Module
         Type Any
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn28(this: Holder<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -767,6 +771,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn29(this: Holder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -775,6 +781,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn30(this: Holder<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -783,6 +791,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn31(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -805,6 +815,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -818,6 +830,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -829,6 +843,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

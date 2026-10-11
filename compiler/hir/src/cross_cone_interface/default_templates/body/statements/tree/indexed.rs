@@ -8,7 +8,7 @@ use crate::{
     DefaultAssignTargetIndexError, DefaultExpressionIndexError, DefaultLocalFunctionIndexError,
     DefaultPatternIndexError, ExportDefinitionSourceV1, IndexedDefaultAssignTargetV1,
     IndexedDefaultExpressionV1, IndexedDefaultLocalFunctionV1, IndexedDefaultPatternV1,
-    OptionalDefaultExpressionV1, TemplateLocalIndexResolver,
+    TemplateLocalIndexResolver,
 };
 
 use super::super::{
@@ -32,7 +32,7 @@ enum IndexedDefaultStatementKindV1<'a> {
     InitializationEnsure(&'a PersistentInitializationUnitId),
     GenericDelegateEnsure(&'a crate::DefaultGenericDelegateReferenceV1),
     LocalFunction(IndexedDefaultLocalFunctionV1<'a>),
-    Return(IndexedOptionalDefaultExpressionV1<'a>),
+    Return(IndexedDefaultExpressionV1<'a>),
     ValDecl {
         pattern: IndexedDefaultPatternV1<'a>,
         init: IndexedDefaultExpressionV1<'a>,
@@ -56,12 +56,6 @@ enum IndexedDefaultStatementKindV1<'a> {
     When(IndexedDefaultWhenV1<'a>),
     Try(IndexedDefaultTryV1<'a>),
     Throw(IndexedDefaultExpressionV1<'a>),
-}
-
-#[derive(Debug)]
-enum IndexedOptionalDefaultExpressionV1<'a> {
-    Absent,
-    Present(IndexedDefaultExpressionV1<'a>),
 }
 
 impl DefaultStatementV1 {
@@ -95,9 +89,9 @@ impl DefaultStatementV1 {
                         .map_err(DefaultStatementIndexError::LocalFunction)?,
                 )
             }
-            DefaultStatementKindV1::Return(value) => IndexedDefaultStatementKindV1::Return(
-                index_optional_expression(value, resolver, 4, 1)?,
-            ),
+            DefaultStatementKindV1::Return(value) => {
+                IndexedDefaultStatementKindV1::Return(index_expression(value, resolver, 4, 1)?)
+            }
             DefaultStatementKindV1::ValDecl { pattern, init } => {
                 IndexedDefaultStatementKindV1::ValDecl {
                     pattern: pattern
@@ -191,7 +185,15 @@ impl WireEncode for IndexedDefaultStatementKindV1<'_> {
             Self::InitializationEnsure(unit) => encode_one(encoder, 2, *unit),
             Self::GenericDelegateEnsure(reference) => encode_one(encoder, 15, *reference),
             Self::LocalFunction(function) => encode_one(encoder, 3, function),
-            Self::Return(value) => encode_one(encoder, 4, value),
+            Self::Return(value) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                encoder.map(2)?;
+                encode_tag(encoder, 2)?;
+                encoder.field(1)?;
+                value.encode(encoder)
+            }
             Self::ValDecl { pattern, init } => encode_two(encoder, 5, pattern, init),
             Self::Assign { target, value } => encode_two(encoder, 6, target, value),
             Self::If {
@@ -209,15 +211,6 @@ impl WireEncode for IndexedDefaultStatementKindV1<'_> {
             Self::When(value) => encode_one(encoder, 12, value),
             Self::Try(value) => encode_one(encoder, 13, value),
             Self::Throw(value) => encode_one(encoder, 14, value),
-        }
-    }
-}
-
-impl WireEncode for IndexedOptionalDefaultExpressionV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Absent => encode_empty(encoder, 1),
-            Self::Present(value) => encode_one(encoder, 2, value),
         }
     }
 }
@@ -305,24 +298,6 @@ where
             field,
             error,
         })
-}
-
-fn index_optional_expression<'a, I>(
-    expression: &'a OptionalDefaultExpressionV1,
-    resolver: &mut I,
-    variant_tag: u64,
-    field: u32,
-) -> Result<IndexedOptionalDefaultExpressionV1<'a>, DefaultStatementIndexError<I::Error>>
-where
-    I: TemplateLocalIndexResolver,
-{
-    match expression {
-        OptionalDefaultExpressionV1::Absent => Ok(IndexedOptionalDefaultExpressionV1::Absent),
-        OptionalDefaultExpressionV1::Present(value) => {
-            index_expression(value, resolver, variant_tag, field)
-                .map(IndexedOptionalDefaultExpressionV1::Present)
-        }
-    }
 }
 
 fn index_statements<'a, I>(

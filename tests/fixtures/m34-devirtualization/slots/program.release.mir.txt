@@ -144,6 +144,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun contextual @fn5() -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -385,6 +387,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb20 try.body.20 unwind bb15
       call @scoop_rt_gc_collect direct
       call $dependency.receiver: Int = @fn5 direct
@@ -822,8 +826,12 @@ Module
           Local $inline.50.this
       goto bb53
     bb52 inline.cont.52
+      Type Unit
+      UnitLiteral
       goto bb50
     bb53 inline.52.entry
+      Type Unit
+      UnitLiteral
       goto bb52
     bb54 inline.cont.54
       val $inline.48.$call.1: Int
@@ -923,6 +931,8 @@ Module
         BoolLiteral true
       goto bb62
     bb62 inline.60.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb60
   fun generic @fn7(value: Small) -> Int
     bb0 entry
@@ -1023,6 +1033,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn11(this: Continuation<Root>, value: Root) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1217,6 +1229,8 @@ Module
   fun init.Base.$c0 @fn24(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn25(this: Derived) -> Unit
     bb0 entry
       val $inline.1.this: Base
@@ -1227,7 +1241,11 @@ Module
       goto bb2
     bb1 inline.cont.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
+      Type Unit
+      UnitLiteral
       goto bb1
   fun ctor.Small.$c0 @fn26(number: Int) -> Small <no-gc>
     bb0 entry
@@ -1274,6 +1292,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Root>[0]
         Type Continuation<Root>
@@ -1287,6 +1307,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Root>[1]
         Type Continuation<Root>
@@ -1298,6 +1320,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

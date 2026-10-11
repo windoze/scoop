@@ -168,6 +168,8 @@ Module
         Type Any
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun prepWithCast @fn4(value: Any, result: Int) -> Int
     bb0 entry
       return

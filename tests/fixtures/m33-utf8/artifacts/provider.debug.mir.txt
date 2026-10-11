@@ -360,6 +360,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- get
   instance mi2 function=@fn4 <- size

@@ -165,7 +165,7 @@ fn return_inside_try_runs_finally_before_returning() {
         return_finally,
         vec![call_stmt(user_call(cleanup))],
         mir::Terminator::Return {
-            value: Some(local_expr(result, INT)),
+            value: local_expr(result, INT),
         },
         None,
     );

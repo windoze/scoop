@@ -259,6 +259,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun checkUnits @fn5(pointer: Ptr<Unit>, count: Long) -> Unit
     bb0 entry
       val $dependency.receiver: Long
@@ -357,6 +359,8 @@ Module
         Local $dependency.parameter.value
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun arrays @fn6() -> Unit
     bb0 entry
       val $argument.0: Long
@@ -664,6 +668,8 @@ Module
         Type (Ptr<Unit>, Long) -> Unit
         Local $dependency.parameter.block
       return
+        Type Unit
+        UnitLiteral
     bb21 while.body.21
       val $inline.22.$closure: (Long) -> Unit
         Type (Long) -> Unit
@@ -692,6 +698,8 @@ Module
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb19
     bb23 inline.22.entry
+      Type Unit
+      UnitLiteral
       goto bb22
     bb24 inline.cont.24
       val $array_value.5: Int
@@ -752,6 +760,8 @@ Module
         Type (Ptr<UInt8>, Long) -> Unit
         Local $dependency.parameter.block
       return
+        Type Unit
+        UnitLiteral
   fun stringsAndCleanup @fn8() -> Unit
     bb0 entry
       val $argument.0: String
@@ -887,6 +897,8 @@ Module
         Type (Ptr<Int>, Long) -> Unit
         Local $dependency.parameter.block
       return
+        Type Unit
+        UnitLiteral
     bb13 try.body.13 unwind bb6
       val $dependency.receiver: MutableArray<Int>
         Type MutableArray<Int>
@@ -959,6 +971,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn10(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -1110,6 +1124,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn14(this: MutableArray<Int>, index: Long) -> Int
     bb0 entry
@@ -1243,6 +1259,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn17(this: Array<Int>, index: Long) -> Int
     bb0 entry
@@ -1376,6 +1394,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn20(this: MutableArray<Unit>, index: Long) -> Unit
     bb0 entry
@@ -1432,13 +1452,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet MutableArray<Unit>
-        Type MutableArray<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn21(this: MutableArray<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Unit>
@@ -1919,6 +1935,8 @@ Module
         Local $parameter.value
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withDataPointer @fn28(this: Array<Int>, block: (Ptr<Int>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: Array<Int>
@@ -1958,9 +1976,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type4> closure[function_type4]
         Type (Ptr<Int>, Long) -> Unit
@@ -1992,6 +2010,8 @@ Module
   fun $lambda.4 @fn29($closure: (Long) -> Unit, $arg.0: Long) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withDataPointer @fn30(this: MutableArray<Unit>, block: (Ptr<Unit>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: MutableArray<Unit>
@@ -2031,9 +2051,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type6> closure[function_type6]
         Type (Ptr<Unit>, Long) -> Unit
@@ -2231,6 +2251,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withUtf8Bytes @fn32(this: String, block: (Ptr<UInt8>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: String
@@ -2270,9 +2292,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type7> closure[function_type7]
         Type (Ptr<UInt8>, Long) -> Unit
@@ -2361,6 +2383,8 @@ Module
         Local $parameter.value
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.7 @fn34($closure: (Long) -> Int, $arg.0: Long) -> Int
     bb0 entry
       return
@@ -2487,9 +2511,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type4> closure[function_type4]
         Type (Ptr<Int>, Long) -> Unit
@@ -2548,6 +2572,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn38(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -2572,6 +2598,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn39(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -2935,6 +2963,8 @@ Module
         Type Int
         IntegerLiteral Int value=20 bits=0x00000014
       return
+        Type Unit
+        UnitLiteral
     bb5 inline.4.entry
       val $inline.4.$dependency.local.1: ULong
         Type ULong
@@ -3091,6 +3121,8 @@ Module
         Type Long
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn52(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3109,6 +3141,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn53(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3127,6 +3161,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.PinnedPtr.$c1 @fn54(raw: ULong) -> PinnedPtr<MutableArray<Int>> <no-gc>
     bb0 entry
       return

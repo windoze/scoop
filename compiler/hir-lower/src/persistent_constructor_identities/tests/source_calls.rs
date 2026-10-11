@@ -22,8 +22,7 @@ fn compiler_exception_adapter_does_not_shadow_the_source_constructor() {
     let hir::FunctionKind::User(body) = &function.kind else {
         panic!("the generic source function has a body")
     };
-    let hir::StatementKind::Return { value: Some(value) } = &body.statements.last().unwrap().kind
-    else {
+    let hir::StatementKind::Return { value } = &body.statements.last().unwrap().kind else {
         panic!("the function returns its constructed exception")
     };
     let hir::ExprKind::ClassInit { constructor, args } = &value.kind else {

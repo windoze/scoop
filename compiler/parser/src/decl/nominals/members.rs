@@ -105,32 +105,25 @@ impl Parser {
         prefix: MemberPrefix,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
-        if prefix.is_const {
+        if let Some(span) = prefix.const_span {
             return Err(Diagnostic::at(
-                prefix.const_span.expect("const modifier has a span"),
+                span,
                 "`const` is only allowed on `val` properties",
             ));
         }
         if context == FunctionContext::Interface
-            && matches!(
-                prefix.modifiers.method_modifier,
-                Some(MethodModifier::Final | MethodModifier::Open)
-            )
+            && let Some(SpannedMethodModifier {
+                kind: kind @ (MethodModifier::Final | MethodModifier::Open),
+                span,
+            }) = prefix.modifiers.method_modifier
         {
-            let modifier = match prefix
-                .modifiers
-                .method_modifier
-                .expect("matched explicit interface modality")
-            {
-                MethodModifier::Final => "final",
-                MethodModifier::Open => "open",
-                MethodModifier::Abstract => unreachable!(),
+            let modifier = if kind == MethodModifier::Final {
+                "final"
+            } else {
+                "open"
             };
             return Err(Diagnostic::at(
-                prefix
-                    .modifiers
-                    .method_modifier_span
-                    .expect("explicit modality has a span"),
+                span,
                 format!("`{modifier}` modifier is not allowed on interface methods"),
             ));
         }
@@ -173,18 +166,12 @@ impl Parser {
                 "`suspend` modifier is only allowed on function declarations",
             ));
         }
-        if prefix.is_const
-            || prefix.modifiers.is_override
-            || prefix.modifiers.operator.is_some()
-            || prefix.modifiers.infix.is_some()
+        if let Some(span) = prefix
+            .const_span
+            .or(prefix.modifiers.operator.map(|modifier| modifier.span))
+            .or(prefix.modifiers.infix.map(|modifier| modifier.span))
+            .or(prefix.modifiers.override_span)
         {
-            let span = prefix
-                .const_span
-                .or(prefix.modifiers.suspend_span)
-                .or(prefix.modifiers.operator.map(|modifier| modifier.span))
-                .or(prefix.modifiers.infix.map(|modifier| modifier.span))
-                .or(prefix.modifiers.start.map(|start| Span::new(start, start)))
-                .unwrap_or(self.peek().span);
             return Err(Diagnostic::at(
                 span,
                 format!("invalid modifier on {target} declaration"),
@@ -199,7 +186,7 @@ impl Parser {
         target: &str,
     ) -> Result<(), Diagnostic> {
         self.require_nominal_prefix(prefix, target)?;
-        if let Some(span) = prefix.modifiers.method_modifier_span {
+        if let Some(SpannedMethodModifier { span, .. }) = prefix.modifiers.method_modifier {
             return Err(Diagnostic::at(
                 span,
                 format!("class modality is not allowed on {target} declaration"),
@@ -227,12 +214,19 @@ impl Parser {
                     .map(NestedNominalDecl::Enum)
             }
             TokenKind::Class => {
-                let modifier = match prefix.modifiers.method_modifier {
+                let modifier = match prefix
+                    .modifiers
+                    .method_modifier
+                    .map(|modifier| modifier.kind)
+                {
                     Some(MethodModifier::Open) => ClassModifier::Open,
                     Some(MethodModifier::Abstract) => ClassModifier::Abstract,
                     Some(MethodModifier::Final) | None => ClassModifier::Final,
                 };
-                let modifier_span = prefix.modifiers.method_modifier_span;
+                let modifier_span = prefix
+                    .modifiers
+                    .method_modifier
+                    .map(|modifier| modifier.span);
                 self.parse_class(
                     prefix.annotations,
                     prefix.visibility,

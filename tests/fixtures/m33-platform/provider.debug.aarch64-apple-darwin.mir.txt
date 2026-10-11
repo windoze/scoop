@@ -1780,6 +1780,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Thread.$c0 @fn44(native: Ptr<Unit>, observer: ForeignCallback<(Ptr<Unit>) -> Int>) -> Thread <no-gc>
     bb0 entry
       return
@@ -1876,6 +1878,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn39 interface Continuation<Thread>[0]
         Type Continuation<Thread>
@@ -1889,6 +1893,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn40 interface Continuation<Thread>[1]
         Type Continuation<Thread>
@@ -1900,6 +1906,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

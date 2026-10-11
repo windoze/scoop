@@ -508,9 +508,13 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c2 @fn51(this: Host) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn52(this: Base, number: Int, ready: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -519,6 +523,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c5 @fn53(this: Base, value: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Int
@@ -554,6 +560,8 @@ Module
         Type Boolean
         Local $parameter.ready
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c6 @fn54(this: Base, label: String) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -568,6 +576,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Variadic.$c7 @fn55(this: Variadic, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -576,6 +586,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Variadic.$c8 @fn56(this: Variadic, values: Array<Int>) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -590,9 +602,13 @@ Module
         Type Int
         Local $parameter.number
       return
+        Type Unit
+        UnitLiteral
   fun init.Ambiguous.$c9 @fn57(this: Ambiguous, first: Int, second: Any, extra: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Ambiguous.$c10 @fn58(this: Ambiguous, first: Any, second: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -625,6 +641,8 @@ Module
         Type Int
         Local $parameter.extra
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn59(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -643,6 +661,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Host> @fn60(task: SuspendTask<Host>, completion: Continuation<Host>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -665,6 +685,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Host>[0]
         Type Continuation<Host>
@@ -678,6 +700,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Host>[1]
         Type Continuation<Host>
@@ -689,6 +713,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -746,6 +772,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn38 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -759,6 +787,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn39 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -770,6 +800,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -827,6 +859,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<Choice>[0]
         Type Continuation<Choice>
@@ -840,6 +874,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<Choice>[1]
         Type Continuation<Choice>
@@ -851,6 +887,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -908,6 +946,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<Variadic>[0]
         Type Continuation<Variadic>
@@ -921,6 +961,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<Variadic>[1]
         Type Continuation<Variadic>
@@ -932,6 +974,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -989,6 +1033,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn46 interface Continuation<Ambiguous>[0]
         Type Continuation<Ambiguous>
@@ -1002,6 +1048,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn47 interface Continuation<Ambiguous>[1]
         Type Continuation<Ambiguous>
@@ -1013,6 +1061,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -203,6 +203,8 @@ Module
         Type FlatSlot<(Int, Boolean)>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:flat$ensure @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -227,6 +229,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -309,6 +313,8 @@ Module
         Type (Int, Boolean)
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.FlatSlot.$c1 @fn7(first: Long, second: Long, third: Long) -> FlatSlot<(Int, Boolean)> <no-gc>
     bb0 entry
       return

@@ -1,0 +1,21 @@
+fun main(args: Array<String>) {
+    val integers: Array<Int> = [1, 2, 3]
+    var sum = 0
+    for (value in integers) { sum = sum + value }
+    println(sum)
+    println(integers.iterator().next()!!)
+    val small: Int8 = 4
+    val unsigned: UInt16 = 5U
+    println(small.toInt32() + unsigned.toInt32())
+    println(1.5f + 2.5f == 4f)
+    println('a'.code == 97)
+    println(getCurrentSourceLocation().file == "scoop:single-file:0.0.0/main.scoop")
+    @Unsafe { println(sizeOf<Int>()) }
+    try {
+        val absent: Int? = None
+        println(absent!!)
+    } catch (failure: UnwrapException) {
+        println("unwrap")
+    }
+    println(args.size)
+}

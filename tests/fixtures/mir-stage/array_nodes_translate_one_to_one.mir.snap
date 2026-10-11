@@ -190,6 +190,8 @@ Module
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn1(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -241,6 +243,8 @@ Module
   fun init.IndexOutOfBoundsException.$c0 @fn17(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<IndexOutOfBoundsException> @fn25(task: SuspendTask<IndexOutOfBoundsException>, completion: Continuation<IndexOutOfBoundsException>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -263,6 +267,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<IndexOutOfBoundsException>[0]
         Type Continuation<IndexOutOfBoundsException>
@@ -276,6 +282,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<IndexOutOfBoundsException>[1]
         Type Continuation<IndexOutOfBoundsException>
@@ -287,6 +295,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -344,6 +354,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<String>[0]
         Type Continuation<String>
@@ -357,6 +369,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<String>[1]
         Type Continuation<String>
@@ -368,6 +382,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -425,6 +441,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn1 interface Continuation<Int>[0]
         Type Continuation<Int>
@@ -438,6 +456,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn2 interface Continuation<Int>[1]
         Type Continuation<Int>
@@ -449,6 +469,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -506,6 +528,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<_ThrowableProtocol>[0]
         Type Continuation<_ThrowableProtocol>
@@ -519,6 +543,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<_ThrowableProtocol>[1]
         Type Continuation<_ThrowableProtocol>
@@ -530,6 +556,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

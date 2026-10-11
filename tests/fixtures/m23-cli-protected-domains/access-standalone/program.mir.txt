@@ -46,6 +46,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: SourceBase<Int> = external1 direct
@@ -72,6 +74,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun inspect @fn2(this: SourceBase<Int>) -> Int
     bb0 entry
       val $dependency.local.1: SourceBase<Int>

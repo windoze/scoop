@@ -129,6 +129,8 @@ Module
   fun init.LocalArguments.$c0 @fn7(this: LocalArguments) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<LocalArguments> @fn8(task: SuspendTask<LocalArguments>, completion: Continuation<LocalArguments>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -151,6 +153,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<LocalArguments>[0]
         Type Continuation<LocalArguments>
@@ -164,6 +168,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<LocalArguments>[1]
         Type Continuation<LocalArguments>
@@ -175,6 +181,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

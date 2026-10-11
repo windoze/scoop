@@ -246,6 +246,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c2 @fn17(this: Derived<Payload>, item: Payload) -> Unit
     bb0 entry
       val $argument.0: Payload
@@ -262,6 +264,8 @@ Module
         Type Payload
         Local $parameter.item
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn18(this: Base<Payload>, item: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -270,6 +274,8 @@ Module
         Type Payload
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Payload> @fn19(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -292,6 +298,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -305,6 +313,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -316,6 +326,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

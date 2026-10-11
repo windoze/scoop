@@ -173,6 +173,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.InterfaceChooser.$c0 @fn11(this: InterfaceChooser<Later>) -> Unit
     bb0 entry
       call @fn12 direct
@@ -181,9 +183,13 @@ Module
           Type InterfaceChooser<Later>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractChooser.$c1 @fn12(this: AbstractChooser<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn13(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -206,6 +212,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -219,6 +227,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -230,6 +240,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

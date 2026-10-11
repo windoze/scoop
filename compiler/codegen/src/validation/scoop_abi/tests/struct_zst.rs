@@ -20,7 +20,7 @@ fn mixed(offset: u64, alignment: u64, pointer_offset: u64) -> (Module, StructDef
         false,
         vec![],
     );
-    let zst = || LirType::Struct(empty);
+    let zst = || LirType::Struct(empty.definition());
     let id = structs.alloc_scoop(
         crate::tests::test_physical_exact("MixedZst", scoop_identity::SourceNominalKind::Struct),
         "MixedZst".into(),
@@ -35,7 +35,10 @@ fn mixed(offset: u64, alignment: u64, pointer_offset: u64) -> (Module, StructDef
             field(zst(), 0, 1),
         ],
     );
-    (module_with_types(structs, EnumDefs::default()), id)
+    (
+        module_with_types(structs, EnumDefs::default()),
+        id.definition(),
+    )
 }
 
 #[test]

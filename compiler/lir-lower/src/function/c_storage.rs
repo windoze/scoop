@@ -8,10 +8,10 @@ impl FunctionLowerer<'_> {
     fn has_uint64_c_projection(&self, ty: &mir::Type) -> bool {
         matches!(ty, mir::Type::Struct(id) if matches!(
             self.module.structs[*id].representation,
-            mir::StructRepresentation::Declared {
+            mir::StructRepresentation::Declared (mir::DeclaredStruct {
                 c_abi: mir::StructCAbi::UInt64Field { .. },
                 ..
-            }
+            })
         ))
     }
 

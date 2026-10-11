@@ -203,6 +203,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Unit
     bb0 entry
       assign $new.1
@@ -473,6 +475,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun FlowHost.generic @fn6(this: FlowHost, seed: FlowPair<String>, value: String) -> String
     bb0 entry
       return
@@ -510,6 +514,8 @@ Module
   fun init.FlowHost.$c0 @fn16(this: FlowHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.FlowOther.$c1 @fn17(first: Int, second: Int) -> FlowOther <no-gc>
     bb0 entry
       return
@@ -559,6 +565,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<FlowOther>[0]
         Type Continuation<FlowOther>
@@ -572,6 +580,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<FlowOther>[1]
         Type Continuation<FlowOther>
@@ -583,6 +593,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -640,6 +652,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn12 interface Continuation<FlowHost>[0]
         Type Continuation<FlowHost>
@@ -653,6 +667,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn13 interface Continuation<FlowHost>[1]
         Type Continuation<FlowHost>
@@ -664,6 +680,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

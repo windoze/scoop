@@ -83,7 +83,7 @@ fn body_of<'m>(module: &'m hir::Module, name: &str) -> &'m hir::Body {
 /// The single `return <value>` expression of a body.
 fn returned(body: &hir::Body) -> &hir::Expr {
     match &body.statements.last().expect("a return").kind {
-        hir::StatementKind::Return { value: Some(value) } => value,
+        hir::StatementKind::Return { value } => value,
         other => panic!("expected a return statement, found {other:?}"),
     }
 }

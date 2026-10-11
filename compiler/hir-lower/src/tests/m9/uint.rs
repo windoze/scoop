@@ -67,35 +67,29 @@ fn uint_arithmetic_comparison_and_equality() {
         panic!("main body")
     };
     for (name, operation) in [
-        ("sum", hir::NoGcIntegerOperation::Add),
-        ("product", hir::NoGcIntegerOperation::Mul),
+        ("sum", hir::IntegerBinaryOperator::Add),
+        ("product", hir::IntegerBinaryOperator::Mul),
     ] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
                     kind: hir::IntegerKind::UNSIGNED_64,
                     operation: actual,
                     ..
-                },
-                ..
-            } if *actual == operation
+                }) if *actual == operation
         ));
     }
     for (name, operation) in [
-        ("quotient", hir::IntegerDivRem::Div),
-        ("remainder", hir::IntegerDivRem::Rem),
+        ("quotient", hir::IntegerBinaryOperator::Div),
+        ("remainder", hir::IntegerBinaryOperator::Rem),
     ] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::Managed {
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
                     kind: hir::IntegerKind::UNSIGNED_64,
                     operation: actual,
                     ..
-                },
-                ..
-            } if *actual == operation
+                }) if *actual == operation
         ));
     }
     let hir::ExprKind::Binary { lhs, .. } = &local_init(body, "less").kind else {
@@ -103,14 +97,11 @@ fn uint_arithmetic_comparison_and_equality() {
     };
     assert!(matches!(
         lhs.kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind: hir::IntegerKind::UNSIGNED_64,
-                operation: hir::NoGcIntegerOperation::CompareTo,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+            kind: hir::IntegerKind::UNSIGNED_64,
+            operation: hir::IntegerBinaryOperator::CompareTo,
             ..
-        }
+        })
     ));
 }
 

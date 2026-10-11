@@ -75,8 +75,8 @@ pub(super) fn calls<'a>(
             .filter_map(|statement| match &statement.kind {
                 scoop_mir::StatementKind::Call(
                     scoop_mir::CallEffect::Unit(call) | scoop_mir::CallEffect::Value { call, .. },
-                ) => match call.target.callee {
-                    scoop_mir::Callee::User(target) => {
+                ) => match call.target {
+                    scoop_mir::CallTarget::Direct(scoop_mir::Callee::User(target)) => {
                         Some(input.module().functions[target].name.as_str())
                     }
                     _ => None,

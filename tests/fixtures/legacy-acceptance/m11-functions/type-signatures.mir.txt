@@ -40,6 +40,8 @@ Module
   fun register @fn0(transform: (Int) -> Int, optional: Option<(Int) -> Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -52,6 +54,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -76,6 +80,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn3(this: Continuation<String>, value: String) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"

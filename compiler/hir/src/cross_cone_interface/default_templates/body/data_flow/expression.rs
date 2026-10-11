@@ -1,6 +1,6 @@
 use crate::{
     CanonicalBooleanV1, DefaultArrayAssemblyPartV1, DefaultCallableReferenceTargetV1,
-    DefaultCaptureV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerArgumentsV1,
+    DefaultCaptureV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerExpressionV1,
     DefaultPlaceV1,
 };
 
@@ -295,9 +295,11 @@ impl Validator<'_> {
                 self.push_expressions(pending, arguments)?;
                 self.push_expression(pending, callee)
             }
-            DefaultExpressionKindV1::IntegerOperation { arguments, .. } => match arguments {
-                DefaultIntegerArgumentsV1::Unary(operand) => self.push_expression(pending, operand),
-                DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+            DefaultExpressionKindV1::IntegerOperation(arguments) => match arguments {
+                DefaultIntegerExpressionV1::Unary { operand, .. } => {
+                    self.push_expression(pending, operand)
+                }
+                DefaultIntegerExpressionV1::Binary { lhs, rhs, .. } => {
                     self.push_expression(pending, rhs)?;
                     self.push_expression(pending, lhs)
                 }

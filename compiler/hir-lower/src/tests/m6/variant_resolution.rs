@@ -89,9 +89,7 @@ fn qualified_generic_variant_infers_type_arguments() {
     let main = body_of(&module, "main");
     match &local_init(main, "b").kind {
         hir::ExprKind::VariantConstruct { variant, .. } => {
-            let hir::Type::Enum(application) = module.types[variant.owner] else {
-                panic!("the construction retains its complete enum owner")
-            };
+            let application = variant.owner;
             let arguments = &module.enum_applications[application].arguments;
             assert_eq!(arguments.len(), 1);
             assert_eq!(

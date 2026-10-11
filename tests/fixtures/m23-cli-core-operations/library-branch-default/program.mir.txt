@@ -80,4 +80,6 @@ Module
     bb0 entry
       call value: Int = @fn0 direct
       return
+        Type Unit
+        UnitLiteral
   output executable @fn1

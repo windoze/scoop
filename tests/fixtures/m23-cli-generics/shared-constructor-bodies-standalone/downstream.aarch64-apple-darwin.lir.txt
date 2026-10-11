@@ -1793,32 +1793,26 @@ Module
   fun @scoop$1$cb$0e5b3942558a2971d7268f41bb25ae170679a3e48283d3bcea453406cbffa362(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$25c81e7399eb2069a60b1b9c526a0e1b26e17e38ba0197cc0ba69f38d8081272(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$0442ec80c505c865441b17e02d0484b2c5ac681b5904210a41d6c35fb1903854(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$a4915cb4a7b15f0a6661170689e64302d9e97ff028ff5b0df5ddf20c3d76f1a5(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$9bdc67bea1a963063723184c6c3fab9bc99bee8c6d8ce91a9c1e2fcaae8fc3b6(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$1470b3a9bd327d66aeb12ede271146c4e2126e1678788618a1c0e7d83abb7d1d(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$d8537a821bbd722862ed3010316c737469233ca92249b9fbc30a90f0774b7046(ptr<managed>) -> i32
     local %0 $call.1: i32
@@ -1871,7 +1865,6 @@ Module
   fun @scoop$1$cb$64bbc19f0da6da5a1c09230729719e731e0b929d03a61a919583d3132e26c4c2(parts<struct9 [i64@0+4/4]>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = extract param0, 0 : {}
     ret
   fun @scoop$1$cb$392dc4b2a1f461e924aafe57629978b89ac17df88e5523dde1a65f148098a0d3(parts<struct13 [i64@0+8/4]>, ptr<managed>) -> i32
   block entry

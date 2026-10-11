@@ -12,10 +12,10 @@ pub(super) fn generated_class(
         modifier: mir::ClassModifier::Final,
         name: name.clone(),
         type_arguments: Vec::new(),
-        representation: mir::ClassRepresentation::Declared {
+        representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
             fields,
             base_class: None,
-        },
+        }),
         interfaces,
         vtable: Vec::new(),
         itables,
@@ -25,10 +25,10 @@ pub(super) fn generated_class(
         modifier: mir::ClassModifier::Final,
         name,
         type_arguments: Vec::new(),
-        representation: mir::ClassRepresentation::Declared {
+        representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -101,15 +101,11 @@ pub(super) fn wrapper_body(
         mir::CallEffect::Value {
             destination: step,
             call: mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(driver),
-                },
+                target: mir::CallTarget::Direct(mir::Callee::User(driver)),
                 args: vec![
                     mir::Expr::local(frame, mir::Type::Class(frame_class)),
                     frame_state(STATE_INITIAL),
                 ],
-                pending: mir::CoroutinePendingContext::Root,
             },
         },
     )));
@@ -117,7 +113,7 @@ pub(super) fn wrapper_body(
         name: "entry".to_string(),
         statements,
         terminator: mir::Terminator::Return {
-            value: Some(mir::Expr::local(step, step_ty.clone())),
+            value: mir::Expr::local(step, step_ty.clone()),
         },
         unwind: None,
     });
@@ -382,21 +378,45 @@ pub(super) fn local(name: &str, ty: mir::Type) -> mir::Local {
     }
 }
 
-pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir::Type {
-    let function = match callee {
-        mir::Callee::User(function) => function,
-        mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
-        mir::Callee::Extern(extern_id) => {
-            return lowerer.extern_functions[extern_id]
+pub(super) fn callee_return_type(lowerer: &Lowerer, target: &mir::CallTarget) -> mir::Type {
+    let function = match target {
+        mir::CallTarget::Direct(mir::Callee::User(function))
+        | mir::CallTarget::Virtual {
+            callee: mir::DispatchCallee::User(function),
+            ..
+        }
+        | mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::User(function),
+            ..
+        } => *function,
+        mir::CallTarget::Direct(mir::Callee::Monomorphized(instance))
+        | mir::CallTarget::Virtual {
+            callee: mir::DispatchCallee::Monomorphized(instance),
+            ..
+        }
+        | mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::Monomorphized(instance),
+            ..
+        } => lowerer.instances.meta[*instance].function,
+        mir::CallTarget::Direct(mir::Callee::Extern(extern_id)) => {
+            return lowerer.extern_functions[*extern_id]
                 .result
                 .scoop_type()
                 .clone();
         }
-        mir::Callee::External(external) => {
+        mir::CallTarget::Direct(mir::Callee::External(external))
+        | mir::CallTarget::Virtual {
+            callee: mir::DispatchCallee::External(external),
+            ..
+        }
+        | mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::External(external),
+            ..
+        } => {
             let target = lowerer
                 .imported_dependency_callable_map
                 .values()
-                .find(|target| target.external() == Some(external))
+                .find(|target| target.external() == Some(*external))
                 .expect("a suspend external call retains its physical signature");
             return lowerer
                 .coroutines
@@ -408,8 +428,9 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
                 })
                 .expect("the suspend result has its provider-defined CoroutineStep");
         }
-        mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
-            let signature = &lowerer.shell.function_types[function_type];
+        mir::CallTarget::Closure { function_type, .. }
+        | mir::CallTarget::FunctionBridge { function_type, .. } => {
+            let signature = &lowerer.shell.function_types[*function_type];
             return if signature.is_suspend {
                 lowerer
                     .coroutines
@@ -419,7 +440,7 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
                 signature.return_type.clone()
             };
         }
-        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => {
+        mir::CallTarget::Direct(mir::Callee::Runtime(_)) => {
             unreachable!("a source suspend call resolves to a hidden-ABI function")
         }
     };

@@ -1,8 +1,8 @@
 use super::super::{BodyNode, DefaultBodyReferenceVisitorV1, ReferenceWalker, ScheduledWork};
 use crate::{
-    DefaultBodyProviderTypeSiteV1, DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1,
-    DefaultWhenConditionV1, DefaultWhenFallbackV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1,
-    DefaultWhenV1, ExportDefinitionSourceV1, OptionalDefaultStatementListViewV1,
+    DefaultBodyProviderTypeSiteV1, DefaultCatchV1, DefaultTryV1, DefaultWhenArmRefV1,
+    DefaultWhenConditionV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1,
+    ExportDefinitionSourceV1, OptionalDefaultStatementListViewV1,
 };
 
 impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
@@ -19,7 +19,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 origin,
             },
         )?;
-        for arm in value.arms().iter().rev() {
+        for arm in value.arms().rev() {
             self.push_child(pending, BodyNode::WhenArm(arm))?;
         }
         if let Some(subject) = value.subject() {
@@ -30,7 +30,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
 
     pub(in super::super) fn process_when_arm(
         &mut self,
-        arm: &'body DefaultWhenArmV1,
+        arm: DefaultWhenArmRefV1<'body>,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         self.push_statements(pending, arm.body())?;
@@ -63,11 +63,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
 
     pub(in super::super) fn process_when_fallback(
         &mut self,
-        fallback: &'body DefaultWhenFallbackV1,
+        fallback: DefaultWhenFallbackViewV1<'body>,
         origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        match fallback.view() {
+        match fallback {
             DefaultWhenFallbackViewV1::Fallthrough => Ok(()),
             DefaultWhenFallbackViewV1::Else(statements) => {
                 self.push_statements(pending, statements)

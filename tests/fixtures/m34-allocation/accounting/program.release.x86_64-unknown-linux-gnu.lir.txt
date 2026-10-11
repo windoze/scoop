@@ -133,17 +133,18 @@ Module
     cbr t8 then @logic.short.5 else @logic.rhs.4
   block inline.9.entry
     heap_store local24 +16 local25
+    t9 = aggregate () : {}
     br @inline.cont.9
   block inline.cont.11
     store local26 -> local2
     store local2 -> local3
-    t9 = integer_compare_to<Long> local1, local3 : i64
-    t10 = integer_compare_Less<Long> t9, integer<Long>(0x0000000000000000) : i1
-    cbr t10 then @while.body.3 else @while.exit.2
+    t10 = integer_compare_to<Long> local1, local3 : i64
+    t11 = integer_compare_Less<Long> t10, integer<Long>(0x0000000000000000) : i1
+    cbr t11 then @while.body.3 else @while.exit.2
   block inline.11.entry
     store local27 -> local28
-    t11 = array_len array0 local28 : i64
-    store t11 -> local26
+    t12 = array_len array0 local28 : i64
+    store t12 -> local26
     br @inline.cont.11
   fun @scoop$1$cb$feed19c5744fba36381861c9532963185e688cff221868c201ec25634a622fab(ptr<managed>) -> void
     local %0 index: i64
@@ -489,6 +490,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$877c9b518d5a2e661449b8f6622f6f61f1607cec5c876c0e6d53384eff89adba(ptr<managed>, i64) -> enum0
     local %0 $dependency.local.2: ptr<managed>

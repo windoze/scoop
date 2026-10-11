@@ -20,7 +20,7 @@ fn concrete_return_value(statements: &[hir::concrete::Statement]) -> &hir::concr
         .iter()
         .rev()
         .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::concrete::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("a concrete return with a value must exist")

@@ -52,6 +52,8 @@ Module
   fun $extension.$set$localScore @fn2(this: Any, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   str @str0 "default"
   str @str1 "write"
   str @str2 "local-write"

@@ -102,10 +102,7 @@ impl Lowerer {
         let call = smir::Expr::new(
             target.result.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: target.callee,
-                },
+                target: mir::CallTarget::Direct(target.callee),
                 args,
                 return_ty: target.result.clone(),
             }),
@@ -117,7 +114,9 @@ impl Lowerer {
                     span: method.span,
                 },
                 smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span: method.span,
                 },
             ]
@@ -130,13 +129,13 @@ impl Lowerer {
                 .id();
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(self.adapt_variance_bridge(
+                    value: self.adapt_variance_bridge(
                         module,
                         call,
                         &target.result,
                         target_exact,
                         &lowered.return_type,
-                    )),
+                    ),
                 },
                 span: method.span,
             }]

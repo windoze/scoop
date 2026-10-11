@@ -125,6 +125,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -769,6 +771,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb30 inline.29.entry
       assign $inline.29.result
         Type Snapshot
@@ -856,6 +860,8 @@ Module
         Local $inline.31.this
         Type State
         Local $inline.31.initial
+      Type Unit
+      UnitLiteral
       goto bb31
     bb33 inline.cont.33
       val pair: Atomic<(Int, Payload)>
@@ -948,6 +954,8 @@ Module
         Local $inline.33.this
         Type (Int, Payload)
         Local $inline.33.initial
+      Type Unit
+      UnitLiteral
       goto bb33
     bb35 inline.cont.35
       val $dependency.argument.0: Snapshot
@@ -1086,6 +1094,8 @@ Module
         Local $inline.39.this
         Type Snapshot
         Local $inline.39.initial
+      Type Unit
+      UnitLiteral
       goto bb39
     bb41 inline.cont.41
       val $dependency.argument.0: Snapshot
@@ -1142,6 +1152,8 @@ Module
         Local $inline.43.this
         Type Int
         IntegerLiteral Int value=22 bits=0x00000016
+      Type Unit
+      UnitLiteral
       goto bb43
     bb45 inline.cont.45
       val first: Payload
@@ -1169,6 +1181,8 @@ Module
         Local $inline.45.this
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
+      Type Unit
+      UnitLiteral
       goto bb45
     bb47 inline.cont.47
       val $argument.0: Boolean
@@ -1209,6 +1223,8 @@ Module
         BoolLiteral true
       goto bb51
     bb51 inline.49.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb49
   fun iterator @fn2(this: MutableArray<Atomic<Snapshot>>) -> Iterator<Atomic<Snapshot>>
     bb0 entry
@@ -1270,6 +1286,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn3(this: MutableArray<Atomic<Snapshot>>, index: Long) -> Atomic<Snapshot>
     bb0 entry
@@ -1537,6 +1555,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -1768,6 +1788,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -1884,9 +1906,9 @@ Module
         Local $dependency.local.17
         Type Boolean
         BoolLiteral false
-      Type Unit
-      Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.14: Int
         Type Int
@@ -2118,6 +2140,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -2349,6 +2373,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -2580,6 +2606,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -2762,6 +2790,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn20(this: ListIterator<Atomic<Snapshot>>) -> Option<Atomic<Snapshot>>
     bb0 entry
       branch bb1 bb2
@@ -2907,6 +2937,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn36(this: Atomic<Int>, initial: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2928,6 +2960,8 @@ Module
         Type Int
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn37(this: Atomic<Unit>, initial: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2949,6 +2983,8 @@ Module
         Type Unit
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn38(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2970,6 +3006,8 @@ Module
         Type Snapshot
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn39(this: Atomic<(Int, Payload)>, initial: (Int, Payload)) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2991,6 +3029,8 @@ Module
         Type (Int, Payload)
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn40(this: Atomic<State>, initial: State) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -3012,6 +3052,8 @@ Module
         Type State
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn41(this: ListIterator<Atomic<Snapshot>>, source: List<Atomic<Snapshot>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3030,6 +3072,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Snapshot.$c0 @fn42(serial: Int, payload: Payload) -> Snapshot <no-gc>
     bb0 entry
       return
@@ -3061,6 +3105,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -3074,6 +3120,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -3085,6 +3133,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3142,6 +3192,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Snapshot>[0]
         Type Continuation<Snapshot>
@@ -3155,6 +3207,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Snapshot>[1]
         Type Continuation<Snapshot>
@@ -3166,6 +3220,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3223,6 +3279,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<State>[0]
         Type Continuation<State>
@@ -3236,6 +3294,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<State>[1]
         Type Continuation<State>
@@ -3247,6 +3307,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

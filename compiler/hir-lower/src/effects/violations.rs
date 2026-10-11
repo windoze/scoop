@@ -29,9 +29,7 @@ impl Lowerer {
                 | hir::StatementKind::Break { .. }
                 | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.collect_no_gc_expr_violations(value, out, requirements);
-                    }
+                    self.collect_no_gc_expr_violations(value, out, requirements);
                 }
                 hir::StatementKind::ValDecl { init, .. } => {
                     self.collect_no_gc_expr_violations(init, out, requirements)
@@ -87,16 +85,16 @@ impl Lowerer {
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
                 hir::StatementKind::When(when) => {
-                    if let Some(subject) = &when.subject {
+                    if let Some(subject) = when.subject() {
                         self.collect_no_gc_expr_violations(subject, out, requirements);
                     }
-                    for arm in &when.arms {
-                        for guard in match &arm.condition {
-                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                    for arm in when.arms() {
+                        for guard in match arm.condition {
+                            hir::WhenConditionRef::Predicate(condition) => Some(condition),
                             _ => None,
                         }
                         .into_iter()
-                        .chain(arm.guard.iter())
+                        .chain(arm.guard)
                         {
                             self.collect_no_gc_statement_violations(
                                 &guard.setup,
@@ -105,9 +103,9 @@ impl Lowerer {
                             );
                             self.collect_no_gc_expr_violations(&guard.condition, out, requirements);
                         }
-                        self.collect_no_gc_statement_violations(&arm.body, out, requirements);
+                        self.collect_no_gc_statement_violations(arm.body, out, requirements);
                     }
-                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                    if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                         self.collect_no_gc_statement_violations(body, out, requirements);
                     }
                 }
@@ -391,11 +389,8 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
-            ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                if matches!(operation, hir::IntegerOperation::Managed { .. }) {
+            ExprKind::IntegerOperation(arguments) => {
+                if arguments.is_managed() {
                     out.push((
                         expr.span,
                         "integer division is not allowed in `@NoGC` code because it may throw"
@@ -403,10 +398,10 @@ impl Lowerer {
                     ));
                 }
                 match arguments {
-                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                    hir::IntegerExpression::Unary { operand, .. } => {
                         self.collect_no_gc_expr_violations(operand, out, requirements);
                     }
-                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                    hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                         self.collect_no_gc_expr_violations(lhs, out, requirements);
                         self.collect_no_gc_expr_violations(rhs, out, requirements);
                     }

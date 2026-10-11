@@ -915,13 +915,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn21(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -948,11 +944,9 @@ Module
         Local $call.1
   fun value @fn23(this: RebuiltCell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type RebuiltCell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn24(this: Iterator<Unit>) -> Option<Unit>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
@@ -1339,6 +1333,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn42(this: ListIterator<Local>, source: List<Local>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1357,6 +1353,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn43(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1375,6 +1373,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn44(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1393,6 +1393,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.RebuiltCell.$c1 @fn45(this: RebuiltCell<Local>, value: Local) -> Unit
     bb0 entry
       field_set 0
@@ -1401,6 +1403,8 @@ Module
         Type Local
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.RebuiltCell.$c1 @fn46(this: RebuiltCell<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1409,6 +1413,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.RebuiltCell.$c1 @fn47(this: RebuiltCell<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1417,6 +1423,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Local> @fn48(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1439,6 +1447,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -1452,6 +1462,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -1463,6 +1475,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

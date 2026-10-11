@@ -116,12 +116,16 @@ Module
         Type Payload
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Payload
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
+      Type Unit
+      UnitLiteral
       goto bb1
   fun exchangeYoung @fn1(cell: AtomicRef<Payload>) -> Unit
     bb0 entry
@@ -161,12 +165,16 @@ Module
         Type Payload
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Payload
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=22 bits=0x00000016
+      Type Unit
+      UnitLiteral
       goto bb1
   fun casYoung @fn2(cell: AtomicRef<Payload>) -> Boolean
     bb0 entry
@@ -234,6 +242,8 @@ Module
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=33 bits=0x00000021
+      Type Unit
+      UnitLiteral
       goto bb1
   fun failedYoung @fn3(cell: AtomicRef<Payload>) -> Boolean
     bb0 entry
@@ -287,6 +297,8 @@ Module
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=44 bits=0x0000002c
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.argument.0: Payload
@@ -314,6 +326,8 @@ Module
         Local $inline.3.this
         Type Int
         IntegerLiteral Int value=99 bits=0x00000063
+      Type Unit
+      UnitLiteral
       goto bb3
   fun storeSnapshot @fn4(cell: Atomic<Snapshot>) -> Unit
     bb0 entry
@@ -352,6 +366,8 @@ Module
         Type Snapshot
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       assign $inline.1.result
         Type Snapshot
@@ -384,6 +400,8 @@ Module
         Local $inline.3.this
         Type Int
         IntegerLiteral Int value=55 bits=0x00000037
+      Type Unit
+      UnitLiteral
       goto bb3
   fun exchangePacket @fn5(cell: Atomic<Packet>) -> Unit
     bb0 entry
@@ -435,12 +453,16 @@ Module
         Type Packet
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Payload
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=66 bits=0x00000042
+      Type Unit
+      UnitLiteral
       goto bb1
   fun writeBarriers @fn6() -> Unit
     bb0 entry
@@ -551,6 +573,8 @@ Module
           Local $pattern.subject.3
     bb6 pattern.merge.6
       return
+        Type Unit
+        UnitLiteral
     bb7 pattern.pass.7
       val number: Int
         Type Int
@@ -870,6 +894,8 @@ Module
         Local $inline.13.this
         Type Packet
         Local $inline.13.initial
+      Type Unit
+      UnitLiteral
       goto bb13
     bb15 inline.cont.15
       val snapshot: Atomic<Snapshot>
@@ -910,6 +936,8 @@ Module
         Local $inline.15.this
         Type Snapshot
         Local $inline.15.initial
+      Type Unit
+      UnitLiteral
       goto bb15
     bb17 inline.cont.17
       val $dependency.argument.0: Snapshot
@@ -960,6 +988,8 @@ Module
         Local $inline.19.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb19
     bb21 inline.cont.21
       val $argument.0: Payload
@@ -998,6 +1028,8 @@ Module
         Local $inline.21.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb21
   fun address @fn7(arg0: GcHandle<Any>) -> ULong
     bb0 entry
@@ -1054,6 +1086,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun minorCollection @fn11() -> Unit
     bb0 entry
       call $call.1: Boolean = extern2 @m33_atomic_moving direct
@@ -1063,6 +1097,8 @@ Module
     bb1 if.then.1
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
       call before: Long = extern1 @m33_atomic_minor_count direct
       goto bb3
@@ -1083,6 +1119,8 @@ Module
           Local $dependency.parameter.other
     bb4 while.exit.4
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       var index: Int
         Type Int
@@ -1157,6 +1195,8 @@ Module
         Local $inline.9.this
         Type Int
         Local $inline.9.value
+      Type Unit
+      UnitLiteral
       goto bb9
   fun main @fn12() -> Unit
     bb0 entry
@@ -1173,6 +1213,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun independentMovement @fn13() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1321,6 +1363,8 @@ Module
         Type Any
         Local $inline.5.result
       return
+        Type Unit
+        UnitLiteral
     bb6 inline.5.entry
       val $inline.5.$dependency.local.1: ULong
         Type ULong
@@ -1702,6 +1746,8 @@ Module
         Local $inline.21.this
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
+      Type Unit
+      UnitLiteral
       goto bb21
     bb23 inline.cont.23
       val $inline.19.$call.1: GcHandle<Any>
@@ -1812,6 +1858,8 @@ Module
         Local $inline.1.this
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
   fun exchangedResult @fn16() -> Payload
     bb0 entry
@@ -1874,6 +1922,8 @@ Module
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
+      Type Unit
+      UnitLiteral
       goto bb1
   fun operationRoots @fn17() -> Unit
     bb0 entry
@@ -2080,6 +2130,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb7 inline.cont.7
       val $dependency.argument.0: Payload
         Type Payload
@@ -2139,6 +2191,8 @@ Module
         Local $inline.7.this
         Type Int
         IntegerLiteral Int value=99 bits=0x00000063
+      Type Unit
+      UnitLiteral
       goto bb7
     bb9 inline.cont.9
       val $argument.0: Payload
@@ -2225,6 +2279,8 @@ Module
         Local $inline.9.this
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
+      Type Unit
+      UnitLiteral
       goto bb9
   fun store @fn18(this: Atomic<Snapshot>, value: Snapshot) -> Unit
     bb0 entry
@@ -2306,6 +2362,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -2709,6 +2767,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun getGcHandle @fn23(v: Any) -> GcHandle<Any>
     bb0 entry
       val $dependency.local.1: Any
@@ -2897,6 +2957,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn42(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2918,6 +2980,8 @@ Module
         Type Snapshot
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn43(this: Atomic<Packet>, initial: Packet) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2939,6 +3003,8 @@ Module
         Type Packet
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Snapshot.$c0 @fn44(serial: Int, payload: Payload) -> Snapshot <no-gc>
     bb0 entry
       return
@@ -2991,6 +3057,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Packet>[0]
         Type Continuation<Packet>
@@ -3004,6 +3072,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Packet>[1]
         Type Continuation<Packet>
@@ -3015,6 +3085,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3072,6 +3144,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -3085,6 +3159,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -3096,6 +3172,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3153,6 +3231,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Snapshot>[0]
         Type Continuation<Snapshot>
@@ -3166,6 +3246,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Snapshot>[1]
         Type Continuation<Snapshot>
@@ -3177,6 +3259,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

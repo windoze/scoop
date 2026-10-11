@@ -1428,13 +1428,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn23(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -1474,6 +1470,8 @@ Module
         Type Unit
         Local $dependency.local.9
       return
+        Type Unit
+        UnitLiteral
   fun ordered @fn25(values: Array<Unit>, seed: Unit, after: Int, copied: Array<Unit>) -> Unit
     bb0 entry
       val $dependency.local.4: Int
@@ -1503,6 +1501,8 @@ Module
         Type Unit
         Local $dependency.local.9
       return
+        Type Unit
+        UnitLiteral
   fun localPack @fn26(values: Array<Unit>, after: Int) -> Array<Unit>
     bb0 entry
       val $dependency.local.2: Int
@@ -1954,9 +1954,9 @@ Module
         UnitLiteral
       goto bb3
     bb3 if.merge.3
-      Type Unit
-      Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun List.$get$size @fn34(this: List<Later>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
@@ -2019,6 +2019,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn48(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2037,6 +2039,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn49(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2055,6 +2059,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn50(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2073,6 +2079,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn51(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2095,6 +2103,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn40 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2108,6 +2118,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn41 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2119,6 +2131,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -552,6 +552,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c0 @fn19(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -565,6 +567,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn20(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -583,6 +587,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Direct.$c1 @fn21(value: Cursor<Int>) -> Direct<Cursor<Int>> <no-gc>
     bb0 entry
       return

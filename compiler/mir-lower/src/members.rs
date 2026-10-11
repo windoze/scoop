@@ -51,15 +51,16 @@ impl Lowerer {
         for &hir_id in order {
             let decl = &module.classes[hir_id];
             let mir_id = self.class_map[&hir_id];
-            if matches!(
-                decl.representation,
-                hir::ClassRepresentation::Intrinsic { .. }
-            ) {
-                debug_assert!(decl.base_class().is_none());
+            let hir::ClassRepresentation::Declared(declared) = &decl.representation else {
                 continue;
-            }
-            let mut fields = match decl.base_class() {
-                Some(base) => clone_fields(self.classes[self.class_map[&base]].declared_fields()),
+            };
+            let mut fields = match declared.base_class {
+                Some(base) => match &self.classes[self.class_map[&base]].representation {
+                    mir::ClassRepresentation::Declared(base) => clone_fields(&base.fields),
+                    mir::ClassRepresentation::Intrinsic(_) => {
+                        unreachable!("declared inheritance preserves a declared base")
+                    }
+                },
                 None => Vec::new(),
             };
             let types = Types {
@@ -67,7 +68,7 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            for field in decl.declared_fields() {
+            for field in &declared.fields {
                 fields.push(mir::Field {
                     name: field.name.clone(),
                     ty: types.lower(
@@ -81,10 +82,13 @@ impl Lowerer {
                 });
             }
             match &mut self.classes[mir_id].representation {
-                mir::ClassRepresentation::Declared {
-                    fields: mir_fields, ..
-                } => *mir_fields = fields,
-                mir::ClassRepresentation::Intrinsic(_) => debug_assert!(fields.is_empty()),
+                mir::ClassRepresentation::Declared(mir::DeclaredClass {
+                    fields: mir_fields,
+                    ..
+                }) => *mir_fields = fields,
+                mir::ClassRepresentation::Intrinsic(_) => {
+                    unreachable!("a declared source fills its declared MIR shell")
+                }
             }
         }
     }
@@ -382,13 +386,13 @@ impl Lowerer {
         let statements = match &constructor.kind {
             hir::StructConstructorKind::Primary => vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(smir::Expr::new(
+                    value: smir::Expr::new(
                         return_ty.clone(),
                         smir::ExprKind::StructInit {
                             struct_id: lowerer.struct_map[&structure],
                             args: arguments,
                         },
-                    )),
+                    ),
                 },
                 span: module.structs[structure].span,
             }],
@@ -424,10 +428,9 @@ impl Lowerer {
                         init: smir::Expr::new(
                             return_ty.clone(),
                             smir::ExprKind::Call(smir::Call {
-                                target: mir::CallTarget {
-                                    kind: mir::CallKind::Direct,
-                                    callee: mir::Callee::User(lowerer.struct_ctors[target]),
-                                },
+                                target: mir::CallTarget::Direct(mir::Callee::User(
+                                    lowerer.struct_ctors[target],
+                                )),
                                 args: call_args,
                                 return_ty: return_ty.clone(),
                             }),
@@ -441,7 +444,7 @@ impl Lowerer {
                 statements.extend(lowerer.lower_statements(&body.statements));
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::Return {
-                        value: Some(smir::Expr::local(receiver, return_ty.clone())),
+                        value: smir::Expr::local(receiver, return_ty.clone()),
                     },
                     span: module.structs[structure].span,
                 });

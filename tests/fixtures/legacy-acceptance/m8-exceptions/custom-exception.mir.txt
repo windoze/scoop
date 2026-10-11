@@ -75,6 +75,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call $call.1: Int = @fn0 direct
       goto bb9
@@ -159,6 +161,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -183,6 +187,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.MyError.$c0 @fn4(this: MyError, code: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -212,6 +218,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   instance mi1 function=@fn3 <- println
   str @str0 "done"

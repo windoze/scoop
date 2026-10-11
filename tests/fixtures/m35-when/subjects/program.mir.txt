@@ -708,6 +708,8 @@ Module
       goto bb18
     bb18 pattern.merge.18
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -732,6 +734,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn9(this: (Int, String), other: (Int, String)) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -792,6 +796,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.2 @fn11(this: (Int, Int), other: (Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -903,6 +909,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun init.State.$c1 @fn16(this: State, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -911,6 +919,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packet.$c0 @fn17(count: Int, text: String) -> Packet <no-gc>
     bb0 entry
       return

@@ -68,6 +68,8 @@ Module
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.$c1 @fn9(this: Envelope) -> Unit
     bb0 entry
       assign $new.1
@@ -82,6 +84,8 @@ Module
         Type SecretStorage
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Envelope> @fn10(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -104,6 +108,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Envelope>[0]
         Type Continuation<Envelope>
@@ -117,6 +123,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Envelope>[1]
         Type Continuation<Envelope>
@@ -128,6 +136,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -185,6 +195,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn0 interface Continuation<SecretStorage>[0]
         Type Continuation<SecretStorage>
@@ -198,6 +210,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn1 interface Continuation<SecretStorage>[1]
         Type Continuation<SecretStorage>
@@ -209,6 +223,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

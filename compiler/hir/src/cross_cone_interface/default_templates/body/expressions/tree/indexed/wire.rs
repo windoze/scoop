@@ -238,7 +238,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             Self::IntegerOperation {
                 operation,
                 arguments,
-            } => encode_two(encoder, 49, *operation, arguments),
+            } => encode_two(encoder, 49, operation, arguments),
             Self::IntegerConversion {
                 source_kind,
                 target_kind,

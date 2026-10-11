@@ -78,6 +78,8 @@ Module
         Type Option<String>
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   str @str0 "toString-bad"
   str @str1 "unused"
   str @str2 "stdout-buffer"

@@ -840,6 +840,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn5(first: Any, second: Any) -> Any
     bb0 entry
       branch bb1 bb2
@@ -883,6 +885,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -907,6 +911,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn8(this: Continuation<Animal>, value: Animal) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -951,6 +957,8 @@ Module
         Type String
         Local name
       return
+        Type Unit
+        UnitLiteral
   fun init.Cat.$c1 @fn21(this: Cat) -> Unit
     bb0 entry
       val $argument.0: String
@@ -967,6 +975,8 @@ Module
         Type String
         Local $parameter.name
       return
+        Type Unit
+        UnitLiteral
   fun init.Dog.$c2 @fn22(this: Dog) -> Unit
     bb0 entry
       val $argument.0: String
@@ -983,6 +993,8 @@ Module
         Type String
         Local $parameter.name
       return
+        Type Unit
+        UnitLiteral
   fun init.RefBox.$c3 @fn23(this: RefBox<Animal>, value: Animal) -> Unit
     bb0 entry
       field_set 0
@@ -991,6 +1003,8 @@ Module
         Type Animal
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.RefBox.$c3 @fn24(this: RefBox<Cat>, value: Cat) -> Unit
     bb0 entry
       field_set 0
@@ -999,6 +1013,8 @@ Module
         Type Cat
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.RefBox.$c3 @fn25(this: RefBox<Dog>, value: Dog) -> Unit
     bb0 entry
       field_set 0
@@ -1007,6 +1023,8 @@ Module
         Type Dog
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ValueBox.$c0 @fn26(value: Animal) -> ValueBox<Animal> <no-gc>
     bb0 entry
       return
@@ -1050,6 +1068,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn12 interface Continuation<Cat>[0]
         Type Continuation<Cat>
@@ -1063,6 +1083,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn13 interface Continuation<Cat>[1]
         Type Continuation<Cat>
@@ -1074,6 +1096,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1131,6 +1155,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<Dog>[0]
         Type Continuation<Dog>
@@ -1144,6 +1170,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<Dog>[1]
         Type Continuation<Dog>
@@ -1155,6 +1183,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1212,6 +1242,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Animal>[0]
         Type Continuation<Animal>
@@ -1225,6 +1257,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Animal>[1]
         Type Continuation<Animal>
@@ -1236,6 +1270,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

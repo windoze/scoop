@@ -163,6 +163,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun fill @fn6(roots: MutableArray<Option<Node>>) -> Unit
     bb0 entry
       var index: Long
@@ -179,6 +181,8 @@ Module
       goto bb12
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: MutableArray<Option<Node>>
         Type MutableArray<Option<Node>>
@@ -314,6 +318,8 @@ Module
         Local $inline.9.this
         Type Option<Node>
         Local $inline.9.next
+      Type Unit
+      UnitLiteral
       goto bb9
     bb11 inline.cont.11
       val $dependency.argument.0: Long
@@ -629,6 +635,8 @@ Module
         Type Value
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb28 inline.27.entry
       field_set 0
         Type Node
@@ -640,6 +648,8 @@ Module
         Local $inline.27.this
         Type Option<Node>
         Local $inline.27.next
+      Type Unit
+      UnitLiteral
       goto bb27
     bb29 inline.cont.29
       val $dependency.argument.0: Value
@@ -688,6 +698,8 @@ Module
         Local $inline.29.this
         Type Option<Node>
         Local $inline.29.next
+      Type Unit
+      UnitLiteral
       goto bb29
     bb31 inline.cont.31
       val $dependency.receiver: Long
@@ -788,6 +800,8 @@ Module
         Local $inline.33.this
         Type Option<Node>
         Local $inline.33.next
+      Type Unit
+      UnitLiteral
       goto bb33
     bb35 inline.cont.35
       val $dependency.receiver: Long
@@ -857,6 +871,8 @@ Module
         Local $inline.37.this
         Type Option<Node>
         Local $inline.37.next
+      Type Unit
+      UnitLiteral
       goto bb37
     bb39 inline.cont.39
       val $dependency.argument.0: Node
@@ -914,6 +930,8 @@ Module
         Local $inline.39.this
         Type Option<Node>
         Local $inline.39.next
+      Type Unit
+      UnitLiteral
       goto bb39
     bb41 inline.cont.41
       val $dependency.receiver: Long
@@ -977,6 +995,8 @@ Module
     bb1 if.then.1
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
       call before: ULong = extern3 @m34_region_minor_count direct
       goto bb3
@@ -997,6 +1017,8 @@ Module
           Local $dependency.parameter.other
     bb4 while.exit.4
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       var index: Long
         Type Long
@@ -1085,6 +1107,8 @@ Module
         Local $inline.9.this
         Type Option<Node>
         Local $inline.9.next
+      Type Unit
+      UnitLiteral
       goto bb9
   fun main @fn9() -> Unit
     bb0 entry
@@ -2316,6 +2340,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb78 inline.cont.78
       val $array_value.10: Option<Value>
         Type Option<Value>
@@ -2424,6 +2450,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn11(this: MutableArray<Option<Node>>, index: Long) -> Option<Node>
     bb0 entry
@@ -2557,6 +2585,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn14(this: MutableArray<Option<Value>>, index: Long) -> Option<Value>
     bb0 entry
@@ -2690,6 +2720,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn17(this: Array<Option<Value>>, index: Long) -> Option<Value>
     bb0 entry
@@ -2862,6 +2894,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn23(this: ListIterator<Option<Node>>) -> Option<Option<Node>>
     bb0 entry
       branch bb1 bb2
@@ -3104,6 +3138,8 @@ Module
         Type Option<Node>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn39(this: ListIterator<Option<Node>>, source: List<Option<Node>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3122,6 +3158,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn40(this: ListIterator<Option<Value>>, source: List<Option<Value>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3140,6 +3178,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Node> @fn41(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -3162,6 +3202,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -3175,6 +3217,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -3186,6 +3230,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3243,6 +3289,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -3256,6 +3304,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -3267,6 +3317,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

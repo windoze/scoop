@@ -1,5 +1,7 @@
 use super::*;
 
+mod structs;
+
 impl Lowerer {
     /// Reserve raw-id-preserving nominal maps before any intrinsic pointer
     /// shell lowers its complete pointee type. The subsequent arena
@@ -15,105 +17,6 @@ impl Lowerer {
 
     /// Transpose local-concrete HIR structs into MIR in declaration order
     /// (ids only; field types are filled by `fill_struct_fields`).
-    pub(super) fn lower_structs(&mut self, module: &hir::Module) {
-        for (hir_id, decl) in module.structs.iter() {
-            let representation = match &decl.representation {
-                hir::StructRepresentation::Declared {
-                    attributes, c_abi, ..
-                } => mir::StructRepresentation::Declared {
-                    c_abi: match c_abi {
-                        hir::StructCAbi::SourceRepresentation => {
-                            mir::StructCAbi::SourceRepresentation
-                        }
-                        hir::StructCAbi::UInt64Field { field } => {
-                            mir::StructCAbi::UInt64Field { field: *field }
-                        }
-                    },
-                    c_layout: attributes.c_layout.map(|layout| mir::MirCLayoutContract {
-                        aligned: lower_c_layout_value(layout.aligned),
-                        packed: lower_c_layout_value(layout.packed),
-                    }),
-                    interior_mutable: attributes.interior_mutable,
-                    fields: Vec::new(),
-                },
-                hir::StructRepresentation::Intrinsic { application, .. } => {
-                    mir::StructRepresentation::Intrinsic(match application {
-                        hir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
-                            let types = Types {
-                                module,
-                                struct_map: &self.struct_map,
-                                class_map: &self.class_map,
-                            };
-                            mir::IntrinsicTypeRepresentation::MaybeUninit {
-                                value: types.lower(
-                                    *value,
-                                    &mut self.source_exact_types,
-                                    &mut self.enums,
-                                    &mut self.structs,
-                                    &mut self.interfaces,
-                                    &mut self.shell,
-                                ),
-                            }
-                        }
-                        hir::IntrinsicTypeRepresentation::Unit => {
-                            mir::IntrinsicTypeRepresentation::Unit
-                        }
-                        hir::IntrinsicTypeRepresentation::Integer(kind) => {
-                            mir::IntrinsicTypeRepresentation::Integer(lower_integer_kind(*kind))
-                        }
-                        hir::IntrinsicTypeRepresentation::Float(kind) => {
-                            mir::IntrinsicTypeRepresentation::Float(*kind)
-                        }
-                        hir::IntrinsicTypeRepresentation::Char => {
-                            mir::IntrinsicTypeRepresentation::Char
-                        }
-                        hir::IntrinsicTypeRepresentation::Boolean => {
-                            mir::IntrinsicTypeRepresentation::Boolean
-                        }
-                        hir::IntrinsicTypeRepresentation::Ptr { pointee } => {
-                            let types = Types {
-                                module,
-                                struct_map: &self.struct_map,
-                                class_map: &self.class_map,
-                            };
-                            mir::IntrinsicTypeRepresentation::Ptr {
-                                pointee: types.lower(
-                                    *pointee,
-                                    &mut self.source_exact_types,
-                                    &mut self.enums,
-                                    &mut self.structs,
-                                    &mut self.interfaces,
-                                    &mut self.shell,
-                                ),
-                            }
-                        }
-                        hir::IntrinsicTypeRepresentation::FunPtr { signature } => {
-                            mir::IntrinsicTypeRepresentation::FunPtr {
-                                signature: remap_idx(*signature),
-                            }
-                        }
-                        hir::IntrinsicTypeRepresentation::String
-                        | hir::IntrinsicTypeRepresentation::Atomic(_)
-                        | hir::IntrinsicTypeRepresentation::Any
-                        | hir::IntrinsicTypeRepresentation::Nothing
-                        | hir::IntrinsicTypeRepresentation::Array { .. }
-                        | hir::IntrinsicTypeRepresentation::MutableArray { .. } => {
-                            unreachable!("the registry fixes intrinsic declaration targets")
-                        }
-                    })
-                }
-            };
-            let mir_id = self.structs.defs.alloc(mir::StructDef {
-                name: decl.name.clone(),
-                type_arguments: Vec::new(),
-                gc_free: decl.gc_free,
-                representation,
-            });
-            assert_eq!(mir_id, self.struct_map[&hir_id]);
-            self.structs.hir_ids.insert(mir_id, hir_id);
-        }
-    }
-
     /// Fill the exact arguments of eagerly reserved struct/class
     /// applications after the initial type context contains every nominal.
     pub(super) fn fill_nominal_type_arguments(&mut self, module: &hir::Module) {
@@ -214,43 +117,6 @@ impl Lowerer {
         }
     }
 
-    /// Fill the MIR struct field types. This runs after the type context
-    /// exists because field types can reference concrete enums.
-    pub(super) fn fill_struct_fields(&mut self, module: &hir::Module) {
-        for (hir_id, decl) in module.structs.iter() {
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            let fields = match &decl.representation {
-                hir::StructRepresentation::Declared { fields, .. } => fields
-                    .iter()
-                    .map(|field| mir::DeclaredStructField {
-                        identity: field.identity,
-                        name: field.name.clone(),
-                        ty: types.lower(
-                            field.ty,
-                            &mut self.source_exact_types,
-                            &mut self.enums,
-                            &mut self.structs,
-                            &mut self.interfaces,
-                            &mut self.shell,
-                        ),
-                    })
-                    .collect(),
-                hir::StructRepresentation::Intrinsic { .. } => Vec::new(),
-            };
-            let mir_id = self.struct_map[&hir_id];
-            match &mut self.structs.defs[mir_id].representation {
-                mir::StructRepresentation::Declared {
-                    fields: mir_fields, ..
-                } => *mir_fields = fields,
-                mir::StructRepresentation::Intrinsic(_) => debug_assert!(fields.is_empty()),
-            }
-        }
-    }
-
     /// Materialize every local-concrete interface eagerly.
     pub(super) fn lower_interfaces(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.interfaces.iter() {
@@ -285,10 +151,12 @@ impl Lowerer {
                 hir::ClassModifier::Abstract => mir::ClassModifier::Abstract,
             };
             let representation = match &decl.representation {
-                hir::ClassRepresentation::Declared { .. } => mir::ClassRepresentation::Declared {
-                    fields: Vec::new(),
-                    base_class: None,
-                },
+                hir::ClassRepresentation::Declared(hir::DeclaredClass { .. }) => {
+                    mir::ClassRepresentation::Declared(mir::DeclaredClass {
+                        fields: Vec::new(),
+                        base_class: None,
+                    })
+                }
                 hir::ClassRepresentation::Intrinsic { application, .. } => {
                     let types = Types {
                         module,
@@ -297,7 +165,7 @@ impl Lowerer {
                     };
                     mir::ClassRepresentation::Intrinsic(match application {
                         hir::IntrinsicTypeRepresentation::Atomic(storage) => {
-                            mir::IntrinsicTypeRepresentation::Atomic(storage.clone().map(|ty| {
+                            mir::IntrinsicClassRepresentation::Atomic(storage.clone().map(|ty| {
                                 types.lower(
                                     ty,
                                     &mut self.source_exact_types,
@@ -309,16 +177,16 @@ impl Lowerer {
                             }))
                         }
                         hir::IntrinsicTypeRepresentation::Any => {
-                            mir::IntrinsicTypeRepresentation::Any
+                            mir::IntrinsicClassRepresentation::Any
                         }
                         hir::IntrinsicTypeRepresentation::Nothing => {
-                            mir::IntrinsicTypeRepresentation::Nothing
+                            mir::IntrinsicClassRepresentation::Nothing
                         }
                         hir::IntrinsicTypeRepresentation::String => {
-                            mir::IntrinsicTypeRepresentation::String
+                            mir::IntrinsicClassRepresentation::String
                         }
                         hir::IntrinsicTypeRepresentation::Array { element } => {
-                            mir::IntrinsicTypeRepresentation::Array {
+                            mir::IntrinsicClassRepresentation::Array {
                                 element: types.lower(
                                     *element,
                                     &mut self.source_exact_types,
@@ -330,7 +198,7 @@ impl Lowerer {
                             }
                         }
                         hir::IntrinsicTypeRepresentation::MutableArray { element } => {
-                            mir::IntrinsicTypeRepresentation::MutableArray {
+                            mir::IntrinsicClassRepresentation::MutableArray {
                                 element: types.lower(
                                     *element,
                                     &mut self.source_exact_types,
@@ -400,10 +268,10 @@ impl Lowerer {
                 .collect();
             let class = &mut self.classes[mir_id];
             match &mut class.representation {
-                mir::ClassRepresentation::Declared {
+                mir::ClassRepresentation::Declared(mir::DeclaredClass {
                     base_class: mir_base,
                     ..
-                } => *mir_base = base_class,
+                }) => *mir_base = base_class,
                 mir::ClassRepresentation::Intrinsic(_) => debug_assert!(base_class.is_none()),
             }
             class.interfaces = interfaces;

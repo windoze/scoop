@@ -2952,20 +2952,22 @@ Module
         Local $call.1
   fun identity @fn31(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.retain @fn32(this: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn33(this: Box<Unit>) -> Unit
     bb0 entry
       call @fn76 direct
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn34($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
       return
@@ -4248,10 +4250,12 @@ Module
           Type Int
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
-      Type Unit
-      Local $capture.1
       return
+        Type Unit
+        UnitLiteral
   fun recur @fn74($capture.0: Int, $capture.1: Unit, $argument.0: Int, $argument.1: Int) -> Unit
     bb0 entry
       val $dependency.local.3: Int
@@ -4311,10 +4315,12 @@ Module
           Type Int
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
-      Type Unit
-      Local $capture.1
       return
+        Type Unit
+        UnitLiteral
   fun descend @fn75($capture.0: Unit, $argument.0: Int) -> Box<Unit>
     bb0 entry
       val $dependency.local.2: Int
@@ -4408,11 +4414,9 @@ Module
         Local $new.3
   fun value @fn76(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn77($capture.0: (Int) -> Int, $capture.1: Int, $argument.0: Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type4> closure[function_type4]
@@ -5072,6 +5076,8 @@ Module
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.14 @fn111($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn32 direct
@@ -5080,12 +5086,16 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.15 @fn112($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn32 direct
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.16 @fn113($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn33 direct
@@ -5094,6 +5104,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.17 @fn114($closure: (Int) -> Boolean, arg0: Int) -> Boolean
     bb0 entry
       return
@@ -5746,6 +5758,8 @@ Module
         Type Int
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun $reference.61 @fn158($closure: (Int, Int) -> Unit, arg0: Int, arg1: Int) -> Unit
     bb0 entry
       call @fn74 direct
@@ -5762,6 +5776,8 @@ Module
         Type Int
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun $reference.62 @fn159($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn33 direct
@@ -5770,6 +5786,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.63 @fn160($closure: (Unit, Int) -> Int, arg0: Unit, arg1: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn86 direct
@@ -5824,6 +5842,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn164(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -5832,6 +5852,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn165(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -5840,6 +5862,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn166(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -5848,6 +5872,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn167(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -5856,6 +5882,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn168(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -5878,6 +5906,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn93 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -5891,6 +5921,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn94 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -5902,6 +5934,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

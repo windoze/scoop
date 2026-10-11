@@ -2,7 +2,7 @@ use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     #[allow(clippy::too_many_arguments)]
-    pub(in crate::function) fn emit_typed_invoke(
+    pub(super) fn emit_typed_invoke(
         &mut self,
         destination: scoop_lir::CallDestination,
         fn_type: inkwell::types::FunctionType<'ctx>,
@@ -11,7 +11,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         signature: &scoop_lir::ScoopAbiSignature,
         apply_scoop_abi_attributes: bool,
         protocol: &CallProtocol<'_>,
-        callee: Option<inkwell::values::FunctionValue<'ctx>>,
+        callee: PreparedCallee<'ctx>,
         normal: scoop_lir::BlockId,
         unwind: scoop_lir::BlockId,
     ) -> Result<(), CodegenError> {
@@ -34,15 +34,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.llvm_function,
             &format!("invoke.normal.cleanup.{}", self.compiler_invoke_index - 1),
         );
-        let actual_callee = match destination {
-            scoop_lir::CallDestination::Dispatch { table, slot } => {
-                self.dispatch_function_pointer(table, slot)?
-            }
-            _ => callee
-                .expect("direct destination has a typed callee")
-                .as_global_value()
-                .as_pointer_value(),
-        };
+        let actual_callee = self.prepared_callee_pointer(callee)?;
         let result_type = match result {
             TypedCallResult::Direct { value, .. } => Some(abi::direct_type(
                 self.context,
@@ -75,8 +67,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 },
             )?,
             CallProtocol::NoGc => {
-                let call = match destination {
-                    scoop_lir::CallDestination::Dispatch { .. } => self
+                let call = match callee {
+                    PreparedCallee::Dispatch { .. } => self
                         .builder
                         .build_indirect_invoke(
                             fn_type,
@@ -87,10 +79,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             "typed_invoke",
                         )
                         .map_err(|error| CodegenError(format!("typed dispatch invoke: {error}")))?,
-                    _ => self
+                    PreparedCallee::Direct(function) => self
                         .builder
                         .build_invoke(
-                            callee.expect("direct destination has a typed callee"),
+                            function,
                             call_args,
                             cleanup,
                             self.llvm_blocks[arena_index(unwind)],

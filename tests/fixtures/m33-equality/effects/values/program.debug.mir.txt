@@ -144,6 +144,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -386,6 +388,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun bounded @fn6(value: Reading) -> Int
     bb0 entry
       val $receiver: Reading
@@ -448,6 +452,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Measure.measure @fn9(this: Measure, delta: Int) -> Int
     bb0 entry
       trap "call to abstract method `Measure.measure`"

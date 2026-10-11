@@ -215,6 +215,8 @@ Module
         Local $dependency.parameter.message
       call external1 direct
       return
+        Type Unit
+        UnitLiteral
     bb15 inline.cont.15 unwind bb1
       val $dependency.argument.0: Failing
         Type Failing
@@ -227,6 +229,8 @@ Module
         Local $dependency.parameter.value
       goto bb7
     bb16 inline.15.entry unwind bb1
+      Type Unit
+      UnitLiteral
       goto bb15
     bb17 inline.cont.17
       val $dependency.argument.0: Boolean
@@ -314,6 +318,8 @@ Module
         Local $inline.21.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb21
     bb23 inline.cont.23
       val $inline.19.$dependency.local.2: String
@@ -325,6 +331,8 @@ Module
       call external0 direct
         Type String
         Local $inline.19.$dependency.local.3
+      Type Unit
+      UnitLiteral
       goto bb19
     bb24 inline.23.entry
       val $inline.23.$old.0: Int
@@ -365,6 +373,8 @@ Module
       call external2 direct
         Type String
         Local $inline.17.$dependency.local.3
+      Type Unit
+      UnitLiteral
       goto bb17
     bb26 inline.25.entry
       val $inline.25.$old.0: Int
@@ -415,6 +425,8 @@ Module
         Type String
         Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$old.0: Int
         Type Int
@@ -468,6 +480,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun eprint @fn5(value: Counter) -> Unit
     bb0 entry
       val $dependency.local.1: Counter
@@ -488,6 +502,8 @@ Module
         Type String
         Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$old.0: Int
         Type Int
@@ -541,6 +557,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun eprintln @fn7(value: Failing) -> Unit
     bb0 entry
       val $dependency.local.1: Failing
@@ -565,6 +583,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -589,6 +609,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Counter.$c0 @fn9(this: Counter, calls: Int) -> Unit
     bb0 entry
       field_set 0
@@ -597,9 +619,13 @@ Module
         Type Int
         Local calls
       return
+        Type Unit
+        UnitLiteral
   fun init.Failing.$c1 @fn10(this: Failing) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- print
   instance mi1 function=@fn4 <- println
   instance mi2 function=@fn5 <- eprint

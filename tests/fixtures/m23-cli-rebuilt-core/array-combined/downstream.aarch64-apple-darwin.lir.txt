@@ -1146,7 +1146,6 @@ Module
     throw local6
     unreachable
   block if.merge.5
-    t5 = array_get array4 local3 local4 : {}
     ret
   fun @scoop$1$cb$96b678ceade5fa4ac6e9d69b2116a1d6c78208ec6673ea13970c0a248d878b6e(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<managed>
@@ -1217,7 +1216,6 @@ Module
     throw local6
     unreachable
   block if.merge.5
-    t5 = array_get array5 local3 local4 : {}
     ret
   fun @scoop$1$cb$61b57c8c2a483f81af70409564530aea702d50f2fba83d71d1e0cd120508d828(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<managed>
@@ -1263,7 +1261,6 @@ Module
   fun @scoop$1$cb$d268312f1ef5df25b37d05b5a28f643e6e8bc0358d9a9d049823b6984b7deaaa(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$e59288bcbcb3197d08e16c09f199f1987022262f9b377657780a8e0f9362cc8f(ptr<managed>) -> enum1
     local %0 $dependency.local.1: ptr<managed>

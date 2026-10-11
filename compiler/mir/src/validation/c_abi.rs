@@ -2,12 +2,12 @@ use super::*;
 
 pub(super) fn validate_c_abi_projections(module: &Module) -> Result<(), MirValidationError> {
     for (id, definition) in module.structs.iter() {
-        let StructRepresentation::Declared {
+        let StructRepresentation::Declared(DeclaredStruct {
             c_layout,
             c_abi: StructCAbi::UInt64Field { field },
             fields,
             ..
-        } = &definition.representation
+        }) = &definition.representation
         else {
             continue;
         };

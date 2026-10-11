@@ -99,6 +99,8 @@ Module
         Type String
         Local $parameter.expectedFile
       return
+        Type Unit
+        UnitLiteral
   fun LocationCompletion.resumeWithException @fn4(this: LocationCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -111,6 +113,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun printLocation @fn5(label: String, location: SourceLocation, expectedFile: String) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -189,6 +193,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun trace @fn6(location: SourceLocation) -> SourceLocation
     bb0 entry
       return
@@ -538,6 +544,8 @@ Module
         Type Continuation<SourceLocation>
         Local $dependency.parameter.completion
       return
+        Type Unit
+        UnitLiteral
   fun println @fn10(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -562,6 +570,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -586,6 +596,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -610,6 +622,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun genericBody @fn13(value: Int) -> SourceLocation
     bb0 entry
       return
@@ -640,9 +654,13 @@ Module
   fun init.Reporter.$c0 @fn18(this: Reporter) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.LocationTask.$c1 @fn19(this: LocationTask) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.LocationCompletion.$c2 @fn20(this: LocationCompletion, expectedFile: String) -> Unit
     bb0 entry
       field_set 0
@@ -651,6 +669,8 @@ Module
         Type String
         Local expectedFile
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<SourceLocation> result=SourceLocation
   coroutine_fn cf0 @fn2 source_return=SourceLocation step=cs0 immediate
   coroutine_fn cf1 @fn16 source_return=SourceLocation step=cs0 immediate

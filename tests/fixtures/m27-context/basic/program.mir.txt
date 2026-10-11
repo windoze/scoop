@@ -87,6 +87,8 @@ Module
       resume
     bb5 try.end.5
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call $dependency.argument.0: Long = @fn0 direct
       val $dependency.parameter.value: Long
@@ -132,6 +134,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Configuration.$c0 @fn3(this: Configuration, answer: Long) -> Unit
     bb0 entry
       field_set 0
@@ -140,6 +144,8 @@ Module
         Type Long
         Local answer
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   str @str0 "missing context answer.configuration: Configuration"
   str @str1 "\n"

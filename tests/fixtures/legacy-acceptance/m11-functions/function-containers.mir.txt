@@ -215,6 +215,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: Int
         Type Int
@@ -419,6 +421,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn8(this: ListIterator<(Int) -> Int>) -> Option<(Int) -> Int>
     bb0 entry
       branch bb1 bb2
@@ -546,6 +550,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.FunctionBox.$c0 @fn13(operation: (Int) -> Int) -> FunctionBox<Int> <no-gc>
     bb0 entry
       return

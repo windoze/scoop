@@ -55,6 +55,8 @@ Module
         Type Int
         Local $dependency.constructor.local.0
       return
+        Type Unit
+        UnitLiteral
   fun init.DefaultBase.$c2 @fn3(this: DefaultBase<Int>, count: Int) -> Unit
     bb0 entry
       field_set 0
@@ -63,5 +65,7 @@ Module
         Type Int
         Local count
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- count
   output library

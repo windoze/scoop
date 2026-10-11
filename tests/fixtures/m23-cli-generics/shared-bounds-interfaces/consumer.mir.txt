@@ -216,6 +216,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn13(this: Holder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -224,6 +226,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Bridge.$c1 @fn14(this: Bridge<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -232,6 +236,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn15($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

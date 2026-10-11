@@ -13,7 +13,7 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(&h, 42)),
+                value: int_lit(&h, 42),
             })],
         },
     );
@@ -93,8 +93,7 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
             .fields
             .is_empty()
     );
-    let mir::Terminator::Return { value: Some(value) } =
-        &function.body.blocks[function.body.entry].terminator
+    let mir::Terminator::Return { value } = &function.body.blocks[function.body.entry].terminator
     else {
         panic!("leaf returns a completed step")
     };
@@ -136,8 +135,7 @@ fn generic_unit_return_in_suspend_function_completes_unit() {
     let step = &module.meta.coroutine_steps[coroutine.step];
     assert_eq!(step.result(), &mir::Type::Unit);
     let function = &module.functions[coroutine.function];
-    let mir::Terminator::Return { value: Some(value) } =
-        &function.body.blocks[function.body.entry].terminator
+    let mir::Terminator::Return { value } = &function.body.blocks[function.body.entry].terminator
     else {
         panic!("the immediate Unit coroutine returns Completed(Unit)")
     };
@@ -166,7 +164,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(&h, 41)),
+                value: int_lit(&h, 41),
             })],
         },
     );
@@ -177,7 +175,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let sum = integer_binary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::Add,
+        hir::IntegerBinaryOperator::Add,
         local_ref(value, int),
         increment,
     );
@@ -190,7 +188,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             locals,
             statements: vec![
                 val_decl(value, call_typed(leaf, Vec::new(), int)),
-                stmt(hir::StatementKind::Return { value: Some(sum) }),
+                stmt(hir::StatementKind::Return { value: sum }),
             ],
         },
     );
@@ -276,7 +274,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         scoop_identity::GeneratedNominalKey::CoroutineFrame { source_callable }
             if *source_callable == caller.source
     ));
-    let fields = module.classes[frame.class()].declared_fields();
+    let fields = &declared_class(&module.classes[frame.class()]).fields;
     assert_eq!(fields[0].name, "state");
     assert_eq!(
         fields[0].ty,
@@ -448,9 +446,14 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     );
     assert_eq!(failure_signature.result(), success_signature.result());
     assert_eq!(module.classes[point.adapter()].interfaces.len(), 1);
-    assert_eq!(module.classes[point.adapter()].declared_fields().len(), 2);
     assert_eq!(
-        module.classes[point.adapter()].declared_fields()[1].ty,
+        declared_class(&module.classes[point.adapter()])
+            .fields
+            .len(),
+        2
+    );
+    assert_eq!(
+        declared_class(&module.classes[point.adapter()]).fields[1].ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
     );
 
@@ -505,7 +508,7 @@ fn coroutine_transform_preserves_a_suspending_loop_header_poll_target() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, false)),
+                value: bool_lit(&h, false),
             })],
         },
     );
@@ -623,7 +626,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
                     ),
                 ),
                 stmt(hir::StatementKind::Return {
-                    value: Some(local_ref(value, result)),
+                    value: local_ref(value, result),
                 }),
             ],
         }),
@@ -662,9 +665,14 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
         point.identity().storage(),
         mir::ContinuationAdapterStorageIdentity::Latched { .. }
     ));
-    assert_eq!(module.classes[point.adapter()].declared_fields().len(), 4);
     assert_eq!(
-        module.classes[point.adapter()].declared_fields()[1].ty,
+        declared_class(&module.classes[point.adapter()])
+            .fields
+            .len(),
+        4
+    );
+    assert_eq!(
+        declared_class(&module.classes[point.adapter()]).fields[1].ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
     );
 
@@ -783,7 +791,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let launcher_entry = &launcher.body.blocks[launcher.body.entry];
     let (start, destination) = statement_call(&launcher_entry.statements[0]);
     assert!(destination.is_none(), "startCoroutine returns Unit");
-    let mir::Callee::User(helper_id) = start.target.callee else {
+    let mir::CallTarget::Direct(mir::Callee::User(helper_id)) = start.target else {
         panic!("startCoroutine lowers to its concrete guarded helper")
     };
     let start_metadata = module
@@ -833,10 +841,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     };
     let entry = &helper.body.blocks[run_block];
     let (run, step_local) = statement_call(&entry.statements[0]);
-    let mir::CallKind::Interface {
+    let mir::CallTarget::Interface {
         interface: task_interface,
         slot: 0,
-    } = run.target.kind
+        ..
+    } = run.target
     else {
         panic!("startCoroutine must invoke SuspendTask<T>.run through interface dispatch")
     };
@@ -845,7 +854,15 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         module.interfaces[task_interface].type_arguments,
         [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
     );
-    assert_eq!(run.args.len(), 2, "run receives task and hidden completion");
+    assert_eq!(
+        run.args.len(),
+        1,
+        "run receives its hidden completion after the receiver"
+    );
+    assert!(matches!(
+        run.target.receiver().unwrap().kind,
+        mir::ExprKind::Local(_)
+    ));
     let step_local = step_local.expect("run returns a CoroutineStep<T>");
     let mir::Terminator::Branch {
         then_block: completed,
@@ -870,10 +887,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let completed_payload = step_metadata.completed_payload();
     let (resume, destination) = statement_call(&completed.statements[0]);
     assert!(destination.is_none(), "Continuation.resume returns Unit");
-    let mir::CallKind::Interface {
+    let mir::CallTarget::Interface {
         interface: continuation_interface,
         slot: 0,
-    } = resume.target.kind
+        ..
+    } = resume.target
     else {
         panic!("completed task must resume its outer continuation")
     };
@@ -881,9 +899,12 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         module.interfaces[continuation_interface].name,
         "Continuation"
     );
-    assert!(matches!(resume.args.as_slice(), [completion, field]
-            if matches!(completion.kind, mir::ExprKind::Local(_))
-                && matches!(&field.kind, mir::ExprKind::EnumField {
+    assert!(matches!(
+        resume.target.receiver().unwrap().kind,
+        mir::ExprKind::Local(_)
+    ));
+    assert!(matches!(resume.args.as_slice(), [field]
+            if matches!(&field.kind, mir::ExprKind::EnumField {
                     operand,
                     variant,
                     index
@@ -898,7 +919,12 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     );
     assert!(matches!(
         suspended.terminator,
-        mir::Terminator::Return { value: None }
+        mir::Terminator::Return {
+            value: mir::Expr {
+                ty: mir::Type::Unit,
+                kind: mir::ExprKind::UnitLiteral
+            }
+        }
     ));
     let catch_pad = entry
         .unwind
@@ -911,8 +937,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
                 matches!(
                     &statement.kind,
                     mir::StatementKind::Call(mir::CallEffect::Value { call, .. })
-                        if call.target.callee
-                            == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)
+                        if matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
                 )
             })
     );

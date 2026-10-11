@@ -9,8 +9,12 @@ Module
     bb0 entry
       call extern0 @m23_register_restart direct
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call extern0 @m23_register_restart direct
       return
+        Type Unit
+        UnitLiteral
   output executable @fn1

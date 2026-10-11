@@ -1948,6 +1948,8 @@ Module
         Type Array<Int>
         Local $dependency.parameter.values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c0 @fn43(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1961,6 +1963,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c1 @fn44(this: DiamondCursor<Int>, inner: Cursor<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1969,6 +1973,8 @@ Module
         Type Cursor<Int>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalSource.$c1 @fn45(this: LocalSource<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1977,6 +1983,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn46(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1995,6 +2003,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c4 @fn47(this: Sequence<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -2003,6 +2013,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun ctor.LocalValue.$c0 @fn48(cursor: Cursor<Int>) -> LocalValue<Int> <no-gc>
     bb0 entry
       return

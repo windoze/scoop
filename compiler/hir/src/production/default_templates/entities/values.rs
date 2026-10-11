@@ -78,7 +78,10 @@ impl DefaultEntityProjector<'_> {
     ) -> Result<DefaultEnumVariantRefV1, super::super::DefaultEntityProjectionError> {
         Ok(DefaultEnumVariantRefV1::new(
             variant.variant,
-            self.type_key(variant.owner, binders)?,
+            self.type_key(
+                self.export.enum_applications[variant.owner].canonical_type,
+                binders,
+            )?,
         ))
     }
 
@@ -89,7 +92,10 @@ impl DefaultEntityProjector<'_> {
     ) -> Result<DefaultEnumVariantFieldRefV1, super::super::DefaultEntityProjectionError> {
         Ok(DefaultEnumVariantFieldRefV1::new(
             field.field,
-            self.type_key(field.variant.owner, binders)?,
+            self.type_key(
+                self.export.enum_applications[field.variant.owner].canonical_type,
+                binders,
+            )?,
         ))
     }
 

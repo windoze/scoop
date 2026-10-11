@@ -719,19 +719,19 @@ Module
         Local $call.1
   fun identity @fn13(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn14(value: Unit, copy: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local copy
       return
+        Type Unit
+        UnitLiteral
   fun localDefault @fn15(value: Unit, copy: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local copy
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn16($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -760,12 +760,16 @@ Module
         Type Unit
         Local $dependency.local.4
       return
+        Type Unit
+        UnitLiteral
   fun relay @fn17(value: Unit, callback: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type6> closure[function_type6]
         Type () -> Unit
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.local @fn18(value: Unit) -> Unit
     bb0 entry
       val $dependency.receiver: Unit
@@ -784,6 +788,8 @@ Module
         Type Unit
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn19(value: Int) -> Int
     bb0 entry
       return
@@ -877,6 +883,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun $extension.echo @fn27(this: Int) -> Int
     bb0 entry
       val $dependency.local.1: Int

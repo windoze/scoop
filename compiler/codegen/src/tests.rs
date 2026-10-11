@@ -16,9 +16,9 @@ use scoop_lir::{
     ArrayElementStorageV1, BasicBlock, CODE_PTR, CallSite, CallTargets, CoroutineAdapterState,
     DirectCallSignature, DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr,
     EnumVariantRepr, GcEffect, Global, GlobalInit, IndirectResultCallSignature, Layout, LayoutKind,
-    LirMeta, Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, NativeBorrowedResultRoot,
-    PointerKind, RAW_PTR, Temp, TypeDescriptor, TypeDescriptorRef, TypeInstanceShapeV1, TypedCall,
-    VoidCallSignature, WellKnownTypeDescriptors,
+    LirMeta, Local, MANAGED_PTR, METADATA_PTR, MachineScalarValue, PointerKind, RAW_PTR, Temp,
+    TypeDescriptor, TypeDescriptorRef, TypeInstanceShapeV1, TypedCall, VoidCallSignature,
+    WellKnownTypeDescriptors,
 };
 
 use super::*;

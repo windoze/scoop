@@ -102,7 +102,7 @@ fn odr_callable_abi_retains_nominal_identity_and_reference_scan() {
             let mut arguments = signature.arguments().to_vec();
             arguments.push(AbiArgument::Indirect(
                 AbiValue::new(
-                    LirType::Struct(id),
+                    LirType::Struct(id.definition()),
                     AbiNonZeroLayout::new(16, 8).unwrap(),
                     scan,
                 )

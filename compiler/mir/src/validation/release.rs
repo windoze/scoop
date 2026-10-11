@@ -29,7 +29,10 @@ pub(super) fn validate_policies(module: &Module) -> Result<(), MirValidationErro
             continue;
         };
         let valid = class.modifier == ClassModifier::Final
-            && matches!(class.representation, ClassRepresentation::Declared { .. })
+            && matches!(
+                class.representation,
+                ClassRepresentation::Declared(DeclaredClass { .. })
+            )
             && match hook {
                 ReleaseHookTarget::Local(hook) => {
                     arena_get(&module.release_hooks, hook).is_some_and(|hook| hook.owner == id)
@@ -95,23 +98,28 @@ pub(super) fn validate_statement(
         StatementKind::GlobalAssign { global, .. } => check_global(module, *global),
         StatementKind::Call(CallEffect::Unit(call))
         | StatementKind::Call(CallEffect::Value { call, .. }) => {
-            let allowed = call.target.kind == CallKind::Direct
-                && match call.target.callee {
-                    Callee::User(id) => arena_get(&module.functions, id)
-                        .is_some_and(|f| f.gc_effect == GcEffect::NoGc),
-                    Callee::Monomorphized(id) => arena_get(&module.meta.instances, id)
+            let allowed = match call.target {
+                CallTarget::Direct(Callee::User(id)) => {
+                    arena_get(&module.functions, id).is_some_and(|f| f.gc_effect == GcEffect::NoGc)
+                }
+                CallTarget::Direct(Callee::Monomorphized(id)) => {
+                    arena_get(&module.meta.instances, id)
                         .and_then(|instance| arena_get(&module.functions, instance.function))
-                        .is_some_and(|f| f.gc_effect == GcEffect::NoGc),
-                    Callee::External(id) => arena_get(&module.meta.external_callables, id)
-                        .is_some_and(|f| f.gc_effect() == GcEffect::NoGc),
-                    Callee::Extern(id) => {
-                        arena_get(&module.extern_functions, id).is_some_and(|f| f.abi.is_c())
-                    }
-                    Callee::CoroutineSuspend { .. }
-                    | Callee::Closure(_)
-                    | Callee::FunctionBridge(_)
-                    | Callee::Runtime(_) => false,
-                };
+                        .is_some_and(|f| f.gc_effect == GcEffect::NoGc)
+                }
+                CallTarget::Direct(Callee::External(id)) => {
+                    arena_get(&module.meta.external_callables, id)
+                        .is_some_and(|f| f.gc_effect() == GcEffect::NoGc)
+                }
+                CallTarget::Direct(Callee::Extern(id)) => {
+                    arena_get(&module.extern_functions, id).is_some_and(|f| f.abi.is_c())
+                }
+                CallTarget::Direct(Callee::Runtime(_))
+                | CallTarget::Virtual { .. }
+                | CallTarget::Interface { .. }
+                | CallTarget::Closure { .. }
+                | CallTarget::FunctionBridge { .. } => false,
+            };
             if allowed {
                 Ok(())
             } else {
@@ -142,7 +150,9 @@ pub(super) fn validate_control_flow(
             block.terminator,
             Terminator::Goto(_)
                 | Terminator::Branch { .. }
-                | Terminator::Return { value: None }
+                | Terminator::Return {
+                    value: Expr { ty: Type::Unit, .. }
+                }
                 | Terminator::Unreachable
         )
     {

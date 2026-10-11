@@ -1066,18 +1066,14 @@ Module
         Local $new.1
   fun output @fn14(this: Shell<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Shell<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun output @fn15(this: Shell<Unit, String>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Shell<Unit, String>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn16($capture.0: Later) -> Later
     bb0 entry
       return
@@ -1180,9 +1176,9 @@ Module
         Local $call.1
   fun read @fn28($capture.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $capture.0
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn29($argument.0: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type7> closure[function_type7]
@@ -1191,6 +1187,8 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn30($argument.0: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type7> closure[function_type7]
@@ -1199,11 +1197,13 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun read @fn31($capture.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $capture.0
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn32($argument.0: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type7> closure[function_type7]
@@ -1212,6 +1212,8 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn33($argument.0: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type7> closure[function_type7]
@@ -1220,6 +1222,8 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn34(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1280,6 +1284,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.5 @fn43($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn31 direct
@@ -1288,6 +1294,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun init.Later.$c0 @fn44(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1296,6 +1304,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn45(this: Shell<Later, Unit>, value: Later, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -1377,6 +1387,8 @@ Module
         Type Later
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn46(this: Shell<Later, String>, value: Later, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -1458,6 +1470,8 @@ Module
         Type Later
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c1 @fn47(this: Current<Later, Unit>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -1482,6 +1496,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn48(this: Shell<String, Unit>, value: String, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -1563,6 +1579,8 @@ Module
         Type String
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn49(this: Shell<String, String>, value: String, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -1644,6 +1662,8 @@ Module
         Type String
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c1 @fn50(this: Current<String, Unit>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -1668,6 +1688,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn51(this: Shell<Unit, Unit>, value: Unit, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -1749,6 +1771,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn52(this: Shell<Unit, String>, value: Unit, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -1830,6 +1854,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c1 @fn53(this: Current<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -1854,6 +1880,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn54(this: Base<Later, Unit>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1862,6 +1890,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn55(this: Base<Later, String>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1870,6 +1900,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn56(this: Base<String, Unit>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1878,6 +1910,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn57(this: Base<String, String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1886,6 +1920,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn58(this: Base<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1894,6 +1930,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn59(this: Base<Unit, String>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1902,6 +1940,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Carrier.$c2 @fn60(value: Shell<Later, Unit>) -> Carrier<Shell<Later, Unit>, String> <no-gc>
     bb0 entry
       return
@@ -1945,6 +1985,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1958,6 +2000,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1969,6 +2013,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

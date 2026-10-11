@@ -52,9 +52,14 @@ impl Lowerer {
                 }
                 self.intern_type(Type::Tuple(substituted))
             }
-            Type::Function(id) => self
-                .instantiate_function_type(id, |this, ty| Some(this.instantiate_ty(ty, type_args)))
-                .expect("complete type argument substitution"),
+            Type::Function(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| {
+                        Some(this.instantiate_ty(ty, type_args))
+                    })
+                    .expect("complete type argument substitution");
+                self.function_types[function].canonical_type
+            }
             Type::Ptr(pointee) => {
                 let pointee = self.instantiate_ty(pointee, type_args);
                 self.intern_type(Type::Ptr(pointee))
@@ -65,10 +70,7 @@ impl Lowerer {
                         Some(this.instantiate_ty(ty, type_args))
                     })
                     .expect("complete function pointer substitution");
-                let Type::Function(id) = self.types[function] else {
-                    unreachable!("function type instantiation stays a function type")
-                };
-                self.intern_type(Type::FunPtr(id))
+                self.intern_type(Type::FunPtr(function))
             }
             _ => ty,
         }
@@ -105,11 +107,14 @@ impl Lowerer {
                     .collect();
                 self.intern_type(Type::Tuple(elements))
             }
-            Type::Function(id) => self
-                .instantiate_function_type(id, |this, ty| {
-                    Some(this.instantiate_method_ty(ty, bindings))
-                })
-                .expect("complete owner substitution"),
+            Type::Function(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| {
+                        Some(this.instantiate_method_ty(ty, bindings))
+                    })
+                    .expect("complete owner substitution");
+                self.function_types[function].canonical_type
+            }
             Type::Ptr(pointee) => {
                 let pointee = self.instantiate_method_ty(pointee, bindings);
                 self.intern_type(Type::Ptr(pointee))
@@ -120,10 +125,7 @@ impl Lowerer {
                         Some(this.instantiate_method_ty(ty, bindings))
                     })
                     .expect("complete function pointer owner substitution");
-                let Type::Function(id) = self.types[function] else {
-                    unreachable!("function type instantiation stays a function type")
-                };
-                self.intern_type(Type::FunPtr(id))
+                self.intern_type(Type::FunPtr(function))
             }
             _ => ty,
         }
@@ -156,7 +158,9 @@ impl Lowerer {
                 Some(self.intern_type(Type::Tuple(substituted)))
             }
             Type::Function(id) => {
-                self.instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))
+                let function = self
+                    .instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))?;
+                Some(self.function_types[function].canonical_type)
             }
             Type::Ptr(pointee) => {
                 let pointee = self.try_substitute(pointee, bindings)?;
@@ -165,10 +169,7 @@ impl Lowerer {
             Type::FunPtr(id) => {
                 let function = self
                     .instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))?;
-                let Type::Function(id) = self.types[function] else {
-                    unreachable!("function type substitution stays a function type")
-                };
-                Some(self.intern_type(Type::FunPtr(id)))
+                Some(self.intern_type(Type::FunPtr(function)))
             }
             _ => Some(ty),
         }

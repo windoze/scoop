@@ -51,6 +51,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call external7 direct
@@ -287,6 +289,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn2($closure: () -> PreludeStore) -> PreludeStore
     bb0 entry
       return

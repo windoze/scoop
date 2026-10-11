@@ -38,6 +38,8 @@ Module
     bb0 entry
       call extern0 @m33_shutdown_register_atexit direct
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call extern0 @m33_shutdown_register_atexit direct
@@ -127,6 +129,8 @@ Module
         Type String
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn2(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -160,6 +164,8 @@ Module
         Type String
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.1 @fn4($closure: () -> Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -174,6 +180,8 @@ Module
         Type String
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn5(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>

@@ -59,6 +59,9 @@ impl Lowerer {
             .filter_map(|(index, ty)| (index != context_index).then_some(*ty))
             .collect();
         let expected = self.intern_function_type(false, parameters, native.return_type);
-        Ok((callback_source, expected))
+        Ok((
+            callback_source,
+            self.function_types[expected].canonical_type,
+        ))
     }
 }

@@ -114,6 +114,8 @@ Module
         Type Int
         Local $dependency.parameter.seed
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Child> @fn7(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -136,6 +138,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Child>[0]
         Type Continuation<Child>
@@ -149,6 +153,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Child>[1]
         Type Continuation<Child>
@@ -160,6 +166,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

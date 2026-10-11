@@ -396,6 +396,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $dynamic_adapter.((Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any @fn11($closure: ((Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any, arg0: (Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]

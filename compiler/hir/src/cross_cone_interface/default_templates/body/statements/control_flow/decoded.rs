@@ -10,7 +10,7 @@ use super::{
 use crate::{
     DecodedDefaultExpressionV1, DecodedDefaultPatternV1, DecodedExportDefinitionSourceV1,
     DecodedOptionalDefaultExpressionV1, DefaultExpressionResolutionError,
-    DefaultPatternResolutionError, OptionalDefaultExpressionV1, TemplateLocalSelectorResolver,
+    DefaultPatternResolutionError, TemplateLocalSelectorResolver,
 };
 
 use super::super::{

@@ -15,20 +15,17 @@ pub(super) fn rewrite_intrinsic_site(
     failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: &mir::CallTarget,
-    outer_failure: &mir::CallTarget,
+    outer_resume: &crate::coroutine_registry::ProtocolMethod,
+    outer_failure: &crate::coroutine_registry::ProtocolMethod,
     source_name: &str,
     driver: mir::FunctionId,
     source: hir::CallableMaterialization,
     source_odr_group: Option<hir::OdrGroupId>,
-    site: SuspendSite,
-    mut call: mir::Call,
+    site: ResumeSite,
+    call: crate::cfg::SuspendCall,
     post: mir::BlockId,
     unwind: Option<mir::BlockId>,
 ) -> GeneratedSite {
-    let SuspendKind::Intrinsic { register } = site.kind else {
-        unreachable!("intrinsic site carries its concrete register method")
-    };
     let throwable = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
     let (result_latch_id, result_latch_ty) = lowerer.coroutine_slot_for(&site.result);
     let (failure_latch_id, failure_latch_ty) = lowerer.coroutine_slot_for(&throwable);
@@ -115,8 +112,10 @@ pub(super) fn rewrite_intrinsic_site(
             slot_empty(&failure_latch),
         ],
     ));
-    call.target.callee = mir::Callee::Monomorphized(register);
-    call.args.push(adapter.reference(adapter_local));
+    let call = mir::Call {
+        target: call.method.call(*call.receiver),
+        args: vec![adapter.reference(adapter_local)],
+    };
     let register_call = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.register.{}", site.state),
         statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
@@ -191,7 +190,7 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.registered_suspend.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step, outer_suspended)),
+            value: suspended_value(outer_step, outer_suspended),
         },
         unwind: None,
     });
@@ -468,12 +467,10 @@ pub(super) fn rewrite_intrinsic_site(
             statement(mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: exception,
                 call: mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
-                    },
+                    target: mir::CallTarget::Direct(mir::Callee::Runtime(
+                        mir::RuntimeFn::MaterializeException,
+                    )),
                     args: vec![mir::Expr::caught_exception()],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),

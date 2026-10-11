@@ -7,112 +7,104 @@ pub(crate) fn struct_layout(
     identity: lir::LayoutIdentity,
     definition: &mir::StructDef,
 ) -> StorageResult<lir::Layout> {
-    if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
-        let (size, align, representation) = match representation {
-            mir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
-                let enum_shape =
-                    |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
-                let (size, align) = size_align(context, module, &enum_shape, value)?;
-                return Ok(lir::Layout {
-                    identity,
-                    name: definition.name.clone(),
-                    size,
-                    align,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: lir::LayoutKind::Plain {
-                        scan: ref_scan(context, module, enums, value, 0)?,
-                    },
-                });
-            }
-            mir::IntrinsicTypeRepresentation::Unit => {
-                (0, 1, lir::IntrinsicTypeRepresentation::Unit)
-            }
-            mir::IntrinsicTypeRepresentation::Integer(kind) => {
-                let kind = integer_kind(*kind);
-                let layout = context.integer_layout(kind);
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::Integer(kind),
-                )
-            }
-            mir::IntrinsicTypeRepresentation::Float(kind) => {
-                let layout = context.float_layout(*kind);
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::Float(*kind),
-                )
-            }
-            mir::IntrinsicTypeRepresentation::Char => {
-                let layout = context.scalar_layout(lir::BackendScalarKind::I32);
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::Char,
-                )
-            }
-            mir::IntrinsicTypeRepresentation::Boolean => {
-                let layout = context.scalar_layout(lir::BackendScalarKind::I1);
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::Boolean,
-                )
-            }
-            mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
-                let layout = context.pointer_layout(lir::PointerKind::Raw);
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::Ptr {
-                        pointee: compiler_data_pointee(module, pointee),
-                    },
-                )
-            }
-            mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
-                let layout = context.pointer_layout(lir::PointerKind::Code);
-                (
-                    layout.size,
-                    layout.align,
-                    lir::IntrinsicTypeRepresentation::FunPtr {
-                        signature: compiler_function_type(module, *signature),
-                    },
-                )
-            }
-            mir::IntrinsicTypeRepresentation::String
-            | mir::IntrinsicTypeRepresentation::Atomic(_)
-            | mir::IntrinsicTypeRepresentation::Any
-            | mir::IntrinsicTypeRepresentation::Nothing
-            | mir::IntrinsicTypeRepresentation::Array { .. }
-            | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
-                unreachable!("the registry fixes intrinsic declaration targets")
-            }
-        };
-        return Ok(lir::Layout {
-            identity,
-            name: definition.name.clone(),
-            size,
-            align,
-            fields: Vec::new(),
-            c_layout: None,
-            interior_mutable: false,
-            kind: lir::LayoutKind::Intrinsic(representation),
-        });
-    }
+    let declared = match &definition.representation {
+        mir::StructRepresentation::Declared(declared) => declared,
+        mir::StructRepresentation::Intrinsic(representation) => {
+            let (size, align, representation) = match representation {
+                mir::IntrinsicStructRepresentation::MaybeUninit { value } => {
+                    let enum_shape =
+                        |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+                    let (size, align) = size_align(context, module, &enum_shape, value)?;
+                    return Ok(lir::Layout {
+                        identity,
+                        name: definition.name.clone(),
+                        size,
+                        align,
+                        fields: Vec::new(),
+                        c_layout: None,
+                        interior_mutable: false,
+                        kind: lir::LayoutKind::Plain {
+                            scan: ref_scan(context, module, enums, value, 0)?,
+                        },
+                    });
+                }
+                mir::IntrinsicStructRepresentation::Unit => {
+                    (0, 1, lir::IntrinsicTypeRepresentation::Unit)
+                }
+                mir::IntrinsicStructRepresentation::Integer(kind) => {
+                    let kind = integer_kind(*kind);
+                    let layout = context.integer_layout(kind);
+                    (
+                        layout.size,
+                        layout.align,
+                        lir::IntrinsicTypeRepresentation::Integer(kind),
+                    )
+                }
+                mir::IntrinsicStructRepresentation::Float(kind) => {
+                    let layout = context.float_layout(*kind);
+                    (
+                        layout.size,
+                        layout.align,
+                        lir::IntrinsicTypeRepresentation::Float(*kind),
+                    )
+                }
+                mir::IntrinsicStructRepresentation::Char => {
+                    let layout = context.scalar_layout(lir::BackendScalarKind::I32);
+                    (
+                        layout.size,
+                        layout.align,
+                        lir::IntrinsicTypeRepresentation::Char,
+                    )
+                }
+                mir::IntrinsicStructRepresentation::Boolean => {
+                    let layout = context.scalar_layout(lir::BackendScalarKind::I1);
+                    (
+                        layout.size,
+                        layout.align,
+                        lir::IntrinsicTypeRepresentation::Boolean,
+                    )
+                }
+                mir::IntrinsicStructRepresentation::Ptr { pointee } => {
+                    let layout = context.pointer_layout(lir::PointerKind::Raw);
+                    (
+                        layout.size,
+                        layout.align,
+                        lir::IntrinsicTypeRepresentation::Ptr {
+                            pointee: compiler_data_pointee(module, pointee),
+                        },
+                    )
+                }
+                mir::IntrinsicStructRepresentation::FunPtr { signature } => {
+                    let layout = context.pointer_layout(lir::PointerKind::Code);
+                    (
+                        layout.size,
+                        layout.align,
+                        lir::IntrinsicTypeRepresentation::FunPtr {
+                            signature: compiler_function_type(module, *signature),
+                        },
+                    )
+                }
+            };
+            return Ok(lir::Layout {
+                identity,
+                name: definition.name.clone(),
+                size,
+                align,
+                fields: Vec::new(),
+                c_layout: None,
+                interior_mutable: false,
+                kind: lir::LayoutKind::Intrinsic(representation),
+            });
+        }
+    };
     let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
-    let (fields, size, align) = struct_shape(context, module, &enum_shape, definition)?;
-    let mir::StructRepresentation::Declared {
+    let (fields, size, align) = declared_struct_shape(context, module, &enum_shape, declared)?;
+    let mir::DeclaredStruct {
         c_layout,
         interior_mutable,
         fields: definition_fields,
         ..
-    } = &definition.representation
-    else {
-        unreachable!()
-    };
+    } = declared;
     let field_types: Vec<_> = definition_fields
         .iter()
         .map(|field| field.ty.clone())

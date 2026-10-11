@@ -86,6 +86,8 @@ Module
       global_assign comparisons
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.receiver: Int
@@ -151,6 +153,8 @@ Module
       global_assign trace
         Type Int
         Local $inline.3.value
+      Type Unit
+      UnitLiteral
       goto bb3
     bb5 inline.cont.5
       val $dependency.receiver: Int
@@ -199,6 +203,8 @@ Module
       global_assign trace
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.receiver: Int
@@ -247,6 +253,8 @@ Module
       global_assign trace
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.receiver: Int
@@ -336,6 +344,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       goto bb16
     bb9 try.catch.9
@@ -540,6 +550,8 @@ Module
       global_assign trace
         Type Int
         Local $inline.25.value
+      Type Unit
+      UnitLiteral
       goto bb25
     bb27 inline.cont.27
       val $inline.23.$dependency.receiver: Int
@@ -586,6 +598,8 @@ Module
       global_assign trace
         Type Int
         Local $inline.29.value
+      Type Unit
+      UnitLiteral
       goto bb29
     bb31 inline.cont.31
       val $inline.21.$dependency.receiver: Int
@@ -658,6 +672,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn8() -> Unit
     bb0 entry
       call @fn10 direct
@@ -675,6 +691,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun referenceOperations @fn9() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -902,6 +920,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       assign $inline.1.result
         Type Int
@@ -1209,6 +1229,8 @@ Module
         Local $inline.3.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb3
     bb5 inline.cont.5
       val equal: Payload
@@ -1236,6 +1258,8 @@ Module
         Local $inline.5.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb5
     bb7 inline.cont.7
       val first: Payload
@@ -1263,6 +1287,8 @@ Module
         Local $inline.7.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb7
   fun integerOperations @fn10() -> Unit
     bb0 entry
@@ -2046,6 +2072,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$dependency.receiver: AtomicInt
         Type AtomicInt
@@ -2752,6 +2780,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun booleanOperations @fn12() -> Unit
     bb0 entry
       val $argument.0: Boolean
@@ -3092,6 +3122,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$trace @fn13() -> Int <no-gc>
     bb0 entry
       return
@@ -3103,6 +3135,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn15() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -3117,6 +3151,8 @@ Module
           Type Int
           IntegerLiteral Int value=4 bits=0x00000004
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn16() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -3141,6 +3177,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -3226,6 +3264,8 @@ Module
         AtomicNew AtomicInt
           Type Int
           IntegerLiteral Int value=4 bits=0x00000004
+      Type Unit
+      UnitLiteral
       goto bb20
   fun $get$shared @fn17() -> AtomicInt
     bb0 entry
@@ -3244,6 +3284,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn20(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -3268,6 +3310,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun observed @fn21(cell: AtomicRef<Payload>, expected: Payload, value: Payload) -> Payload
     bb0 entry
       val $dependency.receiver: AtomicRef<Payload>
@@ -3403,6 +3447,8 @@ Module
         Type Int
         Local key
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Payload> @fn32(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -3425,6 +3471,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -3438,6 +3486,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -3449,6 +3499,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

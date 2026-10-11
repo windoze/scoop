@@ -189,6 +189,8 @@ Module
         Type Boolean
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c1 @fn16(this: Holder) -> Unit
     bb0 entry
       call $argument.0: Boolean = external0 direct
@@ -202,6 +204,8 @@ Module
         Local $parameter.value
       call $call.1: Boolean = external0 direct
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Value.$c0 @fn17(value: Boolean) -> Value <no-gc>
     bb0 entry
       return
@@ -244,6 +248,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Holder>[0]
         Type Continuation<Holder>
@@ -257,6 +263,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Holder>[1]
         Type Continuation<Holder>
@@ -268,6 +276,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -325,6 +335,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -338,6 +350,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -349,6 +363,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

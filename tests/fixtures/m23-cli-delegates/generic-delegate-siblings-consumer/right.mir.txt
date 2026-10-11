@@ -397,6 +397,8 @@ Module
         Type Slot<Int, Boolean>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:shared$ensure @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -421,6 +423,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -515,6 +519,8 @@ Module
         Type Slot<Boolean, Boolean>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:shared$ensure @fn15() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -539,6 +545,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -633,6 +641,8 @@ Module
         Type Slot<Int, Int>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:shared$ensure @fn18() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -657,6 +667,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -738,6 +750,8 @@ Module
         Type Slot<Int, Boolean>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:broken$ensure @fn20() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -762,6 +776,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -843,6 +859,8 @@ Module
         Type Slot<Boolean, Boolean>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:broken$ensure @fn22() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -867,6 +885,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1354,6 +1374,8 @@ Module
         Type Boolean
         Local right
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn32(this: Receiver<Boolean, Boolean>, left: Boolean, right: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1367,6 +1389,8 @@ Module
         Type Boolean
         Local right
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn33(this: Receiver<Int, Int>, left: Int, right: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1380,9 +1404,13 @@ Module
         Type Int
         Local right
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c1 @fn34(this: Starter<Int, Boolean>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c2 @fn35(this: Slot<Int, Boolean>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1391,9 +1419,13 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c1 @fn36(this: Starter<Boolean, Boolean>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c2 @fn37(this: Slot<Boolean, Boolean>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1402,9 +1434,13 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c1 @fn38(this: Starter<Int, Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c2 @fn39(this: Slot<Int, Int>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1413,6 +1449,8 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- $extension.shared
   instance mi1 function=@fn6 <- $extension.shared
   instance mi2 function=@fn7 <- $extension.shared

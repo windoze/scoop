@@ -183,6 +183,8 @@ Module
         Local $new.4
     bb6 if.merge.6
       return
+        Type Unit
+        UnitLiteral
   fun probe @fn1(child: Child) -> Int
     bb0 entry
       val $dependency.argument.0: Child

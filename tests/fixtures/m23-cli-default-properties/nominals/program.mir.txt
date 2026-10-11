@@ -71,6 +71,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $argument.0: Boolean = external1 direct
@@ -409,6 +411,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun item @fn2(this: Reader<Int>) -> Int
     bb0 entry
       return
@@ -527,6 +531,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packet.$c1 @fn16(stored: String) -> Packet<String> <no-gc>
     bb0 entry
       return

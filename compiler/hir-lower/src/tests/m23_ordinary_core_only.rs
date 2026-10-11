@@ -276,14 +276,18 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
                     scoop_mir::CallEffect::Unit(call)
                     | scoop_mir::CallEffect::Value { call, .. } => call,
                 };
-                matches!(call.target.callee, scoop_mir::Callee::External(_)).then_some(call)
+                matches!(
+                    call.target,
+                    scoop_mir::CallTarget::Direct(scoop_mir::Callee::External(_))
+                )
+                .then_some(call)
             })
             .collect::<Vec<_>>();
     assert_eq!(calls.len(), 2);
     assert!(
         calls
             .iter()
-            .all(|call| matches!(call.target.kind, scoop_mir::CallKind::Direct))
+            .all(|call| matches!(call.target, scoop_mir::CallTarget::Direct(_)))
     );
 }
 

@@ -134,7 +134,6 @@ impl FunctionKind {
     }
 }
 
-pub type HirIntegerOperation = IntegerOperation;
 pub type HirIntegerConversion = IntegerConversion;
 
 #[derive(Debug, Clone)]

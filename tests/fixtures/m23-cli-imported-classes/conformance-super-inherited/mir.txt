@@ -118,6 +118,8 @@ Module
   fun init.LocalChoice.$c0 @fn10(this: LocalChoice) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<LocalParent> @fn11(task: SuspendTask<LocalParent>, completion: Continuation<LocalParent>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -140,6 +142,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<LocalParent>[0]
         Type Continuation<LocalParent>
@@ -153,6 +157,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<LocalParent>[1]
         Type Continuation<LocalParent>
@@ -164,6 +170,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -221,6 +229,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<LocalChoice>[0]
         Type Continuation<LocalChoice>
@@ -234,6 +244,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<LocalChoice>[1]
         Type Continuation<LocalChoice>
@@ -245,6 +257,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

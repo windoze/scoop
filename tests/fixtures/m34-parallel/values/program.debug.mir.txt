@@ -132,6 +132,8 @@ Module
     bb0 entry
       call extern1 @m34_parallel_begin direct
       return
+        Type Unit
+        UnitLiteral
   fun markedOnce @fn3() -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @m34_parallel_check direct
@@ -173,6 +175,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun exercise @fn5(count: Long) -> Unit
     bb0 entry
       val $argument.0: Long
@@ -1501,6 +1505,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb67 if.then.67
       val $uw.34: Node
         Type Node
@@ -1603,6 +1609,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn7(this: MutableArray<Node>) -> Iterator<Node>
     bb0 entry
       val $dependency.local.1: List<Node>
@@ -2431,6 +2439,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn26(this: ListIterator<Node>) -> Option<Node>
     bb0 entry
       branch bb1 bb2
@@ -2791,6 +2801,8 @@ Module
         Type Option<Node>
         Local shared
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn49(this: ListIterator<Node>, source: List<Node>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2809,6 +2821,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn50(this: ListIterator<Edge>, source: List<Edge>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2827,6 +2841,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn51(this: ListIterator<ULong>, source: List<ULong>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2845,6 +2861,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Edge.$c0 @fn52(value: Value, nested: (Option<Node>, Value)) -> Edge <no-gc>
     bb0 entry
       return
@@ -2883,6 +2901,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn43 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -2896,6 +2916,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn44 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -2907,6 +2929,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2964,6 +2988,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn35 interface Continuation<Edge>[0]
         Type Continuation<Edge>
@@ -2977,6 +3003,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn36 interface Continuation<Edge>[1]
         Type Continuation<Edge>
@@ -2988,6 +3016,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3045,6 +3075,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn39 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -3058,6 +3090,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn40 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -3069,6 +3103,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

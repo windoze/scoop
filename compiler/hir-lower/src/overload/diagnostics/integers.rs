@@ -106,9 +106,9 @@ fn collect_statement_integer_literal_kinds(
             | hir::StatementKind::Assign {
                 value: expression, ..
             } => collect_integer_literal_kinds(lowerer, expression, kinds),
-            hir::StatementKind::Return {
-                value: Some(expression),
-            } => collect_integer_literal_kinds(lowerer, expression, kinds),
+            hir::StatementKind::Return { value: expression } => {
+                collect_integer_literal_kinds(lowerer, expression, kinds)
+            }
             hir::StatementKind::If {
                 cond,
                 then_body,
@@ -133,7 +133,6 @@ fn collect_statement_integer_literal_kinds(
             hir::StatementKind::InitializationEnsure(_)
             | hir::StatementKind::GenericDelegateEnsure(_)
             | hir::StatementKind::LocalFunction(_)
-            | hir::StatementKind::Return { value: None }
             | hir::StatementKind::When(_)
             | hir::StatementKind::Try(_)
             | hir::StatementKind::Throw(_)
@@ -153,7 +152,7 @@ fn collect_integer_literal_kinds(
         _ => None,
     };
     match &expression.kind {
-        hir::ExprKind::IntegerLiteral(_) | hir::ExprKind::IntegerOperation { .. } => {
+        hir::ExprKind::IntegerLiteral(_) | hir::ExprKind::IntegerOperation(_) => {
             if let Some(kind) = integer_kind() {
                 kinds.push(kind);
             }

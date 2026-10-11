@@ -188,7 +188,7 @@ fn generic_structs_instantiate_per_argument_list() {
         })
         .expect("PinnedPtr<UInt>");
     assert_eq!(
-        pinned_uint.declared_fields()[0].ty,
+        declared_struct(pinned_uint).fields[0].ty,
         mir::Type::Integer(mir::IntegerKind::UNSIGNED_64)
     );
     assert!(pinned_uint.gc_free);
@@ -198,18 +198,18 @@ fn generic_structs_instantiate_per_argument_list() {
         .expect("PinnedPtr<String>");
     assert!(pinned_string.gc_free);
     assert_eq!(
-        pinned_uint.declared_fields()[0].identity,
-        pinned_string.declared_fields()[0].identity,
+        declared_struct(pinned_uint).fields[0].identity,
+        declared_struct(pinned_string).fields[0].identity,
         "specializations of one source struct retain one source field identity"
     );
     let box2 = defs("Box2");
     assert_eq!(box2.len(), 1);
     assert_eq!(box2[0].type_arguments, [mir::Type::String]);
     // Field substitution: `Box2<String>`'s `x` is `String`.
-    assert_eq!(box2[0].declared_fields()[0].ty, mir::Type::String);
+    assert_eq!(declared_struct(box2[0]).fields[0].ty, mir::Type::String);
     assert_ne!(
-        box2[0].declared_fields()[0].identity,
-        pinned_uint.declared_fields()[0].identity,
+        declared_struct(box2[0]).fields[0].identity,
+        declared_struct(pinned_uint).fields[0].identity,
         "fields owned by different source structs remain distinct"
     );
     assert!(!box2[0].gc_free);
@@ -247,7 +247,8 @@ fn generic_structs_instantiate_per_argument_list() {
     assert_eq!(instance_of(lc).type_arguments, [mir::Type::String]);
     assert_eq!(instance_of(ld).name, "Box2");
     assert_eq!(instance_of(ld).type_arguments, [mir::Type::String]);
-    let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
+    let mir::CallTarget::Direct(mir::Callee::User(first_constructor)) = first_constructor.target
+    else {
         panic!("a struct constructor is a direct user function")
     };
     let constructor_source = module
@@ -291,10 +292,10 @@ fn generic_structs_instantiate_per_argument_list() {
     );
     let mir::Terminator::Return {
         value:
-            Some(mir::Expr {
+            mir::Expr {
                 kind: mir::ExprKind::StructInit { struct_id, .. },
                 ..
-            }),
+            },
     } = &module.functions[first_constructor].body.blocks
         [module.functions[first_constructor].body.entry]
         .terminator
@@ -502,7 +503,7 @@ fn print_overloads_are_ordinary_calls() {
         .iter()
         .map(|statement| {
             let (call, _) = statement_call(statement);
-            let mir::Callee::User(id) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::User(id)) = call.target else {
                 panic!("print/println calls must be ordinary user calls")
             };
             id

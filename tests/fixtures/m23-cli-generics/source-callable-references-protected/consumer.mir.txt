@@ -145,6 +145,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Protected.$c0 @fn8(this: Protected<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -153,6 +155,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn9($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

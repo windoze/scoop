@@ -132,12 +132,7 @@ fn validate_body(
                 | StatementKind::Call(CallEffect::Value { call, .. }) => Some(call),
                 _ => None,
             };
-            if call.is_some_and(|call| !call.pending.is_root()) {
-                return Err(MirValidationError {
-                    location: release::block_location(owner, block),
-                    kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
-                });
-            }
+
             if let Some(call) = call
                 && let Err(kind) = validate_imported_call(module, call)
             {
@@ -207,10 +202,10 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                     actual: expr.ty.clone(),
                 });
             }
-            let StructRepresentation::Declared {
+            let StructRepresentation::Declared(DeclaredStruct {
                 fields: expected_fields,
                 ..
-            } = &module.structs[*struct_id].representation
+            }) = &module.structs[*struct_id].representation
             else {
                 return Err(MirValidationErrorKind::RawStructConstructRequiresDeclared {
                     struct_id: *struct_id,

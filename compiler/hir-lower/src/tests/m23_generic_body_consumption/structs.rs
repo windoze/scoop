@@ -45,8 +45,9 @@ fn source_and_dependency_struct_instances_share_fields_gc_and_interfaces() {
                             module.types[instance.canonical_type].gc_free,
                             instance.gc_free
                         );
-                        let hir::concrete::StructRepresentation::Declared { fields, .. } =
-                            &instance.representation
+                        let hir::concrete::StructRepresentation::Declared(
+                            hir::concrete::DeclaredStruct { fields, .. },
+                        ) = &instance.representation
                         else {
                             panic!("{name} retains its source fields");
                         };
@@ -68,11 +69,13 @@ fn source_and_dependency_struct_instances_share_fields_gc_and_interfaces() {
                         usize::from(name == "NativePair" || case == "combined")
                     );
                     for (_, instance) in instances {
-                        let hir::concrete::StructRepresentation::Declared {
-                            attributes,
-                            c_abi,
-                            fields,
-                        } = &instance.representation
+                        let hir::concrete::StructRepresentation::Declared(
+                            hir::concrete::DeclaredStruct {
+                                attributes,
+                                c_abi,
+                                fields,
+                            },
+                        ) = &instance.representation
                         else {
                             panic!("{name} retains its C layout");
                         };

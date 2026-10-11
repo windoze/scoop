@@ -1,0 +1,74 @@
+class Token(val text: String)
+
+context(token: Token)
+fun current(): String = token.text
+
+class Gate: SuspendRegistration<Unit> {
+    var pending: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) {
+        pending = Some(continuation)
+    }
+    fun complete() {
+        val continuation = pending!!
+        pending = None
+        gcCollect()
+        continuation.resume(Unit)
+    }
+    fun fail() {
+        val continuation = pending!!
+        pending = None
+        gcCollect()
+        continuation.resumeWithException(IllegalStateException())
+    }
+}
+
+class Done: Continuation<Token> {
+    public override fun resume(value: Token) {
+        println(value.text)
+        println(current())
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        println(exception is IllegalStateException)
+        println(current())
+    }
+}
+
+suspend fun <T> keep(gate: Gate, value: T): T {
+    try {
+        return value
+    } finally {
+        context(Token("cleanup")) {
+            try {
+                suspendCoroutine(gate)
+            } finally {
+                println(current())
+                suspendCoroutine(gate)
+            }
+        }
+        println(current())
+    }
+}
+
+fun run(failure: Boolean) {
+    val gate = Gate()
+    context(Token("root")) {
+        startCoroutine(suspend { keep(gate, Token("payload")) }, Done())
+        println("first")
+        gcCollect()
+        context(Token("resumer")) {
+            if (failure) { gate.fail() } else { gate.complete() }
+            println(current())
+        }
+        println("second")
+        context(Token("resumer")) {
+            gate.complete()
+            println(current())
+        }
+        println(current())
+    }
+}
+
+fun main() {
+    run(false)
+    run(true)
+}

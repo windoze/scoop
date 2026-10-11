@@ -53,9 +53,9 @@ pub(super) fn actual(
             })
             .collect();
         assert_eq!(calls.len(), 1);
-        assert!(matches!(calls[0].target.kind, scoop_mir::CallKind::Direct));
+        assert!(matches!(calls[0].target, scoop_mir::CallTarget::Direct(_)));
         assert!(
-            matches!(calls[0].target.callee, scoop_mir::Callee::User(actual) if scoop_mir::InterfaceAdjustTarget::Local(actual) == adjust.target())
+            matches!(calls[0].target, scoop_mir::CallTarget::Direct(scoop_mir::Callee::User(actual)) if scoop_mir::InterfaceAdjustTarget::Local(actual) == adjust.target())
         );
         assert_eq!(
             binding.semantic_signature(),

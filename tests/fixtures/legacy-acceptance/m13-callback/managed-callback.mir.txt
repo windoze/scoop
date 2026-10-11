@@ -164,6 +164,8 @@ Module
     bb0 entry
       call extern4 @m13_callback_barrier direct
       return
+        Type Unit
+        UnitLiteral
   fun attachedThreadCount @fn6() -> Int
     bb0 entry
       call $call.1: Int = extern5 @m13_attached_thread_count direct
@@ -765,6 +767,8 @@ Module
         Type ForeignCallback<(Ptr<Unit>) -> Unit>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn9(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -832,6 +836,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -856,6 +862,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn13(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -880,6 +888,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun isNone @fn14(value: Option<Throwable>) -> Boolean
     bb0 entry
       val $when.1: Option<Throwable>
@@ -1100,6 +1110,8 @@ Module
     bb0 entry
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn18(this: Array<ManagedPayload>) -> Iterator<ManagedPayload>
     bb0 entry
       val $dependency.local.1: List<ManagedPayload>
@@ -1342,6 +1354,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn29($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1648,6 +1662,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn24 interface Continuation<ManagedPayload>[0]
         Type Continuation<ManagedPayload>
@@ -1661,6 +1677,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn25 interface Continuation<ManagedPayload>[1]
         Type Continuation<ManagedPayload>
@@ -1672,6 +1690,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

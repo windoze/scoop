@@ -245,6 +245,8 @@ Module
         Type Namespace
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -269,6 +271,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -721,6 +725,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.11 @fn11($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -871,6 +877,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.1 @fn18($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -1060,6 +1068,8 @@ Module
   fun init.Base.$c0 @fn37(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn38(this: Child) -> Unit
     bb0 entry
       call @fn37 direct
@@ -1068,12 +1078,18 @@ Module
           Type Child
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.View.$c2 @fn39(this: View) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Worker.$c3 @fn40(this: Worker) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Factory.$c4 @fn41(this: Factory, action: () -> Int) -> Unit
     bb0 entry
       field_set 0
@@ -1082,12 +1098,18 @@ Module
         Type () -> Int
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Callable.$c5 @fn42(this: Callable) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Namespace.$c6 @fn43(this: Namespace) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn44(this: ListIterator<(() -> Int) -> Int>, source: List<(() -> Int) -> Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1106,6 +1128,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Built.$c0 @fn45(value: Int, action: () -> Int) -> Built <no-gc>
     bb0 entry
       return
@@ -1137,6 +1161,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Worker>[0]
         Type Continuation<Worker>
@@ -1150,6 +1176,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Worker>[1]
         Type Continuation<Worker>
@@ -1161,6 +1189,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

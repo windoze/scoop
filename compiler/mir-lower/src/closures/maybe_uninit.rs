@@ -15,23 +15,3 @@ pub(super) fn reference_intrinsic(
         _ => None,
     }
 }
-
-pub(super) fn reference_value(
-    kind: hir::MaybeUninitIntrinsic,
-    mut args: Vec<smir::Expr>,
-    result: mir::Type,
-) -> smir::Expr {
-    let operation = match kind {
-        hir::MaybeUninitIntrinsic::Uninit => mir::MaybeUninitOperation::Uninit,
-        hir::MaybeUninitIntrinsic::Initialized => mir::MaybeUninitOperation::Initialized(Box::new(
-            args.pop()
-                .expect("initialized has one checked value after its receiver"),
-        )),
-        hir::MaybeUninitIntrinsic::AssumeInit => mir::MaybeUninitOperation::AssumeInit(Box::new(
-            args.into_iter()
-                .next()
-                .expect("assumeInit has its checked receiver"),
-        )),
-    };
-    crate::body::maybe_uninit_value(result, operation)
-}

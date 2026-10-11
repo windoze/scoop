@@ -210,6 +210,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun mixed @fn2(value: Mixed) -> Mixed
     bb0 entry
       goto bb8
@@ -2600,6 +2602,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb68 try.body.68 unwind bb61
       call $call.4: Mixed = <closure:function_type0> closure[function_type0]
         Type (Mixed) -> Mixed
@@ -2947,6 +2951,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn20(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Pair>
@@ -3012,6 +3018,8 @@ Module
         Type Long
         Local delta
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn32(first: Long, second: Long) -> Pair <no-gc>
     bb0 entry
       return
@@ -3101,6 +3109,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Pair>[0]
         Type Continuation<Pair>
@@ -3114,6 +3124,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Pair>[1]
         Type Continuation<Pair>
@@ -3125,6 +3137,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3182,6 +3196,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<Mixed>[0]
         Type Continuation<Mixed>
@@ -3195,6 +3211,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<Mixed>[1]
         Type Continuation<Mixed>
@@ -3206,6 +3224,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

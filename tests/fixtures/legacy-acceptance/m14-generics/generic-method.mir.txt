@@ -194,6 +194,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Box.combine @fn2(this: Box<String>, other: Shown) -> Int
     bb0 entry
       val $receiver: Shown
@@ -229,6 +231,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Box.choose @fn4(this: Box<String>, other: String) -> String
     bb0 entry
       return
@@ -258,6 +262,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Box.combine @fn6(this: Box<Int>, other: Shown) -> Int
     bb0 entry
       val $receiver: Shown
@@ -324,6 +330,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn18(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -332,6 +340,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn19(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -340,6 +350,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Shown.$c0 @fn20(value: Int) -> Shown <no-gc>
     bb0 entry
       return
@@ -369,6 +381,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Show>[0]
         Type Continuation<Show>
@@ -382,6 +396,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Show>[1]
         Type Continuation<Show>
@@ -393,6 +409,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -450,6 +468,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Shown>[0]
         Type Continuation<Shown>
@@ -463,6 +483,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Shown>[1]
         Type Continuation<Shown>
@@ -474,6 +496,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

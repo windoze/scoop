@@ -1,6 +1,6 @@
 use crate::{
     DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultPlaceV1,
+    DefaultExpressionV1, DefaultIntegerExpressionV1, DefaultPlaceV1,
 };
 
 use super::super::{
@@ -375,7 +375,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))
             }
-            DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
+            DefaultExpressionKindV1::IntegerOperation(arguments) => {
                 self.push_child(pending, BodyNode::IntegerArguments(arguments))
             }
             DefaultExpressionKindV1::IntegerConversion { operand, .. }
@@ -437,14 +437,14 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
 
     pub(super) fn process_integer_arguments(
         &mut self,
-        arguments: &'body DefaultIntegerArgumentsV1,
+        arguments: &'body DefaultIntegerExpressionV1,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match arguments {
-            DefaultIntegerArgumentsV1::Unary(operand) => {
+            DefaultIntegerExpressionV1::Unary { operand, .. } => {
                 self.push_child(pending, BodyNode::Expression(operand))
             }
-            DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+            DefaultIntegerExpressionV1::Binary { lhs, rhs, .. } => {
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))
             }

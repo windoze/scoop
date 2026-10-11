@@ -1,6 +1,6 @@
 use crate::{
     DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultIntegerArgumentsV1,
+    DefaultExpressionV1, DefaultIntegerExpressionV1,
 };
 
 use super::{BodyNode, BodyWalkMode, Validator, WorkItem};
@@ -362,7 +362,7 @@ where
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))
             }
-            DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
+            DefaultExpressionKindV1::IntegerOperation(arguments) => {
                 self.push_child(pending, BodyNode::IntegerArguments(arguments))
             }
             DefaultExpressionKindV1::IntegerConversion { operand, .. }
@@ -424,14 +424,14 @@ where
 
     pub(super) fn process_integer_arguments<'body>(
         &mut self,
-        arguments: &'body DefaultIntegerArgumentsV1,
+        arguments: &'body DefaultIntegerExpressionV1,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match arguments {
-            DefaultIntegerArgumentsV1::Unary(operand) => {
+            DefaultIntegerExpressionV1::Unary { operand, .. } => {
                 self.push_child(pending, BodyNode::Expression(operand))
             }
-            DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+            DefaultIntegerExpressionV1::Binary { lhs, rhs, .. } => {
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))
             }

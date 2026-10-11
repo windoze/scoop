@@ -113,5 +113,7 @@ Module
         Local $new.6
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   output executable @fn0

@@ -108,6 +108,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun nativeApply @fn7(arg0: Int, arg1: FunPtr<(Int) -> Int>) -> Int
     bb0 entry
       call $call.1: Int = extern7 @native_apply direct
@@ -788,6 +790,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn16(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -812,6 +816,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn17(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -836,6 +842,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn18(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -899,6 +907,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for transform @fn27($result: Ptr<NativePair>, $arg0: Ptr<NativePair>) -> Unit <no-gc>
     bb0 entry
       call $value: NativePair = @fn12 direct
@@ -913,6 +923,8 @@ Module
         Type NativePair
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for transform @fn28($result: Ptr<NativeEnvelope>, $arg0: Ptr<NativeEnvelope>) -> Unit <no-gc>
     bb0 entry
       call $value: NativeEnvelope = @fn13 direct
@@ -927,6 +939,8 @@ Module
         Type NativeEnvelope
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.(Any) -> Any @fn29($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

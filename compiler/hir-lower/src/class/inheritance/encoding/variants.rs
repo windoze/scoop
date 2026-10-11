@@ -3,6 +3,7 @@ use super::*;
 impl Lowerer {
     pub(super) fn encode_enum(
         &mut self,
+        application: hir::EnumApplicationId,
         context: CodingContext,
         value: hir::Expr,
         encoder: hir::Expr,
@@ -12,7 +13,7 @@ impl Lowerer {
         let container = self.encoding_container(encoder, true, span, sink)?;
         let mut arms = Vec::new();
         let mut names = std::collections::HashSet::new();
-        for variant in self.enum_variants(context.target) {
+        for variant in self.enum_variants(application) {
             let (wire, fields) = self.encoding_variant_names(&variant);
             self.check_encoding_wire_name(&wire, "variant", span, &mut names)?;
             let mut body = Vec::new();
@@ -52,13 +53,11 @@ impl Lowerer {
             });
         }
         sink.push(hir::Statement {
-            kind: hir::StatementKind::When(hir::When {
-                subject: Some(value),
+            kind: hir::StatementKind::When(hir::When::Subject {
+                subject: value,
                 arms,
                 fallback: hir::WhenFallback::Impossible(
-                    hir::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty: context.target,
-                    },
+                    hir::ExhaustivenessProof::EnumPatternMatrix,
                 ),
             }),
             span,
@@ -70,9 +69,7 @@ impl Lowerer {
         &self,
         variant: &crate::types::EnumVariant,
     ) -> (String, Vec<Option<String>>) {
-        let application = self
-            .nominal_application(variant.application.owner)
-            .expect("a variant belongs to its enum application");
+        let application = self.enum_applications[variant.application.owner].clone();
         let index = self.enum_variant_index(variant.application);
         if let Some(enumeration) = self.source_enum_id(application.template) {
             let source = hir::EnumVariantRef::checked(&self.enums, enumeration, index)

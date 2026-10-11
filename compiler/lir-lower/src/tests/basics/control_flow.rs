@@ -59,7 +59,9 @@ fn if_else_becomes_basic_blocks() {
         &mut blocks,
         merge,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = b.user_fn_body(
@@ -187,7 +189,9 @@ fn while_becomes_basic_blocks() {
         &mut blocks,
         exit,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = b.user_fn_body(
@@ -322,7 +326,9 @@ fn and_short_circuits_through_blocks() {
         &mut blocks,
         merge,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = b.user_fn_body(
@@ -453,7 +459,9 @@ fn or_short_circuits_through_blocks() {
         &mut blocks,
         merge,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = b.user_fn_body(
@@ -602,7 +610,9 @@ fn explicit_loop_header_poll_survives_coroutine_like_multi_entry_cfg_and_pruning
         &mut blocks,
         exit,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = b.user_fn_body(
@@ -681,7 +691,7 @@ fn loop_header_poll_carries_live_managed_root() {
         exit,
         Vec::new(),
         mir::Terminator::Return {
-            value: Some(local_expr(root, mir::Type::String)),
+            value: local_expr(root, mir::Type::String),
         },
         None,
     );

@@ -349,13 +349,13 @@ Module
         Type ReadOnlyProperty<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn2(this: PropertyItem<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type PropertyItem<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn3(this: PropertyItem<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -364,6 +364,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun read @fn4(this: ReadOnlyProperty<Large>) -> Large
     bb0 entry
       call $call.1: Large = @fn14 interface ReadOnlyProperty<Large>[0]
@@ -387,12 +389,16 @@ Module
         Type Large
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionValueOnly @fn7(this: Box<Unit>) -> Unit
     bb0 entry
       call @fn15 direct
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn8(this: PropertyItem<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn3 direct
@@ -401,12 +407,16 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn9(this: PropertyItem<Unit>) -> Unit
     bb0 entry
       call @fn2 direct
         Type PropertyItem<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn10(this: PropertyItem<Large>, next: Large) -> Unit
     bb0 entry
       call @fn6 direct
@@ -415,6 +425,8 @@ Module
         Type Large
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionState @fn11(this: PropertyItem<Large>) -> Large
     bb0 entry
       call $call.1: Large = @fn5 direct
@@ -445,11 +457,9 @@ Module
       trap "call to abstract method `ReadOnlyProperty.$get$value`"
   fun value @fn15(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn16(this: Box<Large>) -> Large
     bb0 entry
       return
@@ -494,6 +504,8 @@ Module
           Type PropertyItem<Unit>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun receiver<PropertyItem> MutableProperty.read @fn27(this: PropertyItem<Large>) -> Large
     bb0 entry
       call $call.1: Large = @fn4 direct
@@ -512,6 +524,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn29(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -520,6 +534,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.PropertyItem.$c1 @fn30(this: PropertyItem<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -528,6 +544,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.PropertyItem.$c1 @fn31(this: PropertyItem<Large>, value: Large) -> Unit
     bb0 entry
       field_set 0
@@ -536,6 +554,8 @@ Module
         Type Large
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn32(this: Box<Large>, value: Large) -> Unit
     bb0 entry
       field_set 0
@@ -544,6 +564,8 @@ Module
         Type Large
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Large.$c0 @fn33(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
@@ -577,6 +599,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -590,6 +614,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -601,6 +627,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -658,6 +686,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<Large>[0]
         Type Continuation<Large>
@@ -671,6 +701,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<Large>[1]
         Type Continuation<Large>
@@ -682,6 +714,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

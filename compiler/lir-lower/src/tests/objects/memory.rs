@@ -80,7 +80,9 @@ fn class_allocation_and_initializer_store_fields() {
                     value: local_expr(s, mir::Type::String),
                 }),
             ],
-            mir::Terminator::Return { value: None },
+            mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
         ),
     );
     let mut locals = Arena::new();
@@ -96,16 +98,12 @@ fn class_allocation_and_initializer_store_fields() {
                 ),
             ),
             call_stmt(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(ctor),
-                },
+                target: mir::CallTarget::Direct(mir::Callee::User(ctor)),
                 args: vec![
                     local_expr(p, mir::Type::Class(point)),
                     int_expr(1),
                     string_expr(str_x),
                 ],
-                pending: mir::CoroutinePendingContext::Root,
             }),
         ],
     );

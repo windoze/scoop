@@ -912,11 +912,9 @@ Module
       trap "call to abstract method `Readable.get`"
   fun get @fn12(this: Wrapper<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Wrapper<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Readable.get @fn13(this: Readable<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Readable.get`"
@@ -962,6 +960,8 @@ Module
         Type Nested
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Mixed.$c1 @fn25(value: Local<Wrapper<Phantom<Mixed>>>) -> Mixed <no-gc>
     bb0 entry
       return
@@ -1066,6 +1066,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<Mixed>[0]
         Type Continuation<Mixed>
@@ -1079,6 +1081,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<Mixed>[1]
         Type Continuation<Mixed>
@@ -1090,6 +1094,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1147,6 +1153,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn20 interface Continuation<Nested>[0]
         Type Continuation<Nested>
@@ -1160,6 +1168,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn21 interface Continuation<Nested>[1]
         Type Continuation<Nested>
@@ -1171,6 +1181,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1224,6 +1236,8 @@ Module
           Type box<Wrapper<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Wrapper<Int>> Readable.get() @fn41(this: box<Wrapper<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct

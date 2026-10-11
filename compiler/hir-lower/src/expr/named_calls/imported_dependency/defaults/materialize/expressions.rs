@@ -366,20 +366,10 @@ impl Lowerer {
                     fields: self.materialize_imported_default_expressions(fields, context)?,
                 }
             }
-            Kind::VariantConstruct { variant, arguments } => {
-                let owner = self
-                    .imported_default_type_with_bindings(variant.owner_type(), context.bindings)
-                    .map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(error.to_string())
-                    })?;
-                hir::ExprKind::VariantConstruct {
-                    variant: hir::EnumVariantApplication {
-                        owner,
-                        variant: variant.declaration(),
-                    },
-                    args: self.materialize_imported_default_expressions(arguments, context)?,
-                }
-            }
+            Kind::VariantConstruct { variant, arguments } => hir::ExprKind::VariantConstruct {
+                variant: self.materialize_imported_variant(variant, context)?,
+                args: self.materialize_imported_default_expressions(arguments, context)?,
+            },
             Kind::Local(local) => {
                 let mut value = context.locals.get(local).cloned().ok_or_else(|| {
                     ImportedDefaultMaterializationError::UnknownLocal(local.clone())
@@ -465,10 +455,7 @@ impl Lowerer {
             }
             Kind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {
                 operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
-                variant: hir::EnumVariantApplication {
-                    owner: self.materialize_imported_default_type(variant.owner_type(), context)?,
-                    variant: variant.declaration(),
-                },
+                variant: self.materialize_imported_variant(variant, context)?,
             },
             Kind::VariantPayloadProject { operand, field } => {
                 hir::ExprKind::VariantPayloadProject {
@@ -534,7 +521,7 @@ impl Lowerer {
             }
             kind @ (Kind::PrimitiveBinary { .. }
             | Kind::PrimitiveUnary { .. }
-            | Kind::IntegerOperation { .. }
+            | Kind::IntegerOperation(_)
             | Kind::IntegerConversion { .. }
             | Kind::Binary { .. }
             | Kind::Unary { .. }) => self.materialize_imported_default_operator(kind, context)?,

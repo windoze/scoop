@@ -124,6 +124,8 @@ Module
         Type Ptr<Unit>
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun roundOpaque @fn4(arg0: Ptr<Unit>) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern2 @m22_round_opaque direct
@@ -252,10 +254,14 @@ Module
     bb0 entry
       call extern18 @m22_prepare_globals direct
       return
+        Type Unit
+        UnitLiteral
   fun cleanupGlobals @fn21() -> Unit
     bb0 entry
       call extern19 @m22_cleanup_globals direct
       return
+        Type Unit
+        UnitLiteral
   fun globalsMatch @fn22(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>, arg2: Option<Ptr<Unit>>, arg3: Option<Ptr<NativeCell>>, arg4: FunPtr<(Int) -> Int>, arg5: Option<FunPtr<(Int) -> Int>>) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern20 @m22_globals_match direct
@@ -2450,6 +2456,8 @@ Module
         Type Ptr<Unit>
         Local $parameter.pointer
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn31(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -2537,6 +2545,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn35(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -2561,6 +2571,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn36(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -2633,6 +2645,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<NativeCell> @fn44(task: SuspendTask<NativeCell>, completion: Continuation<NativeCell>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2655,6 +2669,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<NativeCell>[0]
         Type Continuation<NativeCell>
@@ -2668,6 +2684,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<NativeCell>[1]
         Type Continuation<NativeCell>
@@ -2679,6 +2697,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -114,6 +114,8 @@ Module
         Type () -> String
         Local $call.7
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.0 @fn4($closure: () -> String) -> String
     bb0 entry
       return

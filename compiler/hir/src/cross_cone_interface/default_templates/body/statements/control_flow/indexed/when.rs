@@ -9,8 +9,7 @@ impl DefaultWhenV1 {
         I: TemplateLocalIndexResolver,
     {
         let subject = self
-            .subject
-            .as_ref()
+            .subject()
             .map(|subject| {
                 subject.index_locals(resolver).map_err(|error| {
                     DefaultControlFlowIndexError::Expression {
@@ -20,29 +19,29 @@ impl DefaultWhenV1 {
                 })
             })
             .transpose()?;
-        let mut arms = Vec::with_capacity(self.arms.len());
-        for (index, arm) in self.arms.iter().enumerate() {
+        let mut arms = Vec::with_capacity(self.arm_count());
+        for (index, arm) in self.arms().enumerate() {
             arms.push(arm.index_locals(resolver, index)?);
         }
         Ok(IndexedDefaultWhenV1 {
             subject,
             arms,
-            fallback: self.fallback.index_locals(resolver)?,
+            fallback: self.fallback().index_locals(resolver)?,
         })
     }
 }
 
-impl DefaultWhenArmV1 {
+impl<'a> DefaultWhenArmRefV1<'a> {
     fn index_locals<I>(
-        &self,
+        self,
         resolver: &mut I,
         arm_index: usize,
-    ) -> Result<IndexedDefaultWhenArmV1<'_>, DefaultControlFlowIndexError<I::Error>>
+    ) -> Result<IndexedDefaultWhenArmV1<'a>, DefaultControlFlowIndexError<I::Error>>
     where
         I: TemplateLocalIndexResolver,
     {
         Ok(IndexedDefaultWhenArmV1 {
-            condition: match &self.condition {
+            condition: match self.condition() {
                 DefaultWhenConditionV1::Case(pattern) => {
                     IndexedDefaultWhenConditionV1::Case(pattern.index_locals(resolver).map_err(
                         |error| DefaultControlFlowIndexError::Pattern { arm_index, error },
@@ -53,9 +52,9 @@ impl DefaultWhenArmV1 {
                 }
                 DefaultWhenConditionV1::Always => IndexedDefaultWhenConditionV1::Always,
             },
-            guard: self.guard.index_locals(resolver)?,
-            body: index_statements(&self.body, resolver, "when arm body")?,
-            definition_origin: &self.definition_origin,
+            guard: self.guard().index_locals(resolver)?,
+            body: index_statements(self.body(), resolver, "when arm body")?,
+            definition_origin: self.definition_origin(),
         })
     }
 }
@@ -97,15 +96,15 @@ impl DefaultWhenGuardV1 {
     }
 }
 
-impl DefaultWhenFallbackV1 {
+impl<'a> DefaultWhenFallbackViewV1<'a> {
     pub fn index_locals<I>(
-        &self,
+        self,
         resolver: &mut I,
-    ) -> Result<IndexedDefaultWhenFallbackV1<'_>, DefaultControlFlowIndexError<I::Error>>
+    ) -> Result<IndexedDefaultWhenFallbackV1<'a>, DefaultControlFlowIndexError<I::Error>>
     where
         I: TemplateLocalIndexResolver,
     {
-        match self.view() {
+        match self {
             DefaultWhenFallbackViewV1::Fallthrough => Ok(IndexedDefaultWhenFallbackV1::Fallthrough),
             DefaultWhenFallbackViewV1::Else(statements) => {
                 index_statements(statements, resolver, "when else")

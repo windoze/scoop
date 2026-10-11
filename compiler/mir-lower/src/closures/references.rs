@@ -1,3 +1,5 @@
+use super::primitive::PrimitiveReference;
+use super::targets::ReferenceDefinition;
 use super::*;
 
 impl Lowerer {
@@ -18,18 +20,6 @@ impl Lowerer {
                 }
                 hir::CallableReferenceTarget::Named(_)
                 | hir::CallableReferenceTarget::Local { .. } => None,
-            };
-            let target = callable
-                .filter(|_| maybe_intrinsic.is_none())
-                .map(|callee| self.lower_reference_callee(module, callee));
-            let call_kind = match &reference.target {
-                hir::CallableReferenceTarget::BoundMember { receiver, .. } => self
-                    .bound_reference_call_kind(
-                        module,
-                        receiver.ty,
-                        callable.expect("a bound member has a callable target"),
-                    ),
-                _ => mir::CallKind::Direct,
             };
             let signature = self.shell.function_types[function_type].clone();
             let types = Types {
@@ -100,21 +90,34 @@ impl Lowerer {
             .expect("LocalConcrete callable-reference fields have persistent identities");
             let capture_fields = order_closure_fields(&identity, semantic_fields);
             let definition = match (maybe_intrinsic, &reference.target) {
-                (Some(kind), _) => ClosureDefinition::MaybeUninitReference(kind),
+                (Some(kind), _) => ReferenceDefinition::MaybeUninit(kind),
                 (None, hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. }) => {
-                    ClosureDefinition::PrimitiveReference(*intrinsic)
+                    ReferenceDefinition::Primitive(PrimitiveReference::classify(*intrinsic))
                 }
-                _ => ClosureDefinition::Reference {
-                    callee: target.expect("an ordinary reference has a callable target"),
-                    kind: call_kind.clone(),
-                },
+                (None, hir::CallableReferenceTarget::Named(callee)) => {
+                    ReferenceDefinition::Direct(self.lower_reference_callee(module, *callee).into())
+                }
+                (None, hir::CallableReferenceTarget::Local { callee, .. }) => {
+                    ReferenceDefinition::Direct(
+                        self.lower_reference_callee(module, hir::CallableTarget::Local(*callee))
+                            .into(),
+                    )
+                }
+                (None, hir::CallableReferenceTarget::BoundMember { callee, .. }) => {
+                    ReferenceDefinition::Bound(self.bound_reference_target(module, *callee))
+                }
+                (None, hir::CallableReferenceTarget::BoundExtension { callee, .. }) => {
+                    ReferenceDefinition::Bound(targets::BoundReferenceTarget::Direct(
+                        self.lower_reference_callee(module, *callee).into(),
+                    ))
+                }
             };
             if let Some(class) = definitions.lookup(
                 &self.closure_classes,
                 &identity,
                 function_type,
                 &capture_fields,
-                &definition,
+                &ClosureDefinition::Reference(definition),
             ) {
                 self.index_closure_captures(class, &identity, &reference.captures);
                 self.reference_closures.insert(id, class);
@@ -132,20 +135,6 @@ impl Lowerer {
                 ty: closure_ty,
                 local: closure,
             }];
-            let mut source_args = Vec::with_capacity(signature.parameter_types.len());
-            for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
-                let local = locals.alloc(mir::Local {
-                    name: format!("arg{index}"),
-                    ty: ty.clone(),
-                    mutable: false,
-                });
-                params.push(mir::Param {
-                    name: format!("arg{index}"),
-                    ty: ty.clone(),
-                    local,
-                });
-                source_args.push(smir::Expr::local(local, ty));
-            }
             let function = self.functions.alloc(mir::Function {
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
@@ -167,7 +156,11 @@ impl Lowerer {
                 bridges: Vec::new(),
             });
             self.index_closure_captures(class, &identity, &reference.captures);
-            definitions.insert(class, identity.clone(), definition);
+            definitions.insert(
+                class,
+                identity.clone(),
+                ClosureDefinition::Reference(definition),
+            );
             if receiver.is_some() {
                 let physical = identity
                     .physical_index(mir::ClosureFieldSource::CallableReferenceReceiver)
@@ -178,13 +171,9 @@ impl Lowerer {
                 mir::ClosureEnvironment::checked(class, &self.closure_classes[class], identity)
                     .expect("callable-reference identity covers every physical field"),
             );
-            let mut args = Vec::with_capacity(
-                usize::from(receiver.is_some()) + reference.captures.len() + source_args.len(),
-            );
-            if receiver.is_some() {
-                let receiver_index = self.closure_receiver_indices[&class];
-                args.push(smir::Expr::new(
-                    self.closure_classes[class].captures[receiver_index as usize]
+            let captured = |index: u32| {
+                smir::Expr::new(
+                    self.closure_classes[class].captures[index as usize]
                         .ty
                         .clone(),
                     smir::ExprKind::ClosureCapture {
@@ -193,38 +182,41 @@ impl Lowerer {
                             mir::Type::Function(function_type),
                         )),
                         class,
-                        index: receiver_index,
+                        index,
                     },
-                ));
-            } else if matches!(
-                &reference.target,
-                hir::CallableReferenceTarget::Local { .. }
-            ) {
-                for capture in &reference.captures {
-                    let physical = self.closure_capture_indices[&(class, capture.binding)];
-                    args.push(smir::Expr::new(
-                        self.closure_classes[class].captures[physical as usize]
-                            .ty
-                            .clone(),
-                        smir::ExprKind::ClosureCapture {
-                            closure: Box::new(smir::Expr::local(
-                                closure,
-                                mir::Type::Function(function_type),
-                            )),
-                            class,
-                            index: physical,
-                        },
-                    ));
-                }
-            } else {
-                debug_assert!(reference.captures.is_empty());
-            }
-            args.extend(source_args);
+                )
+            };
+            let load_receiver = || captured(self.closure_receiver_indices[&class]);
             let materialization = *reference.identity.materialization();
-            let (call, mut statements) =
-                if let hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. } =
-                    reference.target
-                {
+            let (call, mut statements) = match definition {
+                ReferenceDefinition::Bound(target) => {
+                    let source_args =
+                        reference_arguments(&signature.parameter_types, &mut locals, &mut params);
+                    let call =
+                        target.bind(load_receiver(), source_args, signature.return_type.clone());
+                    (
+                        smir::Expr::new(signature.return_type.clone(), smir::ExprKind::Call(call)),
+                        Vec::new(),
+                    )
+                }
+                ReferenceDefinition::Direct(callee) => {
+                    let source_args =
+                        reference_arguments(&signature.parameter_types, &mut locals, &mut params);
+                    let captures = reference.captures.iter().map(|capture| {
+                        captured(self.closure_capture_indices[&(class, capture.binding)])
+                    });
+                    let call = smir::Call {
+                        target: mir::CallTarget::Direct(callee),
+                        args: captures.chain(source_args).collect(),
+                        return_ty: signature.return_type.clone(),
+                    };
+                    (
+                        smir::Expr::new(signature.return_type.clone(), smir::ExprKind::Call(call)),
+                        Vec::new(),
+                    )
+                }
+                ReferenceDefinition::Primitive(intrinsic) => {
+                    let receiver = load_receiver();
                     let mut lowerer = self.body_lowerer(
                         module,
                         function,
@@ -232,12 +224,28 @@ impl Lowerer {
                         mir::ImmortalObjectOwner::Callable(materialization),
                     );
                     lowerer.locals = locals;
-                    let call = lowerer.lower_primitive_member_values(
-                        intrinsic,
-                        args,
-                        &signature.return_type,
-                        reference.span,
-                    );
+                    let call = match intrinsic {
+                        PrimitiveReference::Unary(operation) => lowerer.unary_reference_value(
+                            operation,
+                            receiver,
+                            &signature.return_type,
+                        ),
+                        PrimitiveReference::Binary(operation) => {
+                            let rhs = reference_parameter(
+                                0,
+                                &signature.parameter_types[0],
+                                &mut lowerer.locals,
+                                &mut params,
+                            );
+                            lowerer.binary_reference_value(
+                                operation,
+                                receiver,
+                                rhs,
+                                &signature.return_type,
+                                reference.span,
+                            )
+                        }
+                    };
                     locals = lowerer.locals;
                     let statements = lowerer
                         .prelude
@@ -248,32 +256,32 @@ impl Lowerer {
                         })
                         .collect::<Vec<_>>();
                     (call, statements)
-                } else if let Some(kind) = maybe_intrinsic {
+                }
+                ReferenceDefinition::MaybeUninit(kind) => {
+                    let operation = match kind {
+                        hir::MaybeUninitIntrinsic::Uninit => mir::MaybeUninitOperation::Uninit,
+                        hir::MaybeUninitIntrinsic::Initialized => {
+                            mir::MaybeUninitOperation::Initialized(Box::new(reference_parameter(
+                                0,
+                                &signature.parameter_types[0],
+                                &mut locals,
+                                &mut params,
+                            )))
+                        }
+                        hir::MaybeUninitIntrinsic::AssumeInit => {
+                            mir::MaybeUninitOperation::AssumeInit(Box::new(load_receiver()))
+                        }
+                    };
                     (
-                        maybe_uninit::reference_value(kind, args, signature.return_type.clone()),
+                        crate::body::maybe_uninit_value(signature.return_type.clone(), operation),
                         Vec::new(),
                     )
-                } else {
-                    (
-                        smir::Expr::new(
-                            signature.return_type.clone(),
-                            smir::ExprKind::Call(smir::Call {
-                                target: mir::CallTarget {
-                                    kind: call_kind,
-                                    callee: target
-                                        .expect("an ordinary reference has a callable target"),
-                                },
-                                args,
-                                return_ty: signature.return_type.clone(),
-                            }),
-                        ),
-                        Vec::new(),
-                    )
-                };
+                }
+            };
             let statement = if signature.return_type == mir::Type::Unit {
                 smir::StatementKind::Expr(call)
             } else {
-                smir::StatementKind::Return { value: Some(call) }
+                smir::StatementKind::Return { value: call }
             };
             statements.push(smir::Statement {
                 kind: statement,
@@ -281,7 +289,9 @@ impl Lowerer {
             });
             if signature.return_type == mir::Type::Unit {
                 statements.push(smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span: reference.span,
                 });
             }
@@ -323,4 +333,36 @@ impl Lowerer {
             self.reference_closures.insert(id, class);
         }
     }
+}
+
+fn reference_parameter(
+    index: usize,
+    ty: &mir::Type,
+    locals: &mut Arena<mir::Local>,
+    params: &mut Vec<mir::Param>,
+) -> smir::Expr {
+    let name = format!("arg{index}");
+    let local = locals.alloc(mir::Local {
+        name: name.clone(),
+        ty: ty.clone(),
+        mutable: false,
+    });
+    params.push(mir::Param {
+        name,
+        ty: ty.clone(),
+        local,
+    });
+    smir::Expr::local(local, ty.clone())
+}
+
+fn reference_arguments(
+    types: &[mir::Type],
+    locals: &mut Arena<mir::Local>,
+    params: &mut Vec<mir::Param>,
+) -> Vec<smir::Expr> {
+    types
+        .iter()
+        .enumerate()
+        .map(|(index, ty)| reference_parameter(index, ty, locals, params))
+        .collect()
 }

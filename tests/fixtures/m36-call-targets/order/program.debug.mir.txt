@@ -1,0 +1,1017 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Base vtable=1 itables=0
+  class Derived vtable=1 itables=1
+  class State vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Reader
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn19 id=6489adc413e9b20ce8cf46516e23c584e98acbb2d5a18baa6d63fa6b4f7a8e94
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn9 captures=0
+    bridge function_type1 -> @fn20 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn21 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  closure cc3 $Closure$reference0 type=function_type0 invoke=@fn13 captures=1
+    bridge function_type1 -> @fn22 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  closure cc4 $Closure$reference1 type=function_type2 invoke=@fn14 captures=0
+    bridge function_type1 -> @fn23 id=1dbc4c63a5c1656bae0fb66267b62cb646a4e816aae3599b10398a252e9214bc
+  closure cc5 $Closure$dynamic_adapter$(Int) -> Any type=function_type3 invoke=@fn18 captures=1
+    bridge function_type1 -> @fn24 id=bf62327e4f57f8bdbb208cf6cfaf6dff4ddc6888451adcc954f02b1106d2cdcb
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure1 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=closure5 nominal_id=82eb6cdea007b9ac9f983945e76d5d1662935a4787ac243216b4652a888ec27b exact_id=45f8e2e2641bd74e514db69ac229823ded85314557dd5844bbcbaca377c0769f
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=closure0 nominal_id=c33969012fe2ec9e77325ac7c8e5878a8407139687e6c1b2f720f807cf660771 exact_id=5bf250fe453388c0a178bd3ba366932d63c12ea7f16c0108c014952f75c0bf05
+  generated_exact_type get6 location=closure4 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get7 location=closure2 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get9 location=closure3 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get10 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn20 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn23 id=1dbc4c63a5c1656bae0fb66267b62cb646a4e816aae3599b10398a252e9214bc
+  generated_callable gc2 function=@fn18 id=43c8b06bf2fe6ececeeb1ba3d1806fb6be3f6f77d431cd4ac215fc6d740ef584
+  generated_callable gc3 function=@fn22 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  generated_callable gc4 function=@fn19 id=6489adc413e9b20ce8cf46516e23c584e98acbb2d5a18baa6d63fa6b4f7a8e94
+  generated_callable gc5 function=@fn24 id=bf62327e4f57f8bdbb208cf6cfaf6dff4ddc6888451adcc954f02b1106d2cdcb
+  generated_callable gc6 function=@fn21 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  dynamic_adapter da0 class=cc5 target=function_type3
+  fun Base.read @fn0(this: Base, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Derived.read @fn1(this: Derived, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Derived
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun select @fn2(state: State) -> Base
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Base
+        FieldAccess 0
+          Type State
+          Local state
+  fun change @fn3(state: State) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.1
+        Type Int
+        Local $parameter.id
+      field_set 0
+        Type State
+        Local state
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.2
+        Type Int
+        Local $parameter.id
+      field_set 1
+        Type State
+        Local state
+        Type Reader
+        Retype Reader
+          Type Derived
+          Local $new.2
+      field_set 2
+        Type State
+        Local state
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      call @scoop_rt_gc_collect direct
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun accept @fn4(value: Any) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1000 bits=0x000003e8
+  fun stop @fn5() -> Nothing
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $default.local.0: String
+        Type String
+        StringConst @str3
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+  fun main @fn6() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.1
+        Type Int
+        Local $parameter.id
+      val $argument.0: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.2
+        Type Int
+        Local $parameter.id
+      val $argument.1: Reader
+        Type Reader
+        Retype Reader
+          Type Derived
+          Local $new.2
+      val $argument.2: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.base: Base
+        Type Base
+        Local $argument.0
+      val $parameter.reader: Reader
+        Type Reader
+        Local $argument.1
+      val $parameter.operation: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.2
+      assign $new.3
+        Type State
+        ClassAlloc State
+      call @fn17 direct
+        Type State
+        Local $new.3
+        Type Base
+        Local $parameter.base
+        Type Reader
+        Local $parameter.reader
+        Type (Int) -> Int
+        Local $parameter.operation
+      val state: State
+        Type State
+        Local $new.3
+      val $receiver: Base
+        Type Base
+        FieldAccess 0
+          Type State
+          Local state
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $argument.0: Int = @fn3 direct
+        Type State
+        Local $parameter.state
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 virtual[0]
+        Type Base
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.4
+        Type Int
+        Local $parameter.id
+      field_set 0
+        Type State
+        Local state
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.4
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $receiver: Base = @fn2 direct
+        Type State
+        Local $parameter.state
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $argument.0: Int = @fn3 direct
+        Type State
+        Local $parameter.state
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 virtual[0]
+        Type Base
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.5
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.5
+        Type Int
+        Local $parameter.id
+      field_set 1
+        Type State
+        Local state
+        Type Reader
+        Retype Reader
+          Type Derived
+          Local $new.5
+      val $receiver: Reader
+        Type Reader
+        FieldAccess 1
+          Type State
+          Local state
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $argument.0: Int = @fn3 direct
+        Type State
+        Local $parameter.state
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn12 interface Reader[0]
+        Type Reader
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      field_set 2
+        Type State
+        Local state
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        FieldAccess 2
+          Type State
+          Local state
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $call.6: Int = @fn3 direct
+        Type State
+        Local $parameter.state
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $callable.receiver
+        Type Int
+        Local $call.6
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.7
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.7
+        Type Int
+        Local $parameter.id
+      var base: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.7
+      val $receiver: Base
+        Type Base
+        Local base
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.8
+        Type Derived
+        ClassAlloc Derived
+      call @fn16 direct
+        Type Derived
+        Local $new.8
+        Type Int
+        Local $parameter.id
+      assign base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.8
+      call @scoop_rt_gc_collect direct
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Int
+        Type Int
+        Local $result.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 virtual[0]
+        Type Base
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Base
+        Type Base
+        Local base
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 virtual[0]
+        Type Base
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $call.9: Base = @fn2 direct
+        Type State
+        Local $parameter.state
+      val bound: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc3 $Closure$reference0
+          CaptureInit field=0
+            Type Base
+            Local $call.9
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local bound
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $call.10: Int = @fn3 direct
+        Type State
+        Local $parameter.state
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $callable.receiver
+        Type Int
+        Local $call.10
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val exact: (Any) -> Int
+        Type (Any) -> Int
+        ClosureAlloc cc4 $Closure$reference1
+      val erased: Any
+        Type Any
+        Retype Any
+          Type (Any) -> Int
+          Local exact
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Int) -> Any
+            Type Any
+            Local $cast.1
+    bb4 if.then.4
+      assign $new.11
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.11
+      throw
+        Type ClassCastException
+        Local $new.11
+    bb5 if.merge.5
+      val checked: (Int) -> Any
+        Type (Int) -> Any
+        ClosureAlloc cc5 $Closure$dynamic_adapter$(Int) -> Any
+          CaptureInit field=0
+            Type Any
+            Local $cast.1
+      val $callable.receiver: (Int) -> Any
+        Type (Int) -> Any
+        Local checked
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $call.12: Int = @fn3 direct
+        Type State
+        Local $parameter.state
+      call $cast.2: Any = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Any
+        Local $callable.receiver
+        Type Int
+        Local $call.12
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.2
+    bb6 if.then.6
+      assign $new.13
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.13
+      throw
+        Type ClassCastException
+        Local $new.13
+    bb7 if.merge.7
+      val $ub.3: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local $ub.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb15
+    bb8 try.unwind.8
+      landing_pad cleanup=false
+      goto bb9
+    bb9 try.dispatch.9
+      begin_catch
+      branch bb16 bb17
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb10 try.handler_pad.10
+      landing_pad cleanup=true
+      goto bb11
+    bb11 try.handler_cleanup.11
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb12 try.exit_pad.12
+      landing_pad cleanup=true
+      goto bb13
+    bb13 try.exit_cleanup.13
+      end_catch
+      resume
+    bb14 try.end.14
+      return
+        Type Unit
+        UnitLiteral
+    bb15 try.body.15 unwind bb8
+      val $argument.0: State
+        Type State
+        Local state
+      val $parameter.state: State
+        Type State
+        Local $argument.0
+      call $receiver: Base = @fn2 direct
+        Type State
+        Local $parameter.state
+      call $call.14: Nothing = @fn5 direct
+      unreachable
+    bb16 try.catch.16
+      call $catch.15: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.15
+      goto bb18
+    bb17 try.next.17 unwind bb12
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb12
+    bb18 scope.18 unwind bb10
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb19
+    bb19 scope.19
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb14
+  fun println @fn7(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.0 @fn8($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=900 bits=0x00000384
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.1 @fn9($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=600 bits=0x00000258
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.2 @fn11($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=600 bits=0x00000258
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Reader.read @fn12(this: Reader, value: Int) -> Int
+    bb0 entry
+      trap "call to abstract method `Reader.read`"
+  fun $reference.0 @fn13($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 virtual[0]
+        Type Base
+        ClosureCapture cc3 0
+          Type (Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn14($closure: (Any) -> Int, arg0: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Any
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c0 @fn15(this: Base) -> Unit
+    bb0 entry
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Derived.$c1 @fn16(this: Derived, id: Int) -> Unit
+    bb0 entry
+      call @fn15 direct
+        Type Base
+        Retype Base
+          Type Derived
+          Local this
+      field_set 0
+        Type Derived
+        Local this
+        Type Int
+        Local id
+      return
+        Type Unit
+        UnitLiteral
+  fun init.State.$c2 @fn17(this: State, base: Base, reader: Reader, operation: (Int) -> Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type State
+        Local this
+        Type Base
+        Local base
+      field_set 1
+        Type State
+        Local this
+        Type Reader
+        Local reader
+      field_set 2
+        Type State
+        Local this
+        Type (Int) -> Int
+        Local operation
+      return
+        Type Unit
+        UnitLiteral
+  fun $dynamic_adapter.(Int) -> Any @fn18($closure: (Int) -> Any, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc5 0
+          Type (Int) -> Any
+          Local $closure
+        Type Any
+        Box
+          Type Int
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn20($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn21($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn23($source: (Any) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Any) -> Int
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$(Int) -> Any.(Any) -> Any @fn24($source: (Int) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Any
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  instance mi0 function=@fn7 <- println
+  instance mi1 function=@fn10 <- println
+  str @str0 "receiver"
+  str @str1 "argument"
+  str @str2 "stop"
+  str @str3 "illegal state"
+  str @str4 "caught"
+  str @str5 "cleanup"
+  str @str6 "\n"
+  str @str7 "\n"
+  output executable @fn6

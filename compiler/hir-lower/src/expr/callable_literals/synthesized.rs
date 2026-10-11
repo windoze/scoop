@@ -8,7 +8,8 @@ impl Lowerer {
         span: Span,
         generate: impl FnOnce(&mut Self, Vec<hir::Expr>) -> Option<crate::stmt::ValueBlock>,
     ) -> Option<hir::Expr> {
-        let expected = self.intern_function_type(false, parameter_types.to_vec(), result_type);
+        let function = self.intern_function_type(false, parameter_types.to_vec(), result_type);
+        let expected = self.function_types[function].canonical_type;
         let names = (0..parameter_types.len())
             .map(|index| format!("__codec_argument_{index}"))
             .collect::<Vec<_>>();

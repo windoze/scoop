@@ -641,10 +641,10 @@ fn qualified_interface_super_calls_default_function_getter_and_setter() {
                 kind: hir::ExprKind::DirectSuperMethodCall { .. },
                 ..
             }) | hir::StatementKind::Return {
-                value: Some(hir::Expr {
+                value: hir::Expr {
                     kind: hir::ExprKind::DirectSuperMethodCall { .. },
                     ..
-                }),
+                },
             }
         )));
     }

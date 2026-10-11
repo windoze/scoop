@@ -12,8 +12,8 @@ pub(super) fn generate_failure_method(
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: &mir::CallTarget,
-    outer_failure: &mir::CallTarget,
+    outer_resume: &crate::coroutine_registry::ProtocolMethod,
+    outer_failure: &crate::coroutine_registry::ProtocolMethod,
     driver: mir::FunctionId,
     state: mir::CoroutineSuspendStateId,
     latch: Option<FrameSlot>,
@@ -76,15 +76,11 @@ pub(super) fn generate_failure_method(
             statement(mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: step,
                 call: mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(driver),
-                    },
+                    target: mir::CallTarget::Direct(mir::Callee::User(driver)),
                     args: vec![
                         adapter_frame(this, adapter, frame_class),
                         frame_state(failure_state(state)),
                     ],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
         ],
@@ -168,7 +164,9 @@ pub(super) fn generate_failure_method(
                     adapter_state(ADAPTER_LATCHED_FAILURE),
                 ),
             ],
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: None,
         });
         blocks.alloc(mir::BasicBlock {

@@ -269,9 +269,7 @@ impl Lowerer {
         receiver_kind: hir::IntegerKind,
     ) -> Option<()> {
         match &expression.kind {
-            ExprKind::IntegerOperation { operation, .. } if operation.kind() == receiver_kind => {
-                Some(())
-            }
+            ExprKind::IntegerOperation(operation) if operation.kind() == receiver_kind => Some(()),
             ExprKind::IntegerConversion { conversion, .. }
                 if conversion.source == receiver_kind =>
             {
@@ -352,16 +350,16 @@ impl Lowerer {
 }
 
 fn integer_operation_preserves_receiver_kind(expression: &hir::Expr) -> bool {
-    let ExprKind::IntegerOperation { operation, .. } = &expression.kind else {
+    let ExprKind::IntegerOperation(operation) = &expression.kind else {
         return false;
     };
-    match operation {
-        hir::IntegerOperation::Managed { .. } => true,
-        hir::IntegerOperation::NoGc { operation, .. } => !matches!(
-            operation,
-            hir::NoGcIntegerOperation::CompareTo | hir::NoGcIntegerOperation::Equals
-        ),
-    }
+    !matches!(
+        operation,
+        hir::IntegerExpression::Binary {
+            operation: hir::IntegerBinaryOperator::CompareTo | hir::IntegerBinaryOperator::Equals,
+            ..
+        }
+    )
 }
 
 fn display_integer_literal(literal: ast::IntegerLiteralSyntax, negative: bool) -> String {

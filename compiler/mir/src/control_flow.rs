@@ -283,7 +283,8 @@ pub enum Terminator {
         else_block: BlockId,
     },
     Return {
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     /// Throw a managed exception. `unwind` is the same edge recorded on
     /// the owning block and is repeated here because this terminator itself
@@ -808,12 +809,6 @@ pub enum ExprKind {
     IsInstance {
         operand: Box<Expr>,
         check_ty: Box<Type>,
-    },
-    /// `as` (traps on failure) or `as?` (`optional`, result
-    /// `Option<T>`); the target type comes from context.
-    Cast {
-        operand: Box<Expr>,
-        optional: bool,
     },
     /// `[e1, ...]`; `array_type` is the exact fully specialized intrinsic
     /// class application selected by HIR.

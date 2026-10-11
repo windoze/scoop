@@ -53,8 +53,8 @@ pub use imported_protocols::{
     ImportedCoreExceptionProtocol, ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
     ImportedCoreFundamentalTypeProtocol, ImportedCoreInputs, ImportedCoreIterationProtocol,
     ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
-    ImportedCoreProtocolCallableDefinition, ImportedCoreProtocolEntry, ImportedCoreProtocolNominal,
-    ImportedCoreProtocols, ImportedCoreSourceLocationProtocol,
+    ImportedCoreProtocolCallableDefinition, ImportedCoreProtocols,
+    ImportedCoreSourceLocationProtocol,
 };
 pub use strong_profile::{
     OdrFreeHirFoundation, OdrFreeHirFoundationError, OdrFreeHirFoundationProjectionError,

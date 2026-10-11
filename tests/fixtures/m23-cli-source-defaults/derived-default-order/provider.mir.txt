@@ -171,6 +171,8 @@ Module
         Type Boolean
         Local same
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Empty.$c0 @fn6() -> Empty <no-gc>
     bb0 entry
       return

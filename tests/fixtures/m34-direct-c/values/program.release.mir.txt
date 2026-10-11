@@ -343,6 +343,8 @@ Module
         Type Ptr<Aligned>
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun padded @fn16(arg0: Padded) -> Padded <no-gc>
     bb0 entry
       call $call.1: Padded = extern13 @m34_padded direct
@@ -446,6 +448,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun loop @fn24(value: Mixed) -> Mixed <no-gc>
     bb0 entry
       var current: Mixed
@@ -1656,6 +1660,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb70 inline.cont.70
       val $argument.0: Letter
         Type Letter
@@ -2476,6 +2482,8 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
     bb16 pattern.pass.16
       assign $result.26
         Type Boolean
@@ -2660,6 +2668,8 @@ Module
         Local $inline.23.this
         Type Int
         IntegerLiteral Int value=91 bits=0x0000005b
+      Type Unit
+      UnitLiteral
       goto bb23
   fun main @fn27() -> Unit
     bb0 entry
@@ -2675,6 +2685,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn28(this: Ptr<Aligned>, other: Ptr<Aligned>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Aligned>
@@ -3024,6 +3036,8 @@ Module
         Local $inline.3.this
         Type Int
         Local $inline.3.value
+      Type Unit
+      UnitLiteral
       goto bb3
   fun println @fn33(value: String) -> Unit
     bb0 entry
@@ -3049,6 +3063,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn34(this: Continuation<Aligned>, value: Aligned) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -3069,6 +3085,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Tiny3.$c0 @fn39(a: UInt8, b: UInt8, c: UInt8) -> Tiny3 <no-gc>
     bb0 entry
       return
@@ -3196,6 +3214,8 @@ Module
         Type Mixed
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn51($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
@@ -3293,6 +3313,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Aligned>[0]
         Type Continuation<Aligned>
@@ -3306,6 +3328,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Aligned>[1]
         Type Continuation<Aligned>
@@ -3317,6 +3341,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

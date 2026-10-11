@@ -4,12 +4,31 @@ mod signatures;
 mod start;
 pub(crate) use signatures::lowered_signature;
 
+/// An unbound protocol member whose receiver is supplied at each generated call.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ProtocolMethod {
+    pub(crate) function: mir::MonomorphizedFunctionId,
+    pub(crate) interface: mir::InterfaceId,
+    pub(crate) slot: u32,
+}
+
+impl ProtocolMethod {
+    pub(crate) fn call<E>(self, receiver: E) -> mir::CallTarget<E> {
+        mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::Monomorphized(self.function),
+            interface: self.interface,
+            slot: self.slot,
+            receiver: Box::new(receiver),
+        }
+    }
+}
+
 pub(super) fn protocol_call(
     module: &hir::Module,
     instances: &InstanceRegistry,
     interfaces: &InterfaceRegistry,
     function: hir::FunctionId,
-) -> mir::CallTarget {
+) -> ProtocolMethod {
     let method = module.functions[function]
         .receiver
         .method()
@@ -17,16 +36,12 @@ pub(super) fn protocol_call(
     let hir::MethodDispatch::Interface { interface, slot } = method.dispatch else {
         unreachable!("a checked coroutine protocol member uses interface dispatch")
     };
-    mir::CallTarget {
-        kind: mir::CallKind::Interface {
-            interface: interfaces.mir_id(interface),
-            slot: slot.into_raw(),
-        },
-        callee: mir::Callee::Monomorphized(
-            instances
-                .get(function)
-                .expect("the protocol member was materialized"),
-        ),
+    ProtocolMethod {
+        interface: interfaces.mir_id(interface),
+        slot: slot.into_raw(),
+        function: instances
+            .get(function)
+            .expect("the protocol member was materialized"),
     }
 }
 
@@ -133,9 +148,9 @@ impl CoroutineRegistry {
         );
     }
 
-    pub(super) fn call_sites(&self, function: mir::FunctionId) -> &[cfg::CallSite] {
+    pub(super) fn take_call_sites(&mut self, function: mir::FunctionId) -> Vec<cfg::CallSite> {
         self.pre_coroutine_call_sites
-            .get(&function)
+            .remove(&function)
             .expect("a coroutine source retains its structured-call order")
     }
 

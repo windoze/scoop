@@ -165,6 +165,8 @@ Module
       resume
     bb16 try.end.16
       return
+        Type Unit
+        UnitLiteral
     bb17 try.body.17 unwind bb10
       call $cast.6: Any = @fn0 direct
       branch bb18 bb19
@@ -240,6 +242,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -264,6 +268,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   instance mi1 function=@fn3 <- println
   str @str0 "operand"

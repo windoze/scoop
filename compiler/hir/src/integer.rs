@@ -1,5 +1,8 @@
 use std::fmt;
 
+mod expressions;
+pub use expressions::*;
+
 /// Source-level signedness of one fixed-width integer representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerSignedness {

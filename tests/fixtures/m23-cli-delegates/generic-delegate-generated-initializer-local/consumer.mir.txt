@@ -442,6 +442,8 @@ Module
         Type ReferenceSlot<Int>
         Local $dependency.local.33
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:initializerLocal$ensure @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -466,6 +468,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -610,6 +614,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ReferenceSlot.$c1 @fn9(first: Payload, second: Payload, third: Payload) -> ReferenceSlot<Int> <no-gc>
     bb0 entry
       return

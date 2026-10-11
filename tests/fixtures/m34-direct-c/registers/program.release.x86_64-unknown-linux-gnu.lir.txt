@@ -834,6 +834,7 @@ Module
     store true -> local13
     br @inline.9.if.merge.2
   block inline.9.if.merge.2
+    t7 = aggregate () : {}
     br @inline.cont.9
   block invoke.normal.1
     t5 = aggregate () : {}

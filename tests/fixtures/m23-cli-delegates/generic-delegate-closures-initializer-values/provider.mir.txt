@@ -85,6 +85,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Trace.$get$initializerClosure @fn2(this: Trace) -> Int
     bb0 entry
       return
@@ -100,6 +102,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Trace.$get$initializerCombined @fn4(this: Trace) -> Int
     bb0 entry
       return
@@ -115,6 +119,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun TraceMore.$get$anonymous @fn6(this: TraceMore) -> Int
     bb0 entry
       return
@@ -130,6 +136,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun TraceMore.$get$values @fn8(this: TraceMore) -> Int
     bb0 entry
       return
@@ -145,6 +153,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun TraceMore.$get$localClosure @fn10(this: TraceMore) -> Int
     bb0 entry
       return
@@ -160,6 +170,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn12() -> Unit
     bb0 entry
       assign $new.1
@@ -172,6 +184,8 @@ Module
         Type Trace
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn13() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -196,6 +210,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -282,6 +298,8 @@ Module
         Type TraceMore
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn15() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -306,6 +324,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -441,6 +461,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Trace.$c3 @fn34(this: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -454,6 +476,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.TraceMore.$c4 @fn35(this: TraceMore) -> Unit
     bb0 entry
       field_set 0
@@ -472,6 +496,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Triple.$c0 @fn36(first: Payload, second: Payload, third: Payload) -> Triple <no-gc>
     bb0 entry
       return
@@ -505,6 +531,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -518,6 +546,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -529,6 +559,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -586,6 +618,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<TraceMore>[0]
         Type Continuation<TraceMore>
@@ -599,6 +633,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<TraceMore>[1]
         Type Continuation<TraceMore>
@@ -610,6 +646,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -667,6 +705,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Triple>[0]
         Type Continuation<Triple>
@@ -680,6 +720,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Triple>[1]
         Type Continuation<Triple>
@@ -691,6 +733,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -748,6 +792,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<Trace>[0]
         Type Continuation<Trace>
@@ -761,6 +807,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<Trace>[1]
         Type Continuation<Trace>
@@ -772,6 +820,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

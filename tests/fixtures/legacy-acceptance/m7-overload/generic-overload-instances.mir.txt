@@ -56,6 +56,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn1(value: Int, marker: Int) -> Int
     bb0 entry
       return
@@ -85,6 +87,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn3(value: Int, marker: String) -> Int
     bb0 entry
       return

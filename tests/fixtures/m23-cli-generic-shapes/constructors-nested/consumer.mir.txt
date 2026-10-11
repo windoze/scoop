@@ -159,6 +159,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Nested.$c0 @fn9(this: Nested<Payload>, value: Payload) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Payload
@@ -189,6 +191,8 @@ Module
         Type Int
         Local $dependency.constructor.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c2 @fn10(this: Box<Pair<Payload>>, value: Pair<Payload>, extra: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Pair<Payload>
@@ -223,6 +227,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn11(this: Box<Pair<Payload>>, value: Pair<Payload>) -> Unit
     bb0 entry
       field_set 0
@@ -272,6 +278,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c3 @fn12(value: Payload) -> Pair<Payload>
     bb0 entry
       val $dependency.constructor.local.0: Payload
@@ -325,6 +333,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -338,6 +348,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -349,6 +361,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

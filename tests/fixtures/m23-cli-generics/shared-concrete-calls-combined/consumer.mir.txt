@@ -531,9 +531,9 @@ Module
         Local $call.1
   fun identity @fn13(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn14(value: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Unit
@@ -546,16 +546,18 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun defaulted @fn15(value: Unit, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun localIdentity @fn16(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn17($closure: () -> Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
@@ -570,6 +572,8 @@ Module
         Type Unit
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun action @fn18(value: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: () -> Int

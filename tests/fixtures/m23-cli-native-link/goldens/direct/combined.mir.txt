@@ -52,6 +52,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -76,6 +78,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun through @fn2(value: Marker) -> Int
     bb0 entry
       val $dependency.local.1: Int

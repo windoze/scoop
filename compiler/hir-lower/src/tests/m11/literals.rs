@@ -71,18 +71,14 @@ fn unit_returning_lambda_discards_its_tail_value_explicitly() {
     assert!(body.statements.iter().any(|statement| matches!(
         statement.kind,
         hir::StatementKind::Expr(hir::Expr {
-            kind: hir::ExprKind::IntegerOperation { .. },
+            kind: hir::ExprKind::IntegerOperation(_),
             ..
         })
     )));
-    assert!(
-        body.statements
-            .iter()
-            .any(|statement| matches!(statement.kind, hir::StatementKind::Return { value: None }))
-    );
-    assert!(!body.statements.iter().any(|statement| matches!(
-        statement.kind,
-        hir::StatementKind::Return { value: Some(_) }
+    assert!(body.statements.iter().any(|statement| matches!(
+        &statement.kind,
+        hir::StatementKind::Return { value } if value.ty == module.unit
+            && matches!(value.kind, hir::ExprKind::UnitLiteral)
     )));
 }
 

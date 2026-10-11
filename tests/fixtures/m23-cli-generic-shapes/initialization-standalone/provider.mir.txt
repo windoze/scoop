@@ -112,6 +112,8 @@ Module
         Type Int
         Local $parameter.marker
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn6(this: Box<Int>, seed: Int, marker: Int) -> Unit
     bb0 entry
       field_set 0
@@ -160,6 +162,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Value.$c1 @fn7(item: Int, checked: Boolean) -> Value<Int>
     bb0 entry
       val $argument.0: Int

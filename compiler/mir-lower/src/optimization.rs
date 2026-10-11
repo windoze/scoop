@@ -43,8 +43,7 @@ struct Rewrite {
     function: mir::FunctionId,
     block: mir::BlockId,
     statement: usize,
-    target: mir::Callee,
-    receiver: mir::Type,
+    call: mir::Call,
 }
 
 fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet) {
@@ -53,7 +52,7 @@ fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet
         if !function.body.blocks.iter().any(|(_, block)| {
             block.statements.iter().any(|statement| {
                 matches!(&statement.kind, mir::StatementKind::Call(effect)
-                    if !matches!(call(effect).target.kind, mir::CallKind::Direct))
+                    if !matches!(call(effect).target, mir::CallTarget::Direct(_)))
             })
         }) {
             continue;
@@ -73,8 +72,8 @@ fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet
                             &function.body.locals[*destination].ty
                         }
                     };
-                    if let Some(receiver) = call.args.first()
-                        && let Some((target, receiver)) = dispatch::resolve(
+                    if let Some(receiver) = call.target.receiver()
+                        && let Some((target, receiver_ty)) = dispatch::resolve(
                             module,
                             selected,
                             call,
@@ -86,8 +85,25 @@ fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet
                             function: function_id,
                             block: block_id,
                             statement: statement_index,
-                            target,
-                            receiver,
+                            call: {
+                                let receiver = if receiver.ty == receiver_ty {
+                                    receiver.clone()
+                                } else {
+                                    mir::Expr::new(
+                                        receiver_ty.clone(),
+                                        mir::ExprKind::Retype {
+                                            operand: Box::new(receiver.clone()),
+                                            ty: Box::new(receiver_ty),
+                                        },
+                                    )
+                                };
+                                mir::Call {
+                                    target: mir::CallTarget::Direct(target.into()),
+                                    args: std::iter::once(receiver)
+                                        .chain(call.args.iter().cloned())
+                                        .collect(),
+                                }
+                            },
                         });
                     }
                 }
@@ -104,20 +120,7 @@ fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet
         let call = match effect {
             mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => call,
         };
-        if call.args[0].ty != rewrite.receiver {
-            let operand = call.args[0].clone();
-            call.args[0] = mir::Expr::new(
-                rewrite.receiver.clone(),
-                mir::ExprKind::Retype {
-                    operand: Box::new(operand),
-                    ty: Box::new(rewrite.receiver),
-                },
-            );
-        }
-        call.target = mir::CallTarget {
-            kind: mir::CallKind::Direct,
-            callee: rewrite.target,
-        };
+        *call = rewrite.call;
     }
 }
 

@@ -106,6 +106,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Marker.$c0 @fn6(this: Marker<Long>, value: Long) -> Unit
     bb0 entry
       field_set 0
@@ -114,6 +116,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $adapter.(Any) -> Other.(Payload) -> Any @fn7($closure: (Payload) -> Any, arg0: Payload) -> Any
     bb0 entry
       call $call.1: Other = <closure:function_type2> closure[function_type2]

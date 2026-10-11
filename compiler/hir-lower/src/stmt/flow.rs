@@ -150,11 +150,8 @@ impl Flow<'_> {
             hir::StatementKind::ContextScope { value, body } => {
                 self.expression(value).then(self.statements(body))
             }
-            hir::StatementKind::Return { value } => value
-                .as_ref()
-                .map_or_else(HirControlOutcomes::fallthrough, |value| {
-                    self.expression(value)
-                })
+            hir::StatementKind::Return { value } => self
+                .expression(value)
                 .then(HirControlOutcomes::singleton(ControlOutcome::Return)),
             hir::StatementKind::Throw(_) => HirControlOutcomes::singleton(ControlOutcome::Throw),
             hir::StatementKind::Break { target } => {
@@ -177,8 +174,7 @@ impl Flow<'_> {
                 ),
             ),
             hir::StatementKind::When(when) => when
-                .subject
-                .as_ref()
+                .subject()
                 .map_or_else(HirControlOutcomes::fallthrough, |subject| {
                     self.expression(subject)
                 })
@@ -244,29 +240,31 @@ impl Flow<'_> {
 
     /// Ordered first-match arms preserve guard evaluation and fallback edges.
     fn when(&self, when: &hir::When) -> HirControlOutcomes {
-        let mut next = match &when.fallback {
-            hir::WhenFallback::Else(body) => self.statements(body),
-            hir::WhenFallback::Fallthrough => HirControlOutcomes::fallthrough(),
-            hir::WhenFallback::Impossible(_) => HirControlOutcomes::empty(),
+        let mut next = match when.fallback() {
+            hir::WhenFallbackRef::Else(body) => self.statements(body),
+            hir::WhenFallbackRef::Fallthrough => HirControlOutcomes::fallthrough(),
+            hir::WhenFallbackRef::Impossible(_) => HirControlOutcomes::empty(),
         };
-        for arm in when.arms.iter().rev() {
-            let body = self.statements(&arm.body);
-            let matched = match &arm.guard {
+        for arm in when.arms().rev() {
+            let body = self.statements(arm.body);
+            let matched = match arm.guard {
                 Some(guard) => self
                     .statements(&guard.setup)
                     .then(self.expression(&guard.condition))
                     .then(body.union(next.clone())),
                 None => body,
             };
-            next = match &arm.condition {
-                hir::WhenCondition::Case(pattern) if !crate::patterns::is_irrefutable(pattern) => {
+            next = match arm.condition {
+                hir::WhenConditionRef::Case(pattern)
+                    if !crate::patterns::is_irrefutable(pattern) =>
+                {
                     matched.union(next)
                 }
-                hir::WhenCondition::Predicate(condition) => self
+                hir::WhenConditionRef::Predicate(condition) => self
                     .statements(&condition.setup)
                     .then(self.expression(&condition.condition))
                     .then(matched.union(next)),
-                hir::WhenCondition::Case(_) | hir::WhenCondition::Always => matched,
+                hir::WhenConditionRef::Case(_) | hir::WhenConditionRef::Always => matched,
             };
         }
         next
@@ -309,7 +307,9 @@ mod tests {
     }
 
     fn return_statement() -> hir::Statement {
-        statement(hir::StatementKind::Return { value: None })
+        statement(hir::StatementKind::Return {
+            value: expression(),
+        })
     }
 
     fn throw_statement() -> hir::Statement {
@@ -451,8 +451,8 @@ mod tests {
 
     #[test]
     fn when_stops_after_an_unguarded_irrefutable_arm() {
-        let when = statement(hir::StatementKind::When(hir::When {
-            subject: Some(expression()),
+        let when = statement(hir::StatementKind::When(hir::When::Subject {
+            subject: expression(),
             arms: vec![
                 hir::WhenArm {
                     condition: hir::WhenCondition::Case(hir::Pattern::Wildcard),
@@ -474,11 +474,11 @@ mod tests {
 
     #[test]
     fn refutable_when_arm_unions_its_body_with_the_fallback() {
-        let when = statement(hir::StatementKind::When(hir::When {
-            subject: Some(hir::Expr {
+        let when = statement(hir::StatementKind::When(hir::When::Subject {
+            subject: hir::Expr {
                 kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(1)),
                 ..expression()
-            }),
+            },
             arms: vec![hir::WhenArm {
                 condition: hir::WhenCondition::Case(hir::Pattern::Literal {
                     value: hir::Expr {
@@ -501,8 +501,8 @@ mod tests {
 
     #[test]
     fn when_guard_setup_controls_body_and_next_arm_reachability() {
-        let abrupt_guard = statement(hir::StatementKind::When(hir::When {
-            subject: Some(expression()),
+        let abrupt_guard = statement(hir::StatementKind::When(hir::When::Subject {
+            subject: expression(),
             arms: vec![hir::WhenArm {
                 condition: hir::WhenCondition::Case(hir::Pattern::Wildcard),
                 guard: Some(hir::WhenGuard {
@@ -516,8 +516,8 @@ mod tests {
         }));
         assert_hir_outcomes(&[abrupt_guard], [ControlOutcome::Return]);
 
-        let completing_guard = statement(hir::StatementKind::When(hir::When {
-            subject: Some(expression()),
+        let completing_guard = statement(hir::StatementKind::When(hir::When::Subject {
+            subject: expression(),
             arms: vec![hir::WhenArm {
                 condition: hir::WhenCondition::Case(hir::Pattern::Wildcard),
                 guard: Some(hir::WhenGuard {
@@ -534,8 +534,8 @@ mod tests {
             [ControlOutcome::Return, ControlOutcome::Throw],
         );
 
-        let mixed_guard = statement(hir::StatementKind::When(hir::When {
-            subject: Some(expression()),
+        let mixed_guard = statement(hir::StatementKind::When(hir::When::Subject {
+            subject: expression(),
             arms: vec![hir::WhenArm {
                 condition: hir::WhenCondition::Case(hir::Pattern::Wildcard),
                 guard: Some(hir::WhenGuard {

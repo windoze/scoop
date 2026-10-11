@@ -121,6 +121,8 @@ Module
         Type ObjectHost
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -145,6 +147,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -635,6 +639,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$1 @fn12() -> Unit
     bb0 entry
       assign $new.1
@@ -647,6 +653,8 @@ Module
         Type StructHost.Maker
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn13() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -671,6 +679,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -757,6 +767,8 @@ Module
         Type EnumHost.Values
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn15() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -781,6 +793,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -867,6 +881,8 @@ Module
         Type DefaultHost.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$4 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -891,6 +907,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -977,6 +995,8 @@ Module
         Type Independent.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$5 @fn19() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1001,6 +1021,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1087,6 +1109,8 @@ Module
         Type InheritedHost.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$6 @fn21() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1111,6 +1135,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1197,6 +1223,8 @@ Module
         Type InterfaceHost.Provider
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$7 @fn23() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1221,6 +1249,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1307,6 +1337,8 @@ Module
         Type ObjectHost.NestedCompanion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$8 @fn25() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1331,6 +1363,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1429,6 +1463,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$3 @fn27() -> Unit
     bb0 entry
       assign $new.1
@@ -1441,6 +1477,8 @@ Module
         Type Box.Factory<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$3 @fn28() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1465,6 +1503,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1563,6 +1603,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Box.Factory.answer @fn30(this: Box.Factory<Int>) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -1615,6 +1657,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Box.Factory.identity @fn32(this: Box.Factory<Int>, value: Int) -> Int
     bb0 entry
       return
@@ -1642,12 +1686,18 @@ Module
   fun init.DefaultHost.$c1 @fn34(this: DefaultHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ObjectHost.$c5 @fn35(this: ObjectHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Independent.$c2 @fn36(this: Independent) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.FactoryBase.$c3 @fn37(this: FactoryBase) -> Unit
     bb0 entry
       field_set 0
@@ -1656,18 +1706,28 @@ Module
         Type Int
         IntegerLiteral Int value=14 bits=0x0000000e
       return
+        Type Unit
+        UnitLiteral
   fun init.InheritedHost.$c4 @fn38(this: InheritedHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.StructHost.Maker.$c6 @fn39(this: StructHost.Maker) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.EnumHost.Values.$c7 @fn40(this: EnumHost.Values) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DefaultHost.Companion.$c9 @fn41(this: DefaultHost.Companion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Independent.Companion.$c10 @fn42(this: Independent.Companion) -> Unit
     bb0 entry
       val $argument.0: String
@@ -1693,6 +1753,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.InheritedHost.Companion.$c11 @fn43(this: InheritedHost.Companion) -> Unit
     bb0 entry
       call @fn37 direct
@@ -1701,12 +1763,18 @@ Module
           Type InheritedHost.Companion
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.InterfaceHost.Provider.$c12 @fn44(this: InterfaceHost.Provider) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ObjectHost.NestedCompanion.$c13 @fn45(this: ObjectHost.NestedCompanion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.Factory.$c8 @fn46(this: Box.Factory<Int>) -> Unit
     bb0 entry
       val $argument.0: String
@@ -1737,6 +1805,8 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn47(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1745,6 +1815,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.StructHost.$c0 @fn48() -> StructHost <no-gc>
     bb0 entry
       return

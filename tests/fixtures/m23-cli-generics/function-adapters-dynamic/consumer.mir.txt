@@ -545,6 +545,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $dynamic_adapter.(Ptr<Int>) -> Long @fn11($closure: (Ptr<Int>) -> Long, arg0: Ptr<Int>) -> Long
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]

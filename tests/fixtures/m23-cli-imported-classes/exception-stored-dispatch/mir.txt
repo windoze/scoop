@@ -277,4 +277,6 @@ Module
         Type Readable
         Local reader
       return
+        Type Unit
+        UnitLiteral
   output library

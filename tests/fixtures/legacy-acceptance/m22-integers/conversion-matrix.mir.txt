@@ -937,6 +937,8 @@ Module
         Type ULong
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
@@ -961,6 +963,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
@@ -985,6 +989,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -1009,6 +1015,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -1033,6 +1041,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
@@ -1057,6 +1067,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
@@ -1081,6 +1093,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
@@ -1105,6 +1119,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
@@ -1129,6 +1145,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- println
   instance mi1 function=@fn2 <- println
   instance mi2 function=@fn3 <- println

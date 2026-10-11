@@ -202,12 +202,10 @@ Module
   fun @scoop$1$cb$9ee98024fb2fe86c5050a480d9c5ec11734bca1251fd97c6454c5b979885f53d(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$4ffd700b1dd53de23beb0735cf6eb8f92f6e2ba69b99a25df611158d034a6471(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$2ae5106b89ed79664627f1c1d234c1b5264d6585462fac70ec7ae6d0f3f23608(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
   block entry

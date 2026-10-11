@@ -199,6 +199,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun invokeChoice @fn12(value: NestedParentChoice) -> String
     bb0 entry
       val $when.1: NestedParentChoice
@@ -856,6 +858,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn14($closure: () -> String) -> String
     bb0 entry
       return
@@ -995,6 +999,8 @@ Module
   fun init.NestedParentHost.$c0 @fn44(this: NestedParentHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.NestedParentConstructor.$c1 @fn45(this: NestedParentConstructor, callback: () -> String) -> Unit
     bb0 entry
       field_set 0
@@ -1003,6 +1009,8 @@ Module
         Type () -> String
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun init.NestedParentGeneric.$c2 @fn46(this: NestedParentGeneric<Int>, seed: Int, callback: () -> Int) -> Unit
     bb0 entry
       field_set 0
@@ -1011,6 +1019,8 @@ Module
         Type () -> Int
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun init.NestedParentGeneric.$c2 @fn47(this: NestedParentGeneric<String>, seed: String, callback: () -> String) -> Unit
     bb0 entry
       field_set 0
@@ -1019,6 +1029,8 @@ Module
         Type () -> String
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<NestedParentChoice> @fn48(task: SuspendTask<NestedParentChoice>, completion: Continuation<NestedParentChoice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1041,6 +1053,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<NestedParentChoice>[0]
         Type Continuation<NestedParentChoice>
@@ -1054,6 +1068,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<NestedParentChoice>[1]
         Type Continuation<NestedParentChoice>
@@ -1065,6 +1081,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1122,6 +1140,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<NestedParentHost>[0]
         Type Continuation<NestedParentHost>
@@ -1135,6 +1155,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<NestedParentHost>[1]
         Type Continuation<NestedParentHost>
@@ -1146,6 +1168,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1203,6 +1227,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn38 interface Continuation<NestedParentConstructor>[0]
         Type Continuation<NestedParentConstructor>
@@ -1216,6 +1242,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn39 interface Continuation<NestedParentConstructor>[1]
         Type Continuation<NestedParentConstructor>
@@ -1227,6 +1255,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

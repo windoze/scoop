@@ -82,7 +82,7 @@ fn capturing_body(fixture: &Fixture, kind: DefaultExpressionKindV1) -> ExportGen
     .unwrap();
     body.statements = vec![
         DefaultStatementV1::try_new(
-            DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::present(value)),
+            DefaultStatementKindV1::Return(Box::new(value)),
             fixture.origin(),
         )
         .unwrap(),

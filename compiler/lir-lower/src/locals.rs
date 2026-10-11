@@ -72,7 +72,6 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::Box(operand)
             | mir::ExprKind::Unbox(operand)
             | mir::ExprKind::IsInstance { operand, .. }
-            | mir::ExprKind::Cast { operand, .. }
             | mir::ExprKind::ArrayAllocate { count: operand, .. }
             | mir::ExprKind::ArrayLen { operand, .. }
             | mir::ExprKind::ArrayClone { operand, .. }
@@ -186,7 +185,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
     }
 
     fn collect_call(call: &mir::Call, out: &mut HashSet<mir::LocalId>) {
-        for arg in &call.args {
+        for arg in call.operands() {
             collect_expr(arg, out);
         }
     }
@@ -227,11 +226,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
         }
         match &block.terminator {
             mir::Terminator::Branch { cond, .. } => collect_expr(cond, &mut out),
-            mir::Terminator::Return { value } => {
-                if let Some(value) = value {
-                    collect_expr(value, &mut out);
-                }
-            }
+            mir::Terminator::Return { value } => collect_expr(value, &mut out),
             mir::Terminator::Throw { exception, .. } => collect_expr(exception, &mut out),
             mir::Terminator::Goto(_)
             | mir::Terminator::Rethrow { .. }

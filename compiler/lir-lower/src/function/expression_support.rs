@@ -75,9 +75,11 @@ impl FunctionLowerer<'_> {
         mut elements: Vec<lir::Value>,
     ) -> lir::Value {
         if let mir::Type::Struct(id) = ty
-            && self.structs[struct_def_id(*id)].is_c_layout()
+            && let mir::StructRepresentation::Declared(declared) =
+                &self.module.structs[*id].representation
+            && declared.c_layout.is_some()
         {
-            let fields = self.module.structs[*id].declared_fields();
+            let fields = &declared.fields;
             elements = elements
                 .into_iter()
                 .zip(fields)

@@ -603,6 +603,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Slot.$c0 @fn11(value: Pair) -> Slot<Pair> <no-gc>
     bb0 entry
       return

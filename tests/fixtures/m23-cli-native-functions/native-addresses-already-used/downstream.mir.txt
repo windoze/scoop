@@ -119,5 +119,7 @@ Module
         Type Long
         Local number
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- exercise
   output library

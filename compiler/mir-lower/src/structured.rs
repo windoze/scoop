@@ -84,7 +84,8 @@ pub(crate) enum StatementKind {
     },
     Expr(Expr),
     Return {
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     Break {
         target: LoopId,
@@ -361,6 +362,10 @@ pub(crate) enum ExprKind {
         index: u32,
     },
     Call(Call),
+    CoroutineSuspend {
+        method: crate::coroutine_registry::ProtocolMethod,
+        receiver: Box<Expr>,
+    },
     Box(Box<Expr>),
     Unbox(Box<Expr>),
     IsInstance {
@@ -484,7 +489,7 @@ pub(crate) enum LogicOp {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Call {
-    pub(crate) target: mir::CallTarget,
+    pub(crate) target: mir::CallTarget<Expr>,
     pub(crate) args: Vec<Expr>,
     pub(crate) return_ty: mir::Type,
 }

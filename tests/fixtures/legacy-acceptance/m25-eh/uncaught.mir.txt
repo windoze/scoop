@@ -45,5 +45,7 @@ Module
         Type Option<String>
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   str @str0 "m25 uncaught"
   output executable @fn0

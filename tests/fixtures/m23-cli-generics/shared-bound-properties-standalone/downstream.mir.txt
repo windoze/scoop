@@ -885,6 +885,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn5(this: Remote<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct
@@ -901,6 +903,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn7(this: Box<() -> Int>) -> () -> Int
     bb0 entry
       call $call.1: () -> Int = @fn30 direct
@@ -917,6 +921,8 @@ Module
         Type () -> Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun stored @fn9(box: Remote<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
@@ -1060,6 +1066,8 @@ Module
         Type Payload
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn20(this: Remote<Payload>) -> Payload
     bb0 entry
       call $call.1: Payload = @fn33 direct
@@ -1076,6 +1084,8 @@ Module
         Type Payload
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun stored @fn22(box: Remote<Payload>) -> Payload
     bb0 entry
       call $call.1: Payload = @fn24 direct
@@ -1161,6 +1171,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun alternate @fn29(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       field_set 1
@@ -1169,6 +1181,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn30(this: Box<() -> Int>) -> () -> Int
     bb0 entry
       return
@@ -1184,6 +1198,8 @@ Module
         Type () -> Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn32(this: Box<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1192,6 +1208,8 @@ Module
         Type Payload
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun alternate @fn33(this: Remote<Payload>) -> Payload
     bb0 entry
       return
@@ -1207,6 +1225,8 @@ Module
         Type Payload
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn35(this: Continuation<Payload>, value: Payload) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1227,6 +1247,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn40(this: Remote<Int>, value: Int, alternate: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -1248,6 +1270,8 @@ Module
         Type Int
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn41(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1256,6 +1280,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn42(this: Box<() -> Int>, value: () -> Int) -> Unit
     bb0 entry
       field_set 0
@@ -1264,6 +1290,8 @@ Module
         Type () -> Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn43(this: Remote<Payload>, value: Payload, alternate: Payload) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Payload
@@ -1285,6 +1313,8 @@ Module
         Type Payload
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn44(this: Box<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1293,6 +1323,8 @@ Module
         Type Payload
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Payload> @fn45(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1315,6 +1347,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn35 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -1328,6 +1362,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn36 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -1339,6 +1375,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -14,8 +14,7 @@ impl Lowerer {
                 .map(|local| hir::Pattern::Binding { local }),
             hir::DefaultPatternViewV1::Wildcard => Ok(hir::Pattern::Wildcard),
             hir::DefaultPatternViewV1::Variant { variant, fields } => {
-                let owner =
-                    self.materialize_imported_default_type(variant.owner_type(), context)?;
+                let application = self.materialize_imported_variant(variant, context)?;
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -26,10 +25,7 @@ impl Lowerer {
                     })
                     .collect::<Result<Vec<_>, ImportedDefaultMaterializationError>>()?;
                 Ok(hir::Pattern::Variant {
-                    application: hir::EnumVariantApplication {
-                        owner,
-                        variant: variant.declaration(),
-                    },
+                    application,
                     fields,
                 })
             }

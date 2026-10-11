@@ -98,6 +98,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun argument @fn5(value: Int) -> Int
     bb0 entry
       val $argument.0: Int
@@ -132,6 +134,8 @@ Module
         Local $inline.1.this
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
   fun failArgument @fn6() -> Int
     bb0 entry
@@ -422,6 +426,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb21 while.body.21
       val $argument.0: Int
         Type Int
@@ -727,6 +733,8 @@ Module
         Local $inline.28.this
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
+      Type Unit
+      UnitLiteral
       goto bb28
     bb30 inline.cont.30
       val $inline.22.cell: Cell
@@ -745,6 +753,8 @@ Module
         Local $inline.30.this
         Type Int
         Local $inline.30.value
+      Type Unit
+      UnitLiteral
       goto bb30
   fun genericCaller @fn9(value: Cell, number: Int) -> Cell
     bb0 entry
@@ -827,6 +837,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn11(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -835,6 +847,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn12(number: Int, fraction: Double) -> Pair <no-gc>
     bb0 entry
       return
@@ -858,6 +872,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn9 <- genericCaller
   instance mi1 function=@fn10 <- println
   str @str0 "illegal state"

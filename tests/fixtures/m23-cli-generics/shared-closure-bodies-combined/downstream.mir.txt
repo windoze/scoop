@@ -3514,30 +3514,30 @@ Module
             Local seed
   fun $lambda @fn45($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc15 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun defaultLambda @fn46(seed: Unit, marker: Unit, read: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type13> closure[function_type13]
         Type () -> Unit
         Local read
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn47($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc59 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun defaultAnonymous @fn48(seed: Unit, marker: Int, read: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type13> closure[function_type13]
         Type () -> Unit
         Local read
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn49(seed: Unit, marker: Unit) -> () -> () -> Unit
     bb0 entry
       return
@@ -3565,6 +3565,8 @@ Module
         Type () -> Unit
         Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn52($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -3597,12 +3599,16 @@ Module
         Type () -> Unit
         Local $dependency.local.4
       return
+        Type Unit
+        UnitLiteral
   fun localDefault @fn53(seed: Unit, marker: Unit, read: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type13> closure[function_type13]
         Type () -> Unit
         Local read
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn54($argument.0: (Box<Unit>) -> Int, $argument.1: Box<Unit>) -> Int
     bb0 entry
       val $operand.1: (Unit) -> Int
@@ -4512,18 +4518,14 @@ Module
           Local $dependency.local.5
   fun $lambda @fn103($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc42 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn104($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc73 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn105($argument.0: () -> Int) -> Int
     bb0 entry
       val $operand.1: (Unit) -> Int
@@ -4587,18 +4589,14 @@ Module
           Local $dependency.local.5
   fun $lambda @fn106($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc44 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn107($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc74 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn108($argument.0: () -> Int) -> Int
     bb0 entry
       val $operand.1: (Unit) -> Int
@@ -4747,31 +4745,27 @@ Module
               Local $argument.0
   fun $anonymous @fn113($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc76 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn114($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc77 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun defaultAnonymous @fn115(seed: Unit, marker: Unit, read: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type13> closure[function_type13]
         Type () -> Unit
         Local read
       return
+        Type Unit
+        UnitLiteral
   fun value @fn116(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn117($argument.0: () -> Box<Unit>) -> Box<Unit>
     bb0 entry
       return
@@ -5037,11 +5031,9 @@ Module
           Local $argument.0
   fun $anonymous @fn131($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc84 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn132($argument.0: () -> Int) -> Int
     bb0 entry
       return
@@ -5069,6 +5061,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn138(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -5077,6 +5071,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn139(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -5085,6 +5081,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn140(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -5093,6 +5091,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn141(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -5101,6 +5101,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn142(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -5123,6 +5125,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn133 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -5136,6 +5140,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn134 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -5147,6 +5153,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

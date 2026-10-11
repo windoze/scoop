@@ -66,6 +66,8 @@ Module
       global_assign evaluations
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.receiver: Int
@@ -125,6 +127,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       goto bb21
@@ -311,6 +315,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb10 inline.cont.10
       val $array_value.6: AtomicRef<Payload>
         Type AtomicRef<Payload>
@@ -478,6 +484,8 @@ Module
         Local $inline.16.this
         Type String
         Local $inline.16.text
+      Type Unit
+      UnitLiteral
       goto bb16
     bb18 inline.cont.18
       val $dependency.receiver: Int
@@ -667,6 +675,8 @@ Module
       global_assign evaluations
         Type Int
         Local $inline.22.value
+      Type Unit
+      UnitLiteral
       goto bb22
     bb24 inline.cont.24
       val $inline.20.$dependency.receiver: Int
@@ -729,6 +739,8 @@ Module
         Local $inline.28.this
         Type String
         Local $inline.28.text
+      Type Unit
+      UnitLiteral
       goto bb28
   fun $get$evaluations @fn3() -> Int <no-gc>
     bb0 entry
@@ -741,6 +753,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn5(this: MutableArray<AtomicRef<Payload>>) -> Iterator<AtomicRef<Payload>>
     bb0 entry
       val $dependency.local.1: List<AtomicRef<Payload>>
@@ -801,6 +815,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn6(this: MutableArray<AtomicRef<Payload>>, index: Long) -> AtomicRef<Payload>
     bb0 entry
@@ -960,6 +976,8 @@ Module
         Local $inline.3.this
         Type String
         Local $inline.3.text
+      Type Unit
+      UnitLiteral
       goto bb3
   fun println @fn12(value: String) -> Unit
     bb0 entry
@@ -985,6 +1003,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn13(this: ListIterator<AtomicRef<Payload>>) -> Option<AtomicRef<Payload>>
     bb0 entry
       branch bb1 bb2
@@ -1106,6 +1126,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn21(this: ListIterator<AtomicRef<Payload>>, source: List<AtomicRef<Payload>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1124,6 +1146,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Payload> @fn22(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1146,6 +1170,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -1159,6 +1185,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -1170,6 +1198,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -1,0 +1,30 @@
+enum Packet<T> {
+    Value(T)
+    Missing
+}
+
+typealias IntPacket = Packet<Int>
+typealias TaskPacket = Packet<() -> Int>
+
+fun <T> unpack(value: Packet<T> = Packet.Missing, fallback: () -> T): T = when (value) {
+    case Value(present) -> present
+    case Missing -> fallback()
+}
+
+fun <T> transform(value: Packet<T>, function: (T) -> T): Packet<T> = when (value) {
+    case Value(present) -> Packet.Value(function(present))
+    case Missing -> Packet.Missing
+}
+
+fun main() {
+    val value: IntPacket = IntPacket.Value(40)
+    println(unpack(transform(value) { n -> n + 2 }) { 0 })
+    println(unpack<Int> { 7 })
+    println(unpack(Packet.Value("enum")) { "empty" })
+    val task: TaskPacket = TaskPacket.Value { 9 }
+    val empty: () -> Int = { 0 }
+    val saved = unpack(task) { empty }
+    println(saved())
+    println(Packet.Value(1) == Packet.Value(1))
+    println(Packet.Value("a") == Packet.Missing)
+}

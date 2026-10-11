@@ -314,7 +314,7 @@ fn bare_unit_variant_in_match_remains_variant_first() {
         })
         .expect("check contains a when");
     assert!(matches!(
-        case_pattern(&when.arms[0]),
+        case_pattern(when.arms().next().expect("when arm")),
         hir::Pattern::Variant {
             application,
             fields,
@@ -422,7 +422,9 @@ fn match_field_shorthand_classifies_its_same_named_subpattern_from_the_field_typ
                 _ => None,
             })
             .expect("check contains a when");
-        let hir::Pattern::Struct { fields, .. } = case_pattern(&when.arms[0]) else {
+        let hir::Pattern::Struct { fields, .. } =
+            case_pattern(when.arms().next().expect("when arm"))
+        else {
             panic!("field shorthand must retain its enclosing struct pattern")
         };
         assert_eq!(fields.len(), 1);

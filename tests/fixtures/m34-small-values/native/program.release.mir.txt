@@ -165,6 +165,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn11() -> Unit
     bb0 entry
       val $argument.0: UInt
@@ -790,6 +792,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb33 inline.cont.33
       val payload: Payload
         Type Payload
@@ -804,6 +808,8 @@ Module
         Local $inline.33.this
         Type Int
         IntegerLiteral Int value=73 bits=0x00000049
+      Type Unit
+      UnitLiteral
       goto bb33
     bb35 inline.cont.35
       val $argument.0: Padded
@@ -996,6 +1002,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Payload.$c0 @fn13(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1004,6 +1012,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Mixed.$c0 @fn14(number: Double, tag: Long) -> Mixed <no-gc>
     bb0 entry
       return

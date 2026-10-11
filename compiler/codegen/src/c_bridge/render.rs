@@ -2,8 +2,8 @@ use super::*;
 
 pub(super) struct CBridgeTypeSurface {
     function_types: Vec<scoop_lir::CFunctionType>,
-    struct_declarations: HashSet<usize>,
-    struct_definitions: HashSet<usize>,
+    struct_declarations: HashSet<scoop_lir::CStructRef>,
+    struct_definitions: HashSet<scoop_lir::CStructRef>,
 }
 
 impl CBridgeTypeSurface {
@@ -37,10 +37,8 @@ impl CBridgeTypeSurface {
 
     pub(super) fn for_module(module: &Module) -> Result<Self, CodegenError> {
         let mut surface = Self::empty();
-        for (id, definition) in module.structs.iter() {
-            if definition.is_c_layout() {
-                surface.materialize_struct(module, id)?;
-            }
+        for (reference, _) in module.structs.iter_c() {
+            surface.materialize_struct(module, reference)?;
         }
         for (_, function) in module.extern_functions.iter() {
             if let ExternFunctionKind::C { signature, .. } = &function.kind {
@@ -128,10 +126,9 @@ impl CBridgeTypeSurface {
                 self.visit_function(module, signature, false)?;
             }
             scoop_lir::CType::Struct(reference) => {
-                let id = reference.definition();
-                self.struct_declarations.insert(arena_index(id));
+                self.struct_declarations.insert(*reference);
                 if materialize_structs {
-                    self.materialize_struct(module, id)?;
+                    self.materialize_struct(module, *reference)?;
                 }
             }
             scoop_lir::CType::Float(_)
@@ -144,20 +141,13 @@ impl CBridgeTypeSurface {
     fn materialize_struct(
         &mut self,
         module: &Module,
-        id: scoop_lir::StructDefId,
+        reference: scoop_lir::CStructRef,
     ) -> Result<(), CodegenError> {
-        let raw = arena_index(id);
-        self.struct_declarations.insert(raw);
-        if !self.struct_definitions.insert(raw) {
+        self.struct_declarations.insert(reference);
+        if !self.struct_definitions.insert(reference) {
             return Ok(());
         }
-        let fields = module.structs[id].c_fields().ok_or_else(|| {
-            CodegenError(format!(
-                "ordinary struct `{}` entered the generated C type surface",
-                module.structs[id].name
-            ))
-        })?;
-        for field in fields {
+        for field in module.structs.c(reference).fields {
             self.visit_type(module, &field.ty, true)?;
         }
         Ok(())
@@ -167,12 +157,12 @@ impl CBridgeTypeSurface {
         &self.function_types
     }
 
-    pub(super) fn declares_struct(&self, id: scoop_lir::StructDefId) -> bool {
-        self.struct_declarations.contains(&arena_index(id))
+    pub(super) fn declares_struct(&self, reference: scoop_lir::CStructRef) -> bool {
+        self.struct_declarations.contains(&reference)
     }
 
-    pub(super) fn defines_struct(&self, id: scoop_lir::StructDefId) -> bool {
-        self.struct_definitions.contains(&arena_index(id))
+    pub(super) fn defines_struct(&self, reference: scoop_lir::CStructRef) -> bool {
+        self.struct_definitions.contains(&reference)
     }
 
     pub(super) fn definition_count(&self) -> usize {
@@ -330,9 +320,9 @@ pub(super) fn c_struct_forward_declarations(
     surface: &CBridgeTypeSurface,
 ) -> String {
     let mut out = String::new();
-    for (id, definition) in module.structs.iter() {
-        if definition.is_c_layout() && surface.declares_struct(id) {
-            let name = format!("scoop_c_layout_{}", arena_index(id));
+    for (reference, _) in module.structs.iter_c() {
+        if surface.declares_struct(reference) {
+            let name = format!("scoop_c_layout_{}", arena_index(reference.definition()));
             out.push_str(&format!("typedef struct {name} {name};\n"));
         }
     }

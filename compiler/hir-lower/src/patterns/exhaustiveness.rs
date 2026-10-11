@@ -55,11 +55,11 @@ impl Lowerer {
         }
 
         if patterns.iter().any(super::is_irrefutable) {
-            return Some(hir::ExhaustivenessProof::IrrefutableArm { subject_ty });
+            return Some(hir::ExhaustivenessProof::IrrefutableArm);
         }
         Some(match self.types[subject_ty] {
-            Type::Enum(_) => hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty },
-            _ => hir::ExhaustivenessProof::PatternMatrix { subject_ty },
+            Type::Enum(_) => hir::ExhaustivenessProof::EnumPatternMatrix,
+            _ => hir::ExhaustivenessProof::PatternMatrix,
         })
     }
 
@@ -217,8 +217,8 @@ impl Lowerer {
                     field_types: structure.fields.iter().map(|field| field.ty).collect(),
                 }])
             }
-            Type::Enum(_) => ConstructorSpace::Closed(
-                self.enum_variants(ty)
+            Type::Enum(application) => ConstructorSpace::Closed(
+                self.enum_variants(application)
                     .into_iter()
                     .enumerate()
                     .map(|(index, variant)| Constructor::EnumVariant {

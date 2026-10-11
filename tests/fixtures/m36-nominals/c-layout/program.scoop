@@ -1,0 +1,30 @@
+@CLayout(aligned = 8, packed = 1)
+struct Packed(val flag: Boolean, val count: Int)
+@CLayout(aligned = 16, packed = 2)
+struct Envelope(val tag: Byte, val value: Packed, val tail: Long)
+struct Holder<T>(val item: T, val text: String)
+
+@Extern(lib = "m36_nominals", name = "m36_envelope")
+fun exchange(value: Envelope, callback: FunPtr<(Envelope) -> Envelope>): Envelope
+@Extern(lib = "m36_nominals", name = "m36_rewrite")
+fun rewrite(value: Ptr<Envelope>)
+
+@NoGC fun adjust(value: Envelope): Envelope =
+    Envelope(value.tag, Packed(!value.value.flag, value.value.count + 3), value.tail + 4L)
+fun <T> keep(value: T): T { gcCollect(); return value }
+
+@Unsafe fun main() {
+    val held = keep(Holder(Envelope(2, Packed(true, 10), 20L), "c-layout"))
+    var result = exchange(held.item, ::adjust)
+    println(result.tag)
+    println(result.value.flag)
+    println(result.value.count)
+    println(result.tail)
+    val address = addressOf(result)
+    rewrite(address)
+    val wrapped = MaybeUninit<Envelope>.initialized(address.load())
+    val restored = keep(wrapped).assumeInit()
+    println(restored.value.count)
+    println(restored.tail)
+    println(held.text)
+}

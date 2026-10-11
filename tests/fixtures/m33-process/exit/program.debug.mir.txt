@@ -34,6 +34,8 @@ Module
     bb0 entry
       call extern2 @unexpected_release direct
       return
+        Type Unit
+        UnitLiteral
   fun exitCode @fn1() -> Int
     bb0 entry
       call $call.1: Int = extern0 @exit_code direct
@@ -44,6 +46,8 @@ Module
     bb0 entry
       call extern1 @register_exit_handler direct
       return
+        Type Unit
+        UnitLiteral
   fun stop @fn3(code: Int) -> Nothing
     bb0 entry
       val $dependency.argument.0: Int
@@ -183,6 +187,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun releaseGcHandle @fn7(h: GcHandle<Resource>) -> Resource
     bb0 entry
       val $dependency.local.1: ULong
@@ -214,6 +220,8 @@ Module
   fun init.Resource.$c0 @fn12(this: Resource) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GcHandle.$c0 @fn13(raw: ULong) -> GcHandle<Resource> <no-gc>
     bb0 entry
       return
@@ -243,6 +251,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Resource>[0]
         Type Continuation<Resource>
@@ -256,6 +266,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Resource>[1]
         Type Continuation<Resource>
@@ -267,6 +279,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -306,6 +320,8 @@ Module
     bb0 entry
       call extern2 @unexpected_release direct
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Resource> result=Resource
   coroutine_slot cl0 CoroutineSlot<Resource> value=Resource
   coroutine_start ct0 result=Resource function=fn14

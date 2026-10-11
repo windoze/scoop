@@ -377,7 +377,6 @@ pub(super) fn mir_type_gc_free(
 #[derive(Default)]
 pub(super) struct BoxedRegistry {
     pub(super) entries: Vec<BoxedEntry>,
-    pub(super) order: Vec<mir::ClassId>,
 }
 
 pub(super) struct BoxedEntry {
@@ -415,13 +414,13 @@ impl BoxedRegistry {
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
             type_arguments: Vec::new(),
-            representation: mir::ClassRepresentation::Declared {
+            representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
                 fields: vec![mir::Field {
                     name: "value".to_string(),
                     ty: payload.clone(),
                 }],
                 base_class: None,
-            },
+            }),
             interfaces: Vec::new(),
             vtable: Vec::new(),
             itables: Vec::new(),
@@ -431,10 +430,10 @@ impl BoxedRegistry {
             modifier: mir::ClassModifier::Final,
             name,
             type_arguments: Vec::new(),
-            representation: mir::ClassRepresentation::Declared {
+            representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
                 fields: Vec::new(),
                 base_class: None,
-            },
+            }),
             interfaces: Vec::new(),
             vtable: Vec::new(),
             itables: Vec::new(),
@@ -444,7 +443,6 @@ impl BoxedRegistry {
             class: id,
             payload_identity,
         });
-        self.order.push(id);
         id
     }
 }

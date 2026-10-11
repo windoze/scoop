@@ -115,6 +115,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Callable.invoke @fn4(this: Callable, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -174,6 +176,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun Derived.$get$doubled @fn7(this: Derived) -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn5 direct
@@ -227,6 +231,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun readName @fn13(value: Named) -> String
     bb0 entry
       call $call.1: String = @fn9 virtual[0]
@@ -590,6 +596,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$answer @fn15() -> Int
     bb0 entry
       return
@@ -612,6 +620,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$callable @fn18() -> Callable
     bb0 entry
       assign $new.1
@@ -647,6 +657,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn20(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -671,6 +683,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn21(this: Option<Int>, other: Option<Int>) -> Boolean
     bb0 entry
       val $when.1: Option<Int>
@@ -781,6 +795,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn23(this: Continuation<Base>, value: Base) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -825,9 +841,13 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
+        Type Unit
+        UnitLiteral
   fun init.Callable.$c1 @fn36(this: Callable) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c2 @fn37(this: Derived) -> Unit
     bb0 entry
       call @fn35 direct
@@ -841,9 +861,13 @@ Module
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
       return
+        Type Unit
+        UnitLiteral
   fun init.Named.$c3 @fn38(this: Named) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Actual.$c4 @fn39(this: Actual) -> Unit
     bb0 entry
       call @fn38 direct
@@ -852,6 +876,8 @@ Module
           Type Actual
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.OptionalHolder.$c5 @fn40(this: OptionalHolder) -> Unit
     bb0 entry
       field_set 0
@@ -860,6 +886,8 @@ Module
         Type Option<Int>
         VariantConstruct Option<Int> v1
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn41(left: Int, right: Int) -> Pair <no-gc>
     bb0 entry
       return
@@ -891,6 +919,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Callable>[0]
         Type Continuation<Callable>
@@ -904,6 +934,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Callable>[1]
         Type Continuation<Callable>
@@ -915,6 +947,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -972,6 +1006,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -985,6 +1021,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -996,6 +1034,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1053,6 +1093,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Derived>[0]
         Type Continuation<Derived>
@@ -1066,6 +1108,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Derived>[1]
         Type Continuation<Derived>
@@ -1077,6 +1121,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

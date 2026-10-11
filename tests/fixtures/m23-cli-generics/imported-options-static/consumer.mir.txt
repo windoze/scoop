@@ -209,6 +209,8 @@ Module
         Type Option<Int>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$referenced @fn4() -> Option<Cell>
     bb0 entry
       return
@@ -220,6 +222,8 @@ Module
         Type Option<Cell>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$qualified @fn6() -> Option<Int> <no-gc>
     bb0 entry
       return
@@ -508,6 +512,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for leaf @fn14($result: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn0 direct
@@ -518,6 +524,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Cell> @fn15(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -540,6 +548,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -553,6 +563,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -564,6 +576,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

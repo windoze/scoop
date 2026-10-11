@@ -39,15 +39,18 @@ pub(crate) enum FunctionContext {
 #[derive(Debug, Default)]
 pub(crate) struct Modifiers {
     pub context_parameters: Vec<scoop_ast::ContextParameter>,
-    pub is_suspend: bool,
     pub suspend_span: Option<Span>,
-    pub is_override: bool,
     pub override_span: Option<Span>,
     pub operator: Option<OperatorModifier>,
     pub infix: Option<InfixModifier>,
-    pub method_modifier: Option<MethodModifier>,
-    pub method_modifier_span: Option<Span>,
+    pub method_modifier: Option<SpannedMethodModifier>,
     pub start: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SpannedMethodModifier {
+    pub kind: MethodModifier,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -55,7 +58,6 @@ pub(crate) struct MemberPrefix {
     pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,
     pub modifiers: Modifiers,
-    pub is_const: bool,
     pub const_span: Option<Span>,
 }
 
@@ -109,7 +111,9 @@ impl Parser {
         let prefix = self.parse_top_level_prefix()?;
         match &self.peek().kind {
             TokenKind::Fun => {
-                if prefix.modifiers.method_modifier.is_some() || prefix.modifiers.is_override {
+                if prefix.modifiers.method_modifier.is_some()
+                    || prefix.modifiers.override_span.is_some()
+                {
                     return self.unexpected("`class`");
                 }
                 Ok(Decl::Function(self.parse_prefixed_member_function(
@@ -118,13 +122,14 @@ impl Parser {
                 )?))
             }
             TokenKind::Val | TokenKind::Var => {
-                if prefix.modifiers.method_modifier.is_some() || prefix.modifiers.is_override {
+                if let Some(span) = prefix
+                    .modifiers
+                    .method_modifier
+                    .map(|modifier| modifier.span)
+                    .or(prefix.modifiers.override_span)
+                {
                     return Err(Diagnostic::at(
-                        prefix
-                            .modifiers
-                            .method_modifier_span
-                            .or(prefix.modifiers.start.map(|start| Span::new(start, start)))
-                            .expect("top-level member modifier has a span"),
+                        span,
                         "member modality and `override` are not allowed on top-level properties",
                     ));
                 }
@@ -140,17 +145,26 @@ impl Parser {
             }
             TokenKind::Class => {
                 self.require_nominal_prefix(&prefix, "class")?;
-                let modifier = match prefix.modifiers.method_modifier {
+                let modifier = match prefix
+                    .modifiers
+                    .method_modifier
+                    .map(|modifier| modifier.kind)
+                {
                     Some(MethodModifier::Open) => ClassModifier::Open,
                     Some(MethodModifier::Abstract) => ClassModifier::Abstract,
                     Some(MethodModifier::Final) | None => ClassModifier::Final,
                 };
-                Ok(Decl::Class(self.parse_class(
-                    prefix.annotations,
-                    prefix.visibility,
-                    modifier,
-                    prefix.modifiers.method_modifier_span,
-                )?))
+                Ok(Decl::Class(
+                    self.parse_class(
+                        prefix.annotations,
+                        prefix.visibility,
+                        modifier,
+                        prefix
+                            .modifiers
+                            .method_modifier
+                            .map(|modifier| modifier.span),
+                    )?,
+                ))
             }
             TokenKind::Struct => {
                 self.require_unmodified_nominal_prefix(&prefix, "struct")?;

@@ -325,6 +325,8 @@ Module
         Type ArgumentSlot<Int>
         Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:referenceLocalGeneric$ensure @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -349,6 +351,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -471,6 +475,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ArgumentSlot.$c1 @fn12(this: ArgumentSlot<Int>, read: (Int) -> Int) -> Unit
     bb0 entry
       field_set 0
@@ -479,6 +485,8 @@ Module
         Type (Int) -> Int
         Local read
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.(Any) -> Any @fn13($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

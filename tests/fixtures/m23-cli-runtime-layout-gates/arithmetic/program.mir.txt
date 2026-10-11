@@ -46,6 +46,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Long
@@ -121,6 +123,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $dependency.argument.0: Long
         Type Long

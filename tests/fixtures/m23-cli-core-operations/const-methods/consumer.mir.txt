@@ -16,4 +16,6 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

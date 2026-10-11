@@ -48,6 +48,8 @@ Module
         Type Ptr<Unit>
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $argument.0: ULong
@@ -284,6 +286,8 @@ Module
         Type Ptr<Unit>
         Local $parameter.pointer
       return
+        Type Unit
+        UnitLiteral
     bb10 pattern.pass.10
       val $dependency.argument.0: Int
         Type Int
@@ -380,6 +384,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -404,6 +410,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn9(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>

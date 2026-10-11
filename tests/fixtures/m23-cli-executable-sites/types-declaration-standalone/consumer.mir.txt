@@ -7,4 +7,6 @@ Module
   fun onlySignature @fn0(unused: Any) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   output library

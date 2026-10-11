@@ -153,12 +153,8 @@ impl BodyLowerer<'_> {
         }
 
         let call = mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::User(source),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::User(source)),
             args,
-            pending: mir::CoroutinePendingContext::Root,
         };
         let mut statements = Vec::new();
         if let Some(result_storage) = result_storage {
@@ -203,7 +199,9 @@ impl BodyLowerer<'_> {
         let entry = blocks.alloc(mir::BasicBlock {
             name: "entry".to_string(),
             statements,
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: None,
         });
         let bridge_function = self.functions.alloc(mir::Function {

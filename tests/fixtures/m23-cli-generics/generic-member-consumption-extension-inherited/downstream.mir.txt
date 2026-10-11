@@ -218,6 +218,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Inherited.$c0 @fn14(this: Inherited<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -234,6 +236,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Inherited.$c0 @fn15(this: Inherited<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -250,6 +254,8 @@ Module
         Type Later
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn16(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -258,6 +264,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn17(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -266,6 +274,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn18(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -288,6 +298,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -301,6 +313,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -312,6 +326,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

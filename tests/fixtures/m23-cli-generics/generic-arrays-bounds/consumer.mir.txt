@@ -659,6 +659,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn5(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -975,13 +977,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn13(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -1136,6 +1134,8 @@ Module
         Type Long
         Local $dependency.local.4
       return
+        Type Unit
+        UnitLiteral
   fun freeze @fn20(values: MutableArray<Int>) -> Array<Int>
     bb0 entry
       val $dependency.local.1: MutableArray<Int>
@@ -1381,6 +1381,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn30(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1399,6 +1401,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn31($source: () -> Long) -> Any
     bb0 entry
       call $call.1: Long = <closure:function_type0> closure[function_type0]

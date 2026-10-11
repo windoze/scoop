@@ -11,6 +11,8 @@ Module
         Type String
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call external0 direct
@@ -24,5 +26,7 @@ Module
         Type String
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "root\n"
   output executable @fn1

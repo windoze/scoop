@@ -178,7 +178,6 @@ Module
     store local5 -> local6
     call managed-direct-target1 sp<managed-call:1> live=[] t3 = sig=direct1 (i64) -> ptr<raw> local-fn10(local6)
     store t3 -> local7
-    t4 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$72eb332c22a82ece8351f873be12f7c9f28a44bf027b535a291233cc7316f8dc(parts<struct0 [i32@0+4/4]>) -> parts<struct0 [i32@0+4/4]>
     local %0 value: struct0

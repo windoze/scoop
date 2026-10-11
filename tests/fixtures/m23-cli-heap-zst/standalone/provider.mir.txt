@@ -58,6 +58,8 @@ Module
         Type HeapEmpty
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun heapEmptySource @fn3() -> HeapEmpty
     bb0 entry
       call $call.1: HeapEmpty = @fn15 direct
@@ -128,6 +130,8 @@ Module
         Type HeapEmpty
         Local empty
       return
+        Type Unit
+        UnitLiteral
   fun ctor.HeapEmpty.$c0 @fn15() -> HeapEmpty <no-gc>
     bb0 entry
       return
@@ -155,6 +159,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<HeapCell>[0]
         Type Continuation<HeapCell>
@@ -168,6 +174,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<HeapCell>[1]
         Type Continuation<HeapCell>
@@ -179,6 +187,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -236,6 +246,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<HeapEmpty>[0]
         Type Continuation<HeapEmpty>
@@ -249,6 +261,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<HeapEmpty>[1]
         Type Continuation<HeapEmpty>
@@ -260,6 +274,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

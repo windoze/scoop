@@ -88,6 +88,8 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
+        Type Unit
+        UnitLiteral
   fun Completion.resume @fn1(this: Completion, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -96,6 +98,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Completion.resumeWithException @fn2(this: Completion, exception: Throwable) -> Unit
     bb0 entry
       throw
@@ -307,6 +311,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun plain @fn5(arg0: Int, arg1: Int, arg2: Int) -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern0 @m33_errno_int direct
@@ -372,6 +378,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun discard @fn9() -> Unit
     bb0 entry
       assign $new.1
@@ -432,6 +440,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn10() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1079,6 +1089,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn11(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1257,6 +1269,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resumeWithException @fn16(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -1274,6 +1288,8 @@ Module
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v1
       return
+        Type Unit
+        UnitLiteral
   fun init.Registration.$c1 @fn20(this: Registration, gate: Gate) -> Unit
     bb0 entry
       field_set 0
@@ -1282,6 +1298,8 @@ Module
         Type Gate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.Completion.$c2 @fn21(this: Completion) -> Unit
     bb0 entry
       field_set 0
@@ -1290,6 +1308,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.ErrnoTask.$c3 @fn22(this: ErrnoTask, gate: Gate) -> Unit
     bb0 entry
       field_set 0
@@ -1298,6 +1318,8 @@ Module
         Type Gate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c4 @fn23(this: Cell, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1306,9 +1328,13 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalOwner.$c5 @fn24(this: LocalOwner) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn25(this: Owner<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1317,6 +1343,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ErrnoTask.run$drive @fn26($frame: CoroutineFrame<ErrnoTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       val $dependency.argument.0: Int
@@ -1939,12 +1967,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<ErrnoTask.run>
@@ -1967,6 +1999,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2072,6 +2106,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2139,12 +2175,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<ErrnoTask.run>
@@ -2167,6 +2207,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2272,6 +2314,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2350,6 +2394,8 @@ Module
         Type Int
         Local $dependency.parameter.error
       return
+        Type Unit
+        UnitLiteral
   release_hook rh1 Owner <no-gc>
     bb0 entry
       val $dependency.release.local.2: Int
@@ -2411,6 +2457,8 @@ Module
         Type Int
         Local $dependency.release.local.14
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Int> result=Int
   coroutine_slot cl0 CoroutineSlot<(Int, Int)> value=(Int, Int)
   coroutine_slot cl1 CoroutineSlot<ErrnoTask> value=ErrnoTask

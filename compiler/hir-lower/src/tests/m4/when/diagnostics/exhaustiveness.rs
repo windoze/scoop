@@ -54,7 +54,7 @@ fn desugaring_in_when_guard_is_retained_as_guard_setup() {
             _ => None,
         })
         .expect("when statement");
-    let guard = when.arms[0].guard.as_ref().expect("guard");
+    let guard = when.arms().next().expect("when arm").guard.expect("guard");
     assert!(
         guard
             .setup
@@ -321,8 +321,8 @@ fn recursively_irrefutable_payloads_produce_an_enum_proof() {
         })
         .expect("when statement");
     assert!(matches!(
-        &when.fallback,
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix { .. })
+        when.fallback(),
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
     ));
     let concrete = &output.local;
     let hir::concrete::FunctionKind::User(main) = &concrete.functions[concrete.entry()].kind else {
@@ -337,9 +337,9 @@ fn recursively_irrefutable_payloads_produce_an_enum_proof() {
         })
         .expect("concrete when statement");
     assert!(matches!(
-        &when.fallback,
-        hir::concrete::WhenFallback::Impossible(
-            hir::concrete::ExhaustivenessProof::EnumPatternMatrix { .. }
+        when.fallback(),
+        hir::concrete::WhenFallbackRef::Impossible(
+            hir::concrete::ExhaustivenessProof::EnumPatternMatrix
         )
     ));
 }

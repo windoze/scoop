@@ -201,12 +201,13 @@ Module
     invoke managed-void-target5 sp<managed-invoke:0> roots=[local2:normal+unwind, local16:argument] sig=void6 (ptr<managed>) local-fn7(local16) normal @invoke.normal.3 unwind @try.unwind.1
     br @invoke.normal.3
   block inline.15.entry
+    t22 = aggregate () : {}
     br @inline.cont.15
   block inline.cont.17
     store true -> local13
     store true -> local14
     call managed-void-target6 sp<managed-call:9> live=[local2:ptr<managed>@0] sig=void7 (i1) local-fn6(true)
-    t22 = aggregate () : {}
+    t23 = aggregate () : {}
     br @try.body.8
   block inline.17.entry
     store local35 -> local36
@@ -216,13 +217,13 @@ Module
     store integer<Int>(0x0000002a) -> local7
     store integer<Int>(0x0000002a) -> local8
     call managed-void-target7 sp<managed-call:4> live=[local2:ptr<managed>@0] sig=void8 (i32) local-fn4(integer<Int>(0x0000002a))
-    t23 = aggregate () : {}
-    call managed-void-target8 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void9 () external-fn1()
     t24 = aggregate () : {}
+    call managed-void-target8 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void9 () external-fn1()
+    t25 = aggregate () : {}
     store global3 -> local9
     store local9 -> local10
     call managed-void-target9 sp<managed-call:6> live=[local2:ptr<managed>@0, local10:ptr<managed>@0] sig=void10 (ptr<managed>) external-fn2(local10)
-    t25 = aggregate () : {}
+    t26 = aggregate () : {}
     store local2 -> local11
     store local11 -> local12
     store local12 -> local35
@@ -236,48 +237,51 @@ Module
     store global2 -> local3
     store local3 -> local4
     call managed-void-target10 sp<managed-call:1> live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void11 (ptr<managed>) external-fn0(local4)
-    t26 = aggregate () : {}
+    t27 = aggregate () : {}
     store local2 -> local5
     store local5 -> local6
     store local6 -> local39
     br @inline.19.entry
   block inline.21.entry
     heap_store local43 +16 integer<Int>(0x00000000)
+    t28 = aggregate () : {}
     br @inline.cont.21
   block inline.cont.23
     store local45 -> local41
     store local41 -> local42
     call managed-void-target11 sp<managed-call:3> live=[local2:ptr<managed>@0, local42:ptr<managed>@0] sig=void12 (ptr<managed>) external-fn0(local42)
-    t27 = aggregate () : {}
+    t29 = aggregate () : {}
+    t30 = aggregate () : {}
     br @inline.cont.19
   block inline.23.entry
-    t28 = heap_load local46 +16 : i32
-    store t28 -> local47
+    t31 = heap_load local46 +16 : i32
+    store t31 -> local47
     store local47 -> local48
     store integer<Int>(0x00000001) -> local49
     store integer<Int>(0x00000001) -> local50
-    t29 = integer_Add<Int> local48, integer<Int>(0x00000001) : i32
-    heap_store local46 +16 t29
+    t32 = integer_Add<Int> local48, integer<Int>(0x00000001) : i32
+    heap_store local46 +16 t32
     call managed-void-target12 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void13 () runtime @scoop_rt_gc_collect()
-    t30 = aggregate () : {}
+    t33 = aggregate () : {}
     store global0 -> local45
     br @inline.cont.23
   block inline.cont.25
     store local51 -> local37
     store local37 -> local38
     call managed-void-target13 sp<managed-call:8> live=[local2:ptr<managed>@0, local38:ptr<managed>@0] sig=void14 (ptr<managed>) external-fn2(local38)
-    t31 = aggregate () : {}
+    t34 = aggregate () : {}
+    t35 = aggregate () : {}
     br @inline.cont.17
   block inline.25.entry
-    t32 = heap_load local52 +16 : i32
-    store t32 -> local53
+    t36 = heap_load local52 +16 : i32
+    store t36 -> local53
     store local53 -> local54
     store integer<Int>(0x00000001) -> local55
     store integer<Int>(0x00000001) -> local56
-    t33 = integer_Add<Int> local54, integer<Int>(0x00000001) : i32
-    heap_store local52 +16 t33
+    t37 = integer_Add<Int> local54, integer<Int>(0x00000001) : i32
+    heap_store local52 +16 t37
     call managed-void-target14 sp<managed-call:7> live=[local2:ptr<managed>@0] sig=void15 () runtime @scoop_rt_gc_collect()
-    t34 = aggregate () : {}
+    t38 = aggregate () : {}
     store global0 -> local51
     br @inline.cont.25
   block rethrow.normal.1

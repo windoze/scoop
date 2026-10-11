@@ -1,0 +1,840 @@
+Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Packet<Int>
+    Value(_1: Int)
+    Missing()
+  enum Packet<String>
+    Value(_1: String)
+    Missing()
+  enum Packet<() -> Int>
+    Value(_1: () -> Int)
+    Missing()
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn17 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type3 -> @fn18 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn6 captures=0
+    bridge function_type3 -> @fn19 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn7 captures=0
+    bridge function_type3 -> @fn20 id=9dc14c5c2891d725f9327013c0cd350456b1c4e8a17eb20a4ff2f6122fbff56b
+  closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn10 captures=0
+    bridge function_type3 -> @fn21 id=9691922887685cf9a84042b62d08b04ded449a381ed8d7fb8f1a0b15e38ac959
+  closure cc5 $Closure$lambda5 type=function_type2 invoke=@fn11 captures=0
+    bridge function_type3 -> @fn22 id=5beb4d6f5708d5b078449df115debcbb0c6285fe257cbfdc73f72fbea8173b13
+  closure cc6 $Closure$lambda6 type=function_type5 invoke=@fn12 captures=1
+    bridge function_type3 -> @fn23 id=5b1097e8364403b836c779e9cda43612b9978d2a5d3963c08350934ab40bc734
+  generated_exact_type get0 location=closure5 nominal_id=fe93a3dbceedfdd4cb17e7cfa85bf6ce51e468b67d6df4a742f84c9989f8c726 exact_id=0524e3cfbb03cc688fe3f9879e530ca024b7d6ebd5bae59b604f0dbc777b9aae
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=closure4 nominal_id=8c34f5e5dc0a1a245c98a8256001d2009817dd46b4d93d4f080471fdcd3f08e2 exact_id=5d69e19c915e3b5ed7cbba3e100e1b74feeb7a5da16d3f29d84281458eac95d4
+  generated_exact_type get6 location=closure6 nominal_id=6a956bee7c6f9a0a539aeddf35a032d703cf9162619ecce944961f2faf19a8a1 exact_id=71a8484fdaba3127ecd96890a0988be3207816f36cda6ec9e99b92a37dfacb46
+  generated_exact_type get7 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get9 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get10 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get11 location=closure3 nominal_id=1deda9c5206c86341ad96950b3fded3fffec9512dcd6ac8e399fe82c95a9e3a0 exact_id=eb2d41bca85af9d3d2b2cd551229aaac44e4348e1daa017bf059a115a8bbab71
+  generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn17 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn19 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  generated_callable gc2 function=@fn23 id=5b1097e8364403b836c779e9cda43612b9978d2a5d3963c08350934ab40bc734
+  generated_callable gc3 function=@fn22 id=5beb4d6f5708d5b078449df115debcbb0c6285fe257cbfdc73f72fbea8173b13
+  generated_callable gc4 function=@fn21 id=9691922887685cf9a84042b62d08b04ded449a381ed8d7fb8f1a0b15e38ac959
+  generated_callable gc5 function=@fn20 id=9dc14c5c2891d725f9327013c0cd350456b1c4e8a17eb20a4ff2f6122fbff56b
+  generated_callable gc6 function=@fn18 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val value: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v0
+          Type Int
+          Local $parameter._1
+      val $argument.0: Packet<Int>
+        Type Packet<Int>
+        Local value
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: Packet<Int>
+        Type Packet<Int>
+        Local $argument.0
+      val $parameter.function: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $argument.0: Packet<Int> = @fn2 direct
+        Type Packet<Int>
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.function
+      val $argument.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.value: Packet<Int>
+        Type Packet<Int>
+        Local $argument.0
+      val $parameter.fallback: () -> Int
+        Type () -> Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Packet<Int>
+        Local $parameter.value
+        Type () -> Int
+        Local $parameter.fallback
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.value: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v1
+      val $parameter.fallback: () -> Int
+        Type () -> Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Packet<Int>
+        Local $parameter.value
+        Type () -> Int
+        Local $parameter.fallback
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Packet<String>
+        Type Packet<String>
+        VariantConstruct Packet<String> v0
+          Type String
+          Local $parameter._1
+      val $argument.1: () -> String
+        Type () -> String
+        ClosureAlloc cc3 $Closure$lambda3
+      val $parameter.value: Packet<String>
+        Type Packet<String>
+        Local $argument.0
+      val $parameter.fallback: () -> String
+        Type () -> String
+        Local $argument.1
+      call $dependency.argument.0: String = @fn8 direct
+        Type Packet<String>
+        Local $parameter.value
+        Type () -> String
+        Local $parameter.fallback
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+      val $parameter._1: () -> Int
+        Type () -> Int
+        Local $argument.0
+      val task: Packet<() -> Int>
+        Type Packet<() -> Int>
+        VariantConstruct Packet<() -> Int> v0
+          Type () -> Int
+          Local $parameter._1
+      val empty: () -> Int
+        Type () -> Int
+        ClosureAlloc cc5 $Closure$lambda5
+      val $argument.0: Packet<() -> Int>
+        Type Packet<() -> Int>
+        Local task
+      val $argument.1: () -> () -> Int
+        Type () -> () -> Int
+        ClosureAlloc cc6 $Closure$lambda6
+          CaptureInit field=0
+            Type () -> Int
+            Local empty
+      val $parameter.value: Packet<() -> Int>
+        Type Packet<() -> Int>
+        Local $argument.0
+      val $parameter.fallback: () -> () -> Int
+        Type () -> () -> Int
+        Local $argument.1
+      call saved: () -> Int = @fn13 direct
+        Type Packet<() -> Int>
+        Local $parameter.value
+        Type () -> () -> Int
+        Local $parameter.fallback
+      call $dependency.argument.0: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local saved
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $equality.lhs: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v0
+          Type Int
+          Local $parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn14 direct
+        Type Packet<Int>
+        Local $equality.lhs
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v0
+          Type Int
+          Local $parameter._1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn16 direct
+        Type Packet<String>
+        VariantConstruct Packet<String> v0
+          Type String
+          Local $parameter._1
+        Type Packet<String>
+        VariantConstruct Packet<String> v1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.0 @fn1($closure: (Int) -> Int, n: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local n
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun transform @fn2(value: Packet<Int>, function: (Int) -> Int) -> Packet<Int>
+    bb0 entry
+      val $when.1: Packet<Int>
+        Type Packet<Int>
+        Local value
+      val $pattern.subject.2: Packet<Int>
+        Type Packet<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet<Int> v0
+          Type Packet<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val present: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v0 f0
+          Type Packet<Int>
+          Local $pattern.subject.2
+      call $argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local function
+        Type Int
+        Local present
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      assign $result.1
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v0
+          Type Int
+          Local $parameter._1
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Packet<Int>
+        Type Packet<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet<Int> v1
+          Type Packet<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Packet<Int>
+        Local $result.1
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun $lambda.1 @fn3($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun unpack @fn4(value: Packet<Int>, fallback: () -> Int) -> Int
+    bb0 entry
+      val $when.1: Packet<Int>
+        Type Packet<Int>
+        Local value
+      val $pattern.subject.2: Packet<Int>
+        Type Packet<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet<Int> v0
+          Type Packet<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val present: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v0 f0
+          Type Packet<Int>
+          Local $pattern.subject.2
+      assign $result.0
+        Type Int
+        Local present
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Packet<Int>
+        Type Packet<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet<Int> v1
+          Type Packet<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local fallback
+      assign $result.0
+        Type Int
+        Local $call.1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.2 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun $lambda.3 @fn7($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str3
+  fun unpack @fn8(value: Packet<String>, fallback: () -> String) -> String
+    bb0 entry
+      val $when.1: Packet<String>
+        Type Packet<String>
+        Local value
+      val $pattern.subject.2: Packet<String>
+        Type Packet<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet<String> v0
+          Type Packet<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val present: String
+        Type String
+        VariantPayloadProject Packet<String> v0 f0
+          Type Packet<String>
+          Local $pattern.subject.2
+      assign $result.0
+        Type String
+        Local present
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Packet<String>
+        Type Packet<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet<String> v1
+          Type Packet<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type String
+        Local $result.0
+    bb4 pattern.pass.4
+      call $call.1: String = <closure:function_type4> closure[function_type4]
+        Type () -> String
+        Local fallback
+      assign $result.0
+        Type String
+        Local $call.1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun println @fn9(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.4 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+  fun $lambda.5 @fn11($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun $lambda.6 @fn12($closure: () -> () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureCapture cc6 0
+          Type () -> () -> Int
+          Local $closure
+  fun unpack @fn13(value: Packet<() -> Int>, fallback: () -> () -> Int) -> () -> Int
+    bb0 entry
+      val $when.1: Packet<() -> Int>
+        Type Packet<() -> Int>
+        Local value
+      val $pattern.subject.2: Packet<() -> Int>
+        Type Packet<() -> Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet<() -> Int> v0
+          Type Packet<() -> Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val present: () -> Int
+        Type () -> Int
+        VariantPayloadProject Packet<() -> Int> v0 f0
+          Type Packet<() -> Int>
+          Local $pattern.subject.2
+      assign $result.0
+        Type () -> Int
+        Local present
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Packet<() -> Int>
+        Type Packet<() -> Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet<() -> Int> v1
+          Type Packet<() -> Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type () -> Int
+        Local $result.0
+    bb4 pattern.pass.4
+      call $call.1: () -> Int = <closure:function_type5> closure[function_type5]
+        Type () -> () -> Int
+        Local fallback
+      assign $result.0
+        Type () -> Int
+        Local $call.1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Packet.equals @fn14(this: Packet<Int>, other: Packet<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Packet<Int>
+        Type Packet<Int>
+        Local this
+      val $pattern.subject.2: Packet<Int>
+        Type Packet<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet<Int> v0
+          Type Packet<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v0 f0
+          Type Packet<Int>
+          Local $pattern.subject.2
+      val $when.3: Packet<Int>
+        Type Packet<Int>
+        Local other
+      val $pattern.subject.4: Packet<Int>
+        Type Packet<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet<Int> v0
+          Type Packet<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Packet<Int>
+        Type Packet<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Packet<Int> v1
+          Type Packet<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v0 f0
+          Type Packet<Int>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.0
+          Type Int
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Packet<Int>
+        Type Packet<Int>
+        Local other
+      val $pattern.subject.7: Packet<Int>
+        Type Packet<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Packet<Int> v1
+          Type Packet<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun println @fn15(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Packet.equals @fn16(this: Packet<String>, other: Packet<String>) -> Boolean
+    bb0 entry
+      val $when.1: Packet<String>
+        Type Packet<String>
+        Local this
+      val $pattern.subject.2: Packet<String>
+        Type Packet<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet<String> v0
+          Type Packet<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: String
+        Type String
+        VariantPayloadProject Packet<String> v0 f0
+          Type Packet<String>
+          Local $pattern.subject.2
+      val $when.3: Packet<String>
+        Type Packet<String>
+        Local other
+      val $pattern.subject.4: Packet<String>
+        Type Packet<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet<String> v0
+          Type Packet<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Packet<String>
+        Type Packet<String>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Packet<String> v1
+          Type Packet<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: String
+        Type String
+        VariantPayloadProject Packet<String> v0 f0
+          Type Packet<String>
+          Local $pattern.subject.4
+      call $call.1: Boolean = external0 direct
+        Type String
+        Local $left.0.0
+        Type String
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Packet<String>
+        Type Packet<String>
+        Local other
+      val $pattern.subject.7: Packet<String>
+        Type Packet<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Packet<String> v1
+          Type Packet<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn17($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn18($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn19($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn20($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type4> closure[function_type4]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.() -> Any @fn21($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.() -> Any @fn22($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda6.() -> Any @fn23($source: () -> () -> Int) -> Any
+    bb0 entry
+      call $call.1: () -> Int = <closure:function_type5> closure[function_type5]
+        Type () -> () -> Int
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type () -> Int
+          Local $call.1
+  instance mi0 function=@fn2 <- transform
+  instance mi1 function=@fn4 <- unpack
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn8 <- unpack
+  instance mi4 function=@fn9 <- println
+  instance mi5 function=@fn13 <- unpack
+  instance mi6 function=@fn15 <- println
+  str @str0 "enum"
+  str @str1 "a"
+  str @str2 "\n"
+  str @str3 "empty"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn0

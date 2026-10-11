@@ -285,14 +285,11 @@ fn unsigned_unary_minus_uses_the_typed_wrapping_operation_and_pattern_constant()
     let body = main_body(&module);
     assert!(matches!(
         local_init(body, "runtime").kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind: hir::IntegerKind::UNSIGNED_32,
-                operation: hir::NoGcIntegerOperation::UnaryMinus,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Unary {
+            kind: hir::IntegerKind::UNSIGNED_32,
+            operation: hir::IntegerUnaryOperator::UnaryMinus,
             ..
-        }
+        })
     ));
     let when = body
         .statements
@@ -303,7 +300,7 @@ fn unsigned_unary_minus_uses_the_typed_wrapping_operation_and_pattern_constant()
         })
         .expect("main contains a when statement");
     assert!(matches!(
-        case_pattern(&when.arms[0]),
+        case_pattern(when.arms().next().expect("when arm")),
         hir::Pattern::Literal {
             value: hir::Expr {
                 kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Unsigned8(255)),
@@ -380,7 +377,9 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
         .statements
         .iter()
         .filter_map(|statement| match &statement.kind {
-            hir::StatementKind::When(when) => Some(case_pattern(&when.arms[0])),
+            hir::StatementKind::When(when) => {
+                Some(case_pattern(when.arms().next().expect("when arm")))
+            }
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -419,26 +418,4 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
             expected_name
         );
     }
-}
-
-#[test]
-fn unary_plus_is_not_an_integer_literal_pattern() {
-    let source = file(vec![fun(
-        "main",
-        vec![
-            val_ty("value", Some(ty_named("Int")), int_lit(1)),
-            when_stmt(
-                var("value"),
-                vec![arm(
-                    pat_lit(unary(ast::UnOp::Plus, int_lit(1))),
-                    None,
-                    Vec::new(),
-                )],
-                Some(Vec::new()),
-            ),
-        ],
-    )]);
-    let diagnostics = lower_user(source).expect_err("unary plus is not literal-pattern syntax");
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].message, "expected a literal pattern");
 }

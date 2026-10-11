@@ -225,6 +225,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Unit
     bb0 entry
       call $dependency.receiver: Int = @fn6 direct
@@ -796,6 +798,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$initializations @fn6() -> Int <no-gc>
     bb0 entry
       return
@@ -807,6 +811,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Packet.Companion.make @fn8(this: Packet.Companion<Sample>, value: Sample) -> Packet<Sample>
     bb0 entry
       val $argument.0: Sample
@@ -994,6 +1000,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn21() -> Unit
     bb0 entry
       assign $new.1
@@ -1006,6 +1014,8 @@ Module
         Type Packet.Companion<Sample>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn22() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1030,6 +1040,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1116,6 +1128,8 @@ Module
         Type Choice.Companion<Sample>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$4 @fn24() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1140,6 +1154,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1226,6 +1242,8 @@ Module
         Type Reader.Companion<Sample>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$6 @fn26() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1250,6 +1268,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1336,6 +1356,8 @@ Module
         Type ObjectPacket.Companion<Child>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$5 @fn28() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1360,6 +1382,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1446,6 +1470,8 @@ Module
         Type Inline.Companion<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn30() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1470,6 +1496,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1556,6 +1584,8 @@ Module
         Type Reference.Companion<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn32() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1580,6 +1610,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1666,6 +1698,8 @@ Module
         Type FBound.Companion<Recursive>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$3 @fn34() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1690,6 +1724,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1772,6 +1808,8 @@ Module
         Type Option<Packet<Sample>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun mark @fn36() -> Int
     bb0 entry
       call $old.0: Int = @fn6 direct
@@ -1869,6 +1907,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn60(this: Child, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1885,6 +1925,8 @@ Module
         Type Int
         Local $parameter.number
       return
+        Type Unit
+        UnitLiteral
   fun init.ObjectPacket.$c2 @fn61(this: ObjectPacket<Child>, item: Child) -> Unit
     bb0 entry
       field_set 0
@@ -1893,6 +1935,8 @@ Module
         Type Child
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.Packet.Companion.$c3 @fn62(this: Packet.Companion<Sample>) -> Unit
     bb0 entry
       call $call.1: Int = @fn36 direct
@@ -1907,24 +1951,38 @@ Module
         Type Option<Packet<Sample>>
         VariantConstruct Option<Packet<Sample>> v1
       return
+        Type Unit
+        UnitLiteral
   fun init.Choice.Companion.$c7 @fn63(this: Choice.Companion<Sample>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Reader.Companion.$c9 @fn64(this: Reader.Companion<Sample>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ObjectPacket.Companion.$c8 @fn65(this: ObjectPacket.Companion<Child>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Inline.Companion.$c4 @fn66(this: Inline.Companion<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Reference.Companion.$c5 @fn67(this: Reference.Companion<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.FBound.Companion.$c6 @fn68(this: FBound.Companion<Recursive>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Sample.$c0 @fn69(number: Int) -> Sample <no-gc>
     bb0 entry
       return
@@ -1989,6 +2047,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn53 interface Continuation<Child>[0]
         Type Continuation<Child>
@@ -2002,6 +2062,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn54 interface Continuation<Child>[1]
         Type Continuation<Child>
@@ -2013,6 +2075,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2070,6 +2134,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn41 interface Continuation<Readable>[0]
         Type Continuation<Readable>
@@ -2083,6 +2149,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn42 interface Continuation<Readable>[1]
         Type Continuation<Readable>
@@ -2094,6 +2162,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2151,6 +2221,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Sample>[0]
         Type Continuation<Sample>
@@ -2164,6 +2236,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Sample>[1]
         Type Continuation<Sample>
@@ -2175,6 +2249,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2232,6 +2308,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn45 interface Continuation<Recursive>[0]
         Type Continuation<Recursive>
@@ -2245,6 +2323,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn46 interface Continuation<Recursive>[1]
         Type Continuation<Recursive>
@@ -2256,6 +2336,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2313,6 +2395,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn49 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -2326,6 +2410,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn50 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -2337,6 +2423,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

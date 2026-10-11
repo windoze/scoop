@@ -317,6 +317,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn14(this: Base<Int>, payload: Int) -> Unit
     bb0 entry
       field_set 0
@@ -325,6 +327,8 @@ Module
         Type Int
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GenericValue.$c1 @fn15(payload: Int, number: Int) -> GenericValue<Int> <no-gc>
     bb0 entry
       return

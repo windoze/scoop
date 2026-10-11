@@ -69,6 +69,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -281,6 +283,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun ContractBase.pick @fn3(this: ContractBase<Int, String>, first: Int, second: String, value: Int) -> Int
     bb0 entry
       return
@@ -888,9 +892,13 @@ Module
   fun init.ContractBase.Static.$c2 @fn22(this: ContractBase.Static) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ContractBase.$c0 @fn23(this: ContractBase<Int, String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ContractChild.$c1 @fn24(this: ContractChild<Int>) -> Unit
     bb0 entry
       call @fn25 direct
@@ -899,9 +907,13 @@ Module
           Type ContractChild<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ContractBase.$c0 @fn25(this: ContractBase<Int, Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ContractValue.$c0 @fn26(first: Int, second: Int) -> ContractValue<Int> <no-gc>
     bb0 entry
       return
@@ -933,6 +945,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<ContractBase.Static>[0]
         Type Continuation<ContractBase.Static>
@@ -946,6 +960,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<ContractBase.Static>[1]
         Type Continuation<ContractBase.Static>
@@ -957,6 +973,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

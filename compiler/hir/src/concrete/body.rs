@@ -1,5 +1,11 @@
+mod data_borrow;
+pub use data_borrow::*;
+
 use super::*;
+
+mod when;
 use crate::{FloatBinaryOperator, FloatKind, FloatUnaryOperator, HirFloatConversion};
+pub use when::*;
 
 mod type_uses;
 use crate::{ArrayAccessKind, PrimitiveBinaryKind, PrimitiveUnaryKind};
@@ -20,10 +26,8 @@ pub enum StatementKind {
     InitializationEnsure(InitializationUnitId),
     LocalFunction(LocalFunctionId),
     Return {
-        /// Absent in `Unit` functions (bare `return`). If substitution makes
-        /// a generic return expression exactly `Unit`, concretization emits
-        /// that expression as a preceding statement to preserve evaluation.
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     ValDecl {
         pattern: Pattern,
@@ -83,63 +87,6 @@ pub enum AssignTarget {
         receiver: Box<Expr>,
         field: FieldRef,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct When {
-    pub subject: Option<Expr>,
-    pub arms: Vec<WhenArm>,
-    pub fallback: WhenFallback,
-}
-
-/// Local-concrete counterpart of the checked Export HIR fallback edge.
-#[derive(Debug, Clone)]
-pub enum WhenFallback {
-    Else(Vec<Statement>),
-    /// A permitted statement-position fallthrough.
-    Fallthrough,
-    Impossible(ExhaustivenessProof),
-}
-
-/// A fully instantiated exhaustiveness witness.
-#[derive(Debug, Clone)]
-pub enum ExhaustivenessProof {
-    IrrefutableArm {
-        subject_ty: TypeId,
-    },
-    /// A tuple, struct, or exact integer domain is covered by the complete
-    /// recursive pattern matrix.
-    PatternMatrix {
-        subject_ty: TypeId,
-    },
-    EnumPatternMatrix {
-        subject_ty: TypeId,
-        enum_id: EnumId,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub struct WhenArm {
-    pub condition: WhenCondition,
-    pub guard: Option<WhenGuard>,
-    pub body: Vec<Statement>,
-    pub span: Span,
-}
-
-/// Ordinary predicates retain their ordered local setup; multiple source
-/// conditions use the existing short-circuit Boolean control flow.
-#[derive(Debug, Clone)]
-pub enum WhenCondition {
-    Case(Pattern),
-    Predicate(WhenGuard),
-    /// The primary condition of a guarded fallback.
-    Always,
-}
-
-#[derive(Debug, Clone)]
-pub struct WhenGuard {
-    pub setup: Vec<Statement>,
-    pub condition: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -374,10 +321,8 @@ pub enum ExprKind {
         kind: PrimitiveUnaryKind,
         operand: Box<Expr>,
     },
-    IntegerOperation {
-        operation: HirIntegerOperation,
-        arguments: HirIntegerOperationArguments,
-    },
+    IntegerOperation(HirIntegerOperation),
+    DataBorrow(DataBorrow),
     IntegerConversion {
         conversion: HirIntegerConversion,
         operand: Box<Expr>,
@@ -400,11 +345,7 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum HirIntegerOperationArguments {
-    Unary(Box<Expr>),
-    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
-}
+pub type HirIntegerOperation = IntegerExpression<Box<Expr>>;
 
 #[derive(Debug, Clone)]
 pub struct ArrayAssembly {

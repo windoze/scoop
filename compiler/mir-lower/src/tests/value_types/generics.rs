@@ -11,7 +11,7 @@ fn params_and_return_translate() {
     let sum = integer_binary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::Add,
+        hir::IntegerBinaryOperator::Add,
         local_ref(x, int),
         local_ref(y, int),
     );
@@ -22,7 +22,7 @@ fn params_and_return_translate() {
         int,
         hir::Body {
             locals,
-            statements: vec![stmt(hir::StatementKind::Return { value: Some(sum) })],
+            statements: vec![stmt(hir::StatementKind::Return { value: sum })],
         },
     );
     let main = h.user_fn(
@@ -51,7 +51,7 @@ fn params_and_return_translate() {
     assert!(matches!(
         &add_fn.body.blocks[add_fn.body.entry].terminator,
         mir::Terminator::Return {
-            value: Some(value)
+            value
         } if matches!(value.kind, mir::ExprKind::IntegerBinary {
             operation,
             ..
@@ -111,7 +111,7 @@ fn monomorphizes_generic_functions() {
     assert!(matches!(
         &int_instance.body.blocks[int_instance.body.entry].terminator,
         mir::Terminator::Return {
-            value: Some(value)
+            value
         } if matches!(value.kind, mir::ExprKind::Local(local) if local == x)
     ));
     assert_eq!(string_instance.params[0].ty, mir::Type::String);
@@ -220,9 +220,8 @@ fn monomorphizes_generic_functions() {
         .zip([module.top_level[1], module.top_level[2]])
     {
         let (call, _) = statement_call(statement);
-        assert_eq!(
-            call.target.callee,
-            mir::Callee::Monomorphized(instance_id(&module, instance))
+        assert!(
+            matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Monomorphized(instance_id(&module, instance)))
         );
     }
 }
@@ -263,9 +262,8 @@ fn duplicate_requests_produce_one_instance() {
         .expect("test module is executable")];
     for statement in entry_statements(&main_fn.body) {
         let (call, _) = statement_call(statement);
-        assert_eq!(
-            call.target.callee,
-            mir::Callee::Monomorphized(instance_id(&module, instance))
+        assert!(
+            matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Monomorphized(instance_id(&module, instance)))
         );
     }
 }
@@ -290,7 +288,7 @@ fn nested_generic_calls_extend_the_worklist() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(generic_call(inner_t, vec![local_ref(x, t)], t)),
+                value: generic_call(inner_t, vec![local_ref(x, t)], t),
             })],
         },
     );
@@ -328,14 +326,13 @@ fn nested_generic_calls_extend_the_worklist() {
     assert_eq!(inner_i.name, "inner");
     let (call, destination) = statement_call(&entry_statements(&forward_i.body)[0]);
     let destination = destination.expect("inner<Int> returns Int");
-    assert_eq!(
-        call.target.callee,
-        mir::Callee::Monomorphized(instance_id(&module, module.top_level[2]))
+    assert!(
+        matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Monomorphized(instance_id(&module, module.top_level[2])))
     );
     assert!(matches!(
         &forward_i.body.blocks[forward_i.body.entry].terminator,
         mir::Terminator::Return {
-            value: Some(value)
+            value
         } if matches!(value.kind, mir::ExprKind::Local(local) if local == destination)
     ));
     assert_eq!(

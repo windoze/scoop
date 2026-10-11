@@ -18,6 +18,8 @@ Module
         Type Long
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun failure @fn1() -> IllegalStateException
     bb0 entry
       goto bb8
@@ -306,6 +308,8 @@ Module
         Type Long
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "illegal state"

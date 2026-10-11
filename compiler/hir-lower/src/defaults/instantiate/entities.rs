@@ -212,7 +212,7 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::EnumVariantApplication {
         hir::EnumVariantApplication {
-            owner: self.instantiate_method_ty(source.owner, &context.bindings),
+            owner: self.instantiate_default_enum_application(source.owner, context),
             variant: source.variant,
         }
     }

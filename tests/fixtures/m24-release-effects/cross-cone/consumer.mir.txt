@@ -70,6 +70,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun forward @fn2(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.argument.0: Int
@@ -108,6 +110,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn4(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.local.1: Int
@@ -141,6 +145,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- forward
   instance mi1 function=@fn3 <- println
   instance mi2 function=@fn4 <- identity

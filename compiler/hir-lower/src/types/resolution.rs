@@ -623,7 +623,9 @@ impl Lowerer {
                     parameter_types.push(self.resolve_type_ref(parameter)?);
                 }
                 let return_type = self.resolve_type_ref(&function.return_type)?;
-                Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
+                let function =
+                    self.intern_function_type(function.is_suspend, parameter_types, return_type);
+                Some(self.function_types[function].canonical_type)
             }
             // `T?` desugars to `Option<T>` (spec 7.1) — the core
             // library's generic enum since M4. `T??` is

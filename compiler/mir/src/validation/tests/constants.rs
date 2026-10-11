@@ -75,7 +75,7 @@ fn struct_global_validation_rejects_an_inexact_field_arity() {
         type_arguments: Vec::new(),
         name: "Pair".to_string(),
         gc_free: true,
-        representation: StructRepresentation::Declared {
+        representation: StructRepresentation::Declared(DeclaredStruct {
             c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
@@ -84,7 +84,7 @@ fn struct_global_validation_rejects_an_inexact_field_arity() {
                 name: "value".to_string(),
                 ty: Type::Boolean,
             }],
-        },
+        }),
     });
     register_test_exact_type(&mut module, &Type::Struct(structure));
     let global = encoded_global(
@@ -213,7 +213,7 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
         type_arguments: Vec::new(),
         name: "Inner".to_string(),
         gc_free: true,
-        representation: StructRepresentation::Declared {
+        representation: StructRepresentation::Declared(DeclaredStruct {
             c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
@@ -222,13 +222,13 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
                 name: "choice".to_string(),
                 ty: Type::Enum(enum_id, Vec::new()),
             }],
-        },
+        }),
     });
     let outer = module.structs.alloc(StructDef {
         type_arguments: Vec::new(),
         name: "Outer".to_string(),
         gc_free: true,
-        representation: StructRepresentation::Declared {
+        representation: StructRepresentation::Declared(DeclaredStruct {
             c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
@@ -237,7 +237,7 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
                 name: "inner".to_string(),
                 ty: Type::Struct(inner),
             }],
-        },
+        }),
     });
     register_test_exact_type(&mut module, &Type::Struct(inner));
     register_test_exact_type(&mut module, &Type::Struct(outer));

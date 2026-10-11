@@ -9,7 +9,7 @@ use super::{
     InitializationOutcome, InternalPointerCarrier, LirTargetProfile, LirType,
     LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
     ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
-    NativeBorrowedResultRoot, NonEmptyRefScan, NullNicheKind, PointerKind, PointerNullEncoding,
+    NativeBorrowedTypedCall, NonEmptyRefScan, NullNicheKind, PointerKind, PointerNullEncoding,
     RefScan, ScoopAbiSignature, ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId,
     TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
@@ -528,16 +528,13 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
         signature: direct_signature,
     });
     let direct_storage = super::LocalId::from_raw(la_arena::RawIdx::from_u32(0));
-    let direct = targets.bind_native_borrowed_call(
-        TypedCall::Direct {
-            target: direct_target,
-            out: super::TempId::from_raw(la_arena::RawIdx::from_u32(0)),
-            args: Vec::new(),
-        },
-        NativeBorrowedResultRoot::Rooted {
-            storage: direct_storage,
-        },
-    );
+    let direct = NativeBorrowedTypedCall::DirectRooted {
+        target: direct_target,
+        out: super::TempId::from_raw(la_arena::RawIdx::from_u32(0)),
+        args: Vec::new(),
+        storage: direct_storage,
+        scan: NonEmptyRefScan::new(result_scan.clone()).unwrap(),
+    };
     let direct = direct.view(&targets);
     assert!(matches!(direct.call, TypedCallView::Direct { .. }));
     assert!(matches!(
@@ -576,14 +573,11 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
             signature: elided_signature,
         });
     let elided_out = super::TempId::from_raw(la_arena::RawIdx::from_u32(1));
-    let elided = targets.bind_native_borrowed_call(
-        TypedCall::ElidedZst {
-            target: elided_target,
-            out: elided_out,
-            args: Vec::new(),
-        },
-        NativeBorrowedResultRoot::GcFree,
-    );
+    let elided = NativeBorrowedTypedCall::ElidedZst {
+        target: elided_target,
+        out: elided_out,
+        args: Vec::new(),
+    };
     let elided = elided.view(&targets);
     assert_eq!(elided.call.result(), TypedCallResult::ElidedZst(elided_out));
     assert!(matches!(
@@ -622,16 +616,12 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
             destination: NativeBorrowedCallDestination::extern_function(indirect_function),
             signature: indirect_signature,
         });
-    let indirect = targets.bind_native_borrowed_call(
-        TypedCall::IndirectResult {
-            target: indirect_target,
-            storage: indirect_storage,
-            args: Vec::new(),
-        },
-        NativeBorrowedResultRoot::Rooted {
-            storage: indirect_storage,
-        },
-    );
+    let indirect = NativeBorrowedTypedCall::IndirectResultRooted {
+        target: indirect_target,
+        storage: indirect_storage,
+        args: Vec::new(),
+        scan: NonEmptyRefScan::new(result_scan.clone()).unwrap(),
+    };
     let indirect = indirect.view(&targets);
     let TypedCallView::IndirectResult { signature, .. } = indirect.call else {
         panic!("indirect target must preserve its return arm");

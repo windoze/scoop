@@ -164,6 +164,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalItem.$c1 @fn13(this: LocalItem<Int>, value: Int) -> Unit
     bb0 entry
       call @fn14 direct
@@ -177,9 +179,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractReader.$c0 @fn14(this: AbstractReader<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- LocalReader.get
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- AbstractReader.get

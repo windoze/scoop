@@ -17,11 +17,11 @@ impl Builder {
             .map(|kind| {
                 (
                     kind.canonical_name(),
-                    mir::IntrinsicTypeRepresentation::Integer(kind),
+                    mir::IntrinsicStructRepresentation::Integer(kind),
                 )
             })
             .into_iter()
-            .chain([("Boolean", mir::IntrinsicTypeRepresentation::Boolean)])
+            .chain([("Boolean", mir::IntrinsicStructRepresentation::Boolean)])
         {
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
@@ -36,7 +36,7 @@ impl Builder {
             name: "String".to_string(),
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::String,
+                mir::IntrinsicClassRepresentation::String,
             ),
             interfaces: Vec::new(),
             vtable: Vec::new(),
@@ -50,32 +50,28 @@ impl Builder {
         );
         for (id, structure) in self.structs.iter() {
             let ty = match &structure.representation {
-                mir::StructRepresentation::Declared { .. } => mir::Type::Struct(id),
+                mir::StructRepresentation::Declared(mir::DeclaredStruct { .. }) => {
+                    mir::Type::Struct(id)
+                }
                 mir::StructRepresentation::Intrinsic(representation) => match representation {
-                    mir::IntrinsicTypeRepresentation::Integer(kind) => mir::Type::Integer(*kind),
-                    mir::IntrinsicTypeRepresentation::Float(_)
-                    | mir::IntrinsicTypeRepresentation::MaybeUninit { .. }
-                    | mir::IntrinsicTypeRepresentation::Char => mir::Type::Struct(id),
-                    mir::IntrinsicTypeRepresentation::Unit => mir::Type::Unit,
-                    mir::IntrinsicTypeRepresentation::Boolean => mir::Type::Boolean,
-                    mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+                    mir::IntrinsicStructRepresentation::Integer(kind) => mir::Type::Integer(*kind),
+                    mir::IntrinsicStructRepresentation::Float(_)
+                    | mir::IntrinsicStructRepresentation::MaybeUninit { .. }
+                    | mir::IntrinsicStructRepresentation::Char => mir::Type::Struct(id),
+                    mir::IntrinsicStructRepresentation::Unit => mir::Type::Unit,
+                    mir::IntrinsicStructRepresentation::Boolean => mir::Type::Boolean,
+                    mir::IntrinsicStructRepresentation::Ptr { pointee } => {
                         mir::Type::Ptr(Box::new(pointee.clone()))
                     }
-                    mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+                    mir::IntrinsicStructRepresentation::FunPtr { signature } => {
                         mir::Type::FunPtr(*signature)
-                    }
-                    mir::IntrinsicTypeRepresentation::String
-                    | mir::IntrinsicTypeRepresentation::Atomic(_)
-                    | mir::IntrinsicTypeRepresentation::Any
-                    | mir::IntrinsicTypeRepresentation::Nothing
-                    | mir::IntrinsicTypeRepresentation::Array { .. }
-                    | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
-                        unreachable!("the test registry fixes intrinsic declaration targets")
                     }
                 },
             };
             test_exact_type_at(provider, &self.function_types, &ty, &mut exact_types);
-            if let mir::StructRepresentation::Declared { fields, .. } = &structure.representation {
+            if let mir::StructRepresentation::Declared(mir::DeclaredStruct { fields, .. }) =
+                &structure.representation
+            {
                 for field in fields {
                     test_tuple_layout_type(
                         provider,
@@ -115,7 +111,7 @@ impl Builder {
         for (id, class) in self.classes.iter() {
             if !matches!(
                 class.representation,
-                mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+                mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String)
             ) {
                 test_exact_type_at(
                     provider,
@@ -124,7 +120,9 @@ impl Builder {
                     &mut exact_types,
                 );
             }
-            if let mir::ClassRepresentation::Declared { fields, .. } = &class.representation {
+            if let mir::ClassRepresentation::Declared(mir::DeclaredClass { fields, .. }) =
+                &class.representation
+            {
                 for field in fields {
                     test_tuple_layout_type(
                         provider,

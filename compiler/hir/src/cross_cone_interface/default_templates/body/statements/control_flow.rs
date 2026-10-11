@@ -3,9 +3,7 @@ use std::fmt;
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
 use super::DefaultStatementV1;
-use crate::{
-    DefaultExpressionV1, DefaultPatternV1, ExportDefinitionSourceV1, OptionalDefaultExpressionV1,
-};
+use crate::{DefaultExpressionV1, DefaultPatternV1, ExportDefinitionSourceV1};
 
 mod decoded;
 mod indexed;
@@ -24,233 +22,8 @@ pub use indexed::{
     IndexedOptionalDefaultWhenGuardV1,
 };
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefaultWhenV1 {
-    subject: OptionalDefaultExpressionV1,
-    arms: Vec<DefaultWhenArmV1>,
-    fallback: DefaultWhenFallbackV1,
-}
-
-impl DefaultWhenV1 {
-    pub fn try_new(
-        subject: OptionalDefaultExpressionV1,
-        arms: Vec<DefaultWhenArmV1>,
-        fallback: DefaultWhenFallbackV1,
-    ) -> Result<Self, DefaultControlFlowBuildError> {
-        require_len(arms.len(), DefaultControlFlowBuildError::TooManyWhenArms)?;
-        if subject.as_ref().is_none()
-            && (arms
-                .iter()
-                .any(|arm| matches!(arm.condition, DefaultWhenConditionV1::Case(_)))
-                || !matches!(
-                    fallback.view(),
-                    DefaultWhenFallbackViewV1::Else(_) | DefaultWhenFallbackViewV1::Fallthrough
-                ))
-        {
-            return Err(DefaultControlFlowBuildError::MissingWhenSubject);
-        }
-        Ok(Self {
-            subject,
-            arms,
-            fallback,
-        })
-    }
-
-    pub fn subject(&self) -> Option<&DefaultExpressionV1> {
-        self.subject.as_ref()
-    }
-
-    pub fn arms(&self) -> &[DefaultWhenArmV1] {
-        &self.arms
-    }
-
-    pub const fn fallback(&self) -> &DefaultWhenFallbackV1 {
-        &self.fallback
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefaultWhenArmV1 {
-    condition: DefaultWhenConditionV1,
-    guard: OptionalDefaultWhenGuardV1,
-    body: Vec<DefaultStatementV1>,
-    definition_origin: ExportDefinitionSourceV1,
-}
-
-impl DefaultWhenArmV1 {
-    pub fn try_new(
-        condition: DefaultWhenConditionV1,
-        guard: OptionalDefaultWhenGuardV1,
-        body: Vec<DefaultStatementV1>,
-        definition_origin: ExportDefinitionSourceV1,
-    ) -> Result<Self, DefaultControlFlowBuildError> {
-        require_statements(&body)?;
-        Ok(Self {
-            condition,
-            guard,
-            body,
-            definition_origin,
-        })
-    }
-
-    pub const fn condition(&self) -> &DefaultWhenConditionV1 {
-        &self.condition
-    }
-
-    pub const fn guard(&self) -> &OptionalDefaultWhenGuardV1 {
-        &self.guard
-    }
-
-    pub fn body(&self) -> &[DefaultStatementV1] {
-        &self.body
-    }
-
-    pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
-        &self.definition_origin
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DefaultWhenConditionV1 {
-    Case(DefaultPatternV1),
-    Predicate(Box<DefaultWhenGuardV1>),
-    Always,
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum OptionalDefaultWhenGuardV1 {
-    Absent,
-    Present(Box<DefaultWhenGuardV1>),
-}
-
-impl OptionalDefaultWhenGuardV1 {
-    pub const fn absent() -> Self {
-        Self::Absent
-    }
-
-    pub fn present(guard: DefaultWhenGuardV1) -> Self {
-        Self::Present(Box::new(guard))
-    }
-
-    pub fn as_ref(&self) -> Option<&DefaultWhenGuardV1> {
-        match self {
-            Self::Absent => None,
-            Self::Present(guard) => Some(guard),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefaultWhenGuardV1 {
-    setup: Vec<DefaultStatementV1>,
-    condition: DefaultExpressionV1,
-}
-
-impl DefaultWhenGuardV1 {
-    pub fn try_new(
-        setup: Vec<DefaultStatementV1>,
-        condition: DefaultExpressionV1,
-    ) -> Result<Self, DefaultControlFlowBuildError> {
-        require_statements(&setup)?;
-        Ok(Self { setup, condition })
-    }
-
-    pub fn setup(&self) -> &[DefaultStatementV1] {
-        &self.setup
-    }
-
-    pub const fn condition(&self) -> &DefaultExpressionV1 {
-        &self.condition
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefaultWhenFallbackV1(DefaultWhenFallbackKindV1);
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum DefaultWhenFallbackKindV1 {
-    Fallthrough,
-    Else(Vec<DefaultStatementV1>),
-    IrrefutableArm {
-        subject_type: SignatureTypeKey,
-    },
-    PatternMatrix {
-        subject_type: SignatureTypeKey,
-    },
-    EnumPatternMatrix {
-        subject_type: SignatureTypeKey,
-        owner_type: SignatureTypeKey,
-    },
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum DefaultWhenFallbackViewV1<'a> {
-    Fallthrough,
-    Else(&'a [DefaultStatementV1]),
-    IrrefutableArm {
-        subject_type: &'a SignatureTypeKey,
-    },
-    PatternMatrix {
-        subject_type: &'a SignatureTypeKey,
-    },
-    EnumPatternMatrix {
-        subject_type: &'a SignatureTypeKey,
-        owner_type: &'a SignatureTypeKey,
-    },
-}
-
-impl DefaultWhenFallbackV1 {
-    pub const fn fallthrough() -> Self {
-        Self(DefaultWhenFallbackKindV1::Fallthrough)
-    }
-
-    pub fn try_else(
-        statements: Vec<DefaultStatementV1>,
-    ) -> Result<Self, DefaultControlFlowBuildError> {
-        require_statements(&statements)?;
-        Ok(Self(DefaultWhenFallbackKindV1::Else(statements)))
-    }
-
-    pub const fn irrefutable_arm(subject_type: SignatureTypeKey) -> Self {
-        Self(DefaultWhenFallbackKindV1::IrrefutableArm { subject_type })
-    }
-
-    pub const fn pattern_matrix(subject_type: SignatureTypeKey) -> Self {
-        Self(DefaultWhenFallbackKindV1::PatternMatrix { subject_type })
-    }
-
-    pub const fn enum_pattern_matrix(
-        subject_type: SignatureTypeKey,
-        owner_type: SignatureTypeKey,
-    ) -> Self {
-        Self(DefaultWhenFallbackKindV1::EnumPatternMatrix {
-            subject_type,
-            owner_type,
-        })
-    }
-
-    pub fn view(&self) -> DefaultWhenFallbackViewV1<'_> {
-        match &self.0 {
-            DefaultWhenFallbackKindV1::Fallthrough => DefaultWhenFallbackViewV1::Fallthrough,
-            DefaultWhenFallbackKindV1::Else(statements) => {
-                DefaultWhenFallbackViewV1::Else(statements)
-            }
-            DefaultWhenFallbackKindV1::IrrefutableArm { subject_type } => {
-                DefaultWhenFallbackViewV1::IrrefutableArm { subject_type }
-            }
-            DefaultWhenFallbackKindV1::PatternMatrix { subject_type } => {
-                DefaultWhenFallbackViewV1::PatternMatrix { subject_type }
-            }
-            DefaultWhenFallbackKindV1::EnumPatternMatrix {
-                subject_type,
-                owner_type,
-            } => DefaultWhenFallbackViewV1::EnumPatternMatrix {
-                subject_type,
-                owner_type,
-            },
-        }
-    }
-}
+mod when;
+pub use when::*;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DefaultTryV1 {
@@ -372,6 +145,7 @@ impl OptionalDefaultStatementListV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultControlFlowBuildError {
     MissingWhenSubject,
+    WhenSubjectTypeMismatch,
     TooManyStatements,
     TooManyWhenArms,
     TooManyCatches,
@@ -380,6 +154,9 @@ pub enum DefaultControlFlowBuildError {
 impl fmt::Display for DefaultControlFlowBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::WhenSubjectTypeMismatch => {
+                formatter.write_str("when fallback type does not match its subject")
+            }
             Self::TooManyStatements => {
                 formatter.write_str("default control-flow statement count exceeds u32")
             }

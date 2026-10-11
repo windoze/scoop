@@ -22,4 +22,6 @@ Module
   fun $extension.$set$score @fn3(this: String, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   output library

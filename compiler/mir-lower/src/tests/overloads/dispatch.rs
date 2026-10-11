@@ -26,7 +26,7 @@ fn int_method(
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(h, value)),
+                value: int_lit(h, value),
             })],
         },
     )
@@ -112,10 +112,16 @@ fn virtual_calls_annotate_the_overloads_own_slot() {
     .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
-        &call.target.kind
+        &call.target
     };
-    assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 0 }));
-    assert!(matches!(call_kind(1), mir::CallKind::Virtual { slot: 1 }));
+    assert!(matches!(
+        call_kind(0),
+        mir::CallTarget::Virtual { slot: 0, .. }
+    ));
+    assert!(matches!(
+        call_kind(1),
+        mir::CallTarget::Virtual { slot: 1, .. }
+    ));
 }
 
 /// `interface <name> { fun m(v: T)... }` — one `MethodSig` per
@@ -217,9 +223,9 @@ fn interface_calls_annotate_the_overloads_own_slot() {
     .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
-        &call.target.kind
+        &call.target
     };
-    let is_iface_slot = |kind: &mir::CallKind, slot: u32| matches!(kind, mir::CallKind::Interface { slot: s, .. } if *s == slot);
+    let is_iface_slot = |kind: &mir::CallTarget, slot: u32| matches!(kind, mir::CallTarget::Interface { slot: s, .. } if *s == slot);
     assert!(is_iface_slot(call_kind(0), 0));
     assert!(is_iface_slot(call_kind(1), 1));
 }
@@ -269,7 +275,7 @@ fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
         };
         let thunk = &module.functions[*thunk];
         let (call, _) = statement_call(&entry_statements(&thunk.body)[0]);
-        let mir::Callee::User(target) = call.target.callee else {
+        let mir::CallTarget::Direct(mir::Callee::User(target)) = call.target else {
             panic!("the thunk calls a user function")
         };
         (

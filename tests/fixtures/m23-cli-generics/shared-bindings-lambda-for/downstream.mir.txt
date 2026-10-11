@@ -3108,35 +3108,27 @@ Module
           Local $dependency.local.7
   fun $lambda @fn53($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc14 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn54($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc15 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn55(this: Iterator<Pair<Unit>>) -> Option<Pair<Unit>>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
   fun $lambda @fn56($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc16 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn57($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc17 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun Iterator.next @fn58(this: Iterator<Pieces<Unit>>) -> Option<Pieces<Unit>>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
@@ -3173,6 +3165,8 @@ Module
         Type Pieces<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun component2 @fn60(this: Pieces<Unit>) -> Int
     bb0 entry
       call $dependency.local.1: Int = external1 direct
@@ -4093,11 +4087,9 @@ Module
           Local $dependency.local.12
   fun first @fn74(this: Pieces<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Pieces<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun second @fn75(this: Pieces<Unit>) -> Int
     bb0 entry
       return
@@ -4179,6 +4171,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c1 @fn99(this: Pieces<Later>, first: Later, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -4192,6 +4186,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c1 @fn100(this: Pieces<Int>, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -4205,6 +4201,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c1 @fn101(this: Pieces<Unit>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -4218,6 +4216,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn102(this: ListIterator<() -> Later>, source: List<() -> Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4236,6 +4236,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn103(this: ListIterator<Pair<Later>>, source: List<Pair<Later>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4254,6 +4256,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn104(this: ListIterator<Pieces<Later>>, source: List<Pieces<Later>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4272,6 +4276,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn105(this: ListIterator<() -> Int>, source: List<() -> Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4290,6 +4296,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn106(this: ListIterator<Pair<Int>>, source: List<Pair<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4308,6 +4316,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn107(this: ListIterator<Pieces<Int>>, source: List<Pieces<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4326,6 +4336,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn108(this: ListIterator<() -> Unit>, source: List<() -> Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4344,6 +4356,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn109(this: ListIterator<Pair<Unit>>, source: List<Pair<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4362,6 +4376,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn110(this: ListIterator<Pieces<Unit>>, source: List<Pieces<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4380,6 +4396,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn111(left: Later, right: Int) -> Pair<Later> <no-gc>
     bb0 entry
       return
@@ -4429,6 +4447,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn94 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -4442,6 +4462,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn95 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -4453,6 +4475,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

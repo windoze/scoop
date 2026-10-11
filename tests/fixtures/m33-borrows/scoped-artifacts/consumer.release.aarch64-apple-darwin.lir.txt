@@ -341,8 +341,8 @@ Module
   block inline.cont.31
     store local79 -> local69
     array_set array2 local67 local68 local69
-    t40 = integer_Add<Long> local68, integer<Long>(0x0000000000000001) : i64
-    store t40 -> local68
+    t41 = integer_Add<Long> local68, integer<Long>(0x0000000000000001) : i64
+    store t41 -> local68
     br @while.cond.11
   block inline.31.entry
     store integer<Int>(0x0000000c) -> local81
@@ -355,26 +355,26 @@ Module
   block inline.cont.33
     store integer<Int>(0x00000007) -> local64
     array_set array0 local62 local63 integer<Int>(0x00000007)
-    t41 = integer_Add<Long> local63, integer<Long>(0x0000000000000001) : i64
-    store t41 -> local63
+    t42 = integer_Add<Long> local63, integer<Long>(0x0000000000000001) : i64
+    store t42 -> local63
     br @while.cond.3
   block inline.33.entry
     store integer<Int>(0x00000007) -> local87
     br @inline.cont.33
   block inline.cont.35
     store local90 -> local9
-    t42 = extract local9, 0 : i32
-    store t42 -> local10
+    t43 = extract local9, 0 : i32
+    store t43 -> local10
     store integer<Int>(0x00000027) -> local11
     store integer<Int>(0x00000027) -> local12
-    t43 = integer_compare_Equal<Int> local10, integer<Int>(0x00000027) : i1
-    cbr t43 then @if.then.6 else @if.else.7
+    t44 = integer_compare_Equal<Int> local10, integer<Int>(0x00000027) : i1
+    cbr t44 then @if.then.6 else @if.else.7
   block inline.35.entry
     store local91 -> local93
     store local92 -> local94
     store local94 -> local95
-    call managed-direct-target9 sp<managed-call:3> live=[local4:ptr<managed>@0, local93:ptr<managed>@0, local95:ptr<managed>@0] t44 = sig=direct10 (ptr<managed>, ptr<managed>) -> struct0 local-fn24(local93, local95)
-    store t44 -> local96
+    call managed-direct-target9 sp<managed-call:3> live=[local4:ptr<managed>@0, local93:ptr<managed>@0, local95:ptr<managed>@0] t45 = sig=direct10 (ptr<managed>, ptr<managed>) -> struct0 local-fn24(local93, local95)
+    store t45 -> local96
     store local96 -> local90
     br @inline.cont.35
   block inline.cont.37
@@ -382,13 +382,14 @@ Module
     store local86 -> local79
     br @inline.cont.31
   block inline.37.entry
-    t45 = aggregate (integer<Int>(0x0000000c), integer<Long>(0x000000000000000f)) : struct0
-    store t45 -> local97
+    t46 = aggregate (integer<Int>(0x0000000c), integer<Long>(0x000000000000000f)) : struct0
+    store t46 -> local97
     br @inline.cont.37
   block rethrow.normal.1
     unreachable
   block invoke.normal.2
     t39 = aggregate () : {}
+    t40 = aggregate () : {}
     br @inline.cont.29
   fun @scoop$1$cb$32f7696d1dee7c8fc4eb8b266ee09ec59c883da0ffacdfd144a79e5caccb03c8(ptr<managed>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.1: interface{object,itab}
@@ -429,6 +430,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$fddfc39b000af59b98c53e20b637b52530ec5ac73b5765541f1a38aa08659d39(ptr<managed>, i64) -> i32
     local %0 $dependency.local.2: ptr<managed>
@@ -544,6 +546,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$9cd888d2e5f1d2f10d9ff03b89262af44b37e0f0f811126d8b50b67296fffa25(ptr<managed>, i64) -> i32
     local %0 $dependency.local.2: ptr<managed>
@@ -628,6 +631,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$f059af9f78ab6b73a52439fd43653cee478f2c5ae382b52078801205251f4c10(ptr<managed>, i64) -> parts<struct0 [[2xi64]@0+16/8]>
     local %0 $dependency.local.2: ptr<managed>

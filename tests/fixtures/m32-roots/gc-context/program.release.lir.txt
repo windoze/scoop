@@ -103,6 +103,7 @@ Module
     br @try.body.6
   block inline.8.entry
     heap_store local8 +16 integer<Long>(0x0000000000000063)
+    t16 = aggregate () : {}
     br @inline.cont.8
   block invoke.normal.1
     t9 = aggregate () : {}
@@ -407,52 +408,54 @@ Module
     br @try.body.6
   block inline.35.entry
     heap_store local77 +16 integer<Long>(0x0000000000000007)
+    t72 = aggregate () : {}
     br @inline.cont.35
   block inline.cont.37
     store local69 -> local13
-    t72 = aggregate (local12, local13) : {ptr<managed>, ptr<managed>}
-    store t72 -> local95
-    t73 = box_value td9, local95 scan=refs[0, 8] sp<managed-call:4> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local95:{ptr<managed>, ptr<managed>}@0+8]
-    store t73 -> local14
+    t73 = aggregate (local12, local13) : {ptr<managed>, ptr<managed>}
+    store t73 -> local95
+    t74 = box_value td9, local95 scan=refs[0, 8] sp<managed-call:4> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local95:{ptr<managed>, ptr<managed>}@0+8]
+    store t74 -> local14
     store local2 -> local15
     store integer<Int>(0x0000002a) -> local96
-    t74 = box_value external-td5, local96 scan=none sp<managed-call:5> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0]
-    store t74 -> local16
-    t75 = aggregate () : {}
-    t76 = box_zst external-td2 sp<managed-call:6> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0]
-    store t76 -> local17
+    t75 = box_value external-td5, local96 scan=none sp<managed-call:5> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0]
+    store t75 -> local16
+    t76 = aggregate () : {}
+    t77 = box_zst external-td2 sp<managed-call:6> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0]
+    store t77 -> local17
     store local2 -> local18
     store local18 -> local19
-    t77 = enum_wrap e0 v0 (local19) : enum0
-    store t77 -> local97
-    t78 = box_value td10, local97 scan=refs[0] sp<managed-call:7> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0, local97:enum0@0]
-    store t78 -> local20
+    t78 = enum_wrap e0 v0 (local19) : enum0
+    store t78 -> local97
+    t79 = box_value td10, local97 scan=refs[0] sp<managed-call:7> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0, local97:enum0@0]
+    store t79 -> local20
     store integer<Long>(0x0000000000000007) -> local21
     store integer<Long>(0x0000000000000007) -> local22
-    call managed-direct-target12 sp<managed-call:8> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0, local20:ptr<managed>@0] t79 = sig=direct19 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t79 -> local70
+    call managed-direct-target12 sp<managed-call:8> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0, local20:ptr<managed>@0] t80 = sig=direct19 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
+    store t80 -> local70
     store local70 -> local77
     store integer<Long>(0x0000000000000007) -> local78
     br @inline.35.entry
   block inline.37.entry
     heap_store local79 +16 integer<Long>(0x0000000000000016)
+    t81 = aggregate () : {}
     br @inline.cont.37
   block inline.cont.39
     store local81 -> local68
     store local68 -> local98
-    t80 = box_value td8, local98 scan=refs[0, 8] sp<managed-call:2> live=[local2:ptr<managed>@0, local98:struct0@0+8]
-    store t80 -> local9
+    t82 = box_value td8, local98 scan=refs[0, 8] sp<managed-call:2> live=[local2:ptr<managed>@0, local98:struct0@0+8]
+    store t82 -> local9
     store local2 -> local12
     store integer<Long>(0x0000000000000016) -> local10
     store integer<Long>(0x0000000000000016) -> local11
-    call managed-direct-target13 sp<managed-call:3> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local12:ptr<managed>@0] t81 = sig=direct20 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t81 -> local69
+    call managed-direct-target13 sp<managed-call:3> live=[local2:ptr<managed>@0, local9:ptr<managed>@0, local12:ptr<managed>@0] t83 = sig=direct20 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
+    store t83 -> local69
     store local69 -> local79
     store integer<Long>(0x0000000000000016) -> local80
     br @inline.37.entry
   block inline.39.entry
-    t82 = aggregate (local82, local83) : struct0
-    store t82 -> local81
+    t84 = aggregate (local82, local83) : struct0
+    store t84 -> local81
     br @inline.cont.39
   block inline.cont.41
     store local67 -> local6
@@ -463,19 +466,21 @@ Module
     br @inline.39.entry
   block inline.41.entry
     heap_store local84 +16 integer<Long>(0x0000000000000016)
+    t85 = aggregate () : {}
     br @inline.cont.41
   block inline.cont.43
     store local66 -> local2
     store local2 -> local5
     store integer<Long>(0x0000000000000016) -> local3
     store integer<Long>(0x0000000000000016) -> local4
-    call managed-direct-target14 sp<managed-call:1> live=[local2:ptr<managed>@0, local5:ptr<managed>@0] t83 = sig=direct21 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t83 -> local67
+    call managed-direct-target14 sp<managed-call:1> live=[local2:ptr<managed>@0, local5:ptr<managed>@0] t86 = sig=direct21 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
+    store t86 -> local67
     store local67 -> local84
     store integer<Long>(0x0000000000000016) -> local85
     br @inline.41.entry
   block inline.43.entry
     heap_store local86 +16 integer<Long>(0x0000000000000014)
+    t87 = aggregate () : {}
     br @inline.cont.43
   block invoke.normal.1
     store t12 -> local26

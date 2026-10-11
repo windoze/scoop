@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey,
 };
 
-use super::{DefaultCallableReferenceV1, DefaultIntegerOperationV1, DefaultStringOwnerV1};
+use super::{DefaultCallableReferenceV1, DefaultStringOwnerV1};
 use crate::{
     CanonicalBooleanV1, CanonicalIntegerConstantV1, DefaultAnonymousFunctionV1,
     DefaultArrayAccessKindV1, DefaultBinaryOperatorV1, DefaultCallableDeclarationV1,
@@ -47,6 +47,22 @@ impl DefaultExpressionV1 {
             definition_origin,
             evaluation_origin,
         })
+    }
+
+    /// Interpret a legacy bare-return wire entry as its complete Unit value.
+    pub(crate) fn unit_at(definition_origin: crate::ExportDefinitionSourceV1) -> Self {
+        Self {
+            kind: DefaultExpressionKindV1::UnitLiteral,
+            result_type: SignatureTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            ),
+            evaluation_origin: scoop_identity::EvaluationOrigin::at_definition(
+                definition_origin.origin(),
+            ),
+            definition_origin,
+        }
     }
 
     pub const fn kind(&self) -> &DefaultExpressionKindV1 {
@@ -245,10 +261,7 @@ pub enum DefaultExpressionKindV1 {
         kind: DefaultPrimitiveUnaryKindV1,
         operand: Box<DefaultExpressionV1>,
     },
-    IntegerOperation {
-        operation: DefaultIntegerOperationV1,
-        arguments: DefaultIntegerArgumentsV1,
-    },
+    IntegerOperation(DefaultIntegerExpressionV1),
     IntegerConversion {
         source_kind: crate::DefaultIntegerKindV1,
         target_kind: crate::DefaultIntegerKindV1,
@@ -335,27 +348,7 @@ pub enum DefaultArrayAssemblyPartV1 {
     CopyArray(DefaultExpressionV1),
 }
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DefaultIntegerArgumentsV1 {
-    Unary(Box<DefaultExpressionV1>),
-    Binary {
-        lhs: Box<DefaultExpressionV1>,
-        rhs: Box<DefaultExpressionV1>,
-    },
-}
-
-impl DefaultIntegerArgumentsV1 {
-    pub fn unary(operand: DefaultExpressionV1) -> Self {
-        Self::Unary(Box::new(operand))
-    }
-
-    pub fn binary(lhs: DefaultExpressionV1, rhs: DefaultExpressionV1) -> Self {
-        Self::Binary {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        }
-    }
-}
+pub type DefaultIntegerExpressionV1 = crate::IntegerExpression<Box<DefaultExpressionV1>>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultExpressionBuildError {
@@ -529,7 +522,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::MaybeUninit(_)
         | DefaultExpressionKindV1::PrimitiveBinary { .. }
         | DefaultExpressionKindV1::PrimitiveUnary { .. }
-        | DefaultExpressionKindV1::IntegerOperation { .. }
+        | DefaultExpressionKindV1::IntegerOperation(_)
         | DefaultExpressionKindV1::IntegerConversion { .. }
         | DefaultExpressionKindV1::FloatUnary { .. }
         | DefaultExpressionKindV1::FloatBinary { .. }

@@ -208,11 +208,7 @@ impl<'a> Analysis<'a> {
             | mir::ExprKind::ArrayLiteral { array_type, .. }
             | mir::ExprKind::ArrayAssembly { array_type, .. } => ActualType::Class(*array_type),
             mir::ExprKind::ArrayClone { target_type, .. } => ActualType::Class(*target_type),
-            mir::ExprKind::Retype { operand, .. }
-            | mir::ExprKind::Cast {
-                operand,
-                optional: false,
-            } => {
+            mir::ExprKind::Retype { operand, .. } => {
                 let actual = self.expression(operand, state).actual;
                 if actual == ActualType::Unknown {
                     self.static_type(&expression.ty)

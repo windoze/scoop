@@ -148,6 +148,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun grow @fn5(count: Long, stress: Boolean) -> MutableArray<Value>
     bb0 entry
       val $argument.0: Long
@@ -1187,6 +1189,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn7() -> Unit
     bb0 entry
       call stress: Boolean = extern0 @m34_region_stress direct
@@ -1288,6 +1292,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn8(this: MutableArray<Node>) -> Iterator<Node>
     bb0 entry
       val $dependency.local.1: List<Node>
@@ -1840,6 +1846,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn23(this: ListIterator<Node>) -> Option<Node>
     bb0 entry
       branch bb1 bb2
@@ -2082,6 +2090,8 @@ Module
         Type Option<Node>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn39(this: ListIterator<Node>, source: List<Node>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2100,6 +2110,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn40(this: ListIterator<Value>, source: List<Value>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2118,6 +2130,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.PinnedPtr.$c1 @fn41(raw: ULong) -> PinnedPtr<Node> <no-gc>
     bb0 entry
       return
@@ -2147,6 +2161,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -2160,6 +2176,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -2171,6 +2189,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2228,6 +2248,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -2241,6 +2263,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -2252,6 +2276,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -133,6 +133,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb8 if.merge.8
       call $dependency.receiver: Int = external2 direct
         Type Char
@@ -221,6 +223,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb16 if.merge.16
       call $dependency.receiver: Int = external2 direct
         Type Char
@@ -483,6 +487,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb42 if.merge.42
       val $equality.lhs: Char
         Type Char
@@ -593,6 +599,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb50 if.merge.50
       val $dependency.receiver: Char
         Type Char
@@ -725,6 +733,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb61 if.merge.61
       val compare: (Char) -> Long
         Type (Char) -> Long
@@ -840,6 +850,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb72 if.merge.72
       val $argument.0: Long
         Type Long
@@ -990,6 +1002,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb82 if.merge.82
       goto bb78
     bb83 try.unwind.83
@@ -1280,6 +1294,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb132 if.merge.132
       val $dependency.argument.0: Int
         Type Int
@@ -1291,6 +1307,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn2(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -1426,6 +1444,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn6($closure: (Long) -> Int, i: Long) -> Int
     bb0 entry
       val $when.1: Long
@@ -1539,6 +1559,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn9(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -1688,6 +1710,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for scalarCode @fn15($result: Ptr<Int>, $arg0: Ptr<Char>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn0 direct
@@ -1702,6 +1726,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn16($source: (Long) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]

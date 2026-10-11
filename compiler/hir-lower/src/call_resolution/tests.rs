@@ -155,7 +155,9 @@ fn function_variance_generates_bidirectional_bounds() {
     let parameter_ty = lowerer.intern_type(Type::Param(callable.id));
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let actual = lowerer.intern_function_type(false, vec![int], int);
+    let actual = lowerer.function_types[actual].canonical_type;
     let expected = lowerer.intern_function_type(false, vec![parameter_ty], parameter_ty);
+    let expected = lowerer.function_types[expected].canonical_type;
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -429,6 +431,7 @@ fn function_pointer_concrete_application_requires_a_function_type() {
     );
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let function = lowerer.intern_function_type(false, vec![int], int);
+    let function = lowerer.function_types[function].canonical_type;
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -489,9 +492,6 @@ fn callable_shape_keeps_managed_and_native_categories_separate() {
     let mut lowerer = nominals::lowerer();
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let signature = lowerer.intern_function_type(false, vec![int], int);
-    let Type::Function(signature) = lowerer.types[signature] else {
-        panic!("interned signature is a managed function")
-    };
     let native = lowerer.intern_type(Type::FunPtr(signature));
     let mut session = InferenceSession::new();
     session.push(
@@ -521,9 +521,6 @@ fn native_callable_shape_checks_explicit_parameter_and_return_types() {
     let mut lowerer = nominals::lowerer();
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let signature = lowerer.intern_function_type(false, vec![int], int);
-    let Type::Function(signature) = lowerer.types[signature] else {
-        panic!("interned signature is a managed function")
-    };
     let native = lowerer.intern_type(Type::FunPtr(signature));
     let mut session = InferenceSession::new();
     session.push(

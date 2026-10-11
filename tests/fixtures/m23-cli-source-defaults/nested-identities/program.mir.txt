@@ -159,6 +159,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn7() -> Unit
     bb0 entry
       assign $new.1
@@ -549,6 +551,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.0 @fn8($closure: () -> String) -> String
     bb0 entry
       return
@@ -684,6 +688,8 @@ Module
   fun init.NestedIdentityHost.$c0 @fn30(this: NestedIdentityHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<NestedIdentityHost> @fn31(task: SuspendTask<NestedIdentityHost>, completion: Continuation<NestedIdentityHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -706,6 +712,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<NestedIdentityHost>[0]
         Type Continuation<NestedIdentityHost>
@@ -719,6 +727,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<NestedIdentityHost>[1]
         Type Continuation<NestedIdentityHost>
@@ -730,6 +740,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

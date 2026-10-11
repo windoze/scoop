@@ -21,9 +21,7 @@ impl ReferenceCollector<'_> {
                 self.local_function_descriptor(*function);
             }
             hir::StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    self.expression(value);
-                }
+                self.expression(value);
             }
             hir::StatementKind::ValDecl { pattern, init } => {
                 self.pattern(pattern, origin);
@@ -103,7 +101,7 @@ impl ReferenceCollector<'_> {
                 fields,
                 ..
             } => {
-                let owner = application.owner;
+                let owner = self.lowerer.enum_applications[application.owner].canonical_type;
                 self.type_reference(owner, origin);
                 for (_, field) in fields {
                     self.pattern(field, origin);
@@ -124,38 +122,35 @@ impl ReferenceCollector<'_> {
     }
 
     fn when(&mut self, value: &hir::When, origin: hir::DefinitionOrigin) {
-        if let Some(subject) = &value.subject {
+        if let Some(subject) = value.subject() {
             self.expression(subject);
         }
-        for arm in &value.arms {
+        for arm in value.arms() {
             let arm_origin = self.at(arm.span);
-            if let hir::WhenCondition::Case(pattern) = &arm.condition {
+            if let hir::WhenConditionRef::Case(pattern) = arm.condition {
                 self.pattern(pattern, arm_origin);
             }
-            for guard in match &arm.condition {
-                hir::WhenCondition::Predicate(condition) => Some(condition),
+            for guard in match arm.condition {
+                hir::WhenConditionRef::Predicate(condition) => Some(condition),
                 _ => None,
             }
             .into_iter()
-            .chain(arm.guard.iter())
+            .chain(arm.guard)
             {
                 self.statements(&guard.setup);
                 self.expression(&guard.condition);
             }
-            self.statements(&arm.body);
+            self.statements(arm.body);
         }
-        match &value.fallback {
-            hir::WhenFallback::Fallthrough => {}
-            hir::WhenFallback::Else(body) => self.statements(body),
-            hir::WhenFallback::Impossible(hir::ExhaustivenessProof::IrrefutableArm {
-                subject_ty,
-            })
-            | hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
-                subject_ty,
-            })
-            | hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                subject_ty,
-            }) => self.type_reference(*subject_ty, origin),
+        if let hir::WhenFallbackRef::Else(body) = value.fallback() {
+            self.statements(body);
+        } else if let hir::When::Subject {
+            subject,
+            fallback: hir::WhenFallback::Impossible(_),
+            ..
+        } = value
+        {
+            self.type_reference(subject.ty, origin);
         }
     }
 

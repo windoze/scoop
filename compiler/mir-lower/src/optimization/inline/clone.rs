@@ -158,18 +158,16 @@ pub(super) fn apply(
                 else_block: target(else_block),
             },
             mir::Terminator::Return { value } => {
-                if let Some(value) = value {
-                    block.statements.push(mir::Statement {
-                        kind: match result {
-                            Some(destination) => mir::StatementKind::Assign {
-                                local: destination,
-                                value,
-                            },
-                            None => mir::StatementKind::Expr(value),
+                block.statements.push(mir::Statement {
+                    kind: match result {
+                        Some(destination) => mir::StatementKind::Assign {
+                            local: destination,
+                            value,
                         },
-                        span: statement.span,
-                    });
-                }
+                        None => mir::StatementKind::Expr(value),
+                    },
+                    span: statement.span,
+                });
                 mir::Terminator::Goto(continuation)
             }
             mir::Terminator::Throw {

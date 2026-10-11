@@ -106,6 +106,8 @@ Module
         Type Int
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun leaf @fn3(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
     bb0 entry
       call $call.1: (Int, Int) = extern1 @m33_errno_int direct
@@ -184,6 +186,8 @@ Module
     bb0 entry
       call extern9 @m33_errno_disturb direct
       return
+        Type Unit
+        UnitLiteral
   fun released @fn12() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern11 @m33_errno_released direct
@@ -225,6 +229,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun argument @fn14() -> Int
     bb0 entry
       val $argument.0: Int
@@ -265,6 +271,8 @@ Module
         Type Owner
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun noGcCapture @fn16() -> (Int, Int) <no-gc>
     bb0 entry
       val $argument.0: Int
@@ -1368,6 +1376,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn19(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int8>
@@ -1563,6 +1573,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn24($closure: (Int, Int, Int) -> (Int, Int), arg0: Int, arg1: Int, arg2: Int) -> (Int, Int)
     bb0 entry
       call $call.1: (Int, Int) = @fn17 direct
@@ -1583,9 +1595,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c1 @fn26(this: Owner) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn27(number: Int, flag: Boolean, fraction: Double) -> Pair <no-gc>
     bb0 entry
       return
@@ -1680,6 +1696,8 @@ Module
         Type Int
         Local $parameter.error
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn19 <- equals
   instance mi2 function=@fn22 <- retained

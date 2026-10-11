@@ -915,14 +915,15 @@ Module
   block inline.40.entry
     heap_store local121 +16 integer<Long>(0x0000000000000047)
     heap_store local121 +24 local123
+    t72 = aggregate () : {}
     br @inline.cont.40
   block inline.cont.42
     store local124 -> local120
     store local120 -> local114
     br @inline.cont.38
   block inline.42.entry
-    t72 = aggregate (local125) : struct1
-    store t72 -> local124
+    t73 = aggregate (local125) : struct1
+    store t73 -> local124
     br @inline.cont.42
   block invoke.normal.1
     t22 = aggregate () : {}
@@ -1034,6 +1035,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$d26179c1c39e9f2140875bbfc20edd4b556bcc034b355e378a23cdc219b508b8(ptr<managed>, i64) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.2: ptr<managed>
@@ -1118,6 +1120,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$2196b3f94968c2d5a92ca63330f0c116fa731363d97e1c0438451aaa2e0ad43d(ptr<managed>, i64) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.2: ptr<managed>
@@ -1204,6 +1207,7 @@ Module
   block inline.1.entry
     heap_store local9 +16 local10
     heap_store local9 +24 local11
+    t8 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$560cf20c391e219da11e3e20a79dfb20bcad6179f7ae8ce768d43c0b333a140c(ptr<managed>, i64) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
   block entry

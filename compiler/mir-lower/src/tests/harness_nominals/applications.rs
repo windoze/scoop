@@ -134,7 +134,7 @@ impl Harness {
         let members = hir::HirEnumMemberIdentities::from_declarations(&self.enums, &nominals)
             .expect("test variants have their original declaration identities");
         hir::EnumVariantApplication {
-            owner: owner.canonical_type,
+            owner: application,
             variant: members[declaration].id(),
         }
     }

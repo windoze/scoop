@@ -141,6 +141,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun DomainCases.inspect @fn2(this: DomainCases) -> Int
     bb0 entry
       call @fn4 direct
@@ -230,6 +232,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun DomainCases.$set$narrower @fn5(this: DomainCases, value: Int) -> Unit
     bb0 entry
       field_set 2
@@ -238,6 +242,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Registry.inspect @fn6(this: Registry) -> Int
     bb0 entry
       call @fn8 direct
@@ -289,6 +295,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun FileOwner.inspect @fn9(this: FileOwner) -> Int
     bb0 entry
       call @fn10 direct
@@ -309,6 +317,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun FileHolder.inspect @fn11(this: FileHolder) -> Int
     bb0 entry
       val $receiver: FileOwner
@@ -364,6 +374,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun DomainCases.InternalOwner.PrivateOwner.inspect @fn14(this: DomainCases.InternalOwner.PrivateOwner) -> Int
     bb0 entry
       call @fn15 direct
@@ -384,6 +396,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun DomainCases.ProtectedOwner.inspect @fn16(this: DomainCases.ProtectedOwner) -> Int
     bb0 entry
       call @fn17 direct
@@ -404,6 +418,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun integerOwner @fn18() -> GenericOwner<Int>
     bb0 entry
       assign $new.1
@@ -449,6 +465,8 @@ Module
         Type Registry
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn22() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -473,6 +491,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -651,6 +671,8 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainCases.$c1 @fn56(this: DomainCases) -> Unit
     bb0 entry
       call @fn55 direct
@@ -669,6 +691,8 @@ Module
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
       return
+        Type Unit
+        UnitLiteral
   fun init.Registry.$c9 @fn57(this: Registry) -> Unit
     bb0 entry
       call @fn55 direct
@@ -682,6 +706,8 @@ Module
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
       return
+        Type Unit
+        UnitLiteral
   fun init.FileOwner.$c4 @fn58(this: FileOwner) -> Unit
     bb0 entry
       field_set 0
@@ -690,6 +716,8 @@ Module
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
       return
+        Type Unit
+        UnitLiteral
   fun init.FileHolder.$c5 @fn59(this: FileHolder) -> Unit
     bb0 entry
       assign $new.1
@@ -704,6 +732,8 @@ Module
         Type FileOwner
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainCases.InternalOwner.$c6 @fn60(this: DomainCases.InternalOwner) -> Unit
     bb0 entry
       field_set 0
@@ -712,6 +742,8 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainCases.InternalOwner.PrivateOwner.$c7 @fn61(this: DomainCases.InternalOwner.PrivateOwner) -> Unit
     bb0 entry
       field_set 0
@@ -720,6 +752,8 @@ Module
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainCases.ProtectedOwner.$c8 @fn62(this: DomainCases.ProtectedOwner) -> Unit
     bb0 entry
       field_set 0
@@ -728,6 +762,8 @@ Module
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericOwner.$c3 @fn63(this: GenericOwner<Int>) -> Unit
     bb0 entry
       call @fn65 direct
@@ -741,6 +777,8 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericOwner.$c3 @fn64(this: GenericOwner<String>) -> Unit
     bb0 entry
       call @fn66 direct
@@ -754,12 +792,18 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericBase.$c2 @fn65(this: GenericBase<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericBase.$c2 @fn66(this: GenericBase<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<DomainCases> @fn67(task: SuspendTask<DomainCases>, completion: Continuation<DomainCases>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -782,6 +826,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<DomainCases>[0]
         Type Continuation<DomainCases>
@@ -795,6 +841,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<DomainCases>[1]
         Type Continuation<DomainCases>
@@ -806,6 +854,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -863,6 +913,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Registry>[0]
         Type Continuation<Registry>
@@ -876,6 +928,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Registry>[1]
         Type Continuation<Registry>
@@ -887,6 +941,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -944,6 +1000,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn35 interface Continuation<FileOwner>[0]
         Type Continuation<FileOwner>
@@ -957,6 +1015,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn36 interface Continuation<FileOwner>[1]
         Type Continuation<FileOwner>
@@ -968,6 +1028,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1025,6 +1087,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<AccessBase>[0]
         Type Continuation<AccessBase>
@@ -1038,6 +1102,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<AccessBase>[1]
         Type Continuation<AccessBase>
@@ -1049,6 +1115,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1106,6 +1174,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn43 interface Continuation<DomainCases.InternalOwner>[0]
         Type Continuation<DomainCases.InternalOwner>
@@ -1119,6 +1189,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn44 interface Continuation<DomainCases.InternalOwner>[1]
         Type Continuation<DomainCases.InternalOwner>
@@ -1130,6 +1202,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1187,6 +1261,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn47 interface Continuation<DomainCases.InternalOwner.PrivateOwner>[0]
         Type Continuation<DomainCases.InternalOwner.PrivateOwner>
@@ -1200,6 +1276,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn48 interface Continuation<DomainCases.InternalOwner.PrivateOwner>[1]
         Type Continuation<DomainCases.InternalOwner.PrivateOwner>
@@ -1211,6 +1289,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1268,6 +1348,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn51 interface Continuation<DomainCases.ProtectedOwner>[0]
         Type Continuation<DomainCases.ProtectedOwner>
@@ -1281,6 +1363,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn52 interface Continuation<DomainCases.ProtectedOwner>[1]
         Type Continuation<DomainCases.ProtectedOwner>
@@ -1292,6 +1376,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1349,6 +1435,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn39 interface Continuation<FileHolder>[0]
         Type Continuation<FileHolder>
@@ -1362,6 +1450,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn40 interface Continuation<FileHolder>[1]
         Type Continuation<FileHolder>
@@ -1373,6 +1463,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

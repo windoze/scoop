@@ -968,6 +968,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb20 try.body.20 unwind bb13
       val $argument.0: ManagedAggregate
         Type ManagedAggregate
@@ -1057,6 +1059,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -1081,6 +1085,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn10(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -1105,6 +1111,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun genericRoundTrip @fn11(value: (Signal, Long)) -> (Signal, Long)
     bb0 entry
       return
@@ -1226,6 +1234,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Signal>[0]
         Type Continuation<Signal>
@@ -1239,6 +1249,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Signal>[1]
         Type Continuation<Signal>
@@ -1250,6 +1262,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

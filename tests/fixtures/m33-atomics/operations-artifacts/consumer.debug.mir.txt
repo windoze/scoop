@@ -71,6 +71,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1027,6 +1029,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun read @fn2(cell: AtomicRef<Payload>, value: Payload) -> Payload
     bb0 entry
       return
@@ -1035,6 +1039,8 @@ Module
   fun stored @fn3(cell: AtomicRef<Payload>, value: Payload, done: Unit) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun compared @fn4(cell: AtomicRef<Payload>, expected: Payload, value: Payload, old: Payload) -> Payload
     bb0 entry
       return
@@ -1139,6 +1145,8 @@ Module
         Type Payload
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn9($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -1183,6 +1191,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.() -> Any @fn14($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

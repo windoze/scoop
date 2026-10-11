@@ -93,6 +93,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call @fn0 direct
       goto bb7
@@ -185,6 +187,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn3(this: Continuation<MovingError>, value: MovingError) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -226,6 +230,8 @@ Module
         Type String
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<MovingError> @fn8(task: SuspendTask<MovingError>, completion: Continuation<MovingError>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -248,6 +254,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn3 interface Continuation<MovingError>[0]
         Type Continuation<MovingError>
@@ -261,6 +269,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn4 interface Continuation<MovingError>[1]
         Type Continuation<MovingError>
@@ -272,6 +282,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

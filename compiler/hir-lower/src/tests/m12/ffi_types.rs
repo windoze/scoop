@@ -207,14 +207,11 @@ fn pointer_carrier_equality_uses_the_typed_ulong_intrinsic() {
     for name in ["sameAddress", "sameULong"] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
-                    kind: hir::IntegerKind::UNSIGNED_64,
-                    operation: hir::NoGcIntegerOperation::Equals,
-                    ..
-                },
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+                kind: hir::IntegerKind::UNSIGNED_64,
+                operation: hir::IntegerBinaryOperator::Equals,
                 ..
-            }
+            })
         ));
     }
 }

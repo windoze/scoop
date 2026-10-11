@@ -94,6 +94,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: String
@@ -388,6 +390,8 @@ Module
         Type SourceLocation
         Local $parameter.location
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -412,6 +416,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -436,6 +442,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun defaultBody @fn4(value: Int, location: SourceLocation) -> SourceLocation
     bb0 entry
       return
@@ -530,6 +538,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.() -> Any @fn13($source: () -> SourceLocation) -> Any
     bb0 entry
       call $call.1: SourceLocation = <closure:function_type0> closure[function_type0]

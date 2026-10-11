@@ -338,6 +338,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Row.$get$value @fn2(this: Row<String>) -> String
     bb0 entry
       return
@@ -408,6 +410,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn7(this: Continuation<Base>, value: Base) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -452,9 +456,13 @@ Module
         Type Int
         Local inherited
       return
+        Type Unit
+        UnitLiteral
   fun init.Empty.$c3 @fn20(this: Empty) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Secondary.$c4 @fn21(this: Secondary, number: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Int
@@ -489,6 +497,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Row.$c1 @fn22(this: Row<String>, seed: Int, value: String, count: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -520,6 +530,8 @@ Module
         Type String
         StringConst @str5
       return
+        Type Unit
+        UnitLiteral
   fun init.Row.$c2 @fn23(this: Row<String>, value: String) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -547,6 +559,8 @@ Module
         Type Int
         Local $parameter.count
       return
+        Type Unit
+        UnitLiteral
   fun init.Store.$c5 @fn24(this: Store<String>, row: Row<String>) -> Unit
     bb0 entry
       field_set 0
@@ -555,6 +569,8 @@ Module
         Type Row<String>
         Local row
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Base> @fn25(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -577,6 +593,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -590,6 +608,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -601,6 +621,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -658,6 +680,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<Secondary>[0]
         Type Continuation<Secondary>
@@ -671,6 +695,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<Secondary>[1]
         Type Continuation<Secondary>
@@ -682,6 +708,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -739,6 +767,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Empty>[0]
         Type Continuation<Empty>
@@ -752,6 +782,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Empty>[1]
         Type Continuation<Empty>
@@ -763,6 +795,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

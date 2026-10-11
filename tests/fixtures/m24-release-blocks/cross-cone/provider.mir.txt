@@ -50,6 +50,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn2(this: Continuation<Owner>, value: Owner) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -70,6 +72,8 @@ Module
         Type Int
         Local handle
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for adjusted @fn7($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn0 direct
@@ -84,6 +88,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Owner> @fn8(task: SuspendTask<Owner>, completion: Continuation<Owner>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -106,6 +112,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Owner>[0]
         Type Continuation<Owner>
@@ -119,6 +127,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Owner>[1]
         Type Continuation<Owner>
@@ -130,6 +140,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -183,6 +195,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Owner> result=Owner
   coroutine_slot cl0 CoroutineSlot<Owner> value=Owner
   coroutine_start ct0 result=Owner function=fn8

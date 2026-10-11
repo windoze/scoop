@@ -416,6 +416,8 @@ Module
   fun init.FixedHost.$c0 @fn22(this: FixedHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn23(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -434,6 +436,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<FixedHost> @fn24(task: SuspendTask<FixedHost>, completion: Continuation<FixedHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -456,6 +460,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<FixedHost>[0]
         Type Continuation<FixedHost>
@@ -469,6 +475,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<FixedHost>[1]
         Type Continuation<FixedHost>
@@ -480,6 +488,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

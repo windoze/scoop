@@ -31,8 +31,8 @@ fn explicit_empty_else_is_preserved_in_both_hir_products() {
         })
         .expect("export when");
     assert!(matches!(
-        &export_when.fallback,
-        hir::WhenFallback::Else(body) if body.is_empty()
+        export_when.fallback(),
+        hir::WhenFallbackRef::Else(body) if body.is_empty()
     ));
 
     let hir::concrete::FunctionKind::User(local_main) =
@@ -49,8 +49,8 @@ fn explicit_empty_else_is_preserved_in_both_hir_products() {
         })
         .expect("concrete when");
     assert!(matches!(
-        &local_when.fallback,
-        hir::concrete::WhenFallback::Else(body) if body.is_empty()
+        local_when.fallback(),
+        hir::concrete::WhenFallbackRef::Else(body) if body.is_empty()
     ));
 }
 
@@ -187,26 +187,26 @@ fn recursive_matrix_combines_nested_enum_tuple_struct_boolean_and_unit_rows() {
         body.statements
             .iter()
             .find_map(|statement| match &statement.kind {
-                hir::StatementKind::When(when) => Some(&when.fallback),
+                hir::StatementKind::When(when) => Some(when.fallback()),
                 _ => None,
             })
             .expect("checked when")
     };
     assert!(matches!(
         proof_for("checkNested"),
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix { .. })
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
     ));
     assert!(matches!(
         proof_for("checkBooleanPayload"),
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix { .. })
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
     ));
     assert!(matches!(
         proof_for("checkTuple"),
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix { .. })
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::PatternMatrix)
     ));
     assert!(matches!(
         proof_for("checkIrrefutable"),
-        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::IrrefutableArm { .. })
+        hir::WhenFallbackRef::Impossible(hir::ExhaustivenessProof::IrrefutableArm)
     ));
 
     let concrete_proof_for = |name: &str| {
@@ -223,27 +223,27 @@ fn recursive_matrix_combines_nested_enum_tuple_struct_boolean_and_unit_rows() {
         body.statements
             .iter()
             .find_map(|statement| match &statement.kind {
-                hir::concrete::StatementKind::When(when) => Some(&when.fallback),
+                hir::concrete::StatementKind::When(when) => Some(when.fallback()),
                 _ => None,
             })
             .expect("concrete checked when")
     };
     assert!(matches!(
         concrete_proof_for("checkNested"),
-        hir::concrete::WhenFallback::Impossible(
-            hir::concrete::ExhaustivenessProof::EnumPatternMatrix { .. }
+        hir::concrete::WhenFallbackRef::Impossible(
+            hir::concrete::ExhaustivenessProof::EnumPatternMatrix
         )
     ));
     assert!(matches!(
         concrete_proof_for("checkTuple"),
-        hir::concrete::WhenFallback::Impossible(
-            hir::concrete::ExhaustivenessProof::PatternMatrix { .. }
+        hir::concrete::WhenFallbackRef::Impossible(
+            hir::concrete::ExhaustivenessProof::PatternMatrix
         )
     ));
     assert!(matches!(
         concrete_proof_for("checkIrrefutable"),
-        hir::concrete::WhenFallback::Impossible(
-            hir::concrete::ExhaustivenessProof::IrrefutableArm { .. }
+        hir::concrete::WhenFallbackRef::Impossible(
+            hir::concrete::ExhaustivenessProof::IrrefutableArm
         )
     ));
 }

@@ -207,7 +207,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         type_arguments: Vec::new(),
         name: "ForeignCallback<() -> Unit>".to_string(),
         gc_free: true,
-        representation: StructRepresentation::Declared {
+        representation: StructRepresentation::Declared(DeclaredStruct {
             c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
@@ -223,7 +223,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
                     ty: Type::Ptr(Box::new(Type::Unit)),
                 },
             ],
-        },
+        }),
     });
     register_test_exact_type(&mut module, &Type::Struct(callback));
     let throwable = module.classes.alloc(ClassDef {
@@ -231,10 +231,10 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -674,7 +674,7 @@ fn callback_family_rejects_a_stale_code_pointer_signature_before_dumping() {
     let (mut module, family, _) = callback_module();
     let callback = module.foreign_callback_families[family].callback;
     let unknown = FunctionTypeId::from_raw(99.into());
-    let StructRepresentation::Declared { fields, .. } =
+    let StructRepresentation::Declared(DeclaredStruct { fields, .. }) =
         &mut module.structs[callback].representation
     else {
         panic!("callback fixture uses a declared struct")
@@ -735,10 +735,10 @@ fn callback_failure_constructor_rejects_another_managed_payload_type() {
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "Other".to_string(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),

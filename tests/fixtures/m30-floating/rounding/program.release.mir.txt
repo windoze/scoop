@@ -357,6 +357,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb5 if.merge.5
       val $argument.0: UInt
         Type UInt
@@ -452,6 +454,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb10 if.merge.10
       val $argument.0: UInt
         Type UInt
@@ -512,6 +516,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb15 if.merge.15
       val $argument.0: UInt
         Type UInt
@@ -645,6 +651,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb20 if.merge.20
       val $dependency.argument.0: String
         Type String
@@ -656,6 +664,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb21 inline.cont.21
       val $shortCircuit.2: Boolean
         Type Boolean
@@ -728,6 +738,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn11 <- println
   str @str0 "fused"
   str @str1 "reassociated"

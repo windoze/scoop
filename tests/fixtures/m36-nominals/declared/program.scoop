@@ -1,0 +1,33 @@
+struct Empty()
+interface Describe { fun describe(): String }
+struct Record<T>(val payload: T, val label: String, val empty: Empty) : Describe {
+    override fun describe(): String = label
+}
+struct ScalarFields(val fraction: Float, val letter: Char)
+open class Base(val first: Byte, val count: Long, val empty: Empty)
+class Derived<T>(val item: T, var enabled: Boolean) : Base(1, 40L, Empty())
+
+fun <T> keep(value: T): T { gcCollect(); return value }
+
+@Unsafe fun main() {
+    val record = Record("payload", "boxed-record", Empty())
+    val view: Describe = record
+    val derived = Derived(record, true)
+    val base: Base = derived
+    derived.enabled = false
+    val storage = MaybeUninit<Record<String>>.initialized(keep(derived.item))
+    val optional: Record<String>? = Some(storage.assumeInit())
+    gcCollect()
+    println(base.first)
+    println(base.count)
+    println(derived.enabled)
+    println(view.describe())
+    when (optional) {
+        case Some({ payload, .. }) -> println(payload)
+        case None -> println("missing")
+    }
+    val scalars = keep(ScalarFields(2.5f, 'Q'))
+    println(scalars.fraction)
+    println(scalars.letter)
+    println(sizeOf<Empty>())
+}

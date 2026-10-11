@@ -265,6 +265,7 @@ Module
     br @inline.cont.21
   block inline.23.entry
     heap_store local50 +16 local51
+    t26 = aggregate () : {}
     br @inline.cont.23
   fun @scoop$1$cb$ff0acd69a155e21df12f270a263d63af240c1bc483548d6a92355f57ae71a000(i64, i1) -> i64
     local %0 unmapped: i64
@@ -666,6 +667,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$9358af4bf78a61484cb7dd75c36ab92e708dcf472fb140042708ef358edfccc2(ptr<managed>, i64) -> ptr<managed>
     local %0 $dependency.local.2: ptr<managed>
@@ -730,6 +732,7 @@ Module
     ret local2
   block inline.1.entry
     heap_store local3 +16 local4
+    t1 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$158d6ab926994ba745f4f6c3d6ead8b0fe92552fd49b9621e61274a795469fda(ptr<managed>, i64) -> ptr<managed>
     local %0 $dependency.receiver: i64

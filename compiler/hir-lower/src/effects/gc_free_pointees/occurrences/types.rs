@@ -35,9 +35,7 @@ pub(in super::super) fn collect_statement_types(
                 collect_expr_types(lowerer, expression, out)
             }
             hir::StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    collect_expr_types(lowerer, value, out);
-                }
+                collect_expr_types(lowerer, value, out);
             }
             hir::StatementKind::ValDecl { pattern, init } => {
                 collect_pattern_types(lowerer, pattern, out);
@@ -87,26 +85,26 @@ pub(in super::super) fn collect_statement_types(
                 collect_statement_types(lowerer, body, out);
             }
             hir::StatementKind::When(when) => {
-                if let Some(subject) = &when.subject {
+                if let Some(subject) = when.subject() {
                     collect_expr_types(lowerer, subject, out);
                 }
-                for arm in &when.arms {
-                    if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                for arm in when.arms() {
+                    if let hir::WhenConditionRef::Case(pattern) = arm.condition {
                         collect_pattern_types(lowerer, pattern, out);
                     }
-                    for guard in match &arm.condition {
-                        hir::WhenCondition::Predicate(condition) => Some(condition),
+                    for guard in match arm.condition {
+                        hir::WhenConditionRef::Predicate(condition) => Some(condition),
                         _ => None,
                     }
                     .into_iter()
-                    .chain(arm.guard.iter())
+                    .chain(arm.guard)
                     {
                         collect_statement_types(lowerer, &guard.setup, out);
                         collect_expr_types(lowerer, &guard.condition, out);
                     }
-                    collect_statement_types(lowerer, &arm.body, out);
+                    collect_statement_types(lowerer, arm.body, out);
                 }
-                if let hir::WhenFallback::Else(body) = &when.fallback {
+                if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                     collect_statement_types(lowerer, body, out);
                 }
             }
@@ -146,7 +144,7 @@ fn collect_pattern_types(lowerer: &Lowerer, pattern: &hir::Pattern, out: &mut Ve
             fields,
             ..
         } => {
-            out.push(application.owner);
+            out.push(lowerer.enum_applications[application.owner].canonical_type);
             for (_, field) in fields {
                 collect_pattern_types(lowerer, field, out);
             }
@@ -216,17 +214,17 @@ pub(in super::super) fn collect_expr_types(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            out.push(variant.owner);
+            out.push(lowerer.enum_applications[variant.owner].canonical_type);
             for argument in args {
                 collect_expr_types(lowerer, argument, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            out.push(variant.owner);
+            out.push(lowerer.enum_applications[variant.owner].canonical_type);
             collect_expr_types(lowerer, operand, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            out.push(field.variant.owner);
+            out.push(lowerer.enum_applications[field.variant.owner].canonical_type);
             collect_expr_types(lowerer, operand, out);
         }
         ExprKind::ArrayAssembly(assembly) => {
@@ -395,11 +393,11 @@ pub(in super::super) fn collect_expr_types(
             collect_expr_types(lowerer, lhs, out);
             collect_expr_types(lowerer, rhs, out);
         }
-        ExprKind::IntegerOperation { arguments, .. } => match arguments {
-            hir::HirIntegerOperationArguments::Unary(operand) => {
+        ExprKind::IntegerOperation(arguments) => match arguments {
+            hir::IntegerExpression::Unary { operand, .. } => {
                 collect_expr_types(lowerer, operand, out)
             }
-            hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+            hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                 collect_expr_types(lowerer, lhs, out);
                 collect_expr_types(lowerer, rhs, out);
             }

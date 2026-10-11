@@ -157,6 +157,8 @@ Module
         Local $inline.8.this
         Type Long
         IntegerLiteral Long value=99 bits=0x0000000000000063
+      Type Unit
+      UnitLiteral
       goto bb8
   fun main @fn2() -> Unit
     bb0 entry
@@ -190,6 +192,8 @@ Module
       resume
     bb5 try.end.5
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       goto bb14
     bb7 try.unwind.7 unwind bb1
@@ -556,6 +560,8 @@ Module
         Local $inline.35.this
         Type Long
         IntegerLiteral Long value=7 bits=0x0000000000000007
+      Type Unit
+      UnitLiteral
       goto bb35
     bb37 inline.cont.37
       val $aggregate.1: Node
@@ -620,6 +626,8 @@ Module
         Local $inline.37.this
         Type Long
         IntegerLiteral Long value=22 bits=0x0000000000000016
+      Type Unit
+      UnitLiteral
       goto bb37
     bb39 inline.cont.39
       val $call.3: Pair
@@ -681,6 +689,8 @@ Module
         Local $inline.41.this
         Type Long
         IntegerLiteral Long value=22 bits=0x0000000000000016
+      Type Unit
+      UnitLiteral
       goto bb41
     bb43 inline.cont.43
       val node: Node
@@ -711,6 +721,8 @@ Module
         Local $inline.43.this
         Type Long
         IntegerLiteral Long value=20 bits=0x0000000000000014
+      Type Unit
+      UnitLiteral
       goto bb43
   fun println @fn3(value: Long) -> Unit
     bb0 entry
@@ -736,6 +748,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -760,6 +774,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -784,6 +800,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn6(this: Continuation<Node>, value: Node) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -804,6 +822,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn11(first: Node, second: Node) -> Pair <no-gc>
     bb0 entry
       return
@@ -835,6 +855,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -848,6 +870,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -859,6 +883,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -192,14 +192,15 @@ impl Lowerer {
                 ty: mir::Type::Function(target),
                 local: closure,
             }];
-            let mut args = vec![smir::Expr::new(
+            let receiver = smir::Expr::new(
                 mir::Type::Any,
                 smir::ExprKind::ClosureCapture {
                     closure: Box::new(smir::Expr::local(closure, mir::Type::Function(target))),
                     class,
                     index: 0,
                 },
-            )];
+            );
+            let mut args = Vec::with_capacity(signature.parameter_types.len());
             for (index, ty) in signature.parameter_types.iter().enumerate() {
                 let name = format!("arg{index}");
                 let local = locals.alloc(mir::Local {
@@ -217,11 +218,9 @@ impl Lowerer {
             let call = smir::Expr::new(
                 mir::Type::Any,
                 smir::ExprKind::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::FunctionBridge {
-                            function_type: dynamic,
-                        },
-                        callee: mir::Callee::FunctionBridge(dynamic),
+                    target: mir::CallTarget::FunctionBridge {
+                        function_type: dynamic,
+                        receiver: Box::new(receiver),
                     },
                     args,
                     return_ty: mir::Type::Any,
@@ -235,14 +234,16 @@ impl Lowerer {
                         span,
                     },
                     smir::Statement {
-                        kind: smir::StatementKind::Return { value: None },
+                        kind: smir::StatementKind::Return {
+                            value: smir::Expr::unit(),
+                        },
                         span,
                     },
                 ]
             } else {
                 vec![smir::Statement {
                     kind: smir::StatementKind::Return {
-                        value: Some(self.dynamic_unbox(module, call, &signature.return_type)),
+                        value: self.dynamic_unbox(module, call, &signature.return_type),
                     },
                     span,
                 }]

@@ -52,29 +52,32 @@ fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcL
 }
 
 fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
-    module.structs.alloc_scoop(
-        crate::tests::test_physical_exact(name, scoop_identity::SourceNominalKind::Struct),
-        name.to_string(),
-        16,
-        8,
-        false,
-        vec![
-            scoop_lir::StructField {
-                ty: CODE_PTR,
-                layout: scoop_lir::FieldLayout {
-                    offset: 0,
-                    access_align: 8,
+    module
+        .structs
+        .alloc_scoop(
+            crate::tests::test_physical_exact(name, scoop_identity::SourceNominalKind::Struct),
+            name.to_string(),
+            16,
+            8,
+            false,
+            vec![
+                scoop_lir::StructField {
+                    ty: CODE_PTR,
+                    layout: scoop_lir::FieldLayout {
+                        offset: 0,
+                        access_align: 8,
+                    },
                 },
-            },
-            scoop_lir::StructField {
-                ty: RAW_PTR,
-                layout: scoop_lir::FieldLayout {
-                    offset: 8,
-                    access_align: 8,
+                scoop_lir::StructField {
+                    ty: RAW_PTR,
+                    layout: scoop_lir::FieldLayout {
+                        offset: 8,
+                        access_align: 8,
+                    },
                 },
-            },
-        ],
-    )
+            ],
+        )
+        .definition()
 }
 
 fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {

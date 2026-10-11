@@ -6,8 +6,8 @@ fn when_stmt(
     arms: Vec<hir::WhenArm>,
     fallback: hir::WhenFallback,
 ) -> hir::Statement {
-    stmt(hir::StatementKind::When(hir::When {
-        subject: Some(subject),
+    stmt(hir::StatementKind::When(hir::When::Subject {
+        subject,
         arms,
         fallback,
     }))
@@ -73,9 +73,7 @@ fn when_lowers_to_a_decision_sequence() {
                             ))],
                         ),
                     ],
-                    hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty: option_int,
-                    }),
+                    hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix),
                 ),
             ],
         },
@@ -113,7 +111,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
         hir::Body {
             locals: producer_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(input, outer)),
+                value: local_ref(input, outer),
             })],
         },
     );
@@ -178,7 +176,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
             else {
                 return false;
             };
-            matches!(&call.target.callee, mir::Callee::User(function) if *function == producer)
+            matches!(&call.target, mir::CallTarget::Direct(mir::Callee::User(function)) if *function == producer)
         })
         .count();
     assert_eq!(subject_calls, 1, "the when subject call is emitted once");
@@ -308,9 +306,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                     if explicit_else {
                         hir::WhenFallback::Else(Vec::new())
                     } else {
-                        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                            subject_ty: option_int,
-                        })
+                        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
                     },
                 )],
             },
@@ -420,7 +416,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
         hir::Body {
             locals: equality_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, true)),
+                value: bool_lit(&h, true),
             })],
         },
     );
@@ -515,7 +511,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
             else {
                 return None;
             };
-            matches!(call.target.callee, mir::Callee::User(function) if function == equality)
+            matches!(call.target, mir::CallTarget::Direct(mir::Callee::User(function)) if function == equality)
                 .then_some((call, *destination))
         })
         .expect("the nested Boolean literal retains its selected equality call");
@@ -555,7 +551,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
                     mir::CallEffect::Unit(call) => call,
                     mir::CallEffect::Value { call, .. } => call,
                 };
-                let mir::Callee::User(function) = call.target.callee else {
+                let mir::CallTarget::Direct(mir::Callee::User(function)) = call.target else {
                     return None;
                 };
                 Some(function)
@@ -584,9 +580,7 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
             statements: vec![when_stmt(
                 local_ref(subject, never_ty),
                 Vec::new(),
-                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                    subject_ty: never_ty,
-                }),
+                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix),
             )],
         },
     );
@@ -621,7 +615,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     let compared = integer_binary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::CompareTo,
+        hir::IntegerBinaryOperator::CompareTo,
         local_ref(x, int),
         local_ref(threshold, int),
     );
@@ -686,7 +680,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
             hir::Body {
                 locals,
                 statements: vec![stmt(hir::StatementKind::Return {
-                    value: Some(bool_lit(h, true)),
+                    value: bool_lit(h, true),
                 })],
             },
         )
@@ -706,14 +700,14 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(expr(
+                value: expr(
                     hir::ExprKind::TupleLiteral(vec![
                         bool_lit(&h, true),
                         bool_lit(&h, false),
                         int_lit(&h, 7),
                     ]),
                     tuple_ty,
-                )),
+                ),
             })],
         },
     );
@@ -727,7 +721,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
         hir::Body {
             locals: guard_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, true)),
+                value: bool_lit(&h, true),
             })],
         },
     );
@@ -794,7 +788,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
             let call = match effect {
                 mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
             };
-            let mir::Callee::User(function) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::User(function)) = call.target else {
                 continue;
             };
             let name = module.functions[function].name.as_str();
@@ -834,8 +828,8 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
                     mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
                 };
                 matches!(
-                    call.target.callee,
-                    mir::Callee::User(function) if module.functions[function].name == expected
+                    call.target,
+                    mir::CallTarget::Direct(mir::Callee::User(function)) if module.functions[function].name == expected
                 )
             })
             .count();
@@ -870,7 +864,7 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
                 locals: equals_locals,
                 statements: vec![hir::Statement {
                     kind: hir::StatementKind::Return {
-                        value: Some(bool_lit(&h, true)),
+                        value: bool_lit(&h, true),
                     },
                     span: SPAN,
                 }],
@@ -916,8 +910,8 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
                     .then(|| statement_call(statement))
             })
             .expect("ordinary literal pattern calls its HIR-selected equality target");
-        assert!(matches!(call.target.kind, mir::CallKind::Direct));
-        let mir::Callee::User(equals) = call.target.callee else {
+        assert!(matches!(call.target, mir::CallTarget::Direct(_)));
+        let mir::CallTarget::Direct(mir::Callee::User(equals)) = call.target else {
             panic!("the ordinary equality target is a user function");
         };
         assert_eq!(module.functions[equals].name, expected_name);

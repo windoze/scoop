@@ -228,6 +228,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
   instance mi2 function=@fn3 <- delegated

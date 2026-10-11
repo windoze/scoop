@@ -1,0 +1,178 @@
+{
+  "target": "aarch64-apple-darwin",
+  "runs": [
+    {
+      "report": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3091,
+        "selected": 3,
+        "unselected": 3088,
+        "counts": {
+          "passed": 3
+        },
+        "variants": 3,
+        "processes": 25,
+        "stage_and_plan_goldens": 12,
+        "results": [
+          {
+            "name": "cli-core-default-source-and-artifact",
+            "status": "passed",
+            "seconds": 49.23678174999077,
+            "variants": 1,
+            "processes": 9,
+            "snapshots": 4,
+            "message": ""
+          },
+          {
+            "name": "cli-input-manifest-roots",
+            "status": "passed",
+            "seconds": 54.298583375057206,
+            "variants": 1,
+            "processes": 9,
+            "snapshots": 4,
+            "message": ""
+          },
+          {
+            "name": "cli-input-single-file-isolation",
+            "status": "passed",
+            "seconds": 66.25995300000068,
+            "variants": 1,
+            "processes": 7,
+            "snapshots": 4,
+            "message": ""
+          }
+        ]
+      },
+      "execution": {
+        "passed": 3,
+        "cleaned_logical_bytes": 139794153,
+        "returncode": 0,
+        "seconds": 70.11232083395589,
+        "argv": [
+          "/Users/chenxu/.default-venv/bin/python3",
+          "tests/run_fixtures.py",
+          "--target",
+          "aarch64-apple-darwin",
+          "--scoop",
+          "target/release/scoop",
+          "--scoopc",
+          "target/release/scoopc",
+          "--scoop-link",
+          "target/release/scoop-link",
+          "--work-dir",
+          "/Volumes/Data/home/chenxu/repos/scoop/target/m36-validation/r11-fixtures",
+          "--jobs",
+          "12",
+          "--filter",
+          "cli-core-default-source-and-artifact",
+          "--filter",
+          "cli-input-manifest-roots",
+          "--filter",
+          "cli-input-single-file-isolation"
+        ]
+      }
+    },
+    {
+      "report": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3091,
+        "selected": 1,
+        "unselected": 3090,
+        "counts": {
+          "passed": 1
+        },
+        "variants": 1,
+        "processes": 1,
+        "stage_and_plan_goldens": 0,
+        "results": [
+          {
+            "name": "release-blocks-reject-override",
+            "status": "passed",
+            "seconds": 2.0114610419841483,
+            "variants": 1,
+            "processes": 1,
+            "snapshots": 0,
+            "message": ""
+          }
+        ]
+      },
+      "execution": {
+        "passed": 1,
+        "cleaned_logical_bytes": 0,
+        "returncode": 0,
+        "seconds": 5.625400166027248,
+        "argv": [
+          "/Users/chenxu/.default-venv/bin/python3",
+          "tests/run_fixtures.py",
+          "--target",
+          "aarch64-apple-darwin",
+          "--scoop",
+          "target/release/scoop",
+          "--scoopc",
+          "target/release/scoopc",
+          "--scoop-link",
+          "target/release/scoop-link",
+          "--work-dir",
+          "/Volumes/Data/home/chenxu/repos/scoop/target/m36-validation/r11-fixtures",
+          "--jobs",
+          "12",
+          "--filter",
+          "release-blocks-reject-override"
+        ]
+      }
+    },
+    {
+      "report": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3091,
+        "selected": 1,
+        "unselected": 3090,
+        "counts": {
+          "passed": 1
+        },
+        "variants": 1,
+        "processes": 12,
+        "stage_and_plan_goldens": 14,
+        "results": [
+          {
+            "name": "shared-enums-defaults-nested",
+            "status": "passed",
+            "seconds": 13.567455625045113,
+            "variants": 1,
+            "processes": 12,
+            "snapshots": 14,
+            "message": ""
+          }
+        ]
+      },
+      "execution": {
+        "passed": 1,
+        "cleaned_logical_bytes": 61569940,
+        "returncode": 0,
+        "seconds": 17.036119999946095,
+        "argv": [
+          "/Users/chenxu/.default-venv/bin/python3",
+          "tests/run_fixtures.py",
+          "--target",
+          "aarch64-apple-darwin",
+          "--scoop",
+          "target/release/scoop",
+          "--scoopc",
+          "target/release/scoopc",
+          "--scoop-link",
+          "target/release/scoop-link",
+          "--work-dir",
+          "/Volumes/Data/home/chenxu/repos/scoop/target/m36-validation/r11-fixtures",
+          "--jobs",
+          "12",
+          "--filter",
+          "shared-enums-defaults-nested"
+        ]
+      }
+    }
+  ],
+  "note": "Ordinary verification of shared CLI snapshots, the complete override modifier span, and nested enum defaults. These supplement the earlier 231-fixture selection and target portability check."
+}

@@ -1107,7 +1107,6 @@ Module
   fun @scoop$1$cb$a2e55c35bdea5cd8e417306e4bb2d479b153b4b750e3e54d9dab73831b11874d(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$97dc0bb777ae858f1eafc164769960c4dc6f6ad5882c022642fa9063a42284b3(ptr<managed>, ptr<managed>) -> i32
     local %0 $dependency.local.1: i32

@@ -81,7 +81,7 @@ fn literal_inference_in_argument_and_return_positions() {
             panic!("make is a user function")
         }
     };
-    let hir::StatementKind::Return { value: Some(value) } = &make_body.statements[0].kind else {
+    let hir::StatementKind::Return { value } = &make_body.statements[0].kind else {
         panic!("expected a return with a value");
     };
     assert!(matches!(value.kind, hir::ExprKind::ArrayLiteral(_)));

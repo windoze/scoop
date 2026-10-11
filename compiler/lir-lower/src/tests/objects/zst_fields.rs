@@ -21,10 +21,10 @@ fn zero_sized_heap_fields_preserve_operand_calls_and_exact_read_values() {
             Arena::new(),
             vec![],
             mir::Terminator::Return {
-                value: Some(expr(
+                value: expr(
                     receiver_type.clone(),
                     mir::ExprKind::ClassAlloc { class_id: class },
-                )),
+                ),
             },
         ),
     );
@@ -36,13 +36,13 @@ fn zero_sized_heap_fields_preserve_operand_calls_and_exact_read_values() {
             Arena::new(),
             vec![],
             mir::Terminator::Return {
-                value: Some(expr(
+                value: expr(
                     value_type.clone(),
                     mir::ExprKind::StructInit {
                         struct_id: empty,
                         args: vec![],
                     },
-                )),
+                ),
             },
         ),
     );

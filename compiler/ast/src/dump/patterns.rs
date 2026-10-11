@@ -5,7 +5,7 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     match pattern {
         Pattern::Binding(name) => name.text.clone(),
         Pattern::Wildcard { .. } => "_".to_string(),
-        Pattern::Literal { expr, .. } => dump_literal(expr),
+        Pattern::Literal { value, .. } => dump_literal(value),
         Pattern::Positional {
             path,
             elements,
@@ -62,24 +62,17 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     }
 }
 
-fn dump_literal(expr: &Expr) -> String {
-    match expr {
-        Expr::FloatLiteral(value) => value.to_string(),
-        Expr::CharLiteral { value, .. } => format!("{value:?}"),
-        Expr::StringLiteral { value, .. } => format!("{value:?}"),
-        Expr::IntLiteral(literal) => literal.to_string(),
-        Expr::BoolLiteral { value, .. } => value.to_string(),
-        Expr::UnitLiteral { .. } => "()".to_string(),
-        Expr::Unary {
-            op: UnOp::Plus,
-            operand,
-            ..
-        } => format!("+{}", dump_literal(operand)),
-        Expr::Unary {
-            op: UnOp::Neg,
-            operand,
-            ..
-        } => format!("-{}", dump_literal(operand)),
-        _ => panic!("a parsed literal pattern contains only literal syntax"),
+fn dump_literal(value: &LiteralPattern) -> String {
+    match value {
+        LiteralPattern::Integer { value, negated } => {
+            format!("{}{value}", if *negated { "-" } else { "" })
+        }
+        LiteralPattern::Float { value, negated } => {
+            format!("{}{value}", if *negated { "-" } else { "" })
+        }
+        LiteralPattern::Char(value) => format!("{value:?}"),
+        LiteralPattern::String(value) => format!("{value:?}"),
+        LiteralPattern::Boolean(value) => value.to_string(),
+        LiteralPattern::Unit => "()".to_string(),
     }
 }

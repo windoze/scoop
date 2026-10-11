@@ -133,6 +133,7 @@ Module
     cbr t22 then @if.then.1 else @if.merge.2
   block inline.10.entry
     heap_store local29 +16 integer<Int>(0x00000032)
+    t23 = aggregate () : {}
     br @inline.cont.10
   fun @scoop$1$cb$94802ece4450d10ff659f6f860fe68fa4b35c553a90f389a76e9fc25dd36cb22(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: i32

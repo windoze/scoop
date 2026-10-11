@@ -703,6 +703,8 @@ Module
           Type LocalNumbered
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.NarrowNumber.$c2 @fn35(this: NarrowNumber) -> Unit
     bb0 entry
       call @fn34 direct
@@ -711,6 +713,8 @@ Module
           Type NarrowNumber
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn36(this: Derived<Int>, item: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -727,6 +731,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn37(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -735,6 +741,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<NarrowNumber> @fn38(task: SuspendTask<NarrowNumber>, completion: Continuation<NarrowNumber>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -757,6 +765,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<NarrowNumber>[0]
         Type Continuation<NarrowNumber>
@@ -770,6 +780,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<NarrowNumber>[1]
         Type Continuation<NarrowNumber>
@@ -781,6 +793,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -838,6 +852,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<LocalNumbered>[0]
         Type Continuation<LocalNumbered>
@@ -851,6 +867,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<LocalNumbered>[1]
         Type Continuation<LocalNumbered>
@@ -862,6 +880,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -919,6 +939,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<LocalNumber>[0]
         Type Continuation<LocalNumber>
@@ -932,6 +954,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<LocalNumber>[1]
         Type Continuation<LocalNumber>
@@ -943,6 +967,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -1,0 +1,21 @@
+typealias Mapper = (Int) -> Int
+
+fun <T> keep(function: (T) -> T): (T) -> T = function
+fun <T> wrap(value: T): () -> T = { value }
+fun <T> save(value: T): T = value
+
+@NoGC
+fun increment(value: Int): Int = value + 1
+
+fun main() {
+    val mapper: Mapper = { value -> value + 1 }
+    val saved = keep(mapper)
+    println(saved(41))
+    println(wrap("function")())
+    val callback: FunPtr<Mapper> = ::increment
+    val optional = Some(save(callback))
+    println(when (optional) {
+        case Some(_) -> 1
+        case None -> 0
+    })
+}

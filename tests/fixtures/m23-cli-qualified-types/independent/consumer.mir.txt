@@ -93,6 +93,8 @@ Module
   fun init.Later.$c0 @fn2(this: Later) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Box.$c0 @fn3(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return

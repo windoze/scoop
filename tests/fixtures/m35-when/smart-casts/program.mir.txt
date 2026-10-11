@@ -917,6 +917,8 @@ Module
       goto bb9
     bb9 if.merge.9
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -941,6 +943,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -965,6 +969,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun exact @fn7(input: Any, fallback: Int) -> Int
     bb0 entry
       val $when.subject.8: Any
@@ -1037,6 +1043,8 @@ Module
         Type String
         Local name
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Count.$c0 @fn11(value: Int) -> Count <no-gc>
     bb0 entry
       return

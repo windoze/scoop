@@ -19,7 +19,7 @@ fn inline_copies_have_distinct_caller_local_identities() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(value, h.int)),
+                value: local_ref(value, h.int),
             })],
         },
     );
@@ -128,7 +128,7 @@ fn recursive_callee_is_retained_at_each_call_site() {
                                     mir::CallEffect::Unit(call)
                                     | mir::CallEffect::Value { call, .. } => call,
                                 };
-                                call.target.callee == mir::Callee::User(recursive)
+                                matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(recursive))
                             }
                             _ => false,
                         })

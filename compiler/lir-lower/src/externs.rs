@@ -202,24 +202,24 @@ pub(super) fn c_ffi_type(
             storage: lir::CCodePointerStorage::Direct,
         },
         mir::Type::Struct(id) => {
-            if let mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(
-                kind,
-            )) = module.structs[*id].representation
+            if let mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicStructRepresentation::Float(kind),
+            ) = module.structs[*id].representation
             {
                 return lir::CType::Float(kind);
             }
             if matches!(
                 module.structs[*id].representation,
-                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Char)
             ) {
                 return lir::CType::Integer(lir::IntegerKind::UNSIGNED_32);
             }
             if matches!(
                 module.structs[*id].representation,
-                mir::StructRepresentation::Declared {
+                mir::StructRepresentation::Declared(mir::DeclaredStruct {
                     c_abi: mir::StructCAbi::UInt64Field { .. },
                     ..
-                }
+                })
             ) {
                 lir::CType::Integer(lir::IntegerKind::UNSIGNED_64)
             } else {

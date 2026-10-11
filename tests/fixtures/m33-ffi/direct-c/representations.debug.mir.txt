@@ -116,12 +116,16 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun safeRecord @fn3(arg0: Int) -> Unit
     bb0 entry
       call extern10 @m33_record direct
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun pinWord @fn4(arg0: PinnedPtr<Cell>) -> PinnedPtr<Cell> <no-gc>
     bb0 entry
       call $call.1: PinnedPtr<Cell> = extern0 @m33_word direct
@@ -223,6 +227,8 @@ Module
         Type Owner
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun expect @fn15(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -258,6 +264,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn16() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -881,6 +889,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn17(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -1021,6 +1031,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn24(this: Continuation<Cell>, value: Cell) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1053,6 +1065,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c1 @fn33(this: Owner, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1061,6 +1075,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Item.$c0 @fn34(value: Int, extra: Double) -> Item <no-gc>
     bb0 entry
       return
@@ -1106,6 +1122,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn24 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -1119,6 +1137,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn25 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -1130,6 +1150,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1187,6 +1209,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn28 interface Continuation<Item>[0]
         Type Continuation<Item>
@@ -1200,6 +1224,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn29 interface Continuation<Item>[1]
         Type Continuation<Item>
@@ -1211,6 +1237,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1267,6 +1295,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Cell> result=Cell
   coroutine_step cs1 CoroutineStep<Item> result=Item
   coroutine_slot cl0 CoroutineSlot<Cell> value=Cell

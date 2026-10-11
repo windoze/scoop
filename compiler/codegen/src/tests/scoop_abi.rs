@@ -342,27 +342,29 @@ fn native_aggregate_module() -> Module {
     let argument_storage =
         scoop_lir::AbiArgumentStorage::new(argument, locals[argument].ty(), &abi_value)
             .expect("native aggregate argument storage has its exact ABI type");
-    let mut site = protocol_site(
-        &mut call_targets,
-        TestCallProtocol::NativeBorrowed {
-            safepoint: 4,
-            destination: scoop_lir::NativeBorrowedCallDestination::extern_function(native),
-            result: NativeBorrowedResultRoot::Rooted { storage: result },
-        },
-        TestTypedCall::IndirectResult {
-            signature,
+    let target =
+        call_targets
+            .native_borrowed_targets
+            .indirect_result
+            .alloc(scoop_lir::CallTarget {
+                destination: scoop_lir::NativeBorrowedCallDestination::extern_function(native),
+                signature,
+            });
+    let scan = scoop_lir::NonEmptyRefScan::new(abi_value.scan().clone())
+        .expect("managed aggregate has one root leaf");
+    let site = CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
+        call: scoop_lir::NativeBorrowedTypedCall::IndirectResultRooted {
+            target,
             storage: result,
             args: vec![scoop_lir::AbiCallArgument::Indirect(argument_storage)],
+            scan: scan.clone(),
         },
-    );
-    let CallSite::NativeBorrowed(native_site) = &mut site else {
-        unreachable!("test protocol constructs a native-borrowed site")
-    };
-    native_site.roots = scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
-        source: scoop_lir::CallerRootSource::Local(argument),
-        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0]))
-            .expect("managed aggregate has one root leaf"),
-    }]);
+        safepoint: test_safepoint(4),
+        roots: scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
+            source: scoop_lir::CallerRootSource::Local(argument),
+            scan,
+        }]),
+    });
 
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {

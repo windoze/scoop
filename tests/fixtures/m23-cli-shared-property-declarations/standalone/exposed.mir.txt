@@ -52,6 +52,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Store.$get$computed @fn2(this: Store) -> Hidden
     bb0 entry
       assign $new.1
@@ -78,6 +80,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun store @fn5() -> Store
     bb0 entry
       assign $new.1
@@ -116,6 +120,8 @@ Module
   fun init.Hidden.$c0 @fn14(this: Hidden) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Store.$c1 @fn15(this: Store) -> Unit
     bb0 entry
       field_set 0
@@ -124,6 +130,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Store> @fn16(task: SuspendTask<Store>, completion: Continuation<Store>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -146,6 +154,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Store>[0]
         Type Continuation<Store>
@@ -159,6 +169,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Store>[1]
         Type Continuation<Store>
@@ -170,6 +182,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -227,6 +241,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Hidden>[0]
         Type Continuation<Hidden>
@@ -240,6 +256,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Hidden>[1]
         Type Continuation<Hidden>
@@ -251,6 +269,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

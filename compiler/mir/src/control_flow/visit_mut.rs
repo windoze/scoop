@@ -8,7 +8,7 @@ pub fn visit_statement_exprs_mut(statement: &mut Statement, visitor: &mut impl F
             let call = match effect {
                 CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
             };
-            for argument in &mut call.args {
+            for argument in call.operands_mut() {
                 visit_expr_mut(argument, visitor);
             }
         }
@@ -42,10 +42,9 @@ pub fn visit_terminator_exprs_mut(
 ) {
     match terminator {
         Terminator::Branch { cond, .. } => visit_expr_mut(cond, visitor),
-        Terminator::Return { value: Some(value) } => visit_expr_mut(value, visitor),
+        Terminator::Return { value } => visit_expr_mut(value, visitor),
         Terminator::Throw { exception, .. } => visit_expr_mut(exception, visitor),
         Terminator::Goto(_)
-        | Terminator::Return { value: None }
         | Terminator::Rethrow { .. }
         | Terminator::Resume
         | Terminator::Trap { .. }

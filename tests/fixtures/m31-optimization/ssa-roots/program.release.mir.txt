@@ -483,6 +483,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call $dependency.argument.0: Long = @fn0 direct
       val $dependency.parameter.value: Long
@@ -550,6 +552,8 @@ Module
         Local $inline.9.this
         Type Long
         IntegerLiteral Long value=20 bits=0x0000000000000014
+      Type Unit
+      UnitLiteral
       goto bb9
   fun $lambda.0 @fn5($closure: () -> Long) -> Long
     bb0 entry
@@ -593,6 +597,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Item.$c0 @fn8(this: Item, value: Long) -> Unit
     bb0 entry
       field_set 0
@@ -601,6 +607,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn9(first: Item, second: Item) -> Pair <no-gc>
     bb0 entry
       return

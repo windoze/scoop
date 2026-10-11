@@ -2089,6 +2089,8 @@ Module
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn30(this: Derived<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Box<Unit>
@@ -2100,6 +2102,8 @@ Module
         Type Box<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun label @fn31(value: Derived<Unit>) -> Int
     bb0 entry
       val $dependency.local.1: Derived<Unit>
@@ -2123,24 +2127,24 @@ Module
             Local reader
   fun localChoose @fn33(this: Derived<Unit>, extra: Int, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn34(this: Box<Unit>, extra: Unit, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun classRead @fn35(box: Derived<Unit>, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun localRead @fn36(value: Derived<Unit>, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun read @fn37(this: Box<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn48 direct
@@ -2219,11 +2223,9 @@ Module
           Local this
   fun value @fn47(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn48(this: Box<Int>) -> Int
     bb0 entry
       return
@@ -2361,6 +2363,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.4 @fn65($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn38 direct
@@ -2379,6 +2383,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn67(this: Derived<Later>, item: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -2395,6 +2401,8 @@ Module
         Type Later
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn68(this: Derived<String>, item: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -2411,6 +2419,8 @@ Module
         Type String
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn69(this: Derived<Unit>, item: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2427,6 +2437,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn70(this: Derived<Int>, item: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2443,6 +2455,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn71(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2451,6 +2465,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn72(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -2459,6 +2475,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn73(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2467,6 +2485,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn74(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2475,6 +2495,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn75(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2497,6 +2519,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn49 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2510,6 +2534,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn50 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2521,6 +2547,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

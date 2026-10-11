@@ -165,6 +165,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun getGcHandle @fn1(v: MovingResource) -> GcHandle<MovingResource>
     bb0 entry
       val $dependency.local.1: MovingResource
@@ -225,6 +227,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun pin @fn4(v: MovingResource) -> PinnedPtr<MovingResource>
     bb0 entry
       val $dependency.local.1: MovingResource
@@ -285,6 +289,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn7(this: Continuation<MovingResource>, value: MovingResource) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -305,6 +311,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GcHandle.$c0 @fn12(raw: ULong) -> GcHandle<MovingResource> <no-gc>
     bb0 entry
       return
@@ -341,6 +349,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<MovingResource>[0]
         Type Continuation<MovingResource>
@@ -354,6 +364,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<MovingResource>[1]
         Type Continuation<MovingResource>
@@ -365,6 +377,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

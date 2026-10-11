@@ -1,6 +1,9 @@
 use super::*;
 
+mod c_layout;
 mod maybe_uninit;
+
+pub(crate) use c_layout::{c_field_size, c_payload_fields, c_physical_field_index};
 
 /// The LLVM type of a (non-void) LIR type: aggregates are literal
 /// structs per the layout in LIR meta; Unit is the empty struct `{}`;
@@ -246,14 +249,19 @@ pub(crate) fn llvm_constant<'ctx>(
                     struct_type.const_named_struct(&values).into()
                 }
                 StructRepresentation::C {
-                    fields: field_defs, ..
+                    fields: field_defs,
+                    contract,
                 } => {
                     let payload_types = c_payload_fields(
                         context,
                         structs,
                         enums,
                         managed_address_space,
-                        definition,
+                        scoop_lir::CStructView {
+                            definition,
+                            contract: *contract,
+                            fields: field_defs,
+                        },
                     )?;
                     let mut payload_values = Vec::with_capacity(payload_types.len());
                     let mut cursor = 0u64;
@@ -326,99 +334,6 @@ pub(crate) fn integer_ty(context: &Context, width: IntegerWidth) -> inkwell::typ
     }
 }
 
-pub(crate) fn c_field_size(
-    structs: &StructDefs,
-    enums: &EnumDefs,
-    ty: &LirType,
-) -> Result<u64, CodegenError> {
-    Ok(match ty {
-        LirType::I1 | LirType::I8 => 1,
-        LirType::I16 => 2,
-        LirType::I32 | LirType::F32 => 4,
-        LirType::I64 | LirType::F64 | LirType::MachineScalar(_) | LirType::Ptr(_) => 8,
-        LirType::Struct(id) => structs[*id].size,
-        LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Niche { .. }) => 8,
-        other => {
-            return Err(CodegenError(format!(
-                "non-C field type {} reached a C-layout struct",
-                other.dump()
-            )));
-        }
-    })
-}
-
-pub(crate) fn c_payload_fields<'ctx>(
-    context: &'ctx Context,
-    structs: &StructDefs,
-    enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
-    definition: &StructDef,
-) -> Result<Vec<BasicTypeEnum<'ctx>>, CodegenError> {
-    let mut physical = Vec::new();
-    let mut cursor = 0u64;
-    let fields = definition
-        .c_fields()
-        .expect("C payload fields require a C-layout struct");
-    for field in fields {
-        let padding = field.layout.offset.checked_sub(cursor).ok_or_else(|| {
-            CodegenError(format!(
-                "overlapping fields in C layout `{}`",
-                definition.name
-            ))
-        })?;
-        if padding != 0 {
-            physical.push(context.i8_type().array_type(padding as u32).into());
-        }
-        let storage_type = field.ty.storage_type();
-        physical.push(basic_ty(
-            context,
-            structs,
-            enums,
-            managed_address_space,
-            &storage_type,
-        )?);
-        cursor = field.layout.offset + c_field_size(structs, enums, &storage_type)?;
-    }
-    let tail = definition
-        .size
-        .checked_sub(cursor)
-        .ok_or_else(|| CodegenError(format!("fields exceed C layout `{}`", definition.name)))?;
-    if tail != 0 {
-        physical.push(context.i8_type().array_type(tail as u32).into());
-    }
-    Ok(physical)
-}
-
-/// LLVM field index of a logical C-layout field inside the packed
-/// payload struct. Explicit padding arrays occupy physical fields but
-/// are deliberately absent from LIR's source-level field numbering.
-pub(crate) fn c_physical_field_index(
-    structs: &StructDefs,
-    enums: &EnumDefs,
-    definition: &StructDef,
-    logical_index: u32,
-) -> Result<u32, CodegenError> {
-    let mut physical_index = 0u32;
-    let mut cursor = 0u64;
-    let fields = definition
-        .c_fields()
-        .expect("C physical field lookup requires a C-layout struct");
-    for (index, field) in fields.iter().enumerate() {
-        if field.layout.offset > cursor {
-            physical_index += 1;
-        }
-        if index == logical_index as usize {
-            return Ok(physical_index);
-        }
-        physical_index += 1;
-        cursor = field.layout.offset + c_field_size(structs, enums, &field.ty.storage_type())?;
-    }
-    Err(CodegenError(format!(
-        "field {logical_index} out of range for C layout `{}`",
-        definition.name
-    )))
-}
-
 pub(crate) fn struct_ty<'ctx>(
     context: &'ctx Context,
     structs: &StructDefs,
@@ -427,38 +342,42 @@ pub(crate) fn struct_ty<'ctx>(
     id: scoop_lir::StructDefId,
 ) -> Result<StructType<'ctx>, CodegenError> {
     let definition = &structs[id];
-    if let StructRepresentation::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::MaybeUninit {
-        scan,
-        ..
-    }) = &definition.representation
-    {
-        return maybe_uninit::storage_type(
+    match &definition.representation {
+        StructRepresentation::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::MaybeUninit {
+            scan,
+            ..
+        }) => maybe_uninit::storage_type(
             context,
             managed_address_space,
             definition.size,
             definition.align,
             scan,
-        );
-    }
-    if let StructRepresentation::Scoop { fields } = &definition.representation {
-        let llvm_fields = fields
-            .iter()
-            .map(|field| basic_ty(context, structs, enums, managed_address_space, &field.ty))
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(context.struct_type(&llvm_fields, false));
-    }
-    if let StructRepresentation::Intrinsic(representation) = &definition.representation {
-        return Err(CodegenError(format!(
+        ),
+        StructRepresentation::Scoop { fields } => {
+            let fields = fields
+                .iter()
+                .map(|field| basic_ty(context, structs, enums, managed_address_space, &field.ty))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(context.struct_type(&fields, false))
+        }
+        StructRepresentation::Intrinsic(representation) => Err(CodegenError(format!(
             "compiler intrinsic declaration shell `{}` ({representation:?}) cannot be emitted as an aggregate struct",
             definition.name
-        )));
+        ))),
+        StructRepresentation::C { contract, fields } => {
+            let layout = scoop_lir::CStructView {
+                definition,
+                contract: *contract,
+                fields,
+            };
+            let anchor = alignment_anchor(context, definition.align)?;
+            let payload = context.struct_type(
+                &c_payload_fields(context, structs, enums, managed_address_space, layout)?,
+                true,
+            );
+            Ok(context.struct_type(&[anchor, payload.into()], false))
+        }
     }
-    let anchor = alignment_anchor(context, definition.align)?;
-    let payload = context.struct_type(
-        &c_payload_fields(context, structs, enums, managed_address_space, definition)?,
-        true,
-    );
-    Ok(context.struct_type(&[anchor, payload.into()], false))
 }
 
 /// Physical storage for a tagged enum. Non-reference payload remains opaque,

@@ -319,6 +319,8 @@ Module
         Type () -> Int
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn15(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -337,6 +339,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Host> @fn16(task: SuspendTask<Host>, completion: Continuation<Host>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -359,6 +363,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Host>[0]
         Type Continuation<Host>
@@ -372,6 +378,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Host>[1]
         Type Continuation<Host>
@@ -383,6 +391,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

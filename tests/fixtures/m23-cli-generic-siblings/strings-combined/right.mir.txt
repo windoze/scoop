@@ -145,6 +145,8 @@ Module
         Type String
         StringConst @str3
       return
+        Type Unit
+        UnitLiteral
   fun init.Named.$c0 @fn12(this: Named<Long>, value: Long) -> Unit
     bb0 entry
       field_set 0
@@ -158,6 +160,8 @@ Module
         Type String
         StringConst @str4
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- label
   instance mi1 function=@fn6 <- text
   instance mi2 function=@fn7 <- $extension.constantText

@@ -277,49 +277,52 @@ Module
     ret
   block inline.22.entry
     heap_store local69 +16 integer<Int>(0x00000021)
+    t41 = aggregate () : {}
     br @inline.cont.22
   block inline.cont.24
-    t41 = heap_load td9 +96 : ptr<metadata>
-    t42 = heap_load t41 +24 : ptr<metadata>
-    t43 = aggregate (local63, t42) : interface{object,itab}
-    store t43 -> local5
+    t42 = heap_load td9 +96 : ptr<metadata>
+    t43 = heap_load t42 +24 : ptr<metadata>
+    t44 = aggregate (local63, t43) : interface{object,itab}
+    store t44 -> local5
     store local2 -> local6
     store local5 -> local7
     store true -> local8
     store local6 -> local9
     store local7 -> local10
     store true -> local11
-    call native-borrowed-direct-target4 sp<native-borrowed:0> roots=[local2, local5, local9, local10] result-root=local82:refs[0] t44 = sig=direct11 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i1) -> interface{object,itab} extern0(local9, local10, true)
-    store t44 -> local12
-    t45 = extract local12, 1 : ptr<metadata>
-    t46 = extract local12, 0 : ptr<managed>
-    call managed-direct-target6 sp<managed-call:2> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, t46:ptr<managed>@0] t47 = sig=direct12 (ptr<managed>) -> i32 dispatch[Interface:0] t45(t46)
-    store t47 -> local13
+    call native-borrowed-direct-target4 sp<native-borrowed:0> roots=[local2, local5, local9, local10] result-root=local82:refs[0] t45 = sig=direct11 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i1) -> interface{object,itab} extern0(local9, local10, true)
+    store t45 -> local12
+    t46 = extract local12, 1 : ptr<metadata>
+    t47 = extract local12, 0 : ptr<managed>
+    call managed-direct-target6 sp<managed-call:2> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, t47:ptr<managed>@0] t48 = sig=direct12 (ptr<managed>) -> i32 dispatch[Interface:0] t46(t47)
+    store t48 -> local13
     store integer<Int>(0x0000000b) -> local14
     store integer<Int>(0x0000000b) -> local15
-    t48 = integer_compare_Equal<Int> local13, integer<Int>(0x0000000b) : i1
-    store t48 -> local16
+    t49 = integer_compare_Equal<Int> local13, integer<Int>(0x0000000b) : i1
+    store t49 -> local16
     store local16 -> local17
     call managed-void-target7 sp<managed-call:3> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0] sig=void8 (i1) local-fn4(local17)
-    t49 = aggregate () : {}
+    t50 = aggregate () : {}
     br @try.body.8
   block inline.24.entry
     heap_store local71 +16 integer<Int>(0x00000016)
+    t51 = aggregate () : {}
     br @inline.cont.24
   block inline.cont.26
-    t50 = heap_load td9 +96 : ptr<metadata>
-    t51 = heap_load t50 +24 : ptr<metadata>
-    t52 = aggregate (local62, t51) : interface{object,itab}
-    store t52 -> local2
+    t52 = heap_load td9 +96 : ptr<metadata>
+    t53 = heap_load t52 +24 : ptr<metadata>
+    t54 = aggregate (local62, t53) : interface{object,itab}
+    store t54 -> local2
     store integer<Int>(0x00000016) -> local3
     store integer<Int>(0x00000016) -> local4
-    call managed-direct-target7 sp<managed-call:1> live=[local2:interface{object,itab}@0] t53 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
-    store t53 -> local63
+    call managed-direct-target7 sp<managed-call:1> live=[local2:interface{object,itab}@0] t55 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    store t55 -> local63
     store local63 -> local71
     store integer<Int>(0x00000016) -> local72
     br @inline.24.entry
   block inline.26.entry
     heap_store local73 +16 integer<Int>(0x0000000b)
+    t56 = aggregate () : {}
     br @inline.cont.26
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>

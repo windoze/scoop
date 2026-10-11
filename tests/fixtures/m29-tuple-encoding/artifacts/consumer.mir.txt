@@ -194,6 +194,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call external57 direct
@@ -850,6 +852,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn2(this: Array<(Int, String)>) -> Iterator<(Int, String)>
     bb0 entry
       val $dependency.local.1: List<(Int, String)>
@@ -1134,6 +1138,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.31
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn7(this: Json, value: ((Int, String), (Int, String)), codec: Encodable<((Int, String), (Int, String))>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -1319,6 +1325,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun erasePair @fn12(value: (Int, String)) -> Any
     bb0 entry
       return
@@ -1445,6 +1453,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.31
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn14(this: Json, value: ((Int, String), Unit), codec: Encodable<((Int, String), Unit)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -1734,6 +1744,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Initializer @fn20() -> Unit
     bb0 entry
       assign $new.1
@@ -1746,6 +1758,8 @@ Module
         Type Companion<(Int, String)>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn21() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1770,6 +1784,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -2229,6 +2245,8 @@ Module
         Type MaybeUninit<JsonMember>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn30(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonMember>
@@ -2339,6 +2357,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn31(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -2654,6 +2674,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn32(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       val $dependency.local.5: ArrayList<JsonMember>
@@ -2965,6 +2987,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
         Type MutableArray<MaybeUninit<JsonMember>>
@@ -3344,6 +3368,8 @@ Module
         Type MaybeUninit<JsonValue>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn41(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonValue>
@@ -3454,6 +3480,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn42(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -3769,6 +3797,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn43(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       val $dependency.local.5: ArrayList<JsonValue>
@@ -4080,6 +4110,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
         Type MutableArray<MaybeUninit<JsonValue>>
@@ -4207,6 +4239,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn48(this: Encodable<Array<(Int, String)>>, value: Array<(Int, String)>, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -4325,6 +4359,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.31
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn50(this: Encodable<Unit>, value: Unit, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -4603,6 +4639,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn60(this: ArrayList<JsonMember>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -4663,6 +4701,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -4808,6 +4848,8 @@ Module
         Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<JsonMember> = <closure:function_type2> closure[function_type2]
         Type (Long) -> MaybeUninit<JsonMember>
@@ -5086,6 +5128,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn64(this: ArrayList<JsonValue>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -5146,6 +5190,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -5291,6 +5337,8 @@ Module
         Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<JsonValue> = <closure:function_type4> closure[function_type4]
         Type (Long) -> MaybeUninit<JsonValue>
@@ -5352,6 +5400,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: (Int, String)
         Type (Int, String)
@@ -5555,6 +5605,8 @@ Module
         Type Encoder
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c0 @fn85(this: PairEncoder<(Int, String), (Int, String)>, first: Encodable<(Int, String)>, second: Encodable<(Int, String)>) -> Unit
     bb0 entry
       field_set 0
@@ -5568,6 +5620,8 @@ Module
         Type Encodable<(Int, String)>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Captured.$c0 @fn86(this: Captured<(Int, String)>, write: ((Int, String), Encoder) -> Unit) -> Unit
     bb0 entry
       field_set 0
@@ -5576,6 +5630,8 @@ Module
         Type ((Int, String), Encoder) -> Unit
         Local write
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c0 @fn87(this: PairEncoder<(Int, String), Unit>, first: Encodable<(Int, String)>, second: Encodable<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -5589,6 +5645,8 @@ Module
         Type Encodable<Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn88(this: ListIterator<(Int, String)>, source: List<(Int, String)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5607,6 +5665,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayEncoder.$c3 @fn89(this: ArrayEncoder<(Int, String)>, element: Encodable<(Int, String)>) -> Unit
     bb0 entry
       field_set 0
@@ -5615,6 +5675,8 @@ Module
         Type Encodable<(Int, String)>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c0 @fn90(this: PairEncoder<Int, String>, first: Encodable<Int>, second: Encodable<String>) -> Unit
     bb0 entry
       field_set 0
@@ -5628,9 +5690,13 @@ Module
         Type Encodable<String>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c1 @fn91(this: Companion<(Int, String)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn92(this: ListIterator<MaybeUninit<JsonMember>>, source: List<MaybeUninit<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5649,6 +5715,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn93(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5667,6 +5735,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn94(this: ListIterator<MaybeUninit<JsonValue>>, source: List<MaybeUninit<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5685,6 +5755,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn95(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5703,6 +5775,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Opaque.$c0 @fn96() -> Opaque <no-gc>
     bb0 entry
       return
@@ -5730,6 +5804,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn80 interface Continuation<Opaque>[0]
         Type Continuation<Opaque>
@@ -5743,6 +5819,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn81 interface Continuation<Opaque>[1]
         Type Continuation<Opaque>
@@ -5754,6 +5832,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

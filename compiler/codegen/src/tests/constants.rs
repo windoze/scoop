@@ -69,7 +69,7 @@ fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
         false,
         vec![
             scoop_lir::StructField {
-                ty: LirType::Struct(inner),
+                ty: LirType::Struct(inner.definition()),
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
                     access_align: 8,
@@ -87,12 +87,12 @@ fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
     add_encoded_global(
         &mut module,
         "nested_leaf",
-        LirType::Struct(outer),
+        LirType::Struct(outer.definition()),
         LirConstantImage::Struct {
-            struct_id: outer,
+            struct_id: outer.definition(),
             fields: vec![
                 LirConstantImage::Struct {
-                    struct_id: inner,
+                    struct_id: inner.definition(),
                     fields: vec![LirConstantImage::Bool(false)],
                 },
                 LirConstantImage::Bool(true),
@@ -205,9 +205,9 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     add_encoded_global(
         &mut module,
         "foreign_enum_unit",
-        LirType::Struct(wrapper),
+        LirType::Struct(wrapper.definition()),
         LirConstantImage::Struct {
-            struct_id: wrapper,
+            struct_id: wrapper.definition(),
             fields: vec![LirConstantImage::EnumUnit {
                 variant: foreign_variant,
             }],

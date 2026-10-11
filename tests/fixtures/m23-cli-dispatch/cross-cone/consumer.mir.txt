@@ -287,6 +287,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun describe @fn1(this: Wrapped<String>, value: String) -> String
     bb0 entry
       return
@@ -344,6 +346,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Describe.describe @fn9(this: Describe<String>, value: String) -> String
     bb0 entry
       trap "call to abstract method `Describe.describe`"
@@ -468,6 +472,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun echoString @fn16(value: Defaults) -> String
     bb0 entry
       val $dependency.receiver: Defaults
@@ -574,6 +580,8 @@ Module
   fun init.Wrapped.$c0 @fn21(this: Wrapped<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.() -> Any @fn22($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
