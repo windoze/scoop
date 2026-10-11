@@ -11,6 +11,8 @@ use super::{
     CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError, optional_signature,
 };
 
+mod inner;
+
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
     fn function_identity_shape(
         &self,
@@ -56,7 +58,11 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             (
                 CallableTemplateOrigin::Constructor(_),
                 DuplicateSignatureKey::Constructor { parameters },
-            ) => (0, None, parameters.clone()),
+            ) => (
+                0,
+                self.constructor_outer_receiver(owner)?,
+                parameters.clone(),
+            ),
             (_, actual) => {
                 return Err(
                     CrossConeHirNominalAuthorityError::CallableSignatureKindMismatch {

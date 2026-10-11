@@ -24,7 +24,7 @@ impl CallableInterfaceRecordV1 {
         context_parameters: Vec<crate::SourceParameterShapeV1>,
     ) -> Result<Self, CallableInterfaceRecordBuildError> {
         validate_type_parameter_shape(declaration, &type_parameters)?;
-        validate_receiver_shape(owner, receiver.is_some())?;
+        validate_receiver_shape(declaration, owner, receiver.is_some())?;
         validate_owner_shape(declaration, owner)?;
         validate_dispatch_shape(declaration, owner, &effects, modality, access)?;
         let data = CallableDeclarationRecordV1::try_new(

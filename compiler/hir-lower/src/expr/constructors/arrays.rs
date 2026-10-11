@@ -68,6 +68,7 @@ impl Lowerer {
         let ty = self.array_type(target_kind, *element_ty);
         let mut args = self.materialize_nominal_arguments(
             crate::argument_materialization::NominalArgumentMaterialization {
+                receiver: None,
                 view: &view,
                 argument_map: &argument_map,
                 type_args: &type_args,

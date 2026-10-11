@@ -1,0 +1,4 @@
+enum Outer {
+    Value
+    inner class Inner
+}

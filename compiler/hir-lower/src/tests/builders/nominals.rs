@@ -24,6 +24,7 @@ pub(crate) fn class_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
+        inner_span: None,
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         modifier,

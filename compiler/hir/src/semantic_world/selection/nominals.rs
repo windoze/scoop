@@ -164,6 +164,7 @@ pub(super) fn declarations(
                             _ => unreachable!("declared storage has a source field key"),
                         },
                         crate::NominalFieldStorage::Generated => format!("{:?}", field.field()),
+                        crate::NominalFieldStorage::EnclosingInstance => "$outer".into(),
                     };
                     Ok(ImportedNominalFieldSource { name, storage })
                 })

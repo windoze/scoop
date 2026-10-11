@@ -154,6 +154,7 @@ fn every_field_shape_resolves_through_its_canonical_owner_key() {
         FieldIdentityKey::source_property_delegate(&source_class, property).unwrap(),
         FieldIdentityKey::source_interface_delegate(&source_class, 0).unwrap(),
         FieldIdentityKey::source_interface_delegate(&source_class, 1).unwrap(),
+        FieldIdentityKey::source_enclosing_instance(&source_class).unwrap(),
         FieldIdentityKey::box_payload(&generated[0]).unwrap(),
         FieldIdentityKey::closure_capture(&generated[1], local).unwrap(),
         FieldIdentityKey::callable_reference_receiver(&generated[1], local).unwrap(),

@@ -125,7 +125,17 @@ impl Lowerer {
         }
 
         self.current_return_ty = parameter.ty;
-        self.current_owner = context.receiver.and_then(|(_, owner)| owner);
+        let inner_constructor = match context.definition_root {
+            hir::LexicalDefinitionRoot::ClassConstructor(id)
+                if self.class_constructors[id].enclosing_parameter.is_some() =>
+            {
+                Some(id)
+            }
+            _ => None,
+        };
+        self.current_owner = inner_constructor
+            .map(|id| Owner::Class(self.class_constructors[id].owner))
+            .or_else(|| context.receiver.and_then(|(_, owner)| owner));
         self.set_source_context(context.source_context.clone());
         let origin = self.definition_origin(expression.span());
         self.push_suspension_context(if context.is_suspend {
@@ -138,19 +148,23 @@ impl Lowerer {
 
         let receiver = context.receiver.map(|(ty, _)| {
             let local = self.alloc_this_local(ty, expression.span());
-            self.scopes.declare("this".to_string(), local);
-            self.current_this = Some((local, ty));
+            if inner_constructor.is_none() {
+                self.scopes.declare("this".to_string(), local);
+                self.current_this = Some((local, ty));
+            }
             let label = self
                 .current_owner
                 .map(|owner| self.receiver_owner_label(owner))
                 .unwrap_or_else(|| context.callable_name.clone());
-            self.push_receiver_scope(
-                Some(label),
-                Some(crate::ReceiverBinding {
-                    binding: self.locals[local].binding,
-                    ty,
-                }),
-            );
+            if inner_constructor.is_none() {
+                self.push_receiver_scope(
+                    Some(label),
+                    Some(crate::ReceiverBinding {
+                        binding: self.locals[local].binding,
+                        ty,
+                    }),
+                );
+            }
             hir::ExportDefaultReceiver { local, ty }
         });
         let mut value_parameters = Vec::with_capacity(parameter_index);
@@ -169,6 +183,17 @@ impl Lowerer {
         }
 
         let mut statements = Vec::new();
+        if inner_constructor.is_some()
+            && let Some(receiver) = &receiver
+        {
+            let value = hir::Expr {
+                kind: hir::ExprKind::Local(receiver.local),
+                ty: receiver.ty,
+                span: expression.span(),
+                origin: self.expression_origin(expression.span()),
+            };
+            self.bind_enclosing_receivers(value, &mut statements);
+        }
         let outer_default_template = std::mem::replace(&mut self.lowering_default_template, true);
         let value = self.lower_expr(expression, &mut statements, Some(parameter.ty));
         self.lowering_default_template = outer_default_template;

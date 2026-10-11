@@ -220,14 +220,14 @@ impl std::error::Error for TestAuthorityError {}
 
 pub(super) struct TestAuthority {
     pub(super) nominals: BTreeMap<SourceNominalId, SourceDeclarationKey>,
-    shapes: BTreeMap<SourceNominalId, PublicNominalShapeV1>,
+    pub(super) shapes: BTreeMap<SourceNominalId, PublicNominalShapeV1>,
     pub(super) constructor_owner: PublicDeclarationOwnerV1,
     constructor: PersistentConstructorId,
     pub(super) member_owner: PublicDeclarationOwnerV1,
     member: PublicMemberRefV1,
     pub(super) nested_binding_owner: PublicDeclarationOwnerV1,
     nested_binding: PersistentExportBindingId,
-    fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
+    pub(super) fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
 }
 
 impl NominalInterfaceShapeAuthority<TestAuthorityError> for TestAuthority {

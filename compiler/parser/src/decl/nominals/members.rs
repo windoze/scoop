@@ -243,6 +243,7 @@ impl Parser {
                     prefix.annotations,
                     prefix.visibility,
                     modifier,
+                    prefix.modifiers.inner_span,
                     modifier_span,
                 )
                 .map(Box::new)

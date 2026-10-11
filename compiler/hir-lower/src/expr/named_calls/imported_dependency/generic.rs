@@ -27,10 +27,35 @@ impl Lowerer {
             signature,
             bindings: template_bindings,
         } = declaration;
-        let explicit = match self.resolve_call_type_args(call.type_args) {
+        let mut explicit = match self.resolve_call_type_args(call.type_args) {
             Some(arguments) => arguments,
             None => return Err(self),
         };
+        if matches!(template, ImportedGenericTarget::Constructor(_))
+            && call.alias.is_none()
+            && let ImportedCallReceiver::Member { value, .. } = &receiver
+        {
+            let outer = self
+                .nominal_application(value.ty())
+                .expect("an inner constructor has its outer application")
+                .arguments;
+            let own_count = signature.signature.owner_parameters.len() - outer.len();
+            if explicit.is_empty() {
+                explicit.extend(
+                    (0..own_count)
+                        .map(|_| crate::expr::ResolvedCallTypeArgument::Infer { span: call.span }),
+                );
+            }
+            explicit.splice(
+                0..0,
+                outer
+                    .into_iter()
+                    .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit {
+                        ty,
+                        span: call.span,
+                    }),
+            );
+        }
         let alias_signature = if let Some(alias) = call.alias {
             match self.alias_constructor_signature(
                 alias,
@@ -99,6 +124,9 @@ impl Lowerer {
         };
         let bound_receiver = match (signature.receiver, &receiver) {
             (Some(expected), ImportedCallReceiver::Member { value, .. }) => {
+                let expected = alias_signature.as_ref().map_or(expected, |alias| {
+                    self.instantiate_method_ty(expected, &alias.target_bindings)
+                });
                 Some((expected, value.ty()))
             }
             _ => None,

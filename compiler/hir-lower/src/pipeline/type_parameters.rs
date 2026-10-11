@@ -42,10 +42,16 @@ impl Lowerer {
         for &(id, decl, file_index) in pending_classes {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
-            let declared = self.classes[id].type_params.clone();
+            let mut declared = self.classes[id].type_params.clone();
+            let outer_count = self.enclosing_parameter_count(id);
+            if decl.inner_span.is_some()
+                && let Some(hir::NominalOwner::Class(outer)) = self.classes[id].owner
+            {
+                declared[..outer_count].clone_from_slice(&self.classes[outer].type_params);
+            }
             let params = self.resolve_type_parameter_constraints(
                 declared,
-                0,
+                outer_count,
                 &decl.type_params,
                 decl.where_clause.as_ref(),
                 "class",

@@ -1,0 +1,15 @@
+class Outer<T>(val value: T) {
+    inner class Inner<U>(val other: U) {
+        fun first(): T = value
+        fun second(): U = other
+    }
+    fun factory(): (Int) -> Inner<Int> = ::Inner
+}
+fun main() {
+    val outer = Outer("outer")
+    val factory: (Int) -> Outer<String>.Inner<Int> = outer::Inner
+    val value = factory(42)
+    println(value.first())
+    println(value.second())
+    println(outer.factory()(7).second())
+}

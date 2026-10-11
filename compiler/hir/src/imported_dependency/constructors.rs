@@ -21,6 +21,7 @@ pub struct ImportedConstructorSignature {
     pub name: String,
     pub type_parameters: Vec<TypeParamDecl>,
     pub owner: TypeId,
+    pub enclosing_parameter: Option<ConstructorParameter>,
     pub parameters: Vec<ConstructorParameter>,
     pub no_gc_type_params: Vec<TypeParamId>,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,

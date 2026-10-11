@@ -33,6 +33,7 @@ impl Lowerer {
             let arguments = self
                 .named_nominal_expected_arguments(plan.view.signature.return_type, plan.expected);
             let input = NominalConstructorCall {
+                enclosing: None,
                 explicit_type_args: explicit,
                 expected_type_args: arguments.as_deref(),
                 arguments: &call.args,

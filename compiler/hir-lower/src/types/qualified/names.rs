@@ -94,8 +94,25 @@ impl Lowerer {
             };
             target = if let ResolvedTypeName::Applied(host) = target
                 && let ResolvedTypeName::Nominal(nominal) = nested
-                && self.nominal_is_companion(nominal)
+                && (self.nominal_is_companion(nominal)
+                    || self.nominal_enclosing_owner(nominal).is_some())
             {
+                if self.nominal_enclosing_owner(nominal).is_some() {
+                    target = ResolvedTypeName::Applied(
+                        self.apply_inner_type(
+                            host,
+                            nominal,
+                            if index + 1 == path.len() {
+                                arguments
+                            } else {
+                                &[]
+                            },
+                            name.span,
+                        )
+                        .ok_or(())?,
+                    );
+                    continue;
+                }
                 if !arguments.is_empty() && index + 1 == path.len() {
                     self.error(
                         name.span,

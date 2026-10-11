@@ -131,6 +131,28 @@ impl Parser {
     }
 
     fn enum_member_starts_here(&self) -> bool {
+        if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "inner")
+            && match &self.tokens[self.pos + 1].kind {
+                TokenKind::Class | TokenKind::Struct | TokenKind::Enum | TokenKind::Interface => {
+                    true
+                }
+                TokenKind::Ident(text) => matches!(
+                    text.as_str(),
+                    "inner"
+                        | "open"
+                        | "abstract"
+                        | "final"
+                        | "sealed"
+                        | "public"
+                        | "internal"
+                        | "private"
+                        | "protected"
+                ),
+                _ => false,
+            }
+        {
+            return true;
+        }
         if self.release_block_starts_here()
             || self.starts_context_declaration()
             || self.starts_modified_local_function()

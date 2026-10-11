@@ -52,7 +52,7 @@ impl Lowerer {
         Ok(candidates)
     }
 
-    fn reference_constructor_plans(
+    pub(super) fn reference_constructor_plans(
         &mut self,
         plans: PreparedNominalPlans,
         name: &ast::Ident,
@@ -71,6 +71,7 @@ impl Lowerer {
                 candidates.extend(plans.into_iter().map(|plan| {
                     ReferenceCandidate::Constructor(ConstructorReferenceCandidate {
                         source: ConstructorReferenceSource::Local(plan.view.target),
+                        enclosing: None,
                         fixed: plan.fixed_alias.then_some(plan.expected).flatten(),
                         alias: plan.alias,
                     })
@@ -86,6 +87,7 @@ impl Lowerer {
                 candidates.extend(declarations.into_iter().map(|declaration| {
                     ReferenceCandidate::Constructor(ConstructorReferenceCandidate {
                         source: ConstructorReferenceSource::Imported(Box::new(declaration)),
+                        enclosing: None,
                         fixed: fixed_alias.then_some(expected).flatten(),
                         alias: alias.clone(),
                     })

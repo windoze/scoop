@@ -260,12 +260,39 @@ fn rejected_m21_forms_have_specific_diagnostics() {
         object_constructor,
         "object declarations cannot declare constructors"
     );
+}
 
-    let (_, inner) = err("class Outer { inner class Inner }");
-    assert_eq!(
-        inner,
-        "`inner` declarations are not supported; nested declarations are static"
-    );
+#[test]
+fn inner_class_preserves_its_modifier_span() {
+    let file = ok("class Outer { inner class Inner }");
+    let Decl::Class(outer) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    let scoop_ast::ClassMember::Nested(nested) = &outer.members[0] else {
+        panic!("expected nested class")
+    };
+    let scoop_ast::NestedTypeDecl::Class(inner) = nested.as_ref() else {
+        panic!("expected inner class")
+    };
+    assert!(inner.inner_span.is_some());
+    assert!(outer.inner_span.is_none());
+}
+
+#[test]
+fn enum_body_distinguishes_inner_modifier_from_variant_name() {
+    let file = ok("enum E { inner, Other }");
+    let Decl::Enum(enumeration) = &file.declarations[0] else {
+        panic!("expected enum")
+    };
+    assert_eq!(enumeration.variants[0].name.text, "inner");
+    let file = ok("enum E { Value\ninner class Inner }");
+    let Decl::Enum(enumeration) = &file.declarations[0] else {
+        panic!("expected enum")
+    };
+    let scoop_ast::NestedTypeDecl::Class(inner) = &enumeration.nested[0] else {
+        panic!("expected class")
+    };
+    assert!(inner.inner_span.is_some());
 }
 
 #[test]

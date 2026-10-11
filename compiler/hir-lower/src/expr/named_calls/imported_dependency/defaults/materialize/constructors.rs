@@ -149,6 +149,17 @@ impl Lowerer {
                 }
             };
             let kind = match local.selector() {
+                LocalValueSelector::EnclosingInstance => {
+                    let parameter = template
+                        .signature
+                        .enclosing_parameter
+                        .as_ref()
+                        .expect("an enclosing input has its constructor parameter");
+                    context
+                        .local_bindings
+                        .insert(local.selector().clone(), parameter.binding);
+                    hir::ExprKind::ConstructorParam(parameter.id)
+                }
                 LocalValueSelector::This => hir::ExprKind::ConstructorReceiver,
                 LocalValueSelector::Parameter { declaration_index } => {
                     context.local_bindings.insert(

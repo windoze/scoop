@@ -1,0 +1,13 @@
+class Outer(val seed: Int) {
+    inner class Inner(val amount: Int = seed) {
+        val result = this@Outer.seed + amount
+        fun total(): Int = result
+    }
+    fun make(): Inner = Inner()
+}
+fun main() {
+    val outer = Outer(21)
+    println(outer.Inner().total())
+    println(outer.make().total())
+    println(outer.Inner(amount = 2).total())
+}

@@ -66,6 +66,7 @@ fn field(graph: &ValidatedIdentityGraph, target: &DefaultFieldRefV1) -> Result<(
             DefaultFieldRefV1::Class { .. },
             FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceEnclosingInstance { owner }
             | FieldIdentityView::SourceInterfaceDelegate { owner, .. },
         ) => (owner, SourceDeclarationKind::Class),
         (DefaultFieldRefV1::Class { .. }, FieldIdentityView::Generated { owner, key })

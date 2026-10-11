@@ -147,3 +147,15 @@ HIR 生成普通隐藏字段、方法及访问器；物理字段不再强制关�
 本机 fmt、workspace clippy（release）无警告通过；parser 3 项、字段身份 8 项、HIR 字段 2 项、继承 36 项和产物读取 22 项定向测试通过。36 个新增正式 fixture（16 个正向、20 个 negative）和 30 个回归普通比较共 66/66 通过，82 个配置、315 个进程、360 个阶段 golden。覆盖 debug/release、值类型 delegate 装箱、默认参数与变参、函数引用、初始化顺序及异常/finally、object/泛型 companion、真实挂起恢复、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [13-delegation-darwin.json](validation/13-delegation-darwin.json)。旧回归快照无需修改；生成快照的运行不计入普通验收结果。完成后清理本批 fixture cases，保留共用 cache、sysroot 和验证日志；release 构建目录保持约 1.6 GiB。跨库 fixture 的 Linux 目标 LIR 快照随最终平台验证生成并普通复验。
+
+### 14. inner class（完成）
+
+支持 class 直接成员中的 inner class、完整 `Outer<A>.Inner<B>` 类型、显式与隐式外层实例构造、`this@Outer` 以及绑定外层实例的构造器引用。外层 binder 作为完整前缀保留，自身参数按普通约束检查；静态嵌套类型隔断外层实例和类型参数，inner companion 只继承完整类型参数。普通重载、alias、class bound、可见性、继承与 this/base 委派复用已有规则。
+
+每个 inner 实例保存普通 typed 外层引用字段；构造入口先保存 outer，再求值显式实参、default 和 vararg。最终构造器在 base 后、primary store 和 delegate 前写入 outer；委派与默认值直接读取隐藏参数，尚未就绪的 inner 仍不可访问。普通成员及多层闭包从外层 receiver 读取或捕获，构造器引用在创建时保存 receiver 快照，沿已有字段、闭包和 GC 路径保活。
+
+外层字段与构造输入使用独立 typed identity/selector。源码构造签名以 outer 为 receiver，实际 initializer 以 inner 为 receiver、outer 为首个值参数，普通源码参数索引保持原值；跨 Cone 的 HIR/MIR 签名、模板、源码位置和参数对应关系同步保留。没有增加 runtime 入口或对象模型。新增模块最长 188 行，类型解析主文件拆为 410 行。
+
+本机 fmt、workspace clippy（release）无警告通过；parser、字段与参数身份、HIR 来源与 inner shape、MIR 构造签名的定向 Rust 测试通过。44 个新增正式 fixture（19 个正向、25 个 negative）与 26 个旧回归完成普通比较，共 70/70 通过、100 个配置、250 个进程、207 个阶段 golden。覆盖 debug/release、求值顺序、多条 terminal secondary、默认参数、vararg、泛型、alias、继承、接口委托、闭包的传递捕获、真实挂起恢复、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [14-inner-darwin.json](validation/14-inner-darwin.json)。2,138 份旧 HIR golden 机械补充无 outer 参数字段及普通参数 selector，迁移时逐份确认去掉新增字段后与原文一致；inner 新快照保存最终源码参数位置及 ABI。报告合并普通通过批次，生成快照不计入验收；未变化的通过项不重复运行。已清理完成的 fixture cases，保留共用 cache、sysroot 和验证日志；跨库 Linux LIR 快照随最终平台验证生成并普通复验。

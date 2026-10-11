@@ -94,6 +94,7 @@ pub struct ClassField {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassFieldSource {
+    EnclosingInstance,
     PrimaryParameter {
         property: PropertyId,
         parameter: ConstructorParamId,
@@ -110,7 +111,7 @@ impl ClassFieldSource {
             Self::PrimaryParameter { property, .. } | Self::BodyProperty(property) => {
                 Some(property)
             }
-            Self::InterfaceDelegate { .. } => None,
+            Self::InterfaceDelegate { .. } | Self::EnclosingInstance => None,
         }
     }
 }

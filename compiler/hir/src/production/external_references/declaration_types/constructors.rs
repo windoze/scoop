@@ -14,7 +14,16 @@ pub(super) fn collect<E>(output: &mut Collector<'_>) -> Result<(), Error<E>> {
         })?;
         output.local(values.class_receiver(id).id(), result)?;
         for (index, parameter) in constructor.parameters.iter().enumerate() {
-            output.signature(root, Part::Parameter(parameter_index(index)?), parameter.ty)?;
+            let part = match parameter.selector {
+                scoop_identity::LocalValueSelector::EnclosingInstance => Part::Receiver,
+                scoop_identity::LocalValueSelector::Parameter { declaration_index } => {
+                    Part::Parameter(declaration_index)
+                }
+                _ => {
+                    unreachable!("a constructor input is its outer receiver or a source parameter")
+                }
+            };
+            output.signature(root, part, parameter.ty)?;
             output.local(values.class_parameter(id, index).id(), parameter.ty)?;
         }
 

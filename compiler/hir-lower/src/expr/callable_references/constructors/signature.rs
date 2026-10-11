@@ -6,7 +6,7 @@ impl ConstructorReferenceDeclaration {
         candidate: ConstructorReferenceCandidate,
         span: Span,
     ) -> Result<Self, String> {
-        let (target, mut signature, safety) = match &candidate.source {
+        let (target, mut signature, safety, outer_type) = match &candidate.source {
             ConstructorReferenceSource::Local(source) => {
                 let safety = match source {
                     NominalConstructorSource::Class(id) => state.class_constructors[*id].safety,
@@ -17,6 +17,13 @@ impl ConstructorReferenceDeclaration {
                     ConstructorReferenceTarget::Local(*source),
                     state.nominal_constructor_view(*source, span).signature,
                     safety,
+                    match source {
+                        NominalConstructorSource::Class(id) => state.class_constructors[*id]
+                            .enclosing_parameter
+                            .as_ref()
+                            .map(|parameter| parameter.ty),
+                        _ => None,
+                    },
                 )
             }
             ConstructorReferenceSource::Imported(declaration) => {
@@ -25,7 +32,7 @@ impl ConstructorReferenceDeclaration {
                     .effects()
                     .function_attributes()
                     .safety;
-                let (target, source) = if matches!(
+                let (target, source, outer_type) = if matches!(
                     declaration.interface().owner(),
                     hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(
                         _
@@ -37,6 +44,7 @@ impl ConstructorReferenceDeclaration {
                     (
                         ConstructorReferenceTarget::Imported(template),
                         loaded.signature,
+                        loaded.receiver,
                     )
                 } else {
                     let candidate = ImportedCallableCandidate::Declaration(declaration.clone());
@@ -46,6 +54,12 @@ impl ConstructorReferenceDeclaration {
                     (
                         ConstructorReferenceTarget::Dependency(declaration.clone()),
                         signature,
+                        declaration
+                            .interface()
+                            .receiver()
+                            .map(|ty| state.imported_signature_type(ty))
+                            .transpose()
+                            .map_err(|error| error.diagnostic("constructor outer type"))?,
                     )
                 };
                 (
@@ -65,8 +79,25 @@ impl ConstructorReferenceDeclaration {
                         return_type: source.return_type,
                     },
                     safety,
+                    outer_type,
                 )
             }
+        };
+        let mut enclosing = if let Some(formal) = outer_type {
+            let required = state
+                .nominal_application(formal)
+                .expect("an inner constructor has a nominal outer type")
+                .template;
+            let actual = match &candidate.enclosing {
+                Some(receiver) => state.enclosing_receiver_application(receiver.clone(), required),
+                None => state.implicit_enclosing_instance(required, span),
+            }
+            .ok_or_else(|| {
+                "inner constructor reference requires its declaring outer instance".to_owned()
+            })?;
+            Some((actual, formal))
+        } else {
+            None
         };
         let fixed_arguments = candidate.fixed.map(|ty| {
             state
@@ -85,6 +116,9 @@ impl ConstructorReferenceDeclaration {
                 parameter.ty = state.instantiate_method_ty(parameter.ty, &bindings);
             }
             signature.return_type = state.instantiate_method_ty(signature.return_type, &bindings);
+            if let Some((_, formal)) = &mut enclosing {
+                *formal = state.instantiate_method_ty(*formal, &bindings);
+            }
             signature.owner_parameters.clear();
         }
         let (alias_arguments, owner_arguments) = if let Some(alias) = &candidate.alias {
@@ -96,6 +130,9 @@ impl ConstructorReferenceDeclaration {
                 .ok_or_else(|| {
                     "typealias constructor requires a complete host type application".to_owned()
                 })?;
+            if let Some((_, formal)) = &mut enclosing {
+                *formal = state.instantiate_method_ty(*formal, &mapped.target_bindings);
+            }
             signature = mapped.signature;
             let fixed_count = alias
                 .arguments
@@ -123,11 +160,20 @@ impl ConstructorReferenceDeclaration {
                 owners,
             )
         } else {
-            // Constructor host parameters are inferred at the reference creation site.
+            let owners = if fixed_arguments.is_none() {
+                enclosing.as_ref().map_or_else(Vec::new, |(actual, _)| {
+                    state
+                        .nominal_application(actual.ty)
+                        .expect("an outer application")
+                        .arguments
+                })
+            } else {
+                Vec::new()
+            };
             signature
                 .callable_parameters
-                .append(&mut signature.owner_parameters);
-            (None, Vec::new())
+                .extend(signature.owner_parameters.split_off(owners.len()));
+            (None, owners)
         };
         let attributes = hir::FunctionAttributes {
             safety,
@@ -144,6 +190,7 @@ impl ConstructorReferenceDeclaration {
             fixed_arguments,
             alias_arguments,
             owner_arguments,
+            enclosing,
             span,
         })
     }

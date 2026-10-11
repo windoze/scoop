@@ -1,0 +1,12 @@
+interface Named { fun text(): String }
+class Name(val name: String): Named { override fun text(): String = name }
+class Outer<T: Named>(val value: T) {
+    inner class Inner<U: Named>(val other: U) {
+        fun text(): String = value.text() + other.text()
+    }
+}
+fun main() {
+    val outer = Outer(Name("outer"))
+    val make: (Name) -> Outer<Name>.Inner<Name> = outer::Inner
+    println(make(Name("inner")).text())
+}

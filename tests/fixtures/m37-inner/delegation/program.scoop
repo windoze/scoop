@@ -1,0 +1,13 @@
+interface Number { fun get(): Int }
+class Source(val value: Int) : Number { override fun get(): Int = value }
+open class Outer(val source: Number) {
+    inner class Inner : Number by source
+}
+class Child(source: Number) : Outer(source)
+fun main() {
+    val outer = Child(Source(42))
+    val value: Number = outer.Inner()
+    println(value.get())
+    val constructor: () -> Outer.Inner = outer::Inner
+    println(constructor().get())
+}

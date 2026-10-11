@@ -45,6 +45,7 @@ pub(crate) struct Modifiers {
     pub infix: Option<InfixModifier>,
     pub method_modifier: Option<SpannedMethodModifier>,
     pub sealed_span: Option<Span>,
+    pub inner_span: Option<Span>,
     pub inline_span: Option<Span>,
     pub tailrec_span: Option<Span>,
     pub start: Option<u32>,
@@ -173,6 +174,7 @@ impl Parser {
                         prefix.annotations,
                         prefix.visibility,
                         modifier,
+                        prefix.modifiers.inner_span,
                         prefix
                             .modifiers
                             .method_modifier

@@ -55,6 +55,52 @@ fn class_initializer_has_a_separate_receiver_and_unit_result() {
 }
 
 #[test]
+fn inner_initializer_lowers_its_enclosing_receiver_before_source_parameters() {
+    let fixture = Fixture::new();
+    let origin = MirCallableOriginV1::Constructor(fixture.constructors[0].id());
+    let implementation = origin.implementation().unwrap();
+    let semantic = sig(Some(fixture.class), vec![fixture.value], fixture.class);
+    let lowered = sig(
+        Some(fixture.class),
+        vec![fixture.class, fixture.value],
+        fixture.unit,
+    );
+    let mut foundation = crate::CanonicalMirFoundation::empty();
+    foundation
+        .set_callable_signatures(vec![crate::CallableSignatureRecord::new(
+            crate::CallableSignatureSubject::strong(implementation.callable_owner()),
+            lowered.clone(),
+        )])
+        .unwrap();
+    let authority = MirCallableBridgeAuthority {
+        foundation: &foundation,
+        ..fixture.authority()
+    };
+    let bind = |semantic| {
+        ParamFreeMirCallableBindingV1::try_new(
+            authority,
+            origin.clone(),
+            implementation,
+            signature(semantic),
+            signature(lowered.clone()),
+            MirCallableLoweringRoleV1::ClassInitializer {
+                owner: fixture.class,
+            },
+        )
+    };
+    bind(semantic).unwrap();
+    for invalid in [
+        sig(None, vec![fixture.value], fixture.class),
+        sig(Some(fixture.value), vec![fixture.class], fixture.class),
+    ] {
+        assert!(matches!(
+            bind(invalid),
+            Err(MirCallableBridgeError::SignatureMismatch)
+        ));
+    }
+}
+
+#[test]
 fn value_constructor_is_by_value_and_accessor_roles_keep_their_shapes() {
     let fixture = Fixture::new();
     let signature = sig(None, vec![], fixture.value);

@@ -132,6 +132,18 @@ impl Lowerer {
         field: hir::ClassFieldId,
     ) -> scoop_identity::PersistentFieldId {
         let property = match self.class_fields[field].source {
+            hir::ClassFieldSource::EnclosingInstance => {
+                return self
+                    .field_identity_builder
+                    .class_enclosing_instance(
+                        field,
+                        self.class_fields[field].owner,
+                        self.nominal_identities
+                            .as_ref()
+                            .expect("nominal identities precede fields"),
+                    )
+                    .expect("an enclosing field retains its declaring owner");
+            }
             hir::ClassFieldSource::PrimaryParameter { property, .. }
             | hir::ClassFieldSource::BodyProperty(property) => {
                 self.ordinary_property_identity(property)

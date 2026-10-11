@@ -50,6 +50,7 @@ impl Lowerer {
 
         let application = self.classes[owner].self_application;
         let mut initialized = self.inherited_fields(owner);
+        initialized.extend(self.enclosing_class_field(owner));
         let mut stores = Vec::new();
         if primary.is_some() {
             for field in self.classes[owner].fields.clone() {
@@ -67,27 +68,22 @@ impl Lowerer {
                 }
             }
         }
-        self.initialization_context = Some(crate::InitializationContext {
+        let initial_context = crate::InitializationContext {
             receiver: InitializingReceiver::Class {
                 application,
                 initialized,
             },
             step: format!("initialization of class `{}`", self.classes[owner].name),
             capture_depth: self.capture_contexts.len(),
-        });
+        };
+        self.initialization_context = Some(initial_context.clone());
 
-        let mut common = self.lower_interface_delegate_initialization(
+        let common = self.lower_class_common_initialization(
             owner,
+            declaration,
             context_constructor,
             primary.is_some(),
         );
-        common.extend(self.lower_common_initialization(
-            owner,
-            &declaration.members,
-            context_constructor,
-            primary.is_some(),
-            &format!("class `{}`", self.classes[owner].name),
-        ));
 
         if let Some(primary) = primary {
             let hir::ClassConstructorKind::Primary {
@@ -102,6 +98,23 @@ impl Lowerer {
             *common_initialization = common.clone();
         }
         for &constructor in &constructors {
+            if !matches!(
+                self.class_constructors[constructor].kind,
+                hir::ClassConstructorKind::Secondary {
+                    delegation: hir::ClassSecondaryDelegation::Terminal { .. },
+                    ..
+                }
+            ) {
+                continue;
+            }
+            let common = if self.enclosing_class_field(owner).is_some()
+                && constructor != context_constructor
+            {
+                self.initialization_context = Some(initial_context.clone());
+                self.lower_class_common_initialization(owner, declaration, constructor, false)
+            } else {
+                common.clone()
+            };
             let hir::ClassConstructorKind::Secondary { delegation, .. } =
                 &mut self.class_constructors[constructor].kind
             else {
@@ -112,7 +125,7 @@ impl Lowerer {
                 ..
             } = delegation
             {
-                *common_initialization = common.clone();
+                *common_initialization = common;
             }
         }
 
@@ -149,7 +162,6 @@ impl Lowerer {
                 |this, _| Some(this.lower_block(&source.body)),
             );
             if let Some(lowered) = lowered {
-                debug_assert!(lowered.statements.is_empty());
                 let hir::ClassConstructorKind::Secondary { body, .. } =
                     &mut self.class_constructors[constructor].kind
                 else {
@@ -157,11 +169,33 @@ impl Lowerer {
                 };
                 *body = hir::Body {
                     locals: lowered.locals,
-                    statements: lowered.value,
+                    statements: lowered
+                        .statements
+                        .into_iter()
+                        .chain(lowered.value)
+                        .collect(),
                 };
             }
         }
         self.initialization_context = None;
+    }
+
+    fn lower_class_common_initialization(
+        &mut self,
+        owner: ClassId,
+        declaration: &ast::ClassDecl,
+        constructor: hir::ClassConstructorId,
+        primary: bool,
+    ) -> Vec<hir::ClassInitializationStep> {
+        let mut common = self.lower_interface_delegate_initialization(owner, constructor, primary);
+        common.extend(self.lower_common_initialization(
+            owner,
+            &declaration.members,
+            constructor,
+            primary,
+            &format!("class `{}`", self.classes[owner].name),
+        ));
+        common
     }
 
     fn lower_struct_constructor_bodies(
@@ -206,7 +240,6 @@ impl Lowerer {
                 |this, _| Some(this.lower_block(&source.body)),
             );
             if let Some(lowered) = lowered {
-                debug_assert!(lowered.statements.is_empty());
                 let hir::StructConstructorKind::Secondary { body, .. } =
                     &mut self.struct_constructors[constructor].kind
                 else {
@@ -214,7 +247,11 @@ impl Lowerer {
                 };
                 *body = hir::Body {
                     locals: lowered.locals,
-                    statements: lowered.value,
+                    statements: lowered
+                        .statements
+                        .into_iter()
+                        .chain(lowered.value)
+                        .collect(),
                 };
             }
         }

@@ -156,11 +156,14 @@ impl Lowerer {
                         },
                     );
                     if let Some(lowered) = lowered {
-                        debug_assert!(lowered.statements.is_empty());
                         steps.push(hir::ClassInitializationStep::InitBlock {
                             body: hir::Body {
                                 locals: lowered.locals,
-                                statements: lowered.value,
+                                statements: lowered
+                                    .statements
+                                    .into_iter()
+                                    .chain(lowered.value)
+                                    .collect(),
                             },
                             span: init.span,
                         });

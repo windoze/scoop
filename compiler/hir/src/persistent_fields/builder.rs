@@ -44,6 +44,9 @@ impl HirFieldIdentityBuilder {
             return Ok(record.id());
         }
         let property = match field.source {
+            ClassFieldSource::EnclosingInstance => {
+                return self.class_enclosing_instance(field_id, field.owner, nominal_identities);
+            }
             ClassFieldSource::PrimaryParameter { property, .. }
             | ClassFieldSource::BodyProperty(property) => property,
             ClassFieldSource::InterfaceDelegate { ordinal } => {
@@ -83,6 +86,22 @@ impl HirFieldIdentityBuilder {
             return Ok(record.id());
         }
         let record = records::interface_delegate_record(owner, field, ordinal, nominal_identities)?;
+        let id = record.id();
+        self.class_fields.insert(field, record);
+        self.class_by_identity.insert(id, field);
+        Ok(id)
+    }
+
+    pub fn class_enclosing_instance(
+        &mut self,
+        field: ClassFieldId,
+        owner: ClassId,
+        nominal_identities: &HirNominalIdentities,
+    ) -> Result<PersistentFieldId, HirFieldIdentityError> {
+        if let Some(record) = self.class_fields.get(&field) {
+            return Ok(record.id());
+        }
+        let record = records::enclosing_instance_record(owner, field, nominal_identities)?;
         let id = record.id();
         self.class_fields.insert(field, record);
         self.class_by_identity.insert(id, field);
@@ -155,6 +174,20 @@ impl HirFieldIdentityBuilder {
                 let record = match self.class_fields.remove(field_id) {
                     Some(record) => record,
                     None => match field.source {
+                        ClassFieldSource::EnclosingInstance => {
+                            if field.owner != class_id {
+                                return Err(HirFieldIdentityError::ClassFieldOwner {
+                                    class: raw_index(class_id),
+                                    field: raw_index(*field_id),
+                                    actual_class: raw_index(field.owner),
+                                });
+                            }
+                            records::enclosing_instance_record(
+                                class_id,
+                                *field_id,
+                                nominal_identities,
+                            )?
+                        }
                         ClassFieldSource::PrimaryParameter { property, .. }
                         | ClassFieldSource::BodyProperty(property) => records::class_field_record(
                             class_id,

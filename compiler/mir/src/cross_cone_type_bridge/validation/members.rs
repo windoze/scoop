@@ -37,7 +37,8 @@ impl MirTypeBridgeAuthority<'_> {
                     FieldIdentityView::SourceDeclared { owner: actual, .. }
                     | FieldIdentityView::SourcePropertyBacking { owner: actual, .. }
                     | FieldIdentityView::SourcePropertyDelegate { owner: actual, .. }
-                    | FieldIdentityView::SourceInterfaceDelegate { owner: actual, .. },
+                    | FieldIdentityView::SourceInterfaceDelegate { owner: actual, .. }
+                    | FieldIdentityView::SourceEnclosingInstance { owner: actual },
                 ) => actual == owner,
                 (
                     MirTypeOriginV1::GeneratedNominal { nominal, .. },

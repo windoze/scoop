@@ -45,6 +45,7 @@ impl Lowerer {
         let mut params = Vec::with_capacity(
             sig.params.len() + usize::from(owner.is_some() || extension_receiver.is_some()),
         );
+        let mut entry = Vec::new();
         if let Some(host_ty) = self.functions[id]
             .method
             .map(|method| method.owner)
@@ -54,6 +55,17 @@ impl Lowerer {
             let local = self.alloc_this_local(host_ty, self.functions[id].span);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, host_ty));
+            if matches!(owner, Some(crate::Owner::Class(_))) {
+                let receiver = hir::Expr {
+                    kind: hir::ExprKind::Local(local),
+                    ty: host_ty,
+                    span: self.functions[id].span,
+                    origin: self.expression_origin(self.functions[id].span),
+                };
+                if let Some(outer) = self.enclosing_instance_expression(receiver) {
+                    self.bind_enclosing_receivers(outer, &mut entry);
+                }
+            }
             let label = if extension_receiver.is_some() {
                 Some(name.to_owned())
             } else {
@@ -97,7 +109,7 @@ impl Lowerer {
             });
         }
         self.functions[id].params = params;
-        let mut entry = self.lower_context_entry(id);
+        entry.extend(self.lower_context_entry(id));
 
         let statements = lower(self);
         self.pop_scope();

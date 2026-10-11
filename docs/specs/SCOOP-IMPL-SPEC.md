@@ -111,6 +111,8 @@ HIR 将属性赋值右值展开为前置语句时，先固定已经求值的 rec
 
 class 构造输出明确区分 allocation、同 receiver 的 initializer、this/base delegation 与 common initialization；完整成功路径、异常出口与初始化顺序已确定。abstract class 仅有供派生构造使用的 initializer。release policy 为 None 或携带完整 hook target 的 SynchronousGcFree。
 
+inner class（语言规范 9.1.3.1）的 binder 先保存外层 class 的完整 binder 前缀，再保存自身参数。普通 class source shape 中的 EnclosingInstance 字段角色及其 signature type 明确保存所需 outer application；该字段使用独立的 typed source field key，不产生源码 property。构造声明接口把 outer 作为独立 receiver 保存，参数名、默认值及 overload signature 仍只对应源码参数。实际 allocation callable 的值输入为 outer、源码参数；initializer 的输入为正在初始化的 inner、outer、源码参数。构造模板使用独立的 EnclosingInstance local selector，不能把 outer 与初始化中的 This 或源码 Parameter 索引混用。隐藏 outer 字段身份使用 source field tag `5`（仅 owner），隐藏参数 selector 使用 tag `7`（无 payload）；普通字段、This 与源码参数的既有编码不变。构造委派通过隐藏参数读取 outer，最终构造器在 base 后先写 outer 字段；普通成员与闭包通过该字段获得外层 receiver。所有引用均按普通字段、参数、捕获及 GC root 处理，不增加 runtime 入口或另一套对象模型。
+
 singleton、runtime property 与 generic delegated application 保存完整初始化单元及 cycle throw target。constant 已完成依赖环检查与求值，没有 runtime unit。interface/default/virtual 选择在 HIR 唯一确定，qualified super 保存 direct target。
 
 `==` / `!=` 按语言规范 9.3、11.11 从普通成员中选择 operator equals，保存实际 callable 或普通接口 bound target；不要求 core Equality conformance。`Equality<T>.equalTo` 按普通 interface 声明、override 和 bound call 处理，不进入 core operator／protocol 身份表，也不为同形方法或结构比较补齐接口。
@@ -728,7 +730,7 @@ annotation 声明使用独立 PersistentAnnotationId，参数保存完整 signat
 
 HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
 
-property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 与 generated callable tag 17 保留不用。
+property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2），generated callable tag 17 保留不用。
 
 companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 primary 参数值；ordinary static nested declaration 隔断该 binder。companion declaration、完整 application 和 concrete singleton 分别有身份，泛型状态共享规则见 2.13。
 

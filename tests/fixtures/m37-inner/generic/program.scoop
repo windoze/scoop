@@ -1,0 +1,17 @@
+class Outer<T>(val value: T) {
+    inner class Inner<U>(val other: U) {
+        fun first(): T = value
+        fun second(): U = other
+        fun outer(): Outer<T> = this@Outer
+    }
+    fun <U> make(other: U): Inner<U> = Inner(other)
+}
+fun main() {
+    val outer = Outer("outer")
+    val inner: Outer<String>.Inner<Int> = outer.Inner(42)
+    println(inner.first())
+    println(inner.second())
+    println(inner.outer() === outer)
+    val inferred = outer.make("inner")
+    println(inferred.second())
+}

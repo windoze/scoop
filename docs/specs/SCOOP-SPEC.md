@@ -1123,10 +1123,10 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 
 **class初始化顺序：**
 
-1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；显式实参属于caller，因此可以在suspend caller中先挂起；
+1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；inner constructor 先求值并保存所需的外层实例，再处理显式实参。显式实参属于caller，因此可以在suspend caller中先挂起；
 2. 分配一次exact concrete对象，写入最派生TypeDescriptor并清零完整payload；随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
 3. 每条constructor delegation先按其自身源码顺序求值显式实参，再物化目标default/`vararg`，然后direct调用typed目标；
-4. terminal primary先完成direct base constructor，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor。随后按继承列表顺序求值并保存 9.2.2 的 interface delegate；
+4. terminal primary先完成direct base constructor，写入本 class 的隐藏外层引用，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor，再写入隐藏外层引用。随后按继承列表顺序求值并保存 9.2.2 的 interface delegate；
 5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；
 6. terminal secondary body在common initialization之后执行；返回每一层`this` delegation后，再从最内层到最外层执行其余secondary body；最外层正常返回后构造表达式才产生对象引用。
 
@@ -1163,7 +1163,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - 命名companion的`Box<Int>.Factory`与`Box<Int>.Companion`是同一application。透明类型别名如`typealias IntBox = Box<Int>`不产生新对象；`IntBox.Companion`与`Box<Int>.Companion`相同。裸generic名称仍可用作声明命名空间限定符，import只定位声明，不能代替形成companion类型/值所需的宿主实参；没有新增`Companion<Int>`或带类型实参的import语法。companion member不进入宿主instance lookup，不被派生class继承；
 - 跨 Cone 的 companion、嵌套声明和转发按实际 host 的静态命名空间解析，保留完整宿主application。`Host.member`只查实际导出的转发binding，再使用成员所属companion application的真实receiver，不生成static副本。限定路径本身不构造或初始化host，const读取也不触发singleton初始化。companion属性赋值、复合赋值与自增均先求值并保存一次实际receiver，再求值右值并调用对应getter/setter；可见性、值遮蔽与本地声明相同；
 
-- body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。只有companion按直接宿主application参数化，普通static nested声明仍是外层类型参数作用域的边界。`inner class`、anonymous/local object/type及implicit outer instance capture不支持；
+- body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。companion 和下述 inner class 按宿主 application 参数化，普通 static nested 声明仍隔断外层类型参数及实例作用域；anonymous/local object/type 暂不支持；
 - ordinary top-level stored/delegated property可以是`val`或`var`、可以包含managed ref，使用compiler-managed hidden storage/accessor并进入global root表；它不可`addressOf`。`@Global`/`@ThreadLocal`仍只表示13.6的显式可寻址GC-free raw storage，`@Extern`仍只表示C data symbol；这些storage形态不能带普通accessor/delegate或与ordinary property混用；
 - 泛型正文对普通顶层属性的读写始终操作声明方的同一份状态，包括 private/internal 属性、静态初值与运行时初值。不同类型实参、不同消费 Cone、再次发布以及嵌套 callable 不复制该属性的 storage、初始化单元或 GC root。模板保留定义处已解析的属性访问，不使该属性进入消费方的源码可见域；
 - 需要运行期求值的顶层属性在全部 Cone 的运行时数据、GC 与主线程就绪后、`main` 前同步初始化一次。只有无需执行 Scoop 代码或读取普通属性、可以直接表示为静态初值的字面量、内建纯常量表达式、String 常量及 Option `None` 可省略运行期初始化；事后常量折叠不能改变可观察求值。
@@ -1172,6 +1172,18 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - object/companion在首次非const访问时线程安全、同步初始化；static nested declaration或const引用不初始化外层。每个runtime unit状态为Uninitialized、Initializing(owner/dependency stack)、Initialized或Failed(rooted Throwable)。成功singleton只在完整初始化后release发布；失败不发布、记忆异常且不重试。同线程或跨线程wait-for环抛出`message`含稳定unit path的`IllegalStateException`；该异常若未在initializer内被普通`try`捕获才使unit失败。其他线程以可参与safepoint的方式等待terminal state；
 - 每个实际使用的 companion application 独立执行上述 exactly-once 协议，初始化结果、失败状态和副作用互不串用。同一 application 跨 Cone 共享初始化状态；不同 application 只有显式初始化依赖才互相触发。只构造 `Box<Int>` 不初始化其 companion，只访问 companion 也不构造 Box 实例；单纯类型引用或静态描述查询不执行初始化。未具体化的 companion 模板没有运行期对象；
 - exactly-once 状态管理完整初始化的发布，不允许属性缺少声明类型的合法值。静态初值在任何 managed 代码执行前有效；省略 initializer 的 Option 属性具有普通 `None` 值。
+
+##### 9.1.3.1 `inner class`
+
+`inner` 只能修饰直接声明在 class body 中的 class；顶层、struct、enum、interface、object/companion 中的 inner 声明均为编译错误。inner 仍遵守普通 class 的可见性、继承、构造、release 与泛型规则，普通 static nested 类型不取得外层实例。
+
+inner 可以使用直接外层 class 的类型参数与实例成员；它自己的类型参数不能与可见的外层参数重名。完整类型 `Outer<A>.Inner<B>` 由 outer application 与自身实参共同确定，外层对象的运行期 identity 不参与类型身份。类型限定只建立类型，不取得外层实例；不能通过 `Outer<A>.Inner(...)` 绕过构造所需的 outer。inner 的 companion 继承此完整 application 的参数，仍不捕获任何实例。
+
+`outer.Inner(args...)` 先求值并保存 outer，再按普通命名参数、default 与 vararg 协议求值构造实参；同名成员按既有候选分区及重载规则选择。在可取得匹配外层 application 的隐式 receiver 的作用域中，可以省略 outer。多层 inner 按从近到远的 receiver 顺序查找；`this` 指当前 receiver，`this@Outer` 按 8.1.2 的标签规则选择对应外层实例。缺少外层实例是编译错误，不能以 null 或新构造的对象补齐。
+
+每个 inner 实例保存一个不可重新绑定的普通 typed outer 引用字段，其可达性、扫描与移动更新沿用普通 class 字段协议。outer 以隐藏值参数进入构造器；base/this 委派实参、构造默认值及初始化表达式通过该参数读取外层实例。字段在 base constructor 成功后、primary property 与 delegate 初始化前写入；多次 this 委派只由最终构造器写入。构造过程中可以使用已完整构造的 outer，但仍不能取得或捕获尚未就绪的 inner `this`。继承需要 outer 的基类时，也必须从当前构造上下文取得匹配的外层实例。
+
+`outer::Inner` 创建绑定 outer 的构造器引用，outer 在创建引用时求值并保存一次；`::Inner` 仅在创建点存在匹配隐式 outer receiver 时合法。引用的显式参数只对应源码构造参数，不暴露隐藏 outer 参数。outer 是局部 `var` 时，显式 receiver 的读取为创建时快照，后续重新绑定不改变已创建引用；自由变量捕获仍遵守 8.1.3。跨 Cone 调用、泛型实例化和再次发布保留同一完整类型、outer 参数及字段关系。
 
 #### 9.1.4 Interface default implementation
 

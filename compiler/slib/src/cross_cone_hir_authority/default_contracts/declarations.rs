@@ -81,6 +81,11 @@ pub(super) fn contract<'a>(
     let root = PersistentLexicalRootV1::try_from(declaration)
         .map_err(|_| Error::MissingDeclaration(declaration))?;
     let receiver = match callable.owner() {
+        PublicDeclarationOwnerV1::Nominal(_)
+            if matches!(root, PersistentLexicalRootV1::Constructor(_)) =>
+        {
+            callable.receiver().map(Cow::Borrowed)
+        }
         PublicDeclarationOwnerV1::Nominal(owner) => shape
             .nominal_source_receiver(root, owner, path)
             .map_err(Error::ReceiverShape)?

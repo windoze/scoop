@@ -71,6 +71,7 @@ impl ClassRepresentationFieldV1 {
         let owner = match key.view() {
             FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceEnclosingInstance { owner }
             | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => {
                 ClassRepresentationFieldOwnerV1::SourceClass(owner)
             }

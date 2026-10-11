@@ -182,6 +182,7 @@ impl Harness {
                 .into(),
         );
         let actual_constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            enclosing_parameter: None,
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
             owner: class,

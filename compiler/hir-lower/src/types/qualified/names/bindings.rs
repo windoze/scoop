@@ -40,7 +40,7 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::types) fn resolve_nested_type_name(
+    pub(crate) fn resolve_nested_type_name(
         &mut self,
         owner: hir::SourceNominalId,
         name: &ast::Ident,

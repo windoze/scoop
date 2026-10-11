@@ -144,6 +144,19 @@ impl Lowerer {
 
         self.push_safety_context(safety);
         let mut statements = Vec::new();
+        if let ConstructorSource::Class(constructor) = source
+            && let Some(outer) = self.class_constructors[constructor]
+                .enclosing_parameter
+                .clone()
+        {
+            let value = hir::Expr {
+                kind: hir::ExprKind::ConstructorParam(outer.id),
+                ty: outer.ty,
+                span: outer.definition.span,
+                origin: self.expression_origin(outer.definition.span),
+            };
+            self.bind_enclosing_receivers(value, &mut statements);
+        }
         let value = lower(self, &mut statements);
         let locals = std::mem::take(&mut self.locals).into_arena();
 

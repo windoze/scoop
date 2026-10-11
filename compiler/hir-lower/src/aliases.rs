@@ -173,9 +173,10 @@ impl Lowerer {
         self.current_owner = alias.owner;
         let mut parameters = alias.parameters.clone();
         if alias.scope.is_none()
-            && let Some(crate::Owner::Object(owner)) = alias.owner
+            && alias.outer_parameter_count != 0
+            && let Some(owner) = alias.owner
         {
-            parameters = self.owner_type_params(crate::Owner::Object(owner));
+            parameters = self.owner_type_params(owner);
             parameters.extend(
                 alias.parameters[alias.outer_parameter_count..]
                     .iter()

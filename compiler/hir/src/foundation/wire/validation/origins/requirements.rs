@@ -102,6 +102,7 @@ impl<'a> OriginRequirements<'a> {
         if !matches!(
             selector,
             LocalValueSelector::This
+                | LocalValueSelector::EnclosingInstance
                 | LocalValueSelector::Parameter { .. }
                 | LocalValueSelector::LocalDeclaration { .. }
                 | LocalValueSelector::BoundReceiver { .. }

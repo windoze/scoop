@@ -244,6 +244,7 @@ impl Lowerer {
         self.classes[backing].fields = fields;
         let evaluation_context = self.next_class_constructor_context();
         let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            enclosing_parameter: None,
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
             owner: backing,

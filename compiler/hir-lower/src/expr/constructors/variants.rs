@@ -154,6 +154,7 @@ impl Lowerer {
         let type_args = inferred.type_args;
         let lowered = self.materialize_nominal_arguments(
             crate::argument_materialization::NominalArgumentMaterialization {
+                receiver: None,
                 view: &view,
                 argument_map: &argument_map,
                 type_args: &type_args,

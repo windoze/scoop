@@ -120,6 +120,7 @@ impl Lowerer {
                 |this, sink| {
                     this.materialize_nominal_arguments(
                         crate::argument_materialization::NominalArgumentMaterialization {
+                            receiver: None,
                             view: &view,
                             argument_map: &argument_map,
                             type_args: &[],
@@ -137,6 +138,7 @@ impl Lowerer {
         let declaration = self.class_constructors[source].clone();
         let evaluation_context = self.next_class_constructor_context();
         let adapter = self.class_constructors.alloc(hir::ClassConstructor {
+            enclosing_parameter: None,
             owner: class,
             identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
             access: declaration.access,

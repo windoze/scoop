@@ -9,6 +9,7 @@ use crate::{
     TypeParameterBoundLocation,
 };
 
+mod enclosing;
 mod support;
 
 use support::*;

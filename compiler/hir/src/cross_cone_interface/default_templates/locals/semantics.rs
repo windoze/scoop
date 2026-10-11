@@ -121,7 +121,9 @@ impl<E: std::error::Error + 'static> std::error::Error
 
 fn selector_path(selector: &LocalValueSelector) -> Option<&StructuralDefinitionPath> {
     match selector {
-        LocalValueSelector::This | LocalValueSelector::Parameter { .. } => None,
+        LocalValueSelector::This
+        | LocalValueSelector::EnclosingInstance
+        | LocalValueSelector::Parameter { .. } => None,
         LocalValueSelector::LocalDeclaration { path }
         | LocalValueSelector::BoundReceiver { path }
         | LocalValueSelector::Synthetic { path, .. } => Some(path),

@@ -4,6 +4,7 @@ use crate::derived::DerivedEqualityCandidate;
 use crate::expr::named_calls::imported_dependency::ImportedMemberReceiver;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
+mod inner;
 mod views;
 
 impl Lowerer {
@@ -40,6 +41,17 @@ impl Lowerer {
         kind: MemberCallKind,
     ) -> PropertyExtensionInvokeOutcome {
         let mut context = self.clone();
+        let diagnostics = context.diagnostics.len();
+        let (inner, inner_failure) = if kind == MemberCallKind::Ordinary
+            && !required.infix
+            && required.operator.is_none()
+            && required.property_delegate_operator.is_none()
+        {
+            context.inner_member_constructor_probes(receiver.clone(), name, call, expected)
+        } else {
+            (Vec::new(), None)
+        };
+        context.diagnostics.truncate(diagnostics);
         let imported =
             match context.imported_member_call_candidates(receiver.ty, name, required, kind) {
                 Ok(candidates) => candidates,
@@ -90,6 +102,8 @@ impl Lowerer {
         };
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
         if views.len() == 1
+            && inner.is_empty()
+            && inner_failure.is_none()
             && imported.is_empty()
             && imported_equality.is_none()
             && kind == MemberCallKind::Ordinary
@@ -116,8 +130,8 @@ impl Lowerer {
         ) {
             return PropertyExtensionInvokeOutcome::Failed(failure);
         }
-        let mut probes = Vec::new();
-        let mut first_failure = None;
+        let mut probes = inner;
+        let mut first_failure = inner_failure;
         if let Some(target) = imported_equality {
             match context.probe_imported_derived_equality(target, receiver.clone(), call, expected)
             {
@@ -197,6 +211,9 @@ impl Lowerer {
         };
         let mut sink = Vec::new();
         let expression = match probes.swap_remove(winner) {
+            NamedFunctionLikeProbe::Nominal(probe) => state
+                .commit_named_nominal(*probe, call.span, &mut sink)
+                .and_then(|resolved| state.finish_named_nominal(resolved, call.span)),
             NamedFunctionLikeProbe::Callable(probe) => state
                 .commit_named_callable(*probe, &mut sink)
                 .and_then(|resolved| match kind {

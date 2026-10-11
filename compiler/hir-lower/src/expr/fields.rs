@@ -96,7 +96,7 @@ impl Lowerer {
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if let ast::Expr::This { label, .. } = &*access.receiver
-            && self.initialization_context.is_some()
+            && self.is_initializing_this_label(label.as_ref())
         {
             self.check_initializing_receiver_label(label.as_ref())?;
             let ast::FieldSelector::Name(name) = &access.selector else {

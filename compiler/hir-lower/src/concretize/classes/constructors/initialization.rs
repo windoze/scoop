@@ -3,6 +3,41 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn append_enclosing_initialization(
+        &mut self,
+        body: &mut concrete::Body,
+        enclosing: Option<(
+            &export::ConstructorParameter,
+            export::InitializingClassFieldRef,
+        )>,
+        substitution: &[concrete::TypeId],
+        origin: export::ConcreteExpressionOrigin,
+    ) {
+        let Some((parameter, field)) = enclosing else {
+            return;
+        };
+        let (receiver_ty, field) = self.lower_initializing_class_field(field, substitution);
+        let receiver = self.constructor_receiver(receiver_ty, parameter.definition.span, origin);
+        let value = concrete::Expr {
+            kind: concrete::ExprKind::ConstructorParam(concrete::ConstructorParamId::from_raw(
+                parameter.id.into_raw(),
+            )),
+            ty: self.lower_type(parameter.ty, substitution),
+            span: parameter.definition.span,
+            origin,
+        };
+        body.statements.push(concrete::Statement {
+            kind: concrete::StatementKind::Assign {
+                target: concrete::AssignTarget::Field {
+                    receiver: Box::new(receiver),
+                    field,
+                },
+                value,
+            },
+            span: parameter.definition.span,
+        });
+    }
+
     pub(super) fn append_common_initialization(
         &mut self,
         body: &mut concrete::Body,
@@ -69,7 +104,9 @@ impl Concretizer<'_> {
                 | LocalValueSelector::BoundReceiver { path }
                 | LocalValueSelector::Synthetic { path, .. } => path,
                 LocalValueSelector::SuspensionResult { site } => site,
-                LocalValueSelector::This | LocalValueSelector::Parameter { .. } => continue,
+                LocalValueSelector::This
+                | LocalValueSelector::EnclosingInstance
+                | LocalValueSelector::Parameter { .. } => continue,
             };
             // A common fragment is executed in each terminal constructor;
             // its physical locals cannot overlap that constructor's own locals.

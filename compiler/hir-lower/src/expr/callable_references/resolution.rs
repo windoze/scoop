@@ -48,7 +48,7 @@ impl ReferenceCandidate {
 }
 
 pub(super) enum ReferenceDeclaration {
-    Constructor(super::constructors::ConstructorReferenceDeclaration),
+    Constructor(Box<super::constructors::ConstructorReferenceDeclaration>),
     Local(LocalReferenceDeclaration),
     Imported(ImportedReferenceDeclaration),
 }

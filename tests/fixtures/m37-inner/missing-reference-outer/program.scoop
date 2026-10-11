@@ -1,0 +1,2 @@
+class Outer { inner class Inner }
+fun main() { val value: () -> Outer.Inner = Outer::Inner }

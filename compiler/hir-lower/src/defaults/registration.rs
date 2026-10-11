@@ -160,7 +160,10 @@ impl Lowerer {
                                 hir::SourceContextConstructor::Class(primary),
                             ),
                             type_parameters: self.classes[class].type_params.clone(),
-                            receiver: None,
+                            receiver: self.class_constructors[primary]
+                                .enclosing_parameter
+                                .as_ref()
+                                .map(|parameter| (parameter.ty, None)),
                             is_suspend: false,
                             safety: self.class_constructors[primary].safety,
                             callable_name: self.classes[class].name.clone(),

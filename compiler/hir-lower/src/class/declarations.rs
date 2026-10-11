@@ -31,7 +31,7 @@ impl Lowerer {
         }
         let mut seen = std::collections::HashMap::new();
         let mut parameters = Vec::new();
-        let mut fields = Vec::new();
+        let mut fields = self.classes[id].fields.clone();
         let mut field_names = std::collections::HashSet::new();
         let mut parameter_calling = Vec::new();
         for parameter in &decl.constructor {
@@ -109,8 +109,10 @@ impl Lowerer {
                     self.constructor_safety(&source.annotations, source.span)
                 }
             };
+            let enclosing_parameter = self.enclosing_constructor_parameter(id, decl.span);
             let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+                enclosing_parameter,
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
@@ -164,8 +166,10 @@ impl Lowerer {
             );
             self.constructor_gc_effect(&source.annotations, false);
             let safety = self.constructor_safety(&source.annotations, source.span);
+            let enclosing_parameter = self.enclosing_constructor_parameter(id, source.span);
             let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+                enclosing_parameter,
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,

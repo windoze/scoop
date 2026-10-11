@@ -50,13 +50,20 @@ impl Lowerer {
                 },
             );
         }
-        if let Some((local, ty)) = self.current_this {
-            let binding = self.locals[local].binding;
+        for receiver in self.implicit_receivers() {
+            let Some((local, _)) = self
+                .locals
+                .iter()
+                .find(|(_, local)| local.binding == receiver.binding)
+            else {
+                continue;
+            };
+            let binding = receiver.binding;
             available.insert(
                 CaptureKey::Receiver(binding),
                 AvailableCapture {
                     binding,
-                    ty,
+                    ty: receiver.ty,
                     mutable: false,
                     source: CaptureSource::Local(local),
                     declaration_depth,

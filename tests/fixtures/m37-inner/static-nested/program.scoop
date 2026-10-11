@@ -1,0 +1,8 @@
+class Outer<T>(val value: T) {
+    class Nested<U>(val value: U)
+    inner class Inner { class Static<V>(val value: V) }
+}
+fun main() {
+    println(Outer.Nested(42).value)
+    println(Outer<Int>.Inner.Static("static").value)
+}

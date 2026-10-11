@@ -48,6 +48,9 @@ impl Lowerer {
             }
         };
         let local = self.current_nominal_name_target(nested);
+        if self.nominal_enclosing_owner(nested).is_some() {
+            return self.apply_inner_type(host, nested, arguments, span);
+        }
         if !self.nominal_is_companion(nested) {
             return match local {
                 Some(target) => {

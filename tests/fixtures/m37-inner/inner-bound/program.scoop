@@ -1,0 +1,3 @@
+interface Marker {}
+class Outer<T>(val value: T) { inner class Inner<U: Marker>(val other: U) }
+fun main() { val value = Outer(1).Inner(2) }

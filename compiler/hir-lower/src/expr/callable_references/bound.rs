@@ -68,7 +68,7 @@ impl Lowerer {
             self.commit_layer_diagnostics(*failure);
             return None;
         }
-        let member_candidates =
+        let mut member_candidates =
             member_candidates
                 .into_iter()
                 .map(|(candidate, view)| ReferenceCandidate::Local(candidate, Some(view)))
@@ -76,6 +76,10 @@ impl Lowerer {
                     ReferenceCandidate::Member(Box::new(declaration), view)
                 }))
                 .collect::<Vec<_>>();
+        member_candidates.extend(
+            self.bound_inner_reference_candidates(receiver.clone(), name, span, expected)
+                .ok()?,
+        );
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
         if !member_candidates.is_empty() {
@@ -207,8 +211,9 @@ impl Lowerer {
             ReferenceResolutionOutcome::Blocked => return BoundReferenceOutcome::Blocked,
             ReferenceResolutionOutcome::Failed => return BoundReferenceOutcome::Failed,
         };
-        let ReferenceTarget::Callable(target) = resolved.target else {
-            unreachable!("a bound reference resolves to a callable");
+        let target = match resolved.target {
+            ReferenceTarget::Callable(target) => target,
+            ReferenceTarget::Value(value) => return BoundReferenceOutcome::Resolved(value),
         };
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {

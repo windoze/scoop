@@ -1,0 +1,21 @@
+class Outer<T>(val value: T) {
+    inner open class Base(val amount: Int) {
+        fun first(): T = value
+    }
+    inner class Derived(val delta: Int) : Base(delta + 1) {
+        constructor() : this(41) {}
+    }
+    inner class Secondary {
+        val result: T = value
+        constructor(x: Int) {}
+        constructor(x: String) {}
+    }
+}
+fun main() {
+    val outer = Outer("outer")
+    val value = outer.Derived()
+    println(value.first())
+    println(value.amount)
+    println(outer.Secondary(1).result)
+    println(outer.Secondary("x").result)
+}

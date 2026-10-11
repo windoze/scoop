@@ -55,6 +55,7 @@ pub(super) fn project(
         let projection = ConstructorProjection::new(
             entities,
             parameters,
+            constructor.enclosing_parameter.as_ref(),
             &declaration.type_params,
             owner_type,
             crate::DefinitionOrigin {
@@ -77,6 +78,7 @@ pub(super) fn project(
             let projection = ConstructorProjection::new(
                 entities,
                 &constructor.parameters,
+                constructor.enclosing_parameter.as_ref(),
                 &declaration.type_params,
                 owner_type,
                 constructor.origin,

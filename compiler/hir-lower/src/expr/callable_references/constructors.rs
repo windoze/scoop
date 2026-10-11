@@ -11,6 +11,8 @@ use crate::expr::named_calls::imported_dependency::{
 use hir::ImportedCallableSource;
 use resolution::{ApplicableReference, ReferenceDeclaration, ReferenceFailure};
 
+mod adapter;
+mod enclosing;
 mod lookup;
 mod signature;
 
@@ -23,6 +25,7 @@ pub(super) enum ConstructorReferenceSource {
 #[derive(Clone)]
 pub(super) struct ConstructorReferenceCandidate {
     source: ConstructorReferenceSource,
+    enclosing: Option<hir::Expr>,
     fixed: Option<TypeId>,
     alias: Option<crate::aliases::AliasTemplate>,
 }
@@ -41,6 +44,7 @@ pub(super) struct ConstructorReferenceDeclaration {
     fixed_arguments: Option<Vec<TypeId>>,
     alias_arguments: Option<Vec<TypeId>>,
     owner_arguments: Vec<TypeId>,
+    enclosing: Option<(hir::Expr, TypeId)>,
     span: Span,
 }
 
@@ -85,89 +89,6 @@ impl ConstructorReferenceDeclaration {
         )
         .to_owned()
     }
-
-    pub(super) fn commit(
-        self,
-        state: &mut Lowerer,
-        arguments: &[TypeId],
-        ty: TypeId,
-    ) -> Result<hir::Expr, String> {
-        let Type::Function(function) = state.types[ty] else {
-            unreachable!("a constructor reference has a complete function type");
-        };
-        let signature = state.function_types[function].clone();
-        let arguments = if let Some(targets) = &self.alias_arguments {
-            let bindings = self
-                .signature
-                .owner_parameters
-                .iter()
-                .chain(&self.signature.callable_parameters)
-                .map(|parameter| parameter.id)
-                .zip(arguments.iter().copied())
-                .collect::<Vec<_>>();
-            targets
-                .iter()
-                .map(|ty| state.instantiate_method_ty(*ty, &bindings))
-                .collect()
-        } else {
-            self.fixed_arguments.unwrap_or_else(|| arguments.to_vec())
-        };
-        let span = self.span;
-        state
-            .lower_synthesized_lambda(
-                false,
-                &signature.parameter_types,
-                signature.return_type,
-                span,
-                |state, args| {
-                    let value = match self.target {
-                        ConstructorReferenceTarget::Local(source) => state.finish_named_nominal(
-                            crate::constructor_resolution::ResolvedNominalConstructor {
-                                source,
-                                type_args: arguments,
-                                args,
-                            },
-                            span,
-                        )?,
-                        ConstructorReferenceTarget::Dependency(declaration) => {
-                            let callee = match state.select_imported_callable_declaration_use_with_kind(*declaration, MemberCallKind::Ordinary) {
-                                Ok(callee) => callee,
-                                Err(error) => { state.error(span, format!("failed to select imported constructor reference: {error}")); return None; }
-                            };
-                            hir::Expr {
-                                kind: ExprKind::Call { callee: hir::CallableTarget::Dependency(callee), binding: None, args, receiver: hir::SourceCallReceiver::NoReceiver },
-                                ty: signature.return_type,
-                                span,
-                                origin: state.expression_origin(span),
-                            }
-                        }
-                        ConstructorReferenceTarget::Imported(template) => {
-                            let kind = match state
-                                .constructor_template_application(template, signature.return_type)
-                            {
-                                hir::ConstructorApplicationRef::Class(constructor) => {
-                                    ExprKind::ClassInit { constructor, args }
-                                }
-                                hir::ConstructorApplicationRef::Struct(constructor) => {
-                                    ExprKind::StructInit { constructor, args }
-                                }
-                            };
-                            hir::Expr {
-                                kind,
-                                ty: signature.return_type,
-                                span,
-                                origin: state.expression_origin(span),
-                            }
-                        }
-                    };
-                    Some(crate::stmt::ValueBlock {
-                        statements: Vec::new(),
-                        value: Some(value),
-                    })
-                },
-            )
-            .ok_or_else(|| "constructor reference adapter could not be typed".to_string())
-    }
 }
 
 impl Lowerer {
@@ -195,7 +116,10 @@ impl Lowerer {
             .solve_callable_reference_applicability(CallableReferenceApplicabilityInput {
                 signature: &declaration.signature,
                 owner_arguments: &declaration.owner_arguments,
-                bound_receiver: None,
+                bound_receiver: declaration
+                    .enclosing
+                    .as_ref()
+                    .map(|(actual, formal)| (*formal, actual.ty)),
                 unbound_receiver: None,
                 effects: declaration.effects,
                 expected_type: context.expected.map(|(ty, _)| *ty),
@@ -211,7 +135,7 @@ impl Lowerer {
             })?;
         Ok(Some(ApplicableReference {
             state: Box::new(state),
-            declaration: ReferenceDeclaration::Constructor(declaration),
+            declaration: ReferenceDeclaration::Constructor(Box::new(declaration)),
             type_args: application.type_args,
             ty: application.ty,
             own_type_param_count,

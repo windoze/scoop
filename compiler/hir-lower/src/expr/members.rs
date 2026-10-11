@@ -110,11 +110,11 @@ impl Lowerer {
         label: Option<&ast::Ident>,
         span: Span,
     ) -> Option<hir::Expr> {
-        if self.initialization_context.is_some() {
+        if self.is_initializing_this_label(label) {
             self.check_initializing_receiver_label(label)?;
-        }
-        if self.reject_initializing_this(span) {
-            return None;
+            if self.reject_initializing_this(span) {
+                return None;
+            }
         }
         if let Some(label) = label {
             return self.lower_labelled_this(label, span);
@@ -158,7 +158,7 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         if let ast::Expr::This { label, .. } = receiver
-            && self.initialization_context.is_some()
+            && self.is_initializing_this_label(label.as_ref())
         {
             self.check_initializing_receiver_label(label.as_ref())?;
             if !self.initializing_receiver_has_field(&name.text) {

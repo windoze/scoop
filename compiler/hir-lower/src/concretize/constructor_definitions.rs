@@ -3,6 +3,10 @@
 use super::*;
 
 pub(super) struct ConstructorBodyView<'a, K> {
+    pub(super) enclosing: Option<(
+        &'a export::ConstructorParameter,
+        export::InitializingClassFieldRef,
+    )>,
     pub(super) parameters: &'a [export::ConstructorParameter],
     pub(super) kind: &'a K,
     pub(super) safety: concrete::Safety,
@@ -64,7 +68,28 @@ impl<'a> Concretizer<'a> {
         match definition {
             export::ClassConstructorDefinition::Local(id) => {
                 let source = &self.source.class_constructors[id];
+                let enclosing = source.enclosing_parameter.as_ref().map(|parameter| {
+                    let owner = &self.source.classes[source.owner];
+                    let field = owner
+                        .fields
+                        .iter()
+                        .copied()
+                        .find(|field| {
+                            self.source.class_fields[*field].source
+                                == export::ClassFieldSource::EnclosingInstance
+                        })
+                        .expect("an inner constructor has its enclosing field");
+                    (
+                        parameter,
+                        export::InitializingClassFieldRef {
+                            owner: self.source.class_applications[owner.self_application]
+                                .canonical_type,
+                            field: self.source.field_identities[field].id(),
+                        },
+                    )
+                });
                 ConstructorBodyView {
+                    enclosing,
                     parameters: &source.parameters,
                     kind: &source.kind,
                     safety: source.safety,
@@ -79,7 +104,30 @@ impl<'a> Concretizer<'a> {
                 let export::ConstructorKind::Class(kind) = &source.kind else {
                     unreachable!("a class constructor retains its class definition")
                 };
+                let enclosing = source.enclosing_parameter.as_ref().map(|parameter| {
+                    let export::Type::Class(application) = self.source.types[source.owner] else {
+                        unreachable!("an imported class constructor has a class owner")
+                    };
+                    let template = self.source.class_applications[application].template;
+                    let class = &self.source.loaded_class_definitions[&template];
+                    let index = class
+                        .declaration
+                        .field_sources
+                        .iter()
+                        .position(|field| {
+                            field.storage == export::NominalFieldStorage::EnclosingInstance
+                        })
+                        .expect("an imported inner constructor has its enclosing field");
+                    (
+                        parameter,
+                        export::InitializingClassFieldRef {
+                            owner: source.owner,
+                            field: class.field_identity(index),
+                        },
+                    )
+                });
                 ConstructorBodyView {
+                    enclosing,
                     parameters: &source.parameters,
                     kind,
                     safety: constructor_safety(&source.effects),
@@ -100,6 +148,7 @@ impl<'a> Concretizer<'a> {
             export::StructConstructorDefinition::Local(id) => {
                 let source = &self.source.struct_constructors[id];
                 ConstructorBodyView {
+                    enclosing: None,
                     parameters: &source.parameters,
                     kind: &source.kind,
                     safety: source.safety,
@@ -115,6 +164,7 @@ impl<'a> Concretizer<'a> {
                     unreachable!("a struct constructor retains its struct definition")
                 };
                 ConstructorBodyView {
+                    enclosing: None,
                     parameters: &source.parameters,
                     kind,
                     safety: constructor_safety(&source.effects),
@@ -130,11 +180,27 @@ impl<'a> Concretizer<'a> {
     pub(super) fn lower_constructor_parameters(
         &mut self,
         parameters: &[export::ConstructorParameter],
+        enclosing: Option<&export::ConstructorParameter>,
         substitution: &[concrete::TypeId],
     ) -> Vec<concrete::ConstructorParameter> {
-        parameters
-            .iter()
-            .map(|parameter| concrete::ConstructorParameter {
+        enclosing
+            .into_iter()
+            .map(|parameter| {
+                (
+                    scoop_identity::LocalValueSelector::EnclosingInstance,
+                    parameter,
+                )
+            })
+            .chain(parameters.iter().enumerate().map(|(index, parameter)| {
+                (
+                    scoop_identity::LocalValueSelector::Parameter {
+                        declaration_index: index as u32,
+                    },
+                    parameter,
+                )
+            }))
+            .map(|(selector, parameter)| concrete::ConstructorParameter {
+                selector,
                 id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
                 binding: concrete::BindingId::from_raw(parameter.binding.into_raw()),
                 definition: parameter.definition,

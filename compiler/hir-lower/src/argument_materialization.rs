@@ -32,6 +32,7 @@ pub(crate) struct CallableArgumentMaterialization<'a> {
 }
 
 pub(crate) struct NominalArgumentMaterialization<'a> {
+    pub receiver: Option<hir::Expr>,
     pub view: &'a NominalConstructorView,
     pub argument_map: &'a CandidateArgumentMap,
     pub type_args: &'a [hir::TypeId],

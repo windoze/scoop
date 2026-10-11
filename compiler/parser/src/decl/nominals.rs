@@ -110,6 +110,7 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
         modifier: ClassModifier,
+        inner_span: Option<Span>,
         modifier_span: Option<Span>,
     ) -> Result<ClassDecl, Diagnostic> {
         let keyword = self.expect("`class`", |k| matches!(k, TokenKind::Class))?;
@@ -266,6 +267,7 @@ impl Parser {
         let start = modifier_span
             .map(|span| span.start)
             .into_iter()
+            .chain(inner_span.map(|span| span.start))
             .chain(match visibility {
                 VisibilitySyntax::Explicit { span, .. } => Some(span.start),
                 VisibilitySyntax::Omitted => None,
@@ -276,6 +278,7 @@ impl Parser {
             annotations,
             visibility,
             modifier,
+            inner_span,
             name,
             type_params,
             constructor,

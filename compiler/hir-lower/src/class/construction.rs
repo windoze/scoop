@@ -297,6 +297,7 @@ impl Lowerer {
         let type_arguments = self.class_applications[owner_application].arguments.clone();
         let explicit_type_arguments = type_arguments
             .iter()
+            .skip(self.enclosing_parameter_count(owner))
             .copied()
             .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
@@ -314,8 +315,9 @@ impl Lowerer {
                     &name,
                     &candidates,
                     crate::constructor_resolution::NominalConstructorCall {
+                        enclosing: None,
                         explicit_type_args: &explicit_type_arguments,
-                        expected_type_args: None,
+                        expected_type_args: Some(&type_arguments),
                         arguments,
                         span,
                     },
@@ -362,6 +364,7 @@ impl Lowerer {
         let type_arguments = base.arguments;
         let explicit_type_arguments = type_arguments
             .iter()
+            .skip(self.enclosing_parameter_count(self.class_id(base.template)))
             .copied()
             .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
@@ -374,8 +377,9 @@ impl Lowerer {
                     &name,
                     &candidates,
                     crate::constructor_resolution::NominalConstructorCall {
+                        enclosing: None,
                         explicit_type_args: &explicit_type_arguments,
-                        expected_type_args: None,
+                        expected_type_args: Some(&type_arguments),
                         arguments,
                         span,
                     },
@@ -472,6 +476,7 @@ impl Lowerer {
                         &name,
                         &candidates,
                         crate::constructor_resolution::NominalConstructorCall {
+                            enclosing: None,
                             explicit_type_args: &explicit_type_arguments,
                             expected_type_args: None,
                             arguments: arguments.as_slice(),

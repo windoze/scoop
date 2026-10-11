@@ -259,7 +259,7 @@ impl Lowerer {
         Ok(PreparedNominalPlans::Nominal(plans, None))
     }
 
-    fn imported_nominal_plans(
+    pub(in crate::expr) fn imported_nominal_plans(
         &mut self,
         owner: hir::SourceNominalId,
         call: &ast::CallExpr,
@@ -327,7 +327,7 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn named_nominal_expected_arguments(
+    pub(in crate::expr) fn named_nominal_expected_arguments(
         &self,
         definition: TypeId,
         expected: Option<TypeId>,

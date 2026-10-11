@@ -1,0 +1,3 @@
+class Outer<T>(val value: T) {
+    inner class Inner { class Nested(val value: T) }
+}

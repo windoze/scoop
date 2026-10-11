@@ -305,6 +305,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     };
     let class = |name: &str, intrinsic: &str, type_params: Vec<&str>| {
         Decl::Class(ast::ClassDecl {
+            inner_span: None,
             annotations: vec![annotation(intrinsic)],
             visibility: ast::VisibilitySyntax::Omitted,
             modifier: ast::ClassModifier::Final,

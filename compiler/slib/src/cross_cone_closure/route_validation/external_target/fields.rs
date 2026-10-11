@@ -20,6 +20,7 @@ impl CanonicalCrossConeRouteAuthority<'_> {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceEnclosingInstance { owner }
             | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => owner,
             FieldIdentityView::Generated { owner, key } => {
                 let property = key.object_backing_property();

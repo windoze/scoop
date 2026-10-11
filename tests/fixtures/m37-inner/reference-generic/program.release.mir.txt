@@ -1,0 +1,496 @@
+Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Outer<String> vtable=0 itables=0
+  class Outer.Inner<String, Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn12 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=1
+    bridge function_type1 -> @fn13 id=98816c5c844932c1d4ba2969435838af86c93a216646dd957dd9f6b84229cda3
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn14 id=c98c0897663caae897fb6cb8d246cab8f046dfbd6f81b0b751c6ec3514ab8036
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn9 captures=1
+    bridge function_type1 -> @fn15 id=a453fcf265ca887927d3a7a9adec0336e009bad3a8525d2c56194fb5c427b139
+  generated_exact_type get0 location=closure1 nominal_id=60c42fe9a4083b7fe741d1e3cd694188f7ad92744e7f11de200eb0fa6df61506 exact_id=08c09fcffe08f461b51e01ca930d501495c0dc4786474b1b7b1021d899452b6a
+  generated_exact_type get1 location=closure3 nominal_id=8bdff9976f42085d2e98834b7f94a8629a0479e3583f7761cf0f1a4ab3a24d2c exact_id=10561641e04a100e65497d00d88a45adaad2b364c6d10d8bd4f4c1c14fa622bb
+  generated_exact_type get2 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get3 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get4 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=closure2 nominal_id=d357b32d7abebfe3e1ed5c5e6c4adf773c049290d0d376cb68e45b45710a10cd exact_id=ce2801f8c7a4599c5ce18c33e178569e2cc907938f53743da29e6a6ad0292b31
+  generated_exact_type get8 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn12 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn13 id=98816c5c844932c1d4ba2969435838af86c93a216646dd957dd9f6b84229cda3
+  generated_callable gc2 function=@fn15 id=a453fcf265ca887927d3a7a9adec0336e009bad3a8525d2c56194fb5c427b139
+  generated_callable gc3 function=@fn14 id=c98c0897663caae897fb6cb8d246cab8f046dfbd6f81b0b751c6ec3514ab8036
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Outer<String>
+        ClassAlloc Outer<String>
+      val $inline.11.this: Outer<String>
+        Type Outer<String>
+        Local $new.1
+      val $inline.11.value: String
+        Type String
+        Local $parameter.value
+      goto bb12
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      val $inline.1.$outer: Outer<String>
+        Type Outer<String>
+        FieldAccess 0
+          Type Outer.Inner<String, Int>
+          Local $inline.1.this
+      assign $inline.1.result
+        Type Int
+        FieldAccess 1
+          Type Outer.Inner<String, Int>
+          Local $inline.1.this
+      goto bb1
+    bb3 inline.cont.3
+      val $call.2: (Int) -> Outer.Inner<String, Int>
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $inline.3.result
+      call $receiver: Outer.Inner<String, Int> = @fn9 direct
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $call.2
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.1.this: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local $receiver
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.13.$closure: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        Type (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc2 $Closure$lambda2
+      val $inline.13.__codec_argument_0: Outer<String>
+        Type Outer<String>
+        Local $inline.3.this
+      goto bb14
+    bb5 inline.cont.5
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Outer<String>
+        Type Outer<String>
+        Local outer
+      val $inline.3.this: Outer<String>
+        Type Outer<String>
+        Local $receiver
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$outer: Outer<String>
+        Type Outer<String>
+        FieldAccess 0
+          Type Outer.Inner<String, Int>
+          Local $inline.5.this
+      assign $inline.5.result
+        Type Int
+        FieldAccess 1
+          Type Outer.Inner<String, Int>
+          Local $inline.5.this
+      goto bb5
+    bb7 inline.cont.7
+      val $dependency.argument.0: String
+        Type String
+        Local $inline.7.result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local value
+      val $inline.5.this: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local $receiver
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$outer: Outer<String>
+        Type Outer<String>
+        FieldAccess 0
+          Type Outer.Inner<String, Int>
+          Local $inline.7.this
+      assign $inline.7.result
+        Type String
+        FieldAccess 0
+          Type Outer<String>
+          Local $inline.7.$outer
+      goto bb7
+    bb9 inline.cont.9
+      val factory: (Int) -> Outer.Inner<String, Int>
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $inline.9.result
+      call value: Outer.Inner<String, Int> = @fn7 direct
+        Type (Int) -> Outer.Inner<String, Int>
+        Local factory
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $receiver: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local value
+      val $inline.7.this: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local $receiver
+      goto bb8
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Outer<String>
+            Local $inline.9.__codec_argument_0
+      goto bb9
+    bb11 inline.cont.11
+      val outer: Outer<String>
+        Type Outer<String>
+        Local $new.1
+      val $inline.9.$closure: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        Type (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc0 $Closure$lambda0
+      val $inline.9.__codec_argument_0: Outer<String>
+        Type Outer<String>
+        Local outer
+      goto bb10
+    bb12 inline.11.entry
+      field_set 0
+        Type Outer<String>
+        Local $inline.11.this
+        Type String
+        Local $inline.11.value
+      Type Unit
+      UnitLiteral
+      goto bb11
+    bb13 inline.cont.13
+      val $inline.3.$call.1: (Int) -> Outer.Inner<String, Int>
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $inline.13.result
+      assign $inline.3.result
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $inline.3.$call.1
+      goto bb3
+    bb14 inline.13.entry
+      assign $inline.13.result
+        Type (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Outer<String>
+            Local $inline.13.__codec_argument_0
+      goto bb13
+  fun $lambda.0 @fn1($closure: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>, __codec_argument_0: Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+    bb0 entry
+      return
+        Type (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Outer<String>
+            Local __codec_argument_0
+  fun Outer.Inner.first @fn2(this: Outer.Inner<String, Int>) -> String
+    bb0 entry
+      val $outer: Outer<String>
+        Type Outer<String>
+        FieldAccess 0
+          Type Outer.Inner<String, Int>
+          Local this
+      return
+        Type String
+        FieldAccess 0
+          Type Outer<String>
+          Local $outer
+  fun println @fn3(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Outer.Inner.second @fn4(this: Outer.Inner<String, Int>) -> Int
+    bb0 entry
+      val $outer: Outer<String>
+        Type Outer<String>
+        FieldAccess 0
+          Type Outer.Inner<String, Int>
+          Local this
+      return
+        Type Int
+        FieldAccess 1
+          Type Outer.Inner<String, Int>
+          Local this
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Outer.factory @fn6(this: Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+    bb0 entry
+      val $inline.1.$closure: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        Type (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc2 $Closure$lambda2
+      val $inline.1.__codec_argument_0: Outer<String>
+        Type Outer<String>
+        Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: (Int) -> Outer.Inner<String, Int>
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $inline.1.result
+      return
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Outer<String>
+            Local $inline.1.__codec_argument_0
+      goto bb1
+  fun $lambda.1 @fn7($closure: (Int) -> Outer.Inner<String, Int>, __codec_argument_0: Int) -> Outer.Inner<String, Int>
+    bb0 entry
+      assign $new.1
+        Type Outer.Inner<String, Int>
+        ClassAlloc Outer.Inner<String, Int>
+      val $inline.1.this: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local $new.1
+      val $inline.1.$outer: Outer<String>
+        Type Outer<String>
+        ClosureCapture cc1 0
+          Type (Int) -> Outer.Inner<String, Int>
+          Local $closure
+      val $inline.1.other: Int
+        Type Int
+        Local __codec_argument_0
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Outer.Inner<String, Int>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Outer.Inner<String, Int>
+        Local $inline.1.this
+        Type Outer<String>
+        Local $inline.1.$outer
+      field_set 1
+        Type Outer.Inner<String, Int>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.other
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $lambda.2 @fn8($closure: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>, __codec_argument_0: Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+    bb0 entry
+      return
+        Type (Int) -> Outer.Inner<String, Int>
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Outer<String>
+            Local __codec_argument_0
+  fun $lambda.3 @fn9($closure: (Int) -> Outer.Inner<String, Int>, __codec_argument_0: Int) -> Outer.Inner<String, Int>
+    bb0 entry
+      assign $new.1
+        Type Outer.Inner<String, Int>
+        ClassAlloc Outer.Inner<String, Int>
+      val $inline.1.this: Outer.Inner<String, Int>
+        Type Outer.Inner<String, Int>
+        Local $new.1
+      val $inline.1.$outer: Outer<String>
+        Type Outer<String>
+        ClosureCapture cc3 0
+          Type (Int) -> Outer.Inner<String, Int>
+          Local $closure
+      val $inline.1.other: Int
+        Type Int
+        Local __codec_argument_0
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Outer.Inner<String, Int>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Outer.Inner<String, Int>
+        Local $inline.1.this
+        Type Outer<String>
+        Local $inline.1.$outer
+      field_set 1
+        Type Outer.Inner<String, Int>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.other
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun init.Outer.$c0 @fn10(this: Outer<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Outer<String>
+        Local this
+        Type String
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Outer.Inner.$c1 @fn11(this: Outer.Inner<String, Int>, $outer: Outer<String>, other: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Outer.Inner<String, Int>
+        Local this
+        Type Outer<String>
+        Local $outer
+      field_set 1
+        Type Outer.Inner<String, Int>
+        Local this
+        Type Int
+        Local other
+      return
+        Type Unit
+        UnitLiteral
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Int) -> Outer.Inner<String, Int> = <closure:function_type2> closure[function_type2]
+        Type (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        Local $source
+        Type Outer<String>
+        Retype Outer<String>
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type (Int) -> Outer.Inner<String, Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn13($source: (Int) -> Outer.Inner<String, Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Outer.Inner<String, Int> = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Outer.Inner<String, Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn14($source: (Outer<String>) -> (Int) -> Outer.Inner<String, Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Int) -> Outer.Inner<String, Int> = <closure:function_type2> closure[function_type2]
+        Type (Outer<String>) -> (Int) -> Outer.Inner<String, Int>
+        Local $source
+        Type Outer<String>
+        Retype Outer<String>
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type (Int) -> Outer.Inner<String, Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn15($source: (Int) -> Outer.Inner<String, Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Outer.Inner<String, Int> = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Outer.Inner<String, Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Outer.Inner<String, Int>
+          Local $call.1
+  instance mi0 function=@fn2 <- Outer.Inner.first
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- Outer.Inner.second
+  instance mi3 function=@fn5 <- println
+  instance mi4 function=@fn6 <- Outer.factory
+  instance mi5 function=@fn8 <- $lambda.2
+  instance mi6 function=@fn9 <- $lambda.3
+  str @str0 "outer"
+  str @str1 "\n"
+  str @str2 "\n"
+  output executable @fn0

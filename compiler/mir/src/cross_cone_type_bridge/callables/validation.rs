@@ -254,10 +254,13 @@ impl MirCallableBridgeAuthority<'_> {
         if !matches!(
             self.type_export(owner)?.representation(),
             MirTypeRepresentationV1::Class { .. } | MirTypeRepresentationV1::ObjectBacking { .. }
-        ) || semantic.receiver().is_present()
-            || semantic.result() != owner
+        ) || semantic.result() != owner
             || lowered.receiver() != OptionalExactOwner::Present(owner)
-            || semantic.parameters() != lowered.parameters()
+            || !lowered.parameters().iter().copied().eq(semantic
+                .receiver()
+                .into_option()
+                .into_iter()
+                .chain(semantic.parameters().iter().copied()))
             || !self.is_unit(lowered.result())?
         {
             return Err(MirCallableBridgeError::SignatureMismatch);

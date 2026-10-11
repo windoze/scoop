@@ -1,0 +1,7 @@
+open class Outer(val value: Int) {
+    inner class Inner(val delta: Int) { fun total(): Int = value + delta }
+}
+class Child : Outer(40)
+fun <T : Outer> create(outer: T): Outer.Inner = outer.Inner(2)
+fun <T : Outer> reference(outer: T): (Int) -> Outer.Inner = outer::Inner
+fun main() { println(create(Child()).total()); println(reference(Child())(3).total()) }

@@ -32,12 +32,7 @@ pub fn lower_constructor_bindings(
         let owner = lowered.receiver().into_option().ok_or(
             SourceMirConstructorProductionError::InvalidClassSignature(declaration),
         )?;
-        let semantic = ExactCallableSignature::new(
-            lowered.effect(),
-            None,
-            lowered.parameters().to_vec(),
-            owner,
-        );
+        let semantic = crate::source_callables::exact_class_constructor_signature(local, id);
         producer.record(
             declaration,
             source,

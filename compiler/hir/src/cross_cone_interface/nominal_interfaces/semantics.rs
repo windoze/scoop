@@ -7,6 +7,7 @@ use crate::{
 };
 
 mod dispatch;
+mod enclosing;
 mod errors;
 
 pub use errors::{ExactSupertypeSemanticError, NominalInterfaceSemanticValidationError};
@@ -46,7 +47,7 @@ impl NominalInterfaceRecordV1 {
     where
         A: NominalInterfaceSemanticAuthority<E>,
     {
-        self.validate_declaration(authority)?;
+        let declaration = self.validate_declaration(authority)?;
         authority
             .validate_nominal_declaration(self)
             .map_err(NominalInterfaceSemanticValidationError::Declaration)?;
@@ -63,13 +64,14 @@ impl NominalInterfaceRecordV1 {
                 &self.type_parameters,
                 authority,
             )
-            .map_err(NominalInterfaceSemanticValidationError::SourceShape)
+            .map_err(NominalInterfaceSemanticValidationError::SourceShape)?;
+        self.validate_enclosing_instance(&declaration, authority)
     }
 
     fn validate_declaration<A, E>(
         &self,
         authority: &mut A,
-    ) -> Result<(), NominalInterfaceSemanticValidationError<E>>
+    ) -> Result<SourceDeclarationKey, NominalInterfaceSemanticValidationError<E>>
     where
         A: NominalInterfaceSemanticAuthority<E>,
     {
@@ -96,7 +98,7 @@ impl NominalInterfaceRecordV1 {
         {
             return Err(NominalInterfaceSemanticValidationError::ObjectTypeParameters { actual });
         }
-        Ok(())
+        Ok(key)
     }
 
     fn validate_exact_supertypes<A, E>(

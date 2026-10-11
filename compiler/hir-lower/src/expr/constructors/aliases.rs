@@ -94,6 +94,7 @@ impl Lowerer {
                 view,
                 alias,
                 NominalConstructorCall {
+                    enclosing: None,
                     explicit_type_args: &explicit,
                     expected_type_args: None,
                     arguments: call.args,

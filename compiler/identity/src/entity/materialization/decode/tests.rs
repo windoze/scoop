@@ -101,6 +101,7 @@ fn all_local_value_selectors_round_trip_and_resolve() {
     );
     let mut selectors = vec![
         LocalValueSelector::This,
+        LocalValueSelector::EnclosingInstance,
         LocalValueSelector::Parameter {
             declaration_index: 3,
         },

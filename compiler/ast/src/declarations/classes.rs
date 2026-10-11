@@ -9,6 +9,7 @@ pub struct ClassDecl {
     pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,
     pub modifier: ClassModifier,
+    pub inner_span: Option<Span>,
     pub name: Ident,
     /// Generic host parameters (`class Name<T, U> ...`).
     pub type_params: Vec<TypeParamDecl>,

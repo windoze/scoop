@@ -191,6 +191,7 @@ pub enum ClassInitializerTarget {
 
 #[derive(Debug, Clone)]
 pub struct ConstructorParameter {
+    pub selector: scoop_identity::LocalValueSelector,
     pub id: ConstructorParamId,
     pub binding: BindingId,
     pub definition: DefinitionOrigin,

@@ -10,6 +10,7 @@ use crate::expr::{NominalArgumentInput, NominalArguments};
 use crate::{Lowerer, TypeId};
 
 mod aliases;
+mod enclosing;
 mod named;
 mod safety;
 
@@ -22,6 +23,7 @@ pub(crate) struct ResolvedNominalConstructor {
 }
 
 pub(crate) struct NominalConstructorCall<'a> {
+    pub(crate) enclosing: Option<&'a hir::Expr>,
     pub(crate) explicit_type_args: &'a [ResolvedCallTypeArgument],
     pub(crate) expected_type_args: Option<&'a [TypeId]>,
     pub(crate) arguments: &'a [ast::CallArgument],
@@ -29,6 +31,7 @@ pub(crate) struct NominalConstructorCall<'a> {
 }
 
 struct ApplicableConstructor {
+    enclosing: Option<hir::Expr>,
     state: Box<Lowerer>,
     source: NominalConstructorSource,
     view: NominalConstructorView,
@@ -46,6 +49,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedNominalConstructor> {
         let NominalConstructorCall {
+            enclosing,
             explicit_type_args,
             expected_type_args,
             arguments,
@@ -67,6 +71,7 @@ impl Lowerer {
             match self.probe_named_nominal(
                 view.clone(),
                 NominalConstructorCall {
+                    enclosing,
                     explicit_type_args,
                     expected_type_args,
                     arguments,

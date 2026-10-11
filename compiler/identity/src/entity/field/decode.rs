@@ -13,6 +13,9 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedSourceFieldKey {
+    EnclosingInstance {
+        owner: DecodedNominalDeclarationOwner,
+    },
     InterfaceDelegate {
         owner: DecodedNominalDeclarationOwner,
         ordinal: u32,
@@ -34,6 +37,7 @@ pub enum DecodedSourceFieldKey {
 impl WireEncode for DecodedSourceFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::EnclosingInstance { owner } => encode_value_sum(encoder, 5, owner),
             Self::InterfaceDelegate { owner, ordinal } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 4)?;
@@ -56,8 +60,11 @@ impl WireEncode for DecodedSourceFieldKey {
 impl WireDecode for DecodedSourceFieldKey {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
-        expect_sum_length(decoder, fields, 3)?;
+        expect_sum_length(decoder, fields, if tag == 5 { 2 } else { 3 })?;
         match tag {
+            5 => Ok(Self::EnclosingInstance {
+                owner: decoder.field(1, DecodedNominalDeclarationOwner::decode)?,
+            }),
             4 => Ok(Self::InterfaceDelegate {
                 owner: decoder.field(1, DecodedNominalDeclarationOwner::decode)?,
                 ordinal: decoder.field(2, Decoder::u32)?,
@@ -267,6 +274,11 @@ where
                 .validate()
                 .map_err(FieldIdentityResolutionError::Name)?;
             FieldIdentityKey::source_declared(&owner, name)
+                .map_err(FieldIdentityResolutionError::Key)
+        }
+        DecodedSourceFieldKey::EnclosingInstance { owner } => {
+            let owner = resolve_source_owner(owner, resolver)?;
+            FieldIdentityKey::source_enclosing_instance(&owner)
                 .map_err(FieldIdentityResolutionError::Key)
         }
         DecodedSourceFieldKey::PropertyBacking { owner, property } => {

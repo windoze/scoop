@@ -18,6 +18,35 @@ impl Lowerer {
         if matches!(
             interface.declaration(),
             scoop_identity::CallableTemplateOrigin::Constructor(_)
+        ) && let hir::PublicDeclarationOwnerV1::Nominal(owner) = interface.owner()
+            && let Some(required) = self.nominal_enclosing_owner(owner)
+        {
+            let value = match receiver_source {
+                ImportedDependencyCallReceiver::Implicit => {
+                    self.implicit_enclosing_instance(required, span)
+                }
+                ImportedDependencyCallReceiver::Explicit(ImportedMemberReceiver::Value(value)) => {
+                    self.enclosing_receiver_application(value, required)
+                }
+                ImportedDependencyCallReceiver::Explicit(
+                    ImportedMemberReceiver::LiteralSubject(_),
+                ) => None,
+            };
+            let Some(value) = value else {
+                self.error(
+                    span,
+                    "inner constructor requires a matching outer instance".into(),
+                );
+                return Err(Box::new(self.clone()));
+            };
+            return Ok(ImportedCallReceiver::Member {
+                static_type: value.ty,
+                value: ImportedMemberReceiver::Value(value),
+            });
+        }
+        if matches!(
+            interface.declaration(),
+            scoop_identity::CallableTemplateOrigin::Constructor(_)
                 | scoop_identity::CallableTemplateOrigin::VariantConstructor(_)
         ) {
             return match receiver_source {

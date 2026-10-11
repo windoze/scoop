@@ -115,16 +115,23 @@ impl Lowerer {
         call: NominalConstructorCall<'_>,
     ) -> Result<NamedNominalProbe, Box<Lowerer>> {
         let mut state = self.clone();
-        if !call.explicit_type_args.is_empty()
-            && call.explicit_type_args.len() != view.signature.owner_parameters.len()
-        {
+        let enclosing =
+            match state.constructor_enclosing_instance(view.target, call.enclosing, call.span) {
+                Ok(receiver) => receiver,
+                Err(()) => return Err(Box::new(state)),
+            };
+        let Some(explicit) = state.inner_explicit_arguments(enclosing.as_ref(), &view, &call)
+        else {
+            return Err(Box::new(state));
+        };
+        if !explicit.is_empty() && explicit.len() != view.signature.owner_parameters.len() {
             state.diagnose_nominal_shape_failure(
                 &view,
                 call.span,
                 format!(
                     "expects {} explicit type argument(s), but {} were supplied",
                     view.signature.owner_parameters.len(),
-                    call.explicit_type_args.len()
+                    explicit.len()
                 ),
             );
             return Err(Box::new(state));
@@ -141,7 +148,7 @@ impl Lowerer {
             view: &view,
             argument_map: &argument_map,
             expressions: call.arguments,
-            explicit_type_args: call.explicit_type_args,
+            explicit_type_args: &explicit,
             expected_type_args: call.expected_type_args,
             span: call.span,
         });
@@ -151,13 +158,38 @@ impl Lowerer {
         if state.diagnostics.len() != before {
             return Err(Box::new(state));
         }
-        let parameter_types =
+        let mut parameter_types =
             argument_map.forwarding_parameter_types(&view.signature.value_parameters);
+        let prefix = enclosing.as_ref().map_or(0, |receiver| {
+            state
+                .nominal_application(receiver.ty)
+                .expect("an outer application")
+                .arguments
+                .len()
+        });
+        let bindings = view
+            .signature
+            .owner_parameters
+            .iter()
+            .enumerate()
+            .map(|(index, parameter)| {
+                let ty = if index < prefix {
+                    inferred.type_args[index]
+                } else {
+                    state.intern_type(hir::Type::Param(parameter.id))
+                };
+                (parameter.id, ty)
+            })
+            .collect::<Vec<_>>();
+        for ty in &mut parameter_types {
+            *ty = state.instantiate_method_ty(*ty, &bindings);
+        }
         Ok(NamedNominalProbe {
             alias: None,
-            comparison_owners: view.signature.owner_parameters.clone(),
+            comparison_owners: view.signature.owner_parameters[prefix..].to_vec(),
             comparison_parameters: parameter_types.clone(),
             candidate: ApplicableConstructor {
+                enclosing,
                 state: Box::new(state),
                 source: view.target,
                 view,
@@ -188,6 +220,7 @@ impl Lowerer {
         let type_args = winner.inferred.type_args;
         let args = self.materialize_nominal_arguments(
             crate::argument_materialization::NominalArgumentMaterialization {
+                receiver: winner.enclosing,
                 view: &winner.view,
                 argument_map: &winner.argument_map,
                 type_args: &type_args,

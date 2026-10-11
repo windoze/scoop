@@ -42,6 +42,7 @@ mod construction;
 pub(crate) use construction::ConstructorSource;
 mod declarations;
 mod delegation;
+mod enclosing;
 pub(crate) use delegation::InterfaceDelegateSource;
 mod hierarchy;
 mod inheritance;

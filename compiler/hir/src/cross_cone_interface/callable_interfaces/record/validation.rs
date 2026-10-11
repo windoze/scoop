@@ -26,10 +26,16 @@ pub(super) fn validate_type_parameter_shape(
 }
 
 pub(super) fn validate_receiver_shape(
+    declaration: CallableTemplateOrigin,
     owner: PublicDeclarationOwnerV1,
     has_receiver: bool,
 ) -> Result<(), CallableInterfaceRecordBuildError> {
     match (owner, has_receiver) {
+        (PublicDeclarationOwnerV1::Nominal(_), true)
+            if matches!(declaration, CallableTemplateOrigin::Constructor(_)) =>
+        {
+            Ok(())
+        }
         (PublicDeclarationOwnerV1::Extension, false) => {
             Err(CallableInterfaceRecordBuildError::MissingExtensionReceiver)
         }

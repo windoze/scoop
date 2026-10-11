@@ -5,7 +5,9 @@ use crate::NominalTarget;
 use crate::imports::lookup::TypeLookupTarget;
 
 mod applied;
+mod inner;
 mod names;
+mod nominals;
 pub(crate) use names::ResolvedTypeName;
 
 impl Lowerer {

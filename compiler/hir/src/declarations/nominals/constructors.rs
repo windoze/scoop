@@ -22,6 +22,8 @@ pub struct ClassConstructor {
     pub safety: Safety,
     /// Owner parameters required to be GC-free by this callable and its callees.
     pub no_gc_type_params: Vec<TypeParamId>,
+    /// Bound outer instance, separate from source parameter indices.
+    pub enclosing_parameter: Option<ConstructorParameter>,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,

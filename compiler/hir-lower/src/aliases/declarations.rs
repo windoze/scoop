@@ -58,6 +58,9 @@ impl Lowerer {
             )
         };
         let outer = match owner {
+            Some(Owner::Class(id)) if self.enclosing_class_field(id).is_some() => {
+                self.owner_type_params(Owner::Class(id))
+            }
             Some(Owner::Object(id)) => self.owner_type_params(Owner::Object(id)),
             _ => Vec::new(),
         };

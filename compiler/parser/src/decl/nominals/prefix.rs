@@ -115,10 +115,12 @@ impl Parser {
                 ));
             }
             if text == "inner" {
-                return Err(Diagnostic::at(
-                    token.span,
-                    "`inner` declarations are not supported; nested declarations are static",
-                ));
+                if modifiers.inner_span.is_some() {
+                    return Err(Diagnostic::at(token.span, "duplicate `inner` modifier"));
+                }
+                modifiers.inner_span = Some(self.bump().span);
+                modifiers.start = modifiers.start.or(Some(token.span.start));
+                continue;
             }
             if text == "operator" {
                 if modifiers.operator.is_some() {
@@ -174,6 +176,14 @@ impl Parser {
             }
             let keyword = self.bump();
             modifiers.start = modifiers.start.or(Some(keyword.span.start));
+        }
+        if let Some(span) = modifiers.inner_span
+            && !matches!(self.peek().kind, TokenKind::Class)
+        {
+            return Err(Diagnostic::at(
+                span,
+                "`inner` is only allowed on class declarations",
+            ));
         }
         if let Some(span) = modifiers.sealed_span {
             if !matches!(self.peek().kind, TokenKind::Class | TokenKind::Interface) {

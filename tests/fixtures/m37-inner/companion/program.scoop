@@ -1,0 +1,12 @@
+class Outer<T>(val value: T) {
+    inner class Inner<U>(val other: U) {
+        companion object {
+            typealias Pair = (T, U)
+            fun first(value: Pair): T { val (first, second) = value; return first }
+        }
+    }
+}
+fun main() {
+    val value: Outer<String>.Inner<Int>.Companion.Pair = ("outer", 42)
+    println(Outer<String>.Inner<Int>.Companion.first(value))
+}

@@ -80,6 +80,7 @@ pub(super) fn project_struct(
         CallableTemplateOrigin::Constructor(identity.id()),
         identity.key(),
         crate::ExportParameterOwner::StructConstructor(constructor_id),
+        None,
         source_owner(
             projection,
             projection
@@ -134,6 +135,10 @@ pub(super) fn project_class(
         CallableTemplateOrigin::Constructor(identity.id()),
         identity.key(),
         crate::ExportParameterOwner::ClassConstructor(constructor_id),
+        constructor
+            .enclosing_parameter
+            .as_ref()
+            .map(|parameter| parameter.ty),
         source_owner(
             projection,
             projection
@@ -171,6 +176,7 @@ fn project_source(
     declaration: CallableTemplateOrigin,
     key: &scoop_identity::SourceDeclarationKey,
     parameter_owner: crate::ExportParameterOwner,
+    receiver_type: Option<crate::TypeId>,
     owner: NominalDeclarationOwner,
     owner_parameters: &[TypeParamDecl],
     result_type: crate::TypeId,
@@ -206,11 +212,15 @@ fn project_source(
         .map_err(CallableProjectionError::Signature)?;
     let effects = effects::source_constructor(safety, gc_effect, release_callability, &binders)
         .map_err(CallableProjectionError::Effects)?;
+    let receiver = receiver_type
+        .map(|ty| projection.signatures.map_type(ty, &binders))
+        .transpose()
+        .map_err(CallableProjectionError::Signature)?;
     CallableDeclarationRecordV1::try_new(
         declaration,
         PublicDeclarationOwnerV1::Nominal(owner),
         type_parameters,
-        None,
+        receiver,
         parameters,
         result,
         effects,

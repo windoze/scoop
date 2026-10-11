@@ -204,6 +204,28 @@ pub(super) fn exact_function_signature(
     )
 }
 
+pub(super) fn exact_class_constructor_signature(
+    module: &hir::Module,
+    source: hir::ClassConstructorId,
+) -> hir::ExactCallableSignature {
+    let constructor = &module.class_constructors[source];
+    let (receiver, parameters) = match constructor.parameters.split_first() {
+        Some((first, rest)) if first.selector == hir::LocalValueSelector::EnclosingInstance => {
+            (Some(module.exact_type_identities[first.ty].id()), rest)
+        }
+        _ => (None, constructor.parameters.as_slice()),
+    };
+    hir::ExactCallableSignature::new(
+        hir::Effect::Ordinary,
+        receiver,
+        parameters
+            .iter()
+            .map(|parameter| module.exact_type_identities[parameter.ty].id())
+            .collect(),
+        exact_class(module, constructor.class),
+    )
+}
+
 pub(super) fn exact_class_initializer_signature(
     module: &hir::Module,
     source: hir::ClassConstructorId,

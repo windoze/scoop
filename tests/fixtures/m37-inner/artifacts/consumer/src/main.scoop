@@ -1,0 +1,13 @@
+import bridge.*
+fun main() {
+    val outer = Outer("outer")
+    val value: Result<String> = factory(outer)(42)
+    println(value.first())
+    println(value.other)
+    println(value.captured()())
+    println(outer.make(7).other)
+    println(outer.Base().stored)
+    val plain = Plain(21)
+    println(defaultValue(plain).total())
+    println(reference(plain)(2).total())
+}
