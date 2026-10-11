@@ -104,6 +104,7 @@ mod m33_equality_split;
 mod m35_annotations;
 mod m37_inference;
 mod m37_names;
+mod m37_properties;
 mod m4;
 mod m5;
 mod m6;

@@ -1,0 +1,2 @@
+val value: String = 1
+fun main() {}

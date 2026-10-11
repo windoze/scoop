@@ -79,3 +79,13 @@ AST、HIR、concrete HIR 和结构化 MIR 保留显式 LoopKind；默认/泛型 
 本机 fmt、workspace clippy（release）通过；HIR lower 1,407 项测试全部通过。26 个新增正式 fixture（9 个正向、17 个 negative）与 M33 errno、M35 when 产物回归普通比较共 28/28 通过，38 个配置、96 个进程、69 个阶段 golden。覆盖 debug/release、泛型宿主/方法/接口默认实现、继承默认参数、super 与动态分派、函数引用、Context、局部捕获、异常/finally、挂起恢复、moving GC、可见性，以及移除源码后的 provider → bridge → consumer 链；消费方同名函数不会重绑定定义处默认调用。
 
 报告见 [07-function-inference-darwin.json](validation/07-function-inference-darwin.json)。现有 M33/M35 快照保持不变。完成后清理本批 fixture cases，保留共用 cache、sysroot 和验证日志。非局部 property 推导作为下一项功能单独实现与提交。
+
+### 8. 非局部 property 类型推导（完成）
+
+顶层、class、object、struct/enum 计算属性及泛型扩展属性可以从 initializer、表达式 getter 或唯一委托 getter 推导完整类型；const 复用原标量常量求值。显式类型优先，stored property 的自定义 getter、setter 和后续赋值不反推声明类型。缺少推导来源、依赖环、空数组/None、未定型 lambda、override 不匹配及公开类型泄漏均在源码处诊断。
+
+函数和属性共享按 typed ID 记录的声明依赖栈，查询隔离定义处作用域并复用完整 typed body。class/object 初始化在真实构造上下文检查 constructor 参数、此前字段和 receiver 发布规则，最终按源码位置复用初始化步骤；顶层初始化同样只执行一次。继承的已知部分沿用原有决议，结果类型等式完成后统一检查；逻辑属性的可见性结果由访问器复用，避免相同类型重复诊断。raw storage 按最终类型检查零映像与 GC-free 契约，并导出正确的 NoGC 访问器。没有新增 HIR/wire 形态或 runtime ABI。声明查询主模块 227 行，属性签名与初始化子模块分别 131、151 行；class 初始化主模块拆为 251 行，globals 主模块为 408 行。
+
+本机 fmt、workspace clippy（release）通过；HIR lower 1,410 项、parser 493 项及 doc-test 1 项通过，可见性去重后补验 22 项相关测试全部通过。36 个新增正式 fixture（11 个正向、25 个 negative）与 8 个回归普通比较共 44/44 通过，58 个配置、154 个进程、120 个阶段 golden。覆盖 debug/release、构造参数与闭包、初始化顺序/只执行一次、provideDelegate、泛型 receiver、继承与动态分派、const/raw storage、Nothing/Unit、Context、挂起恢复、异常/finally、moving GC，以及移除源码后的 provider → bridge → consumer 链和跨 Cone NoGC 读取。
+
+报告见 [08-property-inference-darwin.json](validation/08-property-inference-darwin.json)。仅迁移一个既有构造器产物用例的两份 AST 快照，补充功能 6 的 lambda 隐式标签；其余阶段和执行结果保持不变。普通报告合并已通过且未变化的用例与该用例复验，生成快照不计入通过数。已清理本批旧 fixture cases（575 MiB），保留共用 cache、sysroot 与日志。

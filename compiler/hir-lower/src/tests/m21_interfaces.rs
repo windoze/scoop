@@ -69,7 +69,7 @@ fn property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body,
         span: sp(),
     }

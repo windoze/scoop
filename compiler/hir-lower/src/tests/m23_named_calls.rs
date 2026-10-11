@@ -276,7 +276,7 @@ fn property_value(name: &str, ty: TypeRef, expression: Expr) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),
@@ -584,7 +584,7 @@ fn initializing_receiver_callable_property_remains_a_real_member() {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("thunk"),
-        ty: ty_function(false, Vec::new(), ty_named("Int")),
+        ty: Some(ty_function(false, Vec::new(), ty_named("Int"))),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(Expr::Lambda {
                 label: None,

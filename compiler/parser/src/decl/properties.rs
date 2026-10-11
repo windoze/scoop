@@ -63,18 +63,16 @@ impl Parser {
                 self.bump();
                 Some(ty)
             }
-            Ok(ty) if matches!(self.peek().kind, TokenKind::Colon) => {
-                match ty.split_qualified_tail() {
-                    Ok((receiver, name)) => {
-                        parsed_name = Some(name);
-                        Some(receiver)
-                    }
-                    Err(_) => {
-                        self.pos = receiver_start;
-                        None
-                    }
+            Ok(ty) => match ty.split_qualified_tail() {
+                Ok((receiver, name)) => {
+                    parsed_name = Some(name);
+                    Some(receiver)
                 }
-            }
+                Err(_) => {
+                    self.pos = receiver_start;
+                    None
+                }
+            },
             _ => {
                 self.pos = receiver_start;
                 None
@@ -99,23 +97,17 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("property name")?,
         };
-        if !matches!(self.peek().kind, TokenKind::Colon) {
-            let message = match context {
-                PropertyContext::ClassOrObject => {
-                    "class stored properties require an explicit type"
-                }
-                PropertyContext::ValueType => "value-type properties require an explicit type",
-                PropertyContext::Interface => "interface properties require an explicit type",
-                PropertyContext::TopLevel => "top-level properties require an explicit type",
-            };
-            return Err(Diagnostic::at(self.peek().span, message));
-        }
-        self.bump();
-        let ty = self.parse_type_ref()?;
+        let ty = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
         let where_clause = self.parse_where_clause()?;
-        let signature_end = where_clause
-            .as_ref()
-            .map_or(ty.span.end, |clause| clause.span.end);
+        let signature_end = where_clause.as_ref().map_or_else(
+            || ty.as_ref().map_or(name.span.end, |ty| ty.span.end),
+            |clause| clause.span.end,
+        );
 
         let (body, end) = if is_const {
             self.expect("`=` in const property", |kind| {

@@ -21,7 +21,7 @@ fn stored_property(name: &str) -> ast::PropertyDecl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(int_lit(1)),
             accessors: ast::AccessorSyntax::default(),

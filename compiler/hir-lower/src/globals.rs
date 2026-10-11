@@ -25,7 +25,7 @@ struct PendingConst<'a> {
     declaration: &'a ast::PropertyDecl,
     file: usize,
     access: hir::DeclarationAccess,
-    ty: hir::TypeId,
+    ty: Option<hir::TypeId>,
     owner: hir::PropertyOwner,
 }
 
@@ -141,9 +141,9 @@ impl Lowerer {
                 continue;
             }
             self.type_params_in_scope.clear();
-            let ty = self
-                .resolve_type_ref(&decl.ty)
-                .unwrap_or_else(|| self.integer_type(hir::IntegerKind::SIGNED_32));
+            let Some(ty) = self.resolve_property_annotation(decl) else {
+                continue;
+            };
             if matches!(decl.body, ast::PropertyBodySyntax::Const(_)) {
                 if decl.mutable {
                     self.error(decl.name.span, "const property must be a `val`".to_string());
@@ -165,14 +165,16 @@ impl Lowerer {
                     continue;
                 }
                 self.reject_logical_property_annotations("a const property", &decl.annotations);
-                if !matches!(
-                    self.types[ty],
-                    hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-                ) && !self.is_char_type(ty)
+                if decl.ty.is_some()
+                    && !matches!(
+                        self.types[ty],
+                        hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
+                    )
+                    && !self.is_char_type(ty)
                     && self.float_kind(ty).is_none()
                 {
                     self.error(
-                        decl.ty.span,
+                        decl.type_span(),
                         format!(
                             "const property `{}` has unsupported type {}",
                             decl.name.text,
@@ -186,7 +188,7 @@ impl Lowerer {
                     declaration: decl,
                     file: file_index,
                     access,
-                    ty,
+                    ty: decl.ty.as_ref().map(|_| ty),
                     owner: hir::PropertyOwner::TopLevel,
                 });
                 continue;
@@ -299,119 +301,15 @@ impl Lowerer {
                 });
                 continue;
             }
-            match &decl.body {
-                ast::PropertyBodySyntax::Delegated { by_span, .. } => {
-                    self.error(
-                        *by_span,
-                        "delegated properties cannot use raw or extern storage annotations"
-                            .to_string(),
-                    );
-                    continue;
-                }
-                ast::PropertyBodySyntax::Const(_) => unreachable!("handled above"),
-                ast::PropertyBodySyntax::OptionalOmitted => {
-                    self.error(
-                        decl.span,
-                        "Option shorthand cannot use raw or extern storage annotations".to_string(),
-                    );
-                    continue;
-                }
-                ast::PropertyBodySyntax::Abstract => {
-                    self.error(
-                        decl.span,
-                        "top-level properties cannot be abstract".to_string(),
-                    );
-                    continue;
-                }
-                ast::PropertyBodySyntax::Initializer { accessors, .. }
-                    if accessors.getter.is_some() || accessors.setter.is_some() =>
-                {
-                    self.error(
-                        decl.span,
-                        "raw or extern storage cannot declare property accessors".to_string(),
-                    );
-                    continue;
-                }
-                ast::PropertyBodySyntax::Initializer { .. }
-                | ast::PropertyBodySyntax::ExternStorage => {}
-                ast::PropertyBodySyntax::Computed(_) => unreachable!("handled above"),
+            if let Some(id) = self.allocate_raw_global(decl, ty, access, import_source) {
+                initializers.push((id, decl));
             }
-            let checked = self.check_global_annotations(decl);
-            let storage = if let Some(extern_) = checked.extern_ {
-                hir::GlobalStorage::Extern {
-                    library: extern_.library,
-                    native_symbol: extern_.native_symbol,
-                    thread_local: checked.storage.unwrap_or(false),
-                }
-            } else {
-                let Some(initializer) = self.zero_constant_image(ty) else {
-                    self.error(
-                        decl.span,
-                        format!(
-                            "raw storage of type {} has no valid all-zero initial image",
-                            self.type_name(ty)
-                        ),
-                    );
-                    continue;
-                };
-                hir::GlobalStorage::Local {
-                    thread_local: checked.storage.unwrap_or(false),
-                    initializer,
-                }
-            };
-            let expected_property = self.next_property_id();
-            let id = self.globals.alloc(hir::Global {
-                name: decl.name.text.clone(),
-                property: expected_property,
-                ty,
-                mutable: decl.mutable,
-                storage,
-                span: decl.span,
-            });
-            let capability = if matches!(self.globals[id].storage, hir::GlobalStorage::Local { .. })
-            {
-                let Some(capability) = self.allocate_property_accessors(
-                    expected_property,
-                    hir::PropertyOwner::TopLevel,
-                    access.clone(),
-                    decl,
-                    Some(hir::PropertyBacking::TopLevelGlobal {
-                        storage: id,
-                        initialization: hir::TopLevelInitialization::Image,
-                    }),
-                    hir::MethodModifier::Final,
-                ) else {
-                    continue;
-                };
-                capability
-            } else {
-                self.allocate_storage_capability(access.clone(), decl.mutable, decl.span)
-            };
-            let property = self.properties.alloc(hir::Property {
-                owner: hir::PropertyOwner::TopLevel,
-                name: decl.name.text.clone(),
-                access,
-                modifier: hir::MethodModifier::Final,
-                is_override: false,
-                overrides: Vec::new(),
-                ty,
-                capability,
-                representation: hir::PropertyRepresentation::NativeStorage { storage: id },
-                span: decl.span,
-            });
-            assert_eq!(property, expected_property);
-            self.top_level_namespaces.register_property(
-                file_index,
-                decl.name.text.clone(),
-                property,
-                false,
-            );
-            self.property_files.insert(property, file_index);
-            self.imports.bind_property(import_source, property);
-            initializers.push((id, decl));
         }
 
-        self.resolve_raw_global_initializers(initializers);
+        self.pending_raw_initializers = initializers
+            .into_iter()
+            .map(|(global, source)| (global, source.clone()))
+            .collect();
         for &(object, source, file) in objects {
             self.current_file = file;
             self.current_owner = Some(crate::Owner::Object(object));
@@ -437,9 +335,9 @@ impl Lowerer {
                     file,
                     crate::visibility::MemberSlotAccess::None,
                 );
-                let ty = self
-                    .resolve_type_ref(&property.ty)
-                    .unwrap_or_else(|| self.integer_type(hir::IntegerKind::SIGNED_32));
+                let Some(ty) = self.resolve_property_annotation(property) else {
+                    continue;
+                };
                 if property.mutable {
                     self.error(
                         property.name.span,
@@ -471,14 +369,16 @@ impl Lowerer {
                     &format!("{} const property", source.article_description()),
                     &property.annotations,
                 );
-                if !matches!(
-                    self.types[ty],
-                    hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-                ) && !self.is_char_type(ty)
+                if property.ty.is_some()
+                    && !matches!(
+                        self.types[ty],
+                        hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
+                    )
+                    && !self.is_char_type(ty)
                     && self.float_kind(ty).is_none()
                 {
                     self.error(
-                        property.ty.span,
+                        property.type_span(),
                         format!(
                             "const property `{}` has unsupported type {}",
                             property.name.text,
@@ -496,7 +396,7 @@ impl Lowerer {
                     declaration: property,
                     file,
                     access,
-                    ty,
+                    ty: property.ty.as_ref().map(|_| ty),
                     owner: hir::PropertyOwner::Object(object),
                 });
             }

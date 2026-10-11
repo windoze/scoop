@@ -378,6 +378,7 @@ impl Lowerer {
             variant_parameter_calling: HashMap::new(),
             signatures: imbl::HashMap::new(),
             declaration_inference: Default::default(),
+            pending_raw_initializers: Vec::new(),
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
             return_inference: None,

@@ -159,6 +159,7 @@ impl Lowerer {
                     self.globals[storage].ty,
                     initialization,
                 );
+                self.mark_pending_property_accessor(&source);
                 continue;
             }
             match source.owner {
@@ -167,11 +168,15 @@ impl Lowerer {
                 }
                 None => self.resolve_signature(source.function, &source.declaration),
             }
+            self.mark_pending_property_accessor(&source);
         }
     }
 
     pub(crate) fn lower_property_accessor_bodies(&mut self) {
         for source in self.property_accessor_sources.clone() {
+            if self.property_accessor_was_lowered(source.function) {
+                continue;
+            }
             if self.functions[source.function]
                 .method
                 .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
@@ -196,7 +201,7 @@ impl Lowerer {
         }
     }
 
-    fn prepend_accessor_initialization_ensure(
+    pub(crate) fn prepend_accessor_initialization_ensure(
         &mut self,
         source: &PropertyAccessorSource,
         body: &mut hir::Body,
@@ -245,7 +250,7 @@ impl Lowerer {
             },
             type_params: property.type_params.clone(),
             params: Vec::new(),
-            return_ty: Some(property.ty.clone()),
+            return_ty: property.ty.clone(),
             where_clause: property.where_clause.clone(),
             body: accessor_function_body(&getter.body),
             span: getter.span,
@@ -301,7 +306,10 @@ impl Lowerer {
             type_params: property.type_params.clone(),
             params: vec![ast::Param {
                 name,
-                ty: property.ty.clone(),
+                ty: property.ty.clone().unwrap_or(ast::TypeRef {
+                    kind: ast::TypeRefKind::Unit,
+                    span: property.name.span,
+                }),
                 syntax: ast::ParameterSyntax::Required,
                 span: setter.span,
             }],

@@ -126,7 +126,7 @@ fn malformed_initialization_members_recover_independently() {
          }\n\
          fun good() {}",
     )
-    .expect_err("three malformed members must be reported");
+    .expect_err("two malformed members must be reported");
     let messages = diagnostics
         .iter()
         .map(|diagnostic| diagnostic.message.as_str())
@@ -134,7 +134,6 @@ fn malformed_initialization_members_recover_independently() {
     assert_eq!(
         messages,
         [
-            "class stored properties require an explicit type",
             "`init` must be followed by a block",
             "expected `(` after `constructor`, found `val`",
         ]

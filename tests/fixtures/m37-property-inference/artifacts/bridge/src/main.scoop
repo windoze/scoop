@@ -1,0 +1,4 @@
+package bridge
+public import inferredproperties.*
+public val forwarded get() = answer
+public fun <T> relay(value: Holder<T>) = read(value)

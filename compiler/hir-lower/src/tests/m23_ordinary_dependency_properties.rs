@@ -292,7 +292,7 @@ fn computed_property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: scoop_ast::PropertyBodySyntax::Computed(scoop_ast::AccessorSyntax {
             getter: Some(scoop_ast::GetterDecl {
                 annotations: Vec::new(),

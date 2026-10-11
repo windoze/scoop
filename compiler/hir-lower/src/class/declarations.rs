@@ -333,7 +333,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+            let Some(ty) = self.resolve_property_annotation(property) else {
                 continue;
             };
             let slot_access = if property.is_override {

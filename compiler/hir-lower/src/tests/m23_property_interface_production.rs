@@ -52,7 +52,7 @@ fn computed_property(
         type_params,
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),
@@ -67,7 +67,7 @@ fn computed_property(
 
 fn abstract_property(name: &str, ty: TypeRef) -> ast::PropertyDecl {
     ast::PropertyDecl {
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Abstract,
         modifier: ast::MethodModifier::Abstract,
         ..computed_property(name, None, Vec::new(), SetterVisibility::None)
@@ -86,7 +86,7 @@ fn object_const(name: &str) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("constant"),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Const(Box::new(int_lit(9))),
         span: sp(),
     };

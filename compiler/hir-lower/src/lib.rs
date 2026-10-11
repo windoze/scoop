@@ -803,6 +803,7 @@ pub(crate) struct Lowerer {
     /// implicit `this` parameter.
     pub(crate) signatures: imbl::HashMap<FunctionId, FnSig>,
     pub(crate) declaration_inference: declaration_inference::DeclarationInference,
+    pub(crate) pending_raw_initializers: Vec<(hir::GlobalId, ast::PropertyDecl)>,
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
     pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,

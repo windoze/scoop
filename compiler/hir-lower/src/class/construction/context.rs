@@ -10,11 +10,50 @@ impl Lowerer {
         safety: hir::Safety,
         lower: impl FnOnce(&mut Self, &mut Vec<hir::Statement>) -> Option<T>,
     ) -> Option<LoweredConstructorExpression<T>> {
-        let source = source.into();
-        let definition_paths = self
-            .constructor_definition_paths
-            .remove(&source)
-            .unwrap_or_default();
+        self.with_constructor_context(source.into(), context, safety, None, lower)
+    }
+
+    pub(crate) fn with_property_initializer_context<T>(
+        &mut self,
+        constructor: hir::ClassConstructorId,
+        property: hir::PropertyId,
+        context: &str,
+        lower: impl FnOnce(&mut Self, &mut Vec<hir::Statement>) -> Option<T>,
+    ) -> Option<LoweredConstructorExpression<T>> {
+        let owner = self.class_constructors[constructor].owner;
+        let ordinal = self.classes[owner]
+            .properties
+            .iter()
+            .position(|id| *id == property)
+            .expect("a property belongs to its constructor owner");
+        let path = crate::definition_paths::DefinitionPathContext::default().at(
+            scoop_identity::StructuralDefinitionSiteRole::Initializer,
+            ordinal as u32,
+        );
+        let paths = crate::definition_paths::DefinitionPathContext::nested(&path);
+        self.with_constructor_context(
+            constructor.into(),
+            context,
+            hir::Safety::Safe,
+            Some(paths),
+            lower,
+        )
+    }
+
+    fn with_constructor_context<T>(
+        &mut self,
+        source: ConstructorSource,
+        context: &str,
+        safety: hir::Safety,
+        property_paths: Option<crate::definition_paths::DefinitionPathContext>,
+        lower: impl FnOnce(&mut Self, &mut Vec<hir::Statement>) -> Option<T>,
+    ) -> Option<LoweredConstructorExpression<T>> {
+        let independent_paths = property_paths.is_some();
+        let definition_paths = property_paths.unwrap_or_else(|| {
+            self.constructor_definition_paths
+                .remove(&source)
+                .unwrap_or_default()
+        });
         let outer_definition_paths =
             std::mem::replace(&mut self.definition_paths, definition_paths);
         let definition_root = match source {
@@ -123,12 +162,14 @@ impl Lowerer {
         let definition_paths =
             std::mem::replace(&mut self.definition_paths, outer_definition_paths);
         self.definition_root = outer_definition_root;
-        assert!(
-            self.constructor_definition_paths
-                .insert(source, definition_paths)
-                .is_none(),
-            "a constructor definition-path context is checked out only once"
-        );
+        if !independent_paths {
+            assert!(
+                self.constructor_definition_paths
+                    .insert(source, definition_paths)
+                    .is_none(),
+                "a constructor traversal owns its definition paths"
+            );
+        }
 
         value.map(|value| LoweredConstructorExpression {
             locals,

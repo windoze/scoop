@@ -21,7 +21,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr, public: bool) -> De
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Const(Box::new(expression)),
         span: sp(),
     })

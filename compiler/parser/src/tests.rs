@@ -105,13 +105,7 @@ fn parser_recovers_between_type_members() {
         .iter()
         .map(|diagnostic| diagnostic.message.as_str())
         .collect();
-    assert_eq!(
-        messages,
-        [
-            "class stored properties require an explicit type",
-            "expected parameter name, found `:`",
-        ]
-    );
+    assert_eq!(messages, ["expected parameter name, found `:`",]);
 }
 
 #[test]

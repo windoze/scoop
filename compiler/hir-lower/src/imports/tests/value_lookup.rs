@@ -19,7 +19,7 @@ fn object(name: &str, members: Vec<ast::ClassMember>) -> ast::Decl {
 fn stored(name: &str, ty: ast::TypeRef, expression: ast::Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
         mutable: true,
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(expression),
             accessors: ast::AccessorSyntax::default(),

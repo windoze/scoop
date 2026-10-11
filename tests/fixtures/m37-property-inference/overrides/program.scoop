@@ -1,0 +1,27 @@
+interface Readable {
+    val value: Int
+}
+interface Default {
+    val text get() = "default"
+}
+open class Base {
+    open val label get() = "base"
+    open var size: Int = 1
+}
+class Child : Base(), Readable, Default {
+    override val value = 42
+    override val label: String get() = "child"
+    override var size = 7
+}
+fun main() {
+    val child = Child()
+    val readable: Readable = child
+    val defaults: Default = child
+    val base: Base = child
+    println(readable.value)
+    println(defaults.text)
+    println(base.label)
+    println(base.size)
+    base.size = 9
+    println(child.size)
+}

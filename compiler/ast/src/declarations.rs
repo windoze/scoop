@@ -79,12 +79,16 @@ pub struct PropertyDecl {
     pub type_params: Vec<TypeParamDecl>,
     pub where_clause: Option<WhereClause>,
     pub name: Ident,
-    pub ty: TypeRef,
+    pub ty: Option<TypeRef>,
     pub body: PropertyBodySyntax,
     pub span: Span,
 }
 
 impl PropertyDecl {
+    pub fn type_span(&self) -> Span {
+        self.ty.as_ref().map_or(self.name.span, |ty| ty.span)
+    }
+
     pub fn initializer(&self) -> Option<&Expr> {
         match &self.body {
             PropertyBodySyntax::Initializer { expression, .. }

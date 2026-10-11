@@ -450,7 +450,14 @@ impl Lowerer {
         );
 
         self.register_derived_parameter_interfaces();
+        self.declaration_inference.ready = true;
         self.complete_inferred_functions();
+        self.complete_inferred_properties();
+        if self.declaration_inference_failed() {
+            return Err(self.take_source_diagnostics());
+        }
+        let raw_initializers = std::mem::take(&mut self.pending_raw_initializers);
+        self.resolve_raw_global_initializers(raw_initializers);
         self.validate_inferred_result_contracts();
         self.validate_signature_exposure();
         self.finish_export_parameter_interfaces();

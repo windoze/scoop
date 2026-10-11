@@ -10,9 +10,11 @@ impl Lowerer {
         for declaration in declarations {
             self.current_file = declaration.file;
             let initializer = match &declaration.declaration.body {
-                ast::PropertyBodySyntax::Initializer { expression, .. } => {
-                    self.static_property_constant(expression, declaration.ty)
-                }
+                ast::PropertyBodySyntax::Initializer { expression, .. } => declaration
+                    .declaration
+                    .ty
+                    .as_ref()
+                    .and_then(|_| self.static_property_constant(expression, declaration.ty)),
                 ast::PropertyBodySyntax::OptionalOmitted => {
                     if !declaration.declaration.mutable || self.as_option(declaration.ty).is_none()
                     {

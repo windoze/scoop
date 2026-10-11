@@ -67,7 +67,9 @@ impl Lowerer {
             }
             let mut valid_override = false;
             for inherited in inherited {
-                if !self.types_equal(declaration.ty, inherited.ty) {
+                let pending = self.property_type_pending(property)
+                    || matches!(inherited.reference, hir::PropertyReference::Local(id) if self.property_type_pending(id));
+                if !pending && !self.types_equal(declaration.ty, inherited.ty) {
                     self.error(
                         declaration.span,
                         format!(

@@ -7,6 +7,16 @@ impl Lowerer {
         id: FunctionId,
         source: &ast::FunctionDecl,
     ) -> hir::Body {
+        self.with_declaration_inference_scope(self.function_files[&id], |this| {
+            this.lower_body(id, source)
+        })
+    }
+
+    pub(super) fn with_declaration_inference_scope<T>(
+        &mut self,
+        source_file: usize,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> T {
         // A declaration query can start inside an argument, lambda, default,
         // or initializer. None of that caller's lexical state enters its body.
         let locals = std::mem::take(&mut self.locals);
@@ -26,12 +36,12 @@ impl Lowerer {
         let place_inputs = self.place_index_inputs.take();
         let derived_origin = self.derived_expression_origin.take();
         let default_template = std::mem::replace(&mut self.lowering_default_template, false);
-        let file = std::mem::replace(&mut self.current_file, self.function_files[&id]);
+        let file = std::mem::replace(&mut self.current_file, source_file);
         let name = std::mem::take(&mut self.current_fn_name);
         let return_ty = self.current_return_ty;
         let owner = self.current_owner;
         let this = self.current_this;
-        let body = self.lower_body(id, source);
+        let result = operation(self);
         self.locals = locals;
         self.scopes = scopes;
         self.local_function_scopes = functions;
@@ -53,6 +63,6 @@ impl Lowerer {
         self.current_return_ty = return_ty;
         self.current_owner = owner;
         self.current_this = this;
-        body
+        result
     }
 }

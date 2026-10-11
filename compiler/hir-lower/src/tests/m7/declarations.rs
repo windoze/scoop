@@ -211,7 +211,7 @@ fn global_initializer_uses_the_frozen_duplicate_surface() {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("probe"),
-        ty: ty_named("Unit"),
+        ty: Some(ty_named("Unit")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(call("println", Vec::new())),
             accessors: ast::AccessorSyntax::default(),

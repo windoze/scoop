@@ -121,6 +121,7 @@ impl Lowerer {
         let effects = callable.effects();
         Some(InterfaceSignature {
             result_pending: false,
+            parameter_pending: false,
             name: name.to_owned(),
             accessor,
             parameters: callable

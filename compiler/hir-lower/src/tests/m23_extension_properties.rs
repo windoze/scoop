@@ -122,7 +122,7 @@ fn property(receiver: Option<&str>, name: &str, marker: i64, setter: SetterMode)
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),

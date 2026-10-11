@@ -19,7 +19,7 @@ fn runtime_property(name: &str, expression: ast::Expr) -> ast::Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("SourceLocation"),
+        ty: Some(ty_named("SourceLocation")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(expression),
             accessors: ast::AccessorSyntax::default(),

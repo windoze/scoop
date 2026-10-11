@@ -1,0 +1,30 @@
+val answer = next()
+var count = 40
+fun next() = 42
+val computed get() = count + 2
+var editable
+    get() = count
+    set(value) { count = value }
+class Box<T>(val seed: T) {
+    val stored = seed
+    val repeated = stored
+    val action = { seed }
+    val view get() = stored
+}
+object Values {
+    val title = "object"
+    var number = 3
+}
+fun main() {
+    println(answer)
+    println(computed)
+    editable = 7
+    println(count)
+    val box = Box("generic")
+    println(box.repeated)
+    println(box.action())
+    println(box.view)
+    println(Values.title)
+    Values.number += 1
+    println(Values.number)
+}

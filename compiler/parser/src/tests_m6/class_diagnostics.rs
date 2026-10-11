@@ -17,10 +17,16 @@ fn ordinary_class_constructor_parameter_is_preserved() {
 }
 
 #[test]
-fn class_body_property_requires_an_explicit_type() {
-    let (span, message) = err("class C {\n    val y = 1\n}\n");
-    assert_eq!(span, Span::new(20, 21));
-    assert_eq!(message, "class stored properties require an explicit type");
+fn class_body_property_retains_an_omitted_type() {
+    let file = ok("class C {\n    val y = 1\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    let scoop_ast::ClassMember::StoredProperty(property) = &class.members[0] else {
+        panic!("expected property")
+    };
+    assert!(property.ty.is_none());
+    assert_eq!(property.name.span, Span::new(18, 19));
 }
 
 #[test]

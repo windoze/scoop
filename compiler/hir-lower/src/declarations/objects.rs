@@ -212,7 +212,7 @@ impl Lowerer {
             if matches!(property.body, ast::PropertyBodySyntax::Const(_)) {
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+            let Some(ty) = self.resolve_property_annotation(property) else {
                 continue;
             };
             let slot_access = if property.is_override {

@@ -1,0 +1,8 @@
+interface Left {}
+interface Right {}
+class Slot {
+    operator fun getValue(thisRef: Left) = 1
+    operator fun getValue(thisRef: Right) = "wrong"
+}
+class Host : Left, Right { val value by Slot() }
+fun main() {}

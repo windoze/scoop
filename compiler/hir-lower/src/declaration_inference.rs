@@ -7,13 +7,25 @@ use std::rc::Rc;
 
 mod contracts;
 pub(crate) use contracts::ResultType;
+mod properties;
 mod scope;
 
 #[derive(Clone, Default)]
 pub(crate) struct DeclarationInference {
     functions: imbl::HashMap<FunctionId, InferredFunction>,
-    active: Vec<FunctionId>,
+    active: Vec<DeclarationKey>,
+    properties: imbl::HashMap<hir::PropertyId, properties::InferredProperty>,
+    pub(crate) ready: bool,
+    lowered_accessors: std::collections::HashSet<FunctionId>,
+    pub(crate) lowered_initializers: std::collections::HashSet<hir::InitializationUnitId>,
+    pub(crate) field_initializers: imbl::HashMap<hir::PropertyId, hir::ClassInitializationStep>,
     contracts: Vec<contracts::ResultContract>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeclarationKey {
+    Function(FunctionId),
+    Property(hir::PropertyId),
 }
 
 #[derive(Clone)]
@@ -41,12 +53,25 @@ pub(crate) fn infers_result(declaration: &ast::FunctionDecl) -> bool {
 }
 
 impl Lowerer {
+    fn declaration_inference_path(&self, end: DeclarationKey) -> String {
+        self.declaration_inference
+            .active
+            .iter()
+            .chain(std::iter::once(&end))
+            .map(|key| match *key {
+                DeclarationKey::Function(id) => self.source_function_name(id).to_owned(),
+                DeclarationKey::Property(id) => self.properties[id].name.clone(),
+            })
+            .collect::<Vec<_>>()
+            .join(" -> ")
+    }
+
     pub(crate) fn register_inferred_function(
         &mut self,
         id: FunctionId,
         source: &ast::FunctionDecl,
     ) {
-        if infers_result(source) {
+        if infers_result(source) && self.function_accessor_kind(id).is_none() {
             self.declaration_inference.functions.insert(
                 id,
                 InferredFunction {
@@ -69,12 +94,17 @@ impl Lowerer {
         self.register_inferred_function(id, source);
         if let Some(inference) = self.declaration_inference.functions.get_mut(&id) {
             inference.state = InferenceState::Active;
-            self.declaration_inference.active.push(id);
+            self.declaration_inference
+                .active
+                .push(DeclarationKey::Function(id));
         }
     }
 
     pub(crate) fn finish_local_result_inference(&mut self, id: FunctionId, valid: bool) {
-        assert_eq!(self.declaration_inference.active.pop(), Some(id));
+        assert_eq!(
+            self.declaration_inference.active.pop(),
+            Some(DeclarationKey::Function(id))
+        );
         self.declaration_inference
             .functions
             .get_mut(&id)
@@ -109,6 +139,18 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn declaration_inference_failed(&self) -> bool {
+        self.declaration_inference
+            .functions
+            .values()
+            .any(|query| matches!(query.state, InferenceState::Failed))
+            || self
+                .declaration_inference
+                .properties
+                .values()
+                .any(|query| matches!(query.state, InferenceState::Failed))
+    }
+
     pub(crate) fn complete_inferred_functions(&mut self) {
         let mut functions = self
             .declaration_inference
@@ -123,6 +165,15 @@ impl Lowerer {
     }
 
     pub(crate) fn infer_function_result(&mut self, id: FunctionId) -> Option<TypeId> {
+        if let Some(property) = self
+            .property_accessor_sources
+            .iter()
+            .find(|source| source.function == id)
+            .map(|source| source.property)
+        {
+            self.infer_property_type(property)?;
+            return Some(self.signatures[&id].return_ty);
+        }
         let Some(inference) = self.declaration_inference.functions.get(&id).cloned() else {
             return Some(self.signatures[&id].return_ty);
         };
@@ -130,14 +181,7 @@ impl Lowerer {
             InferenceState::Complete => return Some(self.signatures[&id].return_ty),
             InferenceState::Failed => return None,
             InferenceState::Active => {
-                let names = self
-                    .declaration_inference
-                    .active
-                    .iter()
-                    .chain(std::iter::once(&id))
-                    .map(|id| self.source_function_name(*id))
-                    .collect::<Vec<_>>()
-                    .join(" -> ");
+                let names = self.declaration_inference_path(DeclarationKey::Function(id));
                 let file = std::mem::replace(&mut self.current_file, self.function_files[&id]);
                 self.error(
                     inference.declaration.name.span,
@@ -155,7 +199,9 @@ impl Lowerer {
             .get_mut(&id)
             .expect("query is registered")
             .state = InferenceState::Active;
-        self.declaration_inference.active.push(id);
+        self.declaration_inference
+            .active
+            .push(DeclarationKey::Function(id));
         let diagnostics_before = self.diagnostics.len();
         let body = self.lower_inferred_function_body(id, &inference.declaration);
         let file = std::mem::replace(&mut self.current_file, self.function_files[&id]);
@@ -163,7 +209,10 @@ impl Lowerer {
         self.current_file = file;
         let valid = self.diagnostics.len() == diagnostics_before;
         self.functions[id].kind = hir::FunctionKind::User(body);
-        assert_eq!(self.declaration_inference.active.pop(), Some(id));
+        assert_eq!(
+            self.declaration_inference.active.pop(),
+            Some(DeclarationKey::Function(id))
+        );
         self.declaration_inference
             .functions
             .get_mut(&id)

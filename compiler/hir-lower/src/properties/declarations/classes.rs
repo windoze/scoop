@@ -63,7 +63,7 @@ impl Lowerer {
             type_params: Vec::new(),
             where_clause: None,
             name: parameter.name.clone(),
-            ty: parameter.ty.clone(),
+            ty: Some(parameter.ty.clone()),
             body: ast::PropertyBodySyntax::Initializer {
                 expression: Box::new(ast::Expr::UnitLiteral {
                     span: parameter.span,

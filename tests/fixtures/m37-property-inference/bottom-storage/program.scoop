@@ -1,0 +1,9 @@
+val nothingToStore = Unit
+class Broken {
+    val impossible = throw IllegalStateException()
+}
+fun consume(value: Unit) { println("unit") }
+fun main() {
+    consume(nothingToStore)
+    try { val ignored = Broken() } catch (failure: Throwable) { println("caught") }
+}

@@ -52,6 +52,7 @@ impl Lowerer {
         );
         FnSig {
             result_pending: sig.result_pending,
+            parameter_pending: sig.parameter_pending,
             context_parameters: sig
                 .context_parameters
                 .into_iter()
@@ -134,11 +135,13 @@ impl Lowerer {
         self.source_function_name(candidate) == name
             && candidate_own_count == expected_own_count
             && candidate_sig.params.len() == sig.params.len()
-            && candidate_sig
-                .params
-                .iter()
-                .zip(&sig.params)
-                .all(|(a, b)| self.types_equal(a.ty, b.ty))
+            && (candidate_sig.parameter_pending
+                || sig.parameter_pending
+                || candidate_sig
+                    .params
+                    .iter()
+                    .zip(&sig.params)
+                    .all(|(a, b)| self.types_equal(a.ty, b.ty)))
             && (candidate_sig.result_pending
                 || sig.result_pending
                 || self.types_equal(candidate_sig.return_ty, sig.return_ty))

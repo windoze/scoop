@@ -131,7 +131,7 @@ fn property(name: &str, ty: &str) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named(ty),
+        ty: Some(ty_named(ty)),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),

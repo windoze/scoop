@@ -162,6 +162,7 @@ impl Lowerer {
             function,
             crate::FnSig {
                 result_pending: false,
+                parameter_pending: false,
                 context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers::default(),

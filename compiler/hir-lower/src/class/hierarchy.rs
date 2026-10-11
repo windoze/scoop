@@ -123,8 +123,8 @@ impl Lowerer {
                 .find(|property| self.properties[**property].name == name)
                 && self.property_is_accessible(property, Some(receiver_ty))
             {
-                let ty =
-                    self.instantiate_ty(self.properties[property].ty, &application_value.arguments);
+                let ty = self.infer_property_type(property)?;
+                let ty = self.instantiate_ty(ty, &application_value.arguments);
                 return Some((application, property, ty));
             }
             let base = self.classes[class].base_class?;

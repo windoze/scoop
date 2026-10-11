@@ -392,7 +392,10 @@ fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
                     "{pad}{} {}: {} =\n",
                     if property.mutable { "var" } else { "val" },
                     property.name.text,
-                    dump_type_ref(&property.ty)
+                    property
+                        .ty
+                        .as_ref()
+                        .map_or_else(|| "<inferred>".into(), dump_type_ref)
                 ));
                 dump_expr(expression, indent + 1, out);
             } else {
@@ -542,7 +545,10 @@ fn dump_property(property: &PropertyDecl, indent: usize, out: &mut String) {
         dump_visibility(property.visibility),
         if property.mutable { "var" } else { "val" },
         property.name.text,
-        dump_type_ref(&property.ty),
+        property
+            .ty
+            .as_ref()
+            .map_or_else(|| "<inferred>".into(), dump_type_ref),
         dump_where_clause(property.where_clause.as_ref()),
         dump_property_body_suffix(&property.body)
     ));
@@ -585,7 +591,10 @@ fn dump_global_property(property: &PropertyDecl, out: &mut String) {
         dump_visibility(property.visibility),
         if property.mutable { "var" } else { "val" },
         property.name.text,
-        dump_type_ref(&property.ty),
+        property
+            .ty
+            .as_ref()
+            .map_or_else(|| "<inferred>".into(), dump_type_ref),
         dump_where_clause(property.where_clause.as_ref()),
         body
     ));

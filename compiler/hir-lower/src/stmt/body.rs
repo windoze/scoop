@@ -154,7 +154,7 @@ impl Lowerer {
             ast::FunctionBody::Expr(expr) => {
                 let mut statements = Vec::new();
                 let mut sink = Vec::new();
-                let inferring = self.has_inferred_function(id);
+                let inferring = self.signatures[&id].result_pending;
                 if !self.reject_expression_body_return(expr)
                     && let Some(value) =
                         self.lower_expr(expr, &mut sink, (!inferring).then_some(return_ty))

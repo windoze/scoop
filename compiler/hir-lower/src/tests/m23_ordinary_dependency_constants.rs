@@ -238,7 +238,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: scoop_ast::PropertyBodySyntax::Const(Box::new(expression)),
         span: sp(),
     })

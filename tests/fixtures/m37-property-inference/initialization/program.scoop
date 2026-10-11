@@ -1,0 +1,25 @@
+var calls = 0
+fun produce() = if (true) { calls += 1; calls } else 0
+val first = produce()
+val second = produce() + first
+class Pair(seed: Int) {
+    val left = seed
+    val right = left + 1
+    init { println(right) }
+    val closure = { seed }
+}
+object Once {
+    val saved = produce()
+}
+val safe: Int get() = inferred
+val inferred = if (true) 9 else safe
+fun main() {
+    println(first)
+    println(second)
+    val pair = Pair(7)
+    println(pair.closure())
+    println(Once.saved)
+    println(Once.saved)
+    println(calls)
+    println(safe)
+}

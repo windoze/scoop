@@ -151,7 +151,7 @@ fn omitted_optional_global(name: &str, inner: TypeRef) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_nullable(inner),
+        ty: Some(ty_nullable(inner)),
         body: ast::PropertyBodySyntax::OptionalOmitted,
         span: sp(),
     })
@@ -502,7 +502,7 @@ fn runtime_global_initializer_validates_callable_pointee_requirements() {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("badGlobal"),
-        ty: ty_named("Unit"),
+        ty: Some(ty_named("Unit")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(typed_call("g", vec![ty_named("ManagedValue")], Vec::new())),
             accessors: ast::AccessorSyntax::default(),
@@ -848,7 +848,7 @@ fn closed_pointee_applications_are_replayed_in_class_initialization_regions() {
             type_params: Vec::new(),
             where_clause: None,
             name: ident("initialized"),
-            ty: ty_named("Unit"),
+            ty: Some(ty_named("Unit")),
             body: ast::PropertyBodySyntax::Initializer {
                 expression: Box::new(closed_wrapper_occurrence(wrapper_names[2])),
                 accessors: ast::AccessorSyntax::default(),

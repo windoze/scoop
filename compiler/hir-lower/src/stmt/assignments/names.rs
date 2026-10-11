@@ -197,7 +197,7 @@ impl Lowerer {
                     return None;
                 };
                 let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
-                let expected = self.properties[property].ty;
+                let expected = self.infer_property_type(property)?;
                 let mut sink = Vec::new();
                 let receiver = receiver.map(|receiver| {
                     self.materialize_place_expr(receiver, "property_receiver", name.span, &mut sink)

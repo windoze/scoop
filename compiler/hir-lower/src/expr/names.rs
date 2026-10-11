@@ -73,7 +73,7 @@ impl Lowerer {
                             )
                     });
                 if let Some(property) = property {
-                    let ty = self.properties[property].ty;
+                    let ty = self.infer_property_type(property)?;
                     return self.lower_property_read(property, None, None, ty, name.span);
                 }
             }
@@ -242,13 +242,8 @@ impl Lowerer {
         match target {
             ValueTarget::Property(property) => {
                 let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
-                self.lower_property_read(
-                    property,
-                    owner,
-                    receiver,
-                    self.properties[property].ty,
-                    name.span,
-                )
+                let ty = self.infer_property_type(property)?;
+                self.lower_property_read(property, owner, receiver, ty, name.span)
             }
             ValueTarget::Object(object) => self.lower_singleton_value(object, name.span),
             ValueTarget::Variant(target) => {

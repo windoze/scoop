@@ -21,6 +21,7 @@ impl Lowerer {
             .iter()
             .find(|property| self.properties[**property].name == name)
         {
+            self.infer_property_type(property_id)?;
             let property = self.properties[property_id].clone();
             if !self.property_is_accessible(property_id, Some(receiver)) {
                 return None;

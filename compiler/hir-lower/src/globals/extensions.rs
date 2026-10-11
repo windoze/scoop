@@ -59,7 +59,7 @@ impl Lowerer {
             .receiver_ty
             .as_ref()
             .and_then(|receiver| self.resolve_type_ref(receiver));
-        let property_ty = self.resolve_type_ref(&declaration.ty);
+        let property_ty = self.resolve_property_annotation(declaration);
         self.type_params_in_scope.clear();
         let (Some(receiver_ty), Some(property_ty)) = (receiver_ty, property_ty) else {
             return;

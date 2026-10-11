@@ -39,7 +39,7 @@ impl Lowerer {
                 .qualified_object_const_property(&access.receiver, &name.text)
                 .ok()?;
             if let Some(property) = property {
-                let ty = self.properties[property].ty;
+                let ty = self.infer_property_type(property)?;
                 return self.lower_property_read(property, None, None, ty, access.span);
             }
         }

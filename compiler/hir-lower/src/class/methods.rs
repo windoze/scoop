@@ -91,6 +91,7 @@ impl Lowerer {
             id,
             FnSig {
                 result_pending: crate::declaration_inference::infers_result(decl),
+                parameter_pending: false,
                 context_parameters: self.functions[id].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers,

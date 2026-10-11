@@ -1,0 +1,26 @@
+class Gate(var waiter: Continuation<Unit>?) {
+    fun complete() { val current = waiter!!; waiter = None; current.resume(Unit) }
+}
+class Registration(val gate: Gate) : SuspendRegistration<Unit> {
+    public override fun register(continuation: Continuation<Unit>) { gate.waiter = Some(continuation) }
+}
+suspend fun waitFor(gate: Gate) { suspendCoroutine(Registration(gate)) }
+val execute = done@ suspend { gate: Gate, text: String ->
+    try { waitFor(gate); return@done 7 }
+    finally { waitFor(gate); gcCollect(); println(text) }
+}
+class Task(val gate: Gate, val text: String) : SuspendTask<Int> {
+    public override suspend fun run() = execute(gate, text)
+}
+class Completion : Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(exception: Throwable) { println("unexpected") }
+}
+fun main() {
+    val gate = Gate(None)
+    startCoroutine(Task(gate, "alive"), Completion())
+    println("suspended")
+    gcCollect(); gate.complete()
+    println("cleanup suspended")
+    gcCollect(); gate.complete()
+}

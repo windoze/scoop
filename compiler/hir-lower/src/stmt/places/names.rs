@@ -168,7 +168,7 @@ impl Lowerer {
                 crate::imports::lookup::values::ValueTarget::Property(property),
             ) = value
             {
-                let ty = self.properties[property].ty;
+                let ty = self.infer_property_type(property)?;
                 let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
                 return Some(ResolvedPlacePlan {
                     read: self.lower_property_read(

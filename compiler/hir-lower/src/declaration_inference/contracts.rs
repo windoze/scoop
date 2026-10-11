@@ -58,7 +58,7 @@ impl Lowerer {
     pub(crate) fn validate_inferred_result_contracts(&mut self) {
         let file = self.current_file;
         for check in std::mem::take(&mut self.declaration_inference.contracts) {
-            let Some(actual) = self.contract_result_type(check.actual) else {
+            let Some(actual) = self.contract_result_type(check.actual.clone()) else {
                 continue;
             };
             let Some(expected) = self.contract_result_type(check.expected) else {
@@ -66,15 +66,30 @@ impl Lowerer {
             };
             if !self.types_equal(actual, expected) {
                 self.current_file = check.file;
-                self.error(
-                    check.span,
+                let property = match &check.actual {
+                    ResultType::Function { function, .. } => self
+                        .property_accessor_sources
+                        .iter()
+                        .find(|source| source.function == *function)
+                        .map(|source| source.property),
+                    ResultType::Known(_) => None,
+                };
+                let message = if let Some(property) = property {
+                    format!(
+                        "property `{}` must have the exact inherited type {}, found {}",
+                        self.properties[property].name,
+                        self.type_name(expected),
+                        self.type_name(actual)
+                    )
+                } else {
                     format!(
                         "return type of `{}` must match inherited result {}, found {}",
                         check.name,
                         self.type_name(expected),
                         self.type_name(actual)
-                    ),
-                );
+                    )
+                };
+                self.error(check.span, message);
             }
         }
         self.current_file = file;

@@ -60,7 +60,7 @@ fn delegated_property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Delegated {
             expression: Box::new(expression),
             by_span: sp(),

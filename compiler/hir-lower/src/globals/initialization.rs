@@ -33,6 +33,7 @@ impl Lowerer {
                 function,
                 FnSig {
                     result_pending: false,
+                    parameter_pending: false,
                     context_parameters: Vec::new(),
                     is_suspend: false,
                     modifiers: hir::CallableModifiers::default(),
@@ -61,120 +62,149 @@ impl Lowerer {
 
     pub(crate) fn lower_runtime_top_level_initializers(&mut self) {
         for pending in self.pending_runtime_initializers.clone() {
-            self.current_file = pending.file;
-            let outer_loop_targets = std::mem::take(&mut self.loop_targets);
-            let outer_source_context = self.current_source_context;
-            let outer_definition_paths = std::mem::take(&mut self.definition_paths);
-            let outer_definition_root = self
-                .definition_root
-                .replace(hir::LexicalDefinitionRoot::Function(pending.function));
-            let outer_type_params = std::mem::replace(
-                &mut self.type_params_in_scope,
-                self.signatures[&pending.function].type_params.clone(),
-            );
-            self.current_return_ty = self.unit;
-            self.current_fn_name = self.functions[pending.function].name.clone();
-            self.push_suspension_context(SuspensionContext::Forbidden(
-                ForbiddenSuspendContext::Function,
-            ));
-            self.push_safety_context(hir::Safety::Safe);
-            self.current_owner = None;
-            self.current_this = None;
-            self.set_source_context(hir::SourceContextSubject::Function(pending.function));
-            self.push_scope();
-            self.current_initialization_unit = Some(pending.unit);
-
-            let mut statements = Vec::new();
-            let mut sink = Vec::new();
-            let target = match &pending.kind {
-                PendingRuntimeInitializerKind::Stored { storage, .. }
-                | PendingRuntimeInitializerKind::Delegated {
-                    storage: PendingDelegateStorage::Global { storage, .. },
-                    ..
-                } => hir::AssignTarget::Global(*storage),
-                PendingRuntimeInitializerKind::Delegated {
-                    storage: PendingDelegateStorage::Generic(template),
-                    ..
-                } => hir::AssignTarget::GenericDelegateStorage(
-                    self.generic_delegate_reference(*template, pending.function),
-                ),
-            };
-            let value = match &pending.kind {
-                PendingRuntimeInitializerKind::Stored { ty, expression, .. } => {
-                    self.lower_expr(expression, &mut sink, Some(*ty))
-                        .and_then(|value| {
-                            if self.is_subtype(value.ty, *ty) {
-                                Some(self.adapt_to(value, *ty))
-                            } else {
-                                let expected = self.type_name(*ty);
-                                let found = self.type_name(value.ty);
-                                self.error(
-                                    expression.span(),
-                                    format!(
-                                        "top-level property initializer must be of type {expected}, found {found}"
-                                    ),
-                                );
-                                None
-                            }
-                        })
-                }
-                PendingRuntimeInitializerKind::Delegated {
-                    property,
-                    storage,
-                    expression,
-                } => self
-                    .lower_expr(expression, &mut sink, None)
-                    .and_then(|delegate| {
-                        match self.resolve_delegate_role_call(
-                            delegate.clone(),
-                            hir::PropertyDelegateOperatorKind::ProvideDelegate,
-                            Vec::new(),
-                            pending.span,
-                        ) {
-                            crate::properties::DelegateRoleCall::Resolved(effective) => {
-                                Some(effective.expression)
-                            }
-                            crate::properties::DelegateRoleCall::NoApplicable => Some(delegate),
-                            crate::properties::DelegateRoleCall::Failed => None,
-                        }
-                    })
-                    .inspect(|effective| {
-                        match *storage {
-                            PendingDelegateStorage::Global { storage, delegate } => {
-                                self.globals[storage].ty = effective.ty;
-                                self.delegate_storages[delegate].ty = effective.ty;
-                                debug_assert_eq!(self.delegate_storages[delegate].property, *property);
-                            }
-                            PendingDelegateStorage::Generic(template) => {
-                                self.generic_delegate_templates[template].ty = effective.ty;
-                                debug_assert_eq!(self.generic_delegate_templates[template].property, *property);
-                            }
-                        }
-                    }),
-            };
-            if let Some(value) = value {
-                statements.extend(sink);
-                statements.push(hir::Statement {
-                    kind: hir::StatementKind::Assign { target, value },
-                    span: pending.span,
-                });
+            if !self
+                .declaration_inference
+                .lowered_initializers
+                .contains(&pending.unit)
+            {
+                self.lower_runtime_initializer(&pending);
             }
-            self.current_initialization_unit = None;
-            self.pop_scope();
-            self.current_source_context = outer_source_context;
-            self.definition_paths = outer_definition_paths;
-            self.definition_root = outer_definition_root;
-            self.pop_safety_context();
-            self.pop_suspension_context();
-            self.functions[pending.function].kind = FunctionKind::User(hir::Body {
-                locals: std::mem::take(&mut self.locals).into_arena(),
-                statements,
-            });
-            debug_assert!(self.loop_targets.is_empty());
-            self.loop_targets = outer_loop_targets;
-            self.type_params_in_scope = outer_type_params;
         }
         self.diagnose_initialization_cycles();
+    }
+
+    pub(crate) fn lower_runtime_initializer(
+        &mut self,
+        pending: &PendingRuntimeInitializer,
+    ) -> Option<hir::TypeId> {
+        self.current_file = pending.file;
+        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
+        let outer_source_context = self.current_source_context;
+        let outer_definition_paths = std::mem::take(&mut self.definition_paths);
+        let outer_definition_root = self
+            .definition_root
+            .replace(hir::LexicalDefinitionRoot::Function(pending.function));
+        let outer_type_params = std::mem::replace(
+            &mut self.type_params_in_scope,
+            self.signatures[&pending.function].type_params.clone(),
+        );
+        self.current_return_ty = self.unit;
+        self.current_fn_name = self.functions[pending.function].name.clone();
+        self.push_suspension_context(SuspensionContext::Forbidden(
+            ForbiddenSuspendContext::Function,
+        ));
+        self.push_safety_context(hir::Safety::Safe);
+        self.current_owner = None;
+        self.current_this = None;
+        self.set_source_context(hir::SourceContextSubject::Function(pending.function));
+        self.push_scope();
+        self.current_initialization_unit = Some(pending.unit);
+
+        let mut statements = Vec::new();
+        let mut sink = Vec::new();
+        let target = match &pending.kind {
+            PendingRuntimeInitializerKind::Stored { storage, .. }
+            | PendingRuntimeInitializerKind::Delegated {
+                storage: PendingDelegateStorage::Global { storage, .. },
+                ..
+            } => hir::AssignTarget::Global(*storage),
+            PendingRuntimeInitializerKind::Delegated {
+                storage: PendingDelegateStorage::Generic(template),
+                ..
+            } => hir::AssignTarget::GenericDelegateStorage(
+                self.generic_delegate_reference(*template, pending.function),
+            ),
+        };
+        let value = match &pending.kind {
+            PendingRuntimeInitializerKind::Stored {
+                storage,
+                ty,
+                expression,
+            } => {
+                let property = self.globals[*storage].property;
+                let expected = (!self.property_type_pending(property)).then_some(*ty);
+                self.lower_expr(expression, &mut sink, expected)
+                    .and_then(|value| {
+                        if expected.is_none() {
+                            self.set_inferred_property_type(property, value.ty);
+                            return Some(value);
+                        }
+                        if self.is_subtype(value.ty, *ty) {
+                            Some(self.adapt_to(value, *ty))
+                        } else {
+                            let expected = self.type_name(*ty);
+                            let found = self.type_name(value.ty);
+                            self.error(
+                                expression.span(),
+                                format!(
+                                    "top-level property initializer must be of type {expected}, found {found}"
+                                ),
+                            );
+                            None
+                        }
+                    })
+            }
+            PendingRuntimeInitializerKind::Delegated {
+                property,
+                storage,
+                expression,
+            } => self
+                .lower_expr(expression, &mut sink, None)
+                .and_then(|delegate| {
+                    match self.resolve_delegate_role_call(
+                        delegate.clone(),
+                        hir::PropertyDelegateOperatorKind::ProvideDelegate,
+                        Vec::new(),
+                        pending.span,
+                    ) {
+                        crate::properties::DelegateRoleCall::Resolved(effective) => {
+                            Some(effective.expression)
+                        }
+                        crate::properties::DelegateRoleCall::NoApplicable => Some(delegate),
+                        crate::properties::DelegateRoleCall::Failed => None,
+                    }
+                })
+                .inspect(|effective| match *storage {
+                    PendingDelegateStorage::Global { storage, delegate } => {
+                        self.globals[storage].ty = effective.ty;
+                        self.delegate_storages[delegate].ty = effective.ty;
+                        debug_assert_eq!(self.delegate_storages[delegate].property, *property);
+                    }
+                    PendingDelegateStorage::Generic(template) => {
+                        self.generic_delegate_templates[template].ty = effective.ty;
+                        debug_assert_eq!(
+                            self.generic_delegate_templates[template].property,
+                            *property
+                        );
+                    }
+                }),
+        };
+        let value_type = value.as_ref().map(|value| value.ty);
+        if let Some(value) = value {
+            statements.extend(sink);
+            statements.push(hir::Statement {
+                kind: hir::StatementKind::Assign { target, value },
+                span: pending.span,
+            });
+        }
+        self.current_initialization_unit = None;
+        self.pop_scope();
+        self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
+        self.definition_root = outer_definition_root;
+        self.pop_safety_context();
+        self.pop_suspension_context();
+        self.functions[pending.function].kind = FunctionKind::User(hir::Body {
+            locals: std::mem::take(&mut self.locals).into_arena(),
+            statements,
+        });
+        debug_assert!(self.loop_targets.is_empty());
+        self.loop_targets = outer_loop_targets;
+        self.type_params_in_scope = outer_type_params;
+        self.declaration_inference
+            .lowered_initializers
+            .insert(pending.unit);
+        value_type
     }
 
     pub(super) fn diagnose_initialization_cycles(&mut self) {

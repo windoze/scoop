@@ -33,6 +33,7 @@ impl Lowerer {
             matches!(backing, Some(hir::PropertyBacking::TopLevelGlobal { .. }));
         let exported_storage = backing.is_some() && Self::declaration_is_exported(&access);
         if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
+            self.register_inferred_property(property, declaration);
             return Some(self.allocate_delegated_property_accessors(
                 property,
                 owner,
@@ -152,6 +153,7 @@ impl Lowerer {
                 );
                 return None;
             }
+            self.register_inferred_property(property, declaration);
             return Some(hir::PropertyCapability::ReadOnly { getter });
         }
 
@@ -283,6 +285,7 @@ impl Lowerer {
             parameter_name,
             span: setter_span,
         });
+        self.register_inferred_property(property, declaration);
         Some(hir::PropertyCapability::ReadWrite { getter, setter })
     }
 

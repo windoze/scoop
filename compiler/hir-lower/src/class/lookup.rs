@@ -333,11 +333,13 @@ impl Lowerer {
             && left_sig.attributes == right_sig.attributes
             && left_sig.type_params.len() == right_sig.type_params.len()
             && left_sig.params.len() == right_sig.params.len()
-            && left_sig
-                .params
-                .iter()
-                .zip(&right_sig.params)
-                .all(|(left, right)| self.types_equal(left.ty, right.ty))
+            && (left_sig.parameter_pending
+                || right_sig.parameter_pending
+                || left_sig
+                    .params
+                    .iter()
+                    .zip(&right_sig.params)
+                    .all(|(left, right)| self.types_equal(left.ty, right.ty)))
             && (left_sig.result_pending
                 || right_sig.result_pending
                 || self.types_equal(left_sig.return_ty, right_sig.return_ty))
