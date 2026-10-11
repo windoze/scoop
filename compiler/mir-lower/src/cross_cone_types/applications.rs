@@ -118,6 +118,7 @@ fn project(
                 .map(|ty| local.exact_type_identities[*ty].id())
                 .collect();
             Repr::Enum {
+                representation: module.enums[*id].representation.clone(),
                 variants: representation::fields::variants(module, &module.enums[*id].variants)?,
             }
         }

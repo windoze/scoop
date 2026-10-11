@@ -65,7 +65,21 @@ pub(super) fn validate(
                 shape.interior_mutable() == *interior_mutable,
             )
         }
-        (Source::Enum { variants }, Repr::Enum { variants: actual }) => {
+        (
+            Source::Enum {
+                variants,
+                representation,
+            },
+            Repr::Enum {
+                variants: actual,
+                representation: actual_repr,
+            },
+        ) => {
+            Error::require(
+                exact,
+                Component::Representation,
+                policies::enum_representation_matches(representation, actual_repr),
+            )?;
             variants_match(comparison, exact, variants, actual)
         }
         (

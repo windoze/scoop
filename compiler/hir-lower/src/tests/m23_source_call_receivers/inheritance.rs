@@ -32,7 +32,7 @@ fn imported_default_adapts_an_inherited_member_receiver() {
             panic!("the call argument retains its declaring class type")
         };
         assert_eq!(local.classes[parent].name, "Parent");
-        let hir::concrete::ExprKind::ReferenceUpcast(value) = &argument.kind else {
+        let hir::concrete::ExprKind::Upcast(value) = &argument.kind else {
             panic!("the inherited receiver requires a reference upcast")
         };
         assert_eq!(value.ty, static_type);

@@ -57,6 +57,7 @@ impl Concretizer<'_> {
         );
         let ty = self.intern_type(concrete::TypeKind::Enum(id), false);
         let allocated = self.enums.alloc(concrete::EnumDef {
+            representation: definition.representation.clone(),
             origin: definition.origin.clone(),
             canonical_type: ty,
             name: definition.name.clone(),
@@ -110,11 +111,20 @@ impl Concretizer<'_> {
         self.check_completed_no_gc_type("enum", &definition.name, definition.no_gc, gc_free);
         let methods =
             self.request_concrete_methods(definition.methods, concrete::MethodOwner::Enum(id));
-        let direct_interfaces: Vec<_> = definition
+        let mut direct_interfaces: Vec<_> = definition
             .interfaces
             .iter()
             .map(|interface| self.lower_type(*interface, substitution))
             .collect();
+        if let Some(kind) = definition.representation.integer_kind() {
+            self.lower_integer_type(kind, substitution);
+            for source in self.source.integer_interface_roots(kind).to_vec() {
+                let interface = self.lower_type(source, substitution);
+                if !direct_interfaces.contains(&interface) {
+                    direct_interfaces.push(interface);
+                }
+            }
+        }
         let interface_implementations = self
             .lower_interface_implementations(definition.interface_implementations, substitution);
         let interfaces = interface_implementations

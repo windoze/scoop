@@ -122,7 +122,7 @@ fn native_boundary_producer_closes_local_struct_enum_and_all_imported_primitives
                             assert_eq!(*c_layout, hir::NativeBoundaryCLayoutPolicy::NotCLayout);
                         }
                     }
-                    hir::NativeBoundaryNominalShape::Enum { variants } => {
+                    hir::NativeBoundaryNominalShape::Enum { variants, .. } => {
                         assert_eq!(name, "Choice");
                         assert_eq!(
                             variants

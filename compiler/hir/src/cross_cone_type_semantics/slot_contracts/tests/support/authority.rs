@@ -89,6 +89,13 @@ impl NominalInheritanceSemanticAuthority<&'static str> for Fixture {
     }
 }
 impl InheritanceSlotContractSemanticAuthority<&'static str> for Fixture {
+    fn integral_enum_parent(
+        &self,
+        _: PersistentExactTypeId,
+    ) -> Result<Option<PersistentExactTypeId>, &'static str> {
+        Ok(None)
+    }
+
     fn unit_exact_type(&self) -> Result<PersistentExactTypeId, &'static str> {
         Ok(self.unit.exact)
     }

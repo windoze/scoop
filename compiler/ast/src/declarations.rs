@@ -342,6 +342,8 @@ pub struct VariantDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VariantDeclKind {
+    /// `Variant = integer_constant` in an integral enum.
+    Constant(Box<crate::Expr>),
     /// `SimpleVariant`
     Unit,
     /// `VariantWithValue(Int, String)` — unnamed fields.

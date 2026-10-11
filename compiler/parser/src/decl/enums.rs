@@ -234,6 +234,12 @@ impl Parser {
         let name = self.expect_ident("variant name")?;
         let start = name.span.start;
         let (kind, end) = match self.peek().kind {
+            TokenKind::Equal => {
+                self.bump();
+                let value = self.parse_expr()?;
+                let end = value.span().end;
+                (VariantDeclKind::Constant(Box::new(value)), end)
+            }
             TokenKind::LParen => {
                 self.bump();
                 let mut annotations = self.parse_annotations()?;

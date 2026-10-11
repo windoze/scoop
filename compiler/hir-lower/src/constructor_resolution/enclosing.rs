@@ -55,11 +55,12 @@ impl Lowerer {
         self.local_type_parameter_count(owner)
     }
 
-    pub(super) fn inner_explicit_arguments(
+    pub(crate) fn constructor_type_arguments(
         &mut self,
         receiver: Option<&hir::Expr>,
         view: &NominalConstructorView,
-        call: &NominalConstructorCall<'_>,
+        arguments: &[ResolvedCallTypeArgument],
+        span: ast::Span,
     ) -> Option<Vec<ResolvedCallTypeArgument>> {
         let outer = if let Some(receiver) =
             receiver.filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Class(_)))
@@ -70,7 +71,7 @@ impl Lowerer {
         } else {
             let count = self.local_constructor_parameter_count(view.target);
             if count == 0 {
-                return Some(call.explicit_type_args.to_vec());
+                return Some(arguments.to_vec());
             }
             view.signature.owner_parameters[..count]
                 .iter()
@@ -78,29 +79,25 @@ impl Lowerer {
                 .collect()
         };
         let count = view.signature.owner_parameters.len() - outer.len();
-        if !call.explicit_type_args.is_empty() && call.explicit_type_args.len() != count {
+        if !arguments.is_empty() && arguments.len() != count {
             self.diagnose_nominal_shape_failure(
                 view,
-                call.span,
+                span,
                 format!(
                     "expects {count} explicit type argument(s), but {} were supplied",
-                    call.explicit_type_args.len(),
+                    arguments.len(),
                 ),
             );
             return None;
         }
         let mut explicit = outer
             .into_iter()
-            .map(|ty| ResolvedCallTypeArgument::Explicit {
-                ty,
-                span: call.span,
-            })
+            .map(|ty| ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
-        if call.explicit_type_args.is_empty() {
-            explicit
-                .extend((0..count).map(|_| ResolvedCallTypeArgument::Infer { span: call.span }));
+        if arguments.is_empty() {
+            explicit.extend((0..count).map(|_| ResolvedCallTypeArgument::Infer { span }));
         } else {
-            explicit.extend_from_slice(call.explicit_type_args);
+            explicit.extend_from_slice(arguments);
         }
         Some(explicit)
     }

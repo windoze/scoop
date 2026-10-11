@@ -340,7 +340,7 @@ pub enum ExprKind {
     /// smart cast). The result type is `Expr::ty`.
     Unbox(Box<Expr>),
     /// Preserve the operand's type while viewing its reference as a supertype.
-    ReferenceUpcast(Box<Expr>),
+    Upcast(Box<Expr>),
     /// `expr is T`; result is `Boolean`. The checked type is in
     /// `check_ty`.
     IsInstance {

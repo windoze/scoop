@@ -106,6 +106,7 @@ fn option_of_code_pointer_records_code_niche_provenance() {
         return_type: mir::Type::Unit,
     });
     let option = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "Option<FunPtr>".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -215,6 +216,7 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
     let option_i = b.option_enum("Option<Int>", INT);
     // Reversed declaration order: the payload variant comes second.
     let flip = b.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "Flip".to_string(),
         type_arguments: Vec::new(),
         gc_free: false,
@@ -232,6 +234,7 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
     });
     // Two variants, but the payload variant has two fields: tagged.
     let pair_or_none = b.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "PairOrNone".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

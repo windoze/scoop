@@ -1,5 +1,7 @@
 use super::*;
 
+mod integral;
+
 impl Lowerer {
     pub(crate) fn declare_enum<'a>(
         &mut self,
@@ -74,6 +76,7 @@ impl Lowerer {
             span: decl.span,
 
             definition: hir::EnumDefinition {
+                representation: hir::EnumRepresentation::Algebraic,
                 no_gc,
                 self_application,
                 type_params,

@@ -10,6 +10,7 @@ pub enum DecodedNativeBoundaryNominalShape {
         fields: Vec<DecodedNativeBoundaryFieldDefinition>,
     },
     Enum {
+        representation: crate::EnumRepresentation,
         variants: Vec<DecodedNativeBoundaryVariantDefinition>,
     },
 }
@@ -31,7 +32,11 @@ impl DecodedNativeBoundaryNominalShape {
                 c_layout: c_layout.into(),
                 fields: resolve_sequence(fields, |field| field.resolve(resolver))?,
             }),
-            Self::Enum { variants } => Ok(NativeBoundaryNominalShape::Enum {
+            Self::Enum {
+                variants,
+                representation,
+            } => Ok(NativeBoundaryNominalShape::Enum {
+                representation,
                 variants: resolve_sequence(variants, |variant| variant.resolve(resolver))?,
             }),
         }
@@ -51,11 +56,20 @@ impl WireEncode for DecodedNativeBoundaryNominalShape {
                 encoder.field(2)?;
                 encode_sequence(encoder, fields)
             }
-            Self::Enum { variants } => {
-                encoder.map(2)?;
-                encode_tag(encoder, 3)?;
+            Self::Enum {
+                variants,
+                representation,
+            } => {
+                let integral = representation.integer_kind().is_some();
+                encoder.map(if integral { 3 } else { 2 })?;
+                encode_tag(encoder, if integral { 5 } else { 3 })?;
                 encoder.field(1)?;
-                encode_sequence(encoder, variants)
+                encode_sequence(encoder, variants)?;
+                if integral {
+                    encoder.field(2)?;
+                    representation.encode(encoder)?;
+                }
+                Ok(())
             }
         }
     }
@@ -83,6 +97,7 @@ impl WireDecode for DecodedNativeBoundaryNominalShape {
             3 => {
                 expect_sum_length(decoder, fields, 2)?;
                 Ok(Self::Enum {
+                    representation: crate::EnumRepresentation::Algebraic,
                     variants: decoder.field(1, |decoder| {
                         decoder.decode_array(|decoder, _| {
                             DecodedNativeBoundaryVariantDefinition::decode(decoder)
@@ -95,6 +110,19 @@ impl WireDecode for DecodedNativeBoundaryNominalShape {
                 decoder
                     .field(1, NominalIntrinsicRepresentationV1::decode)
                     .map(Self::Intrinsic)
+            }
+            5 => {
+                expect_sum_length(decoder, fields, 3)?;
+                let variants = decoder.field(1, |decoder| {
+                    decoder.decode_array(|decoder, _| {
+                        DecodedNativeBoundaryVariantDefinition::decode(decoder)
+                    })
+                })?;
+                let representation = decoder.field(2, crate::EnumRepresentation::decode)?;
+                Ok(Self::Enum {
+                    variants,
+                    representation,
+                })
             }
             tag => Err(unknown_tag(decoder, tag)),
         }

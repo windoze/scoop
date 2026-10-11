@@ -27,6 +27,11 @@ pub(super) fn project(
                 .find(|boxed| boxed.class() == class)
                 .expect("validated MIR identifies every finite value box");
             let payload = boxed.payload();
+            bases.base = module.classes[class]
+                .base_class()
+                .map_or(MirBaseClassV1::None, |parent| {
+                    MirBaseClassV1::Base(exact(module, &Type::Class(parent)))
+                });
             if matches!(payload, Type::Tuple(_) | Type::Ptr(_)) {
                 bases.interfaces = module.classes[class]
                     .interfaces

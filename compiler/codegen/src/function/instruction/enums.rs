@@ -1,5 +1,7 @@
 use super::*;
 
+mod integral;
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn emit_enum_instruction(
         &mut self,
@@ -19,6 +21,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let def = &self.enums[enum_id];
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
+                    EnumRepr::Integral { kind, values } => basic_ty(
+                        context,
+                        self.structs,
+                        self.enums,
+                        self.managed_address_space,
+                        &kind.scalar_type(),
+                    )?
+                    .into_int_type()
+                    .const_int(values[variant_index as usize], false)
+                    .into(),
                     EnumRepr::Niche {
                         payload_variant, ..
                     } => {
@@ -117,6 +129,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let operand = self.value(*operand)?;
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
+                    EnumRepr::Integral { values, .. } => self
+                        .integral_enum_tag(operand.into_int_value(), values, &name)?
+                        .into(),
                     // Niche: the tag value is the variant index — null ↔
                     // the payload-less variant, non-null ↔ the payload
                     // variant.
@@ -205,9 +220,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         }
                         None
                     }
-                    EnumRepr::Niche { .. } => {
+                    EnumRepr::Niche { .. } | EnumRepr::Integral { .. } => {
                         return Err(CodegenError(format!(
-                            "enum_field @{} has an invalid niche variant or field index",
+                            "enum_field @{} has an invalid variant or field index",
                             function.symbol()
                         )));
                     }
@@ -240,6 +255,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     // Niche: the payload is the pointer itself; lir-lower
                     // only emits this on paths where the tag is known.
                     EnumRepr::Niche { .. } => operand,
+                    EnumRepr::Integral { .. } => {
+                        return Err(CodegenError(
+                            "integral enum variants have no payload".into(),
+                        ));
+                    }
                     EnumRepr::Tagged {
                         variants,
                         size,
@@ -315,6 +335,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let operand = self.value(*operand)?;
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
+                    EnumRepr::Integral { values, .. } => builder
+                        .build_int_compare(
+                            IntPredicate::EQ,
+                            operand.into_int_value(),
+                            operand
+                                .into_int_value()
+                                .get_type()
+                                .const_int(values[variant.index() as usize], false),
+                            &name,
+                        )
+                        .map_err(|error| CodegenError(format!("integral variant test: {error}")))?
+                        .into(),
                     EnumRepr::Niche {
                         kind,
                         payload_variant,
@@ -423,6 +455,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     // itself. `variant_field_type` above proves that this is
                     // exactly field zero of the payload variant.
                     EnumRepr::Niche { .. } => operand,
+                    EnumRepr::Integral { .. } => {
+                        return Err(CodegenError(
+                            "integral enum variants have no payload".into(),
+                        ));
+                    }
                     EnumRepr::Tagged {
                         variants,
                         size,

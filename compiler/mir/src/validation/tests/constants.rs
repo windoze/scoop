@@ -155,6 +155,7 @@ fn enum_unit_global_validation_checks_exact_type_payload_and_reference() {
     ));
 
     let other = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Other".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -178,6 +179,7 @@ fn enum_unit_global_validation_checks_exact_type_payload_and_reference() {
 
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Foreign".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

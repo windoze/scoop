@@ -463,6 +463,7 @@ fn storage_shape(
                     (layout.size_bytes(), layout.alignment_bytes())
                 }
                 EnumRepr::Tagged { size, align, .. } => (*size, *align),
+                EnumRepr::Integral { kind, .. } => scalar(kind.width().backend_scalar_kind()),
             }
         }
         LirType::Void => return Err(StaticStorageShapeFailureV1::Void),
@@ -672,6 +673,7 @@ impl StaticInitialStateEncoder<'_> {
                     });
                 }
                 let has_payload = match &self.enums[*expected_enum].repr {
+                    EnumRepr::Integral { .. } => false,
                     EnumRepr::Niche {
                         payload_variant, ..
                     } => variant.index() == *payload_variant,
@@ -687,6 +689,11 @@ impl StaticInitialStateEncoder<'_> {
                 }
                 match &self.enums[*expected_enum].repr {
                     EnumRepr::Niche { .. } => Ok(()),
+                    EnumRepr::Integral { kind, values } => self.write(
+                        base_offset,
+                        &values[variant.index() as usize].to_le_bytes()
+                            [..kind.width().bytes() as usize],
+                    ),
                     EnumRepr::Tagged { .. } => {
                         self.write(base_offset, &u64::from(variant.index()).to_le_bytes())
                     }

@@ -775,6 +775,10 @@ fn abi_layout(
                 kind.layout(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
             }
             EnumRepr::Tagged { size, align, .. } => (*size, *align),
+            EnumRepr::Integral { kind, .. } => {
+                let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.integer_layout(*kind);
+                (layout.size_bytes(), layout.alignment_bytes())
+            }
         },
     }
 }

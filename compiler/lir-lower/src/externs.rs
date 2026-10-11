@@ -188,6 +188,16 @@ pub(super) fn c_ffi_type(
     match ty {
         mir::Type::Unit => unreachable!("Unit has no C object representation"),
         mir::Type::Integer(kind) => lir::CType::Integer(integer_kind(*kind)),
+        mir::Type::Enum(id, _) if module.enums[*id].representation.integer_kind().is_some() => {
+            let kind = module.enums[*id]
+                .representation
+                .integer_kind()
+                .expect("integral enum representation matched");
+            lir::CType::IntegralEnum {
+                enum_id: enum_def_id(*id),
+                kind: integer_kind(kind),
+            }
+        }
         mir::Type::MachineScalar(kind) => {
             unreachable!("internal machine scalar {kind:?} cannot cross source C FFI")
         }

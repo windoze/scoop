@@ -217,8 +217,20 @@ impl Lowerer {
                 );
                 continue;
             }
+            let integral = self.enums[id].representation.integer_kind().is_some();
+            let constant = matches!(variant.kind, ast::VariantDeclKind::Constant(_));
+            if integral != constant {
+                self.error(variant.span, if integral {
+                    "integral enum variants require an explicit integer constant and cannot have payload"
+                } else {
+                    "explicit enum values require a primitive integer parent"
+                }.into());
+                continue;
+            }
             let style = match &variant.kind {
-                ast::VariantDeclKind::Unit => hir::VariantStyle::Unit,
+                ast::VariantDeclKind::Unit | ast::VariantDeclKind::Constant(_) => {
+                    hir::VariantStyle::Unit
+                }
                 ast::VariantDeclKind::Positional(_) => hir::VariantStyle::Positional,
                 ast::VariantDeclKind::Named(_) => hir::VariantStyle::Named,
                 ast::VariantDeclKind::Constructor(_) => hir::VariantStyle::Constructor,
@@ -300,7 +312,9 @@ impl Lowerer {
     /// Returns `None` after recording a diagnostic.
     fn resolve_variant_fields(&mut self, variant: &ast::VariantDecl) -> Option<ResolvedFields> {
         match &variant.kind {
-            ast::VariantDeclKind::Unit => Some(ResolvedFields::default()),
+            ast::VariantDeclKind::Unit | ast::VariantDeclKind::Constant(_) => {
+                Some(ResolvedFields::default())
+            }
             // Positional fields get `_1`-style names (hir docs).
             ast::VariantDeclKind::Positional(types) => {
                 let mut resolved = ResolvedFields::default();

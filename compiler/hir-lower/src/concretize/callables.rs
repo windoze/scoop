@@ -19,18 +19,7 @@ impl Concretizer<'_> {
         }
         let span = receiver.span;
         let origin = receiver.origin;
-        let value = matches!(
-            self.types[receiver.ty].kind,
-            concrete::TypeKind::Unit
-                | concrete::TypeKind::Integer(_)
-                | concrete::TypeKind::Boolean
-                | concrete::TypeKind::Struct(_)
-                | concrete::TypeKind::Enum(_)
-                | concrete::TypeKind::Tuple(_)
-                | concrete::TypeKind::Ptr(_)
-                | concrete::TypeKind::FunPtr(_)
-        );
-        if value {
+        if self.is_value_representation(receiver.ty) && !self.is_value_representation(target) {
             self.ensure_box_source(receiver.ty);
             concrete::Expr {
                 kind: concrete::ExprKind::Box(Box::new(receiver)),
@@ -40,7 +29,7 @@ impl Concretizer<'_> {
             }
         } else {
             concrete::Expr {
-                kind: concrete::ExprKind::ReferenceUpcast(Box::new(receiver)),
+                kind: concrete::ExprKind::Upcast(Box::new(receiver)),
                 ty: target,
                 span,
                 origin,

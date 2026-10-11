@@ -63,6 +63,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::EnumDefinition {
+                    representation: shape.representation().clone(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
                         &type_params,
@@ -133,18 +134,26 @@ impl Lowerer {
             .expect("the enum builder registered its identity")
             .definition
             .variants = variants;
-        let interfaces = declaration
+        let mut interfaces = declaration
             .interface
             .exact_supertypes()
             .values()
             .iter()
             .map(|parent| self.imported_signature_type_with_bindings(parent, &bindings))
             .collect::<Result<Vec<_>, _>>()?;
+        interfaces.retain(|ty| matches!(self.types[*ty], hir::Type::Interface(_)));
         self.loaded_enum_definitions
             .get_mut(&owner)
             .expect("the enum builder registered its identity")
             .definition
             .interfaces = interfaces.clone();
+        if let Some(kind) = shape.representation().integer_kind() {
+            for parent in self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)) {
+                if !interfaces.contains(&parent) {
+                    interfaces.push(parent);
+                }
+            }
+        }
         let scope_len = self.type_params_in_scope.len();
         self.type_params_in_scope.extend(type_params);
         let implementations =

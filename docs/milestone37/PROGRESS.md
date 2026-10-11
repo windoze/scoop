@@ -183,3 +183,15 @@ HIR 生成普通隐藏字段、方法及访问器；物理字段不再强制关�
 本机 fmt、workspace clippy（release）无警告通过；47 项相关 Rust 测试通过。48 个新增 fixture（28 个正向、20 个 negative）与 75 个旧 when/do/循环跳转/局部捕获回归完成普通比较，共 123/123 通过、163 个配置、363 个进程、290 个阶段 golden。覆盖正常出口、循环写失效、finally 覆盖、异常尾值、别名快照、局部捕获、真实挂起恢复、moving GC，以及删除源码后的泛型 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [16-smart-casts-darwin.json](validation/16-smart-casts-darwin.json)。旧 mutable when 负例改为写入后失效的精确诊断；五个旧用例只迁移 HIR 中不再使用或改变登记顺序的实例，MIR/LIR 保持不变。报告合并普通通过批次与受影响项复验，不计快照生成次数。已清理 122 个完成的 fixture 工作目录，保留共用 cache、sysroot 和报告；Linux LIR 快照随最终平台验证生成。
+
+### 17. 整型枚举（完成）
+
+支持八种定宽整数父类型、显式常量 variant、整数边界常量、透明 alias 与局部/泛型枚举。定义处检查位宽、符号、范围、重复值、缺少初始化和 payload；E 是其整数父类型 I 的子类型，算术、比较和方法沿 I 的签名，结果仍为 I。复合赋值与更新不能把 I 隐式写回 E，Array/Option/Ptr 保持原有不变性；when 按 E 的 variant 域检查穷尽性。
+
+HIR、共享接口与 MIR/LIR 保留枚举、variant 和完整 application 身份，以及底层整数种类和原始位型。未装箱 E 使用与 I 相同的标量表示，无额外 tag 或 niche；C ABI、native callback、Ptr、extern global 和 C-layout aggregate 保留精确的源码类型。Box<E> 使用普通 boxed descriptor，以 Box<I> 为父并共享一个标量 payload；按 E、I 及继承接口查询/拆箱沿既有路径完成，Box<I> 不能转成 E。
+
+上转节点改为 Upcast，值到整数父类型保持标量，值到引用类型才装箱。补全局部 enum 的外层泛型参数、普通 when 覆盖及泛型 bound 方法接收者适配。局部枚举组合测试暴露的 LLVM 常量 phi/select 根计数差异已修复：已知不可移动的选择不要求 relocation，动态输入继续保留移动根检查。没有增加 runtime 入口、授权机制或资源预算。新增实现模块最长 97 行。
+
+本机 fmt、workspace clippy（release）无警告通过，79 项相关 Rust 测试通过。34 个新增正式 fixture（8 个正向、26 个 negative）与 26 个旧回归完成普通比较，共 60/60 通过、73 个配置、158 个进程、146 个阶段 golden。覆盖 debug/release、moving/minor GC、全部整数位宽、空 enum、继承方法与接口、局部类型、普通/case when、泛型不变性、C ABI，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [17-integral-enums-darwin.json](validation/17-integral-enums-darwin.json)。旧 HIR 快照机械迁移 Upcast 名称和 Algebraic 表示字段，逐份反向核对原字节；受影响回归另迁移 core 新增 16 个边界常量带来的局部 ImportedIdentityId 索引、少量 HIR 类型登记顺序及一个已有 lambda 标签的 AST。旧回归 MIR/LIR 不变。报告只合并普通通过记录，不计生成快照的运行。完成后清理 fixture cases，保留共用 cache、sysroot、release 依赖和日志；跨平台快照在最终 Linux 验收中生成并普通复验。

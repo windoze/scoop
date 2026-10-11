@@ -1456,6 +1456,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     let mut builder = Builder::new();
     let payload = mir::Type::Ptr(Box::new(INT));
     let lookalike = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "LooksLikeOption".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1525,12 +1526,14 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     });
     let unit_variant = |name: &str| test_variant(name.to_string(), true, Vec::new());
     let mode = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: ["Reusable", "OneShot"].map(unit_variant).into(),
     });
     let state = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "ForeignCallbackState".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

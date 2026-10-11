@@ -90,6 +90,15 @@ pub(super) fn project(
                 scoop_wire::allocation::try_reserve(&mut interfaces, 1, &path)?;
                 interfaces.push(parent_exact);
             }
+            PublicNominalKindV1::Struct if matches!(declaration.source_shape(), crate::NominalSourceShapeV1::Enum(shape) if shape.representation().integer_kind().is_some()) =>
+            {
+                let inherited = project(types, parent_exact)?;
+                for &interface in inherited.direct_interfaces() {
+                    if !interfaces.contains(&interface) {
+                        interfaces.push(interface);
+                    }
+                }
+            }
             _ => return Err(Error::InheritanceEdges(exact)),
         }
     }

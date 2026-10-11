@@ -1,0 +1,2 @@
+enum E : Int { V = 1 }
+fun main() { val value: Option<E> = Some(E.V); val raw: Option<Int> = value }

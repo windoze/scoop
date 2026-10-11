@@ -1,0 +1,453 @@
+Module
+  enum Empty integral(UInt8) values=[]
+  enum Number integral(Int) values=[2, 8]
+    Low()
+    High()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class box<Number> vtable=0 itables=4
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<UInt8>
+  interface Read
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<ULong>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=class0 nominal_id=d5496db73fe14a42a3447f2b772a3bc0b7d89c02f7f75b9dfdfbd9500451ff92 exact_id=a02912e882251de6b28b913b377d6a1d95fc683959ef09e7a6538994b8800ab3
+  generated_exact_type get5 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn11 id=0d585f49e38034083aacafa9fb92a97a00779a288f9a299529ce6aa96c3ffb5d
+  generated_callable gc1 function=@fn10 id=5ee85e0692a4508663820d367e5a556c25aabae47947a75a73ce94845ff7714f
+  generated_callable gc2 function=@fn12 id=8ce9e50cf9afb94e7e55cf028faf21769d065af955d79c34f8e24fac4162a350
+  generated_callable gc3 function=@fn9 id=c5da17d843f9a83abcd5f38c942d26f9272370778252707365379d470c12a11c
+  fun Number.read @fn0(this: Number) -> Int
+    bb0 entry
+      return
+        Type Int
+        Retype Int
+          Type Number
+          Local this
+  fun Number.$get$label @fn1(this: Number) -> String
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Retype Int
+          Type Number
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=5 bits=0x00000005
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $result.1
+        Type String
+        StringConst @str0
+      goto bb3
+    bb2 if.else.2
+      assign $result.1
+        Type String
+        StringConst @str1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type String
+        Local $result.1
+  fun choose @fn2(value: Number) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun choose @fn3(value: Int) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str3
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Number
+        Type Number
+        VariantConstruct Number v0
+      val $parameter.value: Number
+        Type Number
+        Local $argument.0
+      val $inline.15.value: Number
+        Type Number
+        Local $parameter.value
+      goto bb16
+    bb1 if.then.1
+      assign $result.0
+        Type Int
+        Retype Int
+          Type Number
+          VariantConstruct Number v1
+      goto bb3
+    bb2 if.else.2
+      unreachable
+    bb3 if.merge.3
+      val mixed: Int
+        Type Int
+        Local $result.0
+      val $argument.0: Int
+        Type Int
+        Local mixed
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.4.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb5
+    bb4 inline.cont.4
+      val $dependency.argument.0: String
+        Type String
+        Local $inline.4.result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local mixed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb5 inline.4.entry
+      assign $inline.4.result
+        Type String
+        StringConst @str3
+      goto bb4
+    bb6 inline.cont.6
+      val $dependency.argument.0: String
+        Type String
+        Local $inline.6.result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        SizeOf Empty
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type ULong
+        Local $dependency.parameter.value
+      goto bb1
+    bb7 inline.6.entry
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Retype Int
+          Type Number
+          Local $inline.6.this
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      branch bb8 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $inline.6.$dependency.receiver
+            Type Int
+            IntegerLiteral Int value=5 bits=0x00000005
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 inline.6.if.then.1
+      assign $inline.6.$result.1
+        Type String
+        StringConst @str0
+      goto bb10
+    bb9 inline.6.if.else.2
+      assign $inline.6.$result.1
+        Type String
+        StringConst @str1
+      goto bb10
+    bb10 inline.6.if.merge.3
+      assign $inline.6.result
+        Type String
+        Local $inline.6.$result.1
+      goto bb6
+    bb11 inline.cont.11
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.11.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $inline.6.this: Number
+        Type Number
+        VariantConstruct Number v0
+      goto bb7
+    bb12 inline.11.entry
+      val $inline.17.this: Number
+        Type Number
+        Unbox
+          Type box<Number>
+          Local $inline.11.this
+      goto bb18
+    bb13 inline.cont.13
+      val $dependency.argument.0: String
+        Type String
+        Local $inline.13.result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val value: Read
+        Type Read
+        Box
+          Type Number
+          VariantConstruct Number v1
+      val $receiver: Read
+        Type Read
+        Local value
+      val $inline.11.this: box<Number>
+        Type box<Number>
+        Retype box<Number>
+          Type Read
+          Local $receiver
+      goto bb12
+    bb14 inline.13.entry
+      assign $inline.13.result
+        Type String
+        StringConst @str3
+      goto bb13
+    bb15 inline.cont.15
+      val $dependency.argument.0: String
+        Type String
+        Local $inline.15.result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val raw: Int
+        Type Int
+        Retype Int
+          Type Number
+          VariantConstruct Number v0
+      val $argument.0: Int
+        Type Int
+        Local raw
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.13.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb14
+    bb16 inline.15.entry
+      assign $inline.15.result
+        Type String
+        StringConst @str2
+      goto bb15
+    bb17 inline.cont.17
+      val $inline.11.$call.1: Int
+        Type Int
+        Local $inline.17.result
+      assign $inline.11.result
+        Type Int
+        Local $inline.11.$call.1
+      goto bb11
+    bb18 inline.17.entry
+      assign $inline.17.result
+        Type Int
+        Retype Int
+          Type Number
+          Local $inline.17.this
+      goto bb17
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn7(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Read.read @fn8(this: Read) -> Int
+    bb0 entry
+      trap "call to abstract method `Read.read`"
+  fun thunk<Number> Read.read() @fn9(this: box<Number>) -> Int
+    bb0 entry
+      val $inline.1.this: Number
+        Type Number
+        Unbox
+          Type box<Number>
+          Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        Retype Int
+          Type Number
+          Local $inline.1.this
+      goto bb1
+  fun thunk<Number> ToString.toString() @fn10(this: box<Number>) -> String
+    bb0 entry
+      call $call.1: String = external3 direct
+        Type Int
+        Retype Int
+          Type Number
+          Unbox
+            Type box<Number>
+            Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Number> Hash.hash() @fn11(this: box<Number>) -> Long
+    bb0 entry
+      call $call.1: Long = external4 direct
+        Type Int
+        Retype Int
+          Type Number
+          Unbox
+            Type box<Number>
+            Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Number> Equality.equalTo(Int) @fn12(this: box<Number>, other: Int) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external5 direct
+        Type Int
+        Retype Int
+          Type Number
+          Unbox
+            Type box<Number>
+            Local this
+        Type Int
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- println
+  instance mi2 function=@fn7 <- println
+  str @str0 "low"
+  str @str1 "high"
+  str @str2 "enum"
+  str @str3 "int"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  output executable @fn4

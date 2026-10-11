@@ -83,10 +83,14 @@ fn indirect(target: lir::LirTargetProfile, value: lir::AbiValue) -> lir::DirectC
 fn extension(ty: &lir::CType) -> lir::CIntegerExtension {
     use lir::CIntegerExtension as Extension;
     match ty {
-        lir::CType::Integer(kind) if kind.width().bits() < 32 => match kind.signedness() {
-            lir::IntegerSignedness::Signed => Extension::Sign,
-            lir::IntegerSignedness::Unsigned => Extension::Zero,
-        },
+        lir::CType::Integer(kind) | lir::CType::IntegralEnum { kind, .. }
+            if kind.width().bits() < 32 =>
+        {
+            match kind.signedness() {
+                lir::IntegerSignedness::Signed => Extension::Sign,
+                lir::IntegerSignedness::Unsigned => Extension::Zero,
+            }
+        }
         lir::CType::Boolean => Extension::Zero,
         _ => Extension::None,
     }

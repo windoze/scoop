@@ -1,6 +1,7 @@
 use std::fmt;
 
 mod expressions;
+mod wire;
 pub use expressions::*;
 
 /// Source-level signedness of one fixed-width integer representation.

@@ -183,7 +183,9 @@ fn validate_source_representation(
         }
         SourceDeclarationKind::Enum => matches!(
             representation,
-            ExactRepresentationKindV1::TaggedEnum(_) | ExactRepresentationKindV1::NicheEnum(_)
+            ExactRepresentationKindV1::TaggedEnum(_)
+                | ExactRepresentationKindV1::NicheEnum(_)
+                | ExactRepresentationKindV1::Scalar(crate::ScalarRepresentationKindV1::Integer(_))
         ),
         SourceDeclarationKind::Interface => {
             matches!(representation, ExactRepresentationKindV1::Interface)

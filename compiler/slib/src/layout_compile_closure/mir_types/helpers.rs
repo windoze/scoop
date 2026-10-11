@@ -64,7 +64,7 @@ pub(super) fn validate(
             Error::require(
                 exact,
                 Component::Base,
-                boxed.base_and_interfaces().base == mir::MirBaseClassV1::None,
+                boxed_base_matches(comparison, source, boxed.base_and_interfaces().base),
             )?;
 
             Error::require(
@@ -111,6 +111,20 @@ pub(super) fn generated(
             )?;
         }
         GeneratedNominalKey::BoxedValue { payload } => {
+            let source = comparison.types.get(*payload);
+            if let Some(source) = source {
+                Error::require(
+                    record.exact(),
+                    Component::Base,
+                    boxed_base_matches(comparison, source, record.base_and_interfaces().base),
+                )?;
+            } else {
+                Error::require(
+                    record.exact(),
+                    Component::Base,
+                    record.base_and_interfaces().base == mir::MirBaseClassV1::None,
+                )?;
+            }
             let key = identities
                 .canonical_key::<_, ExactTypeKey>(*payload)
                 .map_err(hir::SharedTypeMetadataError::from)?;
@@ -154,4 +168,28 @@ pub(super) fn generated(
     }
     comparison.require_type(record.exact())?;
     Ok(())
+}
+
+fn boxed_base_matches(
+    comparison: &Comparison<'_, '_>,
+    source: &mir::ParamFreeMirTypeExportV1,
+    base: mir::MirBaseClassV1,
+) -> bool {
+    let mir::MirTypeRepresentationV1::Enum {
+        representation: mir::EnumRepresentation::Integral { kind, .. },
+        ..
+    } = source.representation()
+    else {
+        return base == mir::MirBaseClassV1::None;
+    };
+    let mir::MirBaseClassV1::Base(parent) = base else {
+        return false;
+    };
+    let Some(parent) = comparison.payload_types.get(parent) else {
+        return false;
+    };
+    let mir::MirTypeRepresentationV1::BoxedValue { payload } = parent.representation() else {
+        return false;
+    };
+    comparison.payload_types.get(payload.value).is_some_and(|parent| matches!(parent.representation(), mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Integer(actual)) if actual == kind))
 }

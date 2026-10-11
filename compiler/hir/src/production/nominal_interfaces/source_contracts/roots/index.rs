@@ -130,7 +130,10 @@ pub(super) fn visit_bases(
             (value.base_class, value.interfaces.as_slice())
         }
         LocalNominalId::Struct(id) => (None, export.structs[id].interfaces.as_slice()),
-        LocalNominalId::Enum(id) => (None, export.enums[id].interfaces.as_slice()),
+        LocalNominalId::Enum(id) => (
+            source_shape::enum_integer_parent(export, &export.enums[id]),
+            export.enums[id].interfaces.as_slice(),
+        ),
         LocalNominalId::Interface(id) => {
             for parent in &export.interfaces[id].parents {
                 visit(*parent)?;

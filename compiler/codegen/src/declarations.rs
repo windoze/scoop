@@ -85,7 +85,9 @@ pub(crate) fn c_basic_ty<'ctx>(
     ty: &scoop_lir::CType,
 ) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
     Ok(match ty {
-        scoop_lir::CType::Integer(kind) => integer_ty(context, kind.width()).into(),
+        scoop_lir::CType::Integer(kind) | scoop_lir::CType::IntegralEnum { kind, .. } => {
+            integer_ty(context, kind.width()).into()
+        }
         scoop_lir::CType::Boolean => context.bool_type().into(),
         scoop_lir::CType::Float(kind) => float_type(context, *kind).into(),
         scoop_lir::CType::DataPointer { .. } | scoop_lir::CType::CodePointer { .. } => {
@@ -120,7 +122,7 @@ impl CAbiIntegerExtension {
 fn c_abi_integer_extension(ty: &scoop_lir::CType) -> Option<CAbiIntegerExtension> {
     match ty {
         scoop_lir::CType::Boolean => Some(CAbiIntegerExtension::Zero),
-        scoop_lir::CType::Integer(kind)
+        scoop_lir::CType::Integer(kind) | scoop_lir::CType::IntegralEnum { kind, .. }
             if matches!(
                 kind.width(),
                 scoop_lir::IntegerWidth::W8 | scoop_lir::IntegerWidth::W16
@@ -133,6 +135,7 @@ fn c_abi_integer_extension(ty: &scoop_lir::CType) -> Option<CAbiIntegerExtension
         }
         scoop_lir::CType::Float(_)
         | scoop_lir::CType::Integer(_)
+        | scoop_lir::CType::IntegralEnum { .. }
         | scoop_lir::CType::DataPointer { .. }
         | scoop_lir::CType::CodePointer { .. }
         | scoop_lir::CType::Struct(_) => None,

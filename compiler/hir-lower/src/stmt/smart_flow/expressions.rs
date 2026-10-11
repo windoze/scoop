@@ -121,7 +121,7 @@ fn source_local(value: &hir::Expr) -> Option<hir::LocalId> {
     match &value.kind {
         hir::ExprKind::Local(local) => Some(*local),
         hir::ExprKind::Unbox(source)
-        | hir::ExprKind::ReferenceUpcast(source)
+        | hir::ExprKind::Upcast(source)
         | hir::ExprKind::Box(source) => source_local(source),
         _ => None,
     }

@@ -128,6 +128,9 @@ public struct Long : Equality<Long>, ToString, Hash {
     public override fun hash(): Long = coreLongHash(this)
 
     public companion object : Encodable<Long>, Decodable<Long> {
+        public const val MIN_VALUE: Long = -9223372036854775808L
+        public const val MAX_VALUE: Long = 9223372036854775807L
+
         public override fun encode(value: Long, encoder: Encoder): Unit =
             encoder.singleValue().writeLong(value.toInt64())
 

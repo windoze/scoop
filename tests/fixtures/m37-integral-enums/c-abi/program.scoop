@@ -1,0 +1,69 @@
+enum S8 : Int8 { Value = Int8.MIN_VALUE, Zero = 0 }
+@NoGC fun echoS8(value: S8): S8 = value
+@Extern(lib = "m37_integral", name = "round_S8")
+fun roundS8(value: S8, callback: FunPtr<(S8) -> S8>): S8
+enum S16 : Int16 { Value = Int16.MIN_VALUE }
+@NoGC fun echoS16(value: S16): S16 = value
+@Extern(lib = "m37_integral", name = "round_S16")
+fun roundS16(value: S16, callback: FunPtr<(S16) -> S16>): S16
+enum S32 : Int { Value = Int.MIN_VALUE }
+@NoGC fun echoS32(value: S32): S32 = value
+@Extern(lib = "m37_integral", name = "round_S32")
+fun roundS32(value: S32, callback: FunPtr<(S32) -> S32>): S32
+enum S64 : Long { Value = Long.MIN_VALUE }
+@NoGC fun echoS64(value: S64): S64 = value
+@Extern(lib = "m37_integral", name = "round_S64")
+fun roundS64(value: S64, callback: FunPtr<(S64) -> S64>): S64
+enum U8 : UInt8 { Value = UInt8.MAX_VALUE }
+@NoGC fun echoU8(value: U8): U8 = value
+@Extern(lib = "m37_integral", name = "round_U8")
+fun roundU8(value: U8, callback: FunPtr<(U8) -> U8>): U8
+enum U16 : UInt16 { Value = UInt16.MAX_VALUE }
+@NoGC fun echoU16(value: U16): U16 = value
+@Extern(lib = "m37_integral", name = "round_U16")
+fun roundU16(value: U16, callback: FunPtr<(U16) -> U16>): U16
+enum U32 : UInt { Value = UInt.MAX_VALUE }
+@NoGC fun echoU32(value: U32): U32 = value
+@Extern(lib = "m37_integral", name = "round_U32")
+fun roundU32(value: U32, callback: FunPtr<(U32) -> U32>): U32
+enum U64 : ULong { Value = ULong.MAX_VALUE }
+@NoGC fun echoU64(value: U64): U64 = value
+@Extern(lib = "m37_integral", name = "round_U64")
+fun roundU64(value: U64, callback: FunPtr<(U64) -> U64>): U64
+@CLayout struct Packet(val head: S8, val tail: U16)
+@Extern(lib = "m37_integral", name = "round_packet")
+fun roundPacket(value: Packet): Packet
+@Global @Extern(lib = "m37_integral", name = "integral_global")
+var nativeGlobal: S8
+@Extern(lib = "m37_integral", name = "replace_integral")
+fun replaceIntegral(value: Ptr<S8>)
+@Unsafe fun main() {
+    val valueS8: Int8 = roundS8(S8.Value, ::echoS8)
+    println(valueS8)
+    val valueS16: Int16 = roundS16(S16.Value, ::echoS16)
+    println(valueS16)
+    val valueS32: Int = roundS32(S32.Value, ::echoS32)
+    println(valueS32)
+    val valueS64: Long = roundS64(S64.Value, ::echoS64)
+    println(valueS64)
+    val valueU8: UInt8 = roundU8(U8.Value, ::echoU8)
+    println(valueU8)
+    val valueU16: UInt16 = roundU16(U16.Value, ::echoU16)
+    println(valueU16)
+    val valueU32: UInt = roundU32(U32.Value, ::echoU32)
+    println(valueU32)
+    val valueU64: ULong = roundU64(U64.Value, ::echoU64)
+    println(valueU64)
+    val packet = roundPacket(Packet(S8.Value, U16.Value))
+    println(packet.head.toString())
+    println(packet.tail.toString())
+    println(sizeOf<S8>())
+    println(alignOf<U64>())
+    println(sizeOf<S8?>())
+    println(nativeGlobal.toString())
+    nativeGlobal = S8.Zero
+    println(nativeGlobal.toString())
+    var local = S8.Value
+    replaceIntegral(addressOf(local))
+    println(local.toString())
+}

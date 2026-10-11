@@ -49,8 +49,16 @@ pub(in super::super) fn public_value(
                 path,
             )
         }
-        (NominalRepresentationShapeV1::Enum { variants }, NominalSourceShapeV1::Enum(source)) => {
-            if variants.len() != source.variants().len() {
+        (
+            NominalRepresentationShapeV1::Enum {
+                variants,
+                representation,
+            },
+            NominalSourceShapeV1::Enum(source),
+        ) => {
+            if representation != source.representation()
+                || variants.len() != source.variants().len()
+            {
                 return Ok(false);
             }
             for (index, (actual, expected)) in variants.iter().zip(source.variants()).enumerate() {

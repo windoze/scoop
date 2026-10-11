@@ -23,7 +23,10 @@ impl Lowerer {
                     .all(|(target, source)| self.is_subtype(target, source))
                 && self.is_subtype(source.return_type, target.return_type);
         }
-        if !matches!(self.types[b], Type::Class(_) | Type::Interface(_)) {
+        if !matches!(
+            self.types[b],
+            Type::Class(_) | Type::Interface(_) | Type::Integer(_)
+        ) {
             return false;
         }
         let mut pending = vec![a];

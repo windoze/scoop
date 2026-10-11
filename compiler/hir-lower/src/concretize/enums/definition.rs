@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) struct ResolvedEnumDefinition<'a> {
+    pub representation: export::EnumRepresentation,
     pub origin: export::HirNominalIdentity,
     pub name: String,
     pub no_gc: bool,
@@ -67,6 +68,7 @@ impl<'input> Concretizer<'input> {
             })
             .collect();
         ResolvedEnumDefinition {
+            representation: declaration.representation.clone(),
             origin: self.source.nominal_identities[id].clone(),
             name: self.source_nominal_name(&declaration.name, declaration.owner),
             no_gc: declaration.no_gc,
@@ -83,6 +85,7 @@ impl<'input> Concretizer<'input> {
 impl<'a> ResolvedEnumDefinition<'a> {
     pub(super) fn from_dependency(source: &'a export::LoadedEnumDefinition) -> Self {
         Self {
+            representation: source.definition.representation.clone(),
             origin: export::HirNominalIdentity::Source(source.declaration.identity.clone()),
             name: source.declaration.name().to_owned(),
             no_gc: source.definition.no_gc,

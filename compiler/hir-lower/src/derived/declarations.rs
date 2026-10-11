@@ -35,7 +35,9 @@ impl Lowerer {
                 continue;
             };
             let owner = Owner::Enum(id);
-            if self.has_same_type_equals(owner) {
+            if self.enums[id].representation.integer_kind().is_some()
+                || self.has_same_type_equals(owner)
+            {
                 continue;
             }
             let function = self.declare_derived_equality_method(owner);

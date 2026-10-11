@@ -22,11 +22,11 @@ pub use scoop_identity::{
 
 pub use super::{
     ArrayAccessKind, BinOp, CallableModifiers, CallingConvention, ClassModifier,
-    ConcreteExpressionOrigin, DataBorrowIntrinsic, DefinitionOrigin, EvaluationOrigin, ExternAbi,
-    FunctionAttributes, GcEffect, HirCLayoutContract, HirCLayoutValue, HirIntegerConstant,
-    IntegerBinaryOperator, IntegerConversion, IntegerDivRem, IntegerExpression, IntegerKind,
-    IntegerOperation, IntegerOperationArity, IntegerOperator, IntegerSignedness, IntegerTypeCore,
-    IntegerUnaryOperator, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind,
+    ConcreteExpressionOrigin, DataBorrowIntrinsic, DefinitionOrigin, EnumRepresentation,
+    EvaluationOrigin, ExternAbi, FunctionAttributes, GcEffect, HirCLayoutContract, HirCLayoutValue,
+    HirIntegerConstant, IntegerBinaryOperator, IntegerConversion, IntegerDivRem, IntegerExpression,
+    IntegerKind, IntegerOperation, IntegerOperationArity, IntegerOperator, IntegerSignedness,
+    IntegerTypeCore, IntegerUnaryOperator, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind,
     IntrinsicProviderId, IntrinsicTypeKind, LocalValueDefinitionSite, MaybeUninitIntrinsic,
     MethodModifier, NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind,
     Safety, StringConstantOwner, StructAttributes, UnOp,

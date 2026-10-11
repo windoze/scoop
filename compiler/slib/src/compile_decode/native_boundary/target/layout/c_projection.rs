@@ -14,7 +14,21 @@ impl NativeBoundaryNormalizer<'_> {
         }
         let (definition, binders) = self.definition(exact)?;
         let storage = match definition.c_abi() {
-            NativeBoundaryCAbiV1::SourceRepresentation => return Ok(None),
+            NativeBoundaryCAbiV1::SourceRepresentation => {
+                let NativeBoundaryNominalShape::Enum { representation, .. } = definition.shape()
+                else {
+                    return Ok(None);
+                };
+                let Some(kind) = representation.integer_kind() else {
+                    return Ok(None);
+                };
+                let (signedness, bit_width) = integer_representation(kind);
+                CanonicalCStorageType::Integer {
+                    exact_type: exact,
+                    signedness,
+                    bit_width,
+                }
+            }
             NativeBoundaryCAbiV1::UInt64Field { field } => {
                 let NativeBoundaryNominalShape::Struct { fields, .. } = definition.shape() else {
                     return Err(NativeBoundaryTargetError::InvalidSignatureShape.into());
@@ -38,7 +52,11 @@ impl NativeBoundaryNormalizer<'_> {
                 }
             }
             NativeBoundaryCAbiV1::NullablePointer { payload, .. } => {
-                let NativeBoundaryNominalShape::Enum { variants } = definition.shape() else {
+                let NativeBoundaryNominalShape::Enum {
+                    variants,
+                    representation: scoop_hir::EnumRepresentation::Algebraic,
+                } = definition.shape()
+                else {
                     return Err(NativeBoundaryTargetError::InvalidSignatureShape.into());
                 };
                 let source = variants

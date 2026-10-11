@@ -56,6 +56,7 @@ impl Fixture {
             ))
             .unwrap();
             let shape = NativeBoundaryNominalShape::Enum {
+                representation: crate::EnumRepresentation::Algebraic,
                 variants: vec![
                     NativeBoundaryVariantDefinition::new(
                         variant.key(),
@@ -166,9 +167,10 @@ impl Fixture {
                     fields: vec![],
                 }
             }
-            NativeBoundaryNominalShape::Enum { .. } => {
-                NativeBoundaryNominalShape::Enum { variants: vec![] }
-            }
+            NativeBoundaryNominalShape::Enum { .. } => NativeBoundaryNominalShape::Enum {
+                variants: vec![],
+                representation: crate::EnumRepresentation::Algebraic,
+            },
             NativeBoundaryNominalShape::Reference | NativeBoundaryNominalShape::Intrinsic(_) => {
                 panic!("fixture is a declared value type")
             }

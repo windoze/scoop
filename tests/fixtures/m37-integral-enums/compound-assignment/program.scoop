@@ -1,0 +1,2 @@
+enum E : Int { V = 1 }
+fun main() { var value: E = E.V; value += 1 }

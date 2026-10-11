@@ -133,6 +133,7 @@ impl CBridgeTypeSurface {
             }
             scoop_lir::CType::Float(_)
             | scoop_lir::CType::Integer(_)
+            | scoop_lir::CType::IntegralEnum { .. }
             | scoop_lir::CType::Boolean => {}
         }
         Ok(())
@@ -240,7 +241,9 @@ impl<'a> CTypeRenderer<'a> {
         declarator: &str,
     ) -> Result<String, CodegenError> {
         match ty {
-            scoop_lir::CType::Integer(kind) => Ok(Self::attach(integer_name(*kind), declarator)),
+            scoop_lir::CType::Integer(kind) | scoop_lir::CType::IntegralEnum { kind, .. } => {
+                Ok(Self::attach(integer_name(*kind), declarator))
+            }
             scoop_lir::CType::Boolean => Ok(Self::attach("_Bool", declarator)),
             scoop_lir::CType::Float(kind) => Ok(Self::attach(
                 match kind {

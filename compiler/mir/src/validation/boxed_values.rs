@@ -127,7 +127,27 @@ fn validate_class(
             "the generated box must have a declared representation",
         );
     };
-    if base_class.is_some()
+    let expected_base = match boxed.payload() {
+        Type::Enum(id, _) if module.enums[*id].representation.integer_kind().is_some() => {
+            let kind = module.enums[*id]
+                .representation
+                .integer_kind()
+                .expect("integral enum matched");
+            Some(
+                module
+                    .meta
+                    .boxed_types
+                    .iter()
+                    .find(|parent| parent.payload() == &Type::Integer(kind))
+                    .ok_or_else(|| {
+                        error(location, "integral enum box is missing its integer parent")
+                    })?
+                    .class(),
+            )
+        }
+        _ => None,
+    };
+    if *base_class != expected_base
         || fields.len() != 1
         || fields[0].name != "value"
         || fields[0].ty != *boxed.payload()

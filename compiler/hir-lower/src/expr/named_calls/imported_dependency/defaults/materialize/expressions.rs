@@ -197,7 +197,7 @@ impl Lowerer {
                     trap_on_none,
                 }
             }
-            Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
+            Kind::Upcast(operand) => hir::ExprKind::Upcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),
             Kind::Box(operand) => {

@@ -129,6 +129,11 @@ pub fn dump(module: &Module) -> String {
     }
     for (_, def) in module.enums.iter() {
         match &def.repr {
+            EnumRepr::Integral { kind, values } => out.push_str(&format!(
+                "  enum {} integral({}) values={values:?}\n",
+                def.name,
+                kind.canonical_name()
+            )),
             EnumRepr::Niche {
                 kind,
                 payload_variant,

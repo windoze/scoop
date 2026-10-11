@@ -36,8 +36,17 @@ pub(super) fn shape(
                 path,
             )
         }
-        (Shape::Enum { variants: left }, Shape::Enum { variants: right }) => {
-            if left.len() != right.len() {
+        (
+            Shape::Enum {
+                variants: left,
+                representation: left_repr,
+            },
+            Shape::Enum {
+                variants: right,
+                representation: right_repr,
+            },
+        ) => {
+            if left_repr != right_repr || left.len() != right.len() {
                 return Ok(false);
             }
             for (index, (left, right)) in left.iter().zip(right).enumerate() {

@@ -226,7 +226,9 @@ impl Lowerer {
                     continue;
                 };
                 let source_fields = match &source_variant.kind {
-                    ast::VariantDeclKind::Unit | ast::VariantDeclKind::Positional(_) => None,
+                    ast::VariantDeclKind::Unit
+                    | ast::VariantDeclKind::Constant(_)
+                    | ast::VariantDeclKind::Positional(_) => None,
                     ast::VariantDeclKind::Named(fields)
                     | ast::VariantDeclKind::Constructor(fields) => Some(fields.as_slice()),
                 };

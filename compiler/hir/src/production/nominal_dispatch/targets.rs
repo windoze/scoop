@@ -34,6 +34,12 @@ impl Projection<'_> {
                     .dependency_nominal_application(ty)
                     .map(|(declaration, _)| declaration)
             })
+            .chain(
+                self.export
+                    .imported_intrinsic_types
+                    .values()
+                    .map(|source| &source.declaration),
+            )
             .flat_map(|declaration| {
                 declaration
                     .interface

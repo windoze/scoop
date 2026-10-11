@@ -209,12 +209,14 @@ impl CoroutineRegistry {
             fields: Vec::new(),
         });
         let enum_id = enums.defs.alloc(mir::EnumDef {
+            representation: mir::EnumRepresentation::Algebraic,
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: result_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
+            representation: mir::EnumRepresentation::Algebraic,
             name,
             type_arguments: Vec::new(),
             gc_free: result_gc_free,
@@ -304,12 +306,14 @@ impl CoroutineRegistry {
             fields: value_fields,
         });
         let enum_id = enums.defs.alloc(mir::EnumDef {
+            representation: mir::EnumRepresentation::Algebraic,
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: value_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
+            representation: mir::EnumRepresentation::Algebraic,
             name,
             type_arguments: Vec::new(),
             gc_free: value_gc_free,

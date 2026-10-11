@@ -2,6 +2,7 @@ use super::*;
 use hir::ImportedCallableSource;
 use std::collections::HashSet;
 
+mod integral;
 mod members;
 pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
 
@@ -31,13 +32,18 @@ impl Lowerer {
     }
 
     pub(in crate::class) fn owner_interfaces(&mut self, owner: Owner) -> Vec<TypeId> {
-        let roots = match owner {
+        let mut roots = match owner {
             Owner::Class(id) => return self.class_interfaces_all(id),
             Owner::Object(id) => return self.class_interfaces_all(self.objects[id].backing_class),
             Owner::Struct(id) => self.structs[id].interfaces.clone(),
             Owner::Enum(id) => self.enums[id].interfaces.clone(),
             Owner::Interface(id) => self.interfaces[id].parents.clone(),
         };
+        if let Owner::Enum(id) = owner
+            && let Some(kind) = self.enums[id].representation.integer_kind()
+        {
+            roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)));
+        }
         let mut interfaces = Vec::new();
         for root in roots {
             self.append_interface_closure(root, &mut interfaces);
@@ -66,6 +72,7 @@ impl Lowerer {
         let abstract_class =
             class.is_some_and(|id| self.classes[id].modifier == hir::ClassModifier::Abstract);
         let all_interfaces = self.owner_interfaces(owner);
+        let integer_implementations = self.integer_interface_implementations(owner, span);
         let own_owner = self.method_owner_application(owner, self.owner_type_args(owner));
         let mut candidates = own_methods
             .into_iter()
@@ -202,6 +209,15 @@ impl Lowerer {
                         } else {
                             self.imported_conformance_target(method.declaration, method.owner, span)
                         }
+                    }
+                    None if integer_implementations
+                        .iter()
+                        .any(|method| method.member == member.member) =>
+                    {
+                        integer_implementations
+                            .iter()
+                            .find(|method| method.member == member.member)
+                            .map(|method| method.target)
                     }
                     None => match self.select_interface_default(&all_interfaces, &member.signature)
                     {

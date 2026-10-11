@@ -265,6 +265,7 @@ SourceFile
     val managed
       Call foreignCallback<(Float, Ptr<Unit>) -> Float>
         Lambda 0 suspend=false
+          label foreignCallback
           param value: Float
           Call gcCollect
           Var value

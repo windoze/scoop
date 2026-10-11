@@ -72,6 +72,7 @@ fn concrete_variant_and_struct_field_refs_are_checked() {
     let ty = TypeId::from_raw(0.into());
     let mut enums = Arena::new();
     let enumeration = enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         origin: nominal_identity("Option", SourceNominalKind::Enum, 1),
         canonical_type: ty,
         name: "Option".to_string(),
@@ -136,6 +137,7 @@ fn concrete_variant_and_struct_field_refs_are_checked() {
     assert!(OptionCore::checked(&enums, field, empty).is_none());
     enums[enumeration].variants.pop();
     let other = enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         origin: nominal_identity("Other", SourceNominalKind::Enum, 0),
         canonical_type: ty,
         name: "Other".to_string(),

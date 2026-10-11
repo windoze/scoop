@@ -47,6 +47,10 @@ pub fn dump(file: &SourceFile) -> String {
                 for variant in &e.variants {
                     dump_annotations(&variant.annotations, 2, &mut out);
                     match &variant.kind {
+                        VariantDeclKind::Constant(value) => {
+                            out.push_str(&format!("    {} =\n", variant.name.text));
+                            dump_expr(value, 3, &mut out);
+                        }
                         VariantDeclKind::Unit => {
                             out.push_str(&format!("    {}\n", variant.name.text))
                         }

@@ -94,6 +94,7 @@ pub enum DecodedNominalRepresentationShapeV1 {
         c_layout_policy: NominalCLayoutPolicyV1,
     },
     Enum {
+        representation: crate::EnumRepresentation,
         variants: Vec<DecodedEnumRepresentationVariantV1>,
     },
     Class {
@@ -130,12 +131,18 @@ impl DecodedNominalRepresentationShapeV1 {
                     c_layout_policy,
                 }
             }
-            Self::Enum { variants } => {
+            Self::Enum {
+                variants,
+                representation,
+            } => {
                 let mut values = reserve(variants.len())?;
                 for variant in variants {
                     values.push(variant.resolve(resolver)?);
                 }
-                NominalRepresentationShapeV1::Enum { variants: values }
+                NominalRepresentationShapeV1::Enum {
+                    variants: values,
+                    representation,
+                }
             }
             Self::Class {
                 base,
@@ -194,11 +201,10 @@ impl WireEncode for DecodedNominalRepresentationShapeV1 {
                 encoder.field(2)?;
                 c_layout_policy.encode(encoder)
             }
-            Self::Enum { variants } => {
-                wire::tag(encoder, 2, 2)?;
-                encoder.field(1)?;
-                wire::sequence(encoder, variants)
-            }
+            Self::Enum {
+                variants,
+                representation,
+            } => encode_enum_representation(encoder, variants, representation),
             Self::Class {
                 base,
                 declared_fields,
@@ -244,14 +250,19 @@ impl WireDecode for DecodedNominalRepresentationShapeV1 {
                     c_layout_policy: decoder.field(2, NominalCLayoutPolicyV1::decode)?,
                 })
             }
-            2 => {
-                wire::expect_fields(decoder, fields, 2)?;
+            tag @ (2 | 7) => {
+                wire::expect_fields(decoder, fields, if tag == 2 { 2 } else { 3 })?;
                 Ok(Self::Enum {
                     variants: decoder.field(1, |decoder| {
                         decoder.decode_array(|decoder, _| {
                             DecodedEnumRepresentationVariantV1::decode(decoder)
                         })
                     })?,
+                    representation: if tag == 2 {
+                        crate::EnumRepresentation::Algebraic
+                    } else {
+                        decoder.field(2, crate::EnumRepresentation::decode)?
+                    },
                 })
             }
             3 => {

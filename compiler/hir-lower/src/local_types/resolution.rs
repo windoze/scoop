@@ -41,10 +41,10 @@ impl Lowerer {
         for &(id, declaration, file) in &pending.enums {
             self.current_file = file;
             self.current_owner = Some(Owner::Enum(id));
+            self.resolve_enum_supertypes(id, declaration);
             self.resolve_variants(id, declaration);
-            self.type_params_in_scope = self.enums[id].type_params.clone();
-            self.enums[id].interfaces = self.resolve_interface_list(&declaration.interfaces);
         }
+        self.resolve_local_integral_enum_constants(&pending.enums);
         if let Err(error) = self.establish_enum_member_identities() {
             self.current_file = error.file();
             self.error(error.span(), error.to_string());

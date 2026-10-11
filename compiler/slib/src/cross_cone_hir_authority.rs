@@ -435,6 +435,24 @@ impl NominalInterfaceSemanticAuthority<CrossConeHirNominalAuthorityError>
         Ok(key)
     }
 
+    fn integer_kind(
+        &mut self,
+        declaration: SourceNominalId,
+    ) -> Result<Option<scoop_hir::IntegerKind>, CrossConeHirNominalAuthorityError> {
+        let key = self.source_nominal_key(declaration)?;
+        let interface = self.provider_interface(key.origin())?;
+        let record = Self::checked_nominal_record(interface, declaration, &key)?;
+        Ok(match record.source_shape() {
+            scoop_hir::NominalSourceShapeV1::Intrinsic(representation) => {
+                match representation.family() {
+                    scoop_hir::IntrinsicTypeKind::Integer(kind) => Some(kind),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+    }
+
     fn constructor_owner(
         &mut self,
         constructor: PersistentConstructorId,

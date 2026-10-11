@@ -115,7 +115,7 @@ pub(super) fn validate(
                     collect_signature_type(field.ty(), &mut closure, &WirePath::root().field(34))?;
                 }
             }
-            scoop_hir::NativeBoundaryNominalShape::Enum { variants } => {
+            scoop_hir::NativeBoundaryNominalShape::Enum { variants, .. } => {
                 for variant in variants {
                     for field in variant.fields() {
                         collect_signature_type(

@@ -74,6 +74,7 @@ impl Lowerer {
         &mut self,
         pending: &[(&ast::GlobalDecl, usize)],
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
+        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
     ) {
         let mut initializers = Vec::new();
         let mut constants = Vec::new();
@@ -402,7 +403,7 @@ impl Lowerer {
             }
         }
         self.current_owner = None;
-        self.resolve_const_properties(&constants, &ordinary);
+        self.resolve_const_properties(&constants, &ordinary, enums);
         self.resolve_static_top_level_properties(&ordinary);
     }
 }

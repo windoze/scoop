@@ -90,3 +90,17 @@ impl Module {
         }
     }
 }
+
+impl crate::Module {
+    /// The declared interface roots of the actual primitive integer owner.
+    pub fn integer_interface_roots(&self, kind: crate::IntegerKind) -> &[TypeId] {
+        match &self.core_protocols {
+            crate::CoreProtocols::Defined(protocols) => {
+                &self.structs[protocols.fundamental_types.integers.owner(kind)].interfaces
+            }
+            crate::CoreProtocols::Imported(_) => {
+                &self.imported_intrinsic_types[&crate::IntrinsicTypeKind::Integer(kind)].interfaces
+            }
+        }
+    }
+}

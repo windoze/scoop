@@ -107,13 +107,15 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。提升到 Any 或 interface 时，值存入带原 exact TypeDescriptor 的 managed box；值类型 receiver 使用独立的方法局部副本，不能取得调用方 place 或 box payload 的别名。
 
+整型枚举（语言规范 4.2.1）的 inline size、alignment 和位表示等于底层整数，无额外 tag。直接装箱保留 enum exact identity，其 boxed TD 以对应整数的 boxed TD 为父类型；继承的接口使用整数成员的原签名。按父整数解箱允许这一已声明父子关系，使用同一 scalar payload 表示；反向解箱仍要求实际 enum 身份，不能检查数值后伪造 enum。先上转再装箱的值只有整数身份。未使用整数值不增加 Option niche。
+
 `MaybeUninit<T>` 是与 T 等 size／alignment 的独立值类型，复用 T 的 inline scan。全零存储是合法 wrapper，managed 槽始终为 null 或有效引用；这不表示已经构造合法 T。零构造包括 padding，不使用 undef/poison，不清零对象头或 TD；包装、复制和重置使用普通值存储及写屏障。wrapper 不继承 T 的非空或 tag 不变量。
 
 语言规范 11.11 的显式 `Equality<T>.equalTo` 实现使用普通 interface TD、itable 与 callable。表项只来自实际声明或继承的 conformance；结构 operator equals 不增加接口。NoGc 值方法实现 Managed interface slot 时，itable 使用符合 slot ABI 的 Managed value/interface adapter，具体值的直接 operator 比较仍调用原实现；runtime 不按类型名、对象地址或内存字节另行判断相等。
 
 `Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在。`scoop_rt_box_zst(td)` 每次产生新的 box；`scoop_rt_unbox_zst(object, expected_td)` 检查 exact type。
 
-`scoop_rt_box_value(td, source_place)` 要求 source place 可读、地址稳定、满足该 TD 的 inline size/alignment。含引用的 source place 必须在入口握手前以同一 TD 的 nonempty inline scan 登记为链顶 RecursiveRegion root。分配或 GC 后从更新后的 place 复制，返回后按 LIFO 撤销 root。`scoop_rt_unbox_value(object, expected_td, destination)` 在 exact type 检查成功后按值写入满足大小与对齐的 destination。
+`scoop_rt_box_value(td, source_place)` 要求 source place 可读、地址稳定、满足该 TD 的 inline size/alignment。含引用的 source place 必须在入口握手前以同一 TD 的 nonempty inline scan 登记为链顶 RecursiveRegion root。分配或 GC 后从更新后的 place 复制，返回后按 LIFO 撤销 root。`scoop_rt_unbox_value(object, expected_td, destination)` 在 exact type 或上述整型枚举到父整数的合法解箱检查成功后，按值写入满足大小与对齐的 destination。
 
 ### 2.4 String 与数组
 

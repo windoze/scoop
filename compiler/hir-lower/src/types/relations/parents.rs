@@ -38,14 +38,16 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                let interfaces = self
-                    .enum_definition(application.template)
+                let definition = self.enum_definition(application.template).clone();
+                let mut parents = definition
                     .interfaces
-                    .clone();
-                interfaces
                     .into_iter()
                     .map(|interface| self.instantiate_ty(interface, &application.arguments))
-                    .collect()
+                    .collect::<Vec<_>>();
+                if let Some(kind) = definition.representation.integer_kind() {
+                    parents.push(self.intern_type(Type::Integer(kind)));
+                }
+                parents
             }
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();

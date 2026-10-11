@@ -204,7 +204,7 @@ pub enum DefaultExpressionKindV1 {
     },
     Box(Box<DefaultExpressionV1>),
     Unbox(Box<DefaultExpressionV1>),
-    ReferenceUpcast(Box<DefaultExpressionV1>),
+    Upcast(Box<DefaultExpressionV1>),
     IsInstance {
         operand: Box<DefaultExpressionV1>,
         checked_type: SignatureTypeKey,
@@ -508,7 +508,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::ReleaseFieldLoad { .. }
         | DefaultExpressionKindV1::Box(_)
         | DefaultExpressionKindV1::Unbox(_)
-        | DefaultExpressionKindV1::ReferenceUpcast(_)
+        | DefaultExpressionKindV1::Upcast(_)
         | DefaultExpressionKindV1::IsInstance { .. }
         | DefaultExpressionKindV1::Cast { .. }
         | DefaultExpressionKindV1::ArrayGenerate { .. }

@@ -22,7 +22,7 @@ impl BodyProjection<'_, '_> {
             return Ok(receiver);
         }
         DefaultExpressionV1::try_new(
-            DefaultExpressionKindV1::ReferenceUpcast(Box::new(receiver)),
+            DefaultExpressionKindV1::Upcast(Box::new(receiver)),
             owner,
             origin,
             evaluation,

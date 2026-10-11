@@ -585,7 +585,7 @@ impl BodyLowerer<'_> {
                     check_ty: Box::new(check_ty),
                 }
             }
-            hir::ExprKind::ReferenceUpcast(operand) => smir::ExprKind::Retype {
+            hir::ExprKind::Upcast(operand) => smir::ExprKind::Retype {
                 operand: Box::new(self.lower_expr(operand)),
                 ty: Box::new(ty.clone()),
             },

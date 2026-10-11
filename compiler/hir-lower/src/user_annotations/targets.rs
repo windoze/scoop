@@ -40,7 +40,7 @@ impl Lowerer {
             };
             self.bind_source_annotations(Target::Variant(variant_ref), &variant.annotations);
             let annotations = match &variant.kind {
-                ast::VariantDeclKind::Unit => Vec::new(),
+                ast::VariantDeclKind::Unit | ast::VariantDeclKind::Constant(_) => Vec::new(),
                 ast::VariantDeclKind::Positional(fields) => fields
                     .iter()
                     .map(|field| field.annotations.as_slice())

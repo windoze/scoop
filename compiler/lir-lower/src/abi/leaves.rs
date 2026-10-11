@@ -11,6 +11,7 @@ pub(crate) fn scalar_carrier(ty: &lir::LirType, enums: &lir::EnumDefs) -> Option
         T::F64 => C::Float(FloatKind::F64),
         T::Ptr(kind) => C::Pointer(*kind),
         T::Enum(id) => match enums[*id].repr {
+            lir::EnumRepr::Integral { kind, .. } => C::Integer(kind.width().bits() as u8),
             lir::EnumRepr::Niche { kind, .. } => C::Pointer(match kind {
                 lir::NullNicheKind::Managed => lir::PointerKind::Managed,
                 lir::NullNicheKind::Raw => lir::PointerKind::Raw,

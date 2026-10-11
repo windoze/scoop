@@ -5,6 +5,7 @@ use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
 mod binary;
+mod enumerations;
 mod expression;
 mod floating_calls;
 mod floating_inference;
@@ -45,6 +46,7 @@ impl Lowerer {
         &mut self,
         declarations: &[PendingConst<'_>],
         ordinary: &[PendingOrdinary<'_>],
+        enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
     ) {
         let cyclic = self.diagnose_const_dependency_cycles(declarations);
         let mut states = (0..declarations.len())
@@ -113,6 +115,7 @@ impl Lowerer {
             self.imports
                 .bind_property(declaration.import_source, property);
         }
+        self.resolve_integral_enum_constants(enums, declarations, ordinary, &mut states);
         self.current_owner = None;
     }
 

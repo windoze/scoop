@@ -1,0 +1,1 @@
+enum E : Int8 { V = 1L }

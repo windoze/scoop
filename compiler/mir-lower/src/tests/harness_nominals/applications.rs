@@ -221,6 +221,7 @@ impl Harness {
             span: SPAN,
 
             definition: hir::EnumDefinition {
+                representation: hir::EnumRepresentation::Algebraic,
                 self_application,
                 type_params,
                 variants,

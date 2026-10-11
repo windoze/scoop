@@ -56,6 +56,36 @@ pub(super) fn interface_supertypes(
     )
 }
 
+pub(super) fn enum_supertypes(
+    projection: &SourceShapeProjection<'_>,
+    owner: NominalDeclarationOwner,
+    declaration: &crate::EnumDecl,
+    binders: &[HirSignatureBinder],
+) -> Result<CanonicalSignatureTypesV1, NominalInterfaceBuildError> {
+    let integer = enum_integer_parent(projection.export, declaration);
+    canonical_supertypes(
+        projection,
+        owner,
+        integer
+            .into_iter()
+            .chain(declaration.interfaces.iter().copied()),
+        binders,
+    )
+}
+
+pub(super) fn enum_integer_parent(
+    export: &crate::ExportHir,
+    declaration: &crate::EnumDecl,
+) -> Option<crate::TypeId> {
+    declaration.representation.integer_kind().map(|kind| {
+        export
+            .types
+            .iter()
+            .find_map(|(id, ty)| (*ty == crate::Type::Integer(kind)).then_some(id))
+            .expect("the enum's integer parent was resolved in the type arena")
+    })
+}
+
 pub(super) fn direct_supertypes(
     projection: &SourceShapeProjection<'_>,
     owner: NominalDeclarationOwner,
@@ -251,7 +281,7 @@ pub(super) fn enum_shape(
             })?;
         variants.push(variant);
     }
-    EnumSourceShapeV1::try_new(variants)
+    EnumSourceShapeV1::try_new_with_representation(variants, declaration.representation.clone())
         .map(NominalSourceShapeV1::Enum)
         .map_err(|detail| source_error(owner, NominalSourceProjectionError::Shape(detail)))
 }

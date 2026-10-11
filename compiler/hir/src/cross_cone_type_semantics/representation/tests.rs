@@ -80,6 +80,7 @@ fn enum_support_keeps_variant_order_gc_and_typed_payload_identity() {
     let record = round_trip(
         &mut fixture,
         NominalRepresentationShapeV1::Enum {
+            representation: crate::EnumRepresentation::Algebraic,
             variants: vec![payload.clone(), empty.clone()],
         },
     );
@@ -253,7 +254,11 @@ fn shape_wire_has_fixed_tags_and_rejects_unknown_or_wrong_products() {
         [0xa3, 0, 1, 1, 0x80, 2, 0xa1, 0, 1]
     );
     assert_eq!(
-        encode(&NominalRepresentationShapeV1::Enum { variants: vec![] }).unwrap(),
+        encode(&NominalRepresentationShapeV1::Enum {
+            variants: vec![],
+            representation: crate::EnumRepresentation::Algebraic
+        })
+        .unwrap(),
         [0xa2, 0, 2, 1, 0x80]
     );
     assert_eq!(

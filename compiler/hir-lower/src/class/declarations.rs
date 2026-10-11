@@ -288,32 +288,6 @@ impl Lowerer {
         self.classes[id].interfaces = interfaces;
     }
 
-    /// Resolve an interface list (`: I1, I2`) on any declaration —
-    /// classes, structs and enums share the rules (spec 9.1 / 4.4.3):
-    /// every name must be an interface, duplicates are dropped.
-    pub(crate) fn resolve_interface_list(&mut self, refs: &[ast::TypeRef]) -> Vec<TypeId> {
-        let mut interfaces = Vec::new();
-        for ty_ref in refs {
-            let Some(ty) = self.resolve_type_ref(ty_ref) else {
-                continue;
-            };
-            if !matches!(self.types[ty], Type::Interface(..)) {
-                self.error(
-                    ty_ref.span,
-                    format!("`{}` is not an interface", self.type_name(ty)),
-                );
-                continue;
-            }
-            if !self.check_sealed_supertype(ty, ty_ref.span) {
-                continue;
-            }
-            if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
-                interfaces.push(ty);
-            }
-        }
-        interfaces
-    }
-
     pub(crate) fn resolve_supertype_interface_list(
         &mut self,
         specs: &[ast::SupertypeSpec],

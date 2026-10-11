@@ -59,6 +59,7 @@ pub(super) fn type_context(
     let mut shell_enums = Arena::new();
     for (_, def) in enums.iter() {
         shell_enums.alloc(mir::EnumDef {
+            representation: def.representation.clone(),
             name: def.name.clone(),
             type_arguments: def.type_arguments.clone(),
             gc_free: def.gc_free,

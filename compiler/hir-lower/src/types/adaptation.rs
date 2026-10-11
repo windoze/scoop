@@ -103,7 +103,7 @@ impl Lowerer {
                 origin: self.expression_origin(span),
             };
         }
-        if self.is_value_ty(expr.ty) {
+        if self.is_value_ty(expr.ty) && self.is_ref_ty(target) {
             hir::Expr {
                 kind: hir::ExprKind::Box(Box::new(expr)),
                 ty: target,
@@ -112,7 +112,7 @@ impl Lowerer {
             }
         } else {
             hir::Expr {
-                kind: hir::ExprKind::ReferenceUpcast(Box::new(expr)),
+                kind: hir::ExprKind::Upcast(Box::new(expr)),
                 ty: target,
                 span,
                 origin: self.expression_origin(span),

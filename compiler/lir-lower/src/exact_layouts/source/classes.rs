@@ -27,6 +27,14 @@ impl Projection<'_> {
         let base_count = match (base_class, source.base_and_interfaces().base) {
             (None, mir::MirBaseClassV1::None) => 0,
             (Some(id), mir::MirBaseClassV1::Base(base))
+                if matches!(
+                    source.representation(),
+                    mir::MirTypeRepresentationV1::BoxedValue { .. }
+                ) && self.exact_of(&mir::Type::Class(*id))? == base =>
+            {
+                0
+            }
+            (Some(id), mir::MirBaseClassV1::Base(base))
                 if self.exact_of(&mir::Type::Class(*id))? == base =>
             {
                 let base = arena_get(&self.module.classes, *id)

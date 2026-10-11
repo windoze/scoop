@@ -580,7 +580,7 @@ pub(crate) fn contains_machine_scalar(
                 })
             }
             LirType::Enum(id) if seen_enums.insert(*id) => match &enums[*id].repr {
-                EnumRepr::Niche { .. } => false,
+                EnumRepr::Niche { .. } | EnumRepr::Integral { .. } => false,
                 EnumRepr::Tagged { variants, .. } => variants.iter().any(|variant| {
                     variant
                         .fields
@@ -846,7 +846,7 @@ fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NullN
     };
     match &module.enums[*id].repr {
         EnumRepr::Niche { kind, .. } => Some(*kind),
-        EnumRepr::Tagged { .. } => None,
+        EnumRepr::Tagged { .. } | EnumRepr::Integral { .. } => None,
     }
 }
 
@@ -887,6 +887,10 @@ fn validate_c_type(
     visiting: &mut HashSet<StructDefId>,
 ) -> Result<(), CodegenError> {
     match ty {
+        scoop_lir::CType::IntegralEnum { enum_id, kind } => {
+            if module.enums.get(*enum_id).is_some_and(|definition| matches!(definition.repr, EnumRepr::Integral { kind: actual, .. } if actual == *kind)) { Ok(()) }
+            else { Err(CodegenError("C integral enum type disagrees with its integer representation".into())) }
+        }
         scoop_lir::CType::Float(_) | scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean => {
             Ok(())
         }

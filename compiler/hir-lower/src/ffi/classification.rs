@@ -58,7 +58,10 @@ impl Lowerer {
             },
             _ => ty,
         };
-        if self.is_char_type(resolved) || self.float_kind(resolved).is_some() {
+        if self.is_char_type(resolved)
+            || self.float_kind(resolved).is_some()
+            || self.integral_enum_kind(resolved).is_some()
+        {
             return Ok(Classification::Safe);
         }
         match self.types[resolved].clone() {

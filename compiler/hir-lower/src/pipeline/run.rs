@@ -289,11 +289,8 @@ impl Lowerer {
         for &(id, decl, file_index) in &pending_enums {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Enum(id));
+            self.resolve_enum_supertypes(id, decl);
             self.resolve_variants(id, decl);
-            self.type_params_in_scope = self.enums[id].type_params.clone();
-            let interfaces = self.resolve_interface_list(&decl.interfaces);
-            self.type_params_in_scope.clear();
-            self.enums[id].interfaces = interfaces;
         }
         if let Err(error) = self.establish_enum_member_identities() {
             self.current_file = error.file();
@@ -389,7 +386,7 @@ impl Lowerer {
             None
         };
         self.foreign_callback_core = foreign_callback_core;
-        self.resolve_globals(&pending_globals, &pending_objects);
+        self.resolve_globals(&pending_globals, &pending_objects, &pending_enums);
         self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();

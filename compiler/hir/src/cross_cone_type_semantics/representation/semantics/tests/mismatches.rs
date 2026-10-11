@@ -85,7 +85,7 @@ fn shape_sequences_base_backing_and_intrinsic_family_must_match_real_source() {
         let source = changed.sources.get_mut(owner).unwrap();
         match &mut source.shape {
             NominalRepresentationShapeV1::Struct { fields, .. } => fields.reverse(),
-            NominalRepresentationShapeV1::Enum { variants } => variants.reverse(),
+            NominalRepresentationShapeV1::Enum { variants, .. } => variants.reverse(),
             NominalRepresentationShapeV1::Class { base, .. } => {
                 *base = scoop_identity::OptionalSignatureType::Present(Box::new(
                     SignatureTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
@@ -112,7 +112,7 @@ fn shape_sequences_base_backing_and_intrinsic_family_must_match_real_source() {
         .values_mut()
         .find(|source| matches!(source.shape, NominalRepresentationShapeV1::Enum { .. }))
         .unwrap();
-    let NominalRepresentationShapeV1::Enum { variants } = &mut source.shape else {
+    let NominalRepresentationShapeV1::Enum { variants, .. } = &mut source.shape else {
         unreachable!()
     };
     variants[0] = EnumRepresentationVariantV1::try_new(

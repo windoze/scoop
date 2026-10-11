@@ -33,11 +33,12 @@ impl Lowerer {
             0,
             crate::call_resolution::arguments::ReceiverInput::Absent,
         );
+        let explicit = self.constructor_type_arguments(None, &view, &[], name.span)?;
         let type_args = match self.solve_nominal_applicability(
             crate::call_resolution::applicability::NominalApplicabilityInput {
                 view: &view,
                 argument_map: &argument_map,
-                explicit_arguments: &[],
+                explicit_arguments: &explicit,
                 expected_arguments: expected_arguments.as_deref(),
                 argument_types: &[],
             },
@@ -119,6 +120,8 @@ impl Lowerer {
             };
 
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
+        let explicit_type_args =
+            self.constructor_type_arguments(None, &view, &explicit_type_args, span)?;
         let type_param_count = view.signature.owner_parameters.len();
         if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
             self.diagnose_nominal_shape_failure(

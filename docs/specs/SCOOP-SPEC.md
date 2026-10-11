@@ -224,7 +224,7 @@ struct 自动获得：
 
 ### 4.2 enum
 
-`enum` 定义一个带负载的代数数据类型（类似 Rust 的 enum），取代 Kotlin 的 `enum class`。
+普通 `enum` 定义一个带负载的代数数据类型（类似 Rust 的 enum），取代 Kotlin 的 `enum class`。显式指定 primitive 整型父类型的整型枚举遵守 4.2.1。
 
 ```
 enum E {
@@ -248,7 +248,7 @@ enum E {
   - 构造函数式命名字段变体：`VariantWithDefaults(val f1: Int, val f2: String = "hello")`，**规则同 struct 的主构造函数**：字段可带默认值，构造时可用命名参数。
 - 两种命名字段形式（block 式与构造函数式）语义等价；构造函数式额外支持默认值。
 - **variant及其字段不支持可见性修饰符，declared visibility固定为public**；effective domain仍与enum owner取交集（9.1.5）。
-- **enum 自身不支持构造函数、不支持 `init` 块、不支持成员属性**；body 中只允许声明成员函数与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
+- **enum 自身不支持构造函数、不支持 `init` 块、不支持 stored/delegated 成员状态**；body 中允许声明成员函数、9.1 的 computed `val` 与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
 - 每个变体是一个构造器：`E.SimpleVariant`、`E.VariantWithValue(42)`、`E.VariantWithNamedField(f1 = 1, f2 = "x")`、`E.VariantWithDefaults(1)`、`E.VariantWithDefaults(f1 = 1)`。block 式命名字段变体只能以命名参数构造；构造函数式变体沿用 struct 主构造函数的参数规则，允许位置参数、命名参数及默认值。两者均不提供花括号构造形式（与 struct 字面量同样存在解析歧义）。
 - 跨 Cone enum 使用相同的变体构造、import/typealias、期望类型和默认参数规则；泛型变体的宿主实参由显式实参、payload 与期望 enum application 按普通约束推导确定。`E.V` 中的裸泛型 `E` 是声明命名空间，不先构造缺失实参的类型。值构造按实际声明身份生成，不以 provider 来源授予额外资格。
 - enum 拥有 generic companion 不改变上述变体规则：限定调用先按实际静态 binding 识别变体，只有目标属于 companion 时才要求完整宿主实参（9.1.3）。变体构造不访问或初始化 companion。
@@ -260,6 +260,20 @@ enum E {
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
 - 泛型 enum 允许，例如核心库的`enum Option<T>`（见7.2）；不同类型实参形成互不转换的exact application。
+
+#### 4.2.1 整型枚举
+
+`enum E: I { First = 1, Last = I.MAX_VALUE }` 定义具有独立 nominal identity 的整型子类型 `E <: I`。`I` 必须是 11.2 的八种 primitive integer 之一，透明 alias 按实际类型处理；浮点、Boolean、Char、类型参数、另一个 enum 及其他值类型不能作为整型父类型。至多有一个整型父类型，仍可显式实现普通 interface。
+
+每个 variant 必须写出 initializer，不能携带 payload 或字段，不按声明顺序隐式编号。initializer 按 `I` 检查，使用 9.1.2 的整数 const 表达式规则及已声明的 const property；值必须可精确表示，同一 enum 中不能重复。表达式自身的算术保持原有整数规则，不引入额外的隐式截断或 signedness 转换。普通 const property 的允许类型不因此增加 enum。
+
+`E` 的合法值仅为其 variant。赋值、参数、返回、分支合流及函数值适配可以将 `E` 按值上转为 `I`；上转不分配、不改变数值位表示，并产生不再保留 enum 来源的 `I`。`I` 不能隐式转成 `E`，字面量、常量传播或数值恰好等于某个 variant 都不能绕过该限制；相同父类型的不同 enum 也不能隐式互转。普通显式 `as` / `as?` 判断实际类型，不是按整数内容构造 enum 的入口。
+
+整型枚举使用 `I` 的既有数值成员与接口关系，不另行派生同类型 equals，也不声明专属数学 operator。成员签名中的 `I` 不替换成 `E`，因此算术、位运算和转换按父类型的声明产生结果；例如 `e + 1` 为 `I`，`e += 1` 和 `e++` 因结果不能写回 `E` 而报错。继承的 `Equality<I>` 不能变成 `Equality<E>`。其他普通成员与显式 interface 实现按既有规则检查。
+
+直接装箱 `E` 保留实际 enum application；箱子同时符合 `E`、`I` 及其适用的接口关系，可以按 `E` 或 `I` 解箱。先上转 `I` 再装箱只保存 `I`，不能凭数值相同通过 `is E` 或解箱为 `E`。`is`、`as`、`as?` 与函数值适配使用相同的类型关系。
+
+泛型应用保留完整 `E` 身份，普通 nominal 泛型仍不变，`Array<E>`、`Option<E>`、`Ptr<E>` 等不能转换成相应的 `I` 应用；不扩大 13.9 的泛型上界类别。以 `E` 为 subject 的 when 按 variant 集合检查穷尽性，上转 `I` 后按整数值域检查。size、alignment、signedness、按值 ABI 与 `I` 相同，无额外 tag；未使用整数值不形成新的 Option niche（7.4）。FFI 的合法值域见 13.8。
 
 ### 4.3 tuple
 
@@ -635,7 +649,7 @@ case 继续使用现有递归 constructor matrix：variant payload、tuple/struc
 
 普通条件只有具有确定语言语义的部分参与覆盖：Boolean 的字面量 `true` / `false`、可确定的内建标量 literal 比较，以及使用编译器已知结构相等的 enum unit variant 等，可以转成现有 checker 的覆盖事实。任意变量、const 引用、调用、`in` 条件或用户定义 equals 均不被当作构造器覆盖；不能由两个复杂 Boolean 常量表达式推导完备性。普通值条件仍以原表达式和已选 equals 执行，覆盖事实不改变求值行为。
 
-对于纯 unit enum，列出全部 variant 且比较使用既有派生语义时可以穷尽；如果用户覆盖了 equals，应使用 `case` 或 else，不能假设相等具有自反性。带 payload 的 enum 按结构 case 递归覆盖最直接，列出若干 payload 构造值不能自动覆盖整个 variant。
+对于纯 unit enum，列出全部 variant 且比较使用既有派生语义时可以穷尽；如果用户覆盖了 equals，应使用 `case` 或 else，不能假设相等具有自反性。整型枚举使用整数父类型的已知相等语义，直接列出全部 variant 也可以穷尽。带 payload 的 enum 按结构 case 递归覆盖最直接，列出若干 payload 构造值不能自动覆盖整个 variant。
 
 普通 class/interface 的实现集合不是封闭集合，不能根据当前 Cone 中恰好出现的实现证明穷尽。sealed class/interface 使用 9.1.7 的完整子类型关系。不能从已有有限覆盖规则确定的剩余路径使用 else，不增加任意谓词、区间或类型逻辑的完备性证明器。
 
@@ -728,6 +742,8 @@ enum Option<T> {
 
 ### 7.4 enum 布局与 `Option` niche 保证
 
+4.2.1 的整型枚举直接使用底层整数的标量表示，不带 tag 或 payload。其未使用的整数位模式不构成本节的 niche，`Option<E>` 使用普通 tagged 表示。下述代数 enum 的布局规则不改变整型枚举自身的标量表示。
+
 对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None`编码为该空位，`Some(v)`与`v`的表示相同。空位按定义不是合法的裸`T`值；所有安全构造、compiler-generated值与声明为返回裸`T`的FFI边界都必须维持该不变量，unsafe代码破坏它后行为未定义。这是语言的固定特性，而非可选优化。适用类型：
 
 - **引用类型**：空位是全零的引用表示。普通单字引用为零指针；interface 的 None 为 `{null, null}`，Some 保留完整的 object／itab 双字值，判断空值只检查 object。空接口的合法 itab 可以为 null，不能用 itab 判断引用是否为空；
@@ -735,7 +751,7 @@ enum Option<T> {
 
 因此`Option<FunPtr<F>>`在`F`满足C ABI规则时可以直接表示可空函数指针；`Option<Ptr<T>>`只有在`T`本身有本章定义的portable C pointee representation，或`T == Unit`作为opaque `void *`例外时，才能直接出现在C ABI边界。`Option`的niche不绕过C-FFI-safe classifier，尤其`Option<Ptr<其他ZST>>`仍被拒绝。`Option`包裹的引用类型与裸引用布局相同，但引用类型本身仍不能进入C ABI。对其他类型`Option<T>`带tag，具体布局不保证。
 
-niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
+niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的代数enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
 
 `MaybeUninit<T>` 的全零表示是合法 wrapper，不能继承 T 的 niche；`Option<MaybeUninit<T>>` 使用普通 tagged 表示。`MaybeUninit<Option<T>>` 则与该 Option 的存储等大，已初始化的 None 是合法 payload；嵌套 Option 仍逐层保持不同状态。
 
@@ -1626,6 +1642,8 @@ public final class Nothing {}
 两个声明必须各存在一次，具有普通的源码位置、public binding 和 nominal identity，并随 core 产物发布。缺失或错误的声明在 core 编译／依赖消费边界报错，编译器不能在缺失时补建类型。普通同名声明仍按名称查找处理；仅有拼写 `Any`／`Nothing` 不赋予 intrinsic 语义。core 的源码位置或载入路径不是额外来源资格。
 
 ### 11.2 基本类型
+
+八种整数的 companion 均提供普通 `public const val MIN_VALUE` 和 `MAX_VALUE`，类型为该整数自身。宽度为 W 时，signed 边界为 `-2^(W-1)` 与 `2^(W-1)-1`，unsigned 边界为 `0` 与 `2^W-1`；透明 alias 访问同一常量。
 
 均为值类型（struct 语义）：
 
@@ -2701,6 +2719,8 @@ annotation class InteriorMutable
 - 该注解不为 value 引入 identity，也不改变按值复制边界：两个 copy 仍是两份独立存储。值类型成员方法仍按 3.3 取得独立的 `this` copy，不得因 ABI 指针传递而把调用方存储暴露给方法。
 
 ### 13.8 FFI ABI
+
+整型枚举（4.2.1）具有与其底层整数相同的 portable C scalar 表示，可用于 C 参数、结果、全局存储、CLayout 字段及 pointer/callback 签名；保留底层整数的 signedness、窄整数扩展与目标 ABI 分类。外部代码必须只提供 enum 已声明的合法值，可能产生未知数值的接口应声明为底层整数并显式选择合法 variant。普通复制、上转和调用不增加值域检查；该规则不扩展 Option niche 或泛型不变性。
 
 Scoop 的 FFI 函数有两种 ABI：
 

@@ -1,6 +1,40 @@
 use super::*;
 
 impl Lowerer {
+    fn evaluate_bound_const_reference(
+        &mut self,
+        source: &ast::Expr,
+        expected: Option<hir::TypeId>,
+    ) -> Option<EvaluatedConst> {
+        let mut statements = Vec::new();
+        let expression = self.lower_expr(source, &mut statements, expected)?;
+        let value = match expression.kind {
+            hir::ExprKind::IntegerLiteral(value) => hir::ConstPropertyValue::Integer(value),
+            hir::ExprKind::FloatLiteral(value) => hir::ConstPropertyValue::Float(value),
+            hir::ExprKind::CharLiteral(value) => hir::ConstPropertyValue::Char(value),
+            hir::ExprKind::BoolLiteral(value) => hir::ConstPropertyValue::Boolean(value),
+            hir::ExprKind::StringLiteral { value, .. } => hir::ConstPropertyValue::String(value),
+            _ => {
+                self.error(
+                    source.span(),
+                    "const initializer may only reference const properties".into(),
+                );
+                return None;
+            }
+        };
+        if !statements.is_empty() {
+            self.error(
+                source.span(),
+                "const initializer may only reference const properties".into(),
+            );
+            return None;
+        }
+        Some(EvaluatedConst {
+            value,
+            ty: expression.ty,
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn evaluate_const_expression(
         &mut self,
@@ -12,6 +46,11 @@ impl Lowerer {
         states: &mut [ConstState],
         stack: &mut Vec<usize>,
     ) -> Option<EvaluatedConst> {
+        if declarations.is_empty()
+            && matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_))
+        {
+            return self.evaluate_bound_const_reference(expression, expected);
+        }
         match expression {
             ast::Expr::IntLiteral(literal) => {
                 self.evaluate_integer_literal(*literal, expected, false, literal.span)

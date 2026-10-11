@@ -218,9 +218,16 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, def) in module.enums.iter() {
         out.push_str(&format!(
-            "  enum {}\n",
+            "  enum {}",
             type_name(module, &Type::Enum(id, def.type_arguments.clone()))
         ));
+        if let crate::EnumRepresentation::Integral { kind, values } = &def.representation {
+            out.push_str(&format!(
+                " integral({}) values={values:?}",
+                kind.canonical_name()
+            ));
+        }
+        out.push('\n');
         for variant in &def.variants {
             let fields: Vec<String> = variant
                 .fields

@@ -244,7 +244,7 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             operand: Box::new(unit(&fixture)),
             trap_on_none: CanonicalBooleanV1::True,
         },
-        DefaultExpressionKindV1::ReferenceUpcast(Box::new(unit(&fixture))),
+        DefaultExpressionKindV1::Upcast(Box::new(unit(&fixture))),
         DefaultExpressionKindV1::AtomicNew(Box::new(unit(&fixture))),
         DefaultExpressionKindV1::Atomic(Box::new(crate::AtomicExpression {
             object: unit(&fixture),

@@ -243,12 +243,14 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     });
     register_test_exact_type(&mut module, &Type::Class(throwable));
     let mode = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: [unit_variant("Reusable"), unit_variant("OneShot")].into(),
     });
     let state = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "ForeignCallbackState".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -261,6 +263,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         .into(),
     });
     let failure = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Option<Throwable>".to_string(),
         type_arguments: vec![Type::Class(throwable)],
         gc_free: false,

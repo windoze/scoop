@@ -285,7 +285,7 @@ pub(super) fn collect_definition_types(
                 collect_signature_type(field.ty(), required);
             }
         }
-        crate::NativeBoundaryNominalShape::Enum { variants } => {
+        crate::NativeBoundaryNominalShape::Enum { variants, .. } => {
             for field in variants.iter().flat_map(|variant| variant.fields()) {
                 collect_signature_type(field.ty(), required);
             }

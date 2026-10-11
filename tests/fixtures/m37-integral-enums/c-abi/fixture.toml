@@ -1,0 +1,54 @@
+schema = 1
+name = "m37-integral-enums-c-abi"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m37", "integral-enums", "c-layout", "callback", "gc"]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm37_integral.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"}, {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"}, {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-128\n65535\n1\n8\n16\n-128\n0\n0\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-128\n65535\n1\n8\n16\n-128\n0\n0\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-128\n65535\n1\n8\n16\n-128\n0\n0\n"
+stderr = ""

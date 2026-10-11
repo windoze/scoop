@@ -90,7 +90,7 @@ pub(crate) fn walk(
         }
         | hir::ExprKind::Box(receiver)
         | hir::ExprKind::Unbox(receiver)
-        | hir::ExprKind::ReferenceUpcast(receiver)
+        | hir::ExprKind::Upcast(receiver)
         | hir::ExprKind::IsInstance {
             operand: receiver, ..
         }

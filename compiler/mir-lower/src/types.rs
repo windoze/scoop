@@ -275,12 +275,14 @@ impl EnumRegistry {
         let decl = &types.module.enums[hir_id];
         let name = decl.name.clone();
         let id = self.defs.alloc(mir::EnumDef {
+            representation: lower_enum_representation(&decl.representation),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         shell.enums.alloc(mir::EnumDef {
+            representation: lower_enum_representation(&decl.representation),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: decl.gc_free,
@@ -475,4 +477,16 @@ pub(super) fn is_reference_mir(ty: &mir::Type) -> bool {
             | mir::Type::Function(_)
             | mir::Type::Any
     )
+}
+
+pub(super) fn lower_enum_representation(
+    source: &hir::EnumRepresentation,
+) -> mir::EnumRepresentation {
+    match source {
+        hir::EnumRepresentation::Algebraic => mir::EnumRepresentation::Algebraic,
+        hir::EnumRepresentation::Integral { kind, values } => mir::EnumRepresentation::Integral {
+            kind: lower_integer_kind(*kind),
+            values: values.clone(),
+        },
+    }
 }

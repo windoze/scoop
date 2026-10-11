@@ -19,6 +19,7 @@ pub enum ExactSupertypeSemanticError<E> {
 #[derive(Debug)]
 pub enum NominalInterfaceSemanticValidationError<E> {
     Declaration(E),
+    IntegerParent(crate::IntegerKind),
     EnclosingInstance(&'static str),
     ClassDispatchRole(PublicNominalKindV1),
     DispatchReceiver {
@@ -101,6 +102,9 @@ impl<E: std::error::Error + 'static> std::error::Error for ExactSupertypeSemanti
 impl<E: fmt::Display> fmt::Display for NominalInterfaceSemanticValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IntegerParent(kind) => {
+                write!(formatter, "integral enum is missing its {kind:?} parent")
+            }
             Self::Declaration(error) => write!(formatter, "invalid nominal declaration: {error}"),
             Self::EnclosingInstance(reason) => {
                 write!(formatter, "invalid enclosing instance: {reason}")

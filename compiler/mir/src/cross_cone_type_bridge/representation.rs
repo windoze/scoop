@@ -65,6 +65,7 @@ pub enum MirTypeRepresentationV1 {
         interior_mutable: bool,
     },
     Enum {
+        representation: crate::EnumRepresentation,
         variants: Vec<MirRepresentationVariantV1>,
     },
     Class {
@@ -123,7 +124,7 @@ impl MirTypeRepresentationV1 {
     }
     pub fn variants(&self) -> &[MirRepresentationVariantV1] {
         match self {
-            Self::Enum { variants }
+            Self::Enum { variants, .. }
             | Self::CoroutineStep { variants }
             | Self::CoroutineSlot { variants } => variants,
             _ => &[],

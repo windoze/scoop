@@ -160,7 +160,10 @@ pub enum DecodedNominalSourceShapeV1 {
         c_layout_policy: NominalCLayoutPolicyV1,
         interior_mutable: bool,
     },
-    Enum(Vec<DecodedEnumSourceVariantV1>),
+    Enum {
+        variants: Vec<DecodedEnumSourceVariantV1>,
+        representation: crate::EnumRepresentation,
+    },
     Object {
         kind: ObjectSourceKindV1,
         value: DecodedPersistentId<PersistentObjectValueId>,
@@ -189,8 +192,22 @@ impl DecodedNominalSourceShapeV1 {
                 interior_mutable,
             } => resolve_struct_shape(fields, c_layout_policy, interior_mutable, resolver)
                 .map(NominalSourceShapeV1::Struct),
-            Self::Enum(variants) => {
-                resolve_enum_shape(variants, resolver).map(NominalSourceShapeV1::Enum)
+            Self::Enum {
+                variants,
+                representation,
+            } => {
+                let mut shape = resolve_enum_shape(variants, resolver)?;
+                if !representation.matches_unit_variants(
+                    shape.variants.len(),
+                    shape.variants.iter().all(|variant| {
+                        variant.style() == EnumSourceVariantStyleV1::Unit
+                            && variant.fields().is_empty()
+                    }),
+                ) {
+                    return Err(NominalSourceShapeResolutionError::IntegralVariants);
+                }
+                shape.representation = representation;
+                Ok(NominalSourceShapeV1::Enum(shape))
             }
             Self::Object {
                 kind,
@@ -270,7 +287,10 @@ where
         }
         variants.push(variant);
     }
-    Ok(EnumSourceShapeV1 { variants })
+    Ok(EnumSourceShapeV1 {
+        variants,
+        representation: crate::EnumRepresentation::Algebraic,
+    })
 }
 
 fn validate_variant_fields(

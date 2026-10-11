@@ -191,7 +191,7 @@ impl Lowerer {
             | ExprKind::PtrCast(source)
             | ExprKind::Box(source)
             | ExprKind::Unbox(source)
-            | ExprKind::ReferenceUpcast(source)
+            | ExprKind::Upcast(source)
             | ExprKind::IsInstance {
                 operand: source, ..
             }

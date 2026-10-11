@@ -10,11 +10,24 @@ pub(in crate::production::type_semantics) fn project_edges(
             None,
             export.structs[id].interfaces.as_slice(),
         ),
-        NominalLocalId::Enum(id) => (
-            NominalInheritanceModalityV1::Final,
-            None,
-            export.enums[id].interfaces.as_slice(),
-        ),
+        NominalLocalId::Enum(id) => {
+            let definition = &export.enums[id];
+            let mut interfaces = definition.interfaces.clone();
+            if let Some(kind) = definition.representation.integer_kind() {
+                for &interface in export.integer_interface_roots(kind) {
+                    if !interfaces.contains(&interface) {
+                        interfaces.push(interface);
+                    }
+                }
+            }
+            return build_edges(
+                export,
+                nominal.exact,
+                NominalInheritanceModalityV1::Final,
+                None,
+                &interfaces,
+            );
+        }
         NominalLocalId::Class(id) => {
             let class = &export.classes[id];
             let modality = match class.modifier {

@@ -146,7 +146,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     },
     Box(Box<IndexedDefaultExpressionV1<'a>>),
     Unbox(Box<IndexedDefaultExpressionV1<'a>>),
-    ReferenceUpcast(Box<IndexedDefaultExpressionV1<'a>>),
+    Upcast(Box<IndexedDefaultExpressionV1<'a>>),
     IsInstance {
         operand: Box<IndexedDefaultExpressionV1<'a>>,
         checked_type: &'a SignatureTypeKey,
@@ -517,10 +517,8 @@ impl DefaultExpressionV1 {
             DefaultExpressionKindV1::Unbox(operand) => {
                 IndexedDefaultExpressionKindV1::Unbox(index_child(operand, resolver, 35, 1)?)
             }
-            DefaultExpressionKindV1::ReferenceUpcast(operand) => {
-                IndexedDefaultExpressionKindV1::ReferenceUpcast(index_child(
-                    operand, resolver, 58, 1,
-                )?)
+            DefaultExpressionKindV1::Upcast(operand) => {
+                IndexedDefaultExpressionKindV1::Upcast(index_child(operand, resolver, 58, 1)?)
             }
             DefaultExpressionKindV1::IsInstance {
                 operand,

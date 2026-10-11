@@ -226,6 +226,7 @@ impl WireDecode for DecodedEnumSourceVariantV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EnumSourceShapeV1 {
+    pub(super) representation: crate::EnumRepresentation,
     pub(super) variants: Vec<EnumSourceVariantV1>,
 }
 
@@ -233,6 +234,21 @@ impl EnumSourceShapeV1 {
     pub fn try_new(
         variants: Vec<EnumSourceVariantV1>,
     ) -> Result<Self, NominalSourceShapeBuildError> {
+        Self::try_new_with_representation(variants, crate::EnumRepresentation::Algebraic)
+    }
+
+    pub fn try_new_with_representation(
+        variants: Vec<EnumSourceVariantV1>,
+        representation: crate::EnumRepresentation,
+    ) -> Result<Self, NominalSourceShapeBuildError> {
+        if !representation.matches_unit_variants(
+            variants.len(),
+            variants.iter().all(|variant| {
+                variant.style == EnumSourceVariantStyleV1::Unit && variant.fields.is_empty()
+            }),
+        ) {
+            return Err(NominalSourceShapeBuildError::IntegralVariants);
+        }
         u32::try_from(variants.len())
             .map_err(|_| NominalSourceShapeBuildError::TooManyEnumVariants)?;
         let mut ids = BTreeSet::new();
@@ -243,7 +259,14 @@ impl EnumSourceShapeV1 {
                 ));
             }
         }
-        Ok(Self { variants })
+        Ok(Self {
+            variants,
+            representation,
+        })
+    }
+
+    pub fn representation(&self) -> &crate::EnumRepresentation {
+        &self.representation
     }
 
     pub fn variants(&self) -> &[EnumSourceVariantV1] {

@@ -157,6 +157,14 @@ pub(crate) fn compute_repr(
         ));
     }
     let def = &module.enums[id];
+    if let mir::EnumRepresentation::Integral { kind, values } = &def.representation {
+        reprs[index] = Some(lir::EnumRepr::Integral {
+            kind: super::integer_kind(*kind),
+            values: values.clone(),
+        });
+        visiting.remove(&id);
+        return Ok(());
+    }
     let mut nested = Vec::new();
     for variant in &def.variants {
         for field in &variant.fields {
@@ -271,5 +279,9 @@ pub(crate) fn repr_shape(context: &LoweringContext, repr: &lir::EnumRepr) -> (u6
     match repr {
         lir::EnumRepr::Niche { kind, .. } => kind.layout(context.target_profile()),
         lir::EnumRepr::Tagged { size, align, .. } => (*size, *align),
+        lir::EnumRepr::Integral { kind, .. } => {
+            let layout = context.target_profile().integer_layout(*kind);
+            (layout.size_bytes(), layout.alignment_bytes())
+        }
     }
 }

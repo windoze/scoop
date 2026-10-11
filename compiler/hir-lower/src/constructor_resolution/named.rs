@@ -120,8 +120,12 @@ impl Lowerer {
                 Ok(receiver) => receiver,
                 Err(()) => return Err(Box::new(state)),
             };
-        let Some(explicit) = state.inner_explicit_arguments(enclosing.as_ref(), &view, &call)
-        else {
+        let Some(explicit) = state.constructor_type_arguments(
+            enclosing.as_ref(),
+            &view,
+            call.explicit_type_args,
+            call.span,
+        ) else {
             return Err(Box::new(state));
         };
         if !explicit.is_empty() && explicit.len() != view.signature.owner_parameters.len() {

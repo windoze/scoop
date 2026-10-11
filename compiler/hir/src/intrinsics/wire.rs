@@ -265,33 +265,12 @@ fn intrinsic_wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError
 }
 
 const fn integer_kind_tag(kind: IntegerKind) -> u64 {
-    match kind {
-        IntegerKind::SIGNED_8 => 1,
-        IntegerKind::SIGNED_16 => 2,
-        IntegerKind::SIGNED_32 => 3,
-        IntegerKind::SIGNED_64 => 4,
-        IntegerKind::UNSIGNED_8 => 5,
-        IntegerKind::UNSIGNED_16 => 6,
-        IntegerKind::UNSIGNED_32 => 7,
-        IntegerKind::UNSIGNED_64 => 8,
-    }
+    kind.wire_tag()
 }
 
 fn decode_integer_kind(decoder: &Decoder<'_>, tag: u64) -> Result<IntegerKind, WireError> {
-    match tag {
-        1 => Ok(IntegerKind::SIGNED_8),
-        2 => Ok(IntegerKind::SIGNED_16),
-        3 => Ok(IntegerKind::SIGNED_32),
-        4 => Ok(IntegerKind::SIGNED_64),
-        5 => Ok(IntegerKind::UNSIGNED_8),
-        6 => Ok(IntegerKind::UNSIGNED_16),
-        7 => Ok(IntegerKind::UNSIGNED_32),
-        8 => Ok(IntegerKind::UNSIGNED_64),
-        tag => Err(intrinsic_wire_error(
-            decoder,
-            WireErrorKind::UnknownTag { tag },
-        )),
-    }
+    IntegerKind::from_wire_tag(tag)
+        .ok_or_else(|| intrinsic_wire_error(decoder, WireErrorKind::UnknownTag { tag }))
 }
 
 const fn no_gc_integer_operation_tag(operation: NoGcIntegerOperation) -> u64 {

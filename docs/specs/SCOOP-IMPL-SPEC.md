@@ -153,6 +153,8 @@ when 的前端决议遵守语言规范第 5 章：普通条件保存已解析 Bo
 
 return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正常到达合流点的分支提供结果，不为跳转生成 Unit、零值、null 或未初始化 local。表达式跳转的实际 transfer 保存在当前位置的有序 setup 中；其结果及全终止控制表达式使用 Nothing 类型的 Unreachable 节点，明确表示没有正常值，不读取存储也不执行 runtime 调用。MIR 将该节点结束为不可达正常边。尾随 lambda 在每个候选内先映射最后形参，再复用普通调用检查；成功 HIR 只保存完整已选调用。捕获、具体化、完成性质、默认模板、导出正文与 dump 均覆盖这些表示。
 
+整型枚举在源码 HIR 中具有明确的表示类别、底层整数 kind 和已检查的有序 variant 常量；父子关系、继承数值成员、普通上转及接口关系在 HIR lowering 完成。共享源码定义与表示数据保留 enum/variant identity、底层整数和数值，消费方不重新求值 initializer，也不按纯 unit variant 猜测枚举类别。数值上转与引用上转均为已检查的单向类型适配；上转结果按目标类型继续参与装箱。
+
 ### 2.3 MIR
 
 MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。
@@ -284,6 +286,8 @@ compiler-owned static storage 带完整 scan 和封闭初值 ZeroedForRuntimeUni
 LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、TD、dispatch、initialization、runtime registration 与 required definitions。ordinary nominal 定义使用原 provider 的布局；实际泛型或 structural application 使用其 ODR 布局。结构字段可按 canonical exact key 组成，不要求为没有实际物理定义的 constituent 另造 layout 实体。
 
 每条 native contract 按 target 正规化 symbol，并保存完整 kind/library/signature/storage/GC effect；它进入 LIR 语义内容，host 搜索路径不进入。String 关联实际声明的 TD 与 provider，不由名字或相同 InlineBytes 布局代替。
+
+整型枚举的 MIR/LIR 保留 exact enum 身份并直接使用底层整数标量布局；variant 构造产生其已检查常量，匹配按该表示区分 variant。参数、结果、字段、数组及 C ABI 使用同一整数的 size、alignment、signedness 与目标分类，不添加 tag、payload 区域或值域检查。boxed enum 的父 TD 指向 boxed integer，父整数解箱与函数值适配遵守运行时规范 2.3。Option 的现有 niche 范围不变，源码 enum 身份不能因机器签名相同而合并。
 
 ### 2.5 Codegen 与对象合同
 
@@ -788,7 +792,7 @@ MIR 内联按调用点代入已知实参、局部常量和可证明不可达分�
 
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 
-最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
+最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；仅在这些常量之间选择的 phi/select 同样不要求重定位，包含任何动态 managed 输入的选择仍按移动根处理。runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
 
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 

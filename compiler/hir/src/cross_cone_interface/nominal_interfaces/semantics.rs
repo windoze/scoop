@@ -9,6 +9,7 @@ use crate::{
 mod dispatch;
 mod enclosing;
 mod errors;
+mod supertypes;
 
 pub use errors::{ExactSupertypeSemanticError, NominalInterfaceSemanticValidationError};
 
@@ -25,6 +26,11 @@ pub trait NominalInterfaceSemanticAuthority<E>: NominalSourceShapeSemanticAuthor
         &mut self,
         declaration: SourceNominalId,
     ) -> Result<SourceDeclarationKey, E>;
+
+    fn integer_kind(
+        &mut self,
+        declaration: SourceNominalId,
+    ) -> Result<Option<crate::IntegerKind>, E>;
 
     fn constructor_owner(
         &mut self,
@@ -99,59 +105,6 @@ impl NominalInterfaceRecordV1 {
             return Err(NominalInterfaceSemanticValidationError::ObjectTypeParameters { actual });
         }
         Ok(key)
-    }
-
-    fn validate_exact_supertypes<A, E>(
-        &self,
-        authority: &mut A,
-    ) -> Result<(), NominalInterfaceSemanticValidationError<E>>
-    where
-        A: NominalInterfaceSemanticAuthority<E>,
-    {
-        let scope = self.type_parameters.signature_scope(None);
-        let mut class_index = None;
-        for (index, supertype) in self.exact_supertypes.values().iter().enumerate() {
-            let shape = scope
-                .validate_nominal_signature_semantics(supertype, authority)
-                .map_err(
-                    |error| NominalInterfaceSemanticValidationError::ExactSupertype {
-                        index,
-                        error: ExactSupertypeSemanticError::Signature(error),
-                    },
-                )?;
-            match shape.kind() {
-                PublicNominalKindV1::Interface => {}
-                PublicNominalKindV1::Class => {
-                    if !matches!(
-                        self.kind,
-                        PublicNominalKindV1::Class | PublicNominalKindV1::Object
-                    ) {
-                        return Err(NominalInterfaceSemanticValidationError::ExactSupertype {
-                            index,
-                            error: ExactSupertypeSemanticError::ClassNotAllowed {
-                                owner: self.kind,
-                            },
-                        });
-                    }
-                    if let Some(first_index) = class_index {
-                        return Err(NominalInterfaceSemanticValidationError::ExactSupertype {
-                            index,
-                            error: ExactSupertypeSemanticError::MultipleClasses { first_index },
-                        });
-                    }
-                    class_index = Some(index);
-                }
-                kind @ (PublicNominalKindV1::Struct
-                | PublicNominalKindV1::Enum
-                | PublicNominalKindV1::Object) => {
-                    return Err(NominalInterfaceSemanticValidationError::ExactSupertype {
-                        index,
-                        error: ExactSupertypeSemanticError::InvalidTargetKind(kind),
-                    });
-                }
-            }
-        }
-        Ok(())
     }
 
     fn validate_owned_entries<A, E>(

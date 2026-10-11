@@ -154,7 +154,10 @@ fn enumeration(
             })?,
         );
     }
-    Ok(NominalRepresentationShapeV1::Enum { variants })
+    Ok(NominalRepresentationShapeV1::Enum {
+        variants,
+        representation: declaration.representation.clone(),
+    })
 }
 
 fn class_fields(

@@ -21,6 +21,10 @@ pub trait InheritanceSlotContractSemanticAuthority<E>:
     InheritanceSlotSchemaSemanticAuthority<E> + NominalInheritanceSemanticAuthority<E>
 {
     fn unit_exact_type(&self) -> Result<PersistentExactTypeId, E>;
+    fn integral_enum_parent(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<Option<PersistentExactTypeId>, E>;
 }
 
 /// Checks this record's foundation identity and source parameter shape,

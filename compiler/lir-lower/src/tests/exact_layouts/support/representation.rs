@@ -182,7 +182,10 @@ pub(super) fn representation(
                 })
                 .collect();
             (
-                Repr::Enum { variants },
+                Repr::Enum {
+                    variants,
+                    representation: definition.representation.clone(),
+                },
                 Kind::NonZeroValue,
                 definition.gc_free,
             )

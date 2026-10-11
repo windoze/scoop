@@ -1,6 +1,7 @@
 use super::*;
 
 mod conformance;
+mod integral;
 
 impl Lowerer {
     /// Generate boxed value types' ordinary interface dispatch. A box has no
@@ -13,6 +14,7 @@ impl Lowerer {
         let entry = &self.boxed.entries[index];
         let class_id = entry.class;
         let payload = entry.payload.clone();
+        self.set_integral_box_parent(module, class_id, &payload);
         if matches!(
             self.source_exact_types.get(&payload).map(|source| source.owner()),
             Some(mir::SourceExactTypeOwner::Cone(provider)) if provider != module.cone
@@ -235,7 +237,24 @@ impl Lowerer {
             &mut self.interfaces,
             &mut self.shell,
         );
-        let receiver = if receiver_ty == *payload {
+        let receiver = if let (mir::Type::Enum(id, _), mir::Type::Integer(kind)) =
+            (payload, &receiver_ty)
+            && self.enums.defs[*id].representation.integer_kind() == Some(*kind)
+        {
+            smir::Expr::new(
+                receiver_ty.clone(),
+                smir::ExprKind::Retype {
+                    operand: Box::new(smir::Expr::new(
+                        payload.clone(),
+                        smir::ExprKind::Unbox(Box::new(smir::Expr::local(
+                            this,
+                            mir::Type::Class(boxed_class),
+                        ))),
+                    )),
+                    ty: Box::new(receiver_ty),
+                },
+            )
+        } else if receiver_ty == *payload {
             smir::Expr::new(
                 payload.clone(),
                 smir::ExprKind::Unbox(Box::new(smir::Expr::local(

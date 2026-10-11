@@ -64,7 +64,10 @@ impl BodyLowerer<'_> {
             self.register_boxed(source, source_identity);
             return smir::Expr::new(target.clone(), smir::ExprKind::Box(Box::new(value)));
         }
-        if is_reference_mir(source) && is_reference_mir(target) {
+        let integral_upcast = matches!((source, target),
+            (mir::Type::Enum(id, _), mir::Type::Integer(kind))
+                if self.enums.defs[*id].representation.integer_kind() == Some(*kind));
+        if integral_upcast || (is_reference_mir(source) && is_reference_mir(target)) {
             return smir::Expr::new(
                 target.clone(),
                 smir::ExprKind::Retype {

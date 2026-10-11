@@ -41,6 +41,7 @@ fn nullable(fixture: &mut Fixture, payload: PersistentExactTypeId, project: bool
         &source,
         &[1],
         NativeBoundaryNominalShape::Enum {
+            representation: scoop_hir::EnumRepresentation::Algebraic,
             variants: vec![
                 NativeBoundaryVariantDefinition::new(&present, vec![payload_field]).unwrap(),
                 NativeBoundaryVariantDefinition::new(&empty, Vec::new()).unwrap(),

@@ -155,7 +155,7 @@ impl Validator<'_> {
             }
             | DefaultExpressionKindV1::Box(operand)
             | DefaultExpressionKindV1::Unbox(operand)
-            | DefaultExpressionKindV1::ReferenceUpcast(operand)
+            | DefaultExpressionKindV1::Upcast(operand)
             | DefaultExpressionKindV1::IsInstance { operand, .. }
             | DefaultExpressionKindV1::Cast { operand, .. }
             | DefaultExpressionKindV1::ArrayLen(operand)

@@ -1,0 +1,1 @@
+enum E : Float { V = 1 }

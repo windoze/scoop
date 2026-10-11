@@ -124,6 +124,9 @@ public struct UInt : Equality<UInt>, ToString, Hash {
     public override fun hash(): Long = coreULongHash(this.toUInt64())
 
     public companion object : Encodable<UInt>, Decodable<UInt> {
+        public const val MIN_VALUE: UInt = 0u
+        public const val MAX_VALUE: UInt = 4294967295u
+
         public override fun encode(value: UInt, encoder: Encoder): Unit =
             encoder.singleValue().writeULong(value.toUInt64())
 

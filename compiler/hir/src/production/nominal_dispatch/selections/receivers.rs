@@ -15,6 +15,9 @@ impl Projection<'_> {
                     MethodOwnerApplication::Interface(application) => {
                         self.export.interface_applications[application].canonical_type
                     }
+                    MethodOwnerApplication::Struct(application) => {
+                        self.export.struct_applications[application].canonical_type
+                    }
                     _ => host,
                 }
             }
@@ -37,7 +40,10 @@ impl Projection<'_> {
             }
         };
         Ok(
-            if matches!(self.export.types[candidate], Type::Interface(_)) {
+            if matches!(
+                self.export.types[candidate],
+                Type::Interface(_) | Type::Integer(_)
+            ) {
                 candidate
             } else {
                 host

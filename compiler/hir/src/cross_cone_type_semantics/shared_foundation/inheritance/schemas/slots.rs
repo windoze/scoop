@@ -81,6 +81,10 @@ pub(super) fn validate<'a>(
         schemas,
         sources,
         unit,
+        types: MetadataTypes {
+            current: current.metadata,
+            dependencies,
+        },
     };
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
         for nominal in provider.section.inheritance().records() {
