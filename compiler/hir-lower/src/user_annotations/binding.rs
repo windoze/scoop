@@ -112,7 +112,11 @@ impl Lowerer {
         let mut applications = Vec::new();
         let mut seen = HashSet::new();
         for annotation in annotations {
-            if crate::annotations::is_core_annotation(&annotation.name.text) {
+            if annotation
+                .name
+                .single_text()
+                .is_some_and(crate::annotations::is_core_annotation)
+            {
                 if matches!(
                     target,
                     hir::SourceAnnotationTarget::Field(_)
@@ -123,34 +127,26 @@ impl Lowerer {
                         annotation.span,
                         format!(
                             "`@{}` is not allowed on a field or enum variant",
-                            annotation.name.text
+                            annotation.name
                         ),
                     );
                 }
                 continue;
             }
-            let path = annotation
-                .name
-                .text
-                .split('.')
-                .map(|name| ast::Ident {
-                    text: name.into(),
-                    span: annotation.name.span,
-                })
-                .collect::<Vec<_>>();
+            let path = annotation.name.segments().cloned().collect::<Vec<_>>();
             let id = match self.resolve_type_name_path(&path, false) {
                 Ok(Some(ResolvedTypeName::Annotation(id))) => id,
                 Ok(Some(_)) => {
                     self.error(
                         annotation.name.span,
-                        format!("`{}` is not an annotation class", annotation.name.text),
+                        format!("`{}` is not an annotation class", annotation.name),
                     );
                     continue;
                 }
                 Ok(None) => {
                     self.error(
                         annotation.name.span,
-                        format!("unknown annotation `{}`", annotation.name.text),
+                        format!("unknown annotation `{}`", annotation.name),
                     );
                     continue;
                 }
@@ -161,7 +157,7 @@ impl Lowerer {
                     annotation.span,
                     format!(
                         "annotation `@{}` must not be repeated on the same target",
-                        annotation.name.text
+                        annotation.name
                     ),
                 );
                 continue;

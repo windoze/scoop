@@ -154,7 +154,7 @@ impl Parser {
                     };
                     continue;
                 }
-                if let TokenKind::Ident(_) = &self.peek().kind {
+                if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind {
                     if INFIX_PRECEDENCE < min_precedence || self.peek().newline_before {
                         break;
                     }

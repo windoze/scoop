@@ -499,7 +499,7 @@ impl Parser {
     pub(crate) fn expect_ident(&mut self, what: &str) -> Result<Ident, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Ident(text) => {
+            TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
                 Ok(Ident {
                     text,

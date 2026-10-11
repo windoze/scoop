@@ -70,7 +70,7 @@ impl Lowerer {
             || signature.modifiers != hir::CallableModifiers::default()
             || signature.return_ty != result
             || signature.params.len() != values + orders
-            || self.functions[function].name.rsplit('.').next() != Some(kind.method().source_name())
+            || self.source_function_name(function) != kind.method().source_name()
         {
             return false;
         }

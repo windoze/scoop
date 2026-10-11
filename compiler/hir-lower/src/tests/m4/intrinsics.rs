@@ -190,7 +190,7 @@ fn unknown_annotation_is_an_error() {
     core.declarations.push(Decl::Function(FunctionDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Unknown"),
+            name: ident("Unknown").into(),
             args: vec![],
             span: sp(),
         }],

@@ -12,7 +12,7 @@ impl Lowerer {
         } else {
             self.error(
                 annotation.span,
-                format!("`@{}` does not accept arguments", annotation.name.text),
+                format!("`@{}` does not accept arguments", annotation.name),
             );
             false
         }
@@ -28,7 +28,7 @@ impl Lowerer {
                 annotation.span,
                 format!(
                     "`@{}` requires exactly one string argument `{parameter}`",
-                    annotation.name.text
+                    annotation.name
                 ),
             );
             return None;
@@ -41,7 +41,7 @@ impl Lowerer {
                 name.span,
                 format!(
                     "unknown argument `{}` for `@{}`; expected `{parameter}`",
-                    name.text, annotation.name.text
+                    name.text, annotation.name
                 ),
             );
             return None;
@@ -51,7 +51,7 @@ impl Lowerer {
                 arg.span,
                 format!(
                     "argument `{parameter}` of `@{}` must be a string",
-                    annotation.name.text
+                    annotation.name
                 ),
             );
             return None;

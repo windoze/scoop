@@ -26,7 +26,9 @@ impl Lowerer {
         let mut seen = HashSet::new();
 
         for annotation in &decl.annotations {
-            let name = annotation.name.text.as_str();
+            let Some(name) = annotation.name.single_text() else {
+                continue;
+            };
             if !seen.insert(name.to_string()) {
                 self.error(
                     annotation.span,

@@ -1,6 +1,16 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn function_accessor_kind(
+        &self,
+        function: hir::FunctionId,
+    ) -> Option<PropertyAccessorKind> {
+        self.property_accessor_sources
+            .iter()
+            .find(|source| source.function == function)
+            .map(|source| source.kind)
+    }
+
     pub(super) fn allocate_accessor_function(
         &mut self,
         declaration: ast::FunctionDecl,

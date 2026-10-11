@@ -35,11 +35,11 @@ impl Lowerer {
             // MutableArray, even when every element is independently typed.
             ast::Expr::ArrayLiteral { .. } => true,
             ast::Expr::Call(call) => {
-                self.constructor_requires_expected(&call.callee, &call.args)
+                self.constructor_requires_expected(None, &call.callee, &call.args)
                     || self.bare_call_requires_contextual_lookup(call)
             }
             ast::Expr::StructInit { name, args, .. } => {
-                self.constructor_requires_expected(name, args)
+                self.constructor_requires_expected(None, name, args)
             }
             ast::Expr::MethodCall {
                 receiver,
@@ -161,10 +161,10 @@ impl Lowerer {
             }
             ast::Expr::Call(call) if !call.type_args.is_empty() => false,
             ast::Expr::Call(call) => {
-                self.constructor_can_provide_default_seed(&call.callee, &call.args)
+                self.constructor_can_provide_default_seed(None, &call.callee, &call.args)
             }
             ast::Expr::StructInit { name, args, .. } => {
-                self.constructor_can_provide_default_seed(name, args)
+                self.constructor_can_provide_default_seed(None, name, args)
             }
             ast::Expr::CopyUpdate { base, .. } => self.expr_can_provide_default_seed(base),
             ast::Expr::MethodCall {
@@ -182,11 +182,7 @@ impl Lowerer {
                 {
                     return false;
                 }
-                let qualified = ast::Ident {
-                    text: format!("{}.{}", enum_name.text, name.text),
-                    span: Span::new(enum_name.span.start, name.span.end),
-                };
-                self.constructor_can_provide_default_seed(&qualified, args)
+                self.constructor_can_provide_default_seed(Some(&enum_name.text), name, args)
             }
             _ => false,
         }
@@ -194,10 +190,13 @@ impl Lowerer {
 
     fn constructor_can_provide_default_seed(
         &self,
+        qualifier: Option<&str>,
         name: &ast::Ident,
         args: &[ast::CallArgument],
     ) -> bool {
-        let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
+        let Some((type_param_count, fields)) =
+            self.constructor_inference_shape(qualifier, &name.text)
+        else {
             return false;
         };
         if type_param_count == 0 {
@@ -216,22 +215,21 @@ impl Lowerer {
 
     pub(in crate::expr) fn constructor_requires_expected(
         &self,
+        qualifier: Option<&str>,
         name: &ast::Ident,
         args: &[ast::CallArgument],
     ) -> bool {
-        let qualifier = name
-            .text
-            .split_once('.')
-            .map_or(name.text.as_str(), |(qualifier, _)| qualifier);
+        let type_name = qualifier.unwrap_or(&name.text);
         // A non-generic alias already fixes the complete target application.
         // Invalid/inaccessible aliases are also lowered immediately so their
         // focused diagnostic is not hidden behind contextual postponement.
-        if self.lexical_nested_nominal_target(qualifier).is_none()
-            && self.source_type_alias_named(qualifier).is_some()
+        if self.lexical_nested_nominal_target(type_name).is_none()
+            && self.source_type_alias_named(type_name).is_some()
         {
             return false;
         }
-        if let Some((class, _)) = self.top_level_class_named(&name.text)
+        if qualifier.is_none()
+            && let Some((class, _)) = self.top_level_class_named(&name.text)
             && self.array_class_kind(class).is_some()
         {
             let [source] = args else {
@@ -239,7 +237,9 @@ impl Lowerer {
             };
             return self.expr_requires_expected_type(&source.expression);
         }
-        let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
+        let Some((type_param_count, fields)) =
+            self.constructor_inference_shape(qualifier, &name.text)
+        else {
             return false;
         };
         if type_param_count == 0 {
@@ -274,14 +274,7 @@ impl Lowerer {
         {
             return false;
         }
-        let qualified = format!("{}.{}", enum_name.text, name.text);
-        self.constructor_requires_expected(
-            &ast::Ident {
-                text: qualified,
-                span: Span::new(enum_name.span.start, name.span.end),
-            },
-            args,
-        )
+        self.constructor_requires_expected(Some(&enum_name.text), name, args)
     }
 
     /// Generic constructor parameter count and field templates, without
@@ -289,11 +282,16 @@ impl Lowerer {
     /// does not denote a constructor.
     pub(in crate::expr) fn constructor_inference_shape(
         &self,
+        qualifier: Option<&str>,
         name: &str,
     ) -> Option<(usize, Vec<TypeId>)> {
-        let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
-            let enum_id = self.top_level_enum_named(enum_name)?;
-            self.find_variant(enum_id, variant_name)
+        let variant = if let Some(enum_name) = qualifier {
+            let enum_id = match self.lexical_nested_nominal_target(enum_name) {
+                Some(crate::NominalTarget::Enum(id)) => id,
+                Some(_) => return None,
+                None => self.top_level_enum_named(enum_name)?,
+            };
+            self.find_variant(enum_id, name)
                 .map(|variant| (enum_id, variant))
         } else {
             match self.core_prelude_variant_refs(name) {
@@ -310,6 +308,9 @@ impl Lowerer {
                     .map(|field| field.ty)
                     .collect(),
             ));
+        }
+        if qualifier.is_some() {
+            return None;
         }
         self.top_level_struct_named(name)
             .map(|(struct_id, _)| {

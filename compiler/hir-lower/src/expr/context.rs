@@ -62,14 +62,14 @@ impl Lowerer {
         if !parameters.is_empty() {
             for annotation in &declaration.annotations {
                 if matches!(
-                    annotation.name.text.as_str(),
-                    "Extern" | "Intrinsic" | "NoGC"
+                    annotation.name.single_text(),
+                    Some("Extern" | "Intrinsic" | "NoGC")
                 ) {
                     self.error(
                         annotation.span,
                         format!(
                             "contextual declarations cannot be annotated with `@{}`",
-                            annotation.name.text
+                            annotation.name
                         ),
                     );
                 }

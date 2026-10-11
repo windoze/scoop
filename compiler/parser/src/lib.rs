@@ -67,6 +67,8 @@ mod tests_m37_control_bodies;
 #[cfg(test)]
 mod tests_m37_modifiers;
 #[cfg(test)]
+mod tests_m37_names;
+#[cfg(test)]
 mod tests_m4;
 #[cfg(test)]
 mod tests_m5;

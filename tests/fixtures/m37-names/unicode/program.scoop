@@ -1,0 +1,11 @@
+struct 坐标(val 横: Int, val 纵: Int)
+fun <类型> 身份(输入: 类型): 类型 = 输入
+fun 求和(第一: Int, 第二: Int): Int = 第一 + 第二
+fun main() {
+    val 点 = 坐标(横 = 20, 纵 = 22)
+    val café = 1
+    val café = 2
+    println(身份(求和(第二 = 点.纵, 第一 = 点.横)))
+    println(café + café)
+    println(f"坐标=${点.横}")
+}

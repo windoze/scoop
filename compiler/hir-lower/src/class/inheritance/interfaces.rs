@@ -111,8 +111,9 @@ impl Lowerer {
                         let signature =
                             self.instantiated_signature(candidate.function, &arguments, &[]);
                         let signature = InterfaceSignature::local(
-                            &self.functions[candidate.function].name,
+                            self.source_function_name(candidate.function),
                             &signature,
+                            self.function_accessor_kind(candidate.function),
                         );
                         self.implementation_satisfies_interface_signature(
                             owner,
@@ -123,11 +124,16 @@ impl Lowerer {
                     .cloned();
                 let imported_implementation = if implemented.is_none() {
                     class.and_then(|class| {
-                        self.inherited_imported_class_methods(class, &member.signature.name, span)
-                            .into_iter()
-                            .find(|method| {
-                                self.same_interface_signature(&method.signature, &member.signature)
-                            })
+                        self.inherited_imported_class_methods(
+                            class,
+                            &member.signature.name,
+                            member.signature.accessor,
+                            span,
+                        )
+                        .into_iter()
+                        .find(|method| {
+                            self.same_interface_signature(&method.signature, &member.signature)
+                        })
                     })
                 } else {
                     None

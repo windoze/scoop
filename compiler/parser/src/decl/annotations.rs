@@ -32,8 +32,10 @@ impl Parser {
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
                 let start = self.peek().span.start;
-                let name = if matches!(self.peek().kind, TokenKind::Ident(_))
-                    && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal)
+                let name = if matches!(
+                    self.peek().kind,
+                    TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
+                ) && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal)
                 {
                     let name = self.expect_ident("annotation argument name")?;
                     self.bump();

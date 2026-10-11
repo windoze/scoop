@@ -25,7 +25,7 @@ impl Lowerer {
         {
             let key = hir::IntrinsicFunctionKind::Float(kind);
             if let Some(&(function, _)) = self.intrinsic_functions.get(&key) {
-                if self.functions[function].name.rsplit('.').next() != Some(source_name) {
+                if self.source_function_name(function) != source_name {
                     continue;
                 }
                 return Some(ResolvedConstFloatIntrinsic {

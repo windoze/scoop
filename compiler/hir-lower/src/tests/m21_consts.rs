@@ -22,7 +22,7 @@ fn ordinary_property(name: &str, expression: Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Global"),
+            name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),
         }],

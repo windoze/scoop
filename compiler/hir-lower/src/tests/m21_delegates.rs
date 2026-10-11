@@ -7,7 +7,7 @@ fn delegate_operator(mut function: FunctionDecl) -> FunctionDecl {
 
 fn scoop_extern(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident("Extern"),
+        name: ident("Extern").into(),
         args: [("name", name), ("abi", "scoop")]
             .into_iter()
             .map(|(parameter, value)| ast::AnnotationArg {

@@ -9,6 +9,7 @@
 use scoop_ast::{Diagnostic, IntegerRadix, IntegerSuffix, Span};
 
 mod floating;
+mod identifiers;
 mod integers;
 mod interpolation;
 mod literals;
@@ -280,6 +281,7 @@ impl<'a> Lexer<'a> {
             }
             '"' => return self.lex_string(),
             '\'' => return self.lex_character(),
+            '`' => return self.lex_escaped_ident(),
             c if c.is_ascii_digit() => return self.lex_int(),
             c if is_ident_start(c) => return self.lex_ident(),
             c => {
@@ -408,9 +410,9 @@ impl<'a> Lexer<'a> {
 }
 
 fn is_ident_start(c: char) -> bool {
-    c.is_ascii_alphabetic() || c == '_'
+    unicode_ident::is_xid_start(c) || c == '_'
 }
 
 fn is_ident_continue(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
+    unicode_ident::is_xid_continue(c) || c == '_'
 }

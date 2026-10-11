@@ -130,7 +130,7 @@ impl Lowerer {
         let candidate_own_count =
             candidate_sig.type_params.len() - candidate_sig.owner_type_param_count;
         let expected_own_count = sig.type_params.len() - sig.owner_type_param_count;
-        self.functions[candidate].name.rsplit('.').next() == Some(name)
+        self.source_function_name(candidate) == name
             && candidate_own_count == expected_own_count
             && candidate_sig.params.len() == sig.params.len()
             && candidate_sig

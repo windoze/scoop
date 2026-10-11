@@ -4,16 +4,8 @@ impl Parser {
     pub(in crate::decl) fn parse_annotation_path(
         &mut self,
         expected: &str,
-    ) -> Result<scoop_ast::Ident, Diagnostic> {
-        let mut name = self.expect_ident(expected)?;
-        while matches!(self.peek().kind, TokenKind::Dot) {
-            self.bump();
-            let next = self.expect_ident("qualified annotation name segment")?;
-            name.text.push('.');
-            name.text.push_str(&next.text);
-            name.span.end = next.span.end;
-        }
-        Ok(name)
+    ) -> Result<scoop_ast::QualifiedNameSyntax, Diagnostic> {
+        self.parse_qualified_name(expected)
     }
 
     pub(in crate::decl) fn parse_annotation_value(
@@ -22,7 +14,10 @@ impl Parser {
         if matches!(self.peek().kind, TokenKind::LBracket) {
             return self.parse_annotation_array();
         }
-        if matches!(self.peek().kind, TokenKind::Ident(_)) {
+        if matches!(
+            self.peek().kind,
+            TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
+        ) {
             let reference = self.parse_postfix()?;
             if !is_constant_path(&reference) {
                 return Err(Diagnostic::at(

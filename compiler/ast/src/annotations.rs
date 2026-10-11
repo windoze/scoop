@@ -27,7 +27,7 @@ pub struct PositionalVariantFieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
-    pub name: Ident,
+    pub name: crate::QualifiedNameSyntax,
     pub args: Vec<AnnotationArg>,
     pub span: Span,
 }

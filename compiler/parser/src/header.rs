@@ -93,7 +93,7 @@ impl Parser {
         }
     }
 
-    fn parse_qualified_name(
+    pub(crate) fn parse_qualified_name(
         &mut self,
         first_expected: &str,
     ) -> Result<QualifiedNameSyntax, Diagnostic> {

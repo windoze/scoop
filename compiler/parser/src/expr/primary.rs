@@ -66,15 +66,16 @@ impl Parser {
             TokenKind::Ident(ref text) if text == "context" && self.starts_context_scope() => {
                 self.parse_context_scope()
             }
-            TokenKind::Ident(text) => {
+            TokenKind::Ident(ref text) if text == "super" => {
+                self.pos += 1;
+                self.parse_super_method_call(token.span)
+            }
+            TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
                 // `Unit` is an ordinary identifier; in expression position
                 // it denotes the unit value (spec section 4.3).
                 if text == "Unit" {
                     return Ok(Expr::UnitLiteral { span: token.span });
-                }
-                if text == "super" {
-                    return self.parse_super_method_call(token.span);
                 }
                 let ident = Ident {
                     text,
@@ -301,7 +302,7 @@ impl Parser {
 
     fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
         let start = self.peek().span.start;
-        let name = if let TokenKind::Ident(_) = &self.peek().kind
+        let name = if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
                 Some(TokenKind::Equal)

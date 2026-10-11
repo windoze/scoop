@@ -287,7 +287,7 @@ fn callback_signature_adds_its_source_nominals_to_the_native_boundary_witness() 
         unreachable!("struct_decl creates a struct")
     };
     declaration.annotations.push(ast::Annotation {
-        name: ident("CLayout"),
+        name: ident("CLayout").into(),
         args: Vec::new(),
         span: sp(),
     });

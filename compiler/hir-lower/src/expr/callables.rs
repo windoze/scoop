@@ -157,10 +157,6 @@ impl Lowerer {
                 );
             }
         }
-        if call.callee.text.contains('.') {
-            let constructor = self.classify_constructor(&call.callee)?;
-            return self.lower_nominal_constructor_call(constructor, call, sink, expected);
-        }
         self.lower_layered_named_call(call, sink, expected)
     }
 
@@ -172,20 +168,6 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         match constructor {
-            Constructor::Variant { target, alias } => {
-                let expected =
-                    self.alias_fixed_expected(alias.as_ref(), &call.type_args, expected)?;
-                self.lower_variant_construct(
-                    target,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    sink,
-                    expected,
-                )
-            }
             Constructor::Struct {
                 struct_id,
                 ty,

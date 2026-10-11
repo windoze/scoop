@@ -8,7 +8,11 @@ impl Parser {
             if matches!(text.as_str(), "crossinline" | "noinline"))
             && matches!(
                 self.tokens[self.pos + 1].kind,
-                TokenKind::Ident(_) | TokenKind::Val | TokenKind::Var | TokenKind::Vararg
+                TokenKind::Ident(_)
+                    | TokenKind::EscapedIdent(_)
+                    | TokenKind::Val
+                    | TokenKind::Var
+                    | TokenKind::Vararg
             )
         {
             self.bump();

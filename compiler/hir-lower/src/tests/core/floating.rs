@@ -99,7 +99,7 @@ fn synthetic_annotations(values: Vec<ast::Annotation>) -> Vec<ast::Annotation> {
     values
         .into_iter()
         .map(|value| ast::Annotation {
-            name: ident(&value.name.text),
+            name: value.name.clone(),
             args: value
                 .args
                 .into_iter()

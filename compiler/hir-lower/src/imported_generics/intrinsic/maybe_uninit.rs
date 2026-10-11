@@ -73,7 +73,7 @@ impl ImportedIntrinsicSignature {
             || effects.execution() != scoop_identity::Effect::Ordinary
             || effects.gc_effect() != scoop_identity::GcEffect::NoGc
             || effects.safety() != safety
-            || self.declaration.name().rsplit('.').next() != Some(kind.source_name())
+            || self.declaration.name() != kind.source_name()
         {
             return false;
         }

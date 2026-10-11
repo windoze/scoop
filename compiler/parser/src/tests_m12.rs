@@ -16,13 +16,13 @@ fn parses_typed_top_level_storage_declarations() {
     };
     assert!(counter.mutable);
     assert!(counter.initializer().is_some());
-    assert_eq!(counter.annotations[0].name.text, "Global");
+    assert_eq!(counter.annotations[0].name.to_string(), "Global");
     let Decl::Global(limit) = &file.declarations[1] else {
         panic!("expected extern global");
     };
     assert!(!limit.mutable);
     assert!(limit.initializer().is_none());
-    assert_eq!(limit.annotations[0].name.text, "Extern");
+    assert_eq!(limit.annotations[0].name.to_string(), "Extern");
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn annotations_precede_member_modifiers() {
         panic!("expected struct");
     };
     let method = decl.functions().next().expect("struct method");
-    assert_eq!(method.annotations[0].name.text, "NoGC");
+    assert_eq!(method.annotations[0].name.to_string(), "NoGC");
     assert!(method.is_override);
 }
 

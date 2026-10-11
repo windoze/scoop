@@ -387,10 +387,9 @@ impl Lowerer {
         }
         if matches!(decl.body, ast::FunctionBody::None)
             && matches!(self.functions[id].kind, FunctionKind::User(_))
-            && !decl
-                .annotations
-                .iter()
-                .any(|annotation| matches!(annotation.name.text.as_str(), "Intrinsic" | "Extern"))
+            && !decl.annotations.iter().any(|annotation| {
+                matches!(annotation.name.single_text(), Some("Intrinsic" | "Extern"))
+            })
         {
             self.error(
                 decl.name.span,

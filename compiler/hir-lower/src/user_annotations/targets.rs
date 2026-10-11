@@ -164,7 +164,11 @@ impl Lowerer {
 
     fn reject_value_property_annotations(&mut self, property: &ast::PropertyDecl) {
         for annotation in &property.annotations {
-            if !crate::annotations::is_core_annotation(&annotation.name.text) {
+            if !annotation
+                .name
+                .single_text()
+                .is_some_and(crate::annotations::is_core_annotation)
+            {
                 self.error(annotation.span, "user annotations on value types belong to constructor fields, not computed properties".into());
             }
         }

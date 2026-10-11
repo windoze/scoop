@@ -233,10 +233,6 @@ impl Lowerer {
     }
 
     fn const_intrinsic_source_name(&self, function: hir::FunctionId) -> &str {
-        self.functions[function]
-            .name
-            .rsplit('.')
-            .next()
-            .expect("function names are non-empty")
+        self.source_function_name(function)
     }
 }

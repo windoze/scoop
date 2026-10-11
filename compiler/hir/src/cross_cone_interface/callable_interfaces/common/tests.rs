@@ -276,7 +276,7 @@ impl WireEncode for InvalidNameParameter {
         encoder.array(1)?;
         encoder.map(2)?;
         encoder.field(1)?;
-        encoder.text("not-canonical")?;
+        encoder.text("not`canonical")?;
         encoder.field(2)?;
         SignatureTypeKey::Binder { depth: 0, index: 0 }.encode(encoder)
     }

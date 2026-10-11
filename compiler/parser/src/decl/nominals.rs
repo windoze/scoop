@@ -499,7 +499,10 @@ impl Parser {
             "`object` after `companion`",
             |kind| matches!(kind, TokenKind::Ident(text) if text == "object"),
         )?;
-        let name = if matches!(self.peek().kind, TokenKind::Ident(_)) {
+        let name = if matches!(
+            self.peek().kind,
+            TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
+        ) {
             CompanionNameSyntax::Named(self.expect_ident("companion object name")?)
         } else {
             CompanionNameSyntax::Default {

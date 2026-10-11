@@ -131,7 +131,7 @@ impl Lowerer {
             || self.classes[backing]
                 .methods
                 .iter()
-                .any(|method| self.functions[*method].name.rsplit('.').next() == Some(name));
+                .any(|method| self.source_function_name(*method) == name);
         let ty = self.object_types[self.objects[object].object_type].canonical_type;
         directly_declared
             || self.find_accessible_nominal_property(ty, name).is_some()

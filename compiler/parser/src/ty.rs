@@ -29,13 +29,11 @@ impl Parser {
                 self.pos += 1;
                 self.parse_paren_type(true, token.span.start)
             }
-            TokenKind::Ident(text) => {
-                if text == "_" {
-                    return Err(Diagnostic::at(
-                        token.span,
-                        "`_` is only allowed in call type argument lists",
-                    ));
-                }
+            TokenKind::Ident(ref text) if text == "_" => Err(Diagnostic::at(
+                token.span,
+                "`_` is only allowed in call type argument lists",
+            )),
+            TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
                 self.parse_named_type_ref_tail(Ident {
                     text,
@@ -124,7 +122,7 @@ impl Parser {
         while matches!(self.peek().kind, TokenKind::Dot)
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(TokenKind::Ident(_))
+                Some(TokenKind::Ident(_) | TokenKind::EscapedIdent(_))
             )
         {
             self.bump();

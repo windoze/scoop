@@ -21,7 +21,7 @@ pub(super) fn dump_annotations(annotations: &[Annotation], indent: usize, out: &
                 .collect();
             format!("({})", args.join(", "))
         };
-        out.push_str(&format!("{pad}@{}{}\n", annotation.name.text, args));
+        out.push_str(&format!("{pad}@{}{}\n", annotation.name, args));
     }
 }
 

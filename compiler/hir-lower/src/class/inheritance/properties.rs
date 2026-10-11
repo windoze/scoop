@@ -154,6 +154,7 @@ impl Lowerer {
             for getter in self.inherited_imported_class_methods(
                 class,
                 &format!("$get${name}"),
+                Some(crate::properties::PropertyAccessorKind::Getter),
                 self.classes[class].span,
             ) {
                 let scoop_identity::CallableTemplateOrigin::Accessor(accessor) =

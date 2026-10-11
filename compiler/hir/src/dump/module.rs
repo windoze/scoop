@@ -296,7 +296,13 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                     ""
                 },
                 if function.is_suspend { "suspend " } else { "" },
-                function.name.rsplit('.').next().unwrap_or(&function.name),
+                function
+                    .name
+                    .strip_prefix(&format!(
+                        "{}.",
+                        nominal_declaration_name(module, &decl.name, decl.owner)
+                    ))
+                    .unwrap_or(&function.name),
                 params.join(", "),
                 type_name(module, function.return_ty),
                 dump_function_attributes(function.attributes),
@@ -319,7 +325,13 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 .join(", ");
             out.push_str(&format!(
                 "    private fun {}({params}): {}{} <helper>\n",
-                function.name.rsplit('.').next().unwrap_or(&function.name),
+                function
+                    .name
+                    .strip_prefix(&format!(
+                        "{}.",
+                        nominal_declaration_name(module, &decl.name, decl.owner)
+                    ))
+                    .unwrap_or(&function.name),
                 type_name(module, function.return_ty),
                 dump_function_attributes(function.attributes),
             ));

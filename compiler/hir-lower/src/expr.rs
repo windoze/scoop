@@ -333,19 +333,6 @@ impl Lowerer {
                         self.lower_struct_init(struct_id, ty, call, sink, expected)
                     }
                 }
-                Constructor::Variant { target, alias } => {
-                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
-                    self.lower_variant_construct(
-                        target,
-                        CallSite {
-                            type_args: &[],
-                            args,
-                            span: *span,
-                        },
-                        sink,
-                        expected,
-                    )
-                }
                 Constructor::Class { class_id, alias } => {
                     let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
                     self.lower_class_construct(
@@ -565,10 +552,6 @@ impl Lowerer {
 /// What a `Name` / `Name(...)` construction site resolved to (see
 /// `classify_constructor`).
 enum Constructor {
-    Variant {
-        target: hir::EnumVariantRef,
-        alias: Option<AliasExpansion>,
-    },
     Struct {
         struct_id: hir::StructId,
         ty: TypeId,

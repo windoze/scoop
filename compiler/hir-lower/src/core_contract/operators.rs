@@ -343,12 +343,24 @@ impl Lowerer {
         matches!(self.signatures[&function].params.as_slice(), [parameter] if parameter.ty == expected)
     }
 
-    fn source_function_name(&self, function: FunctionId) -> &str {
-        self.functions[function]
+    pub(crate) fn source_function_name(&self, function: FunctionId) -> &str {
+        if let Some(source) = self.source_function_declarations.get(&function) {
+            return &source.name;
+        }
+        if matches!(
+            self.functions[function].kind,
+            hir::FunctionKind::DerivedEquality
+        ) {
+            return "equals";
+        }
+        &self
+            .property_accessor_sources
+            .iter()
+            .find(|source| source.function == function)
+            .expect("a method has a source declaration, accessor, or derived role")
+            .declaration
             .name
-            .rsplit('.')
-            .next()
-            .expect("function names are non-empty")
+            .text
     }
 
     pub(super) fn function_has_intrinsic_owner(

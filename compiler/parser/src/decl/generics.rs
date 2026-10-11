@@ -14,7 +14,7 @@ impl Parser {
             while matches!(&self.peek().kind, TokenKind::Ident(text) if text == "reified")
                 && matches!(
                     self.tokens[self.pos + 1].kind,
-                    TokenKind::Ident(_) | TokenKind::In
+                    TokenKind::Ident(_) | TokenKind::EscapedIdent(_) | TokenKind::In
                 )
             {
                 self.bump();

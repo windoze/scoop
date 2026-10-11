@@ -16,14 +16,21 @@ impl Lowerer {
         &mut self,
         class: ClassId,
         name: &str,
+        accessor: Option<crate::properties::PropertyAccessorKind>,
         span: ast::Span,
     ) -> Vec<ImportedInheritedMethod> {
-        let lookup = if let Some(name) = name.strip_prefix("$get$") {
-            hir::ImportedMemberLookup::PropertyGetter(name)
-        } else if let Some(name) = name.strip_prefix("$set$") {
-            hir::ImportedMemberLookup::PropertySetter(name)
-        } else {
-            hir::ImportedMemberLookup::Name(name)
+        let lookup = match accessor {
+            Some(crate::properties::PropertyAccessorKind::Getter) => {
+                hir::ImportedMemberLookup::PropertyGetter(
+                    name.strip_prefix("$get$").expect("getter display name"),
+                )
+            }
+            Some(crate::properties::PropertyAccessorKind::Setter) => {
+                hir::ImportedMemberLookup::PropertySetter(
+                    name.strip_prefix("$set$").expect("setter display name"),
+                )
+            }
+            None => hir::ImportedMemberLookup::Name(name),
         };
         let mut current = self.classes[class].base_class;
         let mut seen = std::collections::HashSet::new();
@@ -65,8 +72,12 @@ impl Lowerer {
                 {
                     continue;
                 }
-                let signature =
-                    self.imported_inheritance_signature(name, callable, &application.arguments);
+                let signature = self.imported_inheritance_signature(
+                    name,
+                    accessor,
+                    callable,
+                    &application.arguments,
+                );
                 let Some(signature) = signature else {
                     self.error(span, format!("invalid inherited signature for `{name}`"));
                     continue;
@@ -90,6 +101,7 @@ impl Lowerer {
     fn imported_inheritance_signature(
         &mut self,
         name: &str,
+        accessor: Option<crate::properties::PropertyAccessorKind>,
         callable: &hir::CallableDeclarationRecordV1,
         arguments: &[TypeId],
     ) -> Option<InterfaceSignature> {
@@ -109,6 +121,7 @@ impl Lowerer {
         let effects = callable.effects();
         Some(InterfaceSignature {
             name: name.to_owned(),
+            accessor,
             parameters: callable
                 .parameters()
                 .parameters()

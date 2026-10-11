@@ -517,7 +517,7 @@ mod tests {
         assert_eq!(unknown_role.kind(), &WireErrorKind::UnknownTag { tag: 13 });
 
         let bad_name =
-            decode_canonical::<DecodedDeclarationName>(b"\xa2\x00\x01\x01\x69not-valid").unwrap();
+            decode_canonical::<DecodedDeclarationName>(b"\xa2\x00\x01\x01\x69not`valid").unwrap();
         assert!(bad_name.validate().is_err());
     }
 }

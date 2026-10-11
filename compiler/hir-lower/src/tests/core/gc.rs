@@ -6,7 +6,7 @@ pub(super) fn gc_api_declarations() -> Vec<Decl> {
             unreachable!()
         };
         function.annotations = vec![ast::Annotation {
-            name: ident("Unsafe"),
+            name: ident("Unsafe").into(),
             args: Vec::new(),
             span: sp(),
         }];

@@ -84,7 +84,8 @@ impl Parser {
             }
             TokenKind::LParen => self.parse_tuple_pattern(),
             TokenKind::LBrace => self.parse_named_pattern(Vec::new(), token.span.start),
-            TokenKind::Ident(text) => self.parse_ident_pattern(text, token.span),
+            TokenKind::Ident(text) => self.parse_ident_pattern(text, token.span, false),
+            TokenKind::EscapedIdent(text) => self.parse_ident_pattern(text, token.span, true),
             _ => self.unexpected("pattern"),
         }
     }
@@ -144,9 +145,14 @@ impl Parser {
     /// An identifier-started pattern: `_`, the `Unit` literal, a binding
     /// name, or a (possibly dotted) variant/struct path with a positional
     /// or field argument list.
-    fn parse_ident_pattern(&mut self, text: String, span: Span) -> Result<Pattern, Diagnostic> {
+    fn parse_ident_pattern(
+        &mut self,
+        text: String,
+        span: Span,
+        escaped: bool,
+    ) -> Result<Pattern, Diagnostic> {
         self.pos += 1;
-        if text == "_" {
+        if text == "_" && !escaped {
             return Ok(Pattern::Wildcard { span });
         }
         if text == "Unit" {
@@ -162,7 +168,7 @@ impl Parser {
         while matches!(self.peek().kind, TokenKind::Dot)
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(TokenKind::Ident(_))
+                Some(TokenKind::Ident(_) | TokenKind::EscapedIdent(_))
             )
         {
             self.bump(); // `.`

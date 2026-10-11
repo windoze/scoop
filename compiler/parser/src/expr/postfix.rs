@@ -126,7 +126,7 @@ impl Parser {
     /// named selectors and, in M6, no method calls (DESIGN.md section 6).
     fn parse_field_access(&mut self, receiver: Expr, safe: bool) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
-        let TokenKind::Ident(text) = token.kind else {
+        let (TokenKind::Ident(text) | TokenKind::EscapedIdent(text)) = token.kind else {
             return self.unexpected("field name or tuple index");
         };
         if let Some(index) = tuple_index(&text) {

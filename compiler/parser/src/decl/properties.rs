@@ -179,7 +179,7 @@ impl Parser {
                 )
             } else if annotations
                 .iter()
-                .any(|annotation| annotation.name.text == "Extern")
+                .any(|annotation| annotation.name.is_ident("Extern"))
             {
                 (PropertyBodySyntax::ExternStorage, signature_end)
             } else {

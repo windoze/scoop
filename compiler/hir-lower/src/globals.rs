@@ -83,12 +83,16 @@ impl Lowerer {
             self.current_file = file_index;
             let mut invalid_annotation = false;
             for annotation in &decl.annotations {
-                if !crate::annotations::is_core_annotation(&annotation.name.text) {
+                if !annotation
+                    .name
+                    .single_text()
+                    .is_some_and(crate::annotations::is_core_annotation)
+                {
                     self.error(
                         annotation.span,
                         format!(
                             "user annotation `@{}` is not allowed on a top-level property",
-                            annotation.name.text
+                            annotation.name
                         ),
                     );
                     invalid_annotation = true;
@@ -244,8 +248,8 @@ impl Lowerer {
             let raw_storage = matches!(decl.body, ast::PropertyBodySyntax::ExternStorage)
                 || decl.annotations.iter().any(|annotation| {
                     matches!(
-                        annotation.name.text.as_str(),
-                        "Extern" | "Global" | "ThreadLocal"
+                        annotation.name.single_text(),
+                        Some("Extern" | "Global" | "ThreadLocal")
                     )
                 });
             if !raw_storage {

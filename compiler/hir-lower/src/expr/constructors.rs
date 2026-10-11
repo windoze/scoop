@@ -28,71 +28,11 @@ impl Lowerer {
         Some(Some(alias.target))
     }
 
-    /// What a `Name` / `Name(...)` construction site resolves to. A
-    /// dotted path `E.V` is always an enum variant; a bare name first
-    /// considers visible nominal constructors. Call lowering probes that
+    /// What a bare `Name` / `Name(...)` construction site resolves to.
+    /// Call lowering probes a visible nominal constructor
     /// nominal transactionally before ordinary callable and contextual
     /// variant layers.
     pub(super) fn classify_constructor(&mut self, name: &ast::Ident) -> Option<Constructor> {
-        if let Some((enum_name, variant_name)) = name.text.split_once('.') {
-            let lexical_target = self.lexical_nested_nominal_target(enum_name);
-            let (enum_id, alias) = if let Some(target) = lexical_target {
-                let crate::NominalTarget::Enum(enum_id) = target else {
-                    self.error(
-                        name.span,
-                        format!("type `{enum_name}` does not name an enum"),
-                    );
-                    return None;
-                };
-                (enum_id, None)
-            } else if self.source_type_alias_named(enum_name).is_some() {
-                let enum_name = ast::Ident {
-                    text: enum_name.to_string(),
-                    span: Span::new(
-                        name.span.start,
-                        name.span.start
-                            + u32::try_from(enum_name.len())
-                                .expect("an identifier span length fits in u32"),
-                    ),
-                };
-                let target = self.resolve_type_alias_reference(&enum_name, false)?;
-                let Type::Enum(application) = self.types[target] else {
-                    self.error(
-                        enum_name.span,
-                        format!("typealias `{}` does not name an enum", enum_name.text),
-                    );
-                    return None;
-                };
-                (
-                    self.source_enum_id(self.enum_applications[application].template)?,
-                    Some(AliasExpansion {
-                        name: enum_name,
-                        target,
-                    }),
-                )
-            } else {
-                let Some(enum_id) = self.top_level_enum_named(enum_name) else {
-                    self.error(name.span, format!("unknown enum `{enum_name}`"));
-                    return None;
-                };
-                (enum_id, None)
-            };
-            if !self.enum_is_accessible(enum_id) {
-                self.error(
-                    name.span,
-                    format!("enum `{enum_name}` is not accessible here"),
-                );
-                return None;
-            }
-            let Some(target) = self.find_variant_ref(enum_id, variant_name) else {
-                self.error(
-                    name.span,
-                    format!("enum `{enum_name}` has no variant `{variant_name}`"),
-                );
-                return None;
-            };
-            return Some(Constructor::Variant { target, alias });
-        }
         if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
             return Some(match target {
                 crate::NominalTarget::Struct(struct_id) => {

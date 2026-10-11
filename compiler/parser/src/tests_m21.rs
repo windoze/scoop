@@ -46,10 +46,10 @@ fn complete_property_and_accessor_syntax_has_one_closed_body_form() {
         Expr::IntLiteral(literal) if literal.magnitude == 1
     ));
     let getter = accessors.getter.as_ref().expect("getter");
-    assert_eq!(getter.annotations[0].name.text, "Getter");
+    assert_eq!(getter.annotations[0].name.to_string(), "Getter");
     assert!(matches!(getter.body, AccessorBodySyntax::Expr(_)));
     let setter = accessors.setter.as_ref().expect("setter");
-    assert_eq!(setter.annotations[0].name.text, "Setter");
+    assert_eq!(setter.annotations[0].name.to_string(), "Setter");
     assert!(matches!(
         setter.visibility,
         SetterVisibilitySyntax::Explicit {
@@ -174,7 +174,7 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
     let ClassConstructorDecl::Declared(primary) = &class.constructor else {
         panic!("expected primary constructor")
     };
-    assert_eq!(primary.annotations[0].name.text, "Primary");
+    assert_eq!(primary.annotations[0].name.to_string(), "Primary");
     assert_eq!(
         explicit_visibility(primary.visibility),
         DeclaredVisibility::Private
@@ -191,7 +191,7 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
     let ClassMember::SecondaryConstructor(secondary) = &class.members[0] else {
         panic!("expected secondary constructor")
     };
-    assert_eq!(secondary.annotations[0].name.text, "Secondary");
+    assert_eq!(secondary.annotations[0].name.to_string(), "Secondary");
     assert_eq!(
         explicit_visibility(secondary.visibility),
         DeclaredVisibility::Protected

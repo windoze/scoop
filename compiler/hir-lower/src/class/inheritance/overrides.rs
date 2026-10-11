@@ -21,7 +21,7 @@ impl Lowerer {
         {
             return;
         }
-        let candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
+        let mut candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
             Owner::Class(class_id) => {
                 let mut candidates: Vec<_> = self
                     .base_chain_methods(class_id)
@@ -62,6 +62,9 @@ impl Lowerer {
                 self.interface_method_candidates(&parents)
             }
         };
+        let accessor_kind = self.function_accessor_kind(id);
+        candidates
+            .retain(|(candidate, _)| self.function_accessor_kind(*candidate) == accessor_kind);
         let sig = self.signatures[&id].clone();
         let short = decl.name.text.clone();
         let matching_overrides = candidates
@@ -72,14 +75,16 @@ impl Lowerer {
             .cloned()
             .collect::<Vec<_>>();
         let interfaces = self.owner_interfaces(owner);
-        let signature = super::interfaces::InterfaceSignature::local(&short, &sig);
+        let signature = super::interfaces::InterfaceSignature::local(&short, &sig, accessor_kind);
         let class = match owner {
             Owner::Class(class) => Some(class),
             Owner::Object(object) => Some(self.objects[object].backing_class),
             _ => None,
         };
         let imported_class = class
-            .map(|class| self.inherited_imported_class_methods(class, &short, decl.name.span))
+            .map(|class| {
+                self.inherited_imported_class_methods(class, &short, accessor_kind, decl.name.span)
+            })
             .unwrap_or_default();
         let imported_class_matches = imported_class
             .iter()
@@ -230,6 +235,7 @@ impl Lowerer {
                         super::interfaces::InterfaceSignature::local(
                             &short,
                             &self.signatures[candidate],
+                            accessor_kind,
                         ),
                     )
                 });

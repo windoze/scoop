@@ -2,7 +2,7 @@ use super::super::*;
 
 fn intrinsic_annotation(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident("Intrinsic"),
+        name: ident("Intrinsic").into(),
         args: vec![ast::AnnotationArg {
             name: None,
             value: ast::AnnotationLiteral::String(name.to_string()),
@@ -14,7 +14,7 @@ fn intrinsic_annotation(name: &str) -> ast::Annotation {
 
 fn marker_annotation(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident(name),
+        name: ident(name).into(),
         args: Vec::new(),
         span: sp(),
     }

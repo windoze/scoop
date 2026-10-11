@@ -1,0 +1,14 @@
+annotation class `标.记`(val `值.域`: Int)
+@`标.记`(`值.域` = 42)
+struct `容.器`(val `值.域`: Int)
+typealias `别.名` = `容.器`
+fun `a.b`(`if`: Int): Int = `if` + 1
+fun `inline`(): Int = 2
+fun `空 格`(): Int = `a\b`()
+fun `a\b`(): Int = `inline`()
+infix fun Int.`in`(other: Int): Int = this + other
+fun main() {
+    val `while` = `别.名`(`值.域` = 39)
+    val `fun` = `a.b`(`if` = `while`.`值.域`)
+    println(`fun` `in` `空 格`())
+}

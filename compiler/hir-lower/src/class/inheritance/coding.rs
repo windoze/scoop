@@ -73,7 +73,7 @@ impl Lowerer {
     ) -> bool {
         for candidate in candidates {
             let function = &self.functions[candidate.function];
-            if function.name.rsplit('.').next() != Some(name) {
+            if self.source_function_name(candidate.function) != name {
                 continue;
             }
             if self.invalid_override_methods.contains(&candidate.function) {

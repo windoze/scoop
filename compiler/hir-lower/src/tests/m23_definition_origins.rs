@@ -36,7 +36,7 @@ fn runtime_property(name: &str) -> Decl {
 
 fn extern_function(name: &str) -> Decl {
     let annotation = ast::Annotation {
-        name: ident("Extern"),
+        name: ident("Extern").into(),
         args: [
             ("lib", "numbers"),
             ("name", "native_identity"),

@@ -223,9 +223,9 @@ impl Parser {
                 "safety block annotations do not accept arguments",
             ));
         }
-        let mode = match annotation.name.text.as_str() {
-            "Unsafe" => SafetyMode::Unsafe,
-            "Safe" => SafetyMode::Safe,
+        let mode = match annotation.name.single_text() {
+            Some("Unsafe") => SafetyMode::Unsafe,
+            Some("Safe") => SafetyMode::Safe,
             _ => {
                 return Err(Diagnostic::at(
                     annotation.span,
@@ -333,8 +333,11 @@ impl Parser {
             return Ok(());
         }
         let at = self.bump();
-        let end = if !self.peek().newline_before && matches!(self.peek().kind, TokenKind::Ident(_))
-        {
+        let end = if !self.peek().newline_before
+            && matches!(
+                self.peek().kind,
+                TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
+            ) {
             self.bump().span.end
         } else {
             at.span.end
@@ -346,12 +349,13 @@ impl Parser {
     }
 
     fn starts_unsupported_loop_label(&self) -> bool {
-        if !matches!(self.peek().kind, TokenKind::Ident(_))
-            || !matches!(
-                self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(TokenKind::At)
-            )
-        {
+        if !matches!(
+            self.peek().kind,
+            TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
+        ) || !matches!(
+            self.tokens.get(self.pos + 1).map(|token| &token.kind),
+            Some(TokenKind::At)
+        ) {
             return false;
         }
         self.tokens.get(self.pos + 2).is_some_and(|token| {

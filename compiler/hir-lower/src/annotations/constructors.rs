@@ -10,9 +10,11 @@ impl Lowerer {
         let mut seen = HashSet::new();
         for annotation in annotations
             .iter()
-            .filter(|annotation| matches!(annotation.name.text.as_str(), "Safe" | "Unsafe"))
+            .filter(|annotation| matches!(annotation.name.single_text(), Some("Safe" | "Unsafe")))
         {
-            let name = annotation.name.text.as_str();
+            let Some(name) = annotation.name.single_text() else {
+                continue;
+            };
             if !seen.insert(name) {
                 self.error(
                     annotation.span,
@@ -40,7 +42,7 @@ impl Lowerer {
     ) -> hir::GcEffect {
         let mut seen = false;
         let mut effect = hir::GcEffect::Managed;
-        for annotation in annotations.iter().filter(|a| a.name.text == "NoGC") {
+        for annotation in annotations.iter().filter(|a| a.name.is_ident("NoGC")) {
             if seen {
                 self.error(
                     annotation.span,

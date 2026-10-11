@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn no_gc_for_checks_the_hidden_canonical_next_call() {
     let annotation = || ast::Annotation {
-        name: ident("NoGC"),
+        name: ident("NoGC").into(),
         args: Vec::new(),
         span: sp(),
     };
