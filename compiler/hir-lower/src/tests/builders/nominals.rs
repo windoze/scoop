@@ -71,6 +71,7 @@ pub(crate) fn class_decl(
 /// `interface I { fun m(...): T ... }`.
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
@@ -91,6 +92,7 @@ pub(crate) fn generic_interface_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),

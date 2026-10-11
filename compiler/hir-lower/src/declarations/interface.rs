@@ -69,6 +69,11 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access,
             definition: hir::InterfaceDefinition {
+                inheritance_family: if decl.sealed_span.is_some() {
+                    hir::InheritanceFamily::Sealed(Vec::new())
+                } else {
+                    hir::InheritanceFamily::Open
+                },
                 self_application,
                 type_params: type_params.clone(),
                 parents: Vec::new(),

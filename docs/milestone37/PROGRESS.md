@@ -123,3 +123,15 @@ enum variant 的构造、普通值和模式共享实际 alias application，保�
 本机 fmt、workspace clippy（release）无警告通过；parser alias 6 项、HIR alias 接口 25 项、HIR lower alias 51 项、引用 69 项及导出绑定 6 项定向测试通过。52 个新增 fixture（13 个正向、39 个 negative）和 52 个回归普通比较共 104/104 通过，121 个配置、293 个进程、198 个阶段 golden。覆盖 debug/release、构造协议、receiver 类型、边界与循环诊断、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [11-aliases-darwin.json](validation/11-aliases-darwin.json)。138 份旧 golden 中的 745 个无参 alias 记录仅机械补充空 binder/宿主前缀字段，移除新增文字后已逐份确认与原记录一致；定向回归另更新构造诊断位置、少量类型 arena 编号及此前隐式标签的 AST 输出。普通报告合并未变化的通过项与受影响用例复验，不计入生成快照的运行。清理已完成的 fixture cases 1.4 GiB 后，5 个因旧只读产物覆盖失败的用例普通重跑全部通过；保留共用 cache、sysroot 和日志。
+
+### 12. sealed 继承与 when 穷尽性（完成）
+
+支持 sealed class/interface、默认 protected 的 sealed 构造器，以及同 origin Cone、同 package、具名非局部声明的直接继承约束。sealed class 隐含 abstract，普通成员仍默认 final。完整直接子类型关系进入 HIR 和共享元数据，私有子类型参与覆盖检查但不增加源码可见性；普通类型保留原有 11 字段编码，sealed 增加第 12 字段。
+
+when 按真实继承 application 递归展开 sealed 家族，保留非 sealed 子类型的开放继承范围；泛型参数沿父子关系替换，额外未确定参数保留整个家族，不能用几个具体实例冒充穷尽。guard 不贡献无条件覆盖，用户 equals 不覆盖整个家族，互补条件及互斥类型的否定条件可以联合覆盖。类型条件检查已保存 subject 的静态类型，先前失败路径的 smart cast 继续服务普通条件、guard 和 body，避免把合法的后续否定条件误报为无意义检查。
+
+子类型关系、泛型 application 和 when predicate 实现分别为 109、205、42 行；共享短路求值移入 109 行子模块，原 operators 主文件缩为 415 行。没有增加 runtime 契约或额外的继承授权机制。
+
+本机 fmt、workspace clippy（release）通过；parser sealed 2 项、HIR nominal 接口 35 项（含新增 wire 测试）及 HIR lower when 47 项定向测试通过。41 个新增 fixture（14 个正向、27 个 negative）和 44 个回归完成普通比较，共 85/85 通过、99 个配置、204 个进程、140 个阶段 golden。覆盖 class/struct/enum/object、泛型与 bound、菱形继承、私有子类型、构造器、guard、短路副作用、跳转与 finally、真实挂起恢复、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [12-sealed-darwin.json](validation/12-sealed-darwin.json)。1,518 份旧 golden 中的 12,808 个普通 nominal 记录机械补充空 sealed 子类型字段，迁移时已逐份确认移除新增字段后与原文件一致；when 条件改读保存的 subject，另外更新了相应 HIR/MIR/LIR 快照。生成快照不计入普通验收结果。已清理最后一批通过的 fixture cases 549.6 MiB，保留共用 cache、sysroot 与日志；Linux 目标快照随最终平台验证更新。

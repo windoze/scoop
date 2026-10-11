@@ -329,6 +329,7 @@ impl Parser {
         &mut self,
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
+        sealed_span: Option<Span>,
     ) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
@@ -341,8 +342,12 @@ impl Parser {
             VisibilitySyntax::Explicit { span, .. } => Some(span.start),
             VisibilitySyntax::Omitted => None,
         }
+        .into_iter()
+        .chain(sealed_span.map(|span| span.start))
+        .min()
         .unwrap_or(keyword.span.start);
         Ok(InterfaceDecl {
+            sealed_span,
             annotations,
             visibility,
             name,

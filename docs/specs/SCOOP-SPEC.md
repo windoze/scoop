@@ -602,6 +602,8 @@ fun describe(point: Point): String {
 
 多条件允许尾随逗号。条件表达式及其调用、异常或挂起行为只在执行到该条件时发生；不能预先计算后续 arm 的值、区间或集合。`in` 使用现有 `contains` 规则，不限于区间，也不要求为本特性新增 range 类型。
 
+`is` / `!is` 头部以 subject 求值快照的静态类型检查类型条件是否合法。此前条件失败所建立的 smart cast 不改变这一检查基准，因而可以顺序组合互补或互斥的类型条件；这些路径事实仍参与普通条件表达式、guard 和 arm body 的分析。
+
 任意合法表达式都可以作为 subject，包括 String、Boolean、class、interface、函数值和泛型值。具体条件仍必须能按普通规则通过类型检查：`Any` 可以接受 `is String` 条件，但当 x 的静态类型为 Any 时，`when (x) { y -> ... }` 不会因此获得不存在的 `Any.equals`。类、数组或函数值没有适用的成员 `operator equals` 时，普通值条件照常报错；需要 identity 判断可以使用无 subject 的 `when { x === y -> ... }`。
 
 值条件复用语言规范 11.11 的成员选择、参数适配、泛型 bound 和结构比较规则。既不交换左右操作数，也不使用 `Equality.equalTo`、地址比较或运行期动态方法作为 fallback。普通表达式的数字字面量与 contextual enum variant 可以使用比较目标提供的期望类型，但这不改变表达式与模式的语法分类。
@@ -614,7 +616,7 @@ fun describe(point: Point): String {
 | --- | --- |
 | 任意 `when` 用作值 | 必须 |
 | 含至少一个 `case` 的 when，用作语句 | 必须，保留 Scoop 模式 when 的既有要求 |
-| 不含 case，subject 为 Boolean 或 enum，包括 `Option<T>`，用作语句 | 必须，与现代 Kotlin 对 Boolean/enum 的要求一致 |
+| 不含 case，subject 为 Boolean、enum（包括 `Option<T>`）或 sealed class/interface，用作语句 | 必须 |
 | 其他普通 subject 或无 subject 的 when，用作语句 | 可以不穷尽；没有 arm 命中时正常继续 |
 
 头部的 val 解构是分支之前的声明，不是一个 arm，不贡献覆盖，也不使普通 when 自动归类为“含 case”。穷尽性始终针对保存的完整 subject 和实际 arm 计算。
@@ -627,7 +629,7 @@ case 继续使用现有递归 constructor matrix：variant payload、tuple/struc
 
 对于纯 unit enum，列出全部 variant 且比较使用既有派生语义时可以穷尽；如果用户覆盖了 equals，应使用 `case` 或 else，不能假设相等具有自反性。带 payload 的 enum 按结构 case 递归覆盖最直接，列出若干 payload 构造值不能自动覆盖整个 variant。
 
-普通 class/interface 的实现集合不是封闭集合，不能根据当前 Cone 中恰好出现的实现证明穷尽。现阶段不借 M35 实现 `sealed`，也不增加任意谓词、区间或类型逻辑的完备性证明器；不能从已有有限覆盖规则确定的剩余路径使用 else。
+普通 class/interface 的实现集合不是封闭集合，不能根据当前 Cone 中恰好出现的实现证明穷尽。sealed class/interface 使用 9.1.7 的完整子类型关系。不能从已有有限覆盖规则确定的剩余路径使用 else，不增加任意谓词、区间或类型逻辑的完备性证明器。
 
 正常结束的分支按现有规则产生尾值，空块或以非表达式语句结束的块产生 Unit。存在外层期望类型时，所有正常结果必须能适配该类型；否则取正常分支的唯一可表达最小上界，多个不可比较的最小上界退化为 Any。return/throw/break/continue 和 Nothing 求值没有正常结果，不参与值合并；所有路径均不正常结束时，整体为 Nothing。
 
@@ -1089,11 +1091,11 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 
 - `class` / `abstract class` / `interface` / `object` / `companion object`均为引用类型。`object`/companion的singleton语义、初始化和generic边界由9.1.3明确规定，不继承Kotlin/JVM的class-initializer ABI。
 - 类可以实现 interface，可以继承一个类；struct/enum 不能被继承，也不能继承类。
-- 类与成员方法默认均为 `final`。只有 `open` / `abstract` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
+- 类与成员方法默认均为 `final`。只有 `open` / `abstract` / `sealed` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
 - `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或interface中。interface function有body时是default implementation。覆写class/interface member必须写`override`；`override`默认继续open，可用`final override`终止。
 - final 方法不得被覆写。静态接收者上已知的 final 方法调用使用直接分派；open / abstract 类方法调用使用 vtable 分派，interface 方法调用使用 itable 分派。final override 仍替换继承来的 vtable 槽，以保证经基类引用调用时到达该实现。
 - 编译器可在证明调用点的实际类型与唯一表项目标后改为直接调用，保持 receiver 适配、求值顺序、异常、GC、Context 与挂起行为。静态 open class 类型、`is Base` 检查或当前 Cone 仅有一个实现，均不单独构成唯一实际类型的证明；base initializer 也不改变最派生对象的实际类型。
-- `sealed`：`sealed class` / `sealed interface` 保留（引用类型的受限继承）；值类型的等价物直接使用 `enum`。
+- `sealed class` / `sealed interface` 限制直接继承并提供完整子类型关系，见 9.1.7；值类型也可以按普通规则实现 sealed interface。
 
 #### 9.1.1 对象与属性初始化
 
@@ -1117,7 +1119,7 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 - secondary constructor写作`constructor(parameters) : this(args) { body }`或`: super(args)`。class有primary时每个secondary必须经`this`直接或间接终止于primary，不能直接`super`；class无primary时每条链必须终止于一次`super`，省略delegation等价于`super()`：存在direct base时解析其constructor，没有显式base时正规化为编译器根初始化。每个secondary恰好一条delegation edge，自环或多节点环都是定义处错误；
 - 有primary的derived class在header用`Base(args)`完成base delegation。无primary、仅有secondary的derived class在header只声明bare base type，由每个terminal secondary执行`super(args)`；两处不能同时提供base arguments。interface不能携带constructor arguments，class最多有一个direct base；
 - primary base delegation arguments可以读取全部primary parameter（写`val`/`var`的参数此时也仍以parameter value读取），但不能使用`this`或任何instance field；secondary `this`/`super` delegation只能读取该secondary自己的parameter，也不能访问`this`/field。delegation target的default同样没有source receiver；
-- primary与全部secondary共同构成nominal constructor overload set，使用8.6的candidate-local mapping、constraint与MSC。constructor签名只由实际参数类型区分；参数名、default、`vararg`marker及相同的host返回类型不区分重载。abstract class不能普通构造，但其constructor可以作为derived `super`目标；constructor declaration reference不受支持。
+- primary与全部secondary共同构成nominal constructor overload set，使用8.6的candidate-local mapping、constraint与MSC。constructor签名只由实际参数类型区分；参数名、default、`vararg`marker及相同的host返回类型不区分重载。abstract class不能普通构造，但其constructor可以作为derived `super`目标；构造器引用沿用 8.1 的可实例化与访问规则。
 
 **class初始化顺序：**
 
@@ -1256,6 +1258,18 @@ block 的字段读取、local、temporary、实参和结果都须满足该条件
 4. 显式 `close`/`release` 与 `try/finally` 仍负责确定性释放。显式路径先将字段置为 `None` 等 inert state，再释放取出的资源；hook 以后仍可运行，但不再释放该资源。并发关闭和 native handle 别名由库自身的同步/ownership 契约处理。语言不自动生成 close，也不公开 arm/disarm、手动 hook、重试或异常传播接口。
 
 release 不提供 GC finalizer、对象图访问、对象复活或及时释放保证；不能依赖它完成 flush、事务、锁或要求特定线程的操作。
+
+#### 9.1.7 Sealed 继承与穷尽性
+
+`sealed class` 隐含 abstract，不能直接构造；其 primary/secondary constructor 只能为 protected/private，省略可见性时采用 protected。`sealed interface` 是受限继承的普通接口。sealed 不使普通成员自动可覆写，也不改变对象表示、分派或初始化规则；sealed 与 open/final/abstract 修饰符不能并列。
+
+直接子类型必须属于 sealed 声明的同一 origin Cone 和同一 package，并且是可命名的非局部、非匿名声明。满足可见性的嵌套声明、具名 object 以及实现接口的 struct/enum 均可参与；re-export 不改变 origin。子类型自身可以 final、open/abstract 或继续 sealed；非 sealed 子类型之下仍按普通规则允许继承。
+
+when 的覆盖域来自完整直接子类型关系，继续 sealed 的节点递归展开，非 sealed 节点作为一个开放的子类型家族；`is Child` 可以覆盖整个 Child 家族。重复继承路径按真实类型 application 合并。无条件的 `is` / `!is` 分支分别按该域取覆盖与补集；guard 不贡献静态覆盖，普通值条件不能凭用户 equals 覆盖整个家族。
+
+泛型关系按实际继承替换，例如 `Success<T> : Result<T>` 对 `Result<Int>` 对应 `Success<Int>`。子类型的额外参数若不能由 subject application 确定，就保留该未知参数所代表的整个家族；列举有限个具体 application 不算完整，只有覆盖整个家族的类型条件才能免除 else。不能用类型擦除、wildcard 或 existential 代替完整 application。
+
+跨 Cone 元数据保留完整直接子类型身份以及它们的类型参数与继承 application，未公开子类型可以作为穷尽性检查的数据存在，但不获得源码名称可见性。消费方不扫描恰好已使用的实现来推测封闭集合；无法命名所需叶类型时可以正常使用 else。增加子类型改变接口依赖，沿既有失效规则重新编译。
 
 ### 9.2 委托
 

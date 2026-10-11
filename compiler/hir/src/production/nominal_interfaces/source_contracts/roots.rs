@@ -79,6 +79,13 @@ impl Roots {
             .nodes
             .get(&owner)
             .ok_or_else(|| invalid("required nominal source root is absent"))?;
+        if let Some(subtypes) =
+            projection::inheritance_family(export, node.local).and_then(InheritanceFamily::subtypes)
+        {
+            for subtype in subtypes {
+                self.require(*subtype, false)?;
+            }
+        }
         if let Some(parent) = node.parent {
             self.require(parent, false)?;
         }

@@ -100,6 +100,7 @@ pub fn dump(file: &SourceFile) -> String {
                     ClassModifier::Final => "",
                     ClassModifier::Open => "open ",
                     ClassModifier::Abstract => "abstract ",
+                    ClassModifier::Sealed => "sealed ",
                 };
                 let type_params = dump_type_params(&c.type_params);
                 let ctor = match &c.constructor {
@@ -180,8 +181,13 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let where_clause = dump_where_clause(i.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  {}interface {}{}{}{}\n",
+                    "  {}{}interface {}{}{}{}\n",
                     dump_visibility(i.visibility),
+                    if i.sealed_span.is_some() {
+                        "sealed "
+                    } else {
+                        ""
+                    },
                     i.name.text,
                     params,
                     parents,

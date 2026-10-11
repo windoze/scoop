@@ -96,13 +96,16 @@ fn object_declaration_is_preserved() {
 }
 
 #[test]
-fn sealed_class_not_supported() {
-    let (span, message) = err("sealed class C {}");
-    assert_eq!(span, Span::new(0, 6));
-    assert_eq!(
-        message,
-        "`sealed` classes are not supported yet (milestone M6)"
-    );
+fn sealed_class_and_interface_are_preserved() {
+    let file = ok("sealed class C {}\nsealed interface I {}");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert_eq!(class.modifier, scoop_ast::ClassModifier::Sealed);
+    let Decl::Interface(interface) = &file.declarations[1] else {
+        panic!("expected interface")
+    };
+    assert!(interface.sealed_span.is_some());
 }
 
 #[test]

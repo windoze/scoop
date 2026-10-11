@@ -1,0 +1,2 @@
+sealed open class Root {}
+fun main() {}

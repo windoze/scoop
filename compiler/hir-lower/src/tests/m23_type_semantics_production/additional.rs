@@ -208,6 +208,7 @@ fn empty_slot_schemas_cover_transitive_interfaces() {
 
 fn interface_with_parent(name: &str, parent: &str) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),

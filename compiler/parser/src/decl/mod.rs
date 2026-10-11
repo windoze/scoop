@@ -44,6 +44,7 @@ pub(crate) struct Modifiers {
     pub operator: Option<OperatorModifier>,
     pub infix: Option<InfixModifier>,
     pub method_modifier: Option<SpannedMethodModifier>,
+    pub sealed_span: Option<Span>,
     pub inline_span: Option<Span>,
     pub tailrec_span: Option<Span>,
     pub start: Option<u32>,
@@ -148,14 +149,18 @@ impl Parser {
             }
             TokenKind::Class => {
                 self.require_nominal_prefix(&prefix, "class")?;
-                let modifier = match prefix
-                    .modifiers
-                    .method_modifier
-                    .map(|modifier| modifier.kind)
-                {
-                    Some(MethodModifier::Open) => ClassModifier::Open,
-                    Some(MethodModifier::Abstract) => ClassModifier::Abstract,
-                    Some(MethodModifier::Final) | None => ClassModifier::Final,
+                let modifier = if prefix.modifiers.sealed_span.is_some() {
+                    ClassModifier::Sealed
+                } else {
+                    match prefix
+                        .modifiers
+                        .method_modifier
+                        .map(|modifier| modifier.kind)
+                    {
+                        Some(MethodModifier::Open) => ClassModifier::Open,
+                        Some(MethodModifier::Abstract) => ClassModifier::Abstract,
+                        Some(MethodModifier::Final) | None => ClassModifier::Final,
+                    }
                 };
                 Ok(Decl::Class(
                     self.parse_class(
@@ -165,7 +170,8 @@ impl Parser {
                         prefix
                             .modifiers
                             .method_modifier
-                            .map(|modifier| modifier.span),
+                            .map(|modifier| modifier.span)
+                            .or(prefix.modifiers.sealed_span),
                     )?,
                 ))
             }
@@ -183,9 +189,11 @@ impl Parser {
             }
             TokenKind::Interface => {
                 self.require_unmodified_nominal_prefix(&prefix, "interface")?;
-                Ok(Decl::Interface(
-                    self.parse_interface(prefix.annotations, prefix.visibility)?,
-                ))
+                Ok(Decl::Interface(self.parse_interface(
+                    prefix.annotations,
+                    prefix.visibility,
+                    prefix.modifiers.sealed_span,
+                )?))
             }
             TokenKind::Ident(text) if text == "object" => {
                 self.require_unmodified_nominal_prefix(&prefix, "object")?;
@@ -193,10 +201,6 @@ impl Parser {
                     self.parse_object(prefix.annotations, prefix.visibility)?,
                 ))
             }
-            TokenKind::Ident(text) if text == "sealed" => Err(Diagnostic::at(
-                self.peek().span,
-                "`sealed` classes are not supported yet (milestone M6)",
-            )),
             _ => self.unexpected(
                 "`fun`, `val`, `var`, `typealias`, `struct`, `enum`, `class` or `interface`",
             ),

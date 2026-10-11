@@ -93,6 +93,7 @@ impl Lowerer {
                 ast::ClassConstructorDecl::Omitted => ast::VisibilitySyntax::Omitted,
                 ast::ClassConstructorDecl::Declared(constructor) => constructor.visibility,
             };
+            let visibility = self.class_constructor_visibility(id, visibility, decl.span);
             let access = self.member_access(
                 visibility,
                 decl.span,
@@ -152,8 +153,9 @@ impl Lowerer {
                 ));
                 callings.push(resolved.calling);
             }
+            let visibility = self.class_constructor_visibility(id, source.visibility, source.span);
             let access = self.member_access(
-                source.visibility,
+                visibility,
                 source.span,
                 "constructor",
                 Owner::Class(id),
@@ -214,6 +216,9 @@ impl Lowerer {
                 );
                 continue;
             }
+            if !self.check_sealed_supertype(ty, spec.ty.span) {
+                continue;
+            }
             match self.types[ty] {
                 Type::Class(application) => {
                     if base.is_some() {
@@ -272,6 +277,9 @@ impl Lowerer {
                 );
                 continue;
             }
+            if !self.check_sealed_supertype(ty, ty_ref.span) {
+                continue;
+            }
             if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
                 interfaces.push(ty);
             }
@@ -300,6 +308,9 @@ impl Lowerer {
                     spec.ty.span,
                     format!("`{}` is not an interface", self.type_name(ty)),
                 );
+                continue;
+            }
+            if !self.check_sealed_supertype(ty, spec.ty.span) {
                 continue;
             }
             if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {

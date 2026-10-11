@@ -46,3 +46,5 @@ mod inheritance;
 mod initialization;
 mod lookup;
 mod methods;
+
+mod sealed;

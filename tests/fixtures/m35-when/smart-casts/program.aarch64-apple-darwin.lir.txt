@@ -54,18 +54,18 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local10
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, td6)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td6)
     cbr t0 then @if.then.1 else @if.else.2
   block if.then.1
     t1 = heap_load param0 +16 : ptr<managed>
     store t1 -> local1
     store global0 -> local2
     store local2 -> local3
-    call managed-direct-target0 sp<managed-call:2> live=[param0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 external-fn0(local1, local3)
+    call managed-direct-target0 sp<managed-call:2> live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 external-fn0(local1, local3)
     store t2 -> local13
     cbr local13 then @if.then.4 else @if.else.5
   block if.else.2
-    call no-gc-direct-target1 t3 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, td7)
+    call no-gc-direct-target1 t3 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td7)
     t4 = Not t3 : i1
     cbr t4 then @if.then.10 else @if.else.11
   block if.merge.3
@@ -77,7 +77,7 @@ Module
     store local14 -> local9
     br @if.merge.6
   block if.else.5
-    call no-gc-direct-target2 t6 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, td7)
+    call no-gc-direct-target2 t6 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td7)
     t7 = Not t6 : i1
     cbr t7 then @if.then.7 else @if.else.8
   block if.merge.6
@@ -536,7 +536,7 @@ Module
     store local103 -> local66
     store local66 -> local67
     store local66 -> local93
-    call no-gc-direct-target3 t41 = sig=direct18 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local67, td6)
+    call no-gc-direct-target3 t41 = sig=direct18 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local66, td6)
     cbr t41 then @if.then.1 else @if.else.2
   block if.then.1
     t42 = heap_load local67 +16 : ptr<managed>
@@ -594,7 +594,7 @@ Module
     store local105 -> local86
     store local86 -> local87
     store local87 -> local96
-    call no-gc-direct-target6 t55 = sig=direct22 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local86, td0)
+    call no-gc-direct-target6 t55 = sig=direct22 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local87, td0)
     cbr t55 then @if.then.7 else @if.else.8
   block if.then.7
     t56 = heap_load local86 +0 : ptr<metadata>
@@ -665,7 +665,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local2
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td4)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, external-td4)
     cbr t0 then @if.then.1 else @if.else.2
   block if.then.1
     unbox_value external-td4, param0 -> local4
@@ -685,7 +685,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local2
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td8)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, external-td8)
     cbr t0 then @if.then.1 else @if.else.2
   block if.then.1
     store param0 -> local1

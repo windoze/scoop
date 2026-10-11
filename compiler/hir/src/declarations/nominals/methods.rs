@@ -7,6 +7,23 @@ pub enum ClassModifier {
     Abstract,
 }
 
+/// A sealed declaration owns its complete direct subtype relation.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum InheritanceFamily {
+    #[default]
+    Open,
+    Sealed(Vec<SourceNominalId>),
+}
+
+impl InheritanceFamily {
+    pub fn subtypes(&self) -> Option<&[SourceNominalId]> {
+        match self {
+            Self::Open => None,
+            Self::Sealed(subtypes) => Some(subtypes),
+        }
+    }
+}
+
 /// Effective dispatch modality of a member function (spec 9.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MethodModifier {

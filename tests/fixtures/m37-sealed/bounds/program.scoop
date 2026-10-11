@@ -1,0 +1,7 @@
+sealed interface Root<T> {}
+class Value<T>(val value: T) : Root<T>
+class Reference<T: ref>(val value: T) : Root<T>
+fun classify(value: Root<Int>): Int = when (value) {
+    is Value<Int> -> value.value
+}
+fun main() { println(classify(Value(42))) }

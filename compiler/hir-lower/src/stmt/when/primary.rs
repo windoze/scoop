@@ -1,6 +1,8 @@
 use super::conditions::ArmPrimary;
 use super::*;
 
+mod predicates;
+
 impl Lowerer {
     pub(super) fn subject_primary(
         &mut self,
@@ -52,7 +54,7 @@ impl Lowerer {
                         .iter()
                         .map(|condition| subject_condition(condition, subject)),
                 );
-                let predicate = self.lower_when_predicate(&source)?;
+                let predicate = self.lower_subject_predicate(&source, subject)?;
                 Some(ArmPrimary {
                     completes: self.when_predicate_completes(&predicate),
                     irrefutable: false,

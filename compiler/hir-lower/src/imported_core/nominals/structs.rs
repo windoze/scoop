@@ -16,7 +16,7 @@ impl Lowerer {
         Ok(self.struct_applications[application].canonical_type)
     }
 
-    fn load_struct_definition(
+    pub(in crate::imported_core) fn load_struct_definition(
         &mut self,
         mut declaration: Arc<hir::ImportedNominalDeclaration>,
     ) -> Result<(), ImportedSignatureTypeError> {

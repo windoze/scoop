@@ -1,0 +1,7 @@
+sealed class Root {
+    constructor(value: Int) { println(value) }
+    constructor() : this(42) {}
+}
+class Child : Root()
+fun describe(value: Root): Int = when (value) { is Child -> 7 }
+fun main() { println(describe(Child())) }

@@ -13,6 +13,16 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let operand = self.lower_expr(operand, sink, None)?;
+        self.lower_is_value(operand, ty_ref, negated, span)
+    }
+
+    pub(crate) fn lower_is_value(
+        &mut self,
+        operand: hir::Expr,
+        ty_ref: &ast::TypeRef,
+        negated: bool,
+        span: Span,
+    ) -> Option<hir::Expr> {
         let check_ty = self.resolve_type_ref(ty_ref)?;
         if !self.could_hold(operand.ty, check_ty) {
             let found = self.type_name(operand.ty);

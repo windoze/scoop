@@ -29,6 +29,7 @@ fn interface_property(name: &str) -> ast::PropertyDecl {
 
 fn interface(name: &str) -> ast::Decl {
     ast::Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         name: crate::tests::ident(name),

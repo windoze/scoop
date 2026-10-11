@@ -74,8 +74,11 @@ fn invalid_release_prefix_recovers_at_the_next_member() {
 }
 
 #[test]
-fn sealed_release_owner_is_rejected_by_the_parser() {
-    let (span, message) = err("sealed class Owner { release {} }");
-    assert_eq!(span, Span::new(0, 6));
-    assert!(message.contains("`sealed` classes"));
+fn sealed_release_owner_is_preserved_for_semantic_validation() {
+    let file = ok("sealed class Owner { release {} }");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert_eq!(class.modifier, scoop_ast::ClassModifier::Sealed);
+    assert!(matches!(class.members[0], ClassMember::ReleaseBlock(_)));
 }

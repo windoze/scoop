@@ -173,6 +173,7 @@ pub enum ClassModifier {
     Final,
     Open,
     Abstract,
+    Sealed,
 }
 
 /// Effective modality of a member function (spec 9.1). Plain class
@@ -449,6 +450,7 @@ impl ConstructorDelegation {
 /// semantic obligation/default selection belongs to HIR.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceDecl {
+    pub sealed_span: Option<Span>,
     pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,
     pub name: Ident,

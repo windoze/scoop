@@ -7,6 +7,7 @@ fn interface(
     properties: Vec<ast::PropertyDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),

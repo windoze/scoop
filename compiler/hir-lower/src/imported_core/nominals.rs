@@ -7,6 +7,7 @@ use std::sync::Arc;
 mod classes;
 mod dispatch;
 mod enums;
+mod parameters;
 mod source;
 mod structs;
 

@@ -221,19 +221,24 @@ impl Parser {
                     .map(NestedTypeDecl::Enum)
             }
             TokenKind::Class => {
-                let modifier = match prefix
-                    .modifiers
-                    .method_modifier
-                    .map(|modifier| modifier.kind)
-                {
-                    Some(MethodModifier::Open) => ClassModifier::Open,
-                    Some(MethodModifier::Abstract) => ClassModifier::Abstract,
-                    Some(MethodModifier::Final) | None => ClassModifier::Final,
+                let modifier = if prefix.modifiers.sealed_span.is_some() {
+                    ClassModifier::Sealed
+                } else {
+                    match prefix
+                        .modifiers
+                        .method_modifier
+                        .map(|modifier| modifier.kind)
+                    {
+                        Some(MethodModifier::Open) => ClassModifier::Open,
+                        Some(MethodModifier::Abstract) => ClassModifier::Abstract,
+                        Some(MethodModifier::Final) | None => ClassModifier::Final,
+                    }
                 };
                 let modifier_span = prefix
                     .modifiers
                     .method_modifier
-                    .map(|modifier| modifier.span);
+                    .map(|modifier| modifier.span)
+                    .or(prefix.modifiers.sealed_span);
                 self.parse_class(
                     prefix.annotations,
                     prefix.visibility,
@@ -245,9 +250,13 @@ impl Parser {
             }
             TokenKind::Interface => {
                 self.require_unmodified_nominal_prefix(&prefix, "interface")?;
-                self.parse_interface(prefix.annotations, prefix.visibility)
-                    .map(Box::new)
-                    .map(NestedTypeDecl::Interface)
+                self.parse_interface(
+                    prefix.annotations,
+                    prefix.visibility,
+                    prefix.modifiers.sealed_span,
+                )
+                .map(Box::new)
+                .map(NestedTypeDecl::Interface)
             }
             _ => self.unexpected("nested nominal declaration"),
         }

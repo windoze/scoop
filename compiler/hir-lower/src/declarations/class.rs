@@ -38,7 +38,9 @@ impl Lowerer {
         let modifier = match decl.modifier {
             ast::ClassModifier::Final => hir::ClassModifier::Final,
             ast::ClassModifier::Open => hir::ClassModifier::Open,
-            ast::ClassModifier::Abstract => hir::ClassModifier::Abstract,
+            ast::ClassModifier::Abstract | ast::ClassModifier::Sealed => {
+                hir::ClassModifier::Abstract
+            }
         };
         let mut type_params = Vec::new();
         for param in &decl.type_params {
@@ -151,6 +153,11 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access,
             definition: hir::ClassDefinition {
+                inheritance_family: if decl.modifier == ast::ClassModifier::Sealed {
+                    hir::InheritanceFamily::Sealed(Vec::new())
+                } else {
+                    hir::InheritanceFamily::Open
+                },
                 release_policy: Default::default(),
                 modifier,
                 self_application,

@@ -1,0 +1,18 @@
+sealed interface Result<T> {}
+class Success<T>(val value: T) : Result<T>
+class Failure<T>(val code: Int) : Result<T>
+class Strings : Result<String>
+fun <T> classify(value: Result<T>): Int = when (value) {
+    is Success<T> -> 1
+    is Failure<T> -> 2
+    is Strings -> 3
+}
+fun ints(value: Result<Int>): Int = when (value) {
+    is Success<Int> -> value.value
+    is Failure<Int> -> value.code
+}
+fun main() {
+    println(ints(Success(42)))
+    println(classify(Failure<String>(8)))
+    println(classify<String>(Strings()))
+}

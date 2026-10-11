@@ -579,7 +579,7 @@ Module
           Type Any
           Box
             Type Payload
-            Local $dependency.local.1
+            Local $dependency.local.4
     bb3 if.then.3
       assign $dependency.local.5
         Type Payload

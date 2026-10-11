@@ -127,6 +127,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
             continue;
         }
         let modifier = match decl.modifier {
+            _ if decl.inheritance_family.subtypes().is_some() => "sealed ",
             ClassModifier::Final => "",
             ClassModifier::Open => "open ",
             ClassModifier::Abstract => "abstract ",
@@ -273,7 +274,12 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
             )
         };
         out.push_str(&format!(
-            "  interface {}{}{}\n",
+            "  {}interface {}{}{}\n",
+            if decl.inheritance_family.subtypes().is_some() {
+                "sealed "
+            } else {
+                ""
+            },
             nominal_declaration_name(module, &decl.name, decl.owner),
             type_params,
             parents

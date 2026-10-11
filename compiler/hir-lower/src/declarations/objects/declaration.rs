@@ -151,6 +151,7 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),
             definition: hir::ClassDefinition {
+                inheritance_family: Default::default(),
                 release_policy: Default::default(),
                 modifier: hir::ClassModifier::Final,
                 self_application,

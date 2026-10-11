@@ -69,6 +69,14 @@ pub(super) fn project(
         instantiation_conditions(export, local, parameters)?,
         release_policy(export, local, parameters)?,
         class_primary::project(export, local)?,
+    )
+    .with_sealed_subtypes(
+        inheritance_family(export, local)
+            .and_then(InheritanceFamily::subtypes)
+            .map(|subtypes| {
+                CanonicalSourceNominalIdsV1::try_new(subtypes.to_vec()).map_err(invalid)
+            })
+            .transpose()?,
     );
     NominalInterfaceRecordV1::try_new(
         owner,
@@ -115,6 +123,17 @@ pub(super) fn header(
         }
     }
 }
+pub(super) fn inheritance_family(
+    export: &ExportHir,
+    local: LocalNominalId,
+) -> Option<&InheritanceFamily> {
+    match local {
+        LocalNominalId::Class(id) => Some(&export.classes[id].inheritance_family),
+        LocalNominalId::Interface(id) => Some(&export.interfaces[id].inheritance_family),
+        _ => None,
+    }
+}
+
 fn modality(export: &ExportHir, local: LocalNominalId) -> NominalInheritanceModalityV1 {
     match local {
         LocalNominalId::Class(id) => match export.classes[id].modifier {

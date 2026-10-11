@@ -242,7 +242,7 @@ Module
           Type Any
           Retype Any
             Type Node
-            Local node
+            Local $when.subject.0
     bb3 if.merge.3
       goto bb18
     bb4 if.then.4
@@ -263,7 +263,7 @@ Module
           Type Any
           Retype Any
             Type Node
-            Local node
+            Local $when.subject.0
     bb6 if.merge.6
       goto bb3
     bb7 if.then.7
@@ -590,7 +590,7 @@ Module
           Type Any
           Retype Any
             Type Node
-            Local node
+            Local $when.subject.2
     bb47 if.then.47 unwind bb39
       call $call.7: Nothing = @fn3 direct
       unreachable

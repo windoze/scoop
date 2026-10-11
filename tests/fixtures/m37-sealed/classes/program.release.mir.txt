@@ -1,0 +1,459 @@
+Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Message vtable=1 itables=0
+  class Text vtable=1 itables=0
+  class Empty vtable=1 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Message.codeValue @fn0(this: Message) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Message
+          Local this
+  fun Message.text @fn1(this: Message) -> String
+    bb0 entry
+      trap "call to abstract method `Message.text`"
+  fun Text.text @fn2(this: Text) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 1
+          Type Text
+          Local this
+  fun Empty.text @fn3(this: Empty) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun describe @fn4(value: Message) -> String
+    bb0 entry
+      val $when.subject.0: Message
+        Type Message
+        Local value
+      val $when.1: Message
+        Type Message
+        Local $when.subject.0
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Text
+          Type Any
+          Retype Any
+            Type Message
+            Local $when.subject.0
+    bb1 if.then.1
+      val $receiver: Text
+        Type Text
+        Retype Text
+          Type Message
+          Local value
+      val $inline.9.this: Text
+        Type Text
+        Local $receiver
+      goto bb10
+    bb2 if.else.2
+      branch bb4 bb5
+        Type Boolean
+        IsInstance Empty
+          Type Any
+          Retype Any
+            Type Message
+            Local $when.subject.0
+    bb3 if.merge.3
+      return
+        Type String
+        Local $result.1
+    bb4 if.then.4
+      val $receiver: Empty
+        Type Empty
+        Retype Empty
+          Type Message
+          Local value
+      val $inline.7.this: Empty
+        Type Empty
+        Local $receiver
+      goto bb8
+    bb5 if.else.5
+      unreachable
+    bb6 if.merge.6
+      goto bb3
+    bb7 inline.cont.7
+      val $call.2: String
+        Type String
+        Local $inline.7.result
+      assign $result.1
+        Type String
+        Local $call.2
+      goto bb6
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type String
+        StringConst @str0
+      goto bb7
+    bb9 inline.cont.9
+      val $call.1: String
+        Type String
+        Local $inline.9.result
+      assign $result.1
+        Type String
+        Local $call.1
+      goto bb3
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type String
+        FieldAccess 1
+          Type Text
+          Local $inline.9.this
+      goto bb9
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Text
+        ClassAlloc Text
+      val $inline.7.this: Text
+        Type Text
+        Local $new.1
+      val $inline.7.value: String
+        Type String
+        Local $parameter.value
+      goto bb8
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Message
+          Local $inline.1.this
+      goto bb1
+    bb3 inline.cont.3
+      val $receiver: Text
+        Type Text
+        Local $new.3
+      val $inline.1.this: Message
+        Type Message
+        Retype Message
+          Type Text
+          Local $receiver
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.$parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.13.this: Message
+        Type Message
+        Retype Message
+          Type Text
+          Local $inline.3.this
+      val $inline.13.code: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb14
+    bb5 inline.cont.5
+      val $argument.0: Message
+        Type Message
+        Retype Message
+          Type Empty
+          Local $new.2
+      val $parameter.value: Message
+        Type Message
+        Local $argument.0
+      call $dependency.argument.0: String = @fn4 direct
+        Type Message
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.3
+        Type Text
+        ClassAlloc Text
+      val $inline.3.this: Text
+        Type Text
+        Local $new.3
+      val $inline.3.value: String
+        Type String
+        Local $parameter.value
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $inline.5.$parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $inline.11.this: Message
+        Type Message
+        Retype Message
+          Type Empty
+          Local $inline.5.this
+      val $inline.11.code: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb12
+    bb7 inline.cont.7
+      val $argument.0: Message
+        Type Message
+        Retype Message
+          Type Text
+          Local $new.1
+      val $parameter.value: Message
+        Type Message
+        Local $argument.0
+      call $dependency.argument.0: String = @fn4 direct
+        Type Message
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.2
+        Type Empty
+        ClassAlloc Empty
+      val $inline.5.this: Empty
+        Type Empty
+        Local $new.2
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.7.$parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.9.this: Message
+        Type Message
+        Retype Message
+          Type Text
+          Local $inline.7.this
+      val $inline.9.code: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb10
+    bb9 inline.cont.9
+      field_set 1
+        Type Text
+        Local $inline.7.this
+        Type String
+        Local $inline.7.value
+      Type Unit
+      UnitLiteral
+      goto bb7
+    bb10 inline.9.entry
+      field_set 0
+        Type Message
+        Local $inline.9.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
+      goto bb9
+    bb11 inline.cont.11
+      Type Unit
+      UnitLiteral
+      goto bb5
+    bb12 inline.11.entry
+      field_set 0
+        Type Message
+        Local $inline.11.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
+      goto bb11
+    bb13 inline.cont.13
+      field_set 1
+        Type Text
+        Local $inline.3.this
+        Type String
+        Local $inline.3.value
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb14 inline.13.entry
+      field_set 0
+        Type Message
+        Local $inline.13.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
+      goto bb13
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn7(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Message.$c0 @fn8(this: Message, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Message
+        Local this
+        Type Int
+        Local code
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Text.$c1 @fn9(this: Text, value: String) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.1.this: Message
+        Type Message
+        Retype Message
+          Type Text
+          Local this
+      val $inline.1.code: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb2
+    bb1 inline.cont.1
+      field_set 1
+        Type Text
+        Local this
+        Type String
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Message
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun init.Empty.$c2 @fn10(this: Empty) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $inline.1.this: Message
+        Type Message
+        Retype Message
+          Type Empty
+          Local this
+      val $inline.1.code: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Message
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
+      goto bb1
+  instance mi0 function=@fn6 <- println
+  instance mi1 function=@fn7 <- println
+  str @str0 "empty"
+  str @str1 "hello"
+  str @str2 "x"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn5

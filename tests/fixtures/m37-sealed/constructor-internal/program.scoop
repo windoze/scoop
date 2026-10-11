@@ -1,0 +1,2 @@
+sealed class Root internal constructor() {}
+fun main() {}
