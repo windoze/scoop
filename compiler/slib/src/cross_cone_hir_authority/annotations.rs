@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 mod types;
+mod values;
 
 type Error = CrossConeHirAnnotationError;
 
@@ -34,17 +35,11 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     "annotation definition source differs from its declaration",
                 ));
             }
-            let kinds = self.annotation_parameter_kinds(declaration)?;
-            for (parameter, kind) in declaration.parameters.iter().zip(&kinds) {
-                if parameter
-                    .default
-                    .as_ref()
-                    .is_some_and(|value| !kind.accepts(value))
-                {
-                    return Err(Error::Invalid("annotation default has a different type"));
-                }
-            }
-            parameter_kinds.insert(declaration.annotation, kinds);
+            self.annotation_schema(
+                declaration.annotation,
+                &mut parameter_kinds,
+                &mut Default::default(),
+            )?;
         }
         let targets = AnnotationTargetV1::source_targets(
             self.current_interface.nominal_interfaces(),
@@ -57,25 +52,16 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 ));
             }
             for application in &target.annotations {
-                if let std::collections::btree_map::Entry::Vacant(entry) =
-                    parameter_kinds.entry(application.annotation)
-                {
-                    let declaration = self.annotation_declaration(application.annotation)?;
-                    entry.insert(self.annotation_parameter_kinds(declaration)?);
-                }
-                let kinds = &parameter_kinds[&application.annotation];
-                if kinds.len() != application.arguments.len() {
-                    return Err(Error::Invalid(
-                        "annotation argument count differs from its declaration",
-                    ));
-                }
-                if kinds
-                    .iter()
-                    .zip(&application.arguments)
-                    .any(|(kind, value)| !kind.accepts(value))
-                {
-                    return Err(Error::Invalid("annotation argument has a different type"));
-                }
+                self.annotation_schema(
+                    application.annotation,
+                    &mut parameter_kinds,
+                    &mut Default::default(),
+                )?;
+                values::validate_arguments(
+                    application.annotation,
+                    &application.arguments,
+                    &parameter_kinds,
+                )?;
                 if application.definition_origin.origin().source().cone() != self.current {
                     return Err(Error::Invalid(
                         "annotation application has a foreign source origin",

@@ -1,0 +1,2 @@
+enum E: Int { A = 1 }
+annotation class Tag(val value: E = 1)

@@ -18,6 +18,21 @@ impl Parser {
             self.peek().kind,
             TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
         ) {
+            let saved = self.pos;
+            let name = self.parse_annotation_path("annotation name")?;
+            if matches!(self.peek().kind, TokenKind::LParen) {
+                let (args, end) = self.parse_annotation_arguments(name.span.end)?;
+                let span = scoop_ast::Span::new(name.span.start, end);
+                return Ok((
+                    AnnotationLiteral::Application(Box::new(scoop_ast::Annotation {
+                        name,
+                        args,
+                        span,
+                    })),
+                    end,
+                ));
+            }
+            self.pos = saved;
             let reference = self.parse_postfix()?;
             if !is_constant_path(&reference) {
                 return Err(Diagnostic::at(

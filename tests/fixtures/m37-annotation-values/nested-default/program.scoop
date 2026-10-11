@@ -1,0 +1,2 @@
+annotation class First(val text: String)
+annotation class Tag(val value: First = First(1))

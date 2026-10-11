@@ -56,6 +56,7 @@ pub enum AnnotationLiteral {
         literal: FloatLiteralSyntax,
     },
     ConstReference(Box<crate::Expr>),
+    Application(Box<Annotation>),
     Array(Vec<AnnotationArrayElement>),
 }
 

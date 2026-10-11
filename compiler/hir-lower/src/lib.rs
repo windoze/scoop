@@ -679,6 +679,9 @@ pub(crate) struct Lowerer {
         user_annotations::SourceAnnotationInput,
     >,
     pub(crate) annotation_metadata: hir::SourceAnnotations,
+    pub(crate) annotation_resolution:
+        HashMap<scoop_identity::PersistentAnnotationId, user_annotations::AnnotationResolution>,
+    pub(crate) defined_intrinsic_type_core: Option<hir::IntrinsicTypeCore>,
     pub(crate) nested_annotations_by_owner:
         HashMap<(Owner, String), scoop_identity::PersistentAnnotationId>,
     pub(crate) top_level_namespaces: Shared<namespace::TopLevelNamespaces>,

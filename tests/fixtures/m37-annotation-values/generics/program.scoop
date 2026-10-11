@@ -1,0 +1,10 @@
+enum Token<T>: Int16 { Low = -3, High = 9 }
+typealias Code = Token<String>
+typealias ListOf<T> = Array<T>
+annotation class Name(val text: String = "雪")
+annotation class Data(val code: Code = Token<String>.High,
+                      val values: Array<Token<Int>> = [Token<Int>.Low],
+                      val names: ListOf<Name> = [Name(), Name("named")])
+@Data
+struct Holder<T>(val value: T)
+fun main() { println(Holder("generic").value) }

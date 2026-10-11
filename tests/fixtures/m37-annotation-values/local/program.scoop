@@ -1,0 +1,8 @@
+enum Flag: UInt8 { Off = 0u, On = 1u }
+annotation class Mark(val flag: Flag, val flags: Array<Flag> = [])
+fun <T> use(value: T): T {
+    @Mark(Flag.On, [Flag.Off, Flag.On])
+    struct Local(val item: T)
+    return Local(value).item
+}
+fun main() { println(use("local")); println(use(42)) }

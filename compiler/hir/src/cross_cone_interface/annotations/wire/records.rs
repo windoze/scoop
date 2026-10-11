@@ -1,13 +1,14 @@
+use super::super::parameter::DecodedAnnotationParameterTypeV1;
 use super::*;
 use crate::DecodedExportDefinitionSourceV1;
-use scoop_identity::{DecodedCanonicalIdentifier, DecodedPersistentId, DecodedSignatureTypeKey};
+use scoop_identity::{DecodedCanonicalIdentifier, DecodedPersistentId};
 use scoop_wire::WireErrorKind;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecodedAnnotationParameterV1 {
     pub name: DecodedCanonicalIdentifier,
-    pub value_type: DecodedSignatureTypeKey,
-    pub default: Option<CanonicalAnnotationValueV1>,
+    pub value_type: DecodedAnnotationParameterTypeV1,
+    pub default: Option<DecodedAnnotationValueV1>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecodedAnnotationDeclarationV1 {
@@ -19,7 +20,7 @@ pub(super) struct DecodedAnnotationDeclarationV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecodedAnnotationApplicationV1 {
     pub annotation: DecodedPersistentId<PersistentAnnotationId>,
-    pub arguments: Vec<CanonicalAnnotationValueV1>,
+    pub arguments: Vec<DecodedAnnotationValueV1>,
     pub definition_origin: DecodedExportDefinitionSourceV1,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -109,10 +110,10 @@ impl WireDecode for DecodedAnnotationParameterV1 {
         decoder.expect_map(3)?;
         Ok(Self {
             name: decoder.field(1, DecodedCanonicalIdentifier::decode)?,
-            value_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
+            value_type: decoder.field(2, DecodedAnnotationParameterTypeV1::decode)?,
             default: decoder.field(3, |d| match d.array()? {
                 0 => Ok(None),
-                1 => d.index(0, CanonicalAnnotationValueV1::decode).map(Some),
+                1 => d.index(0, DecodedAnnotationValueV1::decode).map(Some),
                 actual => Err(WireError::new(
                     WireErrorKind::InvalidLength {
                         expected: 1,
@@ -144,7 +145,7 @@ impl WireDecode for DecodedAnnotationApplicationV1 {
         Ok(Self {
             annotation: decoder.field(1, DecodedPersistentId::decode)?,
             arguments: decoder.field(2, |d| {
-                d.decode_array(|d, _| CanonicalAnnotationValueV1::decode(d))
+                d.decode_array(|d, _| DecodedAnnotationValueV1::decode(d))
             })?,
             definition_origin: decoder.field(3, DecodedExportDefinitionSourceV1::decode)?,
         })

@@ -1,0 +1,2 @@
+annotation class Text(val value: String)
+annotation class Tag(val values: MutableArray<Text>)

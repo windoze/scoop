@@ -23,7 +23,6 @@ impl Lowerer {
         }
         self.validate_owner_type_parameter_constraints(&pending.owners());
         self.resolve_local_owner_aliases(&pending.owners());
-        self.resolve_local_owner_annotations(&pending.owners());
         self.check_interface_inheritance_cycles(&pending.interfaces);
         for &(id, declaration, file) in &pending.interfaces {
             self.current_file = file;
@@ -72,6 +71,7 @@ impl Lowerer {
         }
         self.resolve_property_accessor_signatures_from(accessor_start);
         self.validate_and_freeze_duplicate_signatures(&[], &pending.methods);
+        self.resolve_local_owner_annotations(&pending.owners());
         for &(id, declaration, file) in &pending.structs {
             self.annotate_struct(id, declaration, file);
         }

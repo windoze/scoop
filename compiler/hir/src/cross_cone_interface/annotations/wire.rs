@@ -54,7 +54,7 @@ impl DecodedCanonicalAnnotationsV1 {
                                 .value_type
                                 .resolve(resolver)
                                 .map_err(AnnotationDataResolutionError::Reference)?,
-                            default: parameter.default,
+                            default: parameter.default.map(|v| v.resolve(resolver)).transpose()?,
                         })
                     })
                     .collect::<Result<_, AnnotationDataResolutionError<E>>>()?;
@@ -83,7 +83,11 @@ impl DecodedCanonicalAnnotationsV1 {
                             annotation: resolver
                                 .resolve(application.annotation)
                                 .map_err(AnnotationDataResolutionError::Reference)?,
-                            arguments: application.arguments,
+                            arguments: application
+                                .arguments
+                                .into_iter()
+                                .map(|v| v.resolve(resolver))
+                                .collect::<Result<_, _>>()?,
                             definition_origin: application
                                 .definition_origin
                                 .resolve(resolver)
@@ -162,6 +166,8 @@ pub enum AnnotationDataResolutionError<E> {
     Reference(E),
     Name(CanonicalIdentifierError),
     Origin(SourceOriginResolutionError<E>),
+    Source(scoop_identity::SourceIdentityResolutionError<E>),
+    Span(scoop_identity::SourceSpanError),
     Shape(AnnotationDataBuildError),
 }
 impl<E: fmt::Display> fmt::Display for AnnotationDataResolutionError<E> {
@@ -170,6 +176,8 @@ impl<E: fmt::Display> fmt::Display for AnnotationDataResolutionError<E> {
             Self::Reference(error) => error.fmt(formatter),
             Self::Name(error) => error.fmt(formatter),
             Self::Origin(error) => error.fmt(formatter),
+            Self::Source(error) => error.fmt(formatter),
+            Self::Span(error) => error.fmt(formatter),
             Self::Shape(error) => error.fmt(formatter),
         }
     }

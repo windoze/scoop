@@ -16,7 +16,12 @@ pub(super) fn dump_annotations(module: &Module, out: &mut String) {
                 out,
                 "{}: {}",
                 parameter.name,
-                type_name(module, parameter.value_type)
+                match parameter.value_type {
+                    crate::AnnotationParameterType::Value(ty) => type_name(module, ty),
+                    crate::AnnotationParameterType::Annotation(id) => format!("annotation<{id}>"),
+                    crate::AnnotationParameterType::AnnotationArray { element, .. } =>
+                        format!("Array<annotation<{element}>>"),
+                }
             )
             .expect("writing to String");
             if let Some(default) = &parameter.default {

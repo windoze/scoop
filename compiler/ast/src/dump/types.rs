@@ -104,6 +104,20 @@ pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {
             format!("{}{literal}", if *negative { "-" } else { "+" })
         }
         AnnotationLiteral::ConstReference(reference) => dump_constant_reference(reference),
+        AnnotationLiteral::Application(application) => {
+            let arguments = application
+                .args
+                .iter()
+                .map(|arg| {
+                    let value = dump_annotation_literal(&arg.value);
+                    arg.name
+                        .as_ref()
+                        .map_or(value.clone(), |name| format!("{} = {value}", name.text))
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{}({arguments})", application.name)
+        }
         AnnotationLiteral::Array(elements) => format!(
             "[{}]",
             elements

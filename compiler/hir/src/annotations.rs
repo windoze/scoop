@@ -9,7 +9,7 @@ use scoop_identity::{CborIdentityRecord, PersistentAnnotationId, SourceDeclarati
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationParameter {
     pub name: String,
-    pub value_type: TypeId,
+    pub value_type: crate::AnnotationParameterType<TypeId>,
     pub default: Option<CanonicalAnnotationValueV1>,
 }
 

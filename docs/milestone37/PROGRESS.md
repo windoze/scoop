@@ -195,3 +195,13 @@ HIR、共享接口与 MIR/LIR 保留枚举、variant 和完整 application 身�
 本机 fmt、workspace clippy（release）无警告通过，79 项相关 Rust 测试通过。34 个新增正式 fixture（8 个正向、26 个 negative）与 26 个旧回归完成普通比较，共 60/60 通过、73 个配置、158 个进程、146 个阶段 golden。覆盖 debug/release、moving/minor GC、全部整数位宽、空 enum、继承方法与接口、局部类型、普通/case when、泛型不变性、C ABI，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [17-integral-enums-darwin.json](validation/17-integral-enums-darwin.json)。旧 HIR 快照机械迁移 Upcast 名称和 Algebraic 表示字段，逐份反向核对原字节；受影响回归另迁移 core 新增 16 个边界常量带来的局部 ImportedIdentityId 索引、少量 HIR 类型登记顺序及一个已有 lambda 标签的 AST。旧回归 MIR/LIR 不变。报告只合并普通通过记录，不计生成快照的运行。完成后清理 fixture cases，保留共用 cache、sysroot、release 依赖和日志；跨平台快照在最终 Linux 验收中生成并普通复验。
+
+### 18a. 注解静态值域（完成）
+
+注解参数支持整型枚举、嵌套 annotation 应用及这些原子类型的一维 Array。枚举保留完整 application、variant identity 和底层整数位型；嵌套应用按定义处参数与默认值形成静态数据。数组保留顺序、重复元素及各元素的源码身份和位置，默认数组继续指向定义处。普通函数、对象、多维或可变数组、错误枚举身份与递归参数/default 依赖均在源码处诊断。
+
+annotation class 不进入 runtime 类型系统，参数 schema 以独立的 typed annotation identity 表达嵌套值。数组 alias 沿现有类型解析检查实际 core Array，使用已有形式参数身份确认元素被完整转发，拒绝丢弃或替换元素的 alias。跨 Cone 保存同一 canonical 静态值及必要的类型/variant/annotation 引用，reader 在既有边界检查 schema、值类型和循环；不生成运行期对象或执行任意代码。cross-cone-interface 升为 73，新模块最长 169 行。
+
+本机 fmt、workspace clippy（release）无警告通过；57 项相关 Rust 测试通过。33 个新增 fixture（6 个正向、27 个 negative）与 78 个旧注解回归完成普通比较，共 111/111 通过、117 个配置、168 个进程、69 个阶段 golden。覆盖整数位宽、泛型与 alias、前向和局部声明、默认值位置、逐元素错误、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [18a-annotation-values-darwin.json](validation/18a-annotation-values-darwin.json)。旧负例只迁移诊断类别或措辞，位置不变；旧正例 HIR 更新数组静态表示、元素来源，以及上一项 core 边界常量产生的索引与位置变化，MIR/LIR 不变。报告合并普通通过批次和受影响项复验，不计快照生成次数。清理本批 fixture cases，保留共用缓存、sysroot、release 依赖和日志。注解目标/use-site、type-use 与 Target/Repeatable 继续分别实现验证，尚未标记完成。

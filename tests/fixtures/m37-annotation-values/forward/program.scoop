@@ -1,0 +1,6 @@
+annotation class Outer(val middle: Middle = Middle(), val empty: Array<Leaf> = [])
+annotation class Middle(val leaf: Leaf = Leaf("forward"))
+annotation class Leaf(val value: String, val flags: Array<Boolean> = [true, false])
+@Outer(middle = Middle(Leaf("bound", [false, true])))
+class Item
+fun main() { println("forward") }

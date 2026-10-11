@@ -26,6 +26,13 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::CanonicalConstValueV1> {
         let value = match value {
+            ast::AnnotationLiteral::Application(_) => {
+                self.error(
+                    span,
+                    "a nested application is not a scalar annotation value".into(),
+                );
+                return None;
+            }
             ast::AnnotationLiteral::Array(_) => {
                 self.error(
                     span,
@@ -79,6 +86,11 @@ impl Lowerer {
                 self.lower_expr(&source, &mut Vec::new(), Some(ty))?
             }
         };
+        if let Some((_, constant)) = self.integral_annotation_constant(&value)
+            && matches!(self.types[ty], hir::Type::Integer(kind) if kind == constant.kind())
+        {
+            return Some(hir::CanonicalConstValueV1::Integer(constant));
+        }
         if !self.types_equal(value.ty, ty) {
             self.error(
                 span,

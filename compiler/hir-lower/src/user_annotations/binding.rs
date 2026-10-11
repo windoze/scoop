@@ -3,121 +3,6 @@ use crate::types::ResolvedTypeName;
 use std::collections::HashSet;
 
 impl Lowerer {
-    pub(crate) fn resolve_annotation_declarations(&mut self) {
-        let declarations = self
-            .source_annotations
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-        self.resolve_annotation_inputs(declarations);
-    }
-
-    pub(crate) fn resolve_local_owner_annotations(&mut self, owners: &[Owner]) {
-        let declarations = self
-            .source_annotations
-            .values()
-            .filter(|input| input.owner.is_some_and(|owner| owners.contains(&owner)))
-            .cloned()
-            .collect::<Vec<_>>();
-        self.resolve_annotation_inputs(declarations);
-    }
-
-    fn resolve_annotation_inputs(&mut self, declarations: Vec<SourceAnnotationInput>) {
-        for input in declarations {
-            self.current_file = input.file;
-            self.current_owner = input.owner;
-            self.type_params_in_scope.clear();
-            for annotation in &input.declaration.annotations {
-                self.error(
-                    annotation.span,
-                    "annotation classes are not annotation targets".into(),
-                );
-            }
-            let mut parameters = Vec::new();
-            let mut names = HashSet::new();
-            for parameter in &input.declaration.parameters {
-                if !names.insert(parameter.name.text.clone()) {
-                    self.error(
-                        parameter.name.span,
-                        format!("duplicate annotation parameter `{}`", parameter.name.text),
-                    );
-                    continue;
-                }
-                let Some(value_type) = self.resolve_type_ref(&parameter.ty) else {
-                    continue;
-                };
-                if !self.is_annotation_parameter_type(value_type) {
-                    self.error(parameter.ty.span, "annotation parameters require Boolean, String, Char, fixed-width integers, Float, Double, or a one-dimensional Array of these scalar types".into());
-                    continue;
-                }
-                let default = if let Some(default) = &parameter.default {
-                    let Some(value) = self.annotation_value(default, value_type, parameter.span)
-                    else {
-                        continue;
-                    };
-                    Some(value)
-                } else {
-                    None
-                };
-                parameters.push(hir::SourceAnnotationParameter {
-                    name: parameter.name.text.clone(),
-                    value_type,
-                    default,
-                });
-            }
-            if parameters.len() == input.declaration.parameters.len() {
-                self.annotation_metadata
-                    .declarations
-                    .push(hir::SourceAnnotationDeclaration {
-                        identity: input.identity,
-                        parameters,
-                        visibility: input.access.declared,
-                        definition_origin: self.definition_origin(input.declaration.span),
-                    });
-            }
-        }
-        self.current_owner = None;
-    }
-
-    fn annotation_parameters(
-        &mut self,
-        id: PersistentAnnotationId,
-        span: ast::Span,
-    ) -> Option<Vec<hir::SourceAnnotationParameter>> {
-        if self.source_annotations.contains_key(&id) {
-            return self
-                .annotation_metadata
-                .declarations
-                .iter()
-                .find(|declaration| declaration.identity.id() == id)
-                .map(|declaration| declaration.parameters.clone());
-        }
-        let declaration = self
-            .dependencies
-            .as_ref()?
-            .annotation_declaration(id)?
-            .declaration
-            .clone();
-        declaration
-            .parameters
-            .into_iter()
-            .map(|parameter| {
-                let value_type = match self.imported_signature_type(&parameter.value_type) {
-                    Ok(ty) => ty,
-                    Err(error) => {
-                        self.error(span, error.diagnostic("annotation parameter"));
-                        return None;
-                    }
-                };
-                Some(hir::SourceAnnotationParameter {
-                    name: parameter.name.as_str().into(),
-                    value_type,
-                    default: parameter.default,
-                })
-            })
-            .collect()
-    }
-
     pub(crate) fn bind_source_annotations(
         &mut self,
         target: hir::SourceAnnotationTarget,
@@ -198,7 +83,7 @@ impl Lowerer {
         }
     }
 
-    fn bind_annotation_arguments(
+    pub(super) fn bind_annotation_arguments(
         &mut self,
         annotation: &ast::Annotation,
         parameters: &[hir::SourceAnnotationParameter],

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v72_preserves_annotation_array_types_and_values() {
+fn source_interface_v73_preserves_nested_annotations_and_integral_enum_values() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        72,
+        73,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

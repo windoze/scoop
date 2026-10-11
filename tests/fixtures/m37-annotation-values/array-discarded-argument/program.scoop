@@ -1,0 +1,3 @@
+typealias Discard<T> = Array<Unit>
+annotation class Name(val text: String)
+annotation class Tag(val values: Discard<Name>)

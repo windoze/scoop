@@ -225,6 +225,7 @@ impl Lowerer {
         } else {
             None
         };
+        self.defined_intrinsic_type_core = intrinsic_type_core;
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
                 self.current_file = primary_output_file;

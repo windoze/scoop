@@ -1,0 +1,4 @@
+annotation class First(val text: String)
+annotation class Tag(val value: First)
+fun make(): Int = 1
+@Tag(make()) struct Item()

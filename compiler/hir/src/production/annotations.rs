@@ -25,9 +25,21 @@ impl CanonicalAnnotationsV1 {
                 .parameters
                 .iter()
                 .map(|parameter| {
-                    let value_type = mapper
-                        .map(parameter.value_type, &[])
-                        .map_err(AnnotationProductionError::Type)?;
+                    let value_type = match parameter.value_type {
+                        crate::AnnotationParameterType::Value(ty) => {
+                            crate::AnnotationParameterType::Value(
+                                mapper
+                                    .map(ty, &[])
+                                    .map_err(AnnotationProductionError::Type)?,
+                            )
+                        }
+                        crate::AnnotationParameterType::Annotation(id) => {
+                            crate::AnnotationParameterType::Annotation(id)
+                        }
+                        crate::AnnotationParameterType::AnnotationArray { array, element } => {
+                            crate::AnnotationParameterType::AnnotationArray { array, element }
+                        }
+                    };
                     Ok(AnnotationParameterV1 {
                         name: CanonicalIdentifier::new(&parameter.name)
                             .expect("source parameter names are canonical"),

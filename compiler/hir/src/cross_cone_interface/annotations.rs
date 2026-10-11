@@ -4,12 +4,18 @@ use std::fmt;
 use crate::{DeclaredVisibilityV1, ExportDefinitionSourceV1};
 use scoop_identity::{CanonicalIdentifier, PersistentAnnotationId, SignatureTypeKey};
 
+mod parameter;
+mod references;
 mod source_targets;
+pub use parameter::AnnotationParameterType;
 mod target;
 mod value;
 mod wire;
 pub use target::{AnnotationTargetV1, DecodedAnnotationTargetV1};
-pub use value::CanonicalAnnotationValueV1;
+pub use value::{
+    AnnotationElementTypeV1, AnnotationElementV1, CanonicalAnnotationValueV1,
+    DecodedAnnotationValueV1,
+};
 pub use wire::{
     AnnotationDataResolutionError, AnnotationDataResolver, DecodedCanonicalAnnotationsV1,
 };
@@ -18,7 +24,7 @@ pub use wire::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnnotationParameterV1 {
     pub name: CanonicalIdentifier,
-    pub value_type: SignatureTypeKey,
+    pub value_type: AnnotationParameterType<SignatureTypeKey>,
     pub default: Option<CanonicalAnnotationValueV1>,
 }
 
@@ -106,29 +112,6 @@ impl CanonicalAnnotationsV1 {
             declarations,
             targets,
         })
-    }
-
-    pub(crate) fn declaration_targets(
-        &self,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Vec<crate::ExternalHirTargetV1>, scoop_wire::WireError> {
-        use crate::{ExternalHirTargetV1, SignatureNominalWalker};
-        let mut references = Vec::new();
-        for declaration in &self.declarations {
-            for parameter in &declaration.parameters {
-                let mut walker = SignatureNominalWalker::new(&parameter.value_type, path)?;
-                while let Some(owner) = walker.next(path)? {
-                    references.push(ExternalHirTargetV1::Nominal(owner));
-                }
-            }
-        }
-        references.extend(self.targets.iter().flat_map(|target| {
-            target
-                .annotations
-                .iter()
-                .map(|application| ExternalHirTargetV1::Annotation(application.annotation))
-        }));
-        Ok(references)
     }
 
     pub fn declarations(&self) -> &[AnnotationDeclarationV1] {

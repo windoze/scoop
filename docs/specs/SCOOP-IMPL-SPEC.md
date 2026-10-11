@@ -734,7 +734,7 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实，不构造运行期 TypeInfo 或任意 CTFE。描述查询本身不触发物化、初始化或可见性扩张。
 
-annotation 声明使用独立 PersistentAnnotationId，参数保存完整 signature type key，应用保存实际 typed target 和按参数顺序补齐的静态值。注解值以封闭标量/数组表示保存；数组包含明确元素类型及有序标量元素，空数组不丢失类型，默认值与应用共用表示。CanonicalConstValueV1 保持标量用途。CanonicalAnnotationValueV1 的 Scalar 保存原标量值，Array 保存 CanonicalConstValueKindV1 元素种类及有序标量元素；实际 core Array 与元素的名义身份由参数的完整 signature key 保存。共享 reader 在既有边界检查类型引用与 tag/payload 一致性，不重放源码常量求值；具体格式版本随实际编码变更升级。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
+annotation 声明使用独立 PersistentAnnotationId。普通值参数保存完整 signature type key；annotation 原子及其数组参数使用独立的 annotation identity 和实际 core Array 模板身份，不把 annotation class 编成 runtime TypeId。应用保存实际 typed target 和按参数顺序补齐的静态值。CanonicalConstValueV1 保持原标量用途；CanonicalAnnotationValueV1 以封闭的 Scalar、IntegralEnum、Annotation、Array 保存静态值。整型枚举值保留完整 application signature、variant identity 和底层整数位型，嵌套应用保存实际 annotation identity 和完整参数；数组保存明确元素类型、有序值以及逐元素的 SourceIdentity 和 span，默认值保留定义处来源。共享 reader 在既有边界检查引用、枚举 variant/数值、嵌套参数及 tag/payload 一致性，不重放名称查找或默认值求值。参数/default 的循环依赖在源码定义处诊断。参数与值的实际编码变更将 cross-cone-interface 升至 73，旧产物须重建；MIR/LIR 和 runtime ABI 保持原版本。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
 
 HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
 

@@ -46,7 +46,7 @@ fn annotated(case: Case) -> ConstSurface {
         annotation: identity.id(),
         parameters: vec![AnnotationParameterV1 {
             name: CanonicalIdentifier::new("value").unwrap(),
-            value_type: SignatureTypeKey::Nominal(value_type),
+            value_type: SignatureTypeKey::Nominal(value_type).into(),
             default: Some(if matches!(case, Case::DefaultType) {
                 Scalar(CanonicalConstValueV1::String("wrong".into()))
             } else {
