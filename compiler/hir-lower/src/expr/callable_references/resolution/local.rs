@@ -63,7 +63,20 @@ impl Lowerer {
             }
             ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
         };
-        let view = state.callable_view(candidate, extension_receiver.is_some());
+        let mut view = state.callable_view(candidate, extension_receiver.is_some());
+        let before = state.diagnostics.len();
+        view.signature.return_type =
+            state
+                .infer_function_result(function)
+                .ok_or_else(|| ReferenceFailure {
+                    signature: callable_source_signature(&state, context.name, &view),
+                    layer: callable_layer_name(&state, std::slice::from_ref(&view)),
+                    reason: state.diagnostics[before..]
+                        .iter()
+                        .map(|diagnostic| diagnostic.message.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                })?;
         let fail = |state: &Lowerer, reason: String| ReferenceFailure {
             signature: callable_source_signature(state, context.name, &view),
             layer: callable_layer_name(state, std::slice::from_ref(&view)),

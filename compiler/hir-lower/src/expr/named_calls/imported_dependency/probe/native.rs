@@ -38,6 +38,7 @@ impl Lowerer {
             ..
         } = match self.infer_call_arguments(CallInferenceInput {
             signature: &signature,
+            result: crate::declaration_inference::DeclarationResult::Known(signature.return_type),
             argument_map: argument_map.mapping(),
             type_arguments: DeclarationTypeArguments::Callable {
                 owner_arguments: &[],
@@ -98,6 +99,10 @@ impl Lowerer {
                 }
                 return Err(self);
             }
+        };
+        let crate::declaration_inference::DeclarationResult::Known(result_type) = result_type
+        else {
+            unreachable!("imported signatures already have complete results")
         };
         if !candidate.executable() {
             self.imported_dependency_capability_error(

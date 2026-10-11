@@ -6,7 +6,18 @@ mod functions;
 mod locals;
 
 impl Lowerer {
-    pub(crate) fn lower_export_parameter_interfaces(
+    pub(crate) fn register_derived_parameter_interfaces(&mut self) {
+        for (function, _) in self.derived_encoding_methods.clone() {
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
+        for (function, _) in self.derived_decoding_methods.clone() {
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
+    }
+
+    pub(crate) fn register_export_parameter_interfaces(
         &mut self,
         functions: &[(hir::FunctionId, &ast::FunctionDecl, usize)],
         methods: &[(hir::FunctionId, &ast::FunctionDecl, usize, Owner)],
@@ -29,14 +40,6 @@ impl Lowerer {
                     ),
                 );
             }
-            self.register_function_parameter_interface(function);
-        }
-        for (function, _) in self.derived_encoding_methods.clone() {
-            self.current_file = self.function_files[&function];
-            self.register_function_parameter_interface(function);
-        }
-        for (function, _) in self.derived_decoding_methods.clone() {
-            self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }
         for &(structure, declaration, file) in structs {
@@ -269,6 +272,5 @@ impl Lowerer {
                 );
             }
         }
-        self.finish_export_parameter_interfaces();
     }
 }

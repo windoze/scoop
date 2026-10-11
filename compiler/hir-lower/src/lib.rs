@@ -101,6 +101,7 @@ mod constructor_resolution;
 mod core_contract;
 mod current_input;
 mod current_lowering;
+mod declaration_inference;
 mod declaration_surface;
 mod declarations;
 mod defaults;
@@ -801,6 +802,7 @@ pub(crate) struct Lowerer {
     /// call lowering and body lowering. Method signatures exclude the
     /// implicit `this` parameter.
     pub(crate) signatures: imbl::HashMap<FunctionId, FnSig>,
+    pub(crate) declaration_inference: declaration_inference::DeclarationInference,
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
     pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,

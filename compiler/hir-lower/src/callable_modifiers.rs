@@ -2,6 +2,8 @@
 
 use std::num::NonZeroU32;
 
+mod results;
+
 use scoop_ast as ast;
 use scoop_hir as hir;
 
@@ -203,6 +205,7 @@ impl Lowerer {
             );
         }
         if kind == hir::PropertyDelegateOperatorKind::SetValue
+            && !crate::declaration_inference::infers_result(decl)
             && !self.types_equal(return_ty, self.unit)
         {
             self.error(
@@ -304,20 +307,8 @@ impl Lowerer {
                         "operator `set` value parameter must not be `vararg`".to_string(),
                     );
                 }
-                self.require_operator_return(decl, return_ty, self.unit, "Unit");
             }
-            K::Contains => self.require_operator_return(decl, return_ty, self.boolean, "Boolean"),
-            K::PlusAssign | K::MinusAssign | K::TimesAssign | K::DivAssign | K::RemAssign => {
-                self.require_operator_return(decl, return_ty, self.unit, "Unit")
-            }
-            K::CompareTo => self.require_operator_return(
-                decl,
-                return_ty,
-                self.integer_type(hir::IntegerKind::SIGNED_64),
-                "Long",
-            ),
             K::Equals => {
-                self.require_operator_return(decl, return_ty, self.boolean, "Boolean");
                 if !is_member {
                     self.error(
                         decl.name.span,
@@ -337,22 +328,10 @@ impl Lowerer {
                     );
                 }
             }
-            K::Inc | K::Dec => {
-                if let Some(receiver) = receiver
-                    && !self.is_subtype(return_ty, receiver)
-                {
-                    self.error(
-                        decl.name.span,
-                        format!(
-                            "operator `{}` must return a subtype of receiver type {}, found {}",
-                            decl.name.text,
-                            self.type_name(receiver),
-                            self.type_name(return_ty)
-                        ),
-                    );
-                }
-            }
             _ => {}
+        }
+        if !crate::declaration_inference::infers_result(decl) {
+            self.validate_operator_result(decl, kind, receiver, return_ty);
         }
     }
 

@@ -69,3 +69,13 @@ AST、HIR、concrete HIR 和结构化 MIR 保留显式 LoopKind；默认/泛型 
 本机 fmt、workspace clippy（release）通过；parser 493 项、HIR lower 1,402 项及 doc-test 1 项完成验证。HIR lower 初轮唯一剩余的局部函数标签回归修复后以两个相关单元测试补验，没有重复执行不受影响的全量。22 个新增正式 fixture（6 个正向、16 个 negative）与 5 个旧裸 lambda return 回归全部普通比较通过，共 27 个用例、32 个配置、60 个进程、33 个阶段 golden。覆盖 debug/release、返回值合并与装箱、默认参数、泛型、成员/infix/Unicode 名称、finally/Context、挂起恢复、moving GC 和 provider → bridge → consumer 纯产物链；旧负例更新为精确的裸 return 位置及完整诊断。
 
 报告见 [06-return-labels-darwin.json](validation/06-return-labels-darwin.json)。完成后清理本批 fixture cases，保留共用缓存、sysroot、日志和报告。
+
+### 7. 具名表达式体函数结果推导（完成）
+
+顶层、成员、扩展、局部、泛型、挂起、override 及 operator 的表达式体在定义处推导结果，显式结果优先，块体和无 body 声明仍按省略即 Unit 处理。泛型参数保留原身份，无正常结果推导 Nothing；调用者的期望类型不能反向改变声明。活动 FunctionId 依赖栈诊断递归推导，显式签名可以打断环；重载按参数选中实际目标后才查询结果，既不会把无关同名候选当作环，也不会因真正的环退回较不具体的重载。
+
+声明查询复用普通表达式 lowering，保存完整 typed body，隔离调用处的局部、捕获、初始化和默认表达式状态。继承目标和默认参数来源先按已知部分建立，只有依赖结果的相等约束延后检查；重复约束合并，原有继承和布局验证不重放。完成后按原有访问域检查公开签名，再导出完整结果；没有新增 HIR/wire 占位或 runtime ABI。局部函数 body 移入 68 行子模块，声明查询、作用域隔离、结果约束分别为 178、58、104 行。
+
+本机 fmt、workspace clippy（release）通过；HIR lower 1,407 项测试全部通过。26 个新增正式 fixture（9 个正向、17 个 negative）与 M33 errno、M35 when 产物回归普通比较共 28/28 通过，38 个配置、96 个进程、69 个阶段 golden。覆盖 debug/release、泛型宿主/方法/接口默认实现、继承默认参数、super 与动态分派、函数引用、Context、局部捕获、异常/finally、挂起恢复、moving GC、可见性，以及移除源码后的 provider → bridge → consumer 链；消费方同名函数不会重绑定定义处默认调用。
+
+报告见 [07-function-inference-darwin.json](validation/07-function-inference-darwin.json)。现有 M33/M35 快照保持不变。完成后清理本批 fixture cases，保留共用 cache、sysroot 和验证日志。非局部 property 推导作为下一项功能单独实现与提交。

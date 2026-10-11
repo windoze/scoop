@@ -120,6 +120,7 @@ impl Lowerer {
             .collect::<crate::imported_core::ImportedTypeBindings>();
         let effects = callable.effects();
         Some(InterfaceSignature {
+            result_pending: false,
             name: name.to_owned(),
             accessor,
             parameters: callable
@@ -157,6 +158,7 @@ impl Lowerer {
         signature: &FnSig,
         inherited: &ImportedInheritedMethod,
     ) {
+        self.defer_imported_override_result(id, inherited.signature.result, declaration.name.span);
         let target = format!(
             "{}.{}",
             self.type_name(inherited.owner),

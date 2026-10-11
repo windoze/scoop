@@ -294,6 +294,19 @@ impl Lowerer {
             ..
         } = transaction;
         *self = *state;
+        let return_ty = match return_ty {
+            crate::declaration_inference::DeclarationResult::Known(ty) => ty,
+            crate::declaration_inference::DeclarationResult::Function(function) => {
+                let result = self.infer_function_result(function)?;
+                let bindings = self.signatures[&function]
+                    .type_params
+                    .iter()
+                    .map(|parameter| parameter.id)
+                    .zip(type_args.iter().copied())
+                    .collect::<Vec<_>>();
+                self.instantiate_method_ty(result, &bindings)
+            }
+        };
         let source_receiver = match &evaluation_receiver {
             Some(receiver) => hir::SourceCallReceiver::Receiver {
                 static_type: receiver.ty,

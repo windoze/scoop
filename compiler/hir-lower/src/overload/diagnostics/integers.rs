@@ -215,7 +215,7 @@ pub(super) fn primitive_integer_conversion_suggestion(
             };
             input.index()
         }
-        CandidateProbeFailureKind::Shape(_) | CandidateProbeFailureKind::Intrinsic { .. } => {
+        CandidateProbeFailureKind::Shape(_) | CandidateProbeFailureKind::Declaration { .. } => {
             return None;
         }
     };

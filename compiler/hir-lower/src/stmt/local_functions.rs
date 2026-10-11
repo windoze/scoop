@@ -1,5 +1,6 @@
 use super::*;
 
+mod body;
 mod patching;
 
 use patching::patch_local_function_calls;
@@ -99,6 +100,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                result_pending: crate::declaration_inference::infers_result(decl),
                 context_parameters: self.functions[function].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers: hir::CallableModifiers::default(),
@@ -153,6 +155,8 @@ impl Lowerer {
             &mut self.definition_paths,
             crate::definition_paths::DefinitionPathContext::nested(&definition_path),
         );
+        let inference_errors_before = self.diagnostics.len();
+        self.begin_local_result_inference(function, decl);
         self.lower_local_parameter_interface(function, &decl.name.text);
 
         let capture_environment = self.capture_environment();
@@ -208,61 +212,7 @@ impl Lowerer {
                 });
             }
             let mut statements = self.lower_context_entry(function);
-            let returns_unit = self.types_equal(return_ty, self.unit);
-            let body_statements = match &decl.body {
-                ast::FunctionBody::Block(block) => {
-                    let diagnostics_before = self.diagnostics.len();
-                    let statements = self.lower_block(block);
-                    if !returns_unit
-                        && self.diagnostics.len() == diagnostics_before
-                        && self
-                            .statements_control_outcomes(&statements)
-                            .can_fall_through()
-                    {
-                        self.error(
-                            block.span,
-                            format!(
-                                "non-Unit local function `{}` may complete without returning a value",
-                                decl.name.text
-                            ),
-                        );
-                    }
-                    statements
-                }
-                ast::FunctionBody::Expr(expr) => {
-                    let mut statements = Vec::new();
-                    let mut sink = Vec::new();
-                    if !self.reject_expression_body_return(expr)
-                        && let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty))
-                    {
-                        if !self.is_subtype(value.ty, return_ty) {
-                            let expected = self.type_name(return_ty);
-                            let found = self.type_name(value.ty);
-                            let message = self.with_nominal_invariance_detail(
-                                format!(
-                                    "body of local function `{}` must be of type {expected}, found {found}",
-                                    decl.name.text
-                                ),
-                                value.ty,
-                                return_ty,
-                            );
-                            self.error(expr.span(), message);
-                        } else {
-                            statements.extend(sink);
-                            let value = self.adapt_to(value, return_ty);
-                            self.push_return(Some(value), expr.span(), &mut statements);
-                        }
-                    }
-                    statements
-                }
-                ast::FunctionBody::None => {
-                    self.error(
-                        decl.name.span,
-                        format!("local function `{}` must have a body", decl.name.text),
-                    );
-                    Vec::new()
-                }
-            };
+            let body_statements = self.lower_local_function_body(function, decl, return_ty);
             statements.extend(body_statements);
             let captures = self.finish_current_captures(declaration_origin);
             patch_local_function_calls(self, &mut statements, local, &captures);
@@ -311,6 +261,20 @@ impl Lowerer {
             statements,
         });
         self.local_functions[local].captures = captures;
+        if crate::declaration_inference::infers_result(decl) {
+            let result = self.signatures[&function].return_ty;
+            let function_type = self.intern_function_type(
+                decl.is_suspend,
+                sig_params.iter().map(|parameter| parameter.ty).collect(),
+                result,
+            );
+            self.local_functions[local].declaration_function_type = function_type;
+            self.local_functions[local].function_type = function_type;
+            self.finish_local_result_inference(
+                function,
+                self.diagnostics.len() == inference_errors_before,
+            );
+        }
         Some(local)
     }
 }

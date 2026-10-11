@@ -138,6 +138,19 @@ impl Lowerer {
                 } else {
                     None
                 };
+                if let Some(candidate) = &implemented {
+                    self.defer_conformance_result(candidate, &member, span);
+                } else if let Some(method) = &imported_implementation
+                    && member.signature.result_pending
+                {
+                    let expected = self.interface_result_type(&member);
+                    self.defer_result_contract(
+                        crate::declaration_inference::ResultType::Known(method.signature.result),
+                        expected,
+                        &member.signature.name,
+                        span,
+                    );
+                }
                 self.check_conformance_context(
                     owner,
                     implemented.as_ref(),
@@ -193,6 +206,16 @@ impl Lowerer {
                     None => match self.select_interface_default(&all_interfaces, &member.signature)
                     {
                         InterfaceDefaultSelection::Default(default) => {
+                            if default.signature.result_pending || member.signature.result_pending {
+                                let actual = self.interface_result_type(&default);
+                                let expected = self.interface_result_type(&member);
+                                self.defer_result_contract(
+                                    actual,
+                                    expected,
+                                    &member.signature.name,
+                                    span,
+                                );
+                            }
                             self.conformance_target(&default, span)
                         }
                         InterfaceDefaultSelection::Obligation(declaration) if abstract_class => {

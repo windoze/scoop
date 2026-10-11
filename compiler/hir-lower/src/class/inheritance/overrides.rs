@@ -159,6 +159,12 @@ impl Lowerer {
                     default_type_arguments.len(),
                     self.signatures[candidate].type_params.len()
                 );
+                self.defer_override_result(
+                    id,
+                    *candidate,
+                    default_type_arguments.clone(),
+                    decl.name.span,
+                );
                 self.override_default_sources.entry(id).or_default().push(
                     crate::defaults::DefaultOverrideSource::Local {
                         function: *candidate,
@@ -400,6 +406,7 @@ impl Lowerer {
     ) {
         use hir::ImportedCallableSource;
         for member in inherited {
+            self.defer_imported_override_result(id, member.signature.result, decl.name.span);
             let target = format!("{}.{}", self.type_name(member.owner), member.signature.name);
             let covers = self.functions[id]
                 .access

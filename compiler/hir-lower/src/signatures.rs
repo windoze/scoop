@@ -445,11 +445,13 @@ impl Lowerer {
         );
         self.type_params_in_scope.clear();
 
+        self.register_inferred_function(id, decl);
         self.functions[id].return_ty = return_ty;
         self.functions[id].modifiers = modifiers;
         self.signatures.insert(
             id,
             FnSig {
+                result_pending: crate::declaration_inference::infers_result(decl),
                 context_parameters: self.functions[id].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers,

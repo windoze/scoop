@@ -1,0 +1,2 @@
+class Container { operator fun contains(value: Int) = 7 }
+fun main() {}

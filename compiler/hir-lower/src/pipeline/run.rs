@@ -438,17 +438,22 @@ impl Lowerer {
             &pending_objects,
             &pending_methods,
         );
-        self.validate_signature_exposure();
         // Defaults and constructor expressions can select derived equality.
         // Publish its conditional signatures before any of those bodies lower.
         self.declare_derived_equality_methods();
-        self.lower_export_parameter_interfaces(
+        self.register_export_parameter_interfaces(
             &pending_functions,
             &pending_methods,
             &pending_structs,
             &pending_classes,
             &pending_enums,
         );
+
+        self.register_derived_parameter_interfaces();
+        self.complete_inferred_functions();
+        self.validate_inferred_result_contracts();
+        self.validate_signature_exposure();
+        self.finish_export_parameter_interfaces();
         self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
         self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
         // Compiler-generated exception edges receive complete typed class /
@@ -476,6 +481,9 @@ impl Lowerer {
         // parameter interfaces so delegation shares the ordinary call
         // protocol without depending on body declaration order.
         for (id, decl, file_index) in pending_functions {
+            if self.has_inferred_function(id) {
+                continue;
+            }
             if matches!(
                 self.functions[id].kind,
                 FunctionKind::Intrinsic(_) | FunctionKind::Extern(_)
@@ -487,6 +495,9 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         for (id, decl, file_index, _owner) in pending_methods {
+            if self.has_inferred_function(id) {
+                continue;
+            }
             // Abstract methods are bodyless; their parameter-only body was
             // built in pass 2.5. Interface methods with bodies are ordinary
             // default implementations and lower here.

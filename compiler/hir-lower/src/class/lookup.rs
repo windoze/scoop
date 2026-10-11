@@ -338,6 +338,8 @@ impl Lowerer {
                 .iter()
                 .zip(&right_sig.params)
                 .all(|(left, right)| self.types_equal(left.ty, right.ty))
-            && self.types_equal(left_sig.return_ty, right_sig.return_ty)
+            && (left_sig.result_pending
+                || right_sig.result_pending
+                || self.types_equal(left_sig.return_ty, right_sig.return_ty))
     }
 }

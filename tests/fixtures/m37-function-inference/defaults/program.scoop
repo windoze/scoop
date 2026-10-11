@@ -1,0 +1,14 @@
+fun forwarded() = defaulted()
+fun defaulted(value: Int = answer()) = value
+fun answer() = 42
+open class Base { open fun read(value: Int = 7): Int = value }
+class Child : Base() { override fun read(value: Int) = super.read(value) + 1 }
+fun inherited() = Child().read()
+fun dispatched(base: Base) = base.read()
+fun main() {
+    println(forwarded())
+    println(inherited())
+    println(dispatched(Child()))
+    fun local(value: Int = defaulted()) = value + 1
+    println(local())
+}

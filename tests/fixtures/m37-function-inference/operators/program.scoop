@@ -1,0 +1,11 @@
+class Value(val value: Int) {
+    operator fun plus(other: Value) = Value(value + other.value)
+    operator fun unaryMinus() = Value(-value)
+    operator fun contains(input: Int) = input == value
+}
+fun main() {
+    val value = Value(3) + Value(4)
+    println(value.value)
+    println((-value).value)
+    println(7 in value)
+}

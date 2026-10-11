@@ -1,0 +1,2 @@
+fun value() = None
+fun main() { val result: Int? = value() }

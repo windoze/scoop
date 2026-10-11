@@ -10,6 +10,7 @@ pub(in crate::class) struct InterfaceSignature {
     pub parameters: Vec<TypeId>,
     pub context_parameters: Vec<TypeId>,
     pub result: TypeId,
+    pub result_pending: bool,
     pub is_suspend: bool,
     pub safety: hir::CallableSafetyV1,
     pub gc_effect: scoop_identity::GcEffect,
@@ -56,6 +57,7 @@ impl InterfaceSignature {
             parameters: signature.params.iter().map(|p| p.ty).collect(),
             context_parameters: signature.context_parameters.iter().map(|p| p.ty).collect(),
             result: signature.return_ty,
+            result_pending: signature.result_pending,
             is_suspend: signature.is_suspend,
             safety: match signature.attributes.safety {
                 hir::Safety::Safe => hir::CallableSafetyV1::Safe,
@@ -221,6 +223,7 @@ impl Lowerer {
                     },
                     owner,
                     signature: InterfaceSignature {
+                        result_pending: false,
                         accessor: match method.slot.key().role() {
                             scoop_identity::DispatchRole::PropertyGetter => {
                                 Some(crate::properties::PropertyAccessorKind::Getter)
@@ -282,7 +285,7 @@ impl Lowerer {
                 .iter()
                 .zip(&b.parameters)
                 .all(|(a, b)| self.types_equal(*a, *b))
-            && self.types_equal(a.result, b.result)
+            && (a.result_pending || b.result_pending || self.types_equal(a.result, b.result))
     }
 
     pub(in crate::class) fn same_interface_signature(

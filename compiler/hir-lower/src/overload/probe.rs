@@ -11,7 +11,7 @@ pub(super) struct ApplicableCandidate {
     pub(super) type_args: Vec<TypeId>,
     pub(super) args: Vec<hir::Expr>,
     pub(super) argument_sinks: Vec<Vec<hir::Statement>>,
-    pub(super) return_ty: TypeId,
+    pub(super) return_ty: crate::declaration_inference::DeclarationResult,
 }
 
 pub(super) struct CandidateProbeFailure {
@@ -23,7 +23,7 @@ pub(super) struct CandidateProbeFailure {
 
 pub(super) enum CandidateProbeFailureKind {
     Shape(CandidateShapeFailure),
-    Intrinsic {
+    Declaration {
         span: Span,
         reason: String,
     },
@@ -99,7 +99,7 @@ impl Lowerer {
                             candidate: candidate_index,
                             state: Box::new(state),
                             arguments: receiver.cloned().map(Some).into_iter().collect(),
-                            kind: CandidateProbeFailureKind::Intrinsic { span, reason },
+                            kind: CandidateProbeFailureKind::Declaration { span, reason },
                         }));
                     }
                 }
@@ -134,6 +134,7 @@ impl Lowerer {
             ..
         } = match state.infer_call_arguments(CallInferenceInput {
             signature: &candidate.view.signature,
+            result: crate::declaration_inference::DeclarationResult::Function(candidate.function),
             argument_map,
             type_arguments: DeclarationTypeArguments::Callable {
                 owner_arguments: &candidate.owner_arguments,
@@ -147,6 +148,9 @@ impl Lowerer {
             Ok(arguments) => arguments,
             Err(failure) => {
                 let kind = match failure.kind {
+                    ArgumentInferenceFailureKind::Declaration { span, reason } => {
+                        CandidateProbeFailureKind::Declaration { span, reason }
+                    }
                     ArgumentInferenceFailureKind::Constraint(failure) => {
                         CandidateProbeFailureKind::Constraint(failure)
                     }

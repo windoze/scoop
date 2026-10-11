@@ -51,6 +51,7 @@ impl Lowerer {
                 .map(|(source, (_, target))| (source.id, *target)),
         );
         FnSig {
+            result_pending: sig.result_pending,
             context_parameters: sig
                 .context_parameters
                 .into_iter()
@@ -138,6 +139,8 @@ impl Lowerer {
                 .iter()
                 .zip(&sig.params)
                 .all(|(a, b)| self.types_equal(a.ty, b.ty))
-            && self.types_equal(candidate_sig.return_ty, sig.return_ty)
+            && (candidate_sig.result_pending
+                || sig.result_pending
+                || self.types_equal(candidate_sig.return_ty, sig.return_ty))
     }
 }

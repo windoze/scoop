@@ -1,0 +1,2 @@
+fun value() = caller
+fun main() { val caller = 7; println(value()) }

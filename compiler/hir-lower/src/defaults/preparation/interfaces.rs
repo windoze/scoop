@@ -2,7 +2,7 @@ use super::*;
 use crate::FnVarargOmission;
 
 impl Lowerer {
-    pub(in crate::defaults) fn finish_export_parameter_interfaces(&mut self) {
+    pub(crate) fn finish_export_parameter_interfaces(&mut self) {
         let owners = std::mem::take(&mut self.default_preparation.export_order);
         let outer_file = self.current_file;
         for &owner in &owners {

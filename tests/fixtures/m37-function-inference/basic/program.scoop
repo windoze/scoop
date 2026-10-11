@@ -1,0 +1,31 @@
+fun answer() = 42
+fun <T> identity(value: T) = value
+fun describe(ready: Boolean) = if (ready) "yes" else "no"
+fun Int.twice() = this + this
+class Box(val value: Int) {
+    fun read() = value
+    fun <T> relay(value: T) = identity(value)
+}
+interface Reader { fun read(): Int }
+class Actual : Reader { override fun read() = answer() }
+object Configuration { fun read() = 9 }
+fun through(reader: Reader) = reader.read()
+fun emit() = println("unit")
+class GenericReader<T>(val value: T) { fun read() = value }
+typealias Saved = Box
+fun saved() = Saved(6)
+fun 值() = 10
+fun main() {
+    println(answer())
+    println(identity("generic"))
+    println(describe(true))
+    println(3.twice())
+    println(Box(7).read())
+    println(Box(7).relay("member"))
+    println(through(Actual()))
+    println(Configuration.read())
+    emit()
+    println(GenericReader("host").read())
+    println(saved().read())
+    println(值())
+}
