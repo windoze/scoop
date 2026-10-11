@@ -43,10 +43,23 @@ impl HirFieldIdentityBuilder {
         if let Some(record) = self.class_fields.get(&field_id) {
             return Ok(record.id());
         }
+        let property = match field.source {
+            ClassFieldSource::PrimaryParameter { property, .. }
+            | ClassFieldSource::BodyProperty(property) => property,
+            ClassFieldSource::InterfaceDelegate { ordinal } => {
+                return self.class_interface_delegate(
+                    field_id,
+                    field.owner,
+                    ordinal,
+                    nominal_identities,
+                );
+            }
+        };
         let record = records::class_field_record(
             field.owner,
             field_id,
             field,
+            property,
             objects,
             properties,
             delegate_storages,
@@ -56,6 +69,23 @@ impl HirFieldIdentityBuilder {
         let id = record.id();
         self.class_fields.insert(field_id, record);
         self.class_by_identity.insert(id, field_id);
+        Ok(id)
+    }
+
+    pub fn class_interface_delegate(
+        &mut self,
+        field: ClassFieldId,
+        owner: ClassId,
+        ordinal: u32,
+        nominal_identities: &HirNominalIdentities,
+    ) -> Result<PersistentFieldId, HirFieldIdentityError> {
+        if let Some(record) = self.class_fields.get(&field) {
+            return Ok(record.id());
+        }
+        let record = records::interface_delegate_record(owner, field, ordinal, nominal_identities)?;
+        let id = record.id();
+        self.class_fields.insert(field, record);
+        self.class_by_identity.insert(id, field);
         Ok(id)
     }
 
@@ -124,16 +154,35 @@ impl HirFieldIdentityBuilder {
                 let field = &class_fields[*field_id];
                 let record = match self.class_fields.remove(field_id) {
                     Some(record) => record,
-                    None => records::class_field_record(
-                        class_id,
-                        *field_id,
-                        field,
-                        objects,
-                        properties,
-                        delegate_storages,
-                        nominal_identities,
-                        &property_identities[field.property],
-                    )?,
+                    None => match field.source {
+                        ClassFieldSource::PrimaryParameter { property, .. }
+                        | ClassFieldSource::BodyProperty(property) => records::class_field_record(
+                            class_id,
+                            *field_id,
+                            field,
+                            property,
+                            objects,
+                            properties,
+                            delegate_storages,
+                            nominal_identities,
+                            &property_identities[property],
+                        )?,
+                        ClassFieldSource::InterfaceDelegate { ordinal } => {
+                            if field.owner != class_id {
+                                return Err(HirFieldIdentityError::ClassFieldOwner {
+                                    class: raw_index(class_id),
+                                    field: raw_index(*field_id),
+                                    actual_class: raw_index(field.owner),
+                                });
+                            }
+                            records::interface_delegate_record(
+                                class_id,
+                                *field_id,
+                                ordinal,
+                                nominal_identities,
+                            )?
+                        }
+                    },
                 };
                 class_by_identity.insert(record.id(), *field_id);
                 require_unique_id(

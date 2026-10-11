@@ -135,3 +135,15 @@ when 按真实继承 application 递归展开 sealed 家族，保留非 sealed �
 本机 fmt、workspace clippy（release）通过；parser sealed 2 项、HIR nominal 接口 35 项（含新增 wire 测试）及 HIR lower when 47 项定向测试通过。41 个新增 fixture（14 个正向、27 个 negative）和 44 个回归完成普通比较，共 85/85 通过、99 个配置、204 个进程、140 个阶段 golden。覆盖 class/struct/enum/object、泛型与 bound、菱形继承、私有子类型、构造器、guard、短路副作用、跳转与 finally、真实挂起恢复、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [12-sealed-darwin.json](validation/12-sealed-darwin.json)。1,518 份旧 golden 中的 12,808 个普通 nominal 记录机械补充空 sealed 子类型字段，迁移时已逐份确认移除新增字段后与原文件一致；when 条件改读保存的 subject，另外更新了相应 HIR/MIR/LIR 快照。生成快照不计入普通验收结果。已清理最后一批通过的 fixture cases 549.6 MiB，保留共用 cache、sysroot 与日志；Linux 目标快照随最终平台验证更新。
+
+### 13. 接口实现委托（完成）
+
+class/object 支持 `I by expression`，按继承列表顺序在 base/primary store 后、body 初始化前求值并保存一次。primary 参数可见，当前未完成初始化的实例及任一 secondary 的局部参数不可见；异常、safe 上下文和 singleton 初始化沿普通构造规则处理。即使所有 slot 都被显式实现覆盖，delegate 表达式仍按顺序执行。
+
+显式成员与继承的具体 class 实现优先，唯一 delegate 补齐其余 slot，并优先于 interface default；多个 delegate 竞争时要求显式 override。属性逐 getter/setter 转发，保留整体类型与 mutability 检查，并支持父类 getter 与委托 setter 的组合。转发成员覆盖所有相关 slot 的访问域，保留默认值、参数名、vararg、operator/infix、Context、挂起及 safety contract；实际转发只传已物化实参，delegate 内部 this 不改变。
+
+HIR 生成普通隐藏字段、方法及访问器；物理字段不再强制关联逻辑 property。字段身份按真实宿主与继承项位置区分，object 和泛型 companion 的字段源码位置关联原 object。跨 Cone 的普通接口调用保留动态分派，父类 getter 使用直接 super 调用；泛型正文继续使用已有模板。没有增加运行期代理或 ABI。委托的字段、选择、可见性、属性、签名和正文分别放在独立模块；AST 的类和构造语法拆为 263 行模块，原声明文件缩为 536 行。
+
+本机 fmt、workspace clippy（release）无警告通过；parser 3 项、字段身份 8 项、HIR 字段 2 项、继承 36 项和产物读取 22 项定向测试通过。36 个新增正式 fixture（16 个正向、20 个 negative）和 30 个回归普通比较共 66/66 通过，82 个配置、315 个进程、360 个阶段 golden。覆盖 debug/release、值类型 delegate 装箱、默认参数与变参、函数引用、初始化顺序及异常/finally、object/泛型 companion、真实挂起恢复、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [13-delegation-darwin.json](validation/13-delegation-darwin.json)。旧回归快照无需修改；生成快照的运行不计入普通验收结果。完成后清理本批 fixture cases，保留共用 cache、sysroot 和验证日志；release 构建目录保持约 1.6 GiB。跨库 fixture 的 Linux 目标 LIR 快照随最终平台验证生成并普通复验。

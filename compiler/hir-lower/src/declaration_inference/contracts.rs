@@ -67,11 +67,7 @@ impl Lowerer {
             if !self.types_equal(actual, expected) {
                 self.current_file = check.file;
                 let property = match &check.actual {
-                    ResultType::Function { function, .. } => self
-                        .property_accessor_sources
-                        .iter()
-                        .find(|source| source.function == *function)
-                        .map(|source| source.property),
+                    ResultType::Function { function, .. } => self.function_property(*function),
                     ResultType::Known(_) => None,
                 };
                 let message = if let Some(property) = property {

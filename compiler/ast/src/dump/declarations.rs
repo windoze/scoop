@@ -130,7 +130,7 @@ pub fn dump(file: &SourceFile) -> String {
                     let separator = if c
                         .supertypes
                         .iter()
-                        .any(|supertype| supertype.constructor_arguments.is_some())
+                        .any(|supertype| supertype.constructor_arguments().is_some())
                     {
                         " : "
                     } else {
@@ -364,9 +364,12 @@ pub fn dump(file: &SourceFile) -> String {
 
 fn dump_supertype(supertype: &SupertypeSpec) -> String {
     let ty = dump_type_ref(&supertype.ty);
-    match &supertype.constructor_arguments {
-        Some(arguments) => format!("{ty}(<{} args>)", arguments.len()),
-        None => ty,
+    match &supertype.initialization {
+        SupertypeInitialization::Constructor(arguments) => {
+            format!("{ty}(<{} args>)", arguments.len())
+        }
+        SupertypeInitialization::Delegate { .. } => format!("{ty} by <expression>"),
+        SupertypeInitialization::None => ty,
     }
 }
 

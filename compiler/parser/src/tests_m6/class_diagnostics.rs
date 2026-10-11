@@ -146,6 +146,6 @@ fn constructor_arguments_are_preserved_until_nominal_kind_resolution() {
         panic!("expected class")
     };
     assert_eq!(class.supertypes.len(), 2);
-    assert!(class.supertypes[0].constructor_arguments.is_none());
-    assert!(class.supertypes[1].constructor_arguments.is_some());
+    assert!(class.supertypes[0].constructor_arguments().is_none());
+    assert!(class.supertypes[1].constructor_arguments().is_some());
 }

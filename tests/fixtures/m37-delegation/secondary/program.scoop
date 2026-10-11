@@ -1,0 +1,9 @@
+var count: Int = 0
+interface Read { fun value(): Int }
+class Impl(val number: Int) : Read { override fun value(): Int = number }
+fun fresh(): Read { count = count + 1; return Impl(count) }
+class Host : Read by fresh() {
+    constructor() {}
+    constructor(value: Int) : this() { println(value) }
+}
+fun main() { println(Host(7).value()); println(Host().value()); println(count) }

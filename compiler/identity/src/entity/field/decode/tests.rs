@@ -152,6 +152,8 @@ fn every_field_shape_resolves_through_its_canonical_owner_key() {
         .unwrap(),
         FieldIdentityKey::source_property_backing(&source_class, property).unwrap(),
         FieldIdentityKey::source_property_delegate(&source_class, property).unwrap(),
+        FieldIdentityKey::source_interface_delegate(&source_class, 0).unwrap(),
+        FieldIdentityKey::source_interface_delegate(&source_class, 1).unwrap(),
         FieldIdentityKey::box_payload(&generated[0]).unwrap(),
         FieldIdentityKey::closure_capture(&generated[1], local).unwrap(),
         FieldIdentityKey::callable_reference_receiver(&generated[1], local).unwrap(),
@@ -166,14 +168,21 @@ fn every_field_shape_resolves_through_its_canonical_owner_key() {
         FieldIdentityKey::coroutine_adapter_failure(&generated[3]).unwrap(),
         FieldIdentityKey::function_adapter_source(&generated[4]).unwrap(),
         FieldIdentityKey::object_backing_property(&generated[5], property).unwrap(),
+        FieldIdentityKey::object_interface_delegate(&generated[5], 0).unwrap(),
+        FieldIdentityKey::object_interface_delegate(&generated[5], 1).unwrap(),
     ];
     let mut resolver = Resolver {
         source: vec![source_struct, source_class],
         generated,
     };
 
+    let mut identities = std::collections::HashSet::new();
     for key in fields {
         let record = CborIdentityRecord::<PersistentFieldId, _>::from_key(key).unwrap();
+        assert!(
+            identities.insert(record.id()),
+            "distinct field roles and positions"
+        );
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentFieldId, DecodedFieldIdentityKey>,
         >(&encode(&record).unwrap())
@@ -213,8 +222,8 @@ fn field_decoder_rejects_unknown_outer_and_generated_tags() {
     let outer = decode_canonical::<DecodedFieldIdentityKey>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x10").unwrap_err();
-    assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 16 });
+    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x11").unwrap_err();
+    assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 }
 
 fn source_nominal(

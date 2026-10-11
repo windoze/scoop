@@ -1,0 +1,5 @@
+class A
+class B
+interface I { context(a: A) fun value(): Int }
+class Host(delegate: I) : I by delegate { context(b: B) override fun value(): Int = 42 }
+fun main() {}

@@ -66,6 +66,7 @@ pub(super) fn validate(
     enum_variants: &[EnumVariantRecord],
     enum_variant_fields: &[EnumVariantFieldRecord],
     generated_callables: &[GeneratedCallableRecord],
+    generated_types: &[crate::foundation::GeneratedTypeRecord],
     exact_types: &[crate::foundation::ExactTypeRecord],
     initialization_units: &[InitializationUnitRecord],
     local_bindings: &[LocalBindingRecord],
@@ -106,7 +107,7 @@ pub(super) fn validate(
             property_accessors.len(),
             fields
                 .iter()
-                .filter(|record| fields::expectation(record.key()).is_some())
+                .filter(|record| fields::expectation(record.key(), generated_types).is_some())
                 .count(),
             source_variant_count,
             enum_variant_fields
@@ -182,7 +183,7 @@ pub(super) fn validate(
         )?;
     }
     for record in fields {
-        if let Some(expectation) = fields::expectation(record.key()) {
+        if let Some(expectation) = fields::expectation(record.key(), generated_types) {
             requirements.require(DefinitionOriginSubject::Field(record.id()), expectation)?;
         }
     }

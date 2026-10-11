@@ -5,10 +5,25 @@ impl Lowerer {
         &self,
         function: hir::FunctionId,
     ) -> Option<PropertyAccessorKind> {
+        if let Some(forwarder) = self.interface_forwarders.get(&function) {
+            return forwarder.accessor();
+        }
         self.property_accessor_sources
             .iter()
             .find(|source| source.function == function)
             .map(|source| source.kind)
+    }
+
+    pub(crate) fn function_property(&self, function: hir::FunctionId) -> Option<hir::PropertyId> {
+        self.interface_forwarders
+            .get(&function)
+            .and_then(|forwarder| forwarder.property())
+            .or_else(|| {
+                self.property_accessor_sources
+                    .iter()
+                    .find(|source| source.function == function)
+                    .map(|source| source.property)
+            })
     }
 
     pub(super) fn allocate_accessor_function(

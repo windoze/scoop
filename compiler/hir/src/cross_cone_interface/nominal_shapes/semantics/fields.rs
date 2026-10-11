@@ -41,7 +41,8 @@ pub(super) fn validate_owner<E>(
     let valid_role = match (kind, key.view()) {
         (PublicNominalKindV1::Struct, FieldIdentityView::SourceDeclared { .. })
         | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyBacking { .. })
-        | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyDelegate { .. }) => true,
+        | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyDelegate { .. })
+        | (PublicNominalKindV1::Class, FieldIdentityView::SourceInterfaceDelegate { .. }) => true,
         (PublicNominalKindV1::Object, FieldIdentityView::Generated { owner, key }) => {
             let backing = match declaration {
                 SourceNominalId::Concrete(object) => {
@@ -52,7 +53,9 @@ pub(super) fn validate_owner<E>(
                 }
             };
             let expected = PersistentTypeId::from_generated_key(&backing);
-            return if expected.ok() == Some(owner) && key.object_backing_property().is_some() {
+            return if expected.ok() == Some(owner)
+                && (key.object_backing_property().is_some() || key.interface_delegate().is_some())
+            {
                 Ok(())
             } else {
                 Err(NominalSourceFieldSemanticError::FieldRole)

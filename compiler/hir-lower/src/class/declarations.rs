@@ -202,7 +202,7 @@ impl Lowerer {
     ) {
         let mut interfaces = Vec::new();
         let mut base = None;
-        for spec in specs {
+        for (ordinal, spec) in specs.iter().enumerate() {
             let Some(ty) = self.resolve_type_ref(&spec.ty) else {
                 continue;
             };
@@ -221,6 +221,16 @@ impl Lowerer {
             }
             match self.types[ty] {
                 Type::Class(application) => {
+                    if let ast::SupertypeInitialization::Delegate { by_span, .. } =
+                        spec.initialization
+                    {
+                        self.error(
+                            by_span,
+                            "interface implementation delegation requires an interface target"
+                                .into(),
+                        );
+                        continue;
+                    }
                     if base.is_some() {
                         self.error(
                             spec.span,
@@ -242,13 +252,26 @@ impl Lowerer {
                     base = Some(ty);
                 }
                 Type::Interface(_) => {
-                    if spec.constructor_arguments.is_some() {
+                    if spec.constructor_arguments().is_some() {
                         self.error(
                             spec.span,
                             "interfaces cannot have constructor arguments".into(),
                         );
                     } else if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
                         interfaces.push(ty);
+                    }
+                    if let ast::SupertypeInitialization::Delegate {
+                        expression,
+                        by_span,
+                    } = &spec.initialization
+                    {
+                        self.declare_interface_delegate(
+                            id,
+                            ty,
+                            ordinal as u32,
+                            expression,
+                            *by_span,
+                        );
                     }
                 }
                 _ => self.error(
@@ -293,7 +316,11 @@ impl Lowerer {
     ) -> Vec<TypeId> {
         let mut interfaces = Vec::new();
         for spec in specs {
-            if spec.constructor_arguments.is_some() {
+            if let ast::SupertypeInitialization::Delegate { by_span, .. } = spec.initialization {
+                self.error(by_span, "interface implementation delegation is only allowed in class and object declarations".into());
+                continue;
+            }
+            if spec.constructor_arguments().is_some() {
                 self.error(
                     spec.span,
                     "interfaces and value types cannot use supertype constructor arguments".into(),

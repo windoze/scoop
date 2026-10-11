@@ -155,7 +155,7 @@ impl Lowerer {
     pub(super) fn check_imported_class_override(
         &mut self,
         id: FunctionId,
-        declaration: &ast::FunctionDecl,
+        declaration: &super::overrides::MemberOverride,
         signature: &FnSig,
         inherited: &ImportedInheritedMethod,
     ) {
@@ -201,10 +201,10 @@ impl Lowerer {
             if matches!(parameter.calling, crate::FnParamCalling::Vararg { .. }) != inherited_vararg
             {
                 self.error(
-                    declaration.params[index].span,
+                    declaration.parameter_spans[index],
                     format!(
                         "parameter `{}` of `{}` must have the same `vararg` shape as `{target}`",
-                        declaration.params[index].name.text, declaration.name.text
+                        signature.params[index].name.text, declaration.name.text
                     ),
                 );
                 break;

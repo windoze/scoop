@@ -1,0 +1,15 @@
+interface Read { fun read(): Int }
+class Impl : Read { override fun read(): Int = 42 }
+fun make(fail: Boolean): Read {
+    println("make")
+    if (fail) throw IllegalStateException()
+    return Impl()
+}
+class Host(fail: Boolean) : Read by try { make(fail) } finally { println("finally") } {
+    override fun read(): Int = 99
+    init { println("init") }
+}
+fun main() {
+    try { val ignored = Host(true) } catch (error: IllegalStateException) { println("caught") }
+    println(Host(false).read())
+}

@@ -54,7 +54,9 @@ impl Lowerer {
         if primary.is_some() {
             for field in self.classes[owner].fields.clone() {
                 let declaration = &self.class_fields[field];
-                if let hir::ClassFieldSource::PrimaryParameter(parameter) = declaration.source {
+                if let hir::ClassFieldSource::PrimaryParameter { parameter, .. } =
+                    declaration.source
+                {
                     let span = declaration.span;
                     stores.push(hir::PrimaryFieldStore {
                         field: self.initializing_class_field_reference(application, field),
@@ -74,13 +76,18 @@ impl Lowerer {
             capture_depth: self.capture_contexts.len(),
         });
 
-        let common = self.lower_common_initialization(
+        let mut common = self.lower_interface_delegate_initialization(
+            owner,
+            context_constructor,
+            primary.is_some(),
+        );
+        common.extend(self.lower_common_initialization(
             owner,
             &declaration.members,
             context_constructor,
             primary.is_some(),
             &format!("class `{}`", self.classes[owner].name),
-        );
+        ));
 
         if let Some(primary) = primary {
             let hir::ClassConstructorKind::Primary {

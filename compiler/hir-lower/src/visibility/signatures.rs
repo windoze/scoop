@@ -42,15 +42,10 @@ impl Lowerer {
     }
 
     pub(crate) fn validate_signature_exposure(&mut self) {
-        let accessors = self
-            .property_accessor_sources
-            .iter()
-            .map(|source| source.function)
-            .collect::<std::collections::HashSet<_>>();
         let functions = self
             .signatures
             .iter()
-            .filter(|(id, _)| !accessors.contains(id))
+            .filter(|(id, _)| self.function_accessor_kind(**id).is_none())
             .map(|(&id, signature)| {
                 let mut types = self.type_parameter_signature_types(&signature.type_params);
                 types.extend(signature.params.iter().map(|parameter| parameter.ty));
@@ -107,12 +102,14 @@ impl Lowerer {
                     &self.extension_properties[extension].type_params,
                 ));
             }
-            if let Some(source) = self.property_accessor_sources.iter().find(|source| {
-                source.property == id
-                    && source.kind == crate::properties::PropertyAccessorKind::Getter
-            }) {
+            let getter =
+                self.property_getters[self.properties[id].capability.getter()].implementation;
+            if let hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
+            | hir::PropertyAccessorImplementation::AbstractSlot(function) = getter
+            {
                 signature_types.extend(
-                    self.signatures[&source.function]
+                    self.signatures[&function]
                         .context_parameters
                         .iter()
                         .map(|parameter| parameter.ty),

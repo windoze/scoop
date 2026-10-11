@@ -106,7 +106,7 @@ fn equal_to(owner: TypeRef, no_gc: bool) -> ast::FunctionDecl {
 fn supertype(owner: TypeRef) -> ast::SupertypeSpec {
     ast::SupertypeSpec {
         ty: ty_generic("Equality", vec![owner]),
-        constructor_arguments: None,
+        initialization: ast::SupertypeInitialization::None,
         span: sp(),
     }
 }

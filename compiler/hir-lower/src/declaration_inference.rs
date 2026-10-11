@@ -157,6 +157,7 @@ impl Lowerer {
             .functions
             .keys()
             .copied()
+            .chain(self.interface_forwarders.keys().copied())
             .collect::<Vec<_>>();
         functions.sort_by_key(|id| id.into_raw().into_u32());
         for function in functions {
@@ -165,6 +166,9 @@ impl Lowerer {
     }
 
     pub(crate) fn infer_function_result(&mut self, id: FunctionId) -> Option<TypeId> {
+        if self.interface_forwarders.contains_key(&id) {
+            return self.infer_interface_forwarder_signature(id);
+        }
         if let Some(property) = self
             .property_accessor_sources
             .iter()

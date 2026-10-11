@@ -1,0 +1,14 @@
+interface Source<T> { fun read(): T; fun echo(value: T): T = value }
+struct Value<T>(val item: T) : Source<T> { override fun read(): T = item }
+typealias Input<T> = Source<T>
+class Host<T>(delegate: Input<T>) : Source<T> by delegate
+fun main() {
+    val text = Host(Value("boxed"))
+    gcCollect()
+    println(text.read())
+    println(text.echo("echo"))
+    val number: Source<Int> = Host(Value(42))
+    println(number.read())
+    val reference: (Host<String>) -> String = Host<String>::read
+    println(reference(text))
+}

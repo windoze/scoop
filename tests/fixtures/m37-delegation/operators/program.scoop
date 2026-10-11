@@ -1,0 +1,12 @@
+interface Calls {
+    operator fun plus(value: Int): Int
+    operator fun invoke(value: Int): Int
+    infix fun combine(value: Int): Int
+}
+class Impl : Calls {
+    override operator fun plus(value: Int): Int = value + 40
+    override operator fun invoke(value: Int): Int = value + 41
+    override infix fun combine(value: Int): Int = value + 42
+}
+class Host(delegate: Calls) : Calls by delegate
+fun main() { val host = Host(Impl()); println(host + 2); println(host(2)); println(host combine 2) }

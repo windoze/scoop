@@ -42,8 +42,7 @@ fn class_with_base_and_interfaces() {
     };
     let base = &decl.supertypes[0].ty;
     let args = decl.supertypes[0]
-        .constructor_arguments
-        .as_ref()
+        .constructor_arguments()
         .expect("base arguments");
     assert!(matches!(
         &base.kind,

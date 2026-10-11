@@ -17,7 +17,8 @@ impl Input<'_> {
         match key.view() {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
-            | FieldIdentityView::SourcePropertyDelegate { owner, .. } => {
+            | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => {
                 self.storage_owner(exact_owner, owner, at)?;
             }
             FieldIdentityView::Generated { owner, key } => {
@@ -32,10 +33,11 @@ impl Input<'_> {
                     _ => return Err(Error::StoragePosition(at)),
                 };
                 self.storage_owner(exact_owner, owner, at)?;
-                let property = key
-                    .object_backing_property()
-                    .ok_or(Error::StoragePosition(at))?;
-                self.property(PropertyOwner::Property(property))?;
+                if let Some(property) = key.object_backing_property() {
+                    self.property(PropertyOwner::Property(property))?;
+                } else if key.interface_delegate().is_none() {
+                    return Err(Error::StoragePosition(at));
+                }
             }
         }
         Self::source_origin(foundation, DefinitionOriginSubject::Field(field))

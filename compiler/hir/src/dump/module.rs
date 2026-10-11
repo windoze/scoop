@@ -163,9 +163,19 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         for &field in &decl.fields {
             let physical = &module.class_fields[field];
             out.push_str(&format!(
-                "    field{} property{}: {}\n",
+                "    field{} {}: {}\n",
                 field.into_raw(),
-                physical.property.into_raw(),
+                match physical.source {
+                    ClassFieldSource::InterfaceDelegate { ordinal } =>
+                        format!("interface-delegate{ordinal}"),
+                    source => format!(
+                        "property{}",
+                        source
+                            .property()
+                            .expect("a source property field")
+                            .into_raw()
+                    ),
+                },
                 type_name(module, module.class_field_definition(field).ty)
             ));
         }
@@ -245,9 +255,19 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         for &field in &backing.fields {
             let physical = &module.class_fields[field];
             out.push_str(&format!(
-                "    field{} property{}: {}\n",
+                "    field{} {}: {}\n",
                 field.into_raw(),
-                physical.property.into_raw(),
+                match physical.source {
+                    ClassFieldSource::InterfaceDelegate { ordinal } =>
+                        format!("interface-delegate{ordinal}"),
+                    source => format!(
+                        "property{}",
+                        source
+                            .property()
+                            .expect("a source property field")
+                            .into_raw()
+                    ),
+                },
                 type_name(module, module.class_field_definition(field).ty)
             ));
         }

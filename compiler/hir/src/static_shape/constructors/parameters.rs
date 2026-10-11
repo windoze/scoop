@@ -88,11 +88,18 @@ impl<'a> StaticConstructorParameter<'a> {
                     .iter()
                     .find_map(|field| {
                         let field = &owner.module.class_fields[*field];
-                        if field.source != ClassFieldSource::PrimaryParameter(parameter) {
+                        let ClassFieldSource::PrimaryParameter {
+                            parameter: source,
+                            property,
+                        } = field.source
+                        else {
+                            return None;
+                        };
+                        if source != parameter {
                             return None;
                         }
                         Some(StaticParameterTarget::Property(
-                            owner.module.property_identities[field.property]
+                            owner.module.property_identities[property]
                                 .ordinary_id()
                                 .expect("primary parameters refer to ordinary properties"),
                         ))

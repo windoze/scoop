@@ -1,0 +1,29 @@
+interface Local { fun value(): Int }
+public interface Visible { public fun value(): Int }
+class Impl : Local { override fun value(): Int = 42 }
+class Joined(delegate: Local) : Local by delegate, Visible
+public abstract class Base {
+    protected abstract fun value(): Int
+    public fun read(): Int = value()
+}
+class FromBase(delegate: Local) : Base(), Local by delegate
+interface Number { var number: Int }
+public interface PublicNumber { public var number: Int }
+class NumberImpl(var state: Int) : Number {
+    override var number: Int
+        get() = state
+        set(value) { state = value }
+}
+class Both(delegate: Number) : Number by delegate, PublicNumber
+fun main() {
+    val joined = Joined(Impl())
+    val visible: Visible = joined
+    println(visible.value())
+    println(joined.value())
+    println(FromBase(Impl()).read())
+    val impl = NumberImpl(1)
+    val both: PublicNumber = Both(impl)
+    both.number = 9
+    println(impl.number)
+    println(both.number)
+}

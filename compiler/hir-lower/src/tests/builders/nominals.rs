@@ -50,12 +50,12 @@ pub(crate) fn class_decl(
             .into_iter()
             .map(|(name, args)| ast::SupertypeSpec {
                 ty: ty_named(name),
-                constructor_arguments: Some(call_arguments(args)),
+                initialization: ast::SupertypeInitialization::Constructor(call_arguments(args)),
                 span: sp(),
             })
             .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
                 ty: ty_named(name),
-                constructor_arguments: None,
+                initialization: ast::SupertypeInitialization::None,
                 span: sp(),
             }))
             .collect(),
@@ -280,7 +280,7 @@ pub(crate) fn generic_struct_decl_full(
             .into_iter()
             .map(|name| ast::SupertypeSpec {
                 ty: ty_named(name),
-                constructor_arguments: None,
+                initialization: ast::SupertypeInitialization::None,
                 span: sp(),
             })
             .collect(),

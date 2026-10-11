@@ -71,8 +71,12 @@ impl Lowerer {
         for field in self.classes[owner].fields.clone() {
             if matches!(
                 self.class_fields[field].source,
-                hir::ClassFieldSource::PrimaryParameter(_)
-            ) || before.contains(&self.class_fields[field].property)
+                hir::ClassFieldSource::PrimaryParameter { .. }
+                    | hir::ClassFieldSource::InterfaceDelegate { .. }
+            ) || self.class_fields[field]
+                .source
+                .property()
+                .is_some_and(|property| before.contains(&property))
             {
                 initialized.insert(field);
             }

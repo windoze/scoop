@@ -1,0 +1,13 @@
+var count: Int = 0
+fun next(): Int { count = count + 1; return count }
+interface Read { fun value(): Int }
+class Impl(val number: Int) : Read { override fun value(): Int = number }
+object Shared : Read by Impl(next()) { init { println("init") } }
+class Owner<T> { companion object : Read by Impl(7) }
+fun main() {
+    println(Shared.value())
+    println(Shared.value())
+    println(Owner<Int>.value())
+    println(Owner<String>.value())
+    println(count)
+}

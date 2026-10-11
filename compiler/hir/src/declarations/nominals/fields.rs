@@ -104,6 +104,7 @@ impl NominalFieldStorage {
         use scoop_identity::FieldIdentityView;
         match key.view() {
             FieldIdentityView::SourceDeclared { .. } => Self::Declared,
+            FieldIdentityView::SourceInterfaceDelegate { .. } => Self::Generated,
             FieldIdentityView::SourcePropertyBacking { property, .. } => {
                 Self::PropertyBacking(property)
             }

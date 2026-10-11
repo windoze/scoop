@@ -36,7 +36,7 @@ pub(crate) fn ident_at(text: &str, span: Span) -> Ident {
 pub(crate) fn bare_supertype(ty: TypeRef) -> ast::SupertypeSpec {
     ast::SupertypeSpec {
         ty,
-        constructor_arguments: None,
+        initialization: ast::SupertypeInitialization::None,
         span: sp(),
     }
 }
@@ -47,7 +47,7 @@ pub(crate) fn constructor_supertype(
 ) -> ast::SupertypeSpec {
     ast::SupertypeSpec {
         ty,
-        constructor_arguments: Some(arguments),
+        initialization: ast::SupertypeInitialization::Constructor(arguments),
         span: sp(),
     }
 }

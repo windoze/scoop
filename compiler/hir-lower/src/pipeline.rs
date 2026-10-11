@@ -328,6 +328,8 @@ impl Lowerer {
             derived_equality_applications: Arena::new(),
             derived_equality_application_by_type: HashMap::new(),
             derived_encoding_methods: Vec::new(),
+            interface_delegates: HashMap::new(),
+            interface_forwarders: HashMap::new(),
             derived_decoding_methods: Vec::new(),
             invalid_override_methods: HashSet::new(),
             top_level: Shared::default(),

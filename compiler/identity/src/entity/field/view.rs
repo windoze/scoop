@@ -9,6 +9,10 @@ use crate::{CanonicalIdentifier, NominalDeclarationOwner, PersistentPropertyId, 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FieldIdentityView<'a> {
+    SourceInterfaceDelegate {
+        owner: NominalDeclarationOwner,
+        ordinal: u32,
+    },
     SourceDeclared {
         owner: NominalDeclarationOwner,
         name: &'a CanonicalIdentifier,
@@ -30,6 +34,12 @@ pub enum FieldIdentityView<'a> {
 impl FieldIdentityKey {
     pub const fn view(&self) -> FieldIdentityView<'_> {
         match &self.0 {
+            FieldIdentityKeyKind::Source(SourceFieldKey(
+                SourceFieldKeyKind::InterfaceDelegate { owner, ordinal },
+            )) => FieldIdentityView::SourceInterfaceDelegate {
+                owner: *owner,
+                ordinal: *ordinal,
+            },
             FieldIdentityKeyKind::Source(SourceFieldKey(SourceFieldKeyKind::Declared {
                 owner,
                 name,
@@ -62,6 +72,7 @@ impl GeneratedFieldKey {
         match self.0 {
             GeneratedFieldKeyKind::ObjectBackingProperty(property) => Some(property),
             GeneratedFieldKeyKind::ContextSlot(_)
+            | GeneratedFieldKeyKind::InterfaceDelegate(_)
             | GeneratedFieldKeyKind::BoxPayload
             | GeneratedFieldKeyKind::ClosureCapture(_)
             | GeneratedFieldKeyKind::CallableReferenceReceiver(_)

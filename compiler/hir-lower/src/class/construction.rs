@@ -81,10 +81,7 @@ impl Lowerer {
         let Some(specification) = specification.cloned() else {
             return;
         };
-        let arguments = specification
-            .constructor_arguments
-            .as_deref()
-            .unwrap_or(&[]);
+        let arguments = specification.constructor_arguments().unwrap_or(&[]);
         let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
         let previous_unit = self.current_initialization_unit.replace(unit);
         let Some(base) = self.lower_base_initialization(
@@ -115,7 +112,7 @@ impl Lowerer {
         if let Some(primary) = primary {
             self.resolve_primary_base(id, primary, decl);
         } else if let Some(spec) = self.source_base_spec(id, decl)
-            && spec.constructor_arguments.is_some()
+            && spec.constructor_arguments().is_some()
         {
             self.error(
                 spec.span,
@@ -151,7 +148,7 @@ impl Lowerer {
         let Some(spec) = self.source_base_spec(owner, decl).cloned() else {
             return;
         };
-        let arguments = spec.constructor_arguments.as_deref().unwrap_or(&[]);
+        let arguments = spec.constructor_arguments().unwrap_or(&[]);
         let Some(base) = self.lower_base_initialization(
             primary,
             base_ty,

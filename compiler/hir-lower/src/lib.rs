@@ -700,6 +700,8 @@ pub(crate) struct Lowerer {
     /// the selected core protocol declaration.
     derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    interface_delegates: HashMap<ClassId, Vec<class::InterfaceDelegateSource>>,
+    interface_forwarders: HashMap<FunctionId, class::InterfaceForwarder>,
     invalid_override_methods: HashSet<FunctionId>,
     pub(crate) top_level: Shared<Vec<FunctionId>>,
     pub(crate) unit: TypeId,

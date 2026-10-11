@@ -1,0 +1,15 @@
+interface Read { fun read(): Int; fun selfRead(): Int = read() }
+class Impl(val number: Int) : Read { override fun read(): Int = number }
+class Host(delegate: Read) : Read by delegate { override fun read(): Int = 100 }
+var current: Read = Impl(42)
+fun main() {
+    val host = Host(current)
+    current = Impl(9)
+    gcCollect()
+    println(host.read())
+    println(host.selfRead())
+    val bound: () -> Int = host::selfRead
+    val unbound: (Host) -> Int = Host::selfRead
+    println(bound())
+    println(unbound(host))
+}

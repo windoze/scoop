@@ -10,9 +10,9 @@ use scoop_ast::{
     PrimaryClassParameter, PrimaryConstructorDecl, PrimaryParameterProperty, PropertyBodySyntax,
     PropertyDecl, ReleaseBlock, SecondaryConstructorDecl, SetterDecl, SetterParameterSyntax,
     SetterVisibilitySyntax, Span, StructDecl, StructMember, StructRepresentationDecl,
-    SupertypeSpec, TypeAliasDecl, TypeBound, TypeConstraint, TypeParamDecl, TypeParamKindBound,
-    VarargDefaultSyntax, VariantDecl, VariantDeclKind, VariantFieldDecl, VisibilitySyntax,
-    WhereClause,
+    SupertypeInitialization, SupertypeSpec, TypeAliasDecl, TypeBound, TypeConstraint,
+    TypeParamDecl, TypeParamKindBound, VarargDefaultSyntax, VariantDecl, VariantDeclKind,
+    VariantFieldDecl, VisibilitySyntax, WhereClause,
 };
 
 use crate::lexer::TokenKind;
@@ -70,7 +70,13 @@ pub(crate) struct MemberPrefix {
 fn interfaces_only(supertypes: Vec<SupertypeSpec>) -> Result<Vec<scoop_ast::TypeRef>, Diagnostic> {
     let mut interfaces = Vec::with_capacity(supertypes.len());
     for supertype in supertypes {
-        if supertype.constructor_arguments.is_some() {
+        if let SupertypeInitialization::Delegate { by_span, .. } = supertype.initialization {
+            return Err(Diagnostic::at(
+                by_span,
+                "interface implementation delegation is only allowed in class and object declarations",
+            ));
+        }
+        if supertype.constructor_arguments().is_some() {
             return Err(Diagnostic::at(
                 supertype.span,
                 "value types cannot have a base class (spec 4.4)",

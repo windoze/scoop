@@ -131,7 +131,25 @@ impl Lowerer {
         &mut self,
         field: hir::ClassFieldId,
     ) -> scoop_identity::PersistentFieldId {
-        let property = self.ordinary_property_identity(self.class_fields[field].property);
+        let property = match self.class_fields[field].source {
+            hir::ClassFieldSource::PrimaryParameter { property, .. }
+            | hir::ClassFieldSource::BodyProperty(property) => {
+                self.ordinary_property_identity(property)
+            }
+            hir::ClassFieldSource::InterfaceDelegate { ordinal } => {
+                return self
+                    .field_identity_builder
+                    .class_interface_delegate(
+                        field,
+                        self.class_fields[field].owner,
+                        ordinal,
+                        self.nominal_identities
+                            .as_ref()
+                            .expect("nominal identities precede fields"),
+                    )
+                    .expect("an interface delegate retains its declaring owner and position");
+            }
+        };
         self.field_identity_builder
             .class_field(
                 field,

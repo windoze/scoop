@@ -100,7 +100,7 @@ impl Harness {
                 &self.properties,
                 &Arena::new(),
                 &nominals,
-                &properties[declaration.property],
+                &properties[declaration.source.property().expect("test property field")],
             )
             .expect("test field has its storage identity");
         hir::FieldRef::ClassField {

@@ -23,11 +23,7 @@ impl Lowerer {
     ) -> &'static str {
         if let hir::ExportDefaultCallableTarget::Callable(callable) = target {
             let function = self.callable_function_id(*callable);
-            if self
-                .property_accessor_sources
-                .iter()
-                .any(|source| source.function == function)
-            {
+            if self.function_property(function).is_some() {
                 return "a property";
             }
         }

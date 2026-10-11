@@ -13,6 +13,7 @@ use crate::{
 };
 
 mod decode;
+mod delegates;
 mod view;
 
 pub use view::FieldIdentityView;
@@ -27,6 +28,10 @@ pub struct SourceFieldKey(SourceFieldKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum SourceFieldKeyKind {
+    InterfaceDelegate {
+        owner: NominalDeclarationOwner,
+        ordinal: u32,
+    },
     Declared {
         owner: NominalDeclarationOwner,
         name: CanonicalIdentifier,
@@ -44,6 +49,14 @@ enum SourceFieldKeyKind {
 impl WireEncode for SourceFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match &self.0 {
+            SourceFieldKeyKind::InterfaceDelegate { owner, ordinal } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                owner.encode(encoder)?;
+                encoder.field(2)?;
+                encoder.unsigned(u64::from(*ordinal))
+            }
             SourceFieldKeyKind::Declared { owner, name } => {
                 encode_two_value_sum(encoder, 1, owner, name)
             }
@@ -62,6 +75,7 @@ pub struct GeneratedFieldKey(GeneratedFieldKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum GeneratedFieldKeyKind {
+    InterfaceDelegate(u32),
     ContextSlot(u32),
     BoxPayload,
     ClosureCapture(PersistentLocalValueId),
@@ -82,6 +96,12 @@ enum GeneratedFieldKeyKind {
 impl WireEncode for GeneratedFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self.0 {
+            GeneratedFieldKeyKind::InterfaceDelegate(ordinal) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 16)?;
+                encoder.field(1)?;
+                encoder.unsigned(u64::from(ordinal))
+            }
             GeneratedFieldKeyKind::ContextSlot(index) => {
                 encoder.map(2)?;
                 encode_tag(encoder, 14)?;
@@ -152,6 +172,7 @@ impl FieldIdentityKey {
         match &self.0 {
             FieldIdentityKeyKind::Source(SourceFieldKey(
                 SourceFieldKeyKind::Declared { owner, .. }
+                | SourceFieldKeyKind::InterfaceDelegate { owner, .. }
                 | SourceFieldKeyKind::PropertyBacking { owner, .. }
                 | SourceFieldKeyKind::PropertyDelegate { owner, .. },
             )) => Some(*owner),

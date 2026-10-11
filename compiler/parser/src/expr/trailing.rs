@@ -2,7 +2,9 @@ use super::*;
 
 impl Parser {
     pub(super) fn starts_trailing_lambda(&self) -> bool {
-        if self.at_arm_body_newline() {
+        if self.at_arm_body_newline()
+            || self.supertype_expression_nesting == Some(self.expression_nesting[self.pos])
+        {
             return false;
         }
         let offset = if self.starts_callable_label() { 2 } else { 0 };

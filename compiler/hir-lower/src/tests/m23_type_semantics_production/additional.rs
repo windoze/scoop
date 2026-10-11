@@ -215,7 +215,7 @@ fn interface_with_parent(name: &str, parent: &str) -> Decl {
         type_params: Vec::new(),
         supertypes: vec![ast::SupertypeSpec {
             ty: ty_named(parent),
-            constructor_arguments: None,
+            initialization: ast::SupertypeInitialization::None,
             span: sp(),
         }],
         where_clause: None,

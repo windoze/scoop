@@ -7,6 +7,16 @@ mod locals;
 
 impl Lowerer {
     pub(crate) fn register_derived_parameter_interfaces(&mut self) {
+        let mut forwarders = self
+            .interface_forwarders
+            .keys()
+            .copied()
+            .collect::<Vec<_>>();
+        forwarders.sort_by_key(|function| function.into_raw().into_u32());
+        for function in forwarders {
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
         for (function, _) in self.derived_encoding_methods.clone() {
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);

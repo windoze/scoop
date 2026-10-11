@@ -13,6 +13,10 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedSourceFieldKey {
+    InterfaceDelegate {
+        owner: DecodedNominalDeclarationOwner,
+        ordinal: u32,
+    },
     Declared {
         owner: DecodedNominalDeclarationOwner,
         name: DecodedCanonicalIdentifier,
@@ -30,6 +34,14 @@ pub enum DecodedSourceFieldKey {
 impl WireEncode for DecodedSourceFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::InterfaceDelegate { owner, ordinal } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                owner.encode(encoder)?;
+                encoder.field(2)?;
+                encoder.unsigned(u64::from(*ordinal))
+            }
             Self::Declared { owner, name } => encode_two_value_sum(encoder, 1, owner, name),
             Self::PropertyBacking { owner, property } => {
                 encode_two_value_sum(encoder, 2, owner, property)
@@ -46,6 +58,10 @@ impl WireDecode for DecodedSourceFieldKey {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 3)?;
         match tag {
+            4 => Ok(Self::InterfaceDelegate {
+                owner: decoder.field(1, DecodedNominalDeclarationOwner::decode)?,
+                ordinal: decoder.field(2, Decoder::u32)?,
+            }),
             1 => Ok(Self::Declared {
                 owner: decoder.field(1, DecodedNominalDeclarationOwner::decode)?,
                 name: decoder.field(2, DecodedCanonicalIdentifier::decode)?,
@@ -65,6 +81,7 @@ impl WireDecode for DecodedSourceFieldKey {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedGeneratedFieldKey {
+    InterfaceDelegate(u32),
     ContextSlot(u32),
     BoxPayload,
     ClosureCapture(DecodedPersistentId<PersistentLocalValueId>),
@@ -85,6 +102,12 @@ pub enum DecodedGeneratedFieldKey {
 impl WireEncode for DecodedGeneratedFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::InterfaceDelegate(ordinal) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 16)?;
+                encoder.field(1)?;
+                encoder.unsigned(u64::from(*ordinal))
+            }
             Self::ContextSlot(index) => {
                 encoder.map(2)?;
                 encode_tag(encoder, 14)?;
@@ -113,6 +136,10 @@ impl WireDecode for DecodedGeneratedFieldKey {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
+            16 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder.field(1, Decoder::u32).map(Self::InterfaceDelegate)
+            }
             1 => decode_empty_variant(decoder, fields, Self::BoxPayload),
             2 => decode_id_variant(decoder, fields, Self::ClosureCapture),
             3 => decode_id_variant(decoder, fields, Self::CallableReferenceReceiver),
@@ -229,6 +256,11 @@ where
         + PersistentIdResolver<PersistentPropertyId, Error = E>,
 {
     match key {
+        DecodedSourceFieldKey::InterfaceDelegate { owner, ordinal } => {
+            let owner = resolve_source_owner(owner, resolver)?;
+            FieldIdentityKey::source_interface_delegate(&owner, ordinal)
+                .map_err(FieldIdentityResolutionError::Key)
+        }
         DecodedSourceFieldKey::Declared { owner, name } => {
             let owner = resolve_source_owner(owner, resolver)?;
             let name = name
@@ -281,6 +313,10 @@ where
         + PersistentIdResolver<PersistentLocalValueId, Error = E>,
 {
     match key {
+        DecodedGeneratedFieldKey::InterfaceDelegate(ordinal) => {
+            FieldIdentityKey::object_interface_delegate(owner, ordinal)
+                .map_err(FieldIdentityResolutionError::Key)
+        }
         DecodedGeneratedFieldKey::BoxPayload => {
             FieldIdentityKey::box_payload(owner).map_err(FieldIdentityResolutionError::Key)
         }

@@ -86,7 +86,11 @@ impl Parser {
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
         loop {
-            if self.at_arm_body_newline() {
+            if self.at_arm_body_newline()
+                || (self.supertype_expression_nesting == Some(self.expression_nesting[self.pos])
+                    && (matches!(self.peek().kind, TokenKind::LBrace)
+                        || matches!(&self.peek().kind, TokenKind::Ident(name) if name == "where")))
+            {
                 break;
             }
             // Elvis is right-associative; every other binary/infix source

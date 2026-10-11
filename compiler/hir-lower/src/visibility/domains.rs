@@ -222,11 +222,10 @@ impl Lowerer {
                         .field_identity_builder
                         .class_declaration(field)
                         .expect("a current class field has its declaration identity");
-                    self.properties[self.class_fields[field].property]
-                        .access
-                        .lookup
-                        .0
-                        .clone()
+                    match self.class_fields[field].source.property() {
+                        Some(property) => self.properties[property].access.lookup.0.clone(),
+                        None => self.type_access_domain(owner),
+                    }
                 }
                 _ => unreachable!("a class field retains its declaring class"),
             },

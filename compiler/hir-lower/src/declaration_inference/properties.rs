@@ -58,6 +58,9 @@ impl Lowerer {
     }
 
     pub(crate) fn property_type_pending(&self, property: hir::PropertyId) -> bool {
+        if let Some(getter) = self.forwarded_property_getter(property) {
+            return self.signatures[&getter].result_pending;
+        }
         self.declaration_inference
             .properties
             .get(&property)
@@ -78,6 +81,9 @@ impl Lowerer {
     }
 
     pub(crate) fn infer_property_type(&mut self, property: hir::PropertyId) -> Option<TypeId> {
+        if let Some(getter) = self.forwarded_property_getter(property) {
+            return self.infer_interface_forwarder_signature(getter);
+        }
         let Some(query) = self
             .declaration_inference
             .properties

@@ -118,7 +118,7 @@ impl Lowerer {
                 if decl
                     .supertypes
                     .iter()
-                    .any(|supertype| supertype.constructor_arguments.is_some())
+                    .any(|supertype| supertype.constructor_arguments().is_some())
                 {
                     self.error(
                         decl.span,

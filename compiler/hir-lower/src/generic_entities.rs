@@ -344,3 +344,17 @@ impl Lowerer {
         }
     }
 }
+
+impl Lowerer {
+    pub(crate) fn method_owner_type(&self, owner: hir::MethodOwnerApplication) -> hir::TypeId {
+        match owner {
+            hir::MethodOwnerApplication::Class(id) => self.class_applications[id].canonical_type,
+            hir::MethodOwnerApplication::Struct(id) => self.struct_applications[id].canonical_type,
+            hir::MethodOwnerApplication::Enum(id) => self.enum_applications[id].canonical_type,
+            hir::MethodOwnerApplication::Interface(id) => {
+                self.interface_applications[id].canonical_type
+            }
+            hir::MethodOwnerApplication::Object(id) => self.object_types[id].canonical_type,
+        }
+    }
+}

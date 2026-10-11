@@ -347,6 +347,9 @@ impl Lowerer {
         if let Some(source) = self.source_function_declarations.get(&function) {
             return &source.name;
         }
+        if let Some(forwarder) = self.interface_forwarders.get(&function) {
+            return forwarder.name();
+        }
         if matches!(
             self.functions[function].kind,
             hir::FunctionKind::DerivedEquality

@@ -290,7 +290,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
                 .into_iter()
                 .map(|name| ast::SupertypeSpec {
                     ty: ty_named(name),
-                    constructor_arguments: None,
+                    initialization: ast::SupertypeInitialization::None,
                     span: sp(),
                 })
                 .collect(),
@@ -325,7 +325,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         .into_iter()
         .map(|name| ast::SupertypeSpec {
             ty: ty_named(name),
-            constructor_arguments: None,
+            initialization: ast::SupertypeInitialization::None,
             span: sp(),
         })
         .collect();

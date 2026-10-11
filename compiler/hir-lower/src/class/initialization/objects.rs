@@ -23,13 +23,14 @@ impl Lowerer {
         });
         let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
         let previous_unit = self.current_initialization_unit.replace(unit);
-        let common = self.lower_common_initialization(
+        let mut common = self.lower_interface_delegate_initialization(backing, constructor, false);
+        common.extend(self.lower_common_initialization(
             backing,
             source.members(),
             constructor,
             false,
             &format!("object `{}`", self.objects[object].name),
-        );
+        ));
         self.current_initialization_unit = previous_unit;
         let hir::ClassConstructorKind::Primary {
             common_initialization,

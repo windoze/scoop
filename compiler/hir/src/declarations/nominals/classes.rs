@@ -86,7 +86,6 @@ pub enum ClassRepresentation {
 #[derive(Debug, Clone)]
 pub struct ClassField {
     pub owner: ClassId,
-    pub property: PropertyId,
     /// Position in the owner's common field definition; not an entity identity.
     pub definition_index: usize,
     pub source: ClassFieldSource,
@@ -95,8 +94,25 @@ pub struct ClassField {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassFieldSource {
-    PrimaryParameter(ConstructorParamId),
-    Body,
+    PrimaryParameter {
+        property: PropertyId,
+        parameter: ConstructorParamId,
+    },
+    BodyProperty(PropertyId),
+    InterfaceDelegate {
+        ordinal: u32,
+    },
+}
+
+impl ClassFieldSource {
+    pub const fn property(self) -> Option<PropertyId> {
+        match self {
+            Self::PrimaryParameter { property, .. } | Self::BodyProperty(property) => {
+                Some(property)
+            }
+            Self::InterfaceDelegate { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -17,9 +17,13 @@ impl CrossConeHirProductionAuthority<'_, '_> {
         let owner = match key.view() {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
-            | FieldIdentityView::SourcePropertyDelegate { owner, .. } => owner,
+            | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => owner,
             FieldIdentityView::Generated { owner, key } => {
-                let property = key.object_backing_property().ok_or_else(no_root)?;
+                let property = key.object_backing_property();
+                if property.is_none() && key.interface_delegate().is_none() {
+                    return Err(no_root());
+                }
                 let generated = self.generated_type_key(owner).ok_or_else(missing)?;
                 let (object, atom) = match generated {
                     GeneratedNominalKey::ObjectBackingClass { object } => (
@@ -36,13 +40,15 @@ impl CrossConeHirProductionAuthority<'_, '_> {
                 if object_key.declaration_kind() != SourceDeclarationKind::Object {
                     return Err(no_root());
                 }
-                let property_key = self.property_key(property).ok_or_else(missing)?;
-                if property_key.owners().owners().last() != Some(&atom)
-                    || property_key.origin() != object_key.origin()
-                {
-                    return Err(
-                        CrossConeHirProductionAuthorityError::InvalidObjectFieldOwner(field),
-                    );
+                if let Some(property) = property {
+                    let property_key = self.property_key(property).ok_or_else(missing)?;
+                    if property_key.owners().owners().last() != Some(&atom)
+                        || property_key.origin() != object_key.origin()
+                    {
+                        return Err(
+                            CrossConeHirProductionAuthorityError::InvalidObjectFieldOwner(field),
+                        );
+                    }
                 }
                 object
             }

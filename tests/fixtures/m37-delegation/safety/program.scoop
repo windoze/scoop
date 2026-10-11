@@ -1,0 +1,8 @@
+interface Math { @Unsafe fun compute(value: Int): Int }
+class Impl : Math { @Unsafe override fun compute(value: Int): Int = value + 40 }
+class Host(delegate: Math) : Math by delegate
+@Unsafe fun run(host: Host): Int = host.compute(2)
+fun main() {
+    val host = Host(Impl())
+    @Unsafe { println(run(host)) }
+}

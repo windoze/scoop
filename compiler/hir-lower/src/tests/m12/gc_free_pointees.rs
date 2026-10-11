@@ -163,7 +163,11 @@ fn omitted_optional_global(name: &str, inner: TypeRef) -> Decl {
 fn generic_supertype(name: &str, argument: &str, constructor: bool) -> ast::SupertypeSpec {
     ast::SupertypeSpec {
         ty: ty_generic(name, vec![ty_named(argument)]),
-        constructor_arguments: constructor.then(Vec::new),
+        initialization: if constructor {
+            ast::SupertypeInitialization::Constructor(Vec::new())
+        } else {
+            ast::SupertypeInitialization::None
+        },
         span: sp(),
     }
 }

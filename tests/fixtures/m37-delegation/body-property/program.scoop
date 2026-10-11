@@ -1,0 +1,4 @@
+interface I {}
+class Impl : I
+class Host : I by value { val value: I = Impl() }
+fun main() {}

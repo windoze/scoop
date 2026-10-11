@@ -75,9 +75,11 @@ impl Harness {
             });
             let field = self.class_fields.alloc(hir::ClassField {
                 owner: class,
-                property,
                 definition_index: fields.len(),
-                source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
+                source: hir::ClassFieldSource::PrimaryParameter {
+                    property,
+                    parameter: parameter.id,
+                },
                 span: SPAN,
             });
             let actual = self.properties.alloc(hir::Property {

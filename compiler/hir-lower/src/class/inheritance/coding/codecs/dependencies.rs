@@ -27,10 +27,11 @@ impl Lowerer {
                     .into_iter()
                     .filter_map(|field| {
                         let field = &self.class_fields[field];
-                        if !matches!(field.source, hir::ClassFieldSource::PrimaryParameter(_)) {
+                        let hir::ClassFieldSource::PrimaryParameter { property: id, .. } =
+                            field.source
+                        else {
                             return None;
-                        }
-                        let id = field.property;
+                        };
                         let property = &self.properties[id];
                         let (name, ty, mutable) = (
                             property.name.clone(),

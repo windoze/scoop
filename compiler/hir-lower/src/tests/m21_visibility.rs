@@ -173,7 +173,7 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
             .contains(&api_constructor)
     );
     let field = api_decl.fields[0];
-    let property = module.class_fields[field].property;
+    let property = module.class_fields[field].source.property().unwrap();
     assert!(module.public_surface.properties.contains(&property));
     let hidden = api_decl
         .methods

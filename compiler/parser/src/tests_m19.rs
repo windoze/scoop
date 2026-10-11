@@ -24,7 +24,7 @@ fn primary_parameters_keep_plain_val_var_and_calling_shape() {
         scoop_ast::ParameterSyntax::Vararg { .. }
     ));
     assert_eq!(class.supertypes.len(), 1);
-    assert!(class.supertypes[0].constructor_arguments.is_some());
+    assert!(class.supertypes[0].constructor_arguments().is_some());
 }
 
 #[test]
@@ -89,13 +89,13 @@ fn every_supertype_keeps_parentheses_independently() {
     let Decl::Class(class) = &file.declarations[0] else {
         panic!("expected class")
     };
-    assert!(class.supertypes[0].constructor_arguments.is_some());
-    assert!(class.supertypes[1].constructor_arguments.is_none());
-    assert!(class.supertypes[2].constructor_arguments.is_some());
+    assert!(class.supertypes[0].constructor_arguments().is_some());
+    assert!(class.supertypes[1].constructor_arguments().is_none());
+    assert!(class.supertypes[2].constructor_arguments().is_some());
     let Decl::Interface(interface) = &file.declarations[1] else {
         panic!("expected interface")
     };
-    assert!(interface.supertypes[0].constructor_arguments.is_some());
+    assert!(interface.supertypes[0].constructor_arguments().is_some());
 }
 
 #[test]

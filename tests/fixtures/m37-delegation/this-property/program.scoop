@@ -1,0 +1,4 @@
+interface I {}
+class Impl : I
+class Host(val value: I) : I by this.value
+fun main() {}

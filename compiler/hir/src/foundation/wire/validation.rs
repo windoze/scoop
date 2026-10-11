@@ -324,6 +324,7 @@ fn validate_foundation(
         &enum_variants,
         &enum_variant_fields,
         &generated_callables,
+        &generated_types,
         &exact_types,
         &initialization_units,
         &local_bindings,

@@ -4,6 +4,7 @@ mod constructors;
 mod members;
 mod prefix;
 mod release;
+mod supertypes;
 
 type ParsedInterfaceBody = (
     Vec<FunctionDecl>,
@@ -283,44 +284,6 @@ impl Parser {
             members,
             span: Span::new(start, end),
         })
-    }
-
-    /// `: Base(args), I1, I2` — a no-op when the next token is not `:`.
-    /// Every entry retains whether its argument list was present. HIR, which
-    /// knows nominal kinds, decides which entry is the direct base.
-    pub(super) fn parse_supertypes(
-        &mut self,
-        end: &mut u32,
-    ) -> Result<Vec<SupertypeSpec>, Diagnostic> {
-        let mut supertypes = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::Colon) {
-            return Ok(supertypes);
-        }
-        self.bump(); // `:`
-        loop {
-            let super_name = self.expect_ident("base class or interface name")?;
-            let supertype = self.parse_named_type_ref_tail(super_name)?;
-            let start = supertype.span.start;
-            *end = supertype.span.end;
-            let constructor_arguments = if matches!(self.peek().kind, TokenKind::LParen) {
-                let (args, args_end) = self.parse_args()?;
-                *end = args_end;
-                Some(args)
-            } else {
-                None
-            };
-            supertypes.push(SupertypeSpec {
-                ty: supertype,
-                constructor_arguments,
-                span: Span::new(start, *end),
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-            } else {
-                break;
-            }
-        }
-        Ok(supertypes)
     }
 
     /// `interface <name> { <member>, ... }` — signatures, defaults,

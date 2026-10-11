@@ -396,13 +396,16 @@ impl Lowerer {
                     span,
                     origin: self.expression_origin(span),
                 };
-                let write = self.properties[physical.property]
-                    .capability
-                    .setter()
-                    .map(|_| hir::AssignTarget::Field {
-                        receiver: Box::new(receiver),
-                        field: field_ref,
-                    });
+                let write = self.properties[physical
+                    .source
+                    .property()
+                    .expect("a property accessor names its backing field")]
+                .capability
+                .setter()
+                .map(|_| hir::AssignTarget::Field {
+                    receiver: Box::new(receiver),
+                    field: field_ref,
+                });
                 Some((read, write))
             }
             hir::PropertyBacking::StructField { .. } => {

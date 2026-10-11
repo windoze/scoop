@@ -1126,7 +1126,7 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；显式实参属于caller，因此可以在suspend caller中先挂起；
 2. 分配一次exact concrete对象，写入最派生TypeDescriptor并清零完整payload；随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
 3. 每条constructor delegation先按其自身源码顺序求值显式实参，再物化目标default/`vararg`，然后direct调用typed目标；
-4. terminal primary先完成direct base constructor，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor；
+4. terminal primary先完成direct base constructor，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor。随后按继承列表顺序求值并保存 9.2.2 的 interface delegate；
 5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；
 6. terminal secondary body在common initialization之后执行；返回每一层`this` delegation后，再从最内层到最外层执行其余secondary body；最外层正常返回后构造表达式才产生对象引用。
 
@@ -1273,12 +1273,25 @@ when 的覆盖域来自完整直接子类型关系，继续 sealed 的节点递�
 
 ### 9.2 委托
 
+#### 9.2.1 属性委托
+
 - property delegate使用reflection-free协议。角色必须显式声明为ordinary、non-suspend、non-generic `operator fun`，不得带default/`vararg`：可选`provideDelegate(): D2`、必需`getValue(thisRef: R): T`，以及`var`必需`setValue(thisRef: R, value: T): Unit`。它们是与9.3普通operator不同的typed role；无role的同名函数不参与；
 - role 查找沿普通成员优先、扩展按作用域分层的可应用性与最具体候选规则进行。同一层中的本地声明和依赖声明共同比较；import alias 不改变声明的 typed role，也不使扩展覆盖已有可应用成员；
 - `R`对class/object member是owner type，对extension是extension receiver，对top-level/local是Unit。先求值`by`表达式一次，再可选调用一次无owner参数的provideDelegate并把effective delegate存入hidden field/global/local；之后每次access读取delegate并调用唯一get/set target。协议没有`KProperty`、property name或annotation metadata；需要这些值必须在`by`表达式中显式传入；
 - local 与非局部 delegate 省略 type 时，先在没有 result expected type 的条件下选出唯一 `getValue` role，再以其结果作为 property type；无法独立唯一选择 getter 时要求显式类型。`var` 的 `setValue` 必须接受同一 type，不能从多个 get/set 组合反向猜 type 或让 setter 改变 getter 结果；
 - class/object 的 delegate 按 9.1.1 的共同初始化顺序求值；top-level 与 non-generic extension delegate 按 9.1.3 提前初始化。generic extension delegate 按 9.1.1 为每个 exact receiver application 保留独立、全程序共享的 lazy 初始化状态，首次访问时才求值 `by` 并发布 effective delegate；即使编译期已知使用点，也不能提前执行。`by` 与可选的 `provideDelegate` 使用定义处绑定的名称、重载及 receiver 类型实参；二者不取得本次访问的 receiver 值，get/set 才接收实际 `thisRef`。普通赋值先求值 receiver 与 RHS，再进入 setter 的初始化检查；复合赋值先执行 getter 及初始化检查，再求值 RHS。同一 application 跨 Cone 共享 delegate 和初始化结果，re-export 不复制状态。local delegate 是不可重新绑定的局部值。struct/enum member 不能使用 delegated property。delegate 调用同步，可以分配、触发 GC、抛异常，但不能挂起；
-- 不支持 class/interface delegation 语法 `class C : I by impl`。
+
+#### 9.2.2 接口实现委托
+
+class/object 的接口继承项可以写作 `I by expression`，其中 I 必须是完整 interface application，expression 的值按普通子类型和适配规则满足 I。表达式在构造时求值一次，结果保存在实例的普通隐藏字段中；之后改变表达式原来引用的变量不会替换这个 delegate。struct、enum 与 interface 自身不能声明实现委托；class 基类也不能使用 `by`。
+
+delegate 初始化在 base constructor 和 primary property store 之后、body 的 property/init 序列之前执行，多个 delegate 按继承列表顺序求值。表达式可读取 primary 参数及正常外层名称，不能使用当前未完成初始化的 this 或实例成员；无 primary 的声明不能取得任一 secondary 的参数。object 的委托属于既有 singleton 初始化。初始化是同步 safe 上下文，异常与 GC 沿普通构造规则处理。
+
+成员选择复用实际 typed slot。当前 class 的显式实现/override 优先，继承的具体 class 实现继续满足对应 slot；剩余 slot 由唯一匹配的显式 delegate 转发，包括继承的 abstract class obligation，且转发优先于普通 interface default。多个 delegate 同时提供同一个未满足 slot 时必须显式 override。其余成员沿普通 interface default/abstract obligation 规则检查，具体 class 不能保留未实现的义务。
+
+隐式转发成员必须覆盖它实现的全部 interface/class slot 的访问域。全部 slot 都限于当前 Cone 时，转发成员为 internal；否则为 public。显式声明仍按普通 override 可见性规则检查，委托不会扩大原 slot 的默认值表达式所能访问的范围。
+
+property 按 getter/setter slot 转发，整体类型和 mutability 仍遵守 9.1.1。调用者的参数名、默认值和 vararg 协议由静态声明确定，转发只传递已经物化的实参。delegate 的 this 始终指向 delegate 对象，其内部调用不因宿主 override 而改为调用宿主成员。转发保留 virtual/interface dispatch、挂起、异常、Context 和 GC 语义；泛型接口 application 合法，接口方法本身的泛型仍按原规则禁止。
 
 ### 9.3 运算符重载与约定
 

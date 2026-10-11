@@ -65,7 +65,9 @@ impl Lowerer {
     ) -> Option<Vec<(String, String)>> {
         let mut selected = Vec::new();
         for field in self.classes[class].fields.clone() {
-            let id = self.class_fields[field].property;
+            let Some(id) = self.class_fields[field].source.property() else {
+                continue;
+            };
             let property = &self.properties[id];
             let name = property.name.clone();
             let Some(wire) =

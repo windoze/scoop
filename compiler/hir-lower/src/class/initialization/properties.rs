@@ -32,11 +32,11 @@ impl Lowerer {
                                 ..
                             }) = &mut self.initialization_context
                         {
-                            initialized.extend(
-                                self.classes[owner].fields.iter().copied().filter(|field| {
-                                    self.class_fields[*field].property == property_id
-                                }),
-                            );
+                            initialized.extend(self.classes[owner].fields.iter().copied().filter(
+                                |field| {
+                                    self.class_fields[*field].source.property() == Some(property_id)
+                                },
+                            ));
                         }
                         steps.push(step);
                         continue;
@@ -229,12 +229,11 @@ impl Lowerer {
         let effective_ty = lowered.value.ty;
         let field = self.allocate_class_field(
             owner,
-            property_id,
             hir::Field {
                 name: property.name.text.clone(),
                 ty: effective_ty,
             },
-            hir::ClassFieldSource::Body,
+            hir::ClassFieldSource::BodyProperty(property_id),
             property.span,
         );
         self.classes[owner].fields.push(field);
