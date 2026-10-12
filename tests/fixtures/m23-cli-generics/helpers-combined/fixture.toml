@@ -229,10 +229,3 @@ exit = 0
 stdout = ""
 stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
-
-[[steps]]
-name = "symbols"
-argv = ["/usr/bin/nm", "-j", "${work}/program"]
-exit = 0
-stdout = {snapshot = "symbols.${target}.txt"}
-stderr = ""

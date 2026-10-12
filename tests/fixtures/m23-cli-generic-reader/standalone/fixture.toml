@@ -170,20 +170,6 @@ stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 
 [[steps]]
-name = "symbols"
-argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "${work}/program"]
-exit = 0
-stdout = {snapshot = "symbols.${target}.txt"}
-stderr = ""
-
-[[steps]]
-name = "strong_symbols"
-argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "--no-weak", "${work}/program"]
-exit = 0
-stdout = {snapshot = "strong_symbols.${target}.txt"}
-stderr = ""
-
-[[steps]]
 name = "provider_members"
 argv = ["${ar}", "t", "${work}/artifacts/dev.example/standalone/0.1.0/cone.slib"]
 exit = 0

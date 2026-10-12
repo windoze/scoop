@@ -123,11 +123,3 @@ exit = 0
 stdout = "42\n7\n"
 stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
-
-[[steps]]
-name = "symbols"
-argv = ["/usr/bin/nm", "-j", "${link.result.output}"]
-exit = 0
-stdout = {snapshot = "symbols.${target}.txt"}
-stderr = ""
-checks = [{"actual" = "${symbols.stdout}", "not_contains" = "m23_unused"}]

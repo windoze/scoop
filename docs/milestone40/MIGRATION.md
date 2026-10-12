@@ -47,3 +47,16 @@
 
 实际保留集合、迁移差异和最终统计在完成后补齐；不先全量刷新旧快照。
 临时文件使用仓库 `target/m40/tmp`，定期清理已结束的用例工作目录，保留报告。
+
+### 符号快照批次
+
+删除 2,068 个完整符号文件和 690 个仅为它们存在的 nm 步骤。
+`archive-chain` 的 `unused.o` 既有 constructor 引用缺失的 `m23_missing_unused`，
+且 Mach-O 带不可用 library option；误选成员会使真实链接失败。
+其精确 link plan 继续断言 `unused.o selected=false`，成功链条仍运行并检查 `42\n7\n`，
+因此无需重复冻结 executable 的其他符号。
+ODR 的 typed 物理定义与强弱绑定测试保持原样，普通多 consumer 的链接/运行路径保持原样。
+
+本机 fmt/workspace clippy、Ruff、44 项公共 runner 测试通过；
+`generic-equality-payload` 与 `native-link-archive-chain` 两项 CLI 验证通过
+（20 个进程，见 [报告](validation/symbols-darwin.json)）。
