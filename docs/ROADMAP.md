@@ -533,9 +533,9 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 按功能提交，本机针对性验证后在 Linux 完整验证；不新增语言功能、认证、预算或通用状态机。
 - 2026-10-11 实现与验收完成：12 项功能分别提交；Linux 完整 Rust 5,474 项及最后修复的 29 项定向测试通过，最终不同测试覆盖 5,475 项，两机公共 runner 各 44 项通过。普通 CLI 按实际来源去重，Darwin 236 项、GNU 3,061 项、musl 188 项通过，GNU 另有 30 项不适用；GNU 使用正式全量加失败补验，三个 target 均覆盖全部 26 个 M36 新用例。wire section 编号／版本与 runtime ABI 保持不变。
 
-### M37 语言语法与类型能力补齐（实施中，[设计](milestone37/DESIGN.md)，[实施记录](milestone37/PROGRESS.md)）
+### M37 语言语法与类型能力补齐（已完成并验收，[设计](milestone37/DESIGN.md)，[验收记录](milestone37/ACCEPTANCE.md)）
 
-基线为 `ec9d8849d`（M36）。按功能纵向完成并逐项提交：兼容修饰符、Unicode/反引号标识符、单语句控制体、do/标签/跳转、声明推导、函数引用与 receiver 函数值、泛型/嵌套/局部 alias、inner/局部/匿名类型、sealed/接口委托、流敏感 smart cast、整型枚举及静态注解扩展。完整范围和验收矩阵以设计为准，只有实际实现并验证的项才记录完成。
+基线为 `ec9d8849d`（M36）。按功能纵向完成并逐项提交：兼容修饰符、Unicode/反引号标识符、单语句控制体、do/标签/跳转、声明推导、函数引用与 receiver 函数值、泛型/嵌套/局部 alias、inner/局部/匿名类型、sealed/接口委托、流敏感 smart cast、整型枚举及静态注解扩展。21 项功能分别提交；三个目标的 680 个 M37 fixture 均通过，Linux 完整 Rust 5,553 项通过，GNU 全量覆盖 3,741 项通过、30 项不适用。完整验证范围及产物兼容性见验收记录。
 
 `inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 

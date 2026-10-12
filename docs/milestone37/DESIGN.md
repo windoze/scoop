@@ -1,12 +1,12 @@
 # M37 设计：语言语法与类型能力补齐
 
-状态：实施中；基线 `ec9d8849d` 已包含 M35 正式验收及 [M36 类型完备性收紧](../milestone36/DESIGN.md)。各功能的实际完成与验证见 [PROGRESS.md](PROGRESS.md)，本文的设计范围不表示全部工作已完成。
+状态：已完成并验收；基线 `ec9d8849d` 已包含 M35 正式验收及 [M36 类型完备性收紧](../milestone36/DESIGN.md)。21 项功能、提交与最终验证范围见 [ACCEPTANCE.md](ACCEPTANCE.md)，实施过程见 [PROGRESS.md](PROGRESS.md)。
 
 日期：2026-10-11。
 
 基线：沿用 [M35](../milestone35/DESIGN.md) 正式完成后的语言能力，以 [M36](../milestone36/DESIGN.md) 收紧输入与 IR 数据合同后的编译、跨 Cone 产物消费、debug/release 与 GC 能力为实施起点。实施前记录实际基线，不把调研时的未提交工作固定为版本契约。语言语义、阶段职责与运行时约束分别以[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)为依据。
 
-本文由原 M36 顺延为 M37；M36 记录编译器输入与 IR 的类型完备性审查。本文记录 M37 的设计范围与已确定决策，下文列出的规范、路线图、代码、core 与 fixture 变更均为后续实施工作。
+本文由原 M36 顺延为 M37；M36 记录编译器输入与 IR 的类型完备性审查。本文记录 M37 的设计范围与已确定决策，对应规范、路线图、代码、core 与 fixture 的实施和验证记录见 [PROGRESS.md](PROGRESS.md)。
 
 ## 0. 交付范围与已确定的决策
 
@@ -90,7 +90,7 @@ tailrec fun ordinary(value: Int): Int = value + 1
 
 以上声明分别等价于去掉相应标记后的普通声明。`inline` 不允许 lambda 裸 `return`，`reified` 不允许泛型虚方法，`crossinline` / `noinline` 不改变外层局部 `var` 的捕获禁令。挂起调用仍要求既有的显式 `suspend` 上下文。
 
-后续实施必须修订语言规范 8.4 中“允许作为提示”的表述，并把 `tailrec` 纳入同一条完全忽略规则；不能保留文档允许 hint、实现又声称完全无作用的双重契约。
+语言规范 8.4 已统一为完全忽略规则，`tailrec` 同样纳入；这些标记不产生优化提示或其他语义效果。
 
 ### 2.2 interface 方法泛型与泛型虚方法
 
@@ -115,7 +115,7 @@ interface 内的方法不能拥有自己的类型参数，包括 default body �
 - top-level、local、extension 泛型函数，以及语义为 final、使用 direct dispatch 的 class/struct/enum 泛型方法。
 - interface companion 中的普通泛型函数；它属于 object 成员，不是 interface 方法。
 
-原因是开放的方法类型实参会要求虚槽处理无法在固定签名中穷举的专门化，而单态化与动态接收者的组合又必须跨 Cone 保持一致。M37 不为此引入 runtime generic dictionary、擦除后的共享 body、开放 specialization 注册或另一种 interface 类型。后续应将 ROADMAP 对此能力的“未来实现”预留改为明确排除，相关 negative fixture 长期保留。
+原因是开放的方法类型实参会要求虚槽处理无法在固定签名中穷举的专门化，而单态化与动态接收者的组合又必须跨 Cone 保持一致。M37 不为此引入 runtime generic dictionary、擦除后的共享 body、开放 specialization 注册或另一种 interface 类型。ROADMAP 已将此能力改为明确排除，相关 negative fixture 长期保留。
 
 ### 2.3 外层局部 `var` 与 Cell 建议
 
@@ -638,7 +638,7 @@ stage 只通过相应 IR/meta crate 通信。parser 只处理语法，不查询�
 
 ## 12. 规范与兼容性迁移
 
-实施按 spec 先行。首批先核对 M35 的最终规范、M36 完成后的数据合同和回归，再按功能批次修订以下内容；本次仅列清单，不修改这些文件。
+实施按 spec 先行。已核对 M35 的最终规范、M36 完成后的数据合同和回归，并按功能批次修订以下内容；实际修订与验证见实施记录。
 
 | 文档 | 后续修订内容 |
 | --- | --- |

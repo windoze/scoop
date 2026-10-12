@@ -1,5 +1,7 @@
 # M37 实施记录
 
+状态：已完成并验收。21 项功能与最终验证摘要见 [ACCEPTANCE.md](ACCEPTANCE.md)。
+
 基线：`ec9d8849d`（M36，2026-10-11）。工作分支：`codex/m37`。既有未跟踪设计稿为本次实现范围，随首项功能纳入版本控制；本文件只记录实际完成和验证的工作。
 
 ## 实施与验证约定
@@ -242,33 +244,33 @@ annotation 参数/default 和元注解先完成绑定，再按最终规则检查
 
 本机 fmt、workspace clippy（release）无警告通过；288 项不同的注解、alias 和 receiver Rust 测试通过。32 个新增正式 fixture（11 个正向、21 个 negative）与旧注解、alias、receiver、inner、局部类型及声明位置回归完成普通比较，329/329 个适用用例通过，另 1 个 musl 专用用例不适用；合计 390 个配置、754 个进程、509 个阶段 golden。新增用例自身覆盖 42 个配置、95 个进程、75 个 golden，包括 debug/release、moving GC、真实 C callback、静态查询、可空层次，以及删除源码后的 provider → bridge → consumer → 独立链接与错误诊断。
 
-报告见 [18c-type-annotations-darwin.json](validation/18c-type-annotations-darwin.json)。81 份旧 HIR 快照逐份审阅：77 份只有 ImportedIdentityId 编号变化，已核对完整内容及引用等价关系；另两份补充默认注解规则，两份仅移动同一完整类型描述块。旧 MIR/LIR 全部不变。报告只合并普通通过批次，不计快照生成次数；已通过且未变化的用例没有重复执行。多次清理已完成的 fixture cases，保留共用 cache、sysroot、release 依赖与日志。全部功能批次已完成，Linux 总验收继续进行。
+报告见 [18c-type-annotations-darwin.json](validation/18c-type-annotations-darwin.json)。81 份旧 HIR 快照逐份审阅：77 份只有 ImportedIdentityId 编号变化，已核对完整内容及引用等价关系；另两份补充默认注解规则，两份仅移动同一完整类型描述块。旧 MIR/LIR 全部不变。报告只合并普通通过批次，不计快照生成次数；已通过且未变化的用例没有重复执行。多次清理已完成的 fixture cases，保留共用 cache、sysroot、release 依赖与日志。全部功能批次已完成，Linux 总验收结果见文末汇总。
 
-## Linux 总验收（进行中）
+## Linux 总验收（完成）
 
-补充设计第 14 节完整组合链之前，M37 的 675 个 fixture 已完成 GNU 与 musl 普通验收，每个目标均为 675 passed、0 failed，888 个配置、1,878 个进程、1,422 个阶段 golden。逐个用例选择最后一次普通执行结果，排除快照生成和中断记录；统计与逐项来源见 [M37 Linux 覆盖](validation/m37-linux.json)。真实目标 ABI 不同的 LIR 已按目标保存，41 份相关 fixture 声明同步选择目标文件。既有功能的完整 GNU 回归及其跨平台快照迁移仍在进行。
+补充设计第 14 节完整组合链之前，M37 的 675 个 fixture 已完成 GNU 与 musl 普通验收，每个目标均为 675 passed、0 failed，888 个配置、1,878 个进程、1,422 个阶段 golden。逐个用例选择最后一次普通执行结果，排除快照生成和中断记录；统计与逐项来源见 [M37 Linux 覆盖](validation/m37-linux.json)。真实目标 ABI 不同的 LIR 已按目标保存，41 份相关 fixture 声明同步选择目标文件。既有功能的完整 GNU 回归及其跨平台快照迁移结果见文末汇总。
 
 Darwin 已补齐一批受 core 声明及控制流转储影响的旧用例：212 项普通比较通过、1 项按平台不适用，218 个配置、2,207 个进程、2,606 个 golden，见 [旧功能平台回归](validation/legacy-platform-darwin.json)。358 份变更逐份审阅，包括 315 份符号表、34 份 LIR 与 9 份 HIR；保留真实 AArch64 ABI，普通符号表只增加对应平台已核对的 core 符号，协程生命周期用例另包含已审阅的 Nothing 函数适配。生成快照不计入普通通过次数。
 
-已将全部功能提交同步到 `nuc12:~/repos/scoop`。首轮 Linux workspace fmt/clippy 通过；完整 Rust 测试发现三条旧 wire 测试仍将整型枚举的新 tag 当作未知标签，或保存了扩展前的空注解表编码。按现有规范迁移这三条断言，未知标签改用未定义的 255，固定编码继续精确比较；没有修改生产代码或放宽 reader 检查。本机 fmt/clippy 与 HIR 全部 905 项测试通过，Linux 继续验证其余 workspace 与正式 CLI。
+已将全部功能提交同步到 `nuc12:~/repos/scoop`。首轮 Linux workspace fmt/clippy 通过；完整 Rust 测试发现三条旧 wire 测试仍将整型枚举的新 tag 当作未知标签，或保存了扩展前的空注解表编码。按现有规范迁移这三条断言，未知标签改用未定义的 255，固定编码继续精确比较；没有修改生产代码或放宽 reader 检查。本机 fmt/clippy 与 HIR 全部 905 项测试通过，其余 Linux workspace 与正式 CLI 的结果见文末汇总。
 
 后续全量中的两条旧 HIR lower 断言同步到现行源码规则：局部 var 的负例改为赋值后撤销 smart cast；固定类型 alias 构造的诊断位置与已验收的四条正式 CLI negative 保持一致，仍检查完整类型错误与源码区间。本机 fmt/clippy 后，两项定向 Rust 回归通过；不改生产代码。
 
 另迁移三条旧底层断言：Retype 的非法 machine-scalar 输入继续拒绝，断言同步实际错误文字；两份 profile 固定描述逐字节确认只有 cross-cone-interface 版本 72 → 76，随后更新相应固定指纹。本机 fmt/clippy、25 项 profile 测试（HIR 4 项、slib 21 项）及一项 Retype 拒绝测试通过；编码与指纹仍由完整固定向量检查。
 
-Linux 完整 Rust 覆盖已闭合：首轮加剩余 workspace（`--exclude scoop-hir --no-fail-fast`）执行全部目标，八条旧断言迁移后定向补验通过，43 个目标共 5,553 项不同测试通过、0 failed、0 ignored。driver 的 82 项完整组合全部通过，没有重复这组重型测试。最终 fmt/workspace clippy、公共 runner 44 项及三个 release CLI 构建通过。环境为 i7-12700H、Rust 1.99.0、LLVM 22.1.2、GCC 15.2.0；逐项来源和初跑原始日志见 [Linux Rust 记录](validation/rust-linux.json)。正式 GNU 全量和 musl 选集验收继续进行。
+Linux 完整 Rust 覆盖已闭合：首轮加剩余 workspace（`--exclude scoop-hir --no-fail-fast`）执行全部目标，八条旧断言迁移后定向补验通过，43 个目标共 5,553 项不同测试通过、0 failed、0 ignored。driver 的 82 项完整组合全部通过，没有重复这组重型测试。最终 fmt/workspace clippy、公共 runner 44 项及三个 release CLI 构建通过。环境为 i7-12700H、Rust 1.99.0、LLVM 22.1.2、GCC 15.2.0；逐项来源和初跑原始日志见 [Linux Rust 记录](validation/rust-linux.json)。正式 GNU 全量和 musl 选集验收结果见文末汇总。
 
-### 验收回归：单例成员引用（本机完成）
+### 验收回归：单例成员引用（完成）
 
 Linux 全量发现完整泛型 companion 限定名被误判为未绑定 receiver。修正后，object/companion 及其透明别名按已解析的单例身份创建绑定引用；实例只在创建引用时求值一次，普通类型的未绑定引用规则不变。跨 Cone 物化泛型 companion 时，字段类型位置沿字段声明方查询 backing property，继续检查真实属性身份与来源。
 
-新增三个独立 fixture，覆盖本地与跨库别名、完整宿主 application、默认值、泛型正文、转导出、单例初始化次数、普通与 moving GC，以及错误地多传 receiver 的精确负例。workspace fmt/clippy 通过，22 项函数引用、6 项 companion 与 14 项类型位置 Rust 定向测试通过；44 个正式 CLI 用例普通验收全部通过，包含原有 m29 companion 与 m34 MaybeUninit 回归。旧用例仅两组 HIR 局部编号迁移，MIR/LIR 未改变。报告见 [单例引用回归](validation/singleton-reference-regressions-darwin.json)。Linux 将在本机修订完成后对受影响范围复验。
+新增三个独立 fixture，覆盖本地与跨库别名、完整宿主 application、默认值、泛型正文、转导出、单例初始化次数、普通与 moving GC，以及错误地多传 receiver 的精确负例。workspace fmt/clippy 通过，22 项函数引用、6 项 companion 与 14 项类型位置 Rust 定向测试通过；44 个正式 CLI 用例普通验收全部通过，包含原有 m29 companion 与 m34 MaybeUninit 回归。旧用例仅两组 HIR 局部编号迁移，MIR/LIR 未改变。报告见 [单例引用回归](validation/singleton-reference-regressions-darwin.json)。Linux 受影响范围已复验通过，逐项来源见最终 GNU 与 musl 覆盖记录。
 
-### 验收回归：捕获值与构造器参数的 smart cast（本机完成）
+### 验收回归：捕获值与构造器参数的 smart cast（完成）
 
 when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变捕获值与构造器参数。修复复用已有稳定 binding 查询及快照关系，使闭包内的多 interface 检查和构造初始化中的值类型检查保留事实；分支合流、赋值失效和可变捕获限制仍按原规则处理。生产改动位于 132 行的既有条件分析模块，没有新增分析框架或后续 stage 状态。
 
-新增三个 fixture，覆盖 lambda、匿名函数、局部函数、显式快照、when subject 声明、构造器参数与闭包、普通/moving GC，以及只在部分分支成立的事实不得越过合流。workspace fmt/clippy 通过，捕获与 when 两组 Rust 定向测试执行 77 项全部通过。52 个正式 CLI 用例普通比较全部通过，81 个配置、206 个进程、187 个阶段 golden，包含原有 M35 捕获组合回归。该旧组合用例补充 lambda 标签，并将类型检查改为读取已经保存的 subject；既有静态类型结构保持不变，LIR 相应省去一次重复捕获读取。报告见 [smart cast 回归](validation/smart-cast-capture-regressions-darwin.json)。Linux 受影响范围复验继续进行。
+新增三个 fixture，覆盖 lambda、匿名函数、局部函数、显式快照、when subject 声明、构造器参数与闭包、普通/moving GC，以及只在部分分支成立的事实不得越过合流。workspace fmt/clippy 通过，捕获与 when 两组 Rust 定向测试执行 77 项全部通过。52 个正式 CLI 用例普通比较全部通过，81 个配置、206 个进程、187 个阶段 golden，包含原有 M35 捕获组合回归。该旧组合用例补充 lambda 标签，并将类型检查改为读取已经保存的 subject；既有静态类型结构保持不变，LIR 相应省去一次重复捕获读取。报告见 [smart cast 回归](validation/smart-cast-capture-regressions-darwin.json)。Linux 受影响范围已复验通过，逐项来源见最终 GNU 与 musl 覆盖记录。
 
 另有八个旧负例按现行规则完成迁移：接口实现诊断顺序、带宿主的 companion 名称、单语句 for body，以及 GCLeaf 目标的语义检查。旧 return-label 负例改为 Elvis 中使用不存在的标签，继续精确检查错误文字与源码位置。workspace fmt/clippy 后八例本机普通比较全部通过，生产代码未因这些快照差异改变。报告见 [旧负例迁移](validation/gnu-diagnostic-migrations-darwin.json)。
 
@@ -288,6 +290,14 @@ Darwin 另有 18 个独立链接、原有 M35 组合及源码类型描述回归�
 
 跨库组合发现整型枚举的成员查找将整数父类型误当作 interface application。先明确实现规范的遍历规则，再在既有模块内沿整数父类型继续遍历接口；修改后模块为 91 行，没有增加类型、分派或产物格式。C ABI fixture 保留已声明的函数引用签名，再通过普通函数值赋值验证参数逆变；原有引用候选规则不变。
 
-本机 fmt/workspace clippy、6 项相关 Rust 分派测试及三个 release CLI 构建通过。五个新增 fixture 与既有整型枚举跨库、默认参数回归共 7/7 普通比较通过，12 个配置、73 个进程、71 个 golden。新增链均运行 debug/release 和 normal/moving/minor GC；静态描述保留嵌套注解身份、数组顺序与源码位置，C ABI 保留 Int16 符号扩展及上下界，GC 捕获字段为普通 Snapshot 值且无 mutable box。旧默认参数 HIR 仅按完全相同的实体记录重排依赖引用。报告见 [完整组合链本机验收](validation/complete-combinations-darwin.json)。M37 fixture 增至 680 个。Linux 同样完成 fmt/workspace clippy、6 项相关 Rust 测试和配套 CLI 构建；GNU、musl 各有这 7 个 fixture 的普通比较全部通过，配置、进程和 golden 数与本机相同，见 [GNU](validation/complete-combinations-gnu.json) 和 [musl](validation/complete-combinations-musl.json)。两目标的全部 680 个 M37 fixture 普通覆盖至此闭合，各为 898 个配置、1,938 个进程、1,476 个 golden；既有功能全量回归另行收尾。
+本机 fmt/workspace clippy、6 项相关 Rust 分派测试及三个 release CLI 构建通过。五个新增 fixture 与既有整型枚举跨库、默认参数回归共 7/7 普通比较通过，12 个配置、73 个进程、71 个 golden。新增链均运行 debug/release 和 normal/moving/minor GC；静态描述保留嵌套注解身份、数组顺序与源码位置，C ABI 保留 Int16 符号扩展及上下界，GC 捕获字段为普通 Snapshot 值且无 mutable box。旧默认参数 HIR 仅按完全相同的实体记录重排依赖引用。报告见 [完整组合链本机验收](validation/complete-combinations-darwin.json)。M37 fixture 增至 680 个。Linux 同样完成 fmt/workspace clippy、6 项相关 Rust 测试和配套 CLI 构建；GNU、musl 各有这 7 个 fixture 的普通比较全部通过，配置、进程和 golden 数与本机相同，见 [GNU](validation/complete-combinations-gnu.json) 和 [musl](validation/complete-combinations-musl.json)。两目标的全部 680 个 M37 fixture 普通覆盖至此闭合，各为 898 个配置、1,938 个进程、1,476 个 golden；既有功能全量回归结果见文末汇总。
 
 Darwin 最后的 33 项 core 布局、原生链接及协程生命周期目标补验全部普通通过，37 个配置、124 个进程、260 个 golden。35 份变更按实际 AArch64 输出审阅：26 份 LIR 保留目标 ABI，8 份链接计划只更新已检查的 core 注册信息，1 份符号表只增加对应的 307 个 core 符号。报告见 [Darwin 目标补验](validation/legacy-target-supplement-darwin.json)。
+
+## 最终验收闭合
+
+21 项功能已分别提交，三个目标的全部 680 个 M37 fixture 均通过普通比较。Linux 完整 Rust 覆盖 43 个测试目标、5,553 项不同测试；两机公共 fixture runner 各 44 项通过。GNU 正式全量按最新普通结果覆盖全部 3,771 个当前 fixture：3,741 项通过、30 项不适用、0 失败、0 遗漏。Darwin 逐功能及受影响回归为 1,233 项通过、2 项不适用；musl 全部 M37 与受影响回归为 1,227 项通过、0 项不适用，最后选择的 253 个旧用例已全部普通复验通过。快照生成及中断行不计通过，已通过且无相关改动的重型测试不重复执行。
+
+最终逐项来源见 [GNU](validation/cli-gnu.json)、[Darwin](validation/cli-darwin.json)、[musl](validation/cli-musl.json) 和 [Linux Rust](validation/rust-linux.json)。旧阶段及目标快照的完整审阅见 [迁移记录](validation/stage-migration-reviews.json.gz)，目标文件审计无遗漏；GNU 与 musl 的执行工具来自最新生产修复 `ee52720ad`，之后仅迁移测试预期与整理验收文档。
+
+新增 Rust 文件最长 289 行，新增生产文件最长 269 行；持续清理本机与 Linux 的已完成工作目录、过期副本和编译中间文件，保留报告、当前工具与可复用缓存。文件长度、清理和 Linux 源码一致性记录均已归档。cross-cone-interface 为 76，旧 `.slib` 需要重建；MIR/LIR 与 runtime ABI 不变。
