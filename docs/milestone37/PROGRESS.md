@@ -268,10 +268,10 @@ when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变
 
 另有八个旧负例按现行规则完成迁移：接口实现诊断顺序、带宿主的 companion 名称、单语句 for body，以及 GCLeaf 目标的语义检查。旧 return-label 负例改为 Elvis 中使用不存在的标签，继续精确检查错误文字与源码位置。workspace fmt/clippy 后八例本机普通比较全部通过，生产代码未因这些快照差异改变。报告见 [旧负例迁移](validation/gnu-diagnostic-migrations-darwin.json)。
 
-### 验收回归：函数 smart cast 与原存储值（本机完成）
+### 验收回归：函数 smart cast 与原存储值（完成）
 
 函数 smart cast 的读取可能创建 ABI 适配闭包，不能把它当作 binding 原本保存的函数。修正显式 is/as 操作及引用相等，使其读取原存储值；有期望类型且声明类型已满足它时避免多余适配。不同签名的适配结果不再与来源共享快照事实，动态函数适配器的来源通过既有 Retype 满足 Any 捕获字段。改动复用当前读取、事实关联和 MIR 引用转换，五个生产文件共增加 43 行、删除 11 行；读取与条件模块分别为 137、135 行。
 
 此前将协程检查交换顺序的处理未解决上述问题，现已恢复两份旧用例的原顺序，并替换相应验收记录。新增五个 fixture，覆盖多个返回接口视图、显式转换、捕获值、构造器参数、引用身份、typed function 转换失败、错误的适配值事实传播，以及泛型 receiver 函数值、默认 lambda、转导出、移除源码后的独立链接和 moving GC。完整 HIR 检查保留原 Any 读取，MIR 锁定物理捕获字段的引用转换。
 
-本机 fmt/workspace clippy、35 项 HIR lower 与 4 项 MIR lower 定向 Rust 测试通过；9 个正式 CLI 用例普通比较全部通过，13 个配置、70 个进程、77 个阶段 golden。包含原有两组动态函数适配及两组协程回归。报告见 [函数视图回归](validation/function-view-regressions-darwin.json)；Linux 受影响范围继续复验。
+本机与 Linux fmt/workspace clippy、35 项 HIR lower 与 4 项 MIR lower 定向 Rust 测试通过；Darwin、GNU、musl 三个目标各有 9 个正式 CLI 用例普通比较全部通过，每个目标为 13 个配置、70 个进程、77 个阶段 golden。包含原有两组动态函数适配及两组协程回归。报告见 [Darwin](validation/function-view-regressions-darwin.json)、[GNU](validation/function-view-regressions-gnu.json) 和 [musl](validation/function-view-regressions-musl.json)。目标 LIR 已逐份比较已验收的结构及真实 ABI，符号快照只增加对应平台已审阅的 325 个 core 符号；共有 HIR/MIR 没有平台差异。
