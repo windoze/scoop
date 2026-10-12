@@ -282,10 +282,10 @@ when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变
 
 Darwin 另有 18 个独立链接、原有 M35 组合及源码类型描述回归完成普通比较，33 个配置、179 个进程、336 个阶段与链接计划 golden 全部通过。20 份目标快照已逐份审阅：6 份 LIR 保留实际 AArch64 ABI，14 份链接计划仅反映已核对的 core 元数据变化；未改变执行断言。报告见 [Darwin 补充回归](validation/legacy-platform-extra-darwin.json)。
 
-### 设计验收的完整组合链（本机完成）
+### 设计验收的完整组合链（完成）
 
 新增五个 fixture 覆盖设计第 14 节的六条完整组合链：泛型 sealed 根与匿名开放子家族、guard/smart cast 和 receiver lambda；do/while 与标签、Elvis continue、finally、Context 和真实挂起恢复；inner/局部委托类与按值捕获、老对象持有新对象；Unicode/反引号与命名参数、尾随 lambda、整型枚举、嵌套与可重复类型注解；整型枚举、父类型参数/结果、函数值适配、不同装箱身份和独立 C callback。跨库注解链同时覆盖泛型 alias、结果推导、构造器/未绑定成员引用、re-export、再次发布，以及删除源码后的独立链接。
 
-跨库组合发现整型枚举的成员查找将整数父类型误当作 interface application。先明确实现规范的遍历规则，再在既有 89 行模块内沿整数父类型继续遍历接口；没有增加类型、分派或产物格式。C ABI fixture 保留已声明的函数引用签名，再通过普通函数值赋值验证参数逆变；原有引用候选规则不变。
+跨库组合发现整型枚举的成员查找将整数父类型误当作 interface application。先明确实现规范的遍历规则，再在既有模块内沿整数父类型继续遍历接口；修改后模块为 91 行，没有增加类型、分派或产物格式。C ABI fixture 保留已声明的函数引用签名，再通过普通函数值赋值验证参数逆变；原有引用候选规则不变。
 
-本机 fmt/workspace clippy、6 项相关 Rust 分派测试及三个 release CLI 构建通过。五个新增 fixture 与既有整型枚举跨库、默认参数回归共 7/7 普通比较通过，12 个配置、73 个进程、71 个 golden。新增链均运行 debug/release 和 normal/moving/minor GC；静态描述保留嵌套注解身份、数组顺序与源码位置，C ABI 保留 Int16 符号扩展及上下界，GC 捕获字段为普通 Snapshot 值且无 mutable box。旧默认参数 HIR 仅按完全相同的实体记录重排依赖引用。报告见 [完整组合链本机验收](validation/complete-combinations-darwin.json)。M37 fixture 增至 680 个；新增链与修复的 Linux 验证继续进行。
+本机 fmt/workspace clippy、6 项相关 Rust 分派测试及三个 release CLI 构建通过。五个新增 fixture 与既有整型枚举跨库、默认参数回归共 7/7 普通比较通过，12 个配置、73 个进程、71 个 golden。新增链均运行 debug/release 和 normal/moving/minor GC；静态描述保留嵌套注解身份、数组顺序与源码位置，C ABI 保留 Int16 符号扩展及上下界，GC 捕获字段为普通 Snapshot 值且无 mutable box。旧默认参数 HIR 仅按完全相同的实体记录重排依赖引用。报告见 [完整组合链本机验收](validation/complete-combinations-darwin.json)。M37 fixture 增至 680 个。Linux 同样完成 fmt/workspace clippy、6 项相关 Rust 测试和配套 CLI 构建；GNU、musl 各有这 7 个 fixture 的普通比较全部通过，配置、进程和 golden 数与本机相同，见 [GNU](validation/complete-combinations-gnu.json) 和 [musl](validation/complete-combinations-musl.json)。两目标的全部 680 个 M37 fixture 普通覆盖至此闭合，各为 898 个配置、1,938 个进程、1,476 个 golden；既有功能全量回归另行收尾。

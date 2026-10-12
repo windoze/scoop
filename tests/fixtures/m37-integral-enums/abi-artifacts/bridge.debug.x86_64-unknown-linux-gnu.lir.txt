@@ -1,0 +1,16 @@
+Module
+  enum Code integral(Int16) values=[32768, 32767]
+  fun @scoop$1$cb$6d5d9a19fc639d40365d537e84e81b1259cca1df7ab7bd9f6f0268c6acf78aeb(enum0) -> enum0
+    local %0 $dependency.argument.0: enum0
+    local %1 $dependency.parameter.value: enum0
+    local %2 $call.1: enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (enum0) -> enum0 external-fn0(local1)
+    store t0 -> local2
+    ret local2
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]) @scoop$1$td$ddcb0dd4aa93cde65152db8cc9a3851d39b386edb8b6496e994de3977afd30f4 type-id=8135320944941463626 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  layout Equality value size=16 align=8 refs=[0]
+  output library
