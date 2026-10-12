@@ -1,6 +1,6 @@
 # M40 设计：fixture 精简与回归验证职责收敛
 
-状态：实施中。设计统计来自 2026-10-12 的 `22dee6b14` 工作树；本次实际基线及迁移取舍见 [迁移说明](MIGRATION.md)，验收结果另行记录。
+状态：已完成并验收。设计统计来自 2026-10-12 的 `22dee6b14` 工作树；本次实际基线及迁移取舍见[迁移说明](MIGRATION.md)，三平台结果见[验收记录](ACCEPTANCE.md)。
 
 日期：2026-10-12。
 
@@ -23,7 +23,7 @@ M40 交付包括：
 
 ## 1. 现状与问题
 
-以下是 Git 跟踪的 `tests/fixtures/` 文件内容大小，GB/MB 使用十进制；不包含 Git 历史、对象压缩或运行工作区：
+本节描述设计基线中的问题。以下是当时 Git 跟踪的 `tests/fixtures/` 文件内容大小，GB/MB 使用十进制；不包含 Git 历史、对象压缩或运行工作区：
 
 | 项目 | 基线统计 | 含义 |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ M40 交付包括：
 
 ### 1.2 原始 Debug 展开不适合长期作为 golden
 
-[container encoding HIR](../../tests/fixtures/m29-container-encoding/values/program.hir.txt) 大约 24 MB，其中 CrossCone 部分约 18.5 MB，最长单行超过 3 MB。[CrossCone dump](../../compiler/hir/src/dump/cross_cone.rs) 和 [LocalConcrete dump](../../compiler/hir/src/dump/local.rs) 直接输出记录的 Rust `Debug` 表示，把内部编号、来源位置、身份记录及嵌套数据展开到期望中。
+设计基线中的 `tests/fixtures/m29-container-encoding/values/program.hir.txt`（实施后移除） 大约 24 MB，其中 CrossCone 部分约 18.5 MB，最长单行超过 3 MB。[CrossCone dump](../../compiler/hir/src/dump/cross_cone.rs) 和 [LocalConcrete dump](../../compiler/hir/src/dump/local.rs) 直接输出记录的 Rust `Debug` 表示，把内部编号、来源位置、身份记录及嵌套数据展开到期望中。
 
 快照变化不必然表示语言结果或阶段合同变化。局部编号、依赖内容或 Rust 数据表示的调整，可能产生远超过人工可审查范围的差异。基线最近一次 Darwin 快照刷新提交 `22dee6b14` 修改 360 个文件，新增 134,592 行、删除 49,708 行；这说明现有审查负担，并不单独证明其中每个差异都无意义。
 

@@ -1,0 +1,52 @@
+{
+  "baseline": "b59294fbcadce0c655cba08258497c5e7d5c28a4",
+  "implementation": "4f69f1c2b762e2b50b3aa9a9a22f4d6edf30d449",
+  "scope": "Git-tracked tests/fixtures file contents; excludes Git history and build work directories",
+  "before": {
+    "files": 32890,
+    "bytes": 8292107894,
+    "fixtures": 3771,
+    "variants": 4242,
+    "steps": 30022,
+    "platforms": {
+      "aarch64-apple-darwin": 3755,
+      "x86_64-unknown-linux-gnu": 3741,
+      "x86_64-unknown-linux-musl": 3739
+    },
+    "snapshot_declarations": 12257,
+    "scoop_sources": [
+      4939,
+      2126268
+    ],
+    "diagnostic_json": [
+      2181,
+      1092108
+    ]
+  },
+  "after": {
+    "files": 15711,
+    "bytes": 16001670,
+    "fixtures": 3771,
+    "variants": 4242,
+    "steps": 29321,
+    "platforms": {
+      "aarch64-apple-darwin": 3755,
+      "x86_64-unknown-linux-gnu": 3741,
+      "x86_64-unknown-linux-musl": 3739
+    },
+    "snapshot_declarations": 57,
+    "scoop_sources": [
+      4939,
+      2126268
+    ],
+    "diagnostic_json": [
+      2181,
+      1092126
+    ]
+  },
+  "scoop_contents_unchanged": true,
+  "diagnostic_json_changes": [
+    "tests/fixtures/m23-cli-program-link/artifact-corruption/truncated.json"
+  ],
+  "diagnostic_change": "Derive expected full archive length from the same run; all other diagnostic fields preserved."
+}

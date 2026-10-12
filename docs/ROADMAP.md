@@ -539,9 +539,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 `inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 
+### M40 fixture 精简与回归验证职责收敛（已完成并验收，[设计](milestone40/DESIGN.md)，[验收记录](milestone40/ACCEPTANCE.md)）
+
+基线为 `b59294fbc`。普通功能保留编译、运行和精确诊断，阶段结构由 typed IR 及 9 项专测负责；原生链接计划仅精确比较相关输入与绑定。fixture 内容由约 8.29 GB 减至 16.00 MB，snapshot 声明由 12,257 降至 57，4,939 份 Scoop 源码保持原样。产物持有 CLI 改为同步 artifact-only 链接；内部字节持有在 Rust 函数边界测试，不改变生产代码或产物格式。按功能提交后完成三平台适用范围验收：Darwin 3,755、GNU 3,741、musl 3,739 项通过，无未闭合失败；具体来源、补验和清理记录见验收文档。
+
 ## 3. 备注
 
-- 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
+- 里程碑内的特性验收标准：独立 fixture、组合 fixture 和准确的 negative 诊断。普通功能用例验证编译与运行；各 stage 的结构由少量代表性的 golden 或 typed IR 精确断言覆盖，产物、ABI、GC、链接与优化专测保留对应合同（见 AGENTS.md 编码准则）。
 - 普通功能 fixture 不附加无关的产物、core 或 native 输入固定指纹；缓存、确定性及产物消费一致性优先比较本次产生的值。结构快照只对明确的易变摘要字段做保留引用关系的归一化，完整类型、ABI、GC、相关符号和运行断言继续保留；规则见实现规范第 1 节及 fixture runner 说明。
 - 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为当前规则；M29完整实现与实际验证见[验收记录](milestone29/ACCEPTANCE.md)。
 - 2026-10-06 M29后续修订：`Encodable<T>`与`Decodable<T>`统一由companion/普通codec对象实现，数据类型继承不决定编码策略。移除旧实例编码、编码bound及容器/tuple条件接口，采用显式codec组合；当前语言9.5/11.13、runtime 2.2、impl 2.17与[M29设计](milestone29/DESIGN.md)同步，旧实施记录保留，修订后的实现与验证已完成。

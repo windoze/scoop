@@ -17,8 +17,8 @@ native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为�
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
 `${target_profile}` 是 core artifact 的目录名；`${symbol_prefix}` 是 C/编译器逻辑名字
 在对象符号表中的平台前缀；`${errno_eloop}` 是宿主文件系统的符号链接循环错误码。
-平台相关的 LIR、link plan 和 artifact 指纹使用 `${target}` 选择独立快照；不变的
-AST/HIR/MIR/LIR 继续共用原文件，比较时不抹去 ABI 或符号差异。
+结构／ABI／原生链接专测确有平台差异时，用 `${target}` 选择独立快照；
+平台无关的专测共用期望，比较时不抹去 ABI 或符号差异。
 手写 LLVM IR companion 声明 `tools = ["llc", ...]`，使用 `${llc}` 加
 `-mtriple=${llvm_target} -filetype=obj -relocation-model=pic` 生成目标对象。
 ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment，以产生
