@@ -46,9 +46,9 @@ pub(super) fn check(
         })
         .collect::<BTreeSet<_>>();
     let expected: &[&str] = if name == "standalone" {
-        &["Equality<Int>"]
+        &["Add<Int, Int>", "Equality<Int>"]
     } else {
-        &["Equality<Int>", "Equality<Unit>"]
+        &["Add<Int, Int>", "Equality<Int>", "Equality<Unit>"]
     };
     assert_eq!(
         applications,

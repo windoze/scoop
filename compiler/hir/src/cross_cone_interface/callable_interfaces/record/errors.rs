@@ -29,6 +29,10 @@ pub enum CallableInterfaceRecordBuildError {
         modality: CallableModalityV1,
         access: PublicLookupAccessV1,
     },
+    IntrinsicMustBeFinal {
+        declaration: CallableTemplateOrigin,
+        modality: CallableModalityV1,
+    },
     InvalidExternTarget {
         declaration: CallableTemplateOrigin,
         owner: PublicDeclarationOwnerV1,
@@ -86,6 +90,13 @@ impl fmt::Display for CallableInterfaceRecordBuildError {
             } => write!(
                 formatter,
                 "callable {declaration:?} owned by {owner:?} requires Final + DirectOnly, found {modality:?} + {access:?}"
+            ),
+            Self::IntrinsicMustBeFinal {
+                declaration,
+                modality,
+            } => write!(
+                formatter,
+                "intrinsic callable {declaration:?} requires Final, found {modality:?}"
             ),
             Self::InvalidExternTarget { declaration, owner } => write!(
                 formatter,

@@ -1,0 +1,3 @@
+@NoGC
+fun <T : Add<T, T>> add(left: T, right: T): T = left + right
+fun main() { add(1, 2) }

@@ -1,0 +1,3 @@
+public interface Add<Rhs, Result> {
+    public operator fun plus(other: Rhs): Result
+}

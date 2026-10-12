@@ -65,6 +65,17 @@ pub(super) fn check(
         );
     }
     let expected = [
+        "Add<Double, Double>",
+        "Add<Float, Float>",
+        "Add<Int16, Int16>",
+        "Add<Int8, Int8>",
+        "Add<Int, Int>",
+        "Add<Long, Long>",
+        "Add<String, String>",
+        "Add<UInt16, UInt16>",
+        "Add<UInt8, UInt8>",
+        "Add<UInt, UInt>",
+        "Add<ULong, ULong>",
         "Array<Char>",
         "Array<Int8>",
         "Array<String>",

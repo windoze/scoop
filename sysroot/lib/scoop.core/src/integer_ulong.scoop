@@ -1,5 +1,5 @@
 @Intrinsic("core_ulong")
-public struct ULong : Equality<ULong>, ToString, Hash {
+public struct ULong : Add<ULong, ULong>, Equality<ULong>, ToString, Hash {
     @NoGC @Intrinsic("ulong_to_float")
     public fun toFloat(): Float
 
@@ -31,7 +31,7 @@ public struct ULong : Equality<ULong>, ToString, Hash {
 
     @NoGC
     @Intrinsic("ulong_add")
-    public operator fun plus(other: ULong): ULong
+    public override operator fun plus(other: ULong): ULong
 
     @NoGC
     @Intrinsic("ulong_sub")

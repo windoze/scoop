@@ -1,0 +1,4 @@
+struct Key(val value: Int) : Add<Key, Key> {
+    public override fun plus(other: Key): Key = Key(value + other.value)
+}
+fun main() {}

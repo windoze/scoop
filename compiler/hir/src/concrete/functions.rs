@@ -22,6 +22,28 @@ pub struct Function {
     pub span: Span,
 }
 
+impl Function {
+    /// Physical parameter types; bodyless intrinsics have no source local ids.
+    pub fn parameter_types(&self) -> impl Iterator<Item = TypeId> + '_ {
+        let (params, intrinsic) = match &self.kind {
+            FunctionKind::Intrinsic(intrinsic) => (&[][..], intrinsic.parameters.as_slice()),
+            _ => (self.params.as_slice(), &[][..]),
+        };
+        params
+            .iter()
+            .map(|param| param.ty)
+            .chain(intrinsic.iter().copied())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IntrinsicFunction {
+    pub kind: IntrinsicFunctionKind,
+    pub provider: IntrinsicProviderId,
+    /// Complete physical signature, with the receiver first when present.
+    pub parameters: Vec<TypeId>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LocalCaptureParameter {
     pub binding: BindingId,

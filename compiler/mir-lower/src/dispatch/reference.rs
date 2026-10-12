@@ -205,7 +205,7 @@ impl Lowerer {
         match source {
             hir::InterfaceImplementationTarget::Method(id)
             | hir::InterfaceImplementationTarget::Abstract { declaration: id } => {
-                let function = self.function_map[&id];
+                let function = self.interface_method_entry(module, id);
                 let source = &module.functions[id];
                 let types = Types {
                     module,
@@ -224,7 +224,7 @@ impl Lowerer {
                 };
                 // Dispatch precedes body lowering; the concrete HIR signature
                 // is already complete, while the MIR declaration has no body.
-                let parameters = source.params.iter().map(|param| lower(param.ty)).collect();
+                let parameters = source.parameter_types().map(&mut lower).collect();
                 let result = lower(source.return_ty);
                 Target {
                     callee: mir::Callee::User(function),

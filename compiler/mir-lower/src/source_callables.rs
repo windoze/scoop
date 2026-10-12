@@ -176,18 +176,18 @@ pub(super) fn exact_function_signature(
         );
     }
     let receiver = declaration.receiver.value_type();
+    let physical_parameters = declaration.parameter_types().collect::<Vec<_>>();
     let parameters = if let Some(receiver_type) = receiver {
-        let (receiver, parameters) = declaration
-            .params
+        let (receiver, parameters) = physical_parameters
             .split_first()
             .expect("a LocalConcrete receiver has one physical receiver parameter");
         assert_eq!(
-            receiver.ty, receiver_type,
+            *receiver, receiver_type,
             "a LocalConcrete receiver parameter matches its exact receiver type",
         );
         parameters
     } else {
-        declaration.params.as_slice()
+        physical_parameters.as_slice()
     };
     hir::ExactCallableSignature::new(
         if declaration.is_suspend {
@@ -198,7 +198,7 @@ pub(super) fn exact_function_signature(
         receiver.map(|receiver| module.exact_type_identities[receiver].id()),
         parameters
             .iter()
-            .map(|parameter| module.exact_type_identities[parameter.ty].id())
+            .map(|parameter| module.exact_type_identities[*parameter].id())
             .collect(),
         module.exact_type_identities[declaration.return_ty].id(),
     )

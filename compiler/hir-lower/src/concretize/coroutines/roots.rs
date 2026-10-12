@@ -75,7 +75,7 @@ impl Concretizer<'_> {
             }
             if matches!(
                 function.kind,
-                concrete::FunctionKind::Intrinsic(intrinsic)
+                concrete::FunctionKind::Intrinsic(ref intrinsic)
                     if matches!(
                         intrinsic.kind,
                         concrete::IntrinsicFunctionKind::CoroutineStart

@@ -79,7 +79,9 @@ fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::Fun
         .map(|parameter| (parameter.name.text.as_str(), synthetic_type(&parameter.ty)))
         .collect();
     let mut result = method_full(
-        value.is_override,
+        // This minimal fixture retains only ToString and Equality conformance.
+        // Full sysroot tests cover the ordinary operator interfaces.
+        value.is_override && matches!(value.name.text.as_str(), "toString" | "equalTo"),
         false,
         &value.name.text,
         parameters,

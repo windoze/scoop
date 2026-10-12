@@ -26,7 +26,7 @@ pub use super::{
     EvaluationOrigin, ExternAbi, FunctionAttributes, GcEffect, HirCLayoutContract, HirCLayoutValue,
     HirIntegerConstant, IntegerBinaryOperator, IntegerConversion, IntegerDivRem, IntegerExpression,
     IntegerKind, IntegerOperation, IntegerOperationArity, IntegerOperator, IntegerSignedness,
-    IntegerTypeCore, IntegerUnaryOperator, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind,
+    IntegerTypeCore, IntegerUnaryOperator, IntegerWidth, IntrinsicFunctionKind,
     IntrinsicProviderId, IntrinsicTypeKind, LocalValueDefinitionSite, MaybeUninitIntrinsic,
     MethodModifier, NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind,
     Safety, StringConstantOwner, StructAttributes, UnOp,

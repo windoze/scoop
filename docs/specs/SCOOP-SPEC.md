@@ -1445,7 +1445,7 @@ local、parameter、capture、global、普通成员或扩展属性，以及 obje
 普通class可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口。
 
 
-#### 9.3.5 Core 运算符接口
+#### 9.3.6 Core 运算符接口
 
 core 运算符接口使用普通名义声明与显式 conformance，不按接口拼写获得编译器特权。
 标准加法契约为：

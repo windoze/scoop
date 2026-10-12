@@ -1,5 +1,5 @@
 @Intrinsic("core_long")
-public struct Long : Equality<Long>, ToString, Hash {
+public struct Long : Add<Long, Long>, Equality<Long>, ToString, Hash {
     @NoGC @Intrinsic("long_to_float")
     public fun toFloat(): Float
 
@@ -31,7 +31,7 @@ public struct Long : Equality<Long>, ToString, Hash {
 
     @NoGC
     @Intrinsic("long_add")
-    public operator fun plus(other: Long): Long
+    public override operator fun plus(other: Long): Long
 
     @NoGC
     @Intrinsic("long_sub")

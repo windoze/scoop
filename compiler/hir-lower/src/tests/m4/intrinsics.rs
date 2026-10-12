@@ -133,6 +133,7 @@ fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
         hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
             kind: hir::IntrinsicFunctionKind::GcCollect,
             provider,
+            ..
         }) if provider == test_provider
     ));
     let concrete = output
@@ -144,9 +145,10 @@ fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
         .expect("the concrete declaration is present");
     assert!(matches!(
         concrete.kind,
-        hir::concrete::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+        hir::concrete::FunctionKind::Intrinsic(hir::concrete::IntrinsicFunction {
             kind: hir::IntrinsicFunctionKind::GcCollect,
             provider,
+            ..
         }) if provider == test_provider
     ));
 }

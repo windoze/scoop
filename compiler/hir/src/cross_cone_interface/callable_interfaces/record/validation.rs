@@ -92,7 +92,10 @@ pub(super) fn validate_dispatch_shape(
     ) || matches!(
         declaration,
         CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
-    ) || effects.implementation() != CallableImplementationV1::Scoop;
+    ) || matches!(
+        effects.implementation(),
+        CallableImplementationV1::SourceExternScoop | CallableImplementationV1::SourceExternC(..)
+    );
     if direct_only
         && (modality != CallableModalityV1::Final || access != PublicLookupAccessV1::DirectOnly)
     {
@@ -101,6 +104,16 @@ pub(super) fn validate_dispatch_shape(
             owner,
             modality,
             access,
+        });
+    }
+    if matches!(
+        effects.implementation(),
+        CallableImplementationV1::Intrinsic(_)
+    ) && modality != CallableModalityV1::Final
+    {
+        return Err(CallableInterfaceRecordBuildError::IntrinsicMustBeFinal {
+            declaration,
+            modality,
         });
     }
     if matches!(

@@ -1,0 +1,4 @@
+struct Box<T>(val value: T)
+fun <T> add(left: T, right: T): T = left + right
+operator fun Box<Int>.plus(other: Box<Int>): Box<Int> = other
+fun main() { add(Box(1), Box(2)) }

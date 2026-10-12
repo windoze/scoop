@@ -107,6 +107,8 @@ receiver 函数类型在源码 HIR、共享签名及 exact type identity 中保�
 
 nominal application 保存原声明与完整实参；struct、enum、class、interface 各有独立 typed identity。alias 透明展开；字段、variant、构造与 property accessor 保存各自原身份。按值循环、继承环、泛型约束、GC-free 和 ZST 属性在所属语义边界确定。
 
+依赖 struct 的存储属性读取使用已发布字段身份；显式 receiver 与成员、扩展正文中的隐式 receiver 遵守同一规则。Storage accessor 不要求另行导出不存在的函数体。
+
 sealed 的继承限制在 HIR 按真实 origin、package 与声明作用域检查；成功声明保存完整直接子类型集合，class 的有效 modality 仍为 abstract。when 按这些关系与已有类型替换检查闭合家族，不在 MIR 或链接阶段重新求穷尽性。共享 nominal details 对 sealed 增加第 12 字段的规范化直接子类型身份列表，未 sealed 的原 11 字段编码保持不变；相关子类型的普通声明与继承签名进入现有共享声明闭包，私有数据不增加 public lookup binding。reader 在普通格式与引用边界检查集合及关系，消费方复用已读信息，不增加继承授权或运行期注册协议。
 
 interface implementation delegation 在 HIR lowering 中完成 slot 选择、隐藏字段分配和普通转发成员的生成。字段身份由真实宿主与继承项位置确定，和源码 property backing/delegate 字段区分；它不产生可查找的源码属性。构造记录在 base/primary store 后、body 初始化前保存 delegate，转发正文只包含普通字段读取与已绑定的接口调用。泛型构造及转发正文保留原 binder、字段和 slot 身份，跨 Cone 通过现有声明、字段和正文闭包消费，不在下游重新决定委托成员；MIR/runtime 沿用普通对象布局、接口分派和 GC 扫描。
@@ -127,7 +129,7 @@ inner class（语言规范 9.1.3.1）的 binder 先保存外层 class 的完整 
 
 singleton、runtime property 与 generic delegated application 保存完整初始化单元及 cycle throw target。constant 已完成依赖环检查与求值，没有 runtime unit。interface/default/virtual 选择在 HIR 唯一确定，qualified super 保存 direct target。
 
-core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR 先将 operator 表达式形成相应角色的普通调用请求，在定义处完成成员、bound 或扩展决议；不以某个 core 接口的实现关系作为前置过滤。generic/default body 保存所选 typed callable 或 bound slot，具体化按实际 conformance 映射实现，消费方不得重新按 import 或方法名选择。已有数值 intrinsic 可以显式覆写普通 interface slot，NoGC 实现与 Managed slot 的适配复用现有 callable/ABI；具体值直接调用仍保留 intrinsic。
+core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR 先将 operator 表达式形成相应角色的普通调用请求，在定义处完成成员、bound 或扩展决议；不以某个 core 接口的实现关系作为前置过滤。generic/default body 保存所选 typed callable 或 bound slot，具体化按实际 conformance 映射实现，消费方不得重新按 import 或方法名选择。已有数值 intrinsic 可以显式覆写普通 interface slot：其声明保持 Final，产物保存实际 slot 关系与原 intrinsic implementation，不能要求它只能是 DirectOnly。top-level、extension、constructor 与 source extern 仍遵守原直接调用合同。NoGC 实现与 Managed slot 的适配复用现有 callable/ABI；具体值直接调用仍保留 intrinsic。LocalConcrete intrinsic 必须从已解析的 source parameter interface（或已导入模板签名）保留完整物理参数类型，包括 receiver；它没有源码 local arena，不伪造参数 local id。当实际 itable 引用 intrinsic 实现时，MIR 以该实现原有 callable materialization 生成一个具备完整参数、返回值及 effect 的可调用正文，复用直接运算与 callable reference 的 typed 运算降级；不为未参与分派的 intrinsic 额外生成入口。装箱与 receiver 调整仍使用既有 interface adapter。由声明 slot 或 nominal dispatch selection 实际引用的 intrinsic 实现入口随普通 callable binding 导出，供 dependency 的 itable、装箱适配与 bound 具体化引用；只有直接展开用途的 intrinsic 不导出机器入口。
 
 `==` / `!=` 按语言规范 9.3、11.11 从普通成员中选择 operator equals，保存实际 callable 或普通接口 bound target；不要求 core Equality conformance。`Equality<T>.equalTo` 按普通 interface 声明、override 和 bound call 处理，不进入 core operator／protocol 身份表，也不为同形方法或结构比较补齐接口。
 

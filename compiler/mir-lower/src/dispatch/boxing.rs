@@ -187,12 +187,8 @@ impl Lowerer {
             hir::InterfaceImplementationTarget::Method(function) => {
                 let implementation = &module.functions[function];
                 (
-                    mir::Callee::User(self.function_map[&function]),
-                    implementation
-                        .params
-                        .iter()
-                        .map(|param| param.ty)
-                        .collect::<Vec<_>>(),
+                    mir::Callee::User(self.interface_method_entry(module, function)),
+                    implementation.parameter_types().collect::<Vec<_>>(),
                     implementation.return_ty,
                 )
             }
