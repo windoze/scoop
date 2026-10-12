@@ -111,6 +111,8 @@ struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。�
 
 `MaybeUninit<T>` 是与 T 等 size／alignment 的独立值类型，复用 T 的 inline scan。全零存储是合法 wrapper，managed 槽始终为 null 或有效引用；这不表示已经构造合法 T。零构造包括 padding，不使用 undef/poison，不清零对象头或 TD；包装、复制和重置使用普通值存储及写屏障。wrapper 不继承 T 的非空或 tag 不变量。
 
+语言规范 9.3.5 的 Add 等普通运算符接口复用实际 conformance 的 TD/itable 和现有接口调用适配；扩展运算符不增加接口表项。具体值的已选 intrinsic 或直接调用不因另有接口实现而强制装箱，不增加运算符专用 runtime ABI。
+
 语言规范 11.11 的显式 `Equality<T>.equalTo` 实现使用普通 interface TD、itable 与 callable。表项只来自实际声明或继承的 conformance；结构 operator equals 不增加接口。NoGc 值方法实现 Managed interface slot 时，itable 使用符合 slot ABI 的 Managed value/interface adapter，具体值的直接 operator 比较仍调用原实现；runtime 不按类型名、对象地址或内存字节另行判断相等。
 
 `Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在。`scoop_rt_box_zst(td)` 每次产生新的 box；`scoop_rt_unbox_zst(object, expected_td)` 检查 exact type。

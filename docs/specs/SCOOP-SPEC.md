@@ -1381,7 +1381,7 @@ property 按 getter/setter slot 转发，整体类型和 mutability 仍遵守 9.
 
 #### 9.3.2 表达式展开
 
-除单独说明外，operator展开后使用8.6的普通显式receiver调用决议，只保留具有对应typed operator identity的成员/extension候选，并完整复用8.5的default、`vararg`、泛型与求值协议：
+除单独说明外，先把 operator 表达式展开为带对应 operator 角色的调用请求，再使用8.6的普通显式receiver调用决议；不能在展开和决议之前要求 receiver 实现某个 core 运算符接口。只保留具有对应typed operator identity的成员/extension候选，并完整复用8.5的default、`vararg`、泛型与求值协议：
 
 | 源码 | 概念调用 |
 | --- | --- |
@@ -1443,6 +1443,33 @@ local、parameter、capture、global、普通成员或扩展属性，以及 obje
 `lhs name rhs`等价于`lhs.name(rhs)`，要求直接function-like候选带`infix`，或property-like候选最终选中的`invoke`同时带`operator infix`；其余决议与求值规则不变。infix调用左结合，必须显式写receiver（当前`this`上调用写成`this name rhs`）。其优先级从高到低位于range与Elvis之间：postfix、prefix、cast、乘法、加法、range、infix name、Elvis、`in`/`is`、比较、相等、`&&`、`||`、赋值。不同infix名称没有自定义优先级。
 
 普通class可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口。
+
+
+#### 9.3.5 Core 运算符接口
+
+core 运算符接口使用普通名义声明与显式 conformance，不按接口拼写获得编译器特权。
+标准加法契约为：
+
+```scoop
+public interface Add<Rhs, Result> {
+    public operator fun plus(other: Rhs): Result
+}
+```
+
+`Rhs` 与 `Result` 分别表示右操作数和结果，均保持 invariant，不引入隐式 Self 或 associated type。
+八种整数、Float、Double 与 String 显式实现 `Add<该类型, 该类型>`，已有 `plus` 方法以
+`override operator` 实现 slot；数值 intrinsic 仍保留既有 NoGC effect。该接口为 ordinary、safe、
+Managed 调用合同；NoGC 实现沿普通接口适配规则消费，不将 generic bound call 隐式降为 NoGC。
+`Ptr<T>` 的加法是 unsafe，不能以它实现这个 safe slot，仍可在合法 unsafe 上下文直接调用。
+
+`K : Add<K, K>` 使泛型正文的 `left + right` 在定义处绑定到 Add 的成员，具体化后取得 K 的
+实际实现。异构 `Add<Vector, Point>` 同样合法。普通成员或当前作用域可见的 extension operator
+不要求 Add conformance；反过来，只有同名成员、扩展或可执行的加法表达式都不产生 Add 接口关系，
+不改变 bound、装箱、`is/as` 或 itable。缺少显式 conformance 的类型不能用于要求 Add 的参数。
+调用方后来 import 的扩展既不能补救定义处不成立的调用，也不能替换已发布正文保存的 typed 目标。
+
+接口方法自身仍不能泛型化；suspend、unsafe、default 和 vararg 的适配遵守普通声明及 override
+规则，不为统一运算符接口而隐藏调用效果或改变原本合法的直接调用。其他运算符仍按本节既有约定决议。
 
 ### 9.4 注解
 
