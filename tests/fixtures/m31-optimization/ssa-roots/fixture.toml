@@ -24,7 +24,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "program.${profile}.${target}.lir.txt"},
+  {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "program.${profile}.lir.txt"},
 ]
 
 [[steps]]

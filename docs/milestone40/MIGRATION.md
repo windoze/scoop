@@ -45,7 +45,7 @@
 4. 保留小而明确的结构/优化期望；检查整个发现集合，记录源文件、诊断、target 与执行路径没有丢失。
 5. 本机格式/lint、公共 runner 规则测试及针对性验证后，再做 Darwin、GNU、musl 正式验收。
 
-实际保留集合、迁移差异和最终统计在完成后补齐；不先全量刷新旧快照。
+实际保留集合和迁移差异见以下批次说明，最终统计与各目标结果见[验收记录](ACCEPTANCE.md)；不批量刷新旧快照。
 临时文件使用仓库 `target/m40/tmp`，定期清理已结束的用例工作目录，保留报告。
 
 ### 符号快照批次
@@ -103,7 +103,20 @@ LIR 检查引用活跃位置、聚合 carrier 与 Scoop/C ABI 及跨 Cone 调用
 
 期望由原有已验收计划直接截取同一区段，不使用编译器批量刷新；
 启动、root、runtime registration 的物理关系由现有 typed 链接测试和真实程序执行覆盖。
-新增规则共 19 行，测试使用真实比较入口验证 selection、range、digest 关系、动态目标、
+测试使用真实比较入口验证 selection、range、digest 关系、动态目标、
 weak 属性与未知字段的变化都会使只读验证失败。
 Ruff 与 47 项公共规则测试通过；archive-chain、dynamic-reexport、runtime-location
 三项 CLI 验证通过（27 进程、4 golden），见 [报告](validation/native-plan-darwin.json)。
+
+ODR 补验：本机 codegen/slib 的 15 项选测和 driver 的真实 provider/consumer
+共享 ODR 产物测试通过；后者直接检查实际生成对象和跨 consumer 的实体复用。
+
+### 残余重复
+
+`m31-ssa-roots` 的三 target LIR 字节完全相同，合并为各 profile 一份共享文件，
+删除四个副本；三个 target 与 debug/release/minor 的执行矩阵保持。
+`native-link-runtime-gc` 和 `native-link-runtime-handles` 没有用户 native 输入，
+投影后的计划只剩固定链接顺序标题及 ELF 系统导入计数，故删除六份无关计划和
+对应 `--dump-plan` 请求。构建/独立链接指纹相等、普通及 moving GC 运行仍精确检查。
+这也闭合了 Darwin 全量发现的两项遗漏投影规则问题，而不是继续保留空泛快照。
+本机 SSA roots 三变体以及两个 GC 用例四变体补验通过。
