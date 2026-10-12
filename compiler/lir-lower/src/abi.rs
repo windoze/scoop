@@ -6,10 +6,7 @@ use crate::{LoweringContext, StorageResult, lir_type, safepoints};
 mod leaves;
 pub(crate) use leaves::{aggregate_layout, scalar_carrier};
 
-pub(crate) enum ValueStorage {
-    ZeroSized(lir::AbiZst),
-    NonZero(lir::AbiValue),
-}
+pub(crate) use lir::AbiStorage as ValueStorage;
 
 pub(crate) fn classify_storage(
     context: &LoweringContext,

@@ -32,3 +32,10 @@
 - 保留原 `scoop_float_init_environment` 入口与 fesetenv／FPCR／MXCSR 行为，不改公共 runtime ABI。移植后的纯 frame decoder 仍能在其他宿主运行结构测试。
 - 本机 fmt、workspace clippy、22 项 toolchain 测试、29 项 runtime collector／线程／初始化回归通过；release CLI 构建成功。
 - 浮点环境扰动恢复、值类型、FFI、协程、JSON 及跨 Cone 6 项 CLI 全部通过（9 变体、54 进程），见 [02-darwin.json](validation/02-darwin.json)。无快照更新。
+
+## 功能 3：消费提供方的物理 ABI
+
+- 外部 callable 直接将提供方的 canonical ABI 绑定到消费者本地存储与类型，不再先重新分类后比较；保留参数数量、尺寸／对齐、carrier 范围及既有 exact signature、GC root 协议校验。
+- 删除重复的 ABI 比较模块；存储绑定与测试分开。新增隐藏 sret 导致 SysV aggregate 整组回退、后续浮点参数和短 carrier 的精确测试，并覆盖错误存储诊断。
+- 本机 fmt、workspace clippy、476 项 LIR 测试、6 项 lowering 外部调用测试、3 项 codegen 外部调用测试通过；release CLI 构建成功。
+- 小值跨库产物、suspend member、泛型 release 及 native aggregate release 四项正式 CLI 通过（5 变体、40 进程、4 次 golden 检查），无期望更新，见 [03-darwin.json](validation/03-darwin.json)。

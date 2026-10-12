@@ -60,8 +60,6 @@ pub use callable_abi::*;
 mod external_callable;
 pub use external_callable::*;
 
-mod external_callable_abi;
-
 mod external_type_descriptor;
 pub use external_type_descriptor::*;
 

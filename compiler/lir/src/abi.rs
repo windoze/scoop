@@ -7,6 +7,9 @@ use super::{
 
 static EMPTY_REF_SCAN: RefScan = RefScan::None;
 
+mod storage_signature;
+pub use storage_signature::{AbiStorage, AbiStorageReturn, AbiStorageSignature};
+
 mod direct;
 pub use direct::{AbiDirectParts, AbiDirectValue};
 mod aggregate;

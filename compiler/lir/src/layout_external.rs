@@ -4,9 +4,9 @@
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, StrongCallableDefinitionOwner};
 
 use crate::{
-    ExternalCallable, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
-    LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1, ScoopAbiSignature,
-    SelectedDependencyLayoutAbiSetV1, ShapeLinkContractV1, StrongProductionDependencySelectionV2,
+    AbiStorageSignature, ExternalCallable, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
+    LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1, SelectedDependencyLayoutAbiSetV1,
+    ShapeLinkContractV1, StrongProductionDependencySelectionV2,
 };
 
 mod boxing;
@@ -52,7 +52,7 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         &self,
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
-        signature: ScoopAbiSignature,
+        signature: AbiStorageSignature,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
         materialize_callable(self, provider, target, signature)
     }
@@ -99,7 +99,7 @@ impl StrongProductionDependencySelectionV2<'_> {
         &self,
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
-        signature: ScoopAbiSignature,
+        signature: AbiStorageSignature,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
         materialize_callable(self, provider, target, signature)
     }
@@ -211,7 +211,7 @@ fn materialize_callable<'a>(
     selected: &'a impl MaterializationSelection<'a>,
     provider: ConeIdentity,
     target: StrongCallableDefinitionOwner,
-    signature: ScoopAbiSignature,
+    signature: AbiStorageSignature,
 ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
 

@@ -147,12 +147,10 @@ impl SelectedDependencyLirCallableV1 {
         &self.bridge
     }
 
-    /// Materializes the separately typed LIR external arena entry only after
-    /// checking the target-specific physical ABI against this canonical
-    /// selected bridge.
+    /// Binds consumer-local storage to the provider's selected physical ABI.
     pub fn materialize(
         &self,
-        signature: crate::ScoopAbiSignature,
+        signature: crate::AbiStorageSignature,
     ) -> Result<crate::ExternalCallable, crate::ExternalCallableBuildError> {
         crate::ExternalCallable::new(self.clone(), signature)
     }
