@@ -64,7 +64,7 @@ fn impossible_cast_is_an_error() {
 }
 
 #[test]
-fn mutable_variables_are_not_smart_cast() {
+fn assignment_invalidates_mutable_variable_smart_cast() {
     let file = file(vec![
         struct_s(),
         fun_sig(
@@ -73,9 +73,7 @@ fn mutable_variables_are_not_smart_cast() {
             vec![],
             Some(ty_named("Int")),
             vec![
-                // `var x: Any` — the mutable variable is not narrowed
-                // inside the branch, so `x.v` still resolves against
-                // `Any`.
+                // Assignment invalidates the branch's view of `x` as `S`.
                 Statement {
                     kind: StatementKind::ValDecl(ValDecl {
                         mutable: true,
@@ -88,7 +86,7 @@ fn mutable_variables_are_not_smart_cast() {
                 },
                 if_stmt(
                     is_ty(var("x"), ty_named("S"), false),
-                    vec![ret(Some(field(var("x"), "v")))],
+                    vec![assign("x", int_lit(0)), ret(Some(field(var("x"), "v")))],
                     None,
                 ),
                 ret(Some(int_lit(0))),
@@ -96,7 +94,7 @@ fn mutable_variables_are_not_smart_cast() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower_user(file).expect_err("a mutable variable must not narrow");
+    let errors = lower_user(file).expect_err("assignment must invalidate the narrowed view");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "type `Any` has no fields");
 }

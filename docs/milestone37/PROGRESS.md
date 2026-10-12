@@ -247,3 +247,5 @@ annotation 参数/default 和元注解先完成绑定，再按最终规则检查
 ## Linux 总验收（进行中）
 
 已将全部功能提交同步到 `nuc12:~/repos/scoop`。首轮 Linux workspace fmt/clippy 通过；完整 Rust 测试发现三条旧 wire 测试仍将整型枚举的新 tag 当作未知标签，或保存了扩展前的空注解表编码。按现有规范迁移这三条断言，未知标签改用未定义的 255，固定编码继续精确比较；没有修改生产代码或放宽 reader 检查。本机 fmt/clippy 与 HIR 全部 905 项测试通过，Linux 继续验证其余 workspace 与正式 CLI。
+
+后续全量中的两条旧 HIR lower 断言同步到现行源码规则：局部 var 的负例改为赋值后撤销 smart cast；固定类型 alias 构造的诊断位置与已验收的四条正式 CLI negative 保持一致，仍检查完整类型错误与源码区间。本机 fmt/clippy 后，两项定向 Rust 回归通过；不改生产代码。

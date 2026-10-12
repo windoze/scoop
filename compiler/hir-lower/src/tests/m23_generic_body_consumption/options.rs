@@ -3,11 +3,14 @@ use super::*;
 #[test]
 fn nominal_constructor_arguments_retain_the_complete_expected_application() {
     for (case, expression) in [
-        ("bad-alias-payload", "\"wrong\""),
-        ("bad-alias-erased", "\"wrong\""),
-        ("bad-local-alias-payload", "value = \"wrong\""),
+        ("bad-alias-payload", "IntPacket.Item(\"wrong\")"),
+        ("bad-alias-erased", "IntPacket.Item(\"wrong\")"),
+        (
+            "bad-local-alias-payload",
+            "LocalPacket.Named(value = \"wrong\")",
+        ),
         ("bad-contextual-payload", "\"wrong\""),
-        ("bad-constructor-alias-payload", "\"wrong\""),
+        ("bad-constructor-alias-payload", "IntHolder(\"wrong\")"),
     ] {
         let source = fixture(case);
         let errors = with_provider_consumer(&fixture("provider"), &source, |_, _, _, _, _| ())
