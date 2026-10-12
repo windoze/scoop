@@ -1,0 +1,16 @@
+fun mark(value: Int): Int { println(value); return value }
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class L(val value: Int) : Left { override fun left(): Int = value }
+class R(val value: Int) : Right { override fun right(): Int = value }
+open class Base(val code: Int) { init { mark(2) } }
+class Host(val primary: Int) : Base(mark(1)), Left by L(mark(primary + 3)), Right by R(mark(4)) {
+    val body: Int = mark(5)
+    init { println(6) }
+}
+fun main() {
+    val host = Host(mark(0))
+    println(host.primary)
+    println(host.left())
+    println(host.right())
+}

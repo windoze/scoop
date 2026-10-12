@@ -31,9 +31,11 @@ fn callback_registration(lambda_id: u32, mode: &str) -> ast::Expr {
         ty_named("Int"),
     );
     let callback = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(lambda_id),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("Int")),
             span: sp(),
@@ -54,6 +56,7 @@ fn callback_registration(lambda_id: u32, mode: &str) -> ast::Expr {
 
 fn lambda_with_local(id: u32) -> ast::Expr {
     ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(id),
         is_suspend: false,
         parameters: Some(Vec::new()),

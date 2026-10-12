@@ -1,0 +1,12 @@
+fun length(value: Any): Long {
+    when (value) { !is String -> return 0L; else -> {} }
+    return value.length
+}
+fun conditional(value: Any): Long {
+    when { value !is String -> return -1L }
+    return value.length
+}
+fun main() {
+    println(length("when")); println(length(42))
+    println(conditional("abc")); println(conditional(42))
+}

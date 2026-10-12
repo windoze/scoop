@@ -68,11 +68,13 @@ impl Lowerer {
             if !seen.insert(owner) {
                 continue;
             }
-            if matches!(self.types[owner], hir::Type::Class(_)) {
-                pending.extend(self.direct_nominal_supertypes(owner));
+            pending.extend(self.direct_nominal_supertypes(owner));
+            if matches!(
+                self.types[owner],
+                hir::Type::Class(_) | hir::Type::Integer(_)
+            ) {
                 continue;
             }
-            pending.extend(self.direct_nominal_supertypes(owner));
             let interface = self
                 .dependency_interface_definition(owner)
                 .expect("dependency parents retain their complete nominal types");

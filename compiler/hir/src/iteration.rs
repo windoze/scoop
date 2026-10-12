@@ -52,7 +52,7 @@ impl IterationCore {
             || method.role != InterfaceMemberRole::Function
             || method.implementation != InterfaceMemberImplementation::AbstractSlot
             || !method.overrides.is_empty()
-            || function.name.rsplit('.').next() != Some("next")
+            || function.name != "Iterator.next"
             || function.access.declared != DeclaredVisibility::Public
             || function.is_suspend
             || function.modifiers != CallableModifiers::default()

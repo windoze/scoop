@@ -43,7 +43,6 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 
-use crate::scope::Scopes;
 use crate::types::ArrayKind;
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
@@ -84,6 +83,7 @@ mod copy_updates;
 mod elvis;
 mod fields;
 mod floating;
+mod receivers;
 mod smart_casts;
 pub(crate) use floating::{float_literal_candidate_kinds, float_literal_default_kind};
 pub(crate) use smart_casts::SmartCastFacts;
@@ -99,7 +99,6 @@ pub(crate) use support::{
 mod type_checks;
 
 pub(crate) use analysis::expr_contains_return;
-use analysis::*;
 
 pub(crate) struct NominalArguments {
     pub(crate) args: Vec<hir::Expr>,
@@ -170,6 +169,8 @@ enum ReferenceExtensionMode {
     Exclude,
     IncludeUnbound,
     Bound(TypeId),
+    UnboundMember(TypeId),
+    UnboundExtension(TypeId),
 }
 
 #[derive(Clone, Copy)]
@@ -182,7 +183,7 @@ struct ReferenceResolutionContext<'a> {
 }
 
 struct ResolvedReference {
-    target: hir::CallableReferenceTarget,
+    target: callable_references::ReferenceTarget,
     type_args: Vec<TypeId>,
     ty: TypeId,
 }
@@ -247,9 +248,19 @@ impl Lowerer {
         if self.reject_release_expression(expr) {
             return None;
         }
+        let incoming = self.smart_casts.clone();
+        let start = sink.len();
         let lowered = match expr {
-            ast::Expr::Return { value, span } => {
-                self.lower_return(value.as_deref(), *span, sink)?;
+            ast::Expr::AnonymousObject(declaration) => {
+                self.lower_anonymous_object(declaration, sink)
+            }
+            ast::Expr::LoopJump { kind, label, span } => {
+                let kind = self.lower_loop_jump(*kind, label.as_ref(), *span)?;
+                sink.push(hir::Statement { kind, span: *span });
+                Some(self.unreachable_expression(*span))
+            }
+            ast::Expr::Return { label, value, span } => {
+                self.lower_return(label.as_ref(), value.as_deref(), *span, sink)?;
                 Some(self.unreachable_expression(*span))
             }
             ast::Expr::Throw { value, span } => {
@@ -333,19 +344,6 @@ impl Lowerer {
                         self.lower_struct_init(struct_id, ty, call, sink, expected)
                     }
                 }
-                Constructor::Variant { target, alias } => {
-                    let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
-                    self.lower_variant_construct(
-                        target,
-                        CallSite {
-                            type_args: &[],
-                            args,
-                            span: *span,
-                        },
-                        sink,
-                        expected,
-                    )
-                }
                 Constructor::Class { class_id, alias } => {
                     let expected = alias.as_ref().map_or(expected, |alias| Some(alias.target));
                     self.lower_class_construct(
@@ -390,13 +388,23 @@ impl Lowerer {
             },
             ast::Expr::Var(name) => self.lower_var(name, sink, expected),
             ast::Expr::Lambda {
+                label,
                 is_suspend,
                 parameters,
                 body,
                 span,
                 ..
-            } => self.lower_lambda(*is_suspend, parameters.as_deref(), body, *span, expected),
+            } => self.lower_lambda(
+                label.as_ref(),
+                *is_suspend,
+                parameters.as_deref(),
+                body,
+                *span,
+                expected,
+            ),
             ast::Expr::AnonymousFunction {
+                label,
+                receiver,
                 is_suspend,
                 params,
                 return_ty,
@@ -404,9 +412,11 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_anonymous_function(
+                label.as_ref(),
+                receiver.as_deref(),
                 *is_suspend,
                 params,
-                return_ty.as_ref(),
+                return_ty.as_deref(),
                 body,
                 *span,
                 expected,
@@ -466,7 +476,7 @@ impl Lowerer {
             ast::Expr::Elvis { lhs, rhs, span } => {
                 self.lower_elvis(lhs, rhs, *span, sink, expected)
             }
-            ast::Expr::This { span } => self.lower_this(*span),
+            ast::Expr::This { label, span } => self.lower_this(label.as_ref(), *span),
             ast::Expr::MethodCall {
                 receiver,
                 name,
@@ -558,6 +568,10 @@ impl Lowerer {
         {
             return None;
         }
+        if let Some(value) = &lowered {
+            self.materialize_callable_captures(value, sink);
+            self.advance_smart_casts(incoming, &sink[start..], Some(value));
+        }
         lowered
     }
 }
@@ -565,10 +579,6 @@ impl Lowerer {
 /// What a `Name` / `Name(...)` construction site resolved to (see
 /// `classify_constructor`).
 enum Constructor {
-    Variant {
-        target: hir::EnumVariantRef,
-        alias: Option<AliasExpansion>,
-    },
     Struct {
         struct_id: hir::StructId,
         ty: TypeId,

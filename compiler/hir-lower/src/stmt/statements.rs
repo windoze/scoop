@@ -14,6 +14,13 @@ impl Lowerer {
         statement: &ast::Statement,
         out: &mut Vec<hir::Statement>,
     ) {
+        let incoming = self.smart_casts.clone();
+        let start = out.len();
+        self.lower_statement_inner(statement, out);
+        self.advance_smart_casts(incoming, &out[start..], None);
+    }
+
+    fn lower_statement_inner(&mut self, statement: &ast::Statement, out: &mut Vec<hir::Statement>) {
         if self.reject_release_statement(statement) {
             return;
         }
@@ -29,13 +36,13 @@ impl Lowerer {
                     out.extend(sink);
                     return;
                 }
-                // M1 rule, unchanged: expression statements are calls
-                // (declarations, assignments and control flow are their
-                // own statement kinds since M2; M6 adds method calls).
+                // Calls and updates may discard their result; declarations,
+                // assignments and control flow have their own statement kinds.
                 // Constructions lower to `StructInit` /
                 // `VariantConstruct`, not `Call`, so they are rejected
                 // here.
                 if self.is_nothing_ty(lowered.ty)
+                    || matches!(expr, ast::Expr::Update { .. })
                     || matches!(
                         lowered.kind,
                         hir::ExprKind::Call { .. }
@@ -59,14 +66,22 @@ impl Lowerer {
                     return;
                 }
             }
+            ast::StatementKind::TypeAlias(declaration) => {
+                self.declare_local_type_alias(declaration);
+                return;
+            }
+            ast::StatementKind::LocalType(declaration) => {
+                self.lower_local_type(declaration, false);
+                return;
+            }
             ast::StatementKind::LocalFunction(function) => {
-                let Some(local) = self.lower_local_function_decl(function) else {
+                let Some(local) = self.lower_local_function_decl(function, out) else {
                     return;
                 };
                 hir::StatementKind::LocalFunction(local)
             }
-            ast::StatementKind::Return { value } => {
-                self.lower_return(value.as_ref(), statement.span, out);
+            ast::StatementKind::Return { label, value } => {
+                self.lower_return(label.as_ref(), value.as_ref(), statement.span, out);
                 return;
             }
             ast::StatementKind::ValDecl(decl) => {
@@ -105,15 +120,10 @@ impl Lowerer {
                 // The condition is evaluated exactly once, right before
                 // the `if`, so desugaring statements belong before it.
                 out.extend(sink);
-                // Smart casts (milestone6 DESIGN.md 5.4): `x is T`
-                // narrows `x` in the then branch, `x !is T` in the
-                // else branch. Skipped when the condition produced
-                // diagnostics (its narrowings would be unreliable; the
-                // module is rejected anyway).
                 let (then_narrowings, else_narrowings) = if self.diagnostics.len() == before {
                     (
-                        self.resolve_smart_casts(&if_.cond, true),
-                        self.resolve_smart_casts(&if_.cond, false),
+                        self.checked_condition_facts(&cond, true),
+                        self.checked_condition_facts(&cond, false),
                     )
                 } else {
                     (Default::default(), Default::default())
@@ -130,22 +140,11 @@ impl Lowerer {
                     else_body,
                 }
             }
-            ast::StatementKind::While(while_) => {
-                let target = self.fresh_loop();
-                self.loop_targets.push(target);
-                let mut sink = Vec::new();
-                let Some(cond) = self.lower_condition(&while_.cond, "while", &mut sink) else {
-                    assert_eq!(self.loop_targets.pop(), Some(target));
+            ast::StatementKind::While(loop_) => {
+                let Some(kind) = self.lower_loop(loop_) else {
                     return;
                 };
-                let body = self.lower_block(&while_.body);
-                assert_eq!(self.loop_targets.pop(), Some(target));
-                hir::StatementKind::While {
-                    target,
-                    condition_setup: sink,
-                    cond,
-                    body,
-                }
+                kind
             }
             ast::StatementKind::For(for_) => {
                 if let Some(statements) = self.lower_for(for_) {
@@ -153,25 +152,23 @@ impl Lowerer {
                 }
                 return;
             }
-            ast::StatementKind::Break => {
-                let Some(&target) = self.loop_targets.last() else {
-                    self.error(
-                        statement.span,
-                        "`break` is only allowed inside a loop".into(),
-                    );
+            ast::StatementKind::Break { label } => {
+                let Some(jump) =
+                    self.lower_loop_jump(ast::LoopJumpKind::Break, label.as_ref(), statement.span)
+                else {
                     return;
                 };
-                hir::StatementKind::Break { target }
+                jump
             }
-            ast::StatementKind::Continue => {
-                let Some(&target) = self.loop_targets.last() else {
-                    self.error(
-                        statement.span,
-                        "`continue` is only allowed inside a loop".into(),
-                    );
+            ast::StatementKind::Continue { label } => {
+                let Some(jump) = self.lower_loop_jump(
+                    ast::LoopJumpKind::Continue,
+                    label.as_ref(),
+                    statement.span,
+                ) else {
                     return;
                 };
-                hir::StatementKind::Continue { target }
+                jump
             }
             ast::StatementKind::Block(block) => {
                 self.push_scope();

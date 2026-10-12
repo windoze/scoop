@@ -19,10 +19,12 @@ SourceFile
       Call Result<T>
     Call startCoroutine
       Lambda 1 suspend=true
+        label startCoroutine
         parameters omitted
         Call rebuiltAwait<T>
           Argument trailing
             Lambda 0 suspend=false
+              label rebuiltAwait
               param continuation: Continuation<T>
               assign .continuation
                 Var pending
@@ -61,10 +63,12 @@ SourceFile
       Call Result<T>
     Call startCoroutine
       Lambda 3 suspend=true
+        label startCoroutine
         parameters omitted
         Call rebuiltAwait<T>
           Argument trailing
             Lambda 2 suspend=false
+              label rebuiltAwait
               param continuation: Continuation<T>
               assign .continuation
                 Var failedPending
@@ -104,5 +108,6 @@ SourceFile
       Call exercise
         IntLiteral 42
         Lambda 4 suspend=false
+          label exercise
           param value: Int
           Var value

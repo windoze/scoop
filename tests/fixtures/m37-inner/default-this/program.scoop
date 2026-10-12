@@ -1,0 +1,1 @@
+class Outer(val seed: Int) { inner class Inner(val value: Int = this.seed) }

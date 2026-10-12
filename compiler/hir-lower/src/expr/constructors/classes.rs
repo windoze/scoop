@@ -64,6 +64,7 @@ impl Lowerer {
             &name,
             &candidates,
             crate::constructor_resolution::NominalConstructorCall {
+                enclosing: None,
                 explicit_type_args: &explicit_type_args,
                 expected_type_args: expected_arguments.as_deref(),
                 arguments: args,

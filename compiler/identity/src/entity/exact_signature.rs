@@ -86,6 +86,17 @@ impl ExactCallableSignature {
         self.receiver
     }
 
+    pub fn argument_types(&self) -> impl Iterator<Item = PersistentExactTypeId> + '_ {
+        self.receiver
+            .into_option()
+            .into_iter()
+            .chain(self.parameters.iter().copied())
+    }
+
+    pub fn arity(&self) -> usize {
+        usize::from(self.receiver.is_present()) + self.parameters.len()
+    }
+
     pub fn parameters(&self) -> &[PersistentExactTypeId] {
         &self.parameters
     }

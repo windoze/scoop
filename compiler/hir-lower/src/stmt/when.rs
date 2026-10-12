@@ -5,6 +5,7 @@ use super::*;
 mod conditions;
 mod coverage;
 mod primary;
+mod sealed;
 mod subject;
 mod values;
 
@@ -153,6 +154,11 @@ impl Lowerer {
     ) -> Option<hir::WhenFallback> {
         if let Some(body) = else_body {
             return Some(hir::WhenFallback::Else(body));
+        }
+        if self.sealed_subtypes(subject.value.ty).is_some() {
+            return self
+                .prove_sealed_when(when, subject.value.ty)
+                .map(hir::WhenFallback::Impossible);
         }
         let has_case = heads
             .iter()

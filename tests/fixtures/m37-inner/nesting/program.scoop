@@ -1,0 +1,19 @@
+class Outer<T>(val first: T) {
+    inner class Middle<U>(val second: U) {
+        inner class Leaf<V>(val third: V) {
+            fun a(): T = this@Outer.first
+            fun b(): U = this@Middle.second
+            fun c(): V = third
+        }
+        fun leaf(): Leaf<Int> = Leaf(42)
+    }
+}
+fun main() {
+    val outer = Outer("outer")
+    val middle = outer.Middle("middle")
+    val leaf: Outer<String>.Middle<String>.Leaf<Int> = middle.Leaf(42)
+    println(leaf.a())
+    println(leaf.b())
+    println(leaf.c())
+    println(middle.leaf().c())
+}

@@ -72,8 +72,8 @@ impl Lexer<'_> {
                 {
                     let start = self.pos;
                     self.pos += 1;
-                    while self.peek_char().is_some_and(is_ident_continue) {
-                        self.pos += 1;
+                    while let Some(c) = self.peek_char().filter(|c| is_ident_continue(*c)) {
+                        self.pos += c.len_utf8();
                     }
                     let name = &self.source[start + 1..self.pos];
                     return Err(Diagnostic::at(

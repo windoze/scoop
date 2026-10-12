@@ -81,7 +81,9 @@ unbox_shape(const void *object, const ScoopTypeDescriptor *expected_td,
     if (!scoop_gc_is_object_start_locked(object)) {
         scoop_shape_fatal("unbox requires a managed object start");
     }
-    if (((const ScoopObjectHeader *)object)->td != expected_td) {
+    const ScoopTypeDescriptor *actual_td = ((const ScoopObjectHeader *)object)->td;
+    if (actual_td != expected_td &&
+        (storage_kind != SCOOP_INLINE_STORAGE_INLINE_V1 || actual_td->parent != expected_td)) {
         scoop_shape_fatal("unbox exact TypeDescriptor mismatch");
     }
     scoop_shape_validate_object(object, scoop_gc_object_size_locked(object));

@@ -1,26 +1,22 @@
 use super::*;
 mod anonymous;
 mod parameters;
+mod returns;
 mod synthesized;
 
 impl Lowerer {
     pub(super) fn lower_lambda(
         &mut self,
+        label: Option<&ast::Ident>,
         is_suspend: bool,
         parameters: Option<&[ast::LambdaParam]>,
         body: &ast::Block,
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if block_contains_return(body) {
-            self.error(
-                span,
-                "a lambda cannot use `return`; use an anonymous function for local returns".into(),
-            );
-            return None;
-        }
         self.with_pattern_transaction(|state| {
             state.lower_lambda_inner(
+                label,
                 is_suspend,
                 parameters,
                 body.span,
@@ -35,8 +31,10 @@ impl Lowerer {
     /// plans, body, captures and generated entities commit together. Callers
     /// enter through `lower_lambda`, which supplies the single owner-level
     /// transaction around this implementation.
+    #[allow(clippy::too_many_arguments)]
     fn lower_lambda_inner(
         &mut self,
+        label: Option<&ast::Ident>,
         is_suspend: bool,
         parameters: Option<&[ast::LambdaParam]>,
         body_span: Span,
@@ -99,13 +97,28 @@ impl Lowerer {
             crate::definition_paths::DefinitionPathContext::nested(&definition_path),
         );
         let outer_locals = std::mem::take(&mut self.locals);
-        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let nested_scope = self.scopes.nested_callable();
+        let outer_scopes = std::mem::replace(&mut self.scopes, nested_scope);
         let outer_return_ty = self.current_return_ty;
+        let outer_return_inference = self.return_inference.take();
+        let outer_callable_label = std::mem::replace(
+            &mut self.current_callable_label,
+            label.map(|name| name.text.clone()),
+        );
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
+        let outer_initialization = if expected_signature
+            .as_ref()
+            .is_some_and(|(_, signature)| signature.receiver.is_some())
+        {
+            self.initialization_context.take()
+        } else {
+            None
+        };
+        let outer_receivers = self.receiver_scopes.len();
         let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
             available: capture_environment,
@@ -130,36 +143,38 @@ impl Lowerer {
         let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = (|| {
+            let receiver_ty = expected_signature
+                .as_ref()
+                .and_then(|(_, signature)| signature.receiver);
+            let receiver = receiver_ty.map(|ty| {
+                self.bind_callable_receiver(ty, label.map(|label| label.text.clone()), span)
+            });
+            if receiver.is_none() {
+                self.push_receiver_scope(label.map(|label| label.text.clone()), None);
+            }
             let parameters = self.lower_lambda_parameters(
                 &source_parameters,
                 expected_signature.as_ref().map(|(_, signature)| signature),
                 span,
             )?;
             let mut prefix = parameters.prefix;
-            let abi_params = parameters.abi;
+            let mut abi_params = parameters.abi;
+            if let Some(receiver) = receiver {
+                abi_params.insert(0, receiver);
+            }
             let parameter_types = parameters.types;
 
             let expected_return = expected_signature
                 .as_ref()
                 .map(|(_, signature)| signature.return_type);
+            self.current_return_ty = expected_return.unwrap_or(self.unit);
+            self.return_inference = expected_return.is_none().then(ReturnInference::default);
             let mut value_block = lower_body(self, expected_return)?;
-            let return_ty = value_block
-                .value
-                .as_ref()
-                .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
-            if let Some(expected_return) = expected_return
-                && !self.types_equal(expected_return, self.unit)
-                && !self.is_subtype(return_ty, expected_return)
-            {
-                let expected = self.type_name(expected_return);
-                let found = self.type_name(return_ty);
-                self.error(
-                    body_span,
-                    format!("lambda result must be of type {expected}, found {found}"),
-                );
+            let return_ty =
+                self.finish_lambda_returns(&mut value_block, expected_return, body_span)?;
+            if !self.check_local_type_result(return_ty, body_span, &self.scopes.clone(), true) {
                 return None;
             }
-            let return_ty = expected_return.unwrap_or(return_ty);
             self.current_return_ty = return_ty;
             prefix.append(&mut value_block.statements);
             if let Some(value) = value_block.value.take() {
@@ -184,7 +199,12 @@ impl Lowerer {
                     });
                 }
             }
-            let function_type = self.intern_function_type(is_suspend, parameter_types, return_ty);
+            let function_type = self.intern_receiver_function_type(
+                is_suspend,
+                receiver_ty,
+                parameter_types,
+                return_ty,
+            );
             let function_ty = self.function_types[function_type].canonical_type;
             let closure_local = self.alloc_synthetic_local(
                 "$closure".to_string(),
@@ -201,6 +221,11 @@ impl Lowerer {
             params.extend(abi_params);
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
+            let annotation_locals = source_parameters
+                .iter()
+                .flatten()
+                .any(|p| !p.annotations.is_empty())
+                .then(|| self.locals.clone());
             let function = self.functions.alloc(hir::Function {
                 signature: hir::CallableSignature {
                     context_parameters: Vec::new(),
@@ -226,6 +251,32 @@ impl Lowerer {
                 self.register_generic(function, type_params.clone());
             }
             self.function_files.insert(function, self.current_file);
+            for (index, parameter) in source_parameters.iter().enumerate() {
+                if let Some(ty) = parameter.and_then(|parameter| parameter.ty.as_ref()) {
+                    self.annotate_type_site(
+                        hir::SourceAnnotationTarget::Parameter {
+                            callable: hir::SourceAnnotationCallable::Function(function),
+                            index: index as u32,
+                        },
+                        hir::AnnotationTypeSlot::Value,
+                        ty,
+                    );
+                }
+            }
+            if let Some(locals) = annotation_locals {
+                let empty = std::mem::replace(&mut self.locals, locals);
+                for (index, parameter) in source_parameters.iter().enumerate() {
+                    let Some(parameter) = parameter else { continue };
+                    self.bind_source_annotations(
+                        hir::SourceAnnotationTarget::Parameter {
+                            callable: hir::SourceAnnotationCallable::Function(function),
+                            index: index as u32,
+                        },
+                        &parameter.annotations,
+                    );
+                }
+                self.locals = empty;
+            }
             let captures = self.finish_current_captures(literal_origin);
             let id = self.lambdas.alloc(hir::Lambda {
                 definition: hir::LexicalFunctionDefinition::Source {
@@ -255,11 +306,17 @@ impl Lowerer {
         self.locals = outer_locals;
         self.scopes = outer_scopes;
         self.current_return_ty = outer_return_ty;
+        self.return_inference = outer_return_inference;
+        self.current_callable_label = outer_callable_label;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
         self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
+        if let Some(initialization) = outer_initialization {
+            self.initialization_context = Some(initialization);
+        }
+        self.receiver_scopes.truncate(outer_receivers);
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());
         self.loop_targets = outer_loop_targets;

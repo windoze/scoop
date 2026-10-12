@@ -220,8 +220,7 @@ pub(super) fn exact_callback_signature(
         hir::Effect::Ordinary,
         None,
         signature
-            .parameter_types
-            .iter()
+            .parameters()
             .map(|parameter| module.exact_type_identities[*parameter].id())
             .collect(),
         module.exact_type_identities[signature.return_type].id(),

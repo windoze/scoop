@@ -1,0 +1,17 @@
+package jumps
+public class Box public constructor(public val value: Int)
+public fun <T> choose(value: T, count: Int = if (true) {
+    var n = 0
+    chosen@ while (n < 3) {
+        n += 1
+        while (true) { if (n < 3) continue@chosen; break@chosen }
+    }
+    n
+} else { 0 }): T {
+    var n = 0
+    outer@ for (i in 0..<count) {
+        while (true) { n += 1; if (i < 2) continue@outer; break@outer }
+    }
+    println(n)
+    return value
+}

@@ -14,16 +14,21 @@ impl<'a> ShapeDump<'a, '_> {
                 format!("({})", self.type_list(elements.as_slice(), parameters))
             }
             SignatureTypeKey::Function {
+                receiver,
                 effect,
                 parameters: arguments,
                 result,
             } => format!(
-                "{}({}) -> {}",
+                "{}{}({}) -> {}",
                 if *effect == Effect::Suspend {
                     "suspend "
                 } else {
                     ""
                 },
+                receiver
+                    .as_ref()
+                    .map(|ty| format!("{}.", self.type_name(ty, parameters)))
+                    .unwrap_or_default(),
                 self.type_list(arguments, parameters),
                 self.type_name(result, parameters)
             ),

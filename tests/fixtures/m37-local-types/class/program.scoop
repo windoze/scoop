@@ -1,0 +1,6 @@
+fun main() {
+    class Answer(val value: Int) {
+        fun twice(): Int = value * 2
+    }
+    println(Answer(21).twice())
+}

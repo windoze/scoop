@@ -118,3 +118,46 @@ fn ordinary_receiver_still_requires_a_source_origin() {
             if subject == DefinitionOriginSubject::LocalValue(local.id())
     ));
 }
+
+#[test]
+fn constructor_outer_parameter_requires_its_source_origin() {
+    let class = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("Inner").unwrap(),
+        scoop_identity::SourceNominalKind::Class,
+        0,
+    );
+    let class = scoop_identity::PersistentTypeId::from_source_declaration(&class).unwrap();
+    let key = SourceDeclarationKey::constructor(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::from_outer_to_inner(vec![
+                scoop_identity::DefinitionOwnerAtom::Type(class),
+            ]),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        Vec::new(),
+    );
+    let local = local(
+        CallableTemplateOwner::Constructor(
+            scoop_identity::PersistentConstructorId::from_source_declaration(&key).unwrap(),
+        ),
+        LocalValueSelector::EnclosingInstance,
+    );
+    let path = WirePath::root().field(29);
+    let mut requirements = OriginRequirements::new(&[], &[], &[], 1, &path).unwrap();
+    requirements.local_value(&local, &path).unwrap();
+    assert!(
+        matches!(validate_records(ConeIdentity::CORE, &[], requirements, &[], &[]),
+        Err(HirFoundationValidationError::Origin(DefinitionOriginValidationError::MissingSubject { subject }))
+            if subject == DefinitionOriginSubject::LocalValue(local.id()))
+    );
+}

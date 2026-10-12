@@ -53,6 +53,7 @@ impl Builder {
         let none_index = u32::try_from(variants.len()).expect("test enum arity fits u32");
         variants.push(test_variant("None".to_string(), true, Vec::new()));
         let id = self.enums.alloc(mir::EnumDef {
+            representation: mir::EnumRepresentation::Algebraic,
             name: name.to_string(),
             type_arguments: vec![payload],
             gc_free: payload_gc_free,

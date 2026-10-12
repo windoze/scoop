@@ -87,10 +87,12 @@ fn matches_storage(ty: &CType, value: &scoop_lir::AbiValue) -> bool {
 
 fn matches_scalar(ty: &CType, value: &DirectCValue) -> bool {
     let extension = match ty {
-        CType::Integer(kind) if kind.width().bits() < 32 => match kind.signedness() {
-            scoop_lir::IntegerSignedness::Signed => CIntegerExtension::Sign,
-            scoop_lir::IntegerSignedness::Unsigned => CIntegerExtension::Zero,
-        },
+        CType::Integer(kind) | CType::IntegralEnum { kind, .. } if kind.width().bits() < 32 => {
+            match kind.signedness() {
+                scoop_lir::IntegerSignedness::Signed => CIntegerExtension::Sign,
+                scoop_lir::IntegerSignedness::Unsigned => CIntegerExtension::Zero,
+            }
+        }
         CType::Boolean => CIntegerExtension::Zero,
         CType::Struct(_) => return false,
         _ => CIntegerExtension::None,

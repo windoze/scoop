@@ -126,6 +126,7 @@ SourceFile
       val callback
         Call foreignCallback<(Ptr<Unit>) -> Unit>
           Lambda 0 suspend=false
+            label foreignCallback
             parameters omitted
             UnitLiteral
           IntLiteral 0L

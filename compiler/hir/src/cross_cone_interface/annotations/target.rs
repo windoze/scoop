@@ -1,9 +1,17 @@
 use super::wire::AnnotationDataResolver;
 use scoop_identity::{
-    DecodedNominalDeclarationOwner, DecodedPersistentId, NominalDeclarationOwner,
-    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentFieldId, PersistentPropertyId,
+    DecodedNominalDeclarationOwner, DecodedPersistentId, DecodedPropertyOwner,
+    NominalDeclarationOwner, PersistentAnnotationId, PersistentEnumVariantFieldId,
+    PersistentEnumVariantId, PersistentFieldId, PersistentPropertyId, PersistentTypeAliasId,
+    PropertyOwner,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+
+mod callable;
+mod kind;
+mod wire;
+pub use callable::AnnotationCallableV1;
+use callable::DecodedAnnotationCallableV1;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AnnotationTargetV1 {
@@ -12,6 +20,20 @@ pub enum AnnotationTargetV1 {
     Field(PersistentFieldId),
     VariantField(PersistentEnumVariantFieldId),
     Property(PersistentPropertyId),
+    ExtensionProperty(scoop_identity::PersistentExtensionPropertyId),
+    Annotation(PersistentAnnotationId),
+    Callable(AnnotationCallableV1),
+    Parameter {
+        callable: AnnotationCallableV1,
+        index: u32,
+    },
+    CallableReceiver(AnnotationCallableV1),
+    PropertyReceiver(PropertyOwner),
+    TypeAlias(PersistentTypeAliasId),
+    PropertyStorage {
+        property: PropertyOwner,
+        role: crate::AnnotationStorageRole,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -21,6 +43,20 @@ pub enum DecodedAnnotationTargetV1 {
     Field(DecodedPersistentId<PersistentFieldId>),
     VariantField(DecodedPersistentId<PersistentEnumVariantFieldId>),
     Property(DecodedPersistentId<PersistentPropertyId>),
+    ExtensionProperty(DecodedPersistentId<scoop_identity::PersistentExtensionPropertyId>),
+    Annotation(DecodedPersistentId<PersistentAnnotationId>),
+    Callable(DecodedAnnotationCallableV1),
+    Parameter {
+        callable: DecodedAnnotationCallableV1,
+        index: u32,
+    },
+    CallableReceiver(DecodedAnnotationCallableV1),
+    PropertyReceiver(DecodedPropertyOwner),
+    TypeAlias(DecodedPersistentId<PersistentTypeAliasId>),
+    PropertyStorage {
+        property: DecodedPropertyOwner,
+        role: crate::AnnotationStorageRole,
+    },
 }
 
 impl DecodedAnnotationTargetV1 {
@@ -34,62 +70,26 @@ impl DecodedAnnotationTargetV1 {
             Self::Field(id) => resolver.resolve(id).map(AnnotationTargetV1::Field),
             Self::VariantField(id) => resolver.resolve(id).map(AnnotationTargetV1::VariantField),
             Self::Property(id) => resolver.resolve(id).map(AnnotationTargetV1::Property),
-        }
-    }
-}
-
-macro_rules! encode_target {
-    ($type:ty) => {
-        impl WireEncode for $type {
-            fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-                encoder.map(2)?;
-                encoder.field(0)?;
-                encoder.unsigned(match self {
-                    Self::Nominal(_) => 1,
-                    Self::Variant(_) => 2,
-                    Self::Field(_) => 3,
-                    Self::VariantField(_) => 4,
-                    Self::Property(_) => 5,
-                })?;
-                encoder.field(1)?;
-                match self {
-                    Self::Nominal(id) => id.encode(encoder),
-                    Self::Variant(id) => id.encode(encoder),
-                    Self::Field(id) => id.encode(encoder),
-                    Self::VariantField(id) => id.encode(encoder),
-                    Self::Property(id) => id.encode(encoder),
-                }
-            }
-        }
-    };
-}
-encode_target!(AnnotationTargetV1);
-encode_target!(DecodedAnnotationTargetV1);
-
-impl WireDecode for DecodedAnnotationTargetV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        match decoder.field(0, Decoder::unsigned)? {
-            1 => decoder
-                .field(1, DecodedNominalDeclarationOwner::decode)
-                .map(Self::Nominal),
-            2 => decoder
-                .field(1, DecodedPersistentId::decode)
-                .map(Self::Variant),
-            3 => decoder
-                .field(1, DecodedPersistentId::decode)
-                .map(Self::Field),
-            4 => decoder
-                .field(1, DecodedPersistentId::decode)
-                .map(Self::VariantField),
-            5 => decoder
-                .field(1, DecodedPersistentId::decode)
-                .map(Self::Property),
-            tag => Err(WireError::new(
-                WireErrorKind::UnknownTag { tag },
-                decoder.path().clone(),
-                Some(decoder.position()),
-            )),
+            Self::ExtensionProperty(id) => resolver
+                .resolve(id)
+                .map(AnnotationTargetV1::ExtensionProperty),
+            Self::Annotation(id) => resolver.resolve(id).map(AnnotationTargetV1::Annotation),
+            Self::Callable(id) => id.resolve(resolver).map(AnnotationTargetV1::Callable),
+            Self::Parameter { callable, index } => Ok(AnnotationTargetV1::Parameter {
+                callable: callable.resolve(resolver)?,
+                index,
+            }),
+            Self::CallableReceiver(id) => id
+                .resolve(resolver)
+                .map(AnnotationTargetV1::CallableReceiver),
+            Self::PropertyReceiver(id) => id
+                .resolve(resolver)
+                .map(AnnotationTargetV1::PropertyReceiver),
+            Self::TypeAlias(id) => resolver.resolve(id).map(AnnotationTargetV1::TypeAlias),
+            Self::PropertyStorage { property, role } => Ok(AnnotationTargetV1::PropertyStorage {
+                property: property.resolve(resolver)?,
+                role,
+            }),
         }
     }
 }

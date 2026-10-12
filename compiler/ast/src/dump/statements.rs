@@ -11,8 +11,13 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match &statement.kind {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
+        StatementKind::TypeAlias(alias) => super::declarations::dump_type_alias(alias, indent, out),
+        StatementKind::LocalType(declaration) => {
+            out.push_str(&format!("{pad}LocalType {declaration:?}\n"));
+        }
         StatementKind::LocalFunction(function) => {
             super::dump_context(&function.context_parameters, indent, out);
+            let annotations = super::types::dump_annotation_prefix(&function.annotations);
             let suspend = if function.is_suspend { "suspend " } else { "" };
             let operator = if function.operator.is_some() {
                 "operator "
@@ -33,7 +38,14 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             let params: Vec<_> = function
                 .params
                 .iter()
-                .map(|param| format!("{}: {}", param.name.text, dump_type_ref(&param.ty)))
+                .map(|param| {
+                    format!(
+                        "{}{}: {}",
+                        super::types::dump_annotation_prefix(&param.annotations),
+                        param.name.text,
+                        dump_type_ref(&param.ty)
+                    )
+                })
                 .collect();
             let return_ty = function
                 .return_ty
@@ -41,7 +53,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 .map(|ty| format!(": {}", dump_type_ref(ty)))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "{pad}{operator}{infix}{suspend}fun {}{}({}){return_ty}\n",
+                "{pad}{annotations}{operator}{infix}{suspend}fun {}{}({}){return_ty}\n",
                 function.name.text,
                 type_params,
                 params.join(", ")
@@ -52,8 +64,11 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 FunctionBody::None => {}
             }
         }
-        StatementKind::Return { value } => {
+        StatementKind::Return { label, value } => {
             out.push_str(&format!("{pad}return\n"));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             if let Some(value) = value {
                 dump_expr(value, indent + 1, out);
             }
@@ -152,17 +167,34 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             dump_expr(expr, indent + 1, out);
         }
         StatementKind::While(while_) => {
-            out.push_str(&format!("{pad}while\n"));
-            dump_expr(&while_.cond, indent + 1, out);
-            dump_block(&while_.body, indent + 1, out);
+            out.push_str(&format!(
+                "{pad}{}{}\n",
+                while_.loop_kind.keyword(),
+                dump_label(while_.label.as_ref())
+            ));
+            if while_.loop_kind == LoopKind::DoWhile {
+                dump_block(&while_.body, indent + 1, out);
+                dump_expr(&while_.cond, indent + 1, out);
+            } else {
+                dump_expr(&while_.cond, indent + 1, out);
+                dump_block(&while_.body, indent + 1, out);
+            }
         }
         StatementKind::For(for_) => {
-            out.push_str(&format!("{pad}for {}\n", dump_pattern(&for_.pattern)));
+            out.push_str(&format!(
+                "{pad}for{} {}\n",
+                dump_label(for_.label.as_ref()),
+                dump_pattern(&for_.pattern)
+            ));
             dump_expr(&for_.iterable, indent + 1, out);
             dump_block(&for_.body, indent + 1, out);
         }
-        StatementKind::Break => out.push_str(&format!("{pad}break\n")),
-        StatementKind::Continue => out.push_str(&format!("{pad}continue\n")),
+        StatementKind::Break { label } => {
+            out.push_str(&format!("{pad}break{}\n", dump_label(label.as_ref())));
+        }
+        StatementKind::Continue { label } => {
+            out.push_str(&format!("{pad}continue{}\n", dump_label(label.as_ref())));
+        }
         StatementKind::Block(block) => {
             out.push_str(&format!("{pad}block\n"));
             dump_block(block, indent + 1, out);
@@ -176,6 +208,10 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             dump_block(block, indent + 1, out);
         }
     }
+}
+
+pub(super) fn dump_label(label: Option<&Ident>) -> String {
+    label.map_or_else(String::new, |label| format!("@{}", label.text))
 }
 
 pub(super) fn dump_type_param(param: &TypeParamDecl) -> String {

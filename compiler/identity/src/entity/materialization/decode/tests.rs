@@ -101,6 +101,8 @@ fn all_local_value_selectors_round_trip_and_resolve() {
     );
     let mut selectors = vec![
         LocalValueSelector::This,
+        LocalValueSelector::EnclosingInstance,
+        LocalValueSelector::CapturedEnvironment,
         LocalValueSelector::Parameter {
             declaration_index: 3,
         },
@@ -160,8 +162,8 @@ fn materialization_decoder_rejects_empty_arguments_and_unknown_tags() {
     let unknown = decode_canonical::<DecodedInitializationUnitKey>(b"\xa1\x00\x08").unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 8 });
 
-    let selector = decode_error_kind::<LocalValueSelector>(b"\xa1\x00\x07");
-    assert_eq!(selector, WireErrorKind::UnknownTag { tag: 7 });
+    let selector = decode_error_kind::<LocalValueSelector>(b"\xa1\x00\x09");
+    assert_eq!(selector, WireErrorKind::UnknownTag { tag: 9 });
 
     let role = decode_canonical::<SyntheticLocalRole>(b"\x06").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 6 });

@@ -5,7 +5,9 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::{DefaultStatementBuildError, DefaultStatementKindV1, DefaultStatementV1};
+use super::{
+    DefaultLoopTargetV1, DefaultStatementBuildError, DefaultStatementKindV1, DefaultStatementV1,
+};
 use crate::{
     DecodedDefaultAssignTargetV1, DecodedDefaultExpressionV1, DecodedDefaultLocalFunctionV1,
     DecodedDefaultPatternV1, DecodedExportDefinitionSourceV1, DecodedOptionalDefaultExpressionV1,
@@ -50,12 +52,13 @@ enum DecodedDefaultStatementKindV1 {
         else_body: DecodedOptionalDefaultStatementListV1,
     },
     While {
+        loop_kind: crate::LoopKind,
         condition_setup: Vec<DecodedDefaultStatementV1>,
         condition: Box<DecodedDefaultExpressionV1>,
         body: Vec<DecodedDefaultStatementV1>,
     },
-    Break,
-    Continue,
+    Break(DefaultLoopTargetV1),
+    Continue(DefaultLoopTargetV1),
     When(Box<DecodedDefaultWhenV1>),
     Try(Box<DecodedDefaultTryV1>),
     Throw(Box<DecodedDefaultExpressionV1>),
@@ -151,20 +154,25 @@ impl DecodedDefaultStatementV1 {
                 }
             }
             DecodedDefaultStatementKindV1::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
             } => {
-                require_statement_count(condition_setup.len(), 8, 1)?;
-                require_statement_count(body.len(), 8, 3)?;
+                let tag = super::loop_tag(loop_kind);
+                require_statement_count(condition_setup.len(), tag, 1)?;
+                require_statement_count(body.len(), tag, 3)?;
                 DefaultStatementKindV1::While {
-                    condition_setup: resolve_statements(condition_setup, resolver, locals, 8, 1)?,
-                    condition: Box::new(resolve_expression(*condition, resolver, locals, 8, 2)?),
-                    body: resolve_statements(body, resolver, locals, 8, 3)?,
+                    loop_kind,
+                    condition_setup: resolve_statements(condition_setup, resolver, locals, tag, 1)?,
+                    condition: Box::new(resolve_expression(*condition, resolver, locals, tag, 2)?),
+                    body: resolve_statements(body, resolver, locals, tag, 3)?,
                 }
             }
-            DecodedDefaultStatementKindV1::Break => DefaultStatementKindV1::Break,
-            DecodedDefaultStatementKindV1::Continue => DefaultStatementKindV1::Continue,
+            DecodedDefaultStatementKindV1::Break(target) => DefaultStatementKindV1::Break(target),
+            DecodedDefaultStatementKindV1::Continue(target) => {
+                DefaultStatementKindV1::Continue(target)
+            }
             DecodedDefaultStatementKindV1::When(value) => {
                 DefaultStatementKindV1::When(Box::new(value.resolve(resolver, locals).map_err(
                     |error| DefaultStatementResolutionError::ControlFlow {
@@ -236,12 +244,19 @@ impl WireEncode for DecodedDefaultStatementKindV1 {
                 else_body,
             } => encode_if(encoder, condition.as_ref(), then_body, else_body),
             Self::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
-            } => encode_while(encoder, condition_setup, condition.as_ref(), body),
-            Self::Break => encode_empty(encoder, 10),
-            Self::Continue => encode_empty(encoder, 11),
+            } => encode_while(
+                encoder,
+                *loop_kind,
+                condition_setup,
+                condition.as_ref(),
+                body,
+            ),
+            Self::Break(target) => target.encode_jump(encoder, 10),
+            Self::Continue(target) => target.encode_jump(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value.as_ref()),
             Self::Try(value) => encode_one(encoder, 13, value.as_ref()),
             Self::Throw(value) => encode_one(encoder, 14, value.as_ref()),
@@ -313,22 +328,21 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
                     else_body: decoder.field(3, DecodedOptionalDefaultStatementListV1::decode)?,
                 })
             }
-            8 => {
+            8 | 9 => {
                 expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::While {
+                    loop_kind: if tag == 8 {
+                        crate::LoopKind::While
+                    } else {
+                        crate::LoopKind::DoWhile
+                    },
                     condition_setup: decoder.field(1, decode_statements)?,
                     condition: decode_boxed_expression(decoder, 2)?,
                     body: decoder.field(3, decode_statements)?,
                 })
             }
-            10 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Break)
-            }
-            11 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Continue)
-            }
+            10 => DefaultLoopTargetV1::decode_jump(decoder, fields).map(Self::Break),
+            11 => DefaultLoopTargetV1::decode_jump(decoder, fields).map(Self::Continue),
             12 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder
@@ -525,11 +539,6 @@ fn decode_statements(
     decoder.decode_array(|decoder, _| DecodedDefaultStatementV1::decode(decoder))
 }
 
-fn encode_empty(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(1)?;
-    encode_tag(encoder, tag)
-}
-
 fn encode_one(
     encoder: &mut Encoder,
     tag: u64,
@@ -573,12 +582,13 @@ fn encode_if(
 
 fn encode_while(
     encoder: &mut Encoder,
+    loop_kind: crate::LoopKind,
     condition_setup: &[impl WireEncode],
     condition: &impl WireEncode,
     body: &[impl WireEncode],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(4)?;
-    encode_tag(encoder, 8)?;
+    encode_tag(encoder, super::loop_tag(loop_kind))?;
     encoder.field(1)?;
     encode_sequence(encoder, condition_setup)?;
     encoder.field(2)?;

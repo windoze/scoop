@@ -51,7 +51,7 @@ impl Lowerer {
             || signature.owner_type_param_count != 1
             || signature.type_params.len() != 1
             || signature.modifiers != hir::CallableModifiers::default()
-            || self.functions[function].name.rsplit('.').next() != Some(kind.source_name())
+            || self.source_function_name(function) != kind.source_name()
         {
             return false;
         }

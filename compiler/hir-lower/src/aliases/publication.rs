@@ -18,9 +18,11 @@ impl Lowerer {
             "type aliases are published exactly once"
         );
         let previous_file = self.current_file;
+        let previous_parameters = self.type_params_in_scope.clone();
         let aliases = self
             .source_type_aliases
             .iter()
+            .filter(|(_, alias)| alias.scope.is_none())
             .filter_map(|(id, alias)| {
                 let TypeAliasResolution::Resolved(target) = alias.resolution else {
                     return None;
@@ -41,6 +43,7 @@ impl Lowerer {
             self.publish_type_alias(id, alias, target, &publication_ids);
         }
         self.current_file = previous_file;
+        self.type_params_in_scope = previous_parameters;
     }
 
     fn publish_type_alias(
@@ -51,6 +54,7 @@ impl Lowerer {
         publication_ids: &HashMap<SourceTypeAliasId, hir::ExportTypeAliasId>,
     ) {
         self.current_file = alias.file;
+        self.type_params_in_scope = alias.parameters.clone();
         let mut visited = HashSet::new();
         self.validate_type_alias_target_tree(
             target.expanded,
@@ -59,9 +63,20 @@ impl Lowerer {
             &mut visited,
         );
         let access = alias.access;
+        let exposed = std::iter::once(target.expanded)
+            .chain(alias.parameters.iter().flat_map(|parameter| {
+                parameter
+                    .nominal_bounds_in_source_order()
+                    .into_iter()
+                    .map(|bound| match bound {
+                        hir::NominalBoundRef::Class(bound) => bound.ty,
+                        hir::NominalBoundRef::Interface(bound) => bound.ty,
+                    })
+            }))
+            .collect::<Vec<_>>();
         self.check_signature_exposure(
             &access,
-            &[target.expanded],
+            &exposed,
             alias.origin.span,
             &format!("typealias `{}`", alias.name),
         );
@@ -77,8 +92,29 @@ impl Lowerer {
             }
         };
         let expected = publication_ids[&id];
+        self.annotate_type_site(
+            hir::SourceAnnotationTarget::TypeAlias(expected),
+            hir::AnnotationTypeSlot::Value,
+            &alias.target,
+        );
+        self.annotate_type_bounds(
+            hir::SourceAnnotationTarget::TypeAlias(expected),
+            &alias.syntax_parameters,
+            alias.where_clause.as_ref(),
+        );
         let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {
+            lexical: alias.lexical,
             name: alias.name,
+            owner: (!alias.lexical)
+                .then_some(alias.owner)
+                .flatten()
+                .map(crate::Owner::as_nominal_owner),
+            type_params: alias.parameters,
+            owner_parameter_count: if alias.lexical {
+                0
+            } else {
+                alias.outer_parameter_count
+            },
             access,
             target: target.expanded,
             source_target,
@@ -94,7 +130,38 @@ impl Lowerer {
         };
     }
 
-    fn validate_type_alias_target_tree(
+    pub(crate) fn publish_lexical_type_alias(&mut self, id: SourceTypeAliasId) {
+        let TypeAliasResolution::Resolved(target) = self.source_type_aliases[id].resolution else {
+            return;
+        };
+        if let ResolvedTypeAliasSource::Alias(parent) = target.source {
+            self.publish_lexical_type_alias(parent);
+        }
+        let mut ids = self
+            .source_type_aliases
+            .iter()
+            .filter_map(|(id, alias)| match alias.resolution {
+                TypeAliasResolution::Published { declaration, .. } => Some((id, declaration)),
+                _ => None,
+            })
+            .collect::<HashMap<_, _>>();
+        let declaration = hir::ExportTypeAliasId::from_raw((self.type_aliases.len() as u32).into());
+        ids.insert(id, declaration);
+        let alias = self.source_type_aliases[id].clone();
+        let file = self.current_file;
+        let parameters = self.type_params_in_scope.clone();
+        self.publish_type_alias(id, alias.clone(), target, &ids);
+        if alias.lexical {
+            self.bind_source_annotations(
+                hir::SourceAnnotationTarget::TypeAlias(declaration),
+                &alias.annotations,
+            );
+        }
+        self.current_file = file;
+        self.type_params_in_scope = parameters;
+    }
+
+    pub(super) fn validate_type_alias_target_tree(
         &mut self,
         ty: hir::TypeId,
         span: ast::Span,
@@ -187,7 +254,7 @@ impl Lowerer {
             Type::Function(function) | Type::FunPtr(function) => {
                 let function = self.function_types[function].clone();
                 self.validate_type_alias_arguments(
-                    function.parameter_types,
+                    function.parameters().copied().collect(),
                     span,
                     description,
                     visited,

@@ -5,12 +5,12 @@ use scoop_wire::{decode_canonical, encode};
 #[test]
 fn annotation_array_wire_retains_empty_types_order_and_float_bits() {
     let empty = CanonicalAnnotationValueV1::Array {
-        element_type: CanonicalConstValueKindV1::String,
+        element_type: AnnotationElementTypeV1::Scalar(CanonicalConstValueKindV1::String),
         elements: vec![],
     };
     assert_eq!(
         encode(&empty).unwrap(),
-        [0xa3, 0, 2, 1, 0xa1, 0, 3, 2, 0x80]
+        [0xa3, 0, 2, 1, 0xa2, 0, 1, 1, 0xa1, 0, 3, 2, 0x80]
     );
     let mut values = vec![
         empty,
@@ -19,17 +19,27 @@ fn annotation_array_wire_retains_empty_types_order_and_float_bits() {
         )),
     ];
     values.push(CanonicalAnnotationValueV1::Array {
-        element_type: CanonicalConstValueKindV1::Float(FloatKind::F32),
+        element_type: AnnotationElementTypeV1::Scalar(CanonicalConstValueKindV1::Float(
+            FloatKind::F32,
+        )),
         elements: [0x8000_0000, 0x7fc0_0123, 1, 0x8000_0000]
             .into_iter()
-            .map(|bits| CanonicalConstValueV1::Float(HirFloatConstant::F32(bits)))
+            .map(|bits| AnnotationElementV1 {
+                value: CanonicalAnnotationValueV1::Scalar(CanonicalConstValueV1::Float(
+                    HirFloatConstant::F32(bits),
+                )),
+                source: SourceIdentity::single_file(),
+                span: SourceSpan::new(4, 8).unwrap(),
+            })
             .collect(),
     });
     values.extend(
         IntegerKind::ALL
             .into_iter()
             .map(|kind| CanonicalAnnotationValueV1::Array {
-                element_type: CanonicalConstValueKindV1::Integer(kind),
+                element_type: AnnotationElementTypeV1::Scalar(CanonicalConstValueKindV1::Integer(
+                    kind,
+                )),
                 elements: vec![],
             }),
     );
@@ -41,24 +51,24 @@ fn annotation_array_wire_retains_empty_types_order_and_float_bits() {
         ]
         .into_iter()
         .map(|kind| CanonicalAnnotationValueV1::Array {
-            element_type: kind,
+            element_type: AnnotationElementTypeV1::Scalar(kind),
             elements: vec![],
         }),
     );
     for value in values {
         let bytes = encode(&value).unwrap();
         assert_eq!(
-            decode_canonical::<CanonicalAnnotationValueV1>(&bytes).unwrap(),
-            value
+            encode(&decode_canonical::<DecodedAnnotationValueV1>(&bytes).unwrap()).unwrap(),
+            bytes
         );
     }
 }
 
 #[test]
 fn annotation_value_decoder_rejects_unknown_tags_and_missing_array_type() {
-    let error = decode_canonical::<CanonicalAnnotationValueV1>(&[0xa1, 0, 3]).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
-    let error = decode_canonical::<CanonicalAnnotationValueV1>(&[0xa2, 0, 2, 2, 0x80]).unwrap_err();
+    let error = decode_canonical::<DecodedAnnotationValueV1>(&[0xa1, 0, 9]).unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 9 });
+    let error = decode_canonical::<DecodedAnnotationValueV1>(&[0xa2, 0, 2, 2, 0x80]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -67,7 +77,7 @@ fn annotation_value_decoder_rejects_unknown_tags_and_missing_array_type() {
         }
     );
     let error =
-        decode_canonical::<CanonicalAnnotationValueV1>(&[0xa3, 0, 2, 1, 0xa1, 0, 6, 2, 0x80])
+        decode_canonical::<DecodedAnnotationValueV1>(&[0xa3, 0, 2, 1, 0xa2, 0, 9, 1, 0, 2, 0x80])
             .unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 6 });
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 }

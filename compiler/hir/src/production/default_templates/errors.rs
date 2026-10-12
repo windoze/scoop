@@ -100,12 +100,7 @@ pub enum DefaultBodyProjectionError {
     MissingMethodReceiver,
     UnsupportedExpression(&'static str),
     UnsupportedAssignment(&'static str),
-    LoopControlOutsideLoop(&'static str),
-    NonInnermostLoop {
-        control: &'static str,
-        expected: u32,
-        actual: u32,
-    },
+    UnknownLoopTarget { control: &'static str, target: u32 },
     TooManyOwnerTypeParameters,
     BodyTypeArguments(DefaultCallableBodyTypeArgumentsBuildError),
     Expression(DefaultExpressionBuildError),

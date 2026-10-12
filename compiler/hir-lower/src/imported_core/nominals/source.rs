@@ -9,6 +9,9 @@ impl Lowerer {
         name: &scoop_ast::Ident,
         arguments: &[scoop_ast::TypeRef],
     ) -> Option<hir::TypeId> {
+        if matches!(binding.target(), hir::ImportedTarget::TypeAlias(_)) {
+            return self.apply_imported_type_alias(binding, name, arguments, None);
+        }
         let hir::ImportedTarget::GenericType(identity) = binding.target() else {
             return self.resolve_imported_dependency_type_target(
                 binding,
@@ -31,6 +34,22 @@ impl Lowerer {
             .as_ref()?
             .nominal_declaration(owner)?
             .clone();
+        if let Some(outer) = self.nominal_enclosing_owner(owner)
+            && self
+                .dependencies
+                .as_ref()?
+                .nominal_declaration(outer)?
+                .interface
+                .type_parameters()
+                .len_u32()
+                != 0
+        {
+            self.error(
+                name.span,
+                "inner type requires complete outer type arguments".into(),
+            );
+            return None;
+        }
         let parameters = declaration.interface.type_parameters().binders();
         if parameters.is_empty() && !arguments.is_empty() {
             self.error(name.span, format!("type `{}` is not generic", name.text));

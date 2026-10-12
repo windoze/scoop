@@ -1,0 +1,6 @@
+fun main() {
+    var value: Any = "before"
+    if (value !is String) return
+    try { value = 42; throw UnwrapException() }
+    catch (error: UnwrapException) { println(value.length) }
+}

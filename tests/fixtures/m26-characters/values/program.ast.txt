@@ -39,6 +39,7 @@ SourceFile
         IntLiteral 130L
         Argument trailing
           Lambda 0 suspend=false
+            label MutableArray
             param i: _
             MethodCall toChar
               Binary Add

@@ -67,8 +67,7 @@ pub(super) fn lower_callback_bridges(
             )
             .expect("validated static callback trampoline identities are encodable"),
             params: signature
-                .parameter_types
-                .iter()
+                .parameters()
                 .map(|ty| c_ffi_type(module, structs, enums, ty))
                 .collect(),
             return_type: c_return_type(module, structs, enums, &signature.return_type),
@@ -118,8 +117,7 @@ pub(super) fn lower_foreign_callback_bridges(
             adapter: adapter_function,
             trampoline,
             params: signature
-                .parameter_types
-                .iter()
+                .parameters()
                 .map(|ty| c_ffi_type(module, structs, enums, ty))
                 .collect(),
             return_type: c_return_type(module, structs, enums, &signature.return_type),

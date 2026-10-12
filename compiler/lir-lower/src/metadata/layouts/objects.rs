@@ -54,6 +54,16 @@ pub(crate) fn class_shape(
     let mut current = def;
     let mut seen = std::collections::HashSet::new();
     while let Some(base) = current.base_class {
+        // Integer subtype boxes share one scalar payload with the parent box.
+        // Their runtime parent relation does not append inherited fields.
+        if module
+            .meta
+            .boxed_types
+            .iter()
+            .any(|boxed| boxed.class() == base)
+        {
+            break;
+        }
         if !seen.insert(base) {
             return Err(StorageLoweringError::InvalidRepresentation(
                 "class base cycle",

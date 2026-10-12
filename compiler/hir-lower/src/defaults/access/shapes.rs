@@ -35,7 +35,10 @@ impl ReferenceCollector<'_> {
             }
             hir::Callable::Method(id) => {
                 let application = self.lowerer.method_applications[id].clone();
-                (Some(self.method_owner_type(application.owner)), Vec::new())
+                (
+                    Some(self.lowerer.method_owner_type(application.owner)),
+                    Vec::new(),
+                )
             }
             hir::Callable::GenericMethod(id) => {
                 let application = self.lowerer.generic_method_applications[id].clone();
@@ -112,7 +115,7 @@ impl ReferenceCollector<'_> {
             }
         };
         self.type_reference(owner, origin);
-        self.record_constructor(target, origin);
+        self.record_constructor(target, origin, self.lowerer.default_has_local_type(owner));
     }
 
     pub(super) fn field_use(&mut self, field: hir::FieldRef, origin: hir::DefinitionOrigin) {
@@ -234,24 +237,6 @@ impl ReferenceCollector<'_> {
     ) {
         let ty = self.lowerer.function_types[function_type].canonical_type;
         self.type_reference(ty, origin);
-    }
-
-    fn method_owner_type(&self, owner: hir::MethodOwnerApplication) -> hir::TypeId {
-        match owner {
-            hir::MethodOwnerApplication::Class(id) => {
-                self.lowerer.class_applications[id].canonical_type
-            }
-            hir::MethodOwnerApplication::Struct(id) => {
-                self.lowerer.struct_applications[id].canonical_type
-            }
-            hir::MethodOwnerApplication::Enum(id) => {
-                self.lowerer.enum_applications[id].canonical_type
-            }
-            hir::MethodOwnerApplication::Interface(id) => {
-                self.lowerer.interface_applications[id].canonical_type
-            }
-            hir::MethodOwnerApplication::Object(id) => self.lowerer.object_types[id].canonical_type,
-        }
     }
 
     fn generic_method_owner_type(&self, owner: hir::GenericMethodOwner) -> hir::TypeId {

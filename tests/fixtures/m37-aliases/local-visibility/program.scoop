@@ -1,0 +1,1 @@
+fun main() { public typealias Local = Int }

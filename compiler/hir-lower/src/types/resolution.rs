@@ -1,250 +1,14 @@
 use super::*;
-use crate::{NominalTarget, Owner};
+mod names;
 
 impl Lowerer {
-    pub(crate) fn top_level_type_target_is_accessible(
-        &self,
-        target: crate::namespace::TopLevelTypeTarget,
-    ) -> bool {
-        let domain = match target {
-            crate::namespace::TopLevelTypeTarget::Annotation(id) => {
-                &self.source_annotations[&id].access.lookup.0
-            }
-            crate::namespace::TopLevelTypeTarget::Alias(alias) => {
-                return self.source_type_alias_is_accessible(alias);
-            }
-            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)) => {
-                &self.structs[id].access.lookup.0
-            }
-            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)) => {
-                &self.enums[id].access.lookup.0
-            }
-            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Class(id)) => {
-                &self.classes[id].access.lookup.0
-            }
-            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)) => {
-                &self.interfaces[id].access.lookup.0
-            }
-            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Object(id)) => {
-                &self.objects[id].access.lookup.0
-            }
-        };
-        self.access_domain_allows(domain)
-    }
-
-    pub(crate) fn top_level_type_target(
-        &self,
-        name: &str,
-    ) -> Option<crate::namespace::TopLevelTypeTarget> {
-        match self.lookup_type(name) {
-            crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
-            crate::imports::lookup::LookupResult::Missing
-            | crate::imports::lookup::LookupResult::Ambiguous { .. }
-            | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
-        }
-    }
-
-    pub(crate) fn top_level_type_target_for_reference(
-        &self,
-        name: &str,
-    ) -> Option<crate::namespace::TopLevelTypeTarget> {
-        match self.lookup_type(name) {
-            crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
-            crate::imports::lookup::LookupResult::Inaccessible(candidates)
-                if candidates.len() == 1 =>
-            {
-                candidates.first().target.current()
-            }
-            crate::imports::lookup::LookupResult::Missing
-            | crate::imports::lookup::LookupResult::Ambiguous { .. }
-            | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
-        }
-    }
-
-    pub(crate) fn top_level_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        match self.top_level_type_target_for_reference(name)? {
-            crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
-            crate::namespace::TopLevelTypeTarget::Alias(_)
-            | crate::namespace::TopLevelTypeTarget::Annotation(_) => None,
-        }
-    }
-
-    pub(crate) fn core_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        let mut declarations = self
-            .intrinsic_sources
-            .iter()
-            .enumerate()
-            .filter(|(_, source)| source.kind == crate::SourceKind::Core)
-            .flat_map(|(file, _)| self.top_level_namespaces.declared_types_in_file(file, name));
-        let target = declarations.next()?;
-        if declarations.next().is_some() {
-            return None;
-        }
-        match target {
-            crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
-            crate::namespace::TopLevelTypeTarget::Alias(_)
-            | crate::namespace::TopLevelTypeTarget::Annotation(_) => None,
-        }
-    }
-
-    pub(crate) fn top_level_struct_named(&self, name: &str) -> Option<(StructId, TypeId)> {
-        let NominalTarget::Struct(id) = self.top_level_nominal_target(name)? else {
-            return None;
-        };
-        let ty = self.struct_applications[self.structs[id].self_application].canonical_type;
-        Some((id, ty))
-    }
-
-    pub(crate) fn top_level_enum_named(&self, name: &str) -> Option<hir::EnumId> {
-        let NominalTarget::Enum(id) = self.top_level_nominal_target(name)? else {
-            return None;
-        };
-        Some(id)
-    }
-
-    pub(crate) fn top_level_class_named(&self, name: &str) -> Option<(hir::ClassId, TypeId)> {
-        let NominalTarget::Class(id) = self.top_level_nominal_target(name)? else {
-            return None;
-        };
-        let ty = self.class_applications[self.classes[id].self_application].canonical_type;
-        Some((id, ty))
-    }
-
-    pub(crate) fn top_level_interface_named(
-        &self,
-        name: &str,
-    ) -> Option<(hir::InterfaceId, TypeId)> {
-        let NominalTarget::Interface(id) = self.top_level_nominal_target(name)? else {
-            return None;
-        };
-        let ty = self.interface_applications[self.interfaces[id].self_application].canonical_type;
-        Some((id, ty))
-    }
-
-    pub(crate) fn top_level_object_named(&self, name: &str) -> Option<hir::ObjectId> {
-        let NominalTarget::Object(id) = self.top_level_nominal_target(name)? else {
-            return None;
-        };
-        Some(id)
-    }
-
-    pub(crate) fn nested_nominal_target(&self, owner: Owner, name: &str) -> Option<NominalTarget> {
-        self.nested_nominals_by_owner
-            .get(&(owner, name.to_string()))
-            .copied()
-    }
-
-    pub(crate) fn nominal_parent(&self, owner: Owner) -> Option<Owner> {
-        let parent = match owner {
-            Owner::Class(id) => self.classes[id].owner,
-            Owner::Interface(id) => self.interfaces[id].owner,
-            Owner::Struct(id) => self.structs[id].owner,
-            Owner::Enum(id) => self.enums[id].owner,
-            Owner::Object(id) => self.objects[id].owner,
-        }?;
-        Some(Owner::from_nominal_owner(parent))
-    }
-
-    pub(crate) fn lexical_nested_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        let mut owner = self.current_owner?;
-        loop {
-            if let Some(target) = self
-                .nested_nominals_by_owner
-                .get(&(owner, name.to_string()))
-            {
-                return Some(*target);
-            }
-            owner = self.nominal_parent(owner)?;
-        }
-    }
-
-    fn outer_type_parameter_owner(&self, name: &str) -> Option<Owner> {
-        let mut owner = self.nominal_parent(self.current_owner?)?;
-        loop {
-            let params: &[hir::TypeParamDecl] = match owner {
-                Owner::Class(id) => &self.classes[id].type_params,
-                Owner::Interface(id) => &self.interfaces[id].type_params,
-                Owner::Struct(id) => &self.structs[id].type_params,
-                Owner::Enum(id) => &self.enums[id].type_params,
-                Owner::Object(_) => &[],
-            };
-            if params.iter().any(|parameter| parameter.name == name) {
-                return Some(owner);
-            }
-            owner = self.nominal_parent(owner)?;
-        }
-    }
-
-    pub(super) fn resolve_nested_nominal_application(
-        &mut self,
-        target: NominalTarget,
-        arguments: &[ast::TypeRef],
-        span: ast::Span,
-        display_name: &str,
-    ) -> Option<TypeId> {
-        let (kind, params) = match target {
-            NominalTarget::Struct(id) => ("struct", self.structs[id].type_params.clone()),
-            NominalTarget::Enum(id) => ("enum", self.enums[id].type_params.clone()),
-            NominalTarget::Class(id) => ("class", self.classes[id].type_params.clone()),
-            NominalTarget::Interface(id) => ("interface", self.interfaces[id].type_params.clone()),
-            NominalTarget::Object(id) => {
-                if !self.classes[self.objects[id].backing_class]
-                    .type_params
-                    .is_empty()
-                {
-                    self.error(
-                        span,
-                        "generic companion type requires complete host type arguments".into(),
-                    );
-                    return None;
-                }
-                ("object", Vec::new())
-            }
-        };
-        let arity = params.len();
-        if arity == 0 && !arguments.is_empty() {
-            self.error(span, format!("{kind} `{display_name}` is not generic"));
-            return None;
-        }
-        if arity != arguments.len() {
-            self.error(
-                span,
-                if arguments.is_empty() {
-                    format!("generic {kind} `{display_name}` requires {arity} type argument(s)")
-                } else {
-                    format!(
-                        "{kind} `{display_name}` takes {arity} type argument(s), but {} were supplied",
-                        arguments.len()
-                    )
-                },
-            );
-            return None;
-        }
-        let mut resolved = Vec::with_capacity(arguments.len());
-        for argument in arguments {
-            resolved.push(self.resolve_type_ref(argument)?);
-        }
-        if !self.check_type_argument_kinds(
-            &params,
-            &resolved,
-            span,
-            &format!("{kind} `{display_name}`"),
-        ) {
-            return None;
-        }
-        Some(match target {
-            NominalTarget::Struct(id) => self.struct_application(id, resolved),
-            NominalTarget::Enum(id) => self.enum_application(id, resolved),
-            NominalTarget::Class(id) => self.class_application(id, resolved),
-            NominalTarget::Interface(id) => self.source_interface_type(id, resolved),
-            NominalTarget::Object(id) => {
-                self.object_types[self.objects[id].object_type].canonical_type
-            }
-        })
-    }
-
     pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
-        let ty = self.resolve_type_ref_shape(ty_ref)?;
+        let recording = self.begin_type_annotations(ty_ref);
+        let ty = self.resolve_type_ref_shape(ty_ref);
+        if recording {
+            self.end_type_annotations(ty_ref, ty);
+        }
+        let ty = ty?;
         if matches!(
             self.types[ty],
             Type::Struct(_) | Type::Class(_) | Type::Enum(_) | Type::Interface(_)
@@ -336,7 +100,7 @@ impl Lowerer {
                     }
                     Some(crate::imports::lookup::TypeLookupTarget::Current(
                         crate::namespace::TopLevelTypeTarget::Alias(alias),
-                    )) => return self.resolve_type_alias_id_reference(alias, name, true),
+                    )) => return self.apply_source_type_alias(alias, name, args),
                     Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
                         return self.resolve_imported_generic_type_target(&binding, name, args);
                     }
@@ -397,13 +161,7 @@ impl Lowerer {
                             );
                             return None;
                         };
-                        let function = &self.function_types[function_type];
-                        if function.is_suspend || self.function_type_contains_param(function_type) {
-                            self.error(
-                                name.span,
-                                "`FunPtr` type argument must be an ordinary concrete function type"
-                                    .to_string(),
-                            );
+                        if !self.validate_fun_ptr_signature(function_type, name.span) {
                             return None;
                         }
                         let ty = self.intern_type(Type::FunPtr(function_type));
@@ -623,8 +381,16 @@ impl Lowerer {
                     parameter_types.push(self.resolve_type_ref(parameter)?);
                 }
                 let return_type = self.resolve_type_ref(&function.return_type)?;
-                let function =
-                    self.intern_function_type(function.is_suspend, parameter_types, return_type);
+                let receiver = match &function.receiver {
+                    Some(ty) => Some(self.resolve_type_ref(ty)?),
+                    None => None,
+                };
+                let function = self.intern_receiver_function_type(
+                    function.is_suspend,
+                    receiver,
+                    parameter_types,
+                    return_type,
+                );
                 Some(self.function_types[function].canonical_type)
             }
             // `T?` desugars to `Option<T>` (spec 7.1) — the core

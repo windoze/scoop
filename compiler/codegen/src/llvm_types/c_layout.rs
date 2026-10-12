@@ -14,6 +14,12 @@ pub(crate) fn c_field_size(
         LirType::I64 | LirType::F64 | LirType::MachineScalar(_) | LirType::Ptr(_) => 8,
         LirType::Struct(id) => structs[*id].size,
         LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Niche { .. }) => 8,
+        LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Integral { .. }) => {
+            let EnumRepr::Integral { kind, .. } = enums[*id].repr else {
+                unreachable!("integral enum representation was matched");
+            };
+            kind.width().bytes()
+        }
         other => {
             return Err(CodegenError(format!(
                 "non-C field type {} reached a C-layout struct",

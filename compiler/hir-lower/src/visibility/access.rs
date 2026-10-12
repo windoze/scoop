@@ -231,10 +231,6 @@ impl Lowerer {
         domain.is_none_or(|domain| self.access_domain_allows(&domain))
     }
 
-    pub(crate) fn enum_is_accessible(&self, enumeration: hir::EnumId) -> bool {
-        self.access_domain_allows(&self.enums[enumeration].access.lookup.0)
-    }
-
     pub(crate) fn constructor_is_accessible(
         &self,
         source: crate::call_resolution::candidates::NominalConstructorSource,

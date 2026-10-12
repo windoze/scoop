@@ -34,8 +34,36 @@ pub struct QualifiedNameTailSyntax {
 }
 
 impl QualifiedNameSyntax {
+    pub fn single_text(&self) -> Option<&str> {
+        self.rest.is_empty().then_some(self.first.text.as_str())
+    }
+
+    pub fn is_ident(&self, name: &str) -> bool {
+        self.single_text() == Some(name)
+    }
+
     pub fn segments(&self) -> impl Iterator<Item = &Ident> {
         std::iter::once(&self.first).chain(self.rest.iter().map(|tail| &tail.identifier))
+    }
+}
+
+impl From<Ident> for QualifiedNameSyntax {
+    fn from(first: Ident) -> Self {
+        Self {
+            span: first.span,
+            first,
+            rest: Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Display for QualifiedNameSyntax {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.first.text)?;
+        for tail in &self.rest {
+            write!(formatter, ".{}", tail.identifier.text)?;
+        }
+        Ok(())
     }
 }
 

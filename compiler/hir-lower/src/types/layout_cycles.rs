@@ -24,7 +24,22 @@ impl Lowerer {
     /// such as `Grow<T> -> Grow<(T, T)>`: applications never have to be
     /// materialized to recognize that its template returns to itself.
     pub(crate) fn validate_value_layout_cycles(&mut self) -> bool {
-        let nodes = self.value_layout_templates();
+        self.validate_value_layout_nodes(self.value_layout_templates())
+    }
+
+    pub(crate) fn validate_local_value_layouts(&mut self, owners: &[Owner]) -> bool {
+        let nodes = owners
+            .iter()
+            .filter_map(|owner| match owner {
+                Owner::Struct(id) => Some(ValueLayoutTemplate::Struct(*id)),
+                Owner::Enum(id) => Some(ValueLayoutTemplate::Enum(*id)),
+                _ => None,
+            })
+            .collect();
+        self.validate_value_layout_nodes(nodes)
+    }
+
+    fn validate_value_layout_nodes(&mut self, nodes: Vec<ValueLayoutTemplate>) -> bool {
         let relevance = self.value_layout_parameter_relevance(&nodes);
         let mut graph = HashMap::with_capacity(nodes.len());
         for &node in &nodes {
@@ -47,6 +62,8 @@ impl Lowerer {
             .map(|(index, &node)| (node, index))
             .collect::<HashMap<_, _>>();
         for dependencies in graph.values_mut() {
+            // Earlier declarations cannot refer to a later lexical type.
+            dependencies.retain(|node| order.contains_key(node));
             dependencies.sort_by_key(|node| order[node]);
         }
 
@@ -91,6 +108,9 @@ impl Lowerer {
             self.error(span, message);
         }
         self.current_file = previous_file;
+        if valid {
+            self.value_layout_relevance = relevance;
+        }
         valid
     }
 

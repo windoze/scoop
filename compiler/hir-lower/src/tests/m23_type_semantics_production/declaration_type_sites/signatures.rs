@@ -85,3 +85,57 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
         }
     });
 }
+
+#[test]
+fn constructor_receiver_type_sites_require_an_actual_outer_or_capture_input() {
+    with_hir_source(
+        r#"
+        class Outer<T>(val value: T) {
+            inner class Inner<U>(val value: U)
+        }
+        public fun checkContexts(): Int {
+            val captured = 1
+            class Local(val value: Int) {
+                fun read(): Int = value + captured
+            }
+            val outer = Outer("outer")
+            val inner = outer.Inner(41)
+            return inner.value + Local(41).read()
+        }
+    "#,
+        |output, core| {
+            use scoop_identity::LocalValueSelector;
+            let local = output.output().local.module();
+            let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
+            let mut kinds = [false; 3];
+            for constructor in local.class_constructors.values() {
+                let context =
+                    constructor
+                        .parameters
+                        .iter()
+                        .find_map(|parameter| match parameter.selector {
+                            LocalValueSelector::EnclosingInstance => Some(1),
+                            LocalValueSelector::CapturedEnvironment => Some(2),
+                            _ => None,
+                        });
+                kinds[context.unwrap_or(0)] = true;
+                let result = foundation.validate_declaration_type_position(
+                    local.cone,
+                    Position::CallableSignature(constructor.materialization, Part::Receiver),
+                    &[core.source_foundation.as_ref()],
+                );
+                if context.is_some() {
+                    result.unwrap();
+                } else {
+                    assert!(matches!(
+                        result,
+                        Err(hir::DeclarationTypeSiteValidationError::SignaturePosition(
+                            ..
+                        ))
+                    ));
+                }
+            }
+            assert_eq!(kinds, [true; 3]);
+        },
+    );
+}

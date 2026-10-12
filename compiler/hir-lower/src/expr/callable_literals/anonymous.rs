@@ -1,8 +1,14 @@
 use super::*;
 
+mod signature;
+use signature::AnonymousSignature;
+
 impl Lowerer {
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::expr) fn lower_anonymous_function(
         &mut self,
+        label: Option<&ast::Ident>,
+        source_receiver: Option<&ast::TypeRef>,
         is_suspend: bool,
         source_params: &[ast::Param],
         source_return_ty: Option<&ast::TypeRef>,
@@ -10,71 +16,18 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        if let Some((_, signature)) = &expected_signature {
-            if signature.is_suspend != is_suspend {
-                self.error(
-                    span,
-                    "ordinary and suspend function types are incompatible".to_string(),
-                );
-                return None;
-            }
-            if source_params.len() != signature.parameter_types.len() {
-                self.error(
-                    span,
-                    format!(
-                        "anonymous function has {} parameter(s), but the expected function type has {}",
-                        source_params.len(),
-                        signature.parameter_types.len()
-                    ),
-                );
-                return None;
-            }
-        }
-
-        let mut parameter_types = Vec::with_capacity(source_params.len());
-        for (index, parameter) in source_params.iter().enumerate() {
-            let ty = self.resolve_type_ref(&parameter.ty)?;
-            if let Some((_, signature)) = &expected_signature {
-                let expected = signature.parameter_types[index];
-                if !self.is_subtype(expected, ty) {
-                    let found = self.type_name(ty);
-                    let expected = self.type_name(expected);
-                    self.error(
-                        parameter.ty.span,
-                        format!(
-                            "anonymous-function parameter type is {found}, but the expected type is {expected}"
-                        ),
-                    );
-                    return None;
-                }
-            }
-            parameter_types.push(ty);
-        }
-        let explicit_return = match source_return_ty {
-            Some(return_ty) => Some(self.resolve_type_ref(return_ty)?),
-            None => None,
-        };
-        let expected_return = expected_signature
-            .as_ref()
-            .map(|(_, signature)| signature.return_type);
-        if let (Some(explicit), Some(expected)) = (explicit_return, expected_return)
-            && !self.is_subtype(explicit, expected)
-        {
-            let found = self.type_name(explicit);
-            let expected = self.type_name(expected);
-            self.error(
-                source_return_ty.expect("explicit return type").span,
-                format!(
-                    "anonymous-function return type is {found}, but the expected type is {expected}"
-                ),
-            );
-            return None;
-        }
-        let known_return = explicit_return.or(expected_return);
+        let AnonymousSignature {
+            receiver: receiver_ty,
+            parameters: parameter_types,
+            result: known_return,
+        } = self.anonymous_signature(
+            source_receiver,
+            is_suspend,
+            source_params,
+            source_return_ty,
+            span,
+            expected,
+        )?;
 
         let capture_environment = self.capture_environment();
         let literal_origin = self.expression_origin(span);
@@ -86,14 +39,25 @@ impl Lowerer {
             crate::definition_paths::DefinitionPathContext::nested(&definition_path),
         );
         let outer_locals = std::mem::take(&mut self.locals);
-        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let nested_scope = self.scopes.nested_callable();
+        let outer_scopes = std::mem::replace(&mut self.scopes, nested_scope);
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
+        let outer_callable_label = std::mem::replace(
+            &mut self.current_callable_label,
+            label.map(|name| name.text.clone()),
+        );
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
+        let outer_initialization = if receiver_ty.is_some() {
+            self.initialization_context.take()
+        } else {
+            None
+        };
+        let outer_receivers = self.receiver_scopes.len();
         let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
             available: capture_environment,
@@ -120,7 +84,17 @@ impl Lowerer {
         let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = (|| {
-            let mut params = Vec::with_capacity(source_params.len());
+            let mut params =
+                Vec::with_capacity(source_params.len() + usize::from(receiver_ty.is_some()));
+            if let Some(ty) = receiver_ty {
+                params.push(self.bind_callable_receiver(
+                    ty,
+                    label.map(|label| label.text.clone()),
+                    span,
+                ));
+            } else {
+                self.push_receiver_scope(label.map(|label| label.text.clone()), None);
+            }
             for (index, (parameter, ty)) in source_params.iter().zip(&parameter_types).enumerate() {
                 if self.scopes.is_declared_here(&parameter.name.text) {
                     self.error(
@@ -197,8 +171,12 @@ impl Lowerer {
                 });
             }
 
-            let function_type =
-                self.intern_function_type(is_suspend, parameter_types.clone(), return_ty);
+            let function_type = self.intern_receiver_function_type(
+                is_suspend,
+                receiver_ty,
+                parameter_types.clone(),
+                return_ty,
+            );
             let function_ty = self.function_types[function_type].canonical_type;
             let closure_local = self.alloc_synthetic_local(
                 "$closure".to_string(),
@@ -215,6 +193,10 @@ impl Lowerer {
             abi_params.extend(params);
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
+            let annotation_locals = source_params
+                .iter()
+                .any(|p| !p.annotations.is_empty())
+                .then(|| self.locals.clone());
             let function = self.functions.alloc(hir::Function {
                 signature: hir::CallableSignature {
                     context_parameters: Vec::new(),
@@ -240,6 +222,29 @@ impl Lowerer {
                 self.register_generic(function, type_params.clone());
             }
             self.function_files.insert(function, self.current_file);
+            self.annotate_callable_types(
+                hir::SourceAnnotationCallable::Function(function),
+                source_receiver,
+                source_return_ty,
+            );
+            for (index, parameter) in source_params.iter().enumerate() {
+                self.annotate_type_site(
+                    hir::SourceAnnotationTarget::Parameter {
+                        callable: hir::SourceAnnotationCallable::Function(function),
+                        index: index as u32,
+                    },
+                    hir::AnnotationTypeSlot::Value,
+                    &parameter.ty,
+                );
+            }
+            if let Some(locals) = annotation_locals {
+                let empty = std::mem::replace(&mut self.locals, locals);
+                self.annotate_parameters(
+                    hir::SourceAnnotationCallable::Function(function),
+                    source_params,
+                );
+                self.locals = empty;
+            }
             let captures = self.finish_current_captures(literal_origin);
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
                 definition: hir::LexicalFunctionDefinition::Source {
@@ -270,11 +275,16 @@ impl Lowerer {
         self.scopes = outer_scopes;
         self.current_return_ty = outer_return_ty;
         self.return_inference = outer_return_inference;
+        self.current_callable_label = outer_callable_label;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
         self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
+        if let Some(initialization) = outer_initialization {
+            self.initialization_context = Some(initialization);
+        }
+        self.receiver_scopes.truncate(outer_receivers);
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());
         self.loop_targets = outer_loop_targets;

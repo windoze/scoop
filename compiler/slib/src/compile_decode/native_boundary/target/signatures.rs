@@ -51,6 +51,7 @@ impl NativeBoundaryNormalizer<'_> {
                 )
             }
             SignatureTypeKey::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
@@ -60,6 +61,10 @@ impl NativeBoundaryNormalizer<'_> {
                     resolved.push(self.signature_exact_at(parameter, binders)?);
                 }
                 ExactTypeKey::Function {
+                    receiver: receiver
+                        .as_ref()
+                        .map(|ty| self.signature_exact_at(ty, binders))
+                        .transpose()?,
                     effect: *effect,
                     parameters: resolved,
                     result: self.signature_exact_at(result, binders)?,
@@ -111,6 +116,7 @@ impl NativeBoundaryNormalizer<'_> {
                 .get(function)
                 .ok_or(NativeBoundaryTargetError::MissingExactType { exact: *function })?;
             let ExactTypeKey::Function {
+                receiver: None,
                 effect: scoop_identity::Effect::Ordinary,
                 parameters,
                 result,

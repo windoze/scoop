@@ -105,9 +105,19 @@ impl Lowerer {
 
     /// `this` (M6): only inside member functions, where it is
     /// parameter 0 (`lower_body` registers it as a local).
-    pub(super) fn lower_this(&mut self, span: Span) -> Option<hir::Expr> {
-        if self.reject_initializing_this(span) {
-            return None;
+    pub(super) fn lower_this(
+        &mut self,
+        label: Option<&ast::Ident>,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        if self.is_initializing_this_label(label) {
+            self.check_initializing_receiver_label(label)?;
+            if self.reject_initializing_this(span) {
+                return None;
+            }
+        }
+        if let Some(label) = label {
+            return self.lower_labelled_this(label, span);
         }
         let Some(this) = self.lower_current_this(span) else {
             self.error(
@@ -147,7 +157,10 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if matches!(receiver, ast::Expr::This { .. }) && self.initialization_context.is_some() {
+        if let ast::Expr::This { label, .. } = receiver
+            && self.is_initializing_this_label(label.as_ref())
+        {
+            self.check_initializing_receiver_label(label.as_ref())?;
             if !self.initializing_receiver_has_field(&name.text) {
                 self.error(
                     call.span,
@@ -180,6 +193,12 @@ impl Lowerer {
                 }
             };
         }
+        if let Some((alias, index)) = self.resolve_alias_variant(receiver, name).ok()? {
+            return self.lower_alias_variant_construct(&alias, index, name, call, sink, expected);
+        }
+        if let Some(alias) = self.nested_constructor_alias(receiver, name).ok()? {
+            return self.lower_alias_construct(alias, name, call, sink, expected);
+        }
         if let Some(owner) = self.resolve_imported_nominal_qualifier(receiver).ok()? {
             return self.lower_imported_qualified_call(owner, name, call, sink, expected);
         }
@@ -203,7 +222,7 @@ impl Lowerer {
                     let expected = self.alias_fixed_expected(
                         direct_alias.as_ref().map(|(alias, _)| alias),
                         call.type_args,
-                        expected,
+                        applied.map(|(ty, _)| ty).or(expected),
                     )?;
                     return self.lower_variant_construct(target, call, sink, expected);
                 }

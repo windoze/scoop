@@ -64,7 +64,10 @@ impl BodyLowerer<'_> {
             self.register_boxed(source, source_identity);
             return smir::Expr::new(target.clone(), smir::ExprKind::Box(Box::new(value)));
         }
-        if is_reference_mir(source) && is_reference_mir(target) {
+        let integral_upcast = matches!((source, target),
+            (mir::Type::Enum(id, _), mir::Type::Integer(kind))
+                if self.enums.defs[*id].representation.integer_kind() == Some(*kind));
+        if integral_upcast || (is_reference_mir(source) && is_reference_mir(target)) {
             return smir::Expr::new(
                 target.clone(),
                 smir::ExprKind::Retype {
@@ -92,8 +95,8 @@ impl BodyLowerer<'_> {
             "ordinary and suspend function types never coerce"
         );
         assert_eq!(
-            source_signature.parameter_types.len(),
-            target_signature.parameter_types.len(),
+            source_signature.arity(),
+            target_signature.arity(),
             "function variance preserves arity"
         );
         let source_name = mir::type_name(self.shell, &mir::Type::Function(source));
@@ -156,11 +159,11 @@ impl BodyLowerer<'_> {
                 index: 0,
             },
         );
-        let mut args = Vec::with_capacity(target_signature.parameter_types.len());
-        for (index, (target_ty, source_ty)) in target_signature
-            .parameter_types
-            .iter()
-            .zip(&source_signature.parameter_types)
+        let mut args = Vec::with_capacity(target_signature.arity());
+        for (index, ((target_ty, source_ty), target_exact)) in target_signature
+            .parameters()
+            .zip(source_signature.parameters())
+            .zip(target_identity.argument_types())
             .enumerate()
         {
             let local = locals.alloc(mir::Local {
@@ -176,7 +179,7 @@ impl BodyLowerer<'_> {
             args.push(self.adapt_mir_subtype(
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
-                target_identity.parameters()[index],
+                target_exact,
                 source_ty,
                 span,
             ));

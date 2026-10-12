@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 7,
+  "unselected": 3764,
+  "counts": {
+    "passed": 7
+  },
+  "variants": 12,
+  "processes": 73,
+  "stage_and_plan_goldens": 71,
+  "results": [
+    {
+      "name": "m37-do-while-context-suspend-jumps",
+      "status": "passed",
+      "seconds": 11.699454582994804,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-abi-artifacts",
+      "status": "passed",
+      "seconds": 26.671762082958594,
+      "variants": 2,
+      "processes": 20,
+      "snapshots": 18,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-artifacts",
+      "status": "passed",
+      "seconds": 14.136038041906431,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-delegated-gc-generations",
+      "status": "passed",
+      "seconds": 10.93005650001578,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-sealed-receiver-open-family",
+      "status": "passed",
+      "seconds": 10.151925166836008,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-combined-artifacts",
+      "status": "passed",
+      "seconds": 24.58302512508817,
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 18,
+      "message": ""
+    },
+    {
+      "name": "source-defaults-nested-parents",
+      "status": "passed",
+      "seconds": 10.515794583130628,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    }
+  ],
+  "validation": {
+    "target": "aarch64-apple-darwin",
+    "update_snapshots": false,
+    "returncode": 0,
+    "started_at": "2026-10-12T07:10:01.596373+00:00",
+    "seconds": 50.7780724579934
+  }
+}

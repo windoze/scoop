@@ -1,0 +1,18 @@
+const val LOW: Int16 = -4
+object Bounds { const val HIGH: Int16 = 12 }
+fun <T> choose(value: T): Int16 {
+    enum Local: Int16 { Low = LOW, High = Bounds.HIGH }
+    val pair = (value, Local.High)
+    val boxed: Any = pair._2
+    gcCollect()
+    println(boxed is Local)
+    println(boxed is Int16)
+    println(when (boxed as Local) { Local.Low -> "low"; Local.High -> "high" })
+    return Local.Low + 1
+}
+fun main() {
+    println(choose("text"))
+    println(choose(42))
+    enum Tiny: UInt8 { Max = UInt8.MAX_VALUE }
+    println(Tiny.Max)
+}

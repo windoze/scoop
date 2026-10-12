@@ -1,0 +1,2 @@
+@Repeatable @Repeatable annotation class Mark
+fun main() {}

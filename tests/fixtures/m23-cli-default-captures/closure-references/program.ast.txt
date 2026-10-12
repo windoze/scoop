@@ -32,6 +32,7 @@ SourceFile
             IntLiteral 17
             BoolLiteral true
             Lambda 0 suspend=false
+              label choose
               parameters omitted
               IntLiteral 13
         IntLiteral 13

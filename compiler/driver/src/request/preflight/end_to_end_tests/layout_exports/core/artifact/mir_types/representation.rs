@@ -177,12 +177,12 @@ fn variants(replay: &Replay<'_, '_>) {
         .records()
         .iter()
         .find(|record| {
-            matches!(record.representation(), Repr::Enum { variants }
+            matches!(record.representation(), Repr::Enum { variants, .. }
             if variants.len() > 1 && variants.iter().any(|variant| !variant.fields.is_empty()))
         })
         .unwrap();
     let mut shape = record.representation().clone();
-    let Repr::Enum { variants } = &mut shape else {
+    let Repr::Enum { variants, .. } = &mut shape else {
         unreachable!()
     };
     variants.swap(0, 1);
@@ -193,7 +193,7 @@ fn variants(replay: &Replay<'_, '_>) {
     );
 
     let mut shape = record.representation().clone();
-    let Repr::Enum { variants } = &mut shape else {
+    let Repr::Enum { variants, .. } = &mut shape else {
         unreachable!()
     };
     let (variant, fields) = variants

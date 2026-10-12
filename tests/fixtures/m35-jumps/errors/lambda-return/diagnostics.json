@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "a lambda cannot use `return`; use an anonymous function for local returns",
+    "message": "a lambda cannot use bare `return`; use `return@label` for a local return",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 77,
+      "end": 75,
       "kind": "source",
       "path": "main.scoop",
-      "start": 32
+      "start": 67
     },
     "severity": "error"
   }

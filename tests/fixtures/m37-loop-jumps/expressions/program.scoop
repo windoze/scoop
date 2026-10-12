@@ -1,0 +1,27 @@
+var trace: Int = 0
+fun mark(value: Int): Int { trace = trace * 10 + value; return value }
+fun consume(a: Int, b: Int, c: Int = mark(9)): Int = mark(8)
+fun empty(): Array<Int>? = None
+fun main() {
+    outer@ for (index in [1, 2]) {
+        consume(mark(1), continue@outer, mark(3))
+    }
+    println(trace); trace = 0
+    outer@ while (true) {
+        consume(mark(1), break@outer)
+    }
+    println(trace); trace = 0
+    val values: Array<Int?> = [None, Some(2)]
+    outer@ for (value in values) {
+        val text = (value ?: continue@outer).toString()
+        println(text)
+    }
+    while (true) {
+        val values: Array<Int> = [mark(1), break, mark(3)]
+    }
+    println(trace); trace = 0
+    outside@ while (true) {
+        for (value in empty() ?: break@outside) println(value)
+    }
+    println(4)
+}

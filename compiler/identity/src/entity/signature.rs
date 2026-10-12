@@ -86,6 +86,7 @@ pub enum SignatureTypeKey {
         effect: Effect,
         parameters: Vec<SignatureTypeKey>,
         result: Box<SignatureTypeKey>,
+        receiver: Option<Box<SignatureTypeKey>>,
     },
     RawPointer(Box<SignatureTypeKey>),
     NativeFunctionPointer {
@@ -118,18 +119,24 @@ impl WireEncode for SignatureTypeKey {
                 encode_sequence(encoder, elements.as_slice())
             }
             Self::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(receiver.is_some()))?;
                 encode_tag(encoder, 4)?;
                 encoder.field(1)?;
                 effect.encode(encoder)?;
                 encoder.field(2)?;
                 encode_sequence(encoder, parameters)?;
                 encoder.field(3)?;
-                result.encode(encoder)
+                result.encode(encoder)?;
+                if let Some(receiver) = receiver {
+                    encoder.field(4)?;
+                    receiver.encode(encoder)?;
+                }
+                Ok(())
             }
             Self::RawPointer(pointee) => encode_single_payload(encoder, 5, pointee.as_ref()),
             Self::NativeFunctionPointer {
@@ -159,6 +166,13 @@ impl WireEncode for SignatureTypeKey {
 }
 
 impl SignatureTypeKey {
+    pub fn receiver_type(&self) -> Option<&Self> {
+        match self {
+            Self::Function { receiver, .. } => receiver.as_deref(),
+            _ => None,
+        }
+    }
+
     pub fn contains_binder(&self) -> bool {
         match self {
             Self::Nominal(_) => false,
@@ -166,9 +180,16 @@ impl SignatureTypeKey {
                 arguments.as_slice().iter().any(Self::contains_binder)
             }
             Self::Function {
-                parameters, result, ..
+                receiver,
+                parameters,
+                result,
+                ..
+            } => {
+                receiver.as_deref().is_some_and(Self::contains_binder)
+                    || parameters.iter().any(Self::contains_binder)
+                    || result.contains_binder()
             }
-            | Self::NativeFunctionPointer {
+            Self::NativeFunctionPointer {
                 parameters, result, ..
             } => parameters.iter().any(Self::contains_binder) || result.contains_binder(),
             Self::RawPointer(pointee) => pointee.contains_binder(),
@@ -351,6 +372,7 @@ mod tests {
         let binder = SignatureTypeKey::Binder { depth: 1, index: 2 };
         assert_eq!(encode(&binder).unwrap(), b"\xa3\x00\x07\x01\x01\x02\x02");
         let function = SignatureTypeKey::Function {
+            receiver: None,
             effect: Effect::Suspend,
             parameters: vec![binder.clone()],
             result: Box::new(binder),

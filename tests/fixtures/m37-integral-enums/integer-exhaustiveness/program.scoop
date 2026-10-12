@@ -1,0 +1,2 @@
+enum E : Int { A = 0, B = 1 }
+fun read(value: E): Int { val raw: Int = value; return when (raw) { case 0 -> 1; case 1 -> 2 } }

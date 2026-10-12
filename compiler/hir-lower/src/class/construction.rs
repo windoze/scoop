@@ -81,10 +81,7 @@ impl Lowerer {
         let Some(specification) = specification.cloned() else {
             return;
         };
-        let arguments = specification
-            .constructor_arguments
-            .as_deref()
-            .unwrap_or(&[]);
+        let arguments = specification.constructor_arguments().unwrap_or(&[]);
         let unit = self.singleton_values[self.objects[object].singleton_value].initialization;
         let previous_unit = self.current_initialization_unit.replace(unit);
         let Some(base) = self.lower_base_initialization(
@@ -115,7 +112,7 @@ impl Lowerer {
         if let Some(primary) = primary {
             self.resolve_primary_base(id, primary, decl);
         } else if let Some(spec) = self.source_base_spec(id, decl)
-            && spec.constructor_arguments.is_some()
+            && spec.constructor_arguments().is_some()
         {
             self.error(
                 spec.span,
@@ -151,7 +148,7 @@ impl Lowerer {
         let Some(spec) = self.source_base_spec(owner, decl).cloned() else {
             return;
         };
-        let arguments = spec.constructor_arguments.as_deref().unwrap_or(&[]);
+        let arguments = spec.constructor_arguments().unwrap_or(&[]);
         let Some(base) = self.lower_base_initialization(
             primary,
             base_ty,
@@ -300,6 +297,7 @@ impl Lowerer {
         let type_arguments = self.class_applications[owner_application].arguments.clone();
         let explicit_type_arguments = type_arguments
             .iter()
+            .skip(self.enclosing_parameter_count(owner))
             .copied()
             .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
@@ -317,8 +315,9 @@ impl Lowerer {
                     &name,
                     &candidates,
                     crate::constructor_resolution::NominalConstructorCall {
+                        enclosing: None,
                         explicit_type_args: &explicit_type_arguments,
-                        expected_type_args: None,
+                        expected_type_args: Some(&type_arguments),
                         arguments,
                         span,
                     },
@@ -365,6 +364,7 @@ impl Lowerer {
         let type_arguments = base.arguments;
         let explicit_type_arguments = type_arguments
             .iter()
+            .skip(self.enclosing_parameter_count(self.class_id(base.template)))
             .copied()
             .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
@@ -377,8 +377,9 @@ impl Lowerer {
                     &name,
                     &candidates,
                     crate::constructor_resolution::NominalConstructorCall {
+                        enclosing: None,
                         explicit_type_args: &explicit_type_arguments,
-                        expected_type_args: None,
+                        expected_type_args: Some(&type_arguments),
                         arguments,
                         span,
                     },
@@ -475,6 +476,7 @@ impl Lowerer {
                         &name,
                         &candidates,
                         crate::constructor_resolution::NominalConstructorCall {
+                            enclosing: None,
                             explicit_type_args: &explicit_type_arguments,
                             expected_type_args: None,
                             arguments: arguments.as_slice(),

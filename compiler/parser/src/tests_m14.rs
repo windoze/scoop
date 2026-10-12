@@ -29,8 +29,7 @@ fn generic_class_preserves_complete_host_and_supertype_syntax() {
     ));
     let base = &class.supertypes[0].ty;
     let args = class.supertypes[0]
-        .constructor_arguments
-        .as_ref()
+        .constructor_arguments()
         .expect("generic base arguments");
     assert!(matches!(
         &base.kind,

@@ -1,4 +1,4 @@
-//! Projection of public Export HIR typealiases into their canonical interface.
+//! Projection of public Export HIR aliases and declaration-site parameter bindings.
 
 use std::collections::HashSet;
 use std::fmt;
@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl CanonicalTypeAliasInterfacesV1 {
-    /// Projects exactly the current Cone's public non-generic typealiases.
+    /// Projects the current Cone's public alias declarations.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, TypeAliasInterfaceBuildError> {
         let public_aliases = export
             .public_surface
@@ -22,6 +22,7 @@ impl CanonicalTypeAliasInterfacesV1 {
             .copied()
             .collect::<HashSet<_>>();
         let mapper = HirSignatureTypeMapper::new(crate::HirTypeIdentityInputs::from_export(export));
+        let projector = super::signatures::HirInterfaceSignatureProjector::new(export);
         let mut records = Vec::with_capacity(export.public_surface.type_aliases.len());
 
         for &alias in &export.public_surface.type_aliases {
@@ -48,9 +49,30 @@ impl CanonicalTypeAliasInterfacesV1 {
                 ));
             }
 
-            let target = match declaration.source_target {
+            let binders = declaration
+                .type_params
+                .iter()
+                .enumerate()
+                .map(|(index, parameter)| crate::HirSignatureBinder {
+                    parameter: parameter.id,
+                    depth: 0,
+                    index: index as u32,
+                })
+                .collect::<Vec<_>>();
+            let parameters = projector
+                .project_binder_list(&declaration.type_params, &binders)
+                .map_err(|source| TypeAliasInterfaceBuildError::Parameters {
+                    alias: persistent,
+                    source,
+                })?;
+            let source_target = if parameters.is_empty() {
+                declaration.source_target
+            } else {
+                TypeAliasSourceTarget::Expanded
+            };
+            let target = match source_target {
                 TypeAliasSourceTarget::Expanded => mapper
-                    .map(declaration.target, &[])
+                    .map(declaration.target, &binders)
                     .map(TypeAliasTargetV1::Signature)
                     .map_err(|source| TypeAliasInterfaceBuildError::Signature {
                         alias: persistent,
@@ -102,6 +124,16 @@ impl CanonicalTypeAliasInterfacesV1 {
                 alias: persistent,
                 source,
             })?;
+            let record = if parameters.is_empty() {
+                record
+            } else {
+                record
+                    .with_type_parameters(parameters, declaration.owner_parameter_count as u32)
+                    .map_err(|source| TypeAliasInterfaceBuildError::Record {
+                        alias: persistent,
+                        source,
+                    })?
+            };
             records.push(record);
         }
 
@@ -120,8 +152,12 @@ fn raw_alias(alias: ExportTypeAliasId) -> u32 {
     alias.into_raw().into_u32()
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TypeAliasInterfaceBuildError {
+    Parameters {
+        alias: PersistentTypeAliasId,
+        source: super::signatures::HirInterfaceSignatureProjectionError,
+    },
     UnknownPublicAlias(u32),
     MissingAliasIdentity(u32),
     ForeignDeclaration {
@@ -162,6 +198,10 @@ pub enum TypeAliasInterfaceBuildError {
 impl fmt::Display for TypeAliasInterfaceBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Parameters { alias, source } => write!(
+                formatter,
+                "invalid type-alias parameters for {alias}: {source}"
+            ),
             Self::UnknownPublicAlias(alias) => {
                 write!(
                     formatter,

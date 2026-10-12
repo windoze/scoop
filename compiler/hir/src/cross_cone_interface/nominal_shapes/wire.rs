@@ -20,12 +20,7 @@ impl WireEncode for NominalSourceShapeV1 {
                 encoder.field(3)?;
                 encoder.unsigned(u64::from(shape.interior_mutable))
             }
-            Self::Enum(shape) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 4)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, &shape.variants)
-            }
+            Self::Enum(shape) => encode_enum(encoder, &shape.variants, &shape.representation),
             Self::Object(shape) => {
                 encoder.map(4)?;
                 encode_tag(encoder, 9)?;
@@ -65,12 +60,10 @@ impl WireEncode for DecodedNominalSourceShapeV1 {
                 encoder.field(3)?;
                 encoder.unsigned(u64::from(*interior_mutable))
             }
-            Self::Enum(variants) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 4)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, variants)
-            }
+            Self::Enum {
+                variants,
+                representation,
+            } => encode_enum(encoder, variants, representation),
             Self::Object {
                 kind,
                 value,
@@ -125,14 +118,20 @@ impl WireDecode for DecodedNominalSourceShapeV1 {
                     interior_mutable,
                 })
             }
-            4 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, |decoder| {
-                        decoder
-                            .decode_array(|decoder, _| DecodedEnumSourceVariantV1::decode(decoder))
-                    })
-                    .map(Self::Enum)
+            4 | 10 => {
+                expect_sum_length(decoder, fields, if tag == 4 { 2 } else { 3 })?;
+                let variants = decoder.field(1, |decoder| {
+                    decoder.decode_array(|decoder, _| DecodedEnumSourceVariantV1::decode(decoder))
+                })?;
+                let representation = if tag == 4 {
+                    crate::EnumRepresentation::Algebraic
+                } else {
+                    decoder.field(2, crate::EnumRepresentation::decode)?
+                };
+                Ok(Self::Enum {
+                    variants,
+                    representation,
+                })
             }
             9 => {
                 expect_sum_length(decoder, fields, 4)?;
@@ -183,4 +182,21 @@ impl WireDecode for ObjectSourceKindV1 {
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
+}
+
+fn encode_enum<T: WireEncode>(
+    encoder: &mut Encoder,
+    variants: &[T],
+    representation: &crate::EnumRepresentation,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    let integral = representation.integer_kind().is_some();
+    encoder.map(if integral { 3 } else { 2 })?;
+    encode_tag(encoder, if integral { 10 } else { 4 })?;
+    encoder.field(1)?;
+    encode_sequence(encoder, variants)?;
+    if integral {
+        encoder.field(2)?;
+        representation.encode(encoder)?;
+    }
+    Ok(())
 }

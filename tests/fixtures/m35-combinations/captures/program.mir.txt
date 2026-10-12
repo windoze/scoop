@@ -145,7 +145,7 @@ Module
         Type Boolean
         IsInstance Left
           Type Any
-          Local value
+          Local $when.subject.3
     bb4 if.then.4
       branch bb7 bb8
         Type Boolean
@@ -204,7 +204,7 @@ Module
         Type Boolean
         IsInstance Payload
           Type Any
-          Local value
+          Local $when.subject.6
     bb1 if.then.1
       return
         Type () -> Int
@@ -517,9 +517,7 @@ Module
         Type Boolean
         IsInstance Left
           Type Any
-          ClosureCapture cc3 0
-            Type () -> Int
-            Local $closure
+          Local $when.subject.4
     bb1 if.then.1
       branch bb4 bb5
         Type Boolean
@@ -657,7 +655,7 @@ Module
         Type Boolean
         IsInstance Int
           Type Any
-          Local input
+          Local $when.subject.7
     bb1 if.then.1
       assign $result.8
         Type () -> Int
@@ -690,7 +688,7 @@ Module
         Type Boolean
         IsInstance String
           Type Any
-          Local input
+          Local $when.subject.7
     bb1 if.then.1
       assign $result.8
         Type () -> String
@@ -867,7 +865,7 @@ Module
         Type Boolean
         IsInstance Payload
           Type Any
-          Local value
+          Local $when.subject.0
     bb1 if.then.1
       assign $result.1
         Type () -> Int

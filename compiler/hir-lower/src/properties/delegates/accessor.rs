@@ -3,7 +3,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(in crate::properties) fn lower_generated_delegate_accessor(
+    pub(crate) fn lower_generated_delegate_accessor(
         &mut self,
         source: &PropertyAccessorSource,
     ) -> hir::Body {
@@ -123,6 +123,10 @@ impl Lowerer {
                     property.span,
                 )
                 .and_then(|value| {
+                    if signature.result_pending {
+                        self.set_inferred_function_result(source.function, value.ty);
+                        return Some(value);
+                    }
                     self.validate_delegate_get_result(
                         &property.name,
                         value.ty,
@@ -132,7 +136,7 @@ impl Lowerer {
                     .then(|| self.adapt_to(value, signature.return_ty))
                 })
                 .map_or_else(Vec::new, |value| {
-                    if self.types_equal(signature.return_ty, self.unit) {
+                    if self.types_equal(self.signatures[&source.function].return_ty, self.unit) {
                         vec![
                             hir::Statement {
                                 kind: hir::StatementKind::Expr(value),

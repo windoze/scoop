@@ -122,11 +122,11 @@ impl Lowerer {
                 index: 0,
             },
         );
-        let mut args = Vec::with_capacity(target_signature.parameter_types.len());
-        for (index, (target_ty, source_ty)) in target_signature
-            .parameter_types
-            .iter()
-            .zip(&source_signature.parameter_types)
+        let mut args = Vec::with_capacity(target_signature.arity());
+        for (index, ((target_ty, source_ty), target_exact)) in target_signature
+            .parameters()
+            .zip(source_signature.parameters())
+            .zip(target_identity.argument_types())
             .enumerate()
         {
             let local = locals.alloc(mir::Local {
@@ -143,7 +143,7 @@ impl Lowerer {
                 module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
-                target_identity.parameters()[index],
+                target_exact,
                 source_ty,
             ));
         }

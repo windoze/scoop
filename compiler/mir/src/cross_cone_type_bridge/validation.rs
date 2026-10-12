@@ -294,7 +294,7 @@ impl MirTypeBridgeAuthority<'_> {
                     facts.kind() != Kind::Reference
                 }
             }
-            Repr::Enum { variants }
+            Repr::Enum { variants, .. }
             | Repr::CoroutineStep { variants }
             | Repr::CoroutineSlot { variants } => {
                 let gc = if variants
@@ -333,11 +333,30 @@ impl MirTypeBridgeAuthority<'_> {
                     MirTypeRepresentationV1::Class { .. }
                         | MirTypeRepresentationV1::Object { .. }
                         | MirTypeRepresentationV1::ObjectBacking { .. }
+                        | MirTypeRepresentationV1::BoxedValue { .. }
                 )
             {
                 return Err(MirTypeBridgeError::InvalidBase { exact: base });
             }
-            if self.source_kind(base)? != SourceDeclarationKind::Class {
+            let class_parent = if matches!(
+                record.representation(),
+                MirTypeRepresentationV1::BoxedValue { .. }
+            ) {
+                let key = self.identities.canonical_key::<_, ExactTypeKey>(base)?;
+                if let ExactTypeKey::Nominal(nominal) = key.as_ref() {
+                    matches!(
+                        self.identities
+                            .canonical_key::<_, GeneratedNominalKey>(*nominal)?
+                            .as_ref(),
+                        GeneratedNominalKey::BoxedValue { .. }
+                    )
+                } else {
+                    false
+                }
+            } else {
+                self.source_kind(base)? == SourceDeclarationKind::Class
+            };
+            if !class_parent {
                 return Err(MirTypeBridgeError::InvalidBase { exact: base });
             }
         }

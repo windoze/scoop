@@ -48,7 +48,7 @@ impl<'a> Traversal<'a> {
             | ExprKind::PtrCast(operand)
             | ExprKind::Box(operand)
             | ExprKind::Unbox(operand)
-            | ExprKind::ReferenceUpcast(operand)
+            | ExprKind::Upcast(operand)
             | ExprKind::IsInstance { operand, .. }
             | ExprKind::Cast { operand, .. }
             | ExprKind::ArrayLen(operand)

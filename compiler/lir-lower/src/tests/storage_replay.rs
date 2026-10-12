@@ -164,6 +164,7 @@ fn tagged_enum_shared_region_retains_its_size_and_zst_payload_never_removes_tag(
     );
     let triple = builder.strukt("Triple", &[("a", LONG), ("b", LONG), ("c", LONG)]);
     let enum_id = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "Mixed".to_string(),
         type_arguments: Vec::new(),
         gc_free: false,

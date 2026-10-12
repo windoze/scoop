@@ -1,5 +1,48 @@
 use super::*;
 
+mod delegates;
+pub(super) use delegates::interface_delegate_record;
+
+pub(super) fn enclosing_instance_record(
+    owner: ClassId,
+    field: ClassFieldId,
+    nominal_identities: &HirNominalIdentities,
+) -> Result<FieldRecord, HirFieldIdentityError> {
+    let source = nominal_identities[owner].source().ok_or(
+        HirFieldIdentityError::UnsupportedGeneratedClassOwner {
+            class: raw_index(owner),
+            field: raw_index(field),
+        },
+    )?;
+    FieldIdentityKey::source_enclosing_instance(source.declaration())
+        .and_then(CborIdentityRecord::from_key)
+        .map_err(|error| HirFieldIdentityError::InvalidClassFieldIdentity {
+            class: raw_index(owner),
+            field: raw_index(field),
+            error,
+        })
+}
+
+pub(super) fn captured_environment_record(
+    owner: ClassId,
+    field: ClassFieldId,
+    nominal_identities: &HirNominalIdentities,
+) -> Result<FieldRecord, HirFieldIdentityError> {
+    let source = nominal_identities[owner].source().ok_or(
+        HirFieldIdentityError::UnsupportedGeneratedClassOwner {
+            class: raw_index(owner),
+            field: raw_index(field),
+        },
+    )?;
+    FieldIdentityKey::source_captured_environment(source.declaration())
+        .and_then(CborIdentityRecord::from_key)
+        .map_err(|error| HirFieldIdentityError::InvalidClassFieldIdentity {
+            class: raw_index(owner),
+            field: raw_index(field),
+            error,
+        })
+}
+
 pub(super) fn struct_field_record(
     structs: &Arena<StructDecl>,
     nominal_identities: &HirNominalIdentities,
@@ -42,6 +85,7 @@ pub(super) fn class_field_record(
     class_id: ClassId,
     field_id: ClassFieldId,
     field: &ClassField,
+    source_property: PropertyId,
     objects: &Arena<ObjectDecl>,
     properties: &Arena<Property>,
     delegate_storages: &Arena<DelegateStorage>,
@@ -57,30 +101,30 @@ pub(super) fn class_field_record(
             actual_class: raw_index(field.owner),
         });
     }
-    if local_index(field.property) >= properties.len() {
+    if local_index(source_property) >= properties.len() {
         return Err(HirFieldIdentityError::UnknownProperty {
             field: field_index,
-            property: raw_index(field.property),
+            property: raw_index(source_property),
         });
     }
-    let property = &properties[field.property];
+    let property = &properties[source_property];
     let property_id = match property_identity {
         HirPropertyIdentity::Ordinary(record) => record.id(),
         HirPropertyIdentity::Extension(_) => {
             return Err(HirFieldIdentityError::ExtensionPropertyField {
                 field: field_index,
-                property: raw_index(field.property),
+                property: raw_index(source_property),
             });
         }
     };
-    let role = storage_role(field_id, field.property, property, delegate_storages)?;
+    let role = storage_role(field_id, source_property, property, delegate_storages)?;
     let key = match &nominal_identities[class_id] {
         crate::HirNominalIdentity::Source(owner) => {
             if property.owner != PropertyOwner::Class(class_id) {
                 return Err(HirFieldIdentityError::SourceClassPropertyOwner {
                     class,
                     field: field_index,
-                    property: raw_index(field.property),
+                    property: raw_index(source_property),
                 });
             }
             match role {
@@ -111,7 +155,7 @@ pub(super) fn class_field_record(
                 return Err(HirFieldIdentityError::ObjectBackingPropertyOwner {
                     class,
                     field: field_index,
-                    property: raw_index(field.property),
+                    property: raw_index(source_property),
                 });
             };
             if local_index(object_id) >= objects.len() {

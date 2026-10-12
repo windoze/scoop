@@ -73,7 +73,7 @@ impl Lowerer {
     }
 
     fn capture_errno(&mut self, annotations: &[ast::Annotation]) -> Option<bool> {
-        let Some(annotation) = annotations.iter().find(|item| item.name.text == "Extern") else {
+        let Some(annotation) = annotations.iter().find(|item| item.name.is_ident("Extern")) else {
             return Some(false);
         };
         let mut positional = 0;

@@ -6,14 +6,51 @@ use scoop_hir as hir;
 
 use crate::{Lowerer, NominalTarget, Type};
 
+mod annotations;
+mod applications;
+mod constructors;
+mod declarations;
+mod forwarding;
+mod inference;
 mod publication;
 
 pub(crate) type SourceTypeAliasId = Idx<SourceTypeAlias>;
 
 #[derive(Debug, Clone)]
+pub(crate) enum AliasOrigin {
+    Source(SourceTypeAliasId),
+    Imported(Box<hir::DirectImportedTargetBinding>),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AliasTemplate {
+    pub(crate) origin: AliasOrigin,
+    pub(crate) name: ast::Ident,
+    pub(crate) host: Option<hir::TypeId>,
+    pub(crate) arguments: Option<Vec<hir::TypeId>>,
+    pub(crate) parameters: Vec<hir::TypeParamDecl>,
+    pub(crate) outer_parameter_count: usize,
+    pub(crate) target: hir::TypeId,
+}
+
+impl AliasTemplate {
+    pub(crate) fn parameterized(&self) -> bool {
+        self.parameters.len() > self.outer_parameter_count
+    }
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct SourceTypeAlias {
+    annotations: Vec<ast::Annotation>,
+    lexical: bool,
     name: String,
     target: ast::TypeRef,
+    syntax_parameters: Vec<ast::TypeParamDecl>,
+    where_clause: Option<ast::WhereClause>,
+    pub(crate) parameters: Vec<hir::TypeParamDecl>,
+    outer_parameter_count: usize,
+    pub(crate) owner: Option<crate::Owner>,
+    scope: Option<crate::Scopes>,
     pub(crate) access: hir::DeclarationAccess,
     pub(crate) origin: hir::DefinitionOrigin,
     file: usize,
@@ -48,45 +85,6 @@ enum ResolvedTypeAliasSource {
 impl Lowerer {
     pub(crate) fn source_type_alias_is_accessible(&self, id: SourceTypeAliasId) -> bool {
         self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0)
-    }
-
-    pub(crate) fn declare_type_alias(&mut self, declaration: &ast::TypeAliasDecl, file: usize) {
-        let name = declaration.name.text.clone();
-        if let Some(kind) = self.type_namespace_conflict(
-            None,
-            &name,
-            file,
-            crate::namespace::is_file_private(declaration.visibility),
-        ) {
-            let message = if kind == "a typealias" {
-                format!("duplicate typealias `{name}`")
-            } else {
-                format!("duplicate type `{name}` (already declared as {kind})")
-            };
-            self.error(declaration.name.span, message);
-            return;
-        }
-        let access = self.top_level_access(
-            declaration.visibility,
-            declaration.name.span,
-            "typealias",
-            file,
-        );
-        let origin = self.definition_origin(declaration.span);
-        let id = self.source_type_aliases.alloc(SourceTypeAlias {
-            name: name.clone(),
-            target: declaration.target.clone(),
-            access,
-            origin,
-            file,
-            resolution: TypeAliasResolution::Unresolved,
-        });
-        self.top_level_namespaces.register_type(
-            file,
-            name,
-            crate::namespace::TopLevelTypeTarget::Alias(id),
-            self.source_type_aliases[id].access.declared == hir::DeclaredVisibility::Private,
-        );
     }
 
     pub(crate) fn source_type_alias_named(&self, name: &str) -> Option<SourceTypeAliasId> {
@@ -128,21 +126,10 @@ impl Lowerer {
             );
             return None;
         }
-        let access = self.source_type_aliases[id].access.lookup.0.clone();
-        if !self.access_domain_allows(&access) {
-            self.error(
-                name.span,
-                format!(
-                    "typealias `{}` is not accessible from this source location",
-                    name.text
-                ),
-            );
-            return None;
-        }
-        self.resolve_type_alias(id, name.span)
+        self.apply_source_type_alias(id, name, &[])
     }
 
-    fn resolve_type_alias(
+    pub(crate) fn resolve_type_alias(
         &mut self,
         id: SourceTypeAliasId,
         reference_span: ast::Span,
@@ -181,13 +168,43 @@ impl Lowerer {
         let previous_file = self.current_file;
         let previous_owner = self.current_owner;
         let previous_params = std::mem::take(&mut self.type_params_in_scope);
+        let previous_scope = std::mem::replace(
+            &mut self.scopes,
+            alias.scope.clone().unwrap_or_else(crate::Scopes::new),
+        );
         self.current_file = alias.file;
-        self.current_owner = None;
-        let source = self.resolve_type_alias_source(&alias.target);
+        self.current_owner = alias.owner;
+        let mut parameters = alias.parameters.clone();
+        if alias.scope.is_none()
+            && alias.outer_parameter_count != 0
+            && let Some(owner) = alias.owner
+        {
+            parameters = self.owner_type_params(owner);
+            parameters.extend(
+                alias.parameters[alias.outer_parameter_count..]
+                    .iter()
+                    .cloned(),
+            );
+        }
+        let parameters = self.resolve_type_parameter_constraints(
+            parameters,
+            alias.outer_parameter_count,
+            &alias.syntax_parameters,
+            alias.where_clause.as_ref(),
+            "typealias",
+        );
+        self.source_type_aliases[id].parameters = parameters.clone();
+        self.type_params_in_scope = parameters;
+        let source = if alias.parameters.is_empty() && alias.scope.is_none() {
+            self.resolve_type_alias_source(&alias.target)
+        } else {
+            ResolvedTypeAliasSource::Expanded
+        };
         let target = self.resolve_type_ref(&alias.target);
         self.current_file = previous_file;
         self.current_owner = previous_owner;
         self.type_params_in_scope = previous_params;
+        self.scopes = previous_scope;
 
         let popped = self
             .type_alias_resolution_stack
@@ -283,6 +300,31 @@ impl Lowerer {
             .collect::<Vec<_>>();
         for (id, span) in aliases {
             self.resolve_type_alias(id, span);
+        }
+    }
+
+    pub(crate) fn resolve_local_owner_aliases(&mut self, owners: &[crate::Owner]) {
+        let aliases = self
+            .source_type_aliases
+            .iter()
+            .filter(|(_, alias)| alias.owner.is_some_and(|owner| owners.contains(&owner)))
+            .map(|(id, alias)| (id, alias.clone()))
+            .collect::<Vec<_>>();
+        for (id, alias) in aliases {
+            if let Some(target) = self.resolve_type_alias(id, alias.target.span) {
+                let params = std::mem::replace(
+                    &mut self.type_params_in_scope,
+                    self.source_type_aliases[id].parameters.clone(),
+                );
+                self.validate_type_alias_target_tree(
+                    target,
+                    alias.target.span,
+                    &format!("target of typealias `{}`", alias.name),
+                    &mut std::collections::HashSet::new(),
+                );
+                self.type_params_in_scope = params;
+                self.publish_lexical_type_alias(id);
+            }
         }
     }
 

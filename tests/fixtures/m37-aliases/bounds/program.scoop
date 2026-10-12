@@ -1,0 +1,13 @@
+interface Show { fun show(): Int }
+struct Item(val value: Int): Show { override fun show(): Int = value }
+class Box<T: Show>(val value: T)
+typealias Shown<T: Show> = Box<T>
+typealias Column<T> where T: Show = Box<T>
+typealias Scalars<T: value> = Array<T>
+fun main() {
+    val box = Shown(Item(42))
+    val values: Scalars<Int> = [7]
+    println(box.value.show())
+    println(values[0])
+    println(Column(Item(8)).value.show())
+}

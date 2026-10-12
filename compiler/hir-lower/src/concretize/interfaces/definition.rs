@@ -13,7 +13,7 @@ pub(super) struct ResolvedInterfaceDefinition<'a> {
 pub(super) struct ResolvedInterfaceMethod<'a> {
     pub slot: scoop_identity::PersistentDispatchSlotId,
     pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
-    pub name: &'a str,
+    pub name: String,
     pub context_owner: export::ContextRequirementOwner,
     pub context_parameters: Vec<export::TypeId>,
     pub is_suspend: bool,
@@ -30,7 +30,7 @@ impl<'a> ResolvedInterfaceMethod<'a> {
         Self {
             slot: method.slot.id(),
             overrides: method.overrides.clone(),
-            name: &method.name,
+            name: method.name.clone(),
             context_owner: export::ContextRequirementOwner::Imported(
                 match method.declaration.declaration() {
                     scoop_identity::CallableTemplateOrigin::Function(id) => {
@@ -93,11 +93,27 @@ impl<'input> Concretizer<'input> {
                 .iter()
                 .map(|reference| self.interface_reference_slot(*reference))
                 .collect(),
-            name: function
-                .name
-                .rsplit('.')
-                .next()
-                .expect("interface methods have a name"),
+            name: match member_data.role {
+                export::InterfaceMemberRole::Function => {
+                    let export::HirFunctionIdentity::Source(identity) =
+                        &self.source.function_identities[member_data.function]
+                    else {
+                        unreachable!("an interface method has a source identity")
+                    };
+                    let scoop_identity::DeclarationName::Named(name) =
+                        identity.declaration().name()
+                    else {
+                        unreachable!("a method is named")
+                    };
+                    name.as_str().to_owned()
+                }
+                export::InterfaceMemberRole::PropertyGetter(property) => {
+                    format!("$get${}", self.source.properties[property].name)
+                }
+                export::InterfaceMemberRole::PropertySetter(property) => {
+                    format!("$set${}", self.source.properties[property].name)
+                }
+            },
             context_owner: export::ContextRequirementOwner::Source(member_data.function),
             context_parameters: function.context_parameters.iter().map(|p| p.ty).collect(),
             is_suspend: function.is_suspend,

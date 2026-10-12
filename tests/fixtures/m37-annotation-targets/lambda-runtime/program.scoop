@@ -1,0 +1,3 @@
+annotation class Mark
+annotation class Number(val value: Int)
+fun value(item: Int): (Int) -> Int = { @Number(item) other -> other }

@@ -17,10 +17,16 @@ fn ordinary_class_constructor_parameter_is_preserved() {
 }
 
 #[test]
-fn class_body_property_requires_an_explicit_type() {
-    let (span, message) = err("class C {\n    val y = 1\n}\n");
-    assert_eq!(span, Span::new(20, 21));
-    assert_eq!(message, "class stored properties require an explicit type");
+fn class_body_property_retains_an_omitted_type() {
+    let file = ok("class C {\n    val y = 1\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    let scoop_ast::ClassMember::StoredProperty(property) = &class.members[0] else {
+        panic!("expected property")
+    };
+    assert!(property.ty.is_none());
+    assert_eq!(property.name.span, Span::new(18, 19));
 }
 
 #[test]
@@ -90,13 +96,16 @@ fn object_declaration_is_preserved() {
 }
 
 #[test]
-fn sealed_class_not_supported() {
-    let (span, message) = err("sealed class C {}");
-    assert_eq!(span, Span::new(0, 6));
-    assert_eq!(
-        message,
-        "`sealed` classes are not supported yet (milestone M6)"
-    );
+fn sealed_class_and_interface_are_preserved() {
+    let file = ok("sealed class C {}\nsealed interface I {}");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    assert_eq!(class.modifier, scoop_ast::ClassModifier::Sealed);
+    let Decl::Interface(interface) = &file.declarations[1] else {
+        panic!("expected interface")
+    };
+    assert!(interface.sealed_span.is_some());
 }
 
 #[test]
@@ -137,6 +146,6 @@ fn constructor_arguments_are_preserved_until_nominal_kind_resolution() {
         panic!("expected class")
     };
     assert_eq!(class.supertypes.len(), 2);
-    assert!(class.supertypes[0].constructor_arguments.is_none());
-    assert!(class.supertypes[1].constructor_arguments.is_some());
+    assert!(class.supertypes[0].constructor_arguments().is_none());
+    assert!(class.supertypes[1].constructor_arguments().is_some());
 }

@@ -3,12 +3,15 @@ mod abstract_methods;
 mod coding;
 mod context;
 mod decoding;
+mod delegation;
+pub(crate) use delegation::InterfaceForwarder;
 mod encoding;
 mod imported;
 mod interfaces;
 mod order;
 mod overrides;
 mod properties;
+mod results;
 mod signatures;
 
 impl Lowerer {
@@ -20,6 +23,7 @@ impl Lowerer {
         pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
         pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
@@ -37,10 +41,9 @@ impl Lowerer {
                 source.description(),
             );
         }
-        let owners = self
-            .interfaces
+        let owners = pending_interfaces
             .iter()
-            .map(|(id, _)| (Owner::Interface(id), self.interface_files[&id]))
+            .map(|&(id, _, file)| (Owner::Interface(id), file))
             .chain(
                 pending_classes
                     .iter()
@@ -63,91 +66,76 @@ impl Lowerer {
             )
             .collect::<Vec<_>>();
         let owners = self.source_inheritance_order(owners);
-        let order = owners
-            .iter()
-            .enumerate()
-            .map(|(index, &(owner, _))| (owner, index))
-            .collect::<std::collections::HashMap<_, _>>();
-        for &(owner, file) in &owners {
+        let accessors = self.property_accessor_sources.clone();
+        for (owner, file) in owners {
             self.current_file = file;
             self.current_owner = Some(owner);
+            let before_delegation = self.diagnostics.len();
+            let forwarders = self.declare_interface_forwarders(owner);
+            let delegation_failed = self.diagnostics.len() != before_delegation;
             self.check_owner_properties(owner);
-        }
-        self.current_owner = None;
-        let mut accessors = self.property_accessor_sources.clone();
-        accessors.sort_by_key(|source| source.owner.map(|owner| order[&owner]));
-        for source in accessors {
-            let Some(owner) = source.owner else {
-                continue;
-            };
-            self.current_file = self.function_files[&source.function];
-            self.current_owner = Some(owner);
-            let mut declaration = source.declaration.clone();
-            let validated_target = self.properties[source.property]
-                .overrides
+            for source in accessors
                 .iter()
-                .copied()
-                .any(|inherited| self.property_has_callable_accessor(inherited, source.kind));
-            let declared_target = if source.declaration.is_override {
-                let name = self.properties[source.property].name.clone();
-                self.inherited_property_candidates(owner, &name)
-                    .into_iter()
-                    .any(|inherited| {
-                        self.property_has_callable_accessor(inherited.reference, source.kind)
-                    })
-            } else {
-                false
-            };
-            declaration.is_override = validated_target || declared_target;
-            self.check_member_access_contract(source.function, &declaration, owner);
-            self.check_override_rules(source.function, &declaration, owner);
-        }
-        self.current_owner = None;
-        let mut methods = pending_methods.to_vec();
-        methods.sort_by_key(|&(_, _, _, owner)| order[&owner]);
-        for (id, decl, file_index, owner) in methods {
-            self.current_file = file_index;
-            self.current_owner = Some(owner);
-            let diagnostics_before = self.diagnostics.len();
-            self.check_member_access_contract(id, decl, owner);
-            self.check_override_rules(id, decl, owner);
-            if decl.is_override && self.diagnostics.len() != diagnostics_before {
-                self.invalid_override_methods.insert(id);
+                .filter(|source| source.owner == Some(owner))
+            {
+                let mut declaration = overrides::MemberOverride::source(&source.declaration);
+                let validated_target = self.properties[source.property]
+                    .overrides
+                    .iter()
+                    .copied()
+                    .any(|inherited| self.property_has_callable_accessor(inherited, source.kind));
+                let declared_target = if source.declaration.is_override {
+                    let name = self.properties[source.property].name.clone();
+                    self.inherited_property_candidates(owner, &name)
+                        .into_iter()
+                        .any(|inherited| {
+                            self.property_has_callable_accessor(inherited.reference, source.kind)
+                        })
+                } else {
+                    false
+                };
+                declaration.is_override = validated_target || declared_target;
+                self.check_member_access_contract(source.function, &declaration, owner);
+                self.check_override_rules(source.function, &declaration, owner);
             }
-        }
-        for &(owner, file) in &owners {
-            self.current_file = file;
-            self.current_owner = Some(owner);
+            for &(id, source, _, _) in pending_methods
+                .iter()
+                .filter(|(_, _, _, candidate)| *candidate == owner)
+            {
+                let declaration = overrides::MemberOverride::source(source);
+                let before = self.diagnostics.len();
+                self.check_member_access_contract(id, &declaration, owner);
+                self.check_override_rules(id, &declaration, owner);
+                if source.is_override && self.diagnostics.len() != before {
+                    self.invalid_override_methods.insert(id);
+                }
+            }
+            for function in forwarders {
+                self.check_interface_forwarder(owner, function);
+            }
             self.check_inherited_context_contracts(owner);
-        }
-        self.current_owner = None;
-        for &(id, decl, file_index) in pending_classes {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Class(id));
-            self.check_interface_implementation(
-                id,
-                decl.span,
-                &format!("class `{}`", decl.name.text),
-            );
-        }
-        for &(object, source, file_index) in pending_objects {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Object(object));
-            self.check_interface_implementation(
-                self.objects[object].backing_class,
-                source.span(),
-                &format!("{} `{}`", source.description(), self.objects[object].name),
-            );
-        }
-        for &(id, decl, file_index) in pending_structs {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Struct(id));
-            self.check_value_interface_implementation(Owner::Struct(id), decl.span);
-        }
-        for &(id, decl, file_index) in pending_enums {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Enum(id));
-            self.check_value_interface_implementation(Owner::Enum(id), decl.span);
+            if delegation_failed {
+                continue;
+            }
+            match owner {
+                Owner::Class(class) => self.check_interface_implementation(
+                    class,
+                    self.classes[class].span,
+                    &owner.describe(self),
+                ),
+                Owner::Object(object) => self.check_interface_implementation(
+                    self.objects[object].backing_class,
+                    self.objects[object].span,
+                    &owner.describe(self),
+                ),
+                Owner::Struct(structure) => {
+                    self.check_value_interface_implementation(owner, self.structs[structure].span)
+                }
+                Owner::Enum(enumeration) => {
+                    self.check_value_interface_implementation(owner, self.enums[enumeration].span)
+                }
+                Owner::Interface(_) => {}
+            }
         }
         self.current_owner = None;
     }

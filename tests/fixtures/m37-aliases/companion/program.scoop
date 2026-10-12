@@ -1,0 +1,12 @@
+class Pair<A, B>(val first: A, val second: B)
+class Owner<T> {
+    companion object {
+        typealias Row<U> = Pair<T, U>
+        fun make(value: T): Row<Int> = Row(value, 42)
+    }
+}
+fun main() {
+    val row: Owner<String>.Companion.Row<Int> = Owner<String>.Companion.Row("outer", 42)
+    println(row.first)
+    println(Owner<String>.make("bound").second)
+}

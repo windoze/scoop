@@ -1,0 +1,20 @@
+const val SEED = 41
+const val ANSWER = SEED + 1
+const val FLAG = true
+const val TEXT = "constant"
+const val LETTER = 'x'
+const val DECIMAL = 1.5
+object Limits { const val VALUE = ANSWER }
+@Global var raw = 5
+@ThreadLocal var tls = 6
+fun main() {
+    println(ANSWER)
+    println(FLAG)
+    println(TEXT)
+    println(LETTER)
+    println(DECIMAL)
+    println(Limits.VALUE)
+    raw += 1
+    println(raw)
+    println(tls)
+}

@@ -44,6 +44,7 @@ pub(super) fn add_interface(
         name: name.to_string(),
         access: hir::NominalAccess::public(),
         definition: hir::InterfaceDefinition {
+            inheritance_family: Default::default(),
             self_application: application,
             type_params: Vec::new(),
             parents,

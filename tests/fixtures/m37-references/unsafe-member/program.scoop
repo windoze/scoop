@@ -1,0 +1,2 @@
+class Box { @Unsafe fun read() = 42 }
+fun main() { @Unsafe { val read = Box::read } }

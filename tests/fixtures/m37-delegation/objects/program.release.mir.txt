@@ -1,0 +1,1039 @@
+Module
+  global0 count: Int managed initial=encoded(Int:0x0)
+  global1 $singleton$Shared: Shared managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Companion: Owner.Companion<Int> managed initial=zeroed-for-runtime-unit
+  global3 $singleton$Companion: Owner.Companion<String> managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global6 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Shared singleton lazy global1 initializer=@fn3 ensure=@fn4 failure=4 deps=[]
+  init1 companion:Owner.Companion singleton lazy global2 initializer=@fn11 ensure=@fn12 failure=5 deps=[]
+  init2 companion:Owner.Companion singleton lazy global3 initializer=@fn13 ensure=@fn14 failure=6 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Impl>
+    Completed(value: Impl)
+    Suspended()
+  enum CoroutineSlot<Impl>
+    Empty()
+    Value(value: Impl)
+  enum CoroutineStep<Read>
+    Completed(value: Read)
+    Suspended()
+  enum CoroutineSlot<Read>
+    Empty()
+    Value(value: Read)
+  class Impl vtable=0 itables=1
+  class Shared vtable=0 itables=1
+  class Owner.Companion<Int> vtable=0 itables=1
+  class Owner.Companion<String> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Read
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Read>
+  interface SuspendTask<Read>
+  interface SuspendRegistration<Read>
+  interface Continuation<Impl>
+  interface SuspendTask<Impl>
+  interface SuspendRegistration<Impl>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=enum3 nominal_id=9813c0eaef653571ec43c3a074627ba9774b8b4c9b890f7c6d46472dab12a1bd exact_id=2be142ace0cf8a71ca6281db69f5b09c36dcbfaf53c460beb4ade4d9dc51411a
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=enum2 nominal_id=1d49dce72f7d3fff0724606db118cc59b7c88317bdc0f356ffe405d90763987f exact_id=4b46cabb16eca6a0898141a261b3ec0a05d7701452dc9256e141b375df0ee4fa
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=enum4 nominal_id=3eb07d0b7951de421b679687297e1144d41b2d534186f0b8ca07344fbac729cb exact_id=53cb6761b53f8af37f3f90fa590aa612bbe71bbe3e997f8096a638c481527cb4
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=enum5 nominal_id=57a0f7c0184d3dfbcdfdc683fc3c38bf05c7eaf5e9189d61d257476320b01ad1 exact_id=bbf6bfc83c58659fc28f8ac83f5b44b3c734ed771f84deaf81d96beab701f8aa
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn30 id=230041850458ed0e9d77303c47934e8bf3f629f24a1711eeb9a67af6774b9b2e
+  generated_callable gc1 function=@fn29 id=28689257dcdace6ff3bce900f72f5915bac6a466d528cc94a734773b149bb1d3
+  fun Impl.value @fn0(this: Impl) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Impl
+          Local this
+  fun Shared.value @fn1(this: Shared) -> Int
+    bb0 entry
+      call $call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Shared
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun next @fn2() -> Int
+    bb0 entry
+      goto bb6
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        GlobalRead count
+      goto bb1
+    bb3 inline.cont.3
+      goto bb2
+    bb4 inline.3.entry
+      global_assign count
+        Type Int
+        Local $inline.3.value
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb5 inline.cont.5
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb4
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type Int
+        GlobalRead count
+      goto bb5
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Shared
+        ClassAlloc Shared
+      call @fn26 direct
+        Type Shared
+        Local $new.1
+      global_assign $singleton$Shared
+        Type Shared
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Shared
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Shared
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Shared
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Shared
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Shared
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun main @fn5() -> Unit
+    bb0 entry
+      call @fn4 direct
+      val $receiver: Shared
+        Type Shared
+        GlobalRead $singleton$Shared
+      val $inline.9.this: Shared
+        Type Shared
+        Local $receiver
+      goto bb10
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        GlobalRead count
+      goto bb1
+    bb3 inline.cont.3
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.3.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb2
+    bb4 inline.3.entry
+      call $inline.3.$call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Owner.Companion<String>
+          Local $inline.3.this
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb5 inline.cont.5
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn14 direct
+      val $receiver: Owner.Companion<String>
+        Type Owner.Companion<String>
+        GlobalRead $singleton$Companion
+      val $inline.3.this: Owner.Companion<String>
+        Type Owner.Companion<String>
+        Local $receiver
+      goto bb4
+    bb6 inline.5.entry
+      call $inline.5.$call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Owner.Companion<Int>
+          Local $inline.5.this
+      assign $inline.5.result
+        Type Int
+        Local $inline.5.$call.1
+      goto bb5
+    bb7 inline.cont.7
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.7.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn12 direct
+      val $receiver: Owner.Companion<Int>
+        Type Owner.Companion<Int>
+        GlobalRead $singleton$Companion
+      val $inline.5.this: Owner.Companion<Int>
+        Type Owner.Companion<Int>
+        Local $receiver
+      goto bb6
+    bb8 inline.7.entry
+      call $inline.7.$call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Shared
+          Local $inline.7.this
+      assign $inline.7.result
+        Type Int
+        Local $inline.7.$call.1
+      goto bb7
+    bb9 inline.cont.9
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.9.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn4 direct
+      val $receiver: Shared
+        Type Shared
+        GlobalRead $singleton$Shared
+      val $inline.7.this: Shared
+        Type Shared
+        Local $receiver
+      goto bb8
+    bb10 inline.9.entry
+      call $inline.9.$call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Shared
+          Local $inline.9.this
+      assign $inline.9.result
+        Type Int
+        Local $inline.9.$call.1
+      goto bb9
+  fun $get$count @fn6() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead count
+  fun $set$count @fn7(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign count
+        Type Int
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun Owner.Companion.value @fn8(this: Owner.Companion<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Owner.Companion<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun Owner.Companion.value @fn9(this: Owner.Companion<String>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn24 interface Read[0]
+        Type Read
+        FieldAccess 0
+          Type Owner.Companion<String>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $init$body$1 @fn11() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Owner.Companion<Int>
+        ClassAlloc Owner.Companion<Int>
+      call @fn27 direct
+        Type Owner.Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Owner.Companion<Int>
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+  fun $init$ensure$1 @fn12() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Owner.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn11 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Owner.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Owner.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Owner.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Owner.Companion
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$1 @fn13() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Owner.Companion<String>
+        ClassAlloc Owner.Companion<String>
+      call @fn28 direct
+        Type Owner.Companion<String>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Owner.Companion<String>
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+  fun $init$ensure$1 @fn14() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Owner.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn13 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Owner.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Owner.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Owner.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Owner.Companion
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun println @fn15(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Continuation.resume @fn16(this: Continuation<Read>, value: Read) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Read>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Read>, $completion: Continuation<Read>) -> CoroutineStep<Read>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Read>, continuation: Continuation<Read>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<Impl>, value: Impl) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Impl>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Impl>, $completion: Continuation<Impl>) -> CoroutineStep<Impl>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Impl>, continuation: Continuation<Impl>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Read.value @fn24(this: Read) -> Int
+    bb0 entry
+      trap "call to abstract method `Read.value`"
+  fun init.Impl.$c0 @fn25(this: Impl, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Impl
+        Local this
+        Type Int
+        Local number
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Shared.$c2 @fn26(this: Shared) -> Unit
+    bb0 entry
+      call $argument.0: Int = @fn2 direct
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Impl
+        ClassAlloc Impl
+      val $inline.1.this: Impl
+        Type Impl
+        Local $new.1
+      val $inline.1.number: Int
+        Type Int
+        Local $parameter.number
+      goto bb2
+    bb1 inline.cont.1
+      field_set 0
+        Type Shared
+        Local this
+        Type Read
+        Retype Read
+          Type Impl
+          Local $new.1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Impl
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.number
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun init.Owner.Companion.$c3 @fn27(this: Owner.Companion<Int>) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      assign $new.1
+        Type Impl
+        ClassAlloc Impl
+      val $inline.1.this: Impl
+        Type Impl
+        Local $new.1
+      val $inline.1.number: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb2
+    bb1 inline.cont.1
+      field_set 0
+        Type Owner.Companion<Int>
+        Local this
+        Type Read
+        Retype Read
+          Type Impl
+          Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Impl
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun init.Owner.Companion.$c3 @fn28(this: Owner.Companion<String>) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      assign $new.1
+        Type Impl
+        ClassAlloc Impl
+      val $inline.1.this: Impl
+        Type Impl
+        Local $new.1
+      val $inline.1.number: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb2
+    bb1 inline.cont.1
+      field_set 0
+        Type Owner.Companion<String>
+        Local this
+        Type Read
+        Retype Read
+          Type Impl
+          Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Impl
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun startCoroutine<Impl> @fn29(task: SuspendTask<Impl>, completion: Continuation<Impl>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn20 interface Continuation<Impl>[0]
+        Type Continuation<Impl>
+        Local completion
+        Type Impl
+        EnumField v0 f0
+          Type CoroutineStep<Impl>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn21 interface Continuation<Impl>[1]
+        Type Continuation<Impl>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Impl> = @fn22 interface SuspendTask<Impl>[0]
+        Type SuspendTask<Impl>
+        Local task
+        Type Continuation<Impl>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Impl>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Read> @fn30(task: SuspendTask<Read>, completion: Continuation<Read>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn16 interface Continuation<Read>[0]
+        Type Continuation<Read>
+        Local completion
+        Type Read
+        EnumField v0 f0
+          Type CoroutineStep<Read>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn17 interface Continuation<Read>[1]
+        Type Continuation<Read>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Read> = @fn18 interface SuspendTask<Read>[0]
+        Type SuspendTask<Read>
+        Local task
+        Type Continuation<Read>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Read>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Impl> result=Impl
+  coroutine_step cs1 CoroutineStep<Read> result=Read
+  coroutine_slot cl0 CoroutineSlot<Impl> value=Impl
+  coroutine_slot cl1 CoroutineSlot<Read> value=Read
+  coroutine_start ct0 result=Impl function=fn29
+  coroutine_start ct1 result=Read function=fn30
+  coroutine_fn cf0 @fn18 source_return=Read step=cs1 immediate
+  coroutine_fn cf1 @fn22 source_return=Impl step=cs0 immediate
+  instance mi0 function=@fn8 <- Owner.Companion.value
+  instance mi1 function=@fn9 <- Owner.Companion.value
+  instance mi2 function=@fn10 <- println
+  instance mi3 function=@fn11 <- $init$body$1
+  instance mi4 function=@fn12 <- $init$ensure$1
+  instance mi5 function=@fn13 <- $init$body$1
+  instance mi6 function=@fn14 <- $init$ensure$1
+  instance mi7 function=@fn15 <- println
+  instance mi8 function=@fn16 <- Continuation.resume
+  instance mi9 function=@fn17 <- Continuation.resumeWithException
+  instance mi10 function=@fn18 <- SuspendTask.run
+  instance mi11 function=@fn19 <- SuspendRegistration.register
+  instance mi12 function=@fn20 <- Continuation.resume
+  instance mi13 function=@fn21 <- Continuation.resumeWithException
+  instance mi14 function=@fn22 <- SuspendTask.run
+  instance mi15 function=@fn23 <- SuspendRegistration.register
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "init"
+  output executable @fn5

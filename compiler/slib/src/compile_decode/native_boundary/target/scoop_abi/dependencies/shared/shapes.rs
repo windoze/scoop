@@ -62,7 +62,10 @@ pub(super) fn project(
                 }
                 variants.push(variant);
             }
-            NativeBoundaryNominalShape::Enum { variants }
+            NativeBoundaryNominalShape::Enum {
+                variants,
+                representation: source.representation().clone(),
+            }
         }
     })
 }

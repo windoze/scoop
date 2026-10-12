@@ -11,21 +11,18 @@ impl CanonicalCAbiBuilder<'_> {
                     "Unit has no C object representation",
                 ));
             }
-            mir::Type::Integer(kind) => {
-                let exact_type = self.exact_type(ty);
-                identity::CanonicalCStorageType::Integer {
-                    exact_type,
-                    signedness: match kind.signedness() {
-                        mir::IntegerSignedness::Signed => identity::Signedness::Signed,
-                        mir::IntegerSignedness::Unsigned => identity::Signedness::Unsigned,
-                    },
-                    bit_width: match kind.width() {
-                        mir::IntegerWidth::W8 => identity::IntegerBitWidth::Bits8,
-                        mir::IntegerWidth::W16 => identity::IntegerBitWidth::Bits16,
-                        mir::IntegerWidth::W32 => identity::IntegerBitWidth::Bits32,
-                        mir::IntegerWidth::W64 => identity::IntegerBitWidth::Bits64,
-                    },
-                }
+            mir::Type::Integer(kind) => self.integer_storage(ty, *kind),
+            mir::Type::Enum(id, _)
+                if self.module.enums[*id]
+                    .representation
+                    .integer_kind()
+                    .is_some() =>
+            {
+                let kind = self.module.enums[*id]
+                    .representation
+                    .integer_kind()
+                    .expect("integral representation matched");
+                self.integer_storage(ty, kind)
             }
             mir::Type::Boolean => identity::CanonicalCStorageType::Boolean {
                 exact_type: self.exact_type(ty),
@@ -223,5 +220,25 @@ impl CanonicalCAbiBuilder<'_> {
         self.layout_fingerprints.insert(id, fingerprint);
         self.visiting_layouts.remove(&id);
         Ok(fingerprint)
+    }
+    fn integer_storage(
+        &self,
+        ty: &mir::Type,
+        kind: mir::IntegerKind,
+    ) -> identity::CanonicalCStorageType {
+        let exact_type = self.exact_type(ty);
+        identity::CanonicalCStorageType::Integer {
+            exact_type,
+            signedness: match kind.signedness() {
+                mir::IntegerSignedness::Signed => identity::Signedness::Signed,
+                mir::IntegerSignedness::Unsigned => identity::Signedness::Unsigned,
+            },
+            bit_width: match kind.width() {
+                mir::IntegerWidth::W8 => identity::IntegerBitWidth::Bits8,
+                mir::IntegerWidth::W16 => identity::IntegerBitWidth::Bits16,
+                mir::IntegerWidth::W32 => identity::IntegerBitWidth::Bits32,
+                mir::IntegerWidth::W64 => identity::IntegerBitWidth::Bits64,
+            },
+        }
     }
 }

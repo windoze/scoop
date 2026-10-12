@@ -37,9 +37,14 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         .collect::<std::collections::HashSet<_>>();
     for (_, alias) in module.type_aliases.iter() {
         out.push_str(&format!(
-            "  typealias {} = {}\n",
+            "  typealias {}{} = {}\n",
             alias.name,
-            type_name(module, alias.target)
+            if alias.type_params.is_empty() {
+                String::new()
+            } else {
+                dump_type_params(module, &alias.type_params)
+            },
+            type_name_with_params(module, alias.target, &alias.type_params)
         ));
     }
     for (id, decl) in module.structs.iter() {
@@ -122,6 +127,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
             continue;
         }
         let modifier = match decl.modifier {
+            _ if decl.inheritance_family.subtypes().is_some() => "sealed ",
             ClassModifier::Final => "",
             ClassModifier::Open => "open ",
             ClassModifier::Abstract => "abstract ",
@@ -157,9 +163,21 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         for &field in &decl.fields {
             let physical = &module.class_fields[field];
             out.push_str(&format!(
-                "    field{} property{}: {}\n",
+                "    field{} {}: {}\n",
                 field.into_raw(),
-                physical.property.into_raw(),
+                match physical.source {
+                    ClassFieldSource::EnclosingInstance => "enclosing-instance".into(),
+                    ClassFieldSource::CapturedEnvironment => "captured-environment".into(),
+                    ClassFieldSource::InterfaceDelegate { ordinal } =>
+                        format!("interface-delegate{ordinal}"),
+                    source => format!(
+                        "property{}",
+                        source
+                            .property()
+                            .expect("a source property field")
+                            .into_raw()
+                    ),
+                },
                 type_name(module, module.class_field_definition(field).ty)
             ));
         }
@@ -239,9 +257,21 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         for &field in &backing.fields {
             let physical = &module.class_fields[field];
             out.push_str(&format!(
-                "    field{} property{}: {}\n",
+                "    field{} {}: {}\n",
                 field.into_raw(),
-                physical.property.into_raw(),
+                match physical.source {
+                    ClassFieldSource::EnclosingInstance => "enclosing-instance".into(),
+                    ClassFieldSource::CapturedEnvironment => "captured-environment".into(),
+                    ClassFieldSource::InterfaceDelegate { ordinal } =>
+                        format!("interface-delegate{ordinal}"),
+                    source => format!(
+                        "property{}",
+                        source
+                            .property()
+                            .expect("a source property field")
+                            .into_raw()
+                    ),
+                },
                 type_name(module, module.class_field_definition(field).ty)
             ));
         }
@@ -268,7 +298,12 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
             )
         };
         out.push_str(&format!(
-            "  interface {}{}{}\n",
+            "  {}interface {}{}{}\n",
+            if decl.inheritance_family.subtypes().is_some() {
+                "sealed "
+            } else {
+                ""
+            },
             nominal_declaration_name(module, &decl.name, decl.owner),
             type_params,
             parents
@@ -296,7 +331,13 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                     ""
                 },
                 if function.is_suspend { "suspend " } else { "" },
-                function.name.rsplit('.').next().unwrap_or(&function.name),
+                function
+                    .name
+                    .strip_prefix(&format!(
+                        "{}.",
+                        nominal_declaration_name(module, &decl.name, decl.owner)
+                    ))
+                    .unwrap_or(&function.name),
                 params.join(", "),
                 type_name(module, function.return_ty),
                 dump_function_attributes(function.attributes),
@@ -319,7 +360,13 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 .join(", ");
             out.push_str(&format!(
                 "    private fun {}({params}): {}{} <helper>\n",
-                function.name.rsplit('.').next().unwrap_or(&function.name),
+                function
+                    .name
+                    .strip_prefix(&format!(
+                        "{}.",
+                        nominal_declaration_name(module, &decl.name, decl.owner)
+                    ))
+                    .unwrap_or(&function.name),
                 type_name(module, function.return_ty),
                 dump_function_attributes(function.attributes),
             ));

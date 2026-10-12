@@ -31,7 +31,7 @@ impl Lowerer {
         }
         let mut seen = std::collections::HashMap::new();
         let mut parameters = Vec::new();
-        let mut fields = Vec::new();
+        let mut fields = self.classes[id].fields.clone();
         let mut field_names = std::collections::HashSet::new();
         let mut parameter_calling = Vec::new();
         for parameter in &decl.constructor {
@@ -93,6 +93,7 @@ impl Lowerer {
                 ast::ClassConstructorDecl::Omitted => ast::VisibilitySyntax::Omitted,
                 ast::ClassConstructorDecl::Declared(constructor) => constructor.visibility,
             };
+            let visibility = self.class_constructor_visibility(id, visibility, decl.span);
             let access = self.member_access(
                 visibility,
                 decl.span,
@@ -108,8 +109,10 @@ impl Lowerer {
                     self.constructor_safety(&source.annotations, source.span)
                 }
             };
+            let context_parameter = self.enclosing_constructor_parameter(id, decl.span);
             let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+                context_parameter,
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
@@ -152,8 +155,9 @@ impl Lowerer {
                 ));
                 callings.push(resolved.calling);
             }
+            let visibility = self.class_constructor_visibility(id, source.visibility, source.span);
             let access = self.member_access(
-                source.visibility,
+                visibility,
                 source.span,
                 "constructor",
                 Owner::Class(id),
@@ -162,8 +166,10 @@ impl Lowerer {
             );
             self.constructor_gc_effect(&source.annotations, false);
             let safety = self.constructor_safety(&source.annotations, source.span);
+            let context_parameter = self.enclosing_constructor_parameter(id, source.span);
             let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+                context_parameter,
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
@@ -200,7 +206,7 @@ impl Lowerer {
     ) {
         let mut interfaces = Vec::new();
         let mut base = None;
-        for spec in specs {
+        for (ordinal, spec) in specs.iter().enumerate() {
             let Some(ty) = self.resolve_type_ref(&spec.ty) else {
                 continue;
             };
@@ -214,8 +220,21 @@ impl Lowerer {
                 );
                 continue;
             }
+            if !self.check_sealed_supertype(ty, spec.ty.span) {
+                continue;
+            }
             match self.types[ty] {
                 Type::Class(application) => {
+                    if let ast::SupertypeInitialization::Delegate { by_span, .. } =
+                        spec.initialization
+                    {
+                        self.error(
+                            by_span,
+                            "interface implementation delegation requires an interface target"
+                                .into(),
+                        );
+                        continue;
+                    }
                     if base.is_some() {
                         self.error(
                             spec.span,
@@ -237,13 +256,26 @@ impl Lowerer {
                     base = Some(ty);
                 }
                 Type::Interface(_) => {
-                    if spec.constructor_arguments.is_some() {
+                    if spec.constructor_arguments().is_some() {
                         self.error(
                             spec.span,
                             "interfaces cannot have constructor arguments".into(),
                         );
                     } else if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
                         interfaces.push(ty);
+                    }
+                    if let ast::SupertypeInitialization::Delegate {
+                        expression,
+                        by_span,
+                    } = &spec.initialization
+                    {
+                        self.declare_interface_delegate(
+                            id,
+                            ty,
+                            ordinal as u32,
+                            expression,
+                            *by_span,
+                        );
                     }
                 }
                 _ => self.error(
@@ -256,36 +288,17 @@ impl Lowerer {
         self.classes[id].interfaces = interfaces;
     }
 
-    /// Resolve an interface list (`: I1, I2`) on any declaration —
-    /// classes, structs and enums share the rules (spec 9.1 / 4.4.3):
-    /// every name must be an interface, duplicates are dropped.
-    pub(crate) fn resolve_interface_list(&mut self, refs: &[ast::TypeRef]) -> Vec<TypeId> {
-        let mut interfaces = Vec::new();
-        for ty_ref in refs {
-            let Some(ty) = self.resolve_type_ref(ty_ref) else {
-                continue;
-            };
-            if !matches!(self.types[ty], Type::Interface(..)) {
-                self.error(
-                    ty_ref.span,
-                    format!("`{}` is not an interface", self.type_name(ty)),
-                );
-                continue;
-            }
-            if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
-                interfaces.push(ty);
-            }
-        }
-        interfaces
-    }
-
     pub(crate) fn resolve_supertype_interface_list(
         &mut self,
         specs: &[ast::SupertypeSpec],
     ) -> Vec<TypeId> {
         let mut interfaces = Vec::new();
         for spec in specs {
-            if spec.constructor_arguments.is_some() {
+            if let ast::SupertypeInitialization::Delegate { by_span, .. } = spec.initialization {
+                self.error(by_span, "interface implementation delegation is only allowed in class and object declarations".into());
+                continue;
+            }
+            if spec.constructor_arguments().is_some() {
                 self.error(
                     spec.span,
                     "interfaces and value types cannot use supertype constructor arguments".into(),
@@ -300,6 +313,9 @@ impl Lowerer {
                     spec.ty.span,
                     format!("`{}` is not an interface", self.type_name(ty)),
                 );
+                continue;
+            }
+            if !self.check_sealed_supertype(ty, spec.ty.span) {
                 continue;
             }
             if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
@@ -333,7 +349,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+            let Some(ty) = self.resolve_property_annotation(property) else {
                 continue;
             };
             let slot_access = if property.is_override {

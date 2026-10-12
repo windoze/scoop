@@ -4,12 +4,20 @@ use std::fmt;
 use crate::{DeclaredVisibilityV1, ExportDefinitionSourceV1};
 use scoop_identity::{CanonicalIdentifier, PersistentAnnotationId, SignatureTypeKey};
 
+mod parameter;
+mod references;
 mod source_targets;
+pub use parameter::AnnotationParameterType;
 mod target;
+mod type_uses;
+pub use type_uses::{AnnotatedTypeUseV1, AnnotationTypeSiteV1};
 mod value;
 mod wire;
-pub use target::{AnnotationTargetV1, DecodedAnnotationTargetV1};
-pub use value::CanonicalAnnotationValueV1;
+pub use target::{AnnotationCallableV1, AnnotationTargetV1, DecodedAnnotationTargetV1};
+pub use value::{
+    AnnotationElementTypeV1, AnnotationElementV1, CanonicalAnnotationValueV1,
+    DecodedAnnotationValueV1,
+};
 pub use wire::{
     AnnotationDataResolutionError, AnnotationDataResolver, DecodedCanonicalAnnotationsV1,
 };
@@ -18,7 +26,7 @@ pub use wire::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnnotationParameterV1 {
     pub name: CanonicalIdentifier,
-    pub value_type: SignatureTypeKey,
+    pub value_type: AnnotationParameterType<SignatureTypeKey>,
     pub default: Option<CanonicalAnnotationValueV1>,
 }
 
@@ -26,6 +34,7 @@ pub struct AnnotationParameterV1 {
 pub struct AnnotationDeclarationV1 {
     pub annotation: PersistentAnnotationId,
     pub parameters: Vec<AnnotationParameterV1>,
+    pub rules: crate::AnnotationRules,
     pub visibility: DeclaredVisibilityV1,
     pub definition_origin: ExportDefinitionSourceV1,
 }
@@ -45,10 +54,12 @@ pub struct AnnotatedTargetV1 {
 }
 
 /// Static annotation data refers to the original source entities.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default, Eq, PartialEq)]
 pub struct CanonicalAnnotationsV1 {
     declarations: Vec<AnnotationDeclarationV1>,
     targets: Vec<AnnotatedTargetV1>,
+    type_uses: Vec<AnnotatedTypeUseV1>,
+    type_sites: Vec<AnnotationTypeSiteV1>,
 }
 
 impl CanonicalAnnotationsV1 {
@@ -56,15 +67,21 @@ impl CanonicalAnnotationsV1 {
         Self {
             declarations: Vec::new(),
             targets: Vec::new(),
+            type_uses: Vec::new(),
+            type_sites: Vec::new(),
         }
     }
 
     pub fn try_new(
         mut declarations: Vec<AnnotationDeclarationV1>,
         mut targets: Vec<AnnotatedTargetV1>,
+        mut type_uses: Vec<AnnotatedTypeUseV1>,
+        mut type_sites: Vec<AnnotationTypeSiteV1>,
     ) -> Result<Self, AnnotationDataBuildError> {
         declarations.sort_by_key(|declaration| declaration.annotation);
         targets.sort_by_key(|target| target.target);
+        type_uses.sort_by(|a, b| a.identity.cmp(&b.identity));
+        type_sites.sort_by_key(|site| (site.target, site.slot));
         if declarations
             .windows(2)
             .any(|pair| pair[0].annotation == pair[1].annotation)
@@ -88,47 +105,18 @@ impl CanonicalAnnotationsV1 {
             }
         }
         for target in &targets {
-            let mut annotations = BTreeSet::new();
             if target.annotations.is_empty() {
                 return Err(AnnotationDataBuildError("empty annotation target"));
             }
-            if target
-                .annotations
-                .iter()
-                .any(|application| !annotations.insert(application.annotation))
-            {
-                return Err(AnnotationDataBuildError(
-                    "repeated annotation on one target",
-                ));
-            }
         }
-        Ok(Self {
+        let result = Self {
             declarations,
             targets,
-        })
-    }
-
-    pub(crate) fn declaration_targets(
-        &self,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Vec<crate::ExternalHirTargetV1>, scoop_wire::WireError> {
-        use crate::{ExternalHirTargetV1, SignatureNominalWalker};
-        let mut references = Vec::new();
-        for declaration in &self.declarations {
-            for parameter in &declaration.parameters {
-                let mut walker = SignatureNominalWalker::new(&parameter.value_type, path)?;
-                while let Some(owner) = walker.next(path)? {
-                    references.push(ExternalHirTargetV1::Nominal(owner));
-                }
-            }
-        }
-        references.extend(self.targets.iter().flat_map(|target| {
-            target
-                .annotations
-                .iter()
-                .map(|application| ExternalHirTargetV1::Annotation(application.annotation))
-        }));
-        Ok(references)
+            type_uses,
+            type_sites,
+        };
+        result.check_type_uses()?;
+        Ok(result)
     }
 
     pub fn declarations(&self) -> &[AnnotationDeclarationV1] {
@@ -154,6 +142,22 @@ impl CanonicalAnnotationsV1 {
             .binary_search_by_key(&target, |entry| entry.target)
             .ok()
             .map_or(&[], |index| &self.targets[index].annotations)
+    }
+}
+
+impl fmt::Debug for CanonicalAnnotationsV1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut value = f.debug_struct("CanonicalAnnotationsV1");
+        value
+            .field("declarations", &self.declarations)
+            .field("targets", &self.targets);
+        if !self.type_uses.is_empty() {
+            value.field("type_uses", &self.type_uses);
+        }
+        if !self.type_sites.is_empty() {
+            value.field("type_sites", &self.type_sites);
+        }
+        value.finish()
     }
 }
 

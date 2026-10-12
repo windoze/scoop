@@ -280,8 +280,7 @@ pub(crate) fn compiler_function_type(
     let signature = &module.function_types[signature];
     lir::LirFunctionType {
         params: signature
-            .parameter_types
-            .iter()
+            .parameters()
             .map(|ty| lir_type(module, ty))
             .collect(),
         return_type: lir_return_type(module, &signature.return_type),

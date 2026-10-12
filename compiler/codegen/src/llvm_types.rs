@@ -61,6 +61,13 @@ pub(crate) fn basic_ty<'ctx>(
             struct_ty(context, structs, enums, managed_address_space, *id)?.into()
         }
         LirType::Enum(id) => match &enums[*id].repr {
+            EnumRepr::Integral { kind, .. } => basic_ty(
+                context,
+                structs,
+                enums,
+                managed_address_space,
+                &kind.scalar_type(),
+            )?,
             // Niche optimization: the value is a bare pointer.
             EnumRepr::Niche { kind, .. } => basic_ty(
                 context,
@@ -180,6 +187,10 @@ pub(crate) fn llvm_constant<'ctx>(
                 )));
             }
             match &enums[enum_id].repr {
+                EnumRepr::Integral { values, .. } => ty
+                    .into_int_type()
+                    .const_int(values[variant_index as usize], false)
+                    .into(),
                 EnumRepr::Niche {
                     payload_variant, ..
                 } => {

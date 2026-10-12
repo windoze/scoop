@@ -1,0 +1,3 @@
+open class Base { open fun value(): String = "base" }
+class Child : Base() { override fun value() = 7 }
+fun main() {}

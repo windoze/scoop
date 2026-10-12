@@ -1,0 +1,177 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3755,
+  "selected": 18,
+  "unselected": 3737,
+  "counts": {
+    "passed": 18
+  },
+  "variants": 21,
+  "processes": 117,
+  "stage_and_plan_goldens": 132,
+  "results": [
+    {
+      "name": "legacy-m11-functions-suspend-values",
+      "status": "passed",
+      "seconds": 105.38197507301811,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-artifacts",
+      "status": "passed",
+      "seconds": 117.87143396498868,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m35-when-effects",
+      "status": "passed",
+      "seconds": 97.19224933296209,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-smart-casts",
+      "status": "passed",
+      "seconds": 97.15501798898913,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-rules-artifacts",
+      "status": "passed",
+      "seconds": 103.03829282795778,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-rules-artifacts-errors",
+      "status": "passed",
+      "seconds": 96.25320899899816,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-targets-artifacts",
+      "status": "passed",
+      "seconds": 16.1425234869821,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-values-artifacts",
+      "status": "passed",
+      "seconds": 16.351100589032285,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-artifacts",
+      "status": "passed",
+      "seconds": 17.4196199279977,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-inner-artifacts",
+      "status": "passed",
+      "seconds": 16.50814010098111,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-artifacts",
+      "status": "passed",
+      "seconds": 16.74741496698698,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-c-abi",
+      "status": "passed",
+      "seconds": 6.7091546060401015,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-artifacts",
+      "status": "passed",
+      "seconds": 16.34461851301603,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-receivers-callbacks",
+      "status": "passed",
+      "seconds": 11.898172287037596,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-artifacts",
+      "status": "passed",
+      "seconds": 15.330730302026495,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-artifacts",
+      "status": "passed",
+      "seconds": 15.148751662985887,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-artifacts-errors",
+      "status": "passed",
+      "seconds": 9.348027777043171,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-callbacks",
+      "status": "passed",
+      "seconds": 11.248020487953909,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 6,
+      "message": ""
+    }
+  ]
+}

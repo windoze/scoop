@@ -1,0 +1,454 @@
+Module
+  enum Code integral(Int) values=[4294967289, 9, 2147483647]
+    First()
+    Second()
+    Last()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Code>
+    Completed(value: Code)
+    Suspended()
+  enum CoroutineSlot<Code>
+    Empty()
+    Value(value: Code)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Code> vtable=0 itables=3
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
+  interface Continuation<Code>
+  interface SuspendTask<Code>
+  interface SuspendRegistration<Code>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=enum4 nominal_id=5eec0484c199a5b4052befc38570385c25e3f0577ce16a519bf0f0fa96346b1d exact_id=4b8a6a39142c938417fe142f527a0dfe16730b64a6bc87f2fc99c18530fd7dca
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=class3 nominal_id=58daa2bb6ebc158f263e76c93f6dddfb6f839566049890d7213b6021cd13655e exact_id=78a8d1a7ee70085fd8db8073ff216fa47ee38b8225f6c6a88c1c4cc002943f3e
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=enum3 nominal_id=7efc15caf07840fc3434e288384a78c687e7c985fee271f61883ad77ef9e8093 exact_id=9fcbfaaa525613e68267af362e0d7d6a7ea8d3c9ecac875e14b8a53340d0979d
+  generated_exact_type get7 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn10 id=03e89d88f7cc060bc7cd3d6f1803a069bc42c8196cbb4cb0b3a377617aad08a4
+  generated_callable gc1 function=@fn12 id=41e3c50532a1ac5619b27e14a3da892a2f63fafd363fda546a58d9bbdc70eec7
+  generated_callable gc2 function=@fn11 id=742fbae70168b6fa5cd44a1f6d89ff81a2996bc5c5081ab98af6fc67eb7fece2
+  generated_callable gc3 function=@fn13 id=bd495b9d41645b9c03e5c61c099f9a75209c273f15f4edac58868ecd13a28a05
+  fun value @fn0(code: Code) -> Int
+    bb0 entry
+      return
+        Type Int
+        Retype Int
+          Type Code
+          Local code
+  fun describe @fn1(code: Code) -> Int
+    bb0 entry
+      val $when.1: Code
+        Type Code
+        Local code
+      val $pattern.subject.2: Code
+        Type Code
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Code v0
+          Type Code
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Code
+        Type Code
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Code v1
+          Type Code
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.4: Code
+        Type Code
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Code v2
+          Type Code
+          Local $pattern.subject.4
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+      goto bb9
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb6
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Code
+        Type Code
+        VariantConstruct Code v0
+      val $parameter.code: Code
+        Type Code
+        Local $argument.0
+      val $inline.1.code: Code
+        Type Code
+        Local $parameter.code
+      goto bb2
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Retype Int
+          Type Code
+          VariantConstruct Code v1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Retype Int
+          Type Code
+          VariantConstruct Code v1
+      call $dependency.argument.0: String = external0 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Retype Int
+          Type Code
+          VariantConstruct Code v0
+      val $dependency.argument.0: Int
+        Type Int
+        Retype Int
+          Type Code
+          VariantConstruct Code v1
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Code
+        Type Code
+        VariantConstruct Code v1
+      val $parameter.code: Code
+        Type Code
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Code
+        Local $parameter.code
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        Retype Int
+          Type Code
+          Local $inline.1.code
+      goto bb1
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn5(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Continuation.resume @fn6(this: Continuation<Code>, value: Code) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<Code>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<Code>, $completion: Continuation<Code>) -> CoroutineStep<Code>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Code>, continuation: Continuation<Code>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun startCoroutine<Code> @fn10(task: SuspendTask<Code>, completion: Continuation<Code>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn6 interface Continuation<Code>[0]
+        Type Continuation<Code>
+        Local completion
+        Type Code
+        EnumField v0 f0
+          Type CoroutineStep<Code>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn7 interface Continuation<Code>[1]
+        Type Continuation<Code>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Code> = @fn8 interface SuspendTask<Code>[0]
+        Type SuspendTask<Code>
+        Local task
+        Type Continuation<Code>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Code>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Code> ToString.toString() @fn11(this: box<Code>) -> String
+    bb0 entry
+      call $call.1: String = external0 direct
+        Type Int
+        Retype Int
+          Type Code
+          Unbox
+            Type box<Code>
+            Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Code> Hash.hash() @fn12(this: box<Code>) -> Long
+    bb0 entry
+      call $call.1: Long = external1 direct
+        Type Int
+        Retype Int
+          Type Code
+          Unbox
+            Type box<Code>
+            Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Code> Equality.equalTo(Int) @fn13(this: box<Code>, other: Int) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external2 direct
+        Type Int
+        Retype Int
+          Type Code
+          Unbox
+            Type box<Code>
+            Local this
+        Type Int
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Code> result=Code
+  coroutine_slot cl0 CoroutineSlot<Code> value=Code
+  coroutine_start ct0 result=Code function=fn10
+  coroutine_fn cf0 @fn8 source_return=Code step=cs0 immediate
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- Continuation.resume
+  instance mi4 function=@fn7 <- Continuation.resumeWithException
+  instance mi5 function=@fn8 <- SuspendTask.run
+  instance mi6 function=@fn9 <- SuspendRegistration.register
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "\n"
+  output executable @fn2

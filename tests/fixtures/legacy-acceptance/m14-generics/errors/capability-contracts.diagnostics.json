@@ -14,19 +14,6 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "`hash` is marked `override` but does not override any method",
-    "notes": [],
-    "origin": {
-      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 215,
-      "kind": "source",
-      "path": "main.scoop",
-      "start": 211
-    },
-    "severity": "error"
-  },
-  {
-    "code": "SCOOPC_HIR_ERROR",
     "message": "class `BadToString` does not implement interface method `ToString.toString`",
     "notes": [],
     "origin": {
@@ -35,6 +22,19 @@
       "kind": "source",
       "path": "main.scoop",
       "start": 82
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`hash` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 215,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 211
     },
     "severity": "error"
   },

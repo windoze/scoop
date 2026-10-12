@@ -12,7 +12,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> ast::PropertyDec
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Const(Box::new(expression)),
         span: sp(),
     }
@@ -22,7 +22,8 @@ fn ordinary_property(name: &str, expression: Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Global"),
+            use_site: None,
+            name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),
         }],

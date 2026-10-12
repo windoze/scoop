@@ -1,0 +1,2 @@
+annotation class Mark
+@param:Mark var value: Int = 1

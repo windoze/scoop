@@ -102,7 +102,7 @@ impl Lowerer {
             ResolvedArgumentMaterialization {
                 parameters: &parameters,
                 inputs: &request.argument_map.parameters,
-                receiver: None,
+                receiver: request.receiver,
                 source_args: request.source_args,
                 argument_sinks: request.argument_sinks,
                 call_span: request.call_span,
@@ -121,6 +121,11 @@ impl Lowerer {
                 )
             },
         )
-        .map(|(_, arguments)| arguments)
+        .map(|(receiver, mut arguments)| {
+            if let Some(receiver) = receiver {
+                arguments.insert(0, receiver);
+            }
+            arguments
+        })
     }
 }

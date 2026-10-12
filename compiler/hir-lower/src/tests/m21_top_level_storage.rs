@@ -17,7 +17,7 @@ fn top_level_property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body,
         span: sp(),
     }

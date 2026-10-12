@@ -191,6 +191,10 @@ impl<'a> HirSignatureTypeMapper<'a> {
             Type::Function(function) => {
                 let function = self.function(ty, *function, false)?;
                 SignatureTypeKey::Function {
+                    receiver: function
+                        .receiver
+                        .map(|ty| self.map_inner(ty, binders, visiting).map(Box::new))
+                        .transpose()?,
                     effect: if function.is_suspend {
                         Effect::Suspend
                     } else {

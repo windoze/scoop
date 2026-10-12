@@ -117,7 +117,16 @@ impl NativeBoundaryNormalizer<'_> {
                 }
                 aggregate_with_policy(&normalized, *c_layout, exact)
             }
-            NativeBoundaryNominalShape::Enum { variants } => {
+            NativeBoundaryNominalShape::Enum {
+                variants,
+                representation,
+            } => {
+                if let Some(kind) = representation.integer_kind() {
+                    return intrinsic_layout(
+                        self.target,
+                        scoop_hir::IntrinsicTypeKind::Integer(kind),
+                    );
+                }
                 let path = WirePath::root().field(1);
                 let mut normalized = allocate_vec(variants.len(), &path)?;
                 for variant in variants {

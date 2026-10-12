@@ -5,7 +5,7 @@
 //! here.  HIR lowering must construct this graph completely before MIR starts.
 
 use la_arena::{Arena, Idx};
-pub use scoop_ast::Span;
+pub use scoop_ast::{LoopKind, Span};
 pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
     CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CallbackMode,
@@ -22,11 +22,11 @@ pub use scoop_identity::{
 
 pub use super::{
     ArrayAccessKind, BinOp, CallableModifiers, CallingConvention, ClassModifier,
-    ConcreteExpressionOrigin, DataBorrowIntrinsic, DefinitionOrigin, EvaluationOrigin, ExternAbi,
-    FunctionAttributes, GcEffect, HirCLayoutContract, HirCLayoutValue, HirIntegerConstant,
-    IntegerBinaryOperator, IntegerConversion, IntegerDivRem, IntegerExpression, IntegerKind,
-    IntegerOperation, IntegerOperationArity, IntegerOperator, IntegerSignedness, IntegerTypeCore,
-    IntegerUnaryOperator, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind,
+    ConcreteExpressionOrigin, DataBorrowIntrinsic, DefinitionOrigin, EnumRepresentation,
+    EvaluationOrigin, ExternAbi, FunctionAttributes, GcEffect, HirCLayoutContract, HirCLayoutValue,
+    HirIntegerConstant, IntegerBinaryOperator, IntegerConversion, IntegerDivRem, IntegerExpression,
+    IntegerKind, IntegerOperation, IntegerOperationArity, IntegerOperator, IntegerSignedness,
+    IntegerTypeCore, IntegerUnaryOperator, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind,
     IntrinsicProviderId, IntrinsicTypeKind, LocalValueDefinitionSite, MaybeUninitIntrinsic,
     MethodModifier, NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind,
     Safety, StringConstantOwner, StructAttributes, UnOp,

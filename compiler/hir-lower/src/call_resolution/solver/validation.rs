@@ -142,16 +142,16 @@ impl Lowerer {
         if shape.is_suspend != signature.is_suspend {
             return Err(callable_failure(origin, CallableShapeMismatch::Suspend));
         }
-        if shape.parameters.len() != signature.parameter_types.len() {
+        if shape.parameters.len() != signature.arity() {
             return Err(callable_failure(
                 origin,
                 CallableShapeMismatch::Arity {
-                    expected: signature.parameter_types.len(),
+                    expected: signature.arity(),
                     actual: shape.parameters.len(),
                 },
             ));
         }
-        for (actual, expected) in shape.parameters.iter().zip(signature.parameter_types) {
+        for (actual, expected) in shape.parameters.iter().zip(signature.parameters().copied()) {
             if let CallableParameter::Explicit(actual) = actual {
                 let actual = self
                     .materialize_term(session, bindings, *actual, origin)?

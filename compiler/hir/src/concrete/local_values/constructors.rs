@@ -27,9 +27,7 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                     };
                     let identity = self.record_source(
                         owner,
-                        LocalValueSelector::Parameter {
-                            declaration_index: index as u32,
-                        },
+                        parameter.selector.clone(),
                         parameter.definition,
                         location,
                     )?;

@@ -139,7 +139,7 @@ impl Lowerer {
             _ => {
                 let signature = &self.signatures[&function];
                 self.error(span, format!("override function `{}` inherits conflicting default expressions for parameter `{}`",
-                    self.functions[function].name.rsplit('.').next().unwrap_or(&self.functions[function].name), signature.params[key.position as usize].name.text));
+                    self.source_function_name(function), signature.params[key.position as usize].name.text));
                 None
             }
         }

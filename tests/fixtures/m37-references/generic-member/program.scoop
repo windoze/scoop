@@ -1,0 +1,2 @@
+class Box { fun <T> read(value: T) = value }
+fun main() { val read = Box::read }

@@ -52,12 +52,12 @@ impl Parser {
                     | TokenKind::Interface => self
                         .parse_nested_nominal(prefix)
                         .map(|declaration| nested.push(declaration)),
-                    TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedNominalDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
+                    TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
                     TokenKind::Ident(text) if text == "object" => {
                         self.require_unmodified_nominal_prefix(&prefix, "object")?;
                         self.parse_object(prefix.annotations, prefix.visibility)
                             .map(Box::new)
-                            .map(NestedNominalDecl::Object)
+                            .map(NestedTypeDecl::Object)
                             .map(|declaration| nested.push(declaration))
                     }
                     TokenKind::Ident(text) if text == "companion" => {
@@ -83,7 +83,7 @@ impl Parser {
                         "secondary constructors are not allowed in enums",
                     )),
                     TokenKind::Ident(text) if text == "typealias" => {
-                        self.unsupported_nested_type_alias()
+                        self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(|declaration| nested.push(declaration))
                     }
                     _ => Err(Diagnostic::at(
                         self.peek().span,
@@ -131,7 +131,50 @@ impl Parser {
     }
 
     fn enum_member_starts_here(&self) -> bool {
-        if self.release_block_starts_here() || self.starts_context_declaration() {
+        if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "inner")
+            && match &self.tokens[self.pos + 1].kind {
+                TokenKind::Class | TokenKind::Struct | TokenKind::Enum | TokenKind::Interface => {
+                    true
+                }
+                TokenKind::Ident(text) => matches!(
+                    text.as_str(),
+                    "inner"
+                        | "open"
+                        | "abstract"
+                        | "final"
+                        | "sealed"
+                        | "public"
+                        | "internal"
+                        | "private"
+                        | "protected"
+                ),
+                _ => false,
+            }
+        {
+            return true;
+        }
+        if self.release_block_starts_here()
+            || self.starts_context_declaration()
+            || self.starts_modified_local_function()
+            || (matches!(&self.peek().kind, TokenKind::Ident(text) if text == "inline")
+                && match &self.tokens[self.pos + 1].kind {
+                    TokenKind::Val | TokenKind::Var | TokenKind::At => true,
+                    TokenKind::Ident(text) => matches!(
+                        text.as_str(),
+                        "inline"
+                            | "public"
+                            | "internal"
+                            | "private"
+                            | "protected"
+                            | "open"
+                            | "final"
+                            | "abstract"
+                            | "override"
+                            | "const"
+                    ),
+                    _ => false,
+                })
+        {
             return true;
         }
         match &self.peek().kind {
@@ -191,9 +234,16 @@ impl Parser {
         let name = self.expect_ident("variant name")?;
         let start = name.span.start;
         let (kind, end) = match self.peek().kind {
+            TokenKind::Equal => {
+                self.bump();
+                let value = self.parse_expr()?;
+                let end = value.span().end;
+                (VariantDeclKind::Constant(Box::new(value)), end)
+            }
             TokenKind::LParen => {
                 self.bump();
                 let mut annotations = self.parse_annotations()?;
+                self.skip_parameter_compatibility_modifiers();
                 if matches!(
                     self.peek().kind,
                     TokenKind::Val | TokenKind::Var | TokenKind::Vararg

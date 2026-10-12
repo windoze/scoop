@@ -139,6 +139,7 @@ impl Lowerer {
                 Ok(self.intern_type(hir::Type::Tuple(elements)))
             }
             SignatureTypeKey::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
@@ -150,8 +151,13 @@ impl Lowerer {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let result = self.imported_signature_type_with_bindings(result, bindings)?;
-                let function = self.intern_function_type(
+                let receiver = receiver
+                    .as_ref()
+                    .map(|ty| self.imported_signature_type_with_bindings(ty, bindings))
+                    .transpose()?;
+                let function = self.intern_receiver_function_type(
                     *effect == scoop_identity::Effect::Suspend,
+                    receiver,
                     parameters,
                     result,
                 );

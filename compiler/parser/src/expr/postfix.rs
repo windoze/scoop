@@ -7,6 +7,7 @@ impl Parser {
         let mut grouped = matches!(self.peek().kind, TokenKind::LParen);
         let mut receiver = self.parse_atom()?;
         loop {
+            super::labels::name_call_lambdas(&mut receiver);
             match self.peek().kind {
                 TokenKind::Dot => {
                     self.bump();
@@ -29,14 +30,6 @@ impl Parser {
                 TokenKind::DoubleColon => {
                     receiver = self.parse_callable_reference(Some(receiver))?;
                 }
-                TokenKind::LParen
-                    if !self.peek().newline_before && matches!(receiver, Expr::This { .. }) =>
-                {
-                    return Err(Diagnostic::at(
-                        receiver.span(),
-                        "`this(...)` is only valid in a constructor delegation clause",
-                    ));
-                }
                 TokenKind::LParen if !self.peek().newline_before => {
                     let start = receiver.span().start;
                     let (args, end) = self.parse_call_inputs()?;
@@ -47,7 +40,10 @@ impl Parser {
                         span: Span::new(start, end),
                     };
                 }
-                TokenKind::LBrace | TokenKind::Suspend
+                TokenKind::LBrace
+                | TokenKind::Suspend
+                | TokenKind::Ident(_)
+                | TokenKind::EscapedIdent(_)
                     if self.starts_trailing_lambda()
                         && !matches!(receiver, Expr::Return { .. } | Expr::Throw { .. }) =>
                 {
@@ -126,7 +122,7 @@ impl Parser {
     /// named selectors and, in M6, no method calls (DESIGN.md section 6).
     fn parse_field_access(&mut self, receiver: Expr, safe: bool) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
-        let TokenKind::Ident(text) = token.kind else {
+        let (TokenKind::Ident(text) | TokenKind::EscapedIdent(text)) = token.kind else {
             return self.unexpected("field name or tuple index");
         };
         if let Some(index) = tuple_index(&text) {

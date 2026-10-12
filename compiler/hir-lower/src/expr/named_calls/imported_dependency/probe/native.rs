@@ -23,6 +23,20 @@ impl Lowerer {
         receiver: ImportedCallReceiver,
         argument_map: ImportedArgumentMap,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        let alias_signature = if let Some(alias) = call.alias {
+            let Some(explicit) = self.resolve_call_type_args(call.type_args) else {
+                return Err(self);
+            };
+            match self.alias_constructor_signature(alias, &signature, &explicit, call.span) {
+                Some(signature) => Some(signature),
+                None => return Err(self),
+            }
+        } else {
+            None
+        };
+        let inference_signature = alias_signature
+            .as_ref()
+            .map_or(&signature, |alias| &alias.signature);
         let expressions = call.arguments.expressions();
         let diagnostics_before = self.diagnostics.len();
         let integer_intrinsic = matches!(
@@ -37,12 +51,17 @@ impl Lowerer {
             numeric_arguments,
             ..
         } = match self.infer_call_arguments(CallInferenceInput {
-            signature: &signature,
+            signature: inference_signature,
+            result: crate::declaration_inference::DeclarationResult::Known(
+                inference_signature.return_type,
+            ),
             argument_map: argument_map.mapping(),
             type_arguments: DeclarationTypeArguments::Callable {
                 owner_arguments: &[],
             },
-            explicit_arguments: &[],
+            explicit_arguments: alias_signature
+                .as_ref()
+                .map_or(&[], |alias| alias.explicit.as_slice()),
             bound_receiver: None,
             expressions: &expressions,
             expected_result: None,
@@ -51,6 +70,18 @@ impl Lowerer {
             Ok(arguments) => arguments,
             Err(failure) => {
                 if let ArgumentInferenceFailureKind::Constraint(constraint) = &failure.kind {
+                    if alias_signature.is_some() {
+                        let message = self.render_imported_constraint_failure(
+                            &inference_signature.owner_parameters,
+                            &inference_signature.callable_parameters,
+                            constraint,
+                        );
+                        self.error(
+                            call.span,
+                            format!("typealias constructor `{}`: {message}", name.text),
+                        );
+                        return Err(self);
+                    }
                     let ConstraintOrigin::Argument(input) = constraint.origin else {
                         unreachable!(
                             "closed call inference only adds explicit argument constraints"
@@ -99,6 +130,10 @@ impl Lowerer {
                 return Err(self);
             }
         };
+        let crate::declaration_inference::DeclarationResult::Known(result_type) = result_type
+        else {
+            unreachable!("imported signatures already have complete results")
+        };
         if !candidate.executable() {
             self.imported_dependency_capability_error(
                 &candidate,
@@ -116,6 +151,7 @@ impl Lowerer {
             }
         };
         Ok(ImportedDependencyCallProbe {
+            alias: call.alias.cloned(),
             implementation: ImportedCallImplementation::Native,
             declaration_file: self.current_file,
             declaration_span: name.span,

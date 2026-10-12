@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `main` has local `read` of non-GC-free type (Box) -> Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 71,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 30
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type (Box) -> Int is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 69,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed function values are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 69,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  }
+]

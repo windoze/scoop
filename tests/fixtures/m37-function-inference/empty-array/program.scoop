@@ -1,0 +1,2 @@
+fun values() = []
+fun main() { val result: Array<Int> = values() }

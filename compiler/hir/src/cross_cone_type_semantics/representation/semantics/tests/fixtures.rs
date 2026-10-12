@@ -66,7 +66,10 @@ pub(super) fn mixed() -> Fixture {
     );
     fixture.add(
         &enumeration,
-        NominalRepresentationShapeV1::Enum { variants },
+        NominalRepresentationShapeV1::Enum {
+            variants,
+            representation: crate::EnumRepresentation::Algebraic,
+        },
         Some(public),
     );
     let mut class = SourceFixture::new(SourceNominalKind::Class);

@@ -1,0 +1,4 @@
+fun main() {
+    for (value in 0..<1) val hidden = value
+    println(hidden)
+}

@@ -55,7 +55,7 @@ impl Flow<'_> {
             | E::PtrCast(operand)
             | E::Box(operand)
             | E::Unbox(operand)
-            | E::ReferenceUpcast(operand)
+            | E::Upcast(operand)
             | E::ArrayLen(operand)
             | E::ArrayClone(operand)
             | E::AtomicNew(operand)

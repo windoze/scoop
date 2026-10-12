@@ -1,0 +1,27 @@
+class Slot<T>(var value: T) {
+    operator fun getValue(thisRef: Unit) = value
+    operator fun setValue(thisRef: Unit, next: T) { value = next }
+}
+class Seed<T>(val value: T) {
+    operator fun provideDelegate() = Slot(value)
+}
+var delegated by Seed(40)
+class FieldSlot(val value: Int) {
+    operator fun getValue(thisRef: Host) = value
+}
+class Host(seed: Int) {
+    val picked by FieldSlot(seed)
+}
+class Receiver<T>(val seed: T)
+class ExtensionSlot<T> {
+    operator fun getValue(thisRef: Receiver<T>) = thisRef.seed
+}
+val <T> Receiver<T>.echo by ExtensionSlot<T>()
+fun main() {
+    println(delegated)
+    delegated = 42
+    println(delegated)
+    println(Host(7).picked)
+    println(Receiver("generic").echo)
+    println(Receiver(9).echo)
+}

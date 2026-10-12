@@ -73,7 +73,7 @@ impl Lowerer {
                             )
                     });
                 if let Some(property) = property {
-                    let ty = self.properties[property].ty;
+                    let ty = self.infer_property_type(property)?;
                     return self.lower_property_read(property, None, None, ty, name.span);
                 }
             }
@@ -90,28 +90,27 @@ impl Lowerer {
                 return self.lower_singleton_value(object, name.span);
             }
             let mut implicit_failure = None;
-            let selected_value = if self.initialization_context.is_none()
-                && let Some(receiver) = self.lower_current_this(name.span)
-            {
-                match self.resolve_implicit_value_read(receiver, name, sink) {
-                    crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
-                        return Some(property.read);
+            let selected_value =
+                if self.initialization_context.is_none() && !self.implicit_receivers().is_empty() {
+                    match self.resolve_implicit_value_read(name, sink) {
+                        crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
+                            return Some(property.read);
+                        }
+                        crate::properties::ImplicitValueResolution::Value { target, layer } => {
+                            Some((target, layer))
+                        }
+                        crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
+                            implicit_failure = Some(failure);
+                            None
+                        }
+                        crate::properties::ImplicitValueResolution::Failed => return None,
+                        crate::properties::ImplicitValueResolution::NoCandidate => {
+                            self.resolve_value_name_with_layer(name).ok()?
+                        }
                     }
-                    crate::properties::ImplicitValueResolution::Value { target, layer } => {
-                        Some((target, layer))
-                    }
-                    crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
-                        implicit_failure = Some(failure);
-                        None
-                    }
-                    crate::properties::ImplicitValueResolution::Failed => return None,
-                    crate::properties::ImplicitValueResolution::NoCandidate => {
-                        self.resolve_value_name_with_layer(name).ok()?
-                    }
-                }
-            } else {
-                self.resolve_value_name_with_layer(name).ok()?
-            };
+                } else {
+                    self.resolve_value_name_with_layer(name).ok()?
+                };
             let mut prelude_failure = None;
             if let Some((target, selected_layer)) = selected_value {
                 let core_variant = selected_layer == crate::imports::ImportLookupLayer::CorePrelude
@@ -214,6 +213,7 @@ impl Lowerer {
         };
         let declared = self.locals[local].ty;
         let binding = self.locals[local].binding;
+        self.require_initialized_condition_binding(binding, &name.text, name.span)?;
         if self.local_delegate_plans.contains_key(&binding) {
             let storage = hir::Expr {
                 kind: ExprKind::Local(local),
@@ -241,13 +241,8 @@ impl Lowerer {
         match target {
             ValueTarget::Property(property) => {
                 let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
-                self.lower_property_read(
-                    property,
-                    owner,
-                    receiver,
-                    self.properties[property].ty,
-                    name.span,
-                )
+                let ty = self.infer_property_type(property)?;
+                self.lower_property_read(property, owner, receiver, ty, name.span)
             }
             ValueTarget::Object(object) => self.lower_singleton_value(object, name.span),
             ValueTarget::Variant(target) => {
@@ -385,17 +380,27 @@ impl Lowerer {
                 .initializing_field(name, name.span)
                 .map(|field| field.read);
         }
-        let receiver_ty = self.current_this_ty()?;
-        if let Some((property, owner, ty)) =
-            self.find_accessible_nominal_property(receiver_ty, &name.text)
-        {
-            let receiver = self.lower_current_this(name.span)?;
-            return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
+        for binding in self.implicit_receivers() {
+            if let Some((property, owner, ty)) =
+                self.find_accessible_nominal_property(binding.ty, &name.text)
+            {
+                let receiver = self.lower_receiver_binding(binding, name.span)?;
+                return self.lower_property_read(
+                    property,
+                    Some(owner),
+                    Some(receiver),
+                    ty,
+                    name.span,
+                );
+            }
+            if let Some(property) = self
+                .resolve_imported_member_property(binding.ty, name)
+                .ok()?
+            {
+                let receiver = self.lower_receiver_binding(binding, name.span)?;
+                return self.emit_imported_member_property_read(&property, receiver, name.span);
+            }
         }
-        let property = self
-            .resolve_imported_member_property(receiver_ty, name)
-            .ok()??;
-        let receiver = self.lower_current_this(name.span)?;
-        self.emit_imported_member_property_read(&property, receiver, name.span)
+        None
     }
 }

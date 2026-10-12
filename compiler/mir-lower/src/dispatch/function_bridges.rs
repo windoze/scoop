@@ -60,11 +60,10 @@ impl Lowerer {
             local: closure,
         }];
         let receiver = smir::Expr::local(closure, mir::Type::Function(source));
-        let mut args = Vec::with_capacity(target_signature.parameter_types.len());
+        let mut args = Vec::with_capacity(target_signature.arity());
         for (index, (target_ty, source_ty)) in target_signature
-            .parameter_types
-            .iter()
-            .zip(&source_signature.parameter_types)
+            .parameters()
+            .zip(source_signature.parameters())
             .enumerate()
         {
             let local = locals.alloc(mir::Local {

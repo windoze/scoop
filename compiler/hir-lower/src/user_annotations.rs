@@ -5,8 +5,16 @@ use crate::{
 };
 mod arrays;
 mod binding;
+mod callables;
+mod nested;
+mod properties;
+mod rules;
+mod schemas;
 mod serialization;
 mod targets;
+pub(crate) mod type_uses;
+mod types;
+mod use_sites;
 mod values;
 
 use scoop_ast as ast;
@@ -14,6 +22,13 @@ use scoop_hir as hir;
 use scoop_identity::{
     CborIdentityRecord, PersistentAnnotationId, SourceDeclarationKey, SourceNominalKind,
 };
+
+#[derive(Clone, Copy)]
+pub(crate) enum AnnotationResolution {
+    Resolving,
+    Resolved,
+    Failed,
+}
 
 #[derive(Clone)]
 pub(crate) struct SourceAnnotationInput {

@@ -43,7 +43,7 @@ pub(super) fn finalize(
                         instruction,
                         profile.managed_address_space_contract(),
                     )?;
-                    if value.is_const() {
+                    if constant_roots::is_constant_root(value) {
                         constants.entry(id).or_default().push(root);
                     } else {
                         roots

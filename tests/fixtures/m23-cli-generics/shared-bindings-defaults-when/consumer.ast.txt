@@ -72,5 +72,6 @@ SourceFile
       Call exercise<Int>
         Var result
         Lambda 0 suspend=false
+          label exercise
           param item: _
           Var item

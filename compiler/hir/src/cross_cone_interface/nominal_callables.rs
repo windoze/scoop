@@ -25,8 +25,8 @@ pub struct NominalExactLeafClassifierV1 {
 
 impl NominalExactLeafClassifierV1 {
     /// Resolves a param-free callable's source signature and actual implementation.
-    /// Constructors have no receiver in their source signature; their physical
-    /// lowering signature is supplied by the defining provider.
+    /// Inner constructors retain the outer receiver separately from their source
+    /// parameters; physical initializer signatures come from the provider.
     pub fn classify_callable(
         &self,
         callable: &CallableDeclarationRecordV1,

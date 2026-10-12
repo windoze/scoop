@@ -51,6 +51,8 @@ impl Lowerer {
                 .map(|(source, (_, target))| (source.id, *target)),
         );
         FnSig {
+            result_pending: sig.result_pending,
+            parameter_pending: sig.parameter_pending,
             context_parameters: sig
                 .context_parameters
                 .into_iter()
@@ -130,14 +132,18 @@ impl Lowerer {
         let candidate_own_count =
             candidate_sig.type_params.len() - candidate_sig.owner_type_param_count;
         let expected_own_count = sig.type_params.len() - sig.owner_type_param_count;
-        self.functions[candidate].name.rsplit('.').next() == Some(name)
+        self.source_function_name(candidate) == name
             && candidate_own_count == expected_own_count
             && candidate_sig.params.len() == sig.params.len()
-            && candidate_sig
-                .params
-                .iter()
-                .zip(&sig.params)
-                .all(|(a, b)| self.types_equal(a.ty, b.ty))
-            && self.types_equal(candidate_sig.return_ty, sig.return_ty)
+            && (candidate_sig.parameter_pending
+                || sig.parameter_pending
+                || candidate_sig
+                    .params
+                    .iter()
+                    .zip(&sig.params)
+                    .all(|(a, b)| self.types_equal(a.ty, b.ty)))
+            && (candidate_sig.result_pending
+                || sig.result_pending
+                || self.types_equal(candidate_sig.return_ty, sig.return_ty))
     }
 }

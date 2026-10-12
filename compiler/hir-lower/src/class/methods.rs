@@ -84,11 +84,14 @@ impl Lowerer {
             return_ty,
         );
 
+        self.register_inferred_function(id, decl);
         self.functions[id].return_ty = return_ty;
         self.functions[id].modifiers = modifiers;
         self.signatures.insert(
             id,
             FnSig {
+                result_pending: crate::declaration_inference::infers_result(decl),
+                parameter_pending: false,
                 context_parameters: self.functions[id].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers,

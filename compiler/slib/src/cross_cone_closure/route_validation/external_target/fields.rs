@@ -19,11 +19,17 @@ impl CanonicalCrossConeRouteAuthority<'_> {
         let owner = match key.view() {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
-            | FieldIdentityView::SourcePropertyDelegate { owner, .. } => owner,
+            | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceEnclosingInstance { owner }
+            | FieldIdentityView::SourceCapturedEnvironment { owner }
+            | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => owner,
             FieldIdentityView::Generated { owner, key } => {
-                let property = key
-                    .object_backing_property()
-                    .ok_or(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target })?;
+                let property = key.object_backing_property();
+                if property.is_none() && key.interface_delegate().is_none() {
+                    return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot {
+                        target,
+                    });
+                }
                 self.object_field_owner(field, owner, property)?
             }
         };
@@ -34,7 +40,7 @@ impl CanonicalCrossConeRouteAuthority<'_> {
         &self,
         field: PersistentFieldId,
         generated: PersistentTypeId,
-        property: PersistentPropertyId,
+        property: Option<PersistentPropertyId>,
     ) -> Result<NominalDeclarationOwner, CrossConeHirReferenceAuthorityError> {
         let target = ExternalHirTargetV1::Field(field);
         let key = self
@@ -56,15 +62,17 @@ impl CanonicalCrossConeRouteAuthority<'_> {
         if object_key.declaration_kind() != SourceDeclarationKind::Object {
             return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target });
         }
-        let property_key = self.source_declaration_key(property)?;
-        if property_key.owners().owners().last() != Some(&atom)
-            || property_key.origin() != object_key.origin()
-        {
-            return Err(
-                CrossConeHirReferenceAuthorityError::ObjectFieldOwnerMismatch(Box::new(
-                    ExternalObjectFieldOwnerMismatch { field, property },
-                )),
-            );
+        if let Some(property) = property {
+            let property_key = self.source_declaration_key(property)?;
+            if property_key.owners().owners().last() != Some(&atom)
+                || property_key.origin() != object_key.origin()
+            {
+                return Err(
+                    CrossConeHirReferenceAuthorityError::ObjectFieldOwnerMismatch(Box::new(
+                        ExternalObjectFieldOwnerMismatch { field, property },
+                    )),
+                );
+            }
         }
         Ok(object)
     }

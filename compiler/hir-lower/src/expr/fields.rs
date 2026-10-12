@@ -7,6 +7,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let ast::FieldSelector::Name(name) = &access.selector
+            && let Some((alias, index)) = self.resolve_alias_variant(&access.receiver, name).ok()?
+        {
+            return self.lower_alias_unit_variant(&alias, index, name, expected);
+        }
         if let Some(owner) = self
             .resolve_imported_nominal_qualifier(&access.receiver)
             .ok()?
@@ -39,7 +44,7 @@ impl Lowerer {
                 .qualified_object_const_property(&access.receiver, &name.text)
                 .ok()?;
             if let Some(property) = property {
-                let ty = self.properties[property].ty;
+                let ty = self.infer_property_type(property)?;
                 return self.lower_property_read(property, None, None, ty, access.span);
             }
         }
@@ -58,7 +63,9 @@ impl Lowerer {
         {
             let expected = direct_alias
                 .as_ref()
-                .map_or(expected, |(alias, _)| Some(alias.target));
+                .map_or(applied.map(|(ty, _)| ty).or(expected), |(alias, _)| {
+                    Some(alias.target)
+                });
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if let (Some(qualifier), ast::FieldSelector::Name(name)) = (qualifier, &access.selector)
@@ -88,9 +95,10 @@ impl Lowerer {
                 .map_or(expected, |(alias, _)| Some(alias.target));
             return self.lower_qualified_variant(enum_id, access, expected);
         }
-        if matches!(&*access.receiver, ast::Expr::This { .. })
-            && self.initialization_context.is_some()
+        if let ast::Expr::This { label, .. } = &*access.receiver
+            && self.is_initializing_this_label(label.as_ref())
         {
+            self.check_initializing_receiver_label(label.as_ref())?;
             let ast::FieldSelector::Name(name) = &access.selector else {
                 self.error(
                     access.span,

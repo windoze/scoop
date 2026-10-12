@@ -84,6 +84,30 @@ struct GcHandle<T> GenericTemplate(PersistentGenericTypeId([103, 149, 122, 21, 5
   public property raw: ULong 8187323ee2c28cf774602fe052fd9b62f341e0efcc6b97850e2e27df892fdb80 no-field
   constructor Constructor(PersistentConstructorId([135, 19, 64, 169, 4, 236, 233, 207, 211, 30, 96, 30, 26, 162, 212, 241, 193, 3, 239, 182, 242, 235, 221, 61, 33, 86, 187, 56, 155, 173, 158, 230]))
     parameter raw: ULong Field(Field(PersistentFieldId([125, 78, 217, 124, 11, 175, 205, 1, 55, 241, 10, 134, 26, 61, 44, 8, 41, 231, 65, 51, 38, 116, 201, 105, 50, 55, 69, 77, 109, 84, 211, 109])))
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+intrinsic core_char Char Concrete(PersistentTypeId([158, 93, 238, 155, 68, 59, 82, 53, 211, 3, 87, 194, 93, 247, 116, 41, 99, 61, 182, 12, 206, 26, 143, 90, 26, 32, 180, 115, 157, 244, 47, 48]))
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  public property code: Int fa8138db966fccc2ca5ccb1526ceffa1d66686e81c3b809bb932c20729703f29 no-field
+interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+  parameter T: Any
+interface Equality<Char> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+interface Iterable<T> GenericTemplate(PersistentGenericTypeId([76, 223, 166, 100, 228, 194, 35, 148, 202, 85, 95, 98, 161, 247, 76, 238, 212, 164, 123, 150, 69, 38, 204, 238, 51, 31, 53, 112, 163, 226, 154, 220]))
+  parameter T: Any
+interface Iterator<T> GenericTemplate(PersistentGenericTypeId([202, 137, 126, 174, 6, 35, 202, 235, 85, 212, 71, 247, 170, 159, 32, 71, 227, 242, 108, 249, 239, 179, 167, 141, 158, 177, 53, 76, 217, 38, 69, 114]))
+  parameter T: Any
+enum Option<T> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  parameter T: Any
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: T VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: T Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+interface Iterable<Char> GenericTemplate(PersistentGenericTypeId([76, 223, 166, 100, 228, 194, 35, 148, 202, 85, 95, 98, 161, 247, 76, 238, 212, 164, 123, 150, 69, 38, 204, 238, 51, 31, 53, 112, 163, 226, 154, 220]))
+interface Equality<String> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 struct GcHandle<String> GenericTemplate(PersistentGenericTypeId([103, 149, 122, 21, 5, 192, 19, 151, 37, 244, 137, 114, 111, 34, 229, 108, 114, 76, 144, 179, 193, 86, 248, 119, 238, 55, 139, 61, 2, 55, 223, 132]))
   field raw: ULong Field(PersistentFieldId([125, 78, 217, 124, 11, 175, 205, 1, 55, 241, 10, 134, 26, 61, 44, 8, 41, 231, 65, 51, 38, 116, 201, 105, 50, 55, 69, 77, 109, 84, 211, 109])) Declared
   public property raw: ULong 8187323ee2c28cf774602fe052fd9b62f341e0efcc6b97850e2e27df892fdb80 no-field
@@ -118,14 +142,6 @@ class Exception Concrete(PersistentTypeId([142, 87, 2, 76, 204, 55, 50, 96, 83, 
   public property message: Option<String> 2a3930f700cfe99e457bcbae3b6c7cbb78cbecb5e7f0f8be2f06284b9add2026 stored 95cba86fd5c85035f849b729f2189e78bd8c95785f15ba9443ba8bef5078d083
   constructor Constructor(PersistentConstructorId([25, 35, 17, 109, 201, 110, 78, 21, 232, 210, 177, 220, 71, 252, 25, 233, 177, 47, 203, 166, 101, 159, 77, 84, 16, 179, 84, 175, 235, 207, 71, 95]))
     parameter message: Option<String> Property(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
-enum Option<T> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
-  parameter T: Any
-  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
-    field _0: T VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
-    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
-      parameter _1: T Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
-  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
-    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
 enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
   variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
     field _0: String VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
@@ -146,6 +162,9 @@ LocalConcrete f9e5294aa26fba1a0e8ecc050a2ed2964b271f8b6882447cce54f7d109d82d79 L
   type Idx::<Type>(8) Type { kind: Integer(IntegerKind { signedness: Unsigned, width: W64 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([7, 106, 143, 24, 123, 23, 82, 180, 19, 16, 57, 85, 215, 229, 239, 229, 109, 16, 244, 252, 69, 205, 100, 64, 161, 174, 100, 60, 124, 20, 105, 46]), key: Nominal(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248])) }
   type Idx::<Type>(9) Type { kind: Boolean, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([80, 162, 214, 250, 73, 96, 155, 234, 227, 128, 194, 79, 34, 76, 57, 23, 87, 5, 112, 40, 8, 223, 246, 201, 155, 217, 188, 202, 205, 77, 189, 211]), key: Nominal(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114])) }
   type Idx::<Type>(10) Type { kind: String, gc_free: false } CborIdentityRecord { id: PersistentExactTypeId([173, 58, 231, 167, 25, 232, 33, 1, 245, 71, 37, 123, 138, 138, 193, 133, 240, 85, 49, 193, 69, 4, 190, 129, 150, 34, 80, 86, 106, 62, 232, 104]), key: Nominal(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151])) }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(0) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([220, 3, 41, 120, 151, 134, 86, 158, 22, 212, 85, 251, 117, 134, 163, 150, 115, 91, 232, 158, 142, 100, 8, 231, 88, 183, 53, 117, 227, 122, 190, 107])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(1) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([28, 146, 134, 78, 204, 253, 248, 9, 239, 238, 242, 170, 240, 127, 209, 185, 108, 50, 205, 147, 129, 76, 60, 79, 136, 233, 219, 109, 96, 107, 178, 68])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(2) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([218, 165, 100, 160, 122, 110, 23, 148, 214, 210, 52, 68, 18, 219, 76, 201, 119, 76, 157, 182, 198, 183, 39, 203, 115, 158, 202, 131, 46, 174, 254, 178])) }, dispatch: Direct, effect: Ordinary }
   generated []
   callbacks []
   coroutines []
@@ -158,9 +177,9 @@ CrossCone f9e5294aa26fba1a0e8ecc050a2ed2964b271f8b6882447cce54f7d109d82d79
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(4) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Function([]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(5) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(4), arguments: Function([Idx::<Type>(10)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(6) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(11), arguments: Function([Idx::<Type>(13)]) }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(7) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(12), arguments: Function([Idx::<Type>(18)]) }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(8) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(13), arguments: Function([Idx::<Type>(20)]) }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(9) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(14), arguments: Function([Idx::<Type>(25)]) }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(7) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(12), arguments: Function([Idx::<Type>(34)]) }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(8) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(13), arguments: Function([Idx::<Type>(36)]) }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(9) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(14), arguments: Function([Idx::<Type>(41)]) }
   public_bindings count=1
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([62, 252, 142, 119, 230, 226, 150, 42, 36, 249, 242, 159, 82, 201, 141, 85, 229, 150, 185, 222, 100, 77, 124, 116, 162, 204, 156, 139, 108, 188, 184, 213]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([11, 10, 130, 62, 107, 155, 172, 224, 65, 221, 220, 197, 2, 105, 77, 22, 155, 22, 57, 234, 22, 108, 15, 137, 27, 17, 163, 154, 50, 82, 99, 226])) } }
   nominal_interfaces count=0

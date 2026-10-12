@@ -30,7 +30,7 @@ fn property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body,
         span: sp(),
     }
@@ -114,7 +114,10 @@ fn logical_properties_keep_accessors_and_storage_as_distinct_typed_entities() {
     let hir::PropertyBacking::ClassField { field, initializer } = storage.backing else {
         panic!("class property has a class backing field")
     };
-    assert_eq!(module.class_fields[field].property, class.properties[0]);
+    assert_eq!(
+        module.class_fields[field].source.property(),
+        Some(class.properties[0])
+    );
     assert_eq!(initializer, hir::ClassPropertyInitializer::Expression);
     let getter = module.property_getters[stored.capability.getter()].implementation;
     assert!(matches!(

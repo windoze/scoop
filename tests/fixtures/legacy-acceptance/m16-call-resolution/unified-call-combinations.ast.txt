@@ -17,6 +17,7 @@ SourceFile
     val selected
       Call apply
         Lambda 0 suspend=false
+          label apply
           param value: _
           Binary Add
             Var value

@@ -80,7 +80,7 @@ fn validate_relations(
         NominalRepresentationShapeV1::Class { base, .. } => {
             validate_base(record.owner(), base, declaration, types)
         }
-        NominalRepresentationShapeV1::Enum { variants } => {
+        NominalRepresentationShapeV1::Enum { variants, .. } => {
             for variant in variants {
                 let mut expected = ExactTypeGcV1::GcFree;
                 for field in variant.fields() {

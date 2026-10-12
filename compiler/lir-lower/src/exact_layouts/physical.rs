@@ -131,7 +131,12 @@ impl Projection<'_> {
                 Kind::Scalar(lir::ScalarRepresentationKindV1::Boolean),
                 lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::Boolean),
             ) => true,
-            (Kind::NicheEnum(_) | Kind::TaggedEnum(_), lir::LayoutKind::Enum { .. }) => true,
+            (
+                Kind::NicheEnum(_)
+                | Kind::TaggedEnum(_)
+                | Kind::Scalar(lir::ScalarRepresentationKindV1::Integer(_)),
+                lir::LayoutKind::Enum { .. },
+            ) => true,
             (
                 Kind::Scalar(_)
                 | Kind::QualifiedPointer(_)

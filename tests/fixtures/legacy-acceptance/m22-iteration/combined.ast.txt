@@ -250,6 +250,7 @@ SourceFile
       Var readers
       Argument trailing
         Lambda 4 suspend=false
+          label replayReaders
           param node: Node
           FieldAccess text
             Var node

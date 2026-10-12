@@ -111,6 +111,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 }
             }
             hir::StatementKind::While {
+                loop_kind: _,
                 target: _,
                 condition_setup,
                 cond,
@@ -387,7 +388,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::PtrCast(source)
         | ExprKind::Box(source)
         | ExprKind::Unbox(source)
-        | ExprKind::ReferenceUpcast(source)
+        | ExprKind::Upcast(source)
         | ExprKind::IsInstance {
             operand: source, ..
         }

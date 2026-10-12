@@ -6,6 +6,24 @@ use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
 impl Parser {
+    pub(crate) fn starts_anonymous_function(&mut self) -> bool {
+        let saved = self.pos;
+        if matches!(self.peek().kind, TokenKind::Suspend) {
+            self.bump();
+        }
+        self.bump(); // `fun`
+        let ordinary = matches!(self.peek().kind, TokenKind::LParen);
+        let receiver = self.parse_type_atom_with_suffix().is_ok()
+            && matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot);
+        let anonymous = if receiver {
+            matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen)
+        } else {
+            ordinary
+        };
+        self.pos = saved;
+        anonymous
+    }
+
     pub(super) fn parse_callable_reference(
         &mut self,
         receiver: Option<Expr>,
@@ -30,14 +48,29 @@ impl Parser {
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
         let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
+        let receiver_start = self.pos;
+        let receiver_annotations = self.parse_annotations()?;
+        let receiver = match self.parse_type_atom_with_suffix() {
+            Ok(receiver) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
+                Some(self.parse_receiver_separator(receiver))
+            }
+            _ => {
+                self.pos = receiver_start;
+                None
+            }
+        }
+        .map(|receiver| receiver.with_annotations(receiver_annotations));
         self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
         let mut params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                let annotations = self.parse_annotations()?;
+                self.skip_parameter_compatibility_modifiers();
                 let name = self.expect_ident("parameter name")?;
                 self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;
                 params.push(Param {
+                    annotations,
                     span: Span::new(name.span.start, ty.span.end),
                     name,
                     ty,
@@ -59,10 +92,12 @@ impl Parser {
         };
         let body = self.parse_block()?;
         Ok(Expr::AnonymousFunction {
+            label: None,
+            receiver: receiver.map(Box::new),
             id: self.alloc_anonymous_function_id(),
             is_suspend,
             params,
-            return_ty,
+            return_ty: return_ty.map(Box::new),
             span: Span::new(
                 expression_start.unwrap_or(keyword.span.start),
                 body.span.end,
@@ -100,6 +135,7 @@ impl Parser {
         let body = self.parse_block_after_open(open.clone())?;
         let span = Span::new(expression_start.unwrap_or(open.span.start), body.span.end);
         Ok(Expr::Lambda {
+            label: None,
             id: self.alloc_lambda_id(),
             is_suspend,
             parameters,
@@ -112,6 +148,8 @@ impl Parser {
         let start = self.pos;
         let mut parameters = Vec::new();
         loop {
+            let annotations = self.parse_annotations().ok()?;
+            self.skip_parameter_compatibility_modifiers();
             let target = self.parse_pattern().ok()?;
             let target_span = crate::pattern::pattern_span(&target);
             let ty = if matches!(self.peek().kind, TokenKind::Colon) {
@@ -122,6 +160,7 @@ impl Parser {
             };
             let end = ty.as_ref().map_or(target_span.end, |ty| ty.span.end);
             parameters.push(LambdaParam {
+                annotations,
                 target,
                 ty,
                 span: Span::new(target_span.start, end),

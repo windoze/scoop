@@ -2,8 +2,20 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn declare_derived_equality_methods(&mut self) {
-        let structs = self.structs.iter().map(|(id, _)| id).collect::<Vec<_>>();
-        for id in structs {
+        let owners = self
+            .structs
+            .iter()
+            .map(|(id, _)| Owner::Struct(id))
+            .chain(self.enums.iter().map(|(id, _)| Owner::Enum(id)))
+            .collect::<Vec<_>>();
+        self.declare_owner_equality_methods(&owners);
+    }
+
+    pub(crate) fn declare_owner_equality_methods(&mut self, owners: &[Owner]) {
+        for &owner in owners {
+            let Owner::Struct(id) = owner else {
+                continue;
+            };
             if matches!(
                 self.structs[id].representation,
                 hir::StructRepresentation::Intrinsic(_)
@@ -18,10 +30,14 @@ impl Lowerer {
             self.structs[id].derived_equality = Some(function);
         }
 
-        let enums = self.enums.iter().map(|(id, _)| id).collect::<Vec<_>>();
-        for id in enums {
+        for &owner in owners {
+            let Owner::Enum(id) = owner else {
+                continue;
+            };
             let owner = Owner::Enum(id);
-            if self.has_same_type_equals(owner) {
+            if self.enums[id].representation.integer_kind().is_some()
+                || self.has_same_type_equals(owner)
+            {
                 continue;
             }
             let function = self.declare_derived_equality_method(owner);
@@ -40,7 +56,7 @@ impl Lowerer {
         };
         methods.iter().copied().any(|function| {
             let signature = &self.signatures[&function];
-            self.functions[function].name.rsplit('.').next() == Some("equals")
+            self.source_function_name(function) == "equals"
                 && matches!(signature.params.as_slice(), [parameter] if self.types_equal(parameter.ty, owner_ty))
         })
     }
@@ -116,6 +132,8 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                result_pending: false,
+                parameter_pending: false,
                 context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
@@ -197,6 +215,8 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                result_pending: false,
+                parameter_pending: false,
                 context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {

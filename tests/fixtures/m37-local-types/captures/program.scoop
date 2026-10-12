@@ -1,0 +1,13 @@
+interface Reader<T> { fun read(): T }
+fun <T> named(value: T): Reader<T> {
+    class Local: Reader<T> { override fun read(): T = value }
+    return Local()
+}
+fun anonymous(value: String): Reader<String> {
+    return object: Reader<String> { override fun read(): String = value }
+}
+fun main() {
+    println(named(42).read())
+    println(named("generic").read())
+    println(anonymous("anonymous").read())
+}

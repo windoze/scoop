@@ -1,0 +1,3 @@
+@Repeatable @Target([AnnotationTarget.FIELD]) annotation class FieldOnly
+@FieldOnly @FieldOnly fun read() {}
+fun main() {}

@@ -40,7 +40,7 @@ fn runtime_property(name: &str) -> ast::Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(call("seed", Vec::new())),
             accessors: ast::AccessorSyntax::default(),
@@ -61,7 +61,7 @@ fn extension_delegate() -> ast::Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("shared"),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Delegated {
             expression: Box::new(call("GlobalDelegate", vec![int_lit(2)])),
             by_span: sp(),

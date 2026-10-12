@@ -1,0 +1,11 @@
+fun main() {
+    val add = fun Int.(step: Int): Int { return this + step }
+    val flat: (Int, Int) -> Int = add
+    println(flat(40, 2))
+    val receiver: Int.(Int) -> Int = fun(base: Int, step: Int): Int { return base + step }
+    println(8.receiver(1))
+    val text = named@ fun String.(): String { return this@named }
+    println("anonymous".text())
+    val tuple: (Int, String).() -> String = { this._2 }
+    println(tuple((1, "tuple")))
+}

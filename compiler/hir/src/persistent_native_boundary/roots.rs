@@ -238,6 +238,9 @@ pub(super) fn collect_signature_type(
     ty: &SignatureTypeKey,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
 ) {
+    if let Some(receiver) = ty.receiver_type() {
+        collect_signature_type(receiver, required);
+    }
     match ty {
         SignatureTypeKey::Nominal(id) => {
             required.insert(NativeBoundaryNominalOwner::Concrete(*id));
@@ -282,7 +285,7 @@ pub(super) fn collect_definition_types(
                 collect_signature_type(field.ty(), required);
             }
         }
-        crate::NativeBoundaryNominalShape::Enum { variants } => {
+        crate::NativeBoundaryNominalShape::Enum { variants, .. } => {
             for field in variants.iter().flat_map(|variant| variant.fields()) {
                 collect_signature_type(field.ty(), required);
             }

@@ -1,0 +1,3 @@
+sealed class Root { fun value(): Int = 1 }
+class Child : Root() { override fun value(): Int = 2 }
+fun main() {}

@@ -95,6 +95,7 @@ pub(crate) fn ref_scan(
             scan_fields(context, module, enums, fields, &offsets, base)?
         }
         mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
+            lir::EnumRepr::Integral { .. } => lir::RefScan::None,
             lir::EnumRepr::Niche {
                 kind: lir::NullNicheKind::Managed | lir::NullNicheKind::Interface,
                 ..

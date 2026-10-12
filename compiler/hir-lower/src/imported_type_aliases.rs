@@ -5,7 +5,6 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 use crate::imported_capabilities::ImportedCapabilityRequirement;
-use crate::imported_core::ImportedSignatureTypeError;
 
 impl Lowerer {
     pub(crate) fn resolve_imported_dependency_type_target(
@@ -72,6 +71,33 @@ impl Lowerer {
             );
             return None;
         }
+        self.apply_imported_type_alias(binding, name, &[], None)
+    }
+
+    pub(crate) fn apply_imported_type_alias(
+        &mut self,
+        binding: &hir::DirectImportedTargetBinding,
+        name: &ast::Ident,
+        arguments: &[ast::TypeRef],
+        host: Option<hir::TypeId>,
+    ) -> Option<hir::TypeId> {
+        let template = self.imported_alias_template(binding, name)?;
+        self.apply_alias_template(&template, name, arguments, host)
+    }
+
+    pub(crate) fn imported_alias_template(
+        &mut self,
+        binding: &hir::DirectImportedTargetBinding,
+        name: &ast::Ident,
+    ) -> Option<crate::aliases::AliasTemplate> {
+        let hir::ImportedTarget::TypeAlias(alias) = binding.target() else {
+            return None;
+        };
+        if let Some(template) = self.imported_alias_templates.get(&alias.persistent()) {
+            let mut template = template.clone();
+            template.name = name.clone();
+            return Some(template);
+        }
         let candidate = match self
             .dependencies
             .as_ref()
@@ -87,24 +113,48 @@ impl Lowerer {
                 return None;
             }
         };
-        let ty = match self.imported_signature_type(candidate.expansion()) {
-            Ok(ty) => ty,
-            Err(ImportedSignatureTypeError::Generic) => {
-                self.error(
-                    name.span,
-                    ImportedCapabilityRequirement::Generic
-                        .diagnostic(&format!("dependency typealias `{}`", name.text)),
-                );
-                return None;
-            }
-            Err(ImportedSignatureTypeError::Structural) => {
-                self.error(
-                    name.span,
-                    ImportedCapabilityRequirement::Layout
-                        .diagnostic(&format!("dependency typealias `{}`", name.text)),
-                );
-                return None;
-            }
+        let parameters = candidate
+            .interface()
+            .type_parameters()
+            .binders()
+            .iter()
+            .collect::<Vec<_>>();
+        let signatures = (0..parameters.len())
+            .map(|index| scoop_identity::SignatureTypeKey::Binder {
+                depth: 0,
+                index: index as u32,
+            })
+            .collect::<Vec<_>>();
+        let (parameters, bindings) =
+            match self.prepare_imported_type_parameters(&parameters, &signatures, name.span) {
+                Ok(result) => result,
+                Err(error) => {
+                    self.error(
+                        name.span,
+                        format!("invalid imported typealias parameters: {error}"),
+                    );
+                    return None;
+                }
+            };
+        let target =
+            match self.imported_signature_type_with_bindings(candidate.expansion(), &bindings) {
+                Ok(target) => target,
+                Err(error) => {
+                    self.error(
+                        name.span,
+                        format!("invalid imported typealias target: {error:?}"),
+                    );
+                    return None;
+                }
+            };
+        let template = crate::aliases::AliasTemplate {
+            origin: crate::aliases::AliasOrigin::Imported(Box::new(binding.clone())),
+            name: name.clone(),
+            host: None,
+            arguments: None,
+            parameters,
+            outer_parameter_count: candidate.interface().owner_parameter_count() as usize,
+            target,
         };
         if let Err(error) = self
             .dependencies
@@ -118,6 +168,8 @@ impl Lowerer {
             );
             return None;
         }
-        Some(ty)
+        self.imported_alias_templates
+            .insert(alias.persistent(), template.clone());
+        Some(template)
     }
 }

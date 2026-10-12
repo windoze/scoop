@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "annotation `@OnlyField` is not allowed on TYPE",
+    "notes": [],
+    "origin": {
+      "cone": "8ecbe388b1a23aae2a810c1d8e793afc3896b8f4689d9a44648c91467dfb8e23",
+      "end": 92,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 82
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "annotation `@Once` must not be repeated on the same target",
+    "notes": [],
+    "origin": {
+      "cone": "8ecbe388b1a23aae2a810c1d8e793afc3896b8f4689d9a44648c91467dfb8e23",
+      "end": 128,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 122
+    },
+    "severity": "error"
+  }
+]

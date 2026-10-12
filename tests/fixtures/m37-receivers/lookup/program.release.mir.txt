@@ -1,0 +1,997 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Far>
+    Completed(value: Far)
+    Suspended()
+  enum CoroutineSlot<Far>
+    Empty()
+    Value(value: Far)
+  enum CoroutineStep<Near>
+    Completed(value: Near)
+    Suspended()
+  enum CoroutineSlot<Near>
+    Empty()
+    Value(value: Near)
+  enum CoroutineStep<Inner>
+    Completed(value: Inner)
+    Suspended()
+  enum CoroutineSlot<Inner>
+    Empty()
+    Value(value: Inner)
+  class Outer vtable=0 itables=0
+  class Inner vtable=0 itables=0
+  class Far vtable=0 itables=0
+  class Near vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Continuation<Inner>
+  interface SuspendTask<Inner>
+  interface SuspendRegistration<Inner>
+  interface Continuation<Far>
+  interface SuspendTask<Far>
+  interface SuspendRegistration<Far>
+  interface Continuation<Near>
+  interface SuspendTask<Near>
+  interface SuspendRegistration<Near>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn9 captures=0
+    bridge function_type3 -> @fn35 id=99f46239c226ae4f4235a49017f525bfe4f4e16f561206c173ffe3ade88a5318
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn36 id=fab3faa57d5deb314ab3934b637c6881f9a330bbf14bf8bb16ac2f236dbe4733
+  closure cc2 $Closure$lambda2 type=function_type4 invoke=@fn12 captures=0
+    bridge function_type3 -> @fn37 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc3 $Closure$lambda3 type=function_type5 invoke=@fn13 captures=1
+    bridge function_type3 -> @fn38 id=6c2b55d75f004458866cf935d4bab132072b05477e7abef0d3508d77d25a6295
+  closure cc4 $Closure$lambda4 type=function_type6 invoke=@fn14 captures=1
+    bridge function_type3 -> @fn39 id=98816c5c844932c1d4ba2969435838af86c93a216646dd957dd9f6b84229cda3
+  generated_exact_type get0 location=enum3 nominal_id=95bc3f898311d7ddcf0bf35914b70a3f36ef4747c0fa9738fb8c3f9328baa114 exact_id=020dfde7afbc070530fc0979df51324505223b5c0806985151ad3153cd68ddcd
+  generated_exact_type get1 location=closure4 nominal_id=60c42fe9a4083b7fe741d1e3cd694188f7ad92744e7f11de200eb0fa6df61506 exact_id=08c09fcffe08f461b51e01ca930d501495c0dc4786474b1b7b1021d899452b6a
+  generated_exact_type get2 location=enum2 nominal_id=986a26f7c7e6ccb877e6e456c177b32fd34781d3d3d6fb34e057d9cfe91eab69 exact_id=0a2538a39736dc36e997c0131af74568570cfb2f164572ee754a7426f6b00f76
+  generated_exact_type get3 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get4 location=closure2 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get5 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get6 location=closure3 nominal_id=18c920e808587e4ff03b67f4868222f294a2514c0d3a2061701de114398b83c6 exact_id=420fc7e1c6049c0d062a216efd63e7de48203cc9dec65d5f9fcd9146706fdd8d
+  generated_exact_type get7 location=enum5 nominal_id=4f735225bd072904fa7769d66bab76abd880216dee1397dcfcff57e99340529b exact_id=4e347b3c2e26767729603f9803ff57581076de4085ff8a9f8738f56de78b10ac
+  generated_exact_type get8 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get9 location=enum6 nominal_id=ea6461b3817bb3a062984badf7bf8fb48042c7345c207a621198394385fca193 exact_id=69acd0b04d84742b6b267a69c442e8d6ef0656828193fd8b54ee66743236ff39
+  generated_exact_type get10 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get11 location=enum1 nominal_id=f76b759595c15ab7891a7bcd94ae8dc1c454c952c1758963e1466724f8be0fe5 exact_id=96f8f83353598df385d5eae2cc0c28b367eec0bc0264b0aa00c5e24adacd4760
+  generated_exact_type get12 location=enum4 nominal_id=10c9f05e36024ecdebd4e1751147ca819ba1ebdc7db3b4bcf9da7d6e94b1593e exact_id=9bbc656e8740370f17f3a99bce9962a6ab9eec68e7cd37537b016ace36a05e34
+  generated_exact_type get13 location=closure1 nominal_id=4632cdf3eccd3cfb0a7ccf269aab3e064016ffe94241f7e77e94748b1ea75fd4 exact_id=ac7cc26b17fd25f77450814ba9052bf37e14c380244bdf5d8270b6a8ce86ba8e
+  generated_exact_type get14 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get16 location=closure0 nominal_id=3c2dab1bfac14659836ab443a46375d0f0254e9dd3630a9639dd91fd3a1a4545 exact_id=f63a7ff16252455e673f0baeb234f329f919950d076b6056a471c4a7b932918d
+  generated_callable gc0 function=@fn37 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn38 id=6c2b55d75f004458866cf935d4bab132072b05477e7abef0d3508d77d25a6295
+  generated_callable gc2 function=@fn39 id=98816c5c844932c1d4ba2969435838af86c93a216646dd957dd9f6b84229cda3
+  generated_callable gc3 function=@fn35 id=99f46239c226ae4f4235a49017f525bfe4f4e16f561206c173ffe3ade88a5318
+  generated_callable gc4 function=@fn34 id=b0c67da4e769ce74f78590dcc02f3b70de2a445d6d6eae3cb73e3a3197c04f7d
+  generated_callable gc5 function=@fn33 id=bcbfa216d42093402711abdc59a550eec0626e4543e1a9c583ea159aff4aa46c
+  generated_callable gc6 function=@fn32 id=c03c3e8e0869d428218e3ff9416859a7fc0fa7697f1b22ff4bd90edd618b214c
+  generated_callable gc7 function=@fn36 id=fab3faa57d5deb314ab3934b637c6881f9a330bbf14bf8bb16ac2f236dbe4733
+  fun Outer.choose @fn0(this: Outer) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun Outer.run @fn1(this: Outer) -> Int
+    bb0 entry
+      val action: Inner.() -> Int
+        Type Inner.() -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $callable.receiver: Inner.() -> Int
+        Type Inner.() -> Int
+        Local action
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.choose: () -> Int
+        Type () -> Int
+        Local $argument.0
+      assign $new.1
+        Type Inner
+        ClassAlloc Inner
+      val $inline.3.this: Inner
+        Type Inner
+        Local $new.1
+      val $inline.3.choose: () -> Int
+        Type () -> Int
+        Local $parameter.choose
+      goto bb4
+    bb1 inline.cont.1
+      val $call.2: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.2
+    bb2 inline.1.entry
+      call $inline.1.$call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        FieldAccess 0
+          Type Inner
+          Local $inline.1.this
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb3 inline.cont.3
+      val $inline.1.$closure: Inner.() -> Int
+        Type Inner.() -> Int
+        Local $callable.receiver
+      val $inline.1.this: Inner
+        Type Inner
+        Local $new.1
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Inner
+        Local $inline.3.this
+        Type () -> Int
+        Local $inline.3.choose
+      Type Unit
+      UnitLiteral
+      goto bb3
+  fun $extension.bump @fn2(this: Far, step: Int) -> Int
+    bb0 entry
+      val $receiver: Far
+        Type Far
+        Local this
+      val $inline.5.this: Far
+        Type Far
+        Local $receiver
+      goto bb6
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Far
+          Local $inline.1.this
+      goto bb1
+    bb3 inline.cont.3
+      val $receiver: Far
+        Type Far
+        Local this
+      val $inline.1.this: Far
+        Type Far
+        Local $receiver
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Far
+        Local $inline.3.this
+        Type Int
+        Local $inline.3.value
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb5 inline.cont.5
+      val $old.0: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        Local step
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $inline.3.this: Far
+        Type Far
+        Local $receiver
+      val $inline.3.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb4
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type Int
+        FieldAccess 0
+          Type Far
+          Local $inline.5.this
+      goto bb5
+  fun $extension.pick @fn3(this: Far) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Far
+          Local this
+  fun $extension.pick @fn4(this: Near, value: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun main @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Outer
+        ClassAlloc Outer
+      val $inline.3.this: Outer
+        Type Outer
+        Local $new.1
+      goto bb4
+    bb1 inline.cont.1
+      call $dependency.argument.0: Int = @fn12 direct
+        Type Far.() -> Int
+        Local $callable.receiver
+        Type Far
+        Local $new.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Far
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      Type Unit
+      UnitLiteral
+      goto bb1
+    bb3 inline.cont.3
+      val $receiver: Outer
+        Type Outer
+        Local $new.1
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Outer
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Int
+        Local $dependency.parameter.value
+      val action: Far.() -> Int
+        Type Far.() -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $callable.receiver: Far.() -> Int
+        Type Far.() -> Int
+        Local action
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.count: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      assign $new.2
+        Type Far
+        ClassAlloc Far
+      val $inline.1.this: Far
+        Type Far
+        Local $new.2
+      val $inline.1.count: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb2
+    bb4 inline.3.entry
+      Type Unit
+      UnitLiteral
+      goto bb3
+  fun $extension.$get$amount @fn6(this: Far) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Far
+          Local this
+  fun $extension.$set$amount @fn7(this: Far, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Far
+        Local this
+        Type Int
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun $extension.$get$operation @fn8(this: Far) -> (Int) -> Int
+    bb0 entry
+      return
+        Type (Int) -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Far
+            Local this
+  fun $lambda.2 @fn9($closure: Inner.() -> Int, this: Inner) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        FieldAccess 0
+          Type Inner
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.3 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun println @fn11(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.0 @fn12($closure: Far.() -> Int, this: Far) -> Int
+    bb0 entry
+      assign $new.1
+        Type Near
+        ClassAlloc Near
+      val $inline.3.this: Near
+        Type Near
+        Local $new.1
+      goto bb4
+    bb1 inline.cont.1
+      val $call.2: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.2
+    bb2 inline.1.entry
+      val $inline.1.$function.receiver: Near
+        Type Near
+        Local $inline.1.value
+      call $inline.1.$call.1: Int = @fn14 direct
+        Type Near.() -> Int
+        Local $inline.1.action
+        Type Near
+        Local $inline.1.$function.receiver
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.0: Near
+        Type Near
+        Local $new.1
+      val $argument.1: Near.() -> Int
+        Type Near.() -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+          CaptureInit field=0
+            Type Far
+            Local this
+      val $parameter.value: Near
+        Type Near
+        Local $argument.0
+      val $parameter.action: Near.() -> Int
+        Type Near.() -> Int
+        Local $argument.1
+      val $inline.1.value: Near
+        Type Near
+        Local $parameter.value
+      val $inline.1.action: Near.() -> Int
+        Type Near.() -> Int
+        Local $parameter.action
+      goto bb2
+    bb4 inline.3.entry
+      Type Unit
+      UnitLiteral
+      goto bb3
+  fun $lambda.4 @fn13($closure: (Int) -> Int, it: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Far
+          ClosureCapture cc3 0
+            Type (Int) -> Int
+            Local $closure
+      val $dependency.argument.0: Int
+        Type Int
+        Local it
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.1 @fn14($closure: Near.() -> Int, this: Near) -> Int
+    bb0 entry
+      val $receiver: Far
+        Type Far
+        ClosureCapture cc4 0
+          Type Near.() -> Int
+          Local $closure
+      val $inline.7.this: Far
+        Type Far
+        Local $receiver
+      goto bb8
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Far
+          Local $inline.1.this
+      goto bb1
+    bb3 inline.cont.3
+      val $call.2: (Int) -> Int
+        Type (Int) -> Int
+        Local $inline.3.result
+      call $dependency.receiver: Int = @fn13 direct
+        Type (Int) -> Int
+        Local $call.2
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $receiver: Far
+        Type Far
+        ClosureCapture cc4 0
+          Type Near.() -> Int
+          Local $closure
+      val $inline.1.this: Far
+        Type Far
+        Local $receiver
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type (Int) -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Far
+            Local $inline.3.this
+      goto bb3
+    bb5 inline.cont.5
+      val $receiver: Far
+        Type Far
+        ClosureCapture cc4 0
+          Type Near.() -> Int
+          Local $closure
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.step: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $call.1: Int = @fn2 direct
+        Type Far
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $receiver: Far
+        Type Far
+        ClosureCapture cc4 0
+          Type Near.() -> Int
+          Local $closure
+      val $inline.3.this: Far
+        Type Far
+        Local $receiver
+      goto bb4
+    bb6 inline.5.entry
+      field_set 0
+        Type Far
+        Local $inline.5.this
+        Type Int
+        Local $inline.5.value
+      Type Unit
+      UnitLiteral
+      goto bb5
+    bb7 inline.cont.7
+      val $old.1: Int
+        Type Int
+        Local $inline.7.result
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.5.this: Far
+        Type Far
+        Local $receiver
+      val $inline.5.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb6
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type Int
+        FieldAccess 0
+          Type Far
+          Local $inline.7.this
+      goto bb7
+  fun within @fn15(value: Near, action: Near.() -> Int) -> Int
+    bb0 entry
+      val $function.receiver: Near
+        Type Near
+        Local value
+      call $call.1: Int = <closure:function_type6> closure[function_type6]
+        Type Near.() -> Int
+        Local action
+        Type Near
+        Local $function.receiver
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn16(this: Continuation<Inner>, value: Inner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Inner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Inner>, $completion: Continuation<Inner>) -> CoroutineStep<Inner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Inner>, continuation: Continuation<Inner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<Far>, value: Far) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Far>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Far>, $completion: Continuation<Far>) -> CoroutineStep<Far>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Far>, continuation: Continuation<Far>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<Near>, value: Near) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<Near>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<Near>, $completion: Continuation<Near>) -> CoroutineStep<Near>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Near>, continuation: Continuation<Near>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Outer.$c0 @fn28(this: Outer) -> Unit
+    bb0 entry
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Inner.$c1 @fn29(this: Inner, choose: () -> Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Inner
+        Local this
+        Type () -> Int
+        Local choose
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Far.$c2 @fn30(this: Far, count: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Far
+        Local this
+        Type Int
+        Local count
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Near.$c3 @fn31(this: Near) -> Unit
+    bb0 entry
+      return
+        Type Unit
+        UnitLiteral
+  fun startCoroutine<Far> @fn32(task: SuspendTask<Far>, completion: Continuation<Far>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn20 interface Continuation<Far>[0]
+        Type Continuation<Far>
+        Local completion
+        Type Far
+        EnumField v0 f0
+          Type CoroutineStep<Far>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn21 interface Continuation<Far>[1]
+        Type Continuation<Far>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Far> = @fn22 interface SuspendTask<Far>[0]
+        Type SuspendTask<Far>
+        Local task
+        Type Continuation<Far>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Far>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Near> @fn33(task: SuspendTask<Near>, completion: Continuation<Near>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn24 interface Continuation<Near>[0]
+        Type Continuation<Near>
+        Local completion
+        Type Near
+        EnumField v0 f0
+          Type CoroutineStep<Near>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn25 interface Continuation<Near>[1]
+        Type Continuation<Near>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Near> = @fn26 interface SuspendTask<Near>[0]
+        Type SuspendTask<Near>
+        Local task
+        Type Continuation<Near>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Near>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Inner> @fn34(task: SuspendTask<Inner>, completion: Continuation<Inner>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn16 interface Continuation<Inner>[0]
+        Type Continuation<Inner>
+        Local completion
+        Type Inner
+        EnumField v0 f0
+          Type CoroutineStep<Inner>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn17 interface Continuation<Inner>[1]
+        Type Continuation<Inner>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Inner> = @fn18 interface SuspendTask<Inner>[0]
+        Type SuspendTask<Inner>
+        Local task
+        Type Continuation<Inner>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Inner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn35($source: Inner.() -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type Inner.() -> Int
+        Local $source
+        Type Inner
+        Retype Inner
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn36($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn37($source: Far.() -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type4> closure[function_type4]
+        Type Far.() -> Int
+        Local $source
+        Type Far
+        Retype Far
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn38($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type5> closure[function_type5]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn39($source: Near.() -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type6> closure[function_type6]
+        Type Near.() -> Int
+        Local $source
+        Type Near
+        Retype Near
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Far> result=Far
+  coroutine_step cs1 CoroutineStep<Near> result=Near
+  coroutine_step cs2 CoroutineStep<Inner> result=Inner
+  coroutine_slot cl0 CoroutineSlot<Far> value=Far
+  coroutine_slot cl1 CoroutineSlot<Near> value=Near
+  coroutine_slot cl2 CoroutineSlot<Inner> value=Inner
+  coroutine_start ct0 result=Far function=fn32
+  coroutine_start ct1 result=Near function=fn33
+  coroutine_start ct2 result=Inner function=fn34
+  coroutine_fn cf0 @fn18 source_return=Inner step=cs2 immediate
+  coroutine_fn cf1 @fn22 source_return=Far step=cs0 immediate
+  coroutine_fn cf2 @fn26 source_return=Near step=cs1 immediate
+  instance mi0 function=@fn11 <- println
+  instance mi1 function=@fn15 <- within
+  instance mi2 function=@fn16 <- Continuation.resume
+  instance mi3 function=@fn17 <- Continuation.resumeWithException
+  instance mi4 function=@fn18 <- SuspendTask.run
+  instance mi5 function=@fn19 <- SuspendRegistration.register
+  instance mi6 function=@fn20 <- Continuation.resume
+  instance mi7 function=@fn21 <- Continuation.resumeWithException
+  instance mi8 function=@fn22 <- SuspendTask.run
+  instance mi9 function=@fn23 <- SuspendRegistration.register
+  instance mi10 function=@fn24 <- Continuation.resume
+  instance mi11 function=@fn25 <- Continuation.resumeWithException
+  instance mi12 function=@fn26 <- SuspendTask.run
+  instance mi13 function=@fn27 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn5

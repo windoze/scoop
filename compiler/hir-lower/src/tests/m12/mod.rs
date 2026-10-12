@@ -7,7 +7,8 @@ use super::*;
 
 fn marker(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident(name),
+        use_site: None,
+        name: ident(name).into(),
         args: Vec::new(),
         span: sp(),
     }
@@ -15,7 +16,8 @@ fn marker(name: &str) -> ast::Annotation {
 
 fn string_annotation(name: &str, value: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident(name),
+        use_site: None,
+        name: ident(name).into(),
         args: vec![ast::AnnotationArg {
             name: None,
             value: ast::AnnotationLiteral::String(value.to_string()),
@@ -56,7 +58,8 @@ fn annotate_enum(mut decl: Decl, annotations: Vec<ast::Annotation>) -> Decl {
 
 fn c_layout(aligned: i64, packed: i64) -> ast::Annotation {
     ast::Annotation {
-        name: ident("CLayout"),
+        use_site: None,
+        name: ident("CLayout").into(),
         args: vec![
             ast::AnnotationArg {
                 name: Some(ident("aligned")),
@@ -75,7 +78,8 @@ fn c_layout(aligned: i64, packed: i64) -> ast::Annotation {
 
 fn extern_annotation(lib: &str, name: &str, abi: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident("Extern"),
+        use_site: None,
+        name: ident("Extern").into(),
         args: [("lib", lib), ("name", name), ("abi", abi)]
             .into_iter()
             .map(|(parameter, value)| ast::AnnotationArg {

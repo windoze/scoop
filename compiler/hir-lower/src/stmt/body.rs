@@ -29,6 +29,12 @@ impl Lowerer {
                         value: self.adapt_to(value, target),
                     };
                 }
+                hir::StatementKind::ContextScope { value, body } => {
+                    statement.kind = hir::StatementKind::ContextScope {
+                        value,
+                        body: self.adapt_inferred_returns(body, target),
+                    };
+                }
                 hir::StatementKind::If {
                     cond,
                     then_body,
@@ -41,12 +47,14 @@ impl Lowerer {
                     };
                 }
                 hir::StatementKind::While {
+                    loop_kind,
                     target: loop_target,
                     condition_setup,
                     cond,
                     body,
                 } => {
                     statement.kind = hir::StatementKind::While {
+                        loop_kind,
                         target: loop_target,
                         condition_setup: self.adapt_inferred_returns(condition_setup, target),
                         cond,
@@ -55,6 +63,16 @@ impl Lowerer {
                 }
                 hir::StatementKind::When(mut when) => {
                     for arm in when.arms_mut() {
+                        if let hir::WhenConditionMut::Predicate(condition) = arm.condition {
+                            condition.setup = self.adapt_inferred_returns(
+                                std::mem::take(&mut condition.setup),
+                                target,
+                            );
+                        }
+                        if let Some(guard) = arm.guard {
+                            guard.setup = self
+                                .adapt_inferred_returns(std::mem::take(&mut guard.setup), target);
+                        }
                         *arm.body = self.adapt_inferred_returns(std::mem::take(arm.body), target);
                     }
                     if let Some(body) = when.else_body_mut() {
@@ -136,9 +154,17 @@ impl Lowerer {
             ast::FunctionBody::Expr(expr) => {
                 let mut statements = Vec::new();
                 let mut sink = Vec::new();
+                let inferring = self.signatures[&id].result_pending;
                 if !self.reject_expression_body_return(expr)
-                    && let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty))
+                    && let Some(value) =
+                        self.lower_expr(expr, &mut sink, (!inferring).then_some(return_ty))
                 {
+                    let return_ty = if inferring {
+                        self.set_inferred_function_result(id, value.ty);
+                        value.ty
+                    } else {
+                        return_ty
+                    };
                     if !self.is_subtype(value.ty, return_ty) {
                         let expected = self.type_name(return_ty);
                         let found = self.type_name(value.ty);

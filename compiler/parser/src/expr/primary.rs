@@ -2,9 +2,20 @@ use super::*;
 
 impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
+        if self.starts_callable_label() {
+            return self.parse_labeled_callable();
+        }
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Return => self.parse_return_expression(),
+            TokenKind::Ident(ref text)
+                if text == "object"
+                    && self.tokens.get(self.pos + 1).is_some_and(|token| {
+                        matches!(token.kind, TokenKind::LBrace | TokenKind::Colon)
+                    }) =>
+            {
+                self.parse_anonymous_object()
+            }
             TokenKind::Ident(ref text) if text == "throw" => self.parse_throw_expression(),
             TokenKind::Suspend => {
                 self.pos += 1;
@@ -58,23 +69,36 @@ impl Parser {
             TokenKind::When => self.parse_when_expression(),
             TokenKind::This => {
                 self.pos += 1;
-                Ok(Expr::This { span: token.span })
+                let label =
+                    if matches!(self.peek().kind, TokenKind::At) && !self.peek().newline_before {
+                        self.bump();
+                        Some(self.expect_ident("receiver label after `this@`")?)
+                    } else {
+                        None
+                    };
+                let end = label
+                    .as_ref()
+                    .map_or(token.span.end, |label| label.span.end);
+                Ok(Expr::This {
+                    label,
+                    span: Span::new(token.span.start, end),
+                })
             }
-            TokenKind::Break => Err(loop_jump_expression_diagnostic("break", token.span)),
-            TokenKind::Continue => Err(loop_jump_expression_diagnostic("continue", token.span)),
+            TokenKind::Break | TokenKind::Continue => self.parse_loop_jump_expression(),
             TokenKind::Ident(ref text) if text == "try" => self.parse_try_expression(),
             TokenKind::Ident(ref text) if text == "context" && self.starts_context_scope() => {
                 self.parse_context_scope()
             }
-            TokenKind::Ident(text) => {
+            TokenKind::Ident(ref text) if text == "super" => {
+                self.pos += 1;
+                self.parse_super_method_call(token.span)
+            }
+            TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
                 // `Unit` is an ordinary identifier; in expression position
                 // it denotes the unit value (spec section 4.3).
                 if text == "Unit" {
                     return Ok(Expr::UnitLiteral { span: token.span });
-                }
-                if text == "super" {
-                    return self.parse_super_method_call(token.span);
                 }
                 let ident = Ident {
                     text,
@@ -301,7 +325,7 @@ impl Parser {
 
     fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
         let start = self.peek().span.start;
-        let name = if let TokenKind::Ident(_) = &self.peek().kind
+        let name = if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
                 Some(TokenKind::Equal)

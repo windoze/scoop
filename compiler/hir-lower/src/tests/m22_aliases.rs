@@ -17,6 +17,9 @@ fn type_alias_with_visibility(
     visibility: ast::VisibilitySyntax,
 ) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility,
         name: ident(name),
         target,
@@ -26,6 +29,7 @@ fn type_alias_with_visibility(
 
 fn named_type_at(name: &str, span: Span) -> TypeRef {
     TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Named(ident_at(name, span)),
         span,
     }
@@ -33,6 +37,9 @@ fn named_type_at(name: &str, span: Span) -> TypeRef {
 
 fn type_alias_at(name: &str, target: TypeRef, span: Span) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target,
@@ -52,7 +59,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> ast::PropertyDec
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Const(Box::new(expression)),
         span: sp(),
     }
@@ -252,9 +259,10 @@ fn lexical_nested_types_shadow_aliases_in_types_and_constructors() {
         unreachable!()
     };
     shadow.members.push(ast::StructMember::Nested(Box::new(
-        ast::NestedNominalDecl::Struct(Box::new(inner)),
+        ast::NestedTypeDecl::Struct(Box::new(inner)),
     )));
     let qualified_inner = TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Qualified {
             path: vec![ident("Shadow"), ident("Inner")],
             arguments: Vec::new(),
@@ -284,7 +292,7 @@ fn lexical_nested_types_shadow_aliases_in_types_and_constructors() {
         unreachable!()
     };
     host.members.push(ast::ClassMember::Nested(Box::new(
-        ast::NestedNominalDecl::Struct(Box::new(shadow)),
+        ast::NestedTypeDecl::Struct(Box::new(shadow)),
     )));
 
     lower_user(file(vec![
@@ -323,7 +331,7 @@ fn lexical_nested_types_also_shadow_aliases_in_patterns() {
         unreachable!()
     };
     host.members.push(ast::ClassMember::Nested(Box::new(
-        ast::NestedNominalDecl::Struct(Box::new(shadow)),
+        ast::NestedTypeDecl::Struct(Box::new(shadow)),
     )));
 
     let errors = lower_user(file(vec![

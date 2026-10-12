@@ -1,0 +1,2 @@
+class Box<T>(val value: T)
+fun main() { val make = ::Box }

@@ -105,6 +105,7 @@ fn exact_import(segments: &[&str]) -> ast::ImportSyntax {
 
 fn qualified_type(path: &[&str]) -> ast::TypeRef {
     ast::TypeRef {
+        annotations: Vec::new(),
         kind: ast::TypeRefKind::Qualified {
             path: path.iter().map(|segment| ident(segment)).collect(),
             arguments: Vec::new(),

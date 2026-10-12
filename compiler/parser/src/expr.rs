@@ -17,6 +17,7 @@ use crate::parser::Parser;
 mod callables;
 mod context;
 mod interpolation;
+mod labels;
 mod places;
 mod postfix;
 mod primary;
@@ -85,19 +86,12 @@ impl Parser {
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
         loop {
-            if self.at_arm_body_newline() {
-                break;
-            }
-            if !self.peek().newline_before
-                && matches!(self.peek().kind, TokenKind::Break | TokenKind::Continue)
+            if self.at_arm_body_newline()
+                || (self.supertype_expression_nesting == Some(self.expression_nesting[self.pos])
+                    && (matches!(self.peek().kind, TokenKind::LBrace)
+                        || matches!(&self.peek().kind, TokenKind::Ident(name) if name == "where")))
             {
-                let token = self.peek();
-                let name = if matches!(&token.kind, TokenKind::Break) {
-                    "break"
-                } else {
-                    "continue"
-                };
-                return Err(loop_jump_expression_diagnostic(name, token.span));
+                break;
             }
             // Elvis is right-associative; every other binary/infix source
             // form in this table is left-associative.
@@ -154,12 +148,13 @@ impl Parser {
                     };
                     continue;
                 }
-                if let TokenKind::Ident(_) = &self.peek().kind {
+                if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind {
                     if INFIX_PRECEDENCE < min_precedence || self.peek().newline_before {
                         break;
                     }
                     let name = self.expect_ident("infix function name")?;
-                    let rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    let mut rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    labels::name_lambda(&mut rhs, &name);
                     lhs = Expr::InfixCall {
                         span: Span::new(lhs.span().start, rhs.span().end),
                         lhs: Box::new(lhs),
@@ -260,11 +255,4 @@ impl Parser {
             && matches!(next.kind, TokenKind::Is)
             && next.span.start == self.peek().span.end
     }
-}
-
-pub(crate) fn loop_jump_expression_diagnostic(name: &str, span: Span) -> Diagnostic {
-    Diagnostic::at(
-        span,
-        format!("`{name}` jump expressions are not supported in M22"),
-    )
 }

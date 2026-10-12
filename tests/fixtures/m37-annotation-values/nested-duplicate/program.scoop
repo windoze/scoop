@@ -1,0 +1,3 @@
+annotation class First(val text: String)
+annotation class Tag(val value: First)
+@Tag(First("one", text = "two")) struct Item()

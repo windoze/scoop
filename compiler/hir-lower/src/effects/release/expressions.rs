@@ -183,7 +183,7 @@ impl Lowerer {
             | E::InitializingClassFieldAccess { .. }
             | E::Box(_)
             | E::Unbox(_)
-            | E::ReferenceUpcast(_)
+            | E::Upcast(_)
             | E::IsInstance { .. }
             | E::Cast { .. }
             | E::ArrayGenerate { .. }

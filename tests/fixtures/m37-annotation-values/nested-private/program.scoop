@@ -1,0 +1,2 @@
+class Owner { private annotation class Hidden(val text: String) }
+annotation class Tag(val value: Owner.Hidden)

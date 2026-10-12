@@ -533,7 +533,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 按功能提交，本机针对性验证后在 Linux 完整验证；不新增语言功能、认证、预算或通用状态机。
 - 2026-10-11 实现与验收完成：12 项功能分别提交；Linux 完整 Rust 5,474 项及最后修复的 29 项定向测试通过，最终不同测试覆盖 5,475 项，两机公共 runner 各 44 项通过。普通 CLI 按实际来源去重，Darwin 236 项、GNU 3,061 项、musl 188 项通过，GNU 另有 30 项不适用；GNU 使用正式全量加失败补验，三个 target 均覆盖全部 26 个 M36 新用例。wire section 编号／版本与 runtime ABI 保持不变。
 
-M37 的语言语法与类型能力补齐在 M36 之后实施。
+### M37 语言语法与类型能力补齐（已完成并验收，[设计](milestone37/DESIGN.md)，[验收记录](milestone37/ACCEPTANCE.md)）
+
+基线为 `ec9d8849d`（M36）。按功能纵向完成并逐项提交：兼容修饰符、Unicode/反引号标识符、单语句控制体、do/标签/跳转、声明推导、函数引用与 receiver 函数值、泛型/嵌套/局部 alias、inner/局部/匿名类型、sealed/接口委托、流敏感 smart cast、整型枚举及静态注解扩展。21 项功能分别提交；三个目标的 680 个 M37 fixture 均通过，Linux 完整 Rust 5,553 项通过，GNU 全量覆盖 3,741 项通过、30 项不适用。完整验证范围及产物兼容性见验收记录。
+
+`inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 
 ## 3. 备注
 
@@ -635,7 +639,7 @@ M37 的语言语法与类型能力补齐在 M36 之后实施。
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）→ M19；
 - ~~class 字段按 8 字节槽索引的约定与连续 sub-8 字段布局冲突~~（已修复：LIR `HeapLoad` / `HeapStore` 携带自然布局的字节偏移，连续 `Boolean` 不再被错误扩为槽）；
-- ~~泛型成员函数~~（M14 已补齐class/struct/enum的non-virtual generic method、两组typed argument identity、bound/推导/callable reference与单态化闭包；interface method-level generic在定义处拒绝，未来动态分派ABI另列backlog）；
+- ~~泛型成员函数~~（M14 已补齐 class/struct/enum 的 final direct generic method、两组 typed argument identity、bound/推导/callable reference 与单态化闭包；interface 方法自身泛型及泛型虚方法明确排除，见 M37 和语言规范 3.2）；
 - `Any` 的 core 库形态与 `Nothing` 的源码定义及编译器闭环 → M32（已完成，[设计](milestone32/DESIGN.md)，[验收](milestone32/ACCEPTANCE.md)）。
 
 ### 来自 M7
@@ -687,7 +691,7 @@ M37 的语言语法与类型能力补齐在 M36 之后实施。
 
 - class upper bound → M20；M14的upper bound只接受完整interface application；
 - 可作为普通表达式静态类型的交叉类型；M14的多个interface bound只构成type parameter能力集合；
-- interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类。M29复用普通generic `Encodable<T>` / `Decodable<T>`与companion对象，不开放method-level generic interface dispatch；
+- interface 方法自身泛型及任何泛型虚方法明确排除（语言规范 3.2）；泛型 interface 宿主仍支持普通非泛型方法和固定签名动态分派，不再预留 method-level specialization/itable ABI；
 - generic `typealias`：M22只落地top-level非generic透明alias；带type parameter/bound的alias、递归generic alias及跨Cone打包/re-export仍待后续。alias不产生新的nominal application、layout、TypeDescriptor或单态化身份；
 - generic extension property；普通member/top-level property自身不允许method式type parameter。该能力随extension property基础语义落地，并须定义receiver参数如何参与推导及getter/setter单态化；
 - static nested generic type作用域沿M21保持独立，不隐式继承宿主参数；generic companion由M29修订为可使用直接宿主类型参数、每个完整宿主application各有singleton。普通nested object不随外层实参复制；`inner` type及outer instance/ref捕获仍待后续；

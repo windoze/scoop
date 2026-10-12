@@ -4,6 +4,9 @@ use super::{dump_block, dump_pattern, dump_type_ref};
 pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match expr {
+        Expr::AnonymousObject(declaration) => {
+            out.push_str(&format!("{pad}AnonymousObject {declaration:?}\n"));
+        }
         Expr::ContextScope { value, body, .. } => {
             out.push_str(&format!("{pad}ContextScope\n"));
             dump_expr(value, indent + 1, out);
@@ -30,11 +33,21 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         }
         Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
-        Expr::Return { value, .. } => {
+        Expr::Return { label, value, .. } => {
             out.push_str(&format!("{pad}Return\n"));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             if let Some(value) = value {
                 dump_expr(value, indent + 1, out);
             }
+        }
+        Expr::LoopJump { kind, label, .. } => {
+            out.push_str(&format!(
+                "{pad}{}{}\n",
+                kind.keyword(),
+                super::statements::dump_label(label.as_ref())
+            ));
         }
         Expr::Throw { value, .. } => {
             out.push_str(&format!("{pad}Throw\n"));
@@ -58,6 +71,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}TypeQualifier {}\n", dump_type_ref(ty)))
         }
         Expr::Lambda {
+            label,
             id,
             is_suspend,
             parameters,
@@ -65,6 +79,9 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             ..
         } => {
             out.push_str(&format!("{pad}Lambda {} suspend={is_suspend}\n", id.0));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             match parameters {
                 None => out.push_str(&format!("{pad}  parameters omitted\n")),
                 Some(parameters) => {
@@ -74,7 +91,8 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                             .as_ref()
                             .map_or_else(|| "_".to_string(), dump_type_ref);
                         out.push_str(&format!(
-                            "{pad}  param {}: {ty}\n",
+                            "{pad}  param {}{}: {ty}\n",
+                            super::types::dump_annotation_prefix(&parameter.annotations),
                             dump_pattern(&parameter.target)
                         ));
                     }
@@ -83,23 +101,32 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_block(body, indent + 1, out);
         }
         Expr::AnonymousFunction {
+            label,
             id,
             is_suspend,
+            receiver,
             params,
             return_ty,
             body,
             ..
         } => {
             let return_ty = return_ty
-                .as_ref()
+                .as_deref()
                 .map_or_else(|| "_".to_string(), dump_type_ref);
             out.push_str(&format!(
                 "{pad}AnonymousFunction {} suspend={is_suspend} return={return_ty}\n",
                 id.0
             ));
+            if let Some(receiver) = receiver {
+                out.push_str(&format!("{pad}  receiver {}\n", dump_type_ref(receiver)));
+            }
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             for param in params {
                 out.push_str(&format!(
-                    "{pad}  param {}: {}\n",
+                    "{pad}  param {}{}: {}\n",
+                    super::types::dump_annotation_prefix(&param.annotations),
                     param.name.text,
                     dump_type_ref(&param.ty)
                 ));
@@ -194,7 +221,13 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_expr(lhs, indent + 1, out);
             dump_expr(rhs, indent + 1, out);
         }
-        Expr::This { .. } => out.push_str(&format!("{pad}This\n")),
+        Expr::This { label, .. } => {
+            let label = label
+                .as_ref()
+                .map(|name| format!("@{}", name.text))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}This{label}\n"));
+        }
         Expr::MethodCall {
             receiver,
             name,

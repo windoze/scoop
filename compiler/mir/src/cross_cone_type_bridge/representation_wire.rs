@@ -17,6 +17,7 @@ pub enum DecodedMirTypeRepresentationV1 {
         interior_mutable: bool,
     },
     Enum {
+        representation: crate::EnumRepresentation,
         variants: Vec<DecodedMirRepresentationVariantV1>,
     },
     Class {
@@ -66,8 +67,12 @@ impl DecodedMirTypeRepresentationV1 {
                 c_layout,
                 interior_mutable,
             },
-            Self::Enum { variants } => MirTypeRepresentationV1::Enum {
+            Self::Enum {
+                variants,
+                representation,
+            } => MirTypeRepresentationV1::Enum {
                 variants: resolve_variants(variants, graph)?,
+                representation,
             },
             Self::Class {
                 kind,
@@ -148,10 +153,23 @@ macro_rules! encode_representation {
                         encoder.field(3)?;
                         encoder.unsigned(u64::from(*interior_mutable))
                     }
-                    Self::Enum { variants } => {
-                        tag(encoder, 2, 3)?;
+                    Self::Enum {
+                        variants,
+                        representation,
+                    } => {
+                        let integral = representation.integer_kind().is_some();
+                        tag(
+                            encoder,
+                            if integral { 3 } else { 2 },
+                            if integral { 14 } else { 3 },
+                        )?;
                         encoder.field(1)?;
-                        sequence(encoder, variants)
+                        sequence(encoder, variants)?;
+                        if integral {
+                            encoder.field(2)?;
+                            representation.encode(encoder)?;
+                        }
+                        Ok(())
                     }
                     Self::Class {
                         kind,
@@ -224,6 +242,7 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
             count,
             match kind {
                 2 | 4 => 4,
+                14 => 3,
                 5 => 1,
                 _ => 2,
             },
@@ -237,8 +256,13 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
                 c_layout: decoder.field(2, MirTypeCLayoutPolicyV1::decode)?,
                 interior_mutable: decoder.field(3, decode_boolean)?,
             }),
-            3 => Ok(Self::Enum {
+            3 | 14 => Ok(Self::Enum {
                 variants: decoder.field(1, decode_variants)?,
+                representation: if kind == 3 {
+                    crate::EnumRepresentation::Algebraic
+                } else {
+                    decoder.field(2, crate::EnumRepresentation::decode)?
+                },
             }),
             4 => Ok(Self::Class {
                 kind: decoder.field(1, MirClassKindV1::decode)?,

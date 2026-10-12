@@ -38,6 +38,9 @@ impl Lowerer {
         name: &scoop_ast::Ident,
         arguments: &[scoop_ast::TypeRef],
     ) -> Option<hir::TypeId> {
+        if matches!(binding.target(), hir::ImportedTarget::TypeAlias(_)) {
+            return self.apply_imported_type_alias(binding, name, arguments, None);
+        }
         let hir::ImportedTarget::GenericType(declaration) = binding.target() else {
             return self.resolve_imported_dependency_type_target(binding, name, true);
         };
@@ -76,13 +79,7 @@ impl Lowerer {
                 );
                 return None;
             };
-            if self.function_types[function].is_suspend
-                || self.function_type_contains_param(function)
-            {
-                self.error(
-                    name.span,
-                    "`FunPtr` type argument must be an ordinary concrete function type".into(),
-                );
+            if !self.validate_fun_ptr_signature(function, name.span) {
                 return None;
             }
             let ty = self.intern_type(hir::Type::FunPtr(function));

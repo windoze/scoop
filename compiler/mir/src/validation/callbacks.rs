@@ -150,7 +150,7 @@ pub(super) fn validate_foreign_callback_metadata(
         if managed_signature.is_suspend
             || exact_managed_signature.effect() != scoop_identity::Effect::Ordinary
             || exact_managed_signature.receiver().is_present()
-            || exact_managed_signature.parameters().len() != managed_signature.parameter_types.len()
+            || exact_managed_signature.parameters().len() != managed_signature.arity()
         {
             return Err(fail(
                 "adapter exact managed signature has an invalid callback shape",

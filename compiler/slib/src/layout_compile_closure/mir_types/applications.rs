@@ -133,7 +133,21 @@ pub(super) fn validate(
             )?;
             Some((source.fields(), declared_fields.as_slice()))
         }
-        (Source::Enum(source), Repr::Enum { variants }) => {
+        (
+            Source::Enum(source),
+            Repr::Enum {
+                variants,
+                representation,
+            },
+        ) => {
+            Error::require(
+                exact,
+                Component::Representation,
+                super::representation::policies::enum_representation_matches(
+                    source.representation(),
+                    representation,
+                ),
+            )?;
             Error::require(
                 exact,
                 Component::VariantCount,

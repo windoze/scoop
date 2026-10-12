@@ -22,6 +22,9 @@ struct AliasLoweringSummary {
 
 fn public_type_alias(name: &str, target: scoop_ast::TypeRef) -> Decl {
     Decl::TypeAlias(scoop_ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: scoop_ast::VisibilitySyntax::Explicit {
             visibility: scoop_ast::DeclaredVisibility::Public,
             span: sp(),

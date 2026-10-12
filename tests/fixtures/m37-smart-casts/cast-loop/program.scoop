@@ -1,0 +1,12 @@
+fun main() {
+    var value: Any = "once"
+    if (value !is String) return
+    var count = 0
+    try {
+        while ((value as String).length > 0L) {
+            println(count)
+            value = 42
+            count++
+        }
+    } catch (error: ClassCastException) { println("cast") }
+}

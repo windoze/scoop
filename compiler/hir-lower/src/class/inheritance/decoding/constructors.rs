@@ -31,6 +31,7 @@ impl Lowerer {
                     &self.type_name(result),
                     &[*source],
                     NominalConstructorCall {
+                        enclosing: None,
                         explicit_type_args: &[],
                         expected_type_args: Some(&owner_arguments),
                         arguments: &arguments,

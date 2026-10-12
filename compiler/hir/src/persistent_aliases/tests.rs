@@ -13,6 +13,10 @@ use crate::{
 
 fn alias() -> TypeAliasDecl {
     TypeAliasDecl {
+        lexical: false,
+        owner: None,
+        type_params: Vec::new(),
+        owner_parameter_count: 0,
         name: "Alias".to_string(),
         access: DeclarationAccess::public(),
         target: TypeId::from_raw(0_u32.into()),

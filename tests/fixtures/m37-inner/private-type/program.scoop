@@ -1,0 +1,2 @@
+class Outer { private inner class Hidden }
+fun read(value: Outer.Hidden): Int = 42

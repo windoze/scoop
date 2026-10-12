@@ -1,0 +1,10 @@
+fun choose(value: Array<Int.() -> Int>): Int = 1
+fun choose(value: Array<(Int) -> Int>): Int = 2
+fun main() {
+    val action: Int.() -> Int = { this }
+    val flat: (Int) -> Int = action
+    val receivers = [action]
+    val ordinary = [flat]
+    println(choose(receivers))
+    println(choose(ordinary))
+}

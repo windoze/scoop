@@ -75,9 +75,11 @@ impl Harness {
             });
             let field = self.class_fields.alloc(hir::ClassField {
                 owner: class,
-                property,
                 definition_index: fields.len(),
-                source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
+                source: hir::ClassFieldSource::PrimaryParameter {
+                    property,
+                    parameter: parameter.id,
+                },
                 span: SPAN,
             });
             let actual = self.properties.alloc(hir::Property {
@@ -129,6 +131,7 @@ impl Harness {
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             definition: hir::ClassDefinition {
+                inheritance_family: Default::default(),
                 release_policy: Default::default(),
                 modifier,
                 self_application,
@@ -179,6 +182,7 @@ impl Harness {
                 .into(),
         );
         let actual_constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            context_parameter: None,
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
             owner: class,

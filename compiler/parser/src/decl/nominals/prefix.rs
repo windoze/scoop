@@ -78,6 +78,24 @@ impl Parser {
             let TokenKind::Ident(text) = &token.kind else {
                 break;
             };
+            if matches!(text.as_str(), "inline" | "tailrec") {
+                if text == "inline" {
+                    modifiers.inline_span = modifiers.inline_span.or(Some(token.span));
+                } else {
+                    modifiers.tailrec_span = modifiers.tailrec_span.or(Some(token.span));
+                }
+                self.bump();
+                modifiers.start = modifiers.start.or(Some(token.span.start));
+                continue;
+            }
+            if text == "sealed" {
+                if modifiers.sealed_span.is_some() {
+                    return Err(Diagnostic::at(token.span, "duplicate `sealed` modifier"));
+                }
+                modifiers.sealed_span = Some(self.bump().span);
+                modifiers.start = modifiers.start.or(Some(token.span.start));
+                continue;
+            }
             if text == "const" {
                 if const_span.is_some() {
                     return Err(Diagnostic::at(
@@ -97,10 +115,12 @@ impl Parser {
                 ));
             }
             if text == "inner" {
-                return Err(Diagnostic::at(
-                    token.span,
-                    "`inner` declarations are not supported; nested declarations are static",
-                ));
+                if modifiers.inner_span.is_some() {
+                    return Err(Diagnostic::at(token.span, "duplicate `inner` modifier"));
+                }
+                modifiers.inner_span = Some(self.bump().span);
+                modifiers.start = modifiers.start.or(Some(token.span.start));
+                continue;
             }
             if text == "operator" {
                 if modifiers.operator.is_some() {
@@ -156,6 +176,28 @@ impl Parser {
             }
             let keyword = self.bump();
             modifiers.start = modifiers.start.or(Some(keyword.span.start));
+        }
+        if let Some(span) = modifiers.inner_span
+            && !matches!(self.peek().kind, TokenKind::Class)
+        {
+            return Err(Diagnostic::at(
+                span,
+                "`inner` is only allowed on class declarations",
+            ));
+        }
+        if let Some(span) = modifiers.sealed_span {
+            if !matches!(self.peek().kind, TokenKind::Class | TokenKind::Interface) {
+                return Err(Diagnostic::at(
+                    span,
+                    "`sealed` is only allowed on class or interface declarations",
+                ));
+            }
+            if modifiers.method_modifier.is_some() {
+                return Err(Diagnostic::at(
+                    span,
+                    "`sealed` cannot be combined with open, final or abstract",
+                ));
+            }
         }
         if !modifiers.context_parameters.is_empty() && const_span.is_some() {
             return Err(Diagnostic::at(

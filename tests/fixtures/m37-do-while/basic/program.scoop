@@ -1,0 +1,18 @@
+fun once(): Int {
+    do { return 7 } while (false)
+}
+fun main() {
+    var n = 0
+    var checks = 0
+    do { n += 1 } while (if (true) { checks += 1; false } else { false })
+    println(n)
+    println(checks)
+    do {
+        n += 1
+        val more = n < 3
+    } while (more)
+    println(n)
+    do n += 1 while (n < 5)
+    println(n)
+    println(once())
+}

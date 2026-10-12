@@ -109,6 +109,7 @@ fn validate_constant_image(
                 format!("enum unit constant for e{}", enum_id.into_raw())
             })?;
             let has_payload = match &module.enums[enum_id].repr {
+                EnumRepr::Integral { .. } => false,
                 EnumRepr::Niche {
                     payload_variant, ..
                 } => variant.index() == *payload_variant,

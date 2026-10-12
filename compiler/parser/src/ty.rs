@@ -11,31 +11,97 @@ impl Parser {
     /// Parenthesized disambiguation mirrors expressions (spec section
     /// 4.3): `(T)` is just `T` in parentheses, `(T,)` a 1-tuple type.
     pub(crate) fn parse_type_ref(&mut self) -> Result<TypeRef, Diagnostic> {
+        let start = self.peek().span.start;
+        let annotations = self.parse_annotations()?;
+        let is_suspend = matches!(self.peek().kind, TokenKind::Suspend);
+        if is_suspend {
+            self.bump();
+        }
+        let parenthesized = matches!(self.peek().kind, TokenKind::LParen);
+        let mut ty = self.parse_type_atom_with_suffix()?;
+        if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot)
+            && matches!(
+                self.tokens.get(self.pos + 1).map(|token| &token.kind),
+                Some(TokenKind::LParen)
+            )
+        {
+            ty = self.parse_receiver_separator(ty);
+            let function = self.parse_paren_type(is_suspend, start)?;
+            let TypeRefKind::Function(mut signature) = function.kind else {
+                return Err(Diagnostic::at(
+                    function.span,
+                    "receiver function type requires `->` and a result type",
+                ));
+            };
+            signature.receiver = Some(Box::new(ty));
+            return Ok(TypeRef {
+                annotations,
+                kind: TypeRefKind::Function(signature),
+                span: Span::new(start, function.span.end),
+            });
+        }
+        if is_suspend {
+            let TypeRefKind::Function(signature) = &mut ty.kind else {
+                if parenthesized {
+                    return Err(Diagnostic::at(
+                        self.peek().span,
+                        format!(
+                            "expected `->` in suspend function type, found {}",
+                            self.peek().describe()
+                        ),
+                    ));
+                }
+                return Err(Diagnostic::at(
+                    ty.span,
+                    "`suspend` requires a function type",
+                ));
+            };
+            signature.is_suspend = true;
+            ty.span.start = start;
+        }
+        ty.annotations.splice(0..0, annotations);
+        ty.span.start = start;
+        Ok(ty)
+    }
+
+    pub(crate) fn parse_receiver_separator(&mut self, receiver: TypeRef) -> TypeRef {
+        let separator = self.bump();
+        if matches!(separator.kind, TokenKind::QuestionDot) {
+            TypeRef {
+                annotations: Vec::new(),
+                span: Span::new(receiver.span.start, separator.span.start + 1),
+                kind: TypeRefKind::Nullable(Box::new(receiver)),
+            }
+        } else {
+            receiver
+        }
+    }
+
+    pub(crate) fn parse_type_atom_with_suffix(&mut self) -> Result<TypeRef, Diagnostic> {
+        let start = self.peek().span.start;
+        let annotations = self.parse_annotations()?;
         let mut ty = self.parse_type_atom()?;
         while matches!(self.peek().kind, TokenKind::Question) {
             let question = self.bump();
             ty = TypeRef {
+                annotations: Vec::new(),
                 span: Span::new(ty.span.start, question.span.end),
                 kind: TypeRefKind::Nullable(Box::new(ty)),
             };
         }
+        ty.annotations.splice(0..0, annotations);
+        ty.span.start = start;
         Ok(ty)
     }
 
     fn parse_type_atom(&mut self) -> Result<TypeRef, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Suspend => {
-                self.pos += 1;
-                self.parse_paren_type(true, token.span.start)
-            }
-            TokenKind::Ident(text) => {
-                if text == "_" {
-                    return Err(Diagnostic::at(
-                        token.span,
-                        "`_` is only allowed in call type argument lists",
-                    ));
-                }
+            TokenKind::Ident(ref text) if text == "_" => Err(Diagnostic::at(
+                token.span,
+                "`_` is only allowed in call type argument lists",
+            )),
+            TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
                 self.parse_named_type_ref_tail(Ident {
                     text,
@@ -70,8 +136,10 @@ impl Parser {
             self.bump();
             let return_type = self.parse_type_ref()?;
             return Ok(TypeRef {
+                annotations: Vec::new(),
                 span: Span::new(start, return_type.span.end),
                 kind: TypeRefKind::Function(scoop_ast::FunctionTypeRef {
+                    receiver: None,
                     is_suspend,
                     parameters: elements,
                     return_type: Box::new(return_type),
@@ -90,6 +158,7 @@ impl Parser {
         }
         if elements.is_empty() {
             return Ok(TypeRef {
+                annotations: Vec::new(),
                 kind: TypeRefKind::Unit,
                 span: Span::new(start, close.span.end),
             });
@@ -97,11 +166,13 @@ impl Parser {
         if elements.len() == 1 && !had_comma {
             let first = elements.pop().expect("one parenthesized type");
             return Ok(TypeRef {
+                annotations: first.annotations,
                 kind: first.kind,
                 span: Span::new(start, close.span.end),
             });
         }
         Ok(TypeRef {
+            annotations: Vec::new(),
             kind: TypeRefKind::Tuple(elements),
             span: Span::new(start, close.span.end),
         })
@@ -118,13 +189,14 @@ impl Parser {
             TypeRefKind::Named(name)
         };
         let mut ty = TypeRef {
+            annotations: Vec::new(),
             kind,
             span: Span::new(start, end),
         };
         while matches!(self.peek().kind, TokenKind::Dot)
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(TokenKind::Ident(_))
+                Some(TokenKind::Ident(_) | TokenKind::EscapedIdent(_))
             )
         {
             self.bump();

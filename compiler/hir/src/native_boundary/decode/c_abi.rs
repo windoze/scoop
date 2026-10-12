@@ -31,7 +31,10 @@ impl DecodedNativeBoundaryCAbiV1 {
             }
             (
                 Self::NullablePointer { none, payload },
-                NativeBoundaryNominalShape::Enum { variants },
+                NativeBoundaryNominalShape::Enum {
+                    variants,
+                    representation: crate::EnumRepresentation::Algebraic,
+                },
             ) => {
                 let [first, second] = variants.as_slice() else {
                     return Err(mismatch);

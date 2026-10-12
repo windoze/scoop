@@ -61,9 +61,9 @@ impl Storage {
     }
 
     pub(super) fn call_arguments(&self, signature: &mir::FunctionType) -> Vec<mir::Expr> {
-        let mut args = Vec::with_capacity(signature.parameter_types.len());
+        let mut args = Vec::with_capacity(signature.arity());
         let opaque_pointer = mir::Type::Ptr(Box::new(mir::Type::Unit));
-        for (index, parameter) in signature.parameter_types.iter().enumerate() {
+        for (index, parameter) in signature.parameters().enumerate() {
             let raw = mir::Expr::new(
                 opaque_pointer.clone(),
                 mir::ExprKind::PtrLoad {

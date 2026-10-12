@@ -1,0 +1,597 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Strings>
+    Completed(value: Strings)
+    Suspended()
+  enum CoroutineSlot<Strings>
+    Empty()
+    Value(value: Strings)
+  class Strings vtable=0 itables=1
+  class Success<Int> vtable=0 itables=1
+  class Failure<Int> vtable=0 itables=1
+  class Failure<String> vtable=0 itables=1
+  class Success<String> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Result<String>
+  interface Result<Int>
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Continuation<Strings>
+  interface SuspendTask<Strings>
+  interface SuspendRegistration<Strings>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=enum1 nominal_id=cbe2491a08b6b939cacc489e93f3d784d3341f34b1c58a59d494bfc0270c6897 exact_id=5ff486134b35f54459829375382b58fdc47da7491448331a2d6b65d2dc527a0d
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=enum2 nominal_id=f51653b060bbe7f668d5a7776d0def3c75b426f1fd9f6faa0c23e64d0c8880b3 exact_id=aa72b6d54413dc550e6d5db3b9c63898240ee449a97be6accb3086cb5b566077
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn11 id=4dd62233873ff8280463c49a94c8cd63ac6a475a4bdd3eb688d7d72a20f97027
+  fun ints @fn0(value: Result<Int>) -> Int
+    bb0 entry
+      val $when.subject.2: Result<Int>
+        Type Result<Int>
+        Local value
+      val $when.1: Result<Int>
+        Type Result<Int>
+        Local $when.subject.2
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Success<Int>
+          Type Any
+          Retype Any
+            Type Result<Int>
+            Local $when.subject.2
+    bb1 if.then.1
+      assign $result.3
+        Type Int
+        FieldAccess 0
+          Type Success<Int>
+          Retype Success<Int>
+            Type Result<Int>
+            Local value
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
+        Type Boolean
+        IsInstance Failure<Int>
+          Type Any
+          Retype Any
+            Type Result<Int>
+            Local $when.subject.2
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.3
+    bb4 if.then.4
+      assign $result.3
+        Type Int
+        FieldAccess 0
+          Type Failure<Int>
+          Retype Failure<Int>
+            Type Result<Int>
+            Local value
+      goto bb6
+    bb5 if.else.5
+      unreachable
+    bb6 if.merge.6
+      goto bb3
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      assign $new.1
+        Type Success<Int>
+        ClassAlloc Success<Int>
+      val $inline.35.this: Success<Int>
+        Type Success<Int>
+        Local $new.1
+      val $inline.35.value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb36
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      val $inline.1.$when.subject.0: Result<String>
+        Type Result<String>
+        Local $inline.1.value
+      val $inline.1.$when.1: Result<String>
+        Type Result<String>
+        Local $inline.1.$when.subject.0
+      branch bb3 bb4
+        Type Boolean
+        IsInstance Success<String>
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $inline.1.$when.subject.0
+    bb3 inline.1.if.then.1
+      assign $inline.1.$result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb5
+    bb4 inline.1.if.else.2
+      branch bb6 bb7
+        Type Boolean
+        IsInstance Failure<String>
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $inline.1.$when.subject.0
+    bb5 inline.1.if.merge.3
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$result.1
+      goto bb1
+    bb6 inline.1.if.then.4
+      assign $inline.1.$result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb8
+    bb7 inline.1.if.else.5
+      branch bb9 bb10
+        Type Boolean
+        IsInstance Strings
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $inline.1.$when.subject.0
+    bb8 inline.1.if.merge.6
+      goto bb5
+    bb9 inline.1.if.then.7
+      assign $inline.1.$result.1
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb11
+    bb10 inline.1.if.else.8
+      unreachable
+    bb11 inline.1.if.merge.9
+      goto bb8
+    bb12 inline.cont.12
+      val $argument.0: Result<String>
+        Type Result<String>
+        Retype Result<String>
+          Type Strings
+          Local $new.3
+      val $parameter.value: Result<String>
+        Type Result<String>
+        Local $argument.0
+      val $inline.1.value: Result<String>
+        Type Result<String>
+        Local $parameter.value
+      goto bb2
+    bb13 inline.12.entry
+      Type Unit
+      UnitLiteral
+      goto bb12
+    bb14 inline.cont.14
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.14.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Strings
+        ClassAlloc Strings
+      val $inline.12.this: Strings
+        Type Strings
+        Local $new.3
+      goto bb13
+    bb15 inline.14.entry
+      val $inline.14.$when.subject.0: Result<String>
+        Type Result<String>
+        Local $inline.14.value
+      val $inline.14.$when.1: Result<String>
+        Type Result<String>
+        Local $inline.14.$when.subject.0
+      branch bb16 bb17
+        Type Boolean
+        IsInstance Success<String>
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $inline.14.$when.subject.0
+    bb16 inline.14.if.then.1
+      assign $inline.14.$result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb18
+    bb17 inline.14.if.else.2
+      branch bb19 bb20
+        Type Boolean
+        IsInstance Failure<String>
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $inline.14.$when.subject.0
+    bb18 inline.14.if.merge.3
+      assign $inline.14.result
+        Type Int
+        Local $inline.14.$result.1
+      goto bb14
+    bb19 inline.14.if.then.4
+      assign $inline.14.$result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb21
+    bb20 inline.14.if.else.5
+      branch bb22 bb23
+        Type Boolean
+        IsInstance Strings
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $inline.14.$when.subject.0
+    bb21 inline.14.if.merge.6
+      goto bb18
+    bb22 inline.14.if.then.7
+      assign $inline.14.$result.1
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb24
+    bb23 inline.14.if.else.8
+      unreachable
+    bb24 inline.14.if.merge.9
+      goto bb21
+    bb25 inline.cont.25
+      val $argument.0: Result<String>
+        Type Result<String>
+        Retype Result<String>
+          Type Failure<String>
+          Local $new.2
+      val $parameter.value: Result<String>
+        Type Result<String>
+        Local $argument.0
+      val $inline.14.value: Result<String>
+        Type Result<String>
+        Local $parameter.value
+      goto bb15
+    bb26 inline.25.entry
+      field_set 0
+        Type Failure<String>
+        Local $inline.25.this
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      Type Unit
+      UnitLiteral
+      goto bb25
+    bb27 inline.cont.27
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.27.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      assign $new.2
+        Type Failure<String>
+        ClassAlloc Failure<String>
+      val $inline.25.this: Failure<String>
+        Type Failure<String>
+        Local $new.2
+      val $inline.25.code: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      goto bb26
+    bb28 inline.27.entry
+      val $inline.27.$when.subject.2: Result<Int>
+        Type Result<Int>
+        Local $inline.27.value
+      val $inline.27.$when.1: Result<Int>
+        Type Result<Int>
+        Local $inline.27.$when.subject.2
+      branch bb29 bb30
+        Type Boolean
+        IsInstance Success<Int>
+          Type Any
+          Retype Any
+            Type Result<Int>
+            Local $inline.27.$when.subject.2
+    bb29 inline.27.if.then.1
+      assign $inline.27.$result.3
+        Type Int
+        FieldAccess 0
+          Type Success<Int>
+          Retype Success<Int>
+            Type Result<Int>
+            Local $inline.27.value
+      goto bb31
+    bb30 inline.27.if.else.2
+      branch bb32 bb33
+        Type Boolean
+        IsInstance Failure<Int>
+          Type Any
+          Retype Any
+            Type Result<Int>
+            Local $inline.27.$when.subject.2
+    bb31 inline.27.if.merge.3
+      assign $inline.27.result
+        Type Int
+        Local $inline.27.$result.3
+      goto bb27
+    bb32 inline.27.if.then.4
+      assign $inline.27.$result.3
+        Type Int
+        FieldAccess 0
+          Type Failure<Int>
+          Retype Failure<Int>
+            Type Result<Int>
+            Local $inline.27.value
+      goto bb34
+    bb33 inline.27.if.else.5
+      unreachable
+    bb34 inline.27.if.merge.6
+      goto bb31
+    bb35 inline.cont.35
+      val $argument.0: Result<Int>
+        Type Result<Int>
+        Retype Result<Int>
+          Type Success<Int>
+          Local $new.1
+      val $parameter.value: Result<Int>
+        Type Result<Int>
+        Local $argument.0
+      val $inline.27.value: Result<Int>
+        Type Result<Int>
+        Local $parameter.value
+      goto bb28
+    bb36 inline.35.entry
+      field_set 0
+        Type Success<Int>
+        Local $inline.35.this
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      Type Unit
+      UnitLiteral
+      goto bb35
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun classify @fn3(value: Result<String>) -> Int
+    bb0 entry
+      val $when.subject.0: Result<String>
+        Type Result<String>
+        Local value
+      val $when.1: Result<String>
+        Type Result<String>
+        Local $when.subject.0
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Success<String>
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $when.subject.0
+    bb1 if.then.1
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
+        Type Boolean
+        IsInstance Failure<String>
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $when.subject.0
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 if.then.4
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb6
+    bb5 if.else.5
+      branch bb7 bb8
+        Type Boolean
+        IsInstance Strings
+          Type Any
+          Retype Any
+            Type Result<String>
+            Local $when.subject.0
+    bb6 if.merge.6
+      goto bb3
+    bb7 if.then.7
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb9
+    bb8 if.else.8
+      unreachable
+    bb9 if.merge.9
+      goto bb6
+  fun Continuation.resume @fn4(this: Continuation<Strings>, value: Strings) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Strings>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Strings>, $completion: Continuation<Strings>) -> CoroutineStep<Strings>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Strings>, continuation: Continuation<Strings>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Strings.$c2 @fn8(this: Strings) -> Unit
+    bb0 entry
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Success.$c0 @fn9(this: Success<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Success<Int>
+        Local this
+        Type Int
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Failure.$c1 @fn10(this: Failure<String>, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Failure<String>
+        Local this
+        Type Int
+        Local code
+      return
+        Type Unit
+        UnitLiteral
+  fun startCoroutine<Strings> @fn11(task: SuspendTask<Strings>, completion: Continuation<Strings>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn4 interface Continuation<Strings>[0]
+        Type Continuation<Strings>
+        Local completion
+        Type Strings
+        EnumField v0 f0
+          Type CoroutineStep<Strings>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn5 interface Continuation<Strings>[1]
+        Type Continuation<Strings>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Strings> = @fn6 interface SuspendTask<Strings>[0]
+        Type SuspendTask<Strings>
+        Local task
+        Type Continuation<Strings>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Strings>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Strings> result=Strings
+  coroutine_slot cl0 CoroutineSlot<Strings> value=Strings
+  coroutine_start ct0 result=Strings function=fn11
+  coroutine_fn cf0 @fn6 source_return=Strings step=cs0 immediate
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- classify
+  instance mi2 function=@fn4 <- Continuation.resume
+  instance mi3 function=@fn5 <- Continuation.resumeWithException
+  instance mi4 function=@fn6 <- SuspendTask.run
+  instance mi5 function=@fn7 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn1

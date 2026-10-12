@@ -73,8 +73,29 @@ impl TypeAliasInterfaceRecordV1 {
             .map_err(TypeAliasInterfaceSemanticValidationError::Declaration)?;
         self.validate_declaration_source(current_cone, &source)?;
 
+        if self.owner_parameter_count != 0 {
+            let expected = match source.declaration().owners().owners().last() {
+                Some(scoop_identity::DefinitionOwnerAtom::GenericType(owner)) => authority
+                    .generic_nominal_shape(*owner)
+                    .map_err(TypeAliasInterfaceSemanticValidationError::Declaration)?
+                    .type_parameter_arity(),
+                _ => 0,
+            };
+            if expected != self.owner_parameter_count {
+                return Err(
+                    TypeAliasInterfaceSemanticValidationError::OwnerParameterCount {
+                        expected,
+                        actual: self.owner_parameter_count,
+                    },
+                );
+            }
+        }
+
+        self.type_parameters
+            .validate_bound_semantics(None, authority)
+            .map_err(TypeAliasInterfaceSemanticValidationError::Parameters)?;
         if let TypeAliasTargetV1::Signature(target) = &self.target {
-            SignatureBinderScopeV1::for_declaration(0, None)
+            SignatureBinderScopeV1::for_declaration(self.type_parameters.len_u32(), None)
                 .validate_signature_semantics(target, authority)
                 .map_err(TypeAliasInterfaceSemanticValidationError::Target)?;
         }
@@ -107,13 +128,6 @@ impl TypeAliasInterfaceRecordV1 {
                 expected: current_cone,
                 actual: declaration.origin(),
             });
-        }
-        if !declaration.owners().owners().is_empty() {
-            return Err(
-                TypeAliasInterfaceSemanticValidationError::NestedDeclaration {
-                    owner_depth: declaration.owners().owners().len(),
-                },
-            );
         }
         if declaration.scope() != &DeclarationScope::ConeWide {
             return Err(

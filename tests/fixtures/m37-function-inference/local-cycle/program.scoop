@@ -1,0 +1,1 @@
+fun main() { fun local() = local() }

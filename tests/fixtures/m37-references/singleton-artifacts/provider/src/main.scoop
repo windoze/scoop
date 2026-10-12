@@ -1,0 +1,29 @@
+package singletonrefs
+
+public var starts: Int = 0
+
+private fun mark(): Int {
+    starts += 1
+    return starts
+}
+
+public object Tools {
+    public val stamp: Int = mark()
+    public fun read(value: Int): Int = stamp + value
+}
+
+public struct Box<T>(val value: T) {
+    public companion object Factory {
+        public val stamp: Int = mark()
+        public fun make(value: T): Box<T> = Box(value)
+    }
+}
+
+public typealias IntFactory = Box<Int>.Factory
+
+public fun <T> makeFromTemplate(value: T): Box<T> {
+    val create: (T) -> Box<T> = Box<T>.Companion::make
+    return create(value)
+}
+
+public fun defaultBox(create: (Int) -> Box<Int> = Box<Int>.Factory::make): Box<Int> = create(11)

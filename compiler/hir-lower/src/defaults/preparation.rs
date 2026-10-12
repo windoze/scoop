@@ -31,7 +31,9 @@ pub(crate) enum DefaultArgumentSource {
 
 #[derive(Clone)]
 pub(super) struct LocalDefaultEnvironment {
-    pub available: HashMap<String, crate::AvailableCapture>,
+    pub types: crate::scope::Scopes,
+    pub available: HashMap<crate::CaptureKey, crate::AvailableCapture>,
+    pub receivers: Vec<crate::ReceiverScope>,
     pub functions: crate::scope::LocalFunctionScopes,
 }
 #[derive(Clone)]
@@ -61,6 +63,20 @@ pub(crate) struct DefaultPreparation {
 }
 
 impl Lowerer {
+    pub(crate) fn complete_constructor_default_context(
+        &mut self,
+        class: hir::ClassId,
+        ty: hir::TypeId,
+    ) {
+        for (owner, recipe) in &mut self.default_preparation.recipes {
+            if let SourceParameterOwner::ClassConstructor(id) = owner
+                && self.class_constructors[*id].owner == class
+            {
+                Rc::make_mut(recipe).context.receiver = Some((ty, None));
+            }
+        }
+    }
+
     fn register_default_recipe(
         &mut self,
         owner: SourceParameterOwner,

@@ -252,7 +252,7 @@ fn constant(name: &str) -> ast::PropertyDecl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: crate::tests::ty_named("Int"),
+        ty: Some(crate::tests::ty_named("Int")),
         body: ast::PropertyBodySyntax::Const(Box::new(crate::tests::int_lit(7))),
         span: sp(),
     }

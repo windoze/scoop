@@ -95,7 +95,7 @@ impl Lowerer {
                 format!("function `{name}` is not accessible here"),
             );
         } else {
-            match self.resolve_type_name_path(std::slice::from_ref(&call.callee), false) {
+            match self.resolve_type_name_path(std::slice::from_ref(&call.callee), &[]) {
                 Ok(Some(crate::types::ResolvedTypeName::Annotation(_))) => self.error(call.callee.span, format!("annotation class `{name}` has no runtime constructor")),
                 Ok(_) => self.error(call.callee.span, format!("unknown function `{name}`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation")),
                 Err(()) => return None,
@@ -273,6 +273,7 @@ impl Lowerer {
             .collect();
         let mut args = Vec::with_capacity(captures.len());
         for (binding, name, ty) in captures {
+            self.require_initialized_condition_binding(binding, &name, span)?;
             if let Some((local, _)) = self
                 .locals
                 .iter()

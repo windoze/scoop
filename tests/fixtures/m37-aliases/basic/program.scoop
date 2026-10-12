@@ -1,0 +1,11 @@
+typealias Names<T> = Array<T>
+typealias Transform<T> = T.(Int) -> T
+typealias Entry<T> = (String, T)
+fun main() {
+    val names: Names<Int> = [40, 2]
+    val add: Transform<Int> = { this + it }
+    val entry: Entry<Int> = ("answer", names[0].add(names[1]))
+    val (label, value) = entry
+    println(label)
+    println(value)
+}

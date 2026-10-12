@@ -1,0 +1,17 @@
+@Target([AnnotationTarget.TYPE]) annotation class Outer
+@Target([AnnotationTarget.TYPE]) annotation class Inner
+fun @Outer String?.outer(): Int = 42
+fun (@Inner String)?.inner(): Int = 42
+val @Outer String?.outer: Int get() = 42
+val (@Inner String)?.inner: Int get() = 42
+fun main() {
+    val value: String? = None
+    val outer = fun @Outer String?.(): Int { return 42 }
+    val inner = fun (@Inner String)?.(): Int { return 42 }
+    println(value.outer())
+    println(value.inner())
+    println(value.outer)
+    println(value.inner)
+    println(outer(value))
+    println(inner(value))
+}

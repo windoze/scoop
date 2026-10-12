@@ -1,0 +1,2 @@
+val value get() { return 1 }
+fun main() {}

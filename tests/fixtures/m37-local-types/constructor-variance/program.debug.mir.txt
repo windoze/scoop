@@ -1,0 +1,680 @@
+Module
+  struct Box (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Box>
+    Completed(value: Box)
+    Suspended()
+  enum CoroutineSlot<Box>
+    Empty()
+    Value(value: Box)
+  enum CoroutineStep<Wrap>
+    Completed(value: Wrap)
+    Suspended()
+  enum CoroutineSlot<Wrap>
+    Empty()
+    Value(value: Wrap)
+  class Wrap vtable=0 itables=0
+  class Result<Int> vtable=0 itables=1
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Box> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Value<Int>
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Box>
+  interface SuspendTask<Box>
+  interface SuspendRegistration<Box>
+  interface Continuation<Wrap>
+  interface SuspendTask<Wrap>
+  interface SuspendRegistration<Wrap>
+  closure cc0 $Closure$lambda0 type=function_type4 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn24 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$lambda1 type=function_type5 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn25 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  closure cc2 $Closure$lambda2 type=function_type6 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn26 id=e45f7c0e3a2d3558fc161b253b5737b285c27d6bf68dfd6a362f856e37787d68
+  closure cc3 $Closure$adapter$(Int) -> Result<Int>$(Int) -> Value<Int> type=function_type0 invoke=@fn19 captures=1
+    bridge function_type1 -> @fn27 id=53e93298796091b6b417fb2a74a252dc6894e7c3df2ded1393e1b16a11fe0643
+  closure cc4 $Closure$adapter$(Int) -> Box$(Int) -> Any type=function_type2 invoke=@fn20 captures=1
+    bridge function_type1 -> @fn28 id=dc1a47988a48fba4ada79e05962216ab07881692dd2ee57484d1c3609cc75fab
+  closure cc5 $Closure$adapter$(Any) -> Wrap$(String) -> Any type=function_type3 invoke=@fn21 captures=1
+    bridge function_type1 -> @fn29 id=2aa188e9bdfb95bf1e704086e3f9e89b7202a968b1218eb470f986291bd59043
+  generated_exact_type get0 location=enum3 nominal_id=cb718cccf1d66a5f5d59ae28b6af7b0a1b70521e7bc92020c773fbb396c5bf32 exact_id=0f03b5751c7bc280a970e82274d749e299ca7eb1ba7e6386fa650ea56e6541b1
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=enum2 nominal_id=dd0788888e563b04dfb56cea1e58ef0a8621e8689387eefd390ab1e6bac07f6c exact_id=1b990d78b0dc0873a8eefe6a424c1337ba4baaf3f8df43bdeb1e9d4890c55fd3
+  generated_exact_type get3 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get4 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get6 location=closure3 nominal_id=70f360960a25dfcf59532551b7494e4a2f849bb239e9492922609b2b35a7e789 exact_id=7ed2b083a16be0b09757ac662a2e811f6e39cc958f7427140d8931a6d15fc992
+  generated_exact_type get7 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get8 location=closure5 nominal_id=4476c77c4a1995451742a6935f65977c9c56834d376b3de6734bf4c65708814f exact_id=842eb3df83cf238fde576185a9b54af97c3146124ff3b4649d879e7905f2aa2c
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get11 location=enum5 nominal_id=1afd58afc393d4bfce0979dcc6aea795711cedb76549c2dd57675d56af7214e5 exact_id=9b2aabd6a5dcd0276ef65cd36c2d7f47eed1debb7ffbdf82f4b177707b069ab2
+  generated_exact_type get12 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get13 location=enum4 nominal_id=d4ca1fe9e2bea685461b4e4294c301728d0b9b50b6a805d9796f57c83eda0bfb exact_id=e64d9f451fd49fef30117204563c07b2a273bd2184d295a26355e801a45fe444
+  generated_exact_type get14 location=closure4 nominal_id=c5b4cd1aa3ef70af1b24a09d8584bcf6ca380bdafc1b6de2734e553f5945b3f9 exact_id=ebe8eff82d3dc2dfdee10c660072258a1916a1d938d862f147ea61357de67e52
+  generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get16 location=class6 nominal_id=b609c4dce40d54747d11dff27f0cacec1071f9a8156560f90cf219c1e7b29419 exact_id=f58fb331731531f428d8a17c0a86bfbf6d0ae8aa1af3ff652ca967efd1492b85
+  generated_callable gc0 function=@fn24 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn21 id=1a30dfecea94ded3d119c7dd8c424435276be1e02f2b4875758d68ac76fc80a2
+  generated_callable gc2 function=@fn22 id=21ed9446b199b6a325eab2fb13ebf6a104501633ae75e03300de3bf084a6b9f4
+  generated_callable gc3 function=@fn29 id=2aa188e9bdfb95bf1e704086e3f9e89b7202a968b1218eb470f986291bd59043
+  generated_callable gc4 function=@fn27 id=53e93298796091b6b417fb2a74a252dc6894e7c3df2ded1393e1b16a11fe0643
+  generated_callable gc5 function=@fn23 id=b1dc2b6f92acb6c82132903bae99405e058698c428211ff3e916b18d0a3b62b7
+  generated_callable gc6 function=@fn20 id=c9237f94455a8a66fac023194e2d0b705dfd45224c7c5a20c88cb34dc2bf9bf6
+  generated_callable gc7 function=@fn19 id=db83b255837985df1c0c53661bb6d4f1282f29e76db708a164c6f4e80e3c7231
+  generated_callable gc8 function=@fn28 id=dc1a47988a48fba4ada79e05962216ab07881692dd2ee57484d1c3609cc75fab
+  generated_callable gc9 function=@fn25 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  generated_callable gc10 function=@fn26 id=e45f7c0e3a2d3558fc161b253b5737b285c27d6bf68dfd6a362f856e37787d68
+  adapter ca0 class=cc3 source=function_type4 target=function_type0
+  adapter ca1 class=cc4 source=function_type5 target=function_type2
+  adapter ca2 class=cc5 source=function_type6 target=function_type3
+  fun main @fn0() -> Unit
+    bb0 entry
+      val factory: (Int) -> Value<Int>
+        Type (Int) -> Value<Int>
+        ClosureAlloc cc3 $Closure$adapter$(Int) -> Result<Int>$(Int) -> Value<Int>
+          CaptureInit field=0
+            Type (Int) -> Result<Int>
+            ClosureAlloc cc0 $Closure$lambda0
+      call $receiver: Value<Int> = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Value<Int>
+        Local factory
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call $dependency.argument.0: Int = @fn15 interface Value<Int>[0]
+        Type Value<Int>
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val boxed: (Int) -> Any
+        Type (Int) -> Any
+        ClosureAlloc cc4 $Closure$adapter$(Int) -> Box$(Int) -> Any
+          CaptureInit field=0
+            Type (Int) -> Box
+            ClosureAlloc cc1 $Closure$lambda1
+      call value: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local boxed
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Box
+          Type Any
+          Local value
+    bb1 if.then.1
+      val $ub.1: Box
+        Type Box
+        Unbox
+          Type Any
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box
+          Local $ub.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb2
+    bb2 if.merge.2
+      val wider: (String) -> Any
+        Type (String) -> Any
+        ClosureAlloc cc5 $Closure$adapter$(Any) -> Wrap$(String) -> Any
+          CaptureInit field=0
+            Type (Any) -> Wrap
+            ClosureAlloc cc2 $Closure$lambda2
+      call $cast.2: Any = <closure:function_type3> closure[function_type3]
+        Type (String) -> Any
+        Local wider
+        Type String
+        StringConst @str0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Wrap
+            Type Any
+            Local $cast.2
+    bb3 if.then.3
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb4 if.merge.4
+      val wrapped: Wrap
+        Type Wrap
+        Retype Wrap
+          Type Any
+          Local $cast.2
+      val $cast.3: Any
+        Type Any
+        FieldAccess 0
+          Type Wrap
+          Local wrapped
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance String
+            Type Any
+            Local $cast.3
+    bb5 if.then.5
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb6 if.merge.6
+      val $dependency.argument.0: String
+        Type String
+        Retype String
+          Type Any
+          Local $cast.3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun Result.get @fn1(this: Result<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Result<Int>
+          Local this
+  fun $lambda.0 @fn2($closure: (Int) -> Result<Int>, __codec_argument_0: Int) -> Result<Int>
+    bb0 entry
+      assign $new.1
+        Type Result<Int>
+        ClassAlloc Result<Int>
+      call @fn17 direct
+        Type Result<Int>
+        Local $new.1
+        Type Int
+        Local __codec_argument_0
+      return
+        Type Result<Int>
+        Local $new.1
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.1 @fn4($closure: (Int) -> Box, __codec_argument_0: Int) -> Box
+    bb0 entry
+      call $call.1: Box = @fn18 direct
+        Type Int
+        Local __codec_argument_0
+      return
+        Type Box
+        Local $call.1
+  fun $lambda.2 @fn5($closure: (Any) -> Wrap, __codec_argument_0: Any) -> Wrap
+    bb0 entry
+      assign $new.1
+        Type Wrap
+        ClassAlloc Wrap
+      call @fn16 direct
+        Type Wrap
+        Local $new.1
+        Type Any
+        Local __codec_argument_0
+      return
+        Type Wrap
+        Local $new.1
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Continuation.resume @fn7(this: Continuation<Box>, value: Box) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Box>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Box>, $completion: Continuation<Box>) -> CoroutineStep<Box>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Box>, continuation: Continuation<Box>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Wrap>, value: Wrap) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Wrap>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Wrap>, $completion: Continuation<Wrap>) -> CoroutineStep<Wrap>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Wrap>, continuation: Continuation<Wrap>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Value.get @fn15(this: Value<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Value.get`"
+  fun init.Wrap.$c1 @fn16(this: Wrap, value: Any) -> Unit
+    bb0 entry
+      field_set 0
+        Type Wrap
+        Local this
+        Type Any
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Result.$c0 @fn17(this: Result<Int>, item: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Result<Int>
+        Local this
+        Type Int
+        Local item
+      return
+        Type Unit
+        UnitLiteral
+  fun ctor.Box.$c0 @fn18(value: Int) -> Box <no-gc>
+    bb0 entry
+      return
+        Type Box
+        StructInit Box
+          Type Int
+          Local value
+  fun $adapter.(Int) -> Result<Int>.(Int) -> Value<Int> @fn19($closure: (Int) -> Value<Int>, arg0: Int) -> Value<Int>
+    bb0 entry
+      call $call.1: Result<Int> = <closure:function_type4> closure[function_type4]
+        Type (Int) -> Result<Int>
+        ClosureCapture cc3 0
+          Type (Int) -> Value<Int>
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Value<Int>
+        Retype Value<Int>
+          Type Result<Int>
+          Local $call.1
+  fun $adapter.(Int) -> Box.(Int) -> Any @fn20($closure: (Int) -> Any, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Box = <closure:function_type5> closure[function_type5]
+        Type (Int) -> Box
+        ClosureCapture cc4 0
+          Type (Int) -> Any
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Any
+        Box
+          Type Box
+          Local $call.1
+  fun $adapter.(Any) -> Wrap.(String) -> Any @fn21($closure: (String) -> Any, arg0: String) -> Any
+    bb0 entry
+      call $call.1: Wrap = <closure:function_type6> closure[function_type6]
+        Type (Any) -> Wrap
+        ClosureCapture cc5 0
+          Type (String) -> Any
+          Local $closure
+        Type Any
+        Retype Any
+          Type String
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Wrap
+          Local $call.1
+  fun startCoroutine<Box> @fn22(task: SuspendTask<Box>, completion: Continuation<Box>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn7 interface Continuation<Box>[0]
+        Type Continuation<Box>
+        Local completion
+        Type Box
+        EnumField v0 f0
+          Type CoroutineStep<Box>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn8 interface Continuation<Box>[1]
+        Type Continuation<Box>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Box> = @fn9 interface SuspendTask<Box>[0]
+        Type SuspendTask<Box>
+        Local task
+        Type Continuation<Box>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Box>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Wrap> @fn23(task: SuspendTask<Wrap>, completion: Continuation<Wrap>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn11 interface Continuation<Wrap>[0]
+        Type Continuation<Wrap>
+        Local completion
+        Type Wrap
+        EnumField v0 f0
+          Type CoroutineStep<Wrap>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn12 interface Continuation<Wrap>[1]
+        Type Continuation<Wrap>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Wrap> = @fn13 interface SuspendTask<Wrap>[0]
+        Type SuspendTask<Wrap>
+        Local task
+        Type Continuation<Wrap>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wrap>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn24($source: (Int) -> Result<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Result<Int> = <closure:function_type4> closure[function_type4]
+        Type (Int) -> Result<Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Result<Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn25($source: (Int) -> Box, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Box = <closure:function_type5> closure[function_type5]
+        Type (Int) -> Box
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Box
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn26($source: (Any) -> Wrap, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Wrap = <closure:function_type6> closure[function_type6]
+        Type (Any) -> Wrap
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Wrap
+          Local $call.1
+  fun function_bridge.$Closure$adapter$(Int) -> Result<Int>$(Int) -> Value<Int>.(Any) -> Any @fn27($source: (Int) -> Value<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Value<Int> = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Value<Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Value<Int>
+          Local $call.1
+  fun function_bridge.$Closure$adapter$(Int) -> Box$(Int) -> Any.(Any) -> Any @fn28($source: (Int) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  fun function_bridge.$Closure$adapter$(Any) -> Wrap$(String) -> Any.(Any) -> Any @fn29($source: (String) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type3> closure[function_type3]
+        Type (String) -> Any
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Box> result=Box
+  coroutine_step cs1 CoroutineStep<Wrap> result=Wrap
+  coroutine_slot cl0 CoroutineSlot<Box> value=Box
+  coroutine_slot cl1 CoroutineSlot<Wrap> value=Wrap
+  coroutine_start ct0 result=Box function=fn22
+  coroutine_start ct1 result=Wrap function=fn23
+  coroutine_fn cf0 @fn9 source_return=Box step=cs0 immediate
+  coroutine_fn cf1 @fn13 source_return=Wrap step=cs1 immediate
+  instance mi0 function=@fn1 <- Result.get
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn6 <- println
+  instance mi3 function=@fn7 <- Continuation.resume
+  instance mi4 function=@fn8 <- Continuation.resumeWithException
+  instance mi5 function=@fn9 <- SuspendTask.run
+  instance mi6 function=@fn10 <- SuspendRegistration.register
+  instance mi7 function=@fn11 <- Continuation.resume
+  instance mi8 function=@fn12 <- Continuation.resumeWithException
+  instance mi9 function=@fn13 <- SuspendTask.run
+  instance mi10 function=@fn14 <- SuspendRegistration.register
+  instance mi11 function=@fn15 <- Value.get
+  str @str0 "variance"
+  str @str1 "\n"
+  str @str2 "\n"
+  output executable @fn0

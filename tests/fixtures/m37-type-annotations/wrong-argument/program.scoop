@@ -1,0 +1,2 @@
+annotation class A(val n: Int)
+fun f(x: @A("wrong") Int) {}

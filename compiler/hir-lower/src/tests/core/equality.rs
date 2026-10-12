@@ -50,7 +50,7 @@ pub(super) fn adopt_equality(declarations: &mut [Decl]) {
                 }) {
                     let no_gc = value.members.iter().any(|member| matches!(member,
                         ast::StructMember::Function(function) if function.name.text == "equals"
-                            && function.annotations.iter().any(|annotation| annotation.name.text == "NoGC")));
+                            && function.annotations.iter().any(|annotation| annotation.name.is_ident("NoGC"))));
                     let mut method = equal_to(owner, no_gc);
                     if value.name.text == "Unit" {
                         method.body = FunctionBody::Expr(Box::new(bool_lit(true)));
@@ -95,7 +95,8 @@ fn equal_to(owner: TypeRef, no_gc: bool) -> ast::FunctionDecl {
     );
     if no_gc {
         method.annotations.push(ast::Annotation {
-            name: ident("NoGC"),
+            use_site: None,
+            name: ident("NoGC").into(),
             args: Vec::new(),
             span: sp(),
         });
@@ -106,7 +107,7 @@ fn equal_to(owner: TypeRef, no_gc: bool) -> ast::FunctionDecl {
 fn supertype(owner: TypeRef) -> ast::SupertypeSpec {
     ast::SupertypeSpec {
         ty: ty_generic("Equality", vec![owner]),
-        constructor_arguments: None,
+        initialization: ast::SupertypeInitialization::None,
         span: sp(),
     }
 }

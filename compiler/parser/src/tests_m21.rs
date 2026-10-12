@@ -1,6 +1,6 @@
 use scoop_ast::{
     AccessorBodySyntax, ClassConstructorDecl, ClassMember, CompanionNameSyntax, Decl,
-    DeclaredVisibility, Expr, FunctionBody, NestedNominalDecl, PropertyBodySyntax,
+    DeclaredVisibility, Expr, FunctionBody, NestedTypeDecl, PropertyBodySyntax,
     SetterParameterSyntax, SetterVisibilitySyntax, StatementKind, StructMember, VisibilitySyntax,
 };
 
@@ -46,10 +46,10 @@ fn complete_property_and_accessor_syntax_has_one_closed_body_form() {
         Expr::IntLiteral(literal) if literal.magnitude == 1
     ));
     let getter = accessors.getter.as_ref().expect("getter");
-    assert_eq!(getter.annotations[0].name.text, "Getter");
+    assert_eq!(getter.annotations[0].name.to_string(), "Getter");
     assert!(matches!(getter.body, AccessorBodySyntax::Expr(_)));
     let setter = accessors.setter.as_ref().expect("setter");
-    assert_eq!(setter.annotations[0].name.text, "Setter");
+    assert_eq!(setter.annotations[0].name.to_string(), "Setter");
     assert!(matches!(
         setter.visibility,
         SetterVisibilitySyntax::Explicit {
@@ -174,7 +174,7 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
     let ClassConstructorDecl::Declared(primary) = &class.constructor else {
         panic!("expected primary constructor")
     };
-    assert_eq!(primary.annotations[0].name.text, "Primary");
+    assert_eq!(primary.annotations[0].name.to_string(), "Primary");
     assert_eq!(
         explicit_visibility(primary.visibility),
         DeclaredVisibility::Private
@@ -191,7 +191,7 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
     let ClassMember::SecondaryConstructor(secondary) = &class.members[0] else {
         panic!("expected secondary constructor")
     };
-    assert_eq!(secondary.annotations[0].name.text, "Secondary");
+    assert_eq!(secondary.annotations[0].name.to_string(), "Secondary");
     assert_eq!(
         explicit_visibility(secondary.visibility),
         DeclaredVisibility::Protected
@@ -199,7 +199,7 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
     assert!(matches!(
         &class.members[1],
         ClassMember::Nested(declaration)
-            if matches!(&**declaration, NestedNominalDecl::Class(_))
+            if matches!(&**declaration, NestedTypeDecl::Class(_))
     ));
     let ClassMember::Companion(companion) = &class.members[2] else {
         panic!("expected companion")
@@ -260,12 +260,39 @@ fn rejected_m21_forms_have_specific_diagnostics() {
         object_constructor,
         "object declarations cannot declare constructors"
     );
+}
 
-    let (_, inner) = err("class Outer { inner class Inner }");
-    assert_eq!(
-        inner,
-        "`inner` declarations are not supported; nested declarations are static"
-    );
+#[test]
+fn inner_class_preserves_its_modifier_span() {
+    let file = ok("class Outer { inner class Inner }");
+    let Decl::Class(outer) = &file.declarations[0] else {
+        panic!("expected class")
+    };
+    let scoop_ast::ClassMember::Nested(nested) = &outer.members[0] else {
+        panic!("expected nested class")
+    };
+    let scoop_ast::NestedTypeDecl::Class(inner) = nested.as_ref() else {
+        panic!("expected inner class")
+    };
+    assert!(inner.inner_span.is_some());
+    assert!(outer.inner_span.is_none());
+}
+
+#[test]
+fn enum_body_distinguishes_inner_modifier_from_variant_name() {
+    let file = ok("enum E { inner, Other }");
+    let Decl::Enum(enumeration) = &file.declarations[0] else {
+        panic!("expected enum")
+    };
+    assert_eq!(enumeration.variants[0].name.text, "inner");
+    let file = ok("enum E { Value\ninner class Inner }");
+    let Decl::Enum(enumeration) = &file.declarations[0] else {
+        panic!("expected enum")
+    };
+    let scoop_ast::NestedTypeDecl::Class(inner) = &enumeration.nested[0] else {
+        panic!("expected class")
+    };
+    assert!(inner.inner_span.is_some());
 }
 
 #[test]

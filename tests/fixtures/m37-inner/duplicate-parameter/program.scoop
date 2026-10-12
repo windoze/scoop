@@ -1,0 +1,1 @@
+class Outer<T> { inner class Inner<T> }

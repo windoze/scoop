@@ -1,0 +1,555 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3630,
+  "selected": 60,
+  "unselected": 3570,
+  "counts": {
+    "passed": 60
+  },
+  "variants": 73,
+  "processes": 158,
+  "stage_and_plan_goldens": 146,
+  "results": [
+    {
+      "name": "legacy-m22-integers-arithmetic-matrix",
+      "status": "passed",
+      "seconds": 13.006615082966164,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-const-call-inference",
+      "status": "passed",
+      "seconds": 5.712654332863167,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-constants",
+      "status": "passed",
+      "seconds": 5.737447625026107,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-conversion-matrix",
+      "status": "passed",
+      "seconds": 5.072811333928257,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-ffi-fixed-width-ffi",
+      "status": "passed",
+      "seconds": 6.273858417058364,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-fixed-width",
+      "status": "passed",
+      "seconds": 5.337819916894659,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-representation-matrix",
+      "status": "passed",
+      "seconds": 7.126598665956408,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-destructuring",
+      "status": "passed",
+      "seconds": 4.749312208034098,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-enum-basics",
+      "status": "passed",
+      "seconds": 5.122219540877268,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-enum-generics",
+      "status": "passed",
+      "seconds": 5.440285874996334,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-guard-not-boolean",
+      "status": "passed",
+      "seconds": 2.2381900420878083,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-named-rest-missing",
+      "status": "passed",
+      "seconds": 2.024416167056188,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-non-exhaustive",
+      "status": "passed",
+      "seconds": 2.012314499821514,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-refutable-in-val",
+      "status": "passed",
+      "seconds": 2.0184580001514405,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-rest-twice",
+      "status": "passed",
+      "seconds": 2.058356833877042,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-unknown-variant",
+      "status": "passed",
+      "seconds": 2.064687166828662,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-option-via-when",
+      "status": "passed",
+      "seconds": 4.853661291999742,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-when-expression",
+      "status": "passed",
+      "seconds": 4.734057541005313,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-when-guards",
+      "status": "passed",
+      "seconds": 4.811048208968714,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-ffi",
+      "status": "passed",
+      "seconds": 4.779713333118707,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-ffi",
+      "status": "passed",
+      "seconds": 11.003674834035337,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-algebraic-initializer",
+      "status": "passed",
+      "seconds": 2.4742428748868406,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-array-invariant",
+      "status": "passed",
+      "seconds": 2.4737712079659104,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-artifacts",
+      "status": "passed",
+      "seconds": 15.193503917194903,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-basic",
+      "status": "passed",
+      "seconds": 11.701718250056729,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-boxing",
+      "status": "passed",
+      "seconds": 11.437306916806847,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-c-abi",
+      "status": "passed",
+      "seconds": 6.4752072910778224,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-compound-assignment",
+      "status": "passed",
+      "seconds": 2.127363624982536,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-different-enums",
+      "status": "passed",
+      "seconds": 2.2920803749002516,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-duplicate-value",
+      "status": "passed",
+      "seconds": 2.2901081659365445,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-enum-exhaustiveness",
+      "status": "passed",
+      "seconds": 2.257906584069133,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-generics",
+      "status": "passed",
+      "seconds": 11.00039504095912,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-increment",
+      "status": "passed",
+      "seconds": 2.121132541913539,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-integer-downcast",
+      "status": "passed",
+      "seconds": 2.244614165974781,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-integer-exhaustiveness",
+      "status": "passed",
+      "seconds": 2.1898713749833405,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-local",
+      "status": "passed",
+      "seconds": 10.701683457940817,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-local-nonconstant",
+      "status": "passed",
+      "seconds": 2.1888426248915493,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-members",
+      "status": "passed",
+      "seconds": 10.841740499949083,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-missing-value",
+      "status": "passed",
+      "seconds": 2.0554993338882923,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-multiple-parents",
+      "status": "passed",
+      "seconds": 2.2249113749712706,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-nonconstant",
+      "status": "passed",
+      "seconds": 2.26654858305119,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-option-invariant",
+      "status": "passed",
+      "seconds": 2.0495515828952193,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-out-of-range",
+      "status": "passed",
+      "seconds": 2.0533082080073655,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-own-operator",
+      "status": "passed",
+      "seconds": 2.2980110419448465,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-parent-boolean",
+      "status": "passed",
+      "seconds": 2.0867677081841975,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-parent-char",
+      "status": "passed",
+      "seconds": 2.0760633749887347,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-parent-enum",
+      "status": "passed",
+      "seconds": 2.0983063329476863,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-parent-float",
+      "status": "passed",
+      "seconds": 1.9775597502011806,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-parent-parameter",
+      "status": "passed",
+      "seconds": 1.983311917167157,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-payload",
+      "status": "passed",
+      "seconds": 2.0945819169282913,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-ptr-invariant",
+      "status": "passed",
+      "seconds": 2.088929541874677,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-unsigned-negative",
+      "status": "passed",
+      "seconds": 1.994010291993618,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-widths",
+      "status": "passed",
+      "seconds": 10.327590541914105,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-wrong-signedness",
+      "status": "passed",
+      "seconds": 2.064499542117119,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-wrong-width",
+      "status": "passed",
+      "seconds": 2.076798874884844,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-capture-references",
+      "status": "passed",
+      "seconds": 11.85619774996303,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-constructor-variance",
+      "status": "passed",
+      "seconds": 12.451982000144199,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-enum",
+      "status": "passed",
+      "seconds": 11.512959582963958,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-generics",
+      "status": "passed",
+      "seconds": 12.149941166862845,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-interfaces",
+      "status": "passed",
+      "seconds": 9.66678416612558,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    }
+  ]
+}

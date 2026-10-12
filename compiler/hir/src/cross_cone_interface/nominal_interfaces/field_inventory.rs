@@ -38,7 +38,10 @@ impl CanonicalNominalInterfacesV1 {
             let owner = match field.key().view() {
                 FieldIdentityView::SourceDeclared { owner, .. }
                 | FieldIdentityView::SourcePropertyBacking { owner, .. }
-                | FieldIdentityView::SourcePropertyDelegate { owner, .. } => Some(owner),
+                | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+                | FieldIdentityView::SourceEnclosingInstance { owner }
+                | FieldIdentityView::SourceCapturedEnvironment { owner }
+                | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => Some(owner),
                 FieldIdentityView::Generated { owner, .. } => backing
                     .binary_search_by_key(&owner, |(id, _)| *id)
                     .ok()

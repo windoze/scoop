@@ -5,7 +5,9 @@ use crate::NominalTarget;
 use crate::imports::lookup::TypeLookupTarget;
 
 mod applied;
+mod inner;
 mod names;
+mod nominals;
 pub(crate) use names::ResolvedTypeName;
 
 impl Lowerer {
@@ -15,10 +17,7 @@ impl Lowerer {
         arguments: &[ast::TypeRef],
         span: ast::Span,
     ) -> Option<TypeId> {
-        let Some(target) = self
-            .resolve_type_name_path(path, !arguments.is_empty())
-            .ok()?
-        else {
+        let Some(target) = self.resolve_type_name_path(path, arguments).ok()? else {
             let first = path.first().expect("a qualified type path is non-empty");
             self.error(first.span, format!("unknown type `{}`", first.text));
             return None;

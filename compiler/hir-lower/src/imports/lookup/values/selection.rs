@@ -11,7 +11,7 @@ use scoop_hir as hir;
 impl Lowerer {
     pub(super) fn non_value_origin(origin: &ValueOrigin) -> Option<NonValueTarget> {
         match origin {
-            ValueOrigin::NonValue { target, .. } | ValueOrigin::CoreNonValue(target) => {
+            ValueOrigin::NonValue { target, .. } | ValueOrigin::SourceNonValue(target) => {
                 Some(*target)
             }
             ValueOrigin::Dependency(binding) => match binding.target() {
@@ -67,19 +67,22 @@ impl Lowerer {
             super::super::calls::NamedCallOrigin::CurrentUnit(id) => self.value_binding_origin(*id),
             super::super::calls::NamedCallOrigin::Core(target) => match *target {
                 super::super::calls::NamedCallTarget::Function(id) => {
-                    ValueOrigin::CoreNonValue(NonValueTarget::Function(id))
+                    ValueOrigin::SourceNonValue(NonValueTarget::Function(id))
                 }
                 super::super::calls::NamedCallTarget::ImportedDependency(_) => {
                     unreachable!("core bindings cannot carry ordinary dependency targets")
                 }
                 super::super::calls::NamedCallTarget::Type(target) => {
-                    ValueOrigin::CoreNonValue(NonValueTarget::Type(target))
+                    ValueOrigin::SourceNonValue(NonValueTarget::Type(target))
                 }
                 super::super::calls::NamedCallTarget::Value(value) => ValueOrigin::Core(value),
                 super::super::calls::NamedCallTarget::ExtensionProperty(id) => {
-                    ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id))
+                    ValueOrigin::SourceNonValue(NonValueTarget::ExtensionProperty(id))
                 }
             },
+            super::super::calls::NamedCallOrigin::Lexical(alias) => ValueOrigin::SourceNonValue(
+                NonValueTarget::Type(crate::namespace::TopLevelTypeTarget::Alias(*alias)),
+            ),
             super::super::calls::NamedCallOrigin::Dependency(binding) => {
                 ValueOrigin::Dependency(binding.clone())
             }
@@ -105,14 +108,14 @@ impl Lowerer {
                     TopLevelTypeTarget::Nominal(NominalTarget::Object(id)) => {
                         ValueOrigin::Core(ValueTarget::Object(id))
                     }
-                    target => ValueOrigin::CoreNonValue(NonValueTarget::Type(target)),
+                    target => ValueOrigin::SourceNonValue(NonValueTarget::Type(target)),
                 }),
         );
         let (functions, _) = self.core_named_callable_partition(name);
         result.extend(
             functions
                 .into_iter()
-                .map(|id| ValueOrigin::CoreNonValue(NonValueTarget::Function(id))),
+                .map(|id| ValueOrigin::SourceNonValue(NonValueTarget::Function(id))),
         );
         result.extend(
             self.top_level_namespaces
@@ -120,7 +123,7 @@ impl Lowerer {
                 .into_iter()
                 .filter(|layer| layer.kind == TopLevelLookupLayer::CorePrelude)
                 .flat_map(|layer| layer.candidates)
-                .map(|id| ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id))),
+                .map(|id| ValueOrigin::SourceNonValue(NonValueTarget::ExtensionProperty(id))),
         );
         result.extend(
             self.core_prelude_variant_refs(name)
@@ -145,7 +148,7 @@ impl Lowerer {
         ) {
             return true;
         }
-        if let ValueOrigin::CoreNonValue(target) = origin {
+        if let ValueOrigin::SourceNonValue(target) = origin {
             return match *target {
                 NonValueTarget::Function(id) => self.function_is_accessible(id, None),
                 NonValueTarget::ImportedDependency(_) => {
@@ -175,7 +178,7 @@ impl Lowerer {
             ValueOrigin::Dependency(_) => {
                 unreachable!("dependency values are accessible by construction")
             }
-            ValueOrigin::CoreNonValue(_) => unreachable!("core blocker access was checked above"),
+            ValueOrigin::SourceNonValue(_) => unreachable!("core blocker access was checked above"),
         };
         self.access_domain_allows(domain)
     }

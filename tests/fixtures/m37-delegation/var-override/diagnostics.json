@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "immutable property `value` cannot override a mutable property",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 101,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 73
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Host` does not implement interface method `I.$set$value`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 103,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 31
+    },
+    "severity": "error"
+  }
+]

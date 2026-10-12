@@ -1,0 +1,21 @@
+interface Read { fun value(): Int; fun other(): Int = 3 }
+class Impl : Read { override fun value(): Int = 42; override fun other(): Int = 43 }
+class Child(delegate: Read) : Wrapped(delegate) { override fun value(): Int = 77 }
+open class Wrapped(delegate: Read) : Read by delegate
+open class Base : Read { override fun value(): Int = 10; override fun other(): Int = 11 }
+class Inherited(delegate: Read) : Base(), Read by delegate
+abstract class Abstract { abstract fun value(): Int }
+class Fulfilled(delegate: Read) : Abstract(), Read by delegate
+class Resolved(a: Read, b: Read) : Read by a, Read by b {
+    override fun value(): Int = 8
+    override fun other(): Int = 9
+}
+fun main() {
+    println(Inherited(Impl()).value())
+    println(Inherited(Impl()).other())
+    println(Fulfilled(Impl()).value())
+    val child: Read = Child(Impl())
+    println(child.value())
+    println(child.other())
+    println(Resolved(Impl(), Impl()).value())
+}

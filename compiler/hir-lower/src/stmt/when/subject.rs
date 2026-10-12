@@ -6,6 +6,18 @@ impl Lowerer {
         when: &ast::When,
         out: &mut Vec<hir::Statement>,
     ) -> Option<Option<Subject>> {
+        let incoming = self.smart_casts.clone();
+        let start = out.len();
+        let result = self.lower_when_subject_inner(when, out);
+        self.advance_smart_casts(incoming, &out[start..], None);
+        result
+    }
+
+    fn lower_when_subject_inner(
+        &mut self,
+        when: &ast::When,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<Option<Subject>> {
         let Some(initializer) = when.subject.initializer() else {
             return Some(None);
         };
@@ -17,7 +29,11 @@ impl Lowerer {
             Some(ty) => Some(self.resolve_type_ref(ty)?),
             None => None,
         };
-        let mut value = self.lower_expr(initializer, out, expected)?;
+        let mut value = if expected.is_none() {
+            self.lower_type_check_operand(initializer, out)?
+        } else {
+            self.lower_expr(initializer, out, expected)?
+        };
         if let Some(expected) = expected {
             if !self.is_subtype(value.ty, expected) {
                 let found = self.type_name(value.ty);
@@ -96,9 +112,13 @@ impl Lowerer {
             }
         } else if let ast::Expr::Var(name) = initializer
             && self.stable_smart_cast_binding(&name.text).is_some()
+            && self
+                .scopes
+                .lookup(&name.text)
+                .is_none_or(|local| !self.locals[local].mutable)
         {
-            // A stable source binding denotes the same snapshot. Its type facts
-            // can therefore apply to source uses in this arm.
+            // Only an immutable source can replace the saved subject in later
+            // predicates. Mutable sources share facts until their next write.
             reference = initializer.clone();
         }
         Some(Some(Subject {

@@ -95,6 +95,7 @@ pub enum NominalRepresentationShapeV1 {
         c_layout_policy: NominalCLayoutPolicyV1,
     },
     Enum {
+        representation: crate::EnumRepresentation,
         variants: Vec<EnumRepresentationVariantV1>,
     },
     Class {
@@ -158,7 +159,7 @@ impl NominalRepresentationShapeV1 {
                     validate_type(field.value_type())?;
                 }
             }
-            Self::Enum { variants } => {
+            Self::Enum { variants, .. } => {
                 let mut seen = BTreeSet::new();
                 for (index, variant) in variants.iter().enumerate() {
                     if variant.owner() != source_owner {
@@ -252,11 +253,10 @@ impl WireEncode for NominalRepresentationShapeV1 {
                 encoder.field(2)?;
                 c_layout_policy.encode(encoder)
             }
-            Self::Enum { variants } => {
-                wire::tag(encoder, 2, 2)?;
-                encoder.field(1)?;
-                wire::sequence(encoder, variants)
-            }
+            Self::Enum {
+                variants,
+                representation,
+            } => encode_enum_representation(encoder, variants, representation),
             Self::Class {
                 base,
                 declared_fields,
@@ -346,10 +346,14 @@ impl NominalRepresentationSupportV1 {
                     })
             }
             (
-                NominalRepresentationShapeV1::Enum { variants },
+                NominalRepresentationShapeV1::Enum {
+                    variants,
+                    representation,
+                },
                 NominalSourceShapeV1::Enum(source),
             ) => {
-                variants.len() == source.variants().len()
+                representation == source.representation()
+                    && variants.len() == source.variants().len()
                     && variants
                         .iter()
                         .zip(source.variants())
@@ -409,4 +413,24 @@ impl WireEncode for NominalRepresentationSupportV1 {
         encoder.field(3)?;
         self.shape.encode(encoder)
     }
+}
+
+fn encode_enum_representation<T: WireEncode>(
+    encoder: &mut Encoder,
+    variants: &[T],
+    representation: &crate::EnumRepresentation,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    let integral = representation.integer_kind().is_some();
+    wire::tag(
+        encoder,
+        if integral { 3 } else { 2 },
+        if integral { 7 } else { 2 },
+    )?;
+    encoder.field(1)?;
+    wire::sequence(encoder, variants)?;
+    if integral {
+        encoder.field(2)?;
+        representation.encode(encoder)?;
+    }
+    Ok(())
 }

@@ -6,6 +6,7 @@ pub(super) struct Replay<'s, 'a, 'n> {
     pub schemas: &'s SchemaDeclarations<'a>,
     pub sources: &'s Context<'n>,
     pub unit: PersistentExactTypeId,
+    pub types: MetadataTypes<'a, 's>,
 }
 
 impl InheritanceSlotSourceSemanticAuthority<Error> for Replay<'_, '_, '_> {
@@ -49,6 +50,32 @@ impl InheritanceSlotSourceSemanticAuthority<Error> for Replay<'_, '_, '_> {
 impl InheritanceSlotContractSemanticAuthority<Error> for Replay<'_, '_, '_> {
     fn unit_exact_type(&self) -> Result<PersistentExactTypeId, Error> {
         Ok(self.unit)
+    }
+
+    fn integral_enum_parent(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<Option<PersistentExactTypeId>, Error> {
+        let application = self.types.applied_nominal(owner)?;
+        let crate::NominalSourceShapeV1::Enum(shape) = application.declaration.source_shape()
+        else {
+            return Ok(None);
+        };
+        let Some(kind) = shape.representation().integer_kind() else {
+            return Ok(None);
+        };
+        for parent in application.declaration.exact_supertypes().values() {
+            let exact = self
+                .types
+                .exact_with_bindings(parent, &application.bindings())?;
+            let parent = self.types.applied_nominal(exact)?;
+            if matches!(parent.declaration.source_shape(), crate::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == crate::IntrinsicTypeKind::Integer(kind))
+            {
+                return Ok(Some(exact));
+            }
+        }
+        Err(Error::InheritanceEdges(owner))
     }
 }
 

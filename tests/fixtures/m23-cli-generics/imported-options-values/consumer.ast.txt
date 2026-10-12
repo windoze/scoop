@@ -35,6 +35,7 @@ SourceFile
     val callback: (() -> Int)?
       Call Some
         Lambda 0 suspend=false
+          label Some
           parameters omitted
           IntLiteral 42
     val allocated

@@ -66,6 +66,7 @@ SourceFile
           Var holder
           IntLiteral 2
           Lambda 0 suspend=false
+            label apply
             param value: _
             param increment: _
             Binary Add
@@ -107,6 +108,7 @@ SourceFile
     val mapped: Int
       Call map<Int, _>
         Lambda 2 suspend=false
+          label map
           param value: _
           Binary Add
             Var value
@@ -124,6 +126,7 @@ SourceFile
       Call choose
         IntLiteral 41
         Lambda 3 suspend=false
+          label choose
           param value: _
           assign .calls
             Var counter
@@ -165,5 +168,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 4 suspend=false
+          label exercise
           param value: _
           Var value

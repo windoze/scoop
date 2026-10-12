@@ -6,6 +6,9 @@ use super::*;
 
 fn type_alias(name: &str, target: TypeRef) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target,
@@ -25,7 +28,7 @@ fn runtime_property(name: &str) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(call("initialValue", Vec::new())),
             accessors: ast::AccessorSyntax::default(),
@@ -36,7 +39,8 @@ fn runtime_property(name: &str) -> Decl {
 
 fn extern_function(name: &str) -> Decl {
     let annotation = ast::Annotation {
-        name: ident("Extern"),
+        use_site: None,
+        name: ident("Extern").into(),
         args: [
             ("lib", "numbers"),
             ("name", "native_identity"),
@@ -73,9 +77,11 @@ fn callback_registration() -> ast::Expr {
         ty_named("Int"),
     );
     let callback = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("Int")),
             span: sp(),

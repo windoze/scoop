@@ -19,6 +19,7 @@ pub struct ClassDecl {
 /// Checked fields and parents in the original declaration's binder domain.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassDefinition {
+    pub inheritance_family: InheritanceFamily,
     pub release_policy: ReleasePolicy<ExportReleaseHookRef>,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub modifier: ClassModifier,
@@ -85,7 +86,6 @@ pub enum ClassRepresentation {
 #[derive(Debug, Clone)]
 pub struct ClassField {
     pub owner: ClassId,
-    pub property: PropertyId,
     /// Position in the owner's common field definition; not an entity identity.
     pub definition_index: usize,
     pub source: ClassFieldSource,
@@ -94,8 +94,29 @@ pub struct ClassField {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassFieldSource {
-    PrimaryParameter(ConstructorParamId),
-    Body,
+    EnclosingInstance,
+    CapturedEnvironment,
+    PrimaryParameter {
+        property: PropertyId,
+        parameter: ConstructorParamId,
+    },
+    BodyProperty(PropertyId),
+    InterfaceDelegate {
+        ordinal: u32,
+    },
+}
+
+impl ClassFieldSource {
+    pub const fn property(self) -> Option<PropertyId> {
+        match self {
+            Self::PrimaryParameter { property, .. } | Self::BodyProperty(property) => {
+                Some(property)
+            }
+            Self::InterfaceDelegate { .. }
+            | Self::EnclosingInstance
+            | Self::CapturedEnvironment => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

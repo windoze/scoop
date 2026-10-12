@@ -276,7 +276,7 @@ fn property_value(name: &str, ty: TypeRef, expression: Expr) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),
@@ -416,6 +416,9 @@ fn fixed_typealias_application_is_not_a_generic_constructor_candidate() {
         file(vec![
             generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
             Decl::TypeAlias(ast::TypeAliasDecl {
+                annotations: Vec::new(),
+                type_params: Vec::new(),
+                where_clause: None,
                 visibility: ast::VisibilitySyntax::Omitted,
                 name: ident("Fixed"),
                 target: ty_generic("Box", vec![ty_named("Boolean")]),
@@ -584,9 +587,10 @@ fn initializing_receiver_callable_property_remains_a_real_member() {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("thunk"),
-        ty: ty_function(false, Vec::new(), ty_named("Int")),
+        ty: Some(ty_function(false, Vec::new(), ty_named("Int"))),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(Expr::Lambda {
+                label: None,
                 id: ast::LambdaId(0),
                 is_suspend: false,
                 parameters: None,

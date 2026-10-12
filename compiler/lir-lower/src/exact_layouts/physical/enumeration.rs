@@ -15,6 +15,12 @@ impl Projection<'_> {
             .ok_or_else(error)?;
         match (value.representation().kind(), &actual.repr) {
             (
+                lir::ExactRepresentationKindV1::Scalar(lir::ScalarRepresentationKindV1::Integer(
+                    expected,
+                )),
+                lir::EnumRepr::Integral { kind, .. },
+            ) if expected == *kind => {}
+            (
                 lir::ExactRepresentationKindV1::NicheEnum(expected),
                 lir::EnumRepr::Niche {
                     kind,

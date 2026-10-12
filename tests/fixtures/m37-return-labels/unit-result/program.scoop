@@ -1,0 +1,2 @@
+fun consume(block: () -> Unit) {}
+fun main() { consume { return@consume 1 } }

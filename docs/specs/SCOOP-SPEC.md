@@ -43,7 +43,7 @@ Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统
 
 - 声明：`class` / `interface` / `object` / `companion object` / `typealias` / 属性（`val` / `var`，含委托属性）/ 函数 / 扩展函数与扩展属性；
 - 类特性：主构造函数与次构造函数、`init` 块、继承（单继承 + 接口实现）、抽象类、可见性修饰符（`public` / `internal` / `private` / `protected`）；
-- 数据与函数：局部函数、lambda、匿名函数、函数类型、callable reference、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载、尾递归（`tailrec`）；
+- 数据与函数：局部函数、lambda、匿名函数、函数类型、callable reference、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载；`tailrec` 等兼容修饰符仅解析后忽略（8.4）；
 - 泛型：类型参数、完整类型实参、上界约束、`where` 子句与调用点类型推断；Scoop不采用Kotlin的声明点型变、使用点投影或star projection（见3.2）；
 - 控制流：`if` / `when` / `for` / `while` / `do-while`、区间与迭代、`break` / `continue` / `return`（含标签）、异常（`try` / `catch` / `finally` / `throw`）；
 - 空安全运算符：`?.` / `?:` / `!!`（语义见第 7 章）；
@@ -72,6 +72,24 @@ Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统
 
 - 引用相等 `===` / `!==` 只适用于引用类型（见 4.4.2）。
 - 智能转换（smart cast）仅用于 `is` / `!is` 类型检查；对 `Option<T>` 不提供"判非空后收窄"式的智能转换（见第 7 章）。
+
+类型事实沿当前 callable 中实际继续执行的路径传播。`is` / `!is`、否定和短路条件分别建立真假路径事实；if、when 和 try 的多个正常前驱只保留共同成立的事实。return、throw 及跳到其他位置的 break/continue 不进入当前位置的正常合流，例如 `if (value !is String) return` 之后可以用 String 视图读取 value。普通调用只按已声明的结果类型判断是否具有正常结果，不推测用户正文是否返回。
+
+对可变局部直接执行 `is` / `!is` / `as` / `as?` 时，检查其声明存储类型所允许的实际值；一次迭代的收窄不能使后续迭代的显式检查消失。`as` / `as?` 仍按原规则产生转换结果，不单独建立作用于后续读取的 smart cast 事实。
+
+函数类型的 smart cast 视图可能需要 ABI 适配闭包。对已有这种视图的稳定 binding 再执行显式 `is` / `!is` / `as` / `as?` 时，仍读取该 binding 的原存储值，并按其声明类型检查操作是否合法；不能检验为先前读取生成的适配闭包。引用相等 `===` / `!==` 同样比较原存储值的身份。普通读取有期望类型且原声明类型已满足它时，也不为函数视图创建多余的适配。确实创建了不同函数类型的适配值后，该值与来源不再共享快照事实；它们各自保留自己的函数类型能力。
+
+while、for、do/while 分别合并条件入口、body、正常回边、对应目标的 continue 和 break；循环后同时考虑条件失败和所有实际 break 出口。分析在当前程序已有的 binding/type 事实中求稳定结果，不能只按首次迭代决定后续迭代的视图。do/while 条件仍须满足 8.3 的初始化规则。finally 在每个进入它的控制结果上执行，其写入使相应旧值事实失效，新控制转移替换原有结果；挂起恢复保持原控制路径。
+
+普通局部 var 可以在同一 callable 内收窄；每次重新赋值都会撤销旧值的类型事实，之后的类型检查可以建立新事实。`++` / `--` 的写回同样是赋值，这两个表达式可以独立用作语句并丢弃结果。复合赋值和更新读取当前已知的类型视图，但写回按 binding 的声明类型检查与适配，不能把值直接写入不匹配的存储表示。已经暴露可写地址的 binding、可变 property、custom/delegate getter 和一般成员读取不作为稳定局部值。保存到不可变局部的快照拥有自己的事实，源 var 后续赋值不改变该快照。不可变捕获值和构造器参数同样是稳定来源，其快照（包括 when 保存的 subject）与来源在值未改变的路径上共享已证明的类型事实。此规则不放宽 8.1.3 的捕获限制：不得通过 var 的收窄视图隐式创建可捕获的 val。
+
+### 2.4 标识符
+
+普通标识符采用 Unicode `XID_Start`/`XID_Continue`，另外允许 `_` 作为起始字符；关键字按实际拼写识别。普通名称与反引号包裹的相同文本是同一名称，不执行大小写折叠或 Unicode 规范化。源码位置继续按 UTF-8 byte offset 记录。
+
+反引号将其中的完整文本作为一个标识符，例如 ``val `when` = 1``、``fun `check input`() {}``。文本不能为空，不能含反引号、换行、NUL 或控制字符，不执行反斜杠转义。被包裹的关键字不触发对应语法；含点号的 `` `a.b` `` 是一个名称，与 `a.b` 的两个路径段不同。只有源码解析需要区分转义拼写，名称和产物保存实际文本及已解析的路径结构。
+
+声明、package/import、alias、成员、命名参数、注解及跨 Cone 导出使用同一名称规则。FFI 外部符号和 Cone coordinate 仍采用各自的独立规则（12.2、13.4）。
 
 ---
 
@@ -114,7 +132,7 @@ Scoop 的类型分为两大类：
 - 上界的完整 interface application 可以引用被约束参数自身，例如 `T : Equality<T>`；它表示实际类型必须实现 `Equality<该实际类型>`，不是裸参数上界 `T : T` 或隐式 `Self`。所有形参先建立身份，再解析 bound 中的参数引用；普通继承环与非法 bound 规则仍适用。
 - receiver为有界type parameter时，成员候选只来自唯一class上界、interface上界及其继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct/virtual/interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。 class 上界中的属性同样参与查询：存储、计算属性和函数值属性使用完整上界实参及其继承替换；读取、赋值、复合赋值和安全访问保留原 receiver 的访问域检查，getter／setter 在定义处选定。该规则与声明位于当前 Cone 或依赖无关。
 - 每个合法且参数完整的exact class/interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound。Scoop不引入`dyn`/trait object语法、object-safety分类或可空witness；所有合法interface成员仍可经concrete、exact interface或bounded receiver调用。`Encodable<T>`、`Decodable<T>`及其方法也使用普通interface语义。
-- interface 方法不能声明自己的类型参数；`interface I { fun <T> f(value: T) }` 是编译错误。interface 宿主可以是泛型，例如 `interface I<T> { fun f(value: T) }`，完整 application `I<String>` 中的方法遵循普通接口调用规则。
+- interface 方法不能声明自己的类型参数，包括带 default body 或 private helper 的方法；`interface I { fun <T> f(value: T) }` 是编译错误。interface 宿主可以是泛型，例如 `interface I<T> { fun f(value: T) }`，完整 application `I<String>` 中的方法遵循普通接口调用规则。方法自身泛型与任何泛型虚方法是单态化及固定签名 vtable/itable 下的明确语言排除项，不作为未来动态分派能力预留；`final override` 也不能形成泛型虚槽。
 - non-interface generic method必须non-virtual。class generic method必须语义为final；generic method不能声明为open/abstract/override，不能实现或覆盖vtable/itable slot。struct/enum方法本来即为final。调用根据exact receiver application与完整method argument使用direct dispatch，运行期派生class不能override目标。
 - class/struct/enum泛型宿主上的泛型成员函数，以及带宿主类型参数环境的companion上的泛型成员函数，都拥有两组类型参数：宿主类型实参由接收者的exact静态application确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。两组参数使用不同semantic identity，方法参数不得与宿主参数重名。companion的宿主实参来自9.1.3规定的完整宿主application，不从方法实参反推。调用点显式列表只写method自身参数，可整组省略，或覆盖全部位置并在待推断位置写`_`；两组参数的bound一起验证。interface本身的方法不能声明第二组类型参数，其companion的方法属于普通object成员。
 - top-level、local与extension generic function，以及上述non-interface generic method，都可以使用inline upper bound与`where`。generic method的callable reference必须由期望函数类型唯一确定method全部实参，得到的是某个concrete函数值；Scoop没有first-class polymorphic function value。
@@ -122,15 +140,21 @@ Scoop 的类型分为两大类：
 - `is` / `as` / `as?`不擦除generic argument，generic nominal目标必须是参数完整的exact application。例如`Box<Int>`与`Box<String>`、`I<Int>`与`I<String>`是不同检查目标，前者不会仅因`Int <: Any`匹配`Box<Any>`。generic body中的type parameter在普通单态化后引用concrete TypeDescriptor；不存在裸generic、star或projected runtime descriptor。
 - 单态化必须结构上保证实例化闭包终止。同一generic callable递归SCC中的每个调用环，把宿主参数与callable参数组成的完整向量代回起点后必须逐项保持identity；普通直接/互递归因此复用同一concrete实例。参数替换非identity的环属于禁止的polymorphic recursion，在template定义检查时报错。非递归调用边仍可任意变换实参。编译器不得用递归深度、实例数量或超时阈值决定源码是否合法。
 
-#### 3.2.1 非泛型透明 `typealias`
+#### 3.2.1 透明 `typealias`
 
 跨 Cone 的 `Alias(...)` 与本地别名遵循相同规则：先按真实 typed target 展开，再对目标声明的构造器执行普通候选决议。外来 alias、本地指向外来类型的 alias 及其链式组合保留目标的构造器身份、默认参数、访问域与 GC effect，不生成转发构造器。
 
 别名限定的构造调用保留目标 application 的全部固定实参，包括 `Alias.Variant(...)`；实参表达式不能重新推断并替换这些类型实参。即使调用结果被赋给 `Any` 或没有显式结果类型，payload 与构造参数仍按别名展开后的目标类型检查。
 
-支持top-level、非generic透明alias，例如`public typealias UserId = UInt64`、`typealias Names = Array<String>`。右侧必须是声明点可访问、参数完整的普通类型，可以是nominal application、tuple或函数类型；alias不能声明type parameter、捕获外层type parameter或出现在nested/local位置。alias可以引用其他alias，但展开依赖图必须无环；直接或间接递归均为定义处错误。
+支持 top-level、nominal body 和局部块中的透明 alias，例如 `public typealias UserId = UInt64`、`typealias Names<T> = Array<T>`、`typealias Transform<T> = T.(Int) -> T`。alias 可以声明自己的类型参数与正常 inline/where bound，右侧在定义处绑定为完整类型表达式；使用时替换参数并透明展开。类型位置必须提供全部自身参数，不能使用裸泛型、star 或 projection。构造位置可以通过原有构造器约束推导 alias 参数；固定在目标中的实参不能被覆盖，不能唯一求解时要求完整参数。
 
-alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。alias的类型语义等同于完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。visibility默认仍为`internal`；完全展开目标type tree中每个被引用声明的effective access domain必须覆盖alias自身的effective domain。因此internal alias也不能暴露file-private目标，public alias只是同一signature-exposure规则的更宽特例。非泛型顶层 typealias 可经普通 import、public import 及链式 re-export 跨 Cone 使用，别名保持原声明身份，使用处展开到同一目标类型。不支持泛型、嵌套或局部 typealias。
+enum variant 的 alias 限定名遵循同一规则：构造时由 payload 和期望 enum application 推导，模式中由 subject 的完整类型推导；目标中已固定的参数仍须匹配。若 alias 直接指向自身类型参数，构造前须由显式 alias 实参或期望类型确定实际目标声明，不能从尚未确定声明的构造实参反推出一个类型声明。
+
+普通 static nested owner 的 alias 不自动捕获泛型宿主的参数；需要时显式声明自身参数。inner/companion 的实例化作用域与局部作用域可以引用其原本可见的外层类型参数，限定名必须提供所需的完整宿主 application。局部 alias 不能带可见性修饰符，在声明之后的词法范围内可见，可以引用此前可见的局部类型，不产生运行期状态；其中的名字不在使用处重新绑定。局部名称不导出，需要公开的类型使用完整展开结果。
+
+alias 的全部展开依赖必须无环，包含藏在泛型实参、函数类型和数组中的依赖；直接或间接递归均在定义处诊断，不以展开深度、数量或超时限制替代循环检查。
+
+alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。alias的类型语义等同于完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。非局部 alias 的 visibility 默认仍为 `internal`；展开目标和参数 bound 的 effective access domain 必须覆盖 alias 自身的 effective domain。内部 alias 也不能暴露 file-private 目标，public alias 遵循同一签名可见性规则。可导出的 alias 可经普通 import、public import 及链式 re-export 使用，保留原声明身份、实际 binder、bound 和定义处已绑定的目标类型，消费方不重新查找目标名称。
 
 ### 3.3 参数传递、receiver 与 `this`
 
@@ -202,7 +226,7 @@ struct 自动获得：
 
 ### 4.2 enum
 
-`enum` 定义一个带负载的代数数据类型（类似 Rust 的 enum），取代 Kotlin 的 `enum class`。
+普通 `enum` 定义一个带负载的代数数据类型（类似 Rust 的 enum），取代 Kotlin 的 `enum class`。显式指定 primitive 整型父类型的整型枚举遵守 4.2.1。
 
 ```
 enum E {
@@ -226,7 +250,7 @@ enum E {
   - 构造函数式命名字段变体：`VariantWithDefaults(val f1: Int, val f2: String = "hello")`，**规则同 struct 的主构造函数**：字段可带默认值，构造时可用命名参数。
 - 两种命名字段形式（block 式与构造函数式）语义等价；构造函数式额外支持默认值。
 - **variant及其字段不支持可见性修饰符，declared visibility固定为public**；effective domain仍与enum owner取交集（9.1.5）。
-- **enum 自身不支持构造函数、不支持 `init` 块、不支持成员属性**；body 中只允许声明成员函数与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
+- **enum 自身不支持构造函数、不支持 `init` 块、不支持 stored/delegated 成员状态**；body 中允许声明成员函数、9.1 的 computed `val` 与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
 - 每个变体是一个构造器：`E.SimpleVariant`、`E.VariantWithValue(42)`、`E.VariantWithNamedField(f1 = 1, f2 = "x")`、`E.VariantWithDefaults(1)`、`E.VariantWithDefaults(f1 = 1)`。block 式命名字段变体只能以命名参数构造；构造函数式变体沿用 struct 主构造函数的参数规则，允许位置参数、命名参数及默认值。两者均不提供花括号构造形式（与 struct 字面量同样存在解析歧义）。
 - 跨 Cone enum 使用相同的变体构造、import/typealias、期望类型和默认参数规则；泛型变体的宿主实参由显式实参、payload 与期望 enum application 按普通约束推导确定。`E.V` 中的裸泛型 `E` 是声明命名空间，不先构造缺失实参的类型。值构造按实际声明身份生成，不以 provider 来源授予额外资格。
 - enum 拥有 generic companion 不改变上述变体规则：限定调用先按实际静态 binding 识别变体，只有目标属于 companion 时才要求完整宿主实参（9.1.3）。变体构造不访问或初始化 companion。
@@ -238,6 +262,20 @@ enum E {
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
 - 泛型 enum 允许，例如核心库的`enum Option<T>`（见7.2）；不同类型实参形成互不转换的exact application。
+
+#### 4.2.1 整型枚举
+
+`enum E: I { First = 1, Last = I.MAX_VALUE }` 定义具有独立 nominal identity 的整型子类型 `E <: I`。`I` 必须是 11.2 的八种 primitive integer 之一，透明 alias 按实际类型处理；浮点、Boolean、Char、类型参数、另一个 enum 及其他值类型不能作为整型父类型。至多有一个整型父类型，仍可显式实现普通 interface。
+
+每个 variant 必须写出 initializer，不能携带 payload 或字段，不按声明顺序隐式编号。initializer 按 `I` 检查，使用 9.1.2 的整数 const 表达式规则及已声明的 const property；值必须可精确表示，同一 enum 中不能重复。表达式自身的算术保持原有整数规则，不引入额外的隐式截断或 signedness 转换。普通 const property 的允许类型不因此增加 enum。
+
+`E` 的合法值仅为其 variant。赋值、参数、返回、分支合流及函数值适配可以将 `E` 按值上转为 `I`；上转不分配、不改变数值位表示，并产生不再保留 enum 来源的 `I`。`I` 不能隐式转成 `E`，字面量、常量传播或数值恰好等于某个 variant 都不能绕过该限制；相同父类型的不同 enum 也不能隐式互转。普通显式 `as` / `as?` 判断实际类型，不是按整数内容构造 enum 的入口。
+
+整型枚举使用 `I` 的既有数值成员与接口关系，不另行派生同类型 equals，也不声明专属数学 operator。成员签名中的 `I` 不替换成 `E`，因此算术、位运算和转换按父类型的声明产生结果；例如 `e + 1` 为 `I`，`e += 1` 和 `e++` 因结果不能写回 `E` 而报错。继承的 `Equality<I>` 不能变成 `Equality<E>`。其他普通成员与显式 interface 实现按既有规则检查。
+
+直接装箱 `E` 保留实际 enum application；箱子同时符合 `E`、`I` 及其适用的接口关系，可以按 `E` 或 `I` 解箱。先上转 `I` 再装箱只保存 `I`，不能凭数值相同通过 `is E` 或解箱为 `E`。`is`、`as`、`as?` 与函数值适配使用相同的类型关系。
+
+泛型应用保留完整 `E` 身份，普通 nominal 泛型仍不变，`Array<E>`、`Option<E>`、`Ptr<E>` 等不能转换成相应的 `I` 应用；不扩大 13.9 的泛型上界类别。以 `E` 为 subject 的 when 按 variant 集合检查穷尽性，上转 `I` 后按整数值域检查。size、alignment、signedness、按值 ABI 与 `I` 相同，无额外 tag；未使用整数值不形成新的 Option niche（7.4）。FFI 的合法值域见 13.8。
 
 ### 4.3 tuple
 
@@ -523,7 +561,7 @@ smart cast 以当前执行路径已经建立的类型事实为依据：
 - 后续 arm 和 else 只能继承所有到达路径共有的事实。例如无 guard 的 `!is T` 失败能建立 T；`is T if check()` 失败既可能来自类型不匹配，也可能来自 guard 为假，不能一概断言“不属于 T”。
 - arm 内的临时类型视图在退出相应作用域后恢复，不改变声明的原始类型，也不把整个函数升级为全局数据流推断。
 
-可收窄对象包括不可变局部、参数、subject 的 `val` 绑定（含头部解构得到的叶 binding）及不可变模式绑定。叶 binding 以自身经过的类型检查建立事实，不因完整 subject 被收窄而自动推导新的字段类型。对可变局部、delegate、可能重新计算的属性/getter 不直接收窄原表达式；需要稳定视图时使用 `when (val x = expression)`。内部 subject 快照始终稳定，但快照的事实不能反推每次重新读取都可能变化的原属性。
+可收窄对象包括不可变局部、参数、subject 的 `val` 绑定（含头部解构得到的叶 binding）、不可变模式绑定，以及满足 2.3 稳定条件的当前 callable 局部 var。叶 binding 以自身经过的类型检查建立事实，不因完整 subject 被收窄而自动推导新的字段类型。delegate、可能重新计算的属性/getter 不直接收窄原表达式；需要稳定视图时使用 `when (val x = expression)`。内部 subject 快照始终稳定，但源 var 被写入后，快照的事实不得再反推该 var；快照的事实也不能反推每次重新读取都可能变化的原属性。
 
 类型检查与成功转换使用现有 exact type、泛型单态化、接口、装箱和拆箱通道，不引入 JVM 式类型擦除规则或新的 runtime 检查协议。同一路径上的多个已成功类型检查应同时保留其约束，访问成员或传参时使用相应的已知类型视图，并沿普通重载规则处理候选。分支内创建的闭包、匿名函数与局部函数可继续使用所捕获不可变 binding 的已知类型事实；捕获的原始存储类型与声明身份不改变。不为此新增用户可书写的 union/intersection type。`Option<T>` 仍不因 `isSome()` 或判空获得 payload smart cast。
 
@@ -588,6 +626,8 @@ fun describe(point: Point): String {
 
 多条件允许尾随逗号。条件表达式及其调用、异常或挂起行为只在执行到该条件时发生；不能预先计算后续 arm 的值、区间或集合。`in` 使用现有 `contains` 规则，不限于区间，也不要求为本特性新增 range 类型。
 
+`is` / `!is` 头部以 subject 求值快照的静态类型检查类型条件是否合法。此前条件失败所建立的 smart cast 不改变这一检查基准，因而可以顺序组合互补或互斥的类型条件；这些路径事实仍参与普通条件表达式、guard 和 arm body 的分析。
+
 任意合法表达式都可以作为 subject，包括 String、Boolean、class、interface、函数值和泛型值。具体条件仍必须能按普通规则通过类型检查：`Any` 可以接受 `is String` 条件，但当 x 的静态类型为 Any 时，`when (x) { y -> ... }` 不会因此获得不存在的 `Any.equals`。类、数组或函数值没有适用的成员 `operator equals` 时，普通值条件照常报错；需要 identity 判断可以使用无 subject 的 `when { x === y -> ... }`。
 
 值条件复用语言规范 11.11 的成员选择、参数适配、泛型 bound 和结构比较规则。既不交换左右操作数，也不使用 `Equality.equalTo`、地址比较或运行期动态方法作为 fallback。普通表达式的数字字面量与 contextual enum variant 可以使用比较目标提供的期望类型，但这不改变表达式与模式的语法分类。
@@ -600,7 +640,7 @@ fun describe(point: Point): String {
 | --- | --- |
 | 任意 `when` 用作值 | 必须 |
 | 含至少一个 `case` 的 when，用作语句 | 必须，保留 Scoop 模式 when 的既有要求 |
-| 不含 case，subject 为 Boolean 或 enum，包括 `Option<T>`，用作语句 | 必须，与现代 Kotlin 对 Boolean/enum 的要求一致 |
+| 不含 case，subject 为 Boolean、enum（包括 `Option<T>`）或 sealed class/interface，用作语句 | 必须 |
 | 其他普通 subject 或无 subject 的 when，用作语句 | 可以不穷尽；没有 arm 命中时正常继续 |
 
 头部的 val 解构是分支之前的声明，不是一个 arm，不贡献覆盖，也不使普通 when 自动归类为“含 case”。穷尽性始终针对保存的完整 subject 和实际 arm 计算。
@@ -611,9 +651,9 @@ case 继续使用现有递归 constructor matrix：variant payload、tuple/struc
 
 普通条件只有具有确定语言语义的部分参与覆盖：Boolean 的字面量 `true` / `false`、可确定的内建标量 literal 比较，以及使用编译器已知结构相等的 enum unit variant 等，可以转成现有 checker 的覆盖事实。任意变量、const 引用、调用、`in` 条件或用户定义 equals 均不被当作构造器覆盖；不能由两个复杂 Boolean 常量表达式推导完备性。普通值条件仍以原表达式和已选 equals 执行，覆盖事实不改变求值行为。
 
-对于纯 unit enum，列出全部 variant 且比较使用既有派生语义时可以穷尽；如果用户覆盖了 equals，应使用 `case` 或 else，不能假设相等具有自反性。带 payload 的 enum 按结构 case 递归覆盖最直接，列出若干 payload 构造值不能自动覆盖整个 variant。
+对于纯 unit enum，列出全部 variant 且比较使用既有派生语义时可以穷尽；如果用户覆盖了 equals，应使用 `case` 或 else，不能假设相等具有自反性。整型枚举使用整数父类型的已知相等语义，直接列出全部 variant 也可以穷尽。带 payload 的 enum 按结构 case 递归覆盖最直接，列出若干 payload 构造值不能自动覆盖整个 variant。
 
-普通 class/interface 的实现集合不是封闭集合，不能根据当前 Cone 中恰好出现的实现证明穷尽。现阶段不借 M35 实现 `sealed`，也不增加任意谓词、区间或类型逻辑的完备性证明器；不能从已有有限覆盖规则确定的剩余路径使用 else。
+普通 class/interface 的实现集合不是封闭集合，不能根据当前 Cone 中恰好出现的实现证明穷尽。sealed class/interface 使用 9.1.7 的完整子类型关系。不能从已有有限覆盖规则确定的剩余路径使用 else，不增加任意谓词、区间或类型逻辑的完备性证明器。
 
 正常结束的分支按现有规则产生尾值，空块或以非表达式语句结束的块产生 Unit。存在外层期望类型时，所有正常结果必须能适配该类型；否则取正常分支的唯一可表达最小上界，多个不可比较的最小上界退化为 Any。return/throw/break/continue 和 Nothing 求值没有正常结果，不参与值合并；所有路径均不正常结束时，整体为 Nothing。
 
@@ -704,6 +744,8 @@ enum Option<T> {
 
 ### 7.4 enum 布局与 `Option` niche 保证
 
+4.2.1 的整型枚举直接使用底层整数的标量表示，不带 tag 或 payload。其未使用的整数位模式不构成本节的 niche，`Option<E>` 使用普通 tagged 表示。下述代数 enum 的布局规则不改变整型枚举自身的标量表示。
+
 对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None`编码为该空位，`Some(v)`与`v`的表示相同。空位按定义不是合法的裸`T`值；所有安全构造、compiler-generated值与声明为返回裸`T`的FFI边界都必须维持该不变量，unsafe代码破坏它后行为未定义。这是语言的固定特性，而非可选优化。适用类型：
 
 - **引用类型**：空位是全零的引用表示。普通单字引用为零指针；interface 的 None 为 `{null, null}`，Some 保留完整的 object／itab 双字值，判断空值只检查 object。空接口的合法 itab 可以为 null，不能用 itab 判断引用是否为空；
@@ -711,7 +753,7 @@ enum Option<T> {
 
 因此`Option<FunPtr<F>>`在`F`满足C ABI规则时可以直接表示可空函数指针；`Option<Ptr<T>>`只有在`T`本身有本章定义的portable C pointee representation，或`T == Unit`作为opaque `void *`例外时，才能直接出现在C ABI边界。`Option`的niche不绕过C-FFI-safe classifier，尤其`Option<Ptr<其他ZST>>`仍被拒绝。`Option`包裹的引用类型与裸引用布局相同，但引用类型本身仍不能进入C ABI。对其他类型`Option<T>`带tag，具体布局不保证。
 
-niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
+niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的代数enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
 
 `MaybeUninit<T>` 的全零表示是合法 wrapper，不能继承 T 的 niche；`Option<MaybeUninit<T>>` 使用普通 tagged 表示。`MaybeUninit<Option<T>>` 则与该 Option 的存储等大，已初始化的 None 是合法 payload；嵌套 Option 仍逐层保持不同状态。
 
@@ -723,6 +765,8 @@ tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及
 
 函数语法整体与 Kotlin 一致：默认参数、命名参数、`vararg`、扩展函数、中缀调用、运算符重载、lambda 与尾随 lambda、函数类型 `(A, B) -> R` 等。
 
+- 具名表达式体函数省略结果类型时，在定义处从 body 的正常结果推导；无正常结果时为 Nothing。规则同样适用于顶层、成员、扩展、局部、泛型、挂起及 override 函数；泛型结果可包含声明的类型参数。显式结果类型作为 body 的期望类型，省略结果类型的块体或无 body 声明仍返回 Unit。表达式体禁止显式 return，不从调用者的期望类型决定声明签名；空数组、无期望类型的 None、未定型 lambda 等不能回退成 Any 或 Unit。
+- 函数结果与非局部属性类型按实际声明依赖完成，不能依赖文件枚举顺序。递归推导环必须由显式类型打断，并在相关声明处诊断；显式签名的普通递归仍合法，局部声明仍遵守先声明后使用。推导结果与显式类型遵守相同的可见性检查，不得泄漏 private、局部或匿名类型；重载不以返回类型区分。导出的签名已经完整，依赖消费方不补推导。
 - 非 `Unit` 函数的所有可达正常完成路径必须返回一个可赋给结果类型的值；抛出异常也可终止路径。无法静态确定时是编译错误。
 - 显式结果为 `Nothing` 的函数不能正常落空、执行裸 `return` 或返回一个可正常产生的值；可通过 `throw`、另一个 `Nothing` 调用或可静态确定不结束的控制流终止。调用的无正常返回性质来自已解析的实际结果类型，同样适用于成员、依赖函数、函数值、默认值和泛型实例。它不蕴含 `@NoGC`、不抛异常或不挂起；`suspend () -> Nothing` 可以挂起，但不能成功完成并产生结果。
 - `break` 与 `continue` 只改变其目标循环的控制流，不视为函数返回；循环按可能正常结束处理，除非可以静态确定不会结束。
@@ -735,14 +779,20 @@ tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及
 普通函数类型写作 `(P1, P2, ...) -> R`，挂起函数类型写作 `suspend (P1, P2, ...) -> R`。零参数函数必须写作 `() -> R`；参数名、缺省值与 `vararg` 不是函数类型身份的一部分。
 
 - 函数类型是**引用类型**。函数值可以携带捕获环境，具有 identity，由 GC 管理；它不是一个裸代码地址。
-- 函数类型的身份由挂起性、参数个数、每个参数类型和返回类型共同决定。普通与挂起函数类型之间不存在子类型关系或隐式转换。
+- 函数类型的身份由挂起性、receiver 是否存在及其类型、普通参数个数、每个参数类型和返回类型共同决定。普通与挂起函数类型之间不存在子类型关系或隐式转换。
 - 同为普通函数类型或同为挂起函数类型时，参数类型逆变、返回类型协变：若 `A2 <: A1` 且 `R1 <: R2`，则 `(A1) -> R1 <: (A2) -> R2`。多参数逐项应用同一规则。
 - 赋值、传参或 `as` 把函数值适配到不同但兼容的函数类型时，结果与来源不保证 `===`。函数类型的 `is` / `as` 按上述结构化子类型关系判断，不要求参数和返回类型逐项完全相等。
 - 函数类型不保留形参名、缺省值或 `vararg` 调用约定。经函数值调用时只能按位置提供与类型元数相同的实参；声明中的 `vararg T` 在函数类型中表现为其实际参数类型 `Array<T>`。
 - 函数值以 `f(args...)` 调用；`f.invoke(args...)` 是同一操作的显式写法。若 `f` 是挂起函数类型，调用点必须处于 8.2 允许的挂起上下文。
 - 函数值不定义结构相等。可以用 `===` / `!==` 观察同一已保存函数值的引用 identity，但规范不保证对同一函数重复创建 callable reference 或无捕获 lambda 时得到相同 identity。
 
-Scoop 当前不提供 Kotlin 的 receiver function type（`A.(B) -> R`）；扩展函数的 callable reference 按 8.1.4 显式表示为普通函数类型。
+receiver 函数类型写作 `A.(P1, P2, ...) -> R` 或 `suspend A.(P1, P2, ...) -> R`。receiver 是独立的源码槽位，不计入普通参数数目；`A.() -> R` 没有普通参数。receiver 形状保留在类型身份和共享签名中。扩展函数的 callable reference 按 8.1.4 产生把 receiver 放在首位的普通函数类型，再按需要适配。
+
+receiver 函数值与把 receiver 展平为首参数的普通函数值允许双向适配，按展平后的参数逆变、结果协变和相同挂起性判断；运行期 `is` / `as` 使用同一关系。仅把首参数改写为 receiver 不能区分重载。此适配不改变 nominal 泛型不变性，例如 `Array<A.() -> R>` 不因此变成 `Array<(A) -> R>`。
+
+泛型推导的下界均为同一完整函数类型时保留该源码形状；没有下界时，同一完整上界使用相同规则。数组元素和分支结果均为同一完整函数类型时也保留该形状。互相可适配的不同函数形状不能互相排除而产生空候选集；约束仍不能唯一决定形状时，需要显式类型。
+
+receiver 函数值支持 `f(receiver, args...)`、`f.invoke(receiver, args...)` 和 `receiver.f(args...)`。最后一种形式遵循普通成员优先及局部函数值、扩展候选规则，不能覆盖适用的实际成员；receiver 和各普通实参按源码顺序只求值一次。值类型 receiver 沿 3.3 按值传递，不产生调用方 place 的隐式引用。
 
 #### 8.1.2 lambda 与匿名函数
 
@@ -753,7 +803,10 @@ lambda 写作 `{ parameters -> body }`，挂起 lambda 写作 `suspend { paramet
 - lambda 或匿名函数已有显式参数类型时保留该类型，并按 8.1.1 的逆变检查其能否接收期望参数；匿名函数已有显式返回类型时保留该类型，并按协变检查结果。上下文只补全未标注的部分，随后按普通函数值规则适配，不能因直接写在实参位置而禁止既有函数类型型变。
 - lambda 参数支持 4.6 的解构模式。传入的单个参数值作为该pattern的subject且只处理一次；解构失败不产生运行期分支，参数静态类型必须能按该模式解构，否则是编译错误。投影、component调用、hidden temporary、异常与挂起语义均遵守4.6，不改变函数的源码/函数类型元数或该参数对应的单个typed ABI classification entry。
 - lambda 的值是 body 最后一个表达式的值；有期望结果类型时，按普通函数返回规则检查 subtype 并完成隐式适配，包括值装箱、引用上行转换与函数值型变，不要求结果类型逐字相同。期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
-- lambda 中的裸 `return` 是编译错误。Scoop 不提供 Kotlin inline lambda 的 non-local return；需要提前返回时应使用匿名函数，其 `return` 只返回该匿名函数。
+- lambda 中的裸 `return` 是编译错误；局部提前返回使用 `return@label`。`label@ { ... }`、`label@ suspend { ... }`、`label@ fun(...) { ... }` 为当前 callable 声明显式标签。直接作为具名调用实参的 lambda 以调用末段名称作为隐式标签，显式标签覆盖同一 lambda 的隐式标签；复杂 callee 不产生隐式名称。具名函数以自身名称作为返回标签。标签只能命中当前 callable，不能跨过嵌套 callable；同名包围循环标签遮蔽 callable 标签时，return 不能将循环当作返回目标。未知、非 callable 和跨 callable 目标均为编译错误。
+- `return@label value` 按当前 callable 的返回类型检查，无值 return 提供 Unit。无期望返回类型的 lambda 将所有自身局部 return 的值与正常末尾结果共同推导；内层 callable 的 return 独立处理。已有 Unit 期望只丢弃 lambda 的正常末尾值，不丢弃显式 return 的类型检查。表达式体具名函数仍禁止显式 return。non-local return/break/continue 不提供 inline 豁免。
+- 期望 receiver 函数类型为 lambda 提供不可重新绑定的隐式 `this`；显式参数模式只对应普通参数，省略参数列表时的 `it` 也只按普通参数数目决定。没有期望类型时，可用 `fun A.(parameters)[: R] { body }` 或显式 `suspend fun A.(parameters)[: R] { body }` 建立 receiver 匿名函数；receiver 类型必须完整。
+- 局部 binding 和显式参数遵守普通遮蔽规则，隐式 receiver 从内向外参与成员查找；`this` 指最近的 receiver，`this@label` 指命中的 class、扩展函数或 receiver lambda 的 receiver。标签遵守最近同名遮蔽；没有 receiver 的标签不能用作 `this@label`。外层 receiver 按 8.1.3 捕获，不使外层局部 `var` 可被捕获；Context 不加入隐式 receiver 列表。
 - `suspend` 必须显式写在 lambda 或匿名函数上；期望类型不会把普通 lambda 静默改为挂起 lambda。创建或保存挂起函数值本身不会挂起，只有调用其 body 时才检查挂起上下文。
 
 lambda 参与重载决议时，每个候选先提供自己的期望函数类型，再据此检查参数与 body。lambda 的返回表达式可以验证候选是否适用，但不作为“仅按 lambda 返回类型选择重载”的额外优先规则；若完成既有重载优先级比较后仍有多个候选，则调用有歧义。
@@ -782,15 +835,18 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 在 managed 函数类型上下文或无期望类型的推导上下文中，支持以下形式：
 
-- `::name`：引用可见的顶层函数或局部函数；
-- `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；
+- `::name`：引用可见的顶层函数或局部函数；`::TypeName` 从正常可见的 primary / secondary constructor 集合中选择构造器，类型别名先透明展开；
+- `Type::member`：创建未绑定成员引用，receiver 成为函数类型的第一个普通参数；type qualifier 与值 receiver 使用普通名称解析和类型语法区分，不依赖首字母大小写；
+- `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；限定名解析到 object/companion 时使用其 singleton value，完整泛型宿主 application、透明 alias 或限定路径都不把它变成未绑定引用；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
 
-若目标是 virtual / interface 成员，绑定引用在每次调用时仍按已保存接收者做动态分派，不能在创建时固定为当时的具体实现。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一的非 generic 候选才能自行确定函数类型，所得结果仍是 managed 函数值。
+若目标是 virtual / interface 成员，绑定引用在每次调用时按已保存接收者、未绑定引用按本次传入接收者做动态分派。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一且能独立确定完整签名的候选才能自行确定函数类型。泛型宿主和泛型 final 方法的全部实参须在创建点确定，不产生多态函数值；目标仍有歧义时报告编译错误。
 
 `receiver::member` 的 receiver 是创建点的普通表达式；其中读取某个局部 `var` 会立即取得当前值，随后 closure 不可变地保存该 receiver。这是源码显式的创建时快照，不是 callable body 对该 `var` 的自由变量捕获。
 
-Scoop 当前不提供 `Type::member` 的未绑定成员引用或构造函数引用。函数声明名出现在普通值位置时不会隐式变成函数值，必须显式写 `::`；直接写 `name(args...)` 仍走命名调用与重载决议。
+abstract class、interface、object、annotation class 及其他没有普通构造入口的类型不能通过构造器引用实例化。构造器引用沿用原有访问规则、身份及初始化实现。函数值不保留目标的参数名、默认值或 vararg 调用协议，调用时必须提供完整参数列表；vararg 对应普通 Array 参数。函数声明名出现在普通值位置时不会隐式变成函数值，必须显式写 `::`；直接写 `name(args...)` 仍走命名调用与重载决议。
+
+构造器引用的候选按普通函数类型的参数逆变、结果协变检查期望类型并完成泛型实参推导。选中后先形成该构造器的完整实际函数类型，再按 8.1.1 适配到期望函数类型；例如局部 class 实现 `Reader<T>` 时，其 `() -> Local<T>` 构造引用可返回为 `() -> Reader<T>`，仍保留真实构造结果类型和正确的 invoke ABI。
 
 #### 8.1.5 与 `FunPtr` 的边界
 
@@ -913,13 +969,20 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 - 所有 eager initializer 与 main 共享根任务，但 binding 仍只能由实际执行的词法 scope 提供。无 binding 的 initializer 调用 contextual function 同样抛 `MissingContextException`。
 - Context 不提供取消、调度、线程同步或资源释放。永不恢复的 continuation 不隐式执行 scope cleanup；相关对象不可达后按普通 GC 回收。
 
-### 8.4 `inline` / `crossinline` / `noinline` / `reified`
+### 8.4 `inline` / `crossinline` / `noinline` / `reified` / `tailrec`
 
-这些关键字**仅出于 Kotlin 兼容性保留，无实际作用**：
+这五个上下文修饰符仅出于 Kotlin 语法兼容而接受，解析后完全忽略，不产生内联或尾调用提示、尾递归变换、调用/捕获限制、运行期类型保留或跨 callable 跳转语义。
 
-- Scoop 泛型是单态化的，类型信息在每个实例化处天然可用，不需要 `reified` 来保留类型实参；
-- 编译器自行决定内联策略，`inline` / `noinline` / `crossinline` 被接受但可忽略（允许作为提示，但不保证语义）；
-- 不依赖语义内联的 Kotlin 代码可以保留这些关键字而无需修改；依赖 inline lambda non-local return 的代码不兼容，必须按 8.1.2 改为匿名函数或重写控制流。
+| 修饰符 | 接受位置 |
+| --- | --- |
+| `inline` | 函数、property 及 accessor 修饰符 |
+| `tailrec` | 函数修饰符 |
+| `crossinline` / `noinline` | 值参数修饰符 |
+| `reified` | 类型参数修饰符 |
+
+其他位置仍可作为普通标识符，反引号拼写始终是标识符。合法位置的重复标记和组合不增加语义诊断；`reified` 不要求 `inline`，`tailrec` 不要求递归且不保证常量栈空间。普通声明的目标、参数、可见性、body、挂起性与分派规则继续检查。
+
+泛型采用单态化；语义上是否内联由编译器自行决定。lambda 裸 `return`、跨 callable 跳转、interface 方法自身泛型、泛型虚方法和外层词法局部 `var` 捕获均不因这些标记而合法。读取或写入外层局部 `var` 都拒绝，即使没有后续赋值、立即调用或已有 smart cast；嵌套环境也不能把它改成隐藏 `val` 后捕获。需要共享对象状态时可显式捕获普通 class 的不可变引用并访问其可变 property（8.1.3），不要求编译器识别某个 Cell 类型。
 
 ### 8.5 调用实参、默认参数与 `vararg`
 
@@ -1000,12 +1063,21 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 ### 8.7 循环控制
 
-循环与跳转使用第 2 章的 Kotlin 核心语法；本节规定 `while`、`for`、`break` 和 `continue` 的求值与清理规则。
+循环与跳转使用第 2 章的 Kotlin 核心语法；本节规定 `while`、`do/while`、`for`、`break` 和 `continue` 的求值与清理规则。
 
-- `break`退出当前callable内词法最内层循环，`continue`进入其下一轮；函数、匿名函数、lambda和局部函数各自建立控制边界，不能跳到外层callable的循环。循环外使用是编译错误；
+`if` 的 then/else 分支及 `while`/`for` 的 body 接受块或一个完整语句/表达式，条件与 for 头仍使用括号。每个 body 建立独立词法作用域，单条局部声明不泄漏到外层；`else if` 是 else 中的嵌套 if，else 总与最近的未匹配 if 结合。then body 和 else 之间可以有换行或语句分号。控制头后的块属于 body，不属于头部调用的尾随 lambda；body 自己的调用仍使用 8.5 的尾随 lambda 规则。
+
+值位置的 if 必须具有 else，所有正常到达合流点的路径提供可合并的值，Nothing 路径不参与合并。语句位置可以丢弃 body 的值。单语句 body 与显式块采用同一规则，不把控制 body 的花括号当作 lambda；例如 `if (x < 0) return -1 else if (x > 0) return 1` 和 `val sign = if (x < 0) -1 else 1` 都合法。
+
+- `break`退出当前 callable 内词法最内层循环，`continue`进入其下一轮。`label@ while ...`、`label@ for ...`、`label@ do ...` 为循环声明标签；`break@label`、`continue@label` 选择当前 callable 内具有该标签的最近包围循环。同名标签由内层遮蔽，标签属于独立名称空间，不是值绑定。函数、匿名函数、lambda 和局部函数各自建立控制边界，不能跳到外层 callable 的循环。循环外跳转、未知标签及非循环目标均为编译错误；
+- while 和 do/while 的条件与 body 属于该循环的控制区；for 的 iterable 在进入自身迭代控制区前求值，其中的跳转仍查找外层循环。标签不提供 goto，也不能用于跳出任意块；
 - `break`/`continue`不产生正常结果并终止当前路径；该路径不参与第5章的结果类型合并。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
 - while的`continue`重新进入完整condition求值入口，包括该condition产生的temporary、safe-call/default setup和挂起调用；for的`continue`进入下一次`next()`；
 - 控制转移离开scope时，按从内到外执行所有应执行的catch结束动作和`finally`。finally正常完成后恢复原动作；只有实际离开当前finally的return/throw/break/continue才覆盖原动作，内部被处理的转移不覆盖。新动作继续执行尚未经过的外层cleanup，不能再次进入当前finally。挂起不是退出，不执行finally。
+
+`do body while (condition)` 先执行 body，再完整求值 condition；条件为 true 才开始下一轮 body。body 接受块或单语句，每轮建立新 binding；body 最外层直接声明的名字在 condition 中可见，在循环之后不可见，嵌套块仍采用普通作用域。condition 引用的每个 binding 必须在所有到达条件入口的路径上已初始化；声明前的 continue 若仍能到达 condition，应在该 binding 的源码读取处诊断。return、break 或被 finally 覆盖为不再到达条件的路径不参加此检查。捕获 val 保存本轮的值。
+
+`do/while` 的 continue 进入完整条件入口，包括临时变量、默认参数、safe-call 和挂起操作；condition 中的 continue 也重新进入该入口。break 直接到循环之后。condition 的求值与清理规则不因其位于 body 之后而改变，不能通过复制 body 或提前条件求值改变其顺序。
 
 `for (pattern in source)`严格遵守11.8的typed迭代协议；`source`、`iterator()`各求值一次，每轮只调用一次`next()`。每个`Some`建立新的只读binding scope，因此closure捕获对应轮次的值，而不是一个跨轮次覆写的隐藏mutable slot。pattern必须满足4.6的irrefutable binding规则。
 
@@ -1025,19 +1097,19 @@ fun consume(value: Int?) {
 }
 ```
 
-return 在表达式位置具有 Nothing 类型。返回值按当前 callable 的返回类型检查，与 return 所处表达式的期望类型无关：上例 Elvis 的正常结果是 Int，而 `return "missing"` 返回 String。
+return、break、continue 及其合法标签形式在表达式位置具有 Nothing 类型。break/continue 不携带值，目标按 8.7 解析；可用于 Elvis、分支、receiver 和实参位置，不为任何场景增加专用 token 规则。返回值按当前 callable 的返回类型检查，与 return 所处表达式的期望类型无关：上例 Elvis 的正常结果是 Int，而 `return "missing"` 返回 String。
 
 parser 在表达式入口接受 `return [expression]`，同时统一 `throw expression` 在单行 arm 和 Elvis 等表达式位置的处理。语句入口复用相同语义，不为 `?: return` 增加只识别这一段 token 的特殊规则。保留 Elvis 的右结合优先级。
 
-裸 return 仍受换行、分号、块结束或文件结束约束；表达式嵌套中还要正确处理 `)`、`]`、`,` 等结束位置，不能越过调用实参或数组元素边界吞入后续表达式。return/throw 的值表达式自身也可以先产生异常、挂起或无正常结果。
+裸 return 仍受换行、分号、块结束或文件结束约束；表达式嵌套中还要正确处理 `)`、`]`、`,` 和控制体的 `else` 等结束位置，不能越过调用实参、数组元素或分支边界吞入后续表达式。return/throw 的值表达式自身也可以先产生异常、挂起或无正常结果。
 
-允许返回的目标沿用现有 callable 规则：普通块体函数和匿名函数返回自身；lambda 内裸 return、没有返回目标的顶层/初始化/default 表达式、以及不允许显式 return 的表达式体函数均报错。尾随 lambda 不改变其 callable 边界。`return` 无值仅对允许返回 Unit 的目标成立；不新增 label 或跨 lambda 的 non-local return。
+允许返回的目标沿用现有 callable 规则：普通块体函数和匿名函数返回自身；lambda 内裸 return、没有返回目标的顶层/初始化/default 表达式、以及不允许显式 return 的表达式体函数均报错。尾随 lambda 不改变其 callable 边界。`return` 无值仅对允许返回 Unit 的目标成立；`return@label` 依照 8.1.2 解析当前 callable 的局部目标，不允许跨 callable 的 non-local return。
 
 复用现有 `ValueBlock`、完成性质及 return/throw 控制转移。HIR lowering 必须能区分“获得正常值”和“当前路径已经终止”；只在真正到达合并点的前驱上提供结果。不得为终止分支生成未初始化 local、Unit、零值、null、装箱或虚假的结果赋值。
 
-表达式嵌在 receiver、普通实参、数组/tuple 元素或其他短路运算中时，先前已发生的求值保留；发生跳转后，后续实参、default 和外层调用不再执行。类型检查仍检查源码中的合法性，不用运行期不会到达掩盖非法 return 目标。
+表达式嵌在 receiver、普通实参、数组/tuple 元素或其他短路运算中时，先前已发生的求值保留；发生跳转后，后续实参、default 和外层调用不再执行。类型检查仍检查源码中的合法性，不用运行期不会到达掩盖非法 return、break 或 continue 目标。
 
-返回与异常继续走现有 finally、Context scope、native roots 和 coroutine 清理路径。suspend 函数执行 Elvis 右侧时可以挂起；挂起本身不等于完成返回。M35 不改变已有 break/continue 目标和清理规则，也不以新增其他跳转语法为验收前提。
+返回、异常与循环跳转继续走现有 finally、Context scope、native roots 和 coroutine 清理路径；带标签跳转只退出实际目标要求退出的 scope。suspend 函数执行 Elvis 右侧时可以挂起；挂起本身不等于完成跳转。
 
 ---
 
@@ -1047,17 +1119,18 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 
 - `class` / `abstract class` / `interface` / `object` / `companion object`均为引用类型。`object`/companion的singleton语义、初始化和generic边界由9.1.3明确规定，不继承Kotlin/JVM的class-initializer ABI。
 - 类可以实现 interface，可以继承一个类；struct/enum 不能被继承，也不能继承类。
-- 类与成员方法默认均为 `final`。只有 `open` / `abstract` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
+- 类与成员方法默认均为 `final`。只有 `open` / `abstract` / `sealed` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
 - `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或interface中。interface function有body时是default implementation。覆写class/interface member必须写`override`；`override`默认继续open，可用`final override`终止。
 - final 方法不得被覆写。静态接收者上已知的 final 方法调用使用直接分派；open / abstract 类方法调用使用 vtable 分派，interface 方法调用使用 itable 分派。final override 仍替换继承来的 vtable 槽，以保证经基类引用调用时到达该实现。
 - 编译器可在证明调用点的实际类型与唯一表项目标后改为直接调用，保持 receiver 适配、求值顺序、异常、GC、Context 与挂起行为。静态 open class 类型、`is Base` 检查或当前 Cone 仅有一个实现，均不单独构成唯一实际类型的证明；base initializer 也不改变最派生对象的实际类型。
-- `sealed`：`sealed class` / `sealed interface` 保留（引用类型的受限继承）；值类型的等价物直接使用 `enum`。
+- `sealed class` / `sealed interface` 限制直接继承并提供完整子类型关系，见 9.1.7；值类型也可以按普通规则实现 sealed interface。
 
 #### 9.1.1 对象与属性初始化
 
 **property实体与源码形态：**
 
-- property是“显式声明type + getter + 可选setter”的逻辑实体，不等同于field。所有非局部property必须写显式type；同一owner内property名称唯一，不能按type、mutability或accessor重载。同一Cone的package namespace内public/internal top-level property名称唯一；split package中不同origin Cone的同名实体保持不同identity，并在同时导入时按12.4诊断。file-private property的owner包含source file，不同文件可以同名。function和property可以同名并按8.6/9.3.4分区；
+- property是“确定type + getter + 可选setter”的逻辑实体，不等同于field。非局部 property 可省略类型，从 initializer、表达式 getter 或按 9.2 唯一选定的 delegate getter 推导；const val 从既有标量常量表达式推导，再检查常量合法性。显式类型优先；stored property 的 custom accessor 不覆盖 initializer 推导结果，setter 和赋值使用处不反向改变类型。没有 initializer、只有块体 getter 或 abstract accessor 等没有独立定型来源的声明必须写类型。主构造参数、函数参数与 enum payload 参数仍须显式声明类型，Option stored var 省略 initializer 时也须明确类型。签名依赖、递归及可见性遵守第 8 章，初始化的时机、次数与顺序保持不变；
+- 同一owner内property名称唯一，不能按type、mutability或accessor重载。同一Cone的package namespace内public/internal top-level property名称唯一；split package中不同origin Cone的同名实体保持不同identity，并在同时导入时按12.4诊断。file-private property的owner包含source file，不同文件可以同名。function和property可以同名并按8.6/9.3.4分区；
 - `val/var p: T = expr`是stored property并一定拥有backing storage；accessor语法可以全部省略，也可以自定义getter/setter。`val p: T get() ...`是无field的computed read-only property；interface以外的computed `var`必须同时提供getter和setter。`abstract val/var`把全部required accessor正规化为abstract slot；interface中每个required accessor独立分类，有body为default、未提供body为abstract，因而允许getter/setter混合default/abstract。`val/var p: T by expr`是delegated property，见9.2；
 - Scoop永久不支持`lateinit`。唯一可以省略initializer的stored形态是无custom accessor的`var p: Option<T>`/`var p: T?`，其语义等价于在同一初始化位置写`= None`。`val p: T?`、`var p: T`仍须提供initializer或合法computed/abstract body。若需要optional backing field与custom accessor，必须显式写`= None`；generic type parameter不能因某个实例恰为Option而改变声明representation；
 - getter无显式参数并返回property type；setter恰有一个不可重新绑定的参数（缺省名`value`）并返回Unit。`val`不能有setter；`var`可只customize一个stored accessor。`field`只在stored accessor的直接body内表示typed backing-field place，computed/abstract/delegated property及nested lambda/local function中不可用；
@@ -1074,14 +1147,14 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 - secondary constructor写作`constructor(parameters) : this(args) { body }`或`: super(args)`。class有primary时每个secondary必须经`this`直接或间接终止于primary，不能直接`super`；class无primary时每条链必须终止于一次`super`，省略delegation等价于`super()`：存在direct base时解析其constructor，没有显式base时正规化为编译器根初始化。每个secondary恰好一条delegation edge，自环或多节点环都是定义处错误；
 - 有primary的derived class在header用`Base(args)`完成base delegation。无primary、仅有secondary的derived class在header只声明bare base type，由每个terminal secondary执行`super(args)`；两处不能同时提供base arguments。interface不能携带constructor arguments，class最多有一个direct base；
 - primary base delegation arguments可以读取全部primary parameter（写`val`/`var`的参数此时也仍以parameter value读取），但不能使用`this`或任何instance field；secondary `this`/`super` delegation只能读取该secondary自己的parameter，也不能访问`this`/field。delegation target的default同样没有source receiver；
-- primary与全部secondary共同构成nominal constructor overload set，使用8.6的candidate-local mapping、constraint与MSC。constructor签名只由实际参数类型区分；参数名、default、`vararg`marker及相同的host返回类型不区分重载。abstract class不能普通构造，但其constructor可以作为derived `super`目标；constructor declaration reference不受支持。
+- primary与全部secondary共同构成nominal constructor overload set，使用8.6的candidate-local mapping、constraint与MSC。constructor签名只由实际参数类型区分；参数名、default、`vararg`marker及相同的host返回类型不区分重载。abstract class不能普通构造，但其constructor可以作为derived `super`目标；构造器引用沿用 8.1 的可实例化与访问规则。
 
 **class初始化顺序：**
 
-1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；显式实参属于caller，因此可以在suspend caller中先挂起；
+1. 调用处先选择唯一constructor与完整nominal type arguments，再按8.5求值、物化全部实参；inner constructor 先求值并保存所需的外层实例，再处理显式实参。显式实参属于caller，因此可以在suspend caller中先挂起；
 2. 分配一次exact concrete对象，写入最派生TypeDescriptor并清零完整payload；随后所有`this`/`super` constructor initializer共享该对象，不重新分配或替换identity；
 3. 每条constructor delegation先按其自身源码顺序求值显式实参，再物化目标default/`vararg`，然后direct调用typed目标；
-4. terminal primary先完成direct base constructor，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor；
+4. terminal primary先完成direct base constructor，写入本 class 的隐藏外层引用，再按声明顺序把带`val`/`var`的primary参数写入本class字段；terminal `super` secondary先完成base constructor，再写入隐藏外层引用。随后按继承列表顺序求值并保存 9.2.2 的 interface delegate；
 5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；
 6. terminal secondary body在common initialization之后执行；返回每一层`this` delegation后，再从最内层到最外层执行其余secondary body；最外层正常返回后构造表达式才产生对象引用。
 
@@ -1118,7 +1191,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - 命名companion的`Box<Int>.Factory`与`Box<Int>.Companion`是同一application。透明类型别名如`typealias IntBox = Box<Int>`不产生新对象；`IntBox.Companion`与`Box<Int>.Companion`相同。裸generic名称仍可用作声明命名空间限定符，import只定位声明，不能代替形成companion类型/值所需的宿主实参；没有新增`Companion<Int>`或带类型实参的import语法。companion member不进入宿主instance lookup，不被派生class继承；
 - 跨 Cone 的 companion、嵌套声明和转发按实际 host 的静态命名空间解析，保留完整宿主application。`Host.member`只查实际导出的转发binding，再使用成员所属companion application的真实receiver，不生成static副本。限定路径本身不构造或初始化host，const读取也不触发singleton初始化。companion属性赋值、复合赋值与自增均先求值并保存一次实际receiver，再求值右值并调用对应getter/setter；可见性、值遮蔽与本地声明相同；
 
-- body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。只有companion按直接宿主application参数化，普通static nested声明仍是外层类型参数作用域的边界。`inner class`、anonymous/local object/type及implicit outer instance capture不支持；
+- body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。companion 和下述 inner class 按宿主 application 参数化，普通 static nested 声明仍隔断外层类型参数及实例作用域。局部类型和匿名 object 见 9.1.3.2；
 - ordinary top-level stored/delegated property可以是`val`或`var`、可以包含managed ref，使用compiler-managed hidden storage/accessor并进入global root表；它不可`addressOf`。`@Global`/`@ThreadLocal`仍只表示13.6的显式可寻址GC-free raw storage，`@Extern`仍只表示C data symbol；这些storage形态不能带普通accessor/delegate或与ordinary property混用；
 - 泛型正文对普通顶层属性的读写始终操作声明方的同一份状态，包括 private/internal 属性、静态初值与运行时初值。不同类型实参、不同消费 Cone、再次发布以及嵌套 callable 不复制该属性的 storage、初始化单元或 GC root。模板保留定义处已解析的属性访问，不使该属性进入消费方的源码可见域；
 - 需要运行期求值的顶层属性在全部 Cone 的运行时数据、GC 与主线程就绪后、`main` 前同步初始化一次。只有无需执行 Scoop 代码或读取普通属性、可以直接表示为静态初值的字面量、内建纯常量表达式、String 常量及 Option `None` 可省略运行期初始化；事后常量折叠不能改变可观察求值。
@@ -1127,6 +1200,30 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - object/companion在首次非const访问时线程安全、同步初始化；static nested declaration或const引用不初始化外层。每个runtime unit状态为Uninitialized、Initializing(owner/dependency stack)、Initialized或Failed(rooted Throwable)。成功singleton只在完整初始化后release发布；失败不发布、记忆异常且不重试。同线程或跨线程wait-for环抛出`message`含稳定unit path的`IllegalStateException`；该异常若未在initializer内被普通`try`捕获才使unit失败。其他线程以可参与safepoint的方式等待terminal state；
 - 每个实际使用的 companion application 独立执行上述 exactly-once 协议，初始化结果、失败状态和副作用互不串用。同一 application 跨 Cone 共享初始化状态；不同 application 只有显式初始化依赖才互相触发。只构造 `Box<Int>` 不初始化其 companion，只访问 companion 也不构造 Box 实例；单纯类型引用或静态描述查询不执行初始化。未具体化的 companion 模板没有运行期对象；
 - exactly-once 状态管理完整初始化的发布，不允许属性缺少声明类型的合法值。静态初值在任何 managed 代码执行前有效；省略 initializer 的 Option 属性具有普通 `None` 值。
+
+##### 9.1.3.1 `inner class`
+
+`inner` 只能修饰直接声明在 class body 中的 class；顶层、struct、enum、interface、object/companion 中的 inner 声明均为编译错误。inner 仍遵守普通 class 的可见性、继承、构造、release 与泛型规则，普通 static nested 类型不取得外层实例。
+
+inner 可以使用直接外层 class 的类型参数与实例成员；它自己的类型参数不能与可见的外层参数重名。完整类型 `Outer<A>.Inner<B>` 由 outer application 与自身实参共同确定，外层对象的运行期 identity 不参与类型身份。类型限定只建立类型，不取得外层实例；不能通过 `Outer<A>.Inner(...)` 绕过构造所需的 outer。inner 的 companion 继承此完整 application 的参数，仍不捕获任何实例。
+
+`outer.Inner(args...)` 先求值并保存 outer，再按普通命名参数、default 与 vararg 协议求值构造实参；同名成员按既有候选分区及重载规则选择。在可取得匹配外层 application 的隐式 receiver 的作用域中，可以省略 outer。多层 inner 按从近到远的 receiver 顺序查找；`this` 指当前 receiver，`this@Outer` 按 8.1.2 的标签规则选择对应外层实例。缺少外层实例是编译错误，不能以 null 或新构造的对象补齐。
+
+每个 inner 实例保存一个不可重新绑定的普通 typed outer 引用字段，其可达性、扫描与移动更新沿用普通 class 字段协议。outer 以隐藏值参数进入构造器；base/this 委派实参、构造默认值及初始化表达式通过该参数读取外层实例。字段在 base constructor 成功后、primary property 与 delegate 初始化前写入；多次 this 委派只由最终构造器写入。构造过程中可以使用已完整构造的 outer，但仍不能取得或捕获尚未就绪的 inner `this`。继承需要 outer 的基类时，也必须从当前构造上下文取得匹配的外层实例。
+
+`outer::Inner` 创建绑定 outer 的构造器引用，outer 在创建引用时求值并保存一次；`::Inner` 仅在创建点存在匹配隐式 outer receiver 时合法。引用的显式参数只对应源码构造参数，不暴露隐藏 outer 参数。outer 是局部 `var` 时，显式 receiver 的读取为创建时快照，后续重新绑定不改变已创建引用；自由变量捕获仍遵守 8.1.3。跨 Cone 调用、泛型实例化和再次发布保留同一完整类型、outer 参数及字段关系。
+
+##### 9.1.3.2 局部类型与匿名 object
+
+局部块可以声明 class、struct、enum 和 interface。类型名称在自身 body 及声明之后的词法作用域中可见，离开该作用域后不可引用；局部类型之间不进行前向查找，nominal body 内的成员仍按普通成员收集规则处理。局部类型不能带可见性修饰符，也不能声明为 `inner`；它们可以使用声明处可见的外层类型参数，自身参数不能与这些参数重名。普通 static nested 声明仍是外层类型参数与运行期捕获的边界。
+
+局部 class 可以捕获声明处可见的不可变运行期 binding，包括允许捕获的 receiver；每次构造复制当前所需值到实例的普通隐藏字段。构造器引用在创建引用时保存这些值。捕获值先于显式构造实参保存，构造委派通过隐藏参数读取，字段在 base constructor 成功后、primary property 与 interface delegate 之前写入。局部 struct、enum 和 interface 不捕获运行期 binding；它们可以使用外层类型参数，但不会因此获得隐式 payload 或实例环境。捕获外层局部 `var` 均按 8.1.3 报错。
+
+`object { ... }` 与 `object : Base(args), I { ... }` 是表达式，每次求值创建一个新的匿名 final class 实例；允许普通成员、override、接口实现委托和初始化项，不能另行声明构造器。其 base 实参、捕获值、property 和 init 遵守普通 class 构造顺序；创建本身不引入 singleton 生命周期。匿名 object 同样不能捕获外层局部 `var`，也不能成为 sealed 的直接子类型。
+
+局部变量可以保留推导出的匿名类型并访问其自身成员。非局部函数或 property 的签名不能推导并暴露匿名结果，需要显式标注可见父类型；具名局部类型也不能通过推导越过其有效词法作用域。通过显式 interface、基类或 Any 返回值沿普通子类型适配处理。
+
+局部/匿名类型身份由原声明的词法位置及完整类型实参确定，不依赖函数调用次数。同一匿名表达式在同一泛型 application 下多次执行产生不同对象，但类型相同。泛型 body、默认值及跨 Cone 再次发布保存原声明及已绑定引用，不导出局部名称，不在消费方重新进行名称解析。
 
 #### 9.1.4 Interface default implementation
 
@@ -1214,14 +1311,41 @@ block 的字段读取、local、temporary、实参和结果都须满足该条件
 
 release 不提供 GC finalizer、对象图访问、对象复活或及时释放保证；不能依赖它完成 flush、事务、锁或要求特定线程的操作。
 
+#### 9.1.7 Sealed 继承与穷尽性
+
+`sealed class` 隐含 abstract，不能直接构造；其 primary/secondary constructor 只能为 protected/private，省略可见性时采用 protected。`sealed interface` 是受限继承的普通接口。sealed 不使普通成员自动可覆写，也不改变对象表示、分派或初始化规则；sealed 与 open/final/abstract 修饰符不能并列。
+
+直接子类型必须属于 sealed 声明的同一 origin Cone 和同一 package，并且是可命名的非局部、非匿名声明。满足可见性的嵌套声明、具名 object 以及实现接口的 struct/enum 均可参与；re-export 不改变 origin。子类型自身可以 final、open/abstract 或继续 sealed；非 sealed 子类型之下仍按普通规则允许继承。
+
+when 的覆盖域来自完整直接子类型关系，继续 sealed 的节点递归展开，非 sealed 节点作为一个开放的子类型家族；`is Child` 可以覆盖整个 Child 家族。重复继承路径按真实类型 application 合并。无条件的 `is` / `!is` 分支分别按该域取覆盖与补集；guard 不贡献静态覆盖，普通值条件不能凭用户 equals 覆盖整个家族。
+
+泛型关系按实际继承替换，例如 `Success<T> : Result<T>` 对 `Result<Int>` 对应 `Success<Int>`。子类型的额外参数若不能由 subject application 确定，就保留该未知参数所代表的整个家族；列举有限个具体 application 不算完整，只有覆盖整个家族的类型条件才能免除 else。不能用类型擦除、wildcard 或 existential 代替完整 application。
+
+跨 Cone 元数据保留完整直接子类型身份以及它们的类型参数与继承 application，未公开子类型可以作为穷尽性检查的数据存在，但不获得源码名称可见性。消费方不扫描恰好已使用的实现来推测封闭集合；无法命名所需叶类型时可以正常使用 else。增加子类型改变接口依赖，沿既有失效规则重新编译。
+
+默认值表达式内部声明的局部类型、匿名类型及其成员属于该默认值自身携带的定义；默认值的可见性检查不要求这些局部名字对调用者可见，但其所引用的外部声明仍须满足原有默认值访问规则。
+
 ### 9.2 委托
+
+#### 9.2.1 属性委托
 
 - property delegate使用reflection-free协议。角色必须显式声明为ordinary、non-suspend、non-generic `operator fun`，不得带default/`vararg`：可选`provideDelegate(): D2`、必需`getValue(thisRef: R): T`，以及`var`必需`setValue(thisRef: R, value: T): Unit`。它们是与9.3普通operator不同的typed role；无role的同名函数不参与；
 - role 查找沿普通成员优先、扩展按作用域分层的可应用性与最具体候选规则进行。同一层中的本地声明和依赖声明共同比较；import alias 不改变声明的 typed role，也不使扩展覆盖已有可应用成员；
 - `R`对class/object member是owner type，对extension是extension receiver，对top-level/local是Unit。先求值`by`表达式一次，再可选调用一次无owner参数的provideDelegate并把effective delegate存入hidden field/global/local；之后每次access读取delegate并调用唯一get/set target。协议没有`KProperty`、property name或annotation metadata；需要这些值必须在`by`表达式中显式传入；
-- 非局部delegate必须显式声明property type。local delegate省略type时，先在没有result expected type的条件下选出唯一`getValue`role，再以其concrete结果作为property type；`var`的`setValue`必须接受同一type，不能从多个get/set组合反向猜type或让setter改变getter结果；
+- local 与非局部 delegate 省略 type 时，先在没有 result expected type 的条件下选出唯一 `getValue` role，再以其结果作为 property type；无法独立唯一选择 getter 时要求显式类型。`var` 的 `setValue` 必须接受同一 type，不能从多个 get/set 组合反向猜 type 或让 setter 改变 getter 结果；
 - class/object 的 delegate 按 9.1.1 的共同初始化顺序求值；top-level 与 non-generic extension delegate 按 9.1.3 提前初始化。generic extension delegate 按 9.1.1 为每个 exact receiver application 保留独立、全程序共享的 lazy 初始化状态，首次访问时才求值 `by` 并发布 effective delegate；即使编译期已知使用点，也不能提前执行。`by` 与可选的 `provideDelegate` 使用定义处绑定的名称、重载及 receiver 类型实参；二者不取得本次访问的 receiver 值，get/set 才接收实际 `thisRef`。普通赋值先求值 receiver 与 RHS，再进入 setter 的初始化检查；复合赋值先执行 getter 及初始化检查，再求值 RHS。同一 application 跨 Cone 共享 delegate 和初始化结果，re-export 不复制状态。local delegate 是不可重新绑定的局部值。struct/enum member 不能使用 delegated property。delegate 调用同步，可以分配、触发 GC、抛异常，但不能挂起；
-- 不支持 class/interface delegation 语法 `class C : I by impl`。
+
+#### 9.2.2 接口实现委托
+
+class/object 的接口继承项可以写作 `I by expression`，其中 I 必须是完整 interface application，expression 的值按普通子类型和适配规则满足 I。表达式在构造时求值一次，结果保存在实例的普通隐藏字段中；之后改变表达式原来引用的变量不会替换这个 delegate。struct、enum 与 interface 自身不能声明实现委托；class 基类也不能使用 `by`。
+
+delegate 初始化在 base constructor 和 primary property store 之后、body 的 property/init 序列之前执行，多个 delegate 按继承列表顺序求值。表达式可读取 primary 参数及正常外层名称，不能使用当前未完成初始化的 this 或实例成员；无 primary 的声明不能取得任一 secondary 的参数。object 的委托属于既有 singleton 初始化。初始化是同步 safe 上下文，异常与 GC 沿普通构造规则处理。
+
+成员选择复用实际 typed slot。当前 class 的显式实现/override 优先，继承的具体 class 实现继续满足对应 slot；剩余 slot 由唯一匹配的显式 delegate 转发，包括继承的 abstract class obligation，且转发优先于普通 interface default。多个 delegate 同时提供同一个未满足 slot 时必须显式 override。其余成员沿普通 interface default/abstract obligation 规则检查，具体 class 不能保留未实现的义务。
+
+隐式转发成员必须覆盖它实现的全部 interface/class slot 的访问域。全部 slot 都限于当前 Cone 时，转发成员为 internal；否则为 public。显式声明仍按普通 override 可见性规则检查，委托不会扩大原 slot 的默认值表达式所能访问的范围。
+
+property 按 getter/setter slot 转发，整体类型和 mutability 仍遵守 9.1.1。调用者的参数名、默认值和 vararg 协议由静态声明确定，转发只传递已经物化的实参。delegate 的 this 始终指向 delegate 对象，其内部调用不因宿主 override 而改为调用宿主成员。转发保留 virtual/interface dispatch、挂起、异常、Context 和 GC 语义；泛型接口 application 合法，接口方法本身的泛型仍按原规则禁止。
 
 ### 9.3 运算符重载与约定
 
@@ -1331,15 +1455,37 @@ public annotation class Description(val text: String)
 public struct Account(@Description("Stable identifier") val id: Long)
 ```
 
-- annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，类型限于 Boolean、String、Char、现有定宽整数、Float/Double，以及以上标量作为元素的一维 Array<T>；无参数声明可省略括号。
-- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；标量值限于上述类型的字面量、带符号数值字面量和已绑定的同类型 `const val`。数组值写作 `[...]`，可以为空，支持尾随逗号、默认值、命名或位置参数；元素逐个遵守同一标量规则并保存独立源码位置，保留顺序和重复值。元素的期望类型来自参数，包括空数组。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、浮点字面量的目标精度与溢出、重复/缺失/未知参数及可见性错误在定义或使用处诊断；浮点常量以类型和原始位型保留，不用数值相等合并正负零或NaN。
-- 自定义注解可标在名义类型、enum variant、struct/variant字段和class/interface的logical property上。主构造参数带`val`/`var`时注解属于该字段/property；普通值参数不因此成为可注解字段。不增加use-site target、可重复注解、注解继承、元注解执行或编译器插件API。同一target重复同一annotation声明是错误；不同注解按源码顺序保留。
+- annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，原子类型包括 Boolean、String、Char、现有定宽整数、Float/Double、4.2.1 的整型枚举及另一个 annotation class；这些原子类型的一维 Array<T> 也合法。无参数声明可省略括号。annotation 参数类型及默认值的依赖必须无环，递归在定义处诊断。
+- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；标量值限于上述类型的字面量、带符号数值字面量和已绑定的同类型 `const val`。数组值写作 `[...]`，可以为空，支持尾随逗号、默认值、命名或位置参数；元素逐个遵守相应的原子值规则并保存独立源码位置，保留顺序和重复值。元素的期望类型来自参数，包括空数组。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、浮点字面量的目标精度与溢出、重复/缺失/未知参数及可见性错误在定义或使用处诊断；浮点常量以类型和原始位型保留，不用数值相等合并正负零或NaN。
+- 自定义注解可标在名义类型、annotation class、enum variant、字段、logical property、具名函数/方法、constructor、普通值参数、accessor、receiver 和 typealias 上，局部具名声明遵守相同规则。主构造参数带 `val`/`var` 时，未指定 use-site 的注解仍属于原字段/property；普通参数属于完整源码参数，解构不把注解复制给叶 binding。同一实际 target 重复同一 annotation 声明须有下述 `@Repeatable` 标记；应用按源码顺序保留。
 - 注解的参数按声明序正规化为typed常量，包含已补齐的缺省参数。泛型application保留原声明的注解；不因具体化产生新的annotation声明，也不把宿主注解复制到字段、派生类、accessor或backing storage。logical property与实际存储的关系遵守9.1.1、9.1.5。
 - 注解本身没有可执行副作用。普通用户注解仅进入9.6的静态描述；只有已规定语义的核心注解参与编译。导出的注解声明及应用保留实际类型/常量引用和必要依赖，读入`.slib`后不重新按短名称解释；这些数据不扩大普通源码可见性。
 
-数组参数按 alias 展开后的实际 core Array 身份与完整元素 application 判断，不按短名判断；不接受 MutableArray、多维数组、Array<Any>、Option/enum/用户对象元素、嵌套 annotation、spread、工厂调用或运行期表达式。数组默认值在声明处绑定，元素错误定位到实际元素。内建 annotation 的既有参数形状保持。
+整型枚举参数只接受该完整 enum application 的 variant 静态值，保存实际 enum/variant 身份与底层整数位型；底层整数或异类枚举的同值 variant 不能隐式替代。参数为枚举的整型父类型时允许普通上转。代数 enum（包括全部 variant 都是 unit 的 enum）不是注解参数类型。
 
-注解数组是编译期静态数据，不调用 Array 构造器，不分配 managed 数组，也没有可观察的 identity。普通 const val 仍限标量，不因注解数组扩大值域。静态描述、默认值及跨 Cone 再次发布保存完整数组类型与有序标量元素，不要求消费者重新求值。
+嵌套 annotation 值写作 `Message("text")`，按实际注解声明的参数、默认值和可见性规则绑定，得到完整静态应用；它不是普通 constructor call，也不执行用户代码。嵌套 annotation 自己可以有数组参数，但数组仍不能直接嵌套数组。
+
+数组参数按 alias 展开后的实际 core Array 身份与完整元素 application 判断，不按短名判断；不接受 MutableArray、多维数组、Array<Any>、Option、代数 enum、普通用户对象、spread、工厂调用或运行期表达式。数组默认值在声明处绑定，元素错误定位到实际元素。内建 annotation 的既有参数形状保持。
+
+注解数组是编译期静态数据，不调用 Array 构造器，不分配 managed 数组，也没有可观察的 identity。普通 const val 仍限标量，不因注解值域扩大而改变。静态描述、默认值及跨 Cone 再次发布保存完整数组类型、有序元素及每个元素的定义文件和位置；嵌套应用按参数声明序补全默认值，不要求消费者重新求值。
+
+显式 use-site 写作 `@target:Name(...)`。`property` 指向 logical property；`field` 指向已有 backing storage 或值类型字段；`get`/`set` 指向已有 getter/setter；`param` 指向完整普通/构造参数；`setparam` 指向 setter 的值参数；`receiver` 指向声明中的实际 receiver；`delegate` 指向已有 delegate storage。主构造字段/property 可以用 `param` 选择构造参数部分。不同 use-site 分别检查重复，直接标在 accessor 上的注解与对应 `get`/`set` 选择同一目标。声明不存在相应实体时在 use-site 处报错，不能合成存储、setter 或 receiver；默认目标也不按注解内容重新猜测。第 13 章核心注解仍受各自目标和参数契约约束。
+
+core 提供普通的 `annotation class Target(val allowed: Array<AnnotationTarget>)`、无参数 `annotation class Repeatable` 和整型枚举 `AnnotationTarget: Int`。其成员和值依次为 CLASS=1、ANNOTATION_CLASS=2、ENUM_VARIANT=3、FIELD=4、PROPERTY=5、FUNCTION=6、CONSTRUCTOR=7、VALUE_PARAMETER=8、PROPERTY_GETTER=9、PROPERTY_SETTER=10、TYPEALIAS=11、TYPE=12。CLASS 包含 class/struct/enum/interface/object；annotation class 单独属于 ANNOTATION_CLASS；receiver 和 setparam 属于 VALUE_PARAMETER；backing/delegate storage 属于 FIELD；get/set 分别属于 PROPERTY_GETTER/PROPERTY_SETTER；TYPE 表示类型使用位置。
+
+`@Target` 限定 annotation class 可应用的实际目标类别；未标时允许全部受支持类别，空数组表示不允许任何应用位置。重复或未知目标在源码处报错。Target 和 Repeatable 自身只用于 annotation class，且都不可重复。目标限制不改变默认 use-site；例如只允许 VALUE_PARAMETER 的注解用于主构造 val/var 时，必须显式选择 `param`。
+
+`@Repeatable` 允许同一实际目标上多次应用该 annotation class，保留源码顺序、相同参数值及各次来源；未标时重复应用在后一处报错。导入别名和 re-export 不改变 annotation identity，不能绕过重复检查。不同实际 use-site 独立检查，不复制或继承应用，也不生成 container annotation。两个核心元注解的固定语义只按真实 core 声明身份识别；同名用户声明没有特殊作用。前向声明使用最终绑定的规则，不因声明顺序改变结果。规则与静态参数只在定义处绑定一次，跨库使用已保存的规则。
+
+类型使用位置可以写注解前缀，包含字段/property/参数/结果、显式局部类型、父类型与 bound、alias 目标及类型实参；完整类型使用树中的泛型实参、tuple 元素、函数 receiver/参数/结果和指针 pointee 分别保留各自位置。类型使用只接受 TYPE 类别，不接受 use-site 选择或第 13 章不适用于类型位置的核心效果注解。局部变量的显式类型可以带注解，变量本体仍不是声明注解目标。
+
+前缀属于紧随其后的完整类型：`@A T?` 标在 Option 根，`(@A T)?` 标在其元素 T；`@F() R.(P) -> Q` 标在函数类型根，`(@R R).(@P P) -> @Q Q` 分别标在 receiver、参数和结果。声明 receiver 同样区分 `fun @A T?.f()` / `val @A T?.p` 的 Option 根与 `fun (@A T)?.f()` / `val (@A T)?.p` 的元素 T。单元素括号不增加类型节点或丢弃内部注解；零参数注解在后续类型以括号开始时可以显式写 `@A()`，避免与注解参数括号混淆。限定名本身不产生另一个运行期类型节点；完整 inner application 的外层/自身类型实参按原 binder 顺序保留，限定符的类型使用不能把其根注解复制给另一个名义类型。
+
+类型注解不参与类型身份、相等、子类型、约束推导、重载、layout 或 ABI；相同 TypeId 的其他使用不会获得该次注解。alias 展开沿已绑定目标及真实形式参数替换，保留位置、顺序及定义来源。例如 `typealias A<T> = @X Array<@Y T>` 的 `@Z A<@W Int>` 在 Array 根保留 X、Z，在元素 Int 保留 Y、W。模板原位置的注解先保留，再拼接该位置实际参数的注解，最后合并使用处的前缀；重排、重复或丢弃参数遵守实际替换关系，不按替换后类型相等猜测来源。
+
+同一展开后位置合并出的应用按 Repeatable 检查，不去重或隐式丢弃。直接冲突定位到后一注解；由 alias 定义或实参展开引入的冲突定位到造成合并的实际使用。泛型静态描述沿同一形式参数到实际类型使用的关系替换，保留实际参数上的位置数据。源码、`.slib` 消费和再次发布共享这些已绑定的使用记录，不重新解析名称、求默认值或执行用户代码。
+
+不增加文件目标、局部变量目标、任意表达式目标、注解继承、运行期 Retention、元注解执行或处理器/plugin API。局部声明的静态注解随其原声明保留，不能因此扩大源码名称的可见范围。
 
 ### 9.5 companion 与普通 codec 的编码、解码接口
 
@@ -1520,6 +1666,8 @@ public final class Nothing {}
 两个声明必须各存在一次，具有普通的源码位置、public binding 和 nominal identity，并随 core 产物发布。缺失或错误的声明在 core 编译／依赖消费边界报错，编译器不能在缺失时补建类型。普通同名声明仍按名称查找处理；仅有拼写 `Any`／`Nothing` 不赋予 intrinsic 语义。core 的源码位置或载入路径不是额外来源资格。
 
 ### 11.2 基本类型
+
+八种整数的 companion 均提供普通 `public const val MIN_VALUE` 和 `MAX_VALUE`，类型为该整数自身。宽度为 W 时，signed 边界为 `-2^(W-1)` 与 `2^(W-1)-1`，unsigned 边界为 `0` 与 `2^W-1`；透明 alias 访问同一常量。
 
 均为值类型（struct 语义）：
 
@@ -2596,6 +2744,8 @@ annotation class InteriorMutable
 
 ### 13.8 FFI ABI
 
+整型枚举（4.2.1）具有与其底层整数相同的 portable C scalar 表示，可用于 C 参数、结果、全局存储、CLayout 字段及 pointer/callback 签名；保留底层整数的 signedness、窄整数扩展与目标 ABI 分类。外部代码必须只提供 enum 已声明的合法值，可能产生未知数值的接口应声明为底层整数并显式选择合法 variant。普通复制、上转和调用不增加值域检查；该规则不扩展 Option niche 或泛型不变性。
+
 Scoop 的 FFI 函数有两种 ABI：
 
 - **C ABI**（`abi = "c"`，默认）：标准的 FFI function，由外部 lib / so / dylib / dll 提供。它对 Scoop 的类型系统和 GC 环境没有任何了解，也不能使用相关功能，用于直接引入外部库。native 参数与返回值必须是 C-FFI-safe：GC-free 且具有本章规定的稳定 C 表示。13.4.2 的捕获声明只把 tuple 第一项投影为 native 返回值，额外的 `Int` 由调用适配器产生。
@@ -2718,7 +2868,7 @@ public fun <T : value> alignOf(): ULong
 
 #### `FunPtr<F>`
 
-`FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是 8.1 定义的**普通、非挂起且完全具体化**的函数类型：
+`FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是 8.1 定义的**无 receiver、非挂起且完全具体化**的普通函数类型：
 
 ```
 @Intrinsic("core_fun_ptr")
@@ -2866,8 +3016,8 @@ fun <F> foreignCallbackState(callback: ForeignCallback<F>): ForeignCallbackState
 fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
 ```
 
-- `F` 必须在registration调用处显式给出，是ordinary、非挂起、完全具体化且逐项C-FFI-safe的native callback函数类型。`contextIndex`和`mode`必须为编译期常量；被选参数必须精确为`Ptr<Unit>`；
-- `callback` 的实际类型必须是从 `F` 删除 `contextIndex` 对应参数后得到的 ordinary concrete 函数类型，返回类型保持不变。声明中的 `Any` 不放宽此要求，也不引入装箱；context cookie 不作为实参传给 closure；
+- `F` 必须在registration调用处显式给出，是无 receiver、非挂起、完全具体化且逐项C-FFI-safe的普通 native callback函数类型。`contextIndex`和`mode`必须为编译期常量；被选参数必须精确为`Ptr<Unit>`；
+- `callback` 的目标类型是从 `F` 删除 `contextIndex` 对应参数后得到的 ordinary concrete 函数类型，返回类型保持不变；来源 managed 函数值按 8.1.1 适配，允许兼容的 receiver 函数值。声明中的 `Any` 不放宽此要求，也不引入装箱；context cookie 不作为实参传给 closure；
 - 泛型正文中的注册在每个实际 application 替换类型参数后检查完整签名；不同 application 不能以首次实例的类型代替。
 - `ForeignCallback<F>`是GC-free值，但不是单个C ABI聚合。调用native API时分别传`function`与`context`；有效值只能由`foreignCallback`产生，用户不能直接构造；
 - `ForeignCallback`是compiler-validated core类型，其`F`可在core声明内作为deferred callback signature用于`FunPtr<F>`；每个实际应用仍必须具体化为合法函数类型。这不引入一般性的`function` kind bound，用户generic类型不能据此用未约束参数绕过`FunPtr`检查；
@@ -2909,3 +3059,5 @@ core 提供普通安全函数 `write(message: String)`、`writeError(message: St
 | 对值类型使用 `===` | `==`（结构相等） |
 | generic declaration/use-site `in`、`out`、`*` | nominal generic application始终invariant；使用带bound的generic callable或显式非generic接口（见3.2） |
 | `Option<T>` 的智能转换 | `when` 解构（7.3） |
+| interface 方法自身泛型、任何泛型虚方法 | 泛型宿主的非泛型方法，或 final direct 泛型方法（3.2） |
+| 捕获外层词法局部 `var` | 显式 `val` 快照，或捕获普通引用对象并访问其 property（8.1.3） |

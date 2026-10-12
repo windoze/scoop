@@ -78,3 +78,24 @@ pub(in crate::layout_compile_closure::mir_types) fn release(
         }
     }
 }
+
+pub(in crate::layout_compile_closure::mir_types) fn enum_representation_matches(
+    source: &hir::EnumRepresentation,
+    target: &mir::EnumRepresentation,
+) -> bool {
+    match (source, target) {
+        (hir::EnumRepresentation::Algebraic, mir::EnumRepresentation::Algebraic) => true,
+        (
+            hir::EnumRepresentation::Integral { kind, values },
+            mir::EnumRepresentation::Integral {
+                kind: actual,
+                values: actual_values,
+            },
+        ) => {
+            intrinsic(hir::IntrinsicTypeKind::Integer(*kind))
+                == Some(mir::MirParamFreeIntrinsicV1::Integer(*actual))
+                && values == actual_values
+        }
+        _ => false,
+    }
+}

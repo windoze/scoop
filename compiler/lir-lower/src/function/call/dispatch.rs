@@ -98,9 +98,9 @@ impl FunctionLowerer<'_> {
             FunctionDispatch::Closure => mir::Type::Function(function_type),
             FunctionDispatch::Bridge => mir::Type::Any,
         };
-        let source_parameter_count = signature.parameter_types.len();
+        let source_parameter_count = signature.arity();
         let mut parameter_types = vec![receiver_type];
-        parameter_types.extend(signature.parameter_types);
+        parameter_types.extend(signature.parameters().cloned());
         for arg in arguments.iter().skip(source_parameter_count) {
             parameter_types.push(arg.ty.clone());
         }

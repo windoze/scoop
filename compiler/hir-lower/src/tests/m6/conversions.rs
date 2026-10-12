@@ -84,7 +84,7 @@ fn class_to_interface_is_a_zero_cost_retype() {
 
     // The upcast preserves the source class without allocating a box.
     let up = returned(body_of(&module, "up"));
-    let hir::ExprKind::ReferenceUpcast(source) = &up.kind else {
+    let hir::ExprKind::Upcast(source) = &up.kind else {
         panic!("a reference upcast retains its source expression")
     };
     assert!(matches!(source.kind, hir::ExprKind::Local(_)));
@@ -93,10 +93,7 @@ fn class_to_interface_is_a_zero_cost_retype() {
 
     match &returned(body_of(&module, "mk")).kind {
         hir::ExprKind::ArrayLiteral(elements) => {
-            assert!(matches!(
-                elements[0].kind,
-                hir::ExprKind::ReferenceUpcast(_)
-            ));
+            assert!(matches!(elements[0].kind, hir::ExprKind::Upcast(_)));
             assert!(matches!(
                 module.types[elements[0].ty],
                 hir::Type::Interface(..)

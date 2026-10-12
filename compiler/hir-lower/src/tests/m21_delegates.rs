@@ -7,7 +7,8 @@ fn delegate_operator(mut function: FunctionDecl) -> FunctionDecl {
 
 fn scoop_extern(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident("Extern"),
+        use_site: None,
+        name: ident("Extern").into(),
         args: [("name", name), ("abi", "scoop")]
             .into_iter()
             .map(|(parameter, value)| ast::AnnotationArg {
@@ -60,7 +61,7 @@ fn delegated_property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Delegated {
             expression: Box::new(expression),
             by_span: sp(),

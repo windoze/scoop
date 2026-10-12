@@ -1,0 +1,20 @@
+fun Int.increment() = this + 1
+fun <T> T.keep() = this
+fun main() {
+    val add = Int::plus
+    val divide = Int::div
+    val negative = Int::unaryMinus
+    val widen = Int::toInt64
+    val invert = Boolean::not
+    val concat = String::plus
+    val increment = Int::increment
+    val keep: (String) -> String = String::keep
+    println(add(40, 2))
+    println(negative(7))
+    println(widen(8))
+    println(invert(false))
+    println(concat("str", "ing"))
+    println(increment(8))
+    println(keep("extension"))
+    try { println(divide(1, 0)) } catch (error: ArithmeticException) { println("caught") }
+}

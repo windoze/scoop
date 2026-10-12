@@ -42,6 +42,7 @@ fn pointer_requirement_functions() -> Vec<Decl> {
 
 fn generic_pointer_lambda() -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(Vec::new()),
@@ -59,10 +60,12 @@ fn generic_pointer_lambda() -> Expr {
 
 fn generic_pointer_anonymous() -> Expr {
     Expr::AnonymousFunction {
+        receiver: None,
+        label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,
         params: Vec::new(),
-        return_ty: Some(ty_named("Unit")),
+        return_ty: Some(Box::new(ty_named("Unit"))),
         body: block(vec![safety_block(
             ast::SafetyMode::Unsafe,
             vec![val_ty(
@@ -130,6 +133,9 @@ fn pointer_to_wrapped(name: &str) -> TypeRef {
 
 fn type_alias(name: &str, target: TypeRef) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target,
@@ -149,7 +155,7 @@ fn omitted_optional_global(name: &str, inner: TypeRef) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_nullable(inner),
+        ty: Some(ty_nullable(inner)),
         body: ast::PropertyBodySyntax::OptionalOmitted,
         span: sp(),
     })
@@ -158,7 +164,11 @@ fn omitted_optional_global(name: &str, inner: TypeRef) -> Decl {
 fn generic_supertype(name: &str, argument: &str, constructor: bool) -> ast::SupertypeSpec {
     ast::SupertypeSpec {
         ty: ty_generic(name, vec![ty_named(argument)]),
-        constructor_arguments: constructor.then(Vec::new),
+        initialization: if constructor {
+            ast::SupertypeInitialization::Constructor(Vec::new())
+        } else {
+            ast::SupertypeInitialization::None
+        },
         span: sp(),
     }
 }
@@ -239,6 +249,7 @@ fn secondary_struct_constructor(
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         params: vec![ast::Param {
+            annotations: Vec::new(),
             name: ident(parameter_name),
             ty: parameter_type,
             syntax,
@@ -500,7 +511,7 @@ fn runtime_global_initializer_validates_callable_pointee_requirements() {
         type_params: Vec::new(),
         where_clause: None,
         name: ident("badGlobal"),
-        ty: ty_named("Unit"),
+        ty: Some(ty_named("Unit")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(typed_call("g", vec![ty_named("ManagedValue")], Vec::new())),
             accessors: ast::AccessorSyntax::default(),
@@ -846,7 +857,7 @@ fn closed_pointee_applications_are_replayed_in_class_initialization_regions() {
             type_params: Vec::new(),
             where_clause: None,
             name: ident("initialized"),
-            ty: ty_named("Unit"),
+            ty: Some(ty_named("Unit")),
             body: ast::PropertyBodySyntax::Initializer {
                 expression: Box::new(closed_wrapper_occurrence(wrapper_names[2])),
                 accessors: ast::AccessorSyntax::default(),

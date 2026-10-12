@@ -125,6 +125,9 @@ impl MirCallableBridgeAuthority<'_> {
                         self.type_export(receiver)?.representation(),
                         MirTypeRepresentationV1::Interface
                     )
+                    && !matches!((self.type_export(*payload)?.representation(), self.type_export(receiver)?.representation()),
+                        (MirTypeRepresentationV1::Enum { representation: crate::EnumRepresentation::Integral { kind, .. }, .. },
+                            MirTypeRepresentationV1::Intrinsic(MirParamFreeIntrinsicV1::Integer(parent))) if kind == parent)
                 {
                     return Err(MirCallableBridgeError::InvalidAdjustTarget);
                 }

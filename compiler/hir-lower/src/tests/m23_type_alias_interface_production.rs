@@ -4,6 +4,9 @@ use super::*;
 
 fn type_alias(name: &str, target: TypeRef, public: bool) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: if public {
             ast::VisibilitySyntax::Explicit {
                 visibility: ast::DeclaredVisibility::Public,

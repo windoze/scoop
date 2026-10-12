@@ -28,7 +28,9 @@ impl Lowerer {
             callable_name: source_name.to_owned(),
         };
         let environment = super::preparation::LocalDefaultEnvironment {
+            types: self.scopes.nested_callable(),
             available: self.capture_environment(),
+            receivers: self.receiver_scopes.clone(),
             functions: self.local_function_scopes.clone(),
         };
         self.register_local_default_parameters(function, sources, context, environment);

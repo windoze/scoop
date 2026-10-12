@@ -5,6 +5,7 @@ use crate::Lowerer;
 
 mod coverage;
 mod expressions;
+mod local_types;
 mod shapes;
 mod statements;
 
@@ -23,11 +24,7 @@ impl Lowerer {
     ) -> &'static str {
         if let hir::ExportDefaultCallableTarget::Callable(callable) = target {
             let function = self.callable_function_id(*callable);
-            if self
-                .property_accessor_sources
-                .iter()
-                .any(|source| source.function == function)
-            {
+            if self.function_property(function).is_some() {
                 return "a property";
             }
         }
@@ -87,7 +84,13 @@ impl ReferenceCollector<'_> {
 
     fn callable_domain(&self, callable: hir::Callable) -> hir::AccessDomain {
         let function = self.lowerer.callable_function_id(callable);
-        if self.local_declarations.contains(&function) {
+        if self.local_declarations.contains(&function)
+            || self
+                .lowerer
+                .function_owner
+                .get(&function)
+                .is_some_and(|&owner| self.lowerer.local_type_root(owner).is_some())
+        {
             // This definition is carried by the default body itself.
             hir::AccessDomain::universal()
         } else {
@@ -191,8 +194,13 @@ impl ReferenceCollector<'_> {
         &mut self,
         target: hir::ExportDefaultConstructorTarget,
         origin: hir::DefinitionOrigin,
+        local: bool,
     ) {
-        let target_domain = self.lowerer.constructor_access_domain(target);
+        let target_domain = if local {
+            hir::AccessDomain::universal()
+        } else {
+            self.lowerer.constructor_access_domain(target)
+        };
         let target_domain = self.checked_target_domain(target_domain, origin, "a constructor");
         self.references
             .constructors
@@ -207,7 +215,7 @@ impl ReferenceCollector<'_> {
         if matches!(self.lowerer.types[target], hir::Type::Param(_)) {
             return;
         }
-        let target_domain = self.lowerer.type_access_domain(target);
+        let target_domain = self.lowerer.default_type_access_domain(target);
         let target_domain = self.checked_target_domain(target_domain, origin, "a type");
         self.references.types.push(hir::ExportDefaultTypeRef {
             target: hir::ExportDefaultTypeTarget::Type(target),
@@ -251,7 +259,17 @@ impl ReferenceCollector<'_> {
     }
 
     pub(super) fn record_field(&mut self, target: hir::FieldRef, origin: hir::DefinitionOrigin) {
-        let target_domain = self.lowerer.field_access_domain(target);
+        let local = match target {
+            hir::FieldRef::ClassField { owner, .. } | hir::FieldRef::StructField { owner, .. } => {
+                self.lowerer.default_has_local_type(owner)
+            }
+            hir::FieldRef::TupleIndex(_) => false,
+        };
+        let target_domain = if local {
+            hir::AccessDomain::universal()
+        } else {
+            self.lowerer.field_access_domain(target)
+        };
         let target_domain = self.checked_target_domain(target_domain, origin, "a field");
         self.references.fields.push(hir::ExportDefaultFieldRef {
             target,

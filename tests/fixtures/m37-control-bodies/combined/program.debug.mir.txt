@@ -1,0 +1,538 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IntRange vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Boolean> vtable=0 itables=0
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn11 id=8a54d26f8025469cb322b3b7d4e7d4c562e79e31b19f754efff0b3c3a7743037
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn12 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn13 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn14 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure1 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=closure0 nominal_id=85dda53a2130edae0b1339a60b6cbacf311468cea3545d64577457517dcb0614 exact_id=3188da05cef1e8979a763c27fc91debe780d0be9f22f0e33e769b446d5babdc2
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=closure2 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=closure3 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get8 location=class5 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  generated_exact_type get9 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn14 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  generated_callable gc1 function=@fn12 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  generated_callable gc2 function=@fn11 id=8a54d26f8025469cb322b3b7d4e7d4c562e79e31b19f754efff0b3c3a7743037
+  generated_callable gc3 function=@fn13 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  fun consume @fn0(action: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun check @fn1(action: () -> Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = <closure:function_type2> closure[function_type2]
+        Type () -> Boolean
+        Local action
+      return
+        Type Boolean
+        Local $call.1
+  fun result @fn2(present: Boolean) -> Int
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      branch bb9 bb10
+        Type Boolean
+        Local present
+    bb9 if.then.9 unwind bb1
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.action: () -> Int
+        Type () -> Int
+        Local $argument.0
+      call $call.1: Int = @fn0 direct
+        Type () -> Int
+        Local $parameter.action
+      val $return.2: Int
+        Type Int
+        Local $call.1
+      goto bb12
+    bb10 if.else.10 unwind bb1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw unwind bb1
+        Type IllegalStateException
+        Local $new.3
+    bb11 if.merge.11 unwind bb1
+      unreachable
+    bb12 scope.12
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $return.2
+    bb13 try.catch.13
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.4
+      goto bb15
+    bb14 try.next.14 unwind bb5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb5
+    bb15 scope.15 unwind bb3
+      val $return.5: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      end_catch
+      goto bb16
+    bb16 scope.16
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $return.5
+  fun main @fn3() -> Int
+    bb0 entry
+      val $argument.0: () -> Boolean
+        Type () -> Boolean
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.action: () -> Boolean
+        Type () -> Boolean
+        Local $argument.0
+      call $call.1: Boolean = @fn1 direct
+        Type () -> Boolean
+        Local $parameter.action
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.action: () -> Int
+        Type () -> Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type () -> Int
+        Local $parameter.action
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $for.source.0: IntRange = external2 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local $for.source.0
+      call $for.iterator.result.1: Iterator<Int> = external1 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $for.iterator.2: Iterator<Int>
+        Type Iterator<Int>
+        Local $for.iterator.result.1
+      goto bb4
+    bb4 while.cond.4 <loop-header-poll>
+      call $for.next.3: Option<Int> = @fn9 interface Iterator<Int>[0]
+        Type Iterator<Int>
+        Local $for.iterator.2
+      branch bb6 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $for.next.3
+    bb5 while.exit.5
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.present: Boolean
+        Type Boolean
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Boolean
+        Local $parameter.present
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.present: Boolean
+        Type Boolean
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Boolean
+        Local $parameter.present
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val missing: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral true
+    bb6 while.body.6
+      val $for.element.4: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $for.next.3
+      val value: Int
+        Type Int
+        Local $for.element.4
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Int
+            Local value
+      val $parameter.action: () -> Int
+        Type () -> Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type () -> Int
+        Local $parameter.action
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb4
+    bb7 if.then.7
+      val opt: Option<Int>
+        Type Option<Int>
+        Local missing
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local opt
+    bb8 if.else.8
+      assign $result.7
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb9
+    bb9 if.merge.9
+      val value: Int
+        Type Int
+        Local $result.7
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb10 if.then.10
+      assign $result.6
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local opt
+      goto bb12
+    bb11 if.else.11
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+    bb12 if.merge.12
+      assign $result.7
+        Type Int
+        Local $result.6
+      goto bb9
+  fun $lambda.0 @fn4($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.1 @fn6($closure: () -> Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun $lambda.2 @fn7($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun println @fn8(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Iterator.next @fn9(this: Iterator<Int>) -> Option<Int>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun $lambda.3 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.5
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb3
+    bb2 if.else.2
+      assign $result.5
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.5
+  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn12($source: () -> Boolean) -> Any
+    bb0 entry
+      call $call.1: Boolean = <closure:function_type2> closure[function_type2]
+        Type () -> Boolean
+        Local $source
+      return
+        Type Any
+        Box
+          Type Boolean
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn14($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn8 <- println
+  instance mi2 function=@fn9 <- Iterator.next
+  str @str0 "missing"
+  str @str1 "finally"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn3

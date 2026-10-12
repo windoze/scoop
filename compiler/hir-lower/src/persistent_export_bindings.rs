@@ -57,6 +57,7 @@ pub(crate) fn build(
         object_values,
         functions,
         properties,
+        aliases,
         direct,
     )
 }

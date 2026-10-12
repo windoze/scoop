@@ -25,6 +25,7 @@ impl std::error::Error for EnumSourceVariantBuildError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeBuildError {
+    IntegralVariants,
     TooManyNominalFields,
     EmptyCLayout,
     DuplicateNominalField(PersistentFieldId),
@@ -35,6 +36,9 @@ pub enum NominalSourceShapeBuildError {
 impl fmt::Display for NominalSourceShapeBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IntegralVariants => {
+                formatter.write_str("integral enum requires one value per unit variant")
+            }
             Self::EmptyCLayout => {
                 formatter.write_str("CLayout struct must declare at least one field")
             }
@@ -121,6 +125,7 @@ impl<E: std::error::Error + 'static> std::error::Error for EnumSourceVariantReso
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeResolutionError<E> {
+    IntegralVariants,
     TooManyNominalFields,
     EmptyCLayout,
     NominalField {
@@ -146,6 +151,9 @@ pub enum NominalSourceShapeResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for NominalSourceShapeResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IntegralVariants => {
+                formatter.write_str("integral enum requires one value per unit variant")
+            }
             Self::EmptyCLayout => {
                 formatter.write_str("CLayout struct must declare at least one field")
             }

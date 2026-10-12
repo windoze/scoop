@@ -1,0 +1,17 @@
+class Outer<T>(val value: T) {
+    inner class Inner {
+        fun direct(): () -> T = { value }
+        fun transitive(): () -> () -> T = {
+            val read: () -> T = { this@Outer.value }
+            read
+        }
+    }
+}
+fun main() {
+    val inner = Outer("retained").Inner()
+    val direct = inner.direct()
+    val nested = inner.transitive()()
+    gcCollect()
+    println(direct())
+    println(nested())
+}

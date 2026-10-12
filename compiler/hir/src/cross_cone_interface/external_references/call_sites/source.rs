@@ -63,11 +63,15 @@ impl HirDependencyCallSiteV1 {
             CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
         );
         let receiver = match source.owner().nominal_owner() {
-            Some(SourceNominalId::Concrete(_)) if construction => None,
+            Some(SourceNominalId::Concrete(_)) if construction => {
+                source.receiver().map(exact).transpose()?
+            }
             Some(SourceNominalId::Concrete(owner)) => {
                 Some(exact(&SignatureTypeKey::Nominal(owner))?)
             }
-            Some(SourceNominalId::GenericTemplate(_)) if construction => None,
+            Some(SourceNominalId::GenericTemplate(_)) if construction => {
+                source.receiver().map(exact).transpose()?
+            }
             Some(SourceNominalId::GenericTemplate(owner)) => {
                 let depth = usize::from(!source.type_parameters().is_empty());
                 let arguments = &bindings[depth];

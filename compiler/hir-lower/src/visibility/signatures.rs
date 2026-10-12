@@ -45,6 +45,7 @@ impl Lowerer {
         let functions = self
             .signatures
             .iter()
+            .filter(|(id, _)| self.function_accessor_kind(**id).is_none())
             .map(|(&id, signature)| {
                 let mut types = self.type_parameter_signature_types(&signature.type_params);
                 types.extend(signature.params.iter().map(|parameter| parameter.ty));
@@ -97,6 +98,22 @@ impl Lowerer {
             let mut signature_types = vec![ty];
             if let hir::PropertyOwner::Extension(extension) = owner {
                 signature_types.insert(0, self.extension_properties[extension].receiver_ty);
+                signature_types.extend(self.type_parameter_signature_types(
+                    &self.extension_properties[extension].type_params,
+                ));
+            }
+            let getter =
+                self.property_getters[self.properties[id].capability.getter()].implementation;
+            if let hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
+            | hir::PropertyAccessorImplementation::AbstractSlot(function) = getter
+            {
+                signature_types.extend(
+                    self.signatures[&function]
+                        .context_parameters
+                        .iter()
+                        .map(|parameter| parameter.ty),
+                );
             }
             self.check_signature_exposure(
                 &access,
@@ -105,24 +122,8 @@ impl Lowerer {
                 &format!("property `{name}`"),
             );
 
-            let getter = self.properties[id].capability.getter();
-            let getter_access = self.property_getters[getter].access.clone();
-            self.check_signature_exposure(
-                &getter_access,
-                &[ty],
-                self.property_getters[getter].span,
-                &format!("getter of property `{name}`"),
-            );
-
-            if let Some(setter) = self.properties[id].capability.setter() {
-                let setter_access = self.property_setters[setter].access.clone();
-                self.check_signature_exposure(
-                    &setter_access,
-                    &[ty],
-                    self.property_setters[setter].span,
-                    &format!("setter of property `{name}`"),
-                );
-            }
+            // The getter shares this lookup domain and a setter cannot
+            // widen it. Their value types are the checked logical type.
         }
 
         let class_constructors = self

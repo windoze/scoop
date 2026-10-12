@@ -11,10 +11,12 @@ use super::contextual::{
 };
 use super::solver::ConcreteInferenceArguments;
 use crate::Lowerer;
+use crate::declaration_inference::DeclarationResult;
 use crate::expr::ResolvedCallTypeArgument;
 
 pub(crate) struct CallInferenceInput<'a, D> {
     pub(crate) signature: &'a DeclarationSignature<D>,
+    pub(crate) result: DeclarationResult,
     pub(crate) argument_map: &'a CandidateArgumentMap<D>,
     pub(crate) type_arguments: DeclarationTypeArguments<'a>,
     pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
@@ -30,7 +32,7 @@ pub(crate) struct InferredCall {
     pub(crate) values: Vec<hir::Expr>,
     pub(crate) sinks: Vec<Vec<hir::Statement>>,
     pub(crate) parameter_types: Vec<hir::TypeId>,
-    pub(crate) return_type: hir::TypeId,
+    pub(crate) return_type: DeclarationResult,
     pub(crate) numeric_arguments:
         Vec<Option<crate::call_resolution::specificity::NumericLiteralKind>>,
 }
@@ -62,15 +64,15 @@ impl Lowerer {
             types,
             values,
             sinks,
+            result,
         } = self.infer_contextual_arguments(ArgumentInferenceInput {
             expressions: input.expressions,
             patterns: &patterns,
             parameters: &parameters,
             session: &mut session,
             environment,
-            expected_result: input
-                .expected_result
-                .map(|expected| (input.signature.return_type, expected)),
+            result: input.result,
+            expected_result: input.expected_result,
             forced_hint: input.forced_hint,
         })?;
         let bindings = parameters
@@ -114,7 +116,12 @@ impl Lowerer {
             .iter()
             .map(|parameter| self.instantiate_method_ty(parameter.ty, &bindings))
             .collect();
-        let return_type = self.instantiate_method_ty(input.signature.return_type, &bindings);
+        let return_type = match result {
+            DeclarationResult::Known(ty) => {
+                DeclarationResult::Known(self.instantiate_method_ty(ty, &bindings))
+            }
+            DeclarationResult::Function(function) => DeclarationResult::Function(function),
+        };
         Ok(InferredCall {
             types,
             bindings,

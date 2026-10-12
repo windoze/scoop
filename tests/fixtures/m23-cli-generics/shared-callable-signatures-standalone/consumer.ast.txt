@@ -40,5 +40,6 @@ SourceFile
         Call nativeNumber
           IntLiteral 42
         Lambda 0 suspend=false
+          label exercise
           param value: _
           Var value

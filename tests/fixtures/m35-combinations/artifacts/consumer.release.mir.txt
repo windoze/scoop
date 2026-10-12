@@ -86,7 +86,7 @@ Module
         Type Boolean
         IsInstance Left
           Type Any
-          Local value
+          Local $when.subject.0
     bb1 if.then.1
       branch bb4 bb5
         Type Boolean
@@ -130,7 +130,7 @@ Module
         Type Boolean
         IsInstance Left
           Type Any
-          Local $default.local.0
+          Local $default.local.1
     bb4 if.then.4
       val $dependency.receiver: Left
         Type Left
@@ -600,7 +600,7 @@ Module
         Type Boolean
         IsInstance Int
           Type Any
-          Local $dependency.local.2
+          Local $dependency.local.5
     bb4 if.then.4
       return
         Type () -> Int
@@ -655,7 +655,7 @@ Module
         Type Boolean
         IsInstance String
           Type Any
-          Local $dependency.local.2
+          Local $dependency.local.5
     bb4 if.then.4
       return
         Type () -> String

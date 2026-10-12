@@ -116,6 +116,7 @@ SourceFile
         IntLiteral 120L
         Argument trailing
           Lambda 0 suspend=false
+            label MutableArray
             param index: _
             when
               Binary Rem

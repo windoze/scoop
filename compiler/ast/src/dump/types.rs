@@ -21,12 +21,15 @@ pub(super) fn dump_annotations(annotations: &[Annotation], indent: usize, out: &
                 .collect();
             format!("({})", args.join(", "))
         };
-        out.push_str(&format!("{pad}@{}{}\n", annotation.name.text, args));
+        let site = annotation
+            .use_site
+            .map_or_else(String::new, |site| format!("{}:", site.target.as_str()));
+        out.push_str(&format!("{pad}@{site}{}{}\n", annotation.name, args));
     }
 }
 
 pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
-    match &ty.kind {
+    let shape = match &ty.kind {
         TypeRefKind::Named(name) => name.text.clone(),
         TypeRefKind::Generic(name, args) => {
             let inner: Vec<String> = args.iter().map(dump_type_ref).collect();
@@ -72,17 +75,32 @@ pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
         TypeRefKind::Function(function) => {
             let parameters: Vec<String> = function.parameters.iter().map(dump_type_ref).collect();
             let suspend = if function.is_suspend { "suspend " } else { "" };
+            let receiver = function
+                .receiver
+                .as_ref()
+                .map(|ty| {
+                    if ty.annotations.is_empty() {
+                        format!("{}.", dump_type_ref(ty))
+                    } else {
+                        format!("({}).", dump_type_ref(ty))
+                    }
+                })
+                .unwrap_or_default();
             format!(
-                "{suspend}({}) -> {}",
+                "{suspend}{receiver}({}) -> {}",
                 parameters.join(", "),
                 dump_type_ref(&function.return_type)
             )
         }
-        TypeRefKind::Nullable(inner) => match inner.kind {
-            TypeRefKind::Function(_) => format!("({})?", dump_type_ref(inner)),
-            _ => format!("{}?", dump_type_ref(inner)),
-        },
-    }
+        TypeRefKind::Nullable(inner) => {
+            if !inner.annotations.is_empty() || matches!(inner.kind, TypeRefKind::Function(_)) {
+                format!("({})?", dump_type_ref(inner))
+            } else {
+                format!("{}?", dump_type_ref(inner))
+            }
+        }
+    };
+    format!("{}{shape}", dump_annotation_prefix(&ty.annotations))
 }
 
 pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {
@@ -99,6 +117,20 @@ pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {
             format!("{}{literal}", if *negative { "-" } else { "+" })
         }
         AnnotationLiteral::ConstReference(reference) => dump_constant_reference(reference),
+        AnnotationLiteral::Application(application) => {
+            let arguments = application
+                .args
+                .iter()
+                .map(|arg| {
+                    let value = dump_annotation_literal(&arg.value);
+                    arg.name
+                        .as_ref()
+                        .map_or(value.clone(), |name| format!("{} = {value}", name.text))
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{}({arguments})", application.name)
+        }
         AnnotationLiteral::Array(elements) => format!(
             "[{}]",
             elements

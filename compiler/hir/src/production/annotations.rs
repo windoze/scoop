@@ -3,9 +3,9 @@ use crate::{
     AnnotatedTargetV1, AnnotationApplicationV1, AnnotationDataBuildError, AnnotationDeclarationV1,
     AnnotationParameterV1, AnnotationTargetV1, CanonicalAnnotationsV1, ExportHir,
     HirDefinitionSourceProjectionError, HirSignatureTypeMapper, HirSignatureTypeMappingError,
-    NominalOwner, SourceAnnotationTarget,
 };
 use scoop_identity::CanonicalIdentifier;
+mod targets;
 use std::fmt;
 
 impl CanonicalAnnotationsV1 {
@@ -13,8 +13,9 @@ impl CanonicalAnnotationsV1 {
         export: &ExportHir,
         nominals: &crate::CanonicalNominalInterfacesV1,
         properties: &crate::CanonicalPropertyInterfacesV1,
+        callables: &crate::CanonicalCallableInterfacesV1,
+        aliases: &crate::CanonicalTypeAliasInterfacesV1,
     ) -> Result<Self, AnnotationProductionError> {
-        let retained_targets = AnnotationTargetV1::source_targets(nominals, properties);
         let mapper = HirSignatureTypeMapper::new(crate::HirTypeIdentityInputs::from_export(export));
         let mut declarations = Vec::new();
         for declaration in &export.annotations.declarations {
@@ -25,9 +26,21 @@ impl CanonicalAnnotationsV1 {
                 .parameters
                 .iter()
                 .map(|parameter| {
-                    let value_type = mapper
-                        .map(parameter.value_type, &[])
-                        .map_err(AnnotationProductionError::Type)?;
+                    let value_type = match parameter.value_type {
+                        crate::AnnotationParameterType::Value(ty) => {
+                            crate::AnnotationParameterType::Value(
+                                mapper
+                                    .map(ty, &[])
+                                    .map_err(AnnotationProductionError::Type)?,
+                            )
+                        }
+                        crate::AnnotationParameterType::Annotation(id) => {
+                            crate::AnnotationParameterType::Annotation(id)
+                        }
+                        crate::AnnotationParameterType::AnnotationArray { array, element } => {
+                            crate::AnnotationParameterType::AnnotationArray { array, element }
+                        }
+                    };
                     Ok(AnnotationParameterV1 {
                         name: CanonicalIdentifier::new(&parameter.name)
                             .expect("source parameter names are canonical"),
@@ -39,11 +52,19 @@ impl CanonicalAnnotationsV1 {
             declarations.push(AnnotationDeclarationV1 {
                 annotation: declaration.identity.id(),
                 parameters,
+                rules: declaration.rules,
                 visibility: declaration.visibility.into(),
                 definition_origin: project_definition_source(export, declaration.definition_origin)
                     .map_err(AnnotationProductionError::Origin)?,
             });
         }
+        let retained_targets = AnnotationTargetV1::source_targets(
+            nominals,
+            properties,
+            callables,
+            aliases,
+            &declarations,
+        );
         let mut targets = Vec::new();
         for annotated in &export.annotations.targets {
             let applications = annotated
@@ -70,36 +91,11 @@ impl CanonicalAnnotationsV1 {
             if applications.is_empty() {
                 continue;
             }
-            let target = match annotated.target {
-                SourceAnnotationTarget::Nominal(owner) => {
-                    let identity = match owner {
-                        NominalOwner::Struct(id) => &export.nominal_identities[id],
-                        NominalOwner::Enum(id) => &export.nominal_identities[id],
-                        NominalOwner::Class(id) => &export.nominal_identities[id],
-                        NominalOwner::Interface(id) => &export.nominal_identities[id],
-                        NominalOwner::Object(id) => &export.nominal_identities[id],
-                    };
-                    AnnotationTargetV1::Nominal(identity.declaration_id())
-                }
-                SourceAnnotationTarget::Field(field) => {
-                    AnnotationTargetV1::Field(export.field_identities[field].id())
-                }
-                SourceAnnotationTarget::Variant(variant) => {
-                    AnnotationTargetV1::Variant(export.enum_member_identities[variant].id())
-                }
-                SourceAnnotationTarget::VariantField(field) => {
-                    AnnotationTargetV1::VariantField(export.enum_member_identities[field].id())
-                }
-                SourceAnnotationTarget::Property(property) => {
-                    let crate::HirPropertyIdentity::Ordinary(identity) =
-                        &export.property_identities[property]
-                    else {
-                        return Err(AnnotationProductionError::ExtensionProperty);
-                    };
-                    AnnotationTargetV1::Property(identity.id())
-                }
-            };
-            if !retained_targets.contains(&target) {
+            let target = targets::project(export, annotated.target)?;
+            if !retained_targets.contains(&target)
+                && !target.is_lexical_callable()
+                && !matches!(target, AnnotationTargetV1::TypeAlias(_))
+            {
                 continue;
             }
             targets.push(AnnotatedTargetV1 {
@@ -107,7 +103,36 @@ impl CanonicalAnnotationsV1 {
                 annotations: applications,
             });
         }
-        Self::try_new(declarations, targets).map_err(AnnotationProductionError::Table)
+        let type_uses = export
+            .annotations
+            .type_uses
+            .iter()
+            .filter(|usage| usage.identity.source.cone() == export.cone)
+            .map(|usage| {
+                usage
+                    .published(export)
+                    .map_err(AnnotationProductionError::Type)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut type_sites = Vec::new();
+        for site in &export.annotations.type_sites {
+            if site.type_use.source.cone() != export.cone {
+                continue;
+            }
+            let target = targets::project(export, site.target)?;
+            if retained_targets.contains(&target)
+                || target.is_lexical_callable()
+                || matches!(target, AnnotationTargetV1::TypeAlias(_))
+            {
+                type_sites.push(crate::AnnotationTypeSiteV1 {
+                    target,
+                    slot: site.slot,
+                    type_use: site.type_use.clone(),
+                });
+            }
+        }
+        Self::try_new(declarations, targets, type_uses, type_sites)
+            .map_err(AnnotationProductionError::Table)
     }
 }
 
@@ -116,7 +141,7 @@ pub enum AnnotationProductionError {
     Type(HirSignatureTypeMappingError),
     Origin(HirDefinitionSourceProjectionError),
     Table(AnnotationDataBuildError),
-    ExtensionProperty,
+    InvalidCallable,
 }
 impl fmt::Display for AnnotationProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -124,8 +149,8 @@ impl fmt::Display for AnnotationProductionError {
             Self::Type(error) => error.fmt(formatter),
             Self::Origin(error) => error.fmt(formatter),
             Self::Table(error) => error.fmt(formatter),
-            Self::ExtensionProperty => {
-                formatter.write_str("extension properties are not annotation targets")
+            Self::InvalidCallable => {
+                formatter.write_str("annotation target is not a source callable")
             }
         }
     }

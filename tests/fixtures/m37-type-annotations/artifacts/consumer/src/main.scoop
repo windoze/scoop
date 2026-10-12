@@ -1,0 +1,10 @@
+import annotated.bridge.*
+import annotated.bridge.Mark as Label
+typealias Words<T> = @Label("consumer alias") Pair<@Label("words") String, T>
+fun qualified(value: annotated.bridge.Pair<@Label("qualified A") String, @Label("qualified B") Int>): Int = value._1
+fun main() {
+    val pair: @Label("consumer root") Words<@Label("actual") Int> = (42, "bridge")
+    println(qualified(pair))
+    println(holder(pair._2).value)
+    println(keep("local"))
+}

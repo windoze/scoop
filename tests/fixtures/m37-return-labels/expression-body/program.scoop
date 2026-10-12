@@ -1,0 +1,2 @@
+fun value(): Int = return@value 1
+fun main() {}

@@ -144,8 +144,8 @@ pub(super) fn validate_function_bridge_metadata(module: &Module) -> Result<(), M
                 return invalid(location, "a closure dispatch entry has an invalid target");
             };
             if target.is_suspend != source.is_suspend
-                || target.parameter_types.len() != source.parameter_types.len()
-                || target.parameter_types.iter().any(|ty| *ty != Type::Any)
+                || target.arity() != source.arity()
+                || target.parameters().any(|ty| *ty != Type::Any)
                 || target.return_type != Type::Any
             {
                 return invalid(
@@ -247,6 +247,17 @@ fn expected_root(
 
 fn exact_signature(module: &Module, target: FunctionTypeId) -> Option<ExactCallableSignature> {
     let function_type = arena_get(&module.function_types, target)?;
+    let receiver = match &function_type.receiver {
+        Some(ty) => Some(
+            module
+                .meta
+                .source_exact_types
+                .get(ty)?
+                .identity_record()
+                .id(),
+        ),
+        None => None,
+    };
     let parameters = function_type
         .parameter_types
         .iter()
@@ -270,7 +281,7 @@ fn exact_signature(module: &Module, target: FunctionTypeId) -> Option<ExactCalla
         } else {
             Effect::Ordinary
         },
-        None,
+        receiver,
         parameters,
         result,
     ))

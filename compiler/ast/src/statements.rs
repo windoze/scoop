@@ -18,9 +18,13 @@ pub enum StatementKind {
     /// A named function declared in a block. Its name is visible in its own
     /// body and from this statement to the end of the lexical scope.
     LocalFunction(FunctionDecl),
+    /// A compile-time type binding visible after its declaration.
+    TypeAlias(crate::TypeAliasDecl),
+    LocalType(crate::LocalTypeDecl),
     /// `return` with an optional value (bare `return` in `Unit`
     /// functions).
     Return {
+        label: Option<Ident>,
         value: Option<Expr>,
     },
     /// `when` used in statement position (spec 5). Value position
@@ -40,10 +44,12 @@ pub enum StatementKind {
     While(While),
     /// `for (pattern in iterable) { ... }` (spec 8.7 / 11.8).
     For(For),
-    /// Unlabelled loop-control jumps. Their source spans live on the
-    /// containing [`Statement`], like the payload-free form of `return`.
-    Break,
-    Continue,
+    Break {
+        label: Option<Ident>,
+    },
+    Continue {
+        label: Option<Ident>,
+    },
     Block(Block),
     /// A lexical safety override. Unlike annotations on declarations, this is
     /// a dedicated syntax node and cannot be mistaken for a function call.
@@ -207,15 +213,48 @@ pub struct If {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
+    pub loop_kind: LoopKind,
+    pub label: Option<Ident>,
     pub cond: Expr,
     pub body: Block,
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum LoopKind {
+    While,
+    DoWhile,
+}
+
+impl LoopKind {
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::While => "while",
+            Self::DoWhile => "do-while",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct For {
+    pub label: Option<Ident>,
     pub pattern: Pattern,
     pub iterable: Expr,
     pub body: Block,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopJumpKind {
+    Break,
+    Continue,
+}
+
+impl LoopJumpKind {
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Break => "break",
+            Self::Continue => "continue",
+        }
+    }
 }

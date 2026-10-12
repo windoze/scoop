@@ -13,6 +13,8 @@ use crate::{
 
 mod decoded;
 mod indexed;
+mod loop_target;
+pub use loop_target::DefaultLoopTargetV1;
 
 pub use decoded::{DecodedDefaultStatementV1, DefaultStatementResolutionError};
 
@@ -70,12 +72,13 @@ pub enum DefaultStatementKindV1 {
         else_body: OptionalDefaultStatementListV1,
     },
     While {
+        loop_kind: crate::LoopKind,
         condition_setup: Vec<DefaultStatementV1>,
         condition: Box<DefaultExpressionV1>,
         body: Vec<DefaultStatementV1>,
     },
-    Break,
-    Continue,
+    Break(DefaultLoopTargetV1),
+    Continue(DefaultLoopTargetV1),
     When(Box<DefaultWhenV1>),
     Try(Box<DefaultTryV1>),
     Throw(Box<DefaultExpressionV1>),
@@ -125,12 +128,14 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
             }
         }
         DefaultStatementKindV1::While {
+            loop_kind,
             condition_setup,
             body,
             ..
         } => {
-            require_statements(condition_setup, 8, 1)?;
-            require_statements(body, 8, 3)?;
+            let tag = loop_tag(*loop_kind);
+            require_statements(condition_setup, tag, 1)?;
+            require_statements(body, tag, 3)?;
         }
         DefaultStatementKindV1::Expr(_)
         | DefaultStatementKindV1::InitializationEnsure(_)
@@ -139,8 +144,8 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
         | DefaultStatementKindV1::Return(_)
         | DefaultStatementKindV1::ValDecl { .. }
         | DefaultStatementKindV1::Assign { .. }
-        | DefaultStatementKindV1::Break
-        | DefaultStatementKindV1::Continue
+        | DefaultStatementKindV1::Break(_)
+        | DefaultStatementKindV1::Continue(_)
         | DefaultStatementKindV1::When(_)
         | DefaultStatementKindV1::Try(_)
         | DefaultStatementKindV1::Throw(_) => {}
@@ -160,3 +165,10 @@ fn require_statements(
 
 #[cfg(test)]
 mod tests;
+
+fn loop_tag(kind: crate::LoopKind) -> u64 {
+    match kind {
+        crate::LoopKind::While => 8,
+        crate::LoopKind::DoWhile => 9,
+    }
+}

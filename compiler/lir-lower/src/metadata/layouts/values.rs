@@ -132,36 +132,17 @@ pub(crate) fn enum_layout(
     identity: lir::LayoutIdentity,
     def: &mir::EnumDef,
 ) -> lir::Layout {
-    match &enums[enum_def_id(id)].repr {
-        lir::EnumRepr::Niche { .. } => {
-            let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
-            lir::Layout {
-                identity,
-                name: def.name.clone(),
-                size,
-                align,
-                fields: Vec::new(),
-                c_layout: None,
-                interior_mutable: false,
-                kind: lir::LayoutKind::Enum {
-                    scan: enums[enum_def_id(id)].scan.clone(),
-                },
-            }
-        }
-        lir::EnumRepr::Tagged { .. } => {
-            let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
-            lir::Layout {
-                identity,
-                name: def.name.clone(),
-                size,
-                align,
-                fields: Vec::new(),
-                c_layout: None,
-                interior_mutable: false,
-                kind: lir::LayoutKind::Enum {
-                    scan: enums[enum_def_id(id)].scan.clone(),
-                },
-            }
-        }
+    let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
+    lir::Layout {
+        identity,
+        name: def.name.clone(),
+        size,
+        align,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
+        kind: lir::LayoutKind::Enum {
+            scan: enums[enum_def_id(id)].scan.clone(),
+        },
     }
 }

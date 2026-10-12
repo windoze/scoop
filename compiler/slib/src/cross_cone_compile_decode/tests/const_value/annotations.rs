@@ -5,6 +5,7 @@ use scoop_hir::{
     DeclaredVisibilityV1,
 };
 use scoop_identity::PersistentAnnotationId;
+mod type_uses;
 
 #[derive(Clone, Copy)]
 enum Case {
@@ -13,7 +14,11 @@ enum Case {
     ArgumentType,
     DefaultType,
     GlobalTarget,
+    MissingReceiver,
     MissingDeclaration,
+    TargetExcluded,
+    Repeatable,
+    NonRepeatable,
 }
 
 fn annotated(case: Case) -> ConstSurface {
@@ -44,9 +49,16 @@ fn annotated(case: Case) -> ConstSurface {
     let boolean = Scalar(CanonicalConstValueV1::Boolean(CanonicalBooleanV1::True));
     let declaration = AnnotationDeclarationV1 {
         annotation: identity.id(),
+        rules: if matches!(case, Case::TargetExcluded) {
+            scoop_hir::AnnotationRules::only(scoop_hir::AnnotationTargetKind::Property)
+        } else {
+            let mut rules = scoop_hir::AnnotationRules::default();
+            rules.repeatable = matches!(case, Case::Repeatable);
+            rules
+        },
         parameters: vec![AnnotationParameterV1 {
             name: CanonicalIdentifier::new("value").unwrap(),
-            value_type: SignatureTypeKey::Nominal(value_type),
+            value_type: SignatureTypeKey::Nominal(value_type).into(),
             default: Some(if matches!(case, Case::DefaultType) {
                 Scalar(CanonicalConstValueV1::String("wrong".into()))
             } else {
@@ -56,12 +68,16 @@ fn annotated(case: Case) -> ConstSurface {
         visibility: DeclaredVisibilityV1::Internal,
         definition_origin: source.clone(),
     };
-    let target = if matches!(case, Case::GlobalTarget) {
+    let target = if matches!(case, Case::GlobalTarget | Case::MissingReceiver) {
         let PropertyOwner::Property(id) = section.property_interfaces().records()[0].declaration()
         else {
             panic!("ordinary property")
         };
-        AnnotationTargetV1::Property(id)
+        if matches!(case, Case::MissingReceiver) {
+            AnnotationTargetV1::PropertyReceiver(PropertyOwner::Property(id))
+        } else {
+            AnnotationTargetV1::Property(id)
+        }
     } else {
         AnnotationTargetV1::Nominal(SourceNominalId::Concrete(value_type))
     };
@@ -69,6 +85,16 @@ fn annotated(case: Case) -> ConstSurface {
         Case::Arity => vec![],
         Case::ArgumentType => vec![Scalar(CanonicalConstValueV1::String("wrong".into()))],
         _ => vec![boolean],
+    };
+    let application = AnnotationApplicationV1 {
+        annotation: identity.id(),
+        arguments,
+        definition_origin: source,
+    };
+    let applications = if matches!(case, Case::Repeatable | Case::NonRepeatable) {
+        vec![application.clone(), application]
+    } else {
+        vec![application]
     };
     section.set_annotations(
         CanonicalAnnotationsV1::try_new(
@@ -79,12 +105,10 @@ fn annotated(case: Case) -> ConstSurface {
             },
             vec![AnnotatedTargetV1 {
                 target,
-                annotations: vec![AnnotationApplicationV1 {
-                    annotation: identity.id(),
-                    arguments,
-                    definition_origin: source,
-                }],
+                annotations: applications,
             }],
+            vec![],
+            vec![],
         )
         .unwrap(),
     );
@@ -95,6 +119,21 @@ fn annotated(case: Case) -> ConstSurface {
 
 #[test]
 fn annotation_wire_round_trip_preserves_the_actual_declaration_and_typed_values() {
+    let bytes = annotated(Case::Repeatable).artifact();
+    let front = validate_until_source_interfaces(&bytes)
+        .validate_const_values(vec![])
+        .unwrap();
+    let annotations = front.hir_interface().annotations();
+    assert!(annotations.declarations()[0].rules.repeatable);
+    assert_eq!(annotations.targets()[0].annotations.len(), 2);
+    assert_eq!(
+        annotations.targets()[0].annotations[0],
+        annotations.targets()[0].annotations[1]
+    );
+    let bytes = annotated(Case::GlobalTarget).artifact();
+    validate_until_source_interfaces(&bytes)
+        .validate_const_values(vec![])
+        .unwrap();
     let fixture = annotated(Case::Valid);
     let bytes = fixture.artifact();
     let front = validate_until_source_interfaces(&bytes)
@@ -119,6 +158,14 @@ fn annotation_wire_round_trip_preserves_the_actual_declaration_and_typed_values(
 fn annotation_reader_rejects_mismatched_arguments_defaults_and_targets() {
     for (case, message) in [
         (
+            Case::TargetExcluded,
+            "annotation target is excluded by its declaration",
+        ),
+        (
+            Case::NonRepeatable,
+            "repeated non-repeatable annotation on one target",
+        ),
+        (
             Case::Arity,
             "annotation argument count differs from its declaration",
         ),
@@ -128,7 +175,7 @@ fn annotation_reader_rejects_mismatched_arguments_defaults_and_targets() {
         ),
         (Case::DefaultType, "annotation default has a different type"),
         (
-            Case::GlobalTarget,
+            Case::MissingReceiver,
             "annotation target is not a retained source declaration",
         ),
         (

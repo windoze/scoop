@@ -10,10 +10,10 @@ use scoop_identity::{
 };
 
 use crate::{
-    AppliedStructFieldRef, ClassDecl, ClassField, ClassFieldId, ClassId, DelegateStorage,
-    DelegateStorageLocation, HirNominalIdentities, HirPropertyIdentities, HirPropertyIdentity,
-    ObjectDecl, Property, PropertyBacking, PropertyId, PropertyOwner, PropertyRepresentation,
-    StructDecl, StructFieldRef,
+    AppliedStructFieldRef, ClassDecl, ClassField, ClassFieldId, ClassFieldSource, ClassId,
+    DelegateStorage, DelegateStorageLocation, HirNominalIdentities, HirPropertyIdentities,
+    HirPropertyIdentity, ObjectDecl, Property, PropertyBacking, PropertyId, PropertyOwner,
+    PropertyRepresentation, StructDecl, StructFieldRef,
 };
 
 mod builder;

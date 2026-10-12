@@ -208,13 +208,14 @@ fn empty_slot_schemas_cover_transitive_interfaces() {
 
 fn interface_with_parent(name: &str, parent: &str) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         type_params: Vec::new(),
         supertypes: vec![ast::SupertypeSpec {
             ty: ty_named(parent),
-            constructor_arguments: None,
+            initialization: ast::SupertypeInitialization::None,
             span: sp(),
         }],
         where_clause: None,

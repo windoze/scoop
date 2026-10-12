@@ -108,7 +108,7 @@ impl Lowerer {
                 declarations
                     .iter()
                     .copied()
-                    .find(|id| self.functions[*id].name.rsplit('.').next() == Some(name))
+                    .find(|id| self.source_function_name(*id) == name)
             };
             find("resume").zip(find("resumeWithException"))
         } else {
@@ -143,8 +143,9 @@ impl Lowerer {
         let valid_type_param = matches!(interface.type_params.as_slice(), [_]);
         let valid_method = match self.interface_methods[&id].as_slice() {
             [run] => {
+                let source_name = self.source_function_name(*run);
                 let run = &self.functions[*run];
-                run.name.rsplit('.').next() == Some("run")
+                source_name == "run"
                     && run.is_suspend
                     && run.params.len() == 1
                     && self.is_type_param(run.return_ty, 0)
@@ -170,8 +171,9 @@ impl Lowerer {
         let valid_type_param = matches!(interface.type_params.as_slice(), [_]);
         let valid_method = match self.interface_methods[&id].as_slice() {
             [register] => {
+                let source_name = self.source_function_name(*register);
                 let register = &self.functions[*register];
-                register.name.rsplit('.').next() == Some("register")
+                source_name == "register"
                     && !register.is_suspend
                     && register.params.len() == 2
                     && self.is_interface_param(register.params[1].ty, continuation, 0)

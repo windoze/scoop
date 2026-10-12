@@ -26,7 +26,7 @@ fn extern_property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::ExternStorage,
         span: sp(),
     })
@@ -369,7 +369,7 @@ fn native_boundary_witness_is_the_exact_transitive_source_nominal_closure() {
     ));
 
     let payload_record = record(concrete_owner(&module.nominal_identities[payload]));
-    let hir::NativeBoundaryNominalShape::Enum { variants } = payload_record.shape() else {
+    let hir::NativeBoundaryNominalShape::Enum { variants, .. } = payload_record.shape() else {
         panic!("NativePayload must retain its enum source shape")
     };
     assert_eq!(variants.len(), 2);

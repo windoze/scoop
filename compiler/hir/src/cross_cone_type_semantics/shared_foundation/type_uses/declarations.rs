@@ -52,6 +52,12 @@ impl Graph<'_> {
         let kind = match self.nominal(*parent)?.kind() {
             crate::PublicNominalKindV1::Class => Kind::ClassBase(derived),
             crate::PublicNominalKindV1::Interface => Kind::Interface(derived),
+            crate::PublicNominalKindV1::Struct
+                if matches!(self.nominal(owner)?.source_shape(), crate::NominalSourceShapeV1::Enum(shape)
+                    if shape.representation().integer_kind().is_some()) =>
+            {
+                Kind::Representation
+            }
             _ => return Err(Error::InheritanceEdges(derived)),
         };
         // A dependency's own parent contributes representation support, not
@@ -71,6 +77,9 @@ impl Graph<'_> {
         signature: &SignatureTypeKey,
         kind: Kind,
     ) -> Result<(), Error> {
+        if let Some(receiver) = signature.receiver_type() {
+            self.signature(receiver, kind)?;
+        }
         match signature {
             SignatureTypeKey::Nominal(owner) => self.select(*owner, kind)?,
             SignatureTypeKey::NominalApplication { arguments, .. } => {

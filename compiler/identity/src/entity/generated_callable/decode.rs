@@ -3,8 +3,8 @@ use std::fmt;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
-    CoroutineAdapterRole, GeneratedCallableIdentityError, GeneratedCallableKey,
-    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+    CoroutineAdapterRole, GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent,
+    LexicalCallableRole, LexicalParentError,
 };
 use crate::{
     DecodedCallableMaterialization, DecodedExactCallableSignature, DecodedPersistentId,
@@ -287,8 +287,6 @@ impl DecodedGeneratedCallableKey {
                 }
             }
         };
-        key.validate()
-            .map_err(GeneratedCallableResolutionError::Key)?;
         Ok(key)
     }
 }
@@ -473,7 +471,6 @@ pub enum GeneratedCallableResolutionError<E> {
     Reference(E),
     Parent(LexicalParentError),
     Signature(ExactCallableSignatureResolutionError<E>),
-    Key(GeneratedCallableIdentityError),
 }
 
 impl<E: fmt::Display> fmt::Display for GeneratedCallableResolutionError<E> {
@@ -482,7 +479,6 @@ impl<E: fmt::Display> fmt::Display for GeneratedCallableResolutionError<E> {
             Self::Reference(error) => error.fmt(formatter),
             Self::Parent(error) => error.fmt(formatter),
             Self::Signature(error) => error.fmt(formatter),
-            Self::Key(error) => error.fmt(formatter),
         }
     }
 }

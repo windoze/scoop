@@ -115,7 +115,7 @@ pub(super) fn validate(
                     collect_signature_type(field.ty(), &mut closure, &WirePath::root().field(34))?;
                 }
             }
-            scoop_hir::NativeBoundaryNominalShape::Enum { variants } => {
+            scoop_hir::NativeBoundaryNominalShape::Enum { variants, .. } => {
                 for variant in variants {
                     for field in variant.fields() {
                         collect_signature_type(
@@ -244,6 +244,11 @@ fn collect_signature_type(
         .map_err(NativeBoundaryCompileError::Resource)?;
     pending.push(ty);
     while let Some(ty) = pending.pop() {
+        if let Some(receiver) = ty.receiver_type() {
+            scoop_wire::allocation::try_reserve(&mut pending, 1, path)
+                .map_err(NativeBoundaryCompileError::Resource)?;
+            pending.push(receiver);
+        }
         let children = match ty {
             SignatureTypeKey::Nominal(owner) => {
                 state.require_owner(NativeBoundaryNominalOwner::Concrete(*owner), path)?;
@@ -383,6 +388,15 @@ fn collect_exact_type(
         scoop_wire::allocation::try_reserve_set(&mut state.visited_exact_types, 1, &path)
             .map_err(NativeBoundaryCompileError::Resource)?;
         state.visited_exact_types.insert(exact);
+        if let ExactTypeKey::Function {
+            receiver: Some(receiver),
+            ..
+        } = key.as_ref()
+        {
+            scoop_wire::allocation::try_reserve(&mut pending, 1, &path)
+                .map_err(NativeBoundaryCompileError::Resource)?;
+            pending.push(*receiver);
+        }
         let children = match key.as_ref() {
             ExactTypeKey::Nominal(owner) => {
                 state.require_owner(NativeBoundaryNominalOwner::Concrete(*owner), &path)?;

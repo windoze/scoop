@@ -67,12 +67,7 @@ pub(super) fn append(
             .ok_or(Error::ApplicationMaterialization(
                 constructor.materialization,
             ))?;
-        let semantic = ExactCallableSignature::new(
-            lowered.effect(),
-            None,
-            lowered.parameters().to_vec(),
-            owner,
-        );
+        let semantic = crate::source_callables::exact_class_constructor_signature(local, id);
         producer.record(
             constructor.materialization,
             semantic,

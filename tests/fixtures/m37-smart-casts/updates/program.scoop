@@ -1,0 +1,13 @@
+fun main() {
+    var value: Any = 41
+    if (value !is Int) return
+    val previous = value++
+    println(previous)
+    if (value !is Int) return
+    println(value)
+    value += 1
+    if (value !is Int) return
+    println(value)
+    val next = ++value
+    if (next is Int) println(next)
+}

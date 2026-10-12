@@ -1,0 +1,3 @@
+enum A : Int { V = 1 }
+enum B : Int { V = 1 }
+fun main() { val value: B = A.V }

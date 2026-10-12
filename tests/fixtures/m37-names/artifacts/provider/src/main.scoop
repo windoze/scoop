@@ -1,0 +1,9 @@
+package 中文.`包.名`
+public annotation class `标.记`(val 文本: String)
+@`标.记`("provider")
+public struct `容.器`<类型>(val `值.域`: 类型)
+public interface `读.取` { public fun `取.值`(): Int }
+public class `实.现` public constructor(private val 值: Int) : `读.取` {
+    public override fun `取.值`(): Int = 值
+}
+public fun <类型> 身份(输入: 类型): 类型 = 输入

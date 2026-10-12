@@ -1,0 +1,2 @@
+tailrec val invalid: Int = 1
+fun main() {}

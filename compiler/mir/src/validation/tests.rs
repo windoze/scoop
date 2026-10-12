@@ -223,6 +223,7 @@ fn register_test_function_type(module: &mut Module, id: FunctionTypeId) {
     };
     let record =
         scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Function {
+            receiver: None,
             effect: if signature.is_suspend {
                 scoop_identity::Effect::Suspend
             } else {
@@ -566,6 +567,7 @@ fn test_local_value(
 pub(crate) fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Choice".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1126,6 +1128,7 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     module.enums[enum_id].type_arguments.clear();
 
     let option_enum = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Option".to_string(),
         type_arguments: vec![payload_ty.clone()],
         gc_free: true,
@@ -1156,6 +1159,7 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     module.enums[option_enum].type_arguments[0] = payload_ty.clone();
 
     let foreign_enum = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Foreign".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1175,6 +1179,7 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
     );
 
     let slot_enum = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "CoroutineSlot".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1333,6 +1338,7 @@ fn variant_construction_validation_checks_ref_result_arity_and_field_types() {
 
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Choice".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1366,6 +1372,7 @@ fn safe_expression_constructors_fix_results_and_reject_a_wrong_enum() {
         vec![Type::Integer(IntegerKind::SIGNED_32)],
     )]);
     let other = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Other".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1634,6 +1641,7 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
 
     let mut foreign = Arena::new();
     let foreign_enum = foreign.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Choice".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -1709,6 +1717,7 @@ fn validation_rejects_wrong_variant_field_and_result_contracts() {
 fn validation_rejects_wrong_enum_and_test_result_type() {
     let (mut module, enum_id) = module_with_variants(vec![variant_def("Only", Vec::new())]);
     let other = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Other".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,

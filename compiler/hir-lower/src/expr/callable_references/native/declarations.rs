@@ -42,7 +42,7 @@ impl NativeReferenceDeclaration {
         match (&binding.target, &binding.origin) {
             (NamedCallTarget::Function(function), _) => {
                 let extension = state.extension_receivers.contains_key(function);
-                let view = state.callable_view(
+                let mut view = state.callable_view(
                     &crate::CallableCandidate::function(*function, Vec::new()),
                     extension,
                 );
@@ -62,6 +62,19 @@ impl NativeReferenceDeclaration {
                         reason: reason.to_owned(),
                     });
                 }
+                let before = state.diagnostics.len();
+                view.signature.return_type =
+                    state.infer_function_result(*function).ok_or_else(|| {
+                        NativeReferenceFailure {
+                            display: display.clone(),
+                            layer,
+                            reason: state.diagnostics[before..]
+                                .iter()
+                                .map(|diagnostic| diagnostic.message.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", "),
+                        }
+                    })?;
                 Ok(Self {
                     parameters: view
                         .signature

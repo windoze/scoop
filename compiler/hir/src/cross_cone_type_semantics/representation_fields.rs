@@ -70,11 +70,15 @@ impl ClassRepresentationFieldV1 {
     ) -> Result<Self, RepresentationFieldBuildError> {
         let owner = match key.view() {
             FieldIdentityView::SourcePropertyBacking { owner, .. }
-            | FieldIdentityView::SourcePropertyDelegate { owner, .. } => {
+            | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceEnclosingInstance { owner }
+            | FieldIdentityView::SourceCapturedEnvironment { owner }
+            | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => {
                 ClassRepresentationFieldOwnerV1::SourceClass(owner)
             }
             FieldIdentityView::Generated { owner, key }
-                if key.object_backing_property().is_some() =>
+                if (key.object_backing_property().is_some()
+                    || key.interface_delegate().is_some()) =>
             {
                 ClassRepresentationFieldOwnerV1::ObjectBackingClass(owner)
             }

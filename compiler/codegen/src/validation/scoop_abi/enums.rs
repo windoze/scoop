@@ -37,6 +37,7 @@ impl AbiMetadataValidator<'_> {
             gc_free: bool,
         }
         enum EnumShape {
+            Integral(scoop_lir::IntegerKind),
             Niche(scoop_lir::NullNicheKind),
             Tagged {
                 variants: Vec<VariantShape>,
@@ -49,6 +50,7 @@ impl AbiMetadataValidator<'_> {
             let definition = &self.module.enums[id];
             let shape = match &definition.repr {
                 EnumRepr::Niche { kind, .. } => EnumShape::Niche(*kind),
+                EnumRepr::Integral { kind, .. } => EnumShape::Integral(*kind),
                 EnumRepr::Tagged {
                     variants,
                     size,
@@ -76,6 +78,14 @@ impl AbiMetadataValidator<'_> {
         };
 
         let expected = match shape {
+            EnumShape::Integral(kind) => {
+                let layout = self.module.meta.target_profile.integer_layout(kind);
+                StorageFacts {
+                    size: layout.size_bytes(),
+                    align: layout.alignment_bytes(),
+                    scan: RefScan::None,
+                }
+            }
             EnumShape::Niche(kind) => {
                 let (size, align) = kind.layout(self.module.meta.target_profile);
                 StorageFacts {

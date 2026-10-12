@@ -289,7 +289,7 @@ fn machine_state_fields_use_the_closed_heap_instruction_family() {
 }
 
 #[test]
-#[should_panic(expected = "Retype operand must be a managed reference")]
+#[should_panic(expected = "reference upcast operand must be a managed reference")]
 fn retype_rejects_machine_scalar_to_source_integer() {
     let mut b = Builder::new();
     let machine_ty = mir::Type::MachineScalar(mir::MachineScalarKind::EnumTag);

@@ -11,6 +11,9 @@ fn public_declarations(declarations: Vec<Decl>) -> Vec<Decl> {
 
 fn type_alias(name: &str, target: TypeRef) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Explicit {
             visibility: ast::DeclaredVisibility::Public,
             span: sp(),
@@ -36,7 +39,7 @@ fn const_property(name: &str) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Const(Box::new(int_lit(7))),
         span: sp(),
     })

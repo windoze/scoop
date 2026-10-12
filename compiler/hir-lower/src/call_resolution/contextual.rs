@@ -10,6 +10,7 @@ use super::constraints::{
 };
 use super::solver::{ConcreteInferenceArguments, PartialInferenceArguments};
 use crate::Lowerer;
+use crate::declaration_inference::DeclarationResult;
 
 mod expressions;
 pub(crate) use expressions::{ArgumentExpression, ArgumentExpressionFailure};
@@ -62,11 +63,13 @@ pub(crate) struct ArgumentInferenceInput<'a> {
     pub(crate) parameters: &'a [hir::TypeParamId],
     pub(crate) session: &'a mut InferenceSession,
     pub(crate) environment: InferenceEnvironmentId,
-    pub(crate) expected_result: Option<(hir::TypeId, hir::TypeId)>,
+    pub(crate) result: DeclarationResult,
+    pub(crate) expected_result: Option<hir::TypeId>,
     pub(crate) forced_hint: Option<(usize, hir::TypeId)>,
 }
 
 pub(crate) struct InferredArguments {
+    pub(crate) result: DeclarationResult,
     pub(crate) types: ConcreteInferenceArguments,
     pub(crate) values: Vec<hir::Expr>,
     pub(crate) sinks: Vec<Vec<hir::Statement>>,
@@ -78,6 +81,10 @@ pub(crate) struct ArgumentInferenceFailure {
 }
 
 pub(crate) enum ArgumentInferenceFailureKind {
+    Declaration {
+        span: scoop_ast::Span,
+        reason: String,
+    },
     Constraint(ConstraintFailure),
     Expression(ArgumentExpressionFailure),
 }
@@ -93,10 +100,12 @@ impl Lowerer {
             parameters,
             session,
             environment,
+            result,
             mut expected_result,
             forced_hint,
         } = input;
         debug_assert_eq!(expressions.len(), patterns.len());
+        let mut resolved_result = None;
         let mut values = vec![None; expressions.len()];
         let mut sinks = (0..expressions.len())
             .map(|_| Vec::new())
@@ -183,7 +192,9 @@ impl Lowerer {
             if complete && values.iter().all(Option::is_some) {
                 break;
             }
-            if let Some((result, expected)) = expected_result.take() {
+            if let Some(expected) = expected_result.take() {
+                let result = self.infer_argument_result(result, &values)?;
+                resolved_result = Some(result);
                 session.push(
                     Constraint::Subtype(TypeTerm::Type(result), TypeTerm::Rigid(expected)),
                     ConstraintOrigin::ExpectedResult,
@@ -237,7 +248,9 @@ impl Lowerer {
                 })
             })?
             .arguments_for(session, environment);
+        let result = resolved_result.map_or(result, DeclarationResult::Known);
         Ok(InferredArguments {
+            result,
             types,
             values: values
                 .into_iter()
@@ -247,6 +260,8 @@ impl Lowerer {
         })
     }
 }
+
+mod result;
 
 fn hint_bindings(
     parameters: &[hir::TypeParamId],

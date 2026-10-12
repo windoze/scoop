@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `ordinary` must be of type Array<(Int) -> Int>, found Array<Int.() -> Int>; nominal application `Array` is invariant: first differing type argument 1 (`T`) is `Int.() -> Int` in `Array<Int.() -> Int>`, but `(Int) -> Int` in `Array<(Int) -> Int>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 116,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 110
+    },
+    "severity": "error"
+  }
+]

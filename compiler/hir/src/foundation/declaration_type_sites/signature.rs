@@ -29,6 +29,19 @@ pub(super) fn source(
     require(valid, root, position)
 }
 
+pub(super) fn constructor(
+    key: &SourceDeclarationKey,
+    root: CallableMaterialization,
+    position: Option<Part>,
+    has_context: bool,
+) -> Result<(), Error> {
+    if position == Some(Part::Receiver) {
+        require(has_context, root, Part::Receiver)
+    } else {
+        source(key, root, position)
+    }
+}
+
 pub(super) fn accessor(
     property: &SourceDeclarationKey,
     role: AccessorRole,
@@ -55,8 +68,10 @@ pub(super) fn generated(
         return Ok(());
     };
     let valid = match key {
-        GeneratedCallableKey::Initialization { .. }
-        | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. } => position == Part::Result,
+        GeneratedCallableKey::Initialization { .. } => position == Part::Result,
+        GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. } => {
+            matches!(position, Part::Receiver | Part::Result)
+        }
         GeneratedCallableKey::DerivedEquality { .. } => {
             matches!(position, Part::Receiver | Part::Parameter(0) | Part::Result)
         }

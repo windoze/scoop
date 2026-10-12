@@ -14,7 +14,8 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
         unreachable!("fun_expr builds a function declaration")
     };
     native_function.annotations.push(ast::Annotation {
-        name: ident("NoGC"),
+        use_site: None,
+        name: ident("NoGC").into(),
         args: Vec::new(),
         span: sp(),
     });

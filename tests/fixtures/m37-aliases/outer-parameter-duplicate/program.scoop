@@ -1,0 +1,2 @@
+fun <T> use(value: T) { typealias Row<T> = (Int, T) }
+fun main() {}

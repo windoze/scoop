@@ -118,7 +118,7 @@ impl Lowerer {
             }
             hir::Type::Function(function) | hir::Type::FunPtr(function) => {
                 let function = &self.function_types[*function];
-                for &parameter in &function.parameter_types {
+                for &parameter in function.parameters() {
                     self.collect_pointee_parameters(parameter, visiting, out);
                 }
                 self.collect_pointee_parameters(function.return_type, visiting, out);

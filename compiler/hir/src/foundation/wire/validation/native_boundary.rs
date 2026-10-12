@@ -87,7 +87,7 @@ pub(super) fn validate_shape_coverage(
         definitions
             .iter()
             .filter_map(|definition| match definition.shape() {
-                NativeBoundaryNominalShape::Enum { variants } => Some(variants.len()),
+                NativeBoundaryNominalShape::Enum { variants, .. } => Some(variants.len()),
                 NativeBoundaryNominalShape::Reference
                 | NativeBoundaryNominalShape::Intrinsic(_)
                 | NativeBoundaryNominalShape::Struct { .. } => None,
@@ -98,7 +98,7 @@ pub(super) fn validate_shape_coverage(
         definitions
             .iter()
             .filter_map(|definition| match definition.shape() {
-                NativeBoundaryNominalShape::Enum { variants } => Some(variants.as_slice()),
+                NativeBoundaryNominalShape::Enum { variants, .. } => Some(variants.as_slice()),
                 NativeBoundaryNominalShape::Reference
                 | NativeBoundaryNominalShape::Intrinsic(_)
                 | NativeBoundaryNominalShape::Struct { .. } => None,
@@ -186,6 +186,7 @@ pub(super) fn validate_shape_coverage(
             }
             NativeBoundaryNominalShape::Enum {
                 variants: definition_variants,
+                ..
             } => {
                 actual_variants.extend(
                     definition_variants

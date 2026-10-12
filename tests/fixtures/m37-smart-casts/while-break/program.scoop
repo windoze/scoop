@@ -1,0 +1,5 @@
+fun length(value: Any): Long {
+    while (value !is String) break
+    return value.length
+}
+fun main() {}

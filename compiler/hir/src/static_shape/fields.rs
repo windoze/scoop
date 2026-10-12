@@ -20,7 +20,6 @@ pub struct StaticFieldShape<'a> {
 
 #[derive(Clone, Copy)]
 pub(super) enum StaticAnnotationTarget {
-    Unannotated,
     Current(SourceAnnotationTarget),
     Dependency(AnnotationTargetV1),
 }

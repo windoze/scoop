@@ -1,0 +1,16 @@
+object Tools {
+    fun read(value: Int): Int = value
+}
+
+class Box<T> {
+    companion object {
+        fun read(value: T): T = value
+    }
+}
+
+typealias Factory = Box<Int>.Companion
+
+fun main(): Unit {
+    val wrong: (Tools, Int) -> Int = Tools::read
+    val other: (Factory, Int) -> Int = Factory::read
+}

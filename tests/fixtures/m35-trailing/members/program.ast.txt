@@ -34,6 +34,7 @@ SourceFile
             Var value
             Argument trailing
               Lambda 2 suspend=false
+                label work
                 parameters omitted
                 IntLiteral 10
         else
@@ -50,6 +51,7 @@ SourceFile
         Call Worker
         Argument trailing
           Lambda 3 suspend=false
+            label work
             parameters omitted
             IntLiteral 5
     Call println
@@ -57,6 +59,7 @@ SourceFile
         Call Worker
         Argument trailing
           Lambda 4 suspend=false
+            label extension
             parameters omitted
             IntLiteral 6
     Call println
@@ -64,6 +67,7 @@ SourceFile
         Call Factory
           Argument trailing
             Lambda 5 suspend=false
+              label Factory
               parameters omitted
               IntLiteral 7
     Call println
@@ -71,12 +75,14 @@ SourceFile
         Call Alias
           Argument trailing
             Lambda 6 suspend=false
+              label Alias
               parameters omitted
               IntLiteral 8
     val built
       Call Built
         Argument trailing
           Lambda 7 suspend=false
+            label Built
             parameters omitted
             IntLiteral 9
     Call println
@@ -108,6 +114,7 @@ SourceFile
       Call callable
         Argument trailing
           Lambda 10 suspend=false
+            label callable
             parameters omitted
             IntLiteral 13
     Call println
@@ -122,5 +129,6 @@ SourceFile
         Var Namespace
         Argument trailing
           Lambda 12 suspend=false
+            label make
             parameters omitted
             IntLiteral 15

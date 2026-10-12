@@ -3,7 +3,7 @@ name = "source-callable-references-bad-constructor"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../m23-source-callable-references/provider.scoop", "bad-constructor", "../../m23-source-callable-references/bad-constructor.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["generics", "source_callable_references_republish_and_execute_from_artifacts", "negative"]
+tags = ["generics", "source_callable_references_republish_and_execute_from_artifacts", "positive", "m37-regression"]
 
 [[steps]]
 name = "prepare_core"
@@ -62,11 +62,11 @@ files = [
 [[steps]]
 name = "consumer"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/bad-constructor", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-constructor/0.1.0/cone.slib"]
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "diagnostics.json"}
+diagnostics = []
 checks = [
-  {"file" = "${work}/artifacts/dev.example/bad-constructor/0.1.0/cone.slib", "exists" = false},
+  {"file" = "${work}/artifacts/dev.example/bad-constructor/0.1.0/cone.slib", "exists" = true},
 ]

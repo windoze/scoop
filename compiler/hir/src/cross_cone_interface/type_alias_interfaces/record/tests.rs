@@ -131,6 +131,41 @@ fn reader_reports_missing_alias_identity_authority() {
     ));
 }
 
+#[test]
+fn generic_record_preserves_binders_and_rejects_redundant_host_field() {
+    let fixture = Fixture::new();
+    let parameters = CanonicalBinderListV1::try_new(vec![crate::TypeParameterBinderV1::new(
+        CanonicalIdentifier::new("T").unwrap(),
+        crate::TypeParameterBoundsV1::Value,
+    )])
+    .unwrap();
+    let record = TypeAliasInterfaceRecordV1::try_new(
+        fixture.alias.id(),
+        TypeAliasTargetV1::Signature(SignatureTypeKey::Binder { depth: 0, index: 0 }),
+        PublicLookupAccessV1::DirectOnly,
+        fixture.origin.clone(),
+    )
+    .unwrap()
+    .with_type_parameters(parameters, 0)
+    .unwrap();
+    assert_eq!(record.type_parameters().len_u32(), 1);
+    let mut authority = fixture.authority();
+    assert_eq!(
+        decode_record(&record).resolve(&mut authority).unwrap(),
+        record
+    );
+    let mut bytes = encode(&record).unwrap();
+    assert_eq!(bytes[0], 0xa5);
+    bytes[0] = 0xa6;
+    bytes.extend([6, 0]);
+    assert_eq!(
+        decode_canonical::<DecodedTypeAliasInterfaceRecordV1>(&bytes)
+            .unwrap_err()
+            .kind(),
+        &WireErrorKind::NonCanonicalCbor
+    );
+}
+
 struct Fixture {
     alias: CborIdentityRecord<PersistentTypeAliasId, SourceDeclarationKey>,
     target: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,

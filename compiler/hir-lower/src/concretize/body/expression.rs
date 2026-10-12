@@ -413,7 +413,7 @@ impl Concretizer<'_> {
                     // conservatively represented as Box in Export HIR. Its
                     // concrete argument may instead be a reference; in that
                     // case the adaptation is a zero-cost retype.
-                    concrete::ExprKind::ReferenceUpcast(Box::new(value))
+                    concrete::ExprKind::Upcast(Box::new(value))
                 }
             }
             export::ExprKind::Unbox(value) => {
@@ -421,15 +421,15 @@ impl Concretizer<'_> {
                 if self.is_value_representation(ty) {
                     concrete::ExprKind::Unbox(Box::new(value))
                 } else {
-                    concrete::ExprKind::ReferenceUpcast(Box::new(value))
+                    concrete::ExprKind::Upcast(Box::new(value))
                 }
             }
-            export::ExprKind::ReferenceUpcast(value) => {
+            export::ExprKind::Upcast(value) => {
                 let value = self.lower_expr(value, substitution, locals);
                 if self.is_nothing_type(value.ty) {
                     return value;
                 }
-                concrete::ExprKind::ReferenceUpcast(Box::new(value))
+                concrete::ExprKind::Upcast(Box::new(value))
             }
             export::ExprKind::IsInstance { operand, check_ty } => concrete::ExprKind::IsInstance {
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),

@@ -504,8 +504,8 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}Unbox : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::ReferenceUpcast(operand) => {
-            out.push_str(&format!("{pad}ReferenceUpcast : {ty}\n"));
+        ExprKind::Upcast(operand) => {
+            out.push_str(&format!("{pad}Upcast : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::IsInstance { operand, check_ty } => {

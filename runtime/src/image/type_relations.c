@@ -33,6 +33,19 @@ static void check_relations(const ScoopImageRegistry *registry, size_t index) {
     }
     if (td->parent != NULL) {
         registered_type(registry, &check, td->parent);
+        const ScoopTypeInstanceShapeV1 *shape = &td->instance_shape;
+        if (shape->instance_kind == SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1) {
+            const ScoopTypeInstanceShapeV1 *parent = &td->parent->instance_shape;
+            if (parent->instance_kind != SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1 ||
+                shape->inline_storage_kind != SCOOP_INLINE_STORAGE_INLINE_V1 ||
+                parent->inline_storage_kind != SCOOP_INLINE_STORAGE_INLINE_V1 ||
+                shape->inline_offset != parent->inline_offset ||
+                shape->inline_size != parent->inline_size ||
+                shape->inline_alignment != parent->inline_alignment ||
+                shape->inline_scan != NULL || parent->inline_scan != NULL) {
+                scoop_metadata_fatal(&check, "boxed integer parent has a different scalar payload");
+            }
+        }
     }
     if (td->function_result != NULL) {
         registered_type(registry, &check, td->function_result);

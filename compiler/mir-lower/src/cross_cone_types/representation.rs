@@ -125,7 +125,13 @@ pub(super) fn project(
                 interior_mutable: *interior_mutable,
             }
         }
-        (mir::Type::Enum(id, _), Source::Enum { variants: expected }) => {
+        (
+            mir::Type::Enum(id, _),
+            Source::Enum {
+                variants: expected,
+                representation,
+            },
+        ) => {
             let variants = &module.enums[*id].variants;
             if variants.len() != expected.len()
                 || variants.iter().zip(expected).any(|(variant, expected)| {
@@ -142,6 +148,7 @@ pub(super) fn project(
             }
             Repr::Enum {
                 variants: fields::variants(module, variants)?,
+                representation: super::super::types::lower_enum_representation(representation),
             }
         }
         (

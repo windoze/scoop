@@ -65,6 +65,7 @@ fn class(name: &str, fields: Vec<ClassFieldId>, properties: Vec<PropertyId>) -> 
         owner: None,
         access: NominalAccess::public(),
         definition: crate::ClassDefinition {
+            inheritance_family: Default::default(),
             release_policy: Default::default(),
             modifier: ClassModifier::Final,
             self_application: ClassApplicationId::from_raw(0_u32.into()),
@@ -174,9 +175,8 @@ fn relation_is_total_for_struct_and_source_class_fields() {
     let mut class_fields = Arena::new();
     class_fields.alloc(ClassField {
         owner: class_id,
-        property: property_id,
         definition_index: 0,
-        source: crate::ClassFieldSource::Body,
+        source: crate::ClassFieldSource::BodyProperty(property_id),
         span: Span::new(0, 0),
     });
     let mut properties = Arena::new();
@@ -256,9 +256,8 @@ fn relation_rejects_a_class_field_without_physical_property_storage() {
     let mut class_fields = Arena::new();
     class_fields.alloc(ClassField {
         owner: class_id,
-        property: property_id,
         definition_index: 0,
-        source: crate::ClassFieldSource::Body,
+        source: crate::ClassFieldSource::BodyProperty(property_id),
         span: Span::new(0, 0),
     });
     let mut properties = Arena::new();

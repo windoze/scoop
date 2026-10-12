@@ -35,5 +35,6 @@ SourceFile
           Call second<Int>
             IntLiteral 2
         Lambda 0 suspend=false
+          label exercise
           param value: _
           Var value

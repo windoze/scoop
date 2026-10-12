@@ -63,6 +63,24 @@ mod tests_m35;
 #[cfg(test)]
 mod tests_m36_modifiers;
 #[cfg(test)]
+mod tests_m37_control_bodies;
+#[cfg(test)]
+mod tests_m37_interface_delegation;
+#[cfg(test)]
+mod tests_m37_local_types;
+#[cfg(test)]
+mod tests_m37_loop_jumps;
+#[cfg(test)]
+mod tests_m37_modifiers;
+#[cfg(test)]
+mod tests_m37_names;
+#[cfg(test)]
+mod tests_m37_receivers;
+#[cfg(test)]
+mod tests_m37_return_labels;
+#[cfg(test)]
+mod tests_m37_type_annotations;
+#[cfg(test)]
 mod tests_m4;
 #[cfg(test)]
 mod tests_m5;

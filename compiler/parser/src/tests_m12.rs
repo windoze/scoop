@@ -16,13 +16,13 @@ fn parses_typed_top_level_storage_declarations() {
     };
     assert!(counter.mutable);
     assert!(counter.initializer().is_some());
-    assert_eq!(counter.annotations[0].name.text, "Global");
+    assert_eq!(counter.annotations[0].name.to_string(), "Global");
     let Decl::Global(limit) = &file.declarations[1] else {
         panic!("expected extern global");
     };
     assert!(!limit.mutable);
     assert!(limit.initializer().is_none());
-    assert_eq!(limit.annotations[0].name.text, "Extern");
+    assert_eq!(limit.annotations[0].name.to_string(), "Extern");
 }
 
 #[test]
@@ -75,12 +75,18 @@ fn annotation_constant_paths_are_preserved_for_hir() {
 }
 
 #[test]
-fn annotation_arguments_reject_calls() {
-    let (_, message) = err("@Label(name = symbol()) struct Value()");
-    assert_eq!(
-        message,
-        "annotation argument must be a scalar literal or const val reference"
-    );
+fn annotation_arguments_preserve_nested_static_applications() {
+    let file = ok("@Label(name = Message(\"text\", codes = [1, 2])) struct Value()");
+    let Decl::Struct(value) = &file.declarations[0] else {
+        panic!("expected struct")
+    };
+    let AnnotationLiteral::Application(nested) = &value.annotations[0].args[0].value else {
+        panic!("expected a static application")
+    };
+    assert_eq!(nested.name.to_string(), "Message");
+    assert!(matches!(&nested.args[0].value, AnnotationLiteral::String(text) if text == "text"));
+    assert_eq!(nested.args[1].name.as_ref().unwrap().text, "codes");
+    assert!(matches!(&nested.args[1].value, AnnotationLiteral::Array(values) if values.len() == 2));
 }
 
 #[test]
@@ -90,7 +96,7 @@ fn annotations_precede_member_modifiers() {
         panic!("expected struct");
     };
     let method = decl.functions().next().expect("struct method");
-    assert_eq!(method.annotations[0].name.text, "NoGC");
+    assert_eq!(method.annotations[0].name.to_string(), "NoGC");
     assert!(method.is_override);
 }
 

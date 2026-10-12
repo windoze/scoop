@@ -100,7 +100,7 @@ impl Harness {
                 &self.properties,
                 &Arena::new(),
                 &nominals,
-                &properties[declaration.property],
+                &properties[declaration.source.property().expect("test property field")],
             )
             .expect("test field has its storage identity");
         hir::FieldRef::ClassField {
@@ -221,6 +221,7 @@ impl Harness {
             span: SPAN,
 
             definition: hir::EnumDefinition {
+                representation: hir::EnumRepresentation::Algebraic,
                 self_application,
                 type_params,
                 variants,

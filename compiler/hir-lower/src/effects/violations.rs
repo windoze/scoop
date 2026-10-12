@@ -75,6 +75,7 @@ impl Lowerer {
                     }
                 }
                 hir::StatementKind::While {
+                    loop_kind: _,
                     target: _,
                     condition_setup,
                     cond,
@@ -296,7 +297,7 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
-            ExprKind::ReferenceUpcast(operand) => {
+            ExprKind::Upcast(operand) => {
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::IsInstance { operand, .. } | ExprKind::Cast { operand, .. } => {

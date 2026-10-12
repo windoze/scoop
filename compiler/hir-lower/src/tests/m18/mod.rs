@@ -77,9 +77,11 @@ fn safe_method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
 
 fn int_identity_lambda() -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),
@@ -1311,9 +1313,11 @@ fn class_destructuring_is_depth_first_calls_wildcards_and_rejects_rest() {
 #[test]
 fn class_binding_plan_keeps_one_complete_lambda_parameter() {
     let operation = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind("left"), pat_wild()], None),
             ty: None,
             span: sp(),
@@ -1434,15 +1438,18 @@ fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_coun
     let suspend_span = Span::new(430, 438);
     let escaped_span = Span::new(440, 445);
     let failed_header = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![
             ast::LambdaParam {
+                annotations: Vec::new(),
                 target: pat_tuple(vec![pat_bind_at("first", first_span)], None),
                 ty: None,
                 span: first_span,
             },
             ast::LambdaParam {
+                annotations: Vec::new(),
                 target: pat_tuple(vec![pat_bind_at("missing", missing_span)], None),
                 ty: None,
                 span: missing_span,
@@ -1452,9 +1459,11 @@ fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_coun
         span: sp(),
     };
     let failed_effect = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(1),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind_at("value", suspend_span)], None),
             ty: None,
             span: suspend_span,
@@ -1562,9 +1571,11 @@ fn class_binding_plan_checks_suspend_components_in_the_lambda_context() {
         )
     };
     let operation = |is_suspend| ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind("value")], None),
             ty: None,
             span: sp(),
@@ -2341,7 +2352,7 @@ fn assert_adapted_extension_component(
     let [(receiver, receiver_init)] = receivers.as_slice() else {
         panic!("one extension component must materialize exactly one receiver")
     };
-    let hir::ExprKind::ReferenceUpcast(source_expression) = &receiver_init.kind else {
+    let hir::ExprKind::Upcast(source_expression) = &receiver_init.kind else {
         panic!("the component receiver retains its reference adaptation")
     };
     let hir::ExprKind::Local(receiver_source) = source_expression.kind else {

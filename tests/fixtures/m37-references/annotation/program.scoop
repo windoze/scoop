@@ -1,0 +1,2 @@
+annotation class Tag(val value: Int)
+fun main() { val make = ::Tag }

@@ -107,7 +107,18 @@ impl Replay<'_> {
                     }
                 }
             }
-            Kind::Enum { variants }
+            Kind::Enum {
+                representation: mir::EnumRepresentation::Integral { kind, .. },
+                ..
+            } => lir::ExactValueLayoutV1::scalar(
+                identity,
+                lir::ScalarRepresentationKindV1::Integer(integer_kind(*kind)),
+                foundation,
+            )?,
+            Kind::Enum {
+                variants,
+                representation: mir::EnumRepresentation::Algebraic,
+            }
             | Kind::CoroutineStep { variants }
             | Kind::CoroutineSlot { variants } => self.enumeration(identity, variants)?,
         };

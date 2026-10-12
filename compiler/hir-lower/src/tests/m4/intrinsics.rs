@@ -190,7 +190,8 @@ fn unknown_annotation_is_an_error() {
     core.declarations.push(Decl::Function(FunctionDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Unknown"),
+            use_site: None,
+            name: ident("Unknown").into(),
             args: vec![],
             span: sp(),
         }],
@@ -212,8 +213,5 @@ fn unknown_annotation_is_an_error() {
     let errors =
         lower(&[core, file(vec![fun("main", vec![])])]).expect_err("unknown annotation must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "user annotation `@Unknown` is not allowed on a function"
-    );
+    assert_eq!(errors[0].message, "unknown annotation `Unknown`");
 }

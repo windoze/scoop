@@ -1,0 +1,12 @@
+fun length(value: Any, flag: Boolean): Long {
+    if (flag) {
+        if (value !is String) return -1L
+    } else {
+        if (value !is String) return -2L
+    }
+    return value.length
+}
+fun main() {
+    println(length("abc", true)); println(length("hello", false))
+    println(length(42, true)); println(length(42, false))
+}

@@ -1,0 +1,2 @@
+sealed struct Bad(value: Int)
+fun main() {}

@@ -24,7 +24,7 @@ pub(crate) enum ValueOrigin {
         target: NonValueTarget,
     },
     Core(ValueTarget),
-    CoreNonValue(NonValueTarget),
+    SourceNonValue(NonValueTarget),
     Dependency(hir::DirectImportedTargetBinding),
     /// A duplicate-signature declaration owns this value spelling but cannot
     /// be exposed as a semantic value/callable candidate.
@@ -46,7 +46,7 @@ impl PartialEq for ValueOrigin {
                 },
             ) => left_binding == right_binding && left_target == right_target,
             (Self::Core(left), Self::Core(right)) => left == right,
-            (Self::CoreNonValue(left), Self::CoreNonValue(right)) => left == right,
+            (Self::SourceNonValue(left), Self::SourceNonValue(right)) => left == right,
             (Self::Dependency(left), Self::Dependency(right)) => {
                 left.binding_target() == right.binding_target() && left.target() == right.target()
             }

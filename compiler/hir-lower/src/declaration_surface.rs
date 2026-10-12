@@ -25,11 +25,16 @@ enum DeclarationSurfaceState {
 
 impl DeclarationSurface {
     pub(crate) fn freeze(&mut self, rejected_functions: HashSet<hir::FunctionId>) {
-        assert!(
-            matches!(self.state, DeclarationSurfaceState::Collecting),
-            "the declaration surface is frozen exactly once"
-        );
-        self.state = DeclarationSurfaceState::Frozen { rejected_functions };
+        match &mut self.state {
+            DeclarationSurfaceState::Collecting => {
+                self.state = DeclarationSurfaceState::Frozen { rejected_functions };
+            }
+            DeclarationSurfaceState::Frozen {
+                rejected_functions: previous,
+            } => {
+                previous.extend(rejected_functions);
+            }
+        }
     }
 
     pub(crate) fn is_frozen(&self) -> bool {

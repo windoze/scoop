@@ -7,6 +7,7 @@ fn lambda_capture_uses_global_binding_identity_and_creation_source() {
     let operation_ty = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
     let operation = lambda(
         Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("Int")),
             span: sp(),

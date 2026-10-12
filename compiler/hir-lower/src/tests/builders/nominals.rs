@@ -24,6 +24,7 @@ pub(crate) fn class_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
+        inner_span: None,
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         modifier,
@@ -50,12 +51,12 @@ pub(crate) fn class_decl(
             .into_iter()
             .map(|(name, args)| ast::SupertypeSpec {
                 ty: ty_named(name),
-                constructor_arguments: Some(call_arguments(args)),
+                initialization: ast::SupertypeInitialization::Constructor(call_arguments(args)),
                 span: sp(),
             })
             .chain(interfaces.into_iter().map(|name| ast::SupertypeSpec {
                 ty: ty_named(name),
-                constructor_arguments: None,
+                initialization: ast::SupertypeInitialization::None,
                 span: sp(),
             }))
             .collect(),
@@ -71,6 +72,7 @@ pub(crate) fn class_decl(
 /// `interface I { fun m(...): T ... }`.
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
@@ -91,6 +93,7 @@ pub(crate) fn generic_interface_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: vec![],
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
@@ -142,6 +145,7 @@ pub(crate) fn method_full(
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,
@@ -278,7 +282,7 @@ pub(crate) fn generic_struct_decl_full(
             .into_iter()
             .map(|name| ast::SupertypeSpec {
                 ty: ty_named(name),
-                constructor_arguments: None,
+                initialization: ast::SupertypeInitialization::None,
                 span: sp(),
             })
             .collect(),

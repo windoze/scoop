@@ -1,0 +1,24 @@
+fun <T> reader(value: T): () -> T {
+    fun read(): T = value
+    class Local {
+        fun invoke(): T = read()
+        fun reference(): () -> T = ::read
+        fun self(): T {
+            fun construct(): Local = Local()
+            return construct().invoke()
+        }
+        fun defaulted(): T {
+            fun choose(result: T = value): T = result
+            return choose()
+        }
+    }
+    val local = Local()
+    local.invoke()
+    local.self()
+    local.defaulted()
+    return local.reference()
+}
+fun main() {
+    println(reader(42)())
+    println(reader("generic")())
+}

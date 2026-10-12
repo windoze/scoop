@@ -9,6 +9,7 @@ pub use conditions::{DecodedNominalInstantiationConditionsV1, NominalInstantiati
 mod inventory;
 mod references;
 mod release;
+mod sealed;
 pub use decode::{DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError};
 pub use inventory::NominalDeclarationInventoryError;
 pub use references::*;
@@ -29,6 +30,7 @@ pub struct NominalDeclarationDetailsV1 {
     instantiation_conditions: NominalInstantiationConditionsV1,
     release_policy: NominalReleasePolicyV1,
     class_primary_constructor: Option<ClassPrimaryConstructorV1>,
+    sealed_subtypes: Option<crate::CanonicalSourceNominalIdsV1>,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -58,6 +60,26 @@ impl NominalDeclarationDetailsV1 {
             instantiation_conditions,
             release_policy,
             class_primary_constructor,
+            sealed_subtypes: None,
+        }
+    }
+
+    pub fn with_sealed_subtypes(
+        mut self,
+        subtypes: Option<crate::CanonicalSourceNominalIdsV1>,
+    ) -> Self {
+        self.sealed_subtypes = subtypes;
+        self
+    }
+
+    pub fn sealed_subtypes(&self) -> Option<&crate::CanonicalSourceNominalIdsV1> {
+        self.sealed_subtypes.as_ref()
+    }
+
+    pub fn inheritance_family(&self) -> crate::InheritanceFamily {
+        match &self.sealed_subtypes {
+            None => crate::InheritanceFamily::Open,
+            Some(subtypes) => crate::InheritanceFamily::Sealed(subtypes.values().to_vec()),
         }
     }
 
@@ -114,7 +136,14 @@ impl NominalDeclarationDetailsV1 {
             | PublicNominalKindV1::Enum
             | PublicNominalKindV1::Object => self.modality == Modality::Final,
         };
-        if !valid {
+        if !valid
+            || (self.sealed_subtypes.is_some()
+                && !matches!(
+                    (kind, self.modality),
+                    (PublicNominalKindV1::Class, Modality::Abstract)
+                        | (PublicNominalKindV1::Interface, Modality::Interface)
+                ))
+        {
             return Err(NominalInterfaceRecordBuildError::Modality {
                 kind,
                 modality: self.modality,
@@ -204,7 +233,11 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(if self.sealed_subtypes.is_some() {
+            12
+        } else {
+            11
+        })?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -232,6 +265,13 @@ impl WireEncode for NominalDeclarationDetailsV1 {
         encoder.array(u64::from(self.class_primary_constructor.is_some()))?;
         if let Some(primary) = &self.class_primary_constructor {
             primary.encode(encoder)?;
+        }
+        if let Some(subtypes) = &self.sealed_subtypes {
+            encoder.field(12)?;
+            encoder.array(subtypes.values().len() as u64)?;
+            for subtype in subtypes.values() {
+                subtype.encode(encoder)?;
+            }
         }
         Ok(())
     }

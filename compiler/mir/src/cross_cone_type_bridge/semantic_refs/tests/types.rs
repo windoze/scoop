@@ -136,6 +136,7 @@ fn structural_graph(fixture: &Fixture) -> (ValidatedIdentityGraph, Vec<Persisten
     .unwrap();
     let pointer = CborIdentityRecord::from_key(ExactTypeKey::RawPointer(leaf)).unwrap();
     let function = CborIdentityRecord::from_key(ExactTypeKey::Function {
+        receiver: None,
         effect: scoop_identity::Effect::Ordinary,
         parameters: vec![leaf],
         result: leaf,

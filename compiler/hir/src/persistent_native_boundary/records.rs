@@ -110,7 +110,10 @@ pub(super) fn build(
             NativeBoundaryTypeDefinitionRecord::new(
                 source.declaration(),
                 &[checked_parameter_count(&enumeration.type_params)?],
-                NativeBoundaryNominalShape::Enum { variants },
+                NativeBoundaryNominalShape::Enum {
+                    variants,
+                    representation: enumeration.representation.clone(),
+                },
             )
             .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition)
         }

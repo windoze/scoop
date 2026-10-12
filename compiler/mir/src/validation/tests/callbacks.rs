@@ -89,6 +89,7 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
     let (mut module, _) = module_with_variants(Vec::new());
     register_test_exact_type(&mut module, &Type::Unit);
     let signature = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: Type::Unit,
@@ -199,6 +200,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     let (mut module, _) = module_with_variants(vec![unit_variant("Unused")]);
     register_test_exact_type(&mut module, &Type::Unit);
     let signature = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: Type::Unit,
@@ -241,12 +243,14 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     });
     register_test_exact_type(&mut module, &Type::Class(throwable));
     let mode = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: [unit_variant("Reusable"), unit_variant("OneShot")].into(),
     });
     let state = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "ForeignCallbackState".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -259,6 +263,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         .into(),
     });
     let failure = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "Option<Throwable>".to_string(),
         type_arguments: vec![Type::Class(throwable)],
         gc_free: false,
@@ -326,6 +331,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         .unwrap(),
     );
     let native_signature = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![Type::Ptr(Box::new(Type::Unit))],
         return_type: Type::Unit,

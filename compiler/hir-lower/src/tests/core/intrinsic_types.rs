@@ -2,7 +2,8 @@ use super::super::*;
 
 fn intrinsic_annotation(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident("Intrinsic"),
+        use_site: None,
+        name: ident("Intrinsic").into(),
         args: vec![ast::AnnotationArg {
             name: None,
             value: ast::AnnotationLiteral::String(name.to_string()),
@@ -14,7 +15,8 @@ fn intrinsic_annotation(name: &str) -> ast::Annotation {
 
 fn marker_annotation(name: &str) -> ast::Annotation {
     ast::Annotation {
-        name: ident(name),
+        use_site: None,
+        name: ident(name).into(),
         args: Vec::new(),
         span: sp(),
     }
@@ -290,7 +292,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
                 .into_iter()
                 .map(|name| ast::SupertypeSpec {
                     ty: ty_named(name),
-                    constructor_arguments: None,
+                    initialization: ast::SupertypeInitialization::None,
                     span: sp(),
                 })
                 .collect(),
@@ -305,6 +307,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     };
     let class = |name: &str, intrinsic: &str, type_params: Vec<&str>| {
         Decl::Class(ast::ClassDecl {
+            inner_span: None,
             annotations: vec![annotation(intrinsic)],
             visibility: ast::VisibilitySyntax::Omitted,
             modifier: ast::ClassModifier::Final,
@@ -325,7 +328,7 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         .into_iter()
         .map(|name| ast::SupertypeSpec {
             ty: ty_named(name),
-            constructor_arguments: None,
+            initialization: ast::SupertypeInitialization::None,
             span: sp(),
         })
         .collect();

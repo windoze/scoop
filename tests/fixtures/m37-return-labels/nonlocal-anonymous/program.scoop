@@ -1,0 +1,1 @@
+fun main() { val outer = out@ { val inner = fun(): Int { return@out 1 }; 0 } }

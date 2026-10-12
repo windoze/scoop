@@ -1,22 +1,11 @@
 use super::*;
 
 impl Parser {
-    /// Parse the M22 alias subset: `typealias Name = Type` at top level.
-    ///
-    /// Only visibility may precede the declaration. Keeping unsupported
-    /// annotations/modifiers and generic syntax out of the successful AST
-    /// prevents later stages from having to represent partial alias forms.
+    /// Parse a declaration-site alias with its own parameters and bounds.
     pub(super) fn parse_type_alias(
         &mut self,
         prefix: MemberPrefix,
     ) -> Result<TypeAliasDecl, Diagnostic> {
-        if let Some(annotation) = prefix.annotations.first() {
-            return Err(Diagnostic::at(
-                annotation.span,
-                "annotations are not allowed on typealias declarations",
-            ));
-        }
-
         let modifier_span = prefix
             .const_span
             .into_iter()
@@ -43,12 +32,8 @@ impl Parser {
             |kind| matches!(kind, TokenKind::Ident(text) if text == "typealias"),
         )?;
         let name = self.expect_ident("typealias name")?;
-        if matches!(self.peek().kind, TokenKind::Less) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "generic typealias declarations are not supported in M22; typealias declarations must be non-generic",
-            ));
-        }
+        let type_params = self.parse_type_params()?;
+        let where_clause = self.parse_where_clause()?;
         self.expect("`=` in typealias declaration", |kind| {
             matches!(kind, TokenKind::Equal)
         })?;
@@ -59,17 +44,24 @@ impl Parser {
         };
         let span = Span::new(start, target.span.end);
         Ok(TypeAliasDecl {
+            annotations: prefix.annotations,
             visibility: prefix.visibility,
             name,
+            type_params,
+            where_clause,
             target,
             span,
         })
     }
 
-    pub(super) fn unsupported_nested_type_alias<T>(&self) -> Result<T, Diagnostic> {
-        Err(Diagnostic::at(
-            self.peek().span,
-            "nested typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
-        ))
+    pub(crate) fn parse_local_type_alias(&mut self) -> Result<TypeAliasDecl, Diagnostic> {
+        let prefix = self.parse_member_prefix()?;
+        if let VisibilitySyntax::Explicit { span, .. } = prefix.visibility {
+            return Err(Diagnostic::at(
+                span,
+                "local typealias declarations cannot have visibility modifiers",
+            ));
+        }
+        self.parse_type_alias(prefix)
     }
 }

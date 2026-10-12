@@ -42,13 +42,31 @@ AST 保留原始源码顺序、byte span、显式类型实参、位置／命名�
 
 AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。语法恢复产生 Error；任何解析失败阻止成功 HIR 输出。
 
+lexer 使用 Unicode XID 属性库识别普通标识符，并保留反引号 token 的语法类别；AST 名称保存去掉引号后的实际文本。持久化 canonical identifier 接受任意合法的非空标识符文本，包括必须以反引号书写的名称，不重跑普通 token 的 XID 规则。package、注解和成员路径保存完整分段及实际 owner，不能按显示名称中的点号重新拆分。名称的 wire 编码继续为 UTF-8 text，已有合法记录的编码与实体身份不变。
+
+循环标签只保留在 AST 和 HIR lowering 的当前 callable 词法环境中；HIR 的 break/continue 总是引用全局唯一的 LoopId。表达式跳转沿用现有语句 setup 与 Nothing 结果，不产生伪造的正常值。默认参数和泛型 body 的持久化形式以类型化的包围循环深度选择目标，0 表示最内层；标签文本不进入后续 stage。break/continue 的既有单字段 tag 10/11 编码保持为深度 0，非零深度使用同 tag 的第二字段 1（u32）；显式写出的零深度不是 canonical 编码。reader 检查深度确实指向该 body 当前 callable 的包围循环，实例化为新的 LoopId 后直接复用该结果。MIR cleanup 按目标 LoopId 选择已建立的循环入口和出口，不再要求跳转总是指向最内层循环。
+
+do/while 与 while 共用有明确 LoopKind 的结构化循环记录；condition setup、条件、body 均完整保存。AST/HIR lowering 在同一 body 词法作用域内依次检查 do body 和 condition，并按有效 continue 出口检查 condition 的读取。持久化普通 while 继续使用 tag 8，do/while 使用 tag 9，字段与 while 相同；读取时按 LoopKind 的实际执行顺序检查局部定义。MIR 为 do body、条件和出口建立独立 CFG block，初次进入 body，continue 指向条件入口，条件为真回到 body；条件入口保留已有 loop-header GC poll 与挂起恢复契约。
+
+局部 return 标签保留于 AST；parser 为直接具名调用的 lambda 实参补充隐式标签，显式标签优先。HIR lowering 在当前 callable 的词法边界解析标签，并复用已选返回类型与既有 Return / Nothing setup。lambda 无期望结果类型时合并自身显式返回与正常末尾结果，进入嵌套 callable 时保存并恢复独立推导状态；成功 HIR 与持久化 body 不保留标签文本，也不增加跨 callable 转移。
+
+具名表达式体和非局部 property 的省略类型仅存在于 AST 与 hir-lower 内部声明查询。先建立 typed 声明身份和显式参数，再按表达式检查实际访问的声明完成结果类型；查询中的活动依赖用于诊断推导环，不反复猜测类型。重载先按参数选择目标，只有需要结果约束或提交获选调用时才查询声明结果，不能把推导环当作改选其他重载的理由。继承目标、分派槽和默认参数来源按已知签名部分确定，仅将依赖推导结果的类型相等约束延后；结果完成后检查这些约束，不重放继承与布局验证。表达式类型检查、重载选择及适配复用普通 lowering，推导的完整 body 可供后续编排复用。成功 HIR、共享签名及其持久化编码只保存完整结果类型，沿用原有签名/接口依赖失效及访问域检查；MIR/codegen 不重新推导声明。
+
+控制结构的块体和单语句体使用同一 AST block 载体；单语句保留原始 span，并同样在 HIR 建立独立作用域。else-if 保存为 else block 中的嵌套 if，后续阶段沿用已有值合流、终止路径和循环 lowering，不增加平行表示。
+
 parser 中仅有存在性与位置的修饰符使用可选 span；带取值的修饰符同时保存取值和 span，不独立维护 bool 与可缺失位置。AST literal pattern 使用封闭的字面量数据，保留原数字拼写、允许的数值符号和准确 span，不接受任意表达式作为字面量模式。
+
+语言规范 8.4 的五个兼容修饰符在合法语法位置消费后丢弃。parser 可以保留诊断所需位置；HIR、MIR、LIR、共享签名与 ABI 不保存对应语义标志，codegen 不生成内联或尾调用属性。源码位置与哈希仍反映真实文本，不要求去掉标记前后的产物逐字节相同。
 
 when 的 AST 明确区分无 subject、表达式 subject 与 val subject 声明；声明保存完整 binding pattern、可选完整类型及初始化表达式。arm 区分普通条件序列、case 模式与后备条件，保留 guard 和各条件位置。return/throw 可处于表达式位置；调用保留尾随实参来源及分组边界；annotation 数组保留每个元素的位置。
 
 ### 2.2 HIR
 
 HIR 完成名称解析、类型检查、重载与泛型实参选择、可见性、继承与覆写、模式穷尽性、构造／初始化规则、常量、效果及 FFI 声明检查。源码与依赖声明遵守同一语言规则；文件发现顺序、声明存储位置和 provider 读取顺序不能改变结果。
+
+smart cast 分析使用已有 BindingId、类型约束及带实际 LoopId 的控制结果，在当前 callable 内传播正常出口事实。多个正常前驱取共同事实，局部写入撤销旧值事实，finally 按实际进入和离开结果合并；循环按条件、body 与回边求稳定结果，并确认被使用的类型视图在对应路径成立。when 和短路 lowering 保存的临时值按实际求值顺序参与分析；不可变捕获值和构造器参数按原 BindingId 关联快照，快照不会因源变量后续写入而改变。完成的 HIR 仅保留普通 typed 读取、必要拆箱与既有控制流，不向 MIR、共享元数据或 runtime 添加流分析状态，也不在后续 stage 重放该分析。
+
+函数 smart cast 的读取视图与 binding 的声明存储类型分别处理。显式类型检查、转换及引用相等读取原存储值；不需要函数适配的期望类型继续使用声明视图。产生适配闭包的读取不建立来源与新值的快照等价关系。MIR 为动态函数适配器保存来源时，先使用既有引用转换将来源适配到捕获字段的 Any 类型；typed function 来源也必须满足同一物理字段契约。
 
 重载探测共享已经检查的声明、签名和正文；候选新增或修改的函数、局部值与词法绑定各自隔离，只有选中候选的结果进入当前状态。一次探测不复制此前所有函数正文或当前函数的全部局部值。内部共享不改变实体分配顺序、诊断与重载规则，输出仍为原有完整 HIR 数据。
 
@@ -73,6 +91,10 @@ LIR struct store 在创建 Scoop／C 表示时返回对应的窄引用，后续�
 
 MIR 中 intrinsic struct 与 intrinsic class 分别保存其允许的表示类别；例如 Array／Atomic 不可填入 struct 表示，Ptr／MaybeUninit 不可填入 class 表示。该区分沿既有 nominal 生产路径完成，后续物理类型与布局消费不再排除另一类 nominal 的变体。
 
+构造器和未绑定成员引用在 HIR lowering 完成候选选择与全部类型实参推导，再生成具有完整函数类型的普通闭包适配 body。适配 body 只调用已选定的构造器或方法，不复制构造初始化；virtual / interface 调用保留原动态分派目标。适配 body、泛型和默认参数产物复用既有 lambda、调用及构造形态，不另建引用 ABI。
+
+receiver 函数类型在源码 HIR、共享签名及 exact type identity 中保留独立的 receiver 类型槽。类型替换、lambda 参数推导和产物消费使用该形状，不从名字或普通首参数猜测 receiver。lowering 将 receiver 展平为第一个实际源码参数，复用 closure / invoke、函数值适配和既有 ABI 分类；closure environment 等隐藏参数独立处理。`this@label` 在 HIR lowering 绑定到实际不可变 receiver binding，外层 receiver 沿普通捕获路径保存，不把标签带入运行期名称查询。
+
 默认值、泛型正文及词法 callable 保存定义处绑定、完整 binder、局部值和 capture 身份。再次消费只替换实际类型与求值上下文，不重新选择名称、重载、字段或接口默认实现。局部函数和 closure 的捕获引用原绑定，不能改为消费方的同名局部变量。
 
 默认模板分别保存提供方参数的预期类型和正文表达式的实际类型。前端按子类型规则检查默认值；`Nothing` 正文可以满足任意参数类型，产物投影、读取及实例化必须保留这两个类型，不能要求它们逐字相同或把底类型调用改写为参数类型的成功返回。模板契约仍校验预期类型与原提供方参数一致；通用格式构造器不重复进行依赖源码类型表示的子类型判断。
@@ -81,11 +103,23 @@ MIR 中 intrinsic struct 与 intrinsic class 分别保存其允许的表示类�
 
 nominal application 保存原声明与完整实参；struct、enum、class、interface 各有独立 typed identity。alias 透明展开；字段、variant、构造与 property accessor 保存各自原身份。按值循环、继承环、泛型约束、GC-free 和 ZST 属性在所属语义边界确定。
 
+sealed 的继承限制在 HIR 按真实 origin、package 与声明作用域检查；成功声明保存完整直接子类型集合，class 的有效 modality 仍为 abstract。when 按这些关系与已有类型替换检查闭合家族，不在 MIR 或链接阶段重新求穷尽性。共享 nominal details 对 sealed 增加第 12 字段的规范化直接子类型身份列表，未 sealed 的原 11 字段编码保持不变；相关子类型的普通声明与继承签名进入现有共享声明闭包，私有数据不增加 public lookup binding。reader 在普通格式与引用边界检查集合及关系，消费方复用已读信息，不增加继承授权或运行期注册协议。
+
+interface implementation delegation 在 HIR lowering 中完成 slot 选择、隐藏字段分配和普通转发成员的生成。字段身份由真实宿主与继承项位置确定，和源码 property backing/delegate 字段区分；它不产生可查找的源码属性。构造记录在 base/primary store 后、body 初始化前保存 delegate，转发正文只包含普通字段读取与已绑定的接口调用。泛型构造及转发正文保留原 binder、字段和 slot 身份，跨 Cone 通过现有声明、字段和正文闭包消费，不在下游重新决定委托成员；MIR/runtime 沿用普通对象布局、接口分派和 GC 扫描。
+
+透明 alias 的声明查询先在定义处绑定独立的 typed 类型参数、bound 与完整目标，再在使用处替换实参；活动 alias 声明栈检查全部展开依赖中的循环。嵌套 alias 使用实际 owner chain 和正常类型名称空间，局部 alias 只存在于词法作用域并在 HIR 类型中展开。alias 不产生 nominal、构造器、layout、TD 或另一种单态化实体。公开泛型 alias 的接口保存规范化 binder/bound 与 typed signature target，跨 Cone 消费和再次发布复用该目标；不在使用处重绑定源码名称。无参数记录保留已有四字段编码，有参数记录增加第 5 字段的规范化 binder 列表；需要宿主实例化参数时，第 6 字段保存该列表的宿主前缀长度；带 binder 的目标使用完整展开 signature，不把参数应用伪装成无参 alias 边。
+
 property 具有完整类型、读写能力、getter/setter、访问域与互斥的 stored/accessor/delegated/const/extern 表示。required accessor 有 Body 或 AbstractSlot 的明确类别；普通缺失初始化不能靠空正文、late-init flag 或可空类型补齐。
+
+泛型 object/companion 在消费方物化时，字段及其 backing property 保留声明方身份。字段类型位置的校验沿字段的声明来源取得对应属性记录，不要求消费方重新声明该属性。
 
 HIR 将属性赋值右值展开为前置语句时，先固定已经求值的 receiver，再接入这些语句；最终的 storage write 或 setter call 使用保存的目标。不可重新绑定的类引用局部值已经固定了目标，可直接复用。本地与导入的属性遵守相同的求值顺序。
 
 class 构造输出明确区分 allocation、同 receiver 的 initializer、this/base delegation 与 common initialization；完整成功路径、异常出口与初始化顺序已确定。abstract class 仅有供派生构造使用的 initializer。release policy 为 None 或携带完整 hook target 的 SynchronousGcFree。
+
+inner class（语言规范 9.1.3.1）的 binder 先保存外层 class 的完整 binder 前缀，再保存自身参数。普通 class source shape 中的 EnclosingInstance 字段角色及其 signature type 明确保存所需 outer application；该字段使用独立的 typed source field key，不产生源码 property。构造声明接口把 outer 作为独立 receiver 保存，参数名、默认值及 overload signature 仍只对应源码参数。实际 allocation callable 的值输入为 outer、源码参数；initializer 的输入为正在初始化的 inner、outer、源码参数。构造模板使用独立的 EnclosingInstance local selector，不能把 outer 与初始化中的 This 或源码 Parameter 索引混用。隐藏 outer 字段身份使用 source field tag `5`（仅 owner），隐藏参数 selector 使用 tag `7`（无 payload）；普通字段、This 与源码参数的既有编码不变。构造委派通过隐藏参数读取 outer，最终构造器在 base 后先写 outer 字段；普通成员与闭包通过该字段获得外层 receiver。所有引用均按普通字段、参数、捕获及 GC root 处理，不增加 runtime 入口或另一套对象模型。
+
+局部类型与匿名 object（语言规范 9.1.3.2）在定义处完成普通 nominal 声明、类型、继承、成员及构造检查；它们使用原 Cone、词法 owner 和定义路径形成 typed nominal identity，外层 binder 作为完整参数前缀保存。匿名 object 没有 singleton/initialization unit，每次求值使用普通 class allocation。不可变捕获通过已绑定值、隐藏构造输入及普通字段保存，构造引用在创建时固定捕获值；value type 和 interface 不增加捕获环境。成功 HIR 保存完整声明与捕获类型，generic/default template 直接携带所需声明和 typed 引用，消费方不重新解析局部名称。局部/匿名 class 的捕获值按稳定槽位组成普通 tuple（空环境用 Unit），保存为一个隐藏实例字段；构造输入将该环境作为隐式 context receiver，与源码值参数分开。inner 的 outer receiver 与局部类型的捕获 receiver 使用不同的 typed context kind；二者复用普通构造参数传递、字段存储与 GC 描述。捕获集合在该声明全部 body 分析完成后确定，随后一次完成相关构造输入与环境读取的类型，再交付 HIR。捕获字段的 source field tag 为 `6`（仅 owner），隐藏参数 selector tag 为 `8`（无 payload）；已有角色编码不变。
 
 singleton、runtime property 与 generic delegated application 保存完整初始化单元及 cycle throw target。constant 已完成依赖环检查与求值，没有 runtime unit。interface/default/virtual 选择在 HIR 唯一确定，qualified super 保存 direct target。
 
@@ -122,6 +156,8 @@ when 的前端决议遵守语言规范第 5 章：普通条件保存已解析 Bo
 已解析的导出正文／默认模板 Return 同样必含结果表达式。现有 wire 的可空返回字段仅用于编码兼容：旧的空字段在解码绑定时形成该语句定义位置的 Unit 常量，新产物写入完整表达式；不将这个 wire 选择传播回语义 IR，也不改变字段编号或 section 版本。
 
 return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正常到达合流点的分支提供结果，不为跳转生成 Unit、零值、null 或未初始化 local。表达式跳转的实际 transfer 保存在当前位置的有序 setup 中；其结果及全终止控制表达式使用 Nothing 类型的 Unreachable 节点，明确表示没有正常值，不读取存储也不执行 runtime 调用。MIR 将该节点结束为不可达正常边。尾随 lambda 在每个候选内先映射最后形参，再复用普通调用检查；成功 HIR 只保存完整已选调用。捕获、具体化、完成性质、默认模板、导出正文与 dump 均覆盖这些表示。
+
+整型枚举在源码 HIR 中具有明确的表示类别、底层整数 kind 和已检查的有序 variant 常量；父子关系、继承数值成员、普通上转及接口关系在 HIR lowering 完成。共享源码定义与表示数据保留 enum/variant identity、底层整数和数值，消费方不重新求值 initializer，也不按纯 unit variant 猜测枚举类别。依赖成员查找沿实际整数父类型继续遍历其接口，仅对接口节点读取接口方法与分派选择，不能把整数父类型当成 interface application。数值上转与引用上转均为已检查的单向类型适配；上转结果按目标类型继续参与装箱。
 
 ### 2.3 MIR
 
@@ -254,6 +290,8 @@ compiler-owned static storage 带完整 scan 和封闭初值 ZeroedForRuntimeUni
 LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、TD、dispatch、initialization、runtime registration 与 required definitions。ordinary nominal 定义使用原 provider 的布局；实际泛型或 structural application 使用其 ODR 布局。结构字段可按 canonical exact key 组成，不要求为没有实际物理定义的 constituent 另造 layout 实体。
 
 每条 native contract 按 target 正规化 symbol，并保存完整 kind/library/signature/storage/GC effect；它进入 LIR 语义内容，host 搜索路径不进入。String 关联实际声明的 TD 与 provider，不由名字或相同 InlineBytes 布局代替。
+
+整型枚举的 MIR/LIR 保留 exact enum 身份并直接使用底层整数标量布局；variant 构造产生其已检查常量，匹配按该表示区分 variant。参数、结果、字段、数组及 C ABI 使用同一整数的 size、alignment、signedness 与目标分类，不添加 tag、payload 区域或值域检查。boxed enum 的父 TD 指向 boxed integer，父整数解箱与函数值适配遵守运行时规范 2.3。Option 的现有 niche 范围不变，源码 enum 身份不能因机器签名相同而合并。
 
 ### 2.5 Codegen 与对象合同
 
@@ -700,11 +738,21 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实，不构造运行期 TypeInfo 或任意 CTFE。描述查询本身不触发物化、初始化或可见性扩张。
 
-annotation 声明使用独立 PersistentAnnotationId，参数保存完整 signature type key，应用保存实际 typed target 和按参数顺序补齐的静态值。注解值以封闭标量/数组表示保存；数组包含明确元素类型及有序标量元素，空数组不丢失类型，默认值与应用共用表示。CanonicalConstValueV1 保持标量用途。CanonicalAnnotationValueV1 的 Scalar 保存原标量值，Array 保存 CanonicalConstValueKindV1 元素种类及有序标量元素；实际 core Array 与元素的名义身份由参数的完整 signature key 保存。共享 reader 在既有边界检查类型引用与 tag/payload 一致性，不重放源码常量求值；具体格式版本随实际编码变更升级。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
+annotation 声明使用独立 PersistentAnnotationId。普通值参数保存完整 signature type key；annotation 原子及其数组参数使用独立的 annotation identity 和实际 core Array 模板身份，不把 annotation class 编成 runtime TypeId。应用保存实际 typed target 和按参数顺序补齐的静态值。CanonicalConstValueV1 保持原标量用途；CanonicalAnnotationValueV1 以封闭的 Scalar、IntegralEnum、Annotation、Array 保存静态值。整型枚举值保留完整 application signature、variant identity 和底层整数位型，嵌套应用保存实际 annotation identity 和完整参数；数组保存明确元素类型、有序值以及逐元素的 SourceIdentity 和 span，默认值保留定义处来源。共享 reader 在既有边界检查引用、枚举 variant/数值、嵌套参数及 tag/payload 一致性，不重放名称查找或默认值求值。参数/default 的循环依赖在源码定义处诊断。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
 
 HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
 
-property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 与 generated callable tag 17 保留不用。
+注解 target 保留原声明的类型化身份：named callable、constructor、accessor、annotation 和 typealias 使用各自声明身份；普通值参数以 callable 身份和源码参数序号选择，receiver 单独选择。局部 callable 复用既有 lexical generated callable identity。字段使用现有 field/variant-field identity；顶层或泛型 property 的存储以原 property 身份与 backing/delegate 类别表达。use-site 只在 HIR 名称绑定时选择真实已存在的实体，不新增运行期布局或隐藏参数。共享接口保存这些已绑定位置；reader 检查实际声明引用和共享参数表中的索引；局部 callable 复用已绑定的源码参数位置，不另存一份只用于重放检查的签名表，也不重放 accessor body 或默认目标选择。
+
+annotation 声明保存已绑定的允许目标集合与 repeatable 属性。集合使用语言规范 9.4 的十二种类别，元注解应用本身仍是普通有序静态数据；不在 reader 中重跑 core 名称解析或元注解求值。所有 annotation 参数/default 和元注解先完成绑定，再按最终声明属性检查前向应用；普通使用处按实际目标和 annotation identity 检查。共享 reader 在原注解数据边界检查目标类别、重复应用与该声明属性一致。annotation declaration record 的 field 5 保存这两个属性。
+
+类型使用注解独立于 TypeId 保存。每个使用记录以实际 SourceIdentity 和类型语法范围组成类型化位置身份，包含已解析的完整类型、binder 与使用树内的注解路径；没有注解的节点由该完整类型给出，不另存一套语义类型图。路径区分类型实参、tuple 元素、函数 receiver/参数/结果与 pointer pointee。字段/property/完整参数/结果、alias 目标等描述位置通过实际 typed 声明和位置选择关联使用记录，不能由名称或源码范围包含关系猜测宿主。
+
+HIR lower 在正常类型解析过程中记录这些位置和 alias 的实际替换关系，注解值待相应 schema/常量完成后仅绑定一次。alias 与泛型替换复用原 binder 映射，合并相应路径的静态应用，不污染共享类型或重跑类型检查。annotation 参数的 annotation class 及其 Array 使用独立 annotation identity，不制造 runtime TypeId；用于确认 Array alias 转发关系的临时参数不进入静态描述。
+
+共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。cross-cone-interface 当前版本为 76，旧产物须重建；MIR/LIR 和 runtime ABI 保持不变。
+
+property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2），generated callable tag 17 保留不用。
 
 companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 primary 参数值；ordinary static nested declaration 隔断该 binder。companion declaration、完整 application 和 concrete singleton 分别有身份，泛型状态共享规则见 2.13。
 
@@ -758,7 +806,7 @@ MIR 内联按调用点代入已知实参、局部常量和可证明不可达分�
 
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 
-最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
+最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；仅在这些常量之间选择的 phi/select 同样不要求重定位，包含任何动态 managed 输入的选择仍按移动根处理。runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
 
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 

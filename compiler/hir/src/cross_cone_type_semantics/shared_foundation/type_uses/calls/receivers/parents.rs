@@ -29,10 +29,14 @@ impl Graph<'_> {
                 exact,
                 self.providers.values().map(|provider| provider.metadata),
             )?;
-            if !matches!(
-                parent.declaration.kind(),
-                crate::PublicNominalKindV1::Class | crate::PublicNominalKindV1::Interface
-            ) {
+            let integer_parent = matches!(application.declaration.source_shape(),
+                crate::NominalSourceShapeV1::Enum(shape) if shape.representation().integer_kind().is_some());
+            if !integer_parent
+                && !matches!(
+                    parent.declaration.kind(),
+                    crate::PublicNominalKindV1::Class | crate::PublicNominalKindV1::Interface
+                )
+            {
                 return Err(Error::InheritanceEdges(receiver));
             }
             parents.push(exact);

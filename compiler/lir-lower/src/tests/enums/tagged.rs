@@ -24,6 +24,7 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
         ],
     );
     let wrapped = b.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "Wrapped".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -201,6 +202,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     let mut b = Builder::new();
     // enum Msg { Text(String), Pair(Boolean, String), Empty }
     let msg = b.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "Msg".to_string(),
         type_arguments: Vec::new(),
         gc_free: false,

@@ -39,7 +39,7 @@ fn property(name: &str, private: bool) -> ast::Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(int_lit(1)),
             accessors: ast::AccessorSyntax::default(),
@@ -67,7 +67,7 @@ fn computed_property(
             .collect(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),
@@ -315,6 +315,7 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         (
             0,
             scoop_identity::SignatureTypeKey::Function {
+                receiver: None,
                 effect: scoop_identity::Effect::Ordinary,
                 parameters: vec![unit.clone()],
                 result: Box::new(any),

@@ -1,0 +1,2 @@
+class Value(val value: Int)
+fun main() { val factory: (String) -> Any = ::Value }

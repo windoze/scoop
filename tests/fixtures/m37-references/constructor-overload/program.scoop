@@ -1,0 +1,2 @@
+class Box(val value: Int) { constructor(): this(42) {} }
+fun main() { val make = ::Box }

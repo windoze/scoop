@@ -188,14 +188,15 @@ impl RelationReducer<'_> {
                 let left_signature = self.lowerer.function_types[left_id].clone();
                 let right_signature = self.lowerer.function_types[right_id].clone();
                 if left_signature.is_suspend != right_signature.is_suspend
-                    || left_signature.parameter_types.len() != right_signature.parameter_types.len()
+                    || left_signature.receiver.is_some() != right_signature.receiver.is_some()
+                    || left_signature.arity() != right_signature.arity()
                 {
                     return Err(self.relation_failure(RelationKind::Equal, left, right, origin));
                 }
                 for (left_ty, right_ty) in left_signature
-                    .parameter_types
-                    .into_iter()
-                    .zip(right_signature.parameter_types)
+                    .parameters()
+                    .copied()
+                    .zip(right_signature.parameters().copied())
                 {
                     self.equal(
                         nested_term(left, left_ty),
@@ -311,14 +312,14 @@ impl RelationReducer<'_> {
                 let left_signature = self.lowerer.function_types[left_id].clone();
                 let right_signature = self.lowerer.function_types[right_id].clone();
                 if left_signature.is_suspend != right_signature.is_suspend
-                    || left_signature.parameter_types.len() != right_signature.parameter_types.len()
+                    || left_signature.arity() != right_signature.arity()
                 {
                     return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
                 }
                 for (left_parameter, right_parameter) in left_signature
-                    .parameter_types
-                    .into_iter()
-                    .zip(right_signature.parameter_types)
+                    .parameters()
+                    .copied()
+                    .zip(right_signature.parameters().copied())
                 {
                     self.subtype(
                         nested_term(right, right_parameter),
@@ -336,14 +337,14 @@ impl RelationReducer<'_> {
                 let left_signature = self.lowerer.function_types[left_id].clone();
                 let right_signature = self.lowerer.function_types[right_id].clone();
                 if left_signature.is_suspend != right_signature.is_suspend
-                    || left_signature.parameter_types.len() != right_signature.parameter_types.len()
+                    || left_signature.arity() != right_signature.arity()
                 {
                     return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
                 }
                 for (left_parameter, right_parameter) in left_signature
-                    .parameter_types
-                    .into_iter()
-                    .zip(right_signature.parameter_types)
+                    .parameters()
+                    .copied()
+                    .zip(right_signature.parameters().copied())
                 {
                     self.equal(
                         nested_term(left, left_parameter),
@@ -419,16 +420,18 @@ impl RelationReducer<'_> {
                 kind: ConstraintFailureKind::CallableShape(CallableShapeMismatch::Suspend),
             });
         }
-        if shape.parameters.len() != signature.parameter_types.len() {
+        if shape.parameters.len() != signature.arity() {
             return Err(ConstraintFailure {
                 origin,
                 kind: ConstraintFailureKind::CallableShape(CallableShapeMismatch::Arity {
-                    expected: signature.parameter_types.len(),
+                    expected: signature.arity(),
                     actual: shape.parameters.len(),
                 }),
             });
         }
-        for (actual, expected_parameter) in shape.parameters.iter().zip(signature.parameter_types) {
+        for (actual, expected_parameter) in
+            shape.parameters.iter().zip(signature.parameters().copied())
+        {
             if let CallableParameter::Explicit(actual) = actual {
                 self.subtype(nested_term(expected, expected_parameter), *actual, origin)?;
             }
@@ -549,7 +552,7 @@ pub(crate) fn type_contains_session_parameter(
         Type::Tuple(elements) => elements.clone(),
         Type::Function(signature) | Type::FunPtr(signature) => {
             let signature = &lowerer.function_types[*signature];
-            let mut children = signature.parameter_types.clone();
+            let mut children = signature.parameters().copied().collect::<Vec<_>>();
             children.push(signature.return_type);
             children
         }

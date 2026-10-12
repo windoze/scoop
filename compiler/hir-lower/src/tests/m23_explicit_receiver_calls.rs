@@ -117,7 +117,7 @@ fn property(name: &str, receiver: Option<&str>, value_ty: &str) -> ast::Property
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named(value_ty),
+        ty: Some(ty_named(value_ty)),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),

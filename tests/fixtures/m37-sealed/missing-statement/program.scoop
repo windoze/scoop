@@ -1,0 +1,5 @@
+sealed interface Root {}
+class One : Root
+class Two : Root
+fun classify(value: Root) { when(value) { is One -> println(1) } }
+fun main() {}

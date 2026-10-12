@@ -80,7 +80,13 @@ impl Lowerer {
             callable.declaration(),
             CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
         ) {
-            return Ok(None);
+            return callable
+                .receiver()
+                .map(|receiver| self.imported_signature_type(receiver))
+                .transpose()
+                .map_err(|_| hir::ImportedDependencySelectionError::InvalidDispatch {
+                    declaration: callable.declaration(),
+                });
         }
         let receiver = match callable.owner() {
             hir::PublicDeclarationOwnerV1::TopLevel => None,

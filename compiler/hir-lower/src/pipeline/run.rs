@@ -225,6 +225,7 @@ impl Lowerer {
         } else {
             None
         };
+        self.defined_intrinsic_type_core = intrinsic_type_core;
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
                 self.current_file = primary_output_file;
@@ -289,11 +290,8 @@ impl Lowerer {
         for &(id, decl, file_index) in &pending_enums {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Enum(id));
+            self.resolve_enum_supertypes(id, decl);
             self.resolve_variants(id, decl);
-            self.type_params_in_scope = self.enums[id].type_params.clone();
-            let interfaces = self.resolve_interface_list(&decl.interfaces);
-            self.type_params_in_scope.clear();
-            self.enums[id].interfaces = interfaces;
         }
         if let Err(error) = self.establish_enum_member_identities() {
             self.current_file = error.file();
@@ -389,7 +387,7 @@ impl Lowerer {
             None
         };
         self.foreign_callback_core = foreign_callback_core;
-        self.resolve_globals(&pending_globals, &pending_objects);
+        self.resolve_globals(&pending_globals, &pending_objects, &pending_enums);
         self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
@@ -410,6 +408,50 @@ impl Lowerer {
         self.validate_extern_global_symbols();
 
         self.resolve_annotation_declarations();
+
+        // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
+        // cycles, property shadowing, override rules and interface
+        // implementation (classes and value types alike). Needs every
+        // signature and inheritance clause.
+        self.check_inheritance(
+            &pending_classes,
+            &pending_structs,
+            &pending_enums,
+            &pending_interfaces,
+            &pending_objects,
+            &pending_methods,
+        );
+        // Defaults and constructor expressions can select derived equality.
+        // Publish its conditional signatures before any of those bodies lower.
+        self.declare_derived_equality_methods();
+        self.register_export_parameter_interfaces(
+            &pending_functions,
+            &pending_methods,
+            &pending_structs,
+            &pending_classes,
+            &pending_enums,
+        );
+        self.register_object_parameter_interfaces(
+            &pending_objects
+                .iter()
+                .map(|&(id, _, _)| id)
+                .collect::<Vec<_>>(),
+        );
+
+        self.register_derived_parameter_interfaces();
+        self.declaration_inference.ready = true;
+        self.complete_inferred_functions();
+        self.complete_inferred_properties();
+        if self.declaration_inference_failed() {
+            return Err(self.take_source_diagnostics());
+        }
+        let raw_initializers = std::mem::take(&mut self.pending_raw_initializers);
+        self.resolve_raw_global_initializers(raw_initializers);
+        self.validate_inferred_result_contracts();
+        self.validate_signature_exposure();
+        self.finish_export_parameter_interfaces();
+        self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
+        self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
         for &(id, declaration, file) in &pending_structs {
             self.annotate_struct(id, declaration, file);
         }
@@ -427,30 +469,28 @@ impl Lowerer {
         }
         self.current_owner = None;
 
-        // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
-        // cycles, property shadowing, override rules and interface
-        // implementation (classes and value types alike). Needs every
-        // signature and inheritance clause.
-        self.check_inheritance(
-            &pending_classes,
-            &pending_structs,
-            &pending_enums,
-            &pending_objects,
-            &pending_methods,
-        );
-        self.validate_signature_exposure();
-        // Defaults and constructor expressions can select derived equality.
-        // Publish its conditional signatures before any of those bodies lower.
-        self.declare_derived_equality_methods();
-        self.lower_export_parameter_interfaces(
-            &pending_functions,
-            &pending_methods,
-            &pending_structs,
-            &pending_classes,
-            &pending_enums,
-        );
-        self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
-        self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
+        for &(id, declaration, file) in &pending_functions {
+            self.current_file = file;
+            self.current_owner = None;
+            self.type_params_in_scope = self.signatures[&id].type_params.clone();
+            self.annotate_function(id, declaration);
+        }
+        for &(id, declaration, file, owner) in &pending_methods {
+            self.current_file = file;
+            self.current_owner = Some(owner);
+            self.type_params_in_scope = self.signatures[&id].type_params.clone();
+            self.annotate_function(id, declaration);
+        }
+        for &(declaration, file) in &pending_globals {
+            self.current_file = file;
+            self.current_owner = None;
+            self.type_params_in_scope.clear();
+            self.annotate_property_declaration(declaration, file);
+        }
+        self.annotate_type_aliases();
+        self.current_owner = None;
+        self.type_params_in_scope.clear();
+
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these
@@ -476,6 +516,9 @@ impl Lowerer {
         // parameter interfaces so delegation shares the ordinary call
         // protocol without depending on body declaration order.
         for (id, decl, file_index) in pending_functions {
+            if self.has_inferred_function(id) {
+                continue;
+            }
             if matches!(
                 self.functions[id].kind,
                 FunctionKind::Intrinsic(_) | FunctionKind::Extern(_)
@@ -487,6 +530,9 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         for (id, decl, file_index, _owner) in pending_methods {
+            if self.has_inferred_function(id) {
+                continue;
+            }
             // Abstract methods are bodyless; their parameter-only body was
             // built in pass 2.5. Interface methods with bodies are ordinary
             // default implementations and lower here.
@@ -502,8 +548,10 @@ impl Lowerer {
         }
         self.lower_derived_encoding_bodies();
         self.lower_derived_decoding_bodies();
+        self.lower_interface_forwarder_bodies();
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);
+        self.finish_type_annotations();
         if self.diagnostics.is_empty()
             && let Err(error) = self.prepare_coroutine_declarations()
         {

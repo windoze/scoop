@@ -1,2 +1,20 @@
 public annotation class SerialName(val name: String)
 public annotation class Transient
+
+public enum AnnotationTarget: Int {
+    CLASS = 1,
+    ANNOTATION_CLASS = 2,
+    ENUM_VARIANT = 3,
+    FIELD = 4,
+    PROPERTY = 5,
+    FUNCTION = 6,
+    CONSTRUCTOR = 7,
+    VALUE_PARAMETER = 8,
+    PROPERTY_GETTER = 9,
+    PROPERTY_SETTER = 10,
+    TYPEALIAS = 11,
+    TYPE = 12
+}
+
+public annotation class Target(val allowed: Array<AnnotationTarget>)
+public annotation class Repeatable

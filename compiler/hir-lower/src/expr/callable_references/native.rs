@@ -35,6 +35,17 @@ impl Lowerer {
             let mut failures = Vec::new();
             let mut suppressed = !layer.suppressed_callables.is_empty();
             for candidate in &layer.candidates {
+                if !matches!(
+                    candidate.target,
+                    NamedCallTarget::Function(_)
+                        | NamedCallTarget::ImportedDependency(
+                            hir::ImportedTarget::Function(_)
+                                | hir::ImportedTarget::GenericFunction(_)
+                        )
+                ) {
+                    continue;
+                }
+
                 if let NamedCallTarget::Function(function) = candidate.target
                     && self.declaration_surface.rejects_function(function)
                 {

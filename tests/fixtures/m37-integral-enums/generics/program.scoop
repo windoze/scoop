@@ -1,0 +1,23 @@
+typealias Small = Int16
+enum Token<T> : Small { Low = -2, High = 5 }
+typealias Alias<T> = Token<T>
+struct Holder<T>(val value: T, val text: String)
+fun <T> keep(value: T): T { gcCollect(); return value }
+fun <T> raw(value: Token<T>): Int16 = value
+fun main() {
+    val boxed: Any = Alias<String>.High
+    println(boxed is Token<String>)
+    println(boxed is Token<Int>)
+    println(boxed is Small)
+    println(raw(Alias<String>.High))
+    val items: Array<Holder<Token<Int>>> = [Holder(Token<Int>.Low, "enum")]
+    val holder = keep(items)[0]
+    println(raw(holder.value))
+    println(holder.text)
+    val choose: (Token<Int>) -> Token<Int> = { it }
+    val widen: (Token<Int>) -> Small = choose
+    println(widen(Token<Int>.Low))
+    val format: (Small) -> String = { it.toString() }
+    val formatToken: (Token<String>) -> String = format
+    println(formatToken(Token<String>.High))
+}

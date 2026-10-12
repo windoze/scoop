@@ -10,6 +10,18 @@ impl Lowerer {
         file_index: usize,
         owner: Option<Owner>,
     ) -> Option<ClassId> {
+        let enclosing = if let Some(span) = decl.inner_span {
+            let Some(Owner::Class(outer)) = owner else {
+                self.error(
+                    span,
+                    "`inner class` must be declared directly in a class body".into(),
+                );
+                return None;
+            };
+            Some(outer)
+        } else {
+            None
+        };
         let mut checked = self.check_class_annotations(decl);
         if owner.is_some() && checked.intrinsic.is_some() {
             self.error(
@@ -38,9 +50,13 @@ impl Lowerer {
         let modifier = match decl.modifier {
             ast::ClassModifier::Final => hir::ClassModifier::Final,
             ast::ClassModifier::Open => hir::ClassModifier::Open,
-            ast::ClassModifier::Abstract => hir::ClassModifier::Abstract,
+            ast::ClassModifier::Abstract | ast::ClassModifier::Sealed => {
+                hir::ClassModifier::Abstract
+            }
         };
-        let mut type_params = Vec::new();
+        let mut type_params = enclosing
+            .map(|outer| self.classes[outer].type_params.clone())
+            .unwrap_or_else(|| self.local_type_parameters());
         for param in &decl.type_params {
             if type_params
                 .iter()
@@ -116,7 +132,7 @@ impl Lowerer {
                 if decl
                     .supertypes
                     .iter()
-                    .any(|supertype| supertype.constructor_arguments.is_some())
+                    .any(|supertype| supertype.constructor_arguments().is_some())
                 {
                     self.error(
                         decl.span,
@@ -151,6 +167,11 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access,
             definition: hir::ClassDefinition {
+                inheritance_family: if decl.modifier == ast::ClassModifier::Sealed {
+                    hir::InheritanceFamily::Sealed(Vec::new())
+                } else {
+                    hir::InheritanceFamily::Open
+                },
                 release_policy: Default::default(),
                 modifier,
                 self_application,
@@ -172,6 +193,33 @@ impl Lowerer {
             span: decl.span,
         });
         self.register_nominal_identity(Owner::Class(id), identity);
+        if self.local_type_declaration.is_some() {
+            let ty = self.unit;
+            let field = self.allocate_class_field(
+                id,
+                hir::Field {
+                    name: "$captures".into(),
+                    ty,
+                },
+                hir::ClassFieldSource::CapturedEnvironment,
+                decl.span,
+            );
+            self.classes[id].fields.push(field);
+        }
+        if let Some(outer) = enclosing {
+            let ty = self.owner_ty(Owner::Class(outer));
+            let field = self.allocate_class_field(
+                id,
+                hir::Field {
+                    name: "$outer".into(),
+                    ty,
+                },
+                hir::ClassFieldSource::EnclosingInstance,
+                decl.inner_span
+                    .expect("an inner declaration has its modifier span"),
+            );
+            self.classes[id].fields.push(field);
+        }
         let parameter_ids = type_params
             .iter()
             .map(|parameter| parameter.id)
@@ -187,20 +235,13 @@ impl Lowerer {
         ) {
             assert_eq!(self.types[ty], Type::Class(self_application));
         }
-        match owner {
-            Some(owner) => {
-                self.nested_nominals_by_owner
-                    .insert((owner, decl.name.text.clone()), NominalTarget::Class(id));
-            }
-            None => {
-                self.top_level_namespaces.register_type(
-                    file_index,
-                    decl.name.text.clone(),
-                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Class(id)),
-                    self.classes[id].access.declared == hir::DeclaredVisibility::Private,
-                );
-            }
-        }
+        self.register_nominal_name(
+            owner,
+            &decl.name.text,
+            NominalTarget::Class(id),
+            file_index,
+            decl.visibility,
+        );
         self.class_files.insert(id, file_index);
         self.classes[id].access.inheritance =
             hir::InheritanceDomain(if modifier == hir::ClassModifier::Final {

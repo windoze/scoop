@@ -2,8 +2,6 @@ use super::*;
 use crate::imports::{ImportLookupLayer, lookup::TypeLookupTarget};
 use crate::namespace::TopLevelTypeTarget;
 use ast::Span;
-use hir::{Function, FunctionKind};
-use la_arena::Arena;
 
 mod annotations;
 mod codecs;
@@ -73,7 +71,7 @@ impl Lowerer {
     ) -> bool {
         for candidate in candidates {
             let function = &self.functions[candidate.function];
-            if function.name.rsplit('.').next() != Some(name) {
+            if self.source_function_name(candidate.function) != name {
                 continue;
             }
             if self.invalid_override_methods.contains(&candidate.function) {
@@ -114,82 +112,40 @@ impl Lowerer {
             Owner::Object(id) => self.objects[id].span,
             Owner::Interface(_) => unreachable!("interfaces do not request nominal bodies"),
         };
-        let host_ty = self.owner_ty(owner);
-        let parameters = self.owner_type_params(owner);
-        let access = self.member_access(
-            ast::VisibilitySyntax::Explicit {
-                visibility: ast::DeclaredVisibility::Public,
-                span,
-            },
-            span,
-            "method",
+        let signature = crate::FnSig {
+            result_pending: false,
+            parameter_pending: false,
+            context_parameters: Vec::new(),
+            is_suspend: false,
+            modifiers: hir::CallableModifiers::default(),
+            attributes: hir::FunctionAttributes::default(),
+            owner_type_param_count: 0,
+            type_params: Vec::new(),
+            params: values
+                .iter()
+                .map(|&(name, ty)| crate::FnParam {
+                    name: ast::Ident {
+                        text: name.into(),
+                        span,
+                    },
+                    ty,
+                    calling: crate::FnParamCalling::Required,
+                })
+                .collect(),
+            return_ty: result,
+        };
+        let function = self.allocate_synthesized_method(
             owner,
-            self.current_file,
-            crate::visibility::MemberSlotAccess::Override,
+            name,
+            signature,
+            hir::MethodModifier::Final,
+            ast::DeclaredVisibility::Public,
+            span,
         );
-        let function = self.functions.alloc(Function {
-            signature: hir::CallableSignature {
-                context_parameters: Vec::new(),
-                release_callability: Default::default(),
-                name: format!("{}.{}", owner.describe_name(self), name),
-                is_suspend: false,
-                modifiers: hir::CallableModifiers::default(),
-                params: Vec::new(),
-                return_ty: result,
-                attributes: hir::FunctionAttributes::default(),
-                span,
-            },
-            access,
-            genericity: hir::FunctionGenericity::Plain,
-            kind: FunctionKind::User(hir::Body {
-                locals: Arena::new(),
-                statements: Vec::new(),
-            }),
-            method: Some(hir::Method {
-                owner: host_ty,
-                modifier: hir::MethodModifier::Final,
-                dispatch: hir::MethodDispatch::Direct,
-            }),
-        });
-        self.register_method_parameters(function, parameters.clone(), Vec::new());
         self.source_function_declarations.insert(
             function,
             crate::SourceFunctionDeclaration { name: name.into() },
         );
-        self.function_owner.insert(function, owner);
-        self.function_files.insert(function, self.current_file);
-        self.signatures.insert(
-            function,
-            crate::FnSig {
-                context_parameters: Vec::new(),
-                is_suspend: false,
-                modifiers: hir::CallableModifiers::default(),
-                attributes: hir::FunctionAttributes::default(),
-                owner_type_param_count: parameters.len(),
-                type_params: parameters,
-                params: values
-                    .iter()
-                    .map(|&(name, ty)| crate::FnParam {
-                        name: ast::Ident {
-                            text: name.into(),
-                            span,
-                        },
-                        ty,
-                        calling: crate::FnParamCalling::Required,
-                    })
-                    .collect(),
-                return_ty: result,
-            },
-        );
-        match owner {
-            Owner::Struct(id) => self.structs[id].methods.push(function),
-            Owner::Enum(id) => self.enums[id].methods.push(function),
-            Owner::Class(id) => self.classes[id].methods.push(function),
-            Owner::Object(id) => self.classes[self.objects[id].backing_class]
-                .methods
-                .push(function),
-            Owner::Interface(_) => unreachable!("interfaces do not request nominal bodies"),
-        }
         function
     }
 

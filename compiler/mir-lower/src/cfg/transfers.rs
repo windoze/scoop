@@ -196,6 +196,7 @@ impl<'a> CfgLowerer<'a> {
                 context: self.active_pending.clone(),
             },
             break_reachable: false,
+            continue_reachable: false,
         });
     }
 
@@ -214,13 +215,9 @@ impl<'a> CfgLowerer<'a> {
     pub(super) fn lower_break(&mut self, source: smir::LoopId) {
         let index = self
             .loop_targets
-            .len()
-            .checked_sub(1)
-            .expect("structured MIR binds break inside an active loop");
-        assert_eq!(
-            self.loop_targets[index].source, source,
-            "unlabelled structured break targets the lexical innermost loop"
-        );
+            .iter()
+            .rposition(|target| target.source == source)
+            .expect("structured MIR binds break to an active loop");
         let target = self.loop_targets[index].exit.clone();
         if self.route_transfer(PendingTransfer::Break(target)) {
             self.loop_targets[index].break_reachable = true;
@@ -228,16 +225,15 @@ impl<'a> CfgLowerer<'a> {
     }
 
     pub(super) fn lower_continue(&mut self, source: smir::LoopId) {
-        let target = self
+        let index = self
             .loop_targets
-            .last()
-            .expect("structured MIR binds continue inside an active loop");
-        assert_eq!(
-            target.source, source,
-            "unlabelled structured continue targets the lexical innermost loop"
-        );
-        let target = target.header.clone();
-        self.route_transfer(PendingTransfer::Continue(target));
+            .iter()
+            .rposition(|target| target.source == source)
+            .expect("structured MIR binds continue to an active loop");
+        let target = self.loop_targets[index].header.clone();
+        if self.route_transfer(PendingTransfer::Continue(target)) {
+            self.loop_targets[index].continue_reachable = true;
+        }
     }
 
     pub(super) fn call_pending_context(&self) -> CleanupContext {

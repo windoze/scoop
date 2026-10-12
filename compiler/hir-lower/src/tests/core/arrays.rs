@@ -10,7 +10,8 @@ pub(super) fn add_length_getter(class: &mut ast::ClassDecl, intrinsic: &str) {
         FunctionBody::None,
     );
     length.annotations.push(ast::Annotation {
-        name: ident("Intrinsic"),
+        use_site: None,
+        name: ident("Intrinsic").into(),
         args: vec![ast::AnnotationArg {
             name: None,
             value: ast::AnnotationLiteral::String(intrinsic.into()),
@@ -32,7 +33,7 @@ pub(super) fn add_length_getter(class: &mut ast::ClassDecl, intrinsic: &str) {
             type_params: Vec::new(),
             where_clause: None,
             name: ident("size"),
-            ty: ty_named("Long"),
+            ty: Some(ty_named("Long")),
             body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
                 getter: Some(ast::GetterDecl {
                     annotations: Vec::new(),

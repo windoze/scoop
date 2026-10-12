@@ -22,6 +22,7 @@ SourceFile
           MethodCall transform
             Var host
             Lambda 0 suspend=false
+              label transform
               param value: _
               Var value
             Var referenced
@@ -37,6 +38,7 @@ SourceFile
       Binary Ne
         Call applyTo
           Lambda 1 suspend=false
+            label applyTo
             param value: _
             Var value
           IntLiteral 42
@@ -47,6 +49,7 @@ SourceFile
       Binary Ne
         Call applyTo
           Lambda 2 suspend=false
+            label applyTo
             param value: _
             FieldAccess number
               Var value
@@ -85,6 +88,7 @@ SourceFile
       MethodCall transform
         Var host
         Lambda 3 suspend=false
+          label transform
           param value: _
           Call Reference
             Var value

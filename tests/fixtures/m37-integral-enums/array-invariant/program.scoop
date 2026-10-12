@@ -1,0 +1,2 @@
+enum E : Int { V = 1 }
+fun main() { val values: Array<E> = Array(1) { E.V }; val raw: Array<Int> = values }

@@ -1,0 +1,18 @@
+open class Base {
+    open fun read() = 1
+}
+class Child: Base() { override fun read() = 42 }
+interface Reading { fun read(): Int }
+class Reader: Reading { override fun read() = 7 }
+class Values(val number: Int) {
+    fun plus(value: Int) = number + value
+}
+fun main() {
+    val base = Base::read
+    val throughInterface = Reading::read
+    val add = Values::plus
+    println(base(Base()))
+    println(base(Child()))
+    println(throughInterface(Reader()))
+    println(add(Values(40), 2))
+}

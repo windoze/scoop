@@ -21,7 +21,7 @@ fn interface_property(name: &str) -> ast::PropertyDecl {
         type_params: Vec::new(),
         where_clause: None,
         name: crate::tests::ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Abstract,
         span: sp(),
     }
@@ -29,6 +29,7 @@ fn interface_property(name: &str) -> ast::PropertyDecl {
 
 fn interface(name: &str) -> ast::Decl {
     ast::Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         name: crate::tests::ident(name),

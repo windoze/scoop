@@ -20,8 +20,7 @@ impl Lowerer {
     pub(crate) fn function_type_contains_param(&self, id: hir::FunctionTypeId) -> bool {
         let function = &self.function_types[id];
         function
-            .parameter_types
-            .iter()
+            .parameters()
             .any(|ty| self.type_contains_param(*ty))
             || self.type_contains_param(function.return_type)
     }

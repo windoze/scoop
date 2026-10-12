@@ -7,6 +7,7 @@ fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
     let signature = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
     let operation = lambda(
         Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),
@@ -50,6 +51,7 @@ fn unit_returning_lambda_discards_its_tail_value_explicitly() {
     let signature = ty_function(false, vec![ty_named("Int")], ty_named("Unit"));
     let operation = lambda(
         Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),
@@ -87,6 +89,7 @@ fn nested_lambdas_reserve_distinct_body_names_before_lowering() {
     let signature = ty_function(false, Vec::new(), ty_named("Int"));
     let inner = lambda(Some(Vec::new()), int_lit(42));
     let outer = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(1),
         is_suspend: false,
         parameters: Some(Vec::new()),
@@ -143,10 +146,12 @@ fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
         vec![ret(Some(int_lit(42)))],
     );
     let outer = ast::Expr::AnonymousFunction {
+        receiver: None,
+        label: None,
         id: ast::AnonymousFunctionId(1),
         is_suspend: false,
         params: Vec::new(),
-        return_ty: Some(ty_named("Int")),
+        return_ty: Some(Box::new(ty_named("Int"))),
         body: block(vec![
             val_ty("inner", Some(signature.clone()), inner),
             ret(Some(call("inner", Vec::new()))),

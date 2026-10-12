@@ -1,0 +1,1 @@
+fun main() { val value = 42; interface Local { fun read(): Int = value } }

@@ -167,6 +167,29 @@ pub struct HirNominalIdentities {
 }
 
 impl HirNominalIdentities {
+    /// Append an already constructed identity when a lexical declaration is encountered.
+    pub fn append(&mut self, owner: crate::NominalOwner, identity: HirNominalIdentity) {
+        let (records, index) = match owner {
+            crate::NominalOwner::Struct(id) => (&mut self.structs, local_index(id)),
+            crate::NominalOwner::Enum(id) => (&mut self.enums, local_index(id)),
+            crate::NominalOwner::Class(id) => (&mut self.classes, local_index(id)),
+            crate::NominalOwner::Interface(id) => (&mut self.interfaces, local_index(id)),
+            crate::NominalOwner::Object(id) => (&mut self.objects, local_index(id)),
+        };
+        assert_eq!(
+            records.len(),
+            index,
+            "nominal identities follow their declaration arena"
+        );
+        assert!(
+            self.declarations
+                .insert(identity.declaration_id(), owner)
+                .is_none(),
+            "nominal identities are unique"
+        );
+        records.push(identity);
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn checked(
         structs: &Arena<StructDecl>,

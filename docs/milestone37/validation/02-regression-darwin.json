@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3111,
+  "selected": 2,
+  "unselected": 3109,
+  "counts": {
+    "passed": 2
+  },
+  "variants": 2,
+  "processes": 6,
+  "stage_and_plan_goldens": 8,
+  "results": [
+    {
+      "name": "m35-trailing-effects",
+      "status": "passed",
+      "seconds": 5.455025749979541,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-members",
+      "status": "passed",
+      "seconds": 5.6288285829359666,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    }
+  ]
+}

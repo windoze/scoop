@@ -131,7 +131,7 @@ fn property(name: &str, ty: &str) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named(ty),
+        ty: Some(ty_named(ty)),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),
@@ -154,6 +154,9 @@ fn extension_property(receiver: &str, name: &str, ty: &str) -> Decl {
 
 fn type_alias(name: &str, target: &str) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target: ty_named(target),
@@ -173,6 +176,7 @@ fn consumer() -> ast::SourceFile {
 
 fn lambda(tail: Expr) -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: None,

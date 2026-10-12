@@ -38,6 +38,9 @@ impl Lowerer {
             ..
         } = match self.infer_call_arguments(CallInferenceInput {
             signature: &view.signature,
+            result: crate::declaration_inference::DeclarationResult::Known(
+                view.signature.return_type,
+            ),
             argument_map,
             type_arguments: DeclarationTypeArguments::Nominal {
                 template: self
@@ -74,7 +77,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn diagnose_nominal_failure(
+    pub(crate) fn diagnose_nominal_failure(
         &mut self,
         view: &NominalConstructorView,
         argument_map: &crate::call_resolution::arguments::CandidateArgumentMap,

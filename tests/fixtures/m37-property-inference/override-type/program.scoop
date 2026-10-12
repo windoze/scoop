@@ -1,0 +1,3 @@
+interface Base { val value: Int }
+class Child : Base { override val value get() = "wrong" }
+fun main() {}

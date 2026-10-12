@@ -1,0 +1,2 @@
+enum E : Int { V = 1 }
+@Unsafe fun convert(value: Ptr<E>): Ptr<Int> = value

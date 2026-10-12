@@ -1164,7 +1164,7 @@ Module
         Type Boolean
         IsInstance Node
           Type Any
-          Local live
+          Local $when.subject.0
     bb7 if.then.7 unwind bb1
       val $argument.0: suspend () -> Int
         Type suspend () -> Int

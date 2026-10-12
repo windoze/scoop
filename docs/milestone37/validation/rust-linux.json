@@ -1,0 +1,193 @@
+{
+  "scope": "complete Linux workspace coverage combined with targeted rechecks",
+  "runs": [
+    {
+      "log": "linux-rust-tests.log",
+      "passed": 1399,
+      "failed": 3,
+      "ignored": 0
+    },
+    {
+      "log": "linux-rust-remaining.log",
+      "passed": 4643,
+      "failed": 5,
+      "ignored": 0
+    },
+    {
+      "log": "linux-hir-recheck.log",
+      "passed": 905,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "linux-alias-recheck.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "linux-flow-recheck.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "linux-profile-recheck.log",
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "linux-retype-recheck.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "targets": 43,
+  "tests": 5553,
+  "passed": 5553,
+  "failed": 0,
+  "ignored": 0,
+  "renamed_test": "mutable_variables_are_not_smart_cast was revised to assignment_invalidates_mutable_variable_smart_cast",
+  "environment": {
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12700H",
+    "available_cpus": 20,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "llvm": "22.1.2",
+    "gcc": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "musl_gcc": "x86_64-linux-gnu-gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "python": "3.14.4",
+    "source_commit": "762886dbcb48cf30adc438ea5a56ed1ef80e3794"
+  },
+  "commands": [
+    [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--release"
+    ],
+    [
+      "cargo",
+      "test",
+      "--workspace",
+      "--release"
+    ],
+    [
+      "cargo",
+      "test",
+      "--workspace",
+      "--release",
+      "--exclude",
+      "scoop-hir",
+      "--no-fail-fast"
+    ],
+    [
+      "cargo",
+      "test",
+      "-p",
+      "scoop-hir",
+      "--release"
+    ],
+    [
+      "cargo",
+      "test",
+      "-p",
+      "scoop-hir",
+      "-p",
+      "scoop-hir-lower",
+      "-p",
+      "scoop-parser",
+      "-p",
+      "scoop-slib",
+      "--release",
+      "--lib",
+      "nominal_constructor_arguments_retain_the_complete_expected_application"
+    ],
+    [
+      "cargo",
+      "test",
+      "-p",
+      "scoop-hir",
+      "-p",
+      "scoop-hir-lower",
+      "-p",
+      "scoop-parser",
+      "-p",
+      "scoop-slib",
+      "--release",
+      "--lib",
+      "assignment_invalidates_mutable_variable_smart_cast"
+    ],
+    [
+      "cargo",
+      "test",
+      "-p",
+      "scoop-hir",
+      "-p",
+      "scoop-hir-lower",
+      "-p",
+      "scoop-parser",
+      "-p",
+      "scoop-slib",
+      "--release",
+      "--lib",
+      "profile::tests"
+    ],
+    [
+      "cargo",
+      "test",
+      "-p",
+      "scoop-lir-lower",
+      "--release",
+      "--lib",
+      "retype_rejects_machine_scalar_to_source_integer"
+    ],
+    [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests/fixture_runner/tests"
+    ],
+    [
+      "cargo",
+      "build",
+      "-p",
+      "scoop",
+      "-p",
+      "scoopc",
+      "-p",
+      "scoop-linker",
+      "--bins",
+      "--release"
+    ]
+  ],
+  "final_fmt_clippy": "passed",
+  "python_tests": {
+    "passed": 44,
+    "failed": 0
+  },
+  "cli_build": "passed",
+  "compiler_implementation_commit": "a99cfd2fd473e3f2e3bb9800731ddf1997dce763",
+  "test_only_repair_commits": [
+    "d77be7311",
+    "2bf1dba58",
+    "762886dbc"
+  ],
+  "coverage_file": "rust-linux-coverage.json.gz",
+  "raw_logs": [
+    "linux-rust-tests.log.gz",
+    "linux-rust-remaining.log.gz"
+  ]
+}

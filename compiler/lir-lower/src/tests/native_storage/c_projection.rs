@@ -91,6 +91,7 @@ fn c_projection_composes_with_c_layout_fields_pointers_and_function_pointer_sign
         ],
     );
     let signature = builder.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![handle.clone()],
         return_type: handle.clone(),

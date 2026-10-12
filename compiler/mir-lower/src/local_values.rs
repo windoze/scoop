@@ -136,7 +136,10 @@ impl LocalValueRegistry {
             | hir::LocalValueSelector::BoundReceiver { path }
             | hir::LocalValueSelector::Synthetic { path, .. } => path,
             hir::LocalValueSelector::SuspensionResult { site } => site,
-            hir::LocalValueSelector::This | hir::LocalValueSelector::Parameter { .. } => return,
+            hir::LocalValueSelector::This
+            | hir::LocalValueSelector::EnclosingInstance
+            | hir::LocalValueSelector::CapturedEnvironment
+            | hir::LocalValueSelector::Parameter { .. } => return,
         };
         let Some(segment) = path.segments().last() else {
             unreachable!("structural definition paths are non-empty")

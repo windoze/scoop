@@ -513,7 +513,7 @@ fn computed_int_property(name: &str, value: i64) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: scoop_ast::PropertyBodySyntax::Computed(scoop_ast::AccessorSyntax {
             getter: Some(scoop_ast::GetterDecl {
                 annotations: Vec::new(),

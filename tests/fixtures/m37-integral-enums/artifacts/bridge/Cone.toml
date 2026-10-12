@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m37"
+name = "integral-enums-bridge"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m37:integral-enums-provider" = "0.1.0"

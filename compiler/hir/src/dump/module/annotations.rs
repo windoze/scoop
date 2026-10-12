@@ -16,14 +16,33 @@ pub(super) fn dump_annotations(module: &Module, out: &mut String) {
                 out,
                 "{}: {}",
                 parameter.name,
-                type_name(module, parameter.value_type)
+                match parameter.value_type {
+                    crate::AnnotationParameterType::Value(ty) => type_name(module, ty),
+                    crate::AnnotationParameterType::Annotation(id) => format!("annotation<{id}>"),
+                    crate::AnnotationParameterType::AnnotationArray { element, .. } =>
+                        format!("Array<annotation<{element}>>"),
+                }
             )
             .expect("writing to String");
             if let Some(default) = &parameter.default {
                 write!(out, " = {default:?}").expect("writing to String");
             }
         }
-        out.push_str(")\n");
+        out.push(')');
+        if declaration.rules != crate::AnnotationRules::default() {
+            let allowed = crate::AnnotationTargetKind::ALL
+                .into_iter()
+                .filter(|kind| declaration.rules.permits(*kind))
+                .map(|kind| kind.name())
+                .collect::<Vec<_>>();
+            write!(
+                out,
+                " targets={allowed:?} repeatable={}",
+                declaration.rules.repeatable
+            )
+            .expect("writing to String");
+        }
+        out.push('\n');
     }
     for target in &module.annotations.targets {
         writeln!(out, "  annotations {}", target_name(module, target.target))
@@ -36,6 +55,40 @@ pub(super) fn dump_annotations(module: &Module, out: &mut String) {
             )
             .expect("writing to String");
         }
+    }
+    for usage in &module.annotations.type_uses {
+        writeln!(
+            out,
+            "  type annotations {}:{}..{} {:?}",
+            usage.identity.source.logical_path(),
+            usage.identity.span.start_byte(),
+            usage.identity.span.end_byte(),
+            usage.ty
+        )
+        .expect("writing to String");
+        for node in &usage.nodes {
+            writeln!(out, "    path {:?}", node.path).expect("writing to String");
+            for application in &node.annotations {
+                writeln!(
+                    out,
+                    "      @{} {:?}",
+                    application.annotation, application.arguments
+                )
+                .expect("writing to String");
+            }
+        }
+    }
+    for site in &module.annotations.type_sites {
+        writeln!(
+            out,
+            "  annotated type {} {:?} => {}:{}..{}",
+            target_name(module, site.target),
+            site.slot,
+            site.type_use.source.logical_path(),
+            site.type_use.span.start_byte(),
+            site.type_use.span.end_byte()
+        )
+        .expect("writing to String");
     }
 }
 
@@ -67,9 +120,26 @@ fn target_name(module: &Module, target: SourceAnnotationTarget) -> String {
                 PropertyOwner::Class(id) => NominalOwner::Class(id),
                 PropertyOwner::Interface(id) => NominalOwner::Interface(id),
                 PropertyOwner::Object(id) => NominalOwner::Object(id),
-                _ => unreachable!("only reference-type logical properties are annotation targets"),
+                PropertyOwner::Struct(id) => NominalOwner::Struct(id),
+                PropertyOwner::Enum(id) => NominalOwner::Enum(id),
+                PropertyOwner::TopLevel | PropertyOwner::Extension(_) => {
+                    return property.name.clone();
+                }
             };
             format!("{}.{}", nominal_name(module, owner), property.name)
+        }
+        SourceAnnotationTarget::Annotation(id) => format!("annotation {id}"),
+        SourceAnnotationTarget::Callable(id) => format!("callable {id:?}"),
+        SourceAnnotationTarget::Parameter { callable, index } => {
+            format!("parameter {callable:?}[{index}]")
+        }
+        SourceAnnotationTarget::Receiver(receiver) => format!("receiver {receiver:?}"),
+        SourceAnnotationTarget::TypeAlias(id) => {
+            format!("typealias {}", module.type_aliases[id].name)
+        }
+        SourceAnnotationTarget::ClassField(id) => format!("field {id:?}"),
+        SourceAnnotationTarget::PropertyStorage { property, role } => {
+            format!("storage {} {role:?}", module.properties[property].name)
         }
     }
 }

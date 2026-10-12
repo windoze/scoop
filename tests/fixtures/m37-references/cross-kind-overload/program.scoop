@@ -1,0 +1,3 @@
+class Pick(val value: Int)
+fun Pick(value: String): String = value
+fun main() { val make = ::Pick }

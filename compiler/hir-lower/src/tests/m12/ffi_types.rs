@@ -30,7 +30,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Const(Box::new(expression)),
         span: sp(),
     })
@@ -48,7 +48,7 @@ fn raw_storage_without_initializer(name: &str, ty: TypeRef) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::ExternStorage,
         span: sp(),
     })
@@ -66,7 +66,7 @@ fn raw_storage_with_initializer(name: &str, ty: TypeRef, expression: Expr) -> De
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(expression),
             accessors: ast::AccessorSyntax::default(),

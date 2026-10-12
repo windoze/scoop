@@ -1,6 +1,8 @@
 use super::*;
 
 mod queries;
+mod representation;
+pub use representation::*;
 
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
@@ -18,6 +20,7 @@ pub struct EnumDecl {
 /// binder domain. Every application substitutes this same definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumDefinition {
+    pub representation: EnumRepresentation,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub no_gc: bool,
     pub self_application: EnumApplicationId,

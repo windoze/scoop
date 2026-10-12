@@ -145,7 +145,9 @@ pub(super) fn exact_function_type_signature(
         } else {
             hir::Effect::Ordinary
         },
-        None,
+        function_type
+            .receiver
+            .map(|ty| module.exact_type_identities[ty].id()),
         function_type
             .parameter_types
             .iter()
@@ -199,6 +201,34 @@ pub(super) fn exact_function_signature(
             .map(|parameter| module.exact_type_identities[parameter.ty].id())
             .collect(),
         module.exact_type_identities[declaration.return_ty].id(),
+    )
+}
+
+pub(super) fn exact_class_constructor_signature(
+    module: &hir::Module,
+    source: hir::ClassConstructorId,
+) -> hir::ExactCallableSignature {
+    let constructor = &module.class_constructors[source];
+    let (receiver, parameters) = match constructor.parameters.split_first() {
+        Some((first, rest))
+            if matches!(
+                first.selector,
+                hir::LocalValueSelector::EnclosingInstance
+                    | hir::LocalValueSelector::CapturedEnvironment
+            ) =>
+        {
+            (Some(module.exact_type_identities[first.ty].id()), rest)
+        }
+        _ => (None, constructor.parameters.as_slice()),
+    };
+    hir::ExactCallableSignature::new(
+        hir::Effect::Ordinary,
+        receiver,
+        parameters
+            .iter()
+            .map(|parameter| module.exact_type_identities[parameter.ty].id())
+            .collect(),
+        exact_class(module, constructor.class),
     )
 }
 

@@ -241,10 +241,10 @@ impl<'a> NominalProjection<'a> {
             &declaration.access,
             &declaration.type_params,
         )?;
-        let exact_supertypes = source_shape::direct_supertypes(
+        let exact_supertypes = source_shape::enum_supertypes(
             &source_shape::SourceShapeProjection::new(self.export),
             header.declaration,
-            &declaration.interfaces,
+            declaration,
             &header.binders,
         )?;
         let shape = source_shape::enum_shape(

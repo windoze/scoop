@@ -1,0 +1,1 @@
+fun main() { outer@ while (true) { fun local() { break@outer }; break } }

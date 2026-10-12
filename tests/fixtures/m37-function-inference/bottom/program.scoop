@@ -1,0 +1,9 @@
+fun stop() = throw IllegalStateException()
+fun choose(ready: Boolean) = if (ready) 7 else stop()
+fun run(ready: Boolean) = try { choose(ready) } catch (failure: Throwable) { 9 } finally { println("cleanup") }
+fun main() {
+    println(run(true))
+    println(run(false))
+    val fail = ::stop
+    try { fail() } catch (failure: Throwable) { println("caught") }
+}

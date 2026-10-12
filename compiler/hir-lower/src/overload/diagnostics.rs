@@ -207,7 +207,7 @@ fn render_candidate_failure(
                 None => format!("{parameter}: {reason}"),
             }
         }
-        CandidateProbeFailureKind::Intrinsic { reason, .. } => reason.clone(),
+        CandidateProbeFailureKind::Declaration { reason, .. } => reason.clone(),
         CandidateProbeFailureKind::Constraint(constraint) => render_callable_constraint_failure(
             &failure.state,
             &candidate.view,
@@ -298,7 +298,7 @@ fn candidate_failure_span(
 ) -> Span {
     match &failure.kind {
         CandidateProbeFailureKind::Shape(_) => fallback,
-        CandidateProbeFailureKind::Intrinsic { span, .. } => *span,
+        CandidateProbeFailureKind::Declaration { span, .. } => *span,
         CandidateProbeFailureKind::Expression { span, .. } => *span,
         CandidateProbeFailureKind::Constraint(failure) => constraint_failure_span(
             arguments,

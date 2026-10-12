@@ -19,6 +19,7 @@ enum SymbolicType {
     Any,
     Tuple(Vec<SymbolicType>),
     Function {
+        receiver: Option<Box<SymbolicType>>,
         is_suspend: bool,
         parameters: Vec<SymbolicType>,
         result: Box<SymbolicType>,
@@ -214,6 +215,9 @@ impl Lowerer {
             hir::Type::Function(function) => {
                 let function = &self.function_types[*function];
                 SymbolicType::Function {
+                    receiver: function
+                        .receiver
+                        .map(|ty| Box::new(self.symbolic_type(ty, bindings))),
                     is_suspend: function.is_suspend,
                     parameters: function
                         .parameter_types

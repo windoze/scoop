@@ -229,8 +229,14 @@ mod tests {
         let fixture = Fixture::new();
         let body = ExportDefaultBodyV1::try_new(
             vec![
-                statement(DefaultStatementKindV1::Break, &fixture),
-                statement(DefaultStatementKindV1::Continue, &fixture),
+                statement(
+                    DefaultStatementKindV1::Break(crate::DefaultLoopTargetV1::INNERMOST),
+                    &fixture,
+                ),
+                statement(
+                    DefaultStatementKindV1::Continue(crate::DefaultLoopTargetV1::INNERMOST),
+                    &fixture,
+                ),
                 statement(
                     DefaultStatementKindV1::Return(Box::new(unit(&fixture))),
                     &fixture,
@@ -263,7 +269,10 @@ mod tests {
         .unwrap();
         let body = ExportDefaultBodyV1::try_new(
             vec![
-                statement(DefaultStatementKindV1::Break, &fixture),
+                statement(
+                    DefaultStatementKindV1::Break(crate::DefaultLoopTargetV1::INNERMOST),
+                    &fixture,
+                ),
                 statement(
                     DefaultStatementKindV1::Expr(Box::new(missing_local)),
                     &fixture,

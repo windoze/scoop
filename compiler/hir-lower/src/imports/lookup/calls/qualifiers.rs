@@ -183,6 +183,17 @@ impl Lowerer {
         &self,
         name: &ast::Ident,
     ) -> ExpressionQualifierLookup {
+        if let Some(alias) = self.lexical_type_alias(&name.text) {
+            if self.lexical_or_member_value_blocks_type_qualifier(&name.text) {
+                return ExpressionQualifierLookup::Value;
+            }
+            let target = ExpressionQualifierTarget::Type(TopLevelTypeTarget::Alias(alias));
+            return if self.source_type_alias_is_accessible(alias) {
+                ExpressionQualifierLookup::Unique(target)
+            } else {
+                ExpressionQualifierLookup::Inaccessible(target)
+            };
+        }
         let core = || {
             let (_, suppressed_callables) = self.core_named_callable_partition(&name.text);
             LookupLayer {

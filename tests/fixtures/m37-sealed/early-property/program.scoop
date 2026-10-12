@@ -1,0 +1,8 @@
+sealed interface Root {}
+class Reader {
+    val number = when (make()) { is First -> 1 }
+}
+class First : Root
+class Second : Root
+fun make(): Root = Second()
+fun main() {}

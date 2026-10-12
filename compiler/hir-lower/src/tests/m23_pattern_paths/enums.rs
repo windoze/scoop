@@ -10,6 +10,7 @@ fn choice(name: &str) -> Decl {
 
 fn qualified_type(path: &[&str]) -> TypeRef {
     TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Qualified {
             path: path.iter().map(|part| ident(part)).collect(),
             arguments: vec![ty_named("Int")],
@@ -71,7 +72,7 @@ fn package_and_nested_enum_prefixes_share_qualified_type_lookup() {
         panic!("struct fixture")
     };
     outer.members.push(ast::StructMember::Nested(Box::new(
-        ast::NestedNominalDecl::Enum(Box::new(nested)),
+        ast::NestedTypeDecl::Enum(Box::new(nested)),
     )));
     let api = package(file(vec![Decl::Struct(outer)]), "api");
     let user = file(vec![consume(

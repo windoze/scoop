@@ -1,0 +1,2 @@
+annotation class Mark
+@set:Mark val value: Int = 1

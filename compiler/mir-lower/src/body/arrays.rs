@@ -223,6 +223,7 @@ impl BodyLowerer<'_> {
         self.next_loop_id += 1;
         let statement = |kind| smir::Statement { kind, span };
         self.prelude.push(smir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: Vec::new(),
             cond: smir::Expr::integer_compare(

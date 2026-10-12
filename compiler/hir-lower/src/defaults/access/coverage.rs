@@ -77,7 +77,7 @@ impl Lowerer {
                     self.function_types[signature].canonical_type
                 }
             };
-            let domain = self.type_access_domain(ty);
+            let domain = self.default_type_access_domain(ty);
             self.check_default_reference_access(&call_domain, &domain, reference.origin, "a type");
         }
     }

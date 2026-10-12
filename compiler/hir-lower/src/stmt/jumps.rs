@@ -33,6 +33,7 @@ impl Lowerer {
 
     pub(crate) fn lower_return(
         &mut self,
+        label: Option<&ast::Ident>,
         value: Option<&ast::Expr>,
         span: Span,
         out: &mut Vec<hir::Statement>,
@@ -69,11 +70,38 @@ impl Lowerer {
             );
             return None;
         }
+        let is_lambda = matches!(
+            target,
+            Some(hir::SourceContextSubject::LexicalCallable {
+                role: scoop_identity::LexicalCallableRole::LambdaBody,
+                ..
+            })
+        );
+        if let Some(label) = label {
+            let own_label = match target {
+                Some(hir::SourceContextSubject::Function(_))
+                | Some(hir::SourceContextSubject::LexicalCallable { .. }) => {
+                    self.current_callable_label.as_deref()
+                }
+                _ => None,
+            };
+            if self.loop_label_is_active(&label.text) || own_label != Some(label.text.as_str()) {
+                self.error(label.span, format!("return label `{}` does not name the current callable; non-local returns are not allowed", label.text));
+                return None;
+            }
+        } else if is_lambda {
+            self.error(
+                span,
+                "a lambda cannot use bare `return`; use `return@label` for a local return".into(),
+            );
+            return None;
+        }
         if !matches!(
             target,
             Some(hir::SourceContextSubject::Function(_))
                 | Some(hir::SourceContextSubject::LexicalCallable {
-                    role: scoop_identity::LexicalCallableRole::AnonymousFunctionBody,
+                    role: scoop_identity::LexicalCallableRole::AnonymousFunctionBody
+                        | scoop_identity::LexicalCallableRole::LambdaBody,
                     ..
                 })
         ) {

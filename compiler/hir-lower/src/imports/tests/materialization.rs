@@ -4,7 +4,8 @@ fn invalid_raw_string_property(name: &str) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Global"),
+            use_site: None,
+            name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),
         }],
@@ -16,7 +17,7 @@ fn invalid_raw_string_property(name: &str) -> ast::Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("String"),
+        ty: Some(ty_named("String")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(str_lit("invalid raw image")),
             accessors: ast::AccessorSyntax::default(),

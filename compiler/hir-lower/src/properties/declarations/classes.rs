@@ -4,7 +4,6 @@ impl Lowerer {
     pub(crate) fn allocate_class_field(
         &mut self,
         owner: hir::ClassId,
-        property: hir::PropertyId,
         definition: hir::Field,
         source: hir::ClassFieldSource,
         span: ast::Span,
@@ -14,7 +13,6 @@ impl Lowerer {
         fields.push(definition);
         self.class_fields.alloc(hir::ClassField {
             owner,
-            property,
             definition_index,
             source,
             span,
@@ -32,12 +30,14 @@ impl Lowerer {
         let expected_property = self.next_property_id();
         let field = self.allocate_class_field(
             owner,
-            expected_property,
             hir::Field {
                 name: parameter.name.text.clone(),
                 ty,
             },
-            hir::ClassFieldSource::PrimaryParameter(parameter_id),
+            hir::ClassFieldSource::PrimaryParameter {
+                property: expected_property,
+                parameter: parameter_id,
+            },
             parameter.span,
         );
         let modifier =
@@ -63,7 +63,7 @@ impl Lowerer {
             type_params: Vec::new(),
             where_clause: None,
             name: parameter.name.clone(),
-            ty: parameter.ty.clone(),
+            ty: Some(parameter.ty.clone()),
             body: ast::PropertyBodySyntax::Initializer {
                 expression: Box::new(ast::Expr::UnitLiteral {
                     span: parameter.span,
@@ -199,12 +199,11 @@ impl Lowerer {
             ast::PropertyBodySyntax::Initializer { .. } => {
                 let field = self.allocate_class_field(
                     backing_class,
-                    expected_property,
                     hir::Field {
                         name: declaration.name.text.clone(),
                         ty,
                     },
-                    hir::ClassFieldSource::Body,
+                    hir::ClassFieldSource::BodyProperty(expected_property),
                     declaration.span,
                 );
                 (
@@ -230,12 +229,11 @@ impl Lowerer {
                 }
                 let field = self.allocate_class_field(
                     backing_class,
-                    expected_property,
                     hir::Field {
                         name: declaration.name.text.clone(),
                         ty,
                     },
-                    hir::ClassFieldSource::Body,
+                    hir::ClassFieldSource::BodyProperty(expected_property),
                     declaration.span,
                 );
                 (

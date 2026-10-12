@@ -181,16 +181,9 @@ impl fmt::Display for DefaultBodyProjectionError {
                     "default body contains unsupported assignment {kind}"
                 )
             }
-            Self::LoopControlOutsideLoop(control) => {
-                write!(formatter, "default body {control} appears outside a loop")
-            }
-            Self::NonInnermostLoop {
-                control,
-                expected,
-                actual,
-            } => write!(
+            Self::UnknownLoopTarget { control, target } => write!(
                 formatter,
-                "default body {control} targets loop {actual}, not innermost loop {expected}"
+                "default body {control} targets inactive loop {target}"
             ),
             Self::TooManyOwnerTypeParameters => {
                 formatter.write_str("default owner has more than u32 type parameters")

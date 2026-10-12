@@ -247,7 +247,7 @@ impl<'a> Projection<'a> {
                 Ok(())
             }
             (
-                Kind::Enum { variants }
+                Kind::Enum { variants, .. }
                 | Kind::CoroutineStep { variants }
                 | Kind::CoroutineSlot { variants },
                 mir::Type::Enum(id, _),

@@ -23,7 +23,11 @@ pub(super) fn project(
     let mut properties = vec![None; constructor.parameters.len()];
     for &field in &declaration.fields {
         let field = &export.class_fields[field];
-        let ClassFieldSource::PrimaryParameter(parameter) = field.source else {
+        let ClassFieldSource::PrimaryParameter {
+            parameter,
+            property,
+        } = field.source
+        else {
             continue;
         };
         let index = constructor
@@ -31,7 +35,7 @@ pub(super) fn project(
             .iter()
             .position(|candidate| candidate.id == parameter)
             .ok_or_else(|| invalid("primary property refers to a missing constructor parameter"))?;
-        let property = export.property_identities[field.property]
+        let property = export.property_identities[property]
             .ordinary_id()
             .ok_or_else(|| {
                 invalid("primary parameter must refer to an ordinary logical property")

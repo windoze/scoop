@@ -17,6 +17,7 @@ impl Harness {
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             definition: hir::InterfaceDefinition {
+                inheritance_family: Default::default(),
                 self_application,
                 type_params,
                 parents: Vec::new(),

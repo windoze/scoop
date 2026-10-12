@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 use scoop_wire::{WireError, WirePath};
@@ -7,6 +7,7 @@ use crate::{CanonicalBooleanV1, ExportDefaultTemplateV1};
 
 mod control;
 mod expression;
+mod loops;
 
 #[cfg(test)]
 mod tests;
@@ -216,13 +217,13 @@ impl<'a> Validator<'a> {
     fn abrupt_flow(
         &mut self,
         available: Vec<bool>,
-        outcome: DefaultLoopControlV1,
+        outcome: ControlOutcome,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError> {
         let state = self.copy_bits(&available)?;
         Ok(Flow {
             available,
             falls_through: false,
-            abrupt: AbruptOutcomes::single(outcome, state),
+            abrupt: BTreeMap::from([(outcome, state)]),
         })
     }
 
@@ -231,13 +232,14 @@ impl<'a> Validator<'a> {
         target: &mut AbruptOutcomes,
         other: AbruptOutcomes,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
-        for (outcome, state) in other.into_entries() {
-            let Some(state) = state else {
-                continue;
-            };
-            match target.slot_mut(outcome) {
-                None => *target.slot_mut(outcome) = Some(state),
-                Some(current) => self.intersect_bits(current, &state)?,
+        for (outcome, state) in other {
+            match target.entry(outcome) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(state);
+                }
+                std::collections::btree_map::Entry::Occupied(mut entry) => {
+                    self.intersect_bits(entry.get_mut(), &state)?;
+                }
             }
         }
         Ok(())
@@ -276,61 +278,15 @@ impl Flow {
     }
 }
 
-#[derive(Default)]
-struct AbruptOutcomes {
-    returns: Option<Vec<bool>>,
-    throws: Option<Vec<bool>>,
-    breaks: Option<Vec<bool>>,
-    continues: Option<Vec<bool>>,
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum ControlOutcome {
+    Return,
+    Throw,
+    Break(u64),
+    Continue(u64),
 }
 
-impl AbruptOutcomes {
-    fn single(outcome: DefaultLoopControlV1, state: Vec<bool>) -> Self {
-        let mut outcomes = Self::default();
-        *outcomes.slot_mut(outcome) = Some(state);
-        outcomes
-    }
-
-    fn slot_mut(&mut self, outcome: DefaultLoopControlV1) -> &mut Option<Vec<bool>> {
-        match outcome {
-            DefaultLoopControlV1::Return => &mut self.returns,
-            DefaultLoopControlV1::Throw => &mut self.throws,
-            DefaultLoopControlV1::Break => &mut self.breaks,
-            DefaultLoopControlV1::Continue => &mut self.continues,
-        }
-    }
-
-    fn take(&mut self, outcome: DefaultLoopControlV1) -> Option<Vec<bool>> {
-        self.slot_mut(outcome).take()
-    }
-
-    fn states(&self) -> impl Iterator<Item = &[bool]> {
-        [
-            self.returns.as_deref(),
-            self.throws.as_deref(),
-            self.breaks.as_deref(),
-            self.continues.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-    }
-
-    fn into_entries(self) -> [(DefaultLoopControlV1, Option<Vec<bool>>); 4] {
-        [
-            (DefaultLoopControlV1::Return, self.returns),
-            (DefaultLoopControlV1::Throw, self.throws),
-            (DefaultLoopControlV1::Break, self.breaks),
-            (DefaultLoopControlV1::Continue, self.continues),
-        ]
-    }
-
-    const fn is_empty(&self) -> bool {
-        self.returns.is_none()
-            && self.throws.is_none()
-            && self.breaks.is_none()
-            && self.continues.is_none()
-    }
-}
+type AbruptOutcomes = BTreeMap<ControlOutcome, Vec<bool>>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultLocalDataFlowSiteV1 {

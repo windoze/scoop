@@ -1,0 +1,5 @@
+fun main() {
+    enum Answer { Yes, No }
+    val answer: Answer = Answer.Yes
+    println(when (answer) { Answer.Yes -> 42; Answer.No -> 0 })
+}

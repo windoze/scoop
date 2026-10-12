@@ -49,36 +49,38 @@ impl Lowerer {
                 let binding = self.imports.binding(binding);
                 (binding.file, binding.span)
             }
-            TypeLookupOrigin::ExistingM22Core => match &candidate.target {
-                TypeLookupTarget::Dependency(_) => {
-                    unreachable!("the M22 core lookup layer contains only current HIR targets")
+            TypeLookupOrigin::ExistingM22Core | TypeLookupOrigin::Lexical => {
+                match &candidate.target {
+                    TypeLookupTarget::Dependency(_) => {
+                        unreachable!("the M22 core lookup layer contains only current HIR targets")
+                    }
+                    TypeLookupTarget::Current(target) => match *target {
+                        TopLevelTypeTarget::Annotation(id) => {
+                            let declaration = &self.source_annotations[&id];
+                            (declaration.file, declaration.declaration.span)
+                        }
+                        TopLevelTypeTarget::Alias(id) => {
+                            let origin = self.source_type_aliases[id].origin;
+                            (origin.file as usize, origin.span)
+                        }
+                        TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)) => {
+                            (self.struct_files[&id], self.structs[id].span)
+                        }
+                        TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)) => {
+                            (self.enum_files[&id], self.enums[id].span)
+                        }
+                        TopLevelTypeTarget::Nominal(NominalTarget::Class(id)) => {
+                            (self.class_files[&id], self.classes[id].span)
+                        }
+                        TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)) => {
+                            (self.interface_files[&id], self.interfaces[id].span)
+                        }
+                        TopLevelTypeTarget::Nominal(NominalTarget::Object(id)) => {
+                            (self.object_files[&id], self.objects[id].span)
+                        }
+                    },
                 }
-                TypeLookupTarget::Current(target) => match *target {
-                    TopLevelTypeTarget::Annotation(id) => {
-                        let declaration = &self.source_annotations[&id];
-                        (declaration.file, declaration.declaration.span)
-                    }
-                    TopLevelTypeTarget::Alias(id) => {
-                        let origin = self.source_type_aliases[id].origin;
-                        (origin.file as usize, origin.span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)) => {
-                        (self.struct_files[&id], self.structs[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)) => {
-                        (self.enum_files[&id], self.enums[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Class(id)) => {
-                        (self.class_files[&id], self.classes[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)) => {
-                        (self.interface_files[&id], self.interfaces[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Object(id)) => {
-                        (self.object_files[&id], self.objects[id].span)
-                    }
-                },
-            },
+            }
             TypeLookupOrigin::Dependency => {
                 return match &candidate.target {
                     TypeLookupTarget::Dependency(binding) => {

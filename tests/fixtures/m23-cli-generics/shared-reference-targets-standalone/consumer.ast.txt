@@ -101,12 +101,14 @@ SourceFile
       Call localCaptured<Int, T>
         IntLiteral 42
         Lambda 1 suspend=false
+          label localCaptured
           param value: _
           Var value
     val second
       Call localCaptured<Int, T>
         IntLiteral 43
         Lambda 2 suspend=false
+          label localCaptured
           param value: _
           Var value
     if
@@ -212,5 +214,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 3 suspend=false
+          label exercise
           param value: _
           Var value

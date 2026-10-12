@@ -266,6 +266,7 @@ mod tests {
             })
             .unwrap();
         let exact_function = CborIdentityRecord::from_key(ExactTypeKey::Function {
+            receiver: None,
             effect: target.effect(),
             parameters: target.parameters().to_vec(),
             result: target.result(),

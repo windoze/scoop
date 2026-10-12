@@ -42,6 +42,7 @@ impl NominalExactLeafClassifierV1 {
                 )
             }
             SignatureTypeKey::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
@@ -52,6 +53,15 @@ impl NominalExactLeafClassifierV1 {
                     return Ok(None);
                 };
                 ExactTypeKey::Function {
+                    receiver: match receiver {
+                        Some(ty) => {
+                            let Some(exact) = self.classify(ty)? else {
+                                return Ok(None);
+                            };
+                            Some(exact)
+                        }
+                        None => None,
+                    },
                     effect: *effect,
                     parameters,
                     result,

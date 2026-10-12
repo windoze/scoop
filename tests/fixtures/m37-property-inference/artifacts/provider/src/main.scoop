@@ -1,0 +1,16 @@
+package inferredproperties
+public class Holder<T> public constructor(seed: T) {
+    public val value = seed
+    public val read = { seed }
+}
+public val seed = 41
+public val answer get() = seed + 1
+public const val ONE = 1
+public class Reader<T> public constructor() {
+    public operator fun getValue(thisRef: Holder<T>) = thisRef.value
+}
+public val <T> Holder<T>.forward by Reader<T>()
+public fun <T> read(value: Holder<T>) = value.forward
+public fun defaultValue(value: Int = answer) = value
+
+@Global public var raw = 6

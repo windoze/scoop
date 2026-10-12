@@ -66,6 +66,7 @@ SourceFile
       Call Completion
     Call startCoroutine
       Lambda 1 suspend=true
+        label startCoroutine
         parameters omitted
         Call dynamic
       Var failure

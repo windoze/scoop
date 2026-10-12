@@ -12,12 +12,14 @@ fn equal_physical_nominals_keep_their_distinct_exact_identities() {
     let second = builder.strukt("Payload", &[("value", LONG)]);
     let variant = || test_variant("Ready".into(), true, Vec::new());
     let first_enum = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "State".into(),
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![variant()],
     });
     let second_enum = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "State".into(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -217,6 +219,7 @@ fn exact_layout_producer_preserves_class_prefix_and_enum_slots() {
         vec![],
     );
     let enumeration = builder.enums.alloc(mir::EnumDef {
+        representation: mir::EnumRepresentation::Algebraic,
         name: "Choice".into(),
         type_arguments: vec![],
         gc_free: false,

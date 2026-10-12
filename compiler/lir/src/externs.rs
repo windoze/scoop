@@ -300,6 +300,10 @@ impl CReturnType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CType {
     Integer(IntegerKind),
+    IntegralEnum {
+        enum_id: crate::EnumDefId,
+        kind: IntegerKind,
+    },
     Float(FloatKind),
     Boolean,
     DataPointer {
@@ -320,6 +324,7 @@ impl CType {
     pub fn storage_type(&self) -> LirType {
         match self {
             Self::Integer(kind) => kind.scalar_type(),
+            Self::IntegralEnum { enum_id, .. } => LirType::Enum(*enum_id),
             Self::Float(kind) => LirType::floating(*kind),
             Self::Boolean => LirType::I1,
             Self::DataPointer {
@@ -349,6 +354,11 @@ impl CType {
     pub fn dump(&self) -> String {
         match self {
             Self::Integer(kind) => kind.canonical_name().to_string(),
+            Self::IntegralEnum { enum_id, kind } => format!(
+                "integer-enum{}<{}>",
+                enum_id.into_raw().into_u32(),
+                kind.canonical_name()
+            ),
             Self::Float(kind) => kind.canonical_name().to_string(),
             Self::Boolean => "Boolean".to_string(),
             Self::DataPointer { pointee, storage } => match storage {

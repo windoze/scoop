@@ -134,7 +134,7 @@ fn empty_section_has_fixed_wire_and_resolves() {
 
     assert_eq!(
         hex(&bytes),
-        "ae018002a20180028003a20180028004a201800280058006800780088009800a800b800c800d800ea201800280"
+        "ae018002a20180028003a20180028004a201800280058006800780088009800a800b800c800d800ea40180028003800480"
     );
 
     let decoded: DecodedCrossConeHirInterfaceSectionV1 = decode_canonical(&bytes).unwrap();
@@ -239,8 +239,11 @@ fn closure_section(
     .unwrap();
     let body = ExportDefaultBodyV1::try_new(
         vec![
-            DefaultStatementV1::try_new(DefaultStatementKindV1::Break, statement_origin.clone())
-                .unwrap(),
+            DefaultStatementV1::try_new(
+                DefaultStatementKindV1::Break(crate::DefaultLoopTargetV1::INNERMOST),
+                statement_origin.clone(),
+            )
+            .unwrap(),
         ],
         DefaultExpressionV1::try_new(
             DefaultExpressionKindV1::UnitLiteral,

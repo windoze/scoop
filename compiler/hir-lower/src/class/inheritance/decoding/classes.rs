@@ -59,8 +59,13 @@ impl Lowerer {
         for (parameter, source) in record.parameters.iter_mut().zip(primary) {
             let property = fields.iter().find_map(|&field| {
                 let field = &self.class_fields[field];
-                (field.source == hir::ClassFieldSource::PrimaryParameter(source.id))
-                    .then_some(field.property)
+                match field.source {
+                    hir::ClassFieldSource::PrimaryParameter {
+                        property,
+                        parameter,
+                    } if parameter == source.id => Some(property),
+                    _ => None,
+                }
             });
             parameter.wire = property.and_then(|property| {
                 self.serialization_wire_name(
@@ -71,8 +76,7 @@ impl Lowerer {
         }
         for field in fields {
             let declaration = &self.class_fields[field];
-            if declaration.source == hir::ClassFieldSource::Body {
-                let property = declaration.property;
+            if let hir::ClassFieldSource::BodyProperty(property) = declaration.source {
                 let name = self.properties[property].name.clone();
                 if self
                     .serialization_wire_name(hir::SourceAnnotationTarget::Property(property), &name)

@@ -1,0 +1,3 @@
+@Target([]) annotation class Never
+@Never struct Box()
+fun main() {}

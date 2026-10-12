@@ -11,6 +11,7 @@ pub(super) struct ConstructorProjection<'a, 'hir> {
     pub binders: Vec<HirSignatureBinder>,
     pub owner: SignatureTypeKey,
     pub parameters: &'a [ConstructorParameter],
+    pub enclosing: Option<&'a crate::ConstructorContext>,
     pub origin: DefinitionOrigin,
     pub inputs: CanonicalTemplateLocalTableV1,
 }
@@ -19,6 +20,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
     pub fn new(
         entities: &'a DefaultEntityProjector<'hir>,
         parameters: &'a [ConstructorParameter],
+        enclosing: Option<&'a crate::ConstructorContext>,
         type_parameters: &[crate::TypeParamDecl],
         owner: crate::TypeId,
         origin: DefinitionOrigin,
@@ -42,19 +44,26 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
                 ))
             })?,
         );
-        for (index, parameter) in parameters.iter().enumerate() {
-            let index = u32::try_from(index).map_err(|_| {
-                Error::Signature(crate::HirInterfaceSignatureProjectionError::TooManyTypeParameters)
-            })?;
+        for (index, (selector, parameter)) in enclosing
+            .into_iter()
+            .map(|context| (context.selector(), context.parameter()))
+            .chain(parameters.iter().enumerate().map(|(index, parameter)| {
+                (
+                    LocalValueSelector::Parameter {
+                        declaration_index: index as u32,
+                    },
+                    parameter,
+                )
+            }))
+            .enumerate()
+        {
             let value_type = entities
                 .type_key(parameter.ty, &binders)
                 .map_err(Error::Entity)?;
             let definition = definition_source(entities.export(), parameter.definition)?;
             inputs.push(
                 TemplateLocalRecordV1::try_new(
-                    LocalValueSelector::Parameter {
-                        declaration_index: index,
-                    },
+                    selector,
                     value_type,
                     CanonicalBooleanV1::from(false),
                     TemplateLocalDefinitionV1::Source(definition),
@@ -62,7 +71,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
                 .map_err(|source| {
                     Error::Locals(Box::new(
                         crate::DefaultTemplateEnvelopeProjectionError::LocalRecord {
-                            local: index,
+                            local: index as u32,
                             source,
                         },
                     ))
@@ -79,6 +88,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
             binders,
             owner,
             parameters,
+            enclosing,
             origin,
             inputs,
         })
@@ -96,7 +106,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
             &self.binders,
         )
         .map_err(|source| Error::Locals(Box::new(source)))?;
-        projection.bind_constructor_inputs(self.parameters, self.owner.clone());
+        projection.bind_constructor_inputs(self.parameters, self.enclosing, self.owner.clone());
         let mut records = local_table.records().to_vec();
         records.extend(
             self.inputs

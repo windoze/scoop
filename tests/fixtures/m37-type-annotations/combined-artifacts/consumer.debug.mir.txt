@@ -1,0 +1,286 @@
+Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Level integral(Int) values=[7]
+    High()
+  class 容 器<String> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn9 id=2e24cf8047f116c6792702fe2a2f705d27d23e8fec5a92b75e9d94dc4d872ce6
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn6 captures=0
+    bridge function_type3 -> @fn10 id=d99b90fa7cd8b4cb945c770d402b2e0e838647d31b26c8f6ca80281ec2774153
+  closure cc2 $Closure$lambda2 type=function_type4 invoke=@fn7 captures=0
+    bridge function_type3 -> @fn11 id=c32e5f15a087a98b3e97282631011cc570b0c3b2cc85853feb5b3be8b0dd33bf
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=closure1 nominal_id=fc3933ac0889610ec51008305074e95d63f4aff7bb060a61352b056e16ca7792 exact_id=4763d730074ac8f93a4933f7923f23784916d66c55c6f7b29703baeea6e656f7
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure0 nominal_id=926c6c9764d73088e7441743e27a62b7be9e8fc6e3e12f6e5b9e2edfe79ba9d4 exact_id=635b49c88aa0ed5c0b8b46e805c189ca8477f7980c70b61b3bac57b8bdeffaf2
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=closure2 nominal_id=1928215a11caf1322c14accdce4df3b5c1a4516278b638796a0e44c42c24e6ce exact_id=c788cd55831d1d6d632987a923f3282930cea14a612a543b1542420e9150c672
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn9 id=2e24cf8047f116c6792702fe2a2f705d27d23e8fec5a92b75e9d94dc4d872ce6
+  generated_callable gc1 function=@fn11 id=c32e5f15a087a98b3e97282631011cc570b0c3b2cc85853feb5b3be8b0dd33bf
+  generated_callable gc2 function=@fn10 id=d99b90fa7cd8b4cb945c770d402b2e0e838647d31b26c8f6ca80281ec2774153
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call value: 容 器<String> = @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.argument.1: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type 容 器<String>
+            Local value
+      val $dependency.parameter.前缀: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.操作: () -> String
+        Type () -> String
+        Local $dependency.argument.1
+      call $dependency.argument.0: String = external0 direct
+        Type String
+        Local $dependency.parameter.前缀
+        Type () -> String
+        Local $dependency.parameter.操作
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Retype Int
+          Type Level
+          VariantConstruct Level v0
+      call $dependency.argument.0: String = external1 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: 容 器<String>
+        Type 容 器<String>
+        Local value
+      call $dependency.argument.0: String = @fn4 direct
+        Type 容 器<String>
+        Local $dependency.receiver
+      val $dependency.parameter.入 参: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @fn5 direct
+        Type String
+        Local $dependency.parameter.入 参
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val construct: (String) -> 容 器<String>
+        Type (String) -> 容 器<String>
+        ClosureAlloc cc1 $Closure$lambda1
+      val read: (容 器<String>) -> String
+        Type (容 器<String>) -> String
+        ClosureAlloc cc2 $Closure$lambda2
+      call $call.1: 容 器<String> = <closure:function_type2> closure[function_type2]
+        Type (String) -> 容 器<String>
+        Local construct
+        Type String
+        StringConst @str2
+      call $dependency.argument.0: String = <closure:function_type4> closure[function_type4]
+        Type (容 器<String>) -> String
+        Local read
+        Type 容 器<String>
+        Local $call.1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun boxed @fn1(value: String) -> 容 器<String>
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      val $dependency.local.2: String
+        Type String
+        Local $dependency.local.1
+      call $dependency.local.3: String = @fn5 direct
+        Type String
+        Local $dependency.local.2
+      val $dependency.local.4: String
+        Type String
+        Local $dependency.local.3
+      assign $new.1
+        Type 容 器<String>
+        ClassAlloc 容 器<String>
+      call @fn8 direct
+        Type 容 器<String>
+        Local $new.1
+        Type String
+        Local $dependency.local.4
+      return
+        Type 容 器<String>
+        Local $new.1
+  fun $lambda.0 @fn2($closure: () -> String) -> String
+    bb0 entry
+      val $dependency.receiver: 容 器<String>
+        Type 容 器<String>
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+      call $dependency.argument.0: String = @fn4 direct
+        Type 容 器<String>
+        Local $dependency.receiver
+      val $dependency.parameter.入 参: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @fn5 direct
+        Type String
+        Local $dependency.parameter.入 参
+      return
+        Type String
+        Local $call.1
+  fun println @fn3(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun read @fn4(this: 容 器<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type 容 器<String>
+          Local this
+  fun 保留 值 @fn5(入 参: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local 入 参
+  fun $lambda.1 @fn6($closure: (String) -> 容 器<String>, __codec_argument_0: String) -> 容 器<String>
+    bb0 entry
+      assign $new.1
+        Type 容 器<String>
+        ClassAlloc 容 器<String>
+      call @fn8 direct
+        Type 容 器<String>
+        Local $new.1
+        Type String
+        Local __codec_argument_0
+      return
+        Type 容 器<String>
+        Local $new.1
+  fun $lambda.2 @fn7($closure: (容 器<String>) -> String, __codec_argument_0: 容 器<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn4 direct
+        Type 容 器<String>
+        Local __codec_argument_0
+      return
+        Type String
+        Local $call.1
+  fun init.容 器.$c0 @fn8(this: 容 器<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type 容 器<String>
+        Local this
+        Type String
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun function_bridge.$Closure$lambda0.() -> Any @fn9($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn10($source: (String) -> 容 器<String>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: 容 器<String> = <closure:function_type2> closure[function_type2]
+        Type (String) -> 容 器<String>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type 容 器<String>
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn11($source: (容 器<String>) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type4> closure[function_type4]
+        Type (容 器<String>) -> String
+        Local $source
+        Type 容 器<String>
+        Retype 容 器<String>
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  instance mi0 function=@fn1 <- boxed
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- read
+  instance mi3 function=@fn5 <- 保留 值
+  str @str0 "ok"
+  str @str1 "跨 库:"
+  str @str2 "reference"
+  str @str3 "\n"
+  output executable @fn0

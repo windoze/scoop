@@ -34,6 +34,7 @@ SourceFile
           IntLiteral 2
         Argument trailing
           Lambda 0 suspend=false
+            label run
             parameters omitted
             Call mark
               StringLiteral "b"
@@ -47,6 +48,7 @@ SourceFile
         Call receiver
         Argument trailing
           Lambda 1 suspend=false
+            label run
             parameters omitted
             Call mark
               StringLiteral "b"
@@ -65,6 +67,7 @@ SourceFile
           IntLiteral 2
         Argument trailing
           Lambda 2 suspend=false
+            label run
             parameters omitted
             Call mark
               StringLiteral "b"
@@ -84,6 +87,7 @@ SourceFile
           Var present
           Argument trailing
             Lambda 3 suspend=false
+              label run
               parameters omitted
               Call mark
                 StringLiteral "b"
@@ -96,6 +100,7 @@ SourceFile
           Call Worker
           Argument trailing
             Lambda 4 suspend=false
+              label run
               parameters omitted
               Call nothing
     catch failure: UnwrapException

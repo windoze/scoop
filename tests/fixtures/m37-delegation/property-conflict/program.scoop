@@ -1,0 +1,3 @@
+interface I { var value: Int }
+class Host(a: I, b: I) : I by a, I by b
+fun main() {}

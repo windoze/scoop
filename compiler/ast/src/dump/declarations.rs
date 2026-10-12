@@ -14,14 +14,7 @@ pub fn dump(file: &SourceFile) -> String {
                 dump_global_property(g, &mut out);
             }
             Decl::AnnotationClass(declaration) => dump_annotation_class(declaration, 1, &mut out),
-            Decl::TypeAlias(alias) => {
-                out.push_str(&format!(
-                    "  {}typealias {} = {}\n",
-                    dump_visibility(alias.visibility),
-                    alias.name.text,
-                    dump_type_ref(&alias.target)
-                ));
-            }
+            Decl::TypeAlias(alias) => dump_type_alias(alias, 1, &mut out),
             Decl::Enum(e) => {
                 dump_annotations(&e.annotations, 2, &mut out);
                 let type_params = if e.type_params.is_empty() {
@@ -54,6 +47,10 @@ pub fn dump(file: &SourceFile) -> String {
                 for variant in &e.variants {
                     dump_annotations(&variant.annotations, 2, &mut out);
                     match &variant.kind {
+                        VariantDeclKind::Constant(value) => {
+                            out.push_str(&format!("    {} =\n", variant.name.text));
+                            dump_expr(value, 3, &mut out);
+                        }
                         VariantDeclKind::Unit => {
                             out.push_str(&format!("    {}\n", variant.name.text))
                         }
@@ -107,6 +104,7 @@ pub fn dump(file: &SourceFile) -> String {
                     ClassModifier::Final => "",
                     ClassModifier::Open => "open ",
                     ClassModifier::Abstract => "abstract ",
+                    ClassModifier::Sealed => "sealed ",
                 };
                 let type_params = dump_type_params(&c.type_params);
                 let ctor = match &c.constructor {
@@ -136,7 +134,7 @@ pub fn dump(file: &SourceFile) -> String {
                     let separator = if c
                         .supertypes
                         .iter()
-                        .any(|supertype| supertype.constructor_arguments.is_some())
+                        .any(|supertype| supertype.constructor_arguments().is_some())
                     {
                         " : "
                     } else {
@@ -187,8 +185,13 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 let where_clause = dump_where_clause(i.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  {}interface {}{}{}{}\n",
+                    "  {}{}interface {}{}{}{}\n",
                     dump_visibility(i.visibility),
+                    if i.sealed_span.is_some() {
+                        "sealed "
+                    } else {
+                        ""
+                    },
                     i.name.text,
                     params,
                     parents,
@@ -304,7 +307,13 @@ pub fn dump(file: &SourceFile) -> String {
                 let params: Vec<String> = f
                     .params
                     .iter()
-                    .map(|p| dump_parameter(&p.name.text, &p.ty, &p.syntax))
+                    .map(|p| {
+                        format!(
+                            "{}{}",
+                            super::types::dump_annotation_prefix(&p.annotations),
+                            dump_parameter(&p.name.text, &p.ty, &p.syntax)
+                        )
+                    })
                     .collect();
                 let ret = f
                     .return_ty
@@ -365,9 +374,12 @@ pub fn dump(file: &SourceFile) -> String {
 
 fn dump_supertype(supertype: &SupertypeSpec) -> String {
     let ty = dump_type_ref(&supertype.ty);
-    match &supertype.constructor_arguments {
-        Some(arguments) => format!("{ty}(<{} args>)", arguments.len()),
-        None => ty,
+    match &supertype.initialization {
+        SupertypeInitialization::Constructor(arguments) => {
+            format!("{ty}(<{} args>)", arguments.len())
+        }
+        SupertypeInitialization::Delegate { .. } => format!("{ty} by <expression>"),
+        SupertypeInitialization::None => ty,
     }
 }
 
@@ -392,7 +404,10 @@ fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
                     "{pad}{} {}: {} =\n",
                     if property.mutable { "var" } else { "val" },
                     property.name.text,
-                    dump_type_ref(&property.ty)
+                    property
+                        .ty
+                        .as_ref()
+                        .map_or_else(|| "<inferred>".into(), dump_type_ref)
                 ));
                 dump_expr(expression, indent + 1, out);
             } else {
@@ -425,7 +440,13 @@ fn dump_secondary_constructor(
     let params = constructor
         .params
         .iter()
-        .map(|parameter| dump_parameter(&parameter.name.text, &parameter.ty, &parameter.syntax))
+        .map(|parameter| {
+            format!(
+                "{}{}",
+                super::types::dump_annotation_prefix(&parameter.annotations),
+                dump_parameter(&parameter.name.text, &parameter.ty, &parameter.syntax)
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
     let delegation = match &constructor.delegation {
@@ -462,33 +483,34 @@ fn dump_member_function(function: &FunctionDecl, indent: usize, out: &mut String
     ));
 }
 
-fn dump_nested_nominal(declaration: &NestedNominalDecl, indent: usize, out: &mut String) {
+fn dump_nested_nominal(declaration: &NestedTypeDecl, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match declaration {
-        NestedNominalDecl::AnnotationClass(declaration) => {
+        NestedTypeDecl::TypeAlias(declaration) => dump_type_alias(declaration, indent, out),
+        NestedTypeDecl::AnnotationClass(declaration) => {
             dump_annotation_class(declaration, indent, out)
         }
-        NestedNominalDecl::Struct(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Struct(declaration) => out.push_str(&format!(
             "{pad}{}nested struct {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Enum(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Enum(declaration) => out.push_str(&format!(
             "{pad}{}nested enum {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Class(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Class(declaration) => out.push_str(&format!(
             "{pad}{}nested class {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Interface(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Interface(declaration) => out.push_str(&format!(
             "{pad}{}nested interface {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Object(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Object(declaration) => out.push_str(&format!(
             "{pad}{}nested object {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
@@ -542,7 +564,10 @@ fn dump_property(property: &PropertyDecl, indent: usize, out: &mut String) {
         dump_visibility(property.visibility),
         if property.mutable { "var" } else { "val" },
         property.name.text,
-        dump_type_ref(&property.ty),
+        property
+            .ty
+            .as_ref()
+            .map_or_else(|| "<inferred>".into(), dump_type_ref),
         dump_where_clause(property.where_clause.as_ref()),
         dump_property_body_suffix(&property.body)
     ));
@@ -585,7 +610,10 @@ fn dump_global_property(property: &PropertyDecl, out: &mut String) {
         dump_visibility(property.visibility),
         if property.mutable { "var" } else { "val" },
         property.name.text,
-        dump_type_ref(&property.ty),
+        property
+            .ty
+            .as_ref()
+            .map_or_else(|| "<inferred>".into(), dump_type_ref),
         dump_where_clause(property.where_clause.as_ref()),
         body
     ));
@@ -671,4 +699,17 @@ fn dump_parameter(name: &str, ty: &TypeRef, syntax: &ParameterSyntax) -> String 
             ..
         } => format!("vararg {name}: {ty} = <expr>"),
     }
+}
+
+pub(super) fn dump_type_alias(alias: &TypeAliasDecl, indent: usize, out: &mut String) {
+    dump_annotations(&alias.annotations, indent, out);
+    out.push_str(&format!(
+        "{}{}typealias {}{}{} = {}\n",
+        "  ".repeat(indent),
+        dump_visibility(alias.visibility),
+        alias.name.text,
+        dump_type_params(&alias.type_params),
+        dump_where_clause(alias.where_clause.as_ref()),
+        dump_type_ref(&alias.target)
+    ));
 }

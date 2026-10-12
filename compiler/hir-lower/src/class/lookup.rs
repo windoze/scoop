@@ -20,7 +20,8 @@ impl Lowerer {
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
         self.visible_method_candidates(declared, Some(ty), |this, candidate| {
-            this.functions[candidate.function].name.rsplit('.').next() == Some(name)
+            this.function_accessor_kind(candidate.function).is_none()
+                && this.source_function_name(candidate.function) == name
         })
     }
 
@@ -34,7 +35,8 @@ impl Lowerer {
             !matches!(
                 this.function_owner.get(&candidate.function),
                 Some(Owner::Interface(_))
-            ) && this.functions[candidate.function].name.rsplit('.').next() == Some(name)
+            ) && this.function_accessor_kind(candidate.function).is_none()
+                && this.source_function_name(candidate.function) == name
         })
     }
 
@@ -67,7 +69,8 @@ impl Lowerer {
             .into_iter()
             .map(|(candidate, _, _)| candidate)
             .find(|candidate| {
-                self.functions[candidate.function].name.rsplit('.').next() == Some(name)
+                self.function_accessor_kind(candidate.function).is_none()
+                    && self.source_function_name(candidate.function) == name
                     && !self.function_is_accessible(candidate.function, Some(receiver_ty))
             });
         let Some(candidate) = candidate else {
@@ -330,11 +333,15 @@ impl Lowerer {
             && left_sig.attributes == right_sig.attributes
             && left_sig.type_params.len() == right_sig.type_params.len()
             && left_sig.params.len() == right_sig.params.len()
-            && left_sig
-                .params
-                .iter()
-                .zip(&right_sig.params)
-                .all(|(left, right)| self.types_equal(left.ty, right.ty))
-            && self.types_equal(left_sig.return_ty, right_sig.return_ty)
+            && (left_sig.parameter_pending
+                || right_sig.parameter_pending
+                || left_sig
+                    .params
+                    .iter()
+                    .zip(&right_sig.params)
+                    .all(|(left, right)| self.types_equal(left.ty, right.ty)))
+            && (left_sig.result_pending
+                || right_sig.result_pending
+                || self.types_equal(left_sig.return_ty, right_sig.return_ty))
     }
 }

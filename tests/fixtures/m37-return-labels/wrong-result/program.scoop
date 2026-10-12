@@ -1,0 +1,2 @@
+fun consume(block: () -> String) {}
+fun main() { consume { return@consume 1 } }

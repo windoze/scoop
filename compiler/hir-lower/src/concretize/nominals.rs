@@ -71,7 +71,7 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> PendingStructConstructor {
         let source = self.struct_constructor_definition(source_id);
-        let parameters = self.lower_constructor_parameters(source.parameters, substitution);
+        let parameters = self.lower_constructor_parameters(source.parameters, None, substitution);
         let kind = match source.kind {
             export::StructConstructorKind::Primary => concrete::StructConstructorKind::Primary,
             export::StructConstructorKind::Secondary {

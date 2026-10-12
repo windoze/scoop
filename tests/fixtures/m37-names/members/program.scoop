@@ -1,0 +1,23 @@
+interface `读.取` { fun `取.值`(): Int }
+open class `基.类`(val 种子: Int) : `读.取` {
+    override fun `取.值`(): Int = 种子
+}
+class 子类 : `基.类`(40) {
+    override fun `取.值`(): Int = super.`取.值`() + 2
+}
+enum `选.择`<项> { `无.值`, `有.值`(val 内容: 项) }
+class 访问器 {
+    val `x.y`: Int get() = 1
+    fun `$get$x.y`(): Int = 2
+}
+fun main() {
+    println(访问器().`x.y`)
+    println(访问器().`$get$x.y`())
+    val 接口: `读.取` = 子类()
+    val 方法 = 接口::`取.值`
+    val 结果 = `选.择`.`有.值`(方法())
+    println(when (结果) {
+        case `选.择`.`有.值`(值) -> 值
+        case `选.择`.`无.值` -> 0
+    })
+}

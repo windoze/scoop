@@ -44,6 +44,7 @@ pub(crate) fn fun_sig(
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,
@@ -96,6 +97,7 @@ pub(crate) fn fun_expr(
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,
@@ -146,7 +148,8 @@ pub(crate) fn intrinsic_generic_fun(
     Decl::Function(FunctionDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Intrinsic"),
+            use_site: None,
+            name: ident("Intrinsic").into(),
             args: vec![ast::AnnotationArg {
                 name: None,
                 value: ast::AnnotationLiteral::String(intrinsic.to_string()),
@@ -166,6 +169,7 @@ pub(crate) fn intrinsic_generic_fun(
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,
@@ -189,7 +193,8 @@ pub(crate) fn scoop_extern_fun(
         unreachable!()
     };
     function.annotations = vec![ast::Annotation {
-        name: ident("Extern"),
+        use_site: None,
+        name: ident("Extern").into(),
         args: vec![
             ast::AnnotationArg {
                 name: Some(ident("name")),

@@ -131,7 +131,7 @@ impl Lowerer {
             || self.classes[backing]
                 .methods
                 .iter()
-                .any(|method| self.functions[*method].name.rsplit('.').next() == Some(name));
+                .any(|method| self.source_function_name(*method) == name);
         let ty = self.object_types[self.objects[object].object_type].canonical_type;
         directly_declared
             || self.find_accessible_nominal_property(ty, name).is_some()
@@ -212,7 +212,7 @@ impl Lowerer {
             if matches!(property.body, ast::PropertyBodySyntax::Const(_)) {
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+            let Some(ty) = self.resolve_property_annotation(property) else {
                 continue;
             };
             let slot_access = if property.is_override {
@@ -244,6 +244,7 @@ impl Lowerer {
         self.classes[backing].fields = fields;
         let evaluation_context = self.next_class_constructor_context();
         let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            context_parameter: None,
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
             owner: backing,

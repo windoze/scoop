@@ -15,6 +15,8 @@ use crate::Lowerer;
 /// before any body, so calls resolve regardless of declaration order.
 #[derive(Clone)]
 pub(crate) struct FnSig {
+    pub(crate) result_pending: bool,
+    pub(crate) parameter_pending: bool,
     pub(crate) context_parameters: Vec<hir::ContextParameter>,
     pub(crate) is_suspend: bool,
     /// Validated language-level operator role. It participates in override
@@ -269,7 +271,7 @@ impl Owner {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) enum CaptureSource {
     /// A local in the immediately enclosing callable body.
     Local(hir::LocalId),
@@ -277,6 +279,12 @@ pub(crate) enum CaptureSource {
     Capture(hir::BindingId),
     /// A value parameter of the enclosing typed constructor initializer.
     ConstructorParam(hir::ConstructorParamId),
+    /// A value read from the enclosing local class's captured tuple.
+    ClassValue {
+        owner: Owner,
+        key: CaptureKey,
+        environment: Option<Box<hir::Expr>>,
+    },
 }
 
 #[derive(Clone)]
@@ -298,9 +306,28 @@ pub(crate) struct PendingCapture {
     pub(crate) declaration_depth: usize,
 }
 
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum CaptureKey {
+    Name(String),
+    Receiver(hir::BindingId),
+    Binding(hir::BindingId),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct ReceiverBinding {
+    pub(crate) binding: hir::BindingId,
+    pub(crate) ty: TypeId,
+}
+
+#[derive(Clone)]
+pub(crate) struct ReceiverScope {
+    pub(crate) label: Option<String>,
+    pub(crate) receiver: Option<ReceiverBinding>,
+}
+
 #[derive(Clone)]
 pub(crate) struct CaptureContext {
-    pub(crate) available: HashMap<String, AvailableCapture>,
+    pub(crate) available: HashMap<CaptureKey, AvailableCapture>,
     pub(crate) captures: Vec<PendingCapture>,
     pub(crate) by_binding: HashMap<hir::BindingId, usize>,
 }

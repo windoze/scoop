@@ -43,10 +43,29 @@ impl HirFieldIdentityBuilder {
         if let Some(record) = self.class_fields.get(&field_id) {
             return Ok(record.id());
         }
+        let property = match field.source {
+            ClassFieldSource::EnclosingInstance => {
+                return self.class_enclosing_instance(field_id, field.owner, nominal_identities);
+            }
+            ClassFieldSource::CapturedEnvironment => {
+                return self.class_captured_environment(field_id, field.owner, nominal_identities);
+            }
+            ClassFieldSource::PrimaryParameter { property, .. }
+            | ClassFieldSource::BodyProperty(property) => property,
+            ClassFieldSource::InterfaceDelegate { ordinal } => {
+                return self.class_interface_delegate(
+                    field_id,
+                    field.owner,
+                    ordinal,
+                    nominal_identities,
+                );
+            }
+        };
         let record = records::class_field_record(
             field.owner,
             field_id,
             field,
+            property,
             objects,
             properties,
             delegate_storages,
@@ -56,6 +75,55 @@ impl HirFieldIdentityBuilder {
         let id = record.id();
         self.class_fields.insert(field_id, record);
         self.class_by_identity.insert(id, field_id);
+        Ok(id)
+    }
+
+    pub fn class_interface_delegate(
+        &mut self,
+        field: ClassFieldId,
+        owner: ClassId,
+        ordinal: u32,
+        nominal_identities: &HirNominalIdentities,
+    ) -> Result<PersistentFieldId, HirFieldIdentityError> {
+        if let Some(record) = self.class_fields.get(&field) {
+            return Ok(record.id());
+        }
+        let record = records::interface_delegate_record(owner, field, ordinal, nominal_identities)?;
+        let id = record.id();
+        self.class_fields.insert(field, record);
+        self.class_by_identity.insert(id, field);
+        Ok(id)
+    }
+
+    pub fn class_enclosing_instance(
+        &mut self,
+        field: ClassFieldId,
+        owner: ClassId,
+        nominal_identities: &HirNominalIdentities,
+    ) -> Result<PersistentFieldId, HirFieldIdentityError> {
+        if let Some(record) = self.class_fields.get(&field) {
+            return Ok(record.id());
+        }
+        let record = records::enclosing_instance_record(owner, field, nominal_identities)?;
+        let id = record.id();
+        self.class_fields.insert(field, record);
+        self.class_by_identity.insert(id, field);
+        Ok(id)
+    }
+
+    pub fn class_captured_environment(
+        &mut self,
+        field: ClassFieldId,
+        owner: ClassId,
+        nominal_identities: &HirNominalIdentities,
+    ) -> Result<PersistentFieldId, HirFieldIdentityError> {
+        if let Some(record) = self.class_fields.get(&field) {
+            return Ok(record.id());
+        }
+        let record = records::captured_environment_record(owner, field, nominal_identities)?;
+        let id = record.id();
+        self.class_fields.insert(field, record);
+        self.class_by_identity.insert(id, field);
         Ok(id)
     }
 
@@ -124,16 +192,63 @@ impl HirFieldIdentityBuilder {
                 let field = &class_fields[*field_id];
                 let record = match self.class_fields.remove(field_id) {
                     Some(record) => record,
-                    None => records::class_field_record(
-                        class_id,
-                        *field_id,
-                        field,
-                        objects,
-                        properties,
-                        delegate_storages,
-                        nominal_identities,
-                        &property_identities[field.property],
-                    )?,
+                    None => match field.source {
+                        ClassFieldSource::EnclosingInstance => {
+                            if field.owner != class_id {
+                                return Err(HirFieldIdentityError::ClassFieldOwner {
+                                    class: raw_index(class_id),
+                                    field: raw_index(*field_id),
+                                    actual_class: raw_index(field.owner),
+                                });
+                            }
+                            records::enclosing_instance_record(
+                                class_id,
+                                *field_id,
+                                nominal_identities,
+                            )?
+                        }
+                        ClassFieldSource::CapturedEnvironment => {
+                            if field.owner != class_id {
+                                return Err(HirFieldIdentityError::ClassFieldOwner {
+                                    class: raw_index(class_id),
+                                    field: raw_index(*field_id),
+                                    actual_class: raw_index(field.owner),
+                                });
+                            }
+                            records::captured_environment_record(
+                                class_id,
+                                *field_id,
+                                nominal_identities,
+                            )?
+                        }
+                        ClassFieldSource::PrimaryParameter { property, .. }
+                        | ClassFieldSource::BodyProperty(property) => records::class_field_record(
+                            class_id,
+                            *field_id,
+                            field,
+                            property,
+                            objects,
+                            properties,
+                            delegate_storages,
+                            nominal_identities,
+                            &property_identities[property],
+                        )?,
+                        ClassFieldSource::InterfaceDelegate { ordinal } => {
+                            if field.owner != class_id {
+                                return Err(HirFieldIdentityError::ClassFieldOwner {
+                                    class: raw_index(class_id),
+                                    field: raw_index(*field_id),
+                                    actual_class: raw_index(field.owner),
+                                });
+                            }
+                            records::interface_delegate_record(
+                                class_id,
+                                *field_id,
+                                ordinal,
+                                nominal_identities,
+                            )?
+                        }
+                    },
                 };
                 class_by_identity.insert(record.id(), *field_id);
                 require_unique_id(

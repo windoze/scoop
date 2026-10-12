@@ -6,10 +6,17 @@ use crate::{
 };
 use scoop_identity::{CborIdentityRecord, PersistentAnnotationId, SourceDeclarationKey};
 
+mod targets;
+pub use targets::{AnnotationStorageRole, SourceAnnotationCallable, SourceAnnotationReceiver};
+mod rules;
+pub use rules::{AnnotationRules, AnnotationTargetKind};
+mod type_uses;
+pub use type_uses::*;
+
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationParameter {
     pub name: String,
-    pub value_type: TypeId,
+    pub value_type: crate::AnnotationParameterType<TypeId>,
     pub default: Option<CanonicalAnnotationValueV1>,
 }
 
@@ -17,6 +24,7 @@ pub struct SourceAnnotationParameter {
 pub struct SourceAnnotationDeclaration {
     pub identity: CborIdentityRecord<PersistentAnnotationId, SourceDeclarationKey>,
     pub parameters: Vec<SourceAnnotationParameter>,
+    pub rules: AnnotationRules,
     pub visibility: DeclaredVisibility,
     pub definition_origin: DefinitionOrigin,
 }
@@ -28,6 +36,19 @@ pub enum SourceAnnotationTarget {
     Field(StructFieldRef),
     VariantField(EnumVariantFieldRef),
     Property(PropertyId),
+    Annotation(PersistentAnnotationId),
+    Callable(SourceAnnotationCallable),
+    Parameter {
+        callable: SourceAnnotationCallable,
+        index: u32,
+    },
+    Receiver(SourceAnnotationReceiver),
+    TypeAlias(crate::ExportTypeAliasId),
+    ClassField(crate::ClassFieldId),
+    PropertyStorage {
+        property: PropertyId,
+        role: AnnotationStorageRole,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -47,4 +68,6 @@ pub struct SourceAnnotatedTarget {
 pub struct SourceAnnotations {
     pub declarations: Vec<SourceAnnotationDeclaration>,
     pub targets: Vec<SourceAnnotatedTarget>,
+    pub type_uses: Vec<SourceAnnotatedTypeUse>,
+    pub type_sites: Vec<SourceAnnotationTypeSite>,
 }

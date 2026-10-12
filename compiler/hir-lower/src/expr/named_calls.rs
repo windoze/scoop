@@ -16,7 +16,7 @@ use crate::namespace::TopLevelTypeTarget;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
 pub(crate) mod imported_dependency;
-mod nominals;
+pub(in crate::expr) mod nominals;
 mod values;
 
 struct NamedValueLayer {
@@ -72,6 +72,22 @@ impl Lowerer {
                 }
             }
         }
+        if let Some(alias) = self.lexical_type_alias(name) {
+            let binding = NamedCallBinding {
+                target: NamedCallTarget::Type(TopLevelTypeTarget::Alias(alias)),
+                origin: NamedCallOrigin::Lexical(alias),
+            };
+            return self
+                .lower_named_function_partition(
+                    &[binding],
+                    ImportLookupLayer::Exact,
+                    call,
+                    sink,
+                    expected,
+                )
+                .ok()
+                .flatten();
+        }
         if self.lexical_nested_nominal_target(name).is_some() {
             match self.probe_expr_layer(|state, sink| {
                 let constructor = state.classify_constructor(&call.callee)?;
@@ -100,11 +116,11 @@ impl Lowerer {
             span: call.span,
         };
         let mut pending_values = Vec::new();
-        let mut implicit_property = None;
-        if let Some(receiver_ty) = self.current_this_ty() {
-            let members = self.methods_by_name(receiver_ty, name);
+        let mut implicit_properties = Vec::new();
+        for binding in self.implicit_receivers() {
+            let members = self.methods_by_name(binding.ty, name);
             let mut state = self.clone();
-            let receiver = state.lower_current_this(call.callee.span)?;
+            let receiver = state.lower_receiver_binding(binding, call.callee.span)?;
             match state.probe_member_call_partition(
                 members,
                 &call.callee,
@@ -127,13 +143,34 @@ impl Lowerer {
                     return None;
                 }
             }
+            match self.probe_expr_layer(|state, _| {
+                let receiver = state.lower_receiver_binding(binding, call.callee.span)?;
+                state.member_property_read(receiver, &call.callee)
+            }) {
+                Ok(read) => {
+                    let outcome = self.probe_named_value_member(&read, site, expected);
+                    if let Some(expression) = self
+                        .finish_property_partition(outcome, sink, &mut first_failure)
+                        .ok()?
+                    {
+                        return Some(expression);
+                    }
+                    implicit_properties.push(NamedValueLayer {
+                        read,
+                        rank: 0,
+                        origin: PropertyExtensionInvokeOrigin::ImplicitMember(binding.binding),
+                    });
+                }
+                Err(failure) if failure.diagnostics.len() > self.diagnostics.len() => {
+                    first_failure.get_or_insert(failure);
+                }
+                Err(_) => {}
+            }
         }
         // An initializer has a typed receiver but deliberately no escapable
         // `this` value. Its already-initialized stored properties still form
         // the real-member layer and may themselves be callable values.
-        let property_receiver_ty = self
-            .current_this_ty()
-            .or_else(|| self.initializing_receiver_type());
+        let property_receiver_ty = self.initializing_receiver_type();
         if let Some(receiver_ty) = property_receiver_ty
             && let Some((property_id, _, _)) =
                 self.find_accessible_nominal_property(receiver_ty, name)
@@ -156,7 +193,7 @@ impl Lowerer {
                 {
                     return Some(expression);
                 }
-                implicit_property = Some(NamedValueLayer {
+                implicit_properties.push(NamedValueLayer {
                     read,
                     rank: 0,
                     origin: PropertyExtensionInvokeOrigin::Member(property_id),
@@ -212,7 +249,7 @@ impl Lowerer {
                 }
             }
             // Real-member property + extension invoke is c-level 4.
-            if let Some(property) = &implicit_property {
+            for property in &implicit_properties {
                 let outcome = self.probe_named_extension_values(
                     std::slice::from_ref(property),
                     site,
@@ -287,10 +324,13 @@ impl Lowerer {
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            if !extension_properties.is_empty() && self.current_this_ty().is_some() {
+            for binding in self.implicit_receivers() {
+                if extension_properties.is_empty() {
+                    break;
+                }
                 let mut state = self.clone();
                 let mut setup = Vec::new();
-                let receiver = state.lower_current_this(call.callee.span)?;
+                let receiver = state.lower_receiver_binding(binding, call.callee.span)?;
                 match state.resolve_extension_property_candidates_outcome(
                     receiver,
                     &call.callee,
@@ -306,7 +346,8 @@ impl Lowerer {
                                 sink: setup,
                             },
                             rank,
-                        })
+                        });
+                        break;
                     }
                     crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable => {
                         first_failure.get_or_insert(Box::new(state));

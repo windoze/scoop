@@ -11,6 +11,7 @@ SourceFile
     val selected
       Call route
         Lambda 0 suspend=false
+          label route
           param value: _
           Var value
         ArrayLiteral
@@ -18,6 +19,7 @@ SourceFile
     val explicit
       Call route<Int>
         Lambda 1 suspend=false
+          label route
           param value: _
           Var value
         ArrayLiteral
@@ -30,6 +32,7 @@ SourceFile
           ArrayLiteral
         Argument action=
           Lambda 2 suspend=false
+            label route
             param value: _
             Var value
     return

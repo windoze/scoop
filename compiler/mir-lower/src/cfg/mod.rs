@@ -89,6 +89,7 @@ struct LoopTarget {
     exit: LoopExitTarget,
     header: LoopHeaderTarget,
     break_reachable: bool,
+    continue_reachable: bool,
 }
 
 #[derive(Clone)]

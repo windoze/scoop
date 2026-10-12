@@ -162,18 +162,24 @@ pub(super) fn dump_statements(
                 }
             }
             StatementKind::While {
+                loop_kind,
                 target: _,
                 condition_setup,
                 cond,
                 body,
             } => {
-                out.push_str(&format!("{pad}while\n"));
+                out.push_str(&format!("{pad}{}\n", loop_kind.keyword()));
+                if *loop_kind == LoopKind::DoWhile {
+                    dump_statements(module, locals, body, indent + 1, out);
+                }
                 if !condition_setup.is_empty() {
                     out.push_str(&format!("{pad}  condition setup\n"));
                     dump_statements(module, locals, condition_setup, indent + 2, out);
                 }
                 dump_expr(module, locals, cond, indent + 1, out);
-                dump_statements(module, locals, body, indent + 1, out);
+                if *loop_kind == LoopKind::While {
+                    dump_statements(module, locals, body, indent + 1, out);
+                }
             }
             StatementKind::Break { target } => {
                 out.push_str(&format!("{pad}break loop{}\n", target.into_raw()));

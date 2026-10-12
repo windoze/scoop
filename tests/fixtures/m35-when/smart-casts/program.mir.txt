@@ -43,7 +43,7 @@ Module
         Type Boolean
         IsInstance Person
           Type Any
-          Local input
+          Local $when.subject.0
     bb1 if.then.1
       val $dependency.receiver: String
         Type String
@@ -73,7 +73,7 @@ Module
           Type Boolean
           IsInstance Count
             Type Any
-            Local input
+            Local $when.subject.0
     bb3 if.merge.3
       return
         Type String
@@ -98,7 +98,7 @@ Module
           Type Boolean
           IsInstance Count
             Type Any
-            Local input
+            Local $when.subject.0
     bb6 if.merge.6
       goto bb3
     bb7 if.then.7
@@ -757,7 +757,7 @@ Module
         Type Boolean
         IsInstance Person
           Type Any
-          Local stable
+          Local $when.subject.10
     bb1 if.then.1
       val $dependency.argument.0: String
         Type String
@@ -887,7 +887,7 @@ Module
         Type Boolean
         IsInstance Named
           Type Any
-          Local input
+          Local $when.subject.14
     bb7 if.then.7
       val $receiver: Named
         Type Named
@@ -983,7 +983,7 @@ Module
         Type Boolean
         IsInstance Int
           Type Any
-          Local input
+          Local $when.subject.8
     bb1 if.then.1
       val $ub.2: Int
         Type Int
@@ -1015,7 +1015,7 @@ Module
         Type Boolean
         IsInstance String
           Type Any
-          Local input
+          Local $when.subject.8
     bb1 if.then.1
       assign $result.9
         Type String

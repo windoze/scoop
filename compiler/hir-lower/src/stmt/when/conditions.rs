@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct ArmPrimary<C> {
     pub condition: C,
-    pub source: Option<ast::Expr>,
+    pub paths: Option<(SmartCastFacts, SmartCastFacts)>,
     pub coverage: Vec<hir::Pattern>,
     pub completes: bool,
     pub irrefutable: bool,
@@ -31,17 +31,12 @@ impl Lowerer {
         reachable: &mut bool,
         incoming: SmartCastFacts,
     ) -> Option<ArmHead<C>> {
-        let source = primary.source;
         let primary_completes = primary.completes;
         let irrefutable = primary.irrefutable;
-        let primary_false = source
-            .as_ref()
-            .map(|source| self.when_path_facts(&incoming, source, false))
-            .unwrap_or_else(|| incoming.clone());
-        if let Some(source) = &source {
-            self.smart_casts = self.when_path_facts(&incoming, source, true);
-        }
-        let primary_true = self.smart_casts.clone();
+        let (primary_true, primary_false) = primary
+            .paths
+            .unwrap_or_else(|| (incoming.clone(), incoming));
+        self.smart_casts = primary_true;
         let guard = arm.guard.as_ref().map(|source| {
             let mut setup = Vec::new();
             let condition = self.lower_expr(source, &mut setup, None)?;
@@ -62,9 +57,9 @@ impl Lowerer {
         let guard_completes = guard
             .as_ref()
             .is_none_or(|guard| self.when_predicate_completes(guard));
-        let next = if let Some(source) = &arm.guard {
-            let guard_false = self.when_path_facts(&primary_true, source, false);
-            self.smart_casts = self.when_path_facts(&primary_true, source, true);
+        let next = if let Some(guard) = &guard {
+            let guard_false = self.checked_condition_facts(&guard.condition, false);
+            self.smart_casts = self.checked_condition_facts(&guard.condition, true);
             if irrefutable {
                 guard_false
             } else {
@@ -93,16 +88,6 @@ impl Lowerer {
         self.statements_control_outcomes(&predicate.setup)
             .can_fall_through()
             && self.expression_can_complete(&predicate.condition)
-    }
-
-    fn when_path_facts(
-        &mut self,
-        incoming: &SmartCastFacts,
-        source: &ast::Expr,
-        outcome: bool,
-    ) -> SmartCastFacts {
-        let added = self.resolve_smart_casts(source, outcome);
-        self.join_smart_casts(incoming.clone(), added)
     }
 
     fn common_when_facts(&mut self, lhs: &SmartCastFacts, rhs: &SmartCastFacts) -> SmartCastFacts {

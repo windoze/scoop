@@ -350,6 +350,7 @@ fn function_type(
             .into(),
     );
     let function = harness.function_types.alloc(hir::FunctionType {
+        receiver: None,
         canonical_type,
         is_suspend: false,
         parameter_types: parameters,

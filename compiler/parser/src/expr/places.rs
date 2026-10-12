@@ -36,6 +36,7 @@ impl Parser {
                 TokenKind::Val
                     | TokenKind::Var
                     | TokenKind::While
+                    | TokenKind::Do
                     | TokenKind::For
                     | TokenKind::Break
                     | TokenKind::Continue

@@ -24,6 +24,7 @@ pub enum ExactTypeKey {
         effect: Effect,
         parameters: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
+        receiver: Option<PersistentExactTypeId>,
     },
     RawPointer(PersistentExactTypeId),
     NativeFunctionPointer {
@@ -41,9 +42,17 @@ impl ExactTypeKey {
                 arguments.as_slice().to_vec()
             }
             Self::Function {
-                parameters, result, ..
-            }
-            | Self::NativeFunctionPointer {
+                receiver,
+                parameters,
+                result,
+                ..
+            } => receiver
+                .iter()
+                .chain(parameters)
+                .chain(std::iter::once(result))
+                .copied()
+                .collect(),
+            Self::NativeFunctionPointer {
                 parameters, result, ..
             } => {
                 let mut dependencies = parameters.clone();
@@ -74,18 +83,24 @@ impl WireEncode for ExactTypeKey {
                 encode_ids(encoder, elements.as_slice())
             }
             Self::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(receiver.is_some()))?;
                 encode_tag(encoder, 4)?;
                 encoder.field(1)?;
                 effect.encode(encoder)?;
                 encoder.field(2)?;
                 encode_ids(encoder, parameters)?;
                 encoder.field(3)?;
-                result.encode(encoder)
+                result.encode(encoder)?;
+                if let Some(receiver) = receiver {
+                    encoder.field(4)?;
+                    receiver.encode(encoder)?;
+                }
+                Ok(())
             }
             Self::RawPointer(pointee) => encode_single_payload(encoder, 5, pointee),
             Self::NativeFunctionPointer {

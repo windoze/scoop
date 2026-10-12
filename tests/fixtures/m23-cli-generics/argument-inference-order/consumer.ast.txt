@@ -87,6 +87,7 @@ SourceFile
     val callback
       Call applyTo
         Lambda 0 suspend=false
+          label applyTo
           param value: _
           Call mark
             IntLiteral 3

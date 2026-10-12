@@ -49,10 +49,7 @@ pub(crate) fn callable_source_signature(
     );
     let declared_name = match view.target {
         CallableSource::Method(_) => {
-            let function_name = &lowerer.functions[view.function()].name;
-            let (owner, _) = function_name
-                .rsplit_once('.')
-                .unwrap_or((function_name.as_str(), name));
+            let owner = lowerer.function_owner[&view.function()].describe_name(lowerer);
             let owner_parameters =
                 render_type_parameters(lowerer, &view.signature.owner_parameters, &all_parameters);
             format!("{owner}{owner_parameters}.{name}{callable_parameters}")

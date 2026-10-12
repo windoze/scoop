@@ -67,7 +67,8 @@ impl Lowerer {
                         self.properties[property].name == name
                             && self.property_is_accessible(property, Some(receiver_ty))
                     })?;
-                let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
+                let ty = self.infer_property_type(property)?;
+                let ty = self.instantiate_ty(ty, &value.arguments);
                 Some((
                     property,
                     hir::MethodOwnerApplication::Struct(application),
@@ -84,7 +85,8 @@ impl Lowerer {
                         self.properties[property].name == name
                             && self.property_is_accessible(property, Some(receiver_ty))
                     })?;
-                let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
+                let ty = self.infer_property_type(property)?;
+                let ty = self.instantiate_ty(ty, &value.arguments);
                 Some((property, hir::MethodOwnerApplication::Enum(application), ty))
             }
             hir::Type::Interface(application) => {
@@ -140,7 +142,8 @@ impl Lowerer {
                         && self.property_is_accessible(id, Some(receiver_ty))
                 });
             if let Some(property) = property {
-                let ty = self.instantiate_ty(self.properties[property].ty, &application.arguments);
+                let ty = self.infer_property_type(property)?;
+                let ty = self.instantiate_ty(ty, &application.arguments);
                 return Some((property, owner, ty));
             }
         }
@@ -170,7 +173,8 @@ impl Lowerer {
                         && self.property_is_accessible(property, Some(receiver_ty))
                 })
         {
-            let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
+            let ty = self.infer_property_type(property)?;
+            let ty = self.instantiate_ty(ty, &value.arguments);
             return Some((property, application, ty));
         }
         for parent in self.interfaces[source_id].parents.clone() {

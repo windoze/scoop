@@ -188,6 +188,14 @@ impl WireDecode for LocalValueSelector {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
+            8 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::CapturedEnvironment)
+            }
+            7 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::EnclosingInstance)
+            }
             1 => {
                 expect_sum_length(decoder, fields, 1)?;
                 Ok(Self::This)

@@ -1,0 +1,2 @@
+sealed fun bad() {}
+fun main() {}

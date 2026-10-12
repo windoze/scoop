@@ -1,0 +1,14 @@
+class Pair<A, B>(val first: A, val second: B)
+typealias Row<T> = Pair<String, T>
+class Box<T>(val value: T) { constructor(value: T, extra: Int): this(value) {} }
+typealias Item<T> = Box<T>
+fun main() {
+    val a = Row("first", 42)
+    val b = Row<Int>("second", 7)
+    val c: Row<Long> = Row("third", 9L)
+    println(a.first)
+    println(a.second)
+    println(b.second)
+    println(c.second)
+    println(Item(11, 0).value)
+}

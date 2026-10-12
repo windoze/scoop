@@ -15,15 +15,18 @@ impl Lowerer {
             let source = self.function_types[source].clone();
             let target = self.function_types[target].clone();
             return source.is_suspend == target.is_suspend
-                && source.parameter_types.len() == target.parameter_types.len()
+                && source.arity() == target.arity()
                 && target
-                    .parameter_types
-                    .into_iter()
-                    .zip(source.parameter_types)
+                    .parameters()
+                    .copied()
+                    .zip(source.parameters().copied())
                     .all(|(target, source)| self.is_subtype(target, source))
                 && self.is_subtype(source.return_type, target.return_type);
         }
-        if !matches!(self.types[b], Type::Class(_) | Type::Interface(_)) {
+        if !matches!(
+            self.types[b],
+            Type::Class(_) | Type::Interface(_) | Type::Integer(_)
+        ) {
             return false;
         }
         let mut pending = vec![a];

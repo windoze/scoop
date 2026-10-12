@@ -1,0 +1,2 @@
+fun operation() = { value -> value }
+fun main() {}

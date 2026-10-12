@@ -14,6 +14,12 @@ impl Parser {
         prefix: MemberPrefix,
         context: PropertyContext,
     ) -> Result<PropertyDecl, Diagnostic> {
+        if let Some(span) = prefix.modifiers.tailrec_span {
+            return Err(Diagnostic::at(
+                span,
+                "`tailrec` is only allowed on functions",
+            ));
+        }
         if let Some(span) = prefix
             .modifiers
             .suspend_span
@@ -51,29 +57,28 @@ impl Parser {
         let type_params = self.parse_type_params()?;
 
         let receiver_start = self.pos;
+        let receiver_annotations = self.parse_annotations()?;
         let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
-            Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
-                self.bump();
-                Some(ty)
+            Ok(ty) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
+                Some(self.parse_receiver_separator(ty))
             }
-            Ok(ty) if matches!(self.peek().kind, TokenKind::Colon) => {
-                match ty.split_qualified_tail() {
-                    Ok((receiver, name)) => {
-                        parsed_name = Some(name);
-                        Some(receiver)
-                    }
-                    Err(_) => {
-                        self.pos = receiver_start;
-                        None
-                    }
+            Ok(ty) => match ty.split_qualified_tail() {
+                Ok((receiver, name)) => {
+                    parsed_name = Some(name);
+                    Some(receiver)
                 }
-            }
+                Err(_) => {
+                    self.pos = receiver_start;
+                    None
+                }
+            },
             _ => {
                 self.pos = receiver_start;
                 None
             }
-        };
+        }
+        .map(|receiver| receiver.with_annotations(receiver_annotations));
         if let Some(receiver) = &receiver_ty
             && context != PropertyContext::TopLevel
         {
@@ -93,23 +98,17 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("property name")?,
         };
-        if !matches!(self.peek().kind, TokenKind::Colon) {
-            let message = match context {
-                PropertyContext::ClassOrObject => {
-                    "class stored properties require an explicit type"
-                }
-                PropertyContext::ValueType => "value-type properties require an explicit type",
-                PropertyContext::Interface => "interface properties require an explicit type",
-                PropertyContext::TopLevel => "top-level properties require an explicit type",
-            };
-            return Err(Diagnostic::at(self.peek().span, message));
-        }
-        self.bump();
-        let ty = self.parse_type_ref()?;
+        let ty = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
         let where_clause = self.parse_where_clause()?;
-        let signature_end = where_clause
-            .as_ref()
-            .map_or(ty.span.end, |clause| clause.span.end);
+        let signature_end = where_clause.as_ref().map_or_else(
+            || ty.as_ref().map_or(name.span.end, |ty| ty.span.end),
+            |clause| clause.span.end,
+        );
 
         let (body, end) = if is_const {
             self.expect("`=` in const property", |kind| {
@@ -173,7 +172,7 @@ impl Parser {
                 )
             } else if annotations
                 .iter()
-                .any(|annotation| annotation.name.text == "Extern")
+                .any(|annotation| annotation.name.is_ident("Extern"))
             {
                 (PropertyBodySyntax::ExternStorage, signature_end)
             } else {
@@ -221,12 +220,7 @@ impl Parser {
         let mut accessors = AccessorSyntax::default();
         loop {
             let checkpoint = self.pos;
-            let annotations = if matches!(self.peek().kind, TokenKind::At) {
-                self.parse_annotations()?
-            } else {
-                Vec::new()
-            };
-            let visibility = self.parse_visibility()?;
+            let (annotations, visibility) = self.parse_accessor_prefix()?;
             let token = self.peek().clone();
             let TokenKind::Ident(name) = &token.kind else {
                 self.pos = checkpoint;
@@ -294,6 +288,7 @@ impl Parser {
                 span: Span::new(open.span.end, open.span.end),
             }
         } else {
+            self.skip_parameter_compatibility_modifiers();
             SetterParameterSyntax::Named(self.expect_ident("setter parameter name")?)
         };
         let close = self.expect("`)` after setter parameter", |kind| {

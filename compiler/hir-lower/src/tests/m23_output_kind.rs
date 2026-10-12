@@ -48,7 +48,8 @@ fn extern_main() -> ast::Decl {
         unreachable!("fun builds a function")
     };
     function.annotations = vec![ast::Annotation {
-        name: ident("Extern"),
+        use_site: None,
+        name: ident("Extern").into(),
         args: [("lib", ""), ("name", "native_main"), ("abi", "scoop")]
             .into_iter()
             .map(|(name, value)| ast::AnnotationArg {

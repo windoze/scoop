@@ -42,13 +42,13 @@ fn generated_callable_hash_preserves_domain_framing() {
 }
 
 #[test]
-fn generated_adapter_rejects_a_target_receiver() {
+fn generated_adapter_distinguishes_receiver_from_first_parameter() {
     let key = GeneratedCallableKey::DynamicFunctionAdapter {
         target: ExactCallableSignature::new(Effect::Ordinary, Some(exact()), vec![], exact()),
     };
 
-    assert_eq!(
-        PersistentGeneratedCallableId::from_key(&key),
-        Err(GeneratedCallableIdentityError::TargetReceiverMustBeAbsent)
+    assert_ne!(
+        PersistentGeneratedCallableId::from_key(&key).unwrap(),
+        PersistentGeneratedCallableId::from_key(&adapter(1)).unwrap()
     );
 }

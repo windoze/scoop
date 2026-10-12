@@ -371,7 +371,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         target_kind: IntegerKind,
         operand: Value,
     ) -> Result<(), CodegenError> {
-        self.require_integer_operand("conversion", source_kind, operand)?;
+        let integral_enum = matches!(self.function.value_ty(self.globals_arena, operand), LirType::Enum(id) if matches!(self.enums[id].repr, EnumRepr::Integral { kind, .. } if kind == source_kind));
+        if !integral_enum {
+            self.require_integer_operand("conversion", source_kind, operand)?;
+        }
         self.require_integer_result("conversion", target_kind, out)?;
         let operand = self.value(operand)?.into_int_value();
         let source_bits = source_kind.width().bits();

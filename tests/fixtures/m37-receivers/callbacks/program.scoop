@@ -1,0 +1,12 @@
+@Extern(lib = "m37_receiver", name = "m37_receiver_callback")
+fun callNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+class Offset(val value: Int)
+fun main() {
+    val offset = Offset(1)
+    val action: Int.() -> Int = { gcCollect(); this + offset.value }
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1L, ForeignCallbackMode.Reusable)
+        try { println(callNative(callback.function, callback.context, 41)) }
+        finally { releaseForeignCallback(callback) }
+    }
+}

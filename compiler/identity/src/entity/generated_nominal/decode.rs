@@ -2,10 +2,7 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::{
-    CallableAdapterEnvironmentKey, ClosureEnvironmentRole, GeneratedNominalIdentityError,
-    GeneratedNominalKey, validate_key,
-};
+use super::{CallableAdapterEnvironmentKey, ClosureEnvironmentRole, GeneratedNominalKey};
 use crate::{
     DecodedCallableMaterialization, DecodedExactCallableSignature, DecodedPersistentId,
     ExactCallableSignatureResolutionError, PersistentCallableApplicationId,
@@ -201,7 +198,6 @@ impl DecodedGeneratedNominalKey {
                     .map_err(GeneratedNominalResolutionError::Reference)?,
             },
         };
-        validate_key(&key).map_err(GeneratedNominalResolutionError::Key)?;
         Ok(key)
     }
 }
@@ -308,7 +304,6 @@ impl WireDecode for ClosureEnvironmentRole {
 pub enum GeneratedNominalResolutionError<E> {
     Reference(E),
     Signature(ExactCallableSignatureResolutionError<E>),
-    Key(GeneratedNominalIdentityError),
 }
 
 impl<E: fmt::Display> fmt::Display for GeneratedNominalResolutionError<E> {
@@ -316,7 +311,6 @@ impl<E: fmt::Display> fmt::Display for GeneratedNominalResolutionError<E> {
         match self {
             Self::Reference(error) => error.fmt(formatter),
             Self::Signature(error) => error.fmt(formatter),
-            Self::Key(error) => error.fmt(formatter),
         }
     }
 }

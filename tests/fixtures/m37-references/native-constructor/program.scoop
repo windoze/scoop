@@ -1,0 +1,2 @@
+class Box
+fun main() { val make: FunPtr<() -> Box> = ::Box }

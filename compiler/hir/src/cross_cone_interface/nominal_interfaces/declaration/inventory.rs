@@ -97,7 +97,7 @@ impl CanonicalNominalInterfacesV1 {
             };
             return Err(error);
         }
-        Ok(())
+        self.validate_sealed_families(foundation)
     }
 }
 
@@ -117,6 +117,11 @@ fn parent(key: &SourceDeclarationKey) -> Option<SourceNominalId> {
 
 #[derive(Debug)]
 pub enum NominalDeclarationInventoryError {
+    SealedFamily {
+        owner: SourceNominalId,
+        subtype: SourceNominalId,
+        reason: &'static str,
+    },
     Resource(WireError),
     MissingConstructor {
         owner: SourceNominalId,
@@ -140,6 +145,14 @@ impl From<WireError> for NominalDeclarationInventoryError {
 impl std::fmt::Display for NominalDeclarationInventoryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::SealedFamily {
+                owner,
+                subtype,
+                reason,
+            } => write!(
+                f,
+                "invalid sealed relation {owner:?} -> {subtype:?}: {reason}"
+            ),
             Self::Resource(error) => error.fmt(f),
             Self::MissingConstructor { owner, constructor } => write!(
                 f,

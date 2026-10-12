@@ -106,6 +106,37 @@ impl Lowerer {
         }
         let (no_gc_type_params, gc_free_pointee_requirements) =
             self.imported_template_predicates(executable.predicates(), &bindings)?;
+        let context_parameter = [
+            LocalValueSelector::EnclosingInstance,
+            LocalValueSelector::CapturedEnvironment,
+        ]
+        .into_iter()
+        .find_map(|selector| {
+            executable
+                .inputs()
+                .get(&selector)
+                .map(|input| (selector, input))
+        })
+        .map(|(selector, input)| {
+            let parameter = hir::ConstructorParameter {
+                id: hir::ConstructorParamId::from_raw(parameters.len() as u32),
+                binding: self.fresh_binding(),
+                definition: origin,
+                name: if selector == LocalValueSelector::EnclosingInstance {
+                    "$outer"
+                } else {
+                    "$captures"
+                }
+                .into(),
+                ty: self.imported_generic_type(input.value_type(), &bindings)?,
+            };
+            Ok::<_, String>(if selector == LocalValueSelector::EnclosingInstance {
+                hir::ConstructorContext::EnclosingInstance(parameter)
+            } else {
+                hir::ConstructorContext::CapturedEnvironment(parameter)
+            })
+        })
+        .transpose()?;
         let evaluation_context = if matches!(self.types[owner], hir::Type::Class(_)) {
             let key = scoop_identity::SourceContextKey::Callable {
                 source: executable.definition_origin().origin().source().clone(),
@@ -126,6 +157,7 @@ impl Lowerer {
             origin.context
         };
         let signature = hir::ImportedConstructorSignature {
+            context_parameter,
             declaration,
             name: source.name().to_owned(),
             type_parameters,

@@ -1,0 +1,2 @@
+class Values { fun read(value: Int = 42) = value }
+fun main() { val read: (Values) -> Int = Values::read }

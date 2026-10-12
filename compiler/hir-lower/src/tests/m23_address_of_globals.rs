@@ -90,7 +90,8 @@ fn raw_global(name: &str, value: i64) -> Decl {
     Decl::Global(ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Global"),
+            use_site: None,
+            name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),
         }],
@@ -102,7 +103,7 @@ fn raw_global(name: &str, value: i64) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(int_lit(value)),
             accessors: ast::AccessorSyntax::default(),
@@ -123,7 +124,7 @@ fn ordinary_property(name: &str, value: i64) -> Decl {
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Computed(ast::AccessorSyntax {
             getter: Some(ast::GetterDecl {
                 annotations: Vec::new(),

@@ -34,6 +34,22 @@ pub enum StaticAnnotations<'a> {
 }
 
 impl<'a> StaticAnnotations<'a> {
+    /// Query any source declaration, accessor, receiver, or complete value parameter.
+    pub fn current(module: &'a Module, target: SourceAnnotationTarget) -> Self {
+        Self::Current(
+            module
+                .annotations
+                .targets
+                .iter()
+                .find(|entry| entry.target == target)
+                .map_or(&[], |entry| entry.annotations.as_slice()),
+        )
+    }
+
+    pub fn published(annotations: &'a CanonicalAnnotationsV1, target: AnnotationTargetV1) -> Self {
+        Self::Dependency(annotations.annotations(target))
+    }
+
     pub fn len(self) -> usize {
         match self {
             Self::Current(values) => values.len(),
@@ -66,26 +82,12 @@ impl StaticAnnotationTarget {
         dependencies: &ImportedSemanticWorld<'a>,
     ) -> StaticAnnotations<'a> {
         match self {
-            Self::Unannotated => StaticAnnotations::Current(&[]),
-            Self::Current(target) => StaticAnnotations::Current(
-                owner
-                    .module
-                    .annotations
-                    .targets
-                    .iter()
-                    .find(|candidate| candidate.target == target)
-                    .map_or(&[], |candidate| candidate.annotations.as_slice()),
-            ),
+            Self::Current(target) => StaticAnnotations::current(owner.module, target),
             Self::Dependency(target) => {
                 let provider = dependencies
                     .nominal_source_provider(owner.declaration)
                     .expect("a loaded nominal retains its source provider");
-                StaticAnnotations::Dependency(
-                    provider
-                        .source_interface()
-                        .annotations()
-                        .annotations(target),
-                )
+                StaticAnnotations::published(provider.source_interface().annotations(), target)
             }
         }
     }

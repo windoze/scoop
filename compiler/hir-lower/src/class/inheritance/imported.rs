@@ -16,14 +16,21 @@ impl Lowerer {
         &mut self,
         class: ClassId,
         name: &str,
+        accessor: Option<crate::properties::PropertyAccessorKind>,
         span: ast::Span,
     ) -> Vec<ImportedInheritedMethod> {
-        let lookup = if let Some(name) = name.strip_prefix("$get$") {
-            hir::ImportedMemberLookup::PropertyGetter(name)
-        } else if let Some(name) = name.strip_prefix("$set$") {
-            hir::ImportedMemberLookup::PropertySetter(name)
-        } else {
-            hir::ImportedMemberLookup::Name(name)
+        let lookup = match accessor {
+            Some(crate::properties::PropertyAccessorKind::Getter) => {
+                hir::ImportedMemberLookup::PropertyGetter(
+                    name.strip_prefix("$get$").expect("getter display name"),
+                )
+            }
+            Some(crate::properties::PropertyAccessorKind::Setter) => {
+                hir::ImportedMemberLookup::PropertySetter(
+                    name.strip_prefix("$set$").expect("setter display name"),
+                )
+            }
+            None => hir::ImportedMemberLookup::Name(name),
         };
         let mut current = self.classes[class].base_class;
         let mut seen = std::collections::HashSet::new();
@@ -65,8 +72,12 @@ impl Lowerer {
                 {
                     continue;
                 }
-                let signature =
-                    self.imported_inheritance_signature(name, callable, &application.arguments);
+                let signature = self.imported_inheritance_signature(
+                    name,
+                    accessor,
+                    callable,
+                    &application.arguments,
+                );
                 let Some(signature) = signature else {
                     self.error(span, format!("invalid inherited signature for `{name}`"));
                     continue;
@@ -90,6 +101,7 @@ impl Lowerer {
     fn imported_inheritance_signature(
         &mut self,
         name: &str,
+        accessor: Option<crate::properties::PropertyAccessorKind>,
         callable: &hir::CallableDeclarationRecordV1,
         arguments: &[TypeId],
     ) -> Option<InterfaceSignature> {
@@ -108,7 +120,10 @@ impl Lowerer {
             .collect::<crate::imported_core::ImportedTypeBindings>();
         let effects = callable.effects();
         Some(InterfaceSignature {
+            result_pending: false,
+            parameter_pending: false,
             name: name.to_owned(),
+            accessor,
             parameters: callable
                 .parameters()
                 .parameters()
@@ -140,10 +155,11 @@ impl Lowerer {
     pub(super) fn check_imported_class_override(
         &mut self,
         id: FunctionId,
-        declaration: &ast::FunctionDecl,
+        declaration: &super::overrides::MemberOverride,
         signature: &FnSig,
         inherited: &ImportedInheritedMethod,
     ) {
+        self.defer_imported_override_result(id, inherited.signature.result, declaration.name.span);
         let target = format!(
             "{}.{}",
             self.type_name(inherited.owner),
@@ -185,10 +201,10 @@ impl Lowerer {
             if matches!(parameter.calling, crate::FnParamCalling::Vararg { .. }) != inherited_vararg
             {
                 self.error(
-                    declaration.params[index].span,
+                    declaration.parameter_spans[index],
                     format!(
                         "parameter `{}` of `{}` must have the same `vararg` shape as `{target}`",
-                        declaration.params[index].name.text, declaration.name.text
+                        signature.params[index].name.text, declaration.name.text
                     ),
                 );
                 break;

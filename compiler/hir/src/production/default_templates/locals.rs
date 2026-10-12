@@ -113,8 +113,15 @@ impl TemplateLocalProjection {
     pub(super) fn bind_constructor_inputs(
         &mut self,
         parameters: &[crate::ConstructorParameter],
+        enclosing: Option<&crate::ConstructorContext>,
         receiver: scoop_identity::SignatureTypeKey,
     ) {
+        if let Some(parameter) = enclosing {
+            self.constructor_parameters
+                .insert(parameter.id, parameter.selector());
+            self.bindings
+                .insert(parameter.binding, parameter.selector());
+        }
         for (index, parameter) in parameters.iter().enumerate() {
             let selector = LocalValueSelector::Parameter {
                 declaration_index: u32::try_from(index)

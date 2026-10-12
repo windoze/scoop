@@ -9,6 +9,7 @@ SourceFile
       val callback
         Call foreignCallback<(Ptr<Unit>, Int) -> Unit>
           Lambda 0 suspend=false
+            label foreignCallback
             param value: Int
             Call println
               Var captured

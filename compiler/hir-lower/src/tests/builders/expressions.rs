@@ -34,23 +34,21 @@ pub(crate) fn tuple_lit(elements: Vec<Expr>) -> Expr {
     }
 }
 
-/// The `Name(...)` construction node (parser output when `Name` is
-/// known to be a struct or an enum variant path).
+/// Legacy explicit struct syntax; qualified paths use the parser's member shape.
 pub(crate) fn struct_init(name: &str, args: Vec<Expr>) -> Expr {
-    Expr::StructInit {
-        name: ident(name),
-        args: call_arguments(args),
-        span: sp(),
+    if name.contains('.') {
+        call(name, args)
+    } else {
+        Expr::StructInit {
+            name: ident(name),
+            args: call_arguments(args),
+            span: sp(),
+        }
     }
 }
 
 pub(crate) fn call(name: &str, args: Vec<Expr>) -> Expr {
-    Expr::Call(CallExpr {
-        callee: ident(name),
-        type_args: Vec::new(),
-        args: call_arguments(args),
-        span: sp(),
-    })
+    source_call(name, call_arguments(args))
 }
 
 pub(crate) fn super_method_call(name: &str, args: Vec<Expr>) -> Expr {
@@ -64,24 +62,42 @@ pub(crate) fn super_method_call(name: &str, args: Vec<Expr>) -> Expr {
 }
 
 pub(crate) fn source_call(name: &str, args: Vec<ast::CallArgument>) -> Expr {
-    Expr::Call(CallExpr {
-        callee: ident(name),
-        type_args: Vec::new(),
-        args,
-        span: sp(),
-    })
+    call_with_type_args(name, Vec::new(), args)
+}
+
+fn call_with_type_args(
+    name: &str,
+    type_args: Vec<ast::CallTypeArgument>,
+    args: Vec<ast::CallArgument>,
+) -> Expr {
+    if let Some((owner, name)) = name.split_once('.') {
+        Expr::MethodCall {
+            receiver: Box::new(var(owner)),
+            name: ident(name),
+            navigation: ast::Navigation::Direct,
+            type_args,
+            args,
+            span: sp(),
+        }
+    } else {
+        Expr::Call(CallExpr {
+            callee: ident(name),
+            type_args,
+            args,
+            span: sp(),
+        })
+    }
 }
 
 pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -> Expr {
-    Expr::Call(CallExpr {
-        callee: ident(name),
-        type_args: type_args
+    call_with_type_args(
+        name,
+        type_args
             .into_iter()
             .map(ast::CallTypeArgument::Explicit)
             .collect(),
-        args: call_arguments(args),
-        span: sp(),
-    })
+        call_arguments(args),
+    )
 }
 
 pub(crate) fn partially_typed_call(

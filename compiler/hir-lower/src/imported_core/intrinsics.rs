@@ -39,6 +39,9 @@ impl Lowerer {
         &mut self,
         ty: hir::TypeId,
     ) -> Result<(), ImportedSignatureTypeError> {
+        if let Some(kind) = self.integral_enum_kind(ty) {
+            return self.resolve_imported_intrinsic_type(hir::IntrinsicTypeKind::Integer(kind));
+        }
         let kind = match self.types[ty] {
             hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
             hir::Type::Unit => hir::IntrinsicTypeKind::Unit,

@@ -1,0 +1,7 @@
+interface Left { fun left(): Int }
+fun captured(value: Any, narrow: Boolean): () -> Int = {
+    val snapshot = value
+    if (narrow && snapshot is Left) println(value.left())
+    value.left()
+}
+fun main() {}

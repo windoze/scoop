@@ -13,16 +13,19 @@ impl Lowerer {
             .nominal_identities
             .as_ref()
             .expect("nominal declarations precede their variants");
-        let identities = hir::HirEnumMemberIdentities::from_declarations(&self.enums, nominals)
-            .map_err(|error| {
-                let enumeration = hir::EnumId::from_raw(error.enumeration().into());
-                PersistentEnumMemberIdentityError {
-                    file: self.enum_files.get(&enumeration).copied().unwrap_or(0),
-                    span: self.enums[enumeration].span,
-                    error,
-                }
-            })?;
-        self.enum_member_identities = Some(identities);
+        let result = match &mut self.enum_member_identities {
+            Some(identities) => identities.append_declarations(&self.enums, nominals),
+            None => hir::HirEnumMemberIdentities::from_declarations(&self.enums, nominals)
+                .map(|identities| self.enum_member_identities = Some(identities)),
+        };
+        result.map_err(|error| {
+            let enumeration = hir::EnumId::from_raw(error.enumeration().into());
+            PersistentEnumMemberIdentityError {
+                file: self.enum_files.get(&enumeration).copied().unwrap_or(0),
+                span: self.enums[enumeration].span,
+                error,
+            }
+        })?;
         Ok(())
     }
 

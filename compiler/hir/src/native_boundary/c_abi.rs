@@ -30,7 +30,10 @@ impl NativeBoundaryCAbiV1 {
             ) => matches!(fields.as_slice(), [only] if only.field() == field),
             (
                 Self::NullablePointer { none, payload },
-                NativeBoundaryNominalShape::Enum { variants },
+                NativeBoundaryNominalShape::Enum {
+                    variants,
+                    representation: crate::EnumRepresentation::Algebraic,
+                },
             ) => {
                 variants.len() == 2
                     && variants

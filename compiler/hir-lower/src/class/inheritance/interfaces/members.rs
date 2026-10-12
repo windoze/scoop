@@ -6,9 +6,12 @@ use crate::imports::lookup::calls::wire_operator;
 #[derive(Clone)]
 pub(in crate::class) struct InterfaceSignature {
     pub name: String,
+    pub accessor: Option<crate::properties::PropertyAccessorKind>,
     pub parameters: Vec<TypeId>,
     pub context_parameters: Vec<TypeId>,
     pub result: TypeId,
+    pub result_pending: bool,
+    pub parameter_pending: bool,
     pub is_suspend: bool,
     pub safety: hir::CallableSafetyV1,
     pub gc_effect: scoop_identity::GcEffect,
@@ -26,7 +29,11 @@ pub(in crate::class) struct InterfaceMemberInstance {
 }
 
 impl InterfaceSignature {
-    pub fn local(name: &str, signature: &crate::FnSig) -> Self {
+    pub fn local(
+        name: &str,
+        signature: &crate::FnSig,
+        accessor: Option<crate::properties::PropertyAccessorKind>,
+    ) -> Self {
         let operator = match (
             signature.modifiers.operator,
             signature.modifiers.property_delegate_operator,
@@ -46,14 +53,13 @@ impl InterfaceSignature {
             (None, None) => hir::CallableOperatorRoleV1::None,
         };
         Self {
-            name: name
-                .rsplit('.')
-                .next()
-                .expect("callables have a name")
-                .into(),
+            name: name.into(),
+            accessor,
             parameters: signature.params.iter().map(|p| p.ty).collect(),
             context_parameters: signature.context_parameters.iter().map(|p| p.ty).collect(),
             result: signature.return_ty,
+            result_pending: signature.result_pending,
+            parameter_pending: signature.parameter_pending,
             is_suspend: signature.is_suspend,
             safety: match signature.attributes.safety {
                 hir::Safety::Safe => hir::CallableSafetyV1::Safe,
@@ -155,12 +161,16 @@ impl Lowerer {
                         }
                         let declaration = self.interface_method_entities[member].clone();
                         let signature = self.instantiated_signature(function, &arguments, &[]);
-                        let name = self.functions[function].name.clone();
+                        let name = self.source_function_name(function).to_owned();
                         let owner = self.source_interface_type(declaration.owner, arguments);
                         Some(InterfaceMemberInstance {
                             member: hir::InterfaceMethodReference::Local(member),
                             owner,
-                            signature: InterfaceSignature::local(&name, &signature),
+                            signature: InterfaceSignature::local(
+                                &name,
+                                &signature,
+                                self.function_accessor_kind(function),
+                            ),
                             implementation: declaration.implementation,
                             mutable_property: match declaration.role {
                                 hir::InterfaceMemberRole::PropertySetter(property) => {
@@ -215,6 +225,17 @@ impl Lowerer {
                     },
                     owner,
                     signature: InterfaceSignature {
+                        result_pending: false,
+                        parameter_pending: false,
+                        accessor: match method.slot.key().role() {
+                            scoop_identity::DispatchRole::PropertyGetter => {
+                                Some(crate::properties::PropertyAccessorKind::Getter)
+                            }
+                            scoop_identity::DispatchRole::PropertySetter => {
+                                Some(crate::properties::PropertyAccessorKind::Setter)
+                            }
+                            _ => None,
+                        },
                         name: match method.slot.key().role() {
                             scoop_identity::DispatchRole::PropertyGetter => {
                                 format!("$get${}", method.name)
@@ -261,12 +282,15 @@ impl Lowerer {
         b: &InterfaceSignature,
     ) -> bool {
         a.name == b.name
+            && a.accessor == b.accessor
             && a.parameters.len() == b.parameters.len()
-            && a.parameters
-                .iter()
-                .zip(&b.parameters)
-                .all(|(a, b)| self.types_equal(*a, *b))
-            && self.types_equal(a.result, b.result)
+            && (a.parameter_pending
+                || b.parameter_pending
+                || a.parameters
+                    .iter()
+                    .zip(&b.parameters)
+                    .all(|(a, b)| self.types_equal(*a, *b)))
+            && (a.result_pending || b.result_pending || self.types_equal(a.result, b.result))
     }
 
     pub(in crate::class) fn same_interface_signature(

@@ -26,7 +26,7 @@ pub(super) fn verify(
             constants: Vec::new(),
         });
         let value = root_identity::restored_value(*store, space)?;
-        if value.is_const() {
+        if constant_roots::is_constant_root(value) {
             groups.constants.push(*root);
             continue;
         }

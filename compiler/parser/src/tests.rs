@@ -105,13 +105,7 @@ fn parser_recovers_between_type_members() {
         .iter()
         .map(|diagnostic| diagnostic.message.as_str())
         .collect();
-    assert_eq!(
-        messages,
-        [
-            "class stored properties require an explicit type",
-            "expected parameter name, found `:`",
-        ]
-    );
+    assert_eq!(messages, ["expected parameter name, found `:`",]);
 }
 
 #[test]
@@ -265,9 +259,9 @@ fn incomplete_safety_annotation_in_statement_position() {
 }
 
 #[test]
-fn unexpected_non_ascii_character() {
-    let (_, message) = err("fun main() { λ }");
-    assert_eq!(message, "unexpected character `λ`");
+fn unexpected_non_identifier_character() {
+    let (_, message) = err("fun main() { × }");
+    assert_eq!(message, "unexpected character `×`");
 }
 
 #[test]

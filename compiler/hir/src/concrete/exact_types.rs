@@ -415,10 +415,17 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
         if local_index(function.canonical_type) >= self.inputs.types.len()
             || !matches!(self.inputs.types[function.canonical_type].kind, TypeKind::Function(actual) if actual == id)
             || (!native && function.canonical_type != ty)
-            || (native && function.is_suspend)
+            || (native && (function.is_suspend || function.receiver.is_some()))
         {
             return Err(ExactTypeIdentityError::InvalidFunctionType { ty: raw_index(ty) });
         }
+        let receiver = match function.receiver {
+            Some(receiver) => {
+                self.require_type(Some(ty), ExactTypeRelation::ChildType, receiver)?;
+                Some(self.resolve(receiver)?.id())
+            }
+            None => None,
+        };
         let parameters = self.resolve_children(ty, &function.parameter_types)?;
         self.require_type(
             Some(ty),
@@ -434,6 +441,7 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
             }
         } else {
             ExactTypeKey::Function {
+                receiver,
                 effect: if function.is_suspend {
                     Effect::Suspend
                 } else {

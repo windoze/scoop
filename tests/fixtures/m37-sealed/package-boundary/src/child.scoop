@@ -1,0 +1,3 @@
+package second
+import first.Root
+class Child : Root()

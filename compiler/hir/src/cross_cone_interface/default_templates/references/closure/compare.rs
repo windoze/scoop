@@ -271,11 +271,13 @@ fn compare_type_tasks<'a>(
                     }
                     (
                         SignatureTypeKey::Function {
+                            receiver: left_receiver,
                             effect: left_effect,
                             parameters: left_parameters,
                             result: left_result,
                         },
                         SignatureTypeKey::Function {
+                            receiver: right_receiver,
                             effect: right_effect,
                             parameters: right_parameters,
                             result: right_result,
@@ -284,6 +286,18 @@ fn compare_type_tasks<'a>(
                         let ordering = left_effect.cmp(right_effect);
                         if ordering != Ordering::Equal {
                             return Ok(ordering);
+                        }
+                        match (left_receiver, right_receiver) {
+                            (Some(left), Some(right)) => {
+                                push_task(&mut pending, TypeComparison::Type(left, right), path)?
+                            }
+                            _ => push_task(
+                                &mut pending,
+                                TypeComparison::Order(
+                                    left_receiver.is_some().cmp(&right_receiver.is_some()),
+                                ),
+                                path,
+                            )?,
                         }
                         push_task(
                             &mut pending,
@@ -358,6 +372,11 @@ fn compare_type_tasks<'a>(
                     pending.push(TypeComparison::Type(&left[index], &right[index]));
                 }
             }
+            TypeComparison::Order(ordering) => {
+                if ordering != Ordering::Equal {
+                    return Ok(ordering);
+                }
+            }
             TypeComparison::Length(left, right) => {
                 let ordering = left.cmp(&right);
                 if ordering != Ordering::Equal {
@@ -382,6 +401,7 @@ fn push_task<'a>(
 
 #[derive(Clone, Copy)]
 enum TypeComparison<'a> {
+    Order(Ordering),
     Type(&'a SignatureTypeKey, &'a SignatureTypeKey),
     Sequence(&'a [SignatureTypeKey], &'a [SignatureTypeKey]),
     Length(usize, usize),
@@ -631,6 +651,7 @@ mod tests {
             nominal.clone(),
             SignatureTypeKey::Tuple(NonEmptyVec::from_first(binder(0), [binder(1)])),
             SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Ordinary,
                 parameters: vec![nominal.clone(), binder(0)],
                 result: Box::new(binder(1)),

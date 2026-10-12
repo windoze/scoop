@@ -1,0 +1,2 @@
+enum E : Int { A = 0, B = 1 }
+fun read(value: E): Int = when (value) { case E.A -> 1 }

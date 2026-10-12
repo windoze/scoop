@@ -9,6 +9,14 @@ pub struct ImportedAnnotationDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    pub fn annotated_type(
+        &self,
+        target: AnnotationTargetV1,
+        slot: crate::AnnotationTypeSlot,
+    ) -> Option<&crate::AnnotatedTypeUseV1> {
+        self.catalog.annotated_types.get(&(target, slot))
+    }
+
     pub fn annotation_declaration(
         &self,
         id: PersistentAnnotationId,

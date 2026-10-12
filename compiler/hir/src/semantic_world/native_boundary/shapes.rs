@@ -60,7 +60,10 @@ pub(super) fn project(
                         .map_err(Error::InvalidDefinition)
                 })
                 .collect::<Result<_, _>>()?;
-            Ok(Shape::Enum { variants })
+            Ok(Shape::Enum {
+                variants,
+                representation: source.representation().clone(),
+            })
         }
         NominalSourceShapeV1::Class(_)
         | NominalSourceShapeV1::Interface

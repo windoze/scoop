@@ -1,0 +1,1 @@
+fun main() { val action: (Int) -> Int = { it }; println(1.action()) }

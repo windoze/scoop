@@ -42,7 +42,11 @@ pub(super) fn validate(
     Error::require(
         declaration,
         Component::Receiver,
-        source.receiver().is_none() && !semantic.receiver().is_present(),
+        source
+            .receiver()
+            .map(|receiver| metadata.signature_exact_type(receiver))
+            .transpose()?
+            == semantic.receiver().into_option(),
     )?;
     Error::require(
         declaration,
@@ -121,7 +125,11 @@ pub(super) fn validate(
         Component::LoweredSignature,
         lowered.effect() == semantic.effect()
             && lowered.receiver().into_option() == receiver
-            && lowered.parameters() == semantic.parameters()
+            && lowered.parameters().iter().copied().eq(semantic
+                .receiver()
+                .into_option()
+                .into_iter()
+                .chain(semantic.parameters().iter().copied()))
             && lowered.result() == result,
     )?;
     Error::require(

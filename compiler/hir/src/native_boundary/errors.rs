@@ -7,6 +7,7 @@ pub enum NativeBoundaryDefinitionError {
     ExpectedSourceField,
     ExpectedSourceVariant,
     ShapeKindMismatch,
+    IntegralVariants,
     CAbiProjectionMismatch,
     IntrinsicArityMismatch { expected: u32, actual: u32 },
     FieldOwnerMismatch,
@@ -34,6 +35,9 @@ impl fmt::Display for NativeBoundaryDefinitionError {
             Self::ExpectedSourceVariant => {
                 formatter.write_str("native boundary variant must be a source enum variant")
             }
+            Self::IntegralVariants => formatter.write_str(
+                "integral enum variants must be unique integer constants without fields",
+            ),
             Self::ShapeKindMismatch => {
                 formatter.write_str("native boundary shape does not match the source nominal kind")
             }

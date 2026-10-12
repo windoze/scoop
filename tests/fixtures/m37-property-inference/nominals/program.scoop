@@ -1,0 +1,23 @@
+struct Pair(val left: Int, val right: Int) {
+    val sum get() = left + right
+}
+enum Choice {
+    One,
+    Two
+    val label get() = "enum"
+}
+class Tag<T> {
+    companion object {
+        val text = "companion"
+    }
+}
+typealias Number = Int
+val seed: Number = 7
+val copied = seed
+fun main() {
+    println(Pair(2, 3).sum)
+    println(Choice.One.label)
+    println(Tag<Int>.text)
+    println(Tag<String>.text)
+    println(copied)
+}

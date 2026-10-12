@@ -6,8 +6,8 @@ use super::{
 use crate::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CborIdentityRecord, CoroutineAdapterRole, DecodedCborIdentityRecord, DecodedPersistentId,
-    Effect, ExactCallableSignature, GeneratedCallableIdentityError, GeneratedCallableKey,
-    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+    Effect, ExactCallableSignature, GeneratedCallableKey, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, LexicalParentError,
     PersistentCallableApplicationId, PersistentCallbackApplicationId, PersistentConstructorId,
     PersistentDispatchSlotId, PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
     PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentIdMismatch,
@@ -182,19 +182,17 @@ fn all_generated_callable_records_round_trip_and_resolve() {
 }
 
 #[test]
-fn generated_callable_resolution_rejects_invalid_target_receiver() {
+fn generated_callable_resolution_preserves_target_receiver() {
     let exact = PersistentExactTypeId::expected();
-    let invalid = GeneratedCallableKey::DynamicFunctionAdapter {
+    let original = GeneratedCallableKey::DynamicFunctionAdapter {
         target: ExactCallableSignature::new(Effect::Ordinary, Some(exact), vec![], exact),
     };
     let decoded =
-        decode_canonical::<DecodedGeneratedCallableKey>(&encode(&invalid).unwrap()).unwrap();
+        decode_canonical::<DecodedGeneratedCallableKey>(&encode(&original).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver { generated: vec![] }),
-        Err(GeneratedCallableResolutionError::Key(
-            GeneratedCallableIdentityError::TargetReceiverMustBeAbsent
-        ))
+        Ok(original)
     );
 }
 

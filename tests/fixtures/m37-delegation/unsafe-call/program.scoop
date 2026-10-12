@@ -1,0 +1,4 @@
+interface I { @Unsafe fun value(): Int }
+class Impl : I { @Unsafe override fun value(): Int = 42 }
+class Host(delegate: I) : I by delegate
+fun main() { println(Host(Impl()).value()) }

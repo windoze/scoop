@@ -83,7 +83,7 @@ fn struct_argument_bearing_supertype_is_preserved_for_hir() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected struct")
     };
-    assert!(decl.supertypes[0].constructor_arguments.is_some());
+    assert!(decl.supertypes[0].constructor_arguments().is_some());
 }
 
 #[test]

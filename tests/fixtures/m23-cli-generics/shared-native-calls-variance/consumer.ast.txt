@@ -14,12 +14,14 @@ SourceFile
     val external
       Call apply
         Lambda 0 suspend=false
+          label apply
           param value: Any
           Call read
             Var seed
     val local
       Call localApply
         Lambda 1 suspend=false
+          label localApply
           param value: Any
           Call read
             Var seed
@@ -36,6 +38,7 @@ SourceFile
       Binary Ne
         Call localApply
           Lambda 2 suspend=false
+            label localApply
             param value: Any
             IntLiteral 42
         IntLiteral 42
@@ -45,6 +48,7 @@ SourceFile
       Binary Ne
         Call apply
           Lambda 3 suspend=false
+            label apply
             param value: Any
             IntLiteral 42
         IntLiteral 42
@@ -92,5 +96,6 @@ SourceFile
       MethodCall apply
         Var host
         Lambda 5 suspend=false
+          label apply
           param value: Any
           IntLiteral 42

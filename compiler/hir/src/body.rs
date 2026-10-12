@@ -71,6 +71,7 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        loop_kind: LoopKind,
         target: LoopId,
         condition_setup: Vec<Statement>,
         cond: Expr,
@@ -339,7 +340,7 @@ pub enum ExprKind {
     /// smart cast). The result type is `Expr::ty`.
     Unbox(Box<Expr>),
     /// Preserve the operand's type while viewing its reference as a supertype.
-    ReferenceUpcast(Box<Expr>),
+    Upcast(Box<Expr>),
     /// `expr is T`; result is `Boolean`. The checked type is in
     /// `check_ty`.
     IsInstance {

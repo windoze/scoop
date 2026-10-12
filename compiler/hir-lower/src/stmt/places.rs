@@ -146,9 +146,10 @@ impl Lowerer {
                 name,
                 span,
             } => {
-                if matches!(&**receiver, ast::Expr::This { .. })
-                    && self.initialization_context.is_some()
+                if let ast::Expr::This { label, .. } = &**receiver
+                    && self.is_initializing_this_label(label.as_ref())
                 {
+                    self.check_initializing_receiver_label(label.as_ref())?;
                     let field = self.initializing_field(name, *span)?;
                     let write = field
                         .write
@@ -164,7 +165,7 @@ impl Lowerer {
                     .qualified_object_const_property(receiver, &name.text)
                     .ok()?
                 {
-                    let ty = self.properties[property].ty;
+                    let ty = self.infer_property_type(property)?;
                     let read = self.lower_property_read(property, None, None, ty, *span)?;
                     return Some(ResolvedPlacePlan {
                         read,

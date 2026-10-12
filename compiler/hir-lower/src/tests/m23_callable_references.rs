@@ -163,7 +163,8 @@ fn no_gc(mut declaration: Decl) -> Decl {
         panic!("NoGC test declaration is a function")
     };
     function.annotations.push(ast::Annotation {
-        name: ident("NoGC"),
+        use_site: None,
+        name: ident("NoGC").into(),
         args: Vec::new(),
         span: sp(),
     });

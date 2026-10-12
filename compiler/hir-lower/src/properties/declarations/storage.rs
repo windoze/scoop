@@ -13,7 +13,10 @@ impl Lowerer {
         initialization: hir::TopLevelInitialization,
     ) {
         let mut attributes = self.functions[source.function].attributes;
-        if initialization == hir::TopLevelInitialization::Image && self.is_gc_free(value_type) {
+        if initialization == hir::TopLevelInitialization::Image
+            && !self.property_type_pending(source.property)
+            && self.is_gc_free(value_type)
+        {
             attributes.gc_effect = hir::GcEffect::NoGc;
         }
         let capability = self.properties[source.property].capability;
@@ -46,6 +49,8 @@ impl Lowerer {
         self.signatures.insert(
             source.function,
             FnSig {
+                result_pending: false,
+                parameter_pending: false,
                 context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: function.modifiers,

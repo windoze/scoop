@@ -62,6 +62,7 @@ pub struct ImportedVirtualMethod {
 /// construction (spec 8.1.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionType {
+    pub receiver: Option<TypeId>,
     /// The unique ordinary managed-function type represented by this
     /// signature. Consumers use this edge directly; they never scan `types`
     /// to recover the reverse mapping.
@@ -69,6 +70,17 @@ pub struct FunctionType {
     pub is_suspend: bool,
     pub parameter_types: Vec<TypeId>,
     pub return_type: TypeId,
+}
+
+impl FunctionType {
+    /// Source arguments in invocation order; the closure environment is separate.
+    pub fn parameters(&self) -> impl Iterator<Item = &TypeId> {
+        self.receiver.iter().chain(&self.parameter_types)
+    }
+
+    pub fn arity(&self) -> usize {
+        usize::from(self.receiver.is_some()) + self.parameter_types.len()
+    }
 }
 
 /// Structural type equality (tuple types are compared by elements,
@@ -214,8 +226,12 @@ pub(crate) fn type_name_with_params(
                 .map(|ty| type_name_with_params(module, *ty, params))
                 .collect();
             let suspend = if function.is_suspend { "suspend " } else { "" };
+            let receiver = function
+                .receiver
+                .map(|ty| format!("{}.", type_name_with_params(module, ty, params)))
+                .unwrap_or_default();
             format!(
-                "{suspend}({}) -> {}",
+                "{suspend}{receiver}({}) -> {}",
                 parameters.join(", "),
                 type_name_with_params(module, function.return_type, params)
             )

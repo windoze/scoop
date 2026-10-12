@@ -137,6 +137,44 @@ impl Lowerer {
         })
     }
 
+    fn imported_default_constructor_kind(
+        &mut self,
+        declaration: scoop_identity::PersistentConstructorId,
+        args: Vec<hir::Expr>,
+    ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
+        let origin = scoop_identity::CallableTemplateOrigin::Constructor(declaration);
+        let candidate = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.callable_declaration(origin).ok())
+            .ok_or(ImportedDefaultMaterializationError::MissingCallable(origin))?;
+        let receiver = if candidate.interface().receiver().is_some() {
+            hir::SourceCallReceiver::Receiver {
+                static_type: args
+                    .first()
+                    .ok_or_else(|| {
+                        ImportedDefaultMaterializationError::Plan(
+                            "constructor context input is missing".into(),
+                        )
+                    })?
+                    .ty,
+            }
+        } else {
+            hir::SourceCallReceiver::NoReceiver
+        };
+        let callee = self
+            .select_imported_callable_declaration_use_with_kind(candidate, MemberCallKind::Ordinary)
+            .map_err(|error| {
+                ImportedDefaultMaterializationError::DependencySelection(error.to_string())
+            })?;
+        Ok(hir::ExprKind::Call {
+            callee: hir::CallableTarget::Dependency(callee),
+            binding: None,
+            args,
+            receiver,
+        })
+    }
+
     fn imported_default_callable_target(
         &mut self,
         callee: scoop_identity::CallableTemplateOrigin,

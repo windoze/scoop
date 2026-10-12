@@ -1,0 +1,12 @@
+enum Level: Int { Info = 0, Warning = 7 }
+annotation class Message(val text: String, val codes: Array<Int> = [1, 2])
+annotation class Rule(val level: Level = Level.Warning,
+                      val message: Message = Message("default"),
+                      val levels: Array<Level> = [Level.Info, Level.Warning, Level.Info],
+                      val messages: Array<Message> = [Message("one"), Message("two", [3])],
+                      val raw: Int = Level.Warning)
+@Rule
+struct Item(@Rule(message = Message("field")) val value: Int)
+@Rule(Level.Info, Message("explicit", []), [], [], Level.Info)
+enum Result { @Rule Success, Failure }
+fun main() { println(Item(42).value) }

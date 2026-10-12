@@ -93,6 +93,8 @@ pub(super) struct DependencyCatalog {
         BTreeMap<scoop_identity::PersistentAnnotationId, super::ImportedAnnotationDeclaration>,
     pub(super) annotated_targets:
         BTreeMap<crate::AnnotationTargetV1, Vec<crate::AnnotationApplicationV1>>,
+    pub(super) annotated_types:
+        BTreeMap<(crate::AnnotationTargetV1, crate::AnnotationTypeSlot), crate::AnnotatedTypeUseV1>,
 }
 
 impl ImportedSemanticWorld<'_> {
@@ -113,6 +115,7 @@ impl ImportedSemanticWorld<'_> {
         let mut type_aliases = BTreeMap::new();
         let mut annotations = BTreeMap::new();
         let mut annotated_targets = BTreeMap::new();
+        let mut annotated_types = BTreeMap::new();
         let mut nominals = BTreeMap::new();
         let mut nominal_visibilities = BTreeMap::new();
         let mut static_namespaces = BTreeMap::new();
@@ -133,6 +136,16 @@ impl ImportedSemanticWorld<'_> {
             }
             for target in provider.interface().annotations().targets() {
                 annotated_targets.insert(target.target, target.annotations.clone());
+            }
+            let annotation_data = provider.interface().annotations();
+            for site in annotation_data.type_sites() {
+                annotated_types.insert(
+                    (site.target, site.slot),
+                    annotation_data
+                        .type_use(&site.type_use)
+                        .expect("validated type annotation site")
+                        .clone(),
+                );
             }
             let foundation = provider.foundation().canonical_for_semantic_authority();
             for record in foundation.callback_registration_records() {
@@ -453,6 +466,7 @@ impl ImportedSemanticWorld<'_> {
                 type_aliases,
                 annotations,
                 annotated_targets,
+                annotated_types,
             }),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),

@@ -107,7 +107,7 @@ fn nullable_projection_requires_the_exact_empty_and_single_payload_variants() {
         none: fixture.variants[0].0,
         payload: fixture.variant_fields[0].0,
     };
-    let NativeBoundaryNominalShape::Enum { variants } = fixture.enum_record().shape().clone()
+    let NativeBoundaryNominalShape::Enum { variants, .. } = fixture.enum_record().shape().clone()
     else {
         unreachable!()
     };
@@ -121,7 +121,10 @@ fn nullable_projection_requires_the_exact_empty_and_single_payload_variants() {
         let record = NativeBoundaryTypeDefinitionRecord::new(
             &fixture.enumeration.1,
             &[0],
-            NativeBoundaryNominalShape::Enum { variants },
+            NativeBoundaryNominalShape::Enum {
+                variants,
+                representation: crate::EnumRepresentation::Algebraic,
+            },
         )
         .unwrap();
         assert_eq!(

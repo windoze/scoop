@@ -8,10 +8,6 @@ fun labelledContinue() {
     continue@outer
 }
 
-fun labelledReturn() {
-    return@outer
-}
-
 fun labelledWhile() {
     outer@ while (true) {}
 }
@@ -24,12 +20,10 @@ fun breakExpression(value: Int?) {
     val selected = value ?: break
 }
 
+fun consume(value: Int) {}
+
 fun continueExpression() {
     consume(continue)
-}
-
-fun doWhile() {
-    do {} while (false)
 }
 
 fun main() {}

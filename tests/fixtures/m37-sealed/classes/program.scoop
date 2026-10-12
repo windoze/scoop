@@ -1,0 +1,19 @@
+sealed class Message(val code: Int) {
+    fun codeValue(): Int = code
+    abstract fun text(): String
+}
+class Text(val value: String) : Message(1) {
+    override fun text(): String = value
+}
+class Empty : Message(0) {
+    override fun text(): String = "empty"
+}
+fun describe(value: Message): String = when (value) {
+    is Text -> value.text()
+    is Empty -> value.text()
+}
+fun main() {
+    println(describe(Text("hello")))
+    println(describe(Empty()))
+    println(Text("x").codeValue())
+}

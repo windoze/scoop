@@ -118,7 +118,7 @@ impl Lowerer {
             && relation.role == hir::InterfaceMemberRole::Function
             && relation.implementation == hir::InterfaceMemberImplementation::AbstractSlot
             && relation.overrides.is_empty()
-            && function.name.rsplit('.').next() == Some("iterator")
+            && self.source_function_name(relation.function) == "iterator"
             && function.access.declared == hir::DeclaredVisibility::Public
             && !function.is_suspend
             && function.attributes == hir::FunctionAttributes::default()

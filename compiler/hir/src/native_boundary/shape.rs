@@ -10,6 +10,7 @@ pub enum NativeBoundaryNominalShape {
         fields: Vec<NativeBoundaryFieldDefinition>,
     },
     Enum {
+        representation: crate::EnumRepresentation,
         variants: Vec<NativeBoundaryVariantDefinition>,
     },
 }
@@ -27,11 +28,20 @@ impl WireEncode for NativeBoundaryNominalShape {
                 encoder.field(2)?;
                 encode_sequence(encoder, fields)
             }
-            Self::Enum { variants } => {
-                encoder.map(2)?;
-                encode_tag(encoder, 3)?;
+            Self::Enum {
+                variants,
+                representation,
+            } => {
+                let integral = representation.integer_kind().is_some();
+                encoder.map(if integral { 3 } else { 2 })?;
+                encode_tag(encoder, if integral { 5 } else { 3 })?;
                 encoder.field(1)?;
-                encode_sequence(encoder, variants)
+                encode_sequence(encoder, variants)?;
+                if integral {
+                    encoder.field(2)?;
+                    representation.encode(encoder)?;
+                }
+                Ok(())
             }
         }
     }
@@ -166,7 +176,16 @@ fn validate_shape(
                 validate_signature_binders(&field.ty, binder_parameter_counts)?;
             }
         }
-        NativeBoundaryNominalShape::Enum { variants } => {
+        NativeBoundaryNominalShape::Enum {
+            variants,
+            representation,
+        } => {
+            if !representation.matches_unit_variants(
+                variants.len(),
+                variants.iter().all(|variant| variant.fields.is_empty()),
+            ) {
+                return Err(NativeBoundaryDefinitionError::IntegralVariants);
+            }
             let mut seen = BTreeSet::new();
             for variant in variants {
                 if variant.owner != expected_owner {
@@ -204,6 +223,9 @@ fn validate_signature_binders(
     ty: &SignatureTypeKey,
     binder_parameter_counts: &[u32],
 ) -> Result<(), NativeBoundaryDefinitionError> {
+    if let Some(receiver) = ty.receiver_type() {
+        validate_signature_binders(receiver, binder_parameter_counts)?;
+    }
     match ty {
         SignatureTypeKey::Nominal(_) => Ok(()),
         SignatureTypeKey::NominalApplication { arguments, .. }

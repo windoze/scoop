@@ -1,0 +1,19 @@
+const val FIRST: Int = -7
+enum Code : Int {
+    First = FIRST,
+    Second = FIRST + 16,
+    Last = Int.MAX_VALUE
+}
+fun value(code: Code): Int = code
+fun describe(code: Code): Int = when (code) {
+    case Code.First -> 10
+    case Code.Second -> 20
+    case Code.Last -> 30
+}
+fun main() {
+    println(value(Code.First))
+    println(Code.Second + 2)
+    println(Code.Second.toString())
+    println(Code.First < Code.Second)
+    println(describe(Code.Second))
+}

@@ -86,6 +86,16 @@ impl Lowerer {
                             )
                         }),
                 );
+                if let Some(kind) = self
+                    .enum_definition(application_value.template)
+                    .representation
+                    .integer_kind()
+                {
+                    self.collect_intrinsic_type_methods(
+                        hir::IntrinsicTypeKind::Integer(kind),
+                        &mut declared,
+                    );
+                }
             }
             Type::Any => {}
             Type::Param(receiver_parameter) => {

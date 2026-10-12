@@ -331,9 +331,9 @@ impl DecodedDefaultExpressionKindV1 {
             Self::Unbox(operand) => {
                 DefaultExpressionKindV1::Unbox(resolve_child(operand, resolver, locals, 35, 1)?)
             }
-            Self::ReferenceUpcast(operand) => DefaultExpressionKindV1::ReferenceUpcast(
-                resolve_child(operand, resolver, locals, 58, 1)?,
-            ),
+            Self::Upcast(operand) => {
+                DefaultExpressionKindV1::Upcast(resolve_child(operand, resolver, locals, 58, 1)?)
+            }
             Self::IsInstance {
                 operand,
                 checked_type,

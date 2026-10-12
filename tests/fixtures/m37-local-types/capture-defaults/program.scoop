@@ -1,0 +1,16 @@
+open class Base(val total: Int)
+fun main() {
+    val first = 20
+    val second = 22
+    class Local(val value: Int = first): Base(second) {
+        val copy = first
+        init { println(second) }
+        constructor(text: String): this(first) { println(text) }
+        fun sum(other: Int = second): Int = value + other
+    }
+    val value = Local()
+    println(value.sum())
+    println(value.copy)
+    println(value.total)
+    println(Local("secondary").sum())
+}

@@ -13,6 +13,7 @@ SourceFile
       val inner
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 0 suspend=false
+            label foreignCallback
             param value: Int
             Call gcCollect
             Binary Add
@@ -24,6 +25,7 @@ SourceFile
       val outer
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 1 suspend=false
+            label foreignCallback
             param value: Int
             val live
               Binary Add
@@ -82,6 +84,7 @@ SourceFile
       val oneShot
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 2 suspend=false
+            label foreignCallback
             param value: Int
             Binary Add
               Var value

@@ -63,7 +63,7 @@ pub fn scoop_abi_value_shape(
                     kind: crate::NullNicheKind::Interface,
                     ..
                 } => ScoopAbiValueShape::Interface,
-                EnumRepr::Niche { .. } => ScoopAbiValueShape::Scalar,
+                EnumRepr::Niche { .. } | EnumRepr::Integral { .. } => ScoopAbiValueShape::Scalar,
                 EnumRepr::Tagged { .. } => ScoopAbiValueShape::Aggregate,
             }
         }

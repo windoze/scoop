@@ -323,11 +323,7 @@ impl Lowerer {
         let owner_ty = self.integer_type(receiver_kind);
         let exact_peer =
             matches!(signature.params.as_slice(), [parameter] if parameter.ty == owner_ty);
-        let source_name = self.functions[function]
-            .name
-            .rsplit('.')
-            .next()
-            .expect("function names are non-empty");
+        let source_name = self.source_function_name(function);
         let role_matches = match source_name {
             "rangeTo" => {
                 signature.modifiers.operator == Some(hir::OperatorKind::RangeTo)

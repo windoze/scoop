@@ -1,0 +1,10 @@
+interface Value { fun get(): Int }
+fun main() {
+    val value = object : Value {
+        val answer: Int = 42
+        override fun get(): Int = answer
+        fun extra(): Int = answer
+    }
+    println(value.get())
+    println(value.extra())
+}

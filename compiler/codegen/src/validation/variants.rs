@@ -128,7 +128,7 @@ fn validate_enum_wrap(
             kind,
             payload_variant,
         } if variant.index() == *payload_variant => vec![kind.storage_type()],
-        EnumRepr::Niche { .. } => Vec::new(),
+        EnumRepr::Niche { .. } | EnumRepr::Integral { .. } => Vec::new(),
         EnumRepr::Tagged { variants, .. } => variants[variant.index() as usize]
             .fields
             .iter()

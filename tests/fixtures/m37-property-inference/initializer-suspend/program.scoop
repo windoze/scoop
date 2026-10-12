@@ -1,0 +1,3 @@
+suspend fun read() = 1
+val value = read()
+fun main() {}

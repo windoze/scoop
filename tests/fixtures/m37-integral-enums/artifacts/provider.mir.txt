@@ -1,0 +1,399 @@
+Module
+  struct Packet (code: Code, token: Token<String>) <c-layout aligned=natural packed=natural>
+  enum Code integral(Int16) values=[65533, 13]
+    Cold()
+    Hot()
+  enum Token<String> integral(UInt8) values=[0, 7]
+    Low()
+    High()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Packet>
+    Completed(value: Packet)
+    Suspended()
+  enum CoroutineSlot<Packet>
+    Empty()
+    Value(value: Packet)
+  enum CoroutineStep<Code>
+    Completed(value: Code)
+    Suspended()
+  enum CoroutineSlot<Code>
+    Empty()
+    Value(value: Code)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Code> vtable=0 itables=3
+  class box<Packet> vtable=0 itables=0
+  class box<Int16> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int16>
+  interface Equality<UInt8>
+  interface Continuation<Packet>
+  interface SuspendTask<Packet>
+  interface SuspendRegistration<Packet>
+  interface Continuation<Code>
+  interface SuspendTask<Code>
+  interface SuspendRegistration<Code>
+  generated_exact_type get0 location=enum5 nominal_id=1b00cc1f91ec6c35db6a6d6b1b143f632d6f9155ce2ac57283303d835cf1f1e6 exact_id=05ed6b6e399be217c1ceebde811753a852d8f1be4a104fc4e45faea58070a0c4
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=class3 nominal_id=042247359a785b0bfbc36e411906530fb64f2cd5d831843c1249b9611d31f9df exact_id=473b392456a4676117423098b7f0394c7d811b0b989c7c903382ccf2acd8e3c8
+  generated_exact_type get4 location=class4 nominal_id=1c572482399007d68d49f6414baee5614f68201ac79368b948291f7ea77e7e0a exact_id=49cccc94c2001d42acc7fae597ca8a08da3b9c25d9ddbefa56db00aab7459888
+  generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get6 location=enum6 nominal_id=4f2f914cc8b25112ff87cad5475b6bcb0e8ed9c78872b1e7ea522b41b4386bfb exact_id=660b1f3f1df14e2dc6dc5f6cc2f1ac696cf08f50bf8e056c148323c784322843
+  generated_exact_type get7 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get8 location=class5 nominal_id=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8ec1a8387 exact_id=b4b5dd6b39f7a03d0862e75930c05229b5dec39780205d043c8a7a51fcfd6fbc
+  generated_exact_type get9 location=enum4 nominal_id=7a04287e81840560b492334efc8ad2f9ae355e75fd1cb55bbc1a3926f20d931e exact_id=c3564877f6bc17e4dd6d1816219be1c5b701156decdb92bca8e1535129367ac1
+  generated_exact_type get10 location=enum3 nominal_id=b67ab80fc081719aafa904c389fe2b174b40b4ade6728d76405c25b69b479740 exact_id=e473e62663406f6f6146c994f8d5e7637e20871165c3afa813db1b5e107caabd
+  generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn13 id=4ed6abe491a7b61020ccc4fc6a884b5fdf6ff35ef68c01505dffbe46bc903a1a
+  generated_callable gc1 function=@fn15 id=a56a4cc9cd09549b97baa34637fe44ddc4e79791b96e09d9cc96308789fe499c
+  generated_callable gc2 function=@fn16 id=bd161e3da43d35e5a3dd30b40bf35f4238bc9794979a450abd945cd6183d511c
+  generated_callable gc3 function=@fn14 id=cb7d808e366c61e292f50f96bc2d90145d0f1fcc0b6293fade107d9f14b1c8b3
+  generated_callable gc4 function=@fn17 id=e61b07bd2bb2b7e72e5dd48d69ef966965a0afbdc6927fcbdc318d0fb80603fd
+  fun Packet.equals @fn0(this: Packet, other: Packet) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Retype Int16
+            Type Code
+            FieldAccess 0
+              Type Packet
+              Local this
+          Type Int16
+          Retype Int16
+            Type Code
+            FieldAccess 0
+              Type Packet
+              Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Retype UInt8
+            Type Token<String>
+            FieldAccess 1
+              Type Packet
+              Local this
+          Type UInt8
+          Retype UInt8
+            Type Token<String>
+            FieldAccess 1
+              Type Packet
+              Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun read @fn1(code: Code) -> Int16
+    bb0 entry
+      return
+        Type Int16
+        Retype Int16
+          Type Code
+          Local code
+  fun boxed @fn2(code: Code) -> Any
+    bb0 entry
+      return
+        Type Any
+        Box
+          Type Code
+          Local code
+  fun less @fn3(code: Code, other: Int16) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int16
+        Type Int16
+        Retype Int16
+          Type Code
+          Local code
+      val $dependency.argument.0: Int16
+        Type Int16
+        Local other
+      val $dependency.parameter.other: Int16
+        Type Int16
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int16 result=Long
+            Type Int16
+            Local $dependency.receiver
+            Type Int16
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+  fun Continuation.resume @fn4(this: Continuation<Packet>, value: Packet) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Packet>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn8(this: Continuation<Code>, value: Code) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Code>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Code>, $completion: Continuation<Code>) -> CoroutineStep<Code>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Code>, continuation: Continuation<Code>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Packet.$c0 @fn12(code: Code, token: Token<String>) -> Packet <no-gc>
+    bb0 entry
+      return
+        Type Packet
+        StructInit Packet
+          Type Code
+          Local code
+          Type Token<String>
+          Local token
+  fun startCoroutine<Packet> @fn13(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn4 interface Continuation<Packet>[0]
+        Type Continuation<Packet>
+        Local completion
+        Type Packet
+        EnumField v0 f0
+          Type CoroutineStep<Packet>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn5 interface Continuation<Packet>[1]
+        Type Continuation<Packet>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Packet> = @fn6 interface SuspendTask<Packet>[0]
+        Type SuspendTask<Packet>
+        Local task
+        Type Continuation<Packet>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packet>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Code> @fn14(task: SuspendTask<Code>, completion: Continuation<Code>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn8 interface Continuation<Code>[0]
+        Type Continuation<Code>
+        Local completion
+        Type Code
+        EnumField v0 f0
+          Type CoroutineStep<Code>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn9 interface Continuation<Code>[1]
+        Type Continuation<Code>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Code> = @fn10 interface SuspendTask<Code>[0]
+        Type SuspendTask<Code>
+        Local task
+        Type Continuation<Code>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Code>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Code> ToString.toString() @fn15(this: box<Code>) -> String
+    bb0 entry
+      call $call.1: String = external0 direct
+        Type Int16
+        Retype Int16
+          Type Code
+          Unbox
+            Type box<Code>
+            Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Code> Hash.hash() @fn16(this: box<Code>) -> Long
+    bb0 entry
+      call $call.1: Long = external1 direct
+        Type Int16
+        Retype Int16
+          Type Code
+          Unbox
+            Type box<Code>
+            Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Code> Equality.equalTo(Int16) @fn17(this: box<Code>, other: Int16) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external2 direct
+        Type Int16
+        Retype Int16
+          Type Code
+          Unbox
+            Type box<Code>
+            Local this
+        Type Int16
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Packet> result=Packet
+  coroutine_step cs1 CoroutineStep<Code> result=Code
+  coroutine_slot cl0 CoroutineSlot<Packet> value=Packet
+  coroutine_slot cl1 CoroutineSlot<Code> value=Code
+  coroutine_start ct0 result=Packet function=fn13
+  coroutine_start ct1 result=Code function=fn14
+  coroutine_fn cf0 @fn6 source_return=Packet step=cs0 immediate
+  coroutine_fn cf1 @fn10 source_return=Code step=cs1 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  instance mi4 function=@fn8 <- Continuation.resume
+  instance mi5 function=@fn9 <- Continuation.resumeWithException
+  instance mi6 function=@fn10 <- SuspendTask.run
+  instance mi7 function=@fn11 <- SuspendRegistration.register
+  output library

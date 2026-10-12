@@ -56,21 +56,15 @@ impl WireDecode for DecodedCanonicalIdentifier {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CanonicalIdentifierError {
     Empty,
-    NonAscii,
-    InvalidStart,
-    InvalidContinuation,
+    InvalidCharacter,
 }
 
 impl fmt::Display for CanonicalIdentifierError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Empty => "canonical identifier must not be empty",
-            Self::NonAscii => "canonical identifier must be ASCII",
-            Self::InvalidStart => {
-                "canonical identifier must start with an ASCII letter or underscore"
-            }
-            Self::InvalidContinuation => {
-                "canonical identifier may contain only ASCII letters, digits, and underscores"
+            Self::InvalidCharacter => {
+                "canonical identifier cannot contain a backtick, newline, or control character"
             }
         })
     }
@@ -82,18 +76,11 @@ fn validate_identifier(value: &str) -> Result<(), CanonicalIdentifierError> {
     if value.is_empty() {
         return Err(CanonicalIdentifierError::Empty);
     }
-    if !value.is_ascii() {
-        return Err(CanonicalIdentifierError::NonAscii);
-    }
-    let mut bytes = value.bytes();
-    if !bytes
-        .next()
-        .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+    if value
+        .chars()
+        .any(|c| c.is_control() || matches!(c, '`' | '\u{2028}' | '\u{2029}'))
     {
-        return Err(CanonicalIdentifierError::InvalidStart);
-    }
-    if !bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_') {
-        return Err(CanonicalIdentifierError::InvalidContinuation);
+        return Err(CanonicalIdentifierError::InvalidCharacter);
     }
     Ok(())
 }
@@ -168,16 +155,31 @@ mod tests {
     use super::{CanonicalIdentifier, CanonicalIdentifierError, DecodedPackagePath, PackagePath};
 
     #[test]
-    fn identifier_matches_the_language_lexer_grammar() {
-        for value in ["name", "Name2", "_", "_private"] {
+    fn identifier_accepts_actual_names_and_preserves_codepoints() {
+        for value in [
+            "name",
+            "Name2",
+            "_",
+            "_private",
+            "2fast",
+            "hyphen-name",
+            "café",
+            "名称",
+            "a.b",
+            "has space",
+        ] {
             assert!(CanonicalIdentifier::new(value).is_ok());
         }
-        for value in ["", "2fast", "hyphen-name", "café"] {
+        for value in ["", "a`b", "a\nb", "a\0b", "a\u{2028}b"] {
             assert!(CanonicalIdentifier::new(value).is_err());
         }
         assert_eq!(
-            CanonicalIdentifier::new("2fast"),
-            Err(CanonicalIdentifierError::InvalidStart)
+            CanonicalIdentifier::new("a\tb"),
+            Err(CanonicalIdentifierError::InvalidCharacter)
+        );
+        assert_ne!(
+            CanonicalIdentifier::new("é"),
+            CanonicalIdentifier::new("e\u{301}")
         );
     }
 
@@ -201,10 +203,10 @@ mod tests {
 
     #[test]
     fn decoded_package_path_rejects_invalid_segments() {
-        let decoded = decode_canonical::<DecodedPackagePath>(b"\x81\x69not-valid").unwrap();
+        let decoded = decode_canonical::<DecodedPackagePath>(b"\x81\x69not`valid").unwrap();
         assert_eq!(
             decoded.validate(),
-            Err(CanonicalIdentifierError::InvalidContinuation)
+            Err(CanonicalIdentifierError::InvalidCharacter)
         );
     }
 }

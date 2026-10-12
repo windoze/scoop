@@ -1,117 +1,52 @@
-use crate::{CanonicalConstValueKindV1, CanonicalConstValueV1, DefaultIntegerKindV1, FloatKind};
+use crate::{
+    CanonicalConstValueKindV1, CanonicalConstValueV1, CanonicalIntegerConstantV1,
+    DefaultIntegerKindV1, FloatKind,
+};
+use scoop_identity::{
+    PersistentAnnotationId, PersistentEnumVariantId, SignatureTypeKey, SourceIdentity, SourceSpan,
+};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+mod decoded;
+mod element_type;
+mod scalar_kind;
+mod wire;
+pub use decoded::DecodedAnnotationValueV1;
+pub use element_type::AnnotationElementTypeV1;
 #[cfg(test)]
 mod tests;
 
-/// Static annotation data; arrays never materialize as managed values.
+/// Complete static data; neither nested annotations nor arrays allocate runtime objects.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CanonicalAnnotationValueV1 {
     Scalar(CanonicalConstValueV1),
+    IntegralEnum {
+        value_type: SignatureTypeKey,
+        variant: PersistentEnumVariantId,
+        value: CanonicalIntegerConstantV1,
+    },
+    Annotation {
+        annotation: PersistentAnnotationId,
+        arguments: Vec<Self>,
+    },
     Array {
-        element_type: CanonicalConstValueKindV1,
-        elements: Vec<CanonicalConstValueV1>,
+        element_type: AnnotationElementTypeV1,
+        elements: Vec<AnnotationElementV1>,
     },
 }
 
-impl WireEncode for CanonicalAnnotationValueV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Scalar(value) => {
-                encoder.map(2)?;
-                encoder.field(0)?;
-                encoder.unsigned(1)?;
-                encoder.field(1)?;
-                value.encode(encoder)
-            }
-            Self::Array {
-                element_type,
-                elements,
-            } => {
-                encoder.map(3)?;
-                encoder.field(0)?;
-                encoder.unsigned(2)?;
-                encoder.field(1)?;
-                element_type.encode(encoder)?;
-                encoder.field(2)?;
-                super::wire::sequence(encoder, elements)
-            }
-        }
-    }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AnnotationElementV1 {
+    pub value: CanonicalAnnotationValueV1,
+    pub source: SourceIdentity,
+    pub span: SourceSpan,
 }
 
-impl WireDecode for CanonicalAnnotationValueV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        match decoder.field(0, Decoder::unsigned)? {
-            1 => {
-                expect_fields(decoder, fields, 2)?;
-                decoder
-                    .field(1, CanonicalConstValueV1::decode)
-                    .map(Self::Scalar)
-            }
-            2 => {
-                expect_fields(decoder, fields, 3)?;
-                Ok(Self::Array {
-                    element_type: decoder.field(1, CanonicalConstValueKindV1::decode)?,
-                    elements: decoder.field(2, |d| {
-                        d.decode_array(|d, _| CanonicalConstValueV1::decode(d))
-                    })?,
-                })
-            }
-            tag => Err(error(decoder, WireErrorKind::UnknownTag { tag })),
-        }
-    }
-}
-
-impl WireEncode for CanonicalConstValueKindV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(if matches!(self, Self::Integer(_) | Self::Float(_)) {
-            2
-        } else {
-            1
-        })?;
-        encoder.field(0)?;
-        encoder.unsigned(match self {
-            Self::Integer(_) => 1,
-            Self::Boolean => 2,
-            Self::String => 3,
-            Self::Char => 4,
-            Self::Float(_) => 5,
-        })?;
-        match self {
-            Self::Integer(kind) => {
-                encoder.field(1)?;
-                DefaultIntegerKindV1::from(*kind).encode(encoder)
-            }
-            Self::Float(kind) => {
-                encoder.field(1)?;
-                kind.encode(encoder)
-            }
-            Self::Boolean | Self::String | Self::Char => Ok(()),
-        }
-    }
-}
-
-impl WireDecode for CanonicalConstValueKindV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        expect_fields(decoder, fields, if matches!(tag, 1 | 5) { 2 } else { 1 })?;
-        match tag {
-            1 => decoder
-                .field(1, DefaultIntegerKindV1::decode)
-                .map(|kind| Self::Integer(kind.into())),
-            2 => Ok(Self::Boolean),
-            3 => Ok(Self::String),
-            4 => Ok(Self::Char),
-            5 => decoder.field(1, FloatKind::decode).map(Self::Float),
-            tag => Err(error(decoder, WireErrorKind::UnknownTag { tag })),
-        }
-    }
-}
-
-fn expect_fields(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
+pub(super) fn expect_fields(
+    decoder: &Decoder<'_>,
+    actual: u64,
+    expected: u64,
+) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -121,7 +56,6 @@ fn expect_fields(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<()
         ))
     }
 }
-
-fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
+pub(super) fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

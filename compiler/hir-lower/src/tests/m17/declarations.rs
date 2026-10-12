@@ -13,7 +13,8 @@ fn c_extern(name: &str, params: Vec<(&str, ast::TypeRef)>) -> Decl {
         unreachable!()
     };
     function.annotations = vec![ast::Annotation {
-        name: ident("Extern"),
+        use_site: None,
+        name: ident("Extern").into(),
         args: [("lib", ""), ("name", "native_values"), ("abi", "c")]
             .into_iter()
             .map(|(name, value)| ast::AnnotationArg {

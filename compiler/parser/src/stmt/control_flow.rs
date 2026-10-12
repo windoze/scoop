@@ -8,10 +8,8 @@ use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
 impl Parser {
-    /// `if (<cond>) { ... } (else { ... })?` — the condition is always
-    /// parenthesized. M22 additionally permits an unbraced `break` or
-    /// `continue` as either branch. Other unbraced bodies, including
-    /// `else if`, remain outside the accepted syntax.
+    /// Parenthesized condition followed by scoped block or statement bodies.
+    /// Recursing through the body binds `else` to the nearest unmatched `if`.
     pub(super) fn parse_if(&mut self) -> Result<Statement, Diagnostic> {
         let if_ = self.parse_if_node()?;
         Ok(Statement {
@@ -29,11 +27,19 @@ impl Parser {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let cond = self.parse_expr()?;
         self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let then_block = self.parse_if_branch_body()?;
+        let then_block = self.parse_control_body()?;
         let mut end = then_block.span.end;
+        let after_separator = self.tokens[self.pos..]
+            .iter()
+            .position(|token| !matches!(token.kind, TokenKind::Semicolon))
+            .map(|offset| self.pos + offset)
+            .expect("token stream ends in EOF");
+        if matches!(self.tokens[after_separator].kind, TokenKind::Else) {
+            self.pos = after_separator;
+        }
         let else_block = if matches!(self.peek().kind, TokenKind::Else) {
             self.bump();
-            let block = self.parse_if_branch_body()?;
+            let block = self.parse_control_body()?;
             end = block.span.end;
             Some(block)
         } else {
@@ -48,18 +54,11 @@ impl Parser {
         })
     }
 
-    fn parse_if_branch_body(&mut self) -> Result<Block, Diagnostic> {
+    pub(crate) fn parse_control_body(&mut self) -> Result<Block, Diagnostic> {
         if matches!(self.peek().kind, TokenKind::LBrace) {
             return self.parse_block();
         }
-        if matches!(&self.peek().kind, TokenKind::Break | TokenKind::Continue) {
-            return self.parse_loop_jump_block();
-        }
-        self.parse_block()
-    }
-
-    pub(super) fn parse_loop_jump_block(&mut self) -> Result<Block, Diagnostic> {
-        let statement = self.parse_loop_jump()?;
+        let statement = self.parse_statement()?;
         let span = statement.span;
         Ok(Block {
             statements: vec![statement],
@@ -67,21 +66,52 @@ impl Parser {
         })
     }
 
-    /// `while (<cond>) { ... }` — the condition is always parenthesized.
+    /// `while (<cond>) body` — the condition is always parenthesized.
     pub(super) fn parse_while(&mut self) -> Result<Statement, Diagnostic> {
         let keyword = self.bump(); // `while`
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let cond = self.parse_expr()?;
         self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let body = self.parse_block()?;
+        let body = self.parse_control_body()?;
         let span = Span::new(keyword.span.start, body.span.end);
         Ok(Statement {
             span,
-            kind: StatementKind::While(While { cond, body, span }),
+            kind: StatementKind::While(While {
+                loop_kind: scoop_ast::LoopKind::While,
+                label: None,
+                cond,
+                body,
+                span,
+            }),
         })
     }
 
-    /// `for (<pattern> in <iterable>) { ... }`. Pattern syntax is deliberately
+    pub(super) fn parse_do_while(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump();
+        let body = self.parse_control_body()?;
+        self.expect("`while` after do body", |kind| {
+            matches!(kind, TokenKind::While)
+        })?;
+        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
+        let cond = self.parse_expr()?;
+        let end = self
+            .expect("`)`", |kind| matches!(kind, TokenKind::RParen))?
+            .span
+            .end;
+        let span = Span::new(keyword.span.start, end);
+        Ok(Statement {
+            kind: StatementKind::While(While {
+                loop_kind: scoop_ast::LoopKind::DoWhile,
+                label: None,
+                cond,
+                body,
+                span,
+            }),
+            span,
+        })
+    }
+
+    /// `for (<pattern> in <iterable>) body`. Pattern syntax is deliberately
     /// shared with `val`/lambda/`when`; irrefutability is a later typed check.
     pub(super) fn parse_for(&mut self) -> Result<Statement, Diagnostic> {
         let keyword = self.bump(); // `for`
@@ -90,10 +120,11 @@ impl Parser {
         self.expect("`in`", |kind| matches!(kind, TokenKind::In))?;
         let iterable = self.parse_expr()?;
         self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
-        let body = self.parse_block()?;
+        let body = self.parse_control_body()?;
         let span = Span::new(keyword.span.start, body.span.end);
         Ok(Statement {
             kind: StatementKind::For(For {
+                label: None,
                 pattern,
                 iterable,
                 body,

@@ -31,8 +31,8 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 self.push_child(pending, BodyNode::Expression(expression))
             }
             DefaultStatementKindV1::InitializationEnsure(_)
-            | DefaultStatementKindV1::Break
-            | DefaultStatementKindV1::Continue => Ok(()),
+            | DefaultStatementKindV1::Break(_)
+            | DefaultStatementKindV1::Continue(_) => Ok(()),
             DefaultStatementKindV1::LocalFunction(function) => {
                 self.push_child(pending, BodyNode::LocalFunction { function, origin })
             }
@@ -59,6 +59,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 self.push_child(pending, BodyNode::Expression(condition))
             }
             DefaultStatementKindV1::While {
+                loop_kind: _,
                 condition_setup,
                 condition,
                 body,

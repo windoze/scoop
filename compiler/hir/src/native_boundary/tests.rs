@@ -191,6 +191,7 @@ fn constructors_reject_duplicate_fields_variants_and_variant_fields() {
             &fixture.enumeration.1,
             &[0],
             NativeBoundaryNominalShape::Enum {
+                representation: crate::EnumRepresentation::Algebraic,
                 variants: vec![variant.clone(), variant],
             },
         ),
@@ -438,6 +439,7 @@ impl Fixture {
             &self.enumeration.1,
             &[0],
             NativeBoundaryNominalShape::Enum {
+                representation: crate::EnumRepresentation::Algebraic,
                 variants: vec![
                     NativeBoundaryVariantDefinition::new(&self.variants[0].1, Vec::new()).unwrap(),
                     NativeBoundaryVariantDefinition::new(

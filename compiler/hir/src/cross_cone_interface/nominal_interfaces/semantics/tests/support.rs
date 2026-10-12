@@ -220,14 +220,14 @@ impl std::error::Error for TestAuthorityError {}
 
 pub(super) struct TestAuthority {
     pub(super) nominals: BTreeMap<SourceNominalId, SourceDeclarationKey>,
-    shapes: BTreeMap<SourceNominalId, PublicNominalShapeV1>,
+    pub(super) shapes: BTreeMap<SourceNominalId, PublicNominalShapeV1>,
     pub(super) constructor_owner: PublicDeclarationOwnerV1,
     constructor: PersistentConstructorId,
     pub(super) member_owner: PublicDeclarationOwnerV1,
     member: PublicMemberRefV1,
     pub(super) nested_binding_owner: PublicDeclarationOwnerV1,
     nested_binding: PersistentExportBindingId,
-    fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
+    pub(super) fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
 }
 
 impl NominalInterfaceShapeAuthority<TestAuthorityError> for TestAuthority {
@@ -286,6 +286,13 @@ impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for TestAuthority {
 }
 
 impl NominalInterfaceSemanticAuthority<TestAuthorityError> for TestAuthority {
+    fn integer_kind(
+        &mut self,
+        _: SourceNominalId,
+    ) -> Result<Option<crate::IntegerKind>, TestAuthorityError> {
+        Ok(None)
+    }
+
     fn validate_nominal_declaration(
         &mut self,
         declaration: &crate::NominalInterfaceRecordV1,

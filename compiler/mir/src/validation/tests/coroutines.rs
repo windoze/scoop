@@ -49,6 +49,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     });
 
     let step_enum = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: "CoroutineStep<Int>".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
@@ -443,6 +444,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
 fn slot(module: &mut Module, name: &str, value: Type) -> (CoroutineSlotId, Type) {
     register_test_exact_type(module, &value);
     let enumeration = module.enums.alloc(EnumDef {
+        representation: crate::EnumRepresentation::Algebraic,
         name: name.to_string(),
         type_arguments: Vec::new(),
         gc_free: false,

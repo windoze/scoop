@@ -24,6 +24,7 @@ SourceFile
       Call delayed
         Var source
         Lambda 0 suspend=false
+          label delayed
           param value: _
           Call read
             Var value
@@ -32,5 +33,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 1 suspend=false
+          label exercise
           param value: _
           Var value

@@ -1,0 +1,3 @@
+class Pair<A, B>(val a: A, val b: B)
+typealias Row<T> = Pair<String, T>
+fun main() { val make: (Int, Int) -> Pair<Int, Int> = ::Row }

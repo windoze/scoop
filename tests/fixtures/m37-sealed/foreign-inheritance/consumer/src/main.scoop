@@ -1,0 +1,4 @@
+package provider
+import bridge.*
+class Foreign : State()
+fun main() {}

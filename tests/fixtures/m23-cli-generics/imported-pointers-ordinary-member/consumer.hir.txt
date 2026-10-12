@@ -91,13 +91,13 @@ intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 20
   public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
   public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
 any Any
-pointer Ptr<Int>
-pointer Ptr<T>
-interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
-  parameter T: Any
 interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
 interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+  parameter T: Any
 interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+pointer Ptr<Int>
+pointer Ptr<T>
 interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
   parameter T: Any
 interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
@@ -158,9 +158,9 @@ LocalConcrete 96cdec616d92e7142955041462597d9e54f3f99f0d3b6ebf97c97053395c97ed L
   coroutines []
 == CrossCone ==
 CrossCone 96cdec616d92e7142955041462597d9e54f3f99f0d3b6ebf97c97053395c97ed
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(18), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(15), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(20), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(26), method_arguments: [] } }
   public_bindings count=2
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([56, 121, 80, 234, 36, 92, 7, 4, 42, 170, 32, 151, 81, 55, 44, 224, 243, 24, 58, 109, 37, 141, 108, 21, 193, 175, 229, 250, 22, 253, 39, 15]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([151, 213, 155, 246, 139, 238, 185, 220, 243, 172, 179, 38, 27, 14, 148, 174, 75, 88, 239, 206, 191, 83, 2, 247, 23, 82, 252, 115, 26, 28, 88, 69])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([244, 174, 112, 218, 194, 148, 227, 8, 90, 244, 246, 44, 202, 91, 153, 45, 217, 85, 140, 182, 198, 239, 10, 200, 90, 231, 104, 33, 226, 118, 186, 214]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([70, 169, 150, 194, 92, 59, 66, 207, 20, 190, 41, 22, 87, 255, 112, 164, 81, 206, 5, 232, 26, 8, 73, 95, 71, 24, 190, 22, 234, 139, 43, 175])) } }

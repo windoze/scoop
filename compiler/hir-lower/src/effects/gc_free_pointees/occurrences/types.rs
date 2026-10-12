@@ -75,6 +75,7 @@ pub(in super::super) fn collect_statement_types(
                 }
             }
             hir::StatementKind::While {
+                loop_kind: _,
                 target: _,
                 condition_setup,
                 cond,
@@ -257,7 +258,7 @@ pub(in super::super) fn collect_expr_types(
         | ExprKind::PtrCast(source)
         | ExprKind::Box(source)
         | ExprKind::Unbox(source)
-        | ExprKind::ReferenceUpcast(source)
+        | ExprKind::Upcast(source)
         | ExprKind::ArrayLen(source)
         | ExprKind::ArrayClone(source)
         | ExprKind::AtomicNew(source)
@@ -464,7 +465,7 @@ pub(in super::super) fn collect_function_type_types(
     out: &mut Vec<hir::TypeId>,
 ) {
     let function = &lowerer.function_types[function];
-    out.extend(function.parameter_types.iter().copied());
+    out.extend(function.parameters().copied());
     out.push(function.return_type);
 }
 

@@ -24,6 +24,7 @@ pub(crate) enum NamedCallTarget {
 pub(crate) enum NamedCallOrigin {
     CurrentUnit(CurrentUnitBindingId),
     Core(NamedCallTarget),
+    Lexical(crate::aliases::SourceTypeAliasId),
     Dependency(hir::DirectImportedTargetBinding),
 }
 
@@ -185,6 +186,7 @@ impl Lowerer {
                     self.access_domain_allows(&self.enums[target.enumeration()].access.lookup.0)
                 }
             },
+            NamedCallOrigin::Lexical(alias) => self.source_type_alias_is_accessible(*alias),
             NamedCallOrigin::Dependency(_) => true,
         }
     }

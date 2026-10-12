@@ -1,5 +1,29 @@
+use super::interfaces::InterfaceMemberInstance;
 use super::*;
 use hir::ImportedCallableSource;
+
+mod access;
+mod imported;
+
+pub(super) struct MemberOverride {
+    pub name: ast::Ident,
+    pub is_override: bool,
+    pub parameter_spans: Vec<ast::Span>,
+}
+
+impl MemberOverride {
+    pub fn source(source: &ast::FunctionDecl) -> Self {
+        Self {
+            name: source.name.clone(),
+            is_override: source.is_override,
+            parameter_spans: source
+                .params
+                .iter()
+                .map(|parameter| parameter.span)
+                .collect(),
+        }
+    }
+}
 
 impl Lowerer {
     /// The `override` rules for one member function: an overriding
@@ -13,7 +37,7 @@ impl Lowerer {
     pub(super) fn check_override_rules(
         &mut self,
         id: FunctionId,
-        decl: &ast::FunctionDecl,
+        decl: &MemberOverride,
         owner: Owner,
     ) {
         if matches!(owner, Owner::Interface(_))
@@ -21,7 +45,7 @@ impl Lowerer {
         {
             return;
         }
-        let candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
+        let mut candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
             Owner::Class(class_id) => {
                 let mut candidates: Vec<_> = self
                     .base_chain_methods(class_id)
@@ -62,6 +86,9 @@ impl Lowerer {
                 self.interface_method_candidates(&parents)
             }
         };
+        let accessor_kind = self.function_accessor_kind(id);
+        candidates
+            .retain(|(candidate, _)| self.function_accessor_kind(*candidate) == accessor_kind);
         let sig = self.signatures[&id].clone();
         let short = decl.name.text.clone();
         let matching_overrides = candidates
@@ -72,14 +99,16 @@ impl Lowerer {
             .cloned()
             .collect::<Vec<_>>();
         let interfaces = self.owner_interfaces(owner);
-        let signature = super::interfaces::InterfaceSignature::local(&short, &sig);
+        let signature = super::interfaces::InterfaceSignature::local(&short, &sig, accessor_kind);
         let class = match owner {
             Owner::Class(class) => Some(class),
             Owner::Object(object) => Some(self.objects[object].backing_class),
             _ => None,
         };
         let imported_class = class
-            .map(|class| self.inherited_imported_class_methods(class, &short, decl.name.span))
+            .map(|class| {
+                self.inherited_imported_class_methods(class, &short, accessor_kind, decl.name.span)
+            })
             .unwrap_or_default();
         let imported_class_matches = imported_class
             .iter()
@@ -154,6 +183,12 @@ impl Lowerer {
                     default_type_arguments.len(),
                     self.signatures[candidate].type_params.len()
                 );
+                self.defer_override_result(
+                    id,
+                    *candidate,
+                    default_type_arguments.clone(),
+                    decl.name.span,
+                );
                 self.override_default_sources.entry(id).or_default().push(
                     crate::defaults::DefaultOverrideSource::Local {
                         function: *candidate,
@@ -183,10 +218,10 @@ impl Lowerer {
                 );
                 if let Some(index) = mismatch {
                     self.error(
-                        decl.params[index].span,
+                        decl.parameter_spans[index],
                         format!(
                             "parameter `{}` of `{short}` must have the same `vararg` shape as `{}`",
-                            decl.params[index].name.text, self.functions[*candidate].name
+                            sig.params[index].name.text, self.functions[*candidate].name
                         ),
                     );
                     break;
@@ -230,6 +265,7 @@ impl Lowerer {
                         super::interfaces::InterfaceSignature::local(
                             &short,
                             &self.signatures[candidate],
+                            accessor_kind,
                         ),
                     )
                 });
@@ -382,181 +418,6 @@ impl Lowerer {
                 format!("`{short}` is marked `override` but does not override any method"),
             ),
             _ => {}
-        }
-    }
-
-    fn check_imported_interface_override(
-        &mut self,
-        id: FunctionId,
-        decl: &ast::FunctionDecl,
-        signature: &FnSig,
-        inherited: &[super::interfaces::InterfaceMemberInstance],
-    ) {
-        use hir::ImportedCallableSource;
-        for member in inherited {
-            let target = format!("{}.{}", self.type_name(member.owner), member.signature.name);
-            let covers = self.functions[id]
-                .access
-                .slot
-                .as_ref()
-                .is_some_and(|provided| {
-                    self.access_domain_is_subset(&hir::AccessDomain::universal(), &provided.0)
-                });
-            if !covers {
-                self.error(
-                    decl.name.span,
-                    format!(
-                        "visibility of `{}` does not cover inherited slot `{target}`",
-                        decl.name.text
-                    ),
-                );
-            }
-            let hir::InterfaceMethodReference::Imported { owner, slot } = member.member else {
-                unreachable!("imported candidates retain imported slots")
-            };
-            let Some(interface) = self.dependency_interface_definition(owner) else {
-                unreachable!("imported slot owner is an interface")
-            };
-            let declaration = self
-                .dependencies
-                .as_ref()
-                .expect("an imported interface has a dependency catalog")
-                .callable_for_slot(interface.declaration.owner(), slot)
-                .expect("resolved interface callable")
-                .expect("resolved interface slot");
-            for (index, parameter) in signature.params.iter().enumerate() {
-                let inherited_vararg = declaration.source_interface().is_some_and(|source| {
-                    source.parameters().parameters()[index]
-                        .calling()
-                        .is_vararg()
-                });
-                if matches!(parameter.calling, crate::FnParamCalling::Vararg { .. })
-                    != inherited_vararg
-                {
-                    self.error(decl.params[index].span, format!("parameter `{}` of `{}` must have the same `vararg` shape as `{target}`", decl.params[index].name.text, decl.name.text));
-                    break;
-                }
-            }
-            let hir::PublicDeclarationOwnerV1::Nominal(nominal) = declaration.interface().owner()
-            else {
-                unreachable!("an inherited interface method has a nominal owner")
-            };
-            let owner = self
-                .imported_member_owner_type(owner, nominal)
-                .expect("the inherited method retains its declaring application");
-            self.override_default_sources.entry(id).or_default().push(
-                crate::defaults::DefaultOverrideSource::Imported {
-                    declaration: declaration.interface().declaration(),
-                    owner,
-                },
-            );
-        }
-    }
-
-    fn check_override_access_coverage(
-        &mut self,
-        id: FunctionId,
-        decl: &ast::FunctionDecl,
-        inherited: &[(FunctionId, Vec<TypeId>)],
-    ) {
-        let Some(mut provided) = self.functions[id].access.slot.clone() else {
-            unreachable!("an overriding method always owns a slot contract")
-        };
-        if self.functions[id].access.declared == hir::DeclaredVisibility::Protected
-            && self.functions[inherited[0].0].access.declared == hir::DeclaredVisibility::Protected
-            && let Some(required) = self.functions[inherited[0].0].access.slot.clone()
-        {
-            // `protected override` preserves the inherited protected region;
-            // anchoring it at the concrete subclass would incorrectly narrow
-            // access for sibling descendants of the original declaring class.
-            provided = required;
-            self.functions[id].access.slot = Some(provided.clone());
-        }
-
-        for (candidate, _) in inherited {
-            let Some(required) = self.functions[*candidate].access.slot.clone() else {
-                continue;
-            };
-            if !self.access_domain_is_subset(&required.0, &provided.0) {
-                let target = self.functions[*candidate].name.clone();
-                self.error(
-                    decl.name.span,
-                    format!(
-                        "visibility of `{}` does not cover inherited slot `{target}`",
-                        decl.name.text
-                    ),
-                );
-                continue;
-            }
-        }
-    }
-
-    pub(super) fn check_member_access_contract(
-        &mut self,
-        id: FunctionId,
-        decl: &ast::FunctionDecl,
-        owner: Owner,
-    ) {
-        let access = self.functions[id].access.clone();
-        let modifier = self.functions[id]
-            .method
-            .expect("inheritance checks receive member functions")
-            .modifier;
-
-        if access.declared == hir::DeclaredVisibility::Private
-            && modifier != hir::MethodModifier::Final
-        {
-            self.error(
-                decl.name.span,
-                format!("private method `{}` must be final", decl.name.text),
-            );
-        }
-
-        if let Owner::Interface(interface) = owner {
-            if self.interfaces[interface].access.declared == hir::DeclaredVisibility::Public
-                && !matches!(
-                    access.declared,
-                    hir::DeclaredVisibility::Public | hir::DeclaredVisibility::Private
-                )
-            {
-                self.error(
-                    decl.name.span,
-                    format!(
-                        "member `{}` of public interface `{}` must be explicitly public",
-                        decl.name.text, self.interfaces[interface].name
-                    ),
-                );
-            }
-            if access.declared == hir::DeclaredVisibility::Private && decl.is_override {
-                self.error(
-                    decl.name.span,
-                    format!(
-                        "private interface method `{}` cannot be an override",
-                        decl.name.text
-                    ),
-                );
-            }
-            return;
-        }
-
-        if modifier != hir::MethodModifier::Abstract {
-            return;
-        }
-        let Owner::Class(class) = owner else {
-            return;
-        };
-        let required = self.classes[class].access.inheritance.0.clone();
-        let Some(provided) = access.slot else {
-            unreachable!("an abstract method always has a slot contract")
-        };
-        if !self.access_domain_is_subset(&required, &provided.0) {
-            self.error(
-                decl.name.span,
-                format!(
-                    "abstract method `{}` is not visible throughout the inheritance domain of class `{}`",
-                    decl.name.text, self.classes[class].name
-                ),
-            );
         }
     }
 }

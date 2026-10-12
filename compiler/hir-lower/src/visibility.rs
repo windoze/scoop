@@ -83,6 +83,9 @@ impl Lowerer {
         declaration_kind: &str,
         file: usize,
     ) -> hir::NominalAccess {
+        if self.local_type_declaration.is_some() {
+            return self.local_nominal_access();
+        }
         let direct = self.top_level_access(syntax, span, declaration_kind, file);
         hir::NominalAccess {
             declared: direct.declared,
@@ -99,6 +102,9 @@ impl Lowerer {
         owner: Owner,
         file: usize,
     ) -> hir::NominalAccess {
+        if self.local_type_declaration.is_some() {
+            return self.local_nominal_access();
+        }
         let mut declared = Self::normalized_visibility(syntax);
         if declared == hir::DeclaredVisibility::Protected && !matches!(owner, Owner::Class(_)) {
             self.error(

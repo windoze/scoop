@@ -74,7 +74,14 @@ impl Lowerer {
                     }
                 },
                 type_parameters,
-                receiver: None,
+                receiver: match owner {
+                    hir::ExportParameterOwner::ClassConstructor(constructor) => self
+                        .class_constructors[constructor]
+                        .context_parameter
+                        .as_ref()
+                        .map(|parameter| (parameter.ty, None)),
+                    _ => None,
+                },
                 is_suspend: false,
                 safety: match owner {
                     hir::ExportParameterOwner::ClassConstructor(id) => {

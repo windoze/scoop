@@ -131,7 +131,7 @@ fn physical_storage_matches(
             scoop_lir::CanonicalCAbiStorageType::Float { kind: expected, .. },
         ) => *kind == expected,
         (
-            scoop_lir::CType::Integer(kind),
+            scoop_lir::CType::Integer(kind) | scoop_lir::CType::IntegralEnum { kind, .. },
             scoop_lir::CanonicalCAbiStorageType::Integer {
                 signedness,
                 bit_width,

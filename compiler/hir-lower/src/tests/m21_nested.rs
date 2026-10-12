@@ -21,13 +21,12 @@ fn class_source(
 }
 
 fn nested_class(declaration: ast::ClassDecl) -> ast::ClassMember {
-    ast::ClassMember::Nested(Box::new(ast::NestedNominalDecl::Class(Box::new(
-        declaration,
-    ))))
+    ast::ClassMember::Nested(Box::new(ast::NestedTypeDecl::Class(Box::new(declaration))))
 }
 
 fn qualified_type(path: &[&str]) -> TypeRef {
     TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Qualified {
             path: path.iter().map(|name| ident(name)).collect(),
             arguments: Vec::new(),

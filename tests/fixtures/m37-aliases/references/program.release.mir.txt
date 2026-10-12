@@ -1,0 +1,501 @@
+Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Pair<String, Int> vtable=0 itables=0
+  class Choice<String> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn11 id=0bbcd9e90e5a76d4cd476b320cadddc6b0bc6dbe50b1f2f7a6d31dbf8ca03a67
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn12 id=fc95a23c895a61fdb2cb0e369226f515926bae121fe132115a5ae4b7a11de8ec
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn13 id=5e1c130d3fdeff4c25306dd7e94cd991d9978e6b6475a15c84f453901aadb993
+  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn14 id=bc57422b89d5441c86c248304bf500f0272032f5b99ec002ec7b6ae28d9e6083
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=closure3 nominal_id=f40cbeb19f135c0763f312b3d2f341e2146adec281102a4c55358c3479176dd8 exact_id=2ab9e35f8c12e964d466444ccad227f8f07579c7c25183a4b6a4fcb91b8e9579
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=closure2 nominal_id=a2c899e3e0a92b6343c469b18f5b1b95208de4cabe08ea734599e529616c61b1 exact_id=c3c59c93f4c2da8e0952cfc3899192bb88485f2116e168ea398704d1280e4f77
+  generated_exact_type get8 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn11 id=0bbcd9e90e5a76d4cd476b320cadddc6b0bc6dbe50b1f2f7a6d31dbf8ca03a67
+  generated_callable gc1 function=@fn13 id=5e1c130d3fdeff4c25306dd7e94cd991d9978e6b6475a15c84f453901aadb993
+  generated_callable gc2 function=@fn14 id=bc57422b89d5441c86c248304bf500f0272032f5b99ec002ec7b6ae28d9e6083
+  generated_callable gc3 function=@fn12 id=fc95a23c895a61fdb2cb0e369226f515926bae121fe132115a5ae4b7a11de8ec
+  fun main @fn0() -> Unit
+    bb0 entry
+      val make: (String, Int) -> Pair<String, Int>
+        Type (String, Int) -> Pair<String, Int>
+        ClosureAlloc cc0 $Closure$lambda0
+      call $call.1: Pair<String, Int> = @fn1 direct
+        Type (String, Int) -> Pair<String, Int>
+        Local make
+        Type String
+        StringConst @str0
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<String, Int>
+          Local $call.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: String = @fn3 direct
+        Type String
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn5 direct
+        Type String
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val pick: (String, Int) -> Choice<String>
+        Type (String, Int) -> Choice<String>
+        ClosureAlloc cc1 $Closure$lambda1
+      call $call.2: Choice<String> = @fn6 direct
+        Type (String, Int) -> Choice<String>
+        Local pick
+        Type String
+        StringConst @str3
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Choice<String>
+          Local $call.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.2 @fn1($closure: (String, Int) -> Pair<String, Int>, __codec_argument_0: String, __codec_argument_1: Int) -> Pair<String, Int>
+    bb0 entry
+      assign $new.1
+        Type Pair<String, Int>
+        ClassAlloc Pair<String, Int>
+      val $inline.1.this: Pair<String, Int>
+        Type Pair<String, Int>
+        Local $new.1
+      val $inline.1.first: String
+        Type String
+        Local __codec_argument_0
+      val $inline.1.second: Int
+        Type Int
+        Local __codec_argument_1
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Pair<String, Int>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Pair<String, Int>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Pair<String, Int>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.second
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun build @fn3(value: String) -> String
+    bb0 entry
+      val make: (String, Int) -> Pair<String, Int>
+        Type (String, Int) -> Pair<String, Int>
+        ClosureAlloc cc2 $Closure$lambda2
+      call $call.1: Pair<String, Int> = @fn7 direct
+        Type (String, Int) -> Pair<String, Int>
+        Local make
+        Type String
+        Local value
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      return
+        Type String
+        FieldAccess 0
+          Type Pair<String, Int>
+          Local $call.1
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun choose @fn5(value: String) -> Int
+    bb0 entry
+      val make: (String, Int) -> Choice<String>
+        Type (String, Int) -> Choice<String>
+        ClosureAlloc cc3 $Closure$lambda3
+      call $call.1: Choice<String> = @fn8 direct
+        Type (String, Int) -> Choice<String>
+        Local make
+        Type String
+        Local value
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type Choice<String>
+          Local $call.1
+      val $argument.0: String
+        Type String
+        Local value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.n: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      assign $new.2
+        Type Choice<String>
+        ClassAlloc Choice<String>
+      val $inline.1.this: Choice<String>
+        Type Choice<String>
+        Local $new.2
+      val $inline.1.first: String
+        Type String
+        Local $parameter.first
+      val $inline.1.n: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb2
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Choice<String>
+          Local $new.2
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb2 inline.1.entry
+      field_set 0
+        Type Choice<String>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Choice<String>
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $lambda.3 @fn6($closure: (String, Int) -> Choice<String>, __codec_argument_0: String, __codec_argument_1: Int) -> Choice<String>
+    bb0 entry
+      assign $new.1
+        Type Choice<String>
+        ClassAlloc Choice<String>
+      val $inline.1.this: Choice<String>
+        Type Choice<String>
+        Local $new.1
+      val $inline.1.first: String
+        Type String
+        Local __codec_argument_0
+      val $inline.1.n: Int
+        Type Int
+        Local __codec_argument_1
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Choice<String>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Choice<String>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Choice<String>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.n
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $lambda.0 @fn7($closure: (String, Int) -> Pair<String, Int>, __codec_argument_0: String, __codec_argument_1: Int) -> Pair<String, Int>
+    bb0 entry
+      assign $new.1
+        Type Pair<String, Int>
+        ClassAlloc Pair<String, Int>
+      val $inline.1.this: Pair<String, Int>
+        Type Pair<String, Int>
+        Local $new.1
+      val $inline.1.first: String
+        Type String
+        Local __codec_argument_0
+      val $inline.1.second: Int
+        Type Int
+        Local __codec_argument_1
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Pair<String, Int>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Pair<String, Int>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Pair<String, Int>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.second
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $lambda.1 @fn8($closure: (String, Int) -> Choice<String>, __codec_argument_0: String, __codec_argument_1: Int) -> Choice<String>
+    bb0 entry
+      assign $new.1
+        Type Choice<String>
+        ClassAlloc Choice<String>
+      val $inline.1.this: Choice<String>
+        Type Choice<String>
+        Local $new.1
+      val $inline.1.first: String
+        Type String
+        Local __codec_argument_0
+      val $inline.1.n: Int
+        Type Int
+        Local __codec_argument_1
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Choice<String>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Choice<String>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Choice<String>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.n
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun init.Pair.$c0 @fn9(this: Pair<String, Int>, first: String, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Pair<String, Int>
+        Local this
+        Type String
+        Local first
+      field_set 1
+        Type Pair<String, Int>
+        Local this
+        Type Int
+        Local second
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Choice.$c1 @fn10(this: Choice<String>, first: String, n: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Choice<String>
+        Local this
+        Type String
+        Local first
+      field_set 1
+        Type Choice<String>
+        Local this
+        Type Int
+        Local n
+      return
+        Type Unit
+        UnitLiteral
+  fun function_bridge.$Closure$lambda0.(Any, Any) -> Any @fn11($source: (String, Int) -> Pair<String, Int>, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Pair<String, Int> = <closure:function_type0> closure[function_type0]
+        Type (String, Int) -> Pair<String, Int>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type Pair<String, Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any, Any) -> Any @fn12($source: (String, Int) -> Choice<String>, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Choice<String> = <closure:function_type2> closure[function_type2]
+        Type (String, Int) -> Choice<String>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type Choice<String>
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any, Any) -> Any @fn13($source: (String, Int) -> Pair<String, Int>, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Pair<String, Int> = <closure:function_type0> closure[function_type0]
+        Type (String, Int) -> Pair<String, Int>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type Pair<String, Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any, Any) -> Any @fn14($source: (String, Int) -> Choice<String>, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Choice<String> = <closure:function_type2> closure[function_type2]
+        Type (String, Int) -> Choice<String>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type Choice<String>
+          Local $call.1
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- build
+  instance mi2 function=@fn4 <- println
+  instance mi3 function=@fn5 <- choose
+  instance mi4 function=@fn7 <- $lambda.0
+  instance mi5 function=@fn8 <- $lambda.1
+  str @str0 "reference"
+  str @str1 "captured"
+  str @str2 "owner"
+  str @str3 "generic"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn0

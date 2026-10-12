@@ -1,0 +1,27 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    public override fun left(): Int = 20
+    public override fun right(): Int = 22
+}
+fun source(): Any {
+    val action: (Any) -> Both = { _: Any -> Both() }
+    return action
+}
+fun inspect(value: Any): Int {
+    if (value !is (Int) -> Left) return 0
+    val snapshot: Any = value
+    if (value !== value || snapshot !== value) return 1
+    if (value !is (Int) -> Right) return 2
+    if (value is () -> Left) return 3
+    if (snapshot !is (Int) -> Right) return 4
+    val left = value as (Int) -> Left
+    val right = (snapshot as? (Int) -> Right)!!
+    gcCollect()
+    if (value !== snapshot || value !== value) return 5
+    return left(0).left() + right(0).right()
+}
+fun main() {
+    println(inspect(source()))
+    println(inspect("other"))
+}

@@ -48,10 +48,13 @@ impl Lowerer {
                     .collect(),
             )
         }));
-        let mut relevance = definitions
-            .iter()
-            .map(|(owner, _)| (*owner, HashSet::new()))
-            .collect::<HashMap<_, _>>();
+        definitions.retain(|(owner, _)| !self.value_layout_relevance.contains_key(owner));
+        let mut relevance = self.value_layout_relevance.clone();
+        relevance.extend(
+            definitions
+                .iter()
+                .map(|(owner, _)| (*owner, HashSet::new())),
+        );
 
         loop {
             let mut changed = false;

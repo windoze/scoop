@@ -198,6 +198,7 @@ pub enum Instruction {
         value: Value,
         normalized_count: Value,
     },
+    /// Convert integer storage; integral enum operands use their exact parent kind.
     IntegerConvert {
         out: TempId,
         source_kind: IntegerKind,

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m37"
+name = "annotation-targets-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m37:annotation-targets-bridge" = "0.1.0"

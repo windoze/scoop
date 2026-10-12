@@ -43,6 +43,7 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        loop_kind: LoopKind,
         target: LoopId,
         condition_setup: Vec<Statement>,
         cond: Expr,
@@ -269,7 +270,7 @@ pub enum ExprKind {
     },
     Box(Box<Expr>),
     Unbox(Box<Expr>),
-    ReferenceUpcast(Box<Expr>),
+    Upcast(Box<Expr>),
     IsInstance {
         operand: Box<Expr>,
         check_ty: TypeId,

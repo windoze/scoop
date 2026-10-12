@@ -116,8 +116,11 @@ fn block_loop_jumps_keep_keyword_spans() {
     };
     let break_statement = &while_.body.statements[0];
     let continue_statement = &while_.body.statements[1];
-    assert!(matches!(&break_statement.kind, StatementKind::Break));
-    assert!(matches!(&continue_statement.kind, StatementKind::Continue));
+    assert!(matches!(&break_statement.kind, StatementKind::Break { .. }));
+    assert!(matches!(
+        &continue_statement.kind,
+        StatementKind::Continue { .. }
+    ));
     let break_start = source.find("break").unwrap() as u32;
     let continue_start = source.find("continue").unwrap() as u32;
     assert_eq!(
@@ -131,7 +134,7 @@ fn block_loop_jumps_keep_keyword_spans() {
 }
 
 #[test]
-fn unbraced_if_branches_accept_only_loop_jumps() {
+fn unbraced_if_branches_keep_loop_jumps() {
     let file = ok(
         "fun main() {\n    while (ready) {\n        if (done) break\n        else continue\n    }\n}\n",
     );
@@ -143,15 +146,14 @@ fn unbraced_if_branches_accept_only_loop_jumps() {
     };
     assert!(matches!(
         if_.then_block.statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Break)
+        [statement] if matches!(&statement.kind, StatementKind::Break { .. })
     ));
     assert!(matches!(
         if_.else_block.as_ref().unwrap().statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Continue)
+        [statement] if matches!(&statement.kind, StatementKind::Continue { .. })
     ));
 
-    let (_, message) = err("fun main() { if (ready) work() else rest() }");
-    assert_eq!(message, "expected `{`, found `work`");
+    ok("fun main() { if (ready) work() else rest() }");
 }
 
 #[test]
@@ -165,7 +167,7 @@ fn value_if_may_use_a_direct_jump_as_its_terminating_branch() {
     };
     assert!(matches!(
         if_.then_block.statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Break)
+        [statement] if matches!(&statement.kind, StatementKind::Break { .. })
     ));
 }
 
@@ -182,11 +184,11 @@ fn when_single_statement_bodies_accept_loop_jumps() {
     };
     assert!(matches!(
         when.arms[0].body.statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Break)
+        [statement] if matches!(&statement.kind, StatementKind::Break { .. })
     ));
     assert!(matches!(
         when.else_body.as_ref().unwrap().statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Continue)
+        [statement] if matches!(&statement.kind, StatementKind::Continue { .. })
     ));
 }
 
@@ -207,11 +209,6 @@ fn malformed_for_headers_report_the_exact_missing_delimiter() {
             "fun main() { for (item in items\n{} }",
             "}",
             "expected `)`, found `}`",
-        ),
-        (
-            "fun main() { for (item in items) consume(item) }",
-            "consume",
-            "expected `{`, found `consume`",
         ),
     ];
 
@@ -253,78 +250,40 @@ fn malformed_for_recovery_reaches_later_statements_and_declarations() {
 }
 
 #[test]
-fn labeled_jumps_and_loops_remain_unsupported() {
-    for (source, expected_span, expected) in [
-        (
-            "fun main() { break@outer }",
-            "break@outer",
-            "`break` labels are not supported in M22",
-        ),
-        (
-            "fun main() { continue@outer }",
-            "continue@outer",
-            "`continue` labels are not supported in M22",
-        ),
-        (
-            "fun main() { return@outer }",
-            "return@outer",
-            "`return` labels are not supported in M22",
-        ),
-        (
-            "fun main() { outer@ while (ready) {} }",
-            "outer@",
-            "loop labels are not supported in M22",
-        ),
-        (
-            "fun main() { outer@ for (item in items) {} }",
-            "outer@",
-            "loop labels are not supported in M22",
-        ),
-    ] {
-        let (span, message) = err(source);
-        let start = source.find(expected_span).unwrap() as u32;
-        assert_eq!(
-            span,
-            Span::new(start, start + expected_span.len() as u32),
-            "{source}"
-        );
-        assert_eq!(message, expected, "{source}");
-    }
+fn return_labels_preserve_the_target_and_optional_value() {
+    let file = ok("fun main() { return@main }");
+    let StatementKind::Return { label, value } =
+        &block_body(only_function(&file)).statements[0].kind
+    else {
+        panic!("return");
+    };
+    assert_eq!(label.as_ref().unwrap().text, "main");
+    assert!(value.is_none());
 }
 
 #[test]
-fn general_jump_expressions_remain_unsupported() {
-    for source in [
-        "fun main() { val value = other ?: break }",
-        "fun main() { call(continue) }",
-        "fun main() { val value = (break) }",
-        "fun main() { val value = left break right }",
-        "fun main() { break + 1 }",
-        "fun main() { continue.member }",
-        "fun main() { break() }",
-        "fun main() { if (ready) break + 1 }",
-        "fun main() { when (state) { else -> continue.member } }",
-    ] {
-        let (span, message) = err(source);
-        let (jump, expected) = if source.contains("continue") {
-            (
-                "continue",
-                "`continue` jump expressions are not supported in M22",
-            )
-        } else {
-            ("break", "`break` jump expressions are not supported in M22")
-        };
-        let start = source.find(jump).unwrap() as u32;
-        assert_eq!(span, Span::new(start, start + jump.len() as u32));
-        assert_eq!(message, expected);
-    }
-}
-
-#[test]
-fn do_while_remains_unsupported() {
+fn do_while_preserves_body_condition_and_span() {
     let source = "fun main() { do { work() } while (ready) }";
-    let (span, message) = err(source);
-    let start = source.find("do").unwrap() as u32;
-    assert_eq!(span, Span::new(start, start + 2));
-    assert_eq!(message, "`do-while` loops are not supported in M22");
+    let file = ok(source);
+    let statement = &block_body(only_function(&file)).statements[0];
+    let StatementKind::While(loop_) = &statement.kind else {
+        panic!("expected a do-while statement");
+    };
+    assert_eq!(loop_.loop_kind, scoop_ast::LoopKind::DoWhile);
+    assert_eq!(loop_.body.statements.len(), 1);
+    assert!(matches!(&loop_.cond, Expr::Var(name) if name.text == "ready"));
+    assert_eq!(statement.span.start, source.find("do").unwrap() as u32);
+    assert_eq!(statement.span.end, source.rfind(')').unwrap() as u32 + 1);
+}
+
+#[test]
+fn do_while_accepts_a_label_and_a_single_statement() {
+    let file = ok("fun main() { repeat@ do work() while (ready) }");
+    let statement = &block_body(only_function(&file)).statements[0];
+    let StatementKind::While(loop_) = &statement.kind else {
+        panic!("expected loop");
+    };
+    assert_eq!(loop_.loop_kind, scoop_ast::LoopKind::DoWhile);
+    assert_eq!(loop_.label.as_ref().unwrap().text, "repeat");
+    assert_eq!(loop_.body.statements.len(), 1);
 }

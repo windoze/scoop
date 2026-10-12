@@ -95,7 +95,7 @@ impl SourceRoots {
                     let signature = &export.function_types
                         [export.local_functions[id].declaration_function_type];
                     roots.require_field_type(export, index, signature.return_type)?;
-                    for parameter in &signature.parameter_types {
+                    for parameter in signature.parameters() {
                         roots.require_field_type(export, index, *parameter)?;
                     }
                 }

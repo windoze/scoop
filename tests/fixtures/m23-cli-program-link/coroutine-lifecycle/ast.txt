@@ -6,6 +6,7 @@ SourceFile
       Call Completion<T>
     Call startCoroutine
       Lambda 0 suspend=true
+        label startCoroutine
         parameters omitted
         Call synchronous
           Var seed
@@ -28,6 +29,7 @@ SourceFile
       Call Completion<T>
     Call startCoroutine
       Lambda 1 suspend=true
+        label startCoroutine
         parameters omitted
         Call synchronousFailure<T>
       Var failed
@@ -48,6 +50,7 @@ SourceFile
       Call Completion<T>
     Call startCoroutine
       Lambda 2 suspend=true
+        label startCoroutine
         parameters omitted
         Call registrationFailure<T>
       Var registration
@@ -68,6 +71,7 @@ SourceFile
       Call Completion<T>
     Call startCoroutine
       Lambda 3 suspend=true
+        label startCoroutine
         parameters omitted
         Call resumedThenThrows
           Var seed
@@ -89,6 +93,7 @@ SourceFile
       Call Completion<T>
     Call startCoroutine
       Lambda 4 suspend=true
+        label startCoroutine
         parameters omitted
         Call resumedTwice
           Var seed
@@ -112,6 +117,7 @@ SourceFile
       Call Completion<T>
     Call startCoroutine
       Lambda 5 suspend=true
+        label startCoroutine
         parameters omitted
         Call await
           Var gate
@@ -164,6 +170,7 @@ SourceFile
       Call exercise
         IntLiteral 42
         Lambda 6 suspend=false
+          label exercise
           param value: Int
           Var value
   fun main()

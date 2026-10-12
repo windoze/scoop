@@ -1,0 +1,31 @@
+@Target([AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.ENUM_VARIANT, AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.TYPEALIAS, AnnotationTarget.TYPE])
+annotation class Mark(val text: String)
+@Mark("meta") annotation class Meta
+@Mark("alias") typealias Count = Int
+@Mark("function") fun add(@Mark("left") left: Count, @param:Mark("right") right: Count): Count = left + right
+@Mark("extension") @receiver:Mark("receiver") fun Count.plus(@Mark("amount") amount: Count): Count = this + amount
+@Mark("global") @field:Mark("global field") @get:Mark("global getter") @set:Mark("global setter") @setparam:Mark("global value")
+var total: Count = 1
+@Meta class Box @Mark("primary") constructor(
+    @Mark("property") @field:Mark("field") @param:Mark("primary parameter")
+    @get:Mark("getter") @set:Mark("setter") @setparam:Mark("setter value") var value: Count,
+    @Mark("ordinary parameter") offset: Count
+) {
+    @Mark("computed") @receiver:Mark("property receiver") val doubled: Count
+        @Mark("direct getter") get() = value * 2
+    @Mark("method") @receiver:Mark("method receiver") fun read(@Mark("increment") increment: Count): Count = value + increment
+    @Mark("secondary") constructor(@Mark("text") text: String): this(text.length.toInt32(), 0) {}
+}
+@Mark("struct") struct Pair(@Mark("first field") val first: Count, @param:Mark("second parameter") val second: Count) {
+    @Mark("value property") val sum: Count get() = first + second
+    @Mark("value secondary") constructor(@Mark("both") both: Count): this(both, both) {}
+}
+enum Choice { @Mark("variant") Some(@field:Mark("variant field") @param:Mark("variant parameter") val value: Count) }
+fun main() {
+    val box = Box(20, 0)
+    total = box.doubled
+    println(add(total, 1).plus(1))
+    println(Pair(21).sum)
+    println(box.read(22))
+    println(Box("four").value)
+}

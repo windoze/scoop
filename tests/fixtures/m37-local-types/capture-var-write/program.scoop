@@ -1,0 +1,1 @@
+fun main() { var value = 0; class Local { fun write() { value = 42 } } }

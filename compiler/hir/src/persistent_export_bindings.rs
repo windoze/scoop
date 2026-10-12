@@ -239,13 +239,11 @@ impl HirExportBindingIdentities {
                 HirExportBindingEntityKind::TypeAlias,
             )?;
             let declaration = inputs.type_alias_identities[alias].key();
-            if !is_direct_package_declaration(
+            require_public_binding_declaration(
                 declaration,
                 HirExportBindingEntityKind::TypeAlias,
                 raw_index(alias),
-            )? {
-                continue;
-            }
+            )?;
             push_binding(
                 declaration,
                 BindingTarget::type_alias(declaration),

@@ -30,6 +30,7 @@ fn reader_rejects_capture_reads_when_the_body_input_is_absent() {
 fn nested_closure_capture_source_is_checked_in_the_enclosing_body() {
     let fixture = Fixture::new();
     let function_type = SignatureTypeKey::Function {
+        receiver: None,
         effect: Effect::Ordinary,
         parameters: Vec::new(),
         result: Box::new(fixture.value_type()),

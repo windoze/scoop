@@ -1,0 +1,12 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    override fun left(): Int = 20
+    override fun right(): Int = 22
+}
+fun total(value: Any): Int {
+    if (value !is Left) return 0
+    if (value !is Right) return 1
+    return value.left() + value.right()
+}
+fun main() { println(total(Both())); println(total("none")) }

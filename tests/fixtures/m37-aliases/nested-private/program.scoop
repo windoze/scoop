@@ -1,0 +1,2 @@
+class Host { private typealias Item<T> = Array<T> }
+fun main() { val value: Host.Item<Int> = [42] }

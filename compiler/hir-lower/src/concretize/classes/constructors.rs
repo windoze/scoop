@@ -14,7 +14,11 @@ impl Concretizer<'_> {
         let source = self.class_constructor_definition(source_id);
         let mut expression_origin = export::ExpressionOrigin::Definition(source.origin).concrete();
         expression_origin.evaluation.context = source.evaluation_context;
-        let parameters = self.lower_constructor_parameters(source.parameters, substitution);
+        let parameters = self.lower_constructor_parameters(
+            source.parameters,
+            source.enclosing.map(|(parameter, _)| parameter),
+            substitution,
+        );
         let mut body = concrete::Body {
             locals: Arena::new(),
             statements: Vec::new(),
@@ -31,6 +35,12 @@ impl Concretizer<'_> {
                     base,
                     substitution,
                     source.span,
+                    expression_origin,
+                );
+                self.append_enclosing_initialization(
+                    &mut body,
+                    source.enclosing,
+                    substitution,
                     expression_origin,
                 );
                 for store in primary_stores {
@@ -105,6 +115,12 @@ impl Concretizer<'_> {
                         base,
                         substitution,
                         source.span,
+                        expression_origin,
+                    );
+                    self.append_enclosing_initialization(
+                        &mut body,
+                        source.enclosing,
+                        substitution,
                         expression_origin,
                     );
                     self.append_common_initialization(

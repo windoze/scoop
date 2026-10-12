@@ -17,8 +17,12 @@ impl Lowerer {
             CodingDirection::Encode => (vec![target, stream], self.unit),
             CodingDirection::Decode => (vec![stream], target),
         };
-        let function =
-            self.lower_synthesized_lambda(&parameters, result, span, |state, parameters| {
+        let function = self.lower_synthesized_lambda(
+            false,
+            &parameters,
+            result,
+            span,
+            |state, parameters| {
                 let mut statements = Vec::new();
                 let value = match context.direction {
                     CodingDirection::Encode => {
@@ -45,7 +49,8 @@ impl Lowerer {
                     statements,
                     value: Some(value),
                 })
-            })?;
+            },
+        )?;
         let adapter = self.core_coding_nominal(context.direction.function_codec())?;
         let adapter = self
             .apply_nominal_type(adapter, vec![target])

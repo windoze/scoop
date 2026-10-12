@@ -7,6 +7,7 @@ fn interface(
     properties: Vec<ast::PropertyDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        sealed_span: None,
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
@@ -15,7 +16,7 @@ fn interface(
             .into_iter()
             .map(|parent| ast::SupertypeSpec {
                 ty: ty_named(parent),
-                constructor_arguments: None,
+                initialization: ast::SupertypeInitialization::None,
                 span: sp(),
             })
             .collect(),
@@ -69,7 +70,7 @@ fn property(
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body,
         span: sp(),
     }
@@ -197,7 +198,7 @@ fn generic_interface_default_keeps_the_exact_owner_application() {
     };
     class.supertypes.push(ast::SupertypeSpec {
         ty: ty_generic("Echo", vec![ty_named("Int")]),
-        constructor_arguments: None,
+        initialization: ast::SupertypeInitialization::None,
         span: sp(),
     });
     let module = lower_user(file(vec![
@@ -253,7 +254,7 @@ fn generic_default_conflicts_keep_distinct_exact_applications() {
     for argument in ["Int", "String"] {
         class.supertypes.push(ast::SupertypeSpec {
             ty: ty_generic("Phantom", vec![ty_named(argument)]),
-            constructor_arguments: None,
+            initialization: ast::SupertypeInitialization::None,
             span: sp(),
         });
     }

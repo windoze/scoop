@@ -4,11 +4,12 @@ mod constructors;
 mod members;
 mod prefix;
 mod release;
+mod supertypes;
 
 type ParsedInterfaceBody = (
     Vec<FunctionDecl>,
     Vec<PropertyDecl>,
-    Vec<NestedNominalDecl>,
+    Vec<NestedTypeDecl>,
     Option<CompanionObjectDecl>,
     u32,
 );
@@ -109,6 +110,7 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
         modifier: ClassModifier,
+        inner_span: Option<Span>,
         modifier_span: Option<Span>,
     ) -> Result<ClassDecl, Diagnostic> {
         let keyword = self.expect("`class`", |k| matches!(k, TokenKind::Class))?;
@@ -265,6 +267,7 @@ impl Parser {
         let start = modifier_span
             .map(|span| span.start)
             .into_iter()
+            .chain(inner_span.map(|span| span.start))
             .chain(match visibility {
                 VisibilitySyntax::Explicit { span, .. } => Some(span.start),
                 VisibilitySyntax::Omitted => None,
@@ -275,6 +278,7 @@ impl Parser {
             annotations,
             visibility,
             modifier,
+            inner_span,
             name,
             type_params,
             constructor,
@@ -285,74 +289,13 @@ impl Parser {
         })
     }
 
-    pub(super) fn parse_vararg_modifier(
-        &mut self,
-        existing: &mut Option<Span>,
-    ) -> Result<Option<Span>, Diagnostic> {
-        if !matches!(self.peek().kind, TokenKind::Vararg) {
-            return Ok(None);
-        }
-        let modifier = self.bump();
-        if matches!(self.peek().kind, TokenKind::Vararg) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "duplicate `vararg` modifier on parameter",
-            ));
-        }
-        if existing.is_some() {
-            return Err(Diagnostic::at(
-                modifier.span,
-                "a parameter list may declare at most one `vararg` parameter",
-            ));
-        }
-        *existing = Some(modifier.span);
-        Ok(Some(modifier.span))
-    }
-
-    /// `: Base(args), I1, I2` — a no-op when the next token is not `:`.
-    /// Every entry retains whether its argument list was present. HIR, which
-    /// knows nominal kinds, decides which entry is the direct base.
-    pub(super) fn parse_supertypes(
-        &mut self,
-        end: &mut u32,
-    ) -> Result<Vec<SupertypeSpec>, Diagnostic> {
-        let mut supertypes = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::Colon) {
-            return Ok(supertypes);
-        }
-        self.bump(); // `:`
-        loop {
-            let super_name = self.expect_ident("base class or interface name")?;
-            let supertype = self.parse_named_type_ref_tail(super_name)?;
-            let start = supertype.span.start;
-            *end = supertype.span.end;
-            let constructor_arguments = if matches!(self.peek().kind, TokenKind::LParen) {
-                let (args, args_end) = self.parse_args()?;
-                *end = args_end;
-                Some(args)
-            } else {
-                None
-            };
-            supertypes.push(SupertypeSpec {
-                ty: supertype,
-                constructor_arguments,
-                span: Span::new(start, *end),
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-            } else {
-                break;
-            }
-        }
-        Ok(supertypes)
-    }
-
     /// `interface <name> { <member>, ... }` — signatures, defaults,
     /// properties, nested declarations, and a companion.
     pub(super) fn parse_interface(
         &mut self,
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
+        sealed_span: Option<Span>,
     ) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
@@ -365,8 +308,12 @@ impl Parser {
             VisibilitySyntax::Explicit { span, .. } => Some(span.start),
             VisibilitySyntax::Omitted => None,
         }
+        .into_iter()
+        .chain(sealed_span.map(|span| span.start))
+        .min()
         .unwrap_or(keyword.span.start);
         Ok(InterfaceDecl {
+            sealed_span,
             annotations,
             visibility,
             name,
@@ -407,12 +354,12 @@ impl Parser {
                     self.parse_nested_nominal(prefix)
                         .map(|declaration| nested.push(declaration))
                 }
-                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedNominalDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
+                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
                 TokenKind::Ident(text) if text == "object" => {
                     self.require_unmodified_nominal_prefix(&prefix, "object")?;
                     self.parse_object(prefix.annotations, prefix.visibility)
                         .map(Box::new)
-                        .map(NestedNominalDecl::Object)
+                        .map(NestedTypeDecl::Object)
                         .map(|declaration| nested.push(declaration))
                 }
                 TokenKind::Ident(text) if text == "companion" => {
@@ -438,7 +385,7 @@ impl Parser {
                     "constructors are not allowed in interfaces",
                 )),
                 TokenKind::Ident(text) if text == "typealias" => {
-                    self.unsupported_nested_type_alias()
+                    self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(|declaration| nested.push(declaration))
                 }
                 _ => Err(Diagnostic::at(
                     self.peek().span,
@@ -523,7 +470,10 @@ impl Parser {
             "`object` after `companion`",
             |kind| matches!(kind, TokenKind::Ident(text) if text == "object"),
         )?;
-        let name = if matches!(self.peek().kind, TokenKind::Ident(_)) {
+        let name = if matches!(
+            self.peek().kind,
+            TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
+        ) {
             CompanionNameSyntax::Named(self.expect_ident("companion object name")?)
         } else {
             CompanionNameSyntax::Default {

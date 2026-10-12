@@ -137,23 +137,18 @@ impl PersistentTypeId {
     pub fn from_generated_key(
         key: &GeneratedNominalKey,
     ) -> Result<Self, GeneratedNominalIdentityError> {
-        validate_key(key)?;
         derive_persistent_id("scoop-type-id-v1", &GeneratedTypeIdentityKey(key)).map_err(Into::into)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GeneratedNominalIdentityError {
-    TargetReceiverMustBeAbsent,
     Hash(HashError),
 }
 
 impl fmt::Display for GeneratedNominalIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TargetReceiverMustBeAbsent => {
-                formatter.write_str("generated function-shape target must not have a receiver")
-            }
             Self::Hash(error) => error.fmt(formatter),
         }
     }
@@ -164,22 +159,6 @@ impl std::error::Error for GeneratedNominalIdentityError {}
 impl From<HashError> for GeneratedNominalIdentityError {
     fn from(error: HashError) -> Self {
         Self::Hash(error)
-    }
-}
-
-fn validate_key(key: &GeneratedNominalKey) -> Result<(), GeneratedNominalIdentityError> {
-    let target = match key {
-        GeneratedNominalKey::CallableAdapterEnvironment {
-            key:
-                CallableAdapterEnvironmentKey::Static { target, .. }
-                | CallableAdapterEnvironmentKey::Dynamic { target },
-        } => Some(target),
-        _ => None,
-    };
-    if target.is_some_and(|target| target.receiver().is_present()) {
-        Err(GeneratedNominalIdentityError::TargetReceiverMustBeAbsent)
-    } else {
-        Ok(())
     }
 }
 
@@ -237,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn adapter_environment_rejects_target_receiver() {
+    fn adapter_environment_preserves_target_receiver() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
         let target = crate::ExactCallableSignature::new(
             crate::Effect::Ordinary,
@@ -248,9 +227,19 @@ mod tests {
         let key = GeneratedNominalKey::CallableAdapterEnvironment {
             key: super::CallableAdapterEnvironmentKey::Dynamic { target },
         };
-        assert_eq!(
-            PersistentTypeId::from_generated_key(&key),
-            Err(super::GeneratedNominalIdentityError::TargetReceiverMustBeAbsent)
+        let ordinary = GeneratedNominalKey::CallableAdapterEnvironment {
+            key: super::CallableAdapterEnvironmentKey::Dynamic {
+                target: crate::ExactCallableSignature::new(
+                    crate::Effect::Ordinary,
+                    None,
+                    vec![exact],
+                    exact,
+                ),
+            },
+        };
+        assert_ne!(
+            PersistentTypeId::from_generated_key(&key).unwrap(),
+            PersistentTypeId::from_generated_key(&ordinary).unwrap()
         );
     }
 

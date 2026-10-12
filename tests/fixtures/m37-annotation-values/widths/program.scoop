@@ -1,0 +1,12 @@
+enum S8: Int8 { Value = -128 }
+enum S16: Int16 { Value = -32768 }
+enum S32: Int { Value = -2147483648 }
+enum S64: Long { Value = -9223372036854775808L }
+enum U8: UInt8 { Value = 255u }
+enum U16: UInt16 { Value = 65535u }
+enum U32: UInt { Value = 4294967295u }
+enum U64: ULong { Value = 18446744073709551615uL }
+annotation class Widths(val p0: S8 = S8.Value, val p1: S16 = S16.Value, val p2: S32 = S32.Value, val p3: S64 = S64.Value, val p4: U8 = U8.Value, val p5: U16 = U16.Value, val p6: U32 = U32.Value, val p7: U64 = U64.Value)
+@Widths
+struct Item(val value: Int)
+fun main() { println(Item(8).value) }

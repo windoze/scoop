@@ -101,6 +101,11 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
         graph
             .is_subclass(owner, implementation.exact_owner)
             .map_err(Error::Inheritance)?
+    } else if source.key.declaration_kind() == SourceDeclarationKind::Struct {
+        authority
+            .integral_enum_parent(owner)
+            .map_err(Error::Foundation)?
+            == Some(implementation.exact_owner)
     } else {
         false
     };

@@ -1,0 +1,11 @@
+class Outer(val value: Int) {
+    fun result(): Int {
+        class Local {
+            fun read(): Int = this@Outer.value
+            inner class Inner { fun read(): Int = this@Outer.value }
+            fun inner(): Int = Inner().read()
+        }
+        return Local().read() + Local().inner()
+    }
+}
+fun main() { println(Outer(21).result()) }

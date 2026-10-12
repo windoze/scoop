@@ -207,9 +207,11 @@ fn lambda_parameters_share_recursive_irrefutable_named_lowering() {
         None,
     );
     let operation = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: parameter_pattern,
             ty: None,
             span: sp(),

@@ -1,0 +1,2 @@
+typealias Identity<T> = T
+fun main() { val value = Identity(42) }

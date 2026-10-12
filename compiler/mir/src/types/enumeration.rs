@@ -1,10 +1,14 @@
 use super::*;
+
+mod representation;
+pub use representation::*;
 use scoop_identity::{PersistentEnumVariantFieldId, PersistentEnumVariantId};
 
 /// An instantiated enum definition (M4): variants with concrete field
 /// types. `name` is a source-facing display name.
 #[derive(Debug)]
 pub struct EnumDef {
+    pub representation: EnumRepresentation,
     pub name: String,
     /// Canonical concrete arguments of this monomorphized enum instance.
     /// Together with the arena id these recover its exact MIR `Type`.

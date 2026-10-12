@@ -131,7 +131,7 @@ fn reader_rejects_duplicate_and_noncanonical_binder_names() {
         Err(BinderListValidationError::Binder {
             index: 0,
             error: TypeParameterBinderResolutionError::Name(
-                CanonicalIdentifierError::InvalidContinuation
+                CanonicalIdentifierError::InvalidCharacter
             ),
         })
     ));
@@ -274,7 +274,7 @@ impl WireEncode for InvalidBinderName {
         encoder.array(1)?;
         encoder.map(2)?;
         encoder.field(1)?;
-        encoder.text("bad-name")?;
+        encoder.text("bad`name")?;
         encoder.field(2)?;
         TypeParameterBoundsV1::Unconstrained.encode(encoder)
     }

@@ -144,12 +144,13 @@ impl BodyLowerer<'_> {
                 }
             }
             hir::StatementKind::While {
+                loop_kind,
                 target,
                 condition_setup,
                 cond,
                 body,
             } => {
-                self.lower_while(*target, condition_setup, cond, body, span, out);
+                self.lower_while(*loop_kind, *target, condition_setup, cond, body, span, out);
                 return;
             }
             hir::StatementKind::When(when) => {
@@ -299,8 +300,10 @@ impl BodyLowerer<'_> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn lower_while(
         &mut self,
+        loop_kind: hir::LoopKind,
         target: hir::LoopId,
         condition_setup: &[hir::Statement],
         cond: &hir::Expr,
@@ -332,6 +335,7 @@ impl BodyLowerer<'_> {
         );
         out.push(smir::Statement {
             kind: smir::StatementKind::While {
+                loop_kind,
                 target: loop_id,
                 condition_setup,
                 cond,
@@ -342,14 +346,12 @@ impl BodyLowerer<'_> {
     }
 
     fn active_loop(&self, target: hir::LoopId) -> smir::LoopId {
-        let (source, lowered) = self
+        let (_, lowered) = self
             .active_loops
-            .last()
+            .iter()
+            .rev()
+            .find(|(source, _)| *source == target)
             .expect("concrete HIR binds every break/continue inside an active loop");
-        assert_eq!(
-            *source, target,
-            "unlabelled break/continue targets the lexical innermost loop"
-        );
         *lowered
     }
 }

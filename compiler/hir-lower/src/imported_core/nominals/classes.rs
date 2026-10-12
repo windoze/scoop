@@ -16,7 +16,7 @@ impl Lowerer {
         Ok(self.class_applications[application].canonical_type)
     }
 
-    fn load_class_definition(
+    pub(in crate::imported_core) fn load_class_definition(
         &mut self,
         declaration: Arc<hir::ImportedNominalDeclaration>,
     ) -> Result<(), ImportedSignatureTypeError> {
@@ -77,6 +77,10 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
+                    inheritance_family: declaration
+                        .interface
+                        .declaration_details()
+                        .inheritance_family(),
                     release_policy: Default::default(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,

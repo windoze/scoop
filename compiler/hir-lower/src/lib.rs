@@ -93,6 +93,7 @@
 mod aliases;
 mod annotations;
 mod argument_materialization;
+mod body_transform;
 mod call_resolution;
 mod callable_modifiers;
 mod class;
@@ -101,6 +102,7 @@ mod constructor_resolution;
 mod core_contract;
 mod current_input;
 mod current_lowering;
+mod declaration_inference;
 mod declaration_surface;
 mod declarations;
 mod defaults;
@@ -118,6 +120,7 @@ mod imported_core;
 mod imported_generics;
 mod imported_type_aliases;
 mod imports;
+mod local_types;
 mod lowering_context;
 mod model;
 mod namespace;
@@ -533,6 +536,12 @@ pub(crate) struct Lowerer {
     pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
     pub(crate) enum_member_identities: Option<hir::HirEnumMemberIdentities>,
     pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
+    pub(crate) value_layout_relevance:
+        HashMap<hir::SourceNominalId, std::collections::HashSet<hir::TypeParamId>>,
+    pub(crate) local_type_declaration: Option<local_types::DeclarationContext>,
+    pub(crate) local_types: HashMap<Owner, local_types::LocalType>,
+    pub(crate) local_types_by_source: HashMap<(usize, u32), Owner>,
+    pub(crate) local_type_capture_scope: Option<local_types::CaptureScope>,
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Shared<Arena<Type>>,
@@ -663,11 +672,17 @@ pub(crate) struct Lowerer {
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
+    pub(crate) imported_alias_templates:
+        HashMap<scoop_identity::PersistentTypeAliasId, aliases::AliasTemplate>,
     pub(crate) source_annotations: std::collections::BTreeMap<
         scoop_identity::PersistentAnnotationId,
         user_annotations::SourceAnnotationInput,
     >,
     pub(crate) annotation_metadata: hir::SourceAnnotations,
+    pub(crate) type_annotations: user_annotations::type_uses::PendingTypeAnnotations,
+    pub(crate) annotation_resolution:
+        HashMap<scoop_identity::PersistentAnnotationId, user_annotations::AnnotationResolution>,
+    pub(crate) defined_intrinsic_type_core: Option<hir::IntrinsicTypeCore>,
     pub(crate) nested_annotations_by_owner:
         HashMap<(Owner, String), scoop_identity::PersistentAnnotationId>,
     pub(crate) top_level_namespaces: Shared<namespace::TopLevelNamespaces>,
@@ -697,6 +712,8 @@ pub(crate) struct Lowerer {
     /// the selected core protocol declaration.
     derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    interface_delegates: HashMap<ClassId, Vec<class::InterfaceDelegateSource>>,
+    interface_forwarders: HashMap<FunctionId, class::InterfaceForwarder>,
     invalid_override_methods: HashSet<FunctionId>,
     pub(crate) top_level: Shared<Vec<FunctionId>>,
     pub(crate) unit: TypeId,
@@ -732,6 +749,7 @@ pub(crate) struct Lowerer {
     /// retain distinct typed ids; qualified lookup never flattens this key
     /// into an FQN string.
     pub(crate) nested_nominals_by_owner: HashMap<(Owner, String), NominalTarget>,
+    pub(crate) nested_aliases_by_owner: HashMap<(Owner, String), aliases::SourceTypeAliasId>,
     /// Source-file ownership for validating compiler-known core contracts.
     pub(crate) struct_files: HashMap<StructId, usize>,
     pub(crate) enum_files: HashMap<EnumId, usize>,
@@ -801,6 +819,8 @@ pub(crate) struct Lowerer {
     /// call lowering and body lowering. Method signatures exclude the
     /// implicit `this` parameter.
     pub(crate) signatures: imbl::HashMap<FunctionId, FnSig>,
+    pub(crate) declaration_inference: declaration_inference::DeclarationInference,
+    pub(crate) pending_raw_initializers: Vec<(hir::GlobalId, ast::PropertyDecl)>,
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
     pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,
@@ -811,6 +831,7 @@ pub(crate) struct Lowerer {
     pub(crate) return_inference: Option<ReturnInference>,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    pub(crate) current_callable_label: Option<String>,
     /// Typed lexical context attached to every expression origin.
     pub(crate) current_source_context: Option<hir::SourceContextId>,
     /// The actual request location for a synthesized equality body, including
@@ -823,6 +844,7 @@ pub(crate) struct Lowerer {
     /// `this` of the member function whose body is being lowered:
     /// its local and the host type. `None` in top-level functions.
     pub(crate) current_this: Option<(hir::LocalId, TypeId)>,
+    pub(crate) receiver_scopes: Vec<ReceiverScope>,
     /// Owner of the member function whose body is being lowered, for
     /// bare property / method resolution (`x` meaning `this.x`).
     pub(crate) current_owner: Option<Owner>,
@@ -861,7 +883,8 @@ pub(crate) struct Lowerer {
     /// Lexically active loop targets in the current callable or detached
     /// declaration-bound expression. Callable boundaries replace this with an
     /// empty stack and restore the enclosing stack on exit.
-    pub(crate) loop_targets: Vec<hir::LoopId>,
+    pub(crate) loop_targets: Vec<stmt::ActiveLoop>,
+    pub(crate) uninitialized_condition_bindings: std::collections::HashSet<hir::BindingId>,
     /// Active nested callable capture analyses. The outer callable remains
     /// on the stack while an inner one is lowered so transitive captures can
     /// be propagated without reading an exited native stack frame.

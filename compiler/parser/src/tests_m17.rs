@@ -97,7 +97,7 @@ fn parses_named_and_spread_arguments_in_source_order() {
     ));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  RootPackage\n  fun main()\n    Call emit\n      IntLiteral 1\n      Argument suffix=\n        Call end\n      Argument *\n        Var middle\n      Argument values=*\n        Var whole\n      Argument trailing\n        Lambda 0 suspend=false\n          parameters omitted\n          IntLiteral 0\n"
+        "SourceFile\n  RootPackage\n  fun main()\n    Call emit\n      IntLiteral 1\n      Argument suffix=\n        Call end\n      Argument *\n        Var middle\n      Argument values=*\n        Var whole\n      Argument trailing\n        Lambda 0 suspend=false\n          label emit\n          parameters omitted\n          IntLiteral 0\n"
     );
 }
 
@@ -113,8 +113,7 @@ fn member_invoke_and_base_constructor_keep_call_arguments() {
         panic!("expected derived class")
     };
     let base_args = derived.supertypes[0]
-        .constructor_arguments
-        .as_ref()
+        .constructor_arguments()
         .expect("base constructor");
     assert!(matches!(&base_args[0].name, CallArgumentName::Named(name) if name.text == "x"));
     let Decl::Function(main) = &file.declarations[2] else {

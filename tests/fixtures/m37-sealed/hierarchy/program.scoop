@@ -1,0 +1,23 @@
+sealed interface Root {}
+sealed interface Left : Root {}
+sealed interface Right : Root {}
+class Both : Left, Right
+class Single : Left
+open class Family : Root
+class Descendant : Family()
+fun classify(value: Root): Int = when (value) {
+    is Both -> 1
+    is Single -> 2
+    is Family -> 3
+}
+fun complement(value: Root): Int = when (value) {
+    !is Left -> 3
+    is Left -> 4
+}
+fun main() {
+    println(classify(Both()))
+    println(classify(Single()))
+    println(classify(Descendant()))
+    println(complement(Both()))
+    println(complement(Descendant()))
+}

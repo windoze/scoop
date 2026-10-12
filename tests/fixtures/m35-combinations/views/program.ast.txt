@@ -120,6 +120,7 @@ SourceFile
           Call withDefaults
             Argument trailing
               Lambda 0 suspend=false
+                label withDefaults
                 parameters omitted
                 Binary Add
                   MethodCall left

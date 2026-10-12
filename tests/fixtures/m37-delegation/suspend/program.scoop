@@ -1,0 +1,29 @@
+class Request(val number: Int)
+class Gate(var waiter: Continuation<Int>?)
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public override fun register(continuation: Continuation<Int>) { gate.waiter = Some(continuation) }
+}
+interface Read { context(request: Request) suspend fun value(): Int }
+class Impl(val gate: Gate, val text: String) : Read {
+    context(request: Request) override suspend fun value(): Int {
+        try { val value = suspendCoroutine(Registration(gate)); gcCollect(); println(request.number); return value }
+        finally { println(text) }
+    }
+}
+class Host(delegate: Read) : Read by delegate
+class Task(val gate: Gate) : SuspendTask<Int> {
+    public override suspend fun run(): Int = context(Request(1)) { Host(Impl(gate, "alive")).value() }
+}
+class Completion : Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(exception: Throwable) { println("unexpected") }
+}
+fun main() {
+    val gate = Gate(None)
+    startCoroutine(Task(gate), Completion())
+    println("suspended")
+    gcCollect()
+    val continuation = gate.waiter!!
+    gate.waiter = None
+    continuation.resume(42)
+}

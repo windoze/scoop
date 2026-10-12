@@ -1,0 +1,4 @@
+interface I { fun value(): Int }
+interface J { fun other(): Int }
+class Host(delegate: I) : I by delegate, J
+fun main() {}

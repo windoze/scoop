@@ -19,7 +19,7 @@ pub use scoop_identity::{
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Diagnostic;
-pub use scoop_ast::Span;
+pub use scoop_ast::{LoopKind, Span};
 
 pub mod concrete;
 

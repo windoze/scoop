@@ -123,7 +123,7 @@ fn bare_return() {
     let file = ok("fun f() {\n    return\n}\n");
     let stmt = &block_body(only_function(&file)).statements[0];
     assert_eq!(stmt.span, Span::new(14, 20));
-    let StatementKind::Return { value } = &stmt.kind else {
+    let StatementKind::Return { value, .. } = &stmt.kind else {
         panic!("expected a return statement");
     };
     assert!(value.is_none());
@@ -134,7 +134,7 @@ fn return_value_ends_at_the_newline() {
     let file = ok("fun f() {\n    return\n    x\n}\n");
     let statements = &block_body(only_function(&file)).statements;
     assert_eq!(statements.len(), 2);
-    let StatementKind::Return { value } = &statements[0].kind else {
+    let StatementKind::Return { value, .. } = &statements[0].kind else {
         panic!("expected a return statement");
     };
     assert!(value.is_none());

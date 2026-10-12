@@ -19,7 +19,7 @@ fn object(name: &str, members: Vec<ast::ClassMember>) -> ast::Decl {
 fn stored(name: &str, ty: ast::TypeRef, expression: ast::Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
         mutable: true,
-        ty,
+        ty: Some(ty),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(expression),
             accessors: ast::AccessorSyntax::default(),
@@ -242,6 +242,7 @@ fn imported_generic_unit_variant_is_postponed_until_expected_application() {
         vec![val_ty(
             "chosen",
             Some(ast::TypeRef {
+                annotations: Vec::new(),
                 kind: ast::TypeRefKind::Generic(ident("State"), vec![ty_named("Int")]),
                 span: sp(),
             }),

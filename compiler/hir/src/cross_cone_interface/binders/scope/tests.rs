@@ -63,6 +63,7 @@ fn scope_traverses_every_composite_signature_shape() {
         },
         SignatureTypeKey::Tuple(non_empty(invalid.clone())),
         SignatureTypeKey::Function {
+            receiver: None,
             effect: Effect::Ordinary,
             parameters: vec![invalid.clone()],
             result: Box::new(SignatureTypeKey::NominalApplication {
@@ -71,6 +72,7 @@ fn scope_traverses_every_composite_signature_shape() {
             }),
         },
         SignatureTypeKey::Function {
+            receiver: None,
             effect: Effect::Ordinary,
             parameters: Vec::new(),
             result: Box::new(invalid.clone()),

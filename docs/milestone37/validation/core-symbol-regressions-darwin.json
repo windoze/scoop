@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 6,
+  "selected": 6,
+  "unselected": 0,
+  "counts": {
+    "passed": 6
+  },
+  "variants": 6,
+  "processes": 84,
+  "stage_and_plan_goldens": 104,
+  "results": [
+    {
+      "name": "generic-siblings-adapters",
+      "status": "passed",
+      "seconds": 22.51561462506652,
+      "variants": 1,
+      "processes": 18,
+      "snapshots": 22,
+      "message": ""
+    },
+    {
+      "name": "global-state-defaults",
+      "status": "passed",
+      "seconds": 17.159144999925047,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "namespace-companions",
+      "status": "passed",
+      "seconds": 23.331634333124384,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "message": ""
+    },
+    {
+      "name": "native-addresses-aliases",
+      "status": "passed",
+      "seconds": 16.150376749923453,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "qualified-types-independent",
+      "status": "passed",
+      "seconds": 21.386049624998122,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "message": ""
+    },
+    {
+      "name": "rebuilt-core-array-combined",
+      "status": "passed",
+      "seconds": 57.66710466705263,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 10,
+      "message": ""
+    }
+  ],
+  "validation": {
+    "target": "aarch64-apple-darwin",
+    "update_snapshots": false,
+    "returncode": 0,
+    "started_at": "2026-10-12T08:10:46.246930+00:00",
+    "seconds": 81.10755033302121
+  }
+}

@@ -1,0 +1,3 @@
+package bridge
+public import provider.*
+public fun <T> forwarded(value: T): Value<T> = named(value)

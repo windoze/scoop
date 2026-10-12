@@ -1,0 +1,18 @@
+fun mark(label: String, value: Int): Int { println(label); return value }
+class Outer(val seed: Int) {
+    inner class Inner(val first: Int = mark("default", seed), val second: Int = 1) {
+        fun total(): Int = first + second
+    }
+    inner class Many(vararg values: Int) {
+        val first: Int = seed + values[0]
+    }
+}
+fun make(): Outer { println("outer"); return Outer(40) }
+fun main() {
+    val value = make().Inner(second = mark("second", 2), first = mark("first", 40))
+    println(value.total())
+    println(make().Inner().total())
+    val reference: (Int, Int) -> Outer.Inner = make()::Inner
+    println(reference(20, 22).total())
+    println(make().Many(2, 3).first)
+}

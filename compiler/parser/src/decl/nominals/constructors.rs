@@ -35,6 +35,7 @@ impl Parser {
         let mut vararg_span = None;
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                let annotations = self.parse_annotations()?;
                 let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                 if matches!(self.peek().kind, TokenKind::Val | TokenKind::Var) {
                     return Err(Diagnostic::at(
@@ -47,6 +48,7 @@ impl Parser {
                 let ty = self.parse_type_ref()?;
                 let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                 params.push(Param {
+                    annotations,
                     span: Span::new(
                         modifier_span.map_or(name.span.start, |span| span.start),
                         end,

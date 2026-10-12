@@ -57,7 +57,7 @@ fn rejects_wrong_declaration_kind_and_same_kind_identity() {
 }
 
 #[test]
-fn rejects_foreign_nested_and_non_cone_wide_declarations() {
+fn accepts_nested_and_rejects_foreign_or_non_cone_wide_declarations() {
     let fixture = Fixture::new();
     let foreign = foreign_cone();
     let foreign_key = alias_key("Alias", top_level_site(foreign));
@@ -91,10 +91,7 @@ fn rejects_foreign_nested_and_non_cone_wide_declarations() {
     let mut authority = fixture.authority();
     authority.alias = nested_alias;
     authority.source.declaration = nested_key;
-    assert_eq!(
-        nested_record.validate_semantics(&mut authority),
-        Err(TypeAliasInterfaceSemanticValidationError::NestedDeclaration { owner_depth: 1 })
-    );
+    assert!(nested_record.validate_semantics(&mut authority).is_ok());
 
     let scoped_source = source(ConeIdentity::CORE, "src/scoped.scoop");
     let scoped_key = alias_key(
@@ -247,4 +244,72 @@ fn record_for(fixture: &Fixture, alias: PersistentTypeAliasId) -> TypeAliasInter
         fixture.origin.clone(),
     )
     .unwrap()
+}
+
+#[test]
+fn captured_parameters_require_the_matching_generic_owner() {
+    let fixture = Fixture::new();
+    let owner = generic_nominal("Owner", 1);
+    let parameters =
+        crate::CanonicalBinderListV1::try_new(vec![crate::TypeParameterBinderV1::new(
+            identifier("T"),
+            crate::TypeParameterBoundsV1::Value,
+        )])
+        .unwrap();
+    for (owners, arity, expected) in [
+        (
+            Vec::new(),
+            0,
+            Err(
+                TypeAliasInterfaceSemanticValidationError::OwnerParameterCount {
+                    expected: 0,
+                    actual: 1,
+                },
+            ),
+        ),
+        (
+            vec![DefinitionOwnerAtom::Type(fixture.target)],
+            0,
+            Err(
+                TypeAliasInterfaceSemanticValidationError::OwnerParameterCount {
+                    expected: 0,
+                    actual: 1,
+                },
+            ),
+        ),
+        (vec![DefinitionOwnerAtom::GenericType(owner)], 1, Ok(())),
+        (
+            vec![DefinitionOwnerAtom::GenericType(owner)],
+            2,
+            Err(
+                TypeAliasInterfaceSemanticValidationError::OwnerParameterCount {
+                    expected: 2,
+                    actual: 1,
+                },
+            ),
+        ),
+    ] {
+        let key = alias_key(
+            "Alias",
+            SourceDeclarationSite::new(
+                ConeIdentity::CORE,
+                PackagePath::root(),
+                DefinitionOwnerChain::from_outer_to_inner(owners),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+        );
+        let alias = PersistentTypeAliasId::from_source_declaration(&key).unwrap();
+        let record = record_for(&fixture, alias)
+            .with_type_parameters(parameters.clone(), 1)
+            .unwrap();
+        let mut authority = fixture.authority();
+        authority.alias = alias;
+        authority.source.declaration = key;
+        authority.generic_nominals.insert(
+            owner,
+            PublicNominalShapeV1::new(PublicNominalKindV1::Class, arity),
+        );
+        assert_eq!(record.validate_semantics(&mut authority), expected);
+    }
 }

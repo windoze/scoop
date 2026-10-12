@@ -22,6 +22,7 @@ pub struct InterfaceDecl {
 /// Checked parameters and direct parents in the original declaration's scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceDefinition {
+    pub inheritance_family: InheritanceFamily,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,

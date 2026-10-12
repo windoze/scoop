@@ -103,9 +103,11 @@ fn with_constructor_syntax(
 
 fn identity_lambda() -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("T")),
             span: sp(),

@@ -1,0 +1,9 @@
+fun inspect(flag: Boolean) {
+    var value: Any = "before"
+    when (value) {
+        is String if if (flag) { value = 42; false } else false -> {}
+        is String -> println(value.length)
+        else -> {}
+    }
+}
+fun main() {}

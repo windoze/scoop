@@ -41,8 +41,15 @@ use crate::{FnParam, FnSig, ForbiddenSuspendContext, Lowerer, Owner, SuspensionC
 mod construction;
 pub(crate) use construction::ConstructorSource;
 mod declarations;
+mod delegation;
+mod enclosing;
+pub(crate) use delegation::InterfaceDelegateSource;
 mod hierarchy;
 mod inheritance;
+pub(crate) use inheritance::InterfaceForwarder;
 mod initialization;
 mod lookup;
 mod methods;
+mod synthesis;
+
+mod sealed;

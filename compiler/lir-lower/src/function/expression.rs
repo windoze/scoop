@@ -252,21 +252,39 @@ impl<'a> FunctionLowerer<'a> {
                     retyped_ty.as_ref(),
                     "Retype expression carries one result type"
                 );
-                assert!(
-                    matches!(
-                        lir_type(self.module, &operand.ty),
-                        lir::MANAGED_PTR | lir::LirType::Interface
-                    ),
-                    "Retype operand must be a managed reference"
-                );
-                assert!(
-                    matches!(
-                        lir_type(self.module, ty),
-                        lir::MANAGED_PTR | lir::LirType::Interface
-                    ),
-                    "Retype result must be a managed reference"
-                );
-                self.lower_reference_conversion(operand, ty)?
+                if let (mir::Type::Enum(id, _), mir::Type::Integer(kind)) = (&operand.ty, ty) {
+                    assert_eq!(
+                        self.module.enums[*id].representation.integer_kind(),
+                        Some(*kind),
+                        "integral enum upcasts use their exact integer parent"
+                    );
+                    let value = self.lower_expr(operand)?;
+                    let kind = integer_kind(*kind);
+                    let out = self.new_temp(kind.scalar_type());
+                    self.push(lir::Instruction::IntegerConvert {
+                        out,
+                        source_kind: kind,
+                        target_kind: kind,
+                        operand: value,
+                    });
+                    lir::Value::Temp(out)
+                } else {
+                    assert!(
+                        matches!(
+                            lir_type(self.module, &operand.ty),
+                            lir::MANAGED_PTR | lir::LirType::Interface
+                        ),
+                        "reference upcast operand must be a managed reference"
+                    );
+                    assert!(
+                        matches!(
+                            lir_type(self.module, ty),
+                            lir::MANAGED_PTR | lir::LirType::Interface
+                        ),
+                        "reference upcast result must be a managed reference"
+                    );
+                    self.lower_reference_conversion(operand, ty)?
+                }
             }
             mir::ExprKind::FieldAccess { receiver, index } => {
                 self.lower_field_access(ty, receiver, index)?

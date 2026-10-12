@@ -75,6 +75,7 @@ fn enum_declaration(
         span: Span::new(0, 0),
 
         definition: EnumDefinition {
+            representation: crate::EnumRepresentation::Algebraic,
             self_application,
             type_params: Vec::new(),
             variants,

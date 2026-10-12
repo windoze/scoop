@@ -159,6 +159,7 @@ SourceFile
         IntLiteral 6L
         Argument trailing
           Lambda 0 suspend=false
+            label Array
             param i: _
             when
               Var i

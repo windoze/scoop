@@ -1,0 +1,530 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ReaderImpl<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  interface Reader<Int>
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn12 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn7 captures=0
+    bridge function_type3 -> @fn13 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn12 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  generated_callable gc1 function=@fn13 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  fun apply @fn0(action: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun fail @fn1() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+  fun main @fn2() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      assign $new.1
+        Type ReaderImpl<Int>
+        ClassAlloc ReaderImpl<Int>
+      val $inline.24.this: ReaderImpl<Int>
+        Type ReaderImpl<Int>
+        Local $new.1
+      val $inline.24.value: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb25
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local counter
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.5
+        Type ReaderImpl<Int>
+        ClassAlloc ReaderImpl<Int>
+      val $inline.16.this: ReaderImpl<Int>
+        Type ReaderImpl<Int>
+        Local $new.5
+      val $inline.16.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb17
+    bb8 try.body.8 unwind bb1
+      call $call.3: Int = @fn1 direct
+      goto bb9
+    bb9 scope.9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb10 try.catch.10
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.4
+      goto bb12
+    bb11 try.next.11 unwind bb5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb13
+    bb13 scope.13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb14 inline.cont.14
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.14.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+    bb15 inline.14.entry
+      call $inline.14.$call.1: Int = @fn7 direct
+        Type (Int) -> Int
+        Local $inline.14.action
+        Type Int
+        FieldAccess 0
+          Type ReaderImpl<Int>
+          Local $inline.14.this
+      assign $inline.14.result
+        Type Int
+        Local $inline.14.$call.1
+      goto bb14
+    bb16 inline.cont.16
+      val impl: ReaderImpl<Int>
+        Type ReaderImpl<Int>
+        Local $new.5
+      val $receiver: ReaderImpl<Int>
+        Type ReaderImpl<Int>
+        Local impl
+      val $argument.0: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.action: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.0
+      val $inline.14.this: ReaderImpl<Int>
+        Type ReaderImpl<Int>
+        Local $receiver
+      val $inline.14.action: (Int) -> Int
+        Type (Int) -> Int
+        Local $parameter.action
+      goto bb15
+    bb17 inline.16.entry
+      field_set 0
+        Type ReaderImpl<Int>
+        Local $inline.16.this
+        Type Int
+        Local $inline.16.value
+      Type Unit
+      UnitLiteral
+      goto bb16
+    bb18 inline.cont.18
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.18.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb8
+    bb19 inline.18.entry
+      call $inline.18.$call.1: Int = @fn4 direct
+        Type () -> Int
+        Local $inline.18.action
+      assign $inline.18.result
+        Type Int
+        Local $inline.18.$call.1
+      goto bb18
+    bb20 inline.cont.20
+      val counter: Counter
+        Type Counter
+        Local $new.2
+      val action: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Counter
+            Local counter
+      val $argument.0: () -> Int
+        Type () -> Int
+        Local action
+      val $parameter.action: () -> Int
+        Type () -> Int
+        Local $argument.0
+      val $inline.18.action: () -> Int
+        Type () -> Int
+        Local $parameter.action
+      goto bb19
+    bb21 inline.20.entry
+      field_set 0
+        Type Counter
+        Local $inline.20.this
+        Type Int
+        Local $inline.20.value
+      Type Unit
+      UnitLiteral
+      goto bb20
+    bb22 inline.cont.22
+      val $argument.0: Int
+        Type Int
+        Local $inline.22.result
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      val $inline.20.this: Counter
+        Type Counter
+        Local $new.2
+      val $inline.20.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb21
+    bb23 inline.22.entry
+      assign $inline.22.result
+        Type Int
+        FieldAccess 0
+          Type ReaderImpl<Int>
+          Local $inline.22.this
+      goto bb22
+    bb24 inline.cont.24
+      val reader: Reader<Int>
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type ReaderImpl<Int>
+          Local $new.1
+      val $receiver: Reader<Int>
+        Type Reader<Int>
+        Local reader
+      val $inline.22.this: ReaderImpl<Int>
+        Type ReaderImpl<Int>
+        Retype ReaderImpl<Int>
+          Type Reader<Int>
+          Local $receiver
+      goto bb23
+    bb25 inline.24.entry
+      field_set 0
+        Type ReaderImpl<Int>
+        Local $inline.24.this
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      Type Unit
+      UnitLiteral
+      goto bb24
+  fun ReaderImpl.read @fn3(this: ReaderImpl<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ReaderImpl<Int>
+          Local this
+  fun $lambda.0 @fn4($closure: () -> Int) -> Int
+    bb0 entry
+      val $place.0: Counter
+        Type Counter
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      val $old.1: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 0
+        Type Counter
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      return
+        Type Int
+        FieldAccess 0
+          Type Counter
+          ClosureCapture cc0 0
+            Type () -> Int
+            Local $closure
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.1 @fn7($closure: (Int) -> Int, it: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local it
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+  fun ReaderImpl.map @fn8(this: ReaderImpl<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local action
+        Type Int
+        FieldAccess 0
+          Type ReaderImpl<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun Reader.read @fn9(this: Reader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Reader.read`"
+  fun init.Counter.$c1 @fn10(this: Counter, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun init.ReaderImpl.$c0 @fn11(this: ReaderImpl<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReaderImpl<Int>
+        Local this
+        Type Int
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun function_bridge.$Closure$lambda0.() -> Any @fn12($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn13($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn3 <- ReaderImpl.read
+  instance mi1 function=@fn5 <- println
+  instance mi2 function=@fn6 <- println
+  instance mi3 function=@fn8 <- ReaderImpl.map
+  instance mi4 function=@fn9 <- Reader.read
+  str @str0 "expected"
+  str @str1 "caught"
+  str @str2 "finally"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn2

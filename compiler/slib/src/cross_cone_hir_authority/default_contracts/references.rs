@@ -65,10 +65,13 @@ fn field(graph: &ValidatedIdentityGraph, target: &DefaultFieldRefV1) -> Result<(
         (
             DefaultFieldRefV1::Class { .. },
             FieldIdentityView::SourcePropertyBacking { owner, .. }
-            | FieldIdentityView::SourcePropertyDelegate { owner, .. },
+            | FieldIdentityView::SourcePropertyDelegate { owner, .. }
+            | FieldIdentityView::SourceEnclosingInstance { owner }
+            | FieldIdentityView::SourceCapturedEnvironment { owner }
+            | FieldIdentityView::SourceInterfaceDelegate { owner, .. },
         ) => (owner, SourceDeclarationKind::Class),
         (DefaultFieldRefV1::Class { .. }, FieldIdentityView::Generated { owner, key })
-            if key.object_backing_property().is_some() =>
+            if (key.object_backing_property().is_some() || key.interface_delegate().is_some()) =>
         {
             let backing = graph.canonical_key::<_, GeneratedNominalKey>(owner)?;
             let owner = match backing.as_ref() {

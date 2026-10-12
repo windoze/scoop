@@ -1,0 +1,23 @@
+class Reader(var value: () -> Int)
+fun main() {
+    var n = 0
+    val first = Reader({ -1 })
+    val second = Reader({ -1 })
+    do {
+        val item = n
+        val (left, right) = (item, item + 1)
+        n += 1
+        val read: () -> Int = { left + right }
+        if (item == 0) first.value = read else second.value = read
+    } while (item < 1)
+    gcCollect()
+    println(first.value())
+    println(second.value())
+    var count = 0
+    outer@ do {
+        count += 1
+        val more = count < 3
+        while (true) continue@outer
+    } while (more)
+    println(count)
+}

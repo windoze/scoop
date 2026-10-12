@@ -36,7 +36,7 @@ pub(super) fn project(
             let d = &export.enums[id];
 
             (
-                source_shape::direct_supertypes(&projection, owner, &d.interfaces, binders),
+                source_shape::enum_supertypes(&projection, owner, d, binders),
                 source_shape::enum_shape(&projection, id, d, binders, owner),
             )
         }

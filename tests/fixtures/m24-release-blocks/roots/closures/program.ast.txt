@@ -55,6 +55,7 @@ SourceFile
     return
       Call foreignCallback<(Int, Ptr<Unit>) -> Int>
         Lambda 1 suspend=false
+          label foreignCallback
           param value: Int
           Call gcCollect
           Binary Add

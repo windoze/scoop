@@ -1,0 +1,3 @@
+interface I {}
+interface J : I by value {}
+fun main() {}

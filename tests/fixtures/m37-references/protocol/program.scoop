@@ -1,0 +1,12 @@
+class Values(val value: Int = 42) {
+    fun read(offset: Int = 0) = value + offset
+    fun count(vararg values: Int): Long = values.size
+}
+fun main() {
+    val make: (Int) -> Values = ::Values
+    val read: (Values, Int) -> Int = Values::read
+    val count: (Values, Array<Int>) -> Long = Values::count
+    val value = make(40)
+    println(read(value, 2))
+    println(count(value, [1, 2, 3]))
+}

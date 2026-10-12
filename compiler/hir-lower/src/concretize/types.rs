@@ -303,9 +303,15 @@ impl Concretizer<'_> {
             .map(|ty| self.lower_type(*ty, substitution))
             .collect::<Vec<_>>();
         let return_type = self.lower_type(source.return_type, substitution);
-        let function = self.intern_function_type(source.is_suspend, parameter_types, return_type);
+        let receiver = source.receiver.map(|ty| self.lower_type(ty, substitution));
+        let function = self.intern_receiver_function_type(
+            source.is_suspend,
+            receiver,
+            parameter_types,
+            return_type,
+        );
         let any = self.intern_type(concrete::TypeKind::Any, false);
-        let arity = self.function_types[function].parameter_types.len();
+        let arity = self.function_types[function].arity();
         self.intern_function_type(source.is_suspend, vec![any; arity], any);
         function
     }
@@ -316,7 +322,17 @@ impl Concretizer<'_> {
         parameter_types: Vec<concrete::TypeId>,
         return_type: concrete::TypeId,
     ) -> concrete::FunctionTypeId {
-        let key = (is_suspend, parameter_types.clone(), return_type);
+        self.intern_receiver_function_type(is_suspend, None, parameter_types, return_type)
+    }
+
+    fn intern_receiver_function_type(
+        &mut self,
+        is_suspend: bool,
+        receiver: Option<concrete::TypeId>,
+        parameter_types: Vec<concrete::TypeId>,
+        return_type: concrete::TypeId,
+    ) -> concrete::FunctionTypeId {
+        let key = (is_suspend, receiver, parameter_types.clone(), return_type);
         if let Some(&id) = self.function_type_by_signature.get(&key) {
             return id;
         }
@@ -333,6 +349,7 @@ impl Concretizer<'_> {
         });
         self.type_by_kind.insert(canonical_kind, canonical_type);
         let id = self.function_types.alloc(concrete::FunctionType {
+            receiver,
             canonical_type,
             is_suspend,
             parameter_types,

@@ -227,6 +227,7 @@ mod tests {
     #[test]
     fn function_payload_is_rejected_instead_of_getting_a_box_identity() {
         let payload = CborIdentityRecord::from_key(ExactTypeKey::Function {
+            receiver: None,
             effect: scoop_identity::Effect::Ordinary,
             parameters: Vec::new(),
             result: unit().id(),

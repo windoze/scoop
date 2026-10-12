@@ -69,6 +69,9 @@ impl Roots {
             Type::Function(id) | Type::FunPtr(id) => {
                 let signature = &export.function_types[*id];
                 self.require_field_type(export, index, signature.return_type)?;
+                if let Some(receiver) = signature.receiver {
+                    self.require_field_type(export, index, receiver)?;
+                }
                 signature.parameter_types.as_slice()
             }
             Type::Ptr(pointee) => {

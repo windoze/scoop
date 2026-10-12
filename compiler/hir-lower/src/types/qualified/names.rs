@@ -16,7 +16,24 @@ impl Lowerer {
     pub(crate) fn resolve_type_name_path(
         &mut self,
         path: &[ast::Ident],
-        supplied_type_arguments: bool,
+        arguments: &[ast::TypeRef],
+    ) -> Result<Option<ResolvedTypeName>, ()> {
+        self.resolve_type_name_path_with_subject(path, arguments, None)
+    }
+
+    pub(crate) fn resolve_pattern_type_name_path(
+        &mut self,
+        path: &[ast::Ident],
+        subject: TypeId,
+    ) -> Result<Option<ResolvedTypeName>, ()> {
+        self.resolve_type_name_path_with_subject(path, &[], Some(subject))
+    }
+
+    fn resolve_type_name_path_with_subject(
+        &mut self,
+        path: &[ast::Ident],
+        arguments: &[ast::TypeRef],
+        subject: Option<TypeId>,
     ) -> Result<Option<ResolvedTypeName>, ()> {
         let Some((binding, start)) = self.type_name_path_head(path)? else {
             return Ok(None);
@@ -25,7 +42,13 @@ impl Lowerer {
             .resolve_type_name_binding(
                 binding,
                 &path[start],
-                supplied_type_arguments && start + 1 == path.len(),
+                if start + 1 == path.len() {
+                    arguments
+                } else {
+                    &[]
+                },
+                None,
+                subject.filter(|_| start + 1 == path.len()),
             )
             .ok_or(())?;
         for (index, name) in path.iter().enumerate().skip(start + 1) {
@@ -43,7 +66,16 @@ impl Lowerer {
             let Some(nested) = self.resolve_nested_type_name(
                 owner,
                 name,
-                supplied_type_arguments && index + 1 == path.len(),
+                if index + 1 == path.len() {
+                    arguments
+                } else {
+                    &[]
+                },
+                match target {
+                    ResolvedTypeName::Applied(ty) => Some(ty),
+                    _ => None,
+                },
+                subject.filter(|_| index + 1 == path.len()),
             )?
             else {
                 let prefix = path[..index]
@@ -62,9 +94,26 @@ impl Lowerer {
             };
             target = if let ResolvedTypeName::Applied(host) = target
                 && let ResolvedTypeName::Nominal(nominal) = nested
-                && self.nominal_is_companion(nominal)
+                && (self.nominal_is_companion(nominal)
+                    || self.nominal_enclosing_owner(nominal).is_some())
             {
-                if supplied_type_arguments && index + 1 == path.len() {
+                if self.nominal_enclosing_owner(nominal).is_some() {
+                    target = ResolvedTypeName::Applied(
+                        self.apply_inner_type(
+                            host,
+                            nominal,
+                            if index + 1 == path.len() {
+                                arguments
+                            } else {
+                                &[]
+                            },
+                            name.span,
+                        )
+                        .ok_or(())?,
+                    );
+                    continue;
+                }
+                if !arguments.is_empty() && index + 1 == path.len() {
                     self.error(
                         name.span,
                         "companion type arguments belong to its host".into(),

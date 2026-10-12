@@ -121,6 +121,7 @@ fn collect_statement_integer_literal_kinds(
                 }
             }
             hir::StatementKind::While {
+                loop_kind: _,
                 target: _,
                 condition_setup,
                 cond,
@@ -214,7 +215,7 @@ pub(super) fn primitive_integer_conversion_suggestion(
             };
             input.index()
         }
-        CandidateProbeFailureKind::Shape(_) | CandidateProbeFailureKind::Intrinsic { .. } => {
+        CandidateProbeFailureKind::Shape(_) | CandidateProbeFailureKind::Declaration { .. } => {
             return None;
         }
     };

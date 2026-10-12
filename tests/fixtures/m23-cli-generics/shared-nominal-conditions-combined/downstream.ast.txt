@@ -16,6 +16,7 @@ SourceFile
           Call Later
             IntLiteral 42
           Lambda 0 suspend=false
+            label exercise
             param item: _
             FieldAccess value
               Var item
@@ -27,6 +28,7 @@ SourceFile
         Call exercise<Unit>
           UnitLiteral
           Lambda 1 suspend=false
+            label exercise
             param item: _
             IntLiteral 42
         IntLiteral 42

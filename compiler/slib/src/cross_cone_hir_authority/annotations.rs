@@ -3,16 +3,19 @@
 use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError};
 use scoop_hir::{AnnotationDeclarationV1, AnnotationTargetV1};
 use scoop_identity::{IdentityReferenceError, PersistentAnnotationId, SourceDeclarationKey};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+mod type_uses;
 mod types;
+mod values;
 
 type Error = CrossConeHirAnnotationError;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
-    pub(crate) fn validate_annotations(&self) -> Result<(), Error> {
-        let annotations = self.current_interface.annotations();
+    pub(crate) fn validate_annotations(&mut self) -> Result<(), Error> {
+        let interface = self.current_interface;
+        let annotations = interface.annotations();
         let mut parameter_kinds = BTreeMap::new();
         for declaration in annotations.declarations() {
             let record = self
@@ -34,48 +37,56 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     "annotation definition source differs from its declaration",
                 ));
             }
-            let kinds = self.annotation_parameter_kinds(declaration)?;
-            for (parameter, kind) in declaration.parameters.iter().zip(&kinds) {
-                if parameter
-                    .default
-                    .as_ref()
-                    .is_some_and(|value| !kind.accepts(value))
-                {
-                    return Err(Error::Invalid("annotation default has a different type"));
-                }
-            }
-            parameter_kinds.insert(declaration.annotation, kinds);
+            self.annotation_schema(
+                declaration.annotation,
+                &mut parameter_kinds,
+                &mut Default::default(),
+            )?;
         }
         let targets = AnnotationTargetV1::source_targets(
             self.current_interface.nominal_interfaces(),
             self.current_interface.property_interfaces(),
+            self.current_interface.callable_interfaces(),
+            self.current_interface.type_aliases(),
+            annotations.declarations(),
         );
         for target in annotations.targets() {
-            if !targets.contains(&target.target) {
+            if !targets.contains(&target.target)
+                && !self
+                    .current_foundation
+                    .retains_local_annotation_target(target.target)
+            {
                 return Err(Error::Invalid(
                     "annotation target is not a retained source declaration",
                 ));
             }
+            let kind = target
+                .target
+                .kind(self.current_interface.property_interfaces())
+                .ok_or(Error::Invalid("annotation accessor target has no property"))?;
+            let mut seen = BTreeSet::new();
             for application in &target.annotations {
-                if let std::collections::btree_map::Entry::Vacant(entry) =
-                    parameter_kinds.entry(application.annotation)
-                {
-                    let declaration = self.annotation_declaration(application.annotation)?;
-                    entry.insert(self.annotation_parameter_kinds(declaration)?);
-                }
-                let kinds = &parameter_kinds[&application.annotation];
-                if kinds.len() != application.arguments.len() {
+                let rules = self.annotation_declaration(application.annotation)?.rules;
+                if !rules.permits(kind) {
                     return Err(Error::Invalid(
-                        "annotation argument count differs from its declaration",
+                        "annotation target is excluded by its declaration",
                     ));
                 }
-                if kinds
-                    .iter()
-                    .zip(&application.arguments)
-                    .any(|(kind, value)| !kind.accepts(value))
-                {
-                    return Err(Error::Invalid("annotation argument has a different type"));
+                if !seen.insert(application.annotation) && !rules.repeatable {
+                    return Err(Error::Invalid(
+                        "repeated non-repeatable annotation on one target",
+                    ));
                 }
+                self.annotation_schema(
+                    application.annotation,
+                    &mut parameter_kinds,
+                    &mut Default::default(),
+                )?;
+                values::validate_arguments(
+                    application.annotation,
+                    &application.arguments,
+                    &parameter_kinds,
+                )?;
                 if application.definition_origin.origin().source().cone() != self.current {
                     return Err(Error::Invalid(
                         "annotation application has a foreign source origin",
@@ -83,7 +94,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 }
             }
         }
-        Ok(())
+        self.validate_type_annotations(annotations, &targets, &mut parameter_kinds)
     }
 
     fn annotation_declaration(

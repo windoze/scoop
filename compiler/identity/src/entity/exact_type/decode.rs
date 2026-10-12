@@ -20,6 +20,7 @@ pub enum DecodedExactTypeKey {
         effect: Effect,
         parameters: Vec<DecodedPersistentId<PersistentExactTypeId>>,
         result: DecodedPersistentId<PersistentExactTypeId>,
+        receiver: Option<DecodedPersistentId<PersistentExactTypeId>>,
     },
     RawPointer(DecodedPersistentId<PersistentExactTypeId>),
     NativeFunctionPointer {
@@ -54,10 +55,15 @@ impl DecodedExactTypeKey {
             }
             Self::Tuple(elements) => resolve_non_empty(elements, resolver).map(ExactTypeKey::Tuple),
             Self::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => Ok(ExactTypeKey::Function {
+                receiver: receiver
+                    .map(|id| resolver.resolve(id))
+                    .transpose()
+                    .map_err(ExactTypeResolutionError::Reference)?,
                 effect,
                 parameters: resolve_sequence(parameters, resolver)?,
                 result: resolver
@@ -102,18 +108,24 @@ impl WireEncode for DecodedExactTypeKey {
                 encode_sequence(encoder, elements.as_slice())
             }
             Self::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(receiver.is_some()))?;
                 encode_tag(encoder, 4)?;
                 encoder.field(1)?;
                 effect.encode(encoder)?;
                 encoder.field(2)?;
                 encode_sequence(encoder, parameters)?;
                 encoder.field(3)?;
-                result.encode(encoder)
+                result.encode(encoder)?;
+                if let Some(receiver) = receiver {
+                    encoder.field(4)?;
+                    receiver.encode(encoder)?;
+                }
+                Ok(())
             }
             Self::RawPointer(pointee) => encode_value_sum(encoder, 5, pointee),
             Self::NativeFunctionPointer {
@@ -159,11 +171,18 @@ impl WireDecode for DecodedExactTypeKey {
                     .map(Self::Tuple)
             }
             4 => {
-                expect_sum_length(decoder, fields, 4)?;
+                if fields != 5 {
+                    expect_sum_length(decoder, fields, 4)?;
+                }
                 Ok(Self::Function {
                     effect: decoder.field(1, decode_effect)?,
                     parameters: decoder.field(2, decode_exact_ids)?,
                     result: decoder.field(3, DecodedPersistentId::decode)?,
+                    receiver: if fields == 5 {
+                        Some(decoder.field(4, DecodedPersistentId::decode)?)
+                    } else {
+                        None
+                    },
                 })
             }
             5 => {
@@ -383,6 +402,7 @@ mod tests {
             },
             ExactTypeKey::Tuple(NonEmptyVec::from_first(exact, [exact])),
             ExactTypeKey::Function {
+                receiver: None,
                 effect: Effect::Suspend,
                 parameters: vec![exact],
                 result: exact,
@@ -399,6 +419,33 @@ mod tests {
             let decoded = decode_canonical::<DecodedExactTypeKey>(&encode(&key).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
         }
+    }
+
+    #[test]
+    fn receiver_shape_changes_exact_identity_and_round_trips() {
+        let exact = PersistentExactTypeId::expected();
+        let flat = ExactTypeKey::Function {
+            effect: Effect::Ordinary,
+            parameters: vec![exact],
+            result: exact,
+            receiver: None,
+        };
+        let receiver = ExactTypeKey::Function {
+            effect: Effect::Ordinary,
+            parameters: vec![],
+            result: exact,
+            receiver: Some(exact),
+        };
+        assert_ne!(
+            PersistentExactTypeId::from_key(&flat).unwrap(),
+            PersistentExactTypeId::from_key(&receiver).unwrap()
+        );
+        assert_eq!(encode(&flat).unwrap()[0], 0xa4);
+        let bytes = encode(&receiver).unwrap();
+        assert_eq!(bytes[0], 0xa5);
+        let decoded = decode_canonical::<DecodedExactTypeKey>(&bytes).unwrap();
+        assert_eq!(encode(&decoded).unwrap(), bytes);
+        assert_eq!(decoded.resolve(&mut Resolver).unwrap(), receiver);
     }
 
     #[test]

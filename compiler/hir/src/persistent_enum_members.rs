@@ -40,10 +40,21 @@ impl HirEnumMemberIdentities {
         enums: &Arena<EnumDecl>,
         nominal_identities: &HirNominalIdentities,
     ) -> Result<Self, HirEnumMemberIdentityError> {
-        let mut rows = Vec::with_capacity(enums.len());
-        let mut variants_by_identity = HashMap::new();
-        let mut fields_by_identity = HashMap::new();
-        for (enum_id, enumeration) in enums.iter() {
+        let mut identities = Self {
+            enums: Vec::new(),
+            variants_by_identity: HashMap::new(),
+            fields_by_identity: HashMap::new(),
+        };
+        identities.append_declarations(enums, nominal_identities)?;
+        Ok(identities)
+    }
+
+    pub fn append_declarations(
+        &mut self,
+        enums: &Arena<EnumDecl>,
+        nominal_identities: &HirNominalIdentities,
+    ) -> Result<(), HirEnumMemberIdentityError> {
+        for (enum_id, enumeration) in enums.iter().skip(self.enums.len()) {
             let enum_index = raw_enum_index(enum_id);
             let owner = nominal_identities[enum_id].source().ok_or(
                 HirEnumMemberIdentityError::GeneratedEnumOwner {
@@ -81,7 +92,8 @@ impl HirEnumMemberIdentities {
                 })?;
                 let variant_ref = EnumVariantRef::checked(enums, enum_id, variant_index)
                     .expect("the variant comes from this enum declaration");
-                variants_by_identity.insert(variant_record.id(), variant_ref);
+                self.variants_by_identity
+                    .insert(variant_record.id(), variant_ref);
                 let mut field_records = Vec::with_capacity(variant.fields.len());
                 for (field_index, field) in variant.fields.iter().enumerate() {
                     let field_index = u32::try_from(field_index).map_err(|_| {
@@ -125,7 +137,7 @@ impl HirEnumMemberIdentities {
                     })?;
                     let field_ref = EnumVariantFieldRef::checked(enums, variant_ref, field_index)
                         .expect("the field comes from this variant declaration");
-                    fields_by_identity.insert(record.id(), field_ref);
+                    self.fields_by_identity.insert(record.id(), field_ref);
                     field_records.push(record);
                 }
                 variant_rows.push(HirEnumVariantIdentityRow {
@@ -133,15 +145,11 @@ impl HirEnumMemberIdentities {
                     fields: field_records,
                 });
             }
-            rows.push(HirEnumIdentityRow {
+            self.enums.push(HirEnumIdentityRow {
                 variants: variant_rows,
             });
         }
-        Ok(Self {
-            enums: rows,
-            variants_by_identity,
-            fields_by_identity,
-        })
+        Ok(())
     }
 
     pub fn variant_declaration(&self, id: PersistentEnumVariantId) -> Option<EnumVariantRef> {

@@ -1,0 +1,22 @@
+annotation class Mark(val text: String)
+class Slot<T>(var value: T) {
+    operator fun getValue(thisRef: Unit) = value
+    operator fun setValue(thisRef: Unit, next: T) { value = next }
+}
+@Mark("property") @delegate:Mark("storage") @get:Mark("getter") @set:Mark("setter") @setparam:Mark("value")
+var delegated: Int by Slot(40)
+class FieldSlot(val value: Int) { operator fun getValue(thisRef: Host) = value }
+class Host(seed: Int) {
+    @Mark("member property") @delegate:Mark("member storage") @receiver:Mark("member receiver")
+    val picked: Int by FieldSlot(seed)
+}
+class Receiver<T>(val seed: T)
+class ExtensionSlot<T> { operator fun getValue(thisRef: Receiver<T>) = thisRef.seed }
+@Mark("extension property") @delegate:Mark("generic storage") @receiver:Mark("extension receiver")
+val <T> Receiver<T>.echo: T by ExtensionSlot<T>()
+fun main() {
+    delegated = 42
+    println(delegated)
+    println(Host(42).picked)
+    println(Receiver("generic").echo)
+}

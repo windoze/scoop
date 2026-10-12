@@ -165,6 +165,7 @@ fn generated_helpers_require_canonical_roles_payloads_and_complete_variant_order
 fn enum_facts_use_the_conjunction_of_variant_gc_free_facts() {
     let fixture = Fixture::new();
     let shape = MirTypeRepresentationV1::Enum {
+        representation: crate::EnumRepresentation::Algebraic,
         variants: vec![MirRepresentationVariantV1 {
             variant: fixture.variant.id(),
             fields: vec![MirRepresentationVariantFieldV1 {

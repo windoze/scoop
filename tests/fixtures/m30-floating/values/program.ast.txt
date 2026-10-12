@@ -44,6 +44,7 @@ SourceFile
         IntLiteral 130L
         Argument trailing
           Lambda 0 suspend=false
+            label MutableArray
             param i: _
             if
               Binary Eq
@@ -60,6 +61,7 @@ SourceFile
         IntLiteral 130L
         Argument trailing
           Lambda 1 suspend=false
+            label Array
             param i: _
             Var wide
     val list

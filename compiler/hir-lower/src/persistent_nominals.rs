@@ -85,7 +85,12 @@ impl Lowerer {
         } else {
             DefinitionOwnerChain::top_level()
         };
-        let scope = if input.parent.is_none() && input.access == hir::DeclaredVisibility::Private {
+        let scope = if let Some(local) = &self.local_type_declaration {
+            DeclarationScope::LexicalScoped {
+                source: source.clone(),
+                path: local.path.clone(),
+            }
+        } else if input.parent.is_none() && input.access == hir::DeclaredVisibility::Private {
             DeclarationScope::SourceScoped(source.clone())
         } else {
             DeclarationScope::ConeWide
@@ -103,6 +108,9 @@ impl Lowerer {
         owner: Owner,
         identity: hir::HirNominalIdentity,
     ) {
+        if let Some(identities) = &mut self.nominal_identities {
+            identities.append(owner.as_nominal_owner(), identity.clone());
+        }
         let previous = self.nominal_owners.insert(identity.declaration_id(), owner);
         assert!(
             previous.is_none(),

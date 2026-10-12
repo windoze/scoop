@@ -55,6 +55,7 @@ impl TypedManagedPointerBoundary {
 }
 
 mod builders;
+mod constant_roots;
 mod finalization;
 mod manifest;
 mod root_identity;

@@ -91,6 +91,7 @@ fn rejects_a_native_enum_witness_that_omits_a_source_variant() {
         &declaration,
         &[0],
         NativeBoundaryNominalShape::Enum {
+            representation: crate::EnumRepresentation::Algebraic,
             variants: Vec::new(),
         },
     )
@@ -125,6 +126,7 @@ fn rejects_a_native_enum_witness_that_omits_a_variant_field() {
         &declaration,
         &[0],
         NativeBoundaryNominalShape::Enum {
+            representation: crate::EnumRepresentation::Algebraic,
             variants: vec![NativeBoundaryVariantDefinition::new(&variant_key, Vec::new()).unwrap()],
         },
     )

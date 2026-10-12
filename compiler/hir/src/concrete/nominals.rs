@@ -122,6 +122,7 @@ pub enum StructCAbi {
 
 #[derive(Debug, Clone)]
 pub struct EnumDef {
+    pub representation: crate::EnumRepresentation,
     pub origin: HirNominalIdentity,
     /// Canonical concrete type represented by this exact enum application.
     pub canonical_type: TypeId,
@@ -191,6 +192,7 @@ pub enum ClassInitializerTarget {
 
 #[derive(Debug, Clone)]
 pub struct ConstructorParameter {
+    pub selector: scoop_identity::LocalValueSelector,
     pub id: ConstructorParamId,
     pub binding: BindingId,
     pub definition: DefinitionOrigin,

@@ -119,7 +119,10 @@ impl ImportedGenericTarget {
                             ),
                             return_type: signature.owner,
                         },
-                        receiver: None,
+                        receiver: signature
+                            .context_parameter
+                            .as_ref()
+                            .map(|parameter| parameter.ty),
                         origin: signature.origin,
                         span: signature.origin.span,
                     },

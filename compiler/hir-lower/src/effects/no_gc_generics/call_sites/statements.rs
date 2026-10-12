@@ -56,6 +56,7 @@ impl Lowerer {
                     }
                 }
                 hir::StatementKind::While {
+                    loop_kind: _,
                     target: _,
                     condition_setup,
                     cond,

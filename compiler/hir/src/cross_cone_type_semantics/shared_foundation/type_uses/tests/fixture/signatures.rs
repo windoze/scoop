@@ -16,10 +16,12 @@ impl Loaded {
                 .unwrap(),
             ),
             SignatureTypeKey::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => ExactTypeKey::Function {
+                receiver: receiver.as_ref().map(|ty| self.register_signature(ty)),
                 effect: *effect,
                 parameters: parameters
                     .iter()

@@ -16,6 +16,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     instantiation_conditions: DecodedNominalInstantiationConditionsV1,
     release_policy: NominalReleasePolicyV1,
     class_primary_constructor: Option<DecodedClassPrimaryConstructorV1>,
+    sealed_subtypes: Option<Vec<DecodedSourceNominalId>>,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -43,6 +44,25 @@ impl DecodedNominalDeclarationDetailsV1 {
         let members = CanonicalNestedMemberRefsV1::from_ordered(members).map_err(Error::Order)?;
         let children =
             CanonicalNestedNominalRefsV1::from_ordered(children).map_err(Error::Order)?;
+        let sealed_subtypes = self
+            .sealed_subtypes
+            .map(|subtypes| {
+                let values = subtypes
+                    .into_iter()
+                    .map(|subtype| subtype.resolve(resolver))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(Error::Reference)?;
+                if let Some(index) = values.windows(2).position(|pair| pair[0] >= pair[1]) {
+                    return Err(Error::SealedSubtypes(
+                        crate::SourceInventoryError::NonCanonicalOrder {
+                            table: "sealed subtypes",
+                            index: index + 1,
+                        },
+                    ));
+                }
+                crate::CanonicalSourceNominalIdsV1::try_new(values).map_err(Error::SealedSubtypes)
+            })
+            .transpose()?;
         Ok(NominalDeclarationDetailsV1::new(
             self.modality,
             self.visibility,
@@ -67,13 +87,24 @@ impl DecodedNominalDeclarationDetailsV1 {
                 .map(|primary| primary.resolve(resolver))
                 .transpose()
                 .map_err(Error::ClassPrimary)?,
-        ))
+        )
+        .with_sealed_subtypes(sealed_subtypes))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        let fields = decoder.map()?;
+        if fields != 11 && fields != 12 {
+            return Err(WireError::new(
+                WireErrorKind::InvalidLength {
+                    expected: 11,
+                    actual: fields,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
+        }
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
@@ -103,6 +134,13 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 .field(9, DecodedNominalInstantiationConditionsV1::decode)?,
             release_policy: decoder.field(10, NominalReleasePolicyV1::decode)?,
             class_primary_constructor: decoder.field(11, super::class_primary::wire::optional)?,
+            sealed_subtypes: if fields == 12 {
+                Some(decoder.field(12, |d| {
+                    d.decode_array(|d, _| DecodedSourceNominalId::decode(d))
+                })?)
+            } else {
+                None
+            },
         };
 
         Ok(value)
@@ -111,7 +149,11 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(if self.sealed_subtypes.is_some() {
+            12
+        } else {
+            11
+        })?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -146,12 +188,20 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
         if let Some(primary) = &self.class_primary_constructor {
             primary.encode(encoder)?;
         }
+        if let Some(subtypes) = &self.sealed_subtypes {
+            encoder.field(12)?;
+            encoder.array(subtypes.len() as u64)?;
+            for subtype in subtypes {
+                subtype.encode(encoder)?;
+            }
+        }
         Ok(())
     }
 }
 
 #[derive(Debug)]
 pub enum NominalDeclarationDetailsResolutionError<E> {
+    SealedSubtypes(crate::SourceInventoryError),
     ClassPrimary(ClassPrimaryConstructorResolutionError<E>),
     InstantiationConditions(crate::BinderUseListValidationError<E>),
     DispatchOrder(NominalDispatchOrderResolutionError<E>),
@@ -164,6 +214,7 @@ pub enum NominalDeclarationDetailsResolutionError<E> {
 impl<E: std::fmt::Display> std::fmt::Display for NominalDeclarationDetailsResolutionError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::SealedSubtypes(e) => e.fmt(f),
             Self::InstantiationConditions(e) => e.fmt(f),
             Self::ClassPrimary(e) => e.fmt(f),
             Self::DispatchOrder(e) => e.fmt(f),

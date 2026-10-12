@@ -8,7 +8,7 @@ fn intrinsic_annotation_on_bodiless_function() {
     let function = only_function(&file);
     assert_eq!(function.annotations.len(), 1);
     let annotation = &function.annotations[0];
-    assert_eq!(annotation.name.text, "Intrinsic");
+    assert!(annotation.name.is_ident("Intrinsic"));
     assert!(matches!(
         annotation.args.as_slice(),
         [scoop_ast::AnnotationArg {
@@ -47,7 +47,10 @@ fn intrinsic_function_with_return_type() {
 #[test]
 fn unknown_annotation_is_preserved_for_hir() {
     let file = ok("@Unknown fun f() {}");
-    assert_eq!(only_function(&file).annotations[0].name.text, "Unknown");
+    assert_eq!(
+        only_function(&file).annotations[0].name.to_string(),
+        "Unknown"
+    );
 }
 
 #[test]
@@ -101,5 +104,5 @@ fn annotation_on_a_struct_is_preserved_for_hir() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected struct");
     };
-    assert_eq!(decl.annotations[0].name.text, "Intrinsic");
+    assert_eq!(decl.annotations[0].name.to_string(), "Intrinsic");
 }

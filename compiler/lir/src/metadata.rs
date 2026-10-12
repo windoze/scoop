@@ -960,6 +960,7 @@ impl EnumDefs {
             // and one payload variant.
             EnumRepr::Niche { .. } => 2,
             EnumRepr::Tagged { variants, .. } => variants.len(),
+            EnumRepr::Integral { values, .. } => values.len(),
         };
         ((variant as usize) < variant_count).then_some(LirVariantRef {
             definition,
@@ -1013,7 +1014,7 @@ impl EnumDefs {
                 kind,
                 payload_variant,
             } if variant.variant == *payload_variant && field == 0 => Some(kind.storage_type()),
-            EnumRepr::Niche { .. } => None,
+            EnumRepr::Niche { .. } | EnumRepr::Integral { .. } => None,
             EnumRepr::Tagged { variants, .. } => variants[variant.variant as usize]
                 .fields
                 .get(field as usize)
@@ -1110,6 +1111,11 @@ impl std::ops::Index<EnumDefId> for EnumDefs {
 
 #[derive(Debug)]
 pub enum EnumRepr {
+    /// A nominal enum stored with its integer parent's scalar representation.
+    Integral {
+        kind: crate::IntegerKind,
+        values: Vec<u64>,
+    },
     /// Niche optimization (spec 7.4): only an enum structurally isomorphic to
     /// `Option<ref/Ptr/FunPtr>` may use it — exactly one empty variant and one
     /// single pointer-represented payload variant. Names and order do not

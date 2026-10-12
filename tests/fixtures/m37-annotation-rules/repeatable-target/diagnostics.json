@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "annotation `@FieldOnly` is not allowed on FUNCTION",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 83,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 73
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "annotation `@FieldOnly` is not allowed on FUNCTION",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 94,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  }
+]

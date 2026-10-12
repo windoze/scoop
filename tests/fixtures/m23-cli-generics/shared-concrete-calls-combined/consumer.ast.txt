@@ -38,6 +38,7 @@ SourceFile
         Call exercise<String>
           StringLiteral "call"
           Lambda 1 suspend=false
+            label exercise
             param value: _
             IntLiteral 42
         IntLiteral 42
@@ -48,6 +49,7 @@ SourceFile
         Call exercise<Unit>
           UnitLiteral
           Lambda 2 suspend=false
+            label exercise
             param value: _
             IntLiteral 42
         IntLiteral 42
@@ -57,5 +59,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 3 suspend=false
+          label exercise
           param value: _
           Var value

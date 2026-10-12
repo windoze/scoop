@@ -1,0 +1,8 @@
+fun main() {
+    class Host {
+        class Nested(val value: Int)
+        fun make(): Nested = Nested(42)
+    }
+    println(Host.Nested(42).value)
+    println(Host().make().value)
+}

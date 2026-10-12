@@ -147,10 +147,15 @@ impl<'a> MetadataTypes<'a, '_> {
                     .map_err(|e| Error::Key(e.to_string()))?,
             ),
             SignatureTypeKey::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => ExactTypeKey::Function {
+                receiver: receiver
+                    .as_ref()
+                    .map(|ty| self.exact_with_bindings(ty, bindings))
+                    .transpose()?,
                 effect: *effect,
                 parameters: self.exacts(parameters, bindings)?,
                 result: self.exact_with_bindings(result, bindings)?,
@@ -207,6 +212,7 @@ impl<'a> MetadataTypes<'a, '_> {
             };
             let function = self.key(*function)?;
             let ExactTypeKey::Function {
+                receiver: None,
                 effect: scoop_identity::Effect::Ordinary,
                 parameters,
                 result,

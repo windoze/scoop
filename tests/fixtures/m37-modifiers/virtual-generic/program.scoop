@@ -1,0 +1,2 @@
+open class Invalid { inline open fun <reified T> convert(value: T): T = value }
+fun main() {}

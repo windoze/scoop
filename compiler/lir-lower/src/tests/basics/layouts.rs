@@ -173,6 +173,7 @@ fn all_eight_integer_kinds_use_their_exact_target_scalar_layout() {
 fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
     let mut builder = Builder::new();
     let signature = builder.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![
             mir::Type::Integer(mir::IntegerKind::SIGNED_8),

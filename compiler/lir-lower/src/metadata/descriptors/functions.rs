@@ -28,8 +28,7 @@ pub(super) fn materialize(
             relations: lir::TypeDescriptorRelations::Signature {
                 is_suspend: module.function_types[function].is_suspend,
                 parameters: module.function_types[function]
-                    .parameter_types
-                    .iter()
+                    .parameters()
                     .map(|ty| function_operand(refs, ty))
                     .collect(),
                 result: function_operand(refs, &module.function_types[function].return_type),
@@ -134,11 +133,7 @@ fn order_function_type(
         return;
     }
     let signature = &module.function_types[function];
-    for ty in signature
-        .parameter_types
-        .iter()
-        .chain([&signature.return_type])
-    {
+    for ty in signature.parameters().chain([&signature.return_type]) {
         if let mir::Type::Function(nested) = ty {
             order_function_type(module, *nested, visited, ordered);
         }

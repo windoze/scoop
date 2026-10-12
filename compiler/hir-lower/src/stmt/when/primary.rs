@@ -1,6 +1,8 @@
 use super::conditions::ArmPrimary;
 use super::*;
 
+mod predicates;
+
 impl Lowerer {
     pub(super) fn subject_primary(
         &mut self,
@@ -34,14 +36,14 @@ impl Lowerer {
                 Some(ArmPrimary {
                     irrefutable: crate::patterns::is_irrefutable(&pattern),
                     condition: hir::WhenCondition::Case(pattern.clone()),
-                    source: None,
+                    paths: None,
                     coverage: vec![pattern],
                     completes: true,
                 })
             }
             ast::WhenArmCondition::Else => Some(ArmPrimary {
                 condition: hir::WhenCondition::Always,
-                source: None,
+                paths: None,
                 coverage: Vec::new(),
                 completes: true,
                 irrefutable: true,
@@ -52,12 +54,15 @@ impl Lowerer {
                         .iter()
                         .map(|condition| subject_condition(condition, subject)),
                 );
-                let predicate = self.lower_when_predicate(&source)?;
+                let predicate = self.lower_subject_predicate(&source, subject)?;
                 Some(ArmPrimary {
                     completes: self.when_predicate_completes(&predicate),
                     irrefutable: false,
-                    condition: hir::WhenCondition::Predicate(predicate),
-                    source: Some(source),
+                    condition: hir::WhenCondition::Predicate(predicate.clone()),
+                    paths: Some((
+                        self.checked_condition_facts(&predicate.condition, true),
+                        self.checked_condition_facts(&predicate.condition, false),
+                    )),
                     coverage: self.ordinary_when_coverage(conditions, subject.value.ty),
                 })
             }
@@ -75,7 +80,7 @@ impl Lowerer {
             }
             ast::WhenArmCondition::Else => Some(ArmPrimary {
                 condition: hir::WhenPredicate::Always,
-                source: None,
+                paths: None,
                 coverage: Vec::new(),
                 completes: true,
                 irrefutable: true,
@@ -97,8 +102,11 @@ impl Lowerer {
                 Some(ArmPrimary {
                     completes: self.when_predicate_completes(&predicate),
                     irrefutable: false,
-                    condition: hir::WhenPredicate::Predicate(predicate),
-                    source: Some(source),
+                    condition: hir::WhenPredicate::Predicate(predicate.clone()),
+                    paths: Some((
+                        self.checked_condition_facts(&predicate.condition, true),
+                        self.checked_condition_facts(&predicate.condition, false),
+                    )),
                     coverage: Vec::new(),
                 })
             }

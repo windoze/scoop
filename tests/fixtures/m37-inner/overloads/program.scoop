@@ -1,0 +1,13 @@
+class Outer(val value: Int) {
+    inner class Inner(val delta: Int) { fun total(): Int = value + delta }
+    fun Inner(text: String): String = text
+}
+fun main() {
+    val outer = Outer(40)
+    println(outer.Inner(2).total())
+    println(outer.Inner("method"))
+    val construct: (Int) -> Outer.Inner = outer::Inner
+    val method: (String) -> String = outer::Inner
+    println(construct(3).total())
+    println(method("reference"))
+}

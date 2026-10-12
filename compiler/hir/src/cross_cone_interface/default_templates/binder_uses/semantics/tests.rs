@@ -108,11 +108,13 @@ fn substitutes_both_provider_frames_in_flattened_owner_then_callable_order() {
         ),
         (
             SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Suspend,
                 parameters: vec![binder(1, 0)],
                 result: Box::new(binder(0, 0)),
             },
             SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Suspend,
                 parameters: vec![owner_zero.clone()],
                 result: Box::new(callable_zero.clone()),

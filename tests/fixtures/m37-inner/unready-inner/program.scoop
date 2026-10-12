@@ -1,0 +1,1 @@
+class Outer { inner class Inner { val value: Inner = this } }

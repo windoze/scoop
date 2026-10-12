@@ -103,6 +103,14 @@ impl Lowerer {
             Some(ValueBlock { statements, value })
         })();
         self.pop_scope();
+        if let Some(value) = lowered.as_ref().and_then(|block| block.value.as_ref()) {
+            let ty = expected
+                .filter(|&ty| self.is_subtype(value.ty, ty))
+                .unwrap_or(value.ty);
+            if !self.check_local_type_result(ty, value.span, &self.scopes.clone(), true) {
+                return None;
+            }
+        }
         lowered
     }
 
@@ -205,8 +213,8 @@ impl Lowerer {
         let cond = self.lower_condition(&if_.cond, "if", &mut cond_sink)?;
         let (then_narrowings, else_narrowings) = if self.diagnostics.len() == before {
             (
-                self.resolve_smart_casts(&if_.cond, true),
-                self.resolve_smart_casts(&if_.cond, false),
+                self.checked_condition_facts(&cond, true),
+                self.checked_condition_facts(&cond, false),
             )
         } else {
             (Default::default(), Default::default())

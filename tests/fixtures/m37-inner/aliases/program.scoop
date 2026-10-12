@@ -1,0 +1,13 @@
+class Outer<T>(val first: T) {
+    inner class Inner<U>(val second: U) { fun value(): T = first }
+    fun make(value: Int): Fixed<T> = Fixed(value)
+    fun factory(): (Int) -> Fixed<T> = ::Fixed
+}
+typealias Fixed<T> = Outer<T>.Inner<Int>
+fun main() {
+    val outer = Outer("outer")
+    val value: Fixed<String> = outer.make(42)
+    println(value.value())
+    println(value.second)
+    println(outer.factory()(7).second)
+}

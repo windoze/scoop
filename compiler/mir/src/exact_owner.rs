@@ -307,6 +307,7 @@ mod tests {
     #[test]
     fn structural_shapes_create_their_exact_type_group() {
         let exact = CborIdentityRecord::from_key(ExactTypeKey::Function {
+            receiver: None,
             effect: Effect::Ordinary,
             parameters: Vec::new(),
             result: unit().id(),

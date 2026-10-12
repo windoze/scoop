@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn resolve_nominal_parameter_constraints(
+    pub(crate) fn resolve_nominal_parameter_constraints(
         &mut self,
         pending_structs: &[(StructId, &ast::StructDecl, usize)],
         pending_enums: &[(EnumId, &ast::EnumDecl, usize)],
@@ -19,7 +19,7 @@ impl Lowerer {
             let declared = self.structs[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
-                0,
+                self.local_type_parameter_count(Owner::Struct(id)),
                 &decl.type_params,
                 decl.where_clause.as_ref(),
                 "struct",
@@ -32,7 +32,7 @@ impl Lowerer {
             let declared = self.enums[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
-                0,
+                self.local_type_parameter_count(Owner::Enum(id)),
                 &decl.type_params,
                 decl.where_clause.as_ref(),
                 "enum",
@@ -42,10 +42,18 @@ impl Lowerer {
         for &(id, decl, file_index) in pending_classes {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Class(id));
-            let declared = self.classes[id].type_params.clone();
+            let mut declared = self.classes[id].type_params.clone();
+            let outer_count = self
+                .enclosing_parameter_count(id)
+                .max(self.local_type_parameter_count(Owner::Class(id)));
+            if decl.inner_span.is_some()
+                && let Some(hir::NominalOwner::Class(outer)) = self.classes[id].owner
+            {
+                declared[..outer_count].clone_from_slice(&self.classes[outer].type_params);
+            }
             let params = self.resolve_type_parameter_constraints(
                 declared,
-                0,
+                outer_count,
                 &decl.type_params,
                 decl.where_clause.as_ref(),
                 "class",
@@ -58,7 +66,7 @@ impl Lowerer {
             let declared = self.interfaces[id].type_params.clone();
             let params = self.resolve_type_parameter_constraints(
                 declared,
-                0,
+                self.local_type_parameter_count(Owner::Interface(id)),
                 &decl.type_params,
                 decl.where_clause.as_ref(),
                 "interface",

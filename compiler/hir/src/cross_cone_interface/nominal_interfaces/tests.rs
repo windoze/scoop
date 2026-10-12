@@ -11,6 +11,7 @@ use crate::{
 mod class_primary;
 mod conditions;
 mod declaration;
+mod sealed;
 mod support;
 
 use support::*;

@@ -27,10 +27,54 @@ impl Lowerer {
             signature,
             bindings: template_bindings,
         } = declaration;
-        let explicit = match self.resolve_call_type_args(call.type_args) {
+        let mut explicit = match self.resolve_call_type_args(call.type_args) {
             Some(arguments) => arguments,
             None => return Err(self),
         };
+        if matches!(template, ImportedGenericTarget::Constructor(_))
+            && call.alias.is_none()
+            && let ImportedCallReceiver::Member { value, .. } = &receiver
+        {
+            let outer = self
+                .nominal_application(value.ty())
+                .expect("an inner constructor has its outer application")
+                .arguments;
+            let own_count = signature.signature.owner_parameters.len() - outer.len();
+            if explicit.is_empty() {
+                explicit.extend(
+                    (0..own_count)
+                        .map(|_| crate::expr::ResolvedCallTypeArgument::Infer { span: call.span }),
+                );
+            }
+            explicit.splice(
+                0..0,
+                outer
+                    .into_iter()
+                    .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit {
+                        ty,
+                        span: call.span,
+                    }),
+            );
+        }
+        let alias_signature = if let Some(alias) = call.alias {
+            match self.alias_constructor_signature(
+                alias,
+                &signature.signature,
+                &explicit,
+                call.span,
+            ) {
+                Some(signature) => Some(signature),
+                None => return Err(self),
+            }
+        } else {
+            None
+        };
+        let inference_signature = alias_signature
+            .as_ref()
+            .map_or(&signature.signature, |alias| &alias.signature);
+        let inference_explicit = alias_signature
+            .as_ref()
+            .map_or(explicit.as_slice(), |alias| alias.explicit.as_slice());
         let forced_hint = if candidate.callback_intrinsic()
             == Some(hir::IntrinsicFunctionKind::ForeignCallbackRegister)
         {
@@ -80,12 +124,19 @@ impl Lowerer {
         };
         let bound_receiver = match (signature.receiver, &receiver) {
             (Some(expected), ImportedCallReceiver::Member { value, .. }) => {
+                let expected = alias_signature.as_ref().map_or(expected, |alias| {
+                    self.instantiate_method_ty(expected, &alias.target_bindings)
+                });
                 Some((expected, value.ty()))
             }
             _ => None,
         };
         let expected_application = expected.and_then(|ty| self.nominal_application(ty));
-        let type_arguments = if nominal {
+        let type_arguments = if alias_signature.is_some() {
+            DeclarationTypeArguments::Callable {
+                owner_arguments: &[],
+            }
+        } else if nominal {
             let result = self
                 .nominal_application(signature.signature.return_type)
                 .expect("a nominal candidate retains its full result application");
@@ -128,30 +179,84 @@ impl Lowerer {
             expressions
         };
         let InferredCall {
-            types: solution,
-            bindings,
+            types: mut solution,
+            mut bindings,
             values: source_args,
             sinks: argument_sinks,
             parameter_types,
             return_type: result_type,
             numeric_arguments,
         } = match self.infer_call_arguments(CallInferenceInput {
-            signature: &signature.signature,
+            signature: inference_signature,
+            result: crate::declaration_inference::DeclarationResult::Known(
+                inference_signature.return_type,
+            ),
             argument_map: argument_map.mapping(),
             type_arguments,
-            explicit_arguments: &explicit,
+            explicit_arguments: inference_explicit,
             bound_receiver,
             expressions: &expressions,
-            expected_result: if nominal { None } else { expected },
+            expected_result: if nominal && alias_signature.is_none() {
+                None
+            } else {
+                expected
+            },
             forced_hint,
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
                 if let ArgumentInferenceFailureKind::Constraint(failure) = failure.kind {
-                    self.imported_generic_inference_error(name, call, &signature, &failure);
+                    if alias_signature.is_some() {
+                        let message = self.render_imported_constraint_failure(
+                            &inference_signature.owner_parameters,
+                            &inference_signature.callable_parameters,
+                            &failure,
+                        );
+                        self.error(
+                            call.span,
+                            format!("typealias constructor `{}`: {message}", name.text),
+                        );
+                    } else {
+                        self.imported_generic_inference_error(name, call, &signature, &failure);
+                    }
                 }
                 return Err(self);
             }
+        };
+        if let Some(alias) = &alias_signature {
+            bindings = alias
+                .target_bindings
+                .iter()
+                .map(|(parameter, ty)| (*parameter, self.instantiate_method_ty(*ty, &bindings)))
+                .collect();
+            solution.owner = signature
+                .signature
+                .owner_parameters
+                .iter()
+                .map(|parameter| {
+                    bindings
+                        .iter()
+                        .find(|(id, _)| *id == parameter.id)
+                        .expect("constructor owner binding is complete")
+                        .1
+                })
+                .collect();
+            solution.callable = signature
+                .signature
+                .callable_parameters
+                .iter()
+                .map(|parameter| {
+                    bindings
+                        .iter()
+                        .find(|(id, _)| *id == parameter.id)
+                        .expect("constructor callable binding is complete")
+                        .1
+                })
+                .collect();
+        }
+        let crate::declaration_inference::DeclarationResult::Known(result_type) = result_type
+        else {
+            unreachable!("imported signatures already have complete results")
         };
         let receiver = match receiver {
             ImportedCallReceiver::Member {
@@ -284,6 +389,7 @@ impl Lowerer {
             }
         };
         Ok(ImportedDependencyCallProbe {
+            alias: call.alias.cloned(),
             implementation,
             declaration_file: signature.origin.file as usize,
             declaration_span: signature.span,

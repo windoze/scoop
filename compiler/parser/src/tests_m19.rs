@@ -24,7 +24,7 @@ fn primary_parameters_keep_plain_val_var_and_calling_shape() {
         scoop_ast::ParameterSyntax::Vararg { .. }
     ));
     assert_eq!(class.supertypes.len(), 1);
-    assert!(class.supertypes[0].constructor_arguments.is_some());
+    assert!(class.supertypes[0].constructor_arguments().is_some());
 }
 
 #[test]
@@ -89,13 +89,13 @@ fn every_supertype_keeps_parentheses_independently() {
     let Decl::Class(class) = &file.declarations[0] else {
         panic!("expected class")
     };
-    assert!(class.supertypes[0].constructor_arguments.is_some());
-    assert!(class.supertypes[1].constructor_arguments.is_none());
-    assert!(class.supertypes[2].constructor_arguments.is_some());
+    assert!(class.supertypes[0].constructor_arguments().is_some());
+    assert!(class.supertypes[1].constructor_arguments().is_none());
+    assert!(class.supertypes[2].constructor_arguments().is_some());
     let Decl::Interface(interface) = &file.declarations[1] else {
         panic!("expected interface")
     };
-    assert!(interface.supertypes[0].constructor_arguments.is_some());
+    assert!(interface.supertypes[0].constructor_arguments().is_some());
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn malformed_initialization_members_recover_independently() {
          }\n\
          fun good() {}",
     )
-    .expect_err("three malformed members must be reported");
+    .expect_err("two malformed members must be reported");
     let messages = diagnostics
         .iter()
         .map(|diagnostic| diagnostic.message.as_str())
@@ -134,7 +134,6 @@ fn malformed_initialization_members_recover_independently() {
     assert_eq!(
         messages,
         [
-            "class stored properties require an explicit type",
             "`init` must be followed by a block",
             "expected `(` after `constructor`, found `val`",
         ]
@@ -158,9 +157,5 @@ fn illegal_constructor_and_super_shapes_have_specific_diagnostics() {
     assert_eq!(
         err("fun f() { super::render }").1,
         "callable references cannot target `super`"
-    );
-    assert_eq!(
-        err("fun f() { this() }").1,
-        "`this(...)` is only valid in a constructor delegation clause"
     );
 }

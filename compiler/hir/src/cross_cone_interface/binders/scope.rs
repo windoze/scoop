@@ -59,6 +59,9 @@ impl SignatureBinderScopeV1 {
     }
 
     pub fn validate(&self, signature: &SignatureTypeKey) -> Result<(), SignatureBinderScopeError> {
+        if let Some(receiver) = signature.receiver_type() {
+            self.validate(receiver)?;
+        }
         match signature {
             SignatureTypeKey::Nominal(_) => Ok(()),
             SignatureTypeKey::NominalApplication { arguments, .. }

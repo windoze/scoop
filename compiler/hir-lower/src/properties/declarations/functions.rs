@@ -1,6 +1,44 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn property_function_target(owner: hir::PropertyOwner) -> FunctionTarget {
+        match owner {
+            hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {
+                FunctionTarget::TopLevel
+            }
+            hir::PropertyOwner::Class(owner) => FunctionTarget::Member(Owner::Class(owner)),
+            hir::PropertyOwner::Struct(owner) => FunctionTarget::Member(Owner::Struct(owner)),
+            hir::PropertyOwner::Enum(owner) => FunctionTarget::Member(Owner::Enum(owner)),
+            hir::PropertyOwner::Interface(owner) => FunctionTarget::Member(Owner::Interface(owner)),
+            hir::PropertyOwner::Object(owner) => FunctionTarget::Member(Owner::Object(owner)),
+        }
+    }
+
+    pub(crate) fn function_accessor_kind(
+        &self,
+        function: hir::FunctionId,
+    ) -> Option<PropertyAccessorKind> {
+        if let Some(forwarder) = self.interface_forwarders.get(&function) {
+            return forwarder.accessor();
+        }
+        self.property_accessor_sources
+            .iter()
+            .find(|source| source.function == function)
+            .map(|source| source.kind)
+    }
+
+    pub(crate) fn function_property(&self, function: hir::FunctionId) -> Option<hir::PropertyId> {
+        self.interface_forwarders
+            .get(&function)
+            .and_then(|forwarder| forwarder.property())
+            .or_else(|| {
+                self.property_accessor_sources
+                    .iter()
+                    .find(|source| source.function == function)
+                    .map(|source| source.property)
+            })
+    }
+
     pub(super) fn allocate_accessor_function(
         &mut self,
         declaration: ast::FunctionDecl,
@@ -19,18 +57,12 @@ impl Lowerer {
         } else {
             modifier
         };
-        let method_owner = match owner {
-            hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => None,
-            hir::PropertyOwner::Class(owner) => Some(Owner::Class(owner)),
-            hir::PropertyOwner::Struct(owner) => Some(Owner::Struct(owner)),
-            hir::PropertyOwner::Enum(owner) => Some(Owner::Enum(owner)),
-            hir::PropertyOwner::Interface(owner) => Some(Owner::Interface(owner)),
-            hir::PropertyOwner::Object(owner) => Some(Owner::Object(owner)),
+        let target = Self::property_function_target(owner);
+        let method_owner = match target {
+            FunctionTarget::Member(owner) => Some(owner),
+            FunctionTarget::TopLevel | FunctionTarget::Local => None,
         };
-        let checked = self.check_function_annotations(
-            &declaration,
-            method_owner.map_or(FunctionTarget::TopLevel, FunctionTarget::Member),
-        );
+        let checked = self.check_function_annotations(&declaration, target);
         let method = method_owner.map(|owner| hir::Method {
             owner: self.owner_ty(owner),
             modifier,
@@ -136,7 +168,12 @@ impl Lowerer {
     }
 
     pub(crate) fn resolve_property_accessor_signatures(&mut self) {
-        for source in self.property_accessor_sources.clone() {
+        self.resolve_property_accessor_signatures_from(0);
+    }
+
+    pub(crate) fn resolve_property_accessor_signatures_from(&mut self, start: usize) {
+        let sources = self.property_accessor_sources[start..].to_vec();
+        for source in sources {
             self.current_file = self.function_files[&source.function];
             if source.body_kind == PropertyAccessorBodyKind::Storage
                 && let Some(hir::PropertyBacking::TopLevelGlobal {
@@ -149,6 +186,7 @@ impl Lowerer {
                     self.globals[storage].ty,
                     initialization,
                 );
+                self.mark_pending_property_accessor(&source);
                 continue;
             }
             match source.owner {
@@ -157,11 +195,20 @@ impl Lowerer {
                 }
                 None => self.resolve_signature(source.function, &source.declaration),
             }
+            self.mark_pending_property_accessor(&source);
         }
     }
 
     pub(crate) fn lower_property_accessor_bodies(&mut self) {
-        for source in self.property_accessor_sources.clone() {
+        self.lower_property_accessor_bodies_from(0);
+    }
+
+    pub(crate) fn lower_property_accessor_bodies_from(&mut self, start: usize) {
+        let sources = self.property_accessor_sources[start..].to_vec();
+        for source in sources {
+            if self.property_accessor_was_lowered(source.function) {
+                continue;
+            }
             if self.functions[source.function]
                 .method
                 .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
@@ -186,7 +233,7 @@ impl Lowerer {
         }
     }
 
-    fn prepend_accessor_initialization_ensure(
+    pub(crate) fn prepend_accessor_initialization_ensure(
         &mut self,
         source: &PropertyAccessorSource,
         body: &mut hir::Body,
@@ -221,7 +268,11 @@ impl Lowerer {
     ) -> ast::FunctionDecl {
         ast::FunctionDecl {
             context_parameters: property.context_parameters.clone(),
-            annotations: getter.annotations.clone(),
+            annotations: accessor_annotations(
+                property,
+                &getter.annotations,
+                ast::AnnotationUseSiteTarget::Get,
+            ),
             visibility: property.visibility,
             is_suspend: false,
             is_override: property.is_override,
@@ -235,7 +286,7 @@ impl Lowerer {
             },
             type_params: property.type_params.clone(),
             params: Vec::new(),
-            return_ty: Some(property.ty.clone()),
+            return_ty: property.ty.clone(),
             where_clause: property.where_clause.clone(),
             body: accessor_function_body(&getter.body),
             span: getter.span,
@@ -271,7 +322,11 @@ impl Lowerer {
         };
         ast::FunctionDecl {
             context_parameters: property.context_parameters.clone(),
-            annotations: setter.annotations.clone(),
+            annotations: accessor_annotations(
+                property,
+                &setter.annotations,
+                ast::AnnotationUseSiteTarget::Set,
+            ),
             visibility: match setter.visibility {
                 ast::SetterVisibilitySyntax::Explicit { visibility, span } => {
                     ast::VisibilitySyntax::Explicit { visibility, span }
@@ -290,8 +345,13 @@ impl Lowerer {
             },
             type_params: property.type_params.clone(),
             params: vec![ast::Param {
+                annotations: Vec::new(),
                 name,
-                ty: property.ty.clone(),
+                ty: property.ty.clone().unwrap_or(ast::TypeRef {
+                    annotations: Vec::new(),
+                    kind: ast::TypeRefKind::Unit,
+                    span: property.name.span,
+                }),
                 syntax: ast::ParameterSyntax::Required,
                 span: setter.span,
             }],
@@ -328,4 +388,22 @@ fn accessor_function_body(body: &ast::AccessorBodySyntax) -> ast::FunctionBody {
         ast::AccessorBodySyntax::Expr(expression) => ast::FunctionBody::Expr(expression.clone()),
         ast::AccessorBodySyntax::Omitted => ast::FunctionBody::None,
     }
+}
+
+fn accessor_annotations(
+    property: &ast::PropertyDecl,
+    direct: &[ast::Annotation],
+    site: ast::AnnotationUseSiteTarget,
+) -> Vec<ast::Annotation> {
+    property
+        .annotations
+        .iter()
+        .filter(|a| a.use_site.is_some_and(|s| s.target == site))
+        .cloned()
+        .map(|mut a| {
+            a.use_site = None;
+            a
+        })
+        .chain(direct.iter().cloned())
+        .collect()
 }

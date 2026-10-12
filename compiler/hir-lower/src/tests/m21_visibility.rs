@@ -36,7 +36,8 @@ fn global(name: &str, value: i64, visibility_value: ast::DeclaredVisibility) -> 
     Decl::Global(ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
-            name: ident("Global"),
+            use_site: None,
+            name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),
         }],
@@ -48,7 +49,7 @@ fn global(name: &str, value: i64, visibility_value: ast::DeclaredVisibility) -> 
         type_params: Vec::new(),
         where_clause: None,
         name: ident(name),
-        ty: ty_named("Int"),
+        ty: Some(ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(int_lit(value)),
             accessors: ast::AccessorSyntax::default(),
@@ -173,7 +174,7 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
             .contains(&api_constructor)
     );
     let field = api_decl.fields[0];
-    let property = module.class_fields[field].property;
+    let property = module.class_fields[field].source.property().unwrap();
     assert!(module.public_surface.properties.contains(&property));
     let hidden = api_decl
         .methods

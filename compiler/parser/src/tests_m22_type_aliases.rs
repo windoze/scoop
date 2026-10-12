@@ -82,12 +82,9 @@ fn typealias_dump_is_source_shaped() {
 }
 
 #[test]
-fn annotations_and_non_visibility_modifiers_are_rejected_on_typealiases() {
-    let (_, annotation) = err("@Marker typealias Alias = Int");
-    assert_eq!(
-        annotation,
-        "annotations are not allowed on typealias declarations"
-    );
+fn annotations_are_preserved_and_non_visibility_modifiers_rejected_on_typealiases() {
+    let file = ok("@Marker typealias Alias = Int");
+    assert_eq!(alias(&file, 0).annotations.len(), 1);
 
     for modifier in [
         "suspend", "infix", "operator", "const", "open", "final", "abstract", "override",
@@ -102,40 +99,26 @@ fn annotations_and_non_visibility_modifiers_are_rejected_on_typealiases() {
 }
 
 #[test]
-fn generic_typealiases_have_an_m22_diagnostic() {
-    let (span, message) = err("typealias Box<T> = Array<T>");
-    assert_eq!(span, Span::new(13, 14));
-    assert_eq!(
-        message,
-        "generic typealias declarations are not supported in M22; typealias declarations must be non-generic"
-    );
-}
-
-#[test]
-fn nested_typealiases_have_the_same_explicit_scope_diagnostic() {
-    let cases = [
-        "class C { typealias Alias = Int }",
-        "struct S { typealias Alias = Int }",
-        "interface I { typealias Alias = Int }",
-        "enum E { A\n typealias Alias = Int }",
-        "object O { typealias Alias = Int }",
-    ];
-    for source in cases {
-        let (_, message) = err(source);
-        assert_eq!(
-            message,
-            "nested typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
-            "source {source}"
-        );
+fn generic_nested_and_local_typealiases_preserve_source_structure() {
+    let source = "typealias Names<T : value> = Array<T>\nclass C { typealias Pair<T> = (Int, T) }\nfun f() { typealias Local<T> = T.(Int) -> T }";
+    let file = ok(source);
+    assert_eq!(alias(&file, 0).type_params.len(), 1);
+    let dump = scoop_ast::dump(&file);
+    assert!(dump.contains("typealias Names<T : value>"), "{dump}");
+    assert!(dump.contains("typealias Pair<T>"), "{dump}");
+    assert!(dump.contains("typealias Local<T>"), "{dump}");
+    for source in [
+        "struct S { typealias A = Int }",
+        "interface I { typealias A = Int }",
+        "enum E { A\n typealias B = Int }",
+        "object O { typealias A = Int }",
+    ] {
+        ok(source);
     }
-}
-
-#[test]
-fn local_typealiases_have_an_m22_diagnostic() {
-    let (_, message) = err("fun f() { typealias Local = Int }");
+    let (_, message) = err("fun f() { private typealias Local = Int }");
     assert_eq!(
         message,
-        "local typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported"
+        "local typealias declarations cannot have visibility modifiers"
     );
 }
 
@@ -169,25 +152,9 @@ fn typealias_errors_recover_at_declaration_and_member_boundaries() {
          typealias Retained = String\n",
     )
     .expect_err("unsupported alias forms must be diagnosed");
-    assert_eq!(diagnostics.len(), 5, "{diagnostics:?}");
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
     assert_eq!(
         diagnostics[0].message,
-        "annotations are not allowed on typealias declarations"
-    );
-    assert_eq!(
-        diagnostics[1].message,
-        "generic typealias declarations are not supported in M22; typealias declarations must be non-generic"
-    );
-    assert_eq!(
-        diagnostics[2].message,
         "only visibility modifiers are allowed on typealias declarations"
-    );
-    assert_eq!(
-        diagnostics[3].message,
-        "generic typealias declarations are not supported in M22; typealias declarations must be non-generic"
-    );
-    assert_eq!(
-        diagnostics[4].message,
-        "nested typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported"
     );
 }

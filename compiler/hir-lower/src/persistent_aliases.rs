@@ -64,24 +64,42 @@ fn declaration(
             PackagePath::from_segments(segments)
         }
     };
-    let scope = if alias.access.declared == hir::DeclaredVisibility::Private {
+    let scope = if alias.lexical {
+        DeclarationScope::LexicalScoped {
+            source: source.clone(),
+            path: scoop_identity::StructuralDefinitionPath::from_first(
+                scoop_identity::StructuralPathSegment::new(
+                    scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+                    alias.origin.span.start,
+                ),
+                [],
+            ),
+        }
+    } else if alias.owner.is_none() && alias.access.declared == hir::DeclaredVisibility::Private {
         DeclarationScope::SourceScoped(source.clone())
     } else {
         DeclarationScope::ConeWide
     };
-    let site = SourceDeclarationSite::new(
-        source.cone(),
-        package,
-        DefinitionOwnerChain::top_level(),
-        scope,
-    )
-    .map_err(|error| {
-        failure(
-            file,
-            alias,
-            PersistentTypeAliasIdentityErrorDetail::InvalidSite(error),
-        )
-    })?;
+    let owners = alias
+        .owner
+        .map(|owner| {
+            let parent = lowerer
+                .nominal_identity(crate::Owner::from_nominal_owner(owner))
+                .source()
+                .expect("a source alias has a source owner");
+            let mut owners = parent.declaration().owners().owners().to_vec();
+            owners.push(parent.definition_owner());
+            DefinitionOwnerChain::from_outer_to_inner(owners)
+        })
+        .unwrap_or_else(DefinitionOwnerChain::top_level);
+    let site =
+        SourceDeclarationSite::new(source.cone(), package, owners, scope).map_err(|error| {
+            failure(
+                file,
+                alias,
+                PersistentTypeAliasIdentityErrorDetail::InvalidSite(error),
+            )
+        })?;
     let name = CanonicalIdentifier::new(&alias.name).map_err(|error| {
         failure(
             file,

@@ -1,0 +1,3 @@
+private class Hidden<T>(val value: T)
+public typealias Exposed<T> = Hidden<T>
+fun main() {}

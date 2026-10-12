@@ -121,6 +121,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 2 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<T>
             MethodCall resume
               Var continuation
@@ -130,6 +131,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 3 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<T>
             MethodCall resumeWithException
               Var continuation
@@ -139,6 +141,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 4 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<T>
             throw
               Call UnwrapException
@@ -147,6 +150,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 5 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<T>
             MethodCall resume
               Var continuation
@@ -158,6 +162,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 6 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<T>
             MethodCall resume
               Var continuation

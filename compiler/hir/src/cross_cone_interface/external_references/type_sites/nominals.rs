@@ -39,9 +39,21 @@ pub fn collect_type_site_nominals<K: Borrow<ExactTypeKey>, E>(
                 None
             }
             ExactTypeKey::Function {
-                parameters, result, ..
+                receiver,
+                parameters,
+                result,
+                ..
+            } => {
+                for child in receiver
+                    .iter()
+                    .chain(parameters)
+                    .chain(std::iter::once(result))
+                {
+                    push(&mut pending, *child)?;
+                }
+                None
             }
-            | ExactTypeKey::NativeFunctionPointer {
+            ExactTypeKey::NativeFunctionPointer {
                 parameters, result, ..
             } => {
                 for child in parameters.iter().chain(std::iter::once(result)) {

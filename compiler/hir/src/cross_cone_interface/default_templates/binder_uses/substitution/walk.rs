@@ -43,9 +43,18 @@ impl<'a> Substitution<'a, '_> {
                 self.children(value, arguments.as_slice(), None, substitute)?;
             }
             SignatureTypeKey::Function {
-                parameters, result, ..
+                receiver,
+                parameters,
+                result,
+                ..
+            } => {
+                self.children(value, parameters, Some(result), substitute)?;
+                if let Some(value) = receiver {
+                    scoop_wire::allocation::try_reserve(&mut self.tasks, 1, self.path)?;
+                    self.tasks.push(Task::Visit { value, substitute });
+                }
             }
-            | SignatureTypeKey::NativeFunctionPointer {
+            SignatureTypeKey::NativeFunctionPointer {
                 parameters, result, ..
             } => {
                 self.children(value, parameters, Some(result), substitute)?;

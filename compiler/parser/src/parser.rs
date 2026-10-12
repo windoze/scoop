@@ -17,6 +17,7 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
     let mut parser = Parser {
         expression_nesting: Parser::expression_nesting(&tokens),
         arm_body_nesting: None,
+        supertype_expression_nesting: None,
         tokens,
         pos: 0,
         diagnostics: Vec::new(),
@@ -201,6 +202,7 @@ pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
     pub(crate) expression_nesting: Vec<usize>,
     pub(crate) arm_body_nesting: Option<usize>,
+    pub(crate) supertype_expression_nesting: Option<usize>,
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) next_lambda_id: u32,
@@ -499,7 +501,7 @@ impl Parser {
     pub(crate) fn expect_ident(&mut self, what: &str) -> Result<Ident, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Ident(text) => {
+            TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
                 self.pos += 1;
                 Ok(Ident {
                     text,

@@ -20,6 +20,7 @@ pub(super) fn project(
             let projection = ConstructorProjection::new(
                 entities,
                 &constructor.parameters,
+                None,
                 &declaration.type_params,
                 owner_type,
                 constructor.origin,

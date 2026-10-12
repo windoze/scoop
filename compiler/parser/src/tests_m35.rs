@@ -198,7 +198,7 @@ fn grouping_selects_the_returned_callable_while_newlines_extend_the_call() {
     assert!(matches!(body.statements[3].kind, StatementKind::Block(_)));
     assert!(matches!(
         body.statements[4].kind,
-        StatementKind::Return { value: None }
+        StatementKind::Return { value: None, .. }
     ));
 }
 

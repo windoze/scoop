@@ -1,0 +1,413 @@
+Module
+  class Outer vtable=0 itables=0
+  class Outer.Inner vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Outer.make @fn0(this: Outer) -> Outer.Inner
+    bb0 entry
+      val $receiver: Outer
+        Type Outer
+        Local this
+      val $outer: Outer
+        Type Outer
+        Local $receiver
+      val $parameter.amount: Int
+        Type Int
+        FieldAccess 0
+          Type Outer
+          Local $outer
+      assign $new.1
+        Type Outer.Inner
+        ClassAlloc Outer.Inner
+      val $inline.1.this: Outer.Inner
+        Type Outer.Inner
+        Local $new.1
+      val $inline.1.$outer: Outer
+        Type Outer
+        Local $receiver
+      val $inline.1.amount: Int
+        Type Int
+        Local $parameter.amount
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Outer.Inner
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Outer.Inner
+        Local $inline.1.this
+        Type Outer
+        Local $inline.1.$outer
+      field_set 1
+        Type Outer.Inner
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.amount
+      val $inline.1.$outer: Outer
+        Type Outer
+        Local $inline.1.$outer
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Outer
+          Local $inline.1.$outer
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        Local $inline.1.amount
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.1.$dependency.argument.0
+      field_set 2
+        Type Outer.Inner
+        Local $inline.1.this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          Local $inline.1.$dependency.parameter.other
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun Outer.Inner.total @fn1(this: Outer.Inner) -> Int
+    bb0 entry
+      val $outer: Outer
+        Type Outer
+        FieldAccess 0
+          Type Outer.Inner
+          Local this
+      return
+        Type Int
+        FieldAccess 2
+          Type Outer.Inner
+          Local this
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $parameter.seed: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      assign $new.1
+        Type Outer
+        ClassAlloc Outer
+      val $inline.11.this: Outer
+        Type Outer
+        Local $new.1
+      val $inline.11.seed: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      goto bb12
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      val $inline.1.$outer: Outer
+        Type Outer
+        FieldAccess 0
+          Type Outer.Inner
+          Local $inline.1.this
+      assign $inline.1.result
+        Type Int
+        FieldAccess 2
+          Type Outer.Inner
+          Local $inline.1.this
+      goto bb1
+    bb3 inline.cont.3
+      val $receiver: Outer.Inner
+        Type Outer.Inner
+        Local $new.3
+      val $inline.1.this: Outer.Inner
+        Type Outer.Inner
+        Local $receiver
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Outer.Inner
+        Local $inline.3.this
+        Type Outer
+        Local $inline.3.$outer
+      field_set 1
+        Type Outer.Inner
+        Local $inline.3.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.3.$outer: Outer
+        Type Outer
+        Local $inline.3.$outer
+      val $inline.3.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Outer
+          Local $inline.3.$outer
+      val $inline.3.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.3.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 2
+        Type Outer.Inner
+        Local $inline.3.this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.3.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb5 inline.cont.5
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Outer
+        Type Outer
+        Local outer
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.amount: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $new.3
+        Type Outer.Inner
+        ClassAlloc Outer.Inner
+      val $inline.3.this: Outer.Inner
+        Type Outer.Inner
+        Local $new.3
+      val $inline.3.$outer: Outer
+        Type Outer
+        Local $receiver
+      val $inline.3.amount: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$outer: Outer
+        Type Outer
+        FieldAccess 0
+          Type Outer.Inner
+          Local $inline.5.this
+      assign $inline.5.result
+        Type Int
+        FieldAccess 2
+          Type Outer.Inner
+          Local $inline.5.this
+      goto bb5
+    bb7 inline.cont.7
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.7.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Outer
+        Type Outer
+        Local outer
+      call $receiver: Outer.Inner = @fn0 direct
+        Type Outer
+        Local $receiver
+      val $inline.5.this: Outer.Inner
+        Type Outer.Inner
+        Local $receiver
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$outer: Outer
+        Type Outer
+        FieldAccess 0
+          Type Outer.Inner
+          Local $inline.7.this
+      assign $inline.7.result
+        Type Int
+        FieldAccess 2
+          Type Outer.Inner
+          Local $inline.7.this
+      goto bb7
+    bb9 inline.cont.9
+      val $receiver: Outer.Inner
+        Type Outer.Inner
+        Local $new.2
+      val $inline.7.this: Outer.Inner
+        Type Outer.Inner
+        Local $receiver
+      goto bb8
+    bb10 inline.9.entry
+      field_set 0
+        Type Outer.Inner
+        Local $inline.9.this
+        Type Outer
+        Local $inline.9.$outer
+      field_set 1
+        Type Outer.Inner
+        Local $inline.9.this
+        Type Int
+        Local $inline.9.amount
+      val $inline.9.$outer: Outer
+        Type Outer
+        Local $inline.9.$outer
+      val $inline.9.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Outer
+          Local $inline.9.$outer
+      val $inline.9.$dependency.argument.0: Int
+        Type Int
+        Local $inline.9.amount
+      val $inline.9.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.9.$dependency.argument.0
+      field_set 2
+        Type Outer.Inner
+        Local $inline.9.this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.9.$dependency.receiver
+          Type Int
+          Local $inline.9.$dependency.parameter.other
+      Type Unit
+      UnitLiteral
+      goto bb9
+    bb11 inline.cont.11
+      val outer: Outer
+        Type Outer
+        Local $new.1
+      val $receiver: Outer
+        Type Outer
+        Local outer
+      val $outer: Outer
+        Type Outer
+        Local $receiver
+      val $parameter.amount: Int
+        Type Int
+        FieldAccess 0
+          Type Outer
+          Local $outer
+      assign $new.2
+        Type Outer.Inner
+        ClassAlloc Outer.Inner
+      val $inline.9.this: Outer.Inner
+        Type Outer.Inner
+        Local $new.2
+      val $inline.9.$outer: Outer
+        Type Outer
+        Local $receiver
+      val $inline.9.amount: Int
+        Type Int
+        Local $parameter.amount
+      goto bb10
+    bb12 inline.11.entry
+      field_set 0
+        Type Outer
+        Local $inline.11.this
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      Type Unit
+      UnitLiteral
+      goto bb11
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Outer.$c0 @fn4(this: Outer, seed: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Outer
+        Local this
+        Type Int
+        Local seed
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Outer.Inner.$c1 @fn5(this: Outer.Inner, $outer: Outer, amount: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Outer.Inner
+        Local this
+        Type Outer
+        Local $outer
+      field_set 1
+        Type Outer.Inner
+        Local this
+        Type Int
+        Local amount
+      val $outer: Outer
+        Type Outer
+        Local $outer
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Outer
+          Local $outer
+      val $dependency.argument.0: Int
+        Type Int
+        Local amount
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 2
+        Type Outer.Inner
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type Unit
+        UnitLiteral
+  instance mi0 function=@fn3 <- println
+  str @str0 "\n"
+  output executable @fn2

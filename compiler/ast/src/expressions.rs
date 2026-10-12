@@ -5,7 +5,14 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    AnonymousObject(Box<crate::AnonymousObjectDecl>),
+    LoopJump {
+        kind: crate::LoopJumpKind,
+        label: Option<Ident>,
+        span: Span,
+    },
     Return {
+        label: Option<Ident>,
         value: Option<Box<Expr>>,
         span: Span,
     },
@@ -58,6 +65,7 @@ pub enum Expr {
     /// parameter list was omitted; this is distinct from the explicit
     /// zero-parameter form `{ -> body }` for expected-type `it` inference.
     Lambda {
+        label: Option<Ident>,
         id: LambdaId,
         is_suspend: bool,
         parameters: Option<Vec<LambdaParam>>,
@@ -66,10 +74,12 @@ pub enum Expr {
     },
     /// `fun(p: T): R { ... }` / `suspend fun(...) { ... }`.
     AnonymousFunction {
+        label: Option<Ident>,
+        receiver: Option<Box<TypeRef>>,
         id: AnonymousFunctionId,
         is_suspend: bool,
         params: Vec<Param>,
-        return_ty: Option<TypeRef>,
+        return_ty: Option<Box<TypeRef>>,
         body: Block,
         span: Span,
     },
@@ -140,6 +150,7 @@ pub enum Expr {
     },
     /// `this` (inside member functions).
     This {
+        label: Option<Ident>,
         span: Span,
     },
     /// `receiver.name(args)` — method call (M6).
@@ -240,10 +251,12 @@ impl Expr {
 
     pub fn span(&self) -> Span {
         match self {
+            Expr::AnonymousObject(declaration) => declaration.span,
             Expr::IntLiteral(literal) => literal.span,
             Expr::FloatLiteral(literal) => literal.span,
             Expr::CharLiteral { span, .. }
             | Expr::Return { span, .. }
+            | Expr::LoopJump { span, .. }
             | Expr::Throw { span, .. }
             | Expr::ContextScope { span, .. }
             | Expr::StringLiteral { span, .. }
@@ -263,7 +276,7 @@ impl Expr {
             | Expr::Update { span, .. }
             | Expr::NullAssert { span, .. }
             | Expr::Elvis { span, .. }
-            | Expr::This { span }
+            | Expr::This { span, .. }
             | Expr::MethodCall { span, .. }
             | Expr::SuperMethodCall { span, .. }
             | Expr::QualifiedInterfaceSuperAccess { span, .. }
@@ -294,6 +307,7 @@ pub enum StringPart {
 /// pass; the type is optional only when an expected function type supplies it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LambdaParam {
+    pub annotations: Vec<crate::Annotation>,
     pub target: Pattern,
     pub ty: Option<TypeRef>,
     pub span: Span,

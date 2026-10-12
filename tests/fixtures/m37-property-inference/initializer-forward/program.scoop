@@ -1,0 +1,2 @@
+class Box { val first = second; val second = 2 }
+fun main() {}

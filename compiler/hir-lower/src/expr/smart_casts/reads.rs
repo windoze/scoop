@@ -4,8 +4,9 @@ impl Lowerer {
     pub(crate) fn stable_smart_cast_binding(&self, name: &str) -> Option<(hir::BindingId, TypeId)> {
         if let Some(local) = self.scopes.lookup(name) {
             let local = &self.locals[local];
-            return (!local.mutable && !self.local_delegate_plans.contains_key(&local.binding))
-                .then_some((local.binding, local.ty));
+            return (!self.smart_casts.escaped.contains(&local.binding)
+                && !self.local_delegate_plans.contains_key(&local.binding))
+            .then_some((local.binding, local.ty));
         }
         if let Some(capture) = self.available_capture(name) {
             return (!capture.mutable && !self.local_delegate_plans.contains_key(&capture.binding))
@@ -26,6 +27,13 @@ impl Lowerer {
             return declared;
         };
         if let Some(expected) = expected {
+            if types
+                .iter()
+                .any(|&ty| matches!(self.types[ty], Type::Function(_)))
+                && self.is_subtype(declared, expected)
+            {
+                return declared;
+            }
             if let Some(&ty) = types.iter().find(|&&ty| self.is_subtype(ty, expected)) {
                 return ty;
             }
@@ -34,6 +42,21 @@ impl Lowerer {
             }
         }
         types.first().copied().unwrap_or(declared)
+    }
+
+    pub(crate) fn function_smart_cast_storage(
+        &self,
+        operand: &ast::Expr,
+    ) -> Option<(hir::BindingId, TypeId)> {
+        let ast::Expr::Var(name) = operand else {
+            return None;
+        };
+        let (binding, declared) = self.stable_smart_cast_binding(&name.text)?;
+        self.smart_casts
+            .get(&binding)?
+            .iter()
+            .any(|&ty| matches!(self.types[ty], Type::Function(_)))
+            .then_some((binding, declared))
     }
 
     pub(crate) fn smart_cast_read(

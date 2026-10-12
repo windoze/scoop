@@ -147,7 +147,7 @@ fn native_producer_closes_mixed_direct_and_support_signature_dependencies() {
                         record.type_parameter_count(),
                         fields.len()
                     ),
-                    Shape::Enum { variants } => format!(
+                    Shape::Enum { variants, .. } => format!(
                         "{name} binders={} enum fields={:?}\n",
                         record.type_parameter_count(),
                         variants

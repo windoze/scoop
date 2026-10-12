@@ -197,7 +197,7 @@ impl Lowerer {
                     trap_on_none,
                 }
             }
-            Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
+            Kind::Upcast(operand) => hir::ExprKind::Upcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),
             Kind::Box(operand) => {
@@ -445,12 +445,7 @@ impl Lowerer {
                         }
                     }
                 } else {
-                    self.imported_default_call_kind(
-                        scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
-                        args,
-                        hir::SourceCallReceiver::NoReceiver,
-                        MemberCallKind::Ordinary,
-                    )?
+                    self.imported_default_constructor_kind(*declaration, args)?
                 }
             }
             Kind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {

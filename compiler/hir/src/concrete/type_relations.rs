@@ -94,7 +94,7 @@ impl<'a> ConcreteTypeRelations<'a> {
         visit: &mut impl FnMut(TypeId) -> Result<(), E>,
     ) -> Result<(), E> {
         let signature = &self.function_types[signature];
-        visit_types(signature.parameter_types.iter().copied(), visit)?;
+        visit_types(signature.parameters().copied(), visit)?;
         visit(signature.return_type)
     }
 

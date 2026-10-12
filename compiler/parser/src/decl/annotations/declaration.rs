@@ -23,6 +23,7 @@ impl Parser {
         if matches!(self.peek().kind, TokenKind::LParen) {
             self.bump();
             while !matches!(self.peek().kind, TokenKind::RParen) {
+                self.skip_parameter_compatibility_modifiers();
                 let start = self
                     .expect("`val` annotation parameter", |kind| {
                         matches!(kind, TokenKind::Val)

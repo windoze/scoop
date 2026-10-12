@@ -61,6 +61,7 @@ impl Lowerer {
                 },
             },
             Kind::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
@@ -69,6 +70,7 @@ impl Lowerer {
                 context.loop_targets.push(target);
                 let materialized: Result<_, ImportedDefaultMaterializationError> = (|| {
                     Ok(hir::StatementKind::While {
+                        loop_kind: *loop_kind,
                         target,
                         condition_setup: self
                             .materialize_imported_default_statements(condition_setup, context)?,
@@ -81,19 +83,27 @@ impl Lowerer {
                 debug_assert_eq!(popped, Some(target));
                 materialized?
             }
-            Kind::Break => hir::StatementKind::Break {
-                target: context.loop_targets.last().copied().ok_or(
-                    ImportedDefaultMaterializationError::InvalidControlFlow(
+            Kind::Break(target) => hir::StatementKind::Break {
+                target: context
+                    .loop_targets
+                    .iter()
+                    .rev()
+                    .nth(target.depth() as usize)
+                    .copied()
+                    .ok_or(ImportedDefaultMaterializationError::InvalidControlFlow(
                         "break without an enclosing loop",
-                    ),
-                )?,
+                    ))?,
             },
-            Kind::Continue => hir::StatementKind::Continue {
-                target: context.loop_targets.last().copied().ok_or(
-                    ImportedDefaultMaterializationError::InvalidControlFlow(
+            Kind::Continue(target) => hir::StatementKind::Continue {
+                target: context
+                    .loop_targets
+                    .iter()
+                    .rev()
+                    .nth(target.depth() as usize)
+                    .copied()
+                    .ok_or(ImportedDefaultMaterializationError::InvalidControlFlow(
                         "continue without an enclosing loop",
-                    ),
-                )?,
+                    ))?,
             },
             Kind::When(value) => {
                 hir::StatementKind::When(self.materialize_imported_default_when(value, context)?)

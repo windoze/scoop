@@ -9,6 +9,8 @@ use crate::call_resolution::candidates::{ValueParameterCalling, VarargOmission};
 use crate::defaults::DefaultExprTemplateRef;
 use scoop_ast as ast;
 
+mod captured;
+
 fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
         id: hir::TypeParamId::with_substitution_slot(identity, slot),

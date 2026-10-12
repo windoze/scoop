@@ -27,7 +27,9 @@ pub(super) fn exact_function_identity(
     };
     let signature = hir::ExactCallableSignature::new(
         effect,
-        None,
+        source
+            .receiver
+            .map(|ty| module.exact_type_identities[ty].id()),
         source
             .parameter_types
             .iter()
@@ -49,7 +51,8 @@ pub(crate) fn dynamic_function_type(
         .iter()
         .find(|(_, candidate)| {
             candidate.is_suspend == source.is_suspend
-                && candidate.parameter_types.len() == source.parameter_types.len()
+                && candidate.receiver.is_none()
+                && candidate.arity() == source.arity()
                 && candidate
                     .parameter_types
                     .iter()
@@ -272,12 +275,14 @@ impl EnumRegistry {
         let decl = &types.module.enums[hir_id];
         let name = decl.name.clone();
         let id = self.defs.alloc(mir::EnumDef {
+            representation: lower_enum_representation(&decl.representation),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         shell.enums.alloc(mir::EnumDef {
+            representation: lower_enum_representation(&decl.representation),
             name: name.clone(),
             type_arguments: Vec::new(),
             gc_free: decl.gc_free,
@@ -472,4 +477,16 @@ pub(super) fn is_reference_mir(ty: &mir::Type) -> bool {
             | mir::Type::Function(_)
             | mir::Type::Any
     )
+}
+
+pub(super) fn lower_enum_representation(
+    source: &hir::EnumRepresentation,
+) -> mir::EnumRepresentation {
+    match source {
+        hir::EnumRepresentation::Algebraic => mir::EnumRepresentation::Algebraic,
+        hir::EnumRepresentation::Integral { kind, values } => mir::EnumRepresentation::Integral {
+            kind: lower_integer_kind(*kind),
+            values: values.clone(),
+        },
+    }
 }

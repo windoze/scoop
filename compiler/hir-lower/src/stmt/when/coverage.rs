@@ -2,8 +2,8 @@ use super::*;
 
 impl Lowerer {
     /// Ordinary calls and named constants do not establish a finite value
-    /// set. Only source literals and derived-equality unit variants supply
-    /// rows to the existing pattern matrix.
+    /// set. Source literals and unit variants with known structural or
+    /// integer equality supply rows to the existing pattern matrix.
     pub(super) fn ordinary_when_coverage(
         &mut self,
         conditions: &ast::NonEmptyVec<ast::WhenCondition>,
@@ -41,10 +41,12 @@ impl Lowerer {
                 && matches!(source, ast::Expr::Var(_) | ast::Expr::FieldAccess(_))
             {
                 let mut probe = self.clone();
-                if !matches!(
-                    probe.derived_equality_candidate(ty, source.span()),
-                    Ok(Some(_))
-                ) {
+                if probe.integral_enum_kind(ty).is_none()
+                    && !matches!(
+                        probe.derived_equality_candidate(ty, source.span()),
+                        Ok(Some(_))
+                    )
+                {
                     continue;
                 }
                 let mut setup = Vec::new();

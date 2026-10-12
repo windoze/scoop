@@ -1,0 +1,1851 @@
+Module
+  global0 starts: Int managed initial=encoded(Int:0x0)
+  global1 $singleton$Tools: Tools managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Nested: Box.Nested managed initial=zeroed-for-runtime-unit
+  global3 $singleton$Factory: Box.Factory<Int> managed initial=zeroed-for-runtime-unit
+  global4 $singleton$Factory: Box.Factory<String> managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global6 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global7 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  global8 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Tools singleton lazy global1 initializer=@fn3 ensure=@fn4 failure=5 deps=[]
+  init1 object:Box.Nested singleton lazy global2 initializer=@fn6 ensure=@fn7 failure=6 deps=[]
+  init2 companion:Box.Factory singleton lazy global3 initializer=@fn15 ensure=@fn16 failure=7 deps=[]
+  init3 companion:Box.Factory singleton lazy global4 initializer=@fn17 ensure=@fn18 failure=8 deps=[]
+  struct Box<Int> (value: Int)
+  struct Box<String> (value: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Box.Nested>
+    Completed(value: Box.Nested)
+    Suspended()
+  enum CoroutineSlot<Box.Nested>
+    Empty()
+    Value(value: Box.Nested)
+  class Tools vtable=0 itables=0
+  class Box.Nested vtable=0 itables=0
+  class Box.Factory<Int> vtable=0 itables=0
+  class Box.Factory<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Box<String>> vtable=0 itables=0
+  class box<Box<Int>> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Box.Nested>
+  interface SuspendTask<Box.Nested>
+  interface SuspendRegistration<Box.Nested>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn23 captures=1
+    bridge function_type1 -> @fn37 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn24 captures=1
+    bridge function_type1 -> @fn38 id=1dbc4c63a5c1656bae0fb66267b62cb646a4e816aae3599b10398a252e9214bc
+  closure cc2 $Closure$reference2 type=function_type2 invoke=@fn25 captures=1
+    bridge function_type1 -> @fn39 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
+  closure cc3 $Closure$reference3 type=function_type2 invoke=@fn26 captures=1
+    bridge function_type1 -> @fn40 id=f27d110c3cd2828f0b619ec06f905ab9f71f3f80070c9ec215a79bb04b7ed3cb
+  closure cc4 $Closure$reference4 type=function_type3 invoke=@fn27 captures=1
+    bridge function_type1 -> @fn41 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
+  closure cc5 $Closure$reference5 type=function_type4 invoke=@fn28 captures=1
+    bridge function_type5 -> @fn42 id=44b4706673b17821fee1318685783ac8de43fa3782fc804bda45c246e202c05b
+  closure cc6 $Closure$reference6 type=function_type0 invoke=@fn29 captures=1
+    bridge function_type1 -> @fn43 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure6 nominal_id=021aefdb45795169eee5f61e3e2265a0c680ec2777d12bbf588f030d1f1131d1 exact_id=19276589522880797caae0c339c66b0aed7fca11656ae1ca728c9961de8f1030
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure2 nominal_id=59305a445c8fbe3ce35e8684439640fda59a923a1de015447c65fd7fddf96f1b exact_id=64ba6dc8e9a60eb45fb8b59b74cb55d31953cd35ce021e8f192fc3d92cdf2aff
+  generated_exact_type get5 location=closure1 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=closure3 nominal_id=1e353bde12d06bfe9d2633647a4a2571b86d5c95625e386f999c743cea1bcd8b exact_id=92a80349df8afbcce7cd921a95823cdcb53643e924bb53b81fbbfc75ad736aa2
+  generated_exact_type get8 location=enum3 nominal_id=3b630da741523a1262907d6617d32362d26b0410626b59f7f3ae45f1adc19fa9 exact_id=a2e4663d43be43b6775a9796b8a79263429f227031add67848807def1098db5e
+  generated_exact_type get9 location=enum2 nominal_id=615c045a8ac0f00744bbc26a47fbfb130c91092ec4be492f942d12f8345e7e8c exact_id=ae1ac3ac38ebf014e5ceb003bb41d79e84ed473fc6ba40234a7d008e82a2df7d
+  generated_exact_type get10 location=class9 nominal_id=176232817bf506f5f46430f154c21ee977d67d5e4058b7982b2ce182cf1ca8ef exact_id=b03cc915d7e3b149ec13ba958ea0d82f3ed91157a8b20a6f9db81ecc714dc16a
+  generated_exact_type get11 location=closure4 nominal_id=dad1aa8313a6f2b2f2c28d2cb92be40613bb93998a53c95ebfe7e3352494f032 exact_id=baf0aa42922913ccf82717ae3c6d4469276a08436b3838e1161047d957d6c5c3
+  generated_exact_type get12 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get13 location=class8 nominal_id=8e72fb211584b7b80b758fb195e409ebcf7254683a78593eaed255608971a72d exact_id=d1cdde32502ef45dd1a5215415bb5df4791b2de28e3311c409c8a9c4a75638b5
+  generated_exact_type get14 location=closure5 nominal_id=ea4d883a297721288b80781ec0ce1a137273bb1c233c118e291ad302f83b054e exact_id=d73d1e4bf9ac0f1310e74b31b315b2b686778413eff8fcf89fe43a39c87ce352
+  generated_exact_type get15 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get16 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn38 id=1dbc4c63a5c1656bae0fb66267b62cb646a4e816aae3599b10398a252e9214bc
+  generated_callable gc1 function=@fn39 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
+  generated_callable gc2 function=@fn42 id=44b4706673b17821fee1318685783ac8de43fa3782fc804bda45c246e202c05b
+  generated_callable gc3 function=@fn37 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  generated_callable gc4 function=@fn36 id=b38dc1289cc102d426ccb6d7c4f110a9f288354798711024f93928da41ff3221
+  generated_callable gc5 function=@fn43 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
+  generated_callable gc6 function=@fn41 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
+  generated_callable gc7 function=@fn40 id=f27d110c3cd2828f0b619ec06f905ab9f71f3f80070c9ec215a79bb04b7ed3cb
+  fun Tools.read @fn0(this: Tools, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Tools
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Box.Nested.read @fn1(this: Box.Nested, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun mark @fn2() -> Int
+    bb0 entry
+      goto bb6
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        GlobalRead starts
+      goto bb1
+    bb3 inline.cont.3
+      goto bb2
+    bb4 inline.3.entry
+      global_assign starts
+        Type Int
+        Local $inline.3.value
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb5 inline.cont.5
+      val $old.0: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb4
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type Int
+        GlobalRead starts
+      goto bb5
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Tools
+        ClassAlloc Tools
+      val $inline.1.this: Tools
+        Type Tools
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Tools
+        Type Tools
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      call $inline.1.$call.1: Int = @fn2 direct
+      field_set 0
+        Type Tools
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.$call.1
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Tools
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Tools
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Tools
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Tools
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Tools
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun main @fn5() -> Unit
+    bb0 entry
+      goto bb24
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.1.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        GlobalRead starts
+      goto bb1
+    bb3 inline.cont.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call @fn10 direct
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.37.this: Box.Nested
+        Type Box.Nested
+        ClosureCapture cc6 0
+          Type (Int) -> Int
+          Local $inline.3.$closure
+      val $inline.37.value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb38
+    bb5 inline.cont.5
+      val $dependency.argument.0: String
+        Type String
+        Local $inline.5.result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type String
+        Local $dependency.parameter.value
+      val $inline.3.$closure: (Int) -> Int
+        Type (Int) -> Int
+        Local nested
+      val $inline.3.arg0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.35.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc5 0
+          Type (Int, String) -> String
+          Local $inline.5.$closure
+      val $inline.35.value: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $inline.35.other: String
+        Type String
+        Local $inline.5.arg1
+      goto bb36
+    bb7 inline.cont.7
+      val $call.4: Box<String>
+        Type Box<String>
+        Local $inline.7.result
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Box<String>
+          Local $call.4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type String
+        Local $dependency.parameter.value
+      val $inline.5.$closure: (Int, String) -> String
+        Type (Int, String) -> String
+        Local choose
+      val $inline.5.arg0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $inline.5.arg1: String
+        Type String
+        StringConst @str1
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.33.this: Box.Factory<String>
+        Type Box.Factory<String>
+        ClosureCapture cc4 0
+          Type (String) -> Box<String>
+          Local $inline.7.$closure
+      val $inline.33.value: String
+        Type String
+        Local $inline.7.arg0
+      goto bb34
+    bb9 inline.cont.9
+      val $call.3: Box<Int>
+        Type Box<Int>
+        Local $inline.9.result
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local $call.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $inline.7.$closure: (String) -> Box<String>
+        Type (String) -> Box<String>
+        Local text
+      val $inline.7.arg0: String
+        Type String
+        StringConst @str0
+      goto bb8
+    bb10 inline.9.entry
+      val $inline.31.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc3 0
+          Type (Int) -> Box<Int>
+          Local $inline.9.$closure
+      val $inline.31.value: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb32
+    bb11 inline.cont.11
+      val $call.2: Box<Int>
+        Type Box<Int>
+        Local $inline.11.result
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local $call.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $inline.9.$closure: (Int) -> Box<Int>
+        Type (Int) -> Box<Int>
+        Local factory
+      val $inline.9.arg0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb10
+    bb12 inline.11.entry
+      val $inline.29.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc2 0
+          Type (Int) -> Box<Int>
+          Local $inline.11.$closure
+      val $inline.29.value: Int
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+      goto bb30
+    bb13 inline.cont.13
+      val $call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.13.result
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local $call.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $inline.11.$closure: (Int) -> Box<Int>
+        Type (Int) -> Box<Int>
+        Local alias
+      val $inline.11.arg0: Int
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+      goto bb12
+    bb14 inline.13.entry
+      val $inline.27.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc1 0
+          Type (Int) -> Box<Int>
+          Local $inline.13.$closure
+      val $inline.27.value: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      goto bb28
+    bb15 inline.cont.15
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.15.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $inline.13.$closure: (Int) -> Box<Int>
+        Type (Int) -> Box<Int>
+        Local create
+      val $inline.13.arg0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      goto bb14
+    bb16 inline.15.entry
+      val $inline.25.this: Tools
+        Type Tools
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $inline.15.$closure
+      val $inline.25.value: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb26
+    bb17 inline.cont.17
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.17.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn16 direct
+      val choose: (Int, String) -> String
+        Type (Int, String) -> String
+        ClosureAlloc cc5 $Closure$reference5
+          CaptureInit field=0
+            Type Box.Factory<Int>
+            GlobalRead $singleton$Factory
+      call @fn7 direct
+      val nested: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc6 $Closure$reference6
+          CaptureInit field=0
+            Type Box.Nested
+            GlobalRead $singleton$Nested
+      val $inline.15.$closure: (Int) -> Int
+        Type (Int) -> Int
+        Local tool
+      val $inline.15.arg0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb16
+    bb18 inline.17.entry
+      assign $inline.17.result
+        Type Int
+        GlobalRead starts
+      goto bb17
+    bb19 inline.cont.19
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.19.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn16 direct
+      val alias: (Int) -> Box<Int>
+        Type (Int) -> Box<Int>
+        ClosureAlloc cc2 $Closure$reference2
+          CaptureInit field=0
+            Type Box.Factory<Int>
+            GlobalRead $singleton$Factory
+      call @fn16 direct
+      val factory: (Int) -> Box<Int>
+        Type (Int) -> Box<Int>
+        ClosureAlloc cc3 $Closure$reference3
+          CaptureInit field=0
+            Type Box.Factory<Int>
+            GlobalRead $singleton$Factory
+      call @fn18 direct
+      val text: (String) -> Box<String>
+        Type (String) -> Box<String>
+        ClosureAlloc cc4 $Closure$reference4
+          CaptureInit field=0
+            Type Box.Factory<String>
+            GlobalRead $singleton$Factory
+      goto bb18
+    bb20 inline.19.entry
+      assign $inline.19.result
+        Type Int
+        GlobalRead starts
+      goto bb19
+    bb21 inline.cont.21
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.21.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn16 direct
+      val create: (Int) -> Box<Int>
+        Type (Int) -> Box<Int>
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Box.Factory<Int>
+            GlobalRead $singleton$Factory
+      goto bb20
+    bb22 inline.21.entry
+      assign $inline.21.result
+        Type Int
+        GlobalRead starts
+      goto bb21
+    bb23 inline.cont.23
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.23.result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn4 direct
+      val tool: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Tools
+            GlobalRead $singleton$Tools
+      goto bb22
+    bb24 inline.23.entry
+      assign $inline.23.result
+        Type Int
+        GlobalRead starts
+      goto bb23
+    bb25 inline.cont.25
+      val $inline.15.$call.1: Int
+        Type Int
+        Local $inline.25.result
+      assign $inline.15.result
+        Type Int
+        Local $inline.15.$call.1
+      goto bb15
+    bb26 inline.25.entry
+      val $inline.25.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Tools
+          Local $inline.25.this
+      val $inline.25.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $inline.25.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      assign $inline.25.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.25.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb25
+    bb27 inline.cont.27
+      val $inline.13.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.27.result
+      assign $inline.13.result
+        Type Box<Int>
+        Local $inline.13.$call.1
+      goto bb13
+    bb28 inline.27.entry
+      val $inline.27.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $inline.27.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $inline.45.value: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      goto bb46
+    bb29 inline.cont.29
+      val $inline.11.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.29.result
+      assign $inline.11.result
+        Type Box<Int>
+        Local $inline.11.$call.1
+      goto bb11
+    bb30 inline.29.entry
+      val $inline.29.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+      val $inline.29.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+      val $inline.43.value: Int
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+      goto bb44
+    bb31 inline.cont.31
+      val $inline.9.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.31.result
+      assign $inline.9.result
+        Type Box<Int>
+        Local $inline.9.$call.1
+      goto bb9
+    bb32 inline.31.entry
+      val $inline.31.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $inline.31.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $inline.41.value: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb42
+    bb33 inline.cont.33
+      val $inline.7.$call.1: Box<String>
+        Type Box<String>
+        Local $inline.33.result
+      assign $inline.7.result
+        Type Box<String>
+        Local $inline.7.$call.1
+      goto bb7
+    bb34 inline.33.entry
+      val $inline.33.$argument.0: String
+        Type String
+        Local $inline.33.value
+      val $inline.33.$parameter.value: String
+        Type String
+        Local $inline.33.$argument.0
+      val $inline.39.value: String
+        Type String
+        Local $inline.33.$parameter.value
+      goto bb40
+    bb35 inline.cont.35
+      val $inline.5.$call.1: String
+        Type String
+        Local $inline.35.result
+      assign $inline.5.result
+        Type String
+        Local $inline.5.$call.1
+      goto bb5
+    bb36 inline.35.entry
+      assign $inline.35.result
+        Type String
+        Local $inline.35.other
+      goto bb35
+    bb37 inline.cont.37
+      val $inline.3.$call.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      assign $inline.3.result
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb3
+    bb38 inline.37.entry
+      assign $inline.37.result
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb37
+    bb39 inline.cont.39
+      val $inline.33.$call.1: Box<String>
+        Type Box<String>
+        Local $inline.39.result
+      assign $inline.33.result
+        Type Box<String>
+        Local $inline.33.$call.1
+      goto bb33
+    bb40 inline.39.entry
+      assign $inline.39.result
+        Type Box<String>
+        StructInit Box<String>
+          Type String
+          Local $inline.39.value
+      goto bb39
+    bb41 inline.cont.41
+      val $inline.31.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.41.result
+      assign $inline.31.result
+        Type Box<Int>
+        Local $inline.31.$call.1
+      goto bb31
+    bb42 inline.41.entry
+      assign $inline.41.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          IntegerLiteral Int value=40 bits=0x00000028
+      goto bb41
+    bb43 inline.cont.43
+      val $inline.29.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.43.result
+      assign $inline.29.result
+        Type Box<Int>
+        Local $inline.29.$call.1
+      goto bb29
+    bb44 inline.43.entry
+      assign $inline.43.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          IntegerLiteral Int value=30 bits=0x0000001e
+      goto bb43
+    bb45 inline.cont.45
+      val $inline.27.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.45.result
+      assign $inline.27.result
+        Type Box<Int>
+        Local $inline.27.$call.1
+      goto bb27
+    bb46 inline.45.entry
+      assign $inline.45.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          IntegerLiteral Int value=20 bits=0x00000014
+      goto bb45
+  fun $init$body$2 @fn6() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Box.Nested
+        ClassAlloc Box.Nested
+      val $inline.1.this: Box.Nested
+        Type Box.Nested
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Nested
+        Type Box.Nested
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $init$ensure$2 @fn7() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Box.Nested
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn6 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Box.Nested
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Box.Nested
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Box.Nested
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Box.Nested
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$starts @fn8() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead starts
+  fun $set$starts @fn9(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign starts
+        Type Int
+        Local value
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Box.Factory.make @fn11(this: Box.Factory<Int>, value: Int) -> Box<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.1.result
+      return
+        Type Box<Int>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local $inline.1.value
+      goto bb1
+  fun Box.Factory.make @fn12(this: Box.Factory<String>, value: String) -> Box<String>
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $inline.1.value: String
+        Type String
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Box<String>
+        Type Box<String>
+        Local $inline.1.result
+      return
+        Type Box<String>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Box<String>
+        StructInit Box<String>
+          Type String
+          Local $inline.1.value
+      goto bb1
+  fun Box.Factory.choose @fn13(this: Box.Factory<Int>, value: Int, other: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local other
+  fun println @fn14(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $init$body$1 @fn15() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Box.Factory<Int>
+        ClassAlloc Box.Factory<Int>
+      val $inline.1.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Factory
+        Type Box.Factory<Int>
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      call $inline.1.$call.1: Int = @fn2 direct
+      field_set 0
+        Type Box.Factory<Int>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.$call.1
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $init$ensure$1 @fn16() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Box.Factory
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn15 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Box.Factory
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Box.Factory
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Box.Factory
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Box.Factory
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$1 @fn17() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Box.Factory<String>
+        ClassAlloc Box.Factory<String>
+      val $inline.1.this: Box.Factory<String>
+        Type Box.Factory<String>
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Factory
+        Type Box.Factory<String>
+        Local $new.1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      call $inline.1.$call.1: Int = @fn2 direct
+      field_set 0
+        Type Box.Factory<String>
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.$call.1
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun $init$ensure$1 @fn18() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Box.Factory
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+        Type Unit
+        UnitLiteral
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn17 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Box.Factory
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Box.Factory
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Box.Factory
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Box.Factory
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn19(this: Continuation<Box.Nested>, value: Box.Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Box.Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Box.Nested>, $completion: Continuation<Box.Nested>) -> CoroutineStep<Box.Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Box.Nested>, continuation: Continuation<Box.Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn23($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      val $inline.1.this: Tools
+        Type Tools
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $inline.1.value: Int
+        Type Int
+        Local arg0
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Tools
+          Local $inline.1.this
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.1.$dependency.argument.0
+      assign $inline.1.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          Local $inline.1.$dependency.parameter.other
+      goto bb1
+  fun $reference.1 @fn24($closure: (Int) -> Box<Int>, arg0: Int) -> Box<Int>
+    bb0 entry
+      val $inline.1.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc1 0
+          Type (Int) -> Box<Int>
+          Local $closure
+      val $inline.1.value: Int
+        Type Int
+        Local arg0
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.1.result
+      return
+        Type Box<Int>
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Box<Int>
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local $inline.3.value
+      goto bb3
+  fun $reference.2 @fn25($closure: (Int) -> Box<Int>, arg0: Int) -> Box<Int>
+    bb0 entry
+      val $inline.1.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc2 0
+          Type (Int) -> Box<Int>
+          Local $closure
+      val $inline.1.value: Int
+        Type Int
+        Local arg0
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.1.result
+      return
+        Type Box<Int>
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Box<Int>
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local $inline.3.value
+      goto bb3
+  fun $reference.3 @fn26($closure: (Int) -> Box<Int>, arg0: Int) -> Box<Int>
+    bb0 entry
+      val $inline.1.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc3 0
+          Type (Int) -> Box<Int>
+          Local $closure
+      val $inline.1.value: Int
+        Type Int
+        Local arg0
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.1.result
+      return
+        Type Box<Int>
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Box<Int>
+        Type Box<Int>
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Box<Int>
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local $inline.3.value
+      goto bb3
+  fun $reference.4 @fn27($closure: (String) -> Box<String>, arg0: String) -> Box<String>
+    bb0 entry
+      val $inline.1.this: Box.Factory<String>
+        Type Box.Factory<String>
+        ClosureCapture cc4 0
+          Type (String) -> Box<String>
+          Local $closure
+      val $inline.1.value: String
+        Type String
+        Local arg0
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Box<String>
+        Type Box<String>
+        Local $inline.1.result
+      return
+        Type Box<String>
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: String
+        Type String
+        Local $inline.1.value
+      val $inline.1.$parameter.value: String
+        Type String
+        Local $inline.1.$argument.0
+      val $inline.3.value: String
+        Type String
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Box<String>
+        Type Box<String>
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Box<String>
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Box<String>
+        StructInit Box<String>
+          Type String
+          Local $inline.3.value
+      goto bb3
+  fun $reference.5 @fn28($closure: (Int, String) -> String, arg0: Int, arg1: String) -> String
+    bb0 entry
+      val $inline.1.this: Box.Factory<Int>
+        Type Box.Factory<Int>
+        ClosureCapture cc5 0
+          Type (Int, String) -> String
+          Local $closure
+      val $inline.1.value: Int
+        Type Int
+        Local arg0
+      val $inline.1.other: String
+        Type String
+        Local arg1
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: String
+        Type String
+        Local $inline.1.result
+      return
+        Type String
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type String
+        Local $inline.1.other
+      goto bb1
+  fun $reference.6 @fn29($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      val $inline.1.this: Box.Nested
+        Type Box.Nested
+        ClosureCapture cc6 0
+          Type (Int) -> Int
+          Local $closure
+      val $inline.1.value: Int
+        Type Int
+        Local arg0
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.value
+      goto bb1
+  fun init.Tools.$c0 @fn30(this: Tools) -> Unit
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+      field_set 0
+        Type Tools
+        Local this
+        Type Int
+        Local $call.1
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Box.Nested.$c2 @fn31(this: Box.Nested) -> Unit
+    bb0 entry
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Box.Factory.$c1 @fn32(this: Box.Factory<Int>) -> Unit
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+      field_set 0
+        Type Box.Factory<Int>
+        Local this
+        Type Int
+        Local $call.1
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Box.Factory.$c1 @fn33(this: Box.Factory<String>) -> Unit
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+      field_set 0
+        Type Box.Factory<String>
+        Local this
+        Type Int
+        Local $call.1
+      return
+        Type Unit
+        UnitLiteral
+  fun ctor.Box.$c0 @fn34(value: Int) -> Box<Int> <no-gc>
+    bb0 entry
+      return
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local value
+  fun ctor.Box.$c0 @fn35(value: String) -> Box<String> <no-gc>
+    bb0 entry
+      return
+        Type Box<String>
+        StructInit Box<String>
+          Type String
+          Local value
+  fun startCoroutine<Box.Nested> @fn36(task: SuspendTask<Box.Nested>, completion: Continuation<Box.Nested>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn19 interface Continuation<Box.Nested>[0]
+        Type Continuation<Box.Nested>
+        Local completion
+        Type Box.Nested
+        EnumField v0 f0
+          Type CoroutineStep<Box.Nested>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn20 interface Continuation<Box.Nested>[1]
+        Type Continuation<Box.Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Box.Nested> = @fn21 interface SuspendTask<Box.Nested>[0]
+        Type SuspendTask<Box.Nested>
+        Local task
+        Type Continuation<Box.Nested>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Box.Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn37($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn38($source: (Int) -> Box<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Box<Int> = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Box<Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Box<Int>
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn39($source: (Int) -> Box<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Box<Int> = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Box<Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Box<Int>
+          Local $call.1
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn40($source: (Int) -> Box<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Box<Int> = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Box<Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Box<Int>
+          Local $call.1
+  fun function_bridge.$Closure$reference4.(Any) -> Any @fn41($source: (String) -> Box<String>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Box<String> = <closure:function_type3> closure[function_type3]
+        Type (String) -> Box<String>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Box<String>
+          Local $call.1
+  fun function_bridge.$Closure$reference5.(Any, Any) -> Any @fn42($source: (Int, String) -> String, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type4> closure[function_type4]
+        Type (Int, String) -> String
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+        Type String
+        Retype String
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference6.(Any) -> Any @fn43($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Box.Nested> result=Box.Nested
+  coroutine_slot cl0 CoroutineSlot<Box.Nested> value=Box.Nested
+  coroutine_start ct0 result=Box.Nested function=fn36
+  coroutine_fn cf0 @fn21 source_return=Box.Nested step=cs0 immediate
+  instance mi0 function=@fn10 <- println
+  instance mi1 function=@fn11 <- Box.Factory.make
+  instance mi2 function=@fn12 <- Box.Factory.make
+  instance mi3 function=@fn13 <- Box.Factory.choose
+  instance mi4 function=@fn14 <- println
+  instance mi5 function=@fn15 <- $init$body$1
+  instance mi6 function=@fn16 <- $init$ensure$1
+  instance mi7 function=@fn17 <- $init$body$1
+  instance mi8 function=@fn18 <- $init$ensure$1
+  instance mi9 function=@fn19 <- Continuation.resume
+  instance mi10 function=@fn20 <- Continuation.resumeWithException
+  instance mi11 function=@fn21 <- SuspendTask.run
+  instance mi12 function=@fn22 <- SuspendRegistration.register
+  str @str0 "text"
+  str @str1 "generic"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn5

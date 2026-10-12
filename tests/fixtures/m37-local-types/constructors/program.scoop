@@ -1,0 +1,8 @@
+fun main() {
+    class Answer(val value: Int = 42) {
+        constructor() : this(21) {}
+    }
+    val build: (Int) -> Answer = ::Answer
+    println(build(42).value)
+    println(Answer().value)
+}

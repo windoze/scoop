@@ -63,7 +63,7 @@ impl CallableDeclarationRecordV1 {
         context_parameters: Vec<crate::SourceParameterShapeV1>,
     ) -> Result<Self, CallableInterfaceRecordBuildError> {
         validate_type_parameter_shape(declaration, &type_parameters)?;
-        validate_receiver_shape(owner, receiver.is_some())?;
+        validate_receiver_shape(declaration, owner, receiver.is_some())?;
         validate_owner_shape(declaration, owner)?;
         validate_source_dispatch(declaration, owner, &effects, modality, visibility, &slots)?;
         Ok(Self {

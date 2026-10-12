@@ -58,7 +58,23 @@ impl MirDispatchSchemaAuthority<'_> {
             // An adjust thunk unboxes the exact payload, including structural tuples.
             return Ok(vec![owner, receiver]);
         }
+        if matches!(
+            backing.representation(),
+            MirTypeRepresentationV1::BoxedValue { .. }
+        ) && let MirBaseClassV1::Base(parent) = backing.base_and_interfaces().base
+            && let MirTypeRepresentationV1::BoxedValue { payload } =
+                self.type_export(parent)?.representation()
+            && payload.value == receiver
+        {
+            return Ok(vec![owner, parent, receiver]);
+        }
         let source = self.type_export(receiver)?;
+        if matches!((backing.representation(), source.representation()),
+            (MirTypeRepresentationV1::Enum { representation: crate::EnumRepresentation::Integral { kind, .. }, .. },
+                MirTypeRepresentationV1::Intrinsic(crate::MirParamFreeIntrinsicV1::Integer(parent))) if kind == parent)
+        {
+            return Ok(vec![owner, receiver]);
+        }
         if let (
             MirTypeOriginV1::SourceNominal(nominal),
             MirTypeRepresentationV1::Object { backing: expected },

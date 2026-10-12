@@ -1,0 +1,1 @@
+fun main() { val 名称 = 42; println(f"$名称") }
