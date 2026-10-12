@@ -15,6 +15,7 @@ mod compiler;
 mod cxx;
 mod final_link;
 mod linux_c;
+mod linux_target;
 mod native;
 mod paths;
 mod registry;

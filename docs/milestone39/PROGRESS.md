@@ -39,3 +39,10 @@
 - 删除重复的 ABI 比较模块；存储绑定与测试分开。新增隐藏 sret 导致 SysV aggregate 整组回退、后续浮点参数和短 carrier 的精确测试，并覆盖错误存储诊断。
 - 本机 fmt、workspace clippy、476 项 LIR 测试、6 项 lowering 外部调用测试、3 项 codegen 外部调用测试通过；release CLI 构建成功。
 - 小值跨库产物、suspend member、泛型 release 及 native aggregate release 四项正式 CLI 通过（5 变体、40 进程、4 次 golden 检查），无期望更新，见 [03-darwin.json](validation/03-darwin.json)。
+
+## 功能 4：Linux 工具链的机器与 libc 事实
+
+- 将实际支持的 Linux machine 与 libc 选择集中到工具链边界；编译 probe 和最终 executable 验证读取选中机器，loader 名称由 machine／libc 对决定。
+- GNU 使用已选择的实际 GCC；musl wrapper 使用显式 REALGCC 或 PATH 中的 gcc，不再额外要求架构前缀命名的 GCC。仍通过真实编译验证 LP64、libc headers 与 ELF machine，不放宽支持矩阵。
+- glibc 动态 PIE／musl 默认静态及显式动态的策略保持；缓存／产物 wire 未变。
+- 本机 fmt、workspace clippy 与 23 项工具链测试通过；新增 GCC locator 回归涵盖直接 compiler、不含交叉前缀的 PATH、musl 显式 override 与缺失 driver。Linux 编译／最终镜像的现有集成测试留到完整 Linux 验收运行。

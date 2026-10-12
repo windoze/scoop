@@ -1,4 +1,5 @@
 use super::*;
+use crate::linux_target::{LinuxLibc, LinuxTarget};
 use scoop_process::CommandExt;
 use scoop_wire::sha256;
 
@@ -26,6 +27,7 @@ struct SystemInput {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LinuxFinalLinkProfile {
     startup: ValidatedCBridgeToolchainInvocation,
+    target: LinuxTarget,
     mode: LinkMode,
     linker: PathBuf,
     linker_version: String,
@@ -41,14 +43,12 @@ impl LinuxFinalLinkProfile {
         cxx: Option<crate::ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
         let target = startup.profile().contract().target().id();
-        let mode = options.mode.unwrap_or(match target {
-            TargetProfileId::LinuxX86_64Musl => LinkMode::Static,
-            TargetProfileId::LinuxX86_64Gnu => LinkMode::Dynamic,
-            TargetProfileId::DarwinAarch64 => {
-                return Err(error("Linux final link requires an ELF target"));
-            }
+        let selected = LinuxTarget::select(target)?;
+        let mode = options.mode.unwrap_or(match selected.libc {
+            LinuxLibc::Musl => LinkMode::Static,
+            LinuxLibc::Gnu => LinkMode::Dynamic,
         });
-        if target == TargetProfileId::LinuxX86_64Gnu && mode == LinkMode::Static {
+        if selected.libc == LinuxLibc::Gnu && mode == LinkMode::Static {
             return Err(error(
                 "M28 supports glibc dynamic PIE; glibc static linking is outside its target matrix",
             ));
@@ -63,6 +63,7 @@ impl LinuxFinalLinkProfile {
         let compiler_digest = sha256(&std::fs::read(runtime.driver(&startup)).map_err(error)?);
         let mut profile = Self {
             startup,
+            target: selected,
             mode,
             linker,
             linker_version,
