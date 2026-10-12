@@ -114,12 +114,19 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
         "retained-snapshot",
         Vec::new(),
     );
-    let snapshot = Arc::new(ArtifactSnapshot::from_bytes(archive.as_bytes().to_vec()));
+    let directory = tempfile::tempdir().unwrap();
+    let candidate = directory.path().join("candidate.slib");
+    let cached_path = directory.path().join("cached.slib");
+    std::fs::write(&candidate, archive.as_bytes()).unwrap();
+    std::fs::copy(&candidate, &cached_path).unwrap();
+    let snapshot = Arc::new(ArtifactSnapshot::from_bytes(
+        std::fs::read(&candidate).unwrap(),
+    ));
     let completed = complete_compiled_candidate(
         &plan,
         core,
         Arc::clone(&snapshot),
-        "unused-staging/candidate.slib".into(),
+        candidate.clone(),
         &[],
         Vec::new(),
     )
@@ -129,11 +136,13 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
         core,
         completed.shared_artifact(),
         completed.closure().clone(),
-        "unused-staging/cache.slib".into(),
-        "unused-cache/artifact.slib".into(),
+        cached_path.clone(),
+        cached_path.clone(),
         Vec::new(),
     );
     let retained = [completed.clone(), cached];
+    std::fs::remove_file(candidate).unwrap();
+    std::fs::remove_file(cached_path).unwrap();
     drop(completed);
     drop(snapshot);
     drop(plan);

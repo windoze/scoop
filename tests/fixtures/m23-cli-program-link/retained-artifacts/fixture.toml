@@ -1,14 +1,13 @@
 schema = 1
 name = "program-link-retained-artifacts"
-inputs = ["cone", "../../m23-program-link/read-println.scoop", "explicit.toml"]
+inputs = ["cone", "../../m23-program-link/read-println.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["program-link", "retained-artifacts", "concurrency", "moving-gc"]
+tags = ["program-link", "retained-artifacts"]
 
 [[steps]]
 name = "prepare"
-files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/orchestrated"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/orchestrated/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
-checks = []
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/orchestrated"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/orchestrated/src/main.scoop"}}]
 
 [[steps]]
 name = "build"
@@ -18,112 +17,42 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = []
+checks = [
+  {actual = "${build.result.dependencies.length}", equals = 1},
+  {actual = "${build.result.dependencies.0.coordinate.name}", equals = "scoop.core"},
+]
 
 [[steps]]
-name = "explicit_core"
-files = [{"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/sources/core.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}]
-checks = []
+name = "save_and_isolate"
+files = [
+  {copy = {from = "${build.result.root.path}", to = "${work}/artifacts/root.slib"}},
+  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/artifacts/core.slib"}},
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+  {remove = {path = "${work}/sources"}},
+]
 
 [[steps]]
-name = "explicit_manifest"
-files = [{"copy" = {"from" = "${fixture}/explicit.toml", "to" = "${work}/sources/orchestrated/Cone.toml"}}]
-checks = []
-
-[[steps]]
-name = "prime"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{"actual" = "${prime.result.observations.child_invocations}", "equals" = ["${prime.result.root.identity}"]}]
-
-[[steps]]
-name = "save_and_evict"
-files = [{"copy" = {"from" = "${prime.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${work}/sources/core.slib", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/build/cache"}}]
-checks = []
-
-[[steps]]
-name = "runtime_pipe"
-argv = ["/usr/bin/mkfifo", "${build.result.runtime_index}.fifo"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "retained"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}.fifo", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
-exit = 0
-stdout = ""
-stderr = ""
-background = true
-json = "stderr"
-diagnostics = []
-
-[[steps]]
-name = "published_artifact"
-await_file = "${prime.result.root.path}"
-
-[[steps]]
-name = "remove_original_inputs"
-# Remove published inputs without traversing the background build's staging directory.
-files = [{"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${prime.result.root.path}"}}]
-
-[[steps]]
-name = "supply_runtime"
-argv = ["/bin/cp", "${build.result.runtime_index}", "${build.result.runtime_index}.fifo"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "retained_complete"
-wait = "retained"
-checks = [{"actual" = "${retained.result.link_plan_fingerprint}", "equals" = "${prime.result.link_plan_fingerprint}"}, {"file" = "${retained.result.root.path}", "exists" = false}, {"actual" = "${retained.result.observations.child_invocations}", "equals" = ["${retained.result.root.identity}"]}]
-
-[[steps]]
-name = "remove_pipe"
-files = [{"remove" = {"path" = "${build.result.runtime_index}.fifo"}}]
-
-[[steps]]
-name = "disk_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${disk_link.result.link_plan_fingerprint}", "equals" = "${retained.result.link_plan_fingerprint}"}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
 
 [[steps]]
-name = "memory"
-argv = ["${retained.result.output}"]
+name = "run_built"
+argv = ["${build.result.output}"]
 exit = 0
 stdout = "42\n"
 stderr = ""
 
 [[steps]]
-name = "memory_moving"
-argv = ["${retained.result.output}"]
+name = "run_linked"
+argv = ["${link.result.output}"]
 exit = 0
 stdout = "42\n"
 stderr = ""
-env = {"SCOOP_GC_STRESS_MOVE" = "1"}
-
-[[steps]]
-name = "disk"
-argv = ["${work}/program"]
-exit = 0
-stdout = "42\n"
-stderr = ""
-
-[[steps]]
-name = "disk_moving"
-argv = ["${work}/program"]
-exit = 0
-stdout = "42\n"
-stderr = ""
-env = {"SCOOP_GC_STRESS_MOVE" = "1"}

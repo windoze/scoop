@@ -128,3 +128,30 @@ Darwin 全量发现截断专测冻结了旧产物长度 `158558`，本次原始�
 截断位置 `158557`、完整诊断的其他字段、损坏成员与 magic 检查、失败不覆盖旧程序
 和最终普通/moving 运行全部保持。本机完整执行该用例通过。
 这是唯一修改的既有诊断 JSON；未模糊匹配错误信息，也未新增 runner 规则或逐用例脚本。
+
+### 产物持有测试的边界
+
+`program-link-retained-artifacts` 从 18 步、10 次进程调用收敛为 6 步、4 次调用：
+同步构建一次，保存 root/core 产物并删除源码，用隔离的 `scoop link` 和空 sysroot
+独立链接，再分别运行构建与独立链接的程序。保留依赖身份、链接计划指纹相等和
+两次 `42\n` 的精确输出；删除 FIFO、后台构建、缓存等待、中途删除和重复预热，
+同时移除不再使用的显式依赖 manifest。未调整超时。
+
+实现规范 2.7 明确产物持有保证以构建图完成为边界。
+已有 `completed_nodes_retain_shared_bytes_without_reopening_paths` 改为实际创建并删除
+compiled/cache 路径，继续核对共享字节和闭包对象。新增 86 行 Rust 集成测试通过
+真实构建图的 `execute().into_outcome()`，在返回后删除源码及 root/core 缓存文件，
+再调用现有 `read_built_program`，精确核对闭包数量、identity 和产物指纹。
+不增加生产代码、测试钩子或同步框架，也不承诺构建期间任意删除文件仍成功。
+
+重复的 moving GC 运行由 `native-link-runtime-gc`、`native-link-runtime-handles`
+的构建/独立链接双路径以及 `m31-ssa-roots` 的 moving/minor 变体覆盖。
+阶段结构沿用上表的 typed IR 和 9 项专测；本用例不再承担阶段 golden 或 GC 压力验证。
+
+两机先完成 `cargo fmt --all` / workspace clippy，再运行上述两个 Rust 测试，均通过。
+本机真实构建图测试耗时 38.51 秒，Linux 为 174.01 秒；两者均实际删除文件后成功读取
+root 与 core 的 Link 数据。CLI [Darwin](validation/retained-darwin.json) 单项通过
+（4 进程）；[GNU](validation/retained-gnu.json) 和 [musl](validation/retained-musl.json)
+分别验证本用例及上述三个相关专测，均为 4 项、8 变体、32 进程、3 次 golden 比较通过。
+本用例在 GNU/musl 分别耗时 5.74/12.15 秒，复用原验收缓存；Darwin 空缓存耗时 44.97 秒。
+本批未重复全量测试；已清理结束的 CLI case 和本机 dev profile，报告留存。

@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 1,
+  "unselected": 3770,
+  "counts": {
+    "passed": 1
+  },
+  "variants": 1,
+  "processes": 4,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "program-link-retained-artifacts",
+      "status": "passed",
+      "seconds": 44.96589433401823,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}
