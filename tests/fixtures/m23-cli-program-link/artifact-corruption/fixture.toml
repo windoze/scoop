@@ -58,6 +58,10 @@ files = [{"copy" = {"from" = "${work}/program", "to" = "${work}/previous-program
 checks = []
 
 [[steps]]
+name = "original"
+await_file = "${work}/original.slib"
+
+[[steps]]
 name = "damage_member"
 files = [{"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}, {"patch" = {"path" = "${work}/artifacts/root.slib", "offset" = 20734, "hex" = "a2"}}]
 checks = []
