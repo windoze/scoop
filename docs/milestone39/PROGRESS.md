@@ -98,3 +98,9 @@
 - 本机 fmt、workspace clippy 通过。定向测试：345 identity、473 LIR、154 lowering、45 manifest、567 slib、25 toolchain、6 ABI planner、6 codegen target、9 cache、4 driver pipeline，全部通过。固定编码／指纹和负向诊断未更新。
 - release CLI 构建成功；源码选择／缓存、非法条件、错误目标 core、errno callback／跨库、小值 native／artifact 组合共 58 项通过、1 项不适用于本机（67 变体、155 进程、6 次 golden），见 [11-darwin.json](validation/11-darwin.json)。
 - 生产依赖树确认 `scoop`、`scoop-linker`、`scoop-toolchain` 均不包含 `scoop-codegen`、`scoop-abi-plan`、inkwell 或 llvm-sys；公共 identity/LIR/lir-lower 中的具体 ABI 搜索仅剩数据注释和 provider-storage 测试名称。
+
+## Linux 验收修复：对象测试文件名
+
+- 首轮 workspace 验证完成 scoop、ABI planner、AST 及 codegen 的 507 项测试；其中 codegen 的 terminal poll 测试因 target Debug 文本包含 `/`，在写对象时失败，其余 506 项通过。
+- 对象文件名改用 canonical target 名称，保留三个真实目标的 debug/release LLVM 发射和机器站点检查；搜索未发现其他将 profile Debug 文本作为文件名的用法。
+- 本机 fmt、workspace clippy 与该测试通过；Linux 补验失败项后，继续尚未执行的 workspace 包及 doctest，不重跑已通过的真实构建图与 codegen 测试。

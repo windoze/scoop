@@ -52,7 +52,9 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
             verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
             assert_eq!(plan.root_count(7), Some(0));
             assert_eq!(plan.root_count(8), Some(0));
-            let output = directory.path().join(format!("{target:?}-{mode:?}.o"));
+            let output = directory
+                .path()
+                .join(format!("{}-{mode:?}.o", target.canonical_name()));
             machine
                 .write_to_file(&llvm, FileType::Object, &output)
                 .unwrap();
