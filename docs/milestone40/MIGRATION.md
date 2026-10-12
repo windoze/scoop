@@ -90,3 +90,20 @@ LIR 检查引用活跃位置、聚合 carrier 与 Scoop/C ABI 及跨 Cone 调用
 未批量更新任何 IR 期望，保留的 golden 使用原有字节比较。
 六项 ABI/内联/去虚化专测补验也通过（12 变体、66 进程、18 golden），
 见 [报告](validation/structures-darwin.json)。
+
+### Native 链接计划批次
+
+79 份 native 专测计划原来约 57 MB，多数内容是 core 的 startup 符号与生成 C。
+新增局部 snapshot 规则 `native-link-plan`，完整比较计划中 `link inputs:` 到
+`startup object references:` 之前的区段；不按关键字挑选几行，也不改生产 dump。
+所选区段保留 native library 身份与输入顺序、对象 slice、archive member 的范围/摘要关系/
+选择状态、dynamic provider、load/re-export、rpath 和准确绑定；未知新字段仍导致差异。
+缺失/重复边界或不同版本报错，避免错误输入被投影成空字符串而通过。
+原有 `native-digests` 只处理 native 内容摘要的相等/不同关系，其他身份与 ABI 未归一化。
+
+期望由原有已验收计划直接截取同一区段，不使用编译器批量刷新；
+启动、root、runtime registration 的物理关系由现有 typed 链接测试和真实程序执行覆盖。
+新增规则共 19 行，测试使用真实比较入口验证 selection、range、digest 关系、动态目标、
+weak 属性与未知字段的变化都会使只读验证失败。
+Ruff 与 47 项公共规则测试通过；archive-chain、dynamic-reexport、runtime-location
+三项 CLI 验证通过（27 进程、4 golden），见 [报告](validation/native-plan-darwin.json)。

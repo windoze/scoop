@@ -121,7 +121,13 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
 文件损坏用例保留有针对性的修改、实际 reader 诊断与原子输出断言，不以整份编译产物或
 系统工具输出的固定 SHA-256 作为准备步骤。受控编码／指纹规则的固定向量由对应 Rust 单元测试覆盖。
-`normalize` 的公共规则为 `paths`、`newlines` 和 `native-digests`。后者仅用于链接计划：
+`normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
+`native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
+边界，完整比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。
+输入顺序、ELF 系统库、archive 成员/选择、DSO load/re-export/rpath 和符号绑定均保留，
+区段内未知新字段也进入比较；缺失或重复边界直接失败。它不保存无关 core 对象数量、
+startup 符号列表或生成 C；这些由 typed 产物/链接测试和真实程序运行负责。
+`native-digests` 仅用于链接计划：
 将 `native library` 的 `input`、`native object/archive` 的内容 ID、归档 member 的
 `digest`、`dynamic provider` 及其 load/re-export 引用替换为按首次出现编号的标记。
 同值共用标记，不同值使用不同标记；保留逻辑库、requirement、源码声明身份、符号、

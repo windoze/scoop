@@ -8,6 +8,7 @@ import signal
 from .dependency_digests import normalize_dependency_digests
 from .model import AssertionFailure
 from .native_digests import normalize_native_digests
+from .native_plan import native_link_plan
 from .schema import COMPARISONS
 from .values import byte_value, expand, json_value, path
 
@@ -89,6 +90,8 @@ def normalize(data, rules, context):
             replacements, key=lambda pair: len(pair[0]), reverse=True
         ):
             data = data.replace(original, replacement)
+    if "native-link-plan" in rules:
+        data = native_link_plan(data)
     if "native-digests" in rules:
         data = normalize_native_digests(data)
     if "dependency-digests" in rules:

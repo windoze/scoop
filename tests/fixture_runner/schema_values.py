@@ -144,7 +144,11 @@ def check_values(check):
             check["type"] in ("file", "directory", "symlink", "missing"),
             "type must be file, directory, symlink, or missing",
         )
-    normalization_rules(check.get("normalize", []), {"paths", "newlines", "native-digests"})
+    normalization_rules(
+        check.get("normalize", []), {"paths", "newlines", "native-digests", "native-link-plan"}
+    )
+    if "native-link-plan" in check.get("normalize", []):
+        require("snapshot" in check, "native-link-plan requires an explicit snapshot")
 
 
 def normalization_rules(rules, allowed):
