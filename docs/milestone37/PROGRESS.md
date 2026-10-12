@@ -279,3 +279,5 @@ when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变
 此前将协程检查交换顺序的处理未解决上述问题，现已恢复两份旧用例的原顺序，并替换相应验收记录。新增五个 fixture，覆盖多个返回接口视图、显式转换、捕获值、构造器参数、引用身份、typed function 转换失败、错误的适配值事实传播，以及泛型 receiver 函数值、默认 lambda、转导出、移除源码后的独立链接和 moving GC。完整 HIR 检查保留原 Any 读取，MIR 锁定物理捕获字段的引用转换。
 
 本机与 Linux fmt/workspace clippy、35 项 HIR lower 与 4 项 MIR lower 定向 Rust 测试通过；Darwin、GNU、musl 三个目标各有 9 个正式 CLI 用例普通比较全部通过，每个目标为 13 个配置、70 个进程、77 个阶段 golden。包含原有两组动态函数适配及两组协程回归。报告见 [Darwin](validation/function-view-regressions-darwin.json)、[GNU](validation/function-view-regressions-gnu.json) 和 [musl](validation/function-view-regressions-musl.json)。目标 LIR 已逐份比较已验收的结构及真实 ABI，符号快照只增加对应平台已审阅的 325 个 core 符号；共有 HIR/MIR 没有平台差异。
+
+Darwin 另有 18 个独立链接、原有 M35 组合及源码类型描述回归完成普通比较，33 个配置、179 个进程、336 个阶段与链接计划 golden 全部通过。20 份目标快照已逐份审阅：6 份 LIR 保留实际 AArch64 ABI，14 份链接计划仅反映已核对的 core 元数据变化；未改变执行断言。报告见 [Darwin 补充回归](validation/legacy-platform-extra-darwin.json)。
