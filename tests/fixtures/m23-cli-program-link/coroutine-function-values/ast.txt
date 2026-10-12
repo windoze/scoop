@@ -115,16 +115,16 @@ SourceFile
     val erased
       Call erasedFunction
     if
-      Is (Int) -> Any false
-        Var erased
-      return
-        IntLiteral 8
-    if
       Unary Not
         Is suspend (Int) -> Any false
           Var erased
       return
         IntLiteral 7
+    if
+      Is (Int) -> Any false
+        Var erased
+      return
+        IntLiteral 8
     val dynamic
       Cast suspend (Int) -> Any optional=false
         Var erased

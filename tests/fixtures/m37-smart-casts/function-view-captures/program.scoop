@@ -1,0 +1,32 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    public override fun left(): Int = 20
+    public override fun right(): Int = 22
+}
+fun source(): Any {
+    val action: (Any) -> Both = { _: Any -> Both() }
+    return action
+}
+fun capture(value: Any): () -> Int = read@{
+    if (value !is (Int) -> Left) return@read 0
+    if (value !is (Int) -> Right) return@read 1
+    val snapshot: Any = value
+    gcCollect()
+    if (snapshot !== value) return@read 2
+    (value as (Int) -> Left)(0).left() + (value as (Int) -> Right)(0).right()
+}
+class Prepared(value: Any) {
+    val callback: () -> Int = if (value is (Int) -> Left && value is (Int) -> Right) {
+        ({ gcCollect(); (value as (Int) -> Left)(0).left() + (value as (Int) -> Right)(0).right() })
+    } else { ({ 0 }) }
+}
+fun main() {
+    val first = capture(source())
+    val second = Prepared(source())
+    gcCollect()
+    println(first())
+    println(capture("other")())
+    println(second.callback())
+    println(Prepared("other").callback())
+}

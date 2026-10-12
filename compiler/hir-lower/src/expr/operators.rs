@@ -322,8 +322,10 @@ impl Lowerer {
         } else {
             "!=="
         };
-        let lhs = self.lower_expr(lhs, sink, None)?;
-        let (lhs, rhs) = self.lower_ordered_rhs(lhs, rhs, sink, None, "$equality.lhs")?;
+        let lhs_expected = self.function_smart_cast_storage(lhs).map(|(_, ty)| ty);
+        let lhs = self.lower_expr(lhs, sink, lhs_expected)?;
+        let rhs_expected = self.function_smart_cast_storage(rhs).map(|(_, ty)| ty);
+        let (lhs, rhs) = self.lower_ordered_rhs(lhs, rhs, sink, rhs_expected, "$equality.lhs")?;
         if !self.is_ref_ty(lhs.ty) || !self.is_ref_ty(rhs.ty) {
             self.error(
                 span,

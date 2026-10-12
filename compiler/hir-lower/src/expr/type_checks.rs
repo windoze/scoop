@@ -23,17 +23,21 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         // A mutable local may hold another value on a loop backedge. Type
         // tests inspect its declared storage, independently of the current view.
-        let mutable = match operand {
+        // Function views can allocate adapters, whose type capabilities differ.
+        let storage = self
+            .function_smart_cast_storage(operand)
+            .map(|(binding, _)| binding);
+        let storage = storage.or_else(|| match operand {
             ast::Expr::Var(name) => self
                 .scopes
                 .lookup(&name.text)
                 .filter(|&local| self.locals[local].mutable)
                 .map(|local| self.locals[local].binding),
             _ => None,
-        };
-        let saved = mutable.and_then(|binding| self.smart_casts.types.remove(&binding));
+        });
+        let saved = storage.and_then(|binding| self.smart_casts.types.remove(&binding));
         let operand = self.lower_expr(operand, sink, None);
-        if let (Some(binding), Some(types)) = (mutable, saved) {
+        if let (Some(binding), Some(types)) = (storage, saved) {
             self.smart_casts.types.insert(binding, types);
         }
         operand

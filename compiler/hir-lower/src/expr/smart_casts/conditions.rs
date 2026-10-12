@@ -64,7 +64,7 @@ impl Lowerer {
         &self,
         value: &hir::Expr,
     ) -> Option<(hir::BindingId, TypeId)> {
-        match &value.kind {
+        let source = match &value.kind {
             hir::ExprKind::Local(local) => {
                 let local = &self.locals[*local];
                 (!self.local_delegate_plans.contains_key(&local.binding))
@@ -90,7 +90,10 @@ impl Lowerer {
             | hir::ExprKind::Box(source)
             | hir::ExprKind::Unbox(source) => self.flow_source_binding(source),
             _ => None,
-        }
+        }?;
+        // A function view creates an adapter, not an alias of the stored value.
+        (!matches!(self.types[value.ty], Type::Function(_)) || value.ty == source.1)
+            .then_some(source)
     }
 
     pub(crate) fn record_flow_value(
@@ -113,8 +116,8 @@ impl Lowerer {
             None
         };
         let source = match &value.kind {
-            hir::ExprKind::Local(source) => Some(self.locals[*source].binding),
-            hir::ExprKind::Capture(_)
+            hir::ExprKind::Local(_)
+            | hir::ExprKind::Capture(_)
             | hir::ExprKind::ConstructorParam(_)
             | hir::ExprKind::Upcast(_) => {
                 self.flow_source_binding(value).map(|(binding, _)| binding)

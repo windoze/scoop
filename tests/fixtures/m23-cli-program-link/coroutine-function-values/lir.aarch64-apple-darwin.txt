@@ -78,32 +78,34 @@ Module
     local %36 $uw.4: ptr<managed>
     local %37 $cast.5: ptr<managed>
     local %38 $ub.6: i32
-    local %39 $opt.7: enum2
-    local %40 $uw.8: ptr<managed>
-    local %41 $cast.9: ptr<managed>
-    local %42 $ub.10: i32
-    local %43 $new.1: ptr<managed>
-    local %44 $new.2: ptr<managed>
-    local %45 $new.3: ptr<managed>
-    local %46 $new.4: ptr<managed>
-    local %47 $new.5: ptr<managed>
-    local %48 $new.6: ptr<managed>
-    local %49 $new.7: ptr<managed>
-    local %50 $new.8: ptr<managed>
-    local %51 $call.9: i32
-    local %52 $box.1: i32
-    local %53 $box.2: i32
+    local %39 $cast.7: ptr<managed>
+    local %40 $opt.8: enum2
+    local %41 $uw.9: ptr<managed>
+    local %42 $cast.10: ptr<managed>
+    local %43 $ub.11: i32
+    local %44 $new.1: ptr<managed>
+    local %45 $new.2: ptr<managed>
+    local %46 $new.3: ptr<managed>
+    local %47 $new.4: ptr<managed>
+    local %48 $new.5: ptr<managed>
+    local %49 $new.6: ptr<managed>
+    local %50 $new.7: ptr<managed>
+    local %51 $new.8: ptr<managed>
+    local %52 $new.9: ptr<managed>
+    local %53 $call.10: i32
+    local %54 $box.1: i32
+    local %55 $box.2: i32
   block entry
-    poll managed-void-target11 sp<managed-poll:0> live=[]
+    poll managed-void-target12 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td69, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop$1$cb$155df626ff6f43dd3840cf6d4b40315039da5f322c224d9e982e942549d4f8d9 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(48)))
-    store t2 -> local43
-    call managed-void-target0 sp<managed-call:2> live=[local0:ptr<managed>@0, local43:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn59(local43)
+    store t2 -> local44
+    call managed-void-target0 sp<managed-call:2> live=[local0:ptr<managed>@0, local44:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn59(local44)
     t3 = aggregate () : {}
-    store local43 -> local1
+    store local44 -> local1
     call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td63, machine<byte-size>(ByteSize(32)))
     t5 = function_address @scoop$1$cb$59d92b0230e6d59250c793767b1c9e0e32ab2e587038c6025151fc4aac6b7f86 : ptr
     heap_store t4 +16 t5
@@ -127,10 +129,10 @@ Module
     br @if.merge.3
   block if.else.2
     call managed-direct-target4 sp<managed-call:6> live=[] t13 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td17, machine<byte-size>(ByteSize(24)))
-    store t13 -> local44
-    call managed-void-target2 sp<managed-call:7> live=[local44:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn9(local44)
+    store t13 -> local45
+    call managed-void-target2 sp<managed-call:7> live=[local45:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn9(local45)
     t14 = aggregate () : {}
-    throw local44
+    throw local45
     unreachable
   block if.merge.3
     store local34 -> local6
@@ -145,10 +147,10 @@ Module
     call managed-direct-target5 sp<managed-call:8> live=[] t17 = sig=direct5 () -> ptr<managed> external-fn4()
     store t17 -> local9
     call managed-direct-target6 sp<managed-call:9> live=[local9:ptr<managed>@0] t18 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(40)))
-    store t18 -> local45
-    call managed-void-target3 sp<managed-call:10> live=[local9:ptr<managed>@0, local45:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn60(local45)
+    store t18 -> local46
+    call managed-void-target3 sp<managed-call:10> live=[local9:ptr<managed>@0, local46:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn60(local46)
     t19 = aggregate () : {}
-    store local45 -> local10
+    store local46 -> local10
     call managed-direct-target7 sp<managed-call:11> live=[local9:ptr<managed>@0, local10:ptr<managed>@0] t20 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td64, machine<byte-size>(ByteSize(32)))
     t21 = function_address @scoop$1$cb$7041384278752058dba71327394f1172dc7bb2c984c47c34d4ee162427134c8f : ptr
     heap_store t20 +16 t21
@@ -172,10 +174,10 @@ Module
     br @if.merge.8
   block if.else.7
     call managed-direct-target9 sp<managed-call:14> live=[] t29 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td17, machine<byte-size>(ByteSize(24)))
-    store t29 -> local46
-    call managed-void-target5 sp<managed-call:15> live=[local46:ptr<managed>@0] sig=void5 (ptr<managed>) external-fn9(local46)
+    store t29 -> local47
+    call managed-void-target5 sp<managed-call:15> live=[local47:ptr<managed>@0] sig=void5 (ptr<managed>) external-fn9(local47)
     t30 = aggregate () : {}
-    throw local46
+    throw local47
     unreachable
   block if.merge.8
     store local36 -> local37
@@ -183,15 +185,15 @@ Module
     t32 = Not t31 : i1
     cbr t32 then @if.then.9 else @if.merge.10
   block if.then.9
-    call managed-direct-target10 sp<managed-call:29> live=[] t33 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td19, machine<byte-size>(ByteSize(24)))
-    store t33 -> local47
-    call managed-void-target6 sp<managed-call:30> live=[local47:ptr<managed>@0] sig=void6 (ptr<managed>) external-fn8(local47)
+    call managed-direct-target10 sp<managed-call:31> live=[] t33 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td19, machine<byte-size>(ByteSize(24)))
+    store t33 -> local48
+    call managed-void-target6 sp<managed-call:32> live=[local48:ptr<managed>@0] sig=void6 (ptr<managed>) external-fn8(local48)
     t34 = aggregate () : {}
-    throw local47
+    throw local48
     unreachable
   block if.merge.10
-    unbox_value external-td11, local37 -> local52
-    store local52 -> local38
+    unbox_value external-td11, local37 -> local54
+    store local54 -> local38
     store local38 -> local15
     store integer<Int>(0x0000002a) -> local16
     store local16 -> local17
@@ -203,90 +205,102 @@ Module
   block if.merge.12
     call managed-direct-target11 sp<managed-call:16> live=[] t37 = sig=direct12 () -> ptr<managed> external-fn5()
     store t37 -> local18
-    call no-gc-direct-target1 t38 = sig=direct13 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local18, td58)
-    cbr t38 then @if.then.13 else @if.merge.14
+    call no-gc-direct-target1 t38 = sig=direct13 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local18, td59)
+    store t38 -> local19
+    t39 = Not local19 : i1
+    cbr t39 then @if.then.13 else @if.merge.14
   block if.then.13
-    ret integer<Int>(0x00000008)
+    ret integer<Int>(0x00000007)
   block if.merge.14
-    call no-gc-direct-target2 t39 = sig=direct14 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local18, td59)
-    store t39 -> local19
-    t40 = Not local19 : i1
+    call no-gc-direct-target2 t40 = sig=direct14 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local18, td58)
     cbr t40 then @if.then.15 else @if.merge.16
   block if.then.15
-    ret integer<Int>(0x00000007)
+    ret integer<Int>(0x00000008)
   block if.merge.16
-    call managed-direct-target12 sp<managed-call:17> live=[local18:ptr<managed>@0] t41 = sig=direct15 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td70, machine<byte-size>(ByteSize(32)))
-    t42 = function_address @scoop$1$cb$00657e24a59fe80d4edfce8d89cadff1b896e841c952c5e9ed5398e84145b1fc : ptr
-    heap_store t41 +16 t42
-    heap_store t41 +24 local18
-    store t41 -> local20
-    call managed-direct-target13 sp<managed-call:18> live=[local20:ptr<managed>@0] t43 = sig=direct16 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(40)))
-    store t43 -> local48
-    call managed-void-target7 sp<managed-call:19> live=[local20:ptr<managed>@0, local48:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn60(local48)
-    t44 = aggregate () : {}
-    store local48 -> local21
-    call managed-direct-target14 sp<managed-call:20> live=[local20:ptr<managed>@0, local21:ptr<managed>@0] t45 = sig=direct17 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td65, machine<byte-size>(ByteSize(32)))
-    t46 = function_address @scoop$1$cb$0fa8ef1aee34a74093d19cb55041ebf74d74dc82d8e72ac0c5fbd0435bac9df1 : ptr
-    heap_store t45 +16 t46
-    heap_store t45 +24 local20
-    store t45 -> local22
-    t47 = heap_load td11 +96 : ptr<metadata>
-    t48 = heap_load t47 +8 : ptr<metadata>
-    t49 = aggregate (local21, t48) : interface{object,itab}
-    store t49 -> local23
-    store local22 -> local24
-    store local23 -> local25
-    call managed-void-target8 sp<managed-call:21> live=[local21:ptr<managed>@0, local24:ptr<managed>@0, local25:interface{object,itab}@0] sig=void8 (ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) local-fn10(local24, local25)
-    t50 = aggregate () : {}
-    call managed-direct-target15 sp<managed-call:22> live=[local21:ptr<managed>@0] t51 = sig=direct18 (ptr<managed>) -> enum2 local-fn11(local21)
-    store t51 -> local39
-    t52 = variant_test e2 v0 local39 : i1
-    cbr t52 then @if.then.17 else @if.else.18
+    store local18 -> local39
+    call no-gc-direct-target3 t41 = sig=direct15 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local39, td59)
+    t42 = Not t41 : i1
+    cbr t42 then @if.then.17 else @if.merge.18
   block if.then.17
-    t53 = variant_payload_project e2 v0 f0 local39 : ptr<managed>
-    store t53 -> local40
-    br @if.merge.19
-  block if.else.18
-    call managed-direct-target16 sp<managed-call:23> live=[] t54 = sig=direct19 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td17, machine<byte-size>(ByteSize(24)))
-    store t54 -> local49
-    call managed-void-target9 sp<managed-call:24> live=[local49:ptr<managed>@0] sig=void9 (ptr<managed>) external-fn9(local49)
-    t55 = aggregate () : {}
+    call managed-direct-target12 sp<managed-call:29> live=[] t43 = sig=direct16 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td19, machine<byte-size>(ByteSize(24)))
+    store t43 -> local49
+    call managed-void-target7 sp<managed-call:30> live=[local49:ptr<managed>@0] sig=void7 (ptr<managed>) external-fn8(local49)
+    t44 = aggregate () : {}
     throw local49
     unreachable
-  block if.merge.19
-    store local40 -> local41
-    call no-gc-direct-target3 t56 = sig=direct20 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local41, external-td11)
-    t57 = Not t56 : i1
-    cbr t57 then @if.then.20 else @if.merge.21
-  block if.then.20
-    call managed-direct-target17 sp<managed-call:27> live=[] t58 = sig=direct21 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td19, machine<byte-size>(ByteSize(24)))
-    store t58 -> local50
-    call managed-void-target10 sp<managed-call:28> live=[local50:ptr<managed>@0] sig=void10 (ptr<managed>) external-fn8(local50)
+  block if.merge.18
+    call managed-direct-target13 sp<managed-call:17> live=[local39:ptr<managed>@0] t45 = sig=direct17 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td70, machine<byte-size>(ByteSize(32)))
+    t46 = function_address @scoop$1$cb$00657e24a59fe80d4edfce8d89cadff1b896e841c952c5e9ed5398e84145b1fc : ptr
+    heap_store t45 +16 t46
+    heap_store t45 +24 local39
+    store t45 -> local20
+    call managed-direct-target14 sp<managed-call:18> live=[local20:ptr<managed>@0] t47 = sig=direct18 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(40)))
+    store t47 -> local50
+    call managed-void-target8 sp<managed-call:19> live=[local20:ptr<managed>@0, local50:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn60(local50)
+    t48 = aggregate () : {}
+    store local50 -> local21
+    call managed-direct-target15 sp<managed-call:20> live=[local20:ptr<managed>@0, local21:ptr<managed>@0] t49 = sig=direct19 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td65, machine<byte-size>(ByteSize(32)))
+    t50 = function_address @scoop$1$cb$0fa8ef1aee34a74093d19cb55041ebf74d74dc82d8e72ac0c5fbd0435bac9df1 : ptr
+    heap_store t49 +16 t50
+    heap_store t49 +24 local20
+    store t49 -> local22
+    t51 = heap_load td11 +96 : ptr<metadata>
+    t52 = heap_load t51 +8 : ptr<metadata>
+    t53 = aggregate (local21, t52) : interface{object,itab}
+    store t53 -> local23
+    store local22 -> local24
+    store local23 -> local25
+    call managed-void-target9 sp<managed-call:21> live=[local21:ptr<managed>@0, local24:ptr<managed>@0, local25:interface{object,itab}@0] sig=void9 (ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) local-fn10(local24, local25)
+    t54 = aggregate () : {}
+    call managed-direct-target16 sp<managed-call:22> live=[local21:ptr<managed>@0] t55 = sig=direct20 (ptr<managed>) -> enum2 local-fn11(local21)
+    store t55 -> local40
+    t56 = variant_test e2 v0 local40 : i1
+    cbr t56 then @if.then.19 else @if.else.20
+  block if.then.19
+    t57 = variant_payload_project e2 v0 f0 local40 : ptr<managed>
+    store t57 -> local41
+    br @if.merge.21
+  block if.else.20
+    call managed-direct-target17 sp<managed-call:23> live=[] t58 = sig=direct21 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td17, machine<byte-size>(ByteSize(24)))
+    store t58 -> local51
+    call managed-void-target10 sp<managed-call:24> live=[local51:ptr<managed>@0] sig=void10 (ptr<managed>) external-fn9(local51)
     t59 = aggregate () : {}
-    throw local50
+    throw local51
     unreachable
   block if.merge.21
-    unbox_value external-td11, local41 -> local53
-    store local53 -> local42
-    store local42 -> local26
-    store integer<Int>(0x0000002a) -> local27
-    store local27 -> local28
-    t60 = integer_compare_Equal<Int> local26, local28 : i1
+    store local41 -> local42
+    call no-gc-direct-target4 t60 = sig=direct22 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local42, external-td11)
     t61 = Not t60 : i1
     cbr t61 then @if.then.22 else @if.merge.23
   block if.then.22
-    ret integer<Int>(0x00000009)
+    call managed-direct-target18 sp<managed-call:27> live=[] t62 = sig=direct23 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td19, machine<byte-size>(ByteSize(24)))
+    store t62 -> local52
+    call managed-void-target11 sp<managed-call:28> live=[local52:ptr<managed>@0] sig=void11 (ptr<managed>) external-fn8(local52)
+    t63 = aggregate () : {}
+    throw local52
+    unreachable
   block if.merge.23
+    unbox_value external-td11, local42 -> local55
+    store local55 -> local43
+    store local43 -> local26
+    store integer<Int>(0x0000002a) -> local27
+    store local27 -> local28
+    t64 = integer_compare_Equal<Int> local26, local28 : i1
+    t65 = Not t64 : i1
+    cbr t65 then @if.then.24 else @if.merge.25
+  block if.then.24
+    ret integer<Int>(0x00000009)
+  block if.merge.25
     store integer<Int>(0x0000002a) -> local29
-    call managed-direct-target18 sp<managed-call:25> live=[] t62 = sig=direct22 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td66, machine<byte-size>(ByteSize(24)))
-    t63 = function_address @scoop$1$cb$cf927c868876eced399f694f470408bb270349965c6b3e4b73620f25df6f01be : ptr
-    heap_store t62 +16 t63
-    store t62 -> local30
+    call managed-direct-target19 sp<managed-call:25> live=[] t66 = sig=direct24 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td66, machine<byte-size>(ByteSize(24)))
+    t67 = function_address @scoop$1$cb$cf927c868876eced399f694f470408bb270349965c6b3e4b73620f25df6f01be : ptr
+    heap_store t66 +16 t67
+    store t66 -> local30
     store local29 -> local31
     store local30 -> local32
-    call managed-direct-target19 sp<managed-call:26> live=[local32:ptr<managed>@0] t64 = sig=direct23 (i32, ptr<managed>) -> i32 local-fn14(local31, local32)
-    store t64 -> local51
-    ret local51
+    call managed-direct-target20 sp<managed-call:26> live=[local32:ptr<managed>@0] t68 = sig=direct25 (i32, ptr<managed>) -> i32 local-fn14(local31, local32)
+    store t68 -> local53
+    ret local53
   fun @scoop$1$cb$a9327e56a37e3d091ac180deaddae561df1f4463688ecf943693900809755309() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32

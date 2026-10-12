@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "complete": false,
-  "discovered": 3761,
+  "discovered": 3766,
   "selected": 1,
-  "unselected": 3760,
+  "unselected": 3765,
   "counts": {
     "passed": 1
   },
@@ -14,7 +14,7 @@
     {
       "name": "program-link-coroutine-function-values",
       "status": "passed",
-      "seconds": 21.982507582986727,
+      "seconds": 22.478413542034104,
       "variants": 2,
       "processes": 8,
       "snapshots": 8,
@@ -24,8 +24,8 @@
   "validation": {
     "target": "aarch64-apple-darwin",
     "ordinary_comparison": true,
-    "source": "darwin-coroutine-function-values-ordinary",
-    "seconds": 25.466776167042553,
-    "note": "Both erased function-kind checks remain; the non-suspend check runs before the suspend check narrows the continuing path."
+    "source": "darwin-function-views-ordinary",
+    "seconds": 22.478413542034104,
+    "note": "Original suspend-first check order restored; both type checks and the explicit cast inspect the original erased function. Supersedes the reordered-source run."
   }
 }

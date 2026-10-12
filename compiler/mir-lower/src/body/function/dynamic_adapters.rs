@@ -5,7 +5,7 @@ impl BodyLowerer<'_> {
         &mut self,
         value: smir::Expr,
         target: mir::FunctionTypeId,
-        _span: Span,
+        span: Span,
     ) -> smir::Expr {
         let adapter = request_dynamic_adapter(
             self.module,
@@ -20,6 +20,7 @@ impl BodyLowerer<'_> {
                 by_target: self.dynamic_adapter_by_target,
             },
         );
+        let value = self.lower_known_read(value, mir::Type::Any, span);
         smir::Expr::new(
             mir::Type::Function(target),
             smir::ExprKind::ClosureAlloc {

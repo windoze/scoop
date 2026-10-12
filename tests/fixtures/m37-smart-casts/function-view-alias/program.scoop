@@ -1,0 +1,13 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    public override fun left(): Int = 20
+    public override fun right(): Int = 22
+}
+fun wrong(value: Any): (Int) -> Right {
+    if (value !is (Int) -> Left) return { _: Int -> Both() }
+    val narrowed: (Int) -> Left = value
+    if (value !is (Int) -> Right) return { _: Int -> Both() }
+    return narrowed
+}
+fun main() {}
