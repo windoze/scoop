@@ -11,7 +11,7 @@
 
 历史端到端声明位于 `legacy-acceptance/`，通过相对路径使用原源码。
 [迁移记录](../../docs/milestone23/stage11/MIGRATION.md)保存原快照到当前条件的对应与修订原因。
-正常编译通过 `--emit all` 取得同次编译的 AST／HIR／MIR／LIR，随后运行生成的程序；
+普通正向用例编译并运行生成的程序，不请求或保存全阶段 dump／完整符号表；
 编译错误与 warning 使用完整 canonical JSON 期望。native companion 的构建步骤显式声明，
 普通运行和 moving-GC 作为同一用例的有序变体。
 
@@ -27,13 +27,14 @@ python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-musl
 python3 tests/run_fixtures.py --suite tests/fixtures/legacy-acceptance
 
 # 显式更新选中的 stage golden，随后审阅 diff 并执行只读验证。
-python3 tests/run_fixtures.py --suite tests/fixtures/legacy-acceptance \
-  --filter 'legacy-m1-hello-*' --update-snapshots
+python3 tests/run_fixtures.py --suite tests/fixtures/m31-optimization/local-values \
+  --update-snapshots
 ```
 
 `--all` 禁止过滤和更新期望。`cargo test` 只验证保留的 Rust 单元测试，
 不能代替文件测试的正式 CLI 验收。并行度用 `--jobs` 控制；步骤和变体内部保持有序。
 target 不适用项单列，不计为通过。平台专属的 Mach-O/dyld 测试保留 Darwin 条件；
-共有语言、ABI、GC 和 CLI 用例在三个目标运行。目标相关的 LIR、链接计划、符号表与
-产物指纹保存独立快照，其余 stage golden 共用。工具配置见 runner README，Linux
+共有语言、ABI、GC 和 CLI 用例在三个目标运行。结构／ABI／链接专测中确有目标差异的期望按目标保存，其余共用。
+普通用例不冻结产物摘要、core 或无关 native 符号；结构职责见
+[M40 迁移说明](../../docs/milestone40/MIGRATION.md)。工具配置见 runner README，Linux
 环境准备见 [M28 构建说明](../../docs/milestone28/BUILDING.md)。

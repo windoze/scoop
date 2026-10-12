@@ -47,7 +47,7 @@ tags = ["cli"]
 name = "build"
 argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}",
         "--cache-dir", "${cache}", "--target-dir", "${work}/target",
-        "--emit", "all", "--dump-dir", "${work}/dumps", "--message-format", "json"]
+        "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -83,6 +83,19 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 `equals`／`not_equals` 或 `same_as`／`different_from` 比较本次实际产生的值。
 固定摘要仅用于输入严格受控、需要锁定编码或指纹规则的专门测试；结构、诊断、
 ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一化隐藏这些差异。
+普通功能用例只请求编译和运行，不附加 `--emit all`。结构专测只请求被测阶段，
+例如下面的 MIR 专测在 build 步骤中使用 `--emit mir --dump-dir ${work}/dump`：
+
+```toml
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+]
+```
+
+该期望应锁定小程序的 CFG、求值顺序或清理路径，而非展开整个 core。
+AST/HIR/MIR/LIR 的 typed IR 测试同样可承担结构职责；不要求每个功能保存四阶段输出。
+代表组和迁移理由见 [M40 迁移说明](../../docs/milestone40/MIGRATION.md)。
+观察模式本身的 CLI 专测继续检查输出文件集合、缓存重编译和产物一致性。
 普通语言组合用例的链接检查保留实际构建与独立链接的一致性、Cone/image/root
 关系、相关符号及运行结果，不逐份冻结整个 core 的物理对象数量和生成的 startup C。
 专门测试 native 输入选择、归档成员与动态绑定的用例仍保留对应完整计划。
@@ -96,7 +109,7 @@ ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一
 stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 300 秒，以容纳 Linux 上完整的 core 冷构建。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
-更新规则；正常验收仍比较完整原始字节。用于按目标保存实际对象/程序符号表。
+更新规则；正常验收仍比较完整原始字节。仅用于小而受控的结构或工具输出专测；普通功能用例不保存完整符号表。
 `json = "stderr"` 解析 Scoop schema 1 前缀，遇到成功结果即停止，后续字节归程序。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
