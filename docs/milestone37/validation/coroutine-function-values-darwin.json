@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3761,
+  "selected": 1,
+  "unselected": 3760,
+  "counts": {
+    "passed": 1
+  },
+  "variants": 2,
+  "processes": 8,
+  "stage_and_plan_goldens": 8,
+  "results": [
+    {
+      "name": "program-link-coroutine-function-values",
+      "status": "passed",
+      "seconds": 21.982507582986727,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    }
+  ],
+  "validation": {
+    "target": "aarch64-apple-darwin",
+    "ordinary_comparison": true,
+    "source": "darwin-coroutine-function-values-ordinary",
+    "seconds": 25.466776167042553,
+    "note": "Both erased function-kind checks remain; the non-suspend check runs before the suspend check narrows the continuing path."
+  }
+}

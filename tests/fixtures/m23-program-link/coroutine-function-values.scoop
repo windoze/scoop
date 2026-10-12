@@ -27,8 +27,8 @@ public fun result(): Int {
     startCoroutine(suspend { widened(0) }, staticResult)
     if (staticResult.value!! as Int != 42) { return 6 }
     val erased = erasedFunction()
-    if (!(erased is suspend (Int) -> Any)) { return 7 }
     if (erased is (Int) -> Any) { return 8 }
+    if (!(erased is suspend (Int) -> Any)) { return 7 }
     val dynamic = erased as suspend (Int) -> Any
     val dynamicResult = Completion<Any>()
     startCoroutine(suspend { dynamic(0) }, dynamicResult)

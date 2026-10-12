@@ -495,67 +495,46 @@ Module
         IntegerLiteral Int value=6 bits=0x00000006
     bb12 if.merge.12
       call erased: Any = external5 direct
+      branch bb13 bb14
+        Type Boolean
+        IsInstance (Int) -> Any
+          Type Any
+          Local erased
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb14 if.merge.14
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance suspend (Int) -> Any
           Type Any
           Local erased
-      branch bb13 bb14
+      branch bb15 bb16
         Type Boolean
         Unary BoolNot
           Type Boolean
           Local $dependency.receiver
-    bb13 if.then.13
-      return
-        Type Int
-        IntegerLiteral Int value=7 bits=0x00000007
-    bb14 if.merge.14
-      branch bb15 bb16
-        Type Boolean
-        IsInstance (Int) -> Any
-          Type Any
-          Local erased
     bb15 if.then.15
       return
         Type Int
-        IntegerLiteral Int value=8 bits=0x00000008
+        IntegerLiteral Int value=7 bits=0x00000007
     bb16 if.merge.16
-      val $cast.7: Any
-        Type Any
-        Local erased
-      branch bb17 bb18
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance suspend (Int) -> Any
-            Type Any
-            Local $cast.7
-    bb17 if.then.17
-      assign $new.6
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external8 direct
-        Type ClassCastException
-        Local $new.6
-      throw
-        Type ClassCastException
-        Local $new.6
-    bb18 if.merge.18
       val dynamic: suspend (Int) -> Any
         Type suspend (Int) -> Any
         ClosureAlloc cc7 $Closure$dynamic_adapter$suspend (Int) -> Any
           CaptureInit field=0
             Type Any
-            Local $cast.7
-      assign $new.7
+            Local erased
+      assign $new.6
         Type Completion<Any>
         ClassAlloc Completion<Any>
       call @fn60 direct
         Type Completion<Any>
-        Local $new.7
+        Local $new.6
       val dynamicResult: Completion<Any>
         Type Completion<Any>
-        Local $new.7
+        Local $new.6
       val $dependency.argument.0: suspend () -> Any
         Type suspend () -> Any
         ClosureAlloc cc2 $Closure$lambda2
@@ -578,68 +557,68 @@ Module
         Local $dependency.parameter.task
         Type Continuation<Any>
         Local $dependency.parameter.completion
-      call $opt.8: Option<Any> = @fn11 direct
+      call $opt.7: Option<Any> = @fn11 direct
         Type Completion<Any>
         Local dynamicResult
-      branch bb19 bb20
+      branch bb17 bb18
         Type Boolean
         VariantTest Option<Any> v0
           Type Option<Any>
-          Local $opt.8
-    bb19 if.then.19
-      val $uw.9: Any
+          Local $opt.7
+    bb17 if.then.17
+      val $uw.8: Any
         Type Any
         VariantPayloadProject Option<Any> v0 f0
           Type Option<Any>
-          Local $opt.8
-      goto bb21
-    bb20 if.else.20
-      assign $new.8
+          Local $opt.7
+      goto bb19
+    bb18 if.else.18
+      assign $new.7
         Type UnwrapException
         ClassAlloc UnwrapException
       call external9 direct
         Type UnwrapException
-        Local $new.8
+        Local $new.7
       throw
         Type UnwrapException
-        Local $new.8
-    bb21 if.merge.21
-      val $cast.10: Any
+        Local $new.7
+    bb19 if.merge.19
+      val $cast.9: Any
         Type Any
-        Local $uw.9
-      branch bb22 bb23
+        Local $uw.8
+      branch bb20 bb21
         Type Boolean
         Unary BoolNot
           Type Boolean
           IsInstance Int
             Type Any
-            Local $cast.10
-    bb22 if.then.22
-      assign $new.9
+            Local $cast.9
+    bb20 if.then.20
+      assign $new.8
         Type ClassCastException
         ClassAlloc ClassCastException
       call external8 direct
         Type ClassCastException
-        Local $new.9
+        Local $new.8
       throw
         Type ClassCastException
-        Local $new.9
-    bb23 if.merge.23
-      val $ub.11: Int
+        Local $new.8
+    bb21 if.merge.21
+      val $ub.10: Int
         Type Int
         Unbox
           Type Any
-          Local $cast.10
+          Local $cast.9
       val $dependency.receiver: Int
         Type Int
-        Local $ub.11
+        Local $ub.10
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      branch bb24 bb25
+      branch bb22 bb23
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -648,11 +627,11 @@ Module
             Local $dependency.receiver
             Type Int
             Local $dependency.parameter.other
-    bb24 if.then.24
+    bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
-    bb25 if.merge.25
+    bb23 if.merge.23
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -665,14 +644,14 @@ Module
       val $parameter.read: (Int) -> Int
         Type (Int) -> Int
         Local $argument.1
-      call $call.10: Int = @fn14 direct
+      call $call.9: Int = @fn14 direct
         Type Int
         Local $parameter.seed
         Type (Int) -> Int
         Local $parameter.read
       return
         Type Int
-        Local $call.10
+        Local $call.9
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.argument.0: Int = @fn0 direct

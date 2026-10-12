@@ -79,6 +79,7 @@ SourceFile
       Call Completion<Long>
     Call startCoroutine
       Lambda 0 suspend=true
+        label startCoroutine
         parameters omitted
         Call reference
           IntLiteral 42L
@@ -97,6 +98,7 @@ SourceFile
       Call Completion<Any>
     Call startCoroutine
       Lambda 1 suspend=true
+        label startCoroutine
         parameters omitted
         Call widened
           IntLiteral 0
@@ -113,16 +115,16 @@ SourceFile
     val erased
       Call erasedFunction
     if
+      Is (Int) -> Any false
+        Var erased
+      return
+        IntLiteral 8
+    if
       Unary Not
         Is suspend (Int) -> Any false
           Var erased
       return
         IntLiteral 7
-    if
-      Is (Int) -> Any false
-        Var erased
-      return
-        IntLiteral 8
     val dynamic
       Cast suspend (Int) -> Any optional=false
         Var erased
@@ -130,6 +132,7 @@ SourceFile
       Call Completion<Any>
     Call startCoroutine
       Lambda 2 suspend=true
+        label startCoroutine
         parameters omitted
         Call dynamic
           IntLiteral 0
@@ -147,6 +150,7 @@ SourceFile
       Call exercise
         IntLiteral 42
         Lambda 3 suspend=false
+          label exercise
           param value: Int
           Var value
   fun main()

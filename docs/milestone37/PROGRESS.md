@@ -267,3 +267,5 @@ when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变
 新增三个 fixture，覆盖 lambda、匿名函数、局部函数、显式快照、when subject 声明、构造器参数与闭包、普通/moving GC，以及只在部分分支成立的事实不得越过合流。workspace fmt/clippy 通过，捕获与 when 两组 Rust 定向测试执行 77 项全部通过。52 个正式 CLI 用例普通比较全部通过，81 个配置、206 个进程、187 个阶段 golden，包含原有 M35 捕获组合回归。该旧组合用例补充 lambda 标签，并将类型检查改为读取已经保存的 subject；既有静态类型结构保持不变，LIR 相应省去一次重复捕获读取。报告见 [smart cast 回归](validation/smart-cast-capture-regressions-darwin.json)。Linux 受影响范围复验继续进行。
 
 另有八个旧负例按现行规则完成迁移：接口实现诊断顺序、带宿主的 companion 名称、单语句 for body，以及 GCLeaf 目标的语义检查。旧 return-label 负例改为 Elvis 中使用不存在的标签，继续精确检查错误文字与源码位置。workspace fmt/clippy 后八例本机普通比较全部通过，生产代码未因这些快照差异改变。报告见 [旧负例迁移](validation/gnu-diagnostic-migrations-darwin.json)。
+
+旧 program-link 协程函数值组合在提前返回后继续检查互斥的普通函数类型，现已被 M37 正常出口事实正确判为不可能。将普通函数检查移到挂起函数收窄之前，保留两项动态类型检查；已证明成立的后续挂起函数转换不再重复生成 ClassCastException 分支。workspace fmt/clippy 后，本机普通验收的 normal/moving 两配置及移除源码后的独立链接全部通过，8 个进程、8 个阶段 golden；没有修改生产代码。报告见 [协程函数值组合](validation/coroutine-function-values-darwin.json)。
