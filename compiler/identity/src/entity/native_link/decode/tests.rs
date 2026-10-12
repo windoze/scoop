@@ -62,6 +62,7 @@ fn linux_symbols_and_libraries_retain_the_selected_libc() {
         for spelling in ["entry", "_entry"] {
             let key = NativeExternalSymbolKey::for_target(
                 target.clone(),
+                crate::NativeSymbolNormalization::ElfIdentity,
                 &SourceNativeSymbol::new(spelling).unwrap(),
             )
             .unwrap();
@@ -89,6 +90,7 @@ fn linux_symbols_and_libraries_retain_the_selected_libc() {
         assert_eq!(
             NativeExternalSymbolKey::for_target(
                 target,
+                crate::NativeSymbolNormalization::ElfIdentity,
                 &SourceNativeSymbol::new("\u{1}entry").unwrap(),
             ),
             Err(NativeLinkSymbolError::LlvmEscapePrefix)
@@ -101,23 +103,17 @@ fn linux_symbols_and_libraries_retain_the_selected_libc() {
 
 #[test]
 fn native_link_symbol_rejects_noncanonical_logical_inputs() {
-    let missing_prefix = decode_canonical::<DecodedNativeLinkSymbol>(b"\x43foo").unwrap();
-    assert_eq!(
-        missing_prefix.validate_darwin(),
-        Err(NativeLinkValidationError::MissingMachOExternalPrefix)
-    );
-
     let invalid_utf8 = decode_canonical::<DecodedNativeLinkSymbol>(b"\x42_\xff").unwrap();
     assert_eq!(
-        invalid_utf8.validate_darwin(),
+        invalid_utf8.validate(),
         Err(NativeLinkValidationError::SourceSymbol(
             SourceNativeSymbolError::InvalidUtf8
         ))
     );
 
-    let llvm_escape = decode_canonical::<DecodedNativeLinkSymbol>(b"\x45_\x01bad").unwrap();
+    let llvm_escape = decode_canonical::<DecodedNativeLinkSymbol>(b"\x44\x01bad").unwrap();
     assert_eq!(
-        llvm_escape.validate_darwin(),
+        llvm_escape.validate(),
         Err(NativeLinkValidationError::LinkSymbol(
             NativeLinkSymbolError::LlvmEscapePrefix
         ))
@@ -132,18 +128,28 @@ fn all_native_link_requirement_shapes_round_trip_and_validate() {
         position: 2,
     };
     let values = [
-        NativeLinkRequirementKey::target_default(library()),
-        NativeLinkRequirementKey::for_darwin(
+        NativeLinkRequirementKey::target_default(
+            crate::TargetProfileWireId::darwin_aarch64(),
+            library(),
+        ),
+        NativeLinkRequirementKey::for_target(
+            crate::TargetProfileWireId::darwin_aarch64(),
             library(),
             NativeLibraryKind::Dynamic,
             ordered.clone(),
         ),
-        NativeLinkRequirementKey::for_darwin(
+        NativeLinkRequirementKey::for_target(
+            crate::TargetProfileWireId::darwin_aarch64(),
             library(),
             NativeLibraryKind::StaticArchive,
             independent,
         ),
-        NativeLinkRequirementKey::for_darwin(library(), NativeLibraryKind::Framework, ordered),
+        NativeLinkRequirementKey::for_target(
+            crate::TargetProfileWireId::darwin_aarch64(),
+            library(),
+            NativeLibraryKind::Framework,
+            ordered,
+        ),
     ];
 
     for value in values {
@@ -155,7 +161,8 @@ fn all_native_link_requirement_shapes_round_trip_and_validate() {
 
 #[test]
 fn native_link_requirement_record_validates_before_verifying_identity() {
-    let key = NativeLinkRequirementKey::for_darwin(
+    let key = NativeLinkRequirementKey::for_target(
+        crate::TargetProfileWireId::darwin_aarch64(),
         library(),
         NativeLibraryKind::Dynamic,
         NativeLibraryGrouping::Independent,
@@ -198,7 +205,8 @@ fn native_link_keys_reject_wrong_profile_and_invalid_names() {
         Err(NativeLinkValidationError::TargetProfile(_))
     ));
 
-    let key = NativeLinkRequirementKey::for_darwin(
+    let key = NativeLinkRequirementKey::for_target(
+        crate::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("sample").unwrap(),
         NativeLibraryKind::Dynamic,
         NativeLibraryGrouping::OrderedGroup {
@@ -246,8 +254,12 @@ fn replace_once(bytes: &mut [u8], source: &[u8], replacement: &[u8]) {
 }
 
 fn symbol_key() -> NativeExternalSymbolKey {
-    NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("entry").unwrap())
-        .unwrap()
+    NativeExternalSymbolKey::for_target(
+        crate::TargetProfileWireId::darwin_aarch64(),
+        crate::NativeSymbolNormalization::MachOExternalUnderscore,
+        &SourceNativeSymbol::new("entry").unwrap(),
+    )
+    .unwrap()
 }
 
 fn library() -> CanonicalNativeLibraryName {

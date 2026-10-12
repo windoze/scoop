@@ -185,8 +185,12 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         &self,
         symbol: &identity::SourceNativeSymbol,
     ) -> identity::NativeExternalSymbolKey {
-        identity::NativeExternalSymbolKey::for_target(self.target_profile.wire_id(), symbol)
-            .expect("validated source native symbols normalize for the selected target")
+        identity::NativeExternalSymbolKey::for_target(
+            self.target_profile.wire_id(),
+            self.target_profile.contract().native_symbol_normalization(),
+            symbol,
+        )
+        .expect("validated source native symbols normalize for the selected target")
     }
 
     fn library_binding(

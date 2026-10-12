@@ -122,6 +122,7 @@ fn admits_tlvp_relocations_only_for_typed_tls_contracts() {
 fn carries_the_exact_library_requirement_into_each_use() {
     let producer = ConeIdentity::SINGLE_FILE;
     let library = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -237,8 +238,12 @@ fn contract_record_with_contract(
 ) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source_contract(producer, declaration),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new(symbol).unwrap(),
+        )
+        .unwrap(),
         contract,
     )
     .unwrap()

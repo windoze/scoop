@@ -133,8 +133,9 @@ fn type_artifacts(name: &str) -> TypeArtifacts {
     );
     let nominal = PersistentTypeId::from_source_declaration(&source).unwrap();
     let exact_type = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type,
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         RepresentationRole::ManagedObject,
     ))
     .unwrap();

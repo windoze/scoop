@@ -4,8 +4,9 @@ use super::*;
 
 pub(super) fn type_artifacts(seed: u8) -> TypeArtifacts {
     let exact_type = exact_type(&format!("Type{seed}"));
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type,
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         RepresentationRole::ManagedObject,
     ))
     .unwrap();

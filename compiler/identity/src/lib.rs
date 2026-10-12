@@ -156,7 +156,8 @@ pub use entity::{
     NativeExternalContractFingerprintInput, NativeExternalContractRecord,
     NativeExternalContractResolutionError, NativeExternalSymbolKey, NativeLibraryBinding,
     NativeLibraryGrouping, NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol,
-    NativeLinkSymbolError, NativeLinkValidationError, SourceNativeSymbol, SourceNativeSymbolError,
+    NativeLinkSymbolError, NativeLinkValidationError, NativeSymbolNormalization,
+    SourceNativeSymbol, SourceNativeSymbolError,
 };
 pub use entity::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage,

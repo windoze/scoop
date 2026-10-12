@@ -247,7 +247,9 @@ pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
     let mut atoms = vec![definition_atom(lir_plan)];
     let mut foundation = CanonicalLirFoundation::empty();
     let bridge_unit = native_name.map(|native_name| {
-        let native_symbol = NativeExternalSymbolKey::darwin_macho_external(
+        let native_symbol = NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new(native_name).unwrap(),
         )
         .unwrap();

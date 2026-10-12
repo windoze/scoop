@@ -400,8 +400,12 @@ fn native_contract_fixture(
     .unwrap();
     let contract = NativeExternalContractRecord::new(
         source.id(),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("native").unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new("native").unwrap(),
+        )
+        .unwrap(),
         NativeExternalContract::c_function(
             NativeLibraryBinding::DefaultNativeNamespace,
             CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),

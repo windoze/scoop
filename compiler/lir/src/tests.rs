@@ -698,7 +698,9 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
 #[test]
 fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     let mut functions = ExternFunctions::default();
-    let native_symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+    let native_symbol = scoop_identity::NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &scoop_identity::SourceNativeSymbol::new("c").unwrap(),
     )
     .unwrap();

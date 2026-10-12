@@ -90,13 +90,15 @@ fn duplicate_materialized_exact_type_reference_is_rejected() {
 fn simple_and_runtime_mapping_tables_are_canonicalized_by_primary_id() {
     let (first_exact, _) = nominal_exact("First");
     let (second_exact, _) = nominal_exact("Second");
-    let first_layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let first_layout = CborIdentityRecord::from_key(LayoutKey::new(
         first_exact,
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         scoop_identity::RepresentationRole::ManagedObject,
     ))
     .unwrap();
-    let second_layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let second_layout = CborIdentityRecord::from_key(LayoutKey::new(
         second_exact,
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         scoop_identity::RepresentationRole::ManagedObject,
     ))
     .unwrap();
@@ -138,8 +140,9 @@ fn callable_bodies_without_dependencies_are_sorted_by_persistent_id() {
 #[test]
 fn duplicate_primary_identity_is_rejected_before_encoding() {
     let (exact, _) = nominal_exact("Duplicate");
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact,
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         scoop_identity::RepresentationRole::ManagedValue,
     ))
     .unwrap();

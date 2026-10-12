@@ -203,6 +203,7 @@ fn changing_the_contract_changes_the_code_projection() {
     )
     .unwrap();
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -283,8 +284,12 @@ fn contract_record(
 ) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source(source_seed),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new(symbol).unwrap(),
+        )
+        .unwrap(),
         contract,
     )
     .unwrap()

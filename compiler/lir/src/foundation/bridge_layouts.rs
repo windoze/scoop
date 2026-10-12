@@ -276,7 +276,9 @@ mod tests {
     #[test]
     fn write_unit_rejects_a_read_only_data_contract() {
         let exact = unit_exact_type();
-        let symbol = NativeExternalSymbolKey::darwin_macho_external(
+        let symbol = NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new("value").unwrap(),
         )
         .unwrap();

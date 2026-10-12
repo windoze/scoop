@@ -171,7 +171,9 @@ fn fixture(include_bridge: bool) -> Fixture {
     ];
     let lir_plans = [lir_records[0].id(), lir_records[1].id()];
 
-    let native_symbol = NativeExternalSymbolKey::darwin_macho_external(
+    let native_symbol = NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &SourceNativeSymbol::new("native_bridge").unwrap(),
     )
     .unwrap();

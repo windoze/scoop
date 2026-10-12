@@ -357,7 +357,9 @@ mod tests {
     #[test]
     fn target_native_data_contract_has_fixed_fingerprint() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let symbol_key = NativeExternalSymbolKey::darwin_macho_external(
+        let symbol_key = NativeExternalSymbolKey::for_target(
+            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new("foo").unwrap(),
         )
         .unwrap();

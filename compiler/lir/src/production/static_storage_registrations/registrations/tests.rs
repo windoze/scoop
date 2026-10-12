@@ -362,8 +362,9 @@ impl Fixture {
 }
 
 fn shape_artifacts() -> ShapeArtifacts {
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type("StorageValue"),
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         RepresentationRole::ManagedValue,
     ))
     .unwrap();

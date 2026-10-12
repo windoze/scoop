@@ -156,7 +156,7 @@ pub use native_link::{
     DecodedNativeLibraryBinding, DecodedNativeLibraryGrouping, DecodedNativeLinkRequirementKey,
     DecodedNativeLinkSymbol, NativeExternalSymbolKey, NativeLibraryBinding, NativeLibraryGrouping,
     NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol, NativeLinkSymbolError,
-    NativeLinkValidationError,
+    NativeLinkValidationError, NativeSymbolNormalization,
 };
 pub use native_name::{
     CanonicalNativeLibraryName, CanonicalNativeNameError, DecodedCanonicalNativeLibraryName,

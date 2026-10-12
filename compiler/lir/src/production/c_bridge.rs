@@ -223,7 +223,9 @@ mod tests {
     }
 
     fn unit_id() -> GeneratedBridgeUnitId {
-        let symbol = NativeExternalSymbolKey::darwin_macho_external(
+        let symbol = NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new("native").unwrap(),
         )
         .unwrap();

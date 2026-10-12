@@ -458,7 +458,9 @@ mod tests {
             CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void);
         let contract = NativeExternalContractRecord::new(
             source,
-            NativeExternalSymbolKey::darwin_macho_external(
+            NativeExternalSymbolKey::for_target(
+                scoop_identity::TargetProfileWireId::darwin_aarch64(),
+                scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
                 &SourceNativeSymbol::new("native").unwrap(),
             )
             .unwrap(),

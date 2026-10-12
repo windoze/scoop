@@ -369,6 +369,7 @@ fn native_record(
         PersistentSourceNativeExternalContractId::from_key(&key).unwrap(),
         NativeExternalSymbolKey::for_target(
             module.meta.target_profile.wire_id(),
+            scoop_identity::NativeSymbolNormalization::ElfIdentity,
             &SourceNativeSymbol::new(name).unwrap(),
         )
         .unwrap(),

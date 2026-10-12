@@ -59,17 +59,6 @@ impl LayoutKey {
         }
     }
 
-    pub fn darwin_aarch64(
-        exact_type: PersistentExactTypeId,
-        representation: RepresentationRole,
-    ) -> Self {
-        Self::new(
-            exact_type,
-            TargetProfileWireId::darwin_aarch64(),
-            representation,
-        )
-    }
-
     pub const fn exact_type(&self) -> PersistentExactTypeId {
         self.exact_type
     }
@@ -456,7 +445,11 @@ mod tests {
     #[test]
     fn layout_and_scan_identities_have_fixed_hashes() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let layout_key = LayoutKey::darwin_aarch64(exact, RepresentationRole::ManagedObject);
+        let layout_key = LayoutKey::new(
+            exact,
+            crate::TargetProfileWireId::darwin_aarch64(),
+            RepresentationRole::ManagedObject,
+        );
         let layout = PersistentLayoutId::from_key(&layout_key).unwrap();
         let scan_key = ScanKey::new(layout, ScanRole::ManagedObject);
 

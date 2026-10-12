@@ -190,9 +190,12 @@ fn foundation_with_bridges(
 }
 
 fn bridge_unit() -> CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey> {
-    let symbol =
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("native").unwrap())
-            .unwrap();
+    let symbol = NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+        &SourceNativeSymbol::new("native").unwrap(),
+    )
+    .unwrap();
     let contract = NativeExternalContract::c_function(
         NativeLibraryBinding::DefaultNativeNamespace,
         scoop_identity::CanonicalCAbiFunctionSignature::cdecl(

@@ -83,3 +83,9 @@
 - C toolchain typed identity 仅校验 namespace、名称和版本；实际三个 producer 名称集中在目标数据模块，删除 identity 中未使用的 backend 专用构造器。
 - invocation 边界明确校验所选 target 的 producer 身份，拒绝格式合法但未知、版本不支持或平台不匹配的 profile。纯 LIR profile 与生产记录继续保留原编码。
 - 本机 fmt、workspace clippy、9 项身份格式、14 项 C 合同及 3 项 invocation 测试通过；固定指纹未变。正式 CLI 在完成剩余 target 身份迁移后合并回归。
+
+## 功能 10：native 符号归一化由目标数据显式提供
+
+- 将 native symbol normalization 作为纯数据传给身份构造；删除身份层隐含 Darwin 目标的符号、library 和 layout 构造器。对象前缀不再由 identity 查询 target 名称。
+- identity 只检查身份和符号字节格式；slib 在已有 native 目标消费边界按源码重建并核对完整合同，保留 Mach-O／ELF 前缀不匹配拒绝。新增回归同时覆盖两种真实目标的正确及错误归一化方式。
+- 本机 fmt、workspace clippy、345 项身份测试、1 项 native 消费边界、4 项 native lowering 与 2 项 native global codegen 测试通过。固定符号身份与 library 编码未变；Linux 专有 bridge 测试留到 Linux 全量验收。

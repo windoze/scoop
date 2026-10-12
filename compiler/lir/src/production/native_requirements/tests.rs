@@ -13,6 +13,7 @@ use crate::CanonicalLirFoundation;
 #[test]
 fn groups_identical_contracts_and_resolves_their_library() {
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -72,6 +73,7 @@ fn preserves_default_native_namespace_without_fabricating_a_requirement() {
 #[test]
 fn rejects_conflicting_contracts_for_one_link_symbol() {
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("conflict").unwrap(),
     ))
     .unwrap();
@@ -109,6 +111,7 @@ fn rejects_conflicting_contracts_for_one_link_symbol() {
 #[test]
 fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     let missing = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("missing").unwrap(),
     ))
     .unwrap()
@@ -136,6 +139,7 @@ fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     ));
 
     let orphan = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
         CanonicalNativeLibraryName::new("orphan").unwrap(),
     ))
     .unwrap();
@@ -167,8 +171,12 @@ fn contract_record(
 ) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source(source_seed),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new(symbol).unwrap(),
+        )
+        .unwrap(),
         contract,
     )
     .unwrap()

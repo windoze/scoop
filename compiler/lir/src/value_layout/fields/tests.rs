@@ -58,7 +58,11 @@ pub(super) fn value(
     .unwrap();
     ValueLayoutConstituentV1::new(
         TARGET,
-        LayoutKey::darwin_aarch64(exact(name), RepresentationRole::ManagedValue),
+        LayoutKey::new(
+            exact(name),
+            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            RepresentationRole::ManagedValue,
+        ),
         storage,
     )
     .unwrap()
@@ -73,7 +77,11 @@ fn input<'a>(values: &'a [ValueLayoutConstituentV1]) -> Vec<DeclaredFieldStorage
 }
 
 fn class_key(name: &str) -> LayoutKey {
-    LayoutKey::darwin_aarch64(exact(name), RepresentationRole::ManagedObject)
+    LayoutKey::new(
+        exact(name),
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        RepresentationRole::ManagedObject,
+    )
 }
 
 #[test]

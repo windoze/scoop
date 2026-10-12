@@ -89,7 +89,11 @@ fn every_layout_and_scan_role_round_trips_and_resolves() {
         RepresentationRole::CValue,
         RepresentationRole::NativeFunctionPointer,
     ] {
-        let key = LayoutKey::darwin_aarch64(exact_type(), representation);
+        let key = LayoutKey::new(
+            exact_type(),
+            crate::TargetProfileWireId::darwin_aarch64(),
+            representation,
+        );
         let decoded = decode_canonical::<DecodedLayoutKey>(&encode(&key).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
     }

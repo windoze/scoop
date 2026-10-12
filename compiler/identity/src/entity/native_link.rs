@@ -7,6 +7,8 @@ use crate::ids::derive_persistent_id;
 use crate::{NativeLinkRequirementId, PersistentNativeExternalSymbolId, TargetProfileWireId};
 
 mod decode;
+mod normalization;
+pub use normalization::NativeSymbolNormalization;
 
 const NATIVE_LINK_SYMBOL_HASH_DOMAIN: &str = "scoop-native-link-symbol-v1";
 const NATIVE_LINK_REQUIREMENT_HASH_DOMAIN: &str = "scoop-native-link-requirement-v1";
@@ -21,7 +23,8 @@ pub use decode::{
 pub struct NativeLinkSymbol(Vec<u8>);
 
 impl NativeLinkSymbol {
-    fn darwin_macho_external_length(
+    pub fn normalized_length(
+        normalization: NativeSymbolNormalization,
         logical: &SourceNativeSymbol,
     ) -> Result<u64, NativeLinkSymbolError> {
         if logical.as_bytes().first() == Some(&0x01) {
@@ -29,48 +32,29 @@ impl NativeLinkSymbol {
         }
         u64::try_from(logical.as_bytes().len())
             .ok()
-            .and_then(|length| length.checked_add(1))
+            .and_then(|length| length.checked_add(normalization.external_prefix().len() as u64))
             .ok_or(NativeLinkSymbolError::LengthOverflow)
     }
 
-    pub fn darwin_macho_external(
+    pub fn new(
+        normalization: NativeSymbolNormalization,
         logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
-        Self::for_target(&TargetProfileWireId::darwin_aarch64(), logical)
-    }
-
-    fn for_target(
-        target: &TargetProfileWireId,
-        logical: &SourceNativeSymbol,
-    ) -> Result<Self, NativeLinkSymbolError> {
-        if logical.as_bytes().first() == Some(&0x01) {
-            return Err(NativeLinkSymbolError::LlvmEscapePrefix);
-        }
-        let prefix = target.id().external_symbol_prefix();
-        let length = logical
-            .as_bytes()
-            .len()
-            .checked_add(prefix.len())
-            .ok_or(NativeLinkSymbolError::LengthOverflow)?;
+        let length = usize::try_from(Self::normalized_length(normalization, logical)?)
+            .map_err(|_| NativeLinkSymbolError::LengthOverflow)?;
         let mut symbol = Vec::new();
         symbol
             .try_reserve_exact(length)
             .map_err(|_| NativeLinkSymbolError::Allocation)?;
-        symbol.extend_from_slice(prefix);
+        symbol.extend_from_slice(normalization.external_prefix());
         symbol.extend_from_slice(logical.as_bytes());
         Ok(Self(symbol))
     }
 
-    fn from_owned_for_target(
-        target: &TargetProfileWireId,
-        symbol: Vec<u8>,
-    ) -> Result<Self, NativeLinkValidationError> {
-        let logical = symbol
-            .strip_prefix(target.id().external_symbol_prefix())
-            .ok_or(NativeLinkValidationError::MissingMachOExternalPrefix)?;
-        SourceNativeSymbol::validate_bytes(logical)
+    fn from_owned(symbol: Vec<u8>) -> Result<Self, NativeLinkValidationError> {
+        SourceNativeSymbol::validate_bytes(&symbol)
             .map_err(NativeLinkValidationError::SourceSymbol)?;
-        if logical.first() == Some(&0x01) {
+        if symbol.first() == Some(&0x01) {
             return Err(NativeLinkValidationError::LinkSymbol(
                 NativeLinkSymbolError::LlvmEscapePrefix,
             ));
@@ -96,23 +80,12 @@ pub struct NativeExternalSymbolKey {
 }
 
 impl NativeExternalSymbolKey {
-    pub fn darwin_macho_external_length(
-        logical: &SourceNativeSymbol,
-    ) -> Result<u64, NativeLinkSymbolError> {
-        NativeLinkSymbol::darwin_macho_external_length(logical)
-    }
-
-    pub fn darwin_macho_external(
-        logical: &SourceNativeSymbol,
-    ) -> Result<Self, NativeLinkSymbolError> {
-        Self::for_target(TargetProfileWireId::darwin_aarch64(), logical)
-    }
-
     pub fn for_target(
         target_profile: TargetProfileWireId,
+        normalization: NativeSymbolNormalization,
         logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
-        let native_link_symbol = NativeLinkSymbol::for_target(&target_profile, logical)?;
+        let native_link_symbol = NativeLinkSymbol::new(normalization, logical)?;
         Ok(Self {
             target_profile,
             native_link_symbol,
@@ -233,26 +206,16 @@ impl NativeLinkRequirementKey {
         &self.grouping
     }
 
-    pub fn target_default(library: CanonicalNativeLibraryName) -> Self {
+    pub fn target_default(
+        target_profile: TargetProfileWireId,
+        library: CanonicalNativeLibraryName,
+    ) -> Self {
         Self {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile,
             library,
             kind: NativeLibraryKind::TargetDefault,
             grouping: NativeLibraryGrouping::Independent,
         }
-    }
-
-    pub fn for_darwin(
-        library: CanonicalNativeLibraryName,
-        kind: NativeLibraryKind,
-        grouping: NativeLibraryGrouping,
-    ) -> Self {
-        Self::for_target(
-            TargetProfileWireId::darwin_aarch64(),
-            library,
-            kind,
-            grouping,
-        )
     }
 
     pub fn for_target(
@@ -366,15 +329,21 @@ mod tests {
         let plain = SourceNativeSymbol::new("foo").unwrap();
         let underscored = SourceNativeSymbol::new("_foo").unwrap();
         assert_eq!(
-            NativeLinkSymbol::darwin_macho_external(&plain)
-                .unwrap()
-                .as_bytes(),
+            NativeLinkSymbol::new(
+                crate::NativeSymbolNormalization::MachOExternalUnderscore,
+                &plain
+            )
+            .unwrap()
+            .as_bytes(),
             b"_foo"
         );
         assert_eq!(
-            NativeLinkSymbol::darwin_macho_external(&underscored)
-                .unwrap()
-                .as_bytes(),
+            NativeLinkSymbol::new(
+                crate::NativeSymbolNormalization::MachOExternalUnderscore,
+                &underscored
+            )
+            .unwrap()
+            .as_bytes(),
             b"__foo"
         );
     }
@@ -383,7 +352,11 @@ mod tests {
     fn long_native_symbols_preserve_the_complete_name() {
         let name = "x".repeat(8_192);
         let logical = SourceNativeSymbol::new(&name).unwrap();
-        let symbol = NativeLinkSymbol::darwin_macho_external(&logical).unwrap();
+        let symbol = NativeLinkSymbol::new(
+            crate::NativeSymbolNormalization::MachOExternalUnderscore,
+            &logical,
+        )
+        .unwrap();
         assert_eq!(symbol.as_bytes()[0], b'_');
         assert_eq!(&symbol.as_bytes()[1..], name.as_bytes());
     }
@@ -392,10 +365,19 @@ mod tests {
     fn native_symbol_identity_has_fixed_vector() {
         let logical = SourceNativeSymbol::new("foo").unwrap();
         assert_eq!(
-            NativeExternalSymbolKey::darwin_macho_external_length(&logical).unwrap(),
+            NativeLinkSymbol::normalized_length(
+                crate::NativeSymbolNormalization::MachOExternalUnderscore,
+                &logical
+            )
+            .unwrap(),
             4
         );
-        let key = NativeExternalSymbolKey::darwin_macho_external(&logical).unwrap();
+        let key = NativeExternalSymbolKey::for_target(
+            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::NativeSymbolNormalization::MachOExternalUnderscore,
+            &logical,
+        )
+        .unwrap();
         let encoded = encode(&key).unwrap();
         assert_eq!(
             hex(&encoded),
@@ -413,6 +395,7 @@ mod tests {
     #[test]
     fn target_default_requirement_has_fixed_vector() {
         let key = NativeLinkRequirementKey::target_default(
+            crate::TargetProfileWireId::darwin_aarch64(),
             CanonicalNativeLibraryName::new("sample").unwrap(),
         );
         let encoded = encode(&key).unwrap();

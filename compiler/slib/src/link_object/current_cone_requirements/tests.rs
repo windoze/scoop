@@ -152,7 +152,9 @@ struct BridgePlanFixture {
 }
 
 fn bridge_plan(producer: ConeIdentity) -> BridgePlanFixture {
-    let symbol = NativeExternalSymbolKey::darwin_macho_external(
+    let symbol = NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &SourceNativeSymbol::new("bridge_requirement").unwrap(),
     )
     .unwrap();
