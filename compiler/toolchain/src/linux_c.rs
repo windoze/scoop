@@ -31,7 +31,6 @@ pub fn resolve_linux_c_toolchain(
     // its actual compiler and must not require a second, architecture-named GCC.
     let real_gcc = underlying_compiler(
         selected.libc,
-        &driver,
         &search_path,
         std::env::var_os("REALGCC").as_deref(),
     )?;
@@ -122,7 +121,7 @@ _Static_assert(CHAR_BIT == 8 && sizeof(void *) == 8 && sizeof(long) == 8, \"LP64
 
 struct CompilerPaths {
     driver: PathBuf,
-    real_gcc: PathBuf,
+    real_gcc: Option<PathBuf>,
     search_path: OsString,
     sysroot: Option<PathBuf>,
     temporary: PathBuf,
@@ -137,8 +136,10 @@ impl CompilerPaths {
             .env("LANG", "C")
             .env("TZ", "UTC")
             .env("PATH", &self.search_path)
-            .env("REALGCC", &self.real_gcc)
             .env("TMPDIR", &self.temporary);
+        if let Some(compiler) = &self.real_gcc {
+            command.env("REALGCC", compiler);
+        }
         if let Some(sysroot) = &self.sysroot {
             command.arg("--sysroot").arg(sysroot);
         }
@@ -148,13 +149,14 @@ impl CompilerPaths {
 
 fn underlying_compiler(
     libc: LinuxLibc,
-    driver: &Path,
     search_path: &OsStr,
     real_gcc: Option<&OsStr>,
-) -> Result<PathBuf, ToolchainError> {
+) -> Result<Option<PathBuf>, ToolchainError> {
     match libc {
-        LinuxLibc::Gnu => Ok(driver.to_owned()),
-        LinuxLibc::Musl => find_program(real_gcc.unwrap_or_else(|| OsStr::new("gcc")), search_path),
+        LinuxLibc::Gnu => Ok(None),
+        LinuxLibc::Musl => {
+            find_program(real_gcc.unwrap_or_else(|| OsStr::new("gcc")), search_path).map(Some)
+        }
     }
 }
 

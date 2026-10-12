@@ -18,6 +18,8 @@
 
 backend contract 使用 LLVM 22.1、LLVM stackmap v3 和本规范的 GC/EH 约束。Linux 两个 libc target 共用 `org.scoop-lang.backend-profile/llvm-22-1-linux-x86-64/1`，但 native、runtime 与最终链接输入不能混用 glibc/musl。target、对象格式、调用约定、pointer/storage ABI 及实际 producer 配置必须相容；不支持的组合在生成目标产物前诊断。
 
+Linux GNU 直接执行所选 GCC driver，不注入 musl wrapper 专用的 `REALGCC`；musl 将显式 `REALGCC` 或 PATH 中的 gcc 作为 wrapper 的实际 compiler。两者均通过真实 header/object probe 检查 libc 与机器，误选另一 libc 的 driver 必须得到不匹配诊断。
+
 Native C++ 支持由语言规范 12.2.1 的 `native.cxx` 显式选择，仅支持 Darwin/AArch64 与 Linux/amd64 GNU。当前 musl 工具链未配套 C++ 标准库和 ABI 运行库，C++ 与 musl 的静态／动态链接组合均不支持；源码构建和 artifact-only 消费都必须诊断该组合。
 
 ## 2. 编译阶段与产物契约

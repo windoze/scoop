@@ -101,6 +101,12 @@
 
 ## Linux 验收修复：对象测试文件名
 
-- 首轮 workspace 验证完成 scoop、ABI planner、AST 及 codegen 的 507 项测试；其中 codegen 的 terminal poll 测试因 target Debug 文本包含 `/`，在写对象时失败，其余 506 项通过。
+- 首轮 workspace 验证执行 scoop、ABI planner、AST 及 codegen 的 508 项测试；其中 codegen 的 terminal poll 测试因 target Debug 文本包含 `/`，在写对象时失败，其余 507 项通过。
 - 对象文件名改用 canonical target 名称，保留三个真实目标的 debug/release LLVM 发射和机器站点检查；搜索未发现其他将 profile Debug 文本作为文件名的用法。
 - 本机 fmt、workspace clippy 与该测试通过；Linux 补验失败项后，继续尚未执行的 workspace 包及 doctest，不重跑已通过的真实构建图与 codegen 测试。
+
+## Linux 验收修复：GNU driver 不注入 REALGCC
+
+- 全量中的已有错误 libc 测试发现：GNU 显式选择 musl-gcc 时，REALGCC 被设为 wrapper 自身，导致反复执行。终止该测试子进程后，`--no-fail-fast` 继续完成其他包。
+- 先明确实现规范：REALGCC 只属于 musl wrapper；GNU 直接执行所选 driver，由真实 probe 报告 libc 不匹配。宿主 invocation 显式表示可不存在的环境 override，不改变持久化合同或编译器输入摘要。
+- 新增跨宿主回归同时检查 probe 与正式 invocation 的环境；本机 fmt、workspace clippy 与全部 26 项 toolchain 测试通过。Linux 将补验整个 toolchain 包，并继续发布构建及全量 CLI。

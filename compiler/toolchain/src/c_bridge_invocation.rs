@@ -30,7 +30,7 @@ enum CBridgeCommandParameters {
     },
     Linux {
         native_sysroot: Option<PathBuf>,
-        real_gcc: PathBuf,
+        real_gcc: Option<PathBuf>,
         search_path: OsString,
     },
 }
@@ -107,7 +107,7 @@ impl ValidatedCBridgeToolchainInvocation {
         profile: CBridgeToolchainProfileV1,
         compiler_driver: PathBuf,
         native_sysroot: Option<PathBuf>,
-        real_gcc: PathBuf,
+        real_gcc: Option<PathBuf>,
         search_path: OsString,
     ) -> Result<Self, CBridgeToolchainInvocationError> {
         if crate::linux_target::LinuxTarget::select(target.id()).is_err() {
@@ -115,7 +115,9 @@ impl ValidatedCBridgeToolchainInvocation {
                 scoop_lir::CBridgePlatformError::ExpectedLinux,
             ));
         }
-        if !compiler_driver.is_absolute() || !real_gcc.is_absolute() {
+        if !compiler_driver.is_absolute()
+            || real_gcc.as_ref().is_some_and(|path| !path.is_absolute())
+        {
             return Err(CBridgeToolchainInvocationError::RelativeCompilerDriver);
         }
         if native_sysroot
@@ -166,11 +168,12 @@ impl ValidatedCBridgeToolchainInvocation {
                 search_path,
                 ..
             } => Some([
-                ("PATH", search_path.as_os_str()),
-                ("REALGCC", real_gcc.as_os_str()),
+                Some(("PATH", search_path.as_os_str())),
+                real_gcc.as_ref().map(|path| ("REALGCC", path.as_os_str())),
             ]),
         }
         .into_iter()
+        .flatten()
         .flatten()
     }
 
