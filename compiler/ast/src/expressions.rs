@@ -79,7 +79,7 @@ pub enum Expr {
         id: AnonymousFunctionId,
         is_suspend: bool,
         params: Vec<Param>,
-        return_ty: Option<TypeRef>,
+        return_ty: Option<Box<TypeRef>>,
         body: Block,
         span: Span,
     },

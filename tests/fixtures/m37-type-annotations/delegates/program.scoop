@@ -1,0 +1,11 @@
+@Repeatable @Target([AnnotationTarget.TYPE])
+annotation class Mark(val n: Int)
+class Slot<T>(var value: @Mark(1) T) {
+    operator fun getValue(thisRef: Unit): @Mark(2) T = value
+    operator fun setValue(thisRef: Unit, next: @Mark(3) T) { value = next }
+}
+var value: @Mark(4) Int by Slot(40)
+class Host(val n: Int)
+class Reader { operator fun getValue(thisRef: Host): @Mark(5) Int = thisRef.n }
+val (@Mark(6) Host).read: @Mark(7) Int by Reader()
+fun main() { value = 42; println(value); println(Host(42).read) }

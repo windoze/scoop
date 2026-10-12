@@ -10,6 +10,15 @@ impl Lowerer {
     ) {
         let owner = Owner::Struct(id);
         self.annotation_scope(owner, file);
+        self.annotate_type_bounds(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.type_params,
+            source.where_clause.as_ref(),
+        );
+        self.annotate_parent_specs(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.supertypes,
+        );
         self.bind_source_annotations(
             Target::Nominal(owner.as_nominal_owner()),
             &source.annotations,
@@ -17,6 +26,28 @@ impl Lowerer {
         for (index, field) in source.fields.iter().enumerate() {
             if let Some(field_ref) = hir::StructFieldRef::checked(&self.structs, id, index as u32) {
                 self.bind_source_annotations(Target::Field(field_ref), &field.annotations);
+                self.annotate_type_site(
+                    Target::Field(field_ref),
+                    hir::AnnotationTypeSlot::Value,
+                    &field.ty,
+                );
+                if let Some(constructor) =
+                    self.structs[id].constructors.iter().copied().find(|id| {
+                        matches!(
+                            self.struct_constructors[*id].kind,
+                            hir::StructConstructorKind::Primary
+                        )
+                    })
+                {
+                    self.annotate_type_site(
+                        Target::Parameter {
+                            callable: hir::SourceAnnotationCallable::StructConstructor(constructor),
+                            index: index as u32,
+                        },
+                        hir::AnnotationTypeSlot::Value,
+                        &field.ty,
+                    );
+                }
             }
         }
         self.annotate_struct_constructors(id, source);
@@ -30,6 +61,15 @@ impl Lowerer {
     pub(crate) fn annotate_enum(&mut self, id: hir::EnumId, source: &ast::EnumDecl, file: usize) {
         let owner = Owner::Enum(id);
         self.annotation_scope(owner, file);
+        self.annotate_type_bounds(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.type_params,
+            source.where_clause.as_ref(),
+        );
+        self.annotate_supertypes(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.interfaces,
+        );
         self.bind_source_annotations(
             Target::Nominal(owner.as_nominal_owner()),
             &source.annotations,
@@ -44,20 +84,35 @@ impl Lowerer {
                 ast::VariantDeclKind::Unit | ast::VariantDeclKind::Constant(_) => Vec::new(),
                 ast::VariantDeclKind::Positional(fields) => fields
                     .iter()
-                    .map(|field| field.annotations.as_slice())
+                    .map(|field| (field.annotations.as_slice(), &field.ty))
                     .collect(),
                 ast::VariantDeclKind::Named(fields) | ast::VariantDeclKind::Constructor(fields) => {
                     fields
                         .iter()
-                        .map(|field| field.annotations.as_slice())
+                        .map(|field| (field.annotations.as_slice(), &field.ty))
                         .collect()
                 }
             };
-            for (index, annotations) in annotations.into_iter().enumerate() {
+            for (index, (annotations, ty)) in annotations.into_iter().enumerate() {
                 if let Some(field) =
                     hir::EnumVariantFieldRef::checked(&self.enums, variant_ref, index as u32)
                 {
                     self.bind_source_annotations(Target::VariantField(field), annotations);
+                    self.annotate_type_site(
+                        Target::VariantField(field),
+                        hir::AnnotationTypeSlot::Value,
+                        ty,
+                    );
+                    self.annotate_type_site(
+                        Target::Parameter {
+                            callable: hir::SourceAnnotationCallable::VariantConstructor(
+                                variant_ref,
+                            ),
+                            index: index as u32,
+                        },
+                        hir::AnnotationTypeSlot::Value,
+                        ty,
+                    );
                 }
             }
         }
@@ -74,6 +129,15 @@ impl Lowerer {
     ) {
         let owner = Owner::Class(id);
         self.annotation_scope(owner, file);
+        self.annotate_type_bounds(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.type_params,
+            source.where_clause.as_ref(),
+        );
+        self.annotate_parent_specs(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.supertypes,
+        );
         self.bind_source_annotations(
             Target::Nominal(owner.as_nominal_owner()),
             &source.annotations,
@@ -87,7 +151,12 @@ impl Lowerer {
                     "a primary constructor property",
                     &parameter.annotations,
                 );
-                self.annotate_property(owner, &parameter.name.text, &parameter.annotations);
+                self.annotate_property(
+                    owner,
+                    &parameter.name.text,
+                    &parameter.annotations,
+                    &parameter.ty,
+                );
             }
         }
         self.annotate_class_constructors(id, source);
@@ -102,6 +171,15 @@ impl Lowerer {
     ) {
         let owner = Owner::Interface(id);
         self.annotation_scope(owner, file);
+        self.annotate_type_bounds(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.type_params,
+            source.where_clause.as_ref(),
+        );
+        self.annotate_parent_specs(
+            Target::Nominal(owner.as_nominal_owner()),
+            &source.supertypes,
+        );
         self.bind_source_annotations(
             Target::Nominal(owner.as_nominal_owner()),
             &source.annotations,
@@ -119,6 +197,10 @@ impl Lowerer {
     ) {
         let owner = Owner::Object(id);
         self.annotation_scope(owner, file);
+        self.annotate_parent_specs(
+            Target::Nominal(owner.as_nominal_owner()),
+            source.supertypes(),
+        );
         self.bind_source_annotations(
             Target::Nominal(owner.as_nominal_owner()),
             source.annotations(),
@@ -134,7 +216,13 @@ impl Lowerer {
         }
     }
 
-    fn annotate_property(&mut self, owner: Owner, name: &str, annotations: &[ast::Annotation]) {
+    fn annotate_property(
+        &mut self,
+        owner: Owner,
+        name: &str,
+        annotations: &[ast::Annotation],
+        ty: &ast::TypeRef,
+    ) {
         let properties = match owner {
             Owner::Struct(id) => &self.structs[id].properties,
             Owner::Enum(id) => &self.enums[id].properties,
@@ -148,6 +236,7 @@ impl Lowerer {
             .find(|property| self.properties[*property].name == name)
         {
             self.bind_source_annotations(Target::Property(property), annotations);
+            self.annotate_property_type(property, ty);
         }
     }
 

@@ -3,7 +3,12 @@ mod names;
 
 impl Lowerer {
     pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
-        let ty = self.resolve_type_ref_shape(ty_ref)?;
+        let recording = self.begin_type_annotations(ty_ref);
+        let ty = self.resolve_type_ref_shape(ty_ref);
+        if recording {
+            self.end_type_annotations(ty_ref, ty);
+        }
+        let ty = ty?;
         if matches!(
             self.types[ty],
             Type::Struct(_) | Type::Class(_) | Type::Enum(_) | Type::Interface(_)

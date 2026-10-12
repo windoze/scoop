@@ -9,6 +9,7 @@ pub struct Ident {
 /// A type annotation, e.g. in struct fields and `val x: T = ...`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeRef {
+    pub annotations: Vec<crate::Annotation>,
     pub kind: TypeRefKind,
     pub span: Span,
 }
@@ -42,26 +43,48 @@ pub enum TypeRefKind {
 }
 
 impl TypeRef {
+    pub fn with_annotations(mut self, annotations: Vec<crate::Annotation>) -> Self {
+        if let Some(first) = annotations.first() {
+            self.span.start = first.span.start;
+        }
+        self.annotations.splice(0..0, annotations);
+        self
+    }
+
     /// Extension declarations share the token prefix `Receiver.name` with a
     /// qualified nominal type. When the parser has greedily consumed the
     /// whole dotted path, split the final identifier back into the callable
     /// name. A generic final segment is a type application and therefore
     /// cannot be split.
     pub fn split_qualified_tail(self) -> Result<(Self, Ident), Self> {
-        let Self { kind, span } = self;
+        let Self {
+            kind,
+            span,
+            annotations,
+        } = self;
         let (mut path, arguments) = match kind {
             TypeRefKind::AppliedMember {
                 owner,
                 name,
                 arguments,
             } if arguments.is_empty() => {
-                return Ok((*owner, name));
+                let mut owner = *owner;
+                owner.annotations.splice(0..0, annotations);
+                owner.span.start = span.start;
+                return Ok((owner, name));
             }
             TypeRefKind::Qualified { path, arguments } => (path, arguments),
-            kind => return Err(Self { kind, span }),
+            kind => {
+                return Err(Self {
+                    kind,
+                    span,
+                    annotations,
+                });
+            }
         };
         if !arguments.is_empty() || path.len() < 2 {
             return Err(Self {
+                annotations,
                 kind: TypeRefKind::Qualified { path, arguments },
                 span,
             });
@@ -87,8 +110,9 @@ impl TypeRef {
         };
         Ok((
             Self {
+                annotations,
                 kind,
-                span: Span::new(start, end),
+                span: Span::new(span.start.min(start), end),
             },
             name,
         ))
@@ -110,6 +134,7 @@ impl TypeRef {
             }
             kind => TypeRefKind::AppliedMember {
                 owner: Box::new(Self {
+                    annotations: Vec::new(),
                     kind,
                     span: self.span,
                 }),
@@ -117,7 +142,11 @@ impl TypeRef {
                 arguments,
             },
         };
-        Self { kind, span }
+        Self {
+            kind,
+            span,
+            annotations: self.annotations,
+        }
     }
 }
 

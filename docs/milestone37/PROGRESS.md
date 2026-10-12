@@ -228,4 +228,18 @@ annotation 参数/default 和元注解先完成绑定，再按最终规则检查
 
 本机 fmt、workspace clippy（release）无警告通过；59 项相关 Rust 测试通过。34 个新增正式 fixture（6 个正向、28 个 negative）及旧注解回归完成普通比较，共 182/182 个适用用例通过、197 个配置、324 个进程、170 个阶段 golden；1 个 musl 专用用例在 Darwin 不适用。覆盖全部已开放声明类别、前向/局部声明、同名用户注解、alias/re-export、重复顺序和重复值、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接和仅产物错误检查。
 
-报告见 [18d-annotation-rules-darwin.json](validation/18d-annotation-rules-darwin.json)。40 份旧 HIR 快照逐份核对，差异仅为默认规则字段与 core 新声明引起的 ImportedIdentityId 索引；旧 MIR/LIR 全部不变。一条旧 Rust 测试按已开放函数注解目标改为未知名称诊断。报告不计快照生成次数。已更新测试工作区的 core 副本，并清理本批 fixture cases 与旧工具的编译缓存；保留共用 cache、sysroot、release 依赖和报告。18c 类型位置注解尚未完成。
+报告见 [18d-annotation-rules-darwin.json](validation/18d-annotation-rules-darwin.json)。40 份旧 HIR 快照逐份核对，差异仅为默认规则字段与 core 新声明引起的 ImportedIdentityId 索引；旧 MIR/LIR 全部不变。一条旧 Rust 测试按已开放函数注解目标改为未知名称诊断。报告不计快照生成次数。已更新测试工作区的 core 副本，并清理本批 fixture cases 与旧工具的编译缓存；保留共用 cache、sysroot、release 依赖和报告。类型位置注解的后续实现与验证见下一节。
+
+### 18c. 类型位置注解（完成）
+
+类型注解覆盖参数、结果、receiver、field/property、显式局部类型、父类型与 bound、alias 目标和显式调用类型实参；泛型实参、tuple、函数与 pointer 子节点分别保留位置。可空 receiver 与普通可空类型使用同一括号规则。TYPE 目标、use-site 禁止、核心效果边界、静态参数和 Repeatable 均在真实使用位置检查；注解不改变 TypeId、重载、布局或 ABI。
+
+类型使用以 SourceIdentity 和实际类型范围形成独立身份，保存完整解析类型、binder、稀疏注解路径和 typed 声明位置关联。正常类型解析记录实际关系，schema/常量完成后绑定一次静态值；annotation class 及其 Array 参数保持独立静态类型，不泄露用于解析的临时参数。别名按原 binder 位置重排、复制或丢弃实参注解，以模板、实参、当前前缀的顺序合并；两个实参的 TypeId 相同也不会混淆注解位置。
+
+共享接口与静态查询保留完整类型、各节点注解及原来源，支持普通依赖、re-export 和再次发布。reader 复用既有引用、参数值和签名检查，核对路径、binder、TYPE 与重复规则，不重跑别名展开或布局。cross-cone-interface 为 76，MIR/LIR 和 runtime ABI 不变。新增模块最长约 300 行，别名组合、作用域保存、路径和 wire 编码分别放入实际职责对应的模块。
+
+组合回归同时修正了 imported alias 缓存保留首次引用位置的问题。另以 `af79df007` 独立修复构造器 receiver 类型位置检查：只有已记录的 EnclosingInstance 或 CapturedEnvironment 输入构成 context receiver，普通构造器不因拥有 class owner 而获得该位置。
+
+本机 fmt、workspace clippy（release）无警告通过；288 项不同的注解、alias 和 receiver Rust 测试通过。32 个新增正式 fixture（11 个正向、21 个 negative）与旧注解、alias、receiver、inner、局部类型及声明位置回归完成普通比较，329/329 个适用用例通过，另 1 个 musl 专用用例不适用；合计 390 个配置、754 个进程、509 个阶段 golden。新增用例自身覆盖 42 个配置、95 个进程、75 个 golden，包括 debug/release、moving GC、真实 C callback、静态查询、可空层次，以及删除源码后的 provider → bridge → consumer → 独立链接与错误诊断。
+
+报告见 [18c-type-annotations-darwin.json](validation/18c-type-annotations-darwin.json)。81 份旧 HIR 快照逐份审阅：77 份只有 ImportedIdentityId 编号变化，已核对完整内容及引用等价关系；另两份补充默认注解规则，两份仅移动同一完整类型描述块。旧 MIR/LIR 全部不变。报告只合并普通通过批次，不计快照生成次数；已通过且未变化的用例没有重复执行。多次清理已完成的 fixture cases，保留共用 cache、sysroot、release 依赖与日志。全部功能批次已完成，Linux 总验收继续进行。

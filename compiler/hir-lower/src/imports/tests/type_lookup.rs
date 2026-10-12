@@ -58,6 +58,7 @@ fn alias(name: &str, target: ast::TypeRef) -> ast::Decl {
 
 fn qualified(segments: &[&str]) -> ast::TypeRef {
     ast::TypeRef {
+        annotations: Vec::new(),
         kind: ast::TypeRefKind::Qualified {
             path: segments.iter().map(|segment| ident(segment)).collect(),
             arguments: Vec::new(),
@@ -155,6 +156,7 @@ fn same_layer_type_ambiguity_lists_every_origin_at_the_use_site() {
             unreachable!()
         };
         consume.params[0].ty = ast::TypeRef {
+            annotations: Vec::new(),
             kind: ast::TypeRefKind::Named(ast::Ident {
                 text: "Chosen".to_string(),
                 span: ast::Span::new(111, 117),
@@ -310,6 +312,7 @@ fn qualified_alias_preserves_its_exact_generic_application() {
             alias(
                 "IntBox",
                 ast::TypeRef {
+                    annotations: Vec::new(),
                     kind: ast::TypeRefKind::Generic(ident("Box"), vec![ty_named("Int")]),
                     span: sp(),
                 },
@@ -438,6 +441,7 @@ fn a_selected_type_with_wrong_arity_does_not_fall_back_to_a_lower_layer() {
             vec![(
                 "value",
                 ast::TypeRef {
+                    annotations: Vec::new(),
                     kind: ast::TypeRefKind::Generic(ident("Box"), vec![ty_named("Int")]),
                     span: sp(),
                 },

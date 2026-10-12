@@ -251,6 +251,18 @@ impl Lowerer {
                 self.register_generic(function, type_params.clone());
             }
             self.function_files.insert(function, self.current_file);
+            for (index, parameter) in source_parameters.iter().enumerate() {
+                if let Some(ty) = parameter.and_then(|parameter| parameter.ty.as_ref()) {
+                    self.annotate_type_site(
+                        hir::SourceAnnotationTarget::Parameter {
+                            callable: hir::SourceAnnotationCallable::Function(function),
+                            index: index as u32,
+                        },
+                        hir::AnnotationTypeSlot::Value,
+                        ty,
+                    );
+                }
+            }
             if let Some(locals) = annotation_locals {
                 let empty = std::mem::replace(&mut self.locals, locals);
                 for (index, parameter) in source_parameters.iter().enumerate() {

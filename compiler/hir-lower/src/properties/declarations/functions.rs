@@ -348,6 +348,7 @@ impl Lowerer {
                 annotations: Vec::new(),
                 name,
                 ty: property.ty.clone().unwrap_or(ast::TypeRef {
+                    annotations: Vec::new(),
                     kind: ast::TypeRefKind::Unit,
                     span: property.name.span,
                 }),

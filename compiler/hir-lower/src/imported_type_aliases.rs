@@ -94,7 +94,9 @@ impl Lowerer {
             return None;
         };
         if let Some(template) = self.imported_alias_templates.get(&alias.persistent()) {
-            return Some(template.clone());
+            let mut template = template.clone();
+            template.name = name.clone();
+            return Some(template);
         }
         let candidate = match self
             .dependencies

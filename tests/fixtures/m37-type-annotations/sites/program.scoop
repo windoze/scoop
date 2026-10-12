@@ -1,0 +1,20 @@
+@Repeatable @Target([AnnotationTarget.TYPE])
+annotation class Mark(val n: Int)
+interface Read { fun read(): Int }
+class Value(val n: @Mark(1) Int): @Mark(2) Read { override fun read(): @Mark(3) Int = n }
+fun <T: @Mark(4) Read> read(value: @Mark(5) T): @Mark(6) Int = value.read()
+typealias Checked<T> where T: @Mark(7) Read = @Mark(8) T
+struct Pair(val left: @Mark(9) Int, val right: @Mark(10) Int)
+enum Choice { Some(val n: @Mark(11) Int) }
+class Box(var n: @Mark(12) Int) {
+    val doubled: @Mark(13) Int get() = n * 2
+    constructor(text: @Mark(14) String): this(text.length.toInt32()) {}
+}
+val global: @Mark(15) Int = 42
+fun main() {
+    val value: Checked<@Mark(16) Value> = Value(42)
+    println(read(value))
+    println(Pair(21, 21).left * 2)
+    println(Box(21).doubled)
+    println(global)
+}

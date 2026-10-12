@@ -48,6 +48,7 @@ impl Parser {
 fn qualifier_type(expression: &Expr) -> Option<TypeRef> {
     match expression {
         Expr::Var(name) => Some(TypeRef {
+            annotations: Vec::new(),
             kind: TypeRefKind::Named(name.clone()),
             span: name.span,
         }),

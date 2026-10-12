@@ -1,6 +1,11 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn source_alias_type_use(&self, id: SourceTypeAliasId) -> (usize, ast::Span) {
+        let alias = &self.source_type_aliases[id];
+        (alias.file, alias.target.span)
+    }
+
     pub(crate) fn annotate_type_aliases(&mut self) {
         self.annotate_aliases_where(|alias| alias.scope.is_none());
     }

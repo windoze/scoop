@@ -151,7 +151,7 @@ fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
         id: ast::AnonymousFunctionId(1),
         is_suspend: false,
         params: Vec::new(),
-        return_ty: Some(ty_named("Int")),
+        return_ty: Some(Box::new(ty_named("Int"))),
         body: block(vec![
             val_ty("inner", Some(signature.clone()), inner),
             ret(Some(call("inner", Vec::new()))),

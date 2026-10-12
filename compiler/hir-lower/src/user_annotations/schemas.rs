@@ -73,7 +73,7 @@ impl Lowerer {
         let type_parameters = std::mem::take(&mut self.type_params_in_scope);
         let mut parameters = Vec::new();
         let mut names = HashSet::new();
-        for parameter in &input.declaration.parameters {
+        for (index, parameter) in input.declaration.parameters.iter().enumerate() {
             if !names.insert(&parameter.name.text) {
                 self.error(
                     parameter.name.span,
@@ -84,6 +84,11 @@ impl Lowerer {
             let Some(value_type) = self.resolve_annotation_parameter_type(&parameter.ty) else {
                 continue;
             };
+            self.annotate_type_site(
+                hir::SourceAnnotationTarget::Annotation(id),
+                hir::AnnotationTypeSlot::AnnotationParameter(index as u32),
+                &parameter.ty,
+            );
             let nested = match value_type {
                 AnnotationParameterType::Annotation(id)
                 | AnnotationParameterType::AnnotationArray { element: id, .. } => Some(id),

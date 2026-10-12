@@ -92,6 +92,16 @@ impl Lowerer {
             }
         };
         let expected = publication_ids[&id];
+        self.annotate_type_site(
+            hir::SourceAnnotationTarget::TypeAlias(expected),
+            hir::AnnotationTypeSlot::Value,
+            &alias.target,
+        );
+        self.annotate_type_bounds(
+            hir::SourceAnnotationTarget::TypeAlias(expected),
+            &alias.syntax_parameters,
+            alias.where_clause.as_ref(),
+        );
         let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {
             lexical: alias.lexical,
             name: alias.name,

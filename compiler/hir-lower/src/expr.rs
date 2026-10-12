@@ -416,7 +416,7 @@ impl Lowerer {
                 receiver.as_deref(),
                 *is_suspend,
                 params,
-                return_ty.as_ref(),
+                return_ty.as_deref(),
                 body,
                 *span,
                 expected,

@@ -242,6 +242,7 @@ fn imported_generic_unit_variant_is_postponed_until_expected_application() {
         vec![val_ty(
             "chosen",
             Some(ast::TypeRef {
+                annotations: Vec::new(),
                 kind: ast::TypeRefKind::Generic(ident("State"), vec![ty_named("Int")]),
                 span: sp(),
             }),

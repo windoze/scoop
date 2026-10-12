@@ -49,6 +49,7 @@ impl Parser {
     ) -> Result<Expr, Diagnostic> {
         let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
         let receiver_start = self.pos;
+        let receiver_annotations = self.parse_annotations()?;
         let receiver = match self.parse_type_atom_with_suffix() {
             Ok(receiver) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
                 Some(self.parse_receiver_separator(receiver))
@@ -57,7 +58,8 @@ impl Parser {
                 self.pos = receiver_start;
                 None
             }
-        };
+        }
+        .map(|receiver| receiver.with_annotations(receiver_annotations));
         self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
         let mut params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
@@ -95,7 +97,7 @@ impl Parser {
             id: self.alloc_anonymous_function_id(),
             is_suspend,
             params,
-            return_ty,
+            return_ty: return_ty.map(Box::new),
             span: Span::new(
                 expression_start.unwrap_or(keyword.span.start),
                 body.span.end,

@@ -29,7 +29,7 @@ pub(super) fn dump_annotations(annotations: &[Annotation], indent: usize, out: &
 }
 
 pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
-    match &ty.kind {
+    let shape = match &ty.kind {
         TypeRefKind::Named(name) => name.text.clone(),
         TypeRefKind::Generic(name, args) => {
             let inner: Vec<String> = args.iter().map(dump_type_ref).collect();
@@ -78,7 +78,13 @@ pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
             let receiver = function
                 .receiver
                 .as_ref()
-                .map(|ty| format!("{}.", dump_type_ref(ty)))
+                .map(|ty| {
+                    if ty.annotations.is_empty() {
+                        format!("{}.", dump_type_ref(ty))
+                    } else {
+                        format!("({}).", dump_type_ref(ty))
+                    }
+                })
                 .unwrap_or_default();
             format!(
                 "{suspend}{receiver}({}) -> {}",
@@ -86,11 +92,15 @@ pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
                 dump_type_ref(&function.return_type)
             )
         }
-        TypeRefKind::Nullable(inner) => match inner.kind {
-            TypeRefKind::Function(_) => format!("({})?", dump_type_ref(inner)),
-            _ => format!("{}?", dump_type_ref(inner)),
-        },
-    }
+        TypeRefKind::Nullable(inner) => {
+            if !inner.annotations.is_empty() || matches!(inner.kind, TypeRefKind::Function(_)) {
+                format!("({})?", dump_type_ref(inner))
+            } else {
+                format!("{}?", dump_type_ref(inner))
+            }
+        }
+    };
+    format!("{}{shape}", dump_annotation_prefix(&ty.annotations))
 }
 
 pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {

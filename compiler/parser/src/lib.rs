@@ -79,6 +79,8 @@ mod tests_m37_receivers;
 #[cfg(test)]
 mod tests_m37_return_labels;
 #[cfg(test)]
+mod tests_m37_type_annotations;
+#[cfg(test)]
 mod tests_m4;
 #[cfg(test)]
 mod tests_m5;

@@ -6,14 +6,16 @@ use scoop_identity::{IdentityReferenceError, PersistentAnnotationId, SourceDecla
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+mod type_uses;
 mod types;
 mod values;
 
 type Error = CrossConeHirAnnotationError;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
-    pub(crate) fn validate_annotations(&self) -> Result<(), Error> {
-        let annotations = self.current_interface.annotations();
+    pub(crate) fn validate_annotations(&mut self) -> Result<(), Error> {
+        let interface = self.current_interface;
+        let annotations = interface.annotations();
         let mut parameter_kinds = BTreeMap::new();
         for declaration in annotations.declarations() {
             let record = self
@@ -92,7 +94,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 }
             }
         }
-        Ok(())
+        self.validate_type_annotations(annotations, &targets, &mut parameter_kinds)
     }
 
     fn annotation_declaration(

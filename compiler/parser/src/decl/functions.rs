@@ -100,11 +100,11 @@ impl Parser {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
         let type_params = self.parse_type_params()?;
         let receiver_start = self.pos;
+        let receiver_annotations = self.parse_annotations()?;
         let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
-            Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
-                self.bump();
-                Some(ty)
+            Ok(ty) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
+                Some(self.parse_receiver_separator(ty))
             }
             Ok(ty) if matches!(self.peek().kind, TokenKind::LParen) => {
                 match ty.split_qualified_tail() {
@@ -122,7 +122,8 @@ impl Parser {
                 self.pos = receiver_start;
                 None
             }
-        };
+        }
+        .map(|receiver| receiver.with_annotations(receiver_annotations));
         if let Some(receiver) = &receiver_ty
             && context != FunctionContext::TopLevel
         {

@@ -111,7 +111,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             ..
         } => {
             let return_ty = return_ty
-                .as_ref()
+                .as_deref()
                 .map_or_else(|| "_".to_string(), dump_type_ref);
             out.push_str(&format!(
                 "{pad}AnonymousFunction {} suspend={is_suspend} return={return_ty}\n",

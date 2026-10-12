@@ -12,10 +12,50 @@ impl Lowerer {
             &source.annotations,
         );
         self.annotate_parameters(Callable::Function(function), &source.params);
+        self.annotate_callable_types(
+            Callable::Function(function),
+            source.receiver_ty.as_ref(),
+            source.return_ty.as_ref(),
+        );
+        self.annotate_type_bounds(
+            Target::Callable(Callable::Function(function)),
+            &source.type_params,
+            source.where_clause.as_ref(),
+        );
+    }
+
+    pub(crate) fn annotate_callable_types(
+        &mut self,
+        callable: Callable,
+        receiver: Option<&ast::TypeRef>,
+        result: Option<&ast::TypeRef>,
+    ) {
+        if let Some(receiver) = receiver {
+            self.annotate_type_site(
+                Target::Receiver(hir::SourceAnnotationReceiver::Callable(callable)),
+                hir::AnnotationTypeSlot::Value,
+                receiver,
+            );
+        }
+        if let Some(result) = result {
+            self.annotate_type_site(
+                Target::Callable(callable),
+                hir::AnnotationTypeSlot::Result,
+                result,
+            );
+        }
     }
 
     pub(crate) fn annotate_parameters(&mut self, callable: Callable, parameters: &[ast::Param]) {
         for (index, parameter) in parameters.iter().enumerate() {
+            self.annotate_type_site(
+                Target::Parameter {
+                    callable,
+                    index: index as u32,
+                },
+                hir::AnnotationTypeSlot::Value,
+                &parameter.ty,
+            );
             self.bind_source_annotations(
                 Target::Parameter {
                     callable,
@@ -42,6 +82,14 @@ impl Lowerer {
                 let callable = Callable::ClassConstructor(id);
                 self.bind_source_annotations(Target::Callable(callable), &primary.annotations);
                 for (index, parameter) in primary.parameters.iter().enumerate() {
+                    self.annotate_type_site(
+                        Target::Parameter {
+                            callable,
+                            index: index as u32,
+                        },
+                        hir::AnnotationTypeSlot::Value,
+                        &parameter.ty,
+                    );
                     if !parameter.property.is_property() {
                         self.bind_source_annotations(
                             Target::Parameter {

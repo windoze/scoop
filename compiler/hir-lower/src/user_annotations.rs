@@ -12,6 +12,7 @@ mod rules;
 mod schemas;
 mod serialization;
 mod targets;
+pub(crate) mod type_uses;
 mod types;
 mod use_sites;
 mod values;

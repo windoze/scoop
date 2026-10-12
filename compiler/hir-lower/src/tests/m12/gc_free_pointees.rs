@@ -65,7 +65,7 @@ fn generic_pointer_anonymous() -> Expr {
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,
         params: Vec::new(),
-        return_ty: Some(ty_named("Unit")),
+        return_ty: Some(Box::new(ty_named("Unit"))),
         body: block(vec![safety_block(
             ast::SafetyMode::Unsafe,
             vec![val_ty(

@@ -83,6 +83,7 @@ impl Lowerer {
                     return Ok(None);
                 }
                 ast::TypeRef {
+                    annotations: Vec::new(),
                     kind: ast::TypeRefKind::Named(name.clone()),
                     span: name.span,
                 }
@@ -109,6 +110,7 @@ impl Lowerer {
 fn qualifier_syntax(expression: &ast::Expr) -> Option<ast::TypeRef> {
     match expression {
         ast::Expr::Var(name) => Some(ast::TypeRef {
+            annotations: Vec::new(),
             kind: ast::TypeRefKind::Named(name.clone()),
             span: name.span,
         }),

@@ -31,6 +31,21 @@ impl Lowerer {
         declaration: &ast::PropertyDecl,
     ) {
         self.bind_source_annotations(Target::Property(property), &declaration.annotations);
+        if let Some(ty) = &declaration.ty {
+            self.annotate_property_type(property, ty);
+        }
+        if let Some(receiver) = &declaration.receiver_ty {
+            self.annotate_type_site(
+                Target::Receiver(Receiver::Property(property)),
+                hir::AnnotationTypeSlot::Value,
+                receiver,
+            );
+        }
+        self.annotate_type_bounds(
+            Target::Property(property),
+            &declaration.type_params,
+            declaration.where_clause.as_ref(),
+        );
         let accessors = match &declaration.body {
             ast::PropertyBodySyntax::Initializer { accessors, .. }
             | ast::PropertyBodySyntax::Computed(accessors) => accessors,
@@ -50,6 +65,30 @@ impl Lowerer {
                 Target::Callable(Callable::Setter(id)),
                 &setter.annotations,
             );
+        }
+    }
+
+    pub(super) fn annotate_property_type(&mut self, property: hir::PropertyId, ty: &ast::TypeRef) {
+        use hir::AnnotationTypeSlot as Slot;
+        self.annotate_type_site(Target::Property(property), Slot::Value, ty);
+        let capability = self.properties[property].capability;
+        self.annotate_type_site(
+            Target::Callable(Callable::Getter(capability.getter())),
+            Slot::Result,
+            ty,
+        );
+        if let Some(setter) = capability.setter() {
+            self.annotate_type_site(
+                Target::Parameter {
+                    callable: Callable::Setter(setter),
+                    index: 0,
+                },
+                Slot::Value,
+                ty,
+            );
+        }
+        if let Some(field) = self.property_annotation_site(property, Site::Field) {
+            self.annotate_type_site(field, Slot::Value, ty);
         }
     }
 

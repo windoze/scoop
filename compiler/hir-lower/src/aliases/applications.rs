@@ -85,6 +85,7 @@ impl Lowerer {
             name.span,
             &format!("typealias `{}`", name.text),
         );
+        self.record_alias_type_annotations(template, name, arguments);
         Some(self.instantiate_ty(template.target, &actual))
     }
 }

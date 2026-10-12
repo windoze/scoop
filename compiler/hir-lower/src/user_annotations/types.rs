@@ -8,6 +8,7 @@ impl Lowerer {
         source: &ast::TypeRef,
     ) -> Option<AnnotationParameterType<hir::TypeId>> {
         if let Some(id) = self.annotation_class_type(source)? {
+            self.record_annotation_schema_type(source, AnnotationParameterType::Annotation(id));
             return Some(AnnotationParameterType::Annotation(id));
         }
         let arguments = match &source.kind {
@@ -23,6 +24,7 @@ impl Lowerer {
         if let [element] = arguments
             && let Some(id) = self.annotation_class_type(element)?
         {
+            self.record_annotation_schema_type(element, AnnotationParameterType::Annotation(id));
             // Resolve the container with Array's existing formal parameter.
             // Its identity distinguishes a forwarded element from an alias
             // that discards its argument or substitutes a fixed type.
@@ -57,6 +59,7 @@ impl Lowerer {
                 _ => unreachable!("the source has one generic argument"),
             };
             args[0] = ast::TypeRef {
+                annotations: Vec::new(),
                 kind: ast::TypeRefKind::Named(ast::Ident {
                     text: parameter.name.clone(),
                     span: element.span,
@@ -76,7 +79,9 @@ impl Lowerer {
                 else {
                     unreachable!("Array has a generic template")
                 };
-                return Some(AnnotationParameterType::AnnotationArray { array, element: id });
+                let value_type = AnnotationParameterType::AnnotationArray { array, element: id };
+                self.record_annotation_schema_type(source, value_type);
+                return Some(value_type);
             }
             self.error(
                 source.span,

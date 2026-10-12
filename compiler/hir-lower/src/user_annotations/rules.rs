@@ -56,7 +56,7 @@ impl Lowerer {
         true
     }
 
-    fn annotation_name(&self, id: PersistentAnnotationId) -> String {
+    pub(super) fn annotation_name(&self, id: PersistentAnnotationId) -> String {
         let key = self
             .source_annotations
             .get(&id)

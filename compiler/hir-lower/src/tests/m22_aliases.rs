@@ -29,6 +29,7 @@ fn type_alias_with_visibility(
 
 fn named_type_at(name: &str, span: Span) -> TypeRef {
     TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Named(ident_at(name, span)),
         span,
     }
@@ -261,6 +262,7 @@ fn lexical_nested_types_shadow_aliases_in_types_and_constructors() {
         ast::NestedTypeDecl::Struct(Box::new(inner)),
     )));
     let qualified_inner = TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Qualified {
             path: vec![ident("Shadow"), ident("Inner")],
             arguments: Vec::new(),

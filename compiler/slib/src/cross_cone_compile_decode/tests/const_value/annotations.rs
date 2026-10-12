@@ -5,6 +5,7 @@ use scoop_hir::{
     DeclaredVisibilityV1,
 };
 use scoop_identity::PersistentAnnotationId;
+mod type_uses;
 
 #[derive(Clone, Copy)]
 enum Case {
@@ -106,6 +107,8 @@ fn annotated(case: Case) -> ConstSurface {
                 target,
                 annotations: applications,
             }],
+            vec![],
+            vec![],
         )
         .unwrap(),
     );

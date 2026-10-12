@@ -320,6 +320,7 @@ impl Lowerer {
             imported_alias_templates: HashMap::new(),
             source_annotations: std::collections::BTreeMap::new(),
             annotation_metadata: hir::SourceAnnotations::default(),
+            type_annotations: Default::default(),
             annotation_resolution: HashMap::new(),
             defined_intrinsic_type_core: None,
             nested_annotations_by_owner: HashMap::new(),

@@ -1,0 +1,22 @@
+@Repeatable @Target([AnnotationTarget.TYPE])
+annotation class Mark(val n: Int)
+class Outer<T>(val first: @Mark(1) T) {
+    inner class Inner<U>(val second: @Mark(2) U) {
+        typealias Local<V> = @Mark(3) (T, U, V)
+        fun result(value: @Mark(4) Local<@Mark(5) Int>): Int = value._3
+    }
+}
+fun <T> local(value: T): Int {
+    typealias Pair<U> = @Mark(6) (U, T)
+    class Item(val n: @Mark(7) Int) { fun read(): @Mark(8) Int = n }
+    val pair: Pair<@Mark(9) Int> = (42, value)
+    var total: @Mark(10) Int = 0
+    do { val step: @Mark(11) Int = Item(pair._1).read(); total += step } while (total < 42)
+    return total
+}
+fun main() {
+    val outer = Outer("outer")
+    val inner: @Mark(12) Outer<@Mark(13) String>.Inner<@Mark(14) Int> = outer.Inner(7)
+    println(inner.result(("a", 1, 42)))
+    println(local("local"))
+}

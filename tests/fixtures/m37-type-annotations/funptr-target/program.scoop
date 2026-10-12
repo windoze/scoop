@@ -1,0 +1,2 @@
+@Target([AnnotationTarget.FUNCTION]) annotation class A
+fun f(x: FunPtr<@A() (Int) -> Int>) {}

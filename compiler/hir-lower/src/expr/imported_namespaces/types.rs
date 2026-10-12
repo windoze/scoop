@@ -75,6 +75,7 @@ impl Lowerer {
                         ExpressionQualifierTarget::DependencyType(_),
                     ) => self
                         .resolve_type_ref(&ast::TypeRef {
+                            annotations: Vec::new(),
                             kind: ast::TypeRefKind::Named(name.clone()),
                             span: name.span,
                         })

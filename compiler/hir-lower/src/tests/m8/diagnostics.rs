@@ -6,6 +6,7 @@ fn catch_non_throwable_is_an_error() {
     let catch = catch_clause(
         "e",
         TypeRef {
+            annotations: Vec::new(),
             kind: TypeRefKind::Named(ident("Int")),
             span: ty_span,
         },

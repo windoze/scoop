@@ -4,6 +4,7 @@ use scoop_identity::SignatureTypeKey;
 mod annotation_arrays;
 mod classes;
 mod other_types;
+mod type_annotations;
 mod values;
 
 fn with_shapes(

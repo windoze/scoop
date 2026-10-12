@@ -8,12 +8,14 @@ mod constructors;
 mod fields;
 mod nominals;
 mod properties;
+mod type_annotations;
 mod type_use;
 pub use annotations::*;
 pub use constructors::*;
 pub use fields::*;
 pub use nominals::*;
 pub use properties::*;
+pub use type_annotations::*;
 pub use type_use::*;
 
 #[derive(Clone, Copy)]

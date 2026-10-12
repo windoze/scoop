@@ -103,7 +103,36 @@ impl CanonicalAnnotationsV1 {
                 annotations: applications,
             });
         }
-        Self::try_new(declarations, targets).map_err(AnnotationProductionError::Table)
+        let type_uses = export
+            .annotations
+            .type_uses
+            .iter()
+            .filter(|usage| usage.identity.source.cone() == export.cone)
+            .map(|usage| {
+                usage
+                    .published(export)
+                    .map_err(AnnotationProductionError::Type)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut type_sites = Vec::new();
+        for site in &export.annotations.type_sites {
+            if site.type_use.source.cone() != export.cone {
+                continue;
+            }
+            let target = targets::project(export, site.target)?;
+            if retained_targets.contains(&target)
+                || target.is_lexical_callable()
+                || matches!(target, AnnotationTargetV1::TypeAlias(_))
+            {
+                type_sites.push(crate::AnnotationTypeSiteV1 {
+                    target,
+                    slot: site.slot,
+                    type_use: site.type_use.clone(),
+                });
+            }
+        }
+        Self::try_new(declarations, targets, type_uses, type_sites)
+            .map_err(AnnotationProductionError::Table)
     }
 }
 

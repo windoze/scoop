@@ -56,6 +56,40 @@ pub(super) fn dump_annotations(module: &Module, out: &mut String) {
             .expect("writing to String");
         }
     }
+    for usage in &module.annotations.type_uses {
+        writeln!(
+            out,
+            "  type annotations {}:{}..{} {:?}",
+            usage.identity.source.logical_path(),
+            usage.identity.span.start_byte(),
+            usage.identity.span.end_byte(),
+            usage.ty
+        )
+        .expect("writing to String");
+        for node in &usage.nodes {
+            writeln!(out, "    path {:?}", node.path).expect("writing to String");
+            for application in &node.annotations {
+                writeln!(
+                    out,
+                    "      @{} {:?}",
+                    application.annotation, application.arguments
+                )
+                .expect("writing to String");
+            }
+        }
+    }
+    for site in &module.annotations.type_sites {
+        writeln!(
+            out,
+            "  annotated type {} {:?} => {}:{}..{}",
+            target_name(module, site.target),
+            site.slot,
+            site.type_use.source.logical_path(),
+            site.type_use.span.start_byte(),
+            site.type_use.span.end_byte()
+        )
+        .expect("writing to String");
+    }
 }
 
 fn target_name(module: &Module, target: SourceAnnotationTarget) -> String {

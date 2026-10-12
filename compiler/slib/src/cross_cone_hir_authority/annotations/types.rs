@@ -86,7 +86,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         }
     }
 
-    fn annotation_nominal_shape(
+    pub(super) fn annotation_nominal_shape(
         &self,
         id: SourceNominalId,
     ) -> Result<&NominalSourceShapeV1, Error> {

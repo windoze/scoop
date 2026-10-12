@@ -34,6 +34,26 @@ impl CanonicalAnnotationsV1 {
                 values.extend(&application.arguments);
             }
         }
+        for usage in &self.type_uses {
+            match &usage.ty {
+                AnnotationParameterType::Value(ty) => type_references(ty, path, &mut references)?,
+                AnnotationParameterType::Annotation(id) => {
+                    references.push(ExternalHirTargetV1::Annotation(*id))
+                }
+                AnnotationParameterType::AnnotationArray { array, element } => {
+                    references.push(ExternalHirTargetV1::Nominal(
+                        SourceNominalId::GenericTemplate(*array),
+                    ));
+                    references.push(ExternalHirTargetV1::Annotation(*element));
+                }
+            }
+            for node in &usage.nodes {
+                for application in &node.annotations {
+                    references.push(ExternalHirTargetV1::Annotation(application.annotation));
+                    values.extend(&application.arguments);
+                }
+            }
+        }
         while let Some(value) = values.pop() {
             match value {
                 CanonicalAnnotationValueV1::Scalar(_) => {}

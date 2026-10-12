@@ -12,8 +12,13 @@ impl Parser {
         }
         self.bump();
         loop {
+            let annotations = self.parse_annotations()?;
             let name = self.expect_ident("base class or interface name")?;
-            let ty = self.parse_named_type_ref_tail(name)?;
+            let mut ty = self.parse_named_type_ref_tail(name)?;
+            if let Some(annotation) = annotations.first() {
+                ty.span.start = annotation.span.start;
+            }
+            ty.annotations = annotations;
             let start = ty.span.start;
             *end = ty.span.end;
             let initialization = if matches!(self.peek().kind, TokenKind::LParen) {

@@ -76,7 +76,7 @@ fn anonymous(tail: Expr) -> Expr {
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,
         params: Vec::new(),
-        return_ty: Some(ty_named("Int")),
+        return_ty: Some(Box::new(ty_named("Int"))),
         body: block(vec![ret(Some(tail))]),
         span: sp(),
     }

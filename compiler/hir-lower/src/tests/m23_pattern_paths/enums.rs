@@ -10,6 +10,7 @@ fn choice(name: &str) -> Decl {
 
 fn qualified_type(path: &[&str]) -> TypeRef {
     TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Qualified {
             path: path.iter().map(|part| ident(part)).collect(),
             arguments: vec![ty_named("Int")],

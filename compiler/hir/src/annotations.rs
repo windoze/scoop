@@ -10,6 +10,8 @@ mod targets;
 pub use targets::{AnnotationStorageRole, SourceAnnotationCallable, SourceAnnotationReceiver};
 mod rules;
 pub use rules::{AnnotationRules, AnnotationTargetKind};
+mod type_uses;
+pub use type_uses::*;
 
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationParameter {
@@ -66,4 +68,6 @@ pub struct SourceAnnotatedTarget {
 pub struct SourceAnnotations {
     pub declarations: Vec<SourceAnnotationDeclaration>,
     pub targets: Vec<SourceAnnotatedTarget>,
+    pub type_uses: Vec<SourceAnnotatedTypeUse>,
+    pub type_sites: Vec<SourceAnnotationTypeSite>,
 }

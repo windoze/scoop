@@ -1,0 +1,4 @@
+annotation class A
+typealias Inner = @A Int
+typealias Outer<T> = @A T
+fun f(x: Outer<Inner>) {}

@@ -29,24 +29,8 @@ impl Lowerer {
                 self.check_core_annotation_target(target, annotation);
                 continue;
             }
-            let path = annotation.name.segments().cloned().collect::<Vec<_>>();
-            let id = match self.resolve_type_name_path(&path, &[]) {
-                Ok(Some(ResolvedTypeName::Annotation(id))) => id,
-                Ok(Some(_)) => {
-                    self.error(
-                        annotation.name.span,
-                        format!("`{}` is not an annotation class", annotation.name),
-                    );
-                    continue;
-                }
-                Ok(None) => {
-                    self.error(
-                        annotation.name.span,
-                        format!("unknown annotation `{}`", annotation.name),
-                    );
-                    continue;
-                }
-                Err(()) => continue,
+            let Some(id) = self.resolve_user_annotation(annotation) else {
+                continue;
             };
             let repeated = self
                 .annotation_metadata
@@ -65,15 +49,7 @@ impl Lowerer {
             {
                 continue;
             }
-            let Some(parameters) = self.annotation_parameters(id, annotation.span) else {
-                continue;
-            };
-            if let Some(arguments) = self.bind_annotation_arguments(annotation, &parameters) {
-                let application = hir::SourceAnnotationApplication {
-                    annotation: id,
-                    arguments,
-                    definition_origin: self.definition_origin(annotation.span),
-                };
+            if let Some(application) = self.bind_annotation_application(annotation, id) {
                 self.validate_serialization_annotations(target, std::slice::from_ref(&application));
                 if let Some(entry) = self
                     .annotation_metadata
@@ -92,6 +68,45 @@ impl Lowerer {
                 }
             }
         }
+    }
+
+    pub(super) fn resolve_user_annotation(
+        &mut self,
+        annotation: &ast::Annotation,
+    ) -> Option<PersistentAnnotationId> {
+        let path = annotation.name.segments().cloned().collect::<Vec<_>>();
+        match self.resolve_type_name_path(&path, &[]) {
+            Ok(Some(ResolvedTypeName::Annotation(id))) => Some(id),
+            Ok(Some(_)) => {
+                self.error(
+                    annotation.name.span,
+                    format!("`{}` is not an annotation class", annotation.name),
+                );
+                None
+            }
+            Ok(None) => {
+                self.error(
+                    annotation.name.span,
+                    format!("unknown annotation `{}`", annotation.name),
+                );
+                None
+            }
+            Err(()) => None,
+        }
+    }
+
+    pub(super) fn bind_annotation_application(
+        &mut self,
+        annotation: &ast::Annotation,
+        id: PersistentAnnotationId,
+    ) -> Option<hir::SourceAnnotationApplication> {
+        let parameters = self.annotation_parameters(id, annotation.span)?;
+        let arguments = self.bind_annotation_arguments(annotation, &parameters)?;
+        Some(hir::SourceAnnotationApplication {
+            annotation: id,
+            arguments,
+            definition_origin: self.definition_origin(annotation.span),
+        })
     }
 
     pub(super) fn bind_annotation_arguments(

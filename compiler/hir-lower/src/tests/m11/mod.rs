@@ -52,7 +52,7 @@ fn anonymous(
                 span: sp(),
             })
             .collect(),
-        return_ty,
+        return_ty: return_ty.map(Box::new),
         body: block(statements),
         span: sp(),
     }

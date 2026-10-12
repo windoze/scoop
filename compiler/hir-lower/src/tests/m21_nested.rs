@@ -26,6 +26,7 @@ fn nested_class(declaration: ast::ClassDecl) -> ast::ClassMember {
 
 fn qualified_type(path: &[&str]) -> TypeRef {
     TypeRef {
+        annotations: Vec::new(),
         kind: TypeRefKind::Qualified {
             path: path.iter().map(|name| ident(name)).collect(),
             arguments: Vec::new(),
