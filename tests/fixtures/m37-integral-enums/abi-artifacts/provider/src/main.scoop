@@ -1,0 +1,8 @@
+package integral.abi.provider
+
+public enum Code : Int16 { Low = Int16.MIN_VALUE, High = Int16.MAX_VALUE }
+@NoGC public fun identity(value: Code): Code = value
+@NoGC public fun acceptParent(value: Int16): Int16 = value
+@Extern(lib = "m37_combined_enum", name = "m37_round_code")
+fun externalRound(value: Code, callback: FunPtr<(Code) -> Code>): Code
+@Unsafe public fun round(value: Code = Code.Low): Code = externalRound(value, ::identity)

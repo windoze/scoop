@@ -246,7 +246,7 @@ annotation 参数/default 和元注解先完成绑定，再按最终规则检查
 
 ## Linux 总验收（进行中）
 
-M37 自身的全部 675 个 fixture 已完成 GNU 与 musl 普通验收，每个目标均为 675 passed、0 failed，888 个配置、1,878 个进程、1,422 个阶段 golden。逐个用例选择最后一次普通执行结果，排除快照生成和中断记录；统计与逐项来源见 [M37 Linux 覆盖](validation/m37-linux.json)。真实目标 ABI 不同的 LIR 已按目标保存，41 份相关 fixture 声明同步选择目标文件。既有功能的完整 GNU 回归及其跨平台快照迁移仍在进行。
+补充设计第 14 节完整组合链之前，M37 的 675 个 fixture 已完成 GNU 与 musl 普通验收，每个目标均为 675 passed、0 failed，888 个配置、1,878 个进程、1,422 个阶段 golden。逐个用例选择最后一次普通执行结果，排除快照生成和中断记录；统计与逐项来源见 [M37 Linux 覆盖](validation/m37-linux.json)。真实目标 ABI 不同的 LIR 已按目标保存，41 份相关 fixture 声明同步选择目标文件。既有功能的完整 GNU 回归及其跨平台快照迁移仍在进行。
 
 Darwin 已补齐一批受 core 声明及控制流转储影响的旧用例：212 项普通比较通过、1 项按平台不适用，218 个配置、2,207 个进程、2,606 个 golden，见 [旧功能平台回归](validation/legacy-platform-darwin.json)。358 份变更逐份审阅，包括 315 份符号表、34 份 LIR 与 9 份 HIR；保留真实 AArch64 ABI，普通符号表只增加对应平台已核对的 core 符号，协程生命周期用例另包含已审阅的 Nothing 函数适配。生成快照不计入普通通过次数。
 
@@ -281,3 +281,11 @@ when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变
 本机与 Linux fmt/workspace clippy、35 项 HIR lower 与 4 项 MIR lower 定向 Rust 测试通过；Darwin、GNU、musl 三个目标各有 9 个正式 CLI 用例普通比较全部通过，每个目标为 13 个配置、70 个进程、77 个阶段 golden。包含原有两组动态函数适配及两组协程回归。报告见 [Darwin](validation/function-view-regressions-darwin.json)、[GNU](validation/function-view-regressions-gnu.json) 和 [musl](validation/function-view-regressions-musl.json)。目标 LIR 已逐份比较已验收的结构及真实 ABI，符号快照只增加对应平台已审阅的 325 个 core 符号；共有 HIR/MIR 没有平台差异。
 
 Darwin 另有 18 个独立链接、原有 M35 组合及源码类型描述回归完成普通比较，33 个配置、179 个进程、336 个阶段与链接计划 golden 全部通过。20 份目标快照已逐份审阅：6 份 LIR 保留实际 AArch64 ABI，14 份链接计划仅反映已核对的 core 元数据变化；未改变执行断言。报告见 [Darwin 补充回归](validation/legacy-platform-extra-darwin.json)。
+
+### 设计验收的完整组合链（本机完成）
+
+新增五个 fixture 覆盖设计第 14 节的六条完整组合链：泛型 sealed 根与匿名开放子家族、guard/smart cast 和 receiver lambda；do/while 与标签、Elvis continue、finally、Context 和真实挂起恢复；inner/局部委托类与按值捕获、老对象持有新对象；Unicode/反引号与命名参数、尾随 lambda、整型枚举、嵌套与可重复类型注解；整型枚举、父类型参数/结果、函数值适配、不同装箱身份和独立 C callback。跨库注解链同时覆盖泛型 alias、结果推导、构造器/未绑定成员引用、re-export、再次发布，以及删除源码后的独立链接。
+
+跨库组合发现整型枚举的成员查找将整数父类型误当作 interface application。先明确实现规范的遍历规则，再在既有 89 行模块内沿整数父类型继续遍历接口；没有增加类型、分派或产物格式。C ABI fixture 保留已声明的函数引用签名，再通过普通函数值赋值验证参数逆变；原有引用候选规则不变。
+
+本机 fmt/workspace clippy、6 项相关 Rust 分派测试及三个 release CLI 构建通过。五个新增 fixture 与既有整型枚举跨库、默认参数回归共 7/7 普通比较通过，12 个配置、73 个进程、71 个 golden。新增链均运行 debug/release 和 normal/moving/minor GC；静态描述保留嵌套注解身份、数组顺序与源码位置，C ABI 保留 Int16 符号扩展及上下界，GC 捕获字段为普通 Snapshot 值且无 mutable box。旧默认参数 HIR 仅按完全相同的实体记录重排依赖引用。报告见 [完整组合链本机验收](validation/complete-combinations-darwin.json)。M37 fixture 增至 680 个；新增链与修复的 Linux 验证继续进行。

@@ -1,0 +1,23 @@
+sealed interface Outcome<T> {}
+interface Stream<T> : Outcome<T> { fun read(): T }
+class Value<T>(val item: T) : Outcome<T>
+class End<T> : Outcome<T>
+
+fun <T> render(value: Outcome<T>, accept: Boolean, format: T.() -> String) = when (value) {
+    is Stream<T> if accept -> value.read().format()
+    is Stream<T> -> "closed"
+    is Value<T> -> value.item.format()
+    is End<T> -> "end"
+}
+
+fun main() {
+    val payload = 41
+    val source: Stream<Int> = object : Stream<Int> {
+        override fun read(): Int { gcCollect(); return payload }
+    }
+    val format: Int.() -> String = { gcCollect(); (this + 1).toString() }
+    println(render(source, true, format))
+    println(render(source, false, format))
+    println(render(Value(6), true, format))
+    println(render(End<Int>(), true, format))
+}

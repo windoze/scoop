@@ -1,0 +1,20 @@
+import integral.abi.bridge.*
+
+@Unsafe fun main() {
+    println(again(Code.Low).toString())
+    println(again().toString())
+    val parentFunction: (Int16) -> Int16 = ::acceptParent
+    val accept: (Code) -> Int16 = parentFunction
+    println(accept(Code.High))
+    val produce: () -> Int16 = { Code.Low }
+    println(produce())
+    val direct: Any = retain<Code>(Code.Low)
+    val wide: Int16 = Code.High
+    val parent: Any = retain<Int16>(wide)
+    gcCollect()
+    println(direct is Code)
+    println(direct is Int16)
+    println(parent is Code)
+    println(parent is Int16)
+    println(sizeOf<Code>())
+}

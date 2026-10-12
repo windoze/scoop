@@ -1,0 +1,870 @@
+Module
+  struct Snapshot (number: Int)
+  enum Option<View>
+    Some(_0: View)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<View>
+    Completed(value: View)
+    Suspended()
+  enum CoroutineSlot<View>
+    Empty()
+    Value(value: View)
+  class Direct vtable=0 itables=1
+  class Owner vtable=0 itables=0
+  class Owner.Wrapped vtable=0 itables=1
+  class Owner.Local vtable=0 itables=1
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface View
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Continuation<View>
+  interface SuspendTask<View>
+  interface SuspendRegistration<View>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=enum3 nominal_id=cec6497688600104f4147e4f09b15c95a1919b608d8a217c7f3f7b59d6776e3b exact_id=4b97dc1a8bb53fdf25a8ca672bf85b70e7cb0a342d21834a536517e7db362ac0
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=enum2 nominal_id=ebf3825a2f908f6b8c8182dfb29d78731765d639c878735700a07351a4dca08b exact_id=7d7910736a2ad68ab7ecaa1f4bb282f25b9184e39e26627a67881222394f50b8
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn21 id=70108fa7b321dbae6f8007d3f7a293f97961c48337a17840d662e959bc0ee75c
+  fun Direct.read @fn0(this: Direct) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Direct
+          Local this
+  fun Direct.captured @fn1(this: Direct) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+  fun Owner.install @fn2(this: Owner, number: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local number
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      val $inline.7.number: Int
+        Type Int
+        Local $parameter.number
+      goto bb8
+    bb1 inline.cont.1
+      val $dependency.argument.0: View
+        Type View
+        Retype View
+          Type Owner.Wrapped
+          Local $new.3
+      val $dependency.parameter._1: View
+        Type View
+        Local $dependency.argument.0
+      field_set 1
+        Type Owner
+        Local this
+        Type Option<View>
+        VariantConstruct Option<View> v0
+          Type View
+          Local $dependency.parameter._1
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Owner.Wrapped
+        Local $inline.1.this
+        Type Owner
+        Local $inline.1.$outer
+      field_set 1
+        Type Owner.Wrapped
+        Local $inline.1.this
+        Type View
+        Local $inline.1.source
+      val $inline.1.$outer: Owner
+        Type Owner
+        Local $inline.1.$outer
+      field_set 2
+        Type Owner.Wrapped
+        Local $inline.1.this
+        Type View
+        Local $inline.1.source
+      Type Unit
+      UnitLiteral
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.0: View
+        Type View
+        Retype View
+          Type Owner.Local
+          Local $new.2
+      val $parameter.source: View
+        Type View
+        Local $argument.0
+      assign $new.3
+        Type Owner.Wrapped
+        ClassAlloc Owner.Wrapped
+      val $inline.1.this: Owner.Wrapped
+        Type Owner.Wrapped
+        Local $new.3
+      val $inline.1.$outer: Owner
+        Type Owner
+        Local $receiver
+      val $inline.1.source: View
+        Type View
+        Local $parameter.source
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Owner.Local
+        Local $inline.3.this
+        Type (Snapshot)
+        Local $inline.3.$captures
+      field_set 1
+        Type Owner.Local
+        Local $inline.3.this
+        Type View
+        Local $inline.3.source
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb5 inline.cont.5
+      val $argument.0: View
+        Type View
+        Retype View
+          Type Direct
+          Local $new.1
+      val $parameter.source: View
+        Type View
+        Local $argument.0
+      assign $new.2
+        Type Owner.Local
+        ClassAlloc Owner.Local
+      val $inline.3.this: Owner.Local
+        Type Owner.Local
+        Local $new.2
+      val $inline.3.$captures: (Snapshot)
+        Type (Snapshot)
+        Local $receiver
+      val $inline.3.source: View
+        Type View
+        Local $parameter.source
+      goto bb4
+    bb6 inline.5.entry
+      field_set 0
+        Type Direct
+        Local $inline.5.this
+        Type Int
+        Local $inline.5.number
+      Type Unit
+      UnitLiteral
+      goto bb5
+    bb7 inline.cont.7
+      val snapshot: Snapshot
+        Type Snapshot
+        Local $inline.7.result
+      val $receiver: Owner
+        Type Owner
+        Local this
+      val $receiver: (Snapshot)
+        Type (Snapshot)
+        TupleLiteral
+          Type Snapshot
+          Local snapshot
+      val $dependency.receiver: Int
+        Type Int
+        Local number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Direct
+        ClassAlloc Direct
+      val $inline.5.this: Direct
+        Type Direct
+        Local $new.1
+      val $inline.5.number: Int
+        Type Int
+        Local $parameter.number
+      goto bb6
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type Snapshot
+        StructInit Snapshot
+          Type Int
+          Local $inline.7.number
+      goto bb7
+  fun Owner.Wrapped.captured @fn3(this: Owner.Wrapped) -> Int
+    bb0 entry
+      val $outer: Owner
+        Type Owner
+        FieldAccess 0
+          Type Owner.Wrapped
+          Local this
+      val $receiver: View
+        Type View
+        FieldAccess 1
+          Type Owner.Wrapped
+          Local this
+      call $dependency.receiver: Int = @fn15 interface View[1]
+        Type View
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local $outer
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Owner.Wrapped.read @fn4(this: Owner.Wrapped) -> Int
+    bb0 entry
+      val $outer: Owner
+        Type Owner
+        FieldAccess 0
+          Type Owner.Wrapped
+          Local this
+      call $call.1: Int = @fn14 interface View[0]
+        Type View
+        FieldAccess 2
+          Type Owner.Wrapped
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun Owner.Local.captured @fn5(this: Owner.Local) -> Int
+    bb0 entry
+      val $captures: (Snapshot)
+        Type (Snapshot)
+        FieldAccess 0
+          Type Owner.Local
+          Local this
+      return
+        Type Int
+        FieldAccess 0
+          Type Snapshot
+          FieldAccess 0
+            Type (Snapshot)
+            Local $captures
+  fun Owner.Local.read @fn6(this: Owner.Local) -> Int
+    bb0 entry
+      val $captures: (Snapshot)
+        Type (Snapshot)
+        FieldAccess 0
+          Type Owner.Local
+          Local this
+      call $call.1: Int = @fn14 interface View[0]
+        Type View
+        FieldAccess 1
+          Type Owner.Local
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun churn @fn7() -> Int
+    bb0 entry
+      var index: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var total: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=512 bits=0x00000200
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=512 bits=0x00000200
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=512 bits=0x00000200
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type Int
+        Local total
+    bb3 while.body.3
+      val $old.0: Int
+        Type Int
+        Local total
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $argument.0: Int
+        Type Int
+        Local index
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Direct
+        ClassAlloc Direct
+      val $inline.6.this: Direct
+        Type Direct
+        Local $new.1
+      val $inline.6.number: Int
+        Type Int
+        Local $parameter.number
+      goto bb7
+    bb4 inline.cont.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.4.result
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign total
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $old.1: Int
+        Type Int
+        Local index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb1
+    bb5 inline.4.entry
+      assign $inline.4.result
+        Type Int
+        FieldAccess 0
+          Type Direct
+          Local $inline.4.this
+      goto bb4
+    bb6 inline.cont.6
+      val $receiver: Direct
+        Type Direct
+        Local $new.1
+      val $inline.4.this: Direct
+        Type Direct
+        Local $receiver
+      goto bb5
+    bb7 inline.6.entry
+      field_set 0
+        Type Direct
+        Local $inline.6.this
+        Type Int
+        Local $inline.6.number
+      Type Unit
+      UnitLiteral
+      goto bb6
+  fun main @fn8() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Option<View>
+        Type Option<View>
+        VariantConstruct Option<View> v1
+      val $parameter.offset: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.slot: Option<View>
+        Type Option<View>
+        Local $argument.1
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      val $inline.13.this: Owner
+        Type Owner
+        Local $new.1
+      val $inline.13.offset: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.13.slot: Option<View>
+        Type Option<View>
+        Local $parameter.slot
+      goto bb14
+    bb1 if.then.1
+      val $uw.2: View
+        Type View
+        VariantPayloadProject Option<View> v0 f0
+          Type Option<View>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.2
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.2
+      throw
+        Type UnwrapException
+        Local $new.2
+    bb3 if.merge.3
+      val $receiver: View
+        Type View
+        Local $uw.2
+      call $dependency.argument.0: Int = @fn14 interface View[0]
+        Type View
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $opt.3: Option<View>
+        Type Option<View>
+        FieldAccess 1
+          Type Owner
+          Local owner
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<View> v0
+          Type Option<View>
+          Local $opt.3
+    bb4 if.then.4
+      val $uw.4: View
+        Type View
+        VariantPayloadProject Option<View> v0 f0
+          Type Option<View>
+          Local $opt.3
+      goto bb6
+    bb5 if.else.5
+      assign $new.3
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.3
+      throw
+        Type UnwrapException
+        Local $new.3
+    bb6 if.merge.6
+      val $receiver: View
+        Type View
+        Local $uw.4
+      call $dependency.argument.0: Int = @fn15 interface View[1]
+        Type View
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $receiver: Owner
+        Type Owner
+        Local owner
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      call @fn2 direct
+        Type Owner
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      call $dependency.argument.0: Int = @fn7 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $opt.5: Option<View>
+        Type Option<View>
+        FieldAccess 1
+          Type Owner
+          Local owner
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<View> v0
+          Type Option<View>
+          Local $opt.5
+    bb7 if.then.7
+      val $uw.6: View
+        Type View
+        VariantPayloadProject Option<View> v0 f0
+          Type Option<View>
+          Local $opt.5
+      goto bb9
+    bb8 if.else.8
+      assign $new.4
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.4
+      throw
+        Type UnwrapException
+        Local $new.4
+    bb9 if.merge.9
+      val $receiver: View
+        Type View
+        Local $uw.6
+      call $dependency.argument.0: Int = @fn14 interface View[0]
+        Type View
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $opt.7: Option<View>
+        Type Option<View>
+        FieldAccess 1
+          Type Owner
+          Local owner
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<View> v0
+          Type Option<View>
+          Local $opt.7
+    bb10 if.then.10
+      val $uw.8: View
+        Type View
+        VariantPayloadProject Option<View> v0 f0
+          Type Option<View>
+          Local $opt.7
+      goto bb12
+    bb11 if.else.11
+      assign $new.5
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.5
+      throw
+        Type UnwrapException
+        Local $new.5
+    bb12 if.merge.12
+      val $receiver: View
+        Type View
+        Local $uw.8
+      call $dependency.argument.0: Int = @fn15 interface View[1]
+        Type View
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb13 inline.cont.13
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      call @scoop_rt_gc_collect direct
+      val $receiver: Owner
+        Type Owner
+        Local owner
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      call @fn2 direct
+        Type Owner
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      call $dependency.argument.0: Int = @fn7 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $opt.1: Option<View>
+        Type Option<View>
+        FieldAccess 1
+          Type Owner
+          Local owner
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<View> v0
+          Type Option<View>
+          Local $opt.1
+    bb14 inline.13.entry
+      field_set 0
+        Type Owner
+        Local $inline.13.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 1
+        Type Owner
+        Local $inline.13.this
+        Type Option<View>
+        Local $inline.13.slot
+      Type Unit
+      UnitLiteral
+      goto bb13
+  fun println @fn9(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Continuation.resume @fn10(this: Continuation<View>, value: View) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<View>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<View>, $completion: Continuation<View>) -> CoroutineStep<View>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<View>, continuation: Continuation<View>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun View.read @fn14(this: View) -> Int
+    bb0 entry
+      trap "call to abstract method `View.read`"
+  fun View.captured @fn15(this: View) -> Int
+    bb0 entry
+      trap "call to abstract method `View.captured`"
+  fun init.Direct.$c0 @fn16(this: Direct, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Direct
+        Local this
+        Type Int
+        Local number
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Owner.$c1 @fn17(this: Owner, offset: Int, slot: Option<View>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Int
+        Local offset
+      field_set 1
+        Type Owner
+        Local this
+        Type Option<View>
+        Local slot
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Owner.Wrapped.$c2 @fn18(this: Owner.Wrapped, $outer: Owner, source: View) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner.Wrapped
+        Local this
+        Type Owner
+        Local $outer
+      field_set 1
+        Type Owner.Wrapped
+        Local this
+        Type View
+        Local source
+      val $outer: Owner
+        Type Owner
+        Local $outer
+      field_set 2
+        Type Owner.Wrapped
+        Local this
+        Type View
+        Local source
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Owner.Local.$c3 @fn19(this: Owner.Local, $captures: (Snapshot), source: View) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner.Local
+        Local this
+        Type (Snapshot)
+        Local $captures
+      field_set 1
+        Type Owner.Local
+        Local this
+        Type View
+        Local source
+      return
+        Type Unit
+        UnitLiteral
+  fun ctor.Snapshot.$c0 @fn20(number: Int) -> Snapshot <no-gc>
+    bb0 entry
+      return
+        Type Snapshot
+        StructInit Snapshot
+          Type Int
+          Local number
+  fun startCoroutine<View> @fn21(task: SuspendTask<View>, completion: Continuation<View>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn10 interface Continuation<View>[0]
+        Type Continuation<View>
+        Local completion
+        Type View
+        EnumField v0 f0
+          Type CoroutineStep<View>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn11 interface Continuation<View>[1]
+        Type Continuation<View>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<View> = @fn12 interface SuspendTask<View>[0]
+        Type SuspendTask<View>
+        Local task
+        Type Continuation<View>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<View>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<View> result=View
+  coroutine_slot cl0 CoroutineSlot<View> value=View
+  coroutine_start ct0 result=View function=fn21
+  coroutine_fn cf0 @fn12 source_return=View step=cs0 immediate
+  instance mi0 function=@fn9 <- println
+  instance mi1 function=@fn10 <- Continuation.resume
+  instance mi2 function=@fn11 <- Continuation.resumeWithException
+  instance mi3 function=@fn12 <- SuspendTask.run
+  instance mi4 function=@fn13 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn8
