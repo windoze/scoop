@@ -54,3 +54,10 @@
 - 原本限定 x86-64 的已验证及观测 RELA form 明确命名为 ElfX86_64Rela，指针／调用／TLS 消费无需把 ELF 容器当作机器。既有 wire tag 11 与字段编码保持，固定向量通过。
 - 本机 fmt、workspace clippy；5 项跨目标真实 LLVM ELF 对象测试（含 machine／flags 损坏拒绝）、21 项机器／EH artifact 测试、39 项 slib relocation 测试与 32 项 wire 测试通过。没有新增架构或更新 golden。
 - 再次清理本机已完成 fixture 的 cases，保留 report/cache；已清理远端旧 target（初始约 21 GiB），仅保留重新建立的 M39 临时目录，native unwind 安装未动。
+
+## 功能 6：显式的 manifest 目标目录
+
+- manifest 解析入口接收 SourceTarget 数据目录，源码／native source／native library 条件共用该输入；不再读取 identity 的支持列表或隐含宿主目标。
+- toolchain 作为 driver 共用入口，明确提供当前三个 target 的 os／arch／env／triple。谓词保存匹配到的 typed identity 与 canonical triple；按 triple 排序，保持现有编码及目录重排稳定性。
+- 本机 fmt、workspace clippy、45 项 manifest 与 5 项编译缓存键测试通过；新增子目录支持范围与目录顺序不影响编码的验证。
+- 34 项源码选择、非法条件／路径、symlink、选择后缺失源码及缓存正式 CLI 全部通过（35 变体、45 进程），见 [06-darwin.json](validation/06-darwin.json)，未更新 golden。

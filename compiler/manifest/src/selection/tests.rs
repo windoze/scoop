@@ -1,5 +1,5 @@
 use super::*;
-use crate::parse_cone_manifest;
+use crate::test_catalog::parse_cone_manifest;
 
 const CONE: &str =
     "[cone]\ngroup = 'dev.selection'\nname = 'test'\nversion = '1.0.0'\nkind = 'library'\n";
@@ -105,5 +105,23 @@ fn cache_projection_ignores_entry_order_and_equivalent_predicate_spelling() {
     assert_ne!(
         scoop_wire::encode(&first).unwrap(),
         scoop_wire::encode(&selection("")).unwrap()
+    );
+}
+
+#[test]
+fn predicate_validation_uses_the_supplied_catalog_and_canonicalizes_its_order() {
+    let source = format!(
+        "schema = 1\nsources = [{{ path = \"linux.scoop\", when = {{ os = \"linux\" }} }}]\n{CONE}"
+    );
+    let catalog = crate::test_catalog::SOURCE_TARGETS;
+    let error = crate::parse_cone_manifest(&source, &catalog[..1]).unwrap_err();
+    assert!(error.to_string().contains("unknown target predicate"));
+    let normal = crate::parse_cone_manifest(&source, catalog).unwrap();
+    let mut reversed = catalog.to_vec();
+    reversed.reverse();
+    let reordered = crate::parse_cone_manifest(&source, &reversed).unwrap();
+    assert_eq!(
+        scoop_wire::encode(normal.semantic().sources()).unwrap(),
+        scoop_wire::encode(reordered.semantic().sources()).unwrap(),
     );
 }

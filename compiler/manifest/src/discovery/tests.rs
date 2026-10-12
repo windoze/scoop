@@ -1,6 +1,7 @@
+use crate::test_catalog::load_cone_manifest;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::{ManifestRootLocator, load_cone_manifest};
+use crate::ManifestRootLocator;
 
 use super::walk::validated_entry_name;
 use super::*;

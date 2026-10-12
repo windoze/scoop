@@ -10,7 +10,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    let manifest = scoop_manifest::load_cone_manifest(&ManifestRootLocator::cone_directory(
+    let manifest = scoop_toolchain::load_cone_manifest(&ManifestRootLocator::cone_directory(
         slot.source_root(),
     ))
     .unwrap();

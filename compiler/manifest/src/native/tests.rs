@@ -1,5 +1,6 @@
 use super::*;
-use crate::{ManifestParseErrorKind, SourceSelection, parse_cone_manifest};
+use crate::test_catalog::parse_cone_manifest;
+use crate::{ManifestParseErrorKind, SourceSelection};
 
 const CONE: &str = "schema = 1\n[cone]\ngroup = 'native.test'\nname = 'inputs'\nversion = '1.0.0'\nkind = 'library'\n";
 

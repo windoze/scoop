@@ -261,7 +261,7 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         else {
             unreachable!()
         };
-        let manifest = scoop_manifest::parse_cone_manifest(
+        let manifest = scoop_toolchain::parse_cone_manifest(
             "schema = 1\n[[sources]]\npath = 'src'\n[cone]\ngroup = 'test'\nname = 'selection'\nversion = '1.0.0'\nkind = 'library'\n",
         ).unwrap();
         *sources = manifest.semantic().sources().clone();

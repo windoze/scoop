@@ -1,4 +1,5 @@
 use super::*;
+use crate::test_catalog::parse_cone_manifest;
 
 const MINIMAL: &str = r#"
 schema = 1

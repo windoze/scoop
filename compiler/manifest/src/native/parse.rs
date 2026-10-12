@@ -22,12 +22,15 @@ pub(crate) struct RawNativeConfig {
 }
 
 impl RawNativeConfig {
-    pub(crate) fn parse(self) -> Result<NativeConfig, ManifestParseError> {
+    pub(crate) fn parse(
+        self,
+        catalog: &[crate::SourceTarget<'_>],
+    ) -> Result<NativeConfig, ManifestParseError> {
         Ok(NativeConfig {
             sources: self
                 .sources
                 .into_iter()
-                .map(crate::selection::parse_path)
+                .map(|raw| crate::selection::parse_path(raw, catalog))
                 .collect::<Result<_, _>>()?,
             include: self
                 .include
@@ -40,7 +43,7 @@ impl RawNativeConfig {
             libraries: self
                 .libraries
                 .into_iter()
-                .map(super::libraries::parse)
+                .map(|raw| super::libraries::parse(raw, catalog))
                 .collect::<Result<_, _>>()?,
         })
     }

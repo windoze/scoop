@@ -7,9 +7,10 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession, Targ
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
     SingleFileInputError, SingleFileLocator, SourceDiscoveryError, discover_manifest_sources,
-    load_cone_manifest, load_single_file_source,
+    load_single_file_source,
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
+use scoop_toolchain::load_cone_manifest;
 
 use super::{
     CurrentConeDiagnosticSet, CurrentConeInput, DiagnosticOutputPolicy, EmittedStageDump,

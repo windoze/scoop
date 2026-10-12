@@ -7,9 +7,10 @@ use std::path::PathBuf;
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::{
     DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootError,
-    SingleFileLocator, load_cone_manifest,
+    SingleFileLocator,
 };
 use scoop_slib::DependencyRecord;
+use scoop_toolchain::load_cone_manifest;
 use scoop_wire::HashError;
 
 use crate::locator::{
