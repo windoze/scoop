@@ -8,7 +8,7 @@
 2. 已完成：C toolchain 宿主 invocation 移出 LIR，generated-C 编译交由 driver 编排。
 3. 已完成全部 Scoop/C ABI 规划迁移、显式 manifest 目录、布局／LLVM 配置登记及 target/backend/C toolchain 身份拆分。
 4. 已完成 runtime 组件、ELF 容器／机器规则及 Linux machine／libc 工具链选择。
-5. 本机定向回归与 Linux 完整 Rust 覆盖已通过；GNU 正式 CLI 全量运行中，musl 随后运行，最终验收及清理尚未完成。
+5. 本机定向回归、Linux 完整 Rust 覆盖及 GNU 正式 CLI 全量已通过；musl 全量运行中，最终验收及清理尚未完成。
 
 ## 验证环境与纪律
 
@@ -109,7 +109,7 @@
 
 - 全量中的已有错误 libc 测试发现：GNU 显式选择 musl-gcc 时，REALGCC 被设为 wrapper 自身，导致反复执行。终止该测试子进程后，`--no-fail-fast` 继续完成其他包。
 - 先明确实现规范：REALGCC 只属于 musl wrapper；GNU 直接执行所选 driver，由真实 probe 报告 libc 不匹配。宿主 invocation 显式表示可不存在的环境 override，不改变持久化合同或编译器输入摘要。
-- 新增跨宿主回归同时检查 probe 与正式 invocation 的环境；本机 fmt、workspace clippy 与全部 26 项 toolchain 测试通过。Linux 将补验整个 toolchain 包，并继续发布构建及全量 CLI。
+- 新增跨宿主回归同时检查 probe 与正式 invocation 的环境；本机 fmt、workspace clippy 与全部 26 项 toolchain 测试通过。Linux 全部 29 项 toolchain 补验及发布构建通过，GNU 全量 CLI 已通过，musl 全量继续验收。
 
 ## Linux 完整 Rust 验证
 
@@ -118,3 +118,9 @@
 - driver 的 82 项真实构建／产物组合全部通过，耗时 3,895.55 秒，仅执行一轮。最后一个 core 属性初始化测试运行期间，用空闲 CPU 构建未变化的 release stage 库，并同步工具链修复完成独立补验；该修复不改变正在运行的测试二进制或其 Scoop/runtime 输入。
 - Linux 最终 fmt、workspace clippy、三个 release CLI 和 47 项公共 runner 测试通过；本机公共 runner 同为 47 项通过，最新 release CLI 已重建。没有更改测试超时或更新 golden。
 - 本机各功能 CLI 按最终同名结果去重为 83 项通过、1 项不适用，105 变体、376 进程、16 次 golden；这是定向范围，见 [覆盖报告](validation/darwin-coverage.json)，不计为 Darwin 全量。
+
+## Linux GNU 完整 CLI 验证
+
+- 全部 3,771 项均纳入选择：3,741 项通过，30 项按目标声明不适用，0 failed；4,203 变体、15,731 进程、71 次 golden 检查。见 [完整报告](validation/linux-gnu.json)及 [原始日志](validation/linux-gnu.log.gz)。
+- 使用最终代码 `e7f2fb7d` 的 release CLI，8 个并行 worker；未更新期望，没有补验或重复运行。
+- 全部通过的 case 目录已按完成状态分批清理。musl 随后自动启动，按 GNU 的资源余量将并行数由预定 4 调为 8；同样保留完整适用范围。
