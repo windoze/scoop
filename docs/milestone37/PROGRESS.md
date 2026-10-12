@@ -265,3 +265,5 @@ Linux 全量发现完整泛型 companion 限定名被误判为未绑定 receiver
 when 保存 subject 时，原实现只关联普通局部来源，遗漏不可变捕获值与构造器参数。修复复用已有稳定 binding 查询及快照关系，使闭包内的多 interface 检查和构造初始化中的值类型检查保留事实；分支合流、赋值失效和可变捕获限制仍按原规则处理。生产改动位于 132 行的既有条件分析模块，没有新增分析框架或后续 stage 状态。
 
 新增三个 fixture，覆盖 lambda、匿名函数、局部函数、显式快照、when subject 声明、构造器参数与闭包、普通/moving GC，以及只在部分分支成立的事实不得越过合流。workspace fmt/clippy 通过，捕获与 when 两组 Rust 定向测试执行 77 项全部通过。52 个正式 CLI 用例普通比较全部通过，81 个配置、206 个进程、187 个阶段 golden，包含原有 M35 捕获组合回归。该旧组合用例补充 lambda 标签，并将类型检查改为读取已经保存的 subject；既有静态类型结构保持不变，LIR 相应省去一次重复捕获读取。报告见 [smart cast 回归](validation/smart-cast-capture-regressions-darwin.json)。Linux 受影响范围复验继续进行。
+
+另有八个旧负例按现行规则完成迁移：接口实现诊断顺序、带宿主的 companion 名称、单语句 for body，以及 GCLeaf 目标的语义检查。旧 return-label 负例改为 Elvis 中使用不存在的标签，继续精确检查错误文字与源码位置。workspace fmt/clippy 后八例本机普通比较全部通过，生产代码未因这些快照差异改变。报告见 [旧负例迁移](validation/gnu-diagnostic-migrations-darwin.json)。
