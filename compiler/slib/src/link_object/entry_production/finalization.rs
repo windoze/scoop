@@ -139,7 +139,8 @@ where
         }
         verify_only_entry_slots_changed(member, &bytes, source.bytes(), entry.branch())?;
         let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-            scoop_target_data::layout(source.envelope().sections().envelope().target()),
+            scoop_target_data::layout(source.envelope().sections().envelope().target())
+                .expect("implemented target selected by this consumer"),
             &bytes,
         )
         .map_err(|source| EntryPatchError::FinalEnvelope { member, source })?;

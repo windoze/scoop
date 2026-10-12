@@ -116,3 +116,17 @@ fn batch_requests_preserve_zst_and_scanned_storage_without_leaf_classification()
     assert!(matches!(signature.arguments()[1], AbiArgument::Indirect(_)));
     assert!(matches!(signature.result(), AbiReturn::ElidedZst(_)));
 }
+
+#[test]
+fn canonical_unknown_target_cannot_fall_back_to_a_procedure_abi() {
+    const UNKNOWN: scoop_lir::TargetProfileId =
+        match scoop_lir::TargetProfileId::new("unknown-target", 1) {
+            Ok(id) => id,
+            Err(_) => panic!("canonical test identity"),
+        };
+    let target =
+        scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
+    assert!(
+        matches!(plan(&input(target)), Err(AbiPlanError::UnsupportedTarget(id)) if id == UNKNOWN)
+    );
+}

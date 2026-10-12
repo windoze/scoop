@@ -153,11 +153,11 @@ fn runtime_input(
             Ok((objects, index.clone(), Vec::new()))
         }
         RuntimeInput::SourceRoot(root) => {
-            let unwind = if target.id() == scoop_lir::TargetProfileId::DarwinAarch64 {
+            let unwind = if target.id() == scoop_target_data::DARWIN_AARCH64_ID {
                 final_link.unwind_prefix.clone()
             } else {
                 Some(scoop_toolchain::selected_unwind_prefix(
-                    target.id(),
+                    target.lir_target(),
                     final_link.sysroot.as_deref(),
                     final_link.unwind_prefix.as_deref(),
                 ))

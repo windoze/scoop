@@ -212,7 +212,7 @@ fn record() -> NativeExternalContractRecord {
 
 fn symbol_key() -> NativeExternalSymbolKey {
     NativeExternalSymbolKey::for_target(
-        crate::TargetProfileWireId::darwin_aarch64(),
+        crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
         crate::NativeSymbolNormalization::MachOExternalUnderscore,
         &SourceNativeSymbol::new("entry").unwrap(),
     )

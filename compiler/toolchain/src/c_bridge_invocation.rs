@@ -15,6 +15,7 @@ use scoop_lir::{CBridgeEnvironmentProjectionV1, CBridgeToolchainProfileV1, LirTa
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedCBridgeToolchainInvocation {
+    target: LirTargetProfile,
     profile: CBridgeToolchainProfileV1,
     compiler_driver: PathBuf,
     parameters: CBridgeCommandParameters,
@@ -41,6 +42,11 @@ impl ValidatedCBridgeToolchainInvocation {
         compiler_driver: PathBuf,
         sdk_root: PathBuf,
     ) -> Result<Self, CBridgeToolchainInvocationError> {
+        if target.id() != scoop_target_data::DARWIN_AARCH64_ID {
+            return Err(CBridgeToolchainInvocationError::Platform(
+                scoop_lir::CBridgePlatformError::ExpectedDarwin,
+            ));
+        }
         if !compiler_driver.is_absolute() {
             return Err(CBridgeToolchainInvocationError::RelativeCompilerDriver);
         }
@@ -53,6 +59,7 @@ impl ValidatedCBridgeToolchainInvocation {
             .map_err(CBridgeToolchainInvocationError::Platform)?
             .minimum_os();
         let value = Self {
+            target,
             profile,
             compiler_driver,
             optimization: scoop_lir::OptimizationMode::Debug,
@@ -72,6 +79,10 @@ impl ValidatedCBridgeToolchainInvocation {
 
     pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
         self.optimization
+    }
+
+    pub const fn target(&self) -> LirTargetProfile {
+        self.target
     }
 
     pub const fn profile(&self) -> &CBridgeToolchainProfileV1 {
@@ -99,6 +110,11 @@ impl ValidatedCBridgeToolchainInvocation {
         real_gcc: PathBuf,
         search_path: OsString,
     ) -> Result<Self, CBridgeToolchainInvocationError> {
+        if crate::linux_target::LinuxTarget::select(target.id()).is_err() {
+            return Err(CBridgeToolchainInvocationError::Platform(
+                scoop_lir::CBridgePlatformError::ExpectedLinux,
+            ));
+        }
         if !compiler_driver.is_absolute() || !real_gcc.is_absolute() {
             return Err(CBridgeToolchainInvocationError::RelativeCompilerDriver);
         }
@@ -117,6 +133,7 @@ impl ValidatedCBridgeToolchainInvocation {
             ));
         }
         let value = Self {
+            target,
             profile,
             compiler_driver,
             optimization: scoop_lir::OptimizationMode::Debug,
@@ -196,7 +213,8 @@ impl ValidatedCBridgeToolchainInvocation {
         &self,
         target: LirTargetProfile,
     ) -> Result<(), CBridgeToolchainInvocationError> {
-        if self.profile.id() != &scoop_target_data::c_bridge_toolchain_id(target.id()) {
+        if Some(self.profile.id()) != scoop_target_data::c_bridge_toolchain_id(target.id()).as_ref()
+        {
             return Err(CBridgeToolchainInvocationError::UnsupportedProfile);
         }
         let contract = self.profile.contract();

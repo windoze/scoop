@@ -52,7 +52,7 @@ fn generated_bridge_units_use_a_distinct_domain_and_capability() {
             .logical_key()
             .member_role(scoop_target_data::DARWIN_AARCH64),
         SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             object_format: ObjectFormatId::macho_relocatable(),
             verifier_capability: generated_c_bridge_link_object_capability(),
         }

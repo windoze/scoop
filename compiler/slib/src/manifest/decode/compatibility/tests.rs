@@ -63,3 +63,49 @@ fn compatibility_reader_rejects_each_old_outer_schema_and_mixed_generations() {
         );
     }
 }
+
+#[test]
+fn canonical_unknown_target_is_rejected_even_with_matching_fingerprints() {
+    const UNKNOWN: scoop_lir::TargetProfileId =
+        match scoop_lir::TargetProfileId::new("unknown-target", 1) {
+            Ok(id) => id,
+            Err(_) => panic!("canonical test identity"),
+        };
+    let target =
+        scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
+    let selection =
+        scoop_lir::ValidatedLirTargetSelection::new(target, scoop_target_data::LLVM_22_1);
+    let record =
+        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::SINGLE_CONE_STRONG).unwrap();
+    let decoded: DecodedCompatibilityRecord = decode_canonical(&encode(&record).unwrap()).unwrap();
+    assert!(matches!(
+        decoded.validate(selection),
+        Err(CompatibilityValidationError::UnsupportedSelection)
+    ));
+}
+
+#[test]
+fn target_identity_must_match_the_selected_consumer_profile() {
+    let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
+    let record =
+        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::SINGLE_CONE_STRONG).unwrap();
+    for (name, version) in [
+        ("unknown-target", 1),
+        ("darwin-aarch64", 2),
+        ("linux-x86-64-gnu", 1),
+    ] {
+        let mut decoded: DecodedCompatibilityRecord =
+            decode_canonical(&encode(&record).unwrap()).unwrap();
+        let identity =
+            scoop_identity::CapabilityId::new("org.scoop-lang.target-profile", name, version)
+                .unwrap();
+        decoded.target_profile = decode_canonical(&encode(&identity).unwrap()).unwrap();
+        assert!(matches!(
+            decoded.validate(selection),
+            Err(CompatibilityValidationError::ProfileMismatch {
+                kind: CompatibilityProfileKind::Target,
+                ..
+            })
+        ));
+    }
+}

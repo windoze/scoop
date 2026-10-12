@@ -47,7 +47,8 @@ fn recursively_discovers_sources_in_logical_path_order() {
     std::fs::write(cone.0.join("src/a.scoop"), "package a\n").unwrap();
     std::fs::write(cone.0.join("src/ignored.txt"), "ignored").unwrap();
 
-    let sources = discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64).unwrap();
+    let sources =
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID).unwrap();
     let paths = sources
         .iter()
         .map(|source| source.identity().logical_path().as_str())
@@ -63,7 +64,7 @@ fn recursively_discovers_sources_in_logical_path_order() {
 fn rejects_an_empty_source_tree() {
     let cone = TempCone::new();
     assert!(matches!(
-        discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .kind(),
         SourceDiscoveryErrorKind::EmptySourceSet
@@ -75,7 +76,7 @@ fn rejects_invalid_utf8_source_text() {
     let cone = TempCone::new();
     std::fs::write(cone.0.join("src/bad.scoop"), [0xff]).unwrap();
     assert!(matches!(
-        discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .kind(),
         SourceDiscoveryErrorKind::InvalidUtf8Source
@@ -91,7 +92,7 @@ fn rejects_distinct_logical_paths_to_the_same_real_source() {
     std::os::unix::fs::symlink("shared.scoop", cone.0.join("src/alias.scoop")).unwrap();
 
     assert!(matches!(
-        discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .kind(),
         SourceDiscoveryErrorKind::ConflictingSelections { .. }
@@ -106,7 +107,8 @@ fn allows_a_source_symlink_within_the_cone_root() {
     std::fs::write(&outside, "fun outside() {}\n").unwrap();
     std::os::unix::fs::symlink("../outside.scoop", cone.0.join("src/escape.scoop")).unwrap();
 
-    let sources = discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64).unwrap();
+    let sources =
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID).unwrap();
     assert_eq!(
         sources.first().identity().logical_path().as_str(),
         "src/escape.scoop"
@@ -121,7 +123,7 @@ fn rejects_a_directory_cycle() {
     std::os::unix::fs::symlink(".", cone.0.join("src/again")).unwrap();
 
     assert!(matches!(
-        discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .kind(),
         SourceDiscoveryErrorKind::DirectoryCycle

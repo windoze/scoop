@@ -135,3 +135,21 @@ fn unregistered_backend_identity_or_machine_configuration_is_rejected() {
         );
     }
 }
+
+#[test]
+fn canonical_unknown_target_is_not_a_codegen_registration() {
+    const UNKNOWN: scoop_lir::TargetProfileId =
+        match scoop_lir::TargetProfileId::new("unknown-target", 1) {
+            Ok(id) => id,
+            Err(_) => panic!("canonical test identity"),
+        };
+    let target =
+        scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
+    let selection = ValidatedLirTargetSelection::new(target, scoop_target_data::LLVM_22_1);
+    assert!(
+        ValidatedBackendProfile::from_selection(selection)
+            .unwrap_err()
+            .0
+            .contains("unsupported target/backend")
+    );
+}

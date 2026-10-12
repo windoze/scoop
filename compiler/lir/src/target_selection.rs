@@ -21,12 +21,14 @@ impl ValidatedLirTargetSelection {
 #[cfg(test)]
 mod tests {
 
-    use crate::{NativeSymbolNormalization, TargetProfileId};
+    use crate::NativeSymbolNormalization;
 
     #[test]
     fn linux_libcs_have_distinct_targets_and_share_the_x86_backend() {
-        let gnu = crate::target_fixtures::selection(TargetProfileId::LinuxX86_64Gnu);
-        let musl = crate::target_fixtures::selection(TargetProfileId::LinuxX86_64Musl);
+        let gnu = crate::target_fixtures::selection(crate::target_fixtures::LINUX_X86_64_GNU_ID)
+            .expect("implemented target selected by this consumer");
+        let musl = crate::target_fixtures::selection(crate::target_fixtures::LINUX_X86_64_MUSL_ID)
+            .expect("implemented target selected by this consumer");
         assert_eq!(gnu.backend(), musl.backend());
         assert_ne!(
             gnu.backend().wire_id(),
@@ -49,7 +51,7 @@ mod tests {
             assert_eq!(profile.contract().stack_alignment_bytes(), 16);
             assert_eq!(profile.managed_pointer_layout().size_bytes(), 8);
             assert_eq!(
-                profile.id().object_format(),
+                profile.native_object_format().wire_id(),
                 scoop_identity::ObjectFormatId::elf_relocatable()
             );
             assert_eq!(

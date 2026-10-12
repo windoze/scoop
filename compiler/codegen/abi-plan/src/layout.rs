@@ -6,6 +6,7 @@ pub(super) fn coercion(
     input: &lir::AbiPlanningInput,
     id: lir::AbiPlanningValueId,
     position: lir::AbiValuePosition,
+    abi: ProcedureAbi,
 ) -> Option<lir::AbiCoercion> {
     let value = match &input.values[id] {
         lir::AbiPlanningValue::Aggregate { value, .. }
@@ -13,7 +14,7 @@ pub(super) fn coercion(
         _ => return None,
     };
     // AArch64 may use up to four doubles for an HFA. SysV admits two eightbytes.
-    let maximum = match ProcedureAbi::for_target(input.target) {
+    let maximum = match abi {
         ProcedureAbi::DarwinAarch64 => 32,
         ProcedureAbi::SysvAmd64 => 16,
     };
@@ -26,7 +27,7 @@ pub(super) fn coercion(
         leaves: Vec::new(),
     };
     collect(input, id, 0, &mut layout.leaves);
-    aggregate::coercion(&layout, input.target, position)
+    aggregate::coercion(&layout, abi, position)
 }
 
 fn collect(

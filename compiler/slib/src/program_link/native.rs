@@ -15,7 +15,7 @@ pub(super) fn read(
         .collect();
     records.into_iter().map(|record| {
         if !matches!(record.role(), SlibMemberRole::LinkObject { target_profile, object_format, .. }
-            if *target_profile == target.wire_id() && *object_format == target.id().object_format()) {
+            if *target_profile == target.wire_id() && *object_format == target.native_object_format().wire_id()) {
             return Err(error(format!("native object {} has a different target", record.id())));
         }
         let MemberStableKey::LinkObject { logical_key, .. } = record.stable_key() else {

@@ -998,7 +998,7 @@ fn scoop_extern_produces_one_exact_target_contract() {
     let expected = scoop_identity::NativeExternalContractRecord::new(
         source_contract,
         scoop_identity::NativeExternalSymbolKey::for_target(
-            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new("scoop_read").unwrap(),
         )
@@ -1328,7 +1328,7 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     let library = scoop_identity::CanonicalNativeLibraryName::new("native-headers").unwrap();
     let expected_requirement = scoop_identity::CborIdentityRecord::from_key(
         scoop_identity::NativeLinkRequirementKey::target_default(
-            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             library.clone(),
         ),
     )

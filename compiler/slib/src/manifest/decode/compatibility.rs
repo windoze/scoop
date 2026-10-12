@@ -35,6 +35,9 @@ impl DecodedCompatibilityRecord {
         self,
         selection: ValidatedLirTargetSelection,
     ) -> Result<CompatibilityRecord, CompatibilityValidationError> {
+        if scoop_target_data::selection(selection.target().id()) != Some(selection) {
+            return Err(CompatibilityValidationError::UnsupportedSelection);
+        }
         require_schema(CompatibilitySchemaKind::Identity, self.identity_schema)?;
         require_schema(CompatibilitySchemaKind::Hir, self.hir_schema)?;
         require_schema(CompatibilitySchemaKind::Mir, self.mir_schema)?;
@@ -254,6 +257,7 @@ impl fmt::Display for CompatibilityProfileKind {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CompatibilityValidationError {
+    UnsupportedSelection,
     UnsupportedSchema {
         kind: CompatibilitySchemaKind,
         actual: u32,
@@ -282,6 +286,9 @@ pub enum CompatibilityValidationError {
 impl fmt::Display for CompatibilityValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnsupportedSelection => {
+                formatter.write_str("unsupported target/backend selection for artifact consumption")
+            }
             Self::UnsupportedSchema { kind, actual } => {
                 write!(
                     formatter,

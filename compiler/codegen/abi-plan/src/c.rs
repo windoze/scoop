@@ -5,11 +5,12 @@ use super::{ProcedureAbi, layout, lir, registers::AbiArgumentRegisters};
 pub(super) fn classify(
     input: &lir::AbiPlanningInput,
     request: &lir::CAbiRequest,
+    abi: ProcedureAbi,
 ) -> Result<lir::DirectCSignature, lir::AbiValueError> {
     let result = match &request.result {
         lir::LogicalCAbiResult::Void => lir::DirectCReturn::Void,
         lir::LogicalCAbiResult::Value(value) => {
-            match classify_value(input, value, lir::AbiValuePosition::Result)? {
+            match classify_value(input, value, lir::AbiValuePosition::Result, abi)? {
                 lir::DirectCArgument::Scalar(value) => lir::DirectCReturn::Value(value),
                 lir::DirectCArgument::DirectParts(parts) => lir::DirectCReturn::DirectParts(parts),
                 lir::DirectCArgument::Indirect { value, .. } => lir::DirectCReturn::Indirect(value),
@@ -19,9 +20,9 @@ pub(super) fn classify(
     let mut params = request
         .arguments
         .iter()
-        .map(|value| classify_value(input, value, lir::AbiValuePosition::Argument))
+        .map(|value| classify_value(input, value, lir::AbiValuePosition::Argument, abi))
         .collect::<Result<Vec<_>, _>>()?;
-    if let ProcedureAbi::SysvAmd64 = ProcedureAbi::for_target(input.target) {
+    if let ProcedureAbi::SysvAmd64 = abi {
         let mut registers =
             AbiArgumentRegisters::sysv(matches!(result, lir::DirectCReturn::Indirect(_)));
         for (parameter, value) in params.iter_mut().zip(&request.arguments) {
@@ -35,7 +36,7 @@ pub(super) fn classify(
                 }
                 lir::DirectCArgument::DirectParts(parts) => {
                     if !registers.aggregate(parts.coercion()) {
-                        *parameter = indirect(input.target, parts.value().clone());
+                        *parameter = indirect(abi, parts.value().clone());
                     }
                 }
                 lir::DirectCArgument::Indirect { .. } => {}
@@ -49,37 +50,35 @@ fn classify_value(
     input: &lir::AbiPlanningInput,
     value: &lir::CAbiValueInput,
     position: lir::AbiValuePosition,
+    abi: ProcedureAbi,
 ) -> Result<lir::DirectCArgument, lir::AbiValueError> {
     match &input.values[value.value] {
         lir::AbiPlanningValue::Aggregate { value: storage, .. } => {
-            match layout::coercion(input, value.value, position) {
+            match layout::coercion(input, value.value, position, abi) {
                 Some(coercion) => Ok(lir::DirectCArgument::DirectParts(lir::AbiDirectParts::new(
                     storage.clone(),
                     coercion,
                 )?)),
-                None => Ok(indirect(input.target, storage.clone())),
+                None => Ok(indirect(abi, storage.clone())),
             }
         }
         lir::AbiPlanningValue::Scalar { value: storage, .. } => {
             Ok(lir::DirectCArgument::Scalar(lir::DirectCValue {
                 storage: storage.clone(),
-                extension: c_integer_extension(input.target, &value.ty),
+                extension: c_integer_extension(abi, &value.ty),
             }))
         }
         _ => Err(lir::AbiValueError::InvalidCoercion),
     }
 }
 
-fn indirect(target: lir::LirTargetProfile, value: lir::AbiValue) -> lir::DirectCArgument {
-    let passing = c_indirect_passing(target, &value);
+fn indirect(abi: ProcedureAbi, value: lir::AbiValue) -> lir::DirectCArgument {
+    let passing = c_indirect_passing(abi, &value);
     lir::DirectCArgument::Indirect { value, passing }
 }
 
-pub fn c_indirect_passing(
-    target: lir::LirTargetProfile,
-    value: &lir::AbiValue,
-) -> lir::CIndirectPassing {
-    match ProcedureAbi::for_target(target) {
+pub fn c_indirect_passing(abi: ProcedureAbi, value: &lir::AbiValue) -> lir::CIndirectPassing {
+    match abi {
         ProcedureAbi::DarwinAarch64 => lir::CIndirectPassing::CallerCopy,
         ProcedureAbi::SysvAmd64 => lir::CIndirectPassing::ByValue {
             alignment: NonZeroU64::new(value.layout().alignment().get().max(8))
@@ -88,12 +87,9 @@ pub fn c_indirect_passing(
     }
 }
 
-pub fn c_integer_extension(
-    target: lir::LirTargetProfile,
-    ty: &lir::CType,
-) -> lir::CIntegerExtension {
+pub fn c_integer_extension(abi: ProcedureAbi, ty: &lir::CType) -> lir::CIntegerExtension {
     use lir::CIntegerExtension as Extension;
-    match ProcedureAbi::for_target(target) {
+    match abi {
         ProcedureAbi::DarwinAarch64 | ProcedureAbi::SysvAmd64 => match ty {
             lir::CType::Integer(kind) | lir::CType::IntegralEnum { kind, .. }
                 if kind.width().bits() < 32 =>

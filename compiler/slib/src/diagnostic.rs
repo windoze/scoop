@@ -399,6 +399,9 @@ impl SlibDiagnostic for GraphValidationError {
 
 fn compatibility_diagnostic(error: &CompatibilityValidationError) -> SlibDiagnosticRecord {
     let (code, field) = match error {
+        CompatibilityValidationError::UnsupportedSelection => {
+            (SlibErrorCode::CompatibilityProfile, 5)
+        }
         CompatibilityValidationError::UnsupportedSchema { kind, .. } => (
             SlibErrorCode::CompatibilitySchema,
             match kind {

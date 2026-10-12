@@ -156,7 +156,7 @@ fn unit_exact_type() -> PersistentExactTypeId {
 fn layout_foundation() -> (ConeLirFoundation, scoop_identity::PersistentLayoutId) {
     let layout = CborIdentityRecord::from_key(LayoutKey::new(
         unit_exact_type(),
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedValue,
     ))
     .unwrap();

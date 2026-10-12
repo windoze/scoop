@@ -10,8 +10,8 @@ use super::*;
 fn elf_callable_fingerprints_normalize_section_bases_and_preserve_rela_addends() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let module = for_target(
             moving_gc::qualification::stackmap_qualification_module(),

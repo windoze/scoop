@@ -1,13 +1,15 @@
 //! Runtime composition for the implemented targets; no linker or LLVM discovery.
-use scoop_lir::{LirTargetProfile, TargetProfileId};
+use scoop_lir::LirTargetProfile;
 
 mod sources;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ValidatedRuntimeBuildProfile {
     target: LirTargetProfile,
+    components: &'static RuntimeComponents,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 struct RuntimeComponents {
     profile: &'static str,
     os: &'static [&'static str],
@@ -19,17 +21,9 @@ struct RuntimeComponents {
 }
 
 impl ValidatedRuntimeBuildProfile {
-    pub const fn for_target(target: LirTargetProfile) -> Self {
-        Self { target }
-    }
-
-    pub const fn canonical_triple(self) -> &'static str {
-        self.target.id().canonical_triple()
-    }
-
-    fn components(self) -> RuntimeComponents {
-        match self.target.id() {
-            TargetProfileId::DarwinAarch64 => RuntimeComponents {
+    pub fn for_target(target: LirTargetProfile) -> Result<Self, crate::ToolchainError> {
+        let components = match target.id() {
+            scoop_target_data::DARWIN_AARCH64_ID => &RuntimeComponents {
                 profile: "runtime/src/platform/profiles/darwin_aarch64.c",
                 os: sources::DARWIN_OS,
                 image: sources::MACHO_IMAGE,
@@ -38,8 +32,8 @@ impl ValidatedRuntimeBuildProfile {
                 arch_flags: &[],
                 includes: &["include", "src", "third_party/ryu"],
             },
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
-                RuntimeComponents {
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+                &RuntimeComponents {
                     profile: "runtime/src/platform/profiles/linux_x86_64.c",
                     os: sources::LINUX_OS,
                     image: sources::ELF_IMAGE,
@@ -58,11 +52,23 @@ impl ValidatedRuntimeBuildProfile {
                     ],
                 }
             }
-        }
+            _ => {
+                return Err(crate::ToolchainError(format!(
+                    "unsupported runtime target {}/{}",
+                    target.id().canonical_name(),
+                    target.id().major_version()
+                )));
+            }
+        };
+        Ok(Self { target, components })
+    }
+
+    pub const fn canonical_triple(self) -> &'static str {
+        self.target.contract().canonical_triple()
     }
 
     pub fn runtime_sources(self) -> Vec<&'static str> {
-        let components = self.components();
+        let components = self.components;
         sources::COMMON
             .iter()
             .copied()
@@ -74,7 +80,7 @@ impl ValidatedRuntimeBuildProfile {
     }
 
     pub fn runtime_c_flags(self) -> Vec<&'static str> {
-        let components = self.components();
+        let components = self.components;
         [
             "-pthread",
             "-fno-omit-frame-pointer",
@@ -87,6 +93,6 @@ impl ValidatedRuntimeBuildProfile {
     }
 
     pub fn include_directories(self) -> &'static [&'static str] {
-        self.components().includes
+        self.components.includes
     }
 }

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityIdError, DecodedCapabilityId};
-use scoop_lir::{TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::ValidatedLirTargetSelection;
 use scoop_protocol::{DiagnosticOriginV1, DiagnosticSeverityV1, StructuredDiagnosticV1};
 use scoop_slib::{
     ArtifactFingerprint, ConeRecord, ConeRecordValidationError, DecodedConeRecord,
@@ -66,24 +66,41 @@ impl WireEncode for CacheArtifactFingerprintClaimV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct CacheTargetSelectionV1(ValidatedLirTargetSelection);
+pub enum CacheTargetSelectionV1 {
+    DarwinAarch64,
+    LinuxX86_64Gnu,
+    LinuxX86_64Musl,
+}
 
 impl CacheTargetSelectionV1 {
-    pub const fn new(selection: ValidatedLirTargetSelection) -> Self {
-        Self(selection)
+    pub fn new(
+        selection: ValidatedLirTargetSelection,
+    ) -> Result<Self, CacheReceiptValidationError> {
+        [
+            Self::DarwinAarch64,
+            Self::LinuxX86_64Gnu,
+            Self::LinuxX86_64Musl,
+        ]
+        .into_iter()
+        .find(|value| value.selection() == selection)
+        .ok_or(CacheReceiptValidationError::UnsupportedTargetProfile)
     }
 
     pub const fn selection(self) -> ValidatedLirTargetSelection {
-        self.0
+        match self {
+            Self::DarwinAarch64 => scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
+            Self::LinuxX86_64Gnu => scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1,
+            Self::LinuxX86_64Musl => scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1,
+        }
     }
 }
 
 impl WireEncode for CacheTargetSelectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        let (target, backend) = match self.0.target().id() {
-            TargetProfileId::DarwinAarch64 => (1, 1),
-            TargetProfileId::LinuxX86_64Gnu => (2, 2),
-            TargetProfileId::LinuxX86_64Musl => (3, 2),
+        let (target, backend) = match self {
+            Self::DarwinAarch64 => (1, 1),
+            Self::LinuxX86_64Gnu => (2, 2),
+            Self::LinuxX86_64Musl => (3, 2),
         };
         DecodedCacheTargetSelectionV1 { target, backend }.encode(encoder)
     }
@@ -122,7 +139,7 @@ impl CacheReceiptBodyV1 {
             cache_key,
             artifact_fingerprint: artifact_fingerprint.into(),
             cone,
-            target_selection: CacheTargetSelectionV1::new(target_selection),
+            target_selection: CacheTargetSelectionV1::new(target_selection)?,
             direct_dependencies,
             compiler,
             artifact_profile,
@@ -383,20 +400,15 @@ struct DecodedCacheTargetSelectionV1 {
 
 impl DecodedCacheTargetSelectionV1 {
     fn validate(self) -> Result<CacheTargetSelectionV1, CacheReceiptValidationError> {
-        let id = match (self.target, self.backend) {
-            (1, 1) => TargetProfileId::DarwinAarch64,
-            (2, 2) => TargetProfileId::LinuxX86_64Gnu,
-            (3, 2) => TargetProfileId::LinuxX86_64Musl,
-            _ => {
-                return Err(CacheReceiptValidationError::UnsupportedTargetSelection {
-                    target: self.target,
-                    backend: self.backend,
-                });
-            }
-        };
-        Ok(CacheTargetSelectionV1::new(scoop_target_data::selection(
-            id,
-        )))
+        match (self.target, self.backend) {
+            (1, 1) => Ok(CacheTargetSelectionV1::DarwinAarch64),
+            (2, 2) => Ok(CacheTargetSelectionV1::LinuxX86_64Gnu),
+            (3, 2) => Ok(CacheTargetSelectionV1::LinuxX86_64Musl),
+            _ => Err(CacheReceiptValidationError::UnsupportedTargetSelection {
+                target: self.target,
+                backend: self.backend,
+            }),
+        }
     }
 }
 
@@ -613,6 +625,7 @@ pub enum CacheReceiptValidationError {
     DependencyOrder,
     UnsupportedTargetSelection { target: u32, backend: u32 },
     UnsupportedArtifactProfile,
+    UnsupportedTargetProfile,
     Resource(WireError),
 }
 
@@ -653,6 +666,9 @@ impl fmt::Display for CacheReceiptValidationError {
                 formatter,
                 "unsupported cache receipt target/backend tags {target}/{backend}"
             ),
+            Self::UnsupportedTargetProfile => {
+                formatter.write_str("unsupported cache receipt target/backend profile")
+            }
             Self::UnsupportedArtifactProfile => {
                 formatter.write_str("cache receipt does not use the strong artifact profile")
             }

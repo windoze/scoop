@@ -373,7 +373,7 @@ mod tests {
             4
         );
         let key = NativeExternalSymbolKey::for_target(
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             crate::NativeSymbolNormalization::MachOExternalUnderscore,
             &logical,
         )
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn target_default_requirement_has_fixed_vector() {
         let key = NativeLinkRequirementKey::target_default(
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             CanonicalNativeLibraryName::new("sample").unwrap(),
         );
         let encoded = encode(&key).unwrap();

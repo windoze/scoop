@@ -7,7 +7,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
     let prefix = directory.path().join("unwind");
     let include = prefix.join("include");
     std::fs::create_dir_all(&include).unwrap();
-    let installed = scoop_toolchain::runtime_unwind_include(target.id(), None)
+    let installed = scoop_toolchain::runtime_unwind_include(target.lir_target(), None)
         .unwrap()
         .unwrap();
     copy_headers(&installed, &include);

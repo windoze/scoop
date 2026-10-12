@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::ValidatedCBridgeToolchainInvocation;
-use scoop_lir::TargetProfileId;
 use scoop_process::CommandExt;
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
@@ -21,7 +20,7 @@ pub struct ValidatedCxxToolchain {
 impl ValidatedCxxToolchain {
     pub fn resolve(c: &ValidatedCBridgeToolchainInvocation) -> Result<Self, ToolchainError> {
         let target = c.profile().contract().target().id();
-        if target == TargetProfileId::LinuxX86_64Musl {
+        if target == scoop_target_data::LINUX_X86_64_MUSL_ID {
             return Err(error("native.cxx = true is not supported for Linux musl"));
         }
         let driver = discovery::paired_driver(c)?;

@@ -51,7 +51,7 @@ fn fixture(
     GeneratedBridgeUnitId,
 ) {
     let native_symbol = NativeExternalSymbolKey::for_target(
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &SourceNativeSymbol::new("native").unwrap(),
     )

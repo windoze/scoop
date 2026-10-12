@@ -417,7 +417,10 @@ mod tests {
     #[test]
     fn target_profile_refinement_has_fixed_wire() {
         assert_eq!(
-            hex(&encode(&TargetProfileWireId::darwin_aarch64()).unwrap()),
+            hex(&encode(&TargetProfileWireId::new(
+                crate::test_targets::DARWIN_AARCH64_ID
+            ))
+            .unwrap()),
             "a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301"
         );
     }
@@ -473,7 +476,7 @@ mod tests {
 
     #[test]
     fn capability_decode_validates_grammar_before_refinement() {
-        let target = TargetProfileWireId::darwin_aarch64();
+        let target = TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID);
         let decoded =
             decode_canonical::<DecodedCapabilityId>(&encode(target.capability()).unwrap()).unwrap();
         assert_eq!(
@@ -490,7 +493,7 @@ mod tests {
         );
         assert!(
             TargetProfileWireId::refine(
-                CapabilityId::new("org.scoop-lang.target-profile", "other", 1).unwrap()
+                CapabilityId::new("org.scoop-lang.backend-profile", "other", 1).unwrap()
             )
             .is_err()
         );

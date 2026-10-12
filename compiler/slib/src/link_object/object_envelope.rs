@@ -51,7 +51,7 @@ impl ValidatedObjectEnvelopeV1 {
     }
     pub const fn target(&self) -> TargetProfileId {
         match self.format {
-            ObjectEnvelopeFormatV1::DarwinArm64 { .. } => TargetProfileId::DarwinAarch64,
+            ObjectEnvelopeFormatV1::DarwinArm64 { .. } => scoop_target_data::DARWIN_AARCH64_ID,
             ObjectEnvelopeFormatV1::Elf64 { target, .. } => target,
         }
     }

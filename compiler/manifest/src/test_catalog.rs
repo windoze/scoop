@@ -4,25 +4,24 @@ use crate::{
     LoadedConeManifest, ManifestParseError, ManifestRootError, ManifestRootLocator,
     ParsedConeManifest, SourceTarget,
 };
-use scoop_identity::TargetProfileId;
 
 pub(crate) const SOURCE_TARGETS: &[SourceTarget<'static>] = &[
     SourceTarget {
-        id: TargetProfileId::DarwinAarch64,
+        id: scoop_target_data::DARWIN_AARCH64_ID,
         triple: "aarch64-apple-darwin",
         os: "darwin",
         arch: "aarch64",
         env: "none",
     },
     SourceTarget {
-        id: TargetProfileId::LinuxX86_64Gnu,
+        id: scoop_target_data::LINUX_X86_64_GNU_ID,
         triple: "x86_64-unknown-linux-gnu",
         os: "linux",
         arch: "x86_64",
         env: "gnu",
     },
     SourceTarget {
-        id: TargetProfileId::LinuxX86_64Musl,
+        id: scoop_target_data::LINUX_X86_64_MUSL_ID,
         triple: "x86_64-unknown-linux-musl",
         os: "linux",
         arch: "x86_64",

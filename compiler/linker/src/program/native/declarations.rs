@@ -62,11 +62,12 @@ pub(in crate::program) fn read(
             };
             let target = symbols.native_requirements().target();
             let name = match target.id() {
-                scoop_lir::TargetProfileId::DarwinAarch64 => "c++",
-                scoop_lir::TargetProfileId::LinuxX86_64Gnu => "stdc++",
-                scoop_lir::TargetProfileId::LinuxX86_64Musl => {
+                scoop_target_data::DARWIN_AARCH64_ID => "c++",
+                scoop_target_data::LINUX_X86_64_GNU_ID => "stdc++",
+                scoop_target_data::LINUX_X86_64_MUSL_ID => {
                     return Err(error("C++ native runtime is not supported for Linux musl"));
                 }
+                _ => return Err(error("unsupported native C++ runtime target")),
             };
             let key = NativeLinkRequirementKey::for_target(
                 target.wire_id(),

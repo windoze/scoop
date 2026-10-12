@@ -56,8 +56,8 @@ fn linux_symbols_and_libraries_retain_the_selected_libc() {
     let mut symbol_ids = Vec::new();
     let mut library_ids = Vec::new();
     for target in [
-        crate::TargetProfileWireId::linux_x86_64_gnu(),
-        crate::TargetProfileWireId::linux_x86_64_musl(),
+        crate::TargetProfileWireId::new(crate::test_targets::LINUX_X86_64_GNU_ID),
+        crate::TargetProfileWireId::new(crate::test_targets::LINUX_X86_64_MUSL_ID),
     ] {
         for spelling in ["entry", "_entry"] {
             let key = NativeExternalSymbolKey::for_target(
@@ -129,23 +129,23 @@ fn all_native_link_requirement_shapes_round_trip_and_validate() {
     };
     let values = [
         NativeLinkRequirementKey::target_default(
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             library(),
         ),
         NativeLinkRequirementKey::for_target(
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             library(),
             NativeLibraryKind::Dynamic,
             ordered.clone(),
         ),
         NativeLinkRequirementKey::for_target(
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             library(),
             NativeLibraryKind::StaticArchive,
             independent,
         ),
         NativeLinkRequirementKey::for_target(
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             library(),
             NativeLibraryKind::Framework,
             ordered,
@@ -162,7 +162,7 @@ fn all_native_link_requirement_shapes_round_trip_and_validate() {
 #[test]
 fn native_link_requirement_record_validates_before_verifying_identity() {
     let key = NativeLinkRequirementKey::for_target(
-        crate::TargetProfileWireId::darwin_aarch64(),
+        crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
         library(),
         NativeLibraryKind::Dynamic,
         NativeLibraryGrouping::Independent,
@@ -195,7 +195,7 @@ fn native_library_bindings_round_trip_and_resolve_requirement_ids() {
 #[test]
 fn native_link_keys_reject_wrong_profile_and_invalid_names() {
     let raw = RawExternalSymbolKey {
-        target: CapabilityId::new("org.scoop-lang.target-profile", "darwin-aarch64", 2).unwrap(),
+        target: CapabilityId::new("org.scoop-lang.backend-profile", "darwin-aarch64", 1).unwrap(),
         symbol: b"_entry".to_vec(),
     };
     let decoded =
@@ -206,7 +206,7 @@ fn native_link_keys_reject_wrong_profile_and_invalid_names() {
     ));
 
     let key = NativeLinkRequirementKey::for_target(
-        crate::TargetProfileWireId::darwin_aarch64(),
+        crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("sample").unwrap(),
         NativeLibraryKind::Dynamic,
         NativeLibraryGrouping::OrderedGroup {
@@ -255,7 +255,7 @@ fn replace_once(bytes: &mut [u8], source: &[u8], replacement: &[u8]) {
 
 fn symbol_key() -> NativeExternalSymbolKey {
     NativeExternalSymbolKey::for_target(
-        crate::TargetProfileWireId::darwin_aarch64(),
+        crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
         crate::NativeSymbolNormalization::MachOExternalUnderscore,
         &SourceNativeSymbol::new("entry").unwrap(),
     )

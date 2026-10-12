@@ -1,17 +1,15 @@
 //! Target aggregate classification from already-laid-out scalar leaves.
 
-use lir::{
-    AbiArrayElement, AbiCarrier, AbiCoercion, AbiPart, AbiValuePosition, FloatKind,
-    LirTargetProfile, TargetProfileId,
-};
+use super::ProcedureAbi;
+use lir::{AbiArrayElement, AbiCarrier, AbiCoercion, AbiPart, AbiValuePosition, FloatKind};
 use scoop_lir as lir;
 
 pub(super) fn coercion(
     layout: &lir::AbiAggregateLayout,
-    target: LirTargetProfile,
+    abi: ProcedureAbi,
     position: AbiValuePosition,
 ) -> Option<AbiCoercion> {
-    Aggregate(layout).coercion(target, position)
+    Aggregate(layout).coercion(abi, position)
 }
 
 struct Aggregate<'a>(&'a lir::AbiAggregateLayout);
@@ -25,14 +23,10 @@ impl std::ops::Deref for Aggregate<'_> {
 
 impl Aggregate<'_> {
     /// None is the target's MEMORY/indirect convention, not a missing plan.
-    fn coercion(
-        &self,
-        target: LirTargetProfile,
-        position: AbiValuePosition,
-    ) -> Option<AbiCoercion> {
-        match target.id() {
-            TargetProfileId::DarwinAarch64 => self.aarch64(position),
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => self.sysv(),
+    fn coercion(&self, abi: ProcedureAbi, position: AbiValuePosition) -> Option<AbiCoercion> {
+        match abi {
+            ProcedureAbi::DarwinAarch64 => self.aarch64(position),
+            ProcedureAbi::SysvAmd64 => self.sysv(),
         }
     }
 

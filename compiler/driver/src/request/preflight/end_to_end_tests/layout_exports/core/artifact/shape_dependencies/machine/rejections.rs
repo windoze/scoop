@@ -17,6 +17,10 @@ pub(super) fn check(
             selection,
             diagnostics,
         )
+        .map_err(|error| match error {
+            crate::CurrentConeLirStageError::Lowering(error) => error,
+            error => panic!("expected layout lowering error: {error}"),
+        })
     };
     let absent = Source {
         roots: vec![],

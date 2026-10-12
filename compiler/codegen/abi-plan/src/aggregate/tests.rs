@@ -1,6 +1,6 @@
 use super::*;
 use crate::registers::AbiArgumentRegisters;
-use scoop_lir::{AbiAggregateLayout, AbiScalarLeaf};
+use scoop_lir::{AbiAggregateLayout, AbiScalarLeaf, LirTargetProfile};
 
 trait TestCoercion {
     fn coercion(&self, target: LirTargetProfile, position: AbiValuePosition)
@@ -12,7 +12,7 @@ impl TestCoercion for AbiAggregateLayout {
         target: LirTargetProfile,
         position: AbiValuePosition,
     ) -> Option<AbiCoercion> {
-        coercion(self, target, position)
+        coercion(self, ProcedureAbi::for_target(target).unwrap(), position)
     }
 }
 

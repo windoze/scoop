@@ -1,6 +1,6 @@
 use super::*;
 use inkwell::{context::Context, memory_buffer::MemoryBuffer, targets::FileType};
-use scoop_lir::{OptimizationMode, TargetProfileId};
+use scoop_lir::OptimizationMode;
 
 #[test]
 fn copy_and_zero_libcalls_are_distinct_from_an_ordinary_external_call() {
@@ -16,13 +16,14 @@ fn copy_and_zero_libcalls_are_distinct_from_an_ordinary_external_call() {
         }
     "#;
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let profile = crate::ValidatedBackendProfile::from_selection(
-                scoop_target_data::selection(target),
+                scoop_target_data::selection(target)
+                    .expect("implemented target selected by this consumer"),
             )
             .unwrap()
             .with_optimization(mode);
@@ -37,7 +38,7 @@ fn copy_and_zero_libcalls_are_distinct_from_an_ordinary_external_call() {
                 .unwrap();
             let file = object::File::parse(bytes.as_slice()).unwrap();
             for helper in ["memcpy", "memset", "ordinary"] {
-                let name = if target == TargetProfileId::DarwinAarch64 {
+                let name = if target == scoop_target_data::DARWIN_AARCH64_ID {
                     format!("_{helper}")
                 } else {
                     helper.into()

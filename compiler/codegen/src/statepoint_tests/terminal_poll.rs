@@ -1,20 +1,22 @@
 use super::*;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId};
+use scoop_lir::OptimizationMode;
 
 #[test]
 fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile =
-                ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
-                    .unwrap()
-                    .with_optimization(mode);
+            let profile = ValidatedBackendProfile::from_selection(
+                scoop_target_data::selection(target)
+                    .expect("implemented target selected by this consumer"),
+            )
+            .unwrap()
+            .with_optimization(mode);
             let machine = profile.create_target_machine().unwrap();
             let context = Context::create();
             let llvm = parse(&context, include_str!("terminal_poll.ll"));

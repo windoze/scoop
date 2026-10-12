@@ -23,8 +23,8 @@ fn each_target_selects_only_its_complete_source_set() {
     let cone = TempCone::new();
     cone.write("src/ignored.scoop", "invalid source outside explicit list");
     cone.write("common/api.scoop", "fun api() {}\n");
-    for target in TargetProfileId::ALL {
-        cone.write(&format!("{}/os.scoop", target.env()), "fun platform() {}\n");
+    for target in crate::test_catalog::SOURCE_TARGETS {
+        cone.write(&format!("{}/os.scoop", target.env), "fun platform() {}\n");
     }
     cone.select(
         "[[sources]]\npath = 'common'\n\
@@ -33,15 +33,15 @@ fn each_target_selects_only_its_complete_source_set() {
                  [[sources]]\npath = 'musl'\nwhen = {env = 'musl'}\n\
                  [[sources]]\npath = 'does-not-exist'\nwhen = {os = []}\n",
     );
-    for target in TargetProfileId::ALL {
-        let sources = discover_manifest_sources(&cone.load(), target).unwrap();
+    for target in crate::test_catalog::SOURCE_TARGETS {
+        let sources = discover_manifest_sources(&cone.load(), target.id).unwrap();
         let paths: Vec<_> = sources
             .iter()
             .map(|s| s.identity().logical_path().as_str())
             .collect();
         assert_eq!(
             paths,
-            ["common/api.scoop", &format!("{}/os.scoop", target.env())]
+            ["common/api.scoop", &format!("{}/os.scoop", target.env)]
         );
     }
 }
@@ -58,7 +58,7 @@ fn all_empty_explicit_forms_do_not_fall_back_to_src() {
         std::fs::create_dir(cone.0.join("empty")).unwrap();
         cone.select(selection);
         assert!(matches!(
-            discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+            discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
                 .unwrap_err()
                 .kind(),
             SourceDiscoveryErrorKind::EmptySourceSet
@@ -72,7 +72,8 @@ fn selected_empty_directories_are_preserved_for_snapshot_materialization() {
     cone.write("api.scoop", "fun api() {}\n");
     std::fs::create_dir(cone.0.join("empty")).unwrap();
     cone.select("[[sources]]\npath = 'api.scoop'\n[[sources]]\npath = 'empty'");
-    let sources = discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64).unwrap();
+    let sources =
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID).unwrap();
     assert_eq!(
         sources.selected_directories(),
         &[ConeRelativePath::new("empty").unwrap()]
@@ -96,8 +97,8 @@ fn rejects_normalized_duplicates_nested_roots_and_file_directory_overlap() {
             "[[sources]]\npath = '{}'\n[[sources]]\npath = '{}'",
             paths[0], paths[1]
         ));
-        let error =
-            discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64).unwrap_err();
+        let error = discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
+            .unwrap_err();
         assert!(matches!(
             error.kind(),
             SourceDiscoveryErrorKind::ConflictingSelections { .. }
@@ -111,10 +112,11 @@ fn rejects_normalized_duplicates_nested_roots_and_file_directory_overlap() {
 fn mutually_exclusive_entries_can_select_the_same_path() {
     let cone = TempCone::new();
     cone.write("src/api.scoop", "fun api() {}\n");
-    let baseline = discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64).unwrap();
+    let baseline =
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID).unwrap();
     cone.select("[[sources]]\npath = './src'\nwhen = {os = 'darwin'}\n[[sources]]\npath = 'src'\nwhen = {os = 'linux'}");
-    for target in TargetProfileId::ALL {
-        let selected = discover_manifest_sources(&cone.load(), target).unwrap();
+    for target in crate::test_catalog::SOURCE_TARGETS {
+        let selected = discover_manifest_sources(&cone.load(), target.id).unwrap();
         assert_eq!(selected.first().identity(), baseline.first().identity());
     }
 }
@@ -128,7 +130,7 @@ fn rejects_selected_symlinks_outside_the_cone_and_duplicate_aliases() {
     std::os::unix::fs::symlink(outside.0.join("api.scoop"), cone.0.join("src/escape.scoop"))
         .unwrap();
     assert!(matches!(
-        discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .kind(),
         SourceDiscoveryErrorKind::EscapesConeRoot
@@ -138,7 +140,7 @@ fn rejects_selected_symlinks_outside_the_cone_and_duplicate_aliases() {
     std::os::unix::fs::symlink("../api.scoop", cone.0.join("src/alias.scoop")).unwrap();
     cone.select("[[sources]]\npath = 'api.scoop'\n[[sources]]\npath = 'src'");
     assert!(matches!(
-        discover_manifest_sources(&cone.load(), TargetProfileId::DarwinAarch64)
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .kind(),
         SourceDiscoveryErrorKind::ConflictingSelections { .. }

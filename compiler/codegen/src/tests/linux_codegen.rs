@@ -29,7 +29,9 @@ mod slib_support;
 mod slib_types;
 
 fn for_target(mut module: Module, target: scoop_lir::TargetProfileId) -> Module {
-    module.meta = string_metadata_for(scoop_target_data::layout(target));
+    module.meta = string_metadata_for(
+        scoop_target_data::layout(target).expect("implemented target selected by this consumer"),
+    );
     module
 }
 
@@ -39,9 +41,10 @@ fn emit(
     separate_sections: bool,
     path: &Path,
 ) -> (ValidatedBackendProfile, statepoint::ExpectedSafepoints) {
-    let profile = ValidatedBackendProfile::from_selection(scoop_target_data::selection(
-        module.meta.target_profile.id(),
-    ))
+    let profile = ValidatedBackendProfile::from_selection(
+        scoop_target_data::selection(module.meta.target_profile.id())
+            .expect("implemented target selected by this consumer"),
+    )
     .expect("Linux backend")
     .with_optimization(if optimization == OptimizationLevel::None {
         scoop_lir::OptimizationMode::Debug
@@ -90,8 +93,8 @@ fn check(
 fn linux_amd64_statepoints_and_exceptions_at_o0_and_o2() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for optimization in [OptimizationLevel::None, OptimizationLevel::Default] {
             for separate_sections in [false, true] {
@@ -115,7 +118,7 @@ fn linux_amd64_statepoints_and_exceptions_at_o0_and_o2() {
 fn linux_amd64_rejects_damaged_stackmap_and_eh_pointers() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("code.o");
-    let module = for_target(exceptions_module(), TargetProfileId::LinuxX86_64Gnu);
+    let module = for_target(exceptions_module(), scoop_target_data::LINUX_X86_64_GNU_ID);
     let (profile, expected) = emit(&module, OptimizationLevel::None, true, &path);
     check(&module, &expected, profile, &path).unwrap();
     let bytes = std::fs::read(&path).unwrap();
@@ -163,11 +166,12 @@ fn linux_amd64_rejects_damaged_stackmap_and_eh_pointers() {
 fn linux_amd64_requires_noredzone_on_rewritten_functions() {
     let module = for_target(
         moving_gc::qualification::stackmap_qualification_module(),
-        TargetProfileId::LinuxX86_64Gnu,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
     );
-    let profile = ValidatedBackendProfile::from_selection(scoop_target_data::selection(
-        module.meta.target_profile.id(),
-    ))
+    let profile = ValidatedBackendProfile::from_selection(
+        scoop_target_data::selection(module.meta.target_profile.id())
+            .expect("implemented target selected by this consumer"),
+    )
     .unwrap();
     let machine = profile.create_target_machine().unwrap();
     let context = Context::create();

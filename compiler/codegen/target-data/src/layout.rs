@@ -56,17 +56,20 @@ const LINUX: TargetLayoutDescription = TargetLayoutDescription {
 };
 
 pub const DARWIN_AARCH64: LirTargetProfile =
-    LirTargetProfile::new(TargetProfileId::DarwinAarch64, &DARWIN);
+    LirTargetProfile::new(&crate::DARWIN_AARCH64_ID, &DARWIN);
 pub const LINUX_X86_64_GNU: LirTargetProfile =
-    LirTargetProfile::new(TargetProfileId::LinuxX86_64Gnu, &LINUX);
+    LirTargetProfile::new(&crate::LINUX_X86_64_GNU_ID, &LINUX);
 pub const LINUX_X86_64_MUSL: LirTargetProfile = LirTargetProfile::new(
-    TargetProfileId::LinuxX86_64Musl,
+    &crate::LINUX_X86_64_MUSL_ID,
     &TargetLayoutDescription {
         canonical_triple: "x86_64-unknown-linux-musl",
         ..LINUX
     },
 );
 
-pub const fn layout(id: TargetProfileId) -> LirTargetProfile {
-    crate::selection(id).target()
+pub const fn layout(id: TargetProfileId) -> Option<LirTargetProfile> {
+    match crate::selection(id) {
+        Some(selection) => Some(selection.target()),
+        None => None,
+    }
 }

@@ -15,19 +15,25 @@ pub fn darwin_c_bridge_profile(
         },
         CanonicalCBridgeFlagContractV1::CURRENT,
     )?;
-    CBridgeToolchainProfileV1::new(c_bridge_toolchain_id(crate::DARWIN_AARCH64.id()), contract)
+    CBridgeToolchainProfileV1::new(
+        c_bridge_toolchain_id(crate::DARWIN_AARCH64.id()).expect("registered Darwin C producer"),
+        contract,
+    )
 }
 
 pub fn linux_c_bridge_profile(
     target: LirTargetProfile,
     compiler: GccCompilerIdentityV1,
 ) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
-    if target == crate::DARWIN_AARCH64 {
+    if !matches!(
+        target.id(),
+        crate::LINUX_X86_64_GNU_ID | crate::LINUX_X86_64_MUSL_ID
+    ) {
         return Err(CBridgeToolchainBuildError::Platform(
             CBridgePlatformError::ExpectedLinux,
         ));
     }
-    let id = c_bridge_toolchain_id(target.id());
+    let id = c_bridge_toolchain_id(target.id()).expect("registered Linux C producer");
     let contract = CBridgeToolchainContractV1::new(
         target,
         CBridgePlatformContractV1::Linux { compiler },
@@ -37,11 +43,12 @@ pub fn linux_c_bridge_profile(
     CBridgeToolchainProfileV1::new(id, contract).map_err(CBridgeToolchainBuildError::Hash)
 }
 
-pub fn c_bridge_toolchain_id(target: TargetProfileId) -> CBridgeToolchainProfileId {
+pub fn c_bridge_toolchain_id(target: TargetProfileId) -> Option<CBridgeToolchainProfileId> {
     let name = match target {
-        TargetProfileId::DarwinAarch64 => "darwin-aarch64-apple-clang",
-        TargetProfileId::LinuxX86_64Gnu => "linux-x86-64-gnu-gcc",
-        TargetProfileId::LinuxX86_64Musl => "linux-x86-64-musl-gcc",
+        crate::DARWIN_AARCH64_ID => "darwin-aarch64-apple-clang",
+        crate::LINUX_X86_64_GNU_ID => "linux-x86-64-gnu-gcc",
+        crate::LINUX_X86_64_MUSL_ID => "linux-x86-64-musl-gcc",
+        _ => return None,
     };
-    CBridgeToolchainProfileId::new(name, 1).expect("canonical toolchain identity")
+    Some(CBridgeToolchainProfileId::new(name, 1).expect("canonical toolchain identity"))
 }

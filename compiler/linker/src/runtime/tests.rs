@@ -18,7 +18,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let invocation = resolve_linux_c_toolchain(target, None, None).unwrap();
-        let profile = ValidatedRuntimeBuildProfile::for_target(target);
+        let profile = ValidatedRuntimeBuildProfile::for_target(target).unwrap();
         let directory = tempfile::tempdir().unwrap();
         let unwind = workspace
             .join("sysroot/native")

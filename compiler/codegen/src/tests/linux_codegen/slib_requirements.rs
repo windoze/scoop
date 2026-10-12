@@ -50,8 +50,8 @@ fn elf_strong_closure_rejects_mixed_libc_members_and_requirement_targets() {
     let directory = tempfile::tempdir().unwrap();
     let mut closures = Vec::new();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let fixture = SlibObjects::new(
             for_target(

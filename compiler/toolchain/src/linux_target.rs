@@ -48,9 +48,9 @@ pub(crate) struct LinuxTarget {
 impl LinuxTarget {
     pub(crate) fn select(target: TargetProfileId) -> Result<Self, ToolchainError> {
         let (machine, libc) = match target {
-            TargetProfileId::LinuxX86_64Gnu => (LinuxMachine::X86_64, LinuxLibc::Gnu),
-            TargetProfileId::LinuxX86_64Musl => (LinuxMachine::X86_64, LinuxLibc::Musl),
-            TargetProfileId::DarwinAarch64 => {
+            scoop_target_data::LINUX_X86_64_GNU_ID => (LinuxMachine::X86_64, LinuxLibc::Gnu),
+            scoop_target_data::LINUX_X86_64_MUSL_ID => (LinuxMachine::X86_64, LinuxLibc::Musl),
+            _ => {
                 return Err(ToolchainError(
                     "Linux toolchain requires a Linux target".into(),
                 ));

@@ -12,4 +12,5 @@ toml.workspace = true
 toml_edit.workspace = true
 
 [dev-dependencies]
+scoop-target-data.workspace = true
 tempfile.workspace = true

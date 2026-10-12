@@ -203,7 +203,7 @@ fn changing_the_contract_changes_the_code_projection() {
     )
     .unwrap();
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -285,7 +285,7 @@ fn contract_record(
     NativeExternalContractRecord::new(
         source(source_seed),
         NativeExternalSymbolKey::for_target(
-            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new(symbol).unwrap(),
         )
@@ -332,7 +332,7 @@ fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberRecord {
             logical_key: LogicalMemberKey::new(logical_key.as_bytes().to_vec()).unwrap(),
         },
         SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             object_format: ObjectFormatId::macho_relocatable(),
             verifier_capability: capability,
         },

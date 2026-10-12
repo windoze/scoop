@@ -250,3 +250,6 @@ pub use validation::{
     SemanticIdentityImport, SemanticIdentityImportError, SemanticIdentitySession,
     SemanticOriginFingerprint, ValidatedIdentityGraph,
 };
+
+#[cfg(test)]
+mod test_targets;

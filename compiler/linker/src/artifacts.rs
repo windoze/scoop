@@ -75,7 +75,7 @@ pub fn resolve_program_link_profile(
         .filter(|(artifact, _)| artifact.foundation().native_cxx())
         .map(|(artifact, _)| artifact.manifest().cone().coordinate().to_string())
         .collect::<Vec<_>>();
-    if !origins.is_empty() && target.id() == scoop_lir::TargetProfileId::LinuxX86_64Musl {
+    if !origins.is_empty() && target.id() == scoop_target_data::LINUX_X86_64_MUSL_ID {
         return Err(error(format!(
             "C++ native runtime is not supported for Linux musl; required by {}",
             origins.join(", ")

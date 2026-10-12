@@ -3,14 +3,18 @@ use object::ObjectSection;
 use scoop_lir::{DefinitionAtomRole, OptimizationMode, TargetProfileId};
 
 fn profile(target: TargetProfileId, mode: OptimizationMode) -> ValidatedBackendProfile {
-    ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
-        .unwrap()
-        .with_optimization(mode)
+    ValidatedBackendProfile::from_selection(
+        scoop_target_data::selection(target).expect("implemented target selected by this consumer"),
+    )
+    .unwrap()
+    .with_optimization(mode)
 }
 
 fn input_for(mut module: Module, target: TargetProfileId) -> scoop_lir::ConeLirOutput {
     module.output = scoop_lir::LirOutput::Library;
-    module.meta = string_metadata_for(scoop_target_data::layout(target));
+    module.meta = string_metadata_for(
+        scoop_target_data::layout(target).expect("implemented target selected by this consumer"),
+    );
     scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap()
 }
 
@@ -52,9 +56,9 @@ fn pair_roots(null: bool) -> Module {
 fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for null in [false, true] {
             let input = input_for(pair_roots(null), target);
@@ -166,9 +170,9 @@ fn dead_invokes_module() -> Module {
 fn deleted_invokes_leave_no_site_registration_image_entry_or_backend_atom() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let input = input_for(dead_invokes_module(), target);

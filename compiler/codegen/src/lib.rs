@@ -157,4 +157,4 @@ mod tests;
 mod metadata_sections;
 
 /// Plan complete Scoop and C call signatures before LIR body construction.
-pub use scoop_abi_plan::plan as plan_abi;
+pub use scoop_abi_plan::{AbiPlanError as AbiPlanningError, plan as plan_abi};

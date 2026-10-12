@@ -9,10 +9,13 @@ pub(super) enum StackmapArchitecture {
 }
 
 impl StackmapArchitecture {
-    pub(super) fn for_target(target: TargetProfileId) -> Self {
+    pub(super) fn for_target(target: TargetProfileId) -> Option<Self> {
         match target {
-            TargetProfileId::DarwinAarch64 => Self::Aarch64,
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => Self::X86_64,
+            scoop_target_data::DARWIN_AARCH64_ID => Some(Self::Aarch64),
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+                Some(Self::X86_64)
+            }
+            _ => None,
         }
     }
 

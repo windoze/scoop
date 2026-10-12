@@ -104,7 +104,9 @@ pub(super) fn check(
         .unwrap()];
     assert!(matches!(
         crate::lir_pipeline::lower(input.mir, string, callables, provider.target.lir_target(),),
-        Err(scoop_lir_lower::LirLoweringError::MissingDependencyLayoutSelection { .. })
+        Err(crate::CurrentConeLirStageError::Lowering(
+            scoop_lir_lower::LirLoweringError::MissingDependencyLayoutSelection { .. }
+        ))
     ));
 
     let coordinate = ConeCoordinate::new("dev.example", "shape-consumer", "0.1.0").unwrap();

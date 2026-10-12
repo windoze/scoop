@@ -8,21 +8,21 @@ use scoop_manifest::{
 
 pub const SOURCE_TARGETS: &[SourceTarget<'static>] = &[
     SourceTarget {
-        id: TargetProfileId::DarwinAarch64,
+        id: scoop_target_data::DARWIN_AARCH64_ID,
         triple: "aarch64-apple-darwin",
         os: "darwin",
         arch: "aarch64",
         env: "none",
     },
     SourceTarget {
-        id: TargetProfileId::LinuxX86_64Gnu,
+        id: scoop_target_data::LINUX_X86_64_GNU_ID,
         triple: "x86_64-unknown-linux-gnu",
         os: "linux",
         arch: "x86_64",
         env: "gnu",
     },
     SourceTarget {
-        id: TargetProfileId::LinuxX86_64Musl,
+        id: scoop_target_data::LINUX_X86_64_MUSL_ID,
         triple: "x86_64-unknown-linux-musl",
         os: "linux",
         arch: "x86_64",
@@ -38,4 +38,20 @@ pub fn load_cone_manifest(
     locator: &ManifestRootLocator,
 ) -> Result<LoadedConeManifest, ManifestRootError> {
     scoop_manifest::load_cone_manifest(locator, SOURCE_TARGETS)
+}
+
+pub(crate) fn source_target(
+    id: TargetProfileId,
+) -> Result<SourceTarget<'static>, crate::ToolchainError> {
+    SOURCE_TARGETS
+        .iter()
+        .find(|target| target.id == id)
+        .copied()
+        .ok_or_else(|| {
+            crate::ToolchainError(format!(
+                "unsupported native source target {}/{}",
+                id.canonical_name(),
+                id.major_version()
+            ))
+        })
 }

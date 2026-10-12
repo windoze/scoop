@@ -81,7 +81,7 @@ impl DarwinFinalLinkProfile {
     }
 
     pub const fn id(&self) -> TargetProfileId {
-        TargetProfileId::DarwinAarch64
+        scoop_target_data::DARWIN_AARCH64_ID
     }
     pub const fn target(&self) -> LirTargetProfile {
         scoop_target_data::DARWIN_AARCH64

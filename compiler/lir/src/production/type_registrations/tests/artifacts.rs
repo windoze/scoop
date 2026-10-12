@@ -6,7 +6,7 @@ pub(super) fn type_artifacts(seed: u8) -> TypeArtifacts {
     let exact_type = exact_type(&format!("Type{seed}"));
     let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type,
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedObject,
     ))
     .unwrap();

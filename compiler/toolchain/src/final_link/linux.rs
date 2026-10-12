@@ -53,7 +53,7 @@ impl LinuxFinalLinkProfile {
                 "M28 supports glibc dynamic PIE; glibc static linking is outside its target matrix",
             ));
         }
-        let runtime = RuntimeLibraries::resolve(target, options, cxx)?;
+        let runtime = RuntimeLibraries::resolve(startup.target(), options, cxx)?;
         let linker = probe::driver_program(&startup, "ld")?;
         let version = probe::run(Command::new(&linker).arg("--version"))?;
         let linker_version = String::from_utf8(version.stdout).map_err(error)?;

@@ -6,9 +6,9 @@
 
 1. 已同步三份规范与路线图：明确布局／签名准备、codegen ABI 规划、完整 LIR 完成，typed 身份与消费者支持边界，工具执行及 runtime 组件职责。
 2. 已完成：C toolchain 宿主 invocation 移出 LIR，generated-C 编译交由 driver 编排。
-3. 已完成全部 Scoop/C ABI 规划迁移及显式 manifest 目录；已完成布局／LLVM 配置登记拆分；目标与 C 工具链身份的开放格式仍在实施。
+3. 已完成全部 Scoop/C ABI 规划迁移、显式 manifest 目录、布局／LLVM 配置登记及 target/backend/C toolchain 身份拆分。
 4. 已完成 runtime 组件、ELF 容器／机器规则及 Linux machine／libc 工具链选择。
-5. 待验收：本机定向回归、Linux Rust 与正式 CLI 完整覆盖、边界审查及清理。
+5. 本机定向回归已通过；待完成 Linux Rust 与正式 CLI 完整覆盖、最终边界审查及清理。
 
 ## 验证环境与纪律
 
@@ -74,7 +74,7 @@
 ## 功能 8：静态目标合同与 LLVM 配置登记
 
 - LIR 只保留完整布局、backend 合同与 canonical 编码；当前三个 target 的 data layout、CPU/features、C profile 构造集中到 codegen 所属的 `scoop-target-data`。该静态模块不含 LLVM、ABI 分类器或工具执行，供真实 artifact-only 消费者复用。新增源文件最长 72 行。
-- backend identity 改为 canonical name/version 数据；codegen 明确拒绝未知身份、修改后的 CPU 合同及不匹配的目标组合。slib 兼容性读取同时核对所选 target/backend 身份与各自指纹，拒绝未知身份冒用已知指纹。
+- backend identity 改为 canonical name/version 数据；codegen 明确拒绝未知身份、修改后的 CPU 合同及不匹配的目标组合。slib 兼容性读取同时核对所选 target/backend 身份与各自指纹，拒绝未知身份搭配已知指纹。
 - 本机 fmt、workspace clippy；344 项 identity、473 项 LIR、23 项 toolchain、9 项兼容性读取、5 项 backend 选择测试通过。既有布局／backend／C toolchain 固定向量未改。
 - release 三个 CLI 构建成功；5 项小值／跨库／native 正式 CLI 通过（10 变体、50 进程、6 次 golden），见 [08-darwin.json](validation/08-darwin.json)。已清理 9.27 GiB debug incremental。
 
@@ -89,3 +89,12 @@
 - 将 native symbol normalization 作为纯数据传给身份构造；删除身份层隐含 Darwin 目标的符号、library 和 layout 构造器。对象前缀不再由 identity 查询 target 名称。
 - identity 只检查身份和符号字节格式；slib 在已有 native 目标消费边界按源码重建并核对完整合同，保留 Mach-O／ELF 前缀不匹配拒绝。新增回归同时覆盖两种真实目标的正确及错误归一化方式。
 - 本机 fmt、workspace clippy、345 项身份测试、1 项 native 消费边界、4 项 native lowering 与 2 项 native global codegen 测试通过。固定符号身份与 library 编码未变；Linux 专有 bridge 测试留到 Linux 全量验收。
+
+## 功能 11：target 身份格式与消费者支持范围
+
+- `TargetProfileId` 只保存 canonical 名称／版本；删除 identity 的 ALL、OS／arch／libc／triple／对象前缀及具体目标构造器。三个实现身份登记在 `scoop-target-data`，manifest 和 native 预处理读取 driver 的显式来源目录。
+- codegen、ABI planner、对象／stackmap reader、C/runtime toolchain 与缓存分别明确拒绝未知或不匹配的目标。driver 区分 ABI 规划错误与 lowering 错误；runtime 保存选中的完整组件，final-link 复用 invocation 保存的目标描述。旧缓存标签仍由缓存消费者编码，不改变 wire。
+- target wire identity 用共享不可变数据保存，避免身份开放后放大错误值和重复克隆字符串；LIR 仍只存完整描述，不依赖任何目标登记模块。新增 ABI planner 目标选择每批请求只执行一次。
+- 本机 fmt、workspace clippy 通过。定向测试：345 identity、473 LIR、154 lowering、45 manifest、567 slib、25 toolchain、6 ABI planner、6 codegen target、9 cache、4 driver pipeline，全部通过。固定编码／指纹和负向诊断未更新。
+- release CLI 构建成功；源码选择／缓存、非法条件、错误目标 core、errno callback／跨库、小值 native／artifact 组合共 58 项通过、1 项不适用于本机（67 变体、155 进程、6 次 golden），见 [11-darwin.json](validation/11-darwin.json)。
+- 生产依赖树确认 `scoop`、`scoop-linker`、`scoop-toolchain` 均不包含 `scoop-codegen`、`scoop-abi-plan`、inkwell 或 llvm-sys；公共 identity/LIR/lir-lower 中的具体 ABI 搜索仅剩数据注释和 provider-storage 测试名称。

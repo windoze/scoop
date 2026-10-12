@@ -84,12 +84,15 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
 fn receipt_preserves_each_target_and_rejects_mixed_backend_tags() {
     let mut fingerprints = std::collections::BTreeSet::new();
     for id in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let mut body = receipt_with_warnings(Vec::new()).body().clone();
-        body.target_selection = CacheTargetSelectionV1::new(scoop_target_data::selection(id));
+        body.target_selection = CacheTargetSelectionV1::new(
+            scoop_target_data::selection(id).expect("implemented target selected by this consumer"),
+        )
+        .unwrap();
         let receipt = CacheReceiptV1::new(body).unwrap();
         assert_eq!(
             decode_cache_receipt_v1(&encode(&receipt).unwrap()).unwrap(),
@@ -259,4 +262,27 @@ fn receipt_body_with_warning(
         ArtifactCapabilityProfileId::cross_cone_generic(),
         vec![warning],
     )
+}
+
+#[test]
+fn cache_selection_rejects_unknown_targets_and_mixed_backend_contracts() {
+    const UNKNOWN: scoop_lir::TargetProfileId =
+        match scoop_lir::TargetProfileId::new("unknown-target", 1) {
+            Ok(id) => id,
+            Err(_) => panic!("canonical test identity"),
+        };
+    let target =
+        scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
+    for selection in [
+        scoop_lir::ValidatedLirTargetSelection::new(target, scoop_target_data::LLVM_22_1),
+        scoop_lir::ValidatedLirTargetSelection::new(
+            scoop_target_data::DARWIN_AARCH64,
+            scoop_target_data::LLVM_22_1_LINUX_X86_64,
+        ),
+    ] {
+        assert!(matches!(
+            CacheTargetSelectionV1::new(selection),
+            Err(CacheReceiptValidationError::UnsupportedTargetProfile)
+        ));
+    }
 }

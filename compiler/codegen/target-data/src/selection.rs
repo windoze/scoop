@@ -7,10 +7,11 @@ pub const LINUX_X86_64_GNU_LLVM_22_1: ValidatedLirTargetSelection =
 pub const LINUX_X86_64_MUSL_LLVM_22_1: ValidatedLirTargetSelection =
     ValidatedLirTargetSelection::new(crate::LINUX_X86_64_MUSL, crate::LLVM_22_1_LINUX_X86_64);
 
-pub const fn selection(id: TargetProfileId) -> ValidatedLirTargetSelection {
+pub const fn selection(id: TargetProfileId) -> Option<ValidatedLirTargetSelection> {
     match id {
-        TargetProfileId::DarwinAarch64 => DARWIN_AARCH64_LLVM_22_1,
-        TargetProfileId::LinuxX86_64Gnu => LINUX_X86_64_GNU_LLVM_22_1,
-        TargetProfileId::LinuxX86_64Musl => LINUX_X86_64_MUSL_LLVM_22_1,
+        crate::DARWIN_AARCH64_ID => Some(DARWIN_AARCH64_LLVM_22_1),
+        crate::LINUX_X86_64_GNU_ID => Some(LINUX_X86_64_GNU_LLVM_22_1),
+        crate::LINUX_X86_64_MUSL_ID => Some(LINUX_X86_64_MUSL_LLVM_22_1),
+        _ => None,
     }
 }

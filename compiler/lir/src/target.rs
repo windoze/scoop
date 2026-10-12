@@ -138,7 +138,7 @@ impl PointerRepresentation {
 /// This crate does not register or select concrete target implementations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct LirTargetProfile {
-    id: TargetProfileId,
+    id: &'static TargetProfileId,
     description: &'static TargetLayoutDescription,
 }
 
@@ -176,11 +176,14 @@ impl NativeObjectFormat {
 }
 
 impl LirTargetProfile {
-    pub const fn new(id: TargetProfileId, description: &'static TargetLayoutDescription) -> Self {
+    pub const fn new(
+        id: &'static TargetProfileId,
+        description: &'static TargetLayoutDescription,
+    ) -> Self {
         Self { id, description }
     }
     pub const fn id(self) -> TargetProfileId {
-        self.id
+        *self.id
     }
     pub const fn description(self) -> &'static TargetLayoutDescription {
         self.description
@@ -189,7 +192,7 @@ impl LirTargetProfile {
         self.description.object_format
     }
     pub fn wire_id(self) -> scoop_identity::TargetProfileWireId {
-        scoop_identity::TargetProfileWireId::new(self.id)
+        scoop_identity::TargetProfileWireId::new(*self.id)
     }
     pub const fn contract(self) -> TargetProfileContract {
         TargetProfileContract::new(self)

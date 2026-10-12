@@ -138,7 +138,7 @@ fn builtin_member_roles_preserve_the_selected_target_and_object_format() {
                 panic!("builtin object role");
             };
             assert_eq!(*target_profile, target.wire_id());
-            assert_eq!(*object_format, target.id().object_format());
+            assert_eq!(*object_format, target.native_object_format().wire_id());
         }
         let actual_ids = members.iter().map(|(id, _)| *id).collect::<Vec<_>>();
         if let Some(ids) = &ids {
@@ -172,7 +172,7 @@ fn fixture(include_bridge: bool) -> Fixture {
     let lir_plans = [lir_records[0].id(), lir_records[1].id()];
 
     let native_symbol = NativeExternalSymbolKey::for_target(
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &SourceNativeSymbol::new("native_bridge").unwrap(),
     )

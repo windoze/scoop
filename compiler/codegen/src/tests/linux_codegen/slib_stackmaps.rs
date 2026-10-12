@@ -9,8 +9,8 @@ use super::*;
 fn elf_stackmaps_validate_actual_member_definitions_roots_and_return_pcs() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let mut module = for_target(
             moving_gc::qualification::stackmap_qualification_module(),

@@ -10,8 +10,8 @@ use super::{
     MachineScalarKind, MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
     NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedTypedCall,
     NonEmptyRefScan, NullNicheKind, PointerKind, PointerNullEncoding, RefScan, ScoopAbiSignature,
-    ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId, TypedCall, TypedCallResult,
-    TypedCallView, Value, VoidCallSignature,
+    ScoopExternFunction, ScoopExternFunctionRef, TypedCall, TypedCallResult, TypedCallView, Value,
+    VoidCallSignature,
 };
 
 pub(crate) fn test_physical_exact(
@@ -92,9 +92,10 @@ fn abi_zst(ty: LirType, alignment: u64) -> AbiZst {
 
 #[test]
 fn darwin_aarch64_profile_fixes_every_backend_scalar_layout() {
-    let profile = crate::target_fixtures::layout(TargetProfileId::DarwinAarch64);
+    let profile = crate::target_fixtures::layout(crate::target_fixtures::DARWIN_AARCH64_ID)
+        .expect("implemented target selected by this consumer");
 
-    assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
+    assert_eq!(profile.id(), crate::target_fixtures::DARWIN_AARCH64_ID);
     assert_eq!(profile.id().canonical_name(), "darwin-aarch64");
     assert_eq!(
         profile.canonical_llvm_data_layout(),
@@ -699,7 +700,7 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
 fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     let mut functions = ExternFunctions::default();
     let native_symbol = scoop_identity::NativeExternalSymbolKey::for_target(
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &scoop_identity::SourceNativeSymbol::new("c").unwrap(),
     )

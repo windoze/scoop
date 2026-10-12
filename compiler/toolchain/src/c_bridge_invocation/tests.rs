@@ -105,3 +105,26 @@ fn producer_selection_rejects_unknown_version_and_mismatched_profile() {
         ));
     }
 }
+
+#[test]
+fn canonical_unknown_target_is_rejected_by_runtime_and_c_selection() {
+    const UNKNOWN: scoop_lir::TargetProfileId =
+        match scoop_lir::TargetProfileId::new("unknown-target", 1) {
+            Ok(id) => id,
+            Err(_) => panic!("canonical test identity"),
+        };
+    let target =
+        scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
+    assert!(crate::ValidatedRuntimeBuildProfile::for_target(target).is_err());
+    assert!(crate::linux_target::LinuxTarget::select(UNKNOWN).is_err());
+    assert!(crate::manifest::source_target(UNKNOWN).is_err());
+    assert!(
+        ValidatedCBridgeToolchainInvocation::new(
+            target,
+            profile(),
+            PathBuf::from("/toolchain/clang"),
+            PathBuf::from("/toolchain/sdk")
+        )
+        .is_err()
+    );
+}

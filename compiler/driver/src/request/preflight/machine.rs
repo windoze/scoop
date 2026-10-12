@@ -74,8 +74,7 @@ pub(super) fn lower_selected_lir(
         target,
         selected_layout,
         diagnostics,
-    )
-    .map_err(CurrentConeLirStageError::Lowering)?;
+    )?;
     let public = scoop_lir_lower::lower_cross_cone_bridge_section(strong, public, &lir)
         .map_err(CurrentConeLirStageError::CrossConeBridge)?;
     Ok((lir, public))

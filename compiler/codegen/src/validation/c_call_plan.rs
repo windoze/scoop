@@ -28,24 +28,26 @@ pub(super) fn validate(
             };
         }
     };
+    let abi = scoop_abi_plan::ProcedureAbi::for_target(target)
+        .map_err(|error| CodegenError(error.to_string()))?;
     let params_match = signature.params.len() == plan.params.len()
         && signature
             .params
             .iter()
             .zip(&plan.params)
             .all(|(ty, argument)| match argument {
-                DirectCArgument::Scalar(value) => matches_scalar(target, ty, value),
+                DirectCArgument::Scalar(value) => matches_scalar(abi, ty, value),
                 DirectCArgument::DirectParts(parts) => matches_aggregate(ty, parts.value()),
                 DirectCArgument::Indirect { value, passing } => {
                     let passing_matches =
-                        *passing == scoop_abi_plan::c_indirect_passing(target, value);
+                        *passing == scoop_abi_plan::c_indirect_passing(abi, value);
                     passing_matches && matches_aggregate(ty, value)
                 }
             });
     let result_matches = match (&signature.return_type, &plan.result) {
         (scoop_lir::CReturnType::Void, DirectCReturn::Void) => true,
         (scoop_lir::CReturnType::Value(ty), DirectCReturn::Value(value)) => {
-            matches_scalar(target, ty, value)
+            matches_scalar(abi, ty, value)
         }
         (scoop_lir::CReturnType::Value(ty), DirectCReturn::DirectParts(parts)) => {
             matches_aggregate(ty, parts.value())
@@ -72,8 +74,8 @@ fn matches_storage(ty: &CType, value: &scoop_lir::AbiValue) -> bool {
     value.storage_type() == &ty.storage_type() && value.scan() == &RefScan::None
 }
 
-fn matches_scalar(target: scoop_lir::LirTargetProfile, ty: &CType, value: &DirectCValue) -> bool {
+fn matches_scalar(abi: scoop_abi_plan::ProcedureAbi, ty: &CType, value: &DirectCValue) -> bool {
     !matches!(ty, CType::Struct(_))
         && matches_storage(ty, &value.storage)
-        && scoop_abi_plan::c_integer_extension(target, ty) == value.extension
+        && scoop_abi_plan::c_integer_extension(abi, ty) == value.extension
 }

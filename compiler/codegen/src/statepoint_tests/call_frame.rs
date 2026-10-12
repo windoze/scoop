@@ -1,6 +1,6 @@
 use super::*;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId};
+use scoop_lir::OptimizationMode;
 
 const SOURCE: &str = r#"
 declare void @tick()
@@ -26,12 +26,15 @@ attributes #2 = { "statepoint-id"="8" }
 #[test]
 fn amd64_byval_calls_preserve_the_fixed_managed_frame() {
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
-        let profile = ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
-            .unwrap()
-            .with_optimization(OptimizationMode::Release);
+        let profile = ValidatedBackendProfile::from_selection(
+            scoop_target_data::selection(target)
+                .expect("implemented target selected by this consumer"),
+        )
+        .unwrap()
+        .with_optimization(OptimizationMode::Release);
         let machine = profile.create_target_machine().unwrap();
         let context = Context::create();
         let llvm = parse(&context, SOURCE);

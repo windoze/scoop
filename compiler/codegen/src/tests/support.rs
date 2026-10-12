@@ -152,7 +152,7 @@ fn native_function_contract_with_signature(
     signature: scoop_identity::CanonicalCAbiFunctionSignature,
 ) -> scoop_identity::NativeExternalContractRecord {
     let symbol = scoop_identity::NativeExternalSymbolKey::for_target(
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &scoop_identity::SourceNativeSymbol::new(&format!("test_bridge_{seed}")).unwrap(),
     )
@@ -171,7 +171,7 @@ fn native_function_contract_with_signature(
 
 fn native_global_contract(seed: u8) -> scoop_identity::NativeExternalContractRecord {
     let symbol = scoop_identity::NativeExternalSymbolKey::for_target(
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
         &scoop_identity::SourceNativeSymbol::new(&format!("test_global_{seed}")).unwrap(),
     )

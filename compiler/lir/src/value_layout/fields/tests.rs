@@ -60,7 +60,7 @@ pub(super) fn value(
         TARGET,
         LayoutKey::new(
             exact(name),
-            scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
             RepresentationRole::ManagedValue,
         ),
         storage,
@@ -79,7 +79,7 @@ fn input<'a>(values: &'a [ValueLayoutConstituentV1]) -> Vec<DeclaredFieldStorage
 fn class_key(name: &str) -> LayoutKey {
     LayoutKey::new(
         exact(name),
-        scoop_identity::TargetProfileWireId::darwin_aarch64(),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedObject,
     )
 }

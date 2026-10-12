@@ -15,8 +15,8 @@ use crate::tests::c_layout::{c_opaque_pointer, c_value};
 fn linux_generated_c_requirements_cover_native_tls_and_callback_contracts() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let (module, _) = fixture(target);
         let fixture = super::slib_support::SlibObjects::new(module, directory.path());
@@ -38,8 +38,8 @@ fn linux_generated_c_requirements_cover_native_tls_and_callback_contracts() {
 fn linux_generated_c_functions_tls_and_callback_link_and_run() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let (module, harness) = fixture(target);
         let invocation =
@@ -146,7 +146,7 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
         let program = directory.path().join("bridge-test");
         std::fs::write(&source, harness).unwrap();
         let mut link = invocation.driver_command();
-        link.arg(if target == TargetProfileId::LinuxX86_64Musl {
+        link.arg(if target == scoop_target_data::LINUX_X86_64_MUSL_ID {
             "-static"
         } else {
             "-pie"

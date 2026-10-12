@@ -447,7 +447,7 @@ mod tests {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
         let layout_key = LayoutKey::new(
             exact,
-            crate::TargetProfileWireId::darwin_aarch64(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
             RepresentationRole::ManagedObject,
         );
         let layout = PersistentLayoutId::from_key(&layout_key).unwrap();

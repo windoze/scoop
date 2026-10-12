@@ -245,14 +245,16 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
         });
     }
 
-    let target = scoop_target_data::layout(members[0].definitions().sections().envelope().target());
+    let target = scoop_target_data::layout(members[0].definitions().sections().envelope().target())
+        .expect("implemented target selected by this consumer");
     if let Some(member) = members
         .iter()
         .find(|member| member.definitions().sections().envelope().target() != target.id())
     {
         return Err(StrongRelocationClosureValidationError::MixedTarget {
             expected: target,
-            actual: scoop_target_data::layout(member.definitions().sections().envelope().target()),
+            actual: scoop_target_data::layout(member.definitions().sections().envelope().target())
+                .expect("implemented target selected by this consumer"),
             member: member.member(),
         });
     }

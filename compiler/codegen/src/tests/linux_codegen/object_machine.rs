@@ -9,7 +9,7 @@ use scoop_slib::{
 fn elf_machine_and_flags_are_checked_before_relocation_interpretation() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("machine.o");
-    let mut module = for_target(exceptions_module(), TargetProfileId::LinuxX86_64Gnu);
+    let mut module = for_target(exceptions_module(), scoop_target_data::LINUX_X86_64_GNU_ID);
     module.output = scoop_lir::LirOutput::Library;
     let profile =
         ValidatedBackendProfile::from_selection(scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1)
@@ -27,8 +27,8 @@ fn elf_machine_and_flags_are_checked_before_relocation_interpretation() {
     .unwrap();
     let bytes = std::fs::read(emitted.members()[0].path()).unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let envelope = validate_linux_elf_object_envelope_v1(&bytes, target).unwrap();
         assert!(matches!(
@@ -60,7 +60,7 @@ fn elf_machine_and_flags_are_checked_before_relocation_interpretation() {
         );
     }
     assert!(
-        ValidatedElfObject::read(&bytes, TargetProfileId::DarwinAarch64)
+        ValidatedElfObject::read(&bytes, scoop_target_data::DARWIN_AARCH64_ID)
             .unwrap_err()
             .to_string()
             .contains("does not support ELF")
