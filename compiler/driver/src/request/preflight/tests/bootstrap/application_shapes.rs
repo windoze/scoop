@@ -64,7 +64,7 @@ pub(super) fn check(
             "each materialized descriptor keeps its matching exact layout"
         );
     }
-    let expected = [
+    let mut expected: BTreeSet<_> = [
         "Add<Double, Double>",
         "Add<Float, Float>",
         "Add<Int16, Int16>",
@@ -174,6 +174,39 @@ pub(super) fn check(
     .into_iter()
     .map(str::to_owned)
     .collect();
+    for owner in [
+        "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Float", "Double",
+    ] {
+        for capability in ["Sub", "Mul", "Div", "Rem"] {
+            expected.insert(format!("{capability}<{owner}, {owner}>"));
+        }
+        for capability in ["UnaryPlus", "UnaryMinus", "Increment", "Decrement"] {
+            expected.insert(format!("{capability}<{owner}>"));
+        }
+    }
+    expected.insert("Not<Boolean>".into());
+    for owner in [
+        "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Char", "String",
+    ] {
+        expected.insert(format!("Compare<{owner}>"));
+    }
+    for (owner, range) in [
+        ("Int8", "IntRange"),
+        ("Int16", "IntRange"),
+        ("Int", "IntRange"),
+        ("Long", "LongRange"),
+        ("UInt8", "UIntRange"),
+        ("UInt16", "UIntRange"),
+        ("UInt", "UIntRange"),
+        ("ULong", "ULongRange"),
+    ] {
+        for capability in ["RangeTo", "RangeUntil"] {
+            expected.insert(format!("{capability}<{owner}, {range}>"));
+        }
+    }
+    for owner in ["Int", "Long", "UInt", "ULong"] {
+        expected.insert(format!("Contains<{owner}>"));
+    }
     assert_eq!(applications, expected);
     assert_eq!(coroutine_descriptors, coroutine_types);
 

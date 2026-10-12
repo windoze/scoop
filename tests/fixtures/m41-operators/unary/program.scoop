@@ -1,0 +1,32 @@
+fun <T> update(value: T): (T, T, T, T)
+    where T : UnaryPlus<T>, T : UnaryMinus<T>, T : Increment<T>, T : Decrement<T> {
+    var current = value
+    val positive = +current
+    val negative = -current
+    val old = current++
+    val restored = --current
+    return (positive, negative, old, restored)
+}
+fun <T : Not<Boolean>> invert(value: T): Boolean = !value
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(update(20.toInt8()) == (20.toInt8(), (-20).toInt8(), 20.toInt8(), 20.toInt8()))
+    check(update(20.toInt16()) == (20.toInt16(), (-20).toInt16(), 20.toInt16(), 20.toInt16()))
+    check(update(20) == (20, -20, 20, 20))
+    check(update(20L) == (20L, -20L, 20L, 20L))
+    check(update(20.toUInt8()) == (20.toUInt8(), 236.toUInt8(), 20.toUInt8(), 20.toUInt8()))
+    check(update(20.toUInt16()) == (20.toUInt16(), 65516.toUInt16(), 20.toUInt16(), 20.toUInt16()))
+    check(update(20u) == (20u, 4294967276u, 20u, 20u))
+    check(update(20uL) == (20uL, 18446744073709551596uL, 20uL, 20uL))
+    check(update(20f) == (20f, -20f, 20f, 20f))
+    check(update(20.0) == (20.0, -20.0, 20.0, 20.0))
+    val negative: UnaryMinus<Double> = 2.5
+    val positive: UnaryPlus<Int> = 42
+    val truth: Not<Boolean> = true
+    check(-negative == -2.5 && +positive == 42 && !truth == false && invert(false))
+    var up: Increment<Int> = 40
+    check((up++ as Int) == 40 && (up as Int) == 41)
+    var down: Decrement<Int> = 40
+    check((--down as Int) == 39)
+    println("operator unary")
+}

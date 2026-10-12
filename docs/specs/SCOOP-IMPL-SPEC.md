@@ -109,6 +109,8 @@ nominal application 保存原声明与完整实参；struct、enum、class、int
 
 依赖 struct 的存储属性读取使用已发布字段身份；显式 receiver 与成员、扩展正文中的隐式 receiver 遵守同一规则。Storage accessor 不要求另行导出不存在的函数体。
 
+解析名义声明头时，先建立该批声明的完整继承与接口关系并检查继承环，再验证依赖这些关系的类型实参上界；合法的 `S : I<S>` / `I<T : I<T>>` 不因声明顺序或尚未填入 S 的接口表而失败。延后检查只保留本次实际出现的 typed 上界要求及诊断上下文；局部声明与依赖接口使用同一时机，不重放完整声明解析。
+
 sealed 的继承限制在 HIR 按真实 origin、package 与声明作用域检查；成功声明保存完整直接子类型集合，class 的有效 modality 仍为 abstract。when 按这些关系与已有类型替换检查闭合家族，不在 MIR 或链接阶段重新求穷尽性。共享 nominal details 对 sealed 增加第 12 字段的规范化直接子类型身份列表，未 sealed 的原 11 字段编码保持不变；相关子类型的普通声明与继承签名进入现有共享声明闭包，私有数据不增加 public lookup binding。reader 在普通格式与引用边界检查集合及关系，消费方复用已读信息，不增加继承授权或运行期注册协议。
 
 interface implementation delegation 在 HIR lowering 中完成 slot 选择、隐藏字段分配和普通转发成员的生成。字段身份由真实宿主与继承项位置确定，和源码 property backing/delegate 字段区分；它不产生可查找的源码属性。构造记录在 base/primary store 后、body 初始化前保存 delegate，转发正文只包含普通字段读取与已绑定的接口调用。泛型构造及转发正文保留原 binder、字段和 slot 身份，跨 Cone 通过现有声明、字段和正文闭包消费，不在下游重新决定委托成员；MIR/runtime 沿用普通对象布局、接口分派和 GC 扫描。

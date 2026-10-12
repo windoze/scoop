@@ -69,8 +69,6 @@ impl Lowerer {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,
         };
-        self.type_params_in_scope.clear();
-
         let receiver_ty = self.owner_ty(owner);
         let modifiers = self.validate_callable_modifiers(
             decl,
@@ -83,6 +81,7 @@ impl Lowerer {
             &params,
             return_ty,
         );
+        self.type_params_in_scope.clear();
 
         self.register_inferred_function(id, decl);
         self.functions[id].return_ty = return_ty;

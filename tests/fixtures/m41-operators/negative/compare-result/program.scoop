@@ -1,0 +1,4 @@
+struct Invalid(val value: Int) : Compare<Invalid> {
+    public override operator fun compareTo(other: Invalid): Int = value - other.value
+}
+fun main() {}

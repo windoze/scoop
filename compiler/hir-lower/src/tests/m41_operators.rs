@@ -20,8 +20,8 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
         }
     }
     assert_eq!(
-        exported, 11,
-        "only the Add intrinsic implementations need dependency entries"
+        exported, 102,
+        "only intrinsic implementations of published capabilities need entries"
     );
     let module = scoop_mir_lower::lower(&output.local).unwrap();
     assert_eq!(module.validate(), Ok(()));
@@ -43,12 +43,11 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
                 hir::PrimitiveBinaryKind::StringConcat
             )
         );
-        if !is_add {
-            continue;
+        if is_add {
+            assert_eq!(intrinsic.parameters.len(), 2);
+            assert_eq!(source.receiver.value_type(), Some(intrinsic.parameters[0]));
+            count += 1;
         }
-        assert_eq!(intrinsic.parameters.len(), 2);
-        assert_eq!(source.receiver.value_type(), Some(intrinsic.parameters[0]));
-        count += 1;
         let Some(entry) = module
             .meta
             .source_callable_materializations
@@ -58,7 +57,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
             continue;
         };
         let function = &module.functions[entry.function()];
-        assert_eq!(function.params.len(), 2);
+        assert_eq!(function.params.len(), intrinsic.parameters.len());
         assert_eq!(
             function.gc_effect,
             match source.attributes.gc_effect {
@@ -70,8 +69,8 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
     }
     assert_eq!(count, 11);
     assert_eq!(
-        entries, 11,
-        "the core publishes all built-in Add implementations"
+        entries, 102,
+        "the core publishes all built-in intrinsic capability implementations"
     );
 }
 

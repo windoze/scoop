@@ -1,5 +1,5 @@
 @Intrinsic("core_string")
-public class String : Add<String, String>, Equality<String>, ToString, Hash, Iterable<Char> {
+public class String : Compare<String>, Add<String, String>, Equality<String>, ToString, Hash, Iterable<Char> {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 
@@ -11,7 +11,7 @@ public class String : Add<String, String>, Equality<String>, ToString, Hash, Ite
     public override operator fun plus(other: String): String
 
     @Intrinsic("string_compare_to")
-    public operator fun compareTo(other: String): Long
+    public override operator fun compareTo(other: String): Long
 
     public override fun toString(): String = this
     public override fun hash(): Long = coreStringHash(this)

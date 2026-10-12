@@ -62,12 +62,12 @@ public struct Offset(val value: Long) : Add<Offset, Offset> {
 
 | 运算符类别 | 接口表达方向 | 实施前需确定的细节 |
 | --- | --- | --- |
-| `+ - * / %` | `Add<Rhs, Result>` 及对应的独立二元操作接口 | 接口名称、内建类型的完整实现清单 |
-| 一元 `+ - !` | 无显式 operand、结果类型参数化的独立接口 | 现有返回类型规则与各内建类型的实现 |
+| `+ - * / %` | `Add/Sub/Mul/Div/Rem<Rhs, Result>` | 已在语言规范 9.3.6 定稿，分批实现 |
+| 一元 `+ - !` | `UnaryPlus/UnaryMinus/Not<Result>` | 已定稿；数值实现前两项，Boolean 实现 Not<Boolean> |
 | `== !=` | 已确定的 `Equals<Rhs>`，成员为 `operator fun equals(other: Rhs): Boolean` | 删除旧 Equality/equalTo 并迁移声明、调用与产物；核对成员限定和显式派生实现规则 |
-| `< <= > >=` | 比较接口，使用现有 `compareTo` 方法及 Long 符号结果 | 最终接口名称、全序契约与浮点实现 |
-| `in !in`、区间操作 | 按 element、右操作数及结果类型表达对应能力 | 与既有 Iterable、range 类型及成员的关系 |
-| `++ --`、复合赋值 | 对应的操作接口配合既有 place 读写规则 | 返回值可写回条件、就地操作与普通操作的歧义规则 |
+| `< <= > >=` | `Compare<Rhs>`，`compareTo(other: Rhs): Long` | 整数、Char、String 先行；浮点随默认全序迁移 |
+| `in !in`、区间操作 | `Contains<Element>`、`RangeTo/RangeUntil<Rhs, Result>` | 已定稿，四种整数 range 与八种整数沿用既有方法 |
+| `++ --`、复合赋值 | `Increment<Result : Increment<Result>>`、对应 Decrement；复合赋值接口另行补齐 | 递归上界保留既有返回子类型要求；普通数值 op= 沿用写回规则 |
 | `get/set/invoke` | 为下标与调用能力确定可表达的接口签名 | 多参数、默认参数、`vararg`、结果类型与现有函数类型的关系 |
 | `iterator/componentN` | 与迭代、位置解构约定一致的能力接口 | 与已有 Iterable、Iterator 和结构解构的关系 |
 

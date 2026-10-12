@@ -1,0 +1,27 @@
+fun <T, R> closed(start: T, end: T): R where T : RangeTo<T, R> = start..end
+fun <T, R> open(start: T, end: T): R where T : RangeUntil<T, R> = start..<end
+fun <E, C : Contains<E>> member(value: E, container: C): Boolean = value in container
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val a: IntRange = closed(1.toInt8(), 3.toInt8())
+    val b: IntRange = open(1.toInt16(), 3.toInt16())
+    val c: IntRange = closed(1, 3)
+    val d: LongRange = open(1L, 3L)
+    val e: UIntRange = closed(1.toUInt8(), 3.toUInt8())
+    val f: UIntRange = open(1.toUInt16(), 3.toUInt16())
+    val g: UIntRange = closed(1u, 3u)
+    val h: ULongRange = open(1uL, 3uL)
+    check(member(3, a) && !member(3, b) && member(2, c) && !member(3L, d))
+    check(member(3u, e) && !member(3u, f) && member(2u, g) && !member(3uL, h))
+    val closedView: RangeTo<Int, IntRange> = 1
+    val openView: RangeUntil<Long, LongRange> = 1L
+    val intView: Contains<Int> = closedView..3
+    val longView: Contains<Long> = openView..<3L
+    val uintView: Contains<UInt> = 1u..3u
+    val ulongView: Contains<ULong> = 1uL..<3uL
+    check(3 in intView && 3L !in longView && 3u in uintView && 3uL !in ulongView)
+    var total = 0
+    for (value in c) { total += value }
+    check(total == 6)
+    println("operator ranges")
+}

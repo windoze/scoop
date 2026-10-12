@@ -127,10 +127,19 @@ impl Lowerer {
                                 return None;
                             }
                         };
-                    if !self.is_subtype(*argument, required) {
-                        self.error(syntax.span, format!("type argument `{}` for `{}` of type `{}` must satisfy upper bound `{}`", self.type_name(*argument), parameter.name().as_str(), name.text, self.type_name(required)));
-                        valid = false;
-                    }
+                    let diagnostic = format!(
+                        "type argument `{}` for `{}` of type `{}` must satisfy upper bound `{}`",
+                        self.type_name(*argument),
+                        parameter.name().as_str(),
+                        name.text,
+                        self.type_name(required),
+                    );
+                    valid &= self.check_type_argument_bound(
+                        *argument,
+                        required,
+                        syntax.span,
+                        diagnostic,
+                    );
                 }
             }
         }

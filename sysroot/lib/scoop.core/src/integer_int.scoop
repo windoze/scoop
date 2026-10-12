@@ -1,5 +1,18 @@
 @Intrinsic("core_int")
-public struct Int : Add<Int, Int>, Equality<Int>, ToString, Hash {
+public struct Int :
+    Add<Int, Int>,
+    Sub<Int, Int>,
+    Mul<Int, Int>,
+    Div<Int, Int>,
+    Rem<Int, Int>,
+    UnaryPlus<Int>,
+    UnaryMinus<Int>,
+    Increment<Int>,
+    Decrement<Int>,
+    Compare<Int>,
+    RangeTo<Int, IntRange>,
+    RangeUntil<Int, IntRange>,
+    Equality<Int>, ToString, Hash {
     @NoGC @Intrinsic("int_to_float")
     public fun toFloat(): Float
 
@@ -18,19 +31,19 @@ public struct Int : Add<Int, Int>, Equality<Int>, ToString, Hash {
 
     @NoGC
     @Intrinsic("int_unary_plus")
-    public operator fun unaryPlus(): Int
+    public override operator fun unaryPlus(): Int
 
     @NoGC
     @Intrinsic("int_unary_minus")
-    public operator fun unaryMinus(): Int
+    public override operator fun unaryMinus(): Int
 
     @NoGC
     @Intrinsic("int_inc")
-    public operator fun inc(): Int
+    public override operator fun inc(): Int
 
     @NoGC
     @Intrinsic("int_dec")
-    public operator fun dec(): Int
+    public override operator fun dec(): Int
 
     @NoGC
     @Intrinsic("int_add")
@@ -38,21 +51,21 @@ public struct Int : Add<Int, Int>, Equality<Int>, ToString, Hash {
 
     @NoGC
     @Intrinsic("int_sub")
-    public operator fun minus(other: Int): Int
+    public override operator fun minus(other: Int): Int
 
     @NoGC
     @Intrinsic("int_mul")
-    public operator fun times(other: Int): Int
+    public override operator fun times(other: Int): Int
 
     @Intrinsic("int_div")
-    public operator fun div(other: Int): Int
+    public override operator fun div(other: Int): Int
 
     @Intrinsic("int_rem")
-    public operator fun rem(other: Int): Int
+    public override operator fun rem(other: Int): Int
 
     @NoGC
     @Intrinsic("int_compare_to")
-    public operator fun compareTo(other: Int): Long
+    public override operator fun compareTo(other: Int): Long
 
     @NoGC
     @Intrinsic("int_and")
@@ -114,10 +127,10 @@ public struct Int : Add<Int, Int>, Equality<Int>, ToString, Hash {
     @Intrinsic("int_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: Int): IntRange =
+    public override operator fun rangeTo(endpoint: Int): IntRange =
         IntRange(this, endpoint, 1, false, true)
 
-    public operator fun rangeUntil(endpoint: Int): IntRange =
+    public override operator fun rangeUntil(endpoint: Int): IntRange =
         IntRange(this, endpoint, 1, false, false)
 
     public infix fun until(endpoint: Int): IntRange =

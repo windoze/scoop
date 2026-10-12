@@ -1,0 +1,20 @@
+fun <T : Compare<T>> relations(a: T, b: T): (Boolean, Boolean, Boolean, Boolean) =
+    (a < b, a <= b, a > b, a >= b)
+fun <T> compare(a: Compare<T>, b: T): Long = a.compareTo(b)
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val ascending = (true, true, false, false)
+    check(relations(1.toInt8(), 2.toInt8()) == ascending)
+    check(relations(1.toInt16(), 2.toInt16()) == ascending)
+    check(relations(1, 2) == ascending && relations(1L, 2L) == ascending)
+    check(relations(1.toUInt8(), 2.toUInt8()) == ascending)
+    check(relations(1.toUInt16(), 2.toUInt16()) == ascending)
+    check(relations(1u, 2u) == ascending && relations(1uL, 2uL) == ascending)
+    check(relations('a', '中') == ascending && relations("abc", "abd") == ascending)
+    check(relations(2, 2) == (false, true, false, true))
+    check(relations(2, 1) == (false, false, true, true))
+    check(compare(1, 2) < 0L && compare('z', 'a') > 0L && compare("same", "same") == 0L)
+    val view: Compare<ULong> = 18446744073709551615uL
+    check(view > 0uL && view >= 18446744073709551615uL)
+    println("operator comparison")
+}

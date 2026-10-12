@@ -20,13 +20,13 @@ public typealias UInt32 = UInt
 public typealias UInt64 = ULong
 
 @Intrinsic("core_boolean")
-public struct Boolean : Equality<Boolean>, ToString, Hash {
+public struct Boolean : Not<Boolean>, Equality<Boolean>, ToString, Hash {
     public operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
     public override fun equalTo(other: Boolean): Boolean = this.equals(other)
 
     @Intrinsic("boolean_not")
-    public operator fun not(): Boolean
+    public override operator fun not(): Boolean
 
     public override fun toString(): String = coreBooleanToString(this)
 

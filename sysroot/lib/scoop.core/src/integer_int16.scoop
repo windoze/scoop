@@ -1,5 +1,18 @@
 @Intrinsic("core_int16")
-public struct Int16 : Add<Int16, Int16>, Equality<Int16>, ToString, Hash {
+public struct Int16 :
+    Add<Int16, Int16>,
+    Sub<Int16, Int16>,
+    Mul<Int16, Int16>,
+    Div<Int16, Int16>,
+    Rem<Int16, Int16>,
+    UnaryPlus<Int16>,
+    UnaryMinus<Int16>,
+    Increment<Int16>,
+    Decrement<Int16>,
+    Compare<Int16>,
+    RangeTo<Int16, IntRange>,
+    RangeUntil<Int16, IntRange>,
+    Equality<Int16>, ToString, Hash {
     @NoGC @Intrinsic("int16_to_float")
     public fun toFloat(): Float
 
@@ -15,19 +28,19 @@ public struct Int16 : Add<Int16, Int16>, Equality<Int16>, ToString, Hash {
 
     @NoGC
     @Intrinsic("int16_unary_plus")
-    public operator fun unaryPlus(): Int16
+    public override operator fun unaryPlus(): Int16
 
     @NoGC
     @Intrinsic("int16_unary_minus")
-    public operator fun unaryMinus(): Int16
+    public override operator fun unaryMinus(): Int16
 
     @NoGC
     @Intrinsic("int16_inc")
-    public operator fun inc(): Int16
+    public override operator fun inc(): Int16
 
     @NoGC
     @Intrinsic("int16_dec")
-    public operator fun dec(): Int16
+    public override operator fun dec(): Int16
 
     @NoGC
     @Intrinsic("int16_add")
@@ -35,21 +48,21 @@ public struct Int16 : Add<Int16, Int16>, Equality<Int16>, ToString, Hash {
 
     @NoGC
     @Intrinsic("int16_sub")
-    public operator fun minus(other: Int16): Int16
+    public override operator fun minus(other: Int16): Int16
 
     @NoGC
     @Intrinsic("int16_mul")
-    public operator fun times(other: Int16): Int16
+    public override operator fun times(other: Int16): Int16
 
     @Intrinsic("int16_div")
-    public operator fun div(other: Int16): Int16
+    public override operator fun div(other: Int16): Int16
 
     @Intrinsic("int16_rem")
-    public operator fun rem(other: Int16): Int16
+    public override operator fun rem(other: Int16): Int16
 
     @NoGC
     @Intrinsic("int16_compare_to")
-    public operator fun compareTo(other: Int16): Long
+    public override operator fun compareTo(other: Int16): Long
 
     @NoGC
     @Intrinsic("int16_and")
@@ -111,10 +124,10 @@ public struct Int16 : Add<Int16, Int16>, Equality<Int16>, ToString, Hash {
     @Intrinsic("int16_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: Int16): IntRange =
+    public override operator fun rangeTo(endpoint: Int16): IntRange =
         IntRange(this.toInt32(), endpoint.toInt32(), 1, false, true)
 
-    public operator fun rangeUntil(endpoint: Int16): IntRange =
+    public override operator fun rangeUntil(endpoint: Int16): IntRange =
         IntRange(this.toInt32(), endpoint.toInt32(), 1, false, false)
 
     public infix fun until(endpoint: Int16): IntRange =

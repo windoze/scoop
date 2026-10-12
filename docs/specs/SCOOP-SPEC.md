@@ -1469,7 +1469,27 @@ Managed 调用合同；NoGC 实现沿普通接口适配规则消费，不将 gen
 调用方后来 import 的扩展既不能补救定义处不成立的调用，也不能替换已发布正文保存的 typed 目标。
 
 接口方法自身仍不能泛型化；suspend、unsafe、default 和 vararg 的适配遵守普通声明及 override
-规则，不为统一运算符接口而隐藏调用效果或改变原本合法的直接调用。其他运算符仍按本节既有约定决议。
+规则，不为统一运算符接口而隐藏调用效果或改变原本合法的直接调用。
+
+以下接口同样为 public、ordinary、safe、Managed，所有方法都是 public operator，类型参数均为 invariant；表中列出完整的显式参数与结果：
+
+| 接口 | 方法签名 | core 显式实现 |
+| --- | --- | --- |
+| `Sub<Rhs, Result>` | `minus(other: Rhs): Result` | 八种整数及 Float/Double，同型 operand/result |
+| `Mul<Rhs, Result>` | `times(other: Rhs): Result` | 同上 |
+| `Div<Rhs, Result>` | `div(other: Rhs): Result` | 同上 |
+| `Rem<Rhs, Result>` | `rem(other: Rhs): Result` | 同上 |
+| `UnaryPlus<Result>` | `unaryPlus(): Result` | 八种整数及 Float/Double，同型 result |
+| `UnaryMinus<Result>` | `unaryMinus(): Result` | 同上 |
+| `Not<Result>` | `not(): Result` | Boolean，result 为 Boolean |
+| `Increment<Result : Increment<Result>>` | `inc(): Result` | 八种整数及 Float/Double，同型 result |
+| `Decrement<Result : Decrement<Result>>` | `dec(): Result` | 同上 |
+| `Compare<Rhs>` | `compareTo(other: Rhs): Long` | 八种整数、Char、String，同型 operand |
+| `RangeTo<Rhs, Result>` | `rangeTo(endpoint: Rhs): Result` | 八种整数，同型 endpoint；结果为对应整数 range |
+| `RangeUntil<Rhs, Result>` | `rangeUntil(endpoint: Rhs): Result` | 同上 |
+| `Contains<Element>` | `contains(value: Element): Boolean` | IntRange/LongRange/UIntRange/ULongRange，对应 Int/Long/UInt/ULong |
+
+Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver 子类型要求；具体实现仍须返回其实际 receiver 的子类型。泛型 `T : Increment<T>` 可以对可写 T place 使用 `++`；仅持有 `Increment<T>` 视图时，写回的静态类型仍是该接口。接口不会放宽 place 可写性，也不使不可写回的结果合法。八种整数的区间结果沿用 11.8：Int8/Int16/Int 使用 IntRange，UInt8/UInt16/UInt 使用 UIntRange，Long/ULong 各使用同名 range。普通数值 `op=` 继续使用 9.3.3 的读写回退；不为值类型另外添加就地修改方法。
 
 ### 9.4 注解
 

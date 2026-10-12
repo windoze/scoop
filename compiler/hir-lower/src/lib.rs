@@ -824,6 +824,7 @@ pub(crate) struct Lowerer {
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
     pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,
+    pub(crate) deferred_type_bounds: Option<Vec<types::DeferredTypeBound>>,
     /// Return type of the function whose body is being lowered.
     pub(crate) current_return_ty: TypeId,
     /// Active only while an anonymous function with neither an explicit nor

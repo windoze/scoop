@@ -1,5 +1,5 @@
 @Intrinsic("core_char")
-public struct Char : Equality<Char>, ToString, Hash {
+public struct Char : Compare<Char>, Equality<Char>, ToString, Hash {
     @NoGC @Intrinsic("char_code")
     private fun codeValue(): Int
 
@@ -13,7 +13,7 @@ public struct Char : Equality<Char>, ToString, Hash {
     public override fun equalTo(other: Char): Boolean = this.equals(other)
 
     @NoGC @Intrinsic("char_compare_to")
-    public operator fun compareTo(other: Char): Long
+    public override operator fun compareTo(other: Char): Long
 
     public override fun toString(): String = coreCharToString(this)
     public override fun hash(): Long = code.toInt64()

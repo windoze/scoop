@@ -7,6 +7,7 @@ impl Lowerer {
         let accessor_start = self.property_accessor_sources.len();
         let function_start = self.functions.len();
         let property_start = self.properties.len();
+        self.deferred_type_bounds = Some(Vec::new());
         self.resolve_nominal_parameter_constraints(
             &pending.structs,
             &pending.enums,
@@ -23,7 +24,10 @@ impl Lowerer {
         }
         self.validate_owner_type_parameter_constraints(&pending.owners());
         self.resolve_local_owner_aliases(&pending.owners());
-        self.check_interface_inheritance_cycles(&pending.interfaces);
+        if !self.check_interface_inheritance_cycles(&pending.interfaces) {
+            self.deferred_type_bounds = None;
+            return;
+        }
         for &(id, declaration, file) in &pending.interfaces {
             self.current_file = file;
             self.current_owner = Some(Owner::Interface(id));
@@ -61,6 +65,11 @@ impl Lowerer {
         }
         self.current_owner = None;
         self.type_params_in_scope.clear();
+        if !self.check_class_inheritance_cycles(&pending.classes, &pending.objects) {
+            self.deferred_type_bounds = None;
+            return;
+        }
+        self.validate_deferred_type_bounds();
         if !self.validate_local_value_layouts(&pending.owners()) {
             return;
         }

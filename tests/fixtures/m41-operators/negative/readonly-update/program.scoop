@@ -1,0 +1,2 @@
+fun <T : Increment<T>> advance(value: T): T = ++value
+fun main() { advance(1) }

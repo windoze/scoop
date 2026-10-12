@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `compareTo` must return Long, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 94,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`compareTo` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 94,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Invalid` does not implement interface method `Compare<Invalid>.compareTo`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 139,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  }
+]

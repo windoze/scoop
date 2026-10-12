@@ -1,5 +1,18 @@
 @Intrinsic("core_uint")
-public struct UInt : Add<UInt, UInt>, Equality<UInt>, ToString, Hash {
+public struct UInt :
+    Add<UInt, UInt>,
+    Sub<UInt, UInt>,
+    Mul<UInt, UInt>,
+    Div<UInt, UInt>,
+    Rem<UInt, UInt>,
+    UnaryPlus<UInt>,
+    UnaryMinus<UInt>,
+    Increment<UInt>,
+    Decrement<UInt>,
+    Compare<UInt>,
+    RangeTo<UInt, UIntRange>,
+    RangeUntil<UInt, UIntRange>,
+    Equality<UInt>, ToString, Hash {
     @NoGC @Intrinsic("uint_to_float")
     public fun toFloat(): Float
 
@@ -15,19 +28,19 @@ public struct UInt : Add<UInt, UInt>, Equality<UInt>, ToString, Hash {
 
     @NoGC
     @Intrinsic("uint_unary_plus")
-    public operator fun unaryPlus(): UInt
+    public override operator fun unaryPlus(): UInt
 
     @NoGC
     @Intrinsic("uint_unary_minus")
-    public operator fun unaryMinus(): UInt
+    public override operator fun unaryMinus(): UInt
 
     @NoGC
     @Intrinsic("uint_inc")
-    public operator fun inc(): UInt
+    public override operator fun inc(): UInt
 
     @NoGC
     @Intrinsic("uint_dec")
-    public operator fun dec(): UInt
+    public override operator fun dec(): UInt
 
     @NoGC
     @Intrinsic("uint_add")
@@ -35,21 +48,21 @@ public struct UInt : Add<UInt, UInt>, Equality<UInt>, ToString, Hash {
 
     @NoGC
     @Intrinsic("uint_sub")
-    public operator fun minus(other: UInt): UInt
+    public override operator fun minus(other: UInt): UInt
 
     @NoGC
     @Intrinsic("uint_mul")
-    public operator fun times(other: UInt): UInt
+    public override operator fun times(other: UInt): UInt
 
     @Intrinsic("uint_div")
-    public operator fun div(other: UInt): UInt
+    public override operator fun div(other: UInt): UInt
 
     @Intrinsic("uint_rem")
-    public operator fun rem(other: UInt): UInt
+    public override operator fun rem(other: UInt): UInt
 
     @NoGC
     @Intrinsic("uint_compare_to")
-    public operator fun compareTo(other: UInt): Long
+    public override operator fun compareTo(other: UInt): Long
 
     @NoGC
     @Intrinsic("uint_and")
@@ -107,10 +120,10 @@ public struct UInt : Add<UInt, UInt>, Equality<UInt>, ToString, Hash {
     @Intrinsic("uint_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: UInt): UIntRange =
+    public override operator fun rangeTo(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, false, true)
 
-    public operator fun rangeUntil(endpoint: UInt): UIntRange =
+    public override operator fun rangeUntil(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, false, false)
 
     public infix fun until(endpoint: UInt): UIntRange =
