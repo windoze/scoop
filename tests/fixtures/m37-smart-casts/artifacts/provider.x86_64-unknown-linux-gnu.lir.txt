@@ -1,0 +1,9 @@
+Module
+  fun @scoop$1$cb$2706a370b4361047565b8be61cd217de7cb3d649b68c2a4c1c4066a97f190474(ptr<managed>, ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i64 dispatch[Closure:2] param1(param1)
+    store t0 -> local0
+    ret local0
+  output library

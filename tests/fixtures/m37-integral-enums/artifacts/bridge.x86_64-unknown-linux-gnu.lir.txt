@@ -1,0 +1,34 @@
+Module
+  global @scoop$1$io$2c599109f64324dbaca61541f34146ab332b580d24d7e23813e5c67e79874df3 = "cold"
+  global @scoop$1$io$9d8efbaa5a94ab7df2625f4719d5c5e82179d4787c802d3dddd98e1357cb850d = "hot"
+  enum Code integral(Int16) values=[65533, 13]
+  fun @scoop$1$cb$507c16613b3f2265b4117b01f63a07d07cc4cf125921799a44d36f61812ad4f8(enum0) -> ptr<managed>
+    local %0 $result.0: ptr<managed>
+    local %1 $when.1: enum0
+    local %2 $pattern.subject.2: enum0
+    local %3 $pattern.subject.3: enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    store local1 -> local2
+    t0 = variant_test e0 v0 local2 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store global0 -> local0
+    br @pattern.merge.3
+  block pattern.else.2
+    store local1 -> local3
+    t1 = variant_test e0 v1 local3 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local0
+  block pattern.pass.4
+    store global1 -> local0
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]) @scoop$1$td$ddcb0dd4aa93cde65152db8cc9a3851d39b386edb8b6496e994de3977afd30f4 type-id=8135320944941463626 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  layout Equality value size=16 align=8 refs=[0]
+  output library
