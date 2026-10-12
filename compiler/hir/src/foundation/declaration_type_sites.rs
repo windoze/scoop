@@ -136,7 +136,7 @@ impl<'a> Input<'a> {
                 }
                 CallableTemplateOrigin::Constructor(id) => {
                     let (_, key) = self.source_record(id, |foundation| &foundation.constructors)?;
-                    signature::source(key, root, position)
+                    self.constructor_signature(key, root, position)
                 }
                 CallableTemplateOrigin::Accessor(id) => {
                     let (foundation, key) =
@@ -166,7 +166,7 @@ impl<'a> Input<'a> {
                 let (foundation, key) =
                     self.source_record(id, |foundation| &foundation.constructors)?;
                 self.declaration_origin(foundation, key)?;
-                signature::source(key, root, position)
+                self.constructor_signature(key, root, position)
             }
             CallableTemplateOwner::Accessor(id) => {
                 let (foundation, key) =
@@ -208,6 +208,25 @@ impl<'a> Input<'a> {
                 unreachable!("generated roots were resolved with their substitution context")
             }
         }
+    }
+
+    fn constructor_signature(
+        &self,
+        key: &SourceDeclarationKey,
+        root: CallableMaterialization,
+        position: Option<HirCallableTypePositionV1>,
+    ) -> Result<(), Error> {
+        use scoop_identity::LocalValueSelector;
+        let has_context = position == Some(HirCallableTypePositionV1::Receiver)
+            && self.foundation.local_values.iter().any(|record| {
+                record.key().owner() == root
+                    && matches!(
+                        record.key().selector(),
+                        LocalValueSelector::EnclosingInstance
+                            | LocalValueSelector::CapturedEnvironment
+                    )
+            });
+        signature::constructor(key, root, position, has_context)
     }
 
     fn property(&mut self, property: PropertyOwner) -> Result<(), Error> {

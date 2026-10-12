@@ -14,10 +14,7 @@ pub(super) fn source(
         return Ok(());
     };
     let valid = match (key.duplicate_signature(), position) {
-        (
-            DuplicateSignatureKey::Function { .. } | DuplicateSignatureKey::Constructor { .. },
-            Part::Receiver,
-        ) => has_receiver(key),
+        (DuplicateSignatureKey::Function { .. }, Part::Receiver) => has_receiver(key),
         (
             DuplicateSignatureKey::Function { parameters, .. }
             | DuplicateSignatureKey::Constructor { parameters },
@@ -30,6 +27,19 @@ pub(super) fn source(
         _ => false,
     };
     require(valid, root, position)
+}
+
+pub(super) fn constructor(
+    key: &SourceDeclarationKey,
+    root: CallableMaterialization,
+    position: Option<Part>,
+    has_context: bool,
+) -> Result<(), Error> {
+    if position == Some(Part::Receiver) {
+        require(has_context, root, Part::Receiver)
+    } else {
+        source(key, root, position)
+    }
 }
 
 pub(super) fn accessor(
