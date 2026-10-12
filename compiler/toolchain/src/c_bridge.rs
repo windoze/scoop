@@ -2,6 +2,7 @@ use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::ValidatedCBridgeToolchainInvocation;
 use object::endian::Endian;
 use object::read::Object;
 use object::read::macho::MachOFile64;
@@ -9,7 +10,7 @@ use object::{Architecture, ObjectKind, macho};
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, DarwinBuildToolIdV1,
     DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    LirTargetProfile, ValidatedCBridgeToolchainInvocation,
+    LirTargetProfile,
 };
 
 use crate::ToolchainError;

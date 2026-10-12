@@ -1,10 +1,8 @@
 use crate::runtime::ValidatedRuntimeBuildProfile;
 use std::path::PathBuf;
 
-use scoop_lir::{
-    BackendProfile, LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation,
-    ValidatedLirTargetSelection,
-};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{BackendProfile, LirTargetProfile, TargetProfileId, ValidatedLirTargetSelection};
 
 use crate::{
     FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile,

@@ -22,7 +22,7 @@ pub(in super::super) fn assemble_with_production(
     )
     .unwrap();
     let generated =
-        scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
+        crate::generated_c::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();
     let mut foundation =
         hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();

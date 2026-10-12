@@ -37,7 +37,7 @@ impl ChildIoPlan {
 
     pub(crate) fn with_toolchain(
         mut self,
-        invocation: &scoop_lir::ValidatedCBridgeToolchainInvocation,
+        invocation: &scoop_toolchain::ValidatedCBridgeToolchainInvocation,
     ) -> Self {
         self.compiler_environment = invocation
             .driver_environment()

@@ -4,10 +4,10 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use crate::ValidatedCBridgeToolchainInvocation;
 use object::{Architecture, BinaryFormat, Object, ObjectKind};
 use scoop_lir::{
     CBridgeToolchainProfileV1, GccCompilerIdentityV1, LirTargetProfile, TargetProfileId,
-    ValidatedCBridgeToolchainInvocation,
 };
 use scoop_process::{CommandExt, parse_make_dependencies};
 use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash, sha256};

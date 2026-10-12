@@ -19,7 +19,7 @@ pub(super) fn check(
     provider: Provider<'_, '_>,
     destination: Destination<'_>,
 ) {
-    let generated = scoop_codegen::emit_c_bridge_object_set(
+    let generated = crate::generated_c::emit_c_bridge_object_set(
         output,
         destination.directory,
         provider.target.c_bridge_toolchain(),

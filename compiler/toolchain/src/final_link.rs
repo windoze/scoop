@@ -2,7 +2,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use scoop_lir::{LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{LirTargetProfile, TargetProfileId};
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
 
 use crate::{CToolchainOptions, ResolvedTargetProfile, SystemProvider, ToolchainError};

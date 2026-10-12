@@ -36,7 +36,13 @@ impl SlibObjects {
             backend,
         )
         .unwrap();
-        let c_emitted = emit_c_bridge_object_set(&input, directory, &invocation).unwrap();
+        let c_emitted =
+            emit_c_bridge_object_set(&input, directory, invocation.profile(), |source, object| {
+                invocation
+                    .compile_object(source, object)
+                    .map_err(|error| CodegenError(error.to_string()))
+            })
+            .unwrap();
         let partition =
             scoop_lir::ProducerUnitPartitionV1::from_foundation(emitted.foundation()).unwrap();
         let plans = PlannedLinkObjectMemberSetV1::new(

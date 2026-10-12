@@ -46,7 +46,17 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
             scoop_toolchain::resolve_linux_c_toolchain(module.meta.target_profile, None, None)
                 .unwrap();
         let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
-        let emitted = emit_c_bridge_object_set(&input, directory.path(), &invocation).unwrap();
+        let emitted = emit_c_bridge_object_set(
+            &input,
+            directory.path(),
+            invocation.profile(),
+            |source, object| {
+                invocation
+                    .compile_object(source, object)
+                    .map_err(|error| CodegenError(error.to_string()))
+            },
+        )
+        .unwrap();
         assert_eq!(emitted.members().len(), 5);
         let surface =
             scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();

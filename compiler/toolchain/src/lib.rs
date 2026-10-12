@@ -7,6 +7,10 @@
 use std::fmt;
 
 mod c_bridge;
+mod c_bridge_invocation;
+pub use c_bridge_invocation::{
+    CBridgeToolchainInvocationError, ValidatedCBridgeToolchainInvocation,
+};
 mod compiler;
 mod cxx;
 mod final_link;

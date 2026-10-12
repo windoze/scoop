@@ -1,6 +1,7 @@
 //! Single-Cone compiler driver and artifact-production pipeline.
 
 mod artifact_production;
+mod generated_c;
 mod object_production;
 mod request;
 mod trusted_core;

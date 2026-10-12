@@ -233,7 +233,7 @@ pub(super) fn assemble(
     .with_optimization(request.optimization());
     let objects = scoop_codegen::emit_object_set_v2(&lir, registration, temporary_parent, backend)
         .map_err(Error::Codegen)?;
-    let generated = scoop_codegen::emit_c_bridge_object_set(
+    let generated = crate::generated_c::emit_c_bridge_object_set(
         &lir,
         temporary_parent,
         &request

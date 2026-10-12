@@ -3,7 +3,8 @@ use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use scoop_lir::{LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{LirTargetProfile, TargetProfileId};
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
 use crate::{SystemProvider, ToolchainError, c_bridge};
