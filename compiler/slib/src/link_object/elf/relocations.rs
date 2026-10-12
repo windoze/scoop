@@ -2,7 +2,10 @@ use super::*;
 use object::elf;
 use object::read::elf::{Rela, SectionHeader};
 
-pub(super) fn read(file: &ElfFile64<'_>) -> Result<Vec<ElfRelocation>, ElfObjectError> {
+pub(super) fn read(
+    file: &ElfFile64<'_>,
+    architecture: ElfArchitecture,
+) -> Result<Vec<ElfRelocation>, ElfObjectError> {
     let endian = file.endian();
     let mut result = Vec::new();
     for section in file.elf_section_table().iter() {
@@ -25,10 +28,7 @@ pub(super) fn read(file: &ElfFile64<'_>) -> Result<Vec<ElfRelocation>, ElfObject
         }
         for relocation in relocations {
             let kind = relocation.r_type(endian, false);
-            let width = match file.architecture() {
-                Architecture::X86_64 => x86_64::relocation_width(kind)?,
-                _ => return Err(error("unsupported ELF relocation machine")),
-            };
+            let width = architecture.relocation_width(kind)?;
             let offset = relocation.r_offset(endian);
             if offset
                 .checked_add(u64::from(width))

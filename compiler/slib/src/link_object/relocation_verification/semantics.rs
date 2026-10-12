@@ -11,7 +11,7 @@ impl Form {
             TargetProfileId::DarwinAarch64 => self == Self::Branch26,
             TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => matches!(
                 self,
-                Self::ElfRela {
+                Self::ElfX86_64Rela {
                     kind: R_X86_64_PC32 | R_X86_64_PLT32,
                     width: 4,
                     addend: -4
@@ -33,11 +33,11 @@ impl Form {
             ),
             TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => matches!(
                 self,
-                Self::ElfRela {
+                Self::ElfX86_64Rela {
                     kind: R_X86_64_64,
                     width: 8,
                     ..
-                } | Self::ElfRela {
+                } | Self::ElfX86_64Rela {
                     kind: R_X86_64_PC32
                         | R_X86_64_GOTPCREL
                         | R_X86_64_GOTPCRELX
@@ -56,7 +56,7 @@ impl Form {
             }
             TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => matches!(
                 self,
-                Self::ElfRela {
+                Self::ElfX86_64Rela {
                     kind: R_X86_64_TLSGD
                         | R_X86_64_TLSLD
                         | R_X86_64_DTPOFF32
@@ -65,7 +65,7 @@ impl Form {
                         | R_X86_64_GOTPC32_TLSDESC,
                     width: 4,
                     ..
-                } | Self::ElfRela {
+                } | Self::ElfX86_64Rela {
                     kind: R_X86_64_DTPOFF64 | R_X86_64_TPOFF64,
                     width: 8,
                     ..
@@ -85,22 +85,22 @@ mod tests {
             LirTargetProfile::LINUX_X86_64_GNU,
             LirTargetProfile::LINUX_X86_64_MUSL,
         ] {
-            let call = Form::ElfRela {
+            let call = Form::ElfX86_64Rela {
                 kind: R_X86_64_PLT32,
                 width: 4,
                 addend: -4,
             };
-            let inside_function = Form::ElfRela {
+            let inside_function = Form::ElfX86_64Rela {
                 kind: R_X86_64_PLT32,
                 width: 4,
                 addend: 0,
             };
-            let data = Form::ElfRela {
+            let data = Form::ElfX86_64Rela {
                 kind: R_X86_64_REX_GOTPCRELX,
                 width: 4,
                 addend: -4,
             };
-            let tls = Form::ElfRela {
+            let tls = Form::ElfX86_64Rela {
                 kind: R_X86_64_TLSGD,
                 width: 4,
                 addend: -4,

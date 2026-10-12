@@ -7,6 +7,7 @@ use super::*;
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod bridges;
+mod object_machine;
 mod objects;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod slib_eh;

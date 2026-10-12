@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use object::{
-    Architecture, BinaryFormat, Object, ObjectKind, ObjectSection, ObjectSymbol, RelocationFlags,
+    BinaryFormat, Object, ObjectKind, ObjectSection, ObjectSymbol, RelocationFlags,
     RelocationTarget, SectionIndex, SymbolKind, elf,
 };
 
@@ -12,6 +12,9 @@ use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, ValidatedBackendProfile};
 
 use super::{ExpectedEh, FunctionRelocation, ObservedSafepoints, TextSection, eh, parse_stackmaps};
+
+mod architecture;
+pub(in crate::artifact) use architecture::ElfArchitecture;
 
 pub(super) struct ElfFunction {
     pub(super) symbol: String,
@@ -117,16 +120,17 @@ pub(crate) fn verify_elf_artifact(
     expected_eh: &ExpectedEh,
     profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
+    let architecture = ElfArchitecture::select(profile.architecture())?;
     let bytes = std::fs::read(path).map_err(error)?;
     let file = object::File::parse(bytes.as_slice()).map_err(error)?;
     if file.format() != BinaryFormat::Elf
         || !file.is_64()
         || !file.is_little_endian()
         || file.kind() != ObjectKind::Relocatable
-        || file.architecture() != Architecture::X86_64
+        || file.architecture() != architecture.object_architecture()
     {
         return Err(CodegenError(
-            "Linux amd64 codegen requires ELF64LE/x86_64 ET_REL".into(),
+            "codegen requires ELF64LE ET_REL for the selected machine".into(),
         ));
     }
     let code = ElfCode::read(&file)?;
@@ -143,7 +147,7 @@ pub(crate) fn verify_elf_artifact(
         for (offset, relocation) in section.relocations() {
             if relocation.flags()
                 != (RelocationFlags::Elf {
-                    r_type: elf::R_X86_64_64,
+                    r_type: architecture.absolute_pointer_relocation(),
                 })
                 || relocation.addend() != 0
                 || relocation.has_implicit_addend()
@@ -206,7 +210,7 @@ pub(crate) fn verify_elf_artifact(
             "ELF object has no .llvm_stackmaps for managed LIR".into(),
         ));
     };
-    eh::verify_elf_eh(&file, &code, expected_eh, &observed, profile)
+    eh::verify_elf_eh(&file, &code, expected_eh, &observed, profile, architecture)
 }
 
 pub(super) fn error(error: impl std::fmt::Display) -> CodegenError {

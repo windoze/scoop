@@ -1,8 +1,10 @@
 //! Shared ELF64 relocatable-file bounds and references, independent of LLVM.
-use object::read::elf::ElfFile64;
-use object::{Architecture, Object, ObjectKind, SectionIndex, SymbolIndex};
+use object::read::elf::{ElfFile64, FileHeader};
+use object::{Object, ObjectKind, SectionIndex, SymbolIndex};
 use scoop_identity::TargetProfileId;
 
+mod architecture;
+pub use architecture::ElfArchitecture;
 mod envelope;
 mod relocations;
 mod sections;
@@ -14,6 +16,7 @@ mod tests;
 
 #[derive(Debug)]
 pub struct ValidatedElfObject<'data> {
+    architecture: ElfArchitecture,
     file: ElfFile64<'data>,
     relocations: Vec<ElfRelocation>,
 }
@@ -30,24 +33,28 @@ pub struct ElfRelocation {
 
 impl<'data> ValidatedElfObject<'data> {
     pub fn read(bytes: &'data [u8], target: TargetProfileId) -> Result<Self, ElfObjectError> {
-        let architecture = match target {
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
-                Architecture::X86_64
-            }
-            TargetProfileId::DarwinAarch64 => return Err(error("target does not use ELF")),
-        };
+        let architecture = ElfArchitecture::for_target(target)?;
         let file = ElfFile64::parse(bytes).map_err(error)?;
         if !file.is_little_endian()
             || file.kind() != ObjectKind::Relocatable
-            || file.architecture() != architecture
+            || file.architecture() != architecture.object_architecture()
         {
             return Err(error(
                 "expected a little-endian ELF64 relocatable object for the selected target",
             ));
         }
+        architecture.check_flags(file.elf_header().e_flags(file.endian()))?;
         sections::check(&file)?;
-        let relocations = relocations::read(&file)?;
-        Ok(Self { file, relocations })
+        let relocations = relocations::read(&file, architecture)?;
+        Ok(Self {
+            architecture,
+            file,
+            relocations,
+        })
+    }
+
+    pub fn architecture(&self) -> ElfArchitecture {
+        self.architecture
     }
 
     pub fn file(&self) -> &ElfFile64<'data> {

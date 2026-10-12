@@ -2,7 +2,10 @@
 
 use std::collections::BTreeSet;
 
-use object::{Object, ObjectSection, ObjectSymbol, RelocationFlags, RelocationTarget, elf, macho};
+use object::{
+    Architecture, Object, ObjectSection, ObjectSymbol, RelocationFlags, RelocationTarget, elf,
+    macho,
+};
 
 use crate::CodegenError;
 
@@ -18,12 +21,15 @@ pub(super) fn non_unwinding_calls(
         let RelocationTarget::Symbol(index) = relocation.target() else {
             continue;
         };
-        let (instruction, names) = match relocation.flags() {
-            RelocationFlags::MachO {
-                r_type: macho::ARM64_RELOC_BRANCH26,
-                r_pcrel: true,
-                r_length: 2,
-            } if relocation.addend() == 0 => {
+        let (instruction, names) = match (file.architecture(), relocation.flags()) {
+            (
+                Architecture::Aarch64,
+                RelocationFlags::MachO {
+                    r_type: macho::ARM64_RELOC_BRANCH26,
+                    r_pcrel: true,
+                    r_length: 2,
+                },
+            ) if relocation.addend() == 0 => {
                 let Some(encoded) = bytes
                     .get(offset as usize..)
                     .and_then(|bytes| bytes.get(..4))
@@ -35,9 +41,12 @@ pub(super) fn non_unwinding_calls(
                 }
                 (offset, ["_memcpy", "_memset"])
             }
-            RelocationFlags::Elf {
-                r_type: elf::R_X86_64_PLT32 | elf::R_X86_64_PC32,
-            } if relocation.addend() == -4 => {
+            (
+                Architecture::X86_64,
+                RelocationFlags::Elf {
+                    r_type: elf::R_X86_64_PLT32 | elf::R_X86_64_PC32,
+                },
+            ) if relocation.addend() == -4 => {
                 let Some(instruction) = offset.checked_sub(1) else {
                     continue;
                 };

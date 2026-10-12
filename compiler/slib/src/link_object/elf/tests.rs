@@ -95,7 +95,7 @@ odr: .quad 7
         assert!(groups[0].sections.contains(&odr.section_ordinal().unwrap()));
         for relocation in envelope.relocations() {
             assert_eq!(relocation.encoded_value(), 0);
-            let ObjectRelocationShapeV1::ElfRela {
+            let ObjectRelocationShapeV1::ElfX86_64Rela {
                 kind,
                 addend,
                 width,

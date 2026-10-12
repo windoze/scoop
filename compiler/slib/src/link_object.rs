@@ -136,7 +136,8 @@ pub use object_envelope::*;
 
 mod elf;
 pub use elf::{
-    ElfObjectError, ElfRelocation, ValidatedElfObject, validate_linux_elf_object_envelope_v1,
+    ElfArchitecture, ElfObjectError, ElfRelocation, ValidatedElfObject,
+    validate_linux_elf_object_envelope_v1,
 };
 
 macro_rules! typed_digest {

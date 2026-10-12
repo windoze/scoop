@@ -46,3 +46,11 @@
 - GNU 使用已选择的实际 GCC；musl wrapper 使用显式 REALGCC 或 PATH 中的 gcc，不再额外要求架构前缀命名的 GCC。仍通过真实编译验证 LP64、libc headers 与 ELF machine，不放宽支持矩阵。
 - glibc 动态 PIE／musl 默认静态及显式动态的策略保持；缓存／产物 wire 未变。
 - 本机 fmt、workspace clippy 与 23 项工具链测试通过；新增 GCC locator 回归涵盖直接 compiler、不含交叉前缀的 PATH、musl 显式 override 与缺失 driver。Linux 编译／最终镜像的现有集成测试留到完整 Linux 验收运行。
+
+## 功能 5：ELF 容器与机器规则
+
+- codegen 的 ELF machine、stackmap/EH relocation 和 return-address register 通过已选机器规则读取；AArch64 的未实现 ELF 组合在规则选择处拒绝，不再推断 AArch64 必定属于 Mach-O。memory libcall 识别同时检查真实 machine 与 relocation。
+- slib 在对象读取边界选择 ELF 机器并检查 header flags、relocation 宽度；envelope 复用已检查的 flags。最终 linker 用相同机器规则解释 PIE relative pointer relocation，保持无 LLVM 依赖。
+- 原本限定 x86-64 的已验证及观测 RELA form 明确命名为 ElfX86_64Rela，指针／调用／TLS 消费无需把 ELF 容器当作机器。既有 wire tag 11 与字段编码保持，固定向量通过。
+- 本机 fmt、workspace clippy；5 项跨目标真实 LLVM ELF 对象测试（含 machine／flags 损坏拒绝）、21 项机器／EH artifact 测试、39 项 slib relocation 测试与 32 项 wire 测试通过。没有新增架构或更新 golden。
+- 再次清理本机已完成 fixture 的 cases，保留 report/cache；已清理远端旧 target（初始约 21 GiB），仅保留重新建立的 M39 临时目录，native unwind 安装未动。

@@ -130,7 +130,7 @@ pub fn verify_object_stackmap_section_v3(
             ObjectRelocationShapeV1::DarwinArm64(DarwinArm64RelocationShapeV1::Unsigned64 {
                 target: DarwinArm64RelocationTargetV1::SymbolTableIndex(target),
             }) => target,
-            ObjectRelocationShapeV1::ElfRela {
+            ObjectRelocationShapeV1::ElfX86_64Rela {
                 kind: object::elf::R_X86_64_64,
                 target_symbol,
                 addend: 0,

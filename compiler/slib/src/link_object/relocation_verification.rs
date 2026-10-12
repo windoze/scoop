@@ -50,7 +50,7 @@ pub enum VerifiedRelocationTargetV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VerifiedObjectRelocationShapeV1 {
-    ElfRela {
+    ElfX86_64Rela {
         kind: u32,
         addend: i64,
         width: u8,
@@ -93,7 +93,7 @@ pub enum VerifiedObjectRelocationShapeV1 {
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum VerifiedObjectRelocationFormV1 {
-    ElfRela { kind: u32, addend: i64, width: u8 },
+    ElfX86_64Rela { kind: u32, addend: i64, width: u8 },
     Unsigned64,
     Subtractor64,
     Branch26,
@@ -109,12 +109,12 @@ pub enum VerifiedObjectRelocationFormV1 {
 impl VerifiedObjectRelocationShapeV1 {
     pub const fn form(&self) -> VerifiedObjectRelocationFormV1 {
         match self {
-            Self::ElfRela {
+            Self::ElfX86_64Rela {
                 kind,
                 addend,
                 width,
                 ..
-            } => VerifiedObjectRelocationFormV1::ElfRela {
+            } => VerifiedObjectRelocationFormV1::ElfX86_64Rela {
                 kind: *kind,
                 addend: *addend,
                 width: *width,

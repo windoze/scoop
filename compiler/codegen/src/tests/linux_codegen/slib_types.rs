@@ -65,7 +65,8 @@ fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
                     .unwrap(),
             ] {
                 let mut damaged = fixture.objects.clone();
-                let VerifiedObjectRelocationFormV1::ElfRela { addend, .. } = pointer.shape().form()
+                let VerifiedObjectRelocationFormV1::ElfX86_64Rela { addend, .. } =
+                    pointer.shape().form()
                 else {
                     panic!("ELF metadata must keep RELA facts");
                 };
