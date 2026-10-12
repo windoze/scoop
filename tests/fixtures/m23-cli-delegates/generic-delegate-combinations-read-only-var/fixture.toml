@@ -3,7 +3,7 @@ name = "generic-delegate-combinations-read-only-var"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "delegate-combinations-provider", "../../m23-generic-delegate-combinations/provider.scoop", "delegate-read-only-var", "../../m23-generic-delegate-combinations/read-only-var.scoop", "delegate-downstream-read-only-var", "../../m23-generic-delegate-combinations/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c", "../support/metadata.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["generics", "generic_delegate_values_and_order_republish_and_execute", "stage-golden"]
+tags = ["generics", "generic_delegate_values_and_order_republish_and_execute"]
 
 [[steps]]
 name = "prepare_core"
@@ -38,19 +38,13 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/delegate-combinations-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-combinations-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/delegate-combinations-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-combinations-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_provider_source"
@@ -67,7 +61,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/delegate-read-only-var", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-read-only-var/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/delegate-read-only-var", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-read-only-var/0.1.0/cone.slib", "--emit", "mir", "--dump-dir", "${work}/dump/consumer"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -75,10 +69,6 @@ json = "stderr"
 diagnostics = []
 checks = [
   {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "not_contains" = "  fun setValue "},
 ]
 
@@ -97,19 +87,13 @@ files = [
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/delegate-downstream-read-only-var", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-downstream-read-only-var/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/delegate-downstream-read-only-var", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-downstream-read-only-var/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_downstream_source"

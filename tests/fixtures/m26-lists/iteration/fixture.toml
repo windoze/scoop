@@ -4,7 +4,7 @@ root = "program.scoop"
 inputs = ["program.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m26", "lists", "gc", "stage-golden"]
+tags = ["m26", "lists", "gc"]
 
 [[steps]]
 name = "build"

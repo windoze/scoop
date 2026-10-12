@@ -3,7 +3,7 @@ name = "m32-roots-artifacts"
 inputs = ["provider", "facade", "consumer", "edited-roots.scoop", "root-exports.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m32", "roots", "core", "artifact-only", "gc", "stage-golden"]
+tags = ["m32", "roots", "core", "artifact-only", "gc"]
 
 [[steps]]
 name = "prepare"
@@ -47,13 +47,13 @@ files = [{remove = {path = "${work}/sources/core"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m32/roots-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m32/roots-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"}]
+checks = []
 
 [[steps]]
 name = "remove_provider"
@@ -61,13 +61,13 @@ files = [{remove = {path = "${work}/sources/provider"}}]
 
 [[steps]]
 name = "facade"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/facade", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-facade", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m32/roots-facade/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/facade", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-facade", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m32/roots-facade/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${facade.result.root.identity}/hir.txt", snapshot = "facade.hir.txt"}]
+checks = []
 
 [[steps]]
 name = "remove_facade"
@@ -75,17 +75,13 @@ files = [{remove = {path = "${work}/sources/facade"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "isolate"

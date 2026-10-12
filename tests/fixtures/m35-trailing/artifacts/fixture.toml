@@ -18,18 +18,14 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--profile", "${provider_profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--message-format", "json", "-o", "${work}/artifacts/dev.m35/trailing-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--profile", "${provider_profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--message-format", "json", "-o", "${work}/artifacts/dev.m35/trailing-provider/0.1.0/cone.slib"]
 timeout = 300
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.${provider_profile}.hir.txt"},
-  {file = "${work}/dump/${provider.result.root.identity}/mir.txt", snapshot = "provider.${provider_profile}.mir.txt"},
-  {file = "${work}/dump/${provider.result.root.identity}/lir.txt", snapshot = "provider.${provider_profile}.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_provider"
@@ -37,18 +33,14 @@ files = [{remove = {path = "${work}/sources/provider"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 timeout = 300
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.${profile}.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.${profile}.mir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_consumer"

@@ -1,5 +1,0 @@
-SourceFile
-  QualifiedPackage example
-  public fun answer(): Int
-    =
-      IntLiteral 42

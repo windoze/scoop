@@ -3,7 +3,7 @@ name = "m30-floating-json"
 inputs = ["program", "native.c", "../../../../sysroot/lib/scoop.json"]
 tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m30", "floating", "serialization", "json", "stage-golden", "gc"]
+tags = ["m30", "floating", "serialization", "json", "gc"]
 
 [[steps]]
 name = "prepare_native"
@@ -43,17 +43,13 @@ diagnostics = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run"

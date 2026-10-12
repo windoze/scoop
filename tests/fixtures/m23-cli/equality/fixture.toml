@@ -3,7 +3,7 @@ name = "cli-derived-equality-provider-reexport"
 inputs = ["local.scoop", "provider", "facade", "direct", "reexport", "bad-field.scoop", "bad-no-gc.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["cli", "equality", "reexport", "generics", "moving-gc", "stage-golden"]
+tags = ["cli", "equality", "reexport", "generics", "moving-gc"]
 
 [vars]
 options = ["--sysroot", "${work}/sysroot", "--runtime-root", "${work}/runtime", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
@@ -27,18 +27,13 @@ files = [
 
 [[steps]]
 name = "local"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/local.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-local"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/local.scoop", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump-local/${local.result.root.identity}/ast.txt", snapshot = "local.ast.txt"},
-  {file = "${work}/dump-local/${local.result.root.identity}/hir.txt", snapshot = "local.hir.txt"},
-  {file = "${work}/dump-local/${local.result.root.identity}/mir.txt", snapshot = "local.mir.txt"},
-  {file = "${work}/dump-local/${local.result.root.identity}/lir.txt", snapshot = "local.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run_local"
@@ -49,18 +44,13 @@ stderr = ""
 
 [[steps]]
 name = "direct"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/direct", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-direct"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/direct", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump-direct/${direct.result.root.identity}/ast.txt", snapshot = "direct.ast.txt"},
-  {file = "${work}/dump-direct/${direct.result.root.identity}/hir.txt", snapshot = "direct.hir.txt"},
-  {file = "${work}/dump-direct/${direct.result.root.identity}/mir.txt", snapshot = "direct.mir.txt"},
-  {file = "${work}/dump-direct/${direct.result.root.identity}/lir.txt", snapshot = "direct.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run_direct"
@@ -71,18 +61,13 @@ stderr = ""
 
 [[steps]]
 name = "reexport"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/reexport", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-reexport"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/reexport", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump-reexport/${reexport.result.root.identity}/ast.txt", snapshot = "reexport.ast.txt"},
-  {file = "${work}/dump-reexport/${reexport.result.root.identity}/hir.txt", snapshot = "reexport.hir.txt"},
-  {file = "${work}/dump-reexport/${reexport.result.root.identity}/mir.txt", snapshot = "reexport.mir.txt"},
-  {file = "${work}/dump-reexport/${reexport.result.root.identity}/lir.txt", snapshot = "reexport.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run_reexport"

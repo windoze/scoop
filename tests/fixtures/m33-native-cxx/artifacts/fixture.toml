@@ -19,18 +19,14 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--message-format", "json", "-o", "${work}/artifacts/dev.m33/cxx-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--message-format", "json", "-o", "${work}/artifacts/dev.m33/cxx-provider/0.1.0/cone.slib"]
 timeout = 300
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
-  {file = "${work}/dump/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
-  {file = "${work}/dump/${provider.result.root.identity}/lir.txt", snapshot = "provider.${profile}.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_provider"
@@ -38,18 +34,14 @@ files = [{remove = {path = "${work}/sources/provider"}}]
 
 [[steps]]
 name = "middle"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/middle", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-middle", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m33/cxx-middle/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/middle", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-middle", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m33/cxx-middle/0.1.0/cone.slib"]
 timeout = 300
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${middle.result.root.identity}/hir.txt", snapshot = "middle.${profile}.hir.txt"},
-  {file = "${work}/dump/${middle.result.root.identity}/mir.txt", snapshot = "middle.mir.txt"},
-  {file = "${work}/dump/${middle.result.root.identity}/lir.txt", snapshot = "middle.${profile}.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_middle"
@@ -57,18 +49,14 @@ files = [{remove = {path = "${work}/sources/middle"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 timeout = 300
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.${profile}.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.${profile}.mir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_consumer"

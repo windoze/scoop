@@ -1,6 +1,0 @@
-SourceFile
-  QualifiedPackage consumer
-  ImportExact Local dependency.api.value
-  public fun run(): Int
-    =
-      Call value

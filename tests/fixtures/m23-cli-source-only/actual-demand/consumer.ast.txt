@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  public fun result(): Int
-    =
-      Binary Add
-        Call demand
-        Call demandAccessor

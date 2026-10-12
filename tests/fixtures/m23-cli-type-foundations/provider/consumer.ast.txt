@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  ImportStar Local dependency.types.*
-  public fun read(value: Cell): Int
-    =
-      FieldAccess count
-        Var value

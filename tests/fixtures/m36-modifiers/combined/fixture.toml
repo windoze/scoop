@@ -8,13 +8,13 @@ tags = ["m36", "parser", "modifiers", "inheritance", "suspend"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "ast", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"}]
+checks = []
 
 [[steps]]
 name = "run"

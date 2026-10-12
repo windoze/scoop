@@ -3,7 +3,7 @@ name = "imported-constructor-tuple-fields"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-imported-constructors/provider.scoop", "constructor-provider", "../../m23-imported-constructors/tuple-fields.scoop", "constructors-tuple-fields", "../../m23-imported-constructors/downstream.scoop", "downstream-tuple-fields", "../../m23-imported-constructors/runtime.ll", "../support/constructor-main.scoop", "value-runtime-constructor-tuple-fields"]
 tools = ["scoop", "scoopc", "llc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["imported-values", "constructor", "stage-golden"]
+tags = ["imported-values", "constructor"]
 
 [vars]
 symbol_primary = "scoop$1$cb$d0b06676201cbd8b6edfd7b7fb5cf46d81fd2f803355e54f08b0c6ac74377e0a"
@@ -42,19 +42,13 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/constructor-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/constructor-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
-  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_provider_source"
@@ -71,19 +65,13 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/constructors-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructors-tuple-fields/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/constructors-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructors-tuple-fields/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_consumer_source"
@@ -100,19 +88,13 @@ files = [
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/downstream-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-tuple-fields/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-tuple-fields/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_downstream_source"

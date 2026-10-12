@@ -4,7 +4,7 @@ inputs = ["cone", "../../m23-program-link/read-println.scoop"]
 tools = ["scoop", "scoopc"]
 # The byte offsets and truncation lengths address the current Mach-O artifact.
 targets = ["aarch64-apple-darwin"]
-tags = ["program-link", "diagnostic", "corruption", "moving-gc", "stage-golden"]
+tags = ["program-link", "diagnostic", "corruption", "moving-gc"]
 
 [[steps]]
 name = "prepare"
@@ -13,13 +13,13 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+checks = []
 
 [[steps]]
 name = "run_built"

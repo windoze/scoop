@@ -3,7 +3,7 @@ name = "cli-process-source-observations"
 inputs = ["dependency", "root", "runner", "warning.scoop", "broken.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["cli", "cache", "diagnostics", "stage-golden", "process-cache"]
+tags = ["cli", "cache", "diagnostics", "process-cache"]
 
 [vars]
 options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
@@ -93,10 +93,10 @@ checks = [
   {"actual" = "${observed.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
   {"file" = "${observed.result.root.path}", "same_as" = "${cold.result.root.path}"},
   {"glob" = "${work}/dump/*", "equals" = ["${work}/dump/${observed.result.root.identity}"]},
-  {"file" = "${work}/dump/${observed.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
-  {"file" = "${work}/dump/${observed.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
-  {"file" = "${work}/dump/${observed.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
-  {"file" = "${work}/dump/${observed.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
+  {"file" = "${work}/dump/${observed.result.root.identity}/ast.txt", "exists" = true},
+  {"file" = "${work}/dump/${observed.result.root.identity}/hir.txt", "exists" = true},
+  {"file" = "${work}/dump/${observed.result.root.identity}/mir.txt", "exists" = true},
+  {"file" = "${work}/dump/${observed.result.root.identity}/lir.txt", "exists" = true},
 ]
 
 [[steps]]

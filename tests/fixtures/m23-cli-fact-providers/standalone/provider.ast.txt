@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  public struct FlagValue
-    field enabled: Boolean
-    field count: Int

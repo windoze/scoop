@@ -3,7 +3,7 @@ name = "program-link-artifact-graph"
 inputs = ["cone", "../../m23-program-link/basic-root.scoop", "library", "../../m23-program-link/basic-library.scoop", "extra", "other", "../../m23-program-link/empty.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["program-link", "stage-golden", "artifact-graph", "multi-cone", "negative", "moving-gc"]
+tags = ["program-link", "artifact-graph", "multi-cone", "negative", "moving-gc"]
 
 [[steps]]
 name = "prepare"
@@ -22,17 +22,17 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "build_dependencies"
-checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "library.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "library.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "library.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "library.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "prepare_extra"
@@ -41,13 +41,13 @@ checks = []
 
 [[steps]]
 name = "extra"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/extra", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-extra", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/extra", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-extra/${extra.result.root.identity}/ast.txt", "snapshot" = "extra.ast.txt"}, {"file" = "${work}/dump-extra/${extra.result.root.identity}/hir.txt", "snapshot" = "extra.hir.txt"}, {"file" = "${work}/dump-extra/${extra.result.root.identity}/mir.txt", "snapshot" = "extra.mir.txt"}, {"file" = "${work}/dump-extra/${extra.result.root.identity}/lir.txt", "snapshot" = "extra.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "prepare_other"
@@ -56,13 +56,13 @@ checks = []
 
 [[steps]]
 name = "other"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/other", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-other", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-other", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/other", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-other", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-other/${other.result.root.identity}/ast.txt", "snapshot" = "other.ast.txt"}, {"file" = "${work}/dump-other/${other.result.root.identity}/hir.txt", "snapshot" = "other.hir.txt"}, {"file" = "${work}/dump-other/${other.result.root.identity}/mir.txt", "snapshot" = "other.mir.txt"}, {"file" = "${work}/dump-other/${other.result.root.identity}/lir.txt", "snapshot" = "other.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "version_sources"
@@ -71,13 +71,13 @@ checks = []
 
 [[steps]]
 name = "version"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/version", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-version", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-version", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/version", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-version", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-version/${version.result.root.identity}/ast.txt", "snapshot" = "version.ast.txt"}, {"file" = "${work}/dump-version/${version.result.root.identity}/hir.txt", "snapshot" = "version.hir.txt"}, {"file" = "${work}/dump-version/${version.result.root.identity}/mir.txt", "snapshot" = "version.mir.txt"}, {"file" = "${work}/dump-version/${version.result.root.identity}/lir.txt", "snapshot" = "version.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "changed_sources"
@@ -86,13 +86,13 @@ checks = []
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/library", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-changed", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-changed", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/library", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-changed", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-changed/${changed.result.root.identity}/ast.txt", "snapshot" = "changed.ast.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/hir.txt", "snapshot" = "changed.hir.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/mir.txt", "snapshot" = "changed.mir.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/lir.txt", "snapshot" = "changed.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "original_main"

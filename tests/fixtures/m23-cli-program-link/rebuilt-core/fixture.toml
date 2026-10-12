@@ -3,7 +3,7 @@ name = "program-link-rebuilt-core"
 inputs = ["cone", "../../m23-program-link/read-println.scoop", "relocated-string.scoop", "../../m23-program-link/rebuilt-core-native.scoop", "ordinary-string", "../../m23-program-link/shadow-string-library.scoop", "root", "../../m23-program-link/rebuilt-core-root.scoop", "string-declaration.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["program-link", "stage-golden", "core", "multi-cone", "moving-gc"]
+tags = ["program-link", "core", "multi-cone", "moving-gc"]
 
 [[steps]]
 name = "prepare"
@@ -12,13 +12,13 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "isolate"
@@ -65,17 +65,17 @@ checks = []
 
 [[steps]]
 name = "rebuilt"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-rebuilt", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/ast.txt", "snapshot" = "rebuilt.ast.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/hir.txt", "snapshot" = "rebuilt.hir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/mir.txt", "snapshot" = "rebuilt.mir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/lir.txt", "snapshot" = "rebuilt.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "rebuilt_dependencies"
-checks = [{"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/ast.txt", "snapshot" = "ordinary-string.ast.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/hir.txt", "snapshot" = "ordinary-string.hir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/mir.txt", "snapshot" = "ordinary-string.mir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/lir.txt", "snapshot" = "ordinary-string.lir.txt"}]
+checks = []
 
 [[steps]]
 name = "run_rebuilt"

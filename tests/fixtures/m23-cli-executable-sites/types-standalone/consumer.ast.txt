@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  public fun literal(): Boolean
-    =
-      BoolLiteral true

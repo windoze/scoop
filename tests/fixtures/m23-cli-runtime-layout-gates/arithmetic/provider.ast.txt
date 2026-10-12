@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  public fun divide(value: Long, divisor: Long): Long
-    =
-      Binary Div
-        Var value
-        Var divisor

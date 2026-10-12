@@ -1,5 +1,0 @@
-SourceFile
-  QualifiedPackage dependency.conflict
-  public fun text<T>(): String
-    =
-      StringLiteral "next value"

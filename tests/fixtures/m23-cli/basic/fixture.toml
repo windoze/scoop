@@ -4,7 +4,7 @@ root = "hello.scoop"
 inputs = ["hello.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["cli", "cache", "stage-golden"]
+tags = ["cli", "cache"]
 
 [[steps]]
 name = "build"
@@ -15,14 +15,14 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${build.result.kind}", equals = "executable"},
-  {actual = "${build.result.profile}", equals = "debug"},
-  {actual = "${build.result.output}", equals = "${work}/target/${target}/debug/hello"},
-  {actual = "${build.result.observations.child_invocations.length}", equals = 2},
-  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "expected.ast.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "expected.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "expected.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "expected.lir.txt"},
+  {"actual" = "${build.result.kind}", "equals" = "executable"},
+  {"actual" = "${build.result.profile}", "equals" = "debug"},
+  {"actual" = "${build.result.output}", "equals" = "${work}/target/${target}/debug/hello"},
+  {"actual" = "${build.result.observations.child_invocations.length}", "equals" = 2},
+  {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "exists" = true},
+  {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "exists" = true},
+  {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "exists" = true},
+  {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "exists" = true},
 ]
 
 [[steps]]

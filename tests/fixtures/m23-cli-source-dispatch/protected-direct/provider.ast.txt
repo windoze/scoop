@@ -1,4 +1,0 @@
-SourceFile
-  RootPackage
-  public class Vault()
-    protected fun read

@@ -3,7 +3,7 @@ name = "m30-floating-artifacts-musl-pie"
 inputs = ["provider", "facade", "consumer", "native.c", "../../../../sysroot/lib/scoop.json"]
 tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
 targets = ["x86_64-unknown-linux-musl"]
-tags = ["m30", "floating", "annotation", "reexport", "artifact-only", "gc", "stage-golden"]
+tags = ["m30", "floating", "annotation", "reexport", "artifact-only", "gc"]
 
 [[steps]]
 name = "prepare"
@@ -46,13 +46,13 @@ files = [{remove = {path = "${work}/sources/json"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "--profile", "release", "--link-mode", "dynamic", {each = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m30/floating-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", "--profile", "release", "--link-mode", "dynamic", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m30/floating-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"}]
+checks = []
 
 [[steps]]
 name = "remove_provider"
@@ -91,17 +91,13 @@ stderr = ""
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "--profile", "release", "--link-mode", "dynamic", {each = "${link_args}"}, "${work}/sources/consumer", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--emit", "all", "--dump-dir", "${work}/dump", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "build", "--profile", "release", "--link-mode", "dynamic", {"each" = "${link_args}"}, "${work}/sources/consumer", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_consumer"

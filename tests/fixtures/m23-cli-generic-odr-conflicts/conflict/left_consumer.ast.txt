@@ -1,8 +1,0 @@
-SourceFile
-  RootPackage
-  ImportExact Local dependency.odr.adjusted
-  public fun probe(): Int
-    =
-      Call adjusted
-        IntLiteral 0
-        IntLiteral 40

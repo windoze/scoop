@@ -1,3 +1,0 @@
-SourceFile
-  QualifiedPackage callbacks
-  public val callback: (Int) -> Int = <expr>

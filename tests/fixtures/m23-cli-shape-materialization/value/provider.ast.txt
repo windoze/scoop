@@ -1,4 +1,0 @@
-SourceFile
-  RootPackage
-  public struct Payload
-    field value: Int

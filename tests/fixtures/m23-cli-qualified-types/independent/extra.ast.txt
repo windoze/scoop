@@ -1,5 +1,0 @@
-SourceFile
-  QualifiedPackage dependency.paths.Outer
-  public fun marker(): Int
-    =
-      IntLiteral 0

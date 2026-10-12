@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  public fun read(): Boolean
-    =
-      Call testInteger
-        Call boxInteger
-          IntLiteral 7

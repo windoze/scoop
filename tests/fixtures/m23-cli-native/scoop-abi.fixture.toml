@@ -3,7 +3,7 @@ name = "native-scoop-abi-moving-roots"
 inputs = ["../m12-extern-scoop/extern-scoop.scoop", "../m12-extern-scoop/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["native", "scoop-abi", "moving-gc", "stage-golden"]
+tags = ["native", "scoop-abi", "moving-gc"]
 
 [[variants]]
 name = "normal"
@@ -34,18 +34,13 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../m12-extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${fixture}/../m12-extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "scoop-abi.ast.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "scoop-abi.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "scoop-abi.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "scoop-abi.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run"

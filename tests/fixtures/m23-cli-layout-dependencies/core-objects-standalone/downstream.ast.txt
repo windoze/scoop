@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  public fun read(): Int
-    =
-      Call outside

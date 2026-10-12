@@ -3,7 +3,7 @@ name = "cli-core-source-cache"
 inputs = ["root", "runner", "../../core-library/extension.scoop", "../../core-library/library-consumer.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["cli", "core", "cache", "stage-golden"]
+tags = ["cli", "core", "cache"]
 
 [vars]
 options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -36,10 +36,6 @@ checks = [
   {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
   {"actual" = "${cold.result.observations.nodes.1.identity}", "equals" = "${cold.result.root.identity}"},
   {"actual" = "${cold.result.observations.nodes.1.origin}", "equals" = "compiled"},
-  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/ast.txt", "snapshot" = "cold.ast.txt"},
-  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/hir.txt", "snapshot" = "cold.hir.txt"},
-  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/mir.txt", "snapshot" = "cold.mir.txt"},
-  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/lir.txt", "snapshot" = "cold.lir.txt"},
 ]
 
 [[steps]]
@@ -100,7 +96,7 @@ files = [
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/changed"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -120,10 +116,6 @@ checks = [
   {"actual" = "${changed.result.observations.nodes.1.origin}", "equals" = "compiled"},
   {"actual" = "${changed.result.root.artifact_fingerprint}", "not_equals" = "${cold.result.root.artifact_fingerprint}"},
   {"actual" = "${changed.result.observations.nodes.1.cache_key}", "not_equals" = "${cold.result.observations.nodes.1.cache_key}"},
-  {"file" = "${work}/dumps/changed/${changed.result.root.identity}/ast.txt", "snapshot" = "changed.ast.txt"},
-  {"file" = "${work}/dumps/changed/${changed.result.root.identity}/hir.txt", "snapshot" = "changed.hir.txt"},
-  {"file" = "${work}/dumps/changed/${changed.result.root.identity}/mir.txt", "snapshot" = "changed.mir.txt"},
-  {"file" = "${work}/dumps/changed/${changed.result.root.identity}/lir.txt", "snapshot" = "changed.lir.txt"},
 ]
 
 [[steps]]

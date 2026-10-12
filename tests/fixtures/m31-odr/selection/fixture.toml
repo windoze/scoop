@@ -3,7 +3,7 @@ name = "m31-odr-selection"
 inputs = ["template", "left", "right", "root"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m31", "odr", "artifact-only", "context", "moving-gc", "stage-golden"]
+tags = ["m31", "odr", "artifact-only", "context", "moving-gc"]
 variants = [
   {name = "debug", vars = {profile = "debug", other_profile = "release"}},
   {name = "release", vars = {profile = "release", other_profile = "debug"}},
@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -28,10 +28,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${build.result.dependencies.length}", equals = 4},
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "root.${profile}.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "root.${profile}.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "root.${profile}.${target}.lir.txt"},
+  {"actual" = "${build.result.dependencies.length}", "equals" = 4},
 ]
 
 [[steps]]

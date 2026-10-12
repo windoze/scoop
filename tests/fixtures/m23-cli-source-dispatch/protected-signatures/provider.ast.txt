@@ -1,4 +1,0 @@
-SourceFile
-  RootPackage
-  public class ShapeSource()
-    protected fun nested

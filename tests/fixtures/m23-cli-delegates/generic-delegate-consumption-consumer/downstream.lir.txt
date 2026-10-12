@@ -1,9 +1,0 @@
-Module
-  fun @scoop$1$cb$a47c52602f2ee99332a72b5e76f6aaa1a9393ec487c438bafaa8efb287c7f97e() -> i32
-    local %0 $call.1: i32
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn0()
-    store t0 -> local0
-    ret local0
-  output library

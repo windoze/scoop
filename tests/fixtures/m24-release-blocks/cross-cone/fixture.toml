@@ -3,7 +3,7 @@ name = "release-blocks-cross-cone"
 inputs = ["provider", "middle", "consumer", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m24", "release-blocks", "stage-golden"]
+tags = ["m24", "release-blocks"]
 
 [[steps]]
 name = "prepare"
@@ -51,17 +51,13 @@ files = [{remove = {path = "${work}/core-source"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump/provider", "--message-format", "json", "-o", "${work}/artifacts/test/release-blocks-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-blocks-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
-  {file = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
-  {file = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", snapshot = "provider.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_provider_source"
@@ -69,17 +65,13 @@ files = [{remove = {path = "${work}/provider"}}]
 
 [[steps]]
 name = "middle"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/middle", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-middle", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump/middle", "--message-format", "json", "-o", "${work}/artifacts/test/release-blocks-middle/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/middle", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-middle", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-blocks-middle/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/middle/${middle.result.root.identity}/hir.txt", snapshot = "middle.hir.txt"},
-  {file = "${work}/dump/middle/${middle.result.root.identity}/mir.txt", snapshot = "middle.mir.txt"},
-  {file = "${work}/dump/middle/${middle.result.root.identity}/lir.txt", snapshot = "middle.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_middle_source"
@@ -87,17 +79,13 @@ files = [{remove = {path = "${work}/middle"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--emit", "all", "--dump-dir", "${work}/dump/consumer", "--message-format", "json", "--cone-path", "${work}/artifacts", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json", "--cone-path", "${work}/artifacts", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run"

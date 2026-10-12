@@ -1,6 +1,0 @@
-SourceFile
-  RootPackage
-  fun main()
-    val value
-      Call userCoreOffset
-        IntLiteral 41

@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  val runtimeValue: Int = <expr>
-  fun make(): Int
-    =
-      IntLiteral 1
-  fun main()

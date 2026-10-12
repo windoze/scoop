@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  fun main()
-    throw
-      Call IllegalStateException

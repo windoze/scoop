@@ -3,7 +3,7 @@ name = "runtime-images-eager-later-root"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "eager-bad-provider", "../../m23-runtime-images/eager-bad-provider.scoop", "eager-later-provider", "../../m23-runtime-images/eager-later-provider.scoop", "../support/trace.c", "eager-later-root", "../../m23-runtime-images/eager-later-root.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["runtime-images", "stopped", "stage-golden"]
+tags = ["runtime-images", "stopped"]
 
 [[steps]]
 name = "prepare_core"
@@ -38,19 +38,13 @@ files = [
 
 [[steps]]
 name = "eager-bad-provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/eager-bad-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-eager-bad-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/eager-bad-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/eager-bad-provider"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/eager-bad-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-eager-bad-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/eager-bad-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${eager-bad-provider.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/eager-bad-provider/${eager-bad-provider.result.root.identity}/ast.txt", "snapshot" = "eager-bad-provider.ast.txt"},
-  {"file" = "${work}/dump/eager-bad-provider/${eager-bad-provider.result.root.identity}/hir.txt", "snapshot" = "eager-bad-provider.hir.txt"},
-  {"file" = "${work}/dump/eager-bad-provider/${eager-bad-provider.result.root.identity}/mir.txt", "snapshot" = "eager-bad-provider.mir.txt"},
-  {"file" = "${work}/dump/eager-bad-provider/${eager-bad-provider.result.root.identity}/lir.txt", "snapshot" = "eager-bad-provider.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_eager-bad-provider"
@@ -67,19 +61,13 @@ files = [
 
 [[steps]]
 name = "eager-later-provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/eager-later-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-eager-later-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/eager-later-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/eager-later-provider"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/eager-later-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-eager-later-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/eager-later-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${eager-later-provider.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/eager-later-provider/${eager-later-provider.result.root.identity}/ast.txt", "snapshot" = "eager-later-provider.ast.txt"},
-  {"file" = "${work}/dump/eager-later-provider/${eager-later-provider.result.root.identity}/hir.txt", "snapshot" = "eager-later-provider.hir.txt"},
-  {"file" = "${work}/dump/eager-later-provider/${eager-later-provider.result.root.identity}/mir.txt", "snapshot" = "eager-later-provider.mir.txt"},
-  {"file" = "${work}/dump/eager-later-provider/${eager-later-provider.result.root.identity}/lir.txt", "snapshot" = "eager-later-provider.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_eager-later-provider"
@@ -124,19 +112,13 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/eager-later-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/eager-later-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "isolate"

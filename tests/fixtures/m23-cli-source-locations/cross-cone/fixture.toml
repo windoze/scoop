@@ -3,7 +3,7 @@ name = "source-locations-cross-cone-relocation"
 inputs = ["provider", "facade", "consumer", "standalone.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["source-locations", "defaults", "generics", "reexport", "cache", "moving-gc", "stage-golden"]
+tags = ["source-locations", "defaults", "generics", "reexport", "cache", "moving-gc"]
 
 [vars]
 options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
@@ -32,10 +32,10 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "consumer.ast.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "consumer.lir.txt"},
+  {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "exists" = true},
+  {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "exists" = true},
+  {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "exists" = true},
+  {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "exists" = true},
 ]
 
 [[steps]]
@@ -54,10 +54,10 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {file = "${work}/single-dump/${single.result.root.identity}/ast.txt", snapshot = "standalone.ast.txt"},
-  {file = "${work}/single-dump/${single.result.root.identity}/hir.txt", snapshot = "standalone.hir.txt"},
-  {file = "${work}/single-dump/${single.result.root.identity}/mir.txt", snapshot = "standalone.mir.txt"},
-  {file = "${work}/single-dump/${single.result.root.identity}/lir.txt", snapshot = "standalone.lir.txt"},
+  {"file" = "${work}/single-dump/${single.result.root.identity}/ast.txt", "exists" = true},
+  {"file" = "${work}/single-dump/${single.result.root.identity}/hir.txt", "exists" = true},
+  {"file" = "${work}/single-dump/${single.result.root.identity}/mir.txt", "exists" = true},
+  {"file" = "${work}/single-dump/${single.result.root.identity}/lir.txt", "exists" = true},
 ]
 
 [[steps]]

@@ -3,7 +3,7 @@ name = "runtime-images-early-root"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "early-chain", "../../m23-runtime-images/early-chain.scoop", "../support/trace.c", "early-root", "../../m23-runtime-images/early-root.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["runtime-images", "early", "stage-golden"]
+tags = ["runtime-images", "early"]
 
 [[steps]]
 name = "prepare_core"
@@ -38,19 +38,13 @@ files = [
 
 [[steps]]
 name = "early-chain"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/early-chain", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-early-chain", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/early-chain/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/early-chain"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/early-chain", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-early-chain", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/early-chain/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${early-chain.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/ast.txt", "snapshot" = "early-chain.ast.txt"},
-  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/hir.txt", "snapshot" = "early-chain.hir.txt"},
-  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/mir.txt", "snapshot" = "early-chain.mir.txt"},
-  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/lir.txt", "snapshot" = "early-chain.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_early-chain"
@@ -95,19 +89,13 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/early-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/early-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "isolate"

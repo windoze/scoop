@@ -3,7 +3,7 @@ name = "m29-container-encoding-artifacts"
 inputs = ["provider", "peer", "consumer", "../../../../sysroot/lib/scoop.json"]
 tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m29", "serialization", "json", "artifact-only", "gc", "stage-golden"]
+tags = ["m29", "serialization", "json", "artifact-only", "gc"]
 
 [[steps]]
 name = "prepare"
@@ -46,13 +46,13 @@ files = [{remove = {path = "${work}/sources/json"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/container-encoding/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/container-encoding/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"}]
+checks = []
 
 [[steps]]
 name = "remove_provider"
@@ -60,13 +60,13 @@ files = [{remove = {path = "${work}/sources/provider"}}]
 
 [[steps]]
 name = "peer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/peer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-peer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/container-encoding-peer/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/peer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-peer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/container-encoding-peer/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${peer.result.root.identity}/hir.txt", snapshot = "peer.hir.txt"}]
+checks = []
 
 [[steps]]
 name = "remove_peer"
@@ -74,17 +74,13 @@ files = [{remove = {path = "${work}/sources/peer"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_consumer"

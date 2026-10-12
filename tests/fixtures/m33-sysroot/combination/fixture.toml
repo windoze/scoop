@@ -20,31 +20,23 @@ files = [
 
 [[steps]]
 name = "platform"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/lib/scoop.platform", {each = "${options}"}, "--profile", "${profile}", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sysroot/lib/scoop.platform", {"each" = "${options}"}, "--profile", "${profile}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
- {file = "${work}/dump/${platform.result.root.identity}/hir.txt", snapshot = "platform.${profile}.hir.txt"},
- {file = "${work}/dump/${platform.result.root.identity}/mir.txt", snapshot = "platform.mir.txt"},
- {file = "${work}/dump/${platform.result.root.identity}/lir.txt", snapshot = "platform.${profile}.${target}.lir.txt"}
-]
+checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--profile", "${profile}", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/cone", {"each" = "${options}"}, "--profile", "${profile}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
- {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "consumer.${profile}.hir.txt"},
- {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "consumer.${profile}.mir.txt"},
- {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"}
-]
+checks = []
 
 [[steps]]
 name = "run"

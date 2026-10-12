@@ -1,6 +1,0 @@
-SourceFile
-  QualifiedPackage consumer
-  ImportExact Local dependency.api.run
-  public fun dormant<T>(value: T): Boolean
-    =
-      Call run

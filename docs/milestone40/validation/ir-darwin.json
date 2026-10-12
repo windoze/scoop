@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 8,
+  "unselected": 3763,
+  "counts": {
+    "passed": 8
+  },
+  "variants": 11,
+  "processes": 57,
+  "stage_and_plan_goldens": 6,
+  "results": [
+    {
+      "name": "cli-build-warm-observation-link",
+      "status": "passed",
+      "seconds": 120.44465512502939,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "cli-process-source-observations",
+      "status": "passed",
+      "seconds": 65.6908350000158,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "passed",
+      "seconds": 61.13023066613823,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-equality-payload",
+      "status": "passed",
+      "seconds": 62.07273191702552,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-encoding-values",
+      "status": "passed",
+      "seconds": 109.2359833328519,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m31-local-values",
+      "status": "passed",
+      "seconds": 120.57603820809163,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 2,
+      "message": ""
+    },
+    {
+      "name": "m31-ssa-roots",
+      "status": "passed",
+      "seconds": 126.18829549988732,
+      "variants": 3,
+      "processes": 12,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "native-link-archive-chain",
+      "status": "passed",
+      "seconds": 11.835929499939084,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 1,
+      "message": ""
+    }
+  ]
+}

@@ -3,7 +3,7 @@ name = "runtime-images-cycle-recovery-root"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "cycle-recovery-provider", "../../m23-runtime-images/cycle-recovery-provider.scoop", "../support/trace.c", "cycle-recovery-root", "../../m23-runtime-images/cycle-recovery-root.scoop"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["runtime-images", "lazy", "stage-golden"]
+tags = ["runtime-images", "lazy"]
 
 [[steps]]
 name = "prepare_core"
@@ -38,19 +38,13 @@ files = [
 
 [[steps]]
 name = "cycle-recovery-provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/cycle-recovery-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-cycle-recovery-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/cycle-recovery-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/cycle-recovery-provider"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/cycle-recovery-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-cycle-recovery-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/cycle-recovery-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${cycle-recovery-provider.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/cycle-recovery-provider/${cycle-recovery-provider.result.root.identity}/ast.txt", "snapshot" = "cycle-recovery-provider.ast.txt"},
-  {"file" = "${work}/dump/cycle-recovery-provider/${cycle-recovery-provider.result.root.identity}/hir.txt", "snapshot" = "cycle-recovery-provider.hir.txt"},
-  {"file" = "${work}/dump/cycle-recovery-provider/${cycle-recovery-provider.result.root.identity}/mir.txt", "snapshot" = "cycle-recovery-provider.mir.txt"},
-  {"file" = "${work}/dump/cycle-recovery-provider/${cycle-recovery-provider.result.root.identity}/lir.txt", "snapshot" = "cycle-recovery-provider.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_cycle-recovery-provider"
@@ -95,19 +89,13 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/cycle-recovery-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/cycle-recovery-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "isolate"

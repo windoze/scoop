@@ -3,7 +3,7 @@ name = "release-blocks-generic-cross-cone"
 inputs = ["provider", "left", "right", "consumer", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m24", "release-blocks", "stage-golden"]
+tags = ["m24", "release-blocks"]
 
 [[steps]]
 name = "prepare"
@@ -52,17 +52,13 @@ files = [{remove = {path = "${work}/core-source"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump/provider", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
-  {file = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
-  {file = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", snapshot = "provider.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_provider_source"
@@ -70,17 +66,13 @@ files = [{remove = {path = "${work}/provider"}}]
 
 [[steps]]
 name = "left"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/left", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump/left", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-left/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/left", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-left/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/left/${left.result.root.identity}/hir.txt", snapshot = "left.hir.txt"},
-  {file = "${work}/dump/left/${left.result.root.identity}/mir.txt", snapshot = "left.mir.txt"},
-  {file = "${work}/dump/left/${left.result.root.identity}/lir.txt", snapshot = "left.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_left_source"
@@ -88,17 +80,13 @@ files = [{remove = {path = "${work}/left"}}]
 
 [[steps]]
 name = "right"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/right", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump/right", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-right/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/right", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-right/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/right/${right.result.root.identity}/hir.txt", snapshot = "right.hir.txt"},
-  {file = "${work}/dump/right/${right.result.root.identity}/mir.txt", snapshot = "right.mir.txt"},
-  {file = "${work}/dump/right/${right.result.root.identity}/lir.txt", snapshot = "right.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_right_source"
@@ -106,17 +94,13 @@ files = [{remove = {path = "${work}/right"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--emit", "all", "--dump-dir", "${work}/dump/consumer", "--message-format", "json", "--cone-path", "${work}/artifacts", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json", "--cone-path", "${work}/artifacts", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.lir.${target}.txt"},
-]
+checks = []
 
 [[steps]]
 name = "run"

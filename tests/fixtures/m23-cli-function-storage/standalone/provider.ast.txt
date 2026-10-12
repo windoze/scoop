@@ -1,3 +1,0 @@
-SourceFile
-  QualifiedPackage functionstorage
-  public val callback: () -> Int = <expr>

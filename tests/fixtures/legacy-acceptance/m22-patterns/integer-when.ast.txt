@@ -1,8 +1,0 @@
-SourceFile
-  RootPackage
-  fun main()
-    when
-      IntLiteral 1
-      else
-        Call println
-          StringLiteral "x"

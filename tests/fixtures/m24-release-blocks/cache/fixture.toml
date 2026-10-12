@@ -3,7 +3,7 @@ name = "release-blocks-cache-invalidation"
 inputs = ["provider", "consumer", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m24", "release-blocks", "cache", "stage-golden"]
+tags = ["m24", "release-blocks", "cache"]
 
 [vars]
 options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--runtime-root", "${runtime}", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/program"]
@@ -33,17 +33,14 @@ env = {ZERO_AR_DATE = "1"}
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${cold.result.observations.child_invocations}", equals = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
-  {file = "${work}/dumps/cold/${cold.result.root.identity}/hir.txt", snapshot = "cold.hir.txt"},
-  {file = "${work}/dumps/cold/${cold.result.root.identity}/mir.txt", snapshot = "cold.mir.txt"},
-  {file = "${work}/dumps/cold/${cold.result.root.identity}/lir.txt", snapshot = "cold.${target}.lir.txt"},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
 ]
 
 [[steps]]
@@ -82,20 +79,17 @@ files = [
 
 [[steps]]
 name = "body"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/body"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${body.result.observations.child_invocations}", equals = ["${body.result.dependencies.1.identity}", "${body.result.root.identity}"]},
-  {actual = "${body.result.root.artifact_fingerprint}", not_equals = "${cold.result.root.artifact_fingerprint}"},
-  {actual = "${body.result.dependencies.1.artifact_fingerprint}", not_equals = "${cold.result.dependencies.1.artifact_fingerprint}"},
-  {actual = "${body.result.dependencies.0.artifact_fingerprint}", equals = "${cold.result.dependencies.0.artifact_fingerprint}"},
-  {file = "${work}/dumps/body/${body.result.root.identity}/hir.txt", snapshot = "body.hir.txt"},
-  {file = "${work}/dumps/body/${body.result.root.identity}/mir.txt", snapshot = "body.mir.txt"},
-  {file = "${work}/dumps/body/${body.result.root.identity}/lir.txt", snapshot = "body.${target}.lir.txt"},
+  {"actual" = "${body.result.observations.child_invocations}", "equals" = ["${body.result.dependencies.1.identity}", "${body.result.root.identity}"]},
+  {"actual" = "${body.result.root.artifact_fingerprint}", "not_equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"actual" = "${body.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${cold.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${body.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
 ]
 
 [[steps]]
@@ -134,20 +128,17 @@ files = [
 
 [[steps]]
 name = "field"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/field"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${field.result.observations.child_invocations}", equals = ["${field.result.dependencies.1.identity}", "${field.result.root.identity}"]},
-  {actual = "${field.result.root.artifact_fingerprint}", not_equals = "${body.result.root.artifact_fingerprint}"},
-  {actual = "${field.result.dependencies.1.artifact_fingerprint}", not_equals = "${body.result.dependencies.1.artifact_fingerprint}"},
-  {actual = "${field.result.dependencies.0.artifact_fingerprint}", equals = "${body.result.dependencies.0.artifact_fingerprint}"},
-  {file = "${work}/dumps/field/${field.result.root.identity}/hir.txt", snapshot = "field.hir.txt"},
-  {file = "${work}/dumps/field/${field.result.root.identity}/mir.txt", snapshot = "field.mir.txt"},
-  {file = "${work}/dumps/field/${field.result.root.identity}/lir.txt", snapshot = "field.${target}.lir.txt"},
+  {"actual" = "${field.result.observations.child_invocations}", "equals" = ["${field.result.dependencies.1.identity}", "${field.result.root.identity}"]},
+  {"actual" = "${field.result.root.artifact_fingerprint}", "not_equals" = "${body.result.root.artifact_fingerprint}"},
+  {"actual" = "${field.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${body.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${field.result.dependencies.0.artifact_fingerprint}", "equals" = "${body.result.dependencies.0.artifact_fingerprint}"},
 ]
 
 [[steps]]
@@ -186,20 +177,17 @@ files = [
 
 [[steps]]
 name = "helper"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/helper"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${helper.result.observations.child_invocations}", equals = ["${helper.result.dependencies.1.identity}", "${helper.result.root.identity}"]},
-  {actual = "${helper.result.root.artifact_fingerprint}", not_equals = "${field.result.root.artifact_fingerprint}"},
-  {actual = "${helper.result.dependencies.1.artifact_fingerprint}", not_equals = "${field.result.dependencies.1.artifact_fingerprint}"},
-  {actual = "${helper.result.dependencies.0.artifact_fingerprint}", equals = "${field.result.dependencies.0.artifact_fingerprint}"},
-  {file = "${work}/dumps/helper/${helper.result.root.identity}/hir.txt", snapshot = "helper.hir.txt"},
-  {file = "${work}/dumps/helper/${helper.result.root.identity}/mir.txt", snapshot = "helper.mir.txt"},
-  {file = "${work}/dumps/helper/${helper.result.root.identity}/lir.txt", snapshot = "helper.${target}.lir.txt"},
+  {"actual" = "${helper.result.observations.child_invocations}", "equals" = ["${helper.result.dependencies.1.identity}", "${helper.result.root.identity}"]},
+  {"actual" = "${helper.result.root.artifact_fingerprint}", "not_equals" = "${field.result.root.artifact_fingerprint}"},
+  {"actual" = "${helper.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${field.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${helper.result.dependencies.0.artifact_fingerprint}", "equals" = "${field.result.dependencies.0.artifact_fingerprint}"},
 ]
 
 [[steps]]

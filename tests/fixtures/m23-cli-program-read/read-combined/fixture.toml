@@ -3,7 +3,7 @@ name = "program-read-read-combined"
 inputs = ["../../m23-program-link/read-combined.scoop", "program"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["program-read", "stage-golden", "moving-gc", "manifest"]
+tags = ["program-read", "moving-gc", "manifest"]
 
 [[steps]]
 name = "prepare_core"
@@ -37,20 +37,13 @@ checks = []
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump/program", "--cone-path", "${work}/artifacts"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--cone-path", "${work}/artifacts"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-
-  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "prepare_verified"
@@ -62,20 +55,13 @@ checks = []
 
 [[steps]]
 name = "verified"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/verified-program", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump/verified", "--cone-path", "${work}/artifacts"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/verified-program", "--runtime-root", "${runtime}", "--cone-path", "${work}/artifacts"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-
-  {"actual" = "${verified.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/verified/${verified.result.root.identity}/ast.txt", "snapshot" = "verified.ast.txt"},
-  {"file" = "${work}/dump/verified/${verified.result.root.identity}/hir.txt", "snapshot" = "verified.hir.txt"},
-  {"file" = "${work}/dump/verified/${verified.result.root.identity}/mir.txt", "snapshot" = "verified.mir.txt"},
-  {"file" = "${work}/dump/verified/${verified.result.root.identity}/lir.txt", "snapshot" = "verified.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "isolate"

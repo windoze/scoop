@@ -1,3 +1,0 @@
-SourceFile
-  RootPackage
-  public fun onlySignature(unused: Any)

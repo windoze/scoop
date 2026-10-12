@@ -1,6 +1,0 @@
-SourceFile
-  QualifiedPackage image.consumer
-  ImportExact Local image.provider.answer
-  public fun result(): Int
-    =
-      Call answer

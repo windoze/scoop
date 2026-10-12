@@ -3,7 +3,7 @@ name = "core-dependencies-missing"
 inputs = ["../../core-library/dependency-locals.scoop", "../../core-library/dependency-missing.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["core-dependencies", "negative", "stage-golden"]
+tags = ["core-dependencies", "negative"]
 
 [[steps]]
 name = "prepare_core"

@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  ImportStar Local dependency.protected_source.*
-  public class Child() : Surface(<0 args>)
-    public fun readAll

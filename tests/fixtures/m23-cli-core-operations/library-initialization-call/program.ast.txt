@@ -1,6 +1,0 @@
-SourceFile
-  RootPackage
-  val initialized: Int = <expr>
-  fun main()
-    val value
-      Var initialized

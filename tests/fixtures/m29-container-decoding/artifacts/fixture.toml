@@ -3,7 +3,7 @@ name = "m29-container-decoding-artifacts"
 inputs = ["provider", "consumer", "../../../../sysroot/lib/scoop.json"]
 tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m29", "serialization", "json", "artifact-only", "gc", "stage-golden"]
+tags = ["m29", "serialization", "json", "artifact-only", "gc"]
 
 [[steps]]
 name = "prepare"
@@ -45,13 +45,13 @@ files = [{remove = {path = "${work}/sources/json"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/container-decoding/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/container-decoding/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"}]
+checks = []
 
 [[steps]]
 name = "remove_provider"

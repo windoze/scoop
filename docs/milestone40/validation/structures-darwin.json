@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 6,
+  "unselected": 3765,
+  "counts": {
+    "passed": 6
+  },
+  "variants": 12,
+  "processes": 66,
+  "stage_and_plan_goldens": 18,
+  "results": [
+    {
+      "name": "m34-devirtualization-artifacts",
+      "status": "passed",
+      "seconds": 73.05362433288246,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m34-devirtualization-locals",
+      "status": "passed",
+      "seconds": 64.34461933397688,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 2,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-artifacts",
+      "status": "passed",
+      "seconds": 72.80993587500416,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-decisions",
+      "status": "passed",
+      "seconds": 64.2333861249499,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 2,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values-artifacts",
+      "status": "passed",
+      "seconds": 19.958764290902764,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values-native",
+      "status": "passed",
+      "seconds": 10.911632583010942,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 2,
+      "message": ""
+    }
+  ]
+}

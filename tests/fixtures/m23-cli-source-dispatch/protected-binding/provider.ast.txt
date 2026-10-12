@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  public interface Constraint
-  public class Container()
-    public nested class Vault
-  public class Another()
-    protected fun read

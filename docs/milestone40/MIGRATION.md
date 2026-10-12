@@ -60,3 +60,33 @@ ODR 的 typed 物理定义与强弱绑定测试保持原样，普通多 consumer
 本机 fmt/workspace clippy、Ruff、44 项公共 runner 测试通过；
 `generic-equality-payload` 与 `native-link-archive-chain` 两项 CLI 验证通过
 （20 个进程，见 [报告](validation/symbols-darwin.json)）。
+
+### IR 批次与保留范围
+
+普通用例移除 11,508 条 AST/HIR/MIR/LIR snapshot 声明及 1,559 条仅证明 dump
+强制重编译的单子进程计数。逐声明比较确认所有 inputs、support、targets、variants、
+非观察 argv、源码准备/隔离步骤、退出码、signal、stdout/stderr、完整诊断和其他 checks 保持。
+观察模式三项专测保留 dump 请求：`cli-build-warm-observation-link`、
+`cli-process-source-observations`、`source-locations-cross-cone-relocation`；
+文件存在/集合、同次产物一致性、warm 重编译及重定位 dump 相等性仍被检查。
+
+文件 golden 收敛为 9 项专测，每项只请求一个实际检查的阶段：
+
+- MIR：`legacy-m8-exceptions-return-paths`、`m31-local-values`、
+  `m34-inlining-artifacts`、`m34-inlining-decisions`、
+  `m34-devirtualization-locals`、`m34-devirtualization-artifacts`。
+- LIR：`m31-ssa-roots`、`m34-small-values-native`、`m34-small-values-artifacts`。
+
+保留的 MIR 检查返回/清理顺序、优化分支、真实内联与本地/导入分派目标；
+LIR 检查引用活跃位置、聚合 carrier 与 Scoop/C ABI 及跨 Cone 调用。
+原来的 debug/release、moving/minor 和三 target 配置不变。
+已有 provider/default-template、getter/setter 按需物化及来源位置的局部结构 checks
+继续保留，只请求其实际使用的阶段；没有把整份 golden 换成新加的关键词匹配。
+库产物发布用例继续编译真实 provider/consumer；它们的布局/分派结构由对应 typed IR
+专测负责，不把仅能成功产生 library 的用例记作运行行为验证。
+
+本机四个 stage crate 的单元测试 2,200 项及 parser doctest 1 项通过。
+8 项迁移选测通过（11 变体、57 进程、6 golden），见 [报告](validation/ir-darwin.json)。
+未批量更新任何 IR 期望，保留的 golden 使用原有字节比较。
+六项 ABI/内联/去虚化专测补验也通过（12 变体、66 进程、18 golden），
+见 [报告](validation/structures-darwin.json)。

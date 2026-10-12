@@ -3,7 +3,7 @@ name = "m27-context-artifacts"
 inputs = ["a", "b", "c", "bad", "../../m13-callback/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m27", "context", "generics", "artifact-only", "stage-golden"]
+tags = ["m27", "context", "generics", "artifact-only"]
 
 [[steps]]
 name = "prepare_native"
@@ -53,17 +53,13 @@ files = [
 
 [[steps]]
 name = "a"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/a", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-a", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-a/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/a"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/a", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-a", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-a/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/a/${a.result.root.identity}/hir.txt", snapshot = "a.hir.txt"},
-  {file = "${work}/dump/a/${a.result.root.identity}/mir.txt", snapshot = "a.mir.txt"},
-  {file = "${work}/dump/a/${a.result.root.identity}/lir.txt", snapshot = "a.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_a"
@@ -79,17 +75,13 @@ files = [
 
 [[steps]]
 name = "b"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/b", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-b", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-b/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/b"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/b", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-b", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-b/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/b/${b.result.root.identity}/hir.txt", snapshot = "b.hir.txt"},
-  {file = "${work}/dump/b/${b.result.root.identity}/mir.txt", snapshot = "b.mir.txt"},
-  {file = "${work}/dump/b/${b.result.root.identity}/lir.txt", snapshot = "b.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_b"
@@ -105,17 +97,13 @@ files = [
 
 [[steps]]
 name = "c"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/c", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build", "--emit", "all", "--dump-dir", "${work}/dump/c"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/c", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {file = "${work}/dump/c/${c.result.root.identity}/hir.txt", snapshot = "c.hir.txt"},
-  {file = "${work}/dump/c/${c.result.root.identity}/mir.txt", snapshot = "c.mir.txt"},
-  {file = "${work}/dump/c/${c.result.root.identity}/lir.txt", snapshot = "c.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_c"

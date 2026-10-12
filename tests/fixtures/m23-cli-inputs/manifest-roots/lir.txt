@@ -1,6 +1,0 @@
-Module
-  fun @scoop$1$cb$ac7277ac59ed9fbc5790d76d441732ca93bb936ed82014f30a85057e79ba354e() -> i32
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    ret integer<Int>(0x0000002a)
-  output library

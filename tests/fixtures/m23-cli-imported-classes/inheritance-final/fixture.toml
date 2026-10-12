@@ -3,7 +3,7 @@ name = "imported-class-inheritance-final"
 inputs = ["../support/stage3_test.scoop", "../../m23-imported-classes/core-provider.scoop", "../../m23-imported-classes/core-inheritance-provider.scoop", "../../m23-imported-classes/core-cast-direct.scoop", "../../m23-imported-classes/core-arithmetic-direct.scoop", "../../m23-imported-classes/provider.scoop", "../../m23-imported-classes/inheritance-provider.scoop", "class-provider", "inheritance-final", "../../m23-imported-classes/inheritance-final.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["imported-classes", "core-rebuild", "negative", "stage-golden"]
+tags = ["imported-classes", "core-rebuild", "negative"]
 
 [[steps]]
 name = "prepare_core"

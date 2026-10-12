@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-    @Extern(name = "abs")
-  private fun nativeValue(value: Int): Int
-  fun main()

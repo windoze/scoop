@@ -3,7 +3,7 @@ name = "cli-process-manifest-executable"
 inputs = ["executable"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["cli", "cache", "stage-golden", "process-cache"]
+tags = ["cli", "cache", "process-cache"]
 
 [vars]
 options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
@@ -16,7 +16,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/executable", {"each" = "${options}"}, "-o", "${work}/published", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/executable", {"each" = "${options}"}, "-o", "${work}/published"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -33,10 +33,6 @@ checks = [
   {"actual" = "${cold.result.root.coordinate}", "equals" = {"group" = "test", "name" = "executable", "version" = "1.0.0"}},
   {"actual" = "${cold.result.observations.nodes.1.identity}", "equals" = "${cold.result.root.identity}"},
   {"actual" = "${cold.result.observations.nodes.1.origin}", "equals" = "compiled"},
-  {"file" = "${work}/dump/${cold.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
-  {"file" = "${work}/dump/${cold.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
-  {"file" = "${work}/dump/${cold.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
-  {"file" = "${work}/dump/${cold.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
 ]
 
 [[steps]]

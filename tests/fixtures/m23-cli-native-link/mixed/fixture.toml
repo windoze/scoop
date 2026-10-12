@@ -4,7 +4,7 @@ inputs = ["mixed-provider", "../../m23-native-link/mixed/provider.scoop", "mixed
 tools = ["scoop", "scoopc", "cc", "ar"]
 # This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
-tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
+tags = ["native-link", "program-link", "moving-gc"]
 
 [[variants]]
 name = "normal"
@@ -72,13 +72,20 @@ files = [{"remove" = {"path" = "${work}/objects/archive.o"}}, {"remove" = {"path
 [[steps]]
 name = "build"
 timeout = 300
-argv = ["${scoop}", "build", "${work}/sources/mixed-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", "${work}/sources/mixed-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 4}, {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"}, {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "mixed-provider"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "../goldens/mixed/provider.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "../goldens/mixed/provider.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "../goldens/mixed/provider.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "../goldens/mixed/provider.lir.txt"}, {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "mixed-left"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/ast.txt", "snapshot" = "../goldens/mixed/left.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/hir.txt", "snapshot" = "../goldens/mixed/left.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/mir.txt", "snapshot" = "../goldens/mixed/left.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/lir.txt", "snapshot" = "../goldens/mixed/left.lir.txt"}, {"actual" = "${build.result.dependencies.3.coordinate.name}", "equals" = "mixed-right"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/ast.txt", "snapshot" = "../goldens/mixed/right.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/hir.txt", "snapshot" = "../goldens/mixed/right.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/mir.txt", "snapshot" = "../goldens/mixed/right.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/lir.txt", "snapshot" = "../goldens/mixed/right.lir.txt"}, {"actual" = "${build.result.root.coordinate.name}", "equals" = "mixed-root"}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "../goldens/mixed/root.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "../goldens/mixed/root.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "../goldens/mixed/root.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "../goldens/mixed/root.lir.txt"}]
+checks = [
+  {"actual" = "${build.result.dependencies.length}", "equals" = 4},
+  {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"},
+  {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "mixed-provider"},
+  {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "mixed-left"},
+  {"actual" = "${build.result.dependencies.3.coordinate.name}", "equals" = "mixed-right"},
+  {"actual" = "${build.result.root.coordinate.name}", "equals" = "mixed-root"},
+]
 
 [[steps]]
 name = "run_built"

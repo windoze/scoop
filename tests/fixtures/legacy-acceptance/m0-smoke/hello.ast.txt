@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  fun main()
-    Call print
-      StringLiteral "hello, world"

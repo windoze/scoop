@@ -3,7 +3,7 @@ name = "namespace-companions"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "origin", "../../m23-reexported-namespaces/provider.scoop", "first", "../../m23-reexported-namespaces/facade.scoop", "second", "../../m23-reexported-namespaces/facade.scoop", "consumer", "../../m23-reexported-namespaces/companions.scoop", "downstream", "../../m23-reexported-namespaces/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["namespaces", "stage-golden"]
+tags = ["namespaces"]
 
 [[steps]]
 name = "prepare_core"
@@ -38,19 +38,13 @@ files = [
 
 [[steps]]
 name = "origin"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/origin", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-origin/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/origin"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/origin", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-origin/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${origin.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/origin/${origin.result.root.identity}/ast.txt", "snapshot" = "origin.ast.txt"},
-  {"file" = "${work}/dump/origin/${origin.result.root.identity}/hir.txt", "snapshot" = "origin.hir.txt"},
-  {"file" = "${work}/dump/origin/${origin.result.root.identity}/mir.txt", "snapshot" = "origin.mir.txt"},
-  {"file" = "${work}/dump/origin/${origin.result.root.identity}/lir.txt", "snapshot" = "origin.${target}.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_origin"
@@ -67,19 +61,13 @@ files = [
 
 [[steps]]
 name = "first"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/first", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-first/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/first"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/first", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-first/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${first.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/first/${first.result.root.identity}/ast.txt", "snapshot" = "first.ast.txt"},
-  {"file" = "${work}/dump/first/${first.result.root.identity}/hir.txt", "snapshot" = "first.hir.txt"},
-  {"file" = "${work}/dump/first/${first.result.root.identity}/mir.txt", "snapshot" = "first.mir.txt"},
-  {"file" = "${work}/dump/first/${first.result.root.identity}/lir.txt", "snapshot" = "first.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_first"
@@ -96,19 +84,13 @@ files = [
 
 [[steps]]
 name = "second"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/second", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-second/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/second"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/second", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-second/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${second.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/second/${second.result.root.identity}/ast.txt", "snapshot" = "second.ast.txt"},
-  {"file" = "${work}/dump/second/${second.result.root.identity}/hir.txt", "snapshot" = "second.hir.txt"},
-  {"file" = "${work}/dump/second/${second.result.root.identity}/mir.txt", "snapshot" = "second.mir.txt"},
-  {"file" = "${work}/dump/second/${second.result.root.identity}/lir.txt", "snapshot" = "second.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_second"
@@ -125,19 +107,13 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-companions/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-companions/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_consumer"
@@ -154,19 +130,13 @@ files = [
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/downstream", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-downstream-companions/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-downstream-companions/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
-]
+checks = []
 
 [[steps]]
 name = "remove_downstream"

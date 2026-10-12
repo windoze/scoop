@@ -1,8 +1,0 @@
-SourceFile
-  RootPackage
-  public fun identity(value: Boolean): Boolean
-    =
-      Var value
-  private fun dormant<T>(value: String): String
-    =
-      Var value

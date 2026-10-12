@@ -1,4 +1,0 @@
-SourceFile
-  QualifiedPackage nativeconflict.right
-    @Extern(name = "abs")
-  public fun nativeValue(value: Int): Int

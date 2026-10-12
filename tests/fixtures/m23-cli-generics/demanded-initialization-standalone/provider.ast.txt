@@ -1,5 +1,0 @@
-SourceFile
-  QualifiedPackage upstream.leaf
-  public fun number(): Int
-    =
-      IntLiteral 42

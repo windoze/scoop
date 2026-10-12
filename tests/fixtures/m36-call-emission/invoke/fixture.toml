@@ -8,13 +8,13 @@ tags = ["m36", "codegen", "invoke", "dispatch"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"}, {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"}]
+checks = []
 
 [[steps]]
 name = "run"

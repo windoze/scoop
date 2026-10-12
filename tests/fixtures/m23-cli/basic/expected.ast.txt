@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  fun main()
-    Call println
-      StringLiteral "hello from public CLI"

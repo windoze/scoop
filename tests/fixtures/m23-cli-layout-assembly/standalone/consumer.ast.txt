@@ -1,8 +1,0 @@
-SourceFile
-  RootPackage
-  public fun consume(): Boolean
-    =
-      Call same
-        Call pass
-          Call Token
-        Call Token

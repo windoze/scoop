@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  public fun result(): Int
-    =
-      Var eager

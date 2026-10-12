@@ -1,5 +1,0 @@
-SourceFile
-  QualifiedPackage image.provider
-  public fun answer(): Int
-    =
-      IntLiteral 42

@@ -1,4 +1,0 @@
-SourceFile
-  RootPackage
-  public interface DomainSeed<T>
-    fun choose

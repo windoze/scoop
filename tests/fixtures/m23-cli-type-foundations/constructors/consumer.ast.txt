@@ -1,7 +1,0 @@
-SourceFile
-  RootPackage
-  ImportStar Local dependency.constructors.*
-  public fun create(): Pair
-    =
-      Call Pair
-        StringLiteral "factory"
