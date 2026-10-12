@@ -77,3 +77,9 @@
 - backend identity 改为 canonical name/version 数据；codegen 明确拒绝未知身份、修改后的 CPU 合同及不匹配的目标组合。slib 兼容性读取同时核对所选 target/backend 身份与各自指纹，拒绝未知身份冒用已知指纹。
 - 本机 fmt、workspace clippy；344 项 identity、473 项 LIR、23 项 toolchain、9 项兼容性读取、5 项 backend 选择测试通过。既有布局／backend／C toolchain 固定向量未改。
 - release 三个 CLI 构建成功；5 项小值／跨库／native 正式 CLI 通过（10 变体、50 进程、6 次 golden），见 [08-darwin.json](validation/08-darwin.json)。已清理 9.27 GiB debug incremental。
+
+## 功能 9：C producer 身份与工具执行支持范围
+
+- C toolchain typed identity 仅校验 namespace、名称和版本；实际三个 producer 名称集中在目标数据模块，删除 identity 中未使用的 backend 专用构造器。
+- invocation 边界明确校验所选 target 的 producer 身份，拒绝格式合法但未知、版本不支持或平台不匹配的 profile。纯 LIR profile 与生产记录继续保留原编码。
+- 本机 fmt、workspace clippy、9 项身份格式、14 项 C 合同及 3 项 invocation 测试通过；固定指纹未变。正式 CLI 在完成剩余 target 身份迁移后合并回归。

@@ -80,3 +80,28 @@ fn profile() -> CBridgeToolchainProfileV1 {
     let compiler = AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap();
     scoop_target_data::darwin_c_bridge_profile(deployment, compiler).unwrap()
 }
+
+#[test]
+fn producer_selection_rejects_unknown_version_and_mismatched_profile() {
+    let original = profile();
+    for (name, version) in [
+        ("unknown-producer", 1),
+        ("darwin-aarch64-apple-clang", 2),
+        ("linux-x86-64-gnu-gcc", 1),
+    ] {
+        let profile = CBridgeToolchainProfileV1::new(
+            scoop_identity::CBridgeToolchainProfileId::new(name, version).unwrap(),
+            original.contract().clone(),
+        )
+        .unwrap();
+        assert!(matches!(
+            ValidatedCBridgeToolchainInvocation::new(
+                scoop_target_data::DARWIN_AARCH64,
+                profile,
+                PathBuf::from("/toolchain/clang"),
+                PathBuf::from("/toolchain/sdk"),
+            ),
+            Err(CBridgeToolchainInvocationError::UnsupportedProfile)
+        ));
+    }
+}

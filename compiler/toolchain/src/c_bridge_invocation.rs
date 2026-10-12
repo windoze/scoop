@@ -196,6 +196,9 @@ impl ValidatedCBridgeToolchainInvocation {
         &self,
         target: LirTargetProfile,
     ) -> Result<(), CBridgeToolchainInvocationError> {
+        if self.profile.id() != &scoop_target_data::c_bridge_toolchain_id(target.id()) {
+            return Err(CBridgeToolchainInvocationError::UnsupportedProfile);
+        }
         let contract = self.profile.contract();
         let target_fingerprint = target
             .fingerprint()
@@ -218,6 +221,7 @@ pub enum CBridgeToolchainInvocationError {
     Platform(scoop_lir::CBridgePlatformError),
     TargetFingerprint(scoop_wire::HashError),
     TargetMismatch,
+    UnsupportedProfile,
 }
 
 impl fmt::Display for CBridgeToolchainInvocationError {
@@ -234,6 +238,8 @@ impl fmt::Display for CBridgeToolchainInvocationError {
             Self::TargetFingerprint(error) => {
                 write!(formatter, "cannot fingerprint generated-C target: {error}")
             }
+            Self::UnsupportedProfile => formatter
+                .write_str("unsupported generated-C toolchain profile for the selected target"),
             Self::TargetMismatch => formatter
                 .write_str("generated-C toolchain profile does not match the selected LIR target"),
         }
@@ -248,7 +254,8 @@ impl std::error::Error for CBridgeToolchainInvocationError {
             Self::RelativeCompilerDriver
             | Self::RelativeSdkRoot
             | Self::RelativeNativeSysroot
-            | Self::TargetMismatch => None,
+            | Self::TargetMismatch
+            | Self::UnsupportedProfile => None,
         }
     }
 }

@@ -49,12 +49,6 @@ impl BackendProfileWireId {
             .expect("validated capability has canonical name and version");
         Ok(Self { id, capability })
     }
-    pub fn llvm_22_1() -> Self {
-        Self::new(BackendProfileId::new("llvm-22-1", 1).unwrap())
-    }
-    pub fn llvm_22_1_linux_x86_64() -> Self {
-        Self::new(BackendProfileId::new("llvm-22-1-linux-x86-64", 1).unwrap())
-    }
 }
 
 impl WireEncode for BackendProfileWireId {

@@ -135,7 +135,8 @@ mod tests {
     #[test]
     fn used_variant_has_the_frozen_field_order() {
         let production = CBridgeProductionSetV1::Used(CBridgeProductionV1 {
-            profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+            profile_id: CBridgeToolchainProfileId::new("darwin-aarch64-apple-clang", 1)
+                .expect("canonical toolchain identity"),
             profile_fingerprint: profile().fingerprint(),
             source_template_fingerprint: profile().contract().source_template_fingerprint(),
             canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
@@ -152,7 +153,8 @@ mod tests {
         for production in [
             CBridgeProductionSetV1::NotUsed,
             CBridgeProductionSetV1::Used(CBridgeProductionV1 {
-                profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+                profile_id: CBridgeToolchainProfileId::new("darwin-aarch64-apple-clang", 1)
+                    .expect("canonical toolchain identity"),
                 profile_fingerprint: profile().fingerprint(),
                 source_template_fingerprint: profile().contract().source_template_fingerprint(),
                 canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
@@ -168,7 +170,8 @@ mod tests {
         let decoded = decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes).unwrap();
         assert!(matches!(
             decoded.validate(CBridgeProductionSetV1::Used(CBridgeProductionV1 {
-                profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+                profile_id: CBridgeToolchainProfileId::new("darwin-aarch64-apple-clang", 1)
+                    .expect("canonical toolchain identity"),
                 profile_fingerprint: profile().fingerprint(),
                 source_template_fingerprint: profile().contract().source_template_fingerprint(),
                 canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
@@ -188,7 +191,8 @@ mod tests {
     #[test]
     fn borrowed_c_bridge_validation_preserves_wire() {
         let production = CBridgeProductionSetV1::Used(CBridgeProductionV1 {
-            profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+            profile_id: CBridgeToolchainProfileId::new("darwin-aarch64-apple-clang", 1)
+                .expect("canonical toolchain identity"),
             profile_fingerprint: profile().fingerprint(),
             source_template_fingerprint: profile().contract().source_template_fingerprint(),
             canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),

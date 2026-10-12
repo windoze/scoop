@@ -6,7 +6,9 @@ mod profile_name;
 mod target;
 use profile_name::ProfileName;
 mod backend;
+mod c_toolchain;
 pub use backend::{BackendProfileId, BackendProfileWireId};
+pub use c_toolchain::CBridgeToolchainProfileId;
 pub use target::{TargetProfileId, TargetProfileWireId};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -214,13 +216,6 @@ impl fmt::Display for CapabilityRefinementError {
 }
 
 impl std::error::Error for CapabilityRefinementError {}
-capability_refinement!(
-    CBridgeToolchainProfileId,
-    "org.scoop-lang.c-bridge-toolchain-profile",
-    darwin_aarch64_apple_clang => "darwin-aarch64-apple-clang",
-    linux_x86_64_gnu_gcc => "linux-x86-64-gnu-gcc",
-    linux_x86_64_musl_gcc => "linux-x86-64-musl-gcc",
-);
 capability_refinement!(
     ObjectFormatId,
     "org.scoop-lang.object-format",
@@ -430,7 +425,11 @@ mod tests {
     #[test]
     fn c_bridge_toolchain_profile_refinement_has_fixed_wire() {
         assert_eq!(
-            hex(&encode(&CBridgeToolchainProfileId::darwin_aarch64_apple_clang()).unwrap()),
+            hex(&encode(
+                &CBridgeToolchainProfileId::new("darwin-aarch64-apple-clang", 1)
+                    .expect("canonical toolchain identity")
+            )
+            .unwrap()),
             "a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e670301"
         );
     }

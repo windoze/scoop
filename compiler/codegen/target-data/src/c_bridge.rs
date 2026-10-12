@@ -15,25 +15,19 @@ pub fn darwin_c_bridge_profile(
         },
         CanonicalCBridgeFlagContractV1::CURRENT,
     )?;
-    CBridgeToolchainProfileV1::new(
-        CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
-        contract,
-    )
+    CBridgeToolchainProfileV1::new(c_bridge_toolchain_id(crate::DARWIN_AARCH64.id()), contract)
 }
 
 pub fn linux_c_bridge_profile(
     target: LirTargetProfile,
     compiler: GccCompilerIdentityV1,
 ) -> Result<CBridgeToolchainProfileV1, CBridgeToolchainBuildError> {
-    let id = match target.id() {
-        TargetProfileId::LinuxX86_64Gnu => CBridgeToolchainProfileId::linux_x86_64_gnu_gcc(),
-        TargetProfileId::LinuxX86_64Musl => CBridgeToolchainProfileId::linux_x86_64_musl_gcc(),
-        TargetProfileId::DarwinAarch64 => {
-            return Err(CBridgeToolchainBuildError::Platform(
-                CBridgePlatformError::ExpectedLinux,
-            ));
-        }
-    };
+    if target == crate::DARWIN_AARCH64 {
+        return Err(CBridgeToolchainBuildError::Platform(
+            CBridgePlatformError::ExpectedLinux,
+        ));
+    }
+    let id = c_bridge_toolchain_id(target.id());
     let contract = CBridgeToolchainContractV1::new(
         target,
         CBridgePlatformContractV1::Linux { compiler },
@@ -41,4 +35,13 @@ pub fn linux_c_bridge_profile(
     )
     .map_err(CBridgeToolchainBuildError::Hash)?;
     CBridgeToolchainProfileV1::new(id, contract).map_err(CBridgeToolchainBuildError::Hash)
+}
+
+pub fn c_bridge_toolchain_id(target: TargetProfileId) -> CBridgeToolchainProfileId {
+    let name = match target {
+        TargetProfileId::DarwinAarch64 => "darwin-aarch64-apple-clang",
+        TargetProfileId::LinuxX86_64Gnu => "linux-x86-64-gnu-gcc",
+        TargetProfileId::LinuxX86_64Musl => "linux-x86-64-musl-gcc",
+    };
+    CBridgeToolchainProfileId::new(name, 1).expect("canonical toolchain identity")
 }
