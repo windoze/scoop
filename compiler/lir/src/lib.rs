@@ -173,3 +173,13 @@ pub use task_context::{
 };
 
 pub type LirFloatConversion = scoop_identity::FloatConversion<IntegerKind>;
+
+// Compile the real data catalog against this test crate's types, avoiding a
+// dev-dependency cycle that would create a second, distinct scoop-lir instance.
+#[cfg(test)]
+extern crate self as scoop_lir;
+#[cfg(test)]
+#[path = "../../codegen/target-data/src/lib.rs"]
+mod target_fixtures;
+#[cfg(test)]
+use target_fixtures::*;

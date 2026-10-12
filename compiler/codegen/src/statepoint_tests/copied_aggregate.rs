@@ -1,7 +1,7 @@
 use super::*;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::{OptimizationMode, TargetProfileId};
 
 #[test]
 fn copied_managed_aggregate_keeps_pointer_provenance_through_statepoints() {
@@ -11,11 +11,10 @@ fn copied_managed_aggregate_keeps_pointer_provenance_through_statepoints() {
         TargetProfileId::LinuxX86_64Musl,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile = ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
-            )
-            .unwrap()
-            .with_optimization(mode);
+            let profile =
+                ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
+                    .unwrap()
+                    .with_optimization(mode);
             let machine = profile.create_target_machine().unwrap();
             let context = Context::create();
             let llvm = parse(&context, include_str!("copied_aggregate.ll"));

@@ -1,5 +1,4 @@
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, NormalizedSourcePath};
-use scoop_lir::ValidatedLirTargetSelection;
 use scoop_protocol::{
     DiagnosticOriginV1, DiagnosticSeverityV1, ProtocolByteSpan, ProtocolConeIdentity,
     StructuredDiagnosticV1,
@@ -15,7 +14,7 @@ fn cone(coordinate: ConeCoordinate) -> ConeRecord {
 
 fn artifact_summary(producer: &str) -> scoop_slib::ArtifactManifestSummaryV1 {
     let archive = crate::test_artifacts::manifest_archive(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone(ConeCoordinate::reserved_core()),
         producer,
@@ -23,7 +22,7 @@ fn artifact_summary(producer: &str) -> scoop_slib::ArtifactManifestSummaryV1 {
     );
     read_artifact_manifest_summary(
         archive.as_bytes(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap()
 }
@@ -44,7 +43,7 @@ fn binding<'a>(
         key,
         artifact,
         cone,
-        target: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        target: scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         direct_dependencies: dependencies,
         compiler,
         profile,
@@ -63,7 +62,7 @@ fn receipt_binding_checks_cache_metadata() {
         key,
         first.artifact_fingerprint(),
         current_cone.clone(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         current_compiler,
         profile.clone(),
@@ -169,7 +168,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
         key,
         artifact.artifact_fingerprint(),
         cone.clone(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         vec![dependency.clone(), other_dependency.clone()],
         compiler,
         profile.clone(),

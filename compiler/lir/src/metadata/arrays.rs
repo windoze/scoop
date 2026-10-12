@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn zst_array_count_is_logical_and_allocation_is_constant() {
         let layout = ArrayLayoutV1::new(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             ArrayElementStorageV1::zero_sized(16).unwrap(),
         )
         .unwrap();
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn inline_count_limit_accounts_for_tail_padding_and_target_limit() {
         let layout = ArrayLayoutV1::new(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             ArrayElementStorageV1::inline(1, 1, RefScan::None).unwrap(),
         )
         .unwrap();
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn inline_alignment_and_scan_are_bound_to_one_layout() {
         let layout = ArrayLayoutV1::new(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             ArrayElementStorageV1::inline(16, 16, RefScan::References(vec![8])).unwrap(),
         )
         .unwrap();

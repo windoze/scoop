@@ -9,7 +9,7 @@ use super::*;
 
 mod c_layout;
 
-pub(super) const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+pub(super) const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 fn source(name: &str) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(

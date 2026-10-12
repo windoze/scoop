@@ -25,7 +25,7 @@ pub(crate) fn classify_argument(
 
 #[test]
 fn large_tagged_payload_remains_one_shared_storage_node() {
-    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let context = LoweringContext::new(scoop_target_data::DARWIN_AARCH64);
     let mut enums = lir::EnumDefs::default();
     let id = enums.alloc(lir::EnumDef {
         exact_type: crate::tests::test_physical_exact(

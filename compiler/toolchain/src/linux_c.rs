@@ -6,7 +6,7 @@ use std::process::{Command, Output};
 
 use crate::ValidatedCBridgeToolchainInvocation;
 use object::{BinaryFormat, Object, ObjectKind};
-use scoop_lir::{CBridgeToolchainProfileV1, GccCompilerIdentityV1, LirTargetProfile};
+use scoop_lir::{GccCompilerIdentityV1, LirTargetProfile};
 use scoop_process::{CommandExt, parse_make_dependencies};
 use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
@@ -91,7 +91,7 @@ pub fn resolve_linux_c_toolchain(
         domain_separated_cbor_hash("scoop-linux-c-inputs-v1", &InputDigests(&fingerprints))
             .map_err(error)?;
     let compiler = GccCompilerIdentityV1::new(&version, compiler_inputs).map_err(error)?;
-    let profile = CBridgeToolchainProfileV1::new_linux_gcc(target, compiler).map_err(error)?;
+    let profile = scoop_target_data::linux_c_bridge_profile(target, compiler).map_err(error)?;
     let invocation = ValidatedCBridgeToolchainInvocation::new_linux(
         target,
         profile,

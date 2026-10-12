@@ -59,7 +59,7 @@ mod tests {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let snapshot = ArtifactSnapshot::from_bytes(bytes.clone());
         let summary = snapshot
-            .manifest_summary(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
+            .manifest_summary(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
         let mut materialized = Vec::new();
         snapshot.write_to(&mut materialized).unwrap();

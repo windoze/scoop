@@ -186,7 +186,7 @@ fn array_nodes_become_array_instructions() {
         array_metadata(&module, "Array<Int>").identity,
         lir::LayoutIdentity::managed_array(
             array_exact,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             lir::MaterializationRoot::cone_owned(),
         )
         .unwrap()
@@ -195,7 +195,7 @@ fn array_nodes_become_array_instructions() {
         array_metadata(&module, "MutableArray<Int>").identity,
         lir::LayoutIdentity::managed_array(
             mutable_exact,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             lir::MaterializationRoot::cone_owned(),
         )
         .unwrap()

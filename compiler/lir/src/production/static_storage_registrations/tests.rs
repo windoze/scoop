@@ -40,7 +40,7 @@ fn semantic_plans_bind_storage_shape_scan_and_immortal_initializers() {
 
     let plans = StrongStaticStorageSemanticPlanSetV1::from_parts(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &globals,
         &crate::StructDefs::default(),
         &crate::EnumDefs::default(),
@@ -125,7 +125,7 @@ fn encoded_integer_templates_preserve_target_bits_and_zero_padding() {
 
     let plans = StrongStaticStorageSemanticPlanSetV1::from_parts(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &globals,
         &structs,
         &crate::EnumDefs::default(),
@@ -163,7 +163,7 @@ fn raw_globals_and_tls_do_not_enter_managed_storage_registration() {
     globals.alloc(managed);
     let plans = StrongStaticStorageSemanticPlanSetV1::from_parts(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &globals,
         &crate::StructDefs::default(),
         &crate::EnumDefs::default(),
@@ -187,7 +187,7 @@ fn semantic_plans_reject_noncanonical_empty_scans() {
     assert_eq!(
         StrongStaticStorageSemanticPlanSetV1::from_parts(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &globals,
             &crate::StructDefs::default(),
             &crate::EnumDefs::default(),
@@ -217,7 +217,7 @@ fn semantic_plans_reject_a_scan_that_disagrees_with_storage_type() {
     assert_eq!(
         StrongStaticStorageSemanticPlanSetV1::from_parts(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &globals,
             &crate::StructDefs::default(),
             &crate::EnumDefs::default(),
@@ -256,7 +256,7 @@ fn encoded_values_reject_non_immortal_nonnull_targets() {
     assert_eq!(
         StrongStaticStorageSemanticPlanSetV1::from_parts(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &globals,
             &crate::StructDefs::default(),
             &crate::EnumDefs::default(),
@@ -281,7 +281,7 @@ fn storage_global(
             identity: static_storage_identity(name),
             layout: LayoutIdentity::managed_value(
                 exact_type(name),
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap()

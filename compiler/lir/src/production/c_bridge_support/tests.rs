@@ -8,7 +8,7 @@ use crate::{
 
 #[test]
 fn support_contract_binds_target_and_complete_toolchain_profile() {
-    let target = LirTargetProfile::DARWIN_AARCH64;
+    let target = crate::target_fixtures::DARWIN_AARCH64;
     let first_profile = profile("clang-2100.1.1.101");
     let second_profile = profile("clang-2100.1.1.102");
     let first = CBridgeTargetSupportRequirementV1::current(
@@ -41,7 +41,7 @@ fn support_contract_binds_target_and_complete_toolchain_profile() {
 fn registry_is_a_closed_typed_lookup() {
     let profile = profile("clang-2100.1.1.101");
     let registry =
-        CBridgeTargetSupportRegistryV1::current(LirTargetProfile::DARWIN_AARCH64, &profile)
+        CBridgeTargetSupportRegistryV1::current(crate::target_fixtures::DARWIN_AARCH64, &profile)
             .unwrap();
 
     assert_eq!(registry.requirements().len(), 6);
@@ -83,12 +83,12 @@ fn registry_is_a_closed_typed_lookup() {
 #[test]
 fn linux_support_uses_its_tls_resolver_and_preserves_darwin_tags() {
     for target in [
-        LirTargetProfile::LINUX_X86_64_GNU,
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        crate::target_fixtures::LINUX_X86_64_GNU,
+        crate::target_fixtures::LINUX_X86_64_MUSL,
     ] {
         let compiler =
             crate::GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(b"gcc inputs")).unwrap();
-        let profile = CBridgeToolchainProfileV1::new_linux_gcc(target, compiler).unwrap();
+        let profile = crate::target_fixtures::linux_c_bridge_profile(target, compiler).unwrap();
         let registry = CBridgeTargetSupportRegistryV1::current(target, &profile).unwrap();
         assert_eq!(registry.requirements().len(), 6);
         assert_eq!(
@@ -150,7 +150,7 @@ fn profile(build: &str) -> CBridgeToolchainProfileV1 {
         )],
     )
     .unwrap();
-    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+    crate::target_fixtures::darwin_c_bridge_profile(
         deployment,
         AppleClangCompilerIdentityV1::new(21, 0, 0, build).unwrap(),
     )

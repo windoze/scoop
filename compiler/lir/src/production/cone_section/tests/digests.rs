@@ -46,7 +46,7 @@ pub(super) fn check(section: &ConeProductionSectionV2, foundation: &ConeLirFound
         raw.replay(
             ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap(),
             &[],
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             foundation,
             EntryProductionSourceV1::Library,
             &[],

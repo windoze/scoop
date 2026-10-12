@@ -38,9 +38,8 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         .expect("test module has a canonical symbol surface");
     let context = Context::create();
     let llvm = context.create_module("strong-shapes");
-    let target_data = TargetData::create(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout(),
-    );
+    let target_data =
+        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let descriptor_type =
         runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();
     let type_globals = module

@@ -37,7 +37,7 @@ fn closure_order_is_a_stable_projection_of_the_graph_order() {
     ];
     let plan = ArtifactClosurePlan::new(
         root,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         vec![core, right, left, root],
         nodes,
         edges,
@@ -57,7 +57,7 @@ fn closure_rejects_missing_artifact_before_projecting_purpose_handles() {
     let core = coordinate.identity().unwrap();
     let plan = ArtifactClosurePlan::new(
         core,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         vec![core],
         BTreeMap::from([(core, node(coordinate))]),
         [],
@@ -77,7 +77,7 @@ fn dependency_first_invariant_is_rechecked_by_the_closure_gate() {
     let root = root_coordinate.identity().unwrap();
     let plan = ArtifactClosurePlan::new(
         root,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         vec![root, core],
         BTreeMap::from([(core, node(core_coordinate)), (root, node(root_coordinate))]),
         [PlannedArtifactEdge::new(root, core, None)],
@@ -102,13 +102,13 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
     let core = coordinate.identity().unwrap();
     let plan = ArtifactClosurePlan::new(
         core,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         vec![core],
         BTreeMap::from([(core, node(coordinate.clone()))]),
         [],
     );
     let archive = crate::test_artifacts::manifest_archive(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
         "retained-snapshot",

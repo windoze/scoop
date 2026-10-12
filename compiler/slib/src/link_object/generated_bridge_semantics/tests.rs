@@ -16,7 +16,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, DigestFinalizationPlanV1, DigestNodeV1, GeneratedBridgePlanSetV1,
-    LirTargetProfile, ObjectSymbolSurfaceV1,
+    ObjectSymbolSurfaceV1,
 };
 
 use super::*;
@@ -50,7 +50,7 @@ fn verifies_outbound_function_definition_and_native_relocation() {
     .unwrap();
 
     assert_eq!(verified.producer(), ConeIdentity::CORE);
-    assert_eq!(verified.target(), LirTargetProfile::DARWIN_AARCH64);
+    assert_eq!(verified.target(), scoop_target_data::DARWIN_AARCH64);
     assert_eq!(verified.uses().len(), 1);
     assert!(matches!(
         verified.uses()[0].semantic(),
@@ -181,31 +181,31 @@ fn validates_each_global_bridge_against_its_data_mutability_contract() {
     assert!(validate_native_contract_kind(write_id, write, &mutable_data).is_ok());
     assert!(validate_native_contract_kind(write_id, write, &mutable_tls).is_ok());
     assert!(native_relocation_form_matches(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         write,
         &mutable_data,
         VerifiedObjectRelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         write,
         &mutable_data,
         VerifiedObjectRelocationFormV1::TlvpLoadPage21,
     ));
     assert!(native_relocation_form_matches(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::TlvpLoadPage21,
     ));
     assert!(!native_relocation_form_matches(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::Branch26,
@@ -253,10 +253,10 @@ fn classifies_managed_callback_gateway_and_signature_descriptor_separately() {
     };
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let support =
-        CBridgeTargetSupportRegistryV1::current(LirTargetProfile::DARWIN_AARCH64, &profile)
+        CBridgeTargetSupportRegistryV1::current(scoop_target_data::DARWIN_AARCH64, &profile)
             .unwrap();
     let runtime = RuntimeSymbolContractV1::current(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         RuntimeAbiSymbolV1::CallbackInvoke,
     )
     .unwrap();
@@ -264,7 +264,7 @@ fn classifies_managed_callback_gateway_and_signature_descriptor_separately() {
         source.symbols.member(),
         source.atom,
         VerifiedObjectRelocationFormV1::Branch26,
-        &runtime.object_symbol(LirTargetProfile::DARWIN_AARCH64),
+        &runtime.object_symbol(scoop_target_data::DARWIN_AARCH64),
         StrongRelocationResolutionV1::ExternalCandidate {
             object_symbol_table_index: 3,
         },
@@ -334,10 +334,10 @@ fn classifies_static_callback_only_to_its_typed_storage_bridge() {
     };
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let support =
-        CBridgeTargetSupportRegistryV1::current(LirTargetProfile::DARWIN_AARCH64, &profile)
+        CBridgeTargetSupportRegistryV1::current(scoop_target_data::DARWIN_AARCH64, &profile)
             .unwrap();
     let runtime = RuntimeSymbolContractV1::current(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         RuntimeAbiSymbolV1::CallbackInvoke,
     )
     .unwrap();
@@ -393,7 +393,7 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     let member_plan = member_plan(&fixture, &bridge_plan);
     let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &surface,
         &member_plan,
     )

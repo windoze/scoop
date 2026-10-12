@@ -29,7 +29,7 @@ mod slib_support;
 mod slib_types;
 
 fn for_target(mut module: Module, target: scoop_lir::TargetProfileId) -> Module {
-    module.meta = string_metadata_for(scoop_lir::LirTargetProfile::from_id(target));
+    module.meta = string_metadata_for(scoop_target_data::layout(target));
     module
 }
 
@@ -39,9 +39,9 @@ fn emit(
     separate_sections: bool,
     path: &Path,
 ) -> (ValidatedBackendProfile, statepoint::ExpectedSafepoints) {
-    let profile = ValidatedBackendProfile::from_selection(
-        scoop_lir::ValidatedLirTargetSelection::from_id(module.meta.target_profile.id()),
-    )
+    let profile = ValidatedBackendProfile::from_selection(scoop_target_data::selection(
+        module.meta.target_profile.id(),
+    ))
     .expect("Linux backend")
     .with_optimization(if optimization == OptimizationLevel::None {
         scoop_lir::OptimizationMode::Debug
@@ -165,9 +165,9 @@ fn linux_amd64_requires_noredzone_on_rewritten_functions() {
         moving_gc::qualification::stackmap_qualification_module(),
         TargetProfileId::LinuxX86_64Gnu,
     );
-    let profile = ValidatedBackendProfile::from_selection(
-        scoop_lir::ValidatedLirTargetSelection::from_id(module.meta.target_profile.id()),
-    )
+    let profile = ValidatedBackendProfile::from_selection(scoop_target_data::selection(
+        module.meta.target_profile.id(),
+    ))
     .unwrap();
     let machine = profile.create_target_machine().unwrap();
     let context = Context::create();

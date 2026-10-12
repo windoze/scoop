@@ -62,7 +62,7 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
         &core_input,
         &[],
         &lir::SelectedExternalLirSet::empty(provider),
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
     .unwrap();
 

@@ -3,14 +3,14 @@ use object::ObjectSection;
 use scoop_lir::{DefinitionAtomRole, OptimizationMode, TargetProfileId};
 
 fn profile(target: TargetProfileId, mode: OptimizationMode) -> ValidatedBackendProfile {
-    ValidatedBackendProfile::from_selection(scoop_lir::ValidatedLirTargetSelection::from_id(target))
+    ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
         .unwrap()
         .with_optimization(mode)
 }
 
 fn input_for(mut module: Module, target: TargetProfileId) -> scoop_lir::ConeLirOutput {
     module.output = scoop_lir::LirOutput::Library;
-    module.meta = string_metadata_for(scoop_lir::LirTargetProfile::from_id(target));
+    module.meta = string_metadata_for(scoop_target_data::layout(target));
     scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap()
 }
 

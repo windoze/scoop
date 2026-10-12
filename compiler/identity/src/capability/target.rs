@@ -123,6 +123,7 @@ impl TargetProfileWireId {
         }
         Err(CapabilityRefinementError {
             expected,
+            namespace: None,
             actual: capability,
         })
     }

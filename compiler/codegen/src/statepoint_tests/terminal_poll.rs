@@ -1,6 +1,6 @@
 use super::*;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::{OptimizationMode, TargetProfileId};
 
 #[test]
 fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
@@ -11,11 +11,10 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
         TargetProfileId::LinuxX86_64Musl,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile = ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
-            )
-            .unwrap()
-            .with_optimization(mode);
+            let profile =
+                ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
+                    .unwrap()
+                    .with_optimization(mode);
             let machine = profile.create_target_machine().unwrap();
             let context = Context::create();
             let llvm = parse(&context, include_str!("terminal_poll.ll"));

@@ -9,7 +9,7 @@ fn lower_selected(
         &fixture.input,
         &[fixture.runtime_string],
         selected,
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
 }
 
@@ -85,7 +85,7 @@ fn descriptor_inputs_resolve_the_actual_type_and_provider() {
             &fixture.input,
             &[wrong_type],
             &selected,
-            lir::LirTargetProfile::DARWIN_AARCH64
+            scoop_target_data::DARWIN_AARCH64
         ),
         Err(crate::LirLoweringError::MissingDependencyLayoutSelection { exact, .. }) if exact == fixture.runtime_string.target()
     ));
@@ -99,7 +99,7 @@ fn descriptor_inputs_resolve_the_actual_type_and_provider() {
             &fixture.input,
             &[wrong_provider],
             &selected,
-            lir::LirTargetProfile::DARWIN_AARCH64
+            scoop_target_data::DARWIN_AARCH64
         ),
         Err(crate::LirLoweringError::DependencyDescriptorBinding(_))
     ));
@@ -114,7 +114,7 @@ fn descriptor_inputs_resolve_the_actual_type_and_provider() {
             &fixture.input,
             &[wrong_provider],
             &selected,
-            lir::LirTargetProfile::DARWIN_AARCH64
+            scoop_target_data::DARWIN_AARCH64
         ),
         Err(crate::LirLoweringError::DependencyDescriptorBinding(_))
     ));

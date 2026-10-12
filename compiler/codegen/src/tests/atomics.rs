@@ -2,7 +2,7 @@ use super::*;
 use scoop_lir::{
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicLocation,
     AtomicMemoryOrder, AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind, OptimizationMode,
-    TargetProfileId, ValidatedLirTargetSelection,
+    TargetProfileId,
 };
 
 mod fixture;
@@ -16,11 +16,10 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let module = fixture::module(target);
-            let profile = ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
-            )
-            .unwrap()
-            .with_optimization(mode);
+            let profile =
+                ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
+                    .unwrap()
+                    .with_optimization(mode);
             let machine = profile.create_target_machine().unwrap();
             let context = Context::create();
             let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();

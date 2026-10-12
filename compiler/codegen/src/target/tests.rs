@@ -22,14 +22,10 @@ fn another_llvm_minor_is_rejected_structurally() {
 
 #[test]
 fn selected_profile_creates_the_canonical_aarch64_machine() {
-    let backend = ValidatedBackendProfile::from_selection(
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .expect("qualified backend selection");
-    assert_eq!(
-        backend.backend_profile(),
-        scoop_lir::BackendProfile::LLVM_22_1
-    );
+    let backend =
+        ValidatedBackendProfile::from_selection(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .expect("qualified backend selection");
+    assert_eq!(backend.backend_profile(), scoop_target_data::LLVM_22_1);
     assert_eq!(backend.managed_address_space(), 1);
     assert_eq!(backend.stack_map_version(), 3);
     assert_eq!(
@@ -105,4 +101,37 @@ fn native_c_pointer_representations_are_qualified() {
         output.stdout,
         b"target pointer qualification tests passed\n"
     );
+}
+
+#[test]
+fn unregistered_backend_identity_or_machine_configuration_is_rejected() {
+    use scoop_identity::BackendProfileId;
+    use scoop_lir::BackendProfileContract;
+    const UNKNOWN_ID: BackendProfileId = match BackendProfileId::new("unknown-backend", 1) {
+        Ok(id) => id,
+        Err(_) => panic!("canonical test identity"),
+    };
+    const KNOWN_ID: BackendProfileId = match BackendProfileId::new("llvm-22-1", 1) {
+        Ok(id) => id,
+        Err(_) => panic!("canonical test identity"),
+    };
+    const DIFFERENT_CPU: BackendProfileContract = BackendProfileContract {
+        cpu: "other-cpu",
+        ..scoop_target_data::LLVM_22_1.contract()
+    };
+    const ORIGINAL: BackendProfileContract = scoop_target_data::LLVM_22_1.contract();
+    for backend in [
+        BackendProfile::new(&UNKNOWN_ID, &ORIGINAL),
+        BackendProfile::new(&KNOWN_ID, &DIFFERENT_CPU),
+        scoop_target_data::LLVM_22_1_LINUX_X86_64,
+    ] {
+        let selection =
+            ValidatedLirTargetSelection::new(scoop_target_data::DARWIN_AARCH64, backend);
+        assert!(
+            ValidatedBackendProfile::from_selection(selection)
+                .unwrap_err()
+                .0
+                .contains("unsupported target/backend contract")
+        );
+    }
 }

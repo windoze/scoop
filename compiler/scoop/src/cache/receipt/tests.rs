@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate};
-use scoop_lir::ValidatedLirTargetSelection;
 use scoop_protocol::{
     DiagnosticOriginV1, DiagnosticSeverityV1, HostPathCarrier, ProtocolByteSpan,
     StructuredDiagnosticV1,
@@ -49,7 +48,7 @@ fn receipt_with_warnings(warnings: Vec<StructuredDiagnosticV1>) -> CacheReceiptV
             ConeCompileCacheKeyV1::from_digest(sha256(b"cache-key")),
             artifact_fingerprint(),
             core_cone(),
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
             ArtifactCapabilityProfileId::cross_cone_generic(),
@@ -90,8 +89,7 @@ fn receipt_preserves_each_target_and_rejects_mixed_backend_tags() {
         TargetProfileId::LinuxX86_64Musl,
     ] {
         let mut body = receipt_with_warnings(Vec::new()).body().clone();
-        body.target_selection =
-            CacheTargetSelectionV1::new(ValidatedLirTargetSelection::from_id(id));
+        body.target_selection = CacheTargetSelectionV1::new(scoop_target_data::selection(id));
         let receipt = CacheReceiptV1::new(body).unwrap();
         assert_eq!(
             decode_cache_receipt_v1(&encode(&receipt).unwrap()).unwrap(),
@@ -141,7 +139,7 @@ fn receipt_rejects_the_legacy_single_cone_profile() {
             ConeCompileCacheKeyV1::from_digest(sha256(b"cache-key")),
             artifact_fingerprint(),
             core_cone(),
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
             ArtifactCapabilityProfileId::single_cone_strong(),
@@ -190,7 +188,7 @@ fn receipt_rejects_duplicate_and_conflicting_warning_keys() {
             ConeCompileCacheKeyV1::from_digest(sha256(b"cache-key")),
             artifact_fingerprint(),
             core_cone(),
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
             ArtifactCapabilityProfileId::cross_cone_generic(),
@@ -203,7 +201,7 @@ fn receipt_rejects_duplicate_and_conflicting_warning_keys() {
             ConeCompileCacheKeyV1::from_digest(sha256(b"cache-key")),
             artifact_fingerprint(),
             core_cone(),
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
             ArtifactCapabilityProfileId::cross_cone_generic(),
@@ -255,7 +253,7 @@ fn receipt_body_with_warning(
         ConeCompileCacheKeyV1::from_digest(sha256(b"cache-key")),
         artifact_fingerprint(),
         core_cone(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         compiler(),
         ArtifactCapabilityProfileId::cross_cone_generic(),

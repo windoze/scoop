@@ -20,7 +20,7 @@ fn native_abi_replays_c_field_geometry_before_recording_the_contract() {
     );
     let main = builder.main(Arena::new(), Vec::new());
     let module = builder.finish(main);
-    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let context = LoweringContext::new(scoop_target_data::DARWIN_AARCH64);
     let enums = lower_enums(&context, &module).unwrap();
     let mut structs = lower_structs(&context, &module, &enums).unwrap();
     assert!(native_abi::prepare(&context, &module, &structs, &enums, std::iter::empty(),).is_ok());

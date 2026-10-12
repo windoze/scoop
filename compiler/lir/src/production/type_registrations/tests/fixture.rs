@@ -195,7 +195,7 @@ impl Fixture {
         let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
             ConeIdentity::SINGLE_FILE,
-            crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),
+            crate::target_fixtures::DARWIN_AARCH64.wire_id(),
             types
                 .iter()
                 .enumerate()
@@ -215,7 +215,7 @@ impl Fixture {
                         artifacts.layout.id(),
                         artifacts.scan.id(),
                         TypeInstanceShapeV1::fixed_object(
-                            crate::LirTargetProfile::DARWIN_AARCH64,
+                            crate::target_fixtures::DARWIN_AARCH64,
                             16,
                             8,
                             RefScan::None,
@@ -246,7 +246,7 @@ impl Fixture {
         &self,
     ) -> Result<StrongTypeRegistrationPlanSetV1, StrongTypeRegistrationPlanBuildError> {
         StrongTypeRegistrationPlanSetV1::new(
-            crate::LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &self.foundation,
             &self.identities,
             &self.semantics,

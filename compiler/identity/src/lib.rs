@@ -44,10 +44,10 @@ pub use entity::{CAbiCallMode, CResultAdaptation, ExternResult};
 pub use context::{ContextKey, ContextStorageRole, ContextStorageType, DecodedContextStorageType};
 
 pub use capability::{
-    ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileWireId,
-    CBridgeToolchainProfileId, CapabilityId, CapabilityIdError, CapabilityLabelError,
-    CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId, TargetProfileId,
-    TargetProfileWireId,
+    ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileId,
+    BackendProfileWireId, CBridgeToolchainProfileId, CapabilityId, CapabilityIdError,
+    CapabilityLabelError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
+    TargetProfileId, TargetProfileWireId,
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,

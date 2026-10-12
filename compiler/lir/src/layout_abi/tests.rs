@@ -34,7 +34,7 @@ fn fixture() -> (
     let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
     let layout = PersistentLayoutId::from_key(&LayoutKey::new(
         exact,
-        crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),
+        crate::target_fixtures::DARWIN_AARCH64.wire_id(),
         RepresentationRole::ManagedValue,
     ))
     .unwrap();

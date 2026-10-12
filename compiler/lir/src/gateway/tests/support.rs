@@ -27,7 +27,7 @@ fn global(identity: StaticStorageIdentity) -> Global {
                     "failure",
                     scoop_identity::SourceNominalKind::Class,
                 ),
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap()

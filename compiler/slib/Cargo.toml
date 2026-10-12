@@ -4,6 +4,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-target-data.workspace = true
 object.workspace = true
 yaxpeax-x86.workspace = true
 yaxpeax-arch.workspace = true

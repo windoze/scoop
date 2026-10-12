@@ -22,9 +22,9 @@ impl SlibObjects {
         let invocation =
             scoop_toolchain::resolve_linux_c_toolchain(module.meta.target_profile, None, None)
                 .unwrap();
-        let backend = ValidatedBackendProfile::from_selection(
-            scoop_lir::ValidatedLirTargetSelection::from_id(module.meta.target_profile.id()),
-        )
+        let backend = ValidatedBackendProfile::from_selection(scoop_target_data::selection(
+            module.meta.target_profile.id(),
+        ))
         .unwrap();
         let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
         let emitted = emit_object_set(

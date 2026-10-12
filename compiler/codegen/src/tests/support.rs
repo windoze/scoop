@@ -421,7 +421,7 @@ pub(super) fn layout_identity(
     role: scoop_identity::RepresentationRole,
 ) -> scoop_lir::LayoutIdentity {
     let exact_type = test_exact_type(name);
-    let target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
+    let target = scoop_target_data::DARWIN_AARCH64;
     let root = scoop_lir::MaterializationRoot::cone_owned();
     match role {
         scoop_identity::RepresentationRole::ManagedValue => {
@@ -443,7 +443,7 @@ pub(super) fn layout_identity(
 pub(super) fn array_layout_identity(name: &str) -> scoop_lir::LayoutIdentity {
     scoop_lir::LayoutIdentity::managed_array(
         test_exact_type(name),
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         scoop_lir::MaterializationRoot::cone_owned(),
     )
     .unwrap()
@@ -741,7 +741,7 @@ fn abi_layout(
     ty: &LirType,
 ) -> (u64, u64) {
     let scalar = |kind| {
-        let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.scalar_layout(kind);
+        let layout = scoop_target_data::DARWIN_AARCH64.scalar_layout(kind);
         (layout.size_bytes(), layout.alignment_bytes())
     };
     match ty {
@@ -754,7 +754,7 @@ fn abi_layout(
         LirType::F64 => scalar(scoop_lir::BackendScalarKind::F64),
         LirType::I64 | LirType::MachineScalar(_) => scalar(scoop_lir::BackendScalarKind::I64),
         LirType::Ptr(kind) => {
-            let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.pointer_layout(*kind);
+            let layout = scoop_target_data::DARWIN_AARCH64.pointer_layout(*kind);
             (layout.size_bytes(), layout.alignment_bytes())
         }
         LirType::ExceptionRecord => (16, 8),
@@ -771,12 +771,10 @@ fn abi_layout(
         LirType::Interface => (16, 8),
         LirType::Struct(id) => (structs[*id].size, structs[*id].align),
         LirType::Enum(id) => match &enums[*id].repr {
-            EnumRepr::Niche { kind, .. } => {
-                kind.layout(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
-            }
+            EnumRepr::Niche { kind, .. } => kind.layout(scoop_target_data::DARWIN_AARCH64),
             EnumRepr::Tagged { size, align, .. } => (*size, *align),
             EnumRepr::Integral { kind, .. } => {
-                let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.integer_layout(*kind);
+                let layout = scoop_target_data::DARWIN_AARCH64.integer_layout(*kind);
                 (layout.size_bytes(), layout.alignment_bytes())
             }
         },
@@ -912,7 +910,7 @@ pub(super) fn plain_scoop_signature(
 }
 
 pub(super) fn string_metadata() -> LirMeta {
-    string_metadata_for(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+    string_metadata_for(scoop_target_data::DARWIN_AARCH64)
 }
 
 pub(super) fn string_metadata_for(target: scoop_lir::LirTargetProfile) -> LirMeta {
@@ -1246,7 +1244,7 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
     let context = Context::create();
     let llvm = context.create_module("strong-shape-test");
     let target_data = inkwell::targets::TargetData::create(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout(),
+        scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout(),
     );
     let descriptor_type =
         runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();

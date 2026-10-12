@@ -1,6 +1,6 @@
 use super::*;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 fn geometry(size: u64, alignment: u64) -> StorageGeometryV1 {
     StorageGeometryV1::new(TARGET, size, alignment).unwrap()

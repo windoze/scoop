@@ -208,7 +208,7 @@ mod tests {
         let closure = validate_cross_cone_artifact_closure(
             CrossConeArtifactClosureInput::dependencies(
                 ConeIdentity::CORE,
-                ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+                scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
                 Vec::new(),
                 Vec::new(),
             ),

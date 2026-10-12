@@ -12,7 +12,7 @@ use super::*;
 
 mod complete_image;
 mod digests;
-use crate::{DigestNodeV1, LirTargetProfile};
+use crate::DigestNodeV1;
 pub(in crate::production) use complete_image::attach_image;
 pub(in crate::production) use digests::without_image_input;
 
@@ -22,7 +22,7 @@ fn strong_section_has_ten_closed_fields_and_round_trips() {
     let (foundation, digests) = fixture(&coordinate);
 
     let registrations = StrongRegistrationProductionSurfaceV1::empty(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
         &digests,
     )
@@ -48,7 +48,7 @@ fn strong_section_has_ten_closed_fields_and_round_trips() {
         .validate(
             coordinate,
             &[],
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &foundation,
             EntryProductionSourceV1::Library,
             &[],

@@ -4,7 +4,7 @@ mod semantic;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     ConeLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    DigestFinalizationPlanV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
+    DigestFinalizationPlanV1, GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
     ProducerUnitPartitionV1, StrongCallableRegistrationPlanSetV1,
     StrongInitializationUnitRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
 };
@@ -48,7 +48,7 @@ impl Fixture {
         let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&inputs.foundation).unwrap();
         let partition = ProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
         let member_plan = PlannedLinkObjectMemberSetV1::new(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             &partition,
             vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),
@@ -56,7 +56,7 @@ impl Fixture {
         .unwrap();
         let surface = ObjectSymbolSurfaceV1::from_foundation(&inputs.foundation).unwrap();
         let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             &surface,
             &member_plan,
         )
@@ -140,7 +140,7 @@ impl Fixture {
 }
 
 fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
-    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+    scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             DarwinPackedVersionV1::new(0x000e_0200).unwrap(),

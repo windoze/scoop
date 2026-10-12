@@ -1,6 +1,6 @@
 use super::*;
 use inkwell::{context::Context, memory_buffer::MemoryBuffer, targets::FileType};
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::{OptimizationMode, TargetProfileId};
 
 #[test]
 fn copy_and_zero_libcalls_are_distinct_from_an_ordinary_external_call() {
@@ -22,7 +22,7 @@ fn copy_and_zero_libcalls_are_distinct_from_an_ordinary_external_call() {
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let profile = crate::ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
+                scoop_target_data::selection(target),
             )
             .unwrap()
             .with_optimization(mode);

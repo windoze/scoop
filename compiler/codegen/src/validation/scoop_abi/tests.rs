@@ -25,7 +25,7 @@ fn module_with_types(structs: StructDefs, enums: EnumDefs) -> Module {
         },
         meta: scoop_lir::LirMeta {
             exact_types: Vec::new(),
-            target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            target_profile: scoop_target_data::DARWIN_AARCH64,
             canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
             native_externals: scoop_lir::NativeExternalMetadata::default(),
             well_known_type_descriptors: scoop_lir::WellKnownTypeDescriptors {

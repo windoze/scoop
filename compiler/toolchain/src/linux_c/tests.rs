@@ -4,8 +4,8 @@ use object::ObjectSymbol;
 #[test]
 fn linux_c_drivers_compile_pic_and_tls_with_the_selected_libc() {
     for target in [
-        LirTargetProfile::LINUX_X86_64_GNU,
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let invocation = resolve_linux_c_toolchain(target, None, None).unwrap();
         assert_eq!(invocation.profile().contract().target(), &target.wire_id());
@@ -33,7 +33,7 @@ fn linux_c_drivers_compile_pic_and_tls_with_the_selected_libc() {
 #[test]
 fn explicit_c_drivers_cannot_silently_select_the_other_libc() {
     let musl = resolve_linux_c_toolchain(
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_MUSL,
         Some(Path::new("gcc")),
         None,
     )
@@ -44,7 +44,7 @@ fn explicit_c_drivers_cannot_silently_select_the_other_libc() {
         "{musl}"
     );
     let gnu = resolve_linux_c_toolchain(
-        LirTargetProfile::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_GNU,
         Some(Path::new("musl-gcc")),
         None,
     )
@@ -58,7 +58,7 @@ fn explicit_c_drivers_cannot_silently_select_the_other_libc() {
 
 #[test]
 fn missing_compiler_and_native_sysroot_are_diagnosed_before_compilation() {
-    let target = LirTargetProfile::LINUX_X86_64_MUSL;
+    let target = scoop_target_data::LINUX_X86_64_MUSL;
     let directory = tempfile::tempdir().unwrap();
     assert!(
         resolve_linux_c_toolchain(target, Some(&directory.path().join("missing-cc")), None)

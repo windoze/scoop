@@ -11,7 +11,7 @@ use fixture::{Provider, consumer_layout_section};
 use initialization_fixture::attach_eager_initialization;
 use lir_fixture::consumer_module;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 #[test]
 fn pending_selection_drives_dependency_descriptor_dispatch_and_initialization_production() {

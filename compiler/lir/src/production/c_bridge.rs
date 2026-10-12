@@ -211,7 +211,7 @@ mod tests {
             )],
         )
         .unwrap();
-        CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+        crate::target_fixtures::darwin_c_bridge_profile(
             deployment,
             AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap(),
         )

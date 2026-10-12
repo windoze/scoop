@@ -65,7 +65,7 @@ fn with_intrinsic(
     let initialization_units = HashMap::new();
 
     let mut normalizer = NativeBoundaryNormalizer::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &exact_types,
         &callable_applications,
         &initialization_units,
@@ -196,7 +196,7 @@ fn a_fixed_core_scalar_identity_needs_its_actual_representation_witness() {
         )]),
     ] {
         let mut normalizer = NativeBoundaryNormalizer::new(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             &exact_types,
             &callable_applications,
             &initialization_units,

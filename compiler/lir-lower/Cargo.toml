@@ -11,5 +11,6 @@ scoop-mir.workspace = true
 scoop-wire.workspace = true
 
 [dev-dependencies]
+scoop-target-data.workspace = true
 scoop-abi-plan.workspace = true
 insta.workspace = true

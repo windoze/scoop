@@ -394,9 +394,9 @@ impl DecodedCacheTargetSelectionV1 {
                 });
             }
         };
-        Ok(CacheTargetSelectionV1::new(
-            ValidatedLirTargetSelection::from_id(id),
-        ))
+        Ok(CacheTargetSelectionV1::new(scoop_target_data::selection(
+            id,
+        )))
     }
 }
 

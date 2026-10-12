@@ -22,7 +22,7 @@ fn rejects_unit_as_a_c_object_even_without_consulting_a_witness() {
     let definitions = HashMap::new();
 
     let mut normalizer = NativeBoundaryNormalizer::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &exact_types,
         &callable_applications,
         &initialization_units,
@@ -132,7 +132,7 @@ fn recomputes_packed_and_overaligned_c_struct_layout() {
     ]);
 
     let mut normalizer = NativeBoundaryNormalizer::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &exact_types,
         &callable_applications,
         &initialization_units,

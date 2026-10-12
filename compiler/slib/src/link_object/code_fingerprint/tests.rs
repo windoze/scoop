@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
-    CrossConeLirBridgeSectionV1, LirTargetProfile,
+    CrossConeLirBridgeSectionV1,
 };
 use scoop_wire::decode_canonical;
 
@@ -219,7 +219,7 @@ fn changing_the_contract_changes_the_code_projection() {
         .unwrap();
     let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     let linked = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap();
@@ -270,7 +270,7 @@ fn requirement_surface(
     canonical.set_native_contracts(contracts).unwrap();
     let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap()

@@ -8,7 +8,7 @@ fn declared_class(definition: &mir::ClassDef) -> &mir::DeclaredClass {
 }
 
 fn context() -> LoweringContext {
-    LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64)
+    LoweringContext::new(scoop_target_data::DARWIN_AARCH64)
 }
 
 fn finish(mut builder: Builder) -> mir::Module {

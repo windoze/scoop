@@ -7,7 +7,7 @@ use scoop_lir::{
 #[test]
 fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
     let qualified = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object(None),
     )
     .unwrap();
@@ -17,7 +17,7 @@ fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
     );
 
     let error = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object(Some((0x000d_0000, 0x000d_0000, &[]))),
     )
     .unwrap_err();

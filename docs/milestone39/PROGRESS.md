@@ -6,7 +6,7 @@
 
 1. 已同步三份规范与路线图：明确布局／签名准备、codegen ABI 规划、完整 LIR 完成，typed 身份与消费者支持边界，工具执行及 runtime 组件职责。
 2. 已完成：C toolchain 宿主 invocation 移出 LIR，generated-C 编译交由 driver 编排。
-3. 已完成全部 Scoop/C ABI 规划迁移及显式 manifest 目录；待实施目标身份／LLVM 配置登记拆分。
+3. 已完成全部 Scoop/C ABI 规划迁移及显式 manifest 目录；已完成布局／LLVM 配置登记拆分；目标与 C 工具链身份的开放格式仍在实施。
 4. 已完成 runtime 组件、ELF 容器／机器规则及 Linux machine／libc 工具链选择。
 5. 待验收：本机定向回归、Linux Rust 与正式 CLI 完整覆盖、边界审查及清理。
 
@@ -70,3 +70,10 @@
 - 聚合准备按 typed storage ID 共享字段节点，保留 tagged payload 的完整整数存储描述；后端仅展开可能直接传递的聚合。新增大型 payload 不按字节展开、sret 与前序参数导致整组回退、后续 SSE 容量保留、ZST／扫描存储等验证。新增模块最长 192 行。
 - 本机 fmt、workspace clippy 通过；5 项 ABI planner、154 项 LIR lowering 测试通过，迁移过程中的 473 项 LIR 数据测试通过。首次回归发现的 Alloc machine-byte-size 与非法 C 类型检查顺序已修正，没有修改任何 golden。
 - 32 项正式 CLI（43 变体、179 进程、6 次 golden）通过，覆盖 native／Scoop 小值、跨 Cone、接口默认方法、闭包、suspend、context 及 errno；字段节点共享调整后又定向复跑全部 5 项小值 CLI（10 变体、50 进程、6 次 golden），全部通过。报告见 [07-darwin.json](validation/07-darwin.json) 与 [07b-darwin.json](validation/07b-darwin.json)。
+
+## 功能 8：静态目标合同与 LLVM 配置登记
+
+- LIR 只保留完整布局、backend 合同与 canonical 编码；当前三个 target 的 data layout、CPU/features、C profile 构造集中到 codegen 所属的 `scoop-target-data`。该静态模块不含 LLVM、ABI 分类器或工具执行，供真实 artifact-only 消费者复用。新增源文件最长 72 行。
+- backend identity 改为 canonical name/version 数据；codegen 明确拒绝未知身份、修改后的 CPU 合同及不匹配的目标组合。slib 兼容性读取同时核对所选 target/backend 身份与各自指纹，拒绝未知身份冒用已知指纹。
+- 本机 fmt、workspace clippy；344 项 identity、473 项 LIR、23 项 toolchain、9 项兼容性读取、5 项 backend 选择测试通过。既有布局／backend／C toolchain 固定向量未改。
+- release 三个 CLI 构建成功；5 项小值／跨库／native 正式 CLI 通过（10 变体、50 进程、6 次 golden），见 [08-darwin.json](validation/08-darwin.json)。已清理 9.27 GiB debug incremental。

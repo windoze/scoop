@@ -10,7 +10,7 @@ pub(super) fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
     )
     .unwrap();
     PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![units],
         Vec::new(),

@@ -23,7 +23,7 @@ fn empty_foundation_has_all_tables_and_c_runtime_mode() {
 
 #[test]
 fn native_cxx_mode_survives_wire_and_all_target_requirement_projections() {
-    use crate::{CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, LirTargetProfile};
+    use crate::{CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation};
     for cxx in [false, true] {
         let foundation =
             ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty())
@@ -33,9 +33,9 @@ fn native_cxx_mode_survives_wire_and_all_target_requirement_projections() {
         let decoded = scoop_wire::decode_canonical::<crate::DecodedLirFoundation>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         for target in [
-            LirTargetProfile::DARWIN_AARCH64,
-            LirTargetProfile::LINUX_X86_64_GNU,
-            LirTargetProfile::LINUX_X86_64_MUSL,
+            crate::target_fixtures::DARWIN_AARCH64,
+            crate::target_fixtures::LINUX_X86_64_GNU,
+            crate::target_fixtures::LINUX_X86_64_MUSL,
         ] {
             let requirements =
                 CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation)

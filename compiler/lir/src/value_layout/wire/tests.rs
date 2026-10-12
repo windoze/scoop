@@ -2,7 +2,7 @@ use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 #[test]
 fn storage_wire_has_explicit_closed_variants_and_no_array_size_duplicate() {

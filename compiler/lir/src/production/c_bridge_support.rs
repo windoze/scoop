@@ -39,24 +39,7 @@ impl CBridgeTargetSupportV1 {
     ];
 
     pub const fn for_target(target: LirTargetProfile) -> &'static [Self] {
-        match target.id() {
-            crate::TargetProfileId::DarwinAarch64 => &[
-                Self::Memcpy,
-                Self::Memset,
-                Self::TlvBootstrap,
-                Self::Fmodf,
-                Self::Fmod,
-                Self::DarwinErrno,
-            ],
-            crate::TargetProfileId::LinuxX86_64Gnu | crate::TargetProfileId::LinuxX86_64Musl => &[
-                Self::Memcpy,
-                Self::Memset,
-                Self::TlsGetAddr,
-                Self::Fmodf,
-                Self::Fmod,
-                Self::LinuxErrno,
-            ],
-        }
+        target.description().c_bridge_support
     }
 
     pub const fn logical_symbol(self) -> &'static str {

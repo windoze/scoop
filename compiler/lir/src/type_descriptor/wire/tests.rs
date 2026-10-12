@@ -2,7 +2,7 @@ use super::*;
 use crate::{ArrayElementStorageV1, LirTargetProfile, RefScan, ValueStorageLayoutV1};
 use scoop_wire::{decode_canonical, encode};
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 fn decode(shape: &TypeInstanceShapeV1) -> DecodedTypeInstanceShapeV1 {
     decode_canonical(&encode(shape).unwrap()).unwrap()

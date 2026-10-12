@@ -8,9 +8,8 @@ use object::read::Object;
 use object::read::macho::MachOFile64;
 use object::{Architecture, ObjectKind, macho};
 use scoop_lir::{
-    AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, DarwinBuildToolIdV1,
-    DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    LirTargetProfile,
+    AppleClangCompilerIdentityV1, DarwinBuildToolIdV1, DarwinBuildToolVersionContractV1,
+    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
 };
 
 use crate::ToolchainError;
@@ -69,12 +68,12 @@ fn resolve_c_bridge_toolchain(
         DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, facts.tools).map_err(|error| {
             ToolchainError(format!("invalid generated-C deployment facts: {error}"))
         })?;
-    let profile = CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(deployment, compiler)
-        .map_err(|error| {
-        ToolchainError(format!("cannot fingerprint C bridge toolchain: {error}"))
-    })?;
+    let profile =
+        scoop_target_data::darwin_c_bridge_profile(deployment, compiler).map_err(|error| {
+            ToolchainError(format!("cannot fingerprint C bridge toolchain: {error}"))
+        })?;
     ValidatedCBridgeToolchainInvocation::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         profile,
         facts.compiler_driver,
         facts.sdk_root,
@@ -102,13 +101,10 @@ fn probe_build_tools(
         .map_err(|error| ToolchainError(format!("invalid C bridge probe deployment: {error}")))?;
     let compiler_identity =
         parse_apple_clang_identity(&command_text_from_path(compiler, &["--version"])?)?;
-    let profile =
-        CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(deployment, compiler_identity)
-            .map_err(|error| {
-                ToolchainError(format!("cannot fingerprint C bridge probe: {error}"))
-            })?;
+    let profile = scoop_target_data::darwin_c_bridge_profile(deployment, compiler_identity)
+        .map_err(|error| ToolchainError(format!("cannot fingerprint C bridge probe: {error}")))?;
     let invocation = ValidatedCBridgeToolchainInvocation::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         profile,
         compiler.to_path_buf(),
         sdk_root.to_path_buf(),

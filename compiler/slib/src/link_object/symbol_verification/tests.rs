@@ -9,8 +9,7 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, LirTargetProfile, ObjectSymbolSurfaceV1,
-    ProducerUnitPartitionV1,
+    CanonicalLirFoundation, ConeLirFoundation, ObjectSymbolSurfaceV1, ProducerUnitPartitionV1,
 };
 
 use super::*;
@@ -24,7 +23,7 @@ fn verifies_exact_external_symbols_and_primary_atom_range() {
     let fixture = fixture();
     let object = object_for_plan(&fixture.symbols, canonical_value);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object.bytes,
     )
     .unwrap()
@@ -61,7 +60,7 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
         duplicate.string_indexes[1],
     );
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &duplicate.bytes,
     )
     .unwrap()
@@ -75,7 +74,7 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
     let first_name = unexpected.string_offset + unexpected.string_indexes[0] as usize;
     unexpected.bytes[first_name] = b'X';
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &unexpected.bytes,
     )
     .unwrap()
@@ -93,7 +92,7 @@ fn rejects_weak_definition_for_a_planned_strong_symbol() {
     object.bytes[object.symbol_offset + 6..object.symbol_offset + 8]
         .copy_from_slice(&macho::N_WEAK_DEF.to_le_bytes());
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object.bytes,
     )
     .unwrap()
@@ -119,7 +118,7 @@ fn rejects_empty_ranges_and_displaced_primary_symbols() {
         | PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 0,
     });
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &empty.bytes,
     )
     .unwrap()
@@ -139,7 +138,7 @@ fn rejects_empty_ranges_and_displaced_primary_symbols() {
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 4,
     });
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &displaced.bytes,
     )
     .unwrap()
@@ -178,7 +177,7 @@ fn rejects_overlapping_atom_ranges_across_one_member() {
         _ => unreachable!("fixture has exactly two planned atoms"),
     });
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &overlapping.bytes,
     )
     .unwrap()
@@ -199,7 +198,7 @@ fn binds_the_validation_to_exact_bytes_and_requires_zero_padding() {
     let fixture = fixture();
     let mut changed = object_for_plan(&fixture.symbols, canonical_value);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &changed.bytes,
     )
     .unwrap()
@@ -213,7 +212,7 @@ fn binds_the_validation_to_exact_bytes_and_requires_zero_padding() {
     let mut nonzero_padding = object_for_plan(&fixture.symbols, canonical_value);
     nonzero_padding.bytes[nonzero_padding.section_offset + 4] = 1;
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &nonzero_padding.bytes,
     )
     .unwrap()
@@ -322,14 +321,14 @@ fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bo
     let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),
     )
     .unwrap();
     let symbols =
-        PlannedStrongObjectSymbolSetV1::new(LirTargetProfile::DARWIN_AARCH64, &surface, &members)
+        PlannedStrongObjectSymbolSetV1::new(scoop_target_data::DARWIN_AARCH64, &surface, &members)
             .unwrap()
             .members()[0]
             .clone();

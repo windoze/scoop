@@ -245,14 +245,14 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
         });
     }
 
-    let target = LirTargetProfile::from_id(members[0].definitions().sections().envelope().target());
+    let target = scoop_target_data::layout(members[0].definitions().sections().envelope().target());
     if let Some(member) = members
         .iter()
         .find(|member| member.definitions().sections().envelope().target() != target.id())
     {
         return Err(StrongRelocationClosureValidationError::MixedTarget {
             expected: target,
-            actual: LirTargetProfile::from_id(member.definitions().sections().envelope().target()),
+            actual: scoop_target_data::layout(member.definitions().sections().envelope().target()),
             member: member.member(),
         });
     }

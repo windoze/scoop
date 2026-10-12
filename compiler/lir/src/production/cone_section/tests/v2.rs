@@ -7,7 +7,7 @@ fn layout_schema_retains_ten_shared_production_fields() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
     let producer = foundation.producer();
-    let target = LirTargetProfile::DARWIN_AARCH64;
+    let target = crate::target_fixtures::DARWIN_AARCH64;
 
     let identities = crate::RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let registrations = crate::StrongRegistrationProductionSurfaceV2::from_semantics(

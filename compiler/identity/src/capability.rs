@@ -2,7 +2,11 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+mod profile_name;
 mod target;
+use profile_name::ProfileName;
+mod backend;
+pub use backend::{BackendProfileId, BackendProfileWireId};
 pub use target::{TargetProfileId, TargetProfileWireId};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -141,6 +145,7 @@ macro_rules! capability_refinement {
                 } else {
                     Err(CapabilityRefinementError {
                         expected,
+                        namespace: None,
                         actual: capability,
                     })
                 }
@@ -158,10 +163,19 @@ macro_rules! capability_refinement {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CapabilityRefinementError {
     expected: Vec<CapabilityId>,
+    namespace: Option<&'static str>,
     actual: CapabilityId,
 }
 
 impl CapabilityRefinementError {
+    fn namespace(namespace: &'static str, actual: CapabilityId) -> Self {
+        Self {
+            expected: Vec::new(),
+            namespace: Some(namespace),
+            actual,
+        }
+    }
+
     pub fn expected(&self) -> &[CapabilityId] {
         &self.expected
     }
@@ -174,6 +188,9 @@ impl CapabilityRefinementError {
 impl fmt::Display for CapabilityRefinementError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("expected capability ")?;
+        if let Some(namespace) = self.namespace {
+            write!(formatter, "namespace {namespace}")?;
+        }
         for (index, expected) in self.expected.iter().enumerate() {
             if index != 0 {
                 formatter.write_str(" or ")?;
@@ -197,12 +214,6 @@ impl fmt::Display for CapabilityRefinementError {
 }
 
 impl std::error::Error for CapabilityRefinementError {}
-capability_refinement!(
-    BackendProfileWireId,
-    "org.scoop-lang.backend-profile",
-    llvm_22_1 => "llvm-22-1",
-    llvm_22_1_linux_x86_64 => "llvm-22-1-linux-x86-64",
-);
 capability_refinement!(
     CBridgeToolchainProfileId,
     "org.scoop-lang.c-bridge-toolchain-profile",
@@ -363,19 +374,24 @@ fn validate_namespace(value: &str) -> Result<(), CapabilityIdError> {
     Ok(())
 }
 
-fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLabelError> {
-    if value.is_empty() {
+const fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLabelError> {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() {
         return Err(CapabilityLabelError::Empty);
     }
-    if value.len() > maximum_length {
+    if bytes.len() > maximum_length {
         return Err(CapabilityLabelError::TooLong);
     }
-    let mut bytes = value.bytes();
-    if !bytes.next().is_some_and(|byte| byte.is_ascii_lowercase()) {
+    if !bytes[0].is_ascii_lowercase() {
         return Err(CapabilityLabelError::InvalidStart);
     }
-    if !bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-') {
-        return Err(CapabilityLabelError::InvalidContinuation);
+    let mut index = 1;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && byte != b'-' {
+            return Err(CapabilityLabelError::InvalidContinuation);
+        }
+        index += 1;
     }
     Ok(())
 }

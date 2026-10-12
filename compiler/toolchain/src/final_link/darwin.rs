@@ -84,7 +84,7 @@ impl DarwinFinalLinkProfile {
         TargetProfileId::DarwinAarch64
     }
     pub const fn target(&self) -> LirTargetProfile {
-        LirTargetProfile::DARWIN_AARCH64
+        scoop_target_data::DARWIN_AARCH64
     }
     pub const fn canonical_triple(&self) -> &'static str {
         "aarch64-apple-darwin"

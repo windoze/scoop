@@ -679,7 +679,7 @@ pub(crate) fn cone_named(name: &str) -> ConeRecord {
 }
 
 fn selection() -> scoop_lir::ValidatedLirTargetSelection {
-    scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    scoop_target_data::DARWIN_AARCH64_LLVM_22_1
 }
 
 fn empty_mir_library_section() -> Vec<u8> {

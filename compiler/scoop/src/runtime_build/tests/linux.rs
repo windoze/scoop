@@ -29,7 +29,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
     assert!(first.input_paths().contains(&include.join("unwind.h")));
     assert_eq!(
         first.objects().target(),
-        scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL
+        scoop_target_data::LINUX_X86_64_MUSL
     );
     let header = include.join("unwind.h");
     let mut changed = std::fs::read(&header).unwrap();

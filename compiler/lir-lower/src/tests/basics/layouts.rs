@@ -149,7 +149,7 @@ fn all_eight_integer_kinds_use_their_exact_target_scalar_layout() {
         );
     }
     let module = lower(source);
-    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let context = LoweringContext::new(scoop_target_data::DARWIN_AARCH64);
 
     for mir_kind in mir::IntegerKind::ALL {
         let lir_kind = integer_kind(mir_kind);

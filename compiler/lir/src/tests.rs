@@ -6,12 +6,12 @@ use super::{
     EnumFieldRepr, EnumRepr, EnumVariantRepr, ExternFunctionIdentity, ExternFunctions,
     ForeignCallbackFailureResult, ForeignCallbackModes, ForeignCallbackStates,
     ForeignCallbackStatus, GcEffect, IndirectResultCallSignature, IndirectResultConvention,
-    InitializationOutcome, InternalPointerCarrier, LirTargetProfile, LirType,
-    LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
-    ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
-    NativeBorrowedTypedCall, NonEmptyRefScan, NullNicheKind, PointerKind, PointerNullEncoding,
-    RefScan, ScoopAbiSignature, ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId,
-    TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
+    InitializationOutcome, InternalPointerCarrier, LirType, LocalFunctionIdentities,
+    MachineScalarKind, MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
+    NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedTypedCall,
+    NonEmptyRefScan, NullNicheKind, PointerKind, PointerNullEncoding, RefScan, ScoopAbiSignature,
+    ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId, TypedCall, TypedCallResult,
+    TypedCallView, Value, VoidCallSignature,
 };
 
 pub(crate) fn test_physical_exact(
@@ -92,7 +92,7 @@ fn abi_zst(ty: LirType, alignment: u64) -> AbiZst {
 
 #[test]
 fn darwin_aarch64_profile_fixes_every_backend_scalar_layout() {
-    let profile = LirTargetProfile::DARWIN_AARCH64;
+    let profile = crate::target_fixtures::layout(TargetProfileId::DarwinAarch64);
 
     assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
     assert_eq!(profile.id().canonical_name(), "darwin-aarch64");
@@ -200,7 +200,7 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
 
 #[test]
 fn darwin_aarch64_profile_keeps_pointer_provenance_and_qualification_typed() {
-    let profile = LirTargetProfile::DARWIN_AARCH64;
+    let profile = crate::target_fixtures::DARWIN_AARCH64;
     let word = profile.scalar_layout(super::BackendScalarKind::I64);
 
     assert_eq!(profile.managed_pointer_layout(), word);
@@ -1148,7 +1148,7 @@ fn exact_c_types_totally_determine_their_lir_storage() {
 
 #[test]
 fn target_contract_and_fingerprint_match_the_fixed_vectors() {
-    let profile = LirTargetProfile::DARWIN_AARCH64;
+    let profile = crate::target_fixtures::DARWIN_AARCH64;
     assert_eq!(
         hex(&scoop_wire::encode(&profile.contract()).unwrap()),
         "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d030e030f01"
@@ -1158,7 +1158,7 @@ fn target_contract_and_fingerprint_match_the_fixed_vectors() {
         "e028c9fb172ca19a32f8b2e157a049608c6ceac14711e267b1a3a1647d1705ce"
     );
     assert_eq!(
-        super::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1.target(),
+        crate::target_fixtures::DARWIN_AARCH64_LLVM_22_1.target(),
         profile
     );
 }

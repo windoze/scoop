@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate};
-use scoop_lir::ValidatedLirTargetSelection;
 use scoop_slib::{ConeKind, ConeRecord, ConeSourceForm};
 use scoop_wire::sha256;
 
@@ -25,7 +24,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
     )
     .unwrap();
     let archive = crate::test_artifacts::manifest_archive(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone.clone(),
         producer,
@@ -33,7 +32,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
     );
     let summary = scoop_slib::read_artifact_manifest_summary(
         archive.as_bytes(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
     let path = root.join(format!("{producer}.slib"));
@@ -43,7 +42,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
         key,
         summary.artifact_fingerprint(),
         cone,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         PairedCompilerFingerprintV1::from_parts(
             sha256(b"paired-scoopc"),

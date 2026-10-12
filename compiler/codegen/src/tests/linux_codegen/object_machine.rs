@@ -11,10 +11,9 @@ fn elf_machine_and_flags_are_checked_before_relocation_interpretation() {
     let path = directory.path().join("machine.o");
     let mut module = for_target(exceptions_module(), TargetProfileId::LinuxX86_64Gnu);
     module.output = scoop_lir::LirOutput::Library;
-    let profile = ValidatedBackendProfile::from_selection(
-        scoop_lir::ValidatedLirTargetSelection::LINUX_X86_64_GNU_LLVM_22_1,
-    )
-    .unwrap();
+    let profile =
+        ValidatedBackendProfile::from_selection(scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1)
+            .unwrap();
     let expected = statepoint::expectations(&module).unwrap();
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let emitted = emit_object_set(

@@ -135,7 +135,7 @@ fn field(bytes: &mut Vec<u8>, field: u8) {
 }
 
 fn c_bridge_profile() -> scoop_lir::CBridgeToolchainProfileV1 {
-    scoop_lir::CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+    scoop_target_data::darwin_c_bridge_profile(
         scoop_lir::DarwinCBridgeDeploymentContractV1::new(
             scoop_lir::DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             scoop_lir::DarwinPackedVersionV1::new(0x000e_0200).unwrap(),

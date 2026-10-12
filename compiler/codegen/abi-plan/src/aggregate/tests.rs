@@ -59,8 +59,8 @@ fn aggregate_carriers_match_independent_clang_probes() {
     );
     let packed = layout(9, 1, &[(0, AbiCarrier::Integer(8)), (1, double)]);
     for target in [
-        LirTargetProfile::LINUX_X86_64_GNU,
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         assert_eq!(
             carriers(&mixed, target, AbiValuePosition::Argument),
@@ -85,7 +85,7 @@ fn aggregate_carriers_match_independent_clang_probes() {
             [float]
         );
     }
-    let target = LirTargetProfile::DARWIN_AARCH64;
+    let target = scoop_target_data::DARWIN_AARCH64;
     assert_eq!(
         carriers(&mixed, target, AbiValuePosition::Argument),
         [AbiCarrier::Array {
@@ -136,10 +136,13 @@ fn short_darwin_carrier_never_reads_past_exact_storage() {
         ],
     );
     let argument = bytes
-        .coercion(LirTargetProfile::DARWIN_AARCH64, AbiValuePosition::Argument)
+        .coercion(
+            scoop_target_data::DARWIN_AARCH64,
+            AbiValuePosition::Argument,
+        )
         .unwrap();
     let result = bytes
-        .coercion(LirTargetProfile::DARWIN_AARCH64, AbiValuePosition::Result)
+        .coercion(scoop_target_data::DARWIN_AARCH64, AbiValuePosition::Result)
         .unwrap();
     assert_eq!(argument.parts()[0].carrier(), AbiCarrier::Integer(64));
     assert_eq!(argument.parts()[0].extent(), 3);
@@ -153,13 +156,13 @@ fn sysv_exhaustion_rolls_back_the_entire_aggregate() {
     let double = AbiCarrier::Float(FloatKind::F64);
     let mixed = layout(16, 8, &[(0, double), (8, integer)])
         .coercion(
-            LirTargetProfile::LINUX_X86_64_GNU,
+            scoop_target_data::LINUX_X86_64_GNU,
             AbiValuePosition::Argument,
         )
         .unwrap();
     let pair = layout(16, 8, &[(0, double), (8, double)])
         .coercion(
-            LirTargetProfile::LINUX_X86_64_GNU,
+            scoop_target_data::LINUX_X86_64_GNU,
             AbiValuePosition::Argument,
         )
         .unwrap();

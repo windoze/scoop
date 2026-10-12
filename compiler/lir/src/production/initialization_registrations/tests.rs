@@ -346,7 +346,7 @@ impl Fixture {
     > {
         let storages = StrongStaticStorageSemanticPlanSetV1::from_parts(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &self.globals,
             &StructDefs::default(),
             &crate::EnumDefs::default(),
@@ -354,7 +354,7 @@ impl Fixture {
         .unwrap();
         StrongInitializationUnitSemanticPlanSetV1::from_parts(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &self.globals,
             &self.units,
             &self.functions,
@@ -413,7 +413,7 @@ fn storage_global(
             identity,
             layout: LayoutIdentity::managed_value(
                 exact_type(layout_name),
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap()

@@ -9,7 +9,6 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
-    LirTargetProfile,
 };
 
 use super::super::strong_relocation_closure::tests::{
@@ -196,7 +195,8 @@ pub(in crate::link_object) fn dependency_closure(
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
 
-    verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[]).unwrap()
+    verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
+        .unwrap()
 }
 
 pub(in crate::link_object) fn native_surface(
@@ -209,7 +209,7 @@ pub(in crate::link_object) fn native_surface(
     canonical.set_native_link_requirements(libraries).unwrap();
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap()

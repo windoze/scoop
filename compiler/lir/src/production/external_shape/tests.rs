@@ -43,7 +43,7 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     .unwrap();
     let layout = PersistentLayoutId::from_key(&LayoutKey::new(
         exact,
-        crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),
+        crate::target_fixtures::DARWIN_AARCH64.wire_id(),
         scoop_identity::RepresentationRole::ManagedValue,
     ))
     .unwrap();

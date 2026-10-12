@@ -100,7 +100,7 @@ fn build(
     provider: Option<ConeIdentity>,
 ) -> Result<StrongTypeRegistrationPlanSetV2, StrongTypeRegistrationPlanBuildError> {
     StrongTypeRegistrationPlanSetV2::new(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
         &semantics(fixture, provider),
@@ -194,7 +194,7 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
     });
     let producer = fixture.foundation.producer();
     let surface = crate::StrongRegistrationProductionSurfaceV2::from_semantics(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.digests,
         fixture.identities.clone(),
@@ -222,7 +222,7 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
     assert!(
         shared
             .validate(
-                crate::LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 &fixture.foundation,
                 &fixture.digests,
             )

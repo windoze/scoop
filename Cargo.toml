@@ -19,6 +19,7 @@ members = [
     "compiler/lir-lower",
     "compiler/codegen",
     "compiler/codegen/abi-plan",
+    "compiler/codegen/target-data",
     "compiler/slib",
     "compiler/driver",
 ]
@@ -73,5 +74,6 @@ scoop-mir-lower = { path = "compiler/mir-lower" }
 scoop-lir = { path = "compiler/lir" }
 scoop-lir-lower = { path = "compiler/lir-lower" }
 scoop-abi-plan = { path = "compiler/codegen/abi-plan" }
+scoop-target-data = { path = "compiler/codegen/target-data" }
 scoop-codegen = { path = "compiler/codegen" }
 scoop-slib = { path = "compiler/slib" }

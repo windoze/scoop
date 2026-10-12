@@ -1,8 +1,7 @@
 use scoop_identity::ConeCoordinate;
 use scoop_lir::{
     CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, ConeProductionSectionV2,
-    EntryProductionSourceV1, LirTargetProfile, StrongRegistrationProductionSurfaceV2,
-    ValidatedLirTargetSelection,
+    EntryProductionSourceV1, StrongRegistrationProductionSurfaceV2,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -34,7 +33,7 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         &[scoop_identity::ConeIdentity::CORE],
     );
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
-    let target = LirTargetProfile::DARWIN_AARCH64;
+    let target = scoop_target_data::DARWIN_AARCH64;
     let layout = empty_section(producer);
     let v2 = ConeProductionSectionV2::new(
         cone.coordinate().clone(),
@@ -97,11 +96,9 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
     let source =
         verify_source_external_requirements_after_external_shape_v1(&shape, native.clone())
             .unwrap();
-    let runtime = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let runtime =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     let external = seal_builtin_object_external_requirements_v1(
         crate::link_object::without_generated_bridge_semantics_for_test(runtime),
     )
@@ -179,7 +176,7 @@ fn legacy_closure(
     let object = fixture_for_producer(producer, "layoutCodeCoreOwner");
     let seed = dependency_closure(verified_member_without_relocations(&object));
     verify_dependency_strong_requirements_v1(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         strong,
         seed.dependency_owners(),
     )

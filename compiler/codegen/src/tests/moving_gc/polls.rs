@@ -28,11 +28,9 @@ fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
         scoop_lir::TargetProfileId::LinuxX86_64Gnu,
         scoop_lir::TargetProfileId::LinuxX86_64Musl,
     ] {
-        module.meta = string_metadata_for(scoop_lir::LirTargetProfile::from_id(target));
-        let profile = ValidatedBackendProfile::from_selection(
-            scoop_lir::ValidatedLirTargetSelection::from_id(target),
-        )
-        .unwrap();
+        module.meta = string_metadata_for(scoop_target_data::layout(target));
+        let profile =
+            ValidatedBackendProfile::from_selection(scoop_target_data::selection(target)).unwrap();
         let machine = profile
             .create_qualification_target_machine(OptimizationLevel::None)
             .unwrap();

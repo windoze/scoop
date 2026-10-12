@@ -41,7 +41,7 @@ fn initialization_function_uses_the_ordinary_callable_abi_export() {
         &input,
         &[],
         &lir::SelectedExternalLirSet::empty(ConeIdentity::CORE),
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
     .unwrap();
     let target = scoop_identity::StrongCallableDefinitionOwner::Function(cycle_definition);
@@ -95,7 +95,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
             &ordinary_input,
             &[],
             &selected_lir,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
         ),
         Err(LirLoweringError::MissingDependencyLayoutSelection { .. })
     ));
@@ -103,7 +103,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         &ordinary_input,
         &[runtime_string],
         &selected_lir,
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
     .unwrap();
     let module = output.module();

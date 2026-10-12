@@ -7,7 +7,7 @@ use scoop_lir::{
 fn invocation_builds_only_the_canonical_command() {
     let profile = profile();
     let invocation = ValidatedCBridgeToolchainInvocation::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         profile,
         PathBuf::from("/toolchain/bin/clang"),
         PathBuf::from("/toolchain/SDKs/MacOSX.sdk"),
@@ -58,7 +58,7 @@ fn invocation_builds_only_the_canonical_command() {
 #[test]
 fn invocation_rejects_relative_host_locators() {
     let error = ValidatedCBridgeToolchainInvocation::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         profile(),
         PathBuf::from("clang"),
         PathBuf::from("/toolchain/SDKs/MacOSX.sdk"),
@@ -78,5 +78,5 @@ fn profile() -> CBridgeToolchainProfileV1 {
     )
     .unwrap();
     let compiler = AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap();
-    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(deployment, compiler).unwrap()
+    scoop_target_data::darwin_c_bridge_profile(deployment, compiler).unwrap()
 }

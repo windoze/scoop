@@ -435,8 +435,8 @@ mod tests {
     #[test]
     fn boxed_value_derives_object_scan_from_inline_scan() {
         let value = ValueStorageLayoutV1::inline(16, 8, RefScan::References(vec![0, 8])).unwrap();
-        let shape =
-            TypeInstanceShapeV1::boxed_value(LirTargetProfile::DARWIN_AARCH64, value).unwrap();
+        let shape = TypeInstanceShapeV1::boxed_value(crate::target_fixtures::DARWIN_AARCH64, value)
+            .unwrap();
         assert_eq!(shape.inline_offset(), 16);
         assert_eq!(shape.minimum_size(), 32);
         assert_eq!(shape.object_scan(), &RefScan::References(vec![16, 24]));
@@ -446,7 +446,8 @@ mod tests {
     fn zero_sized_array_keeps_a_nonzero_instance_extent() {
         let element = ArrayElementStorageV1::zero_sized(16).unwrap();
         let shape =
-            TypeInstanceShapeV1::inline_array(LirTargetProfile::DARWIN_AARCH64, element).unwrap();
+            TypeInstanceShapeV1::inline_array(crate::target_fixtures::DARWIN_AARCH64, element)
+                .unwrap();
         assert_eq!(shape.inline_storage_kind(), InlineStorageKindV1::ZeroSized);
         assert_eq!(shape.minimum_size(), 32);
         assert_eq!(shape.inline_size(), 0);
@@ -478,7 +479,7 @@ mod tests {
     fn fixed_object_rejects_an_extent_smaller_than_the_header() {
         assert_eq!(
             TypeInstanceShapeV1::fixed_object(
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 8,
                 8,
                 RefScan::None,

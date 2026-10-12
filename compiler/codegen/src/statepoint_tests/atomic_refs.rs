@@ -3,7 +3,7 @@
 use super::*;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::{OptimizationMode, TargetProfileId};
 
 const SOURCE: &str = include_str!("atomic_refs.ll");
 
@@ -86,11 +86,10 @@ fn atomic_managed_references_survive_rewrite_and_target_codegen() {
         TargetProfileId::LinuxX86_64Musl,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile = ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
-            )
-            .unwrap()
-            .with_optimization(mode);
+            let profile =
+                ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
+                    .unwrap()
+                    .with_optimization(mode);
             let machine = profile.create_target_machine().unwrap();
             for (opcode, operation) in &operations {
                 let context = Context::create();

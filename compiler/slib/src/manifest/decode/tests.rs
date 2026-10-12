@@ -65,7 +65,7 @@ fn manifest(sections: Vec<ManifestSection>) -> BootstrapManifest {
 }
 
 fn selection() -> ValidatedLirTargetSelection {
-    ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    scoop_target_data::DARWIN_AARCH64_LLVM_22_1
 }
 
 fn validate(

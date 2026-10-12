@@ -7,7 +7,7 @@ use crate::*;
 
 mod layouts;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 pub(super) struct Fixture {
     source: SourceDeclarationKey,

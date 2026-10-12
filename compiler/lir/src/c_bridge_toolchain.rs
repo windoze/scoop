@@ -116,20 +116,17 @@ pub struct CBridgeToolchainContractV1 {
 }
 
 impl CBridgeToolchainContractV1 {
-    fn darwin_aarch64_apple_clang(
-        deployment: DarwinCBridgeDeploymentContractV1,
-        compiler: AppleClangCompilerIdentityV1,
+    pub fn new(
+        target: LirTargetProfile,
+        platform: CBridgePlatformContractV1,
+        flags: CanonicalCBridgeFlagContractV1,
     ) -> Result<Self, HashError> {
-        let target = LirTargetProfile::DARWIN_AARCH64;
         Ok(Self {
             target: target.wire_id(),
             target_fingerprint: target.fingerprint()?,
             canonical_triple: target.contract().canonical_triple(),
-            platform: CBridgePlatformContractV1::Darwin {
-                deployment,
-                compiler,
-            },
-            canonical_flag_fingerprint: CanonicalCBridgeFlagContractV1::CURRENT.fingerprint()?,
+            platform,
+            canonical_flag_fingerprint: flags.fingerprint()?,
             source_template_fingerprint: GeneratedCSourceTemplateContractV1::CURRENT
                 .fingerprint()?,
             environment: CBridgeEnvironmentProjectionV1::CLEAN_C_LOCALE_UTC,
@@ -223,52 +220,11 @@ pub struct CBridgeToolchainProfileV1 {
 }
 
 impl CBridgeToolchainProfileV1 {
-    pub fn new_darwin_aarch64_apple_clang(
-        deployment: DarwinCBridgeDeploymentContractV1,
-        compiler: AppleClangCompilerIdentityV1,
+    pub fn new(
+        id: CBridgeToolchainProfileId,
+        contract: CBridgeToolchainContractV1,
     ) -> Result<Self, HashError> {
-        let id = CBridgeToolchainProfileId::darwin_aarch64_apple_clang();
-        let contract =
-            CBridgeToolchainContractV1::darwin_aarch64_apple_clang(deployment, compiler)?;
         let fingerprint = CBridgeToolchainFingerprint::from_parts(&id, &contract)?;
-        Ok(Self {
-            id,
-            contract,
-            fingerprint,
-        })
-    }
-
-    pub fn new_linux_gcc(
-        target: LirTargetProfile,
-        compiler: GccCompilerIdentityV1,
-    ) -> Result<Self, CBridgeToolchainBuildError> {
-        use crate::TargetProfileId;
-        let id = match target.id() {
-            TargetProfileId::LinuxX86_64Gnu => CBridgeToolchainProfileId::linux_x86_64_gnu_gcc(),
-            TargetProfileId::LinuxX86_64Musl => CBridgeToolchainProfileId::linux_x86_64_musl_gcc(),
-            TargetProfileId::DarwinAarch64 => {
-                return Err(CBridgeToolchainBuildError::Platform(
-                    CBridgePlatformError::ExpectedLinux,
-                ));
-            }
-        };
-        let contract = CBridgeToolchainContractV1 {
-            target: target.wire_id(),
-            target_fingerprint: target
-                .fingerprint()
-                .map_err(CBridgeToolchainBuildError::Hash)?,
-            canonical_triple: target.contract().canonical_triple(),
-            platform: CBridgePlatformContractV1::Linux { compiler },
-            canonical_flag_fingerprint: CanonicalCBridgeFlagContractV1::LINUX_GCC
-                .fingerprint()
-                .map_err(CBridgeToolchainBuildError::Hash)?,
-            source_template_fingerprint: GeneratedCSourceTemplateContractV1::CURRENT
-                .fingerprint()
-                .map_err(CBridgeToolchainBuildError::Hash)?,
-            environment: CBridgeEnvironmentProjectionV1::CLEAN_C_LOCALE_UTC,
-        };
-        let fingerprint = CBridgeToolchainFingerprint::from_parts(&id, &contract)
-            .map_err(CBridgeToolchainBuildError::Hash)?;
         Ok(Self {
             id,
             contract,

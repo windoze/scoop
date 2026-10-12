@@ -1,29 +1,30 @@
 use std::fmt;
 
-use scoop_identity::BackendProfileWireId;
+use scoop_identity::{BackendProfileId, BackendProfileWireId};
 use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 const BACKEND_PROFILE_DOMAIN: &str = "scoop-backend-profile-contract-v1";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum BackendProfile {
-    Llvm22_1DarwinAarch64,
-    Llvm22_1LinuxX86_64,
+pub struct BackendProfile {
+    id: &'static BackendProfileId,
+    contract: &'static BackendProfileContract,
 }
 
 impl BackendProfile {
-    pub const LLVM_22_1: Self = Self::Llvm22_1DarwinAarch64;
-    pub const LLVM_22_1_LINUX_X86_64: Self = Self::Llvm22_1LinuxX86_64;
+    pub const fn new(
+        id: &'static BackendProfileId,
+        contract: &'static BackendProfileContract,
+    ) -> Self {
+        Self { id, contract }
+    }
 
     pub fn wire_id(self) -> BackendProfileWireId {
-        match self {
-            Self::Llvm22_1DarwinAarch64 => BackendProfileWireId::llvm_22_1(),
-            Self::Llvm22_1LinuxX86_64 => BackendProfileWireId::llvm_22_1_linux_x86_64(),
-        }
+        BackendProfileWireId::new(*self.id)
     }
 
     pub const fn contract(self) -> BackendProfileContract {
-        BackendProfileContract(self)
+        *self.contract
     }
 
     pub fn fingerprint(self) -> Result<BackendProfileFingerprint, HashError> {
@@ -32,55 +33,32 @@ impl BackendProfile {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct BackendProfileContract(BackendProfile);
+pub struct BackendProfileContract {
+    pub llvm_api_version: [u32; 2],
+    pub inkwell_binding: [u32; 3],
+    pub cpu: &'static str,
+    pub features: &'static str,
+    pub llvm_target_backend: u32,
+    pub unwind_provider: u32,
+    pub artifact_inspection: crate::NativeObjectFormat,
+    pub lsda: BackendLsdaEncodingsV1,
+    pub machine_frame: Option<BackendMachineFrameV1>,
+}
 
-impl WireEncode for BackendProfileContract {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        let linux_x86_64 = self.0 == BackendProfile::LLVM_22_1_LINUX_X86_64;
-        encoder.map(if linux_x86_64 { 28 } else { 26 })?;
-        encode_pair(encoder, 1, 22, 1)?;
-        encoder.field(2)?;
-        encoder.map(3)?;
-        encode_unsigned_field(encoder, 1, 0)?;
-        encode_unsigned_field(encoder, 2, 10)?;
-        encode_unsigned_field(encoder, 3, 1)?;
-        encoder.field(3)?;
-        encoder.text(if linux_x86_64 { "x86-64" } else { "generic" })?;
-        encoder.field(4)?;
-        encoder.text("")?;
-        for field in 5..=10 {
-            encode_unsigned_field(encoder, field, 1)?;
-        }
-        encode_unsigned_field(encoder, 11, 3)?;
-        for field in 12..=18 {
-            encode_unsigned_field(encoder, field, 1)?;
-        }
-        encode_unsigned_field(encoder, 19, if linux_x86_64 { 2 } else { 1 })?;
-        encode_unsigned_field(encoder, 20, 1)?;
-        encode_unsigned_field(encoder, 21, 1)?;
-        encode_unsigned_field(encoder, 22, 2)?;
-        encoder.field(23)?;
-        encoder.map(if linux_x86_64 { 4 } else { 3 })?;
-        encode_unsigned_field(encoder, 1, 0xff)?;
-        encode_unsigned_field(encoder, 2, 0x9b)?;
-        encode_unsigned_field(encoder, 3, 0x01)?;
-        if linux_x86_64 {
-            encode_unsigned_field(encoder, 4, 0xff)?;
-        }
-        encode_unsigned_field(encoder, 24, if linux_x86_64 { 2 } else { 1 })?;
-        encode_unsigned_field(encoder, 25, if linux_x86_64 { 2 } else { 1 })?;
-        if linux_x86_64 {
-            encode_unsigned_field(encoder, 26, 1)?;
-            encoder.field(27)?;
-            encoder.map(4)?;
-            for (field, value) in [(1, 7), (2, 6), (3, 8), (4, 16)] {
-                encode_unsigned_field(encoder, field, value)?;
-            }
-        }
-        // Qualified ordinary passes and final physical GC/EH emission plans.
-        encode_unsigned_field(encoder, 28, 1)?;
-        Ok(())
-    }
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct BackendLsdaEncodingsV1 {
+    pub lp_start: u8,
+    pub type_table: u8,
+    pub call_site: u8,
+    pub omitted_type_table: Option<u8>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct BackendMachineFrameV1 {
+    pub stack_pointer_register: u16,
+    pub frame_pointer_register: u16,
+    pub root_slot_bytes: u8,
+    pub frame_record_bytes: u8,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -131,41 +109,21 @@ impl WireEncode for BackendProfileFingerprintInput {
     }
 }
 
-fn encode_pair(
-    encoder: &mut Encoder,
-    field: u32,
-    first: u64,
-    second: u64,
-) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.field(field)?;
-    encoder.map(2)?;
-    encode_unsigned_field(encoder, 1, first)?;
-    encode_unsigned_field(encoder, 2, second)
-}
-
-fn encode_unsigned_field(
-    encoder: &mut Encoder,
-    field: u32,
-    value: u64,
-) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.field(field)?;
-    encoder.unsigned(value)
-}
-
 #[cfg(test)]
 mod tests {
     use scoop_wire::encode;
 
-    use super::*;
-
     #[test]
     fn backend_contract_and_fingerprint_match_the_fixed_vectors() {
         assert_eq!(
-            hex(&encode(&BackendProfile::LLVM_22_1.contract()).unwrap()),
+            hex(&encode(&crate::target_fixtures::LLVM_22_1.contract()).unwrap()),
             "b81a01a20116020102a30100020a0301036767656e657269630460050106010701080109010a010b030c010d010e010f01100111011201130114011501160217a30118ff02189b0301181801181901181c01"
         );
         assert_eq!(
-            BackendProfile::LLVM_22_1.fingerprint().unwrap().to_string(),
+            crate::target_fixtures::LLVM_22_1
+                .fingerprint()
+                .unwrap()
+                .to_string(),
             "08e6c47f288f6522a8987a366d12b110d75ad0090c17b56b184ff70101e95ab8"
         );
     }
@@ -174,3 +132,5 @@ mod tests {
         bytes.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 }
+
+mod encode;

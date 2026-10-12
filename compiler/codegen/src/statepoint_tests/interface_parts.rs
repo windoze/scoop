@@ -3,7 +3,7 @@
 use super::*;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::{OptimizationMode, TargetProfileId};
 
 fn expected() -> ExpectedSafepoints {
     let result = CallerRootSource::Temp(la_arena::Idx::from_raw(0.into()));
@@ -56,11 +56,10 @@ fn interface_parts_call_invoke_and_relocation_survive_target_codegen() {
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             for source in [source, selected.as_str()] {
-                let profile = ValidatedBackendProfile::from_selection(
-                    ValidatedLirTargetSelection::from_id(target),
-                )
-                .unwrap()
-                .with_optimization(mode);
+                let profile =
+                    ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
+                        .unwrap()
+                        .with_optimization(mode);
                 let machine = profile.create_target_machine().unwrap();
                 let context = Context::create();
                 let llvm = parse(&context, source);

@@ -114,7 +114,7 @@ impl Fixture {
         let initialization_units = HashMap::new();
 
         let mut normalizer = NativeBoundaryNormalizer::new(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             &self.exact_types,
             &callable_applications,
             &initialization_units,

@@ -531,6 +531,7 @@ dependencies = [
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
  "serde",
@@ -543,6 +544,7 @@ name = "scoop-abi-plan"
 version = "0.0.0"
 dependencies = [
  "scoop-lir",
+ "scoop-target-data",
 ]
 
 [[package]]
@@ -565,6 +567,7 @@ dependencies = [
  "scoop-lir",
  "scoop-process",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "tempfile",
 ]
@@ -614,6 +617,7 @@ dependencies = [
  "scoop-lir",
  "scoop-process",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
  "tempfile",
@@ -638,6 +642,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-target-data",
  "scoop-wire",
 ]
 
@@ -713,10 +718,20 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-target-data",
  "scoop-wire",
  "tempfile",
  "yaxpeax-arch",
  "yaxpeax-x86",
+]
+
+[[package]]
+name = "scoop-target-data"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+ "scoop-lir",
+ "scoop-wire",
 ]
 
 [[package]]
@@ -729,6 +744,7 @@ dependencies = [
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-wire",
  "serde",
  "serde_yaml_ng",
@@ -765,6 +781,7 @@ dependencies = [
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
  "tempfile",

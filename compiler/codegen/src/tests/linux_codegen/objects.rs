@@ -38,10 +38,9 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                     },
                 });
             }
-            let profile = ValidatedBackendProfile::from_selection(
-                scoop_lir::ValidatedLirTargetSelection::from_id(target),
-            )
-            .unwrap();
+            let profile =
+                ValidatedBackendProfile::from_selection(scoop_target_data::selection(target))
+                    .unwrap();
             let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
             let emitted = emit_object_set(
                 &input,

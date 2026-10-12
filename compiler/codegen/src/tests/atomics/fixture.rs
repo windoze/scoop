@@ -16,7 +16,7 @@ pub(super) fn module(target: TargetProfileId) -> Module {
         foreign_callback_bridges: Arena::default(),
         functions: AtomicValueKind::ALL.iter().copied().map(function).collect(),
         output: scoop_lir::LirOutput::Library,
-        meta: string_metadata_for(scoop_lir::LirTargetProfile::from_id(target)),
+        meta: string_metadata_for(scoop_target_data::layout(target)),
     }
 }
 

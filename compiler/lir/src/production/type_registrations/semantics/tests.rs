@@ -40,7 +40,7 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
         diagnostic_name: "Document".to_string(),
         instance_layout: instance_layout(owner_exact),
         instance_shape: TypeInstanceShapeV1::inline_array(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             ArrayElementStorageV1::zero_sized(8).unwrap(),
         )
         .unwrap(),
@@ -61,7 +61,7 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
 
     let plans = StrongTypeDescriptorSemanticPlanSetV1::from_components(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         DescriptorSemanticInputs {
             descriptors: &descriptors,
             external_descriptors: &Arena::new(),
@@ -138,7 +138,7 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
     assert_eq!(
         StrongTypeDescriptorSemanticPlanSetV1::from_components(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             DescriptorSemanticInputs {
                 descriptors: &descriptors,
                 external_descriptors: &Arena::new(),
@@ -169,7 +169,7 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
     assert_eq!(
         StrongTypeDescriptorSemanticPlanSetV1::from_components(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             DescriptorSemanticInputs {
                 descriptors: &descriptors,
                 external_descriptors: &Arena::new(),
@@ -194,7 +194,7 @@ fn identity(exact_type: PersistentExactTypeId) -> TypeDescriptorIdentity {
 fn instance_layout(exact_type: PersistentExactTypeId) -> LayoutIdentity {
     LayoutIdentity::managed_object(
         exact_type,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         MaterializationRoot::cone_owned(),
     )
     .unwrap()

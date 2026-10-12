@@ -1,5 +1,4 @@
 use scoop_identity::{CapabilityId, ConeCoordinate};
-use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::encode;
 
 use super::*;
@@ -23,7 +22,7 @@ fn fingerprints(seed: u8) -> SemanticFingerprintRecord {
 
 fn compatibility() -> CompatibilityRecord {
     CompatibilityRecord::new(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
     )
     .unwrap()

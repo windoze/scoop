@@ -53,7 +53,7 @@ pub(super) fn fixture() -> (
         &input,
         &[],
         &lir::SelectedExternalLirSet::empty(input.module().cone),
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
     .unwrap();
     (input, output, target, signature)

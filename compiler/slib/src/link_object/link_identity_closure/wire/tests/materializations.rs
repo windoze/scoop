@@ -6,8 +6,8 @@ fn materialization_replay_uses_the_artifact_target_for_member_roles() {
     let bytes = encoded_link_identity_closure_for_member_plan_test(&plan);
     let decoded: DecodedLinkIdentityClosureSectionV1 = decode_canonical(&bytes).unwrap();
     for target in [
-        scoop_lir::LirTargetProfile::LINUX_X86_64_GNU,
-        scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let replayed = decoded.replay_materializations(target, &partition).unwrap();
         assert_eq!(replayed.target(), target);
@@ -43,7 +43,7 @@ fn borrowed_materialization_replay_rejects_duplicate_missing_and_wrong_kind_unit
         .materializations
         .push(duplicate.materializations[0].clone());
     assert!(matches!(
-        duplicate.replay_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
+        duplicate.replay_materializations(scoop_target_data::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::MemberPlan(
             LinkObjectMemberSetPlanError::DuplicateScoopLirDefinition(_)
         ))
@@ -51,7 +51,7 @@ fn borrowed_materialization_replay_rejects_duplicate_missing_and_wrong_kind_unit
     let mut missing = original.clone();
     missing.materializations.clear();
     assert!(matches!(
-        missing.replay_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
+        missing.replay_materializations(scoop_target_data::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::MemberPlan(
             LinkObjectMemberSetPlanError::MissingScoopLirDefinition(_)
         ))
@@ -70,12 +70,12 @@ fn borrowed_materialization_replay_rejects_duplicate_missing_and_wrong_kind_unit
             .collect(),
     };
     assert!(matches!(
-        wrong_kind.replay_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
+        wrong_kind.replay_materializations(scoop_target_data::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::UnknownGeneratedBridgeUnit(_))
     ));
     assert_eq!(
         original
-            .replay_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
+            .replay_materializations(scoop_target_data::DARWIN_AARCH64, &partition)
             .unwrap(),
         plan
     );

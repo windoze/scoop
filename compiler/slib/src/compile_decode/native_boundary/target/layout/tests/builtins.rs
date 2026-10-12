@@ -116,7 +116,7 @@ fn with_keys<T>(
         .collect();
 
     let mut normalizer = NativeBoundaryNormalizer::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &exact_types,
         &callable_applications,
         &initialization_units,

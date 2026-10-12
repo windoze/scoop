@@ -82,8 +82,8 @@ mod tests {
     #[test]
     fn amd64_calls_addresses_and_tls_do_not_substitute_for_each_other() {
         for target in [
-            LirTargetProfile::LINUX_X86_64_GNU,
-            LirTargetProfile::LINUX_X86_64_MUSL,
+            scoop_target_data::LINUX_X86_64_GNU,
+            scoop_target_data::LINUX_X86_64_MUSL,
         ] {
             let call = Form::ElfX86_64Rela {
                 kind: R_X86_64_PLT32,
@@ -114,8 +114,8 @@ mod tests {
             assert!(!tls.is_direct_call(target));
             assert!(!Form::Branch26.is_direct_call(target));
             assert!(!Form::TlvpLoadPage21.is_tls_reference(target));
-            assert!(!call.is_direct_call(LirTargetProfile::DARWIN_AARCH64));
-            assert!(!tls.is_tls_reference(LirTargetProfile::DARWIN_AARCH64));
+            assert!(!call.is_direct_call(scoop_target_data::DARWIN_AARCH64));
+            assert!(!tls.is_tls_reference(scoop_target_data::DARWIN_AARCH64));
         }
     }
 }

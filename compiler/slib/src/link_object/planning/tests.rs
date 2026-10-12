@@ -15,7 +15,7 @@ fn assigns_every_plan_and_bridge_unit_to_exactly_one_member() {
     let fixture = fixture(true);
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(vec![fixture.lir_plans[1]]).unwrap(),
@@ -52,7 +52,7 @@ fn rejects_overlapping_and_incomplete_shards() {
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
 
     let duplicate = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap(),
@@ -66,7 +66,7 @@ fn rejects_overlapping_and_incomplete_shards() {
     ));
 
     let missing_bridge = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
         Vec::new(),
@@ -82,7 +82,7 @@ fn generated_members_are_absent_when_the_partition_has_no_bridge_units() {
     let fixture = fixture(false);
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
         Vec::new(),
@@ -106,9 +106,9 @@ fn builtin_member_roles_preserve_the_selected_target_and_object_format() {
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let mut ids = None;
     for target in [
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        scoop_lir::LirTargetProfile::LINUX_X86_64_GNU,
-        scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::DARWIN_AARCH64,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let plan = PlannedLinkObjectMemberSetV1::new(
             target,

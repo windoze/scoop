@@ -12,7 +12,7 @@ use scoop_identity::{
 use scoop_lir::{
     CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, EnumDefs, ExternFunctions,
     ExternalTypeDescriptor, Global, GlobalInit, ImmortalObjectIdentity,
-    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
+    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta,
     LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, PointerKind, RefScan, RegistrationIdentitySurfaceV1,
     StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectSemanticPlanSetV1, StructDefs,
@@ -128,7 +128,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
     let _string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             string_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),
@@ -163,7 +163,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
         output: scoop_lir::LirOutput::Executable { entry },
         meta: LirMeta {
             exact_types: Vec::new(),
-            target_profile: LirTargetProfile::DARWIN_AARCH64,
+            target_profile: scoop_target_data::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
             well_known_type_descriptors: WellKnownTypeDescriptors {

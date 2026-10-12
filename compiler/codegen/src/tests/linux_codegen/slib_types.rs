@@ -13,9 +13,8 @@ fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
         TargetProfileId::LinuxX86_64Musl,
     ] {
         for odr in [false, true] {
-            let mut module = super::super::objects::classes_module_for(
-                scoop_lir::LirTargetProfile::from_id(target),
-            );
+            let mut module =
+                super::super::objects::classes_module_for(scoop_target_data::layout(target));
             if odr {
                 odr_point(&mut module);
             }

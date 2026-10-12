@@ -23,7 +23,7 @@ fn closure(
 ) -> HirProductionValidatedCrossConeLayoutClosure<'_> {
     layout_hir_semantic_closure_for_test(
         artifact.identity(),
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         vec![artifact],
         vec![Vec::new()],

@@ -259,7 +259,6 @@ mod tests {
     };
 
     use super::*;
-    use crate::LirTargetProfile;
 
     fn exact() -> PersistentExactTypeId {
         let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
@@ -274,7 +273,7 @@ mod tests {
     fn cone_root_never_fabricates_an_odr_relation() {
         let layout = CborIdentityRecord::from_key(LayoutKey::new(
             exact(),
-            LirTargetProfile::DARWIN_AARCH64.wire_id(),
+            crate::target_fixtures::DARWIN_AARCH64.wire_id(),
             RepresentationRole::ManagedValue,
         ))
         .unwrap();
@@ -292,7 +291,7 @@ mod tests {
         let root = MaterializationRoot::lir_structural_odr(exact()).unwrap();
         let layout = CborIdentityRecord::from_key(LayoutKey::new(
             exact(),
-            LirTargetProfile::DARWIN_AARCH64.wire_id(),
+            crate::target_fixtures::DARWIN_AARCH64.wire_id(),
             RepresentationRole::ManagedValue,
         ))
         .unwrap();
@@ -324,7 +323,7 @@ mod tests {
         .unwrap();
         let layout = CborIdentityRecord::from_key(LayoutKey::new(
             exact(),
-            LirTargetProfile::DARWIN_AARCH64.wire_id(),
+            crate::target_fixtures::DARWIN_AARCH64.wire_id(),
             RepresentationRole::ManagedValue,
         ))
         .unwrap();

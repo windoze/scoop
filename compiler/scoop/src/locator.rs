@@ -613,8 +613,7 @@ mod tests {
     use scoop_slib::ConeRecord;
     use scoop_toolchain::load_cone_manifest;
 
-    const TARGET: ValidatedLirTargetSelection =
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    const TARGET: ValidatedLirTargetSelection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
 
     fn write_manifest(path: &Path, name: &str, kind: &str, dependency: &str) {
         std::fs::create_dir_all(path).unwrap();
@@ -647,7 +646,7 @@ mod tests {
         let cone =
             ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
         crate::test_artifacts::manifest_archive(
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             cone,
             producer,

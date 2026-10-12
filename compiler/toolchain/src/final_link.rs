@@ -85,7 +85,7 @@ impl ValidatedFinalLinkProfile {
     }
 
     pub fn target(&self) -> LirTargetProfile {
-        LirTargetProfile::from_id(self.id())
+        scoop_target_data::layout(self.id())
     }
 
     pub fn canonical_triple(&self) -> &'static str {

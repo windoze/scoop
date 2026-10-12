@@ -84,7 +84,7 @@ pub(super) fn validate(
 {
     crate::validate_type_registration_constituents_v2(
         records,
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
         definitions,

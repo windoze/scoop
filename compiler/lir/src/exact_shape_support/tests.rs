@@ -2,7 +2,7 @@ use scoop_identity::{ConeIdentity, SourceNominalKind};
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{CanonicalExactDescriptorExportsV1, LirTargetProfile};
+use crate::CanonicalExactDescriptorExportsV1;
 
 mod fixture;
 use fixture::Fixture;

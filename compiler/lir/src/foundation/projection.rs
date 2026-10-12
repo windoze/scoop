@@ -510,12 +510,12 @@ mod tests {
     use crate::{
         AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CallingConvention,
         GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction, InvokeSite,
-        ItableRecord, LayoutIdentity, LirStaticInitialState, LirTargetProfile, MANAGED_PTR,
-        MaterializationRoot, NoGcCallDestination, NoGcInvokeSite, NoGcRuntimeFunction,
-        NoGcTypedCall, PointerKind, RefScan, RuntimeTypeMappingRecord, SafepointIdentities,
-        SafepointIdentity, SafepointSiteRef, ScoopAbiSignature, StaticStorageIdentity, Terminator,
-        TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
-        VoidCallSignature, VtableRecord,
+        ItableRecord, LayoutIdentity, LirStaticInitialState, MANAGED_PTR, MaterializationRoot,
+        NoGcCallDestination, NoGcInvokeSite, NoGcRuntimeFunction, NoGcTypedCall, PointerKind,
+        RefScan, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
+        SafepointSiteRef, ScoopAbiSignature, StaticStorageIdentity, Terminator, TypeDescriptor,
+        TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
+        VtableRecord,
     };
 
     #[test]
@@ -533,25 +533,25 @@ mod tests {
         let identities = [
             LayoutIdentity::managed_value(
                 structural,
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::lir_structural_odr(structural).unwrap(),
             )
             .unwrap(),
             LayoutIdentity::c_value(
                 structural,
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::lir_structural_odr(structural).unwrap(),
             )
             .unwrap(),
             LayoutIdentity::managed_value(
                 inherited,
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::prior_stage_odr(inherited_group.id()),
             )
             .unwrap(),
             LayoutIdentity::managed_value(
                 source,
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap(),
@@ -597,7 +597,7 @@ mod tests {
         let exact_type = exact_tuple(0);
         let identity = LayoutIdentity::managed_value(
             exact_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             MaterializationRoot::lir_structural_odr(exact_type).unwrap(),
         )
         .unwrap();
@@ -636,7 +636,7 @@ mod tests {
             identity: interface_identity,
             instance_layout: LayoutIdentity::managed_object(
                 interface_exact,
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap(),
@@ -668,7 +668,7 @@ mod tests {
             identity: owner_identity,
             instance_layout: LayoutIdentity::managed_object(
                 owner_exact,
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 owner_root,
             )
             .unwrap(),
@@ -769,7 +769,7 @@ mod tests {
                 identity: storage,
                 layout: LayoutIdentity::managed_value(
                     exact_tuple(0),
-                    LirTargetProfile::DARWIN_AARCH64,
+                    crate::target_fixtures::DARWIN_AARCH64,
                     MaterializationRoot::cone_owned(),
                 )
                 .unwrap()
@@ -898,7 +898,7 @@ mod tests {
                 &function,
                 &[],
                 &[],
-                crate::LirTargetProfile::DARWIN_AARCH64
+                crate::target_fixtures::DARWIN_AARCH64
             ),
             vec![
                 (
@@ -913,8 +913,8 @@ mod tests {
         );
 
         for target in [
-            crate::LirTargetProfile::LINUX_X86_64_GNU,
-            crate::LirTargetProfile::LINUX_X86_64_MUSL,
+            crate::target_fixtures::LINUX_X86_64_GNU,
+            crate::target_fixtures::LINUX_X86_64_MUSL,
         ] {
             let roles = definitions::callable_body_associated_atoms(&function, &[], &[], target)
                 .into_iter()
@@ -962,7 +962,7 @@ mod tests {
                 &function,
                 &[],
                 &[],
-                crate::LirTargetProfile::DARWIN_AARCH64
+                crate::target_fixtures::DARWIN_AARCH64
             ),
             vec![
                 (
@@ -984,8 +984,8 @@ mod tests {
             ]
         );
         for target in [
-            crate::LirTargetProfile::LINUX_X86_64_GNU,
-            crate::LirTargetProfile::LINUX_X86_64_MUSL,
+            crate::target_fixtures::LINUX_X86_64_GNU,
+            crate::target_fixtures::LINUX_X86_64_MUSL,
         ] {
             let roles = definitions::callable_body_associated_atoms(&function, &[], &[], target)
                 .into_iter()

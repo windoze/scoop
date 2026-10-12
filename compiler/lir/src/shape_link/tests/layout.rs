@@ -42,7 +42,7 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
     let first: ExactLayoutExportV1 = scalar(IntegerKind::SIGNED_64);
     let second: ExactLayoutExportV1 = scalar(IntegerKind::SIGNED_32);
     assert_eq!(first.identity().layout(), second.identity().layout());
-    let target = LirTargetProfile::DARWIN_AARCH64;
+    let target = crate::target_fixtures::DARWIN_AARCH64;
     let layouts =
         CanonicalExactLayoutExportsV1::try_new(target, &bound.foundation, vec![second]).unwrap();
     let callables =

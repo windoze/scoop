@@ -43,8 +43,8 @@ fn aggregate(input: &mut AbiPlanningInput, fields: Vec<LirType>) -> AbiPlanningV
 #[test]
 fn whole_signature_accounts_for_sret_and_keeps_spilled_sse_registers_available() {
     for target in [
-        LirTargetProfile::LINUX_X86_64_GNU,
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let mut input = input(target);
         let integer = input.values.alloc(AbiPlanningValue::Scalar {
@@ -87,7 +87,7 @@ fn whole_signature_accounts_for_sret_and_keeps_spilled_sse_registers_available()
 
 #[test]
 fn batch_requests_preserve_zst_and_scanned_storage_without_leaf_classification() {
-    let mut input = input(LirTargetProfile::DARWIN_AARCH64);
+    let mut input = input(scoop_target_data::DARWIN_AARCH64);
     let empty = input.values.alloc(AbiPlanningValue::ZeroSized(
         AbiZst::new(
             LirType::Aggregate(vec![]),

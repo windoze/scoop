@@ -105,7 +105,7 @@ pub(super) fn semantic_module(
             .unwrap(),
             layout: LayoutIdentity::managed_value(
                 exact_type("StaticStorage"),
-                LirTargetProfile::DARWIN_AARCH64,
+                scoop_target_data::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap()
@@ -141,7 +141,7 @@ pub(super) fn metadata() -> LirMeta {
     let string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             string_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),
@@ -163,7 +163,7 @@ pub(super) fn metadata() -> LirMeta {
         diagnostic_name: "String".to_string(),
         identity,
         instance_layout: layouts[string_layout].identity.clone(),
-        instance_shape: TypeInstanceShapeV1::inline_bytes(LirTargetProfile::DARWIN_AARCH64)
+        instance_shape: TypeInstanceShapeV1::inline_bytes(scoop_target_data::DARWIN_AARCH64)
             .unwrap(),
         inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
@@ -174,7 +174,7 @@ pub(super) fn metadata() -> LirMeta {
     let well_known_string = TypeDescriptorRef::Local(string_descriptor);
     LirMeta {
         exact_types: Vec::new(),
-        target_profile: LirTargetProfile::DARWIN_AARCH64,
+        target_profile: scoop_target_data::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),
         well_known_type_descriptors: WellKnownTypeDescriptors {

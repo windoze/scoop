@@ -47,7 +47,7 @@ impl ResolvedTargetProfile {
                 )?
             }
         };
-        let lir_target = ValidatedLirTargetSelection::from_id(target.id());
+        let lir_target = scoop_target_data::selection(target.id());
         Ok(Self {
             lir_target,
             backend: lir_target.backend(),
@@ -124,10 +124,10 @@ pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
 pub(crate) fn validate_target(triple: &str) -> Result<LirTargetProfile, ToolchainError> {
     match triple {
         "x86_64-unknown-linux-gnu" | "x86_64-linux-gnu" => {
-            return Ok(LirTargetProfile::LINUX_X86_64_GNU);
+            return Ok(scoop_target_data::LINUX_X86_64_GNU);
         }
         "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
-            return Ok(LirTargetProfile::LINUX_X86_64_MUSL);
+            return Ok(scoop_target_data::LINUX_X86_64_MUSL);
         }
         _ => {}
     }
@@ -142,7 +142,7 @@ pub(crate) fn validate_target(triple: &str) -> Result<LirTargetProfile, Toolchai
         && supported_os
         && !has_extra_identity
     {
-        Ok(LirTargetProfile::DARWIN_AARCH64)
+        Ok(scoop_target_data::DARWIN_AARCH64)
     } else {
         Err(ToolchainError(format!(
             "unsupported target {triple:?}; M28 supports macOS/AArch64, Linux glibc/amd64 and Linux musl/amd64"
@@ -181,9 +181,9 @@ mod tests {
             assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
             assert_eq!(
                 profile.lir_target_selection(),
-                ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+                scoop_target_data::DARWIN_AARCH64_LLVM_22_1
             );
-            assert_eq!(profile.backend(), BackendProfile::LLVM_22_1);
+            assert_eq!(profile.backend(), scoop_target_data::LLVM_22_1);
             assert_eq!(
                 profile
                     .c_bridge_toolchain()

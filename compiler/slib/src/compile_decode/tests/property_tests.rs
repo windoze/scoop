@@ -1,5 +1,4 @@
 use scoop_identity::SemanticIdentitySession;
-use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::ArtifactCapabilityProfile;
 use crate::strong_compile_decode::tests::{build_artifact_for_profile, cone, required_sections};
@@ -56,7 +55,7 @@ fn arbitrary_archives_are_panic_free_deterministic_and_failure_atomic() {
 }
 
 fn compile_attempt(bytes: &[u8]) -> CompileAttempt {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let mut session = SemanticIdentitySession::new();
     let result = (|| {
         let envelope = crate::DecodedSlibEnvelope::open(bytes, selection)

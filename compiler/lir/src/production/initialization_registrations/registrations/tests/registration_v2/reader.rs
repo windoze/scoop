@@ -23,7 +23,7 @@ fn validate(
 ) -> Result<Semantics, Error> {
     crate::validate_initialization_registration_constituents_v2(
         records,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
         fixture.semantics.static_storages().clone(),

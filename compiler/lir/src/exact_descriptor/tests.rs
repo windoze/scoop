@@ -58,7 +58,7 @@ fn descriptor_and_table_have_canonical_checked_wire_round_trips() {
     assert_eq!(decoded.validate_against(&descriptor).unwrap(), descriptor);
 
     let table = CanonicalExactDescriptorExportsV1::try_new(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         fixture.foundation(),
         vec![descriptor],
     )

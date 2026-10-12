@@ -109,7 +109,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     let closure = read_program_artifacts(
         &root,
         &[library, core],
-        scoop_lir::ValidatedLirTargetSelection::from_id(profile.id()),
+        scoop_target_data::selection(profile.id()),
         profile.startup_toolchain().profile(),
     )
     .unwrap();

@@ -1,6 +1,4 @@
-use scoop_lir::{
-    CBridgeProductionSetV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
-};
+use scoop_lir::{CBridgeProductionSetV1, GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1};
 
 use super::*;
 use crate::{
@@ -216,7 +214,7 @@ fn symbol_plan(
     members: &PlannedLinkObjectMemberSetV1,
 ) -> PlannedStrongObjectSymbolSetV1 {
     let surface = ObjectSymbolSurfaceV1::from_foundation(foundation).unwrap();
-    PlannedStrongObjectSymbolSetV1::new(LirTargetProfile::DARWIN_AARCH64, &surface, members)
+    PlannedStrongObjectSymbolSetV1::new(scoop_target_data::DARWIN_AARCH64, &surface, members)
         .unwrap()
 }
 

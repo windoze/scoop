@@ -27,7 +27,7 @@ fn groups_identical_contracts_and_resolves_their_library() {
     let foundation = foundation(records, vec![requirement.clone()]);
 
     let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap();
@@ -57,7 +57,7 @@ fn preserves_default_native_namespace_without_fabricating_a_requirement() {
     );
 
     let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap();
@@ -99,7 +99,7 @@ fn rejects_conflicting_contracts_for_one_link_symbol() {
 
     assert!(matches!(
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &foundation,
         ),
         Err(CanonicalNativeExternalRequirementBuildError::ConflictingContract { .. })
@@ -126,7 +126,7 @@ fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     );
     assert!(matches!(
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &missing_foundation,
         ),
         Err(CanonicalNativeExternalRequirementBuildError::MissingLibraryRequirement {
@@ -141,7 +141,7 @@ fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     .unwrap();
     let orphan_foundation = foundation(Vec::new(), vec![orphan.clone()]);
     let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &orphan_foundation,
     )
     .unwrap();
