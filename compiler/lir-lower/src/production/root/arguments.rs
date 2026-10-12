@@ -10,16 +10,16 @@ pub(super) fn build_arguments(
     blocks_used: (BlockId, BlockId, BlockId),
 ) -> Vec<AbiCallArgument> {
     let (entry, normal, unwind) = blocks_used;
-    let RootArguments::Build(destination) = main.arguments else {
+    let RootArguments::Build(destination, signature) = main.arguments else {
         return Vec::new();
     };
-    let [AbiArgument::Direct(array)] = main.signature.arguments() else {
-        unreachable!("an argv entry has one direct array reference")
+    let AbiReturn::Direct(array) = signature.result() else {
+        unreachable!("the argument builder returns an array reference")
     };
     let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
-        Vec::new(),
+        signature.arguments().to_vec(),
         array.clone(),
-        CallingConvention::Cdecl,
+        signature.calling_convention(),
     ));
     let target = targets.managed_targets.direct.alloc(CallTarget {
         destination,

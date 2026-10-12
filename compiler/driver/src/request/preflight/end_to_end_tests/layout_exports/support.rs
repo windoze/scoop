@@ -139,7 +139,7 @@ pub(super) fn with_pair(
         _ => (default_exports, &default_provider),
     };
     let dependency_layouts = physical::select(&mir.strong, layout, provider);
-    let lir = scoop_lir_lower::lower_with_layout_dependencies(
+    let lir = crate::lir_pipeline::lower_with_layout_dependencies(
         &mir.strong,
         &selected,
         target.lir_target(),

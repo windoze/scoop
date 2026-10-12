@@ -45,9 +45,8 @@ impl FunctionLowerer<'_> {
         let saved = self.current;
         let saved_sealed = self.current_sealed;
         self.enter(block);
-        let (call, result) = self.typed_call(
-            vec![lir::RAW_PTR],
-            lir::LirType::Void,
+        let (call, result) = self.typed_runtime_call(
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Trap),
             vec![lir::Value::Global(global)],
         )?;
         assert!(result.is_none(), "trap has no value result");

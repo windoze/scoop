@@ -1,45 +1,23 @@
-//! All production profiles share one physical lowering and complete LIR output.
-
+//! Complete and seal prepared LIR after driver-supplied target classification.
 use super::*;
 use scoop_identity::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph};
 
-/// Lowers the complete MIR input with its source display diagnostics.
-pub fn lower(
-    input: &mir::ConeMirInput,
-    external_descriptors: &[lir::ExternalTypeDescriptor],
-    selected_callables: &lir::SelectedExternalLirSet,
-    target_profile: lir::LirTargetProfile,
-) -> Result<lir::ConeLirOutput, LirLoweringError> {
-    seal(
-        input,
-        lowering::lower_graph(
-            input,
-            external_descriptors,
-            selected_callables,
-            target_profile,
-            None,
-        )?,
-    )
-}
+impl PreparedLir<'_, '_> {
+    pub fn complete(self, plans: lir::AbiPlanSet) -> Result<lir::ConeLirOutput, LirLoweringError> {
+        let input = self.input;
+        seal(input, lowering::lower_graph(self, plans)?)
+    }
 
-/// Layout-profile descriptors use persistent graph spelling before their
-/// registration plans, object atoms or export inventories can be produced.
-pub fn lower_with_diagnostics(
-    input: &mir::ConeMirInput,
-    external_descriptors: &[lir::ExternalTypeDescriptor],
-    selected_callables: &lir::SelectedExternalLirSet,
-    target_profile: lir::LirTargetProfile,
-    diagnostics: &impl ExactTypeDiagnosticGraph,
-) -> Result<lir::ConeLirOutput, LirLoweringError> {
-    let mut lowered = lowering::lower_graph(
-        input,
-        external_descriptors,
-        selected_callables,
-        target_profile,
-        None,
-    )?;
-    canonicalize(&mut lowered.module, diagnostics)?;
-    seal(input, lowered)
+    pub fn complete_with_diagnostics(
+        self,
+        plans: lir::AbiPlanSet,
+        diagnostics: &impl ExactTypeDiagnosticGraph,
+    ) -> Result<lir::ConeLirOutput, LirLoweringError> {
+        let input = self.input;
+        let mut lowered = lowering::lower_graph(self, plans)?;
+        canonicalize(&mut lowered.module, diagnostics)?;
+        seal(input, lowered)
+    }
 }
 
 fn canonicalize(
@@ -55,26 +33,6 @@ fn canonicalize(
         .into_string();
     }
     Ok(())
-}
-
-/// Uses the same closed layout selection for actual dependency descriptors
-/// and Strong V2 production; imported helpers never become local definitions.
-pub fn lower_with_layout_dependencies(
-    input: &mir::ConeMirInput,
-    selected_callables: &lir::SelectedExternalLirSet,
-    target_profile: lir::LirTargetProfile,
-    selected_layout: &lir::StrongProductionDependencySelectionV2<'_>,
-    diagnostics: &impl ExactTypeDiagnosticGraph,
-) -> Result<lir::ConeLirOutput, LirLoweringError> {
-    let mut lowered = lowering::lower_graph(
-        input,
-        &[],
-        selected_callables,
-        target_profile,
-        Some(selected_layout),
-    )?;
-    canonicalize(&mut lowered.module, diagnostics)?;
-    seal(input, lowered)
 }
 
 fn seal(

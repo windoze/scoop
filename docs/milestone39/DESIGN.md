@@ -101,7 +101,7 @@ driver 负责这些调用的顺序。codegen 的 ABI 入口只消费 `lir` 定�
 
 准备结果与最终 LIR 是不同的数据类型。准备结果完整表达自己的布局与签名输入职责，不伪装成一个缺失 ABI 的 `lir::Module`，也不使用 `Option<Signature>`、默认 ABI 或待填列表满足输出类型。
 
-已有布局、exact type、scalar leaves 和扫描信息在准备时完成一次，后续直接复用。不得为了得到 ABI 先跑一遍完整 lowering，再丢弃正文重跑；也不复制一套语言规则来预判 ABI。
+已有布局、exact type、scalar leaves 和扫描信息在准备时完成一次，后续直接复用。聚合输入以 typed 字段引用共享已准备的存储节点；不按逻辑字节数展开大型 tagged payload，也不复制嵌套值布局。后端只为可能使用寄存器的聚合读取其标量叶子。不得为了得到 ABI 先跑一遍完整 lowering，再丢弃正文重跑；也不复制一套语言规则来预判 ABI。
 
 ### 3.2 覆盖所有真实签名来源
 

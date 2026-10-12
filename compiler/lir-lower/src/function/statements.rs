@@ -226,8 +226,10 @@ impl<'a> FunctionLowerer<'a> {
                 let value = self.reference_object(value, &exception.ty);
                 if let Some(unwind) = unwind {
                     let normal = self.new_block("throw.normal");
-                    let (call, _) =
-                        self.typed_call(vec![lir::MANAGED_PTR], lir::LirType::Void, vec![value])?;
+                    let (call, _) = self.typed_runtime_call(
+                        lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Throw),
+                        vec![value],
+                    )?;
                     let site = self.invoke_site(
                         LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Throw),
                         call,
@@ -246,7 +248,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::Terminator::Rethrow { unwind } => match unwind {
                 Some(unwind) => {
                     let normal = self.new_block("rethrow.normal");
-                    let (call, _) = self.typed_call(Vec::new(), lir::LirType::Void, Vec::new())?;
+                    let (call, _) = self.typed_runtime_call(
+                        lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Rethrow),
+                        Vec::new(),
+                    )?;
                     let site = self.invoke_site(
                         LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Rethrow),
                         call,
@@ -261,8 +266,6 @@ impl<'a> FunctionLowerer<'a> {
                 None => {
                     self.emit_plain_call(
                         LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Rethrow),
-                        Vec::new(),
-                        lir::LirType::Void,
                         Vec::new(),
                     )?;
                     self.seal(lir::Terminator::Unreachable);

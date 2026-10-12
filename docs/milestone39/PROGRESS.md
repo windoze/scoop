@@ -6,8 +6,8 @@
 
 1. 已同步三份规范与路线图：明确布局／签名准备、codegen ABI 规划、完整 LIR 完成，typed 身份与消费者支持边界，工具执行及 runtime 组件职责。
 2. 已完成：C toolchain 宿主 invocation 移出 LIR，generated-C 编译交由 driver 编排。
-3. 待实施：目标身份／目录／LLVM 配置拆分，全部 Scoop/C ABI 规划迁移。
-4. runtime 组件选择已完成；待实施：对象格式／机器规则与 native 工具链目标选择。
+3. 已完成全部 Scoop/C ABI 规划迁移及显式 manifest 目录；待实施目标身份／LLVM 配置登记拆分。
+4. 已完成 runtime 组件、ELF 容器／机器规则及 Linux machine／libc 工具链选择。
 5. 待验收：本机定向回归、Linux Rust 与正式 CLI 完整覆盖、边界审查及清理。
 
 ## 验证环境与纪律
@@ -61,3 +61,12 @@
 - toolchain 作为 driver 共用入口，明确提供当前三个 target 的 os／arch／env／triple。谓词保存匹配到的 typed identity 与 canonical triple；按 triple 排序，保持现有编码及目录重排稳定性。
 - 本机 fmt、workspace clippy、45 项 manifest 与 5 项编译缓存键测试通过；新增子目录支持范围与目录顺序不影响编码的验证。
 - 34 项源码选择、非法条件／路径、symlink、选择后缺失源码及缓存正式 CLI 全部通过（35 变体、45 进程），见 [06-darwin.json](validation/06-darwin.json)，未更新 golden。
+
+## 功能 7：由后端统一规划全部物理调用 ABI
+
+- driver 显式编排 `prepare → codegen::plan_abi → complete`。准备状态独立于完整 LIR Module，复用已完成的类型布局、C 合同和依赖 ABI；正文只构造一次。
+- Scoop、DirectC、HFA／eightbyte、SysV 整组回退和 C 扩展规则移到 codegen 所属的 LLVM-free `scoop-abi-plan`；lir-lower 只在测试依赖中使用该规划器，生产 stage 之间仍仅经 IR 数据通信。codegen 的 C 计划校验复用相同目标规则。
+- 计划覆盖函数／Scoop extern、interface receiver、closure／function bridge／suspend continuation、errno bridge、root／startup gateway、release 与 runtime／safepoint；Scoop extern 规范合同与实际声明共用物理计划。删除旧 LIR／lowering 分类器及重复 runtime 原型构造。
+- 聚合准备按 typed storage ID 共享字段节点，保留 tagged payload 的完整整数存储描述；后端仅展开可能直接传递的聚合。新增大型 payload 不按字节展开、sret 与前序参数导致整组回退、后续 SSE 容量保留、ZST／扫描存储等验证。新增模块最长 192 行。
+- 本机 fmt、workspace clippy 通过；5 项 ABI planner、154 项 LIR lowering 测试通过，迁移过程中的 473 项 LIR 数据测试通过。首次回归发现的 Alloc machine-byte-size 与非法 C 类型检查顺序已修正，没有修改任何 golden。
+- 32 项正式 CLI（43 变体、179 进程、6 次 golden）通过，覆盖 native／Scoop 小值、跨 Cone、接口默认方法、闭包、suspend、context 及 errno；字段节点共享调整后又定向复跑全部 5 项小值 CLI（10 变体、50 进程、6 次 golden），全部通过。报告见 [07-darwin.json](validation/07-darwin.json) 与 [07b-darwin.json](validation/07b-darwin.json)。

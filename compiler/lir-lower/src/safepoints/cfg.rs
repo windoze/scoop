@@ -90,6 +90,7 @@ pub(super) fn insert_polls(
     function: &mut lir::Function,
     loop_header_polls: &[MappedLoopHeaderPollTarget],
     sites: &mut PendingSafepointSites,
+    planned: &lir::ScoopAbiSignature,
 ) {
     if function.gc_effect == lir::GcEffect::NoGc {
         return;
@@ -103,8 +104,8 @@ pub(super) fn insert_polls(
         .call_targets
         .void_signatures
         .alloc(lir::VoidCallSignature::new(
-            Vec::new(),
-            lir::CallingConvention::Cdecl,
+            planned.arguments().to_vec(),
+            planned.calling_convention(),
         ));
     let poll_target = function
         .call_targets

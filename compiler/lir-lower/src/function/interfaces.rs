@@ -1,29 +1,6 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
-    pub(super) fn project_interface_receiver(
-        &mut self,
-        receiver: lir::Value,
-        signature: &lir::ScoopAbiSignature,
-    ) -> StorageResult<(lir::Value, lir::ScoopAbiSignature)> {
-        let receiver = self.interface_component(receiver, 0);
-        let parameters = std::iter::once(lir::MANAGED_PTR).chain(
-            signature
-                .arguments()
-                .iter()
-                .skip(1)
-                .map(|argument| argument.logical_storage_type().clone()),
-        );
-        let signature = abi::classify_signature(
-            self.context,
-            parameters,
-            signature.result().logical_storage_type().cloned(),
-            self.structs,
-            self.enums,
-        )?;
-        Ok((receiver, signature))
-    }
-
     pub(super) fn interface_component(&mut self, value: lir::Value, index: u32) -> lir::Value {
         let out = self.new_temp(if index == 0 {
             lir::MANAGED_PTR
@@ -138,8 +115,6 @@ impl FunctionLowerer<'_> {
         );
         self.emit_plain_call(
             LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableLookup),
-            vec![lir::METADATA_PTR, lir::METADATA_PTR],
-            lir::METADATA_PTR,
             vec![
                 lir::Value::Temp(descriptor),
                 self.td_ref(&mir::Type::Interface(interface)),

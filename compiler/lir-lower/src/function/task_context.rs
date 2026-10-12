@@ -10,28 +10,18 @@ impl FunctionLowerer<'_> {
         use mir::ContextOperation as Op;
         let managed = LoweredCallDestination::managed_runtime;
         let leaf = LoweredCallDestination::no_gc_runtime;
-        let pointer = lir::MANAGED_PTR;
         match operation {
             Op::TryGet { key } => self.emit_plain_call(
                 leaf(Leaf::ContextTryGet),
-                vec![lir::RAW_PTR],
-                pointer,
                 vec![lir::Value::ContextKeyCell(*key)],
             ),
             Op::Push { key, value } => {
                 let lowered = self.lower_expr(value)?;
                 let value = self.reference_object(lowered, &value.ty);
-                let task = self.emit_plain_call(
-                    leaf(Leaf::ContextCurrent),
-                    vec![],
-                    pointer.clone(),
-                    vec![],
-                )?;
+                let task = self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![])?;
                 let descriptor = self.context_descriptor(mir::ContextStorageRole::Node);
                 let root = self.emit_plain_call(
                     managed(Managed::ContextPush),
-                    vec![lir::RAW_PTR, pointer.clone(), lir::METADATA_PTR],
-                    pointer,
                     vec![lir::Value::ContextKeyCell(*key), value, descriptor],
                 )?;
                 Ok(self.make_aggregate(ty, vec![task, root]))
@@ -40,48 +30,24 @@ impl FunctionLowerer<'_> {
                 let mark = self.lower_expr(mark)?;
                 let task = self.context_field(mark, 0);
                 let root = self.context_field(mark, 1);
-                self.emit_plain_call(
-                    leaf(Leaf::ContextRestore),
-                    vec![pointer.clone(), pointer],
-                    lir::LirType::Void,
-                    vec![task, root],
-                )
+                self.emit_plain_call(leaf(Leaf::ContextRestore), vec![task, root])
             }
-            Op::Current => {
-                self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![], pointer, vec![])
-            }
-            Op::Snapshot => {
-                self.emit_plain_call(leaf(Leaf::ContextSnapshot), vec![], pointer, vec![])
-            }
+            Op::Current => self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![]),
+            Op::Snapshot => self.emit_plain_call(leaf(Leaf::ContextSnapshot), vec![]),
             Op::Fork { root } => {
                 let root = self.lower_expr(root)?;
                 let descriptor = self.context_descriptor(mir::ContextStorageRole::Task);
-                self.emit_plain_call(
-                    managed(Managed::ContextFork),
-                    vec![pointer.clone(), lir::METADATA_PTR],
-                    pointer,
-                    vec![root, descriptor],
-                )
+                self.emit_plain_call(managed(Managed::ContextFork), vec![root, descriptor])
             }
             Op::Enter { task } => {
                 let task = self.lower_expr(task)?;
-                let previous = self.emit_plain_call(
-                    leaf(Leaf::ContextEnter),
-                    vec![pointer.clone()],
-                    pointer,
-                    vec![task],
-                )?;
+                let previous = self.emit_plain_call(leaf(Leaf::ContextEnter), vec![task])?;
                 Ok(self.make_aggregate(ty, vec![previous]))
             }
             Op::Leave { guard } => {
                 let guard = self.lower_expr(guard)?;
                 let previous = self.context_field(guard, 0);
-                self.emit_plain_call(
-                    leaf(Leaf::ContextLeave),
-                    vec![pointer],
-                    lir::LirType::Void,
-                    vec![previous],
-                )
+                self.emit_plain_call(leaf(Leaf::ContextLeave), vec![previous])
             }
             Op::IsPresent { binding } => {
                 let binding = self.lower_expr(binding)?;
@@ -100,12 +66,7 @@ impl FunctionLowerer<'_> {
             }
             Op::EnsureRoot => {
                 let descriptor = self.context_descriptor(mir::ContextStorageRole::Task);
-                self.emit_plain_call(
-                    managed(Managed::ContextEnsureRoot),
-                    vec![lir::METADATA_PTR],
-                    pointer,
-                    vec![descriptor],
-                )
+                self.emit_plain_call(managed(Managed::ContextEnsureRoot), vec![descriptor])
             }
         }
     }

@@ -1,0 +1,7 @@
+[package]
+name = "scoop-abi-plan"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-lir.workspace = true

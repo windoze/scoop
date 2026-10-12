@@ -7,13 +7,16 @@ use super::{
 
 static EMPTY_REF_SCAN: RefScan = RefScan::None;
 
+mod planning;
+pub use planning::*;
+
 mod storage_signature;
 pub use storage_signature::{AbiStorage, AbiStorageReturn, AbiStorageSignature};
 
 mod direct;
 pub use direct::{AbiDirectParts, AbiDirectValue};
 mod aggregate;
-pub use aggregate::{AbiAggregateLayout, AbiArgumentRegisters, AbiScalarLeaf, AbiValuePosition};
+pub use aggregate::{AbiAggregateLayout, AbiScalarLeaf, AbiValuePosition};
 
 /// Failure to construct one of the refined Scoop ABI storage layouts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

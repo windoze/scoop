@@ -82,13 +82,16 @@ pub(in crate::tests) fn lower_test_input(
         &roots,
     )
     .unwrap();
-    let lowered = crate::lowering::lower_graph(
+    let prepared = crate::prepare(
         input,
         &test_external_descriptors(input),
         &lir::SelectedExternalLirSet::empty(input.module().cone),
         target,
         Some(&selected),
     )?;
+    let plans =
+        scoop_abi_plan::plan(prepared.abi_input()).map_err(crate::StorageLoweringError::from)?;
+    let lowered = crate::lowering::lower_graph(prepared, plans)?;
     let output = lir::ConeLirOutput::try_new(
         lowered.module,
         input

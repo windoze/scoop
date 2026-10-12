@@ -316,8 +316,6 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.td_ref(check_ty);
                 self.emit_plain_call(
                     LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::IsInstance),
-                    vec![lir::MANAGED_PTR, lir::METADATA_PTR],
-                    lir::LirType::I1,
                     vec![object, td],
                 )?
             }

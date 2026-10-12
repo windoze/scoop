@@ -539,6 +539,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-abi-plan"
+version = "0.0.0"
+dependencies = [
+ "scoop-lir",
+]
+
+[[package]]
 name = "scoop-ast"
 version = "0.0.0"
 dependencies = [
@@ -553,6 +560,7 @@ dependencies = [
  "la-arena",
  "llvm-sys",
  "object",
+ "scoop-abi-plan",
  "scoop-identity",
  "scoop-lir",
  "scoop-process",
@@ -626,6 +634,7 @@ version = "0.0.0"
 dependencies = [
  "insta",
  "la-arena",
+ "scoop-abi-plan",
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",

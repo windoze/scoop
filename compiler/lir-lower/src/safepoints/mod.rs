@@ -107,6 +107,7 @@ pub(super) fn complete_function(
     mut lowered: LoweredFunction,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    poll_signature: &lir::ScoopAbiSignature,
 ) -> StorageResult<lir::Function> {
     fold_constant_branches(&mut lowered.function);
     prune_unreachable_blocks(&mut lowered);
@@ -114,6 +115,7 @@ pub(super) fn complete_function(
         &mut lowered.function,
         &lowered.loop_header_polls,
         &mut lowered.pending_safepoints,
+        poll_signature,
     );
     annotate_root_plans(context, &mut lowered.function, structs, enums)?;
     assign_safepoint_identities(&mut lowered.function, &lowered.pending_safepoints);

@@ -1,4 +1,20 @@
 use super::*;
+use crate::registers::AbiArgumentRegisters;
+use scoop_lir::{AbiAggregateLayout, AbiScalarLeaf};
+
+trait TestCoercion {
+    fn coercion(&self, target: LirTargetProfile, position: AbiValuePosition)
+    -> Option<AbiCoercion>;
+}
+impl TestCoercion for AbiAggregateLayout {
+    fn coercion(
+        &self,
+        target: LirTargetProfile,
+        position: AbiValuePosition,
+    ) -> Option<AbiCoercion> {
+        coercion(self, target, position)
+    }
+}
 
 fn layout(size: u64, alignment: u64, fields: &[(u64, AbiCarrier)]) -> AbiAggregateLayout {
     AbiAggregateLayout {
@@ -163,5 +179,9 @@ fn sysv_exhaustion_rolls_back_the_entire_aggregate() {
         registers.scalar(double);
     }
     assert!(!registers.aggregate(mixed));
-    assert_eq!(registers.gpr, 6);
+    let integer_part = AbiCoercion::One(AbiPart::new(integer, 0, 8, 8).unwrap());
+    for _ in 0..6 {
+        assert!(registers.aggregate(integer_part));
+    }
+    assert!(!registers.aggregate(integer_part));
 }

@@ -10,7 +10,7 @@ pub(super) fn check(
     provider: Provider<'_, '_>,
 ) {
     let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>| {
-        scoop_lir_lower::lower_with_layout_dependencies(
+        crate::lir_pipeline::lower_with_layout_dependencies(
             input,
             callables,
             provider.target.lir_target(),

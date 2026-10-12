@@ -8,11 +8,7 @@ pub(super) enum MethodDispatch {
     Interface(u32),
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum FunctionDispatch {
-    Closure,
-    Bridge,
-}
+pub(super) use abi::plans::FunctionDispatch;
 
 impl FunctionLowerer<'_> {
     pub(super) fn lower_method_call(
@@ -74,9 +70,13 @@ impl FunctionLowerer<'_> {
             }
             MethodDispatch::Interface(slot) => {
                 let table = self.interface_component(receiver, 1);
-                let (receiver, projected) =
-                    self.project_interface_receiver(receiver, &signature)?;
-                signature = projected;
+                let receiver = self.interface_component(receiver, 0);
+                let key = abi::plans::InterfaceCallable::new(self.module, callee);
+                signature = self
+                    .signatures
+                    .plans
+                    .scoop(self.signatures.requests.interfaces[&key])
+                    .clone();
                 (table, lir::DispatchKind::Interface, slot, receiver)
             }
         };
@@ -93,22 +93,18 @@ impl FunctionLowerer<'_> {
         arguments: &[mir::Expr],
         result_ty: &mir::Type,
     ) -> StorageResult<lir::Value> {
-        let signature = self.module.function_types[function_type].clone();
-        let receiver_type = match dispatch {
-            FunctionDispatch::Closure => mir::Type::Function(function_type),
-            FunctionDispatch::Bridge => mir::Type::Any,
-        };
-        let source_parameter_count = signature.arity();
-        let mut parameter_types = vec![receiver_type];
-        parameter_types.extend(signature.parameters().cloned());
-        for arg in arguments.iter().skip(source_parameter_count) {
-            parameter_types.push(arg.ty.clone());
-        }
-        assert_eq!(
-            arguments.len() + 1,
-            parameter_types.len(),
-            "only suspend function calls add a hidden continuation argument"
+        let key = abi::plans::FunctionExecution::new(
+            self.module,
+            dispatch,
+            function_type,
+            arguments,
+            result_ty,
         );
+        let signature = self
+            .signatures
+            .plans
+            .scoop(self.signatures.requests.function_values[&key])
+            .clone();
         let receiver = self.lower_expr(receiver)?;
         let arguments = arguments
             .iter()
@@ -138,19 +134,6 @@ impl FunctionLowerer<'_> {
                 )
             }
         };
-        let returns_unit = !signature.is_suspend && signature.return_type == mir::Type::Unit;
-        let signature = abi::classify_mir_signature(
-            self.context,
-            self.module,
-            parameter_types.iter(),
-            if returns_unit {
-                &mir::Type::Unit
-            } else {
-                result_ty
-            },
-            self.structs,
-            self.enums,
-        )?;
         let args = std::iter::once(receiver).chain(arguments).collect();
         self.finish_indirect(destination, args, &signature)
     }

@@ -46,3 +46,5 @@ pub use trusted_core::{
 pub(crate) fn workspace_root() -> std::path::PathBuf {
     scoop_toolchain::development_workspace_root()
 }
+
+mod lir_pipeline;

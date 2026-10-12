@@ -68,7 +68,7 @@ pub(super) fn lower_selected_lir(
     ),
     CurrentConeLirStageError,
 > {
-    let lir = scoop_lir_lower::lower_with_layout_dependencies(
+    let lir = crate::lir_pipeline::lower_with_layout_dependencies(
         strong,
         selected_callables,
         target,

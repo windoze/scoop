@@ -103,7 +103,7 @@ pub(super) fn check(
         .materialize_type_descriptor(provider.layout.provider(), provider.string)
         .unwrap()];
     assert!(matches!(
-        scoop_lir_lower::lower(input.mir, string, callables, provider.target.lir_target(),),
+        crate::lir_pipeline::lower(input.mir, string, callables, provider.target.lir_target(),),
         Err(scoop_lir_lower::LirLoweringError::MissingDependencyLayoutSelection { .. })
     ));
 
@@ -119,7 +119,7 @@ pub(super) fn check(
         &source,
         provider,
     );
-    let output = scoop_lir_lower::lower_with_layout_dependencies(
+    let output = crate::lir_pipeline::lower_with_layout_dependencies(
         input.mir,
         callables,
         provider.target.lir_target(),

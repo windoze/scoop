@@ -1,25 +1,27 @@
 use super::*;
 
-mod direct_c;
-
 #[derive(Clone, Copy)]
 pub(super) enum LoweredExternFunctionRef {
     C(lir::CExternFunctionRef),
     Scoop(lir::ScoopExternFunctionRef),
 }
 
+pub(super) struct LoweredExternFunctions {
+    pub(super) functions: lir::ExternFunctions,
+    pub(super) references: HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
+    pub(super) bridges: HashMap<lir::ExternFunctionId, lir::ScoopAbiSignature>,
+}
+
 pub(super) fn lower_extern_functions(
-    context: &LoweringContext,
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     native_externals: &lir::NativeExternalMetadata,
-) -> StorageResult<(
-    lir::ExternFunctions,
-    HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-)> {
+    signatures: &abi::plans::Signatures,
+) -> StorageResult<LoweredExternFunctions> {
     let mut functions = lir::ExternFunctions::default();
     let mut references = HashMap::new();
+    let mut bridges = HashMap::new();
     for (id, extern_) in module.extern_functions.iter() {
         let identity = || lir::ExternFunctionIdentity {
             source_name: extern_.source_name.clone(),
@@ -29,25 +31,14 @@ pub(super) fn lower_extern_functions(
                 mir::CallingConvention::Cdecl => lir::CallingConvention::Cdecl,
             },
         };
-        let reference = match extern_.abi {
-            mir::ExternAbi::C(call_mode) => {
-                let signature = lir::CFunctionType {
-                    params: extern_
-                        .params
-                        .iter()
-                        .map(|ty| c_ffi_type(module, structs, enums, ty))
-                        .collect(),
-                    return_type: c_return_type(
-                        module,
-                        structs,
-                        enums,
-                        extern_.result.native_type(),
-                    ),
-                };
-                let result = extern_.result.adaptation();
-                let call_plan = match result {
+        let reference =
+            match extern_.abi {
+                mir::ExternAbi::C(call_mode) => {
+                    let signature = c_extern_signature(module, structs, enums, extern_);
+                    let result = extern_.result.adaptation();
+                    let call_plan = match result {
                     scoop_identity::CResultAdaptation::Direct => lir::CAbiCallPlan::Direct(
-                        direct_c::classify(context, &signature, structs, enums)?,
+                        signatures.plans.c(signatures.requests.c_externs[&id]).clone(),
                     ),
                     scoop_identity::CResultAdaptation::CaptureErrno => {
                         lir::CAbiCallPlan::StorageBridge {
@@ -70,34 +61,59 @@ pub(super) fn lower_extern_functions(
                         }
                     }
                 };
-                LoweredExternFunctionRef::C(functions.alloc_c(lir::CExternFunction {
-                    call_mode,
-                    identity: identity(),
-                    call_plan,
-                    signature,
-                }))
-            }
-            mir::ExternAbi::Scoop => {
-                LoweredExternFunctionRef::Scoop(functions.alloc_scoop(lir::ScoopExternFunction {
-                    identity: identity(),
-                    gc_effect: match extern_.gc_effect {
-                        mir::GcEffect::Managed => lir::GcEffect::Managed,
-                        mir::GcEffect::NoGc => lir::GcEffect::NoGc,
-                    },
-                    signature: abi::classify_mir_signature(
-                        context,
-                        module,
-                        extern_.params.iter(),
-                        extern_.result.native_type(),
-                        structs,
-                        enums,
-                    )?,
-                }))
-            }
-        };
+                    LoweredExternFunctionRef::C(functions.alloc_c(lir::CExternFunction {
+                        call_mode,
+                        identity: identity(),
+                        call_plan,
+                        signature,
+                    }))
+                }
+                mir::ExternAbi::Scoop => LoweredExternFunctionRef::Scoop(
+                    functions.alloc_scoop(lir::ScoopExternFunction {
+                        identity: identity(),
+                        gc_effect: match extern_.gc_effect {
+                            mir::GcEffect::Managed => lir::GcEffect::Managed,
+                            mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+                        },
+                        signature: signatures
+                            .plans
+                            .scoop(signatures.requests.scoop_externs[&id])
+                            .clone(),
+                    }),
+                ),
+            };
+        if let Some(&request) = signatures.requests.bridges.get(&id) {
+            let LoweredExternFunctionRef::C(function) = reference else {
+                unreachable!("storage bridges are C externs")
+            };
+            bridges.insert(
+                function.declaration(),
+                signatures.plans.scoop(request).clone(),
+            );
+        }
         references.insert(id, reference);
     }
-    Ok((functions, references))
+    Ok(LoweredExternFunctions {
+        functions,
+        references,
+        bridges,
+    })
+}
+
+pub(crate) fn c_extern_signature(
+    module: &mir::Module,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+    extern_: &mir::ExternFunction,
+) -> lir::CFunctionType {
+    lir::CFunctionType {
+        params: extern_
+            .params
+            .iter()
+            .map(|ty| c_ffi_type(module, structs, enums, ty))
+            .collect(),
+        return_type: c_return_type(module, structs, enums, extern_.result.native_type()),
+    }
 }
 
 fn c_data_pointee(

@@ -122,6 +122,8 @@ pub(super) fn lower_function<'a>(
     callback_map: &'a HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
+    bridge_signatures: &'a HashMap<lir::ExternFunctionId, lir::ScoopAbiSignature>,
+    signatures: &'a abi::plans::Signatures,
 ) -> StorageResult<LoweredFunction> {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
@@ -218,6 +220,8 @@ pub(super) fn lower_function<'a>(
         callback_map,
         extern_functions,
         extern_function_refs,
+        bridge_signatures,
+        signatures,
         pending_safepoints: &mut pending_safepoints,
         local_map,
         locals,
@@ -324,6 +328,8 @@ struct FunctionLowerer<'a> {
     callback_map: &'a HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
+    bridge_signatures: &'a HashMap<lir::ExternFunctionId, lir::ScoopAbiSignature>,
+    signatures: &'a abi::plans::Signatures,
     pending_safepoints: &'a mut safepoints::PendingSafepointSites,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
