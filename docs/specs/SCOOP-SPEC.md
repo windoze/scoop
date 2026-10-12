@@ -835,7 +835,7 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 - `::name`：引用可见的顶层函数或局部函数；`::TypeName` 从正常可见的 primary / secondary constructor 集合中选择构造器，类型别名先透明展开；
 - `Type::member`：创建未绑定成员引用，receiver 成为函数类型的第一个普通参数；type qualifier 与值 receiver 使用普通名称解析和类型语法区分，不依赖首字母大小写；
-- `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；
+- `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；限定名解析到 object/companion 时使用其 singleton value，完整泛型宿主 application、透明 alias 或限定路径都不把它变成未绑定引用；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
 
 若目标是 virtual / interface 成员，绑定引用在每次调用时按已保存接收者、未绑定引用按本次传入接收者做动态分派。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一且能独立确定完整签名的候选才能自行确定函数类型。泛型宿主和泛型 final 方法的全部实参须在创建点确定，不产生多态函数值；目标仍有歧义时报告编译错误。

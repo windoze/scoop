@@ -36,7 +36,8 @@ impl Input<'_> {
                 };
                 self.storage_owner(exact_owner, owner, at)?;
                 if let Some(property) = key.object_backing_property() {
-                    self.property(PropertyOwner::Property(property))?;
+                    let property = self.key(&foundation.properties, property)?;
+                    self.declaration_origin(foundation, property)?;
                 } else if key.interface_delegate().is_none() {
                     return Err(Error::StoragePosition(at));
                 }

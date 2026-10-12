@@ -1,0 +1,49 @@
+private var starts: Int = 0
+
+private fun mark(): Int {
+    starts += 1
+    return starts
+}
+
+object Tools {
+    val stamp: Int = mark()
+    fun read(value: Int): Int = stamp + value
+}
+
+struct Box<T>(val value: T) {
+    companion object Factory {
+        val stamp: Int = mark()
+        fun make(value: T): Box<T> = Box(value)
+        fun <U> choose(value: T, other: U): U = other
+    }
+
+    object Nested {
+        fun read(value: Int): Int = value
+    }
+}
+
+typealias IntBox = Box<Int>
+typealias IntegerFactory = Box<Int>.Factory
+typealias ToolAlias = Tools
+
+fun main(): Unit {
+    println(starts)
+    val tool: (Int) -> Int = ToolAlias::read
+    println(starts)
+    val create: (Int) -> Box<Int> = Box<Int>.Companion::make
+    println(starts)
+    val alias: (Int) -> Box<Int> = IntBox.Factory::make
+    val factory: (Int) -> Box<Int> = IntegerFactory::make
+    val text: (String) -> Box<String> = Box<String>.Factory::make
+    println(starts)
+    val choose: (Int, String) -> String = Box<Int>.Factory::choose
+    val nested: (Int) -> Int = Box.Nested::read
+    println(tool(10))
+    println(create(20).value)
+    println(alias(30).value)
+    println(factory(40).value)
+    println(text("text").value)
+    println(choose(0, "generic"))
+    println(nested(42))
+    println(starts)
+}

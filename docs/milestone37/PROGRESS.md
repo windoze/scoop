@@ -250,4 +250,12 @@ annotation 参数/default 和元注解先完成绑定，再按最终规则检查
 
 后续全量中的两条旧 HIR lower 断言同步到现行源码规则：局部 var 的负例改为赋值后撤销 smart cast；固定类型 alias 构造的诊断位置与已验收的四条正式 CLI negative 保持一致，仍检查完整类型错误与源码区间。本机 fmt/clippy 后，两项定向 Rust 回归通过；不改生产代码。
 
-另迁移三条旧底层断言：Retype 的非法 machine-scalar 输入继续拒绝，断言同步实际错误文字；两份 profile 固定描述逐字节确认只有 cross-cone-interface 版本 72 → 76，随后更新相应固定指纹。本机 fmt/clippy、22 项 profile 测试及一项 Retype 拒绝测试通过；编码与指纹仍由完整固定向量检查。
+另迁移三条旧底层断言：Retype 的非法 machine-scalar 输入继续拒绝，断言同步实际错误文字；两份 profile 固定描述逐字节确认只有 cross-cone-interface 版本 72 → 76，随后更新相应固定指纹。本机 fmt/clippy、25 项 profile 测试（HIR 4 项、slib 21 项）及一项 Retype 拒绝测试通过；编码与指纹仍由完整固定向量检查。
+
+Linux 完整 Rust 覆盖已闭合：首轮加剩余 workspace（`--exclude scoop-hir --no-fail-fast`）执行全部目标，八条旧断言迁移后定向补验通过，43 个目标共 5,553 项不同测试通过、0 failed、0 ignored。driver 的 82 项完整组合全部通过，没有重复这组重型测试。最终 fmt/workspace clippy、公共 runner 44 项及三个 release CLI 构建通过。环境为 i7-12700H、Rust 1.99.0、LLVM 22.1.2、GCC 15.2.0；逐项来源和初跑原始日志见 [Linux Rust 记录](validation/rust-linux.json)。正式 GNU 全量和 musl 选集验收继续进行。
+
+### 验收回归：单例成员引用（本机完成）
+
+Linux 全量发现完整泛型 companion 限定名被误判为未绑定 receiver。修正后，object/companion 及其透明别名按已解析的单例身份创建绑定引用；实例只在创建引用时求值一次，普通类型的未绑定引用规则不变。跨 Cone 物化泛型 companion 时，字段类型位置沿字段声明方查询 backing property，继续检查真实属性身份与来源。
+
+新增三个独立 fixture，覆盖本地与跨库别名、完整宿主 application、默认值、泛型正文、转导出、单例初始化次数、普通与 moving GC，以及错误地多传 receiver 的精确负例。workspace fmt/clippy 通过，22 项函数引用、6 项 companion 与 14 项类型位置 Rust 定向测试通过；44 个正式 CLI 用例普通验收全部通过，包含原有 m29 companion 与 m34 MaybeUninit 回归。旧用例仅两组 HIR 局部编号迁移，MIR/LIR 未改变。报告见 [单例引用回归](validation/singleton-reference-regressions-darwin.json)。Linux 将在本机修订完成后对受影响范围复验。

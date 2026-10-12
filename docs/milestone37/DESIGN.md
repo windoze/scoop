@@ -275,7 +275,7 @@ val total: (Point) -> Int = Point::total
 
 `::TypeName` 从正常可见的构造器集合中选择目标，类型别名先透明展开。abstract class、interface、object、annotation class 和其他没有普通构造入口的类型不能因此被构造。primary / secondary constructor 继续使用已有身份、访问规则及初始化实现，不额外复制初始化 body。
 
-`Type::member` 表示未绑定成员引用，receiver 成为第一个函数参数；`receiver::member` 保持创建时求值一次并绑定 receiver 的行为。type qualifier 与值 receiver 按普通名称解析和类型语法区分，不凭是否以大写字母开头判定。若源码名字经正常查询后仍同时形成无法唯一选择的目标，应报告歧义。
+`Type::member` 表示未绑定成员引用，receiver 成为第一个函数参数；`receiver::member` 保持创建时求值一次并绑定 receiver 的行为。type qualifier 与值 receiver 按普通名称解析和类型语法区分，不凭是否以大写字母开头判定。object/companion 限定名使用 singleton value，包括完整泛型宿主 application、透明 alias 与限定路径。若源码名字经正常查询后仍同时形成无法唯一选择的目标，应报告歧义。
 
 virtual/interface 引用每次调用都按实际 receiver 动态分派。构造器与成员的重载使用期望函数类型和既有候选规则；没有期望类型时，只允许能独立确定完整类型的唯一候选。泛型宿主和泛型 final 方法的全部实参必须在创建点确定，不产生多态函数值。
 

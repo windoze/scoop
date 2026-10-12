@@ -9,13 +9,29 @@ impl Lowerer {
         expected: Option<TypeId>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        if let Some(receiver_type) = self.reference_type_qualifier(receiver, expected).ok()? {
-            return self.lower_unbound_callable_reference(receiver_type, name, span, expected);
-        }
         // The source expression is retained on the reference entity and becomes
         // the first closure field initializer in MIR. It is therefore evaluated
         // once at reference creation, including when it reads a mutable local.
-        let receiver = self.lower_expr(receiver, sink, None)?;
+        let receiver = if let Some(ty) = self.reference_type_qualifier(receiver, expected).ok()? {
+            if let Some(crate::NominalTarget::Object(object)) = self.nominal_target_for_type(ty) {
+                self.lower_qualified_singleton(object, Some(ty), receiver.span())?
+            } else if self
+                .imported_nominal_owner(ty)
+                .and_then(|owner| self.dependencies.as_ref()?.nominal_declaration(owner))
+                .is_some_and(|declaration| {
+                    matches!(
+                        declaration.interface.source_shape(),
+                        hir::NominalSourceShapeV1::Object(_)
+                    )
+                })
+            {
+                self.lower_imported_singleton_type(ty, receiver.span())?
+            } else {
+                return self.lower_unbound_callable_reference(ty, name, span, expected);
+            }
+        } else {
+            self.lower_expr(receiver, sink, None)?
+        };
         let mut member_candidates = self.methods_by_name(receiver.ty, &name.text);
         let mut first_failure = None;
         if !member_candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
