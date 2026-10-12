@@ -80,10 +80,11 @@ fn intrinsic_shape_has_a_distinct_fixed_wire_tag() {
         IntrinsicTypeKind::Boolean,
     ));
     assert_eq!(encode(&boolean).unwrap(), [0xa2, 0, 4, 1, 0xa1, 0, 2]);
-    let unknown = decode_canonical::<DecodedNativeBoundaryNominalShape>(&[0xa1, 0, 5]).unwrap_err();
+    let unknown =
+        decode_canonical::<DecodedNativeBoundaryNominalShape>(&[0xa1, 0, 0x18, 0xff]).unwrap_err();
     assert_eq!(
         unknown.kind(),
-        &scoop_wire::WireErrorKind::UnknownTag { tag: 5 }
+        &scoop_wire::WireErrorKind::UnknownTag { tag: 255 }
     );
 }
 
