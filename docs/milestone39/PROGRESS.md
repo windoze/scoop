@@ -8,7 +8,7 @@
 2. 已完成：C toolchain 宿主 invocation 移出 LIR，generated-C 编译交由 driver 编排。
 3. 已完成全部 Scoop/C ABI 规划迁移、显式 manifest 目录、布局／LLVM 配置登记及 target/backend/C toolchain 身份拆分。
 4. 已完成 runtime 组件、ELF 容器／机器规则及 Linux machine／libc 工具链选择。
-5. 本机定向回归已通过；待完成 Linux Rust 与正式 CLI 完整覆盖、最终边界审查及清理。
+5. 本机定向回归与 Linux 完整 Rust 覆盖已通过；GNU 正式 CLI 全量运行中，musl 随后运行，最终验收及清理尚未完成。
 
 ## 验证环境与纪律
 
@@ -110,3 +110,11 @@
 - 全量中的已有错误 libc 测试发现：GNU 显式选择 musl-gcc 时，REALGCC 被设为 wrapper 自身，导致反复执行。终止该测试子进程后，`--no-fail-fast` 继续完成其他包。
 - 先明确实现规范：REALGCC 只属于 musl wrapper；GNU 直接执行所选 driver，由真实 probe 报告 libc 不匹配。宿主 invocation 显式表示可不存在的环境 override，不改变持久化合同或编译器输入摘要。
 - 新增跨宿主回归同时检查 probe 与正式 invocation 的环境；本机 fmt、workspace clippy 与全部 26 项 toolchain 测试通过。Linux 将补验整个 toolchain 包，并继续发布构建及全量 CLI。
+
+## Linux 完整 Rust 验证
+
+- 两次失败均已闭合：terminal poll 定向补验通过；REALGCC 修复后 Linux toolchain 全部 29 项通过。
+- 首轮、未执行包续跑及补验按测试目标／名称去重，最新 toolchain 包结果替换旧包（含重命名测试）；最终 5,576 项不同测试全部通过，0 failed、0 ignored。见 [汇总](validation/rust-linux.json)、[逐项来源](validation/rust-linux-coverage.json.gz)及汇总所列原始日志。
+- driver 的 82 项真实构建／产物组合全部通过，耗时 3,895.55 秒，仅执行一轮。最后一个 core 属性初始化测试运行期间，用空闲 CPU 构建未变化的 release stage 库，并同步工具链修复完成独立补验；该修复不改变正在运行的测试二进制或其 Scoop/runtime 输入。
+- Linux 最终 fmt、workspace clippy、三个 release CLI 和 47 项公共 runner 测试通过；本机公共 runner 同为 47 项通过，最新 release CLI 已重建。没有更改测试超时或更新 golden。
+- 本机各功能 CLI 按最终同名结果去重为 83 项通过、1 项不适用，105 变体、376 进程、16 次 golden；这是定向范围，见 [覆盖报告](validation/darwin-coverage.json)，不计为 Darwin 全量。

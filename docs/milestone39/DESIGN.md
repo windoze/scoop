@@ -4,7 +4,7 @@
 
 日期：2026-10-12。
 
-背景：后续需要增加 Linux ARM64、RISC-V 64、LoongArch64 等 target。当前 Linux 路径多处直接采用 amd64 假设，且目标 ABI 算法、LLVM 配置和工具链行为分散在公共 IR 与 lowering crate 中。M39 先整理这些职责，使后续移植有明确、有限的修改范围。
+背景：后续需要增加 Linux ARM64、RISC-V 64、LoongArch64 等 target。重构前的 Linux 路径多处直接采用 amd64 假设，且目标 ABI 算法、LLVM 配置和工具链行为分散在公共 IR 与 lowering crate 中。M39 先整理这些职责，使后续移植有明确、有限的修改范围。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)，以及 [M28 Linux 支持](../milestone28/DESIGN.md)、[M33 平台库前置能力](../milestone33/DESIGN.md)、[M36 类型完备性](../milestone36/DESIGN.md)。实施前记录实际代码基线；本文不假定其他进行中的里程碑已经完成。
 
@@ -32,19 +32,21 @@ Linux ARM64、RISC-V 64、LoongArch64 的实际支持属于后续移植，不作
 
 静态搜索并沿生产调用路径检查后，未在 parser、HIR、MIR 的生产代码中发现需要为新增这些架构修改的 Linux/amd64 分支。主要例外从 LIR 的目标描述与物理 ABI 分类开始。这个结论不等同于新架构已验证可运行。
 
-| 编号 | 位置 | 当前问题 | M39 处理 |
+下表记录实施前的问题；已删除路径以代码文本保留，当前所有者通过链接标明。
+
+| 编号 | 基线位置 | 基线问题 | M39 处理 |
 | --- | --- | --- | --- |
 | R01 | [lir-lower/abi.rs](../../compiler/lir-lower/src/abi.rs) | 非 `DarwinAarch64` 一律使用 SysV AMD64 寄存器分配和 aggregate 回退 | 具体 Scoop ABI 分类归 codegen |
-| R02 | [lir-lower/externs/direct_c.rs](../../compiler/lir-lower/src/externs/direct_c.rs) | C 调用同样以非 Darwin 代表 SysV；间接参数分类绑定平台，整数扩展函数没有 target 输入 | 具体 C ABI 分类及其验证共用 codegen 内的目标规则 |
-| R03 | [lir/abi/aggregate.rs](../../compiler/lir/src/abi/aggregate.rs) | IR crate 实现 HFA、eightbyte 分类、6 GPR/8 SSE 分配算法 | IR 保留布局与 carrier 数据，算法移入 codegen |
+| R02 | `lir-lower/externs/direct_c.rs` | C 调用同样以非 Darwin 代表 SysV；间接参数分类绑定平台，整数扩展函数没有 target 输入 | 具体 C ABI 分类及其验证共用 [codegen ABI 规则](../../compiler/codegen/abi-plan/src/c.rs) |
+| R03 | `lir/abi/aggregate.rs` | IR crate 实现 HFA、eightbyte 分类、6 GPR/8 SSE 分配算法 | IR 保留布局与 carrier 数据，算法移入 [codegen](../../compiler/codegen/abi-plan/src/aggregate.rs) |
 | R04 | [lir/target.rs](../../compiler/lir/src/target.rs)、[backend.rs](../../compiler/lir/src/backend.rs)、[target_selection.rs](../../compiler/lir/src/target_selection.rs) | LLVM data layout、CPU、backend 合同及部分栈寄存器事实写在 LIR 内，具体目标组合由 LIR 决定 | 区分纯数据描述、目标登记和后端实现 |
 | R05 | [identity/capability/target.rs](../../compiler/identity/src/capability/target.rs)、[capability.rs](../../compiler/identity/src/capability.rs) | target、backend、C toolchain 的支持集合在公共身份层封闭列举 | 保留 typed identity 和格式规则，支持列表移到实际消费者 |
-| R06 | [lir/c_bridge_toolchain.rs](../../compiler/lir/src/c_bridge_toolchain.rs)、[c_bridge_invocation.rs](../../compiler/lir/src/c_bridge_invocation.rs) | LIR 既保存 profile，又选择具体平台并构造 C 编译进程命令 | 纯产物数据留在 IR，宿主工具链与执行行为移到 toolchain |
+| R06 | [lir/c_bridge_toolchain.rs](../../compiler/lir/src/c_bridge_toolchain.rs)、`lir/c_bridge_invocation.rs` | LIR 既保存 profile，又选择具体平台并构造 C 编译进程命令 | 纯产物数据留在 IR，宿主工具链与执行行为移到 [toolchain](../../compiler/toolchain/src/c_bridge_invocation.rs) |
 | R07 | [codegen/artifact/elf.rs](../../compiler/codegen/src/artifact/elf.rs)、[EH relocations](../../compiler/codegen/src/artifact/eh/elf_relocations.rs) | ELF 固定为 X86_64，AArch64 ELF EH 被当作不可能组合 | ELF 容器逻辑与架构指令、重定位逻辑分开 |
 | R08 | [slib ELF reader](../../compiler/slib/src/link_object/elf.rs)、[envelope](../../compiler/slib/src/link_object/elf/envelope.rs)、[relocations](../../compiler/slib/src/link_object/elf/relocations.rs) | ELF machine、重定位及 `e_flags == 0` 使用 amd64 合同 | 由选中目标的对象规则解释，不作为通用 ELF 规则 |
 | R09 | [Linux C toolchain](../../compiler/toolchain/src/linux_c.rs)、[final image](../../compiler/toolchain/src/final_link/linux/image.rs)、[linker ELF](../../compiler/linker/src/final_image/elf.rs) | `REALGCC`、probe、loader 名称及 `R_X86_64_RELATIVE` 写死 | 分离架构、libc、工具链和最终链接事实 |
 
-这不是只增加几个 `match` 分支即可解决的问题。[实现规范 2.4](../specs/SCOOP-IMPL-SPEC.md#24-lir) 目前明确要求 LIR lowering 计算物理 C ABI，[2.5](../specs/SCOOP-IMPL-SPEC.md#25-codegen-与对象合同) 又要求 codegen 只消费完整 LIR。要把目标算法归入 codegen，必须同时调整构造 LIR 的编排，保留完整输出，而不是让两条要求互相冲突。
+基线的实现规范 2.4 要求 LIR lowering 计算物理 C ABI，2.5 又要求 codegen 只消费完整 LIR。实施前已同步修订[现行 2.4](../specs/SCOOP-IMPL-SPEC.md#24-lir)和 [2.5](../specs/SCOOP-IMPL-SPEC.md#25-codegen-与对象合同)：通过独立的 ABI 规划入口和 driver 编排移动目标算法，LLVM 发射仍只消费完整 LIR。
 
 ## 2. 重构后的职责边界
 
@@ -140,7 +142,7 @@ SysV AMD64 的隐藏 sret 和前序参数影响后续 aggregate 能否使用寄�
 
 ### 4.1 公共身份不再列举支持目标
 
-当前 `TargetProfileId::ALL` 和 `TargetProfileWireId::refine` 将身份格式与编译器支持列表绑定。backend 和 C toolchain 的 refinement 也列举具体实现。
+基线的 `TargetProfileId::ALL` 和 `TargetProfileWireId::refine` 将身份格式与编译器支持列表绑定。backend 和 C toolchain 的 refinement 也列举具体实现；这些支持列表现已移出公共身份层。
 
 M39 保留独立的 typed target/backend/toolchain identity，以现有 canonical 编码表达名称与版本；将“这个版本能否编译、读取或链接”交给相应消费者的有限支持表。具体 target 名称、triple alias 和 host 选择位于 driver 相关代码，具体 ABI/LLVM 实现位于 codegen，对象读取能力位于 slib。
 
@@ -158,7 +160,7 @@ M39 保留独立的 typed target/backend/toolchain identity，以现有 canonica
 
 ### 4.3 manifest 条件不依赖后端枚举
 
-[manifest 条件解析](../../compiler/manifest/src/selection/parse.rs) 当前从 `TargetProfileId::ALL` 推导允许的 os/arch/env，再把谓词保存为一组具体 target。目标支持集合移出 identity 后，这一输入应由 driver 的目标目录明确提供，不让 manifest 依赖 codegen 或 LLVM。
+[manifest 条件解析](../../compiler/manifest/src/selection/parse.rs) 在基线中从 `TargetProfileId::ALL` 推导允许的 os/arch/env，再把谓词保存为一组具体 target。目标支持集合移出 identity 后，这一输入由 driver 的目标目录明确提供，不让 manifest 的生产依赖包含 codegen 或 LLVM。
 
 保留未知键/值诊断、同键数组取“或”、不同键取“与”和按构建 target 选择源码的语义。不把原先显式的源码条件默默变成宿主条件。若调整谓词的 canonical 表示，必须同步现有 manifest 语义投影和缓存键；未选中源文件仍不成为编译输入。
 
@@ -218,7 +220,7 @@ M39 只整理当前真实的平台职责：机器帧、anchor、返回值 shim �
 
 开始实现前按 spec 先行约定处理下表；实施中的权威合同以三份规范为准。
 
-| 文档 | 后续需要修订的内容 |
+| 文档 | 本次同步的内容 |
 | --- | --- |
 | 实现规范 1、2、2.4～2.5 | 区分目标描述、布局准备、ABI 规划和完整 LIR 发射；明确 codegen 目标算法与 driver 编排职责 |
 | 实现规范 2.6～2.8、2.11 | typed target 身份、产物兼容、工具链执行归属、artifact-only 路径及按实际变化处理格式版本 |
