@@ -8,7 +8,7 @@
 2. 已完成：C toolchain 宿主 invocation 移出 LIR，generated-C 编译交由 driver 编排。
 3. 已完成全部 Scoop/C ABI 规划迁移、显式 manifest 目录、布局／LLVM 配置登记及 target/backend/C toolchain 身份拆分。
 4. 已完成 runtime 组件、ELF 容器／机器规则及 Linux machine／libc 工具链选择。
-5. 本机定向回归、Linux 完整 Rust 覆盖及 GNU 正式 CLI 全量已通过；musl 全量运行中，最终验收及清理尚未完成。
+5. 本机定向回归、Linux 完整 Rust 覆盖及 GNU/musl 正式 CLI 全量全部通过；验收与清理已完成，见 [验收记录](ACCEPTANCE.md)。
 
 ## 验证环境与纪律
 
@@ -109,7 +109,7 @@
 
 - 全量中的已有错误 libc 测试发现：GNU 显式选择 musl-gcc 时，REALGCC 被设为 wrapper 自身，导致反复执行。终止该测试子进程后，`--no-fail-fast` 继续完成其他包。
 - 先明确实现规范：REALGCC 只属于 musl wrapper；GNU 直接执行所选 driver，由真实 probe 报告 libc 不匹配。宿主 invocation 显式表示可不存在的环境 override，不改变持久化合同或编译器输入摘要。
-- 新增跨宿主回归同时检查 probe 与正式 invocation 的环境；本机 fmt、workspace clippy 与全部 26 项 toolchain 测试通过。Linux 全部 29 项 toolchain 补验及发布构建通过，GNU 全量 CLI 已通过，musl 全量继续验收。
+- 新增跨宿主回归同时检查 probe 与正式 invocation 的环境；本机 fmt、workspace clippy 与全部 26 项 toolchain 测试通过。Linux 全部 29 项 toolchain 补验及发布构建通过，GNU/musl 全量 CLI 均已通过。
 
 ## Linux 完整 Rust 验证
 
@@ -124,3 +124,10 @@
 - 全部 3,771 项均纳入选择：3,741 项通过，30 项按目标声明不适用，0 failed；4,203 变体、15,731 进程、71 次 golden 检查。见 [完整报告](validation/linux-gnu.json)及 [原始日志](validation/linux-gnu.log.gz)。
 - 使用最终代码 `e7f2fb7d` 的 release CLI，8 个并行 worker；未更新期望，没有补验或重复运行。
 - 全部通过的 case 目录已按完成状态分批清理。musl 随后自动启动，按 GNU 的资源余量将并行数由预定 4 调为 8；同样保留完整适用范围。
+
+## Linux musl 验证与最终验收
+
+- 全部 3,771 项均纳入选择：3,739 项通过，32 项按目标声明不适用，0 failed；4,201 变体、15,727 进程、71 次 golden 检查。见 [完整报告](validation/linux-musl.json)及 [原始日志](validation/linux-musl.log.gz)。
+- 使用最终代码 `e7f2fb7d` 的 release CLI，8 个并行 worker；全部五项小值 ABI 用例、默认静态与显式动态 PIE 均通过。两个 CLI 全量各执行一轮，没有补验或更新 golden。
+- 本机最后清理约 699 MiB fixture 私有缓存，Linux 在逐批清理成功 case 后清理 GNU 约 6 GiB 缓存和 musl 等约 6,116 MiB 工作数据；报告、日志、release 命令、编译依赖与 native unwind 安装保留。见 [清理记录](validation/cleanup.json)。
+- 最终边界复核：parser 至 MIR lowering 无变更，新增代码文件最长 285 行，无新增 TODO、todo! 或 unimplemented! 占位。完整结论与后续架构移植位置见 [验收记录](ACCEPTANCE.md)。

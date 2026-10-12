@@ -539,12 +539,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 `inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 
-### M39 目标平台边界重构（实施中，[设计](milestone39/DESIGN.md)，[进度](milestone39/PROGRESS.md)）
+### M39 目标平台边界重构（已完成并验收，[设计](milestone39/DESIGN.md)，[验收记录](milestone39/ACCEPTANCE.md)）
 
 - 保持 Darwin/AArch64、Linux GNU/musl x86-64 三个现有 target，不新增架构支持。
 - 分离公共 typed 数据、目标目录、codegen ABI 规划与 LLVM 实现、工具链执行及对象架构规则。
 - driver 编排布局／签名准备、ABI 规划和完整 LIR 构造；依赖 ABI 直接映射复用。
-- 按功能验证与提交，本机定向回归后在 Linux 完整验收，控制文件长度与构建产物空间。
+- 11 项功能分别提交并完成验证；Linux Rust 5,576 项、GNU CLI 3,741 项、musl CLI 3,739 项通过，本机定向 CLI 83 项通过。现有 wire、runtime ABI 与 golden 保持，构建产物按阶段清理。
 
 ### M40 fixture 精简与回归验证职责收敛（已完成并验收，[设计](milestone40/DESIGN.md)，[验收记录](milestone40/ACCEPTANCE.md)）
 

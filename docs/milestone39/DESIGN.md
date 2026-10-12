@@ -1,6 +1,6 @@
 # M39 设计：目标平台边界重构
 
-状态：实施中。实际基线为 `e88f7d73`；功能与验证进度见 [PROGRESS.md](PROGRESS.md)。本文不代表新增架构已经通过编译、链接或运行验证。
+状态：已完成并验收。实际基线为 `e88f7d73`；功能与验证见 [实施记录](PROGRESS.md)及 [验收记录](ACCEPTANCE.md)。本次未增加架构支持。
 
 日期：2026-10-12。
 
@@ -272,4 +272,4 @@ M39 只整理当前真实的平台职责：机器帧、anchor、返回值 shim �
 
 格式化、lint 和验证遵守仓库顺序：Rust 先 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，再运行相应测试；Python 先按仓库指定 Ruff 版本格式化和检查。正式验收包括 `cargo test --workspace`、三个 CLI binary 构建、fixture runner unittest 和 `python3 tests/run_fixtures.py --all` 的适用目标覆盖。结果按实际执行的 host、target、链接模式和 profile 记录，不把未执行平台计为通过。
 
-仅设计文档阶段只检查本文内容、引用和修改范围，不执行会改动代码或批量快照的操作。M39 完成时，应能明确说明新增 Linux ARM64、RISC-V 64、LoongArch64 的后续工作分别落在 codegen、driver/slib 相关代码及 runtime；实际移植仍需各自的 LLVM 输出、ABI、GC/EH 和运行验证。
+实现、实际验证范围与清理记录见 [验收记录](ACCEPTANCE.md)。Linux ARM64、RISC-V 64、LoongArch64 的后续工作已按 codegen、driver/slib 相关代码及 runtime 列出；实际移植仍需各自的 LLVM 输出、ABI、GC/EH 和运行验证。
