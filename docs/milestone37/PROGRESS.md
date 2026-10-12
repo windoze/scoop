@@ -289,3 +289,5 @@ Darwin 另有 18 个独立链接、原有 M35 组合及源码类型描述回归�
 跨库组合发现整型枚举的成员查找将整数父类型误当作 interface application。先明确实现规范的遍历规则，再在既有模块内沿整数父类型继续遍历接口；修改后模块为 91 行，没有增加类型、分派或产物格式。C ABI fixture 保留已声明的函数引用签名，再通过普通函数值赋值验证参数逆变；原有引用候选规则不变。
 
 本机 fmt/workspace clippy、6 项相关 Rust 分派测试及三个 release CLI 构建通过。五个新增 fixture 与既有整型枚举跨库、默认参数回归共 7/7 普通比较通过，12 个配置、73 个进程、71 个 golden。新增链均运行 debug/release 和 normal/moving/minor GC；静态描述保留嵌套注解身份、数组顺序与源码位置，C ABI 保留 Int16 符号扩展及上下界，GC 捕获字段为普通 Snapshot 值且无 mutable box。旧默认参数 HIR 仅按完全相同的实体记录重排依赖引用。报告见 [完整组合链本机验收](validation/complete-combinations-darwin.json)。M37 fixture 增至 680 个。Linux 同样完成 fmt/workspace clippy、6 项相关 Rust 测试和配套 CLI 构建；GNU、musl 各有这 7 个 fixture 的普通比较全部通过，配置、进程和 golden 数与本机相同，见 [GNU](validation/complete-combinations-gnu.json) 和 [musl](validation/complete-combinations-musl.json)。两目标的全部 680 个 M37 fixture 普通覆盖至此闭合，各为 898 个配置、1,938 个进程、1,476 个 golden；既有功能全量回归另行收尾。
+
+Darwin 最后的 33 项 core 布局、原生链接及协程生命周期目标补验全部普通通过，37 个配置、124 个进程、260 个 golden。35 份变更按实际 AArch64 输出审阅：26 份 LIR 保留目标 ABI，8 份链接计划只更新已检查的 core 注册信息，1 份符号表只增加对应的 307 个 core 符号。报告见 [Darwin 目标补验](validation/legacy-target-supplement-darwin.json)。
