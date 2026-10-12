@@ -45,6 +45,7 @@ SourceFile
             Call withDefaults
               Argument trailing
                 Lambda 1 suspend=false
+                  label withDefaults
                   parameters omitted
                   Binary Add
                     Call anonymous

@@ -114,8 +114,10 @@ impl Lowerer {
         };
         let source = match &value.kind {
             hir::ExprKind::Local(source) => Some(self.locals[*source].binding),
-            hir::ExprKind::Upcast(source) => {
-                self.flow_source_binding(source).map(|(binding, _)| binding)
+            hir::ExprKind::Capture(_)
+            | hir::ExprKind::ConstructorParam(_)
+            | hir::ExprKind::Upcast(_) => {
+                self.flow_source_binding(value).map(|(binding, _)| binding)
             }
             _ => None,
         };
