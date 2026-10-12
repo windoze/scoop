@@ -42,5 +42,6 @@ SourceFile
       Call apply<Int>
         IntLiteral 0
         Lambda 2 suspend=false
+          label apply
           param number: _
           Var number

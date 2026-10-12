@@ -25,12 +25,14 @@ SourceFile
         StringLiteral ""
     Call startCoroutine
       Lambda 0 suspend=true
+        label startCoroutine
         parameters omitted
         Call integer
           IntLiteral 43
       Var integerDone
     Call startCoroutine
       Lambda 1 suspend=true
+        label startCoroutine
         parameters omitted
         Call text
           StringLiteral "suspended"

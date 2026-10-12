@@ -359,7 +359,7 @@ Module
         Type Boolean
         IsInstance Worker
           Type Any
-          Local value
+          Local $when.subject.0
     bb1 if.then.1
       val $receiver: Worker
         Type Worker

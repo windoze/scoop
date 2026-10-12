@@ -105,6 +105,7 @@ SourceFile
               IntLiteral 42
             IntLiteral 32L
           Lambda 0 suspend=false
+            label exercise
             param value: Large
             if
               Binary Eq
@@ -129,6 +130,7 @@ SourceFile
           Call Node
             IntLiteral 42
         Lambda 1 suspend=false
+          label exercise
           param value: Payload<Node>
           when
             Var value

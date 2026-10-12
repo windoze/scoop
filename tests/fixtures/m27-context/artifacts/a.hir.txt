@@ -315,7 +315,6 @@ class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210,
   base Exception
   constructor Constructor(PersistentConstructorId([139, 31, 73, 207, 242, 211, 117, 161, 61, 105, 61, 149, 57, 104, 106, 55, 163, 136, 148, 25, 52, 91, 52, 119, 242, 164, 101, 114, 157, 123, 44, 119]))
     parameter message: Option<String> Plain default parameter0
-interface Equality<Boolean> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
   parameter T: Any
 interface Equality<Unit> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
@@ -381,8 +380,8 @@ CrossCone c4652a3d09c3e1458a419aa53f0777417ae253ee588bf9bd9cc9b4276129c8c3
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Function([]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Function([]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(3) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Function([]) }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(4) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(89), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(5) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(8), arguments: Method { owner: Idx::<Type>(92), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(4) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(88), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(5) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(8), arguments: Method { owner: Idx::<Type>(91), method_arguments: [] } }
   public_bindings count=13
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([20, 77, 236, 97, 157, 22, 250, 187, 217, 196, 153, 225, 82, 255, 15, 45, 42, 158, 31, 66, 234, 179, 155, 247, 228, 143, 96, 46, 252, 148, 134, 255]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([219, 144, 174, 95, 21, 120, 115, 30, 241, 47, 59, 233, 30, 150, 194, 168, 164, 84, 97, 180, 86, 17, 44, 123, 38, 113, 243, 118, 193, 116, 178, 27])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([34, 203, 193, 70, 244, 29, 212, 156, 166, 54, 125, 15, 80, 246, 26, 250, 244, 114, 106, 126, 115, 90, 141, 57, 69, 213, 131, 9, 132, 47, 244, 72]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([157, 157, 57, 7, 13, 96, 51, 166, 142, 160, 142, 246, 140, 154, 189, 186, 230, 251, 60, 0, 250, 180, 91, 34, 119, 195, 2, 53, 216, 42, 12, 160])) } }

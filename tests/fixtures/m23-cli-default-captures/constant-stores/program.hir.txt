@@ -559,9 +559,9 @@ interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22
 interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
 interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
   parameter T: Any
-interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 interface Equality<Boolean> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 pointer Ptr<T>
+interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210, 3, 48, 221, 107, 191, 241, 100, 17, 53, 76, 49, 63, 204, 117, 99, 142, 157, 176, 60, 133, 12, 48, 143, 81, 181, 109]))
   base Exception
   constructor Constructor(PersistentConstructorId([139, 31, 73, 207, 242, 211, 117, 161, 61, 105, 61, 149, 57, 104, 106, 55, 163, 136, 148, 25, 52, 91, 52, 119, 242, 164, 101, 114, 157, 123, 44, 119]))
@@ -645,8 +645,8 @@ LocalConcrete 00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6 E
 == CrossCone ==
 CrossCone 00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6
   class_constructors Idx::<ClassConstructor>(0) ClassConstructor { owner: Idx::<ClassDecl>(0), identity_kind: Source, access: DeclarationAccess { declared: Internal, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([0, 118, 154, 247, 205, 74, 133, 217, 136, 65, 205, 99, 218, 187, 142, 115, 196, 212, 27, 206, 86, 245, 226, 37, 247, 41, 93, 210, 124, 63, 57, 182]))] }), slot: None }, safety: Safe, no_gc_type_params: [], context_parameter: None, parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 22, end: 27 }, context: Idx::<SourceContext>(0) }, name: "value", ty: Idx::<Type>(3) }], kind: Primary { base: Root, primary_stores: [PrimaryFieldStore { field: InitializingClassFieldRef { owner: Idx::<Type>(12), field: PersistentFieldId([199, 63, 88, 108, 38, 51, 127, 78, 81, 35, 14, 179, 197, 180, 111, 141, 123, 118, 100, 160, 87, 94, 12, 205, 198, 51, 38, 128, 153, 52, 228, 84]) }, parameter: ConstructorParamId(0), span: Span { start: 11, end: 32 } }], common_initialization: [] }, span: Span { start: 0, end: 33 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 0, end: 33 }, context: Idx::<SourceContext>(0) }, evaluation_context: Idx::<SourceContext>(1) }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(24), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(27), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(26), method_arguments: [] } }
   public_bindings count=0
   nominal_interfaces count=0
   callable_interfaces count=0

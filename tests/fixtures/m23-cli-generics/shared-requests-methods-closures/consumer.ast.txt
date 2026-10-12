@@ -12,6 +12,7 @@ SourceFile
         Var box
         IntLiteral 0
         Lambda 0 suspend=false
+          label mix
           param value: _
           param extra: _
           Binary Add
@@ -23,6 +24,7 @@ SourceFile
         Var box
         UnitLiteral
         Lambda 1 suspend=false
+          label mix
           param value: _
           param extra: _
           Call read
@@ -37,6 +39,7 @@ SourceFile
           Var local
           IntLiteral 0
           Lambda 2 suspend=false
+            label mix
             param value: _
             param extra: _
             Binary Add
@@ -52,6 +55,7 @@ SourceFile
           Var local
           UnitLiteral
           Lambda 3 suspend=false
+            label mix
             param value: _
             param extra: _
             Call read
@@ -67,6 +71,7 @@ SourceFile
         Call defaulted<T>
           Call callback
           Lambda 4 suspend=false
+            label defaulted
             param value: _
             Call identity<T>
               Var value
@@ -75,5 +80,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 5 suspend=false
+          label exercise
           param value: _
           Var value

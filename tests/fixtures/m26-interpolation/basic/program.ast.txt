@@ -90,6 +90,7 @@ SourceFile
         IntLiteral 3L
         Argument trailing
           Lambda 0 suspend=false
+            label Array
             param index: _
             InterpolatedString
               Text "n"

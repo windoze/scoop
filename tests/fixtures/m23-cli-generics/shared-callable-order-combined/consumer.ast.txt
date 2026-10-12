@@ -155,5 +155,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 3 suspend=false
+          label exercise
           param value: _
           Var value

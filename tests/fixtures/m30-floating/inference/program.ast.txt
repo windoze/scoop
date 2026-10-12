@@ -190,6 +190,7 @@ SourceFile
       Binary Eq
         Call consume
           Lambda 0 suspend=false
+            label consume
             parameters omitted
             FloatLiteral 1.000000059604644775390625000001
         FloatLiteral 1.0000001f

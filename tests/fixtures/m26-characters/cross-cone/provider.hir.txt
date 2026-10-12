@@ -104,7 +104,6 @@ enum Option<Char> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117
 tuple (Option<Char>, Int)
   element _1: Option<Char>
   element _2: Int
-interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 function () -> String
 interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
   parameter T: Any
@@ -131,6 +130,7 @@ enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 1
       parameter _1: String Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
   variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
     constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 == LocalConcrete ==
 LocalConcrete 655540a590a3cf7fb7a91fe40d85f05f80162ffaacbc3d165c9f4c31df0c525b Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }

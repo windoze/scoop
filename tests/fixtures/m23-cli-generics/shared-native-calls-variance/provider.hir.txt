@@ -174,7 +174,6 @@ interface List<Int> GenericTemplate(PersistentGenericTypeId([252, 169, 155, 72, 
   public property size: Long 42ab3d6c4a2b6ea64401574a1bcf69cc7cbabfdd08370e90eadde05dc5289f47 no-field
 interface Iterable<Int> GenericTemplate(PersistentGenericTypeId([76, 223, 166, 100, 228, 194, 35, 148, 202, 85, 95, 98, 161, 247, 76, 238, 212, 164, 123, 150, 69, 38, 204, 238, 51, 31, 53, 112, 163, 226, 154, 220]))
 interface Equality<Long> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
-interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
   parameter T: Any
 interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
@@ -201,6 +200,7 @@ class ListIterator<T> GenericTemplate(PersistentGenericTypeId([92, 0, 106, 223, 
 class IndexOutOfBoundsException Concrete(PersistentTypeId([195, 113, 160, 242, 2, 196, 84, 63, 196, 227, 86, 211, 164, 84, 200, 44, 6, 196, 187, 0, 48, 98, 229, 234, 152, 252, 209, 99, 163, 215, 197, 100]))
   base Exception
   constructor Constructor(PersistentConstructorId([195, 152, 10, 249, 98, 124, 133, 245, 118, 150, 117, 4, 129, 94, 43, 232, 4, 189, 161, 139, 147, 193, 110, 14, 26, 95, 221, 244, 244, 145, 166, 3]))
+interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 == LocalConcrete ==
 LocalConcrete 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5 Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }
@@ -295,9 +295,9 @@ CrossCone 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(3) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(17), method_arguments: [] } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(4) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(2), arguments: Method { owner: Idx::<Type>(40), method_arguments: [] } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(5) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(40), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(6) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(9), arguments: Method { owner: Idx::<Type>(78), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(7) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(10), arguments: Method { owner: Idx::<Type>(83), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(8) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(11), arguments: Method { owner: Idx::<Type>(83), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(6) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(9), arguments: Method { owner: Idx::<Type>(77), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(7) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(10), arguments: Method { owner: Idx::<Type>(82), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(8) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(11), arguments: Method { owner: Idx::<Type>(82), method_arguments: [] } }
   public_bindings count=10
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([21, 67, 28, 94, 227, 102, 90, 200, 169, 85, 43, 20, 146, 173, 94, 61, 35, 95, 193, 50, 116, 142, 243, 26, 102, 246, 64, 5, 12, 112, 38, 96]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([118, 232, 212, 166, 119, 106, 21, 251, 143, 209, 30, 128, 180, 176, 181, 67, 3, 124, 56, 141, 36, 222, 115, 138, 209, 49, 196, 241, 81, 91, 107, 190])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([66, 207, 53, 71, 99, 6, 64, 115, 20, 78, 4, 48, 238, 172, 20, 169, 155, 76, 227, 173, 73, 237, 111, 137, 249, 75, 164, 182, 49, 52, 202, 30]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([71, 41, 67, 10, 139, 42, 38, 84, 21, 202, 197, 180, 180, 171, 57, 139, 243, 225, 184, 147, 8, 119, 89, 106, 251, 134, 217, 41, 132, 176, 16, 135])) } }

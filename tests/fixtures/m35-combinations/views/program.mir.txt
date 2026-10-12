@@ -711,7 +711,7 @@ Module
           Type Any
           Retype Any
             Type Left
-            Local value
+            Local $when.subject.7
     bb1 if.then.1
       val $receiver: Left
         Type Left
@@ -892,7 +892,7 @@ Module
         Type Boolean
         IsInstance Left
           Type Any
-          Local value
+          Local $when.subject.12
     bb1 if.then.1
       branch bb4 bb5
         Type Boolean

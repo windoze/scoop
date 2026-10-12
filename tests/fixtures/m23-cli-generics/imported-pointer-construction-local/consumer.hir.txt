@@ -169,14 +169,14 @@ intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 20
   public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
   public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
 any Any
-pointer Ptr<Int>
-pointer Ptr<T>
-interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
-  parameter T: Any
 interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
 interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
-interface Equality<ULong> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+  parameter T: Any
 interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+pointer Ptr<Int>
+pointer Ptr<T>
+interface Equality<ULong> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
   parameter T: Any
 interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
@@ -237,8 +237,8 @@ LocalConcrete bfd3da19da0dd09d1968c6713a1e8e8bb63d3c3b11d1d134ff3ce91ad7fb4ddb L
   coroutines []
 == CrossCone ==
 CrossCone bfd3da19da0dd09d1968c6713a1e8e8bb63d3c3b11d1d134ff3ce91ad7fb4ddb
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(18), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(26), method_arguments: [] } }
   public_bindings count=2
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([53, 6, 175, 143, 76, 96, 70, 254, 77, 24, 104, 118, 193, 234, 167, 147, 24, 184, 206, 251, 25, 226, 72, 23, 155, 248, 95, 139, 47, 132, 22, 137]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([132, 138, 37, 173, 247, 250, 153, 121, 147, 61, 92, 78, 208, 111, 246, 155, 219, 168, 223, 221, 83, 175, 25, 156, 238, 137, 39, 138, 135, 194, 114, 93])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([118, 227, 64, 4, 235, 84, 35, 167, 118, 129, 207, 113, 156, 102, 192, 76, 79, 225, 226, 146, 217, 252, 9, 155, 112, 128, 65, 7, 81, 18, 0, 110]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([18, 173, 152, 45, 217, 237, 38, 135, 42, 252, 2, 118, 96, 177, 116, 130, 52, 88, 167, 219, 159, 107, 94, 110, 213, 137, 175, 140, 25, 176, 11, 2])) } }

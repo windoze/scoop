@@ -63,6 +63,7 @@ SourceFile
     val callback
       Call foreignCallback<(Float, Double, Ptr<Unit>) -> Double>
         Lambda 0 suspend=false
+          label foreignCallback
           param single: Float
           param wide: Double
           Call gcCollect

@@ -746,7 +746,7 @@ Module
   block try.body.6
     store local6 -> local7
     store local7 -> local23
-    call no-gc-direct-target1 t16 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local6, td11)
+    call no-gc-direct-target1 t16 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local7, td11)
     cbr t16 then @if.then.7 else @if.else.8
   block if.then.7
     call managed-direct-target5 sp<managed-call:5> live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local6:ptr<managed>@0] t17 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td27, machine<byte-size>(ByteSize(40)))

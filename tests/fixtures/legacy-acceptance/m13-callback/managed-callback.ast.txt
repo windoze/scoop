@@ -32,6 +32,7 @@ SourceFile
       val oneShot
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 0 suspend=false
+            label foreignCallback
             param value: Int
             Call gcCollect
             Binary Add
@@ -74,6 +75,7 @@ SourceFile
       val failedStart
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 1 suspend=false
+            label foreignCallback
             param value: Int
             Var value
           IntLiteral 1
@@ -98,6 +100,7 @@ SourceFile
       val reusable
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 2 suspend=false
+            label foreignCallback
             param value: Int
             var index
               IntLiteral 0
@@ -179,6 +182,7 @@ SourceFile
       val collector
         Call foreignCallback<(Ptr<Unit>) -> Unit>
           Lambda 3 suspend=false
+            label foreignCallback
             parameters omitted
             Call gcCollect
           IntLiteral 0

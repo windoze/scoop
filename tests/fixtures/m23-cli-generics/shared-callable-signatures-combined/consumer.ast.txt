@@ -40,6 +40,7 @@ SourceFile
         Var box
         UnitLiteral
         Lambda 0 suspend=false
+          label apply
           param item: _
           param unit: _
           Call read
@@ -59,6 +60,7 @@ SourceFile
         Var box
         IntLiteral 0
         Lambda 1 suspend=false
+          label apply
           param item: _
           param extra: _
           Binary Add
@@ -71,5 +73,6 @@ SourceFile
         Call nativeNumber
           IntLiteral 42
         Lambda 2 suspend=false
+          label exercise
           param value: _
           Var value

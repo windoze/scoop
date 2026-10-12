@@ -1,0 +1,10 @@
+{
+  "scope": "Existing Darwin and musl counterparts of GNU LIR and link-plan snapshots changed since M36. Target outputs already changed were reviewed separately; unchanged counterparts were checked for missing migrations using the documented target ABI projection.",
+  "baseline": "ec9d8849d",
+  "remaining_unmigrated_counterparts": {
+    "aarch64-apple-darwin": [],
+    "x86_64-unknown-linux-musl": []
+  },
+  "review_archive": "stage-migration-reviews.json.gz",
+  "symbol_review": "target-core-symbol-migration.json.gz"
+}

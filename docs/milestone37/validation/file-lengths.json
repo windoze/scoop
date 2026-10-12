@@ -1,0 +1,7866 @@
+{
+  "baseline": "ec9d8849d",
+  "head": "ee52720ad1bf97c7b7e06393f7d6574c6772b363",
+  "new_files": 182,
+  "new_max_lines": 289,
+  "new_longest": [
+    {
+      "path": "compiler/hir-lower/src/tests/m37_type_annotations.rs",
+      "old_lines": 0,
+      "lines": 289,
+      "delta": 289,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/initialization/properties.rs",
+      "old_lines": 0,
+      "lines": 269,
+      "delta": 269,
+      "new": true
+    },
+    {
+      "path": "compiler/ast/src/declarations/classes.rs",
+      "old_lines": 0,
+      "lines": 264,
+      "delta": 264,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/bound.rs",
+      "old_lines": 0,
+      "lines": 259,
+      "delta": 259,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference.rs",
+      "old_lines": 0,
+      "lines": 236,
+      "delta": 236,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors/signature.rs",
+      "old_lines": 0,
+      "lines": 222,
+      "delta": 222,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors/lookup.rs",
+      "old_lines": 0,
+      "lines": 219,
+      "delta": 219,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/body_transform/expressions.rs",
+      "old_lines": 0,
+      "lines": 214,
+      "delta": 214,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/sealed/applications.rs",
+      "old_lines": 0,
+      "lines": 205,
+      "delta": 205,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/finish.rs",
+      "old_lines": 0,
+      "lines": 204,
+      "delta": 204,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/properties.rs",
+      "old_lines": 0,
+      "lines": 199,
+      "delta": 199,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/types/resolution/names.rs",
+      "old_lines": 0,
+      "lines": 191,
+      "delta": 191,
+      "new": true
+    }
+  ],
+  "existing_large_growth": [
+    {
+      "path": "compiler/identity/src/entity/field.rs",
+      "old_lines": 553,
+      "lines": 608,
+      "delta": 55,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/pipeline/run.rs",
+      "old_lines": 578,
+      "lines": 626,
+      "delta": 48,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/module.rs",
+      "old_lines": 520,
+      "lines": 567,
+      "delta": 47,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/signature/decode.rs",
+      "old_lines": 590,
+      "lines": 634,
+      "delta": 44,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/dump/declarations.rs",
+      "old_lines": 674,
+      "lines": 715,
+      "delta": 41,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/function/instruction/enums.rs",
+      "old_lines": 472,
+      "lines": 509,
+      "delta": 37,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/lib.rs",
+      "old_lines": 923,
+      "lines": 946,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/references/closure/compare.rs",
+      "old_lines": 661,
+      "lines": 682,
+      "delta": 21,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority.rs",
+      "old_lines": 512,
+      "lines": 530,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/pipeline.rs",
+      "old_lines": 566,
+      "lines": 583,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/collect.rs",
+      "old_lines": 563,
+      "lines": 578,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/selection/catalog.rs",
+      "old_lines": 514,
+      "lines": 528,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/control_flow.rs",
+      "old_lines": 1211,
+      "lines": 1225,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/gc_free_pointees.rs",
+      "old_lines": 883,
+      "lines": 894,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m18/mod.rs",
+      "old_lines": 2483,
+      "lines": 2494,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr.rs",
+      "old_lines": 591,
+      "lines": 601,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements/tree/decoded.rs",
+      "old_lines": 619,
+      "lines": 629,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/tests.rs",
+      "old_lines": 492,
+      "lines": 501,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests.rs",
+      "old_lines": 1691,
+      "lines": 1700,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests.rs",
+      "old_lines": 1787,
+      "lines": 1796,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_aliases.rs",
+      "old_lines": 777,
+      "lines": 785,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/exact_types.rs",
+      "old_lines": 547,
+      "lines": 555,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/production/static_storage_registrations.rs",
+      "old_lines": 859,
+      "lines": 866,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/dump/declarations.rs",
+      "old_lines": 593,
+      "lines": 600,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/metadata.rs",
+      "old_lines": 1437,
+      "lines": 1443,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/callbacks.rs",
+      "old_lines": 750,
+      "lines": 756,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/tests/support.rs",
+      "old_lines": 1324,
+      "lines": 1328,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/validation.rs",
+      "old_lines": 980,
+      "lines": 984,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_expression_qualifiers.rs",
+      "old_lines": 530,
+      "lines": 534,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_named_calls.rs",
+      "old_lines": 894,
+      "lines": 898,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/relations.rs",
+      "old_lines": 562,
+      "lines": 565,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/intrinsic_types.rs",
+      "old_lines": 579,
+      "lines": 582,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m17/protocol/materialization.rs",
+      "old_lines": 690,
+      "lines": 693,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_local_value_identities.rs",
+      "old_lines": 555,
+      "lines": 558,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/callbacks.rs",
+      "old_lines": 561,
+      "lines": 564,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/construction.rs",
+      "old_lines": 527,
+      "lines": 529,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_binding_patterns.rs",
+      "old_lines": 548,
+      "lines": 550,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_contextual_variants.rs",
+      "old_lines": 620,
+      "lines": 622,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/tests.rs",
+      "old_lines": 512,
+      "lines": 514,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/coroutines.rs",
+      "old_lines": 922,
+      "lines": 924,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/parser.rs",
+      "old_lines": 512,
+      "lines": 514,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/tests.rs",
+      "old_lines": 572,
+      "lines": 573,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/gc_free_pointees/occurrences/body.rs",
+      "old_lines": 634,
+      "lines": 635,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests/value_lookup.rs",
+      "old_lines": 587,
+      "lines": 588,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_consts.rs",
+      "old_lines": 1113,
+      "lines": 1114,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_delegates.rs",
+      "old_lines": 595,
+      "lines": 596,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_interfaces.rs",
+      "old_lines": 735,
+      "lines": 736,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_visibility.rs",
+      "old_lines": 523,
+      "lines": 524,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_ranges.rs",
+      "old_lines": 797,
+      "lines": 798,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_callable_references.rs",
+      "old_lines": 565,
+      "lines": 566,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_output_kind.rs",
+      "old_lines": 532,
+      "lines": 533,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_source_model.rs",
+      "old_lines": 814,
+      "lines": 815,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/body.rs",
+      "old_lines": 600,
+      "lines": 601,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation.rs",
+      "old_lines": 658,
+      "lines": 659,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/integer.rs",
+      "old_lines": 532,
+      "lines": 533,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_types/builder.rs",
+      "old_lines": 512,
+      "lines": 513,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/instruction.rs",
+      "old_lines": 673,
+      "lines": 674,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/coroutine_pending.rs",
+      "old_lines": 562,
+      "lines": 563,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/coroutines.rs",
+      "old_lines": 944,
+      "lines": 945,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/value_types/enums.rs",
+      "old_lines": 701,
+      "lines": 702,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/body/expression.rs",
+      "old_lines": 636,
+      "lines": 636,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/externs.rs",
+      "old_lines": 592,
+      "lines": 592,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/ffi_types.rs",
+      "old_lines": 743,
+      "lines": 743,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_top_level_storage.rs",
+      "old_lines": 804,
+      "lines": 804,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_explicit_receiver_calls.rs",
+      "old_lines": 647,
+      "lines": 647,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_extension_properties.rs",
+      "old_lines": 792,
+      "lines": 792,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_dependencies/extensions.rs",
+      "old_lines": 527,
+      "lines": 527,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree.rs",
+      "old_lines": 553,
+      "lines": 553,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/decoded/resolve.rs",
+      "old_lines": 792,
+      "lines": 792,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/decoded/wire.rs",
+      "old_lines": 904,
+      "lines": 904,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/tests.rs",
+      "old_lines": 542,
+      "lines": 542,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/body/expr.rs",
+      "old_lines": 628,
+      "lines": 628,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/structural/decode.rs",
+      "old_lines": 523,
+      "lines": 523,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/expressions.rs",
+      "old_lines": 726,
+      "lines": 726,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/module.rs",
+      "old_lines": 1385,
+      "lines": 1385,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/gc_free_pointees/validation.rs",
+      "old_lines": 566,
+      "lines": 565,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/indexed.rs",
+      "old_lines": 892,
+      "lines": 890,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_callable/decode.rs",
+      "old_lines": 611,
+      "lines": 607,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/defaults/materialize/expressions.rs",
+      "old_lines": 547,
+      "lines": 542,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/flow.rs",
+      "old_lines": 642,
+      "lines": 635,
+      "delta": -7,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_callable.rs",
+      "old_lines": 738,
+      "lines": 720,
+      "delta": -18,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/nominals.rs",
+      "old_lines": 574,
+      "lines": 524,
+      "delta": -50,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/control.rs",
+      "old_lines": 564,
+      "lines": 512,
+      "delta": -52,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/declarations.rs",
+      "old_lines": 768,
+      "lines": 542,
+      "delta": -226,
+      "new": false
+    }
+  ],
+  "files": [
+    {
+      "path": "compiler/ast/src/annotations.rs",
+      "old_lines": 66,
+      "lines": 101,
+      "delta": 35,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/declarations.rs",
+      "old_lines": 768,
+      "lines": 542,
+      "delta": -226,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/declarations/classes.rs",
+      "old_lines": 0,
+      "lines": 264,
+      "delta": 264,
+      "new": true
+    },
+    {
+      "path": "compiler/ast/src/declarations/local_types.rs",
+      "old_lines": 0,
+      "lines": 38,
+      "delta": 38,
+      "new": true
+    },
+    {
+      "path": "compiler/ast/src/dump/declarations.rs",
+      "old_lines": 674,
+      "lines": 715,
+      "delta": 41,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/dump/expressions.rs",
+      "old_lines": 390,
+      "lines": 423,
+      "delta": 33,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/dump/statements.rs",
+      "old_lines": 229,
+      "lines": 265,
+      "delta": 36,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/dump/types.rs",
+      "old_lines": 167,
+      "lines": 199,
+      "delta": 32,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/expressions.rs",
+      "old_lines": 486,
+      "lines": 500,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/headers.rs",
+      "old_lines": 230,
+      "lines": 258,
+      "delta": 28,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/statements.rs",
+      "old_lines": 221,
+      "lines": 260,
+      "delta": 39,
+      "new": false
+    },
+    {
+      "path": "compiler/ast/src/types.rs",
+      "old_lines": 146,
+      "lines": 176,
+      "delta": 30,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/c_bridge/layout.rs",
+      "old_lines": 405,
+      "lines": 405,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/c_bridge/render.rs",
+      "old_lines": 333,
+      "lines": 336,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/declarations.rs",
+      "old_lines": 244,
+      "lines": 247,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/function/instruction/enums.rs",
+      "old_lines": 472,
+      "lines": 509,
+      "delta": 37,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/function/instruction/enums/integral.rs",
+      "old_lines": 0,
+      "lines": 31,
+      "delta": 31,
+      "new": true
+    },
+    {
+      "path": "compiler/codegen/src/function/instruction/operators.rs",
+      "old_lines": 453,
+      "lines": 456,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/llvm_types.rs",
+      "old_lines": 486,
+      "lines": 497,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/llvm_types/c_layout.rs",
+      "old_lines": 94,
+      "lines": 100,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/statepoint/constant_roots.rs",
+      "old_lines": 0,
+      "lines": 33,
+      "delta": 33,
+      "new": true
+    },
+    {
+      "path": "compiler/codegen/src/statepoint/finalization.rs",
+      "old_lines": 149,
+      "lines": 149,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/statepoint/mod.rs",
+      "old_lines": 81,
+      "lines": 82,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/statepoint/verifier/restorations.rs",
+      "old_lines": 80,
+      "lines": 80,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/statepoint_tests.rs",
+      "old_lines": 353,
+      "lines": 355,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/statepoint_tests/constant_roots.rs",
+      "old_lines": 0,
+      "lines": 54,
+      "delta": 54,
+      "new": true
+    },
+    {
+      "path": "compiler/codegen/src/tests/support.rs",
+      "old_lines": 1324,
+      "lines": 1328,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/validation.rs",
+      "old_lines": 980,
+      "lines": 984,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/validation/c_call_plan.rs",
+      "old_lines": 99,
+      "lines": 101,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/validation/constants.rs",
+      "old_lines": 216,
+      "lines": 217,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/validation/scoop_abi/enums.rs",
+      "old_lines": 231,
+      "lines": 241,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/codegen/src/validation/variants.rs",
+      "old_lines": 247,
+      "lines": 247,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/driver/src/request/preflight/end_to_end_tests/layout_exports/core/artifact/mir_types/representation.rs",
+      "old_lines": 235,
+      "lines": 235,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases.rs",
+      "old_lines": 353,
+      "lines": 395,
+      "delta": 42,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/annotations.rs",
+      "old_lines": 0,
+      "lines": 45,
+      "delta": 45,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/applications.rs",
+      "old_lines": 0,
+      "lines": 149,
+      "delta": 149,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/constructors.rs",
+      "old_lines": 0,
+      "lines": 108,
+      "delta": 108,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/declarations.rs",
+      "old_lines": 0,
+      "lines": 188,
+      "delta": 188,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/forwarding.rs",
+      "old_lines": 0,
+      "lines": 38,
+      "delta": 38,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/inference.rs",
+      "old_lines": 0,
+      "lines": 85,
+      "delta": 85,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/aliases/publication.rs",
+      "old_lines": 225,
+      "lines": 292,
+      "delta": 67,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/annotations.rs",
+      "old_lines": 370,
+      "lines": 396,
+      "delta": 26,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/annotations/arguments.rs",
+      "old_lines": 148,
+      "lines": 148,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/annotations/constructors.rs",
+      "old_lines": 64,
+      "lines": 66,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/annotations/functions.rs",
+      "old_lines": 273,
+      "lines": 274,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/argument_materialization.rs",
+      "old_lines": 109,
+      "lines": 110,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/argument_materialization/declarations.rs",
+      "old_lines": 126,
+      "lines": 131,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/body_transform.rs",
+      "old_lines": 0,
+      "lines": 24,
+      "delta": 24,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/body_transform/expressions.rs",
+      "old_lines": 0,
+      "lines": 214,
+      "delta": 214,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/body_transform/statements.rs",
+      "old_lines": 0,
+      "lines": 124,
+      "delta": 124,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/applicability.rs",
+      "old_lines": 214,
+      "lines": 214,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/applicability/references.rs",
+      "old_lines": 201,
+      "lines": 278,
+      "delta": 77,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/candidates/parameters.rs",
+      "old_lines": 42,
+      "lines": 94,
+      "delta": 52,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/contextual.rs",
+      "old_lines": 268,
+      "lines": 283,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/contextual/result.rs",
+      "old_lines": 0,
+      "lines": 37,
+      "delta": 37,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/diagnostics.rs",
+      "old_lines": 285,
+      "lines": 282,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/mod.rs",
+      "old_lines": 26,
+      "lines": 27,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/named.rs",
+      "old_lines": 273,
+      "lines": 273,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/probe.rs",
+      "old_lines": 128,
+      "lines": 135,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/relations.rs",
+      "old_lines": 562,
+      "lines": 565,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/solver.rs",
+      "old_lines": 441,
+      "lines": 455,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/solver/materialization.rs",
+      "old_lines": 209,
+      "lines": 222,
+      "delta": 13,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/solver/validation.rs",
+      "old_lines": 212,
+      "lines": 212,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/specificity.rs",
+      "old_lines": 150,
+      "lines": 152,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/specificity/captures.rs",
+      "old_lines": 0,
+      "lines": 75,
+      "delta": 75,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/specificity/tests.rs",
+      "old_lines": 291,
+      "lines": 293,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/specificity/tests/captured.rs",
+      "old_lines": 0,
+      "lines": 33,
+      "delta": 33,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/tests.rs",
+      "old_lines": 572,
+      "lines": 573,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/tests/nominals.rs",
+      "old_lines": 135,
+      "lines": 136,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/call_resolution/tests/receivers.rs",
+      "old_lines": 0,
+      "lines": 67,
+      "delta": 67,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/callable_modifiers.rs",
+      "old_lines": 392,
+      "lines": 371,
+      "delta": -21,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/callable_modifiers/results.rs",
+      "old_lines": 0,
+      "lines": 74,
+      "delta": 74,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class.rs",
+      "old_lines": 48,
+      "lines": 55,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/construction.rs",
+      "old_lines": 527,
+      "lines": 529,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/construction/context.rs",
+      "old_lines": 163,
+      "lines": 244,
+      "delta": 81,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/declarations.rs",
+      "old_lines": 360,
+      "lines": 376,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/delegation.rs",
+      "old_lines": 0,
+      "lines": 107,
+      "delta": 107,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/enclosing.rs",
+      "old_lines": 0,
+      "lines": 72,
+      "delta": 72,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/enclosing/receivers.rs",
+      "old_lines": 0,
+      "lines": 162,
+      "delta": 162,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/hierarchy.rs",
+      "old_lines": 139,
+      "lines": 139,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance.rs",
+      "old_lines": 180,
+      "lines": 168,
+      "delta": -12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/coding.rs",
+      "old_lines": 220,
+      "lines": 176,
+      "delta": -44,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/coding/codecs/dependencies.rs",
+      "old_lines": 83,
+      "lines": 84,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/coding/tuple.rs",
+      "old_lines": 56,
+      "lines": 61,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/decoding/classes.rs",
+      "old_lines": 136,
+      "lines": 140,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/decoding/constructors.rs",
+      "old_lines": 160,
+      "lines": 161,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/delegation.rs",
+      "old_lines": 0,
+      "lines": 162,
+      "delta": 162,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/delegation/access.rs",
+      "old_lines": 0,
+      "lines": 75,
+      "delta": 75,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/delegation/bodies.rs",
+      "old_lines": 0,
+      "lines": 146,
+      "delta": 146,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/delegation/properties.rs",
+      "old_lines": 0,
+      "lines": 107,
+      "delta": 107,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/delegation/selection.rs",
+      "old_lines": 0,
+      "lines": 176,
+      "delta": 176,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/delegation/signatures.rs",
+      "old_lines": 0,
+      "lines": 158,
+      "delta": 158,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/encoding/classes.rs",
+      "old_lines": 152,
+      "lines": 154,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/imported.rs",
+      "old_lines": 204,
+      "lines": 220,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/interfaces.rs",
+      "old_lines": 380,
+      "lines": 425,
+      "delta": 45,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/interfaces/integral.rs",
+      "old_lines": 0,
+      "lines": 39,
+      "delta": 39,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/interfaces/members.rs",
+      "old_lines": 380,
+      "lines": 404,
+      "delta": 24,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/overrides.rs",
+      "old_lines": 562,
+      "lines": 423,
+      "delta": -139,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/overrides/access.rs",
+      "old_lines": 0,
+      "lines": 110,
+      "delta": 110,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/overrides/imported.rs",
+      "old_lines": 0,
+      "lines": 72,
+      "delta": 72,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/properties.rs",
+      "old_lines": 388,
+      "lines": 391,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/results.rs",
+      "old_lines": 0,
+      "lines": 76,
+      "delta": 76,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/inheritance/signatures.rs",
+      "old_lines": 143,
+      "lines": 149,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/initialization.rs",
+      "old_lines": 481,
+      "lines": 295,
+      "delta": -186,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/initialization/fields.rs",
+      "old_lines": 244,
+      "lines": 245,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/initialization/objects.rs",
+      "old_lines": 71,
+      "lines": 72,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/initialization/properties.rs",
+      "old_lines": 0,
+      "lines": 269,
+      "delta": 269,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/lookup.rs",
+      "old_lines": 340,
+      "lines": 347,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/lookup/candidates.rs",
+      "old_lines": 132,
+      "lines": 142,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/methods.rs",
+      "old_lines": 244,
+      "lines": 247,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/class/sealed.rs",
+      "old_lines": 0,
+      "lines": 110,
+      "delta": 110,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/class/synthesis.rs",
+      "old_lines": 0,
+      "lines": 66,
+      "delta": 66,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize.rs",
+      "old_lines": 371,
+      "lines": 378,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/automatic.rs",
+      "old_lines": 159,
+      "lines": 156,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/body.rs",
+      "old_lines": 272,
+      "lines": 272,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/body/expression.rs",
+      "old_lines": 636,
+      "lines": 636,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/callables.rs",
+      "old_lines": 255,
+      "lines": 244,
+      "delta": -11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/classes/constructors.rs",
+      "old_lines": 254,
+      "lines": 270,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/classes/constructors/initialization.rs",
+      "old_lines": 86,
+      "lines": 124,
+      "delta": 38,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/constructor_definitions.rs",
+      "old_lines": 153,
+      "lines": 221,
+      "delta": 68,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/enums.rs",
+      "old_lines": 129,
+      "lines": 139,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/enums/definition.rs",
+      "old_lines": 121,
+      "lines": 124,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/interfaces.rs",
+      "old_lines": 167,
+      "lines": 167,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/interfaces/definition.rs",
+      "old_lines": 129,
+      "lines": 145,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/nominals.rs",
+      "old_lines": 148,
+      "lines": 148,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/structs/intrinsics.rs",
+      "old_lines": 112,
+      "lines": 112,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/concretize/types.rs",
+      "old_lines": 345,
+      "lines": 362,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/constructor_resolution.rs",
+      "old_lines": 160,
+      "lines": 166,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/constructor_resolution/aliases.rs",
+      "old_lines": 0,
+      "lines": 115,
+      "delta": 115,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/constructor_resolution/enclosing.rs",
+      "old_lines": 0,
+      "lines": 104,
+      "delta": 104,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/constructor_resolution/named.rs",
+      "old_lines": 183,
+      "lines": 249,
+      "delta": 66,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/core_contract/atomics.rs",
+      "old_lines": 137,
+      "lines": 137,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/core_contract/coroutines.rs",
+      "old_lines": 238,
+      "lines": 240,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/core_contract/exceptions.rs",
+      "old_lines": 339,
+      "lines": 341,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/core_contract/iteration.rs",
+      "old_lines": 149,
+      "lines": 149,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/core_contract/maybe_uninit.rs",
+      "old_lines": 79,
+      "lines": 79,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/core_contract/operators.rs",
+      "old_lines": 393,
+      "lines": 408,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference.rs",
+      "old_lines": 0,
+      "lines": 236,
+      "delta": 236,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference/contracts.rs",
+      "old_lines": 0,
+      "lines": 115,
+      "delta": 115,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference/properties.rs",
+      "old_lines": 0,
+      "lines": 179,
+      "delta": 179,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference/properties/accessors.rs",
+      "old_lines": 0,
+      "lines": 28,
+      "delta": 28,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference/properties/initializers.rs",
+      "old_lines": 0,
+      "lines": 157,
+      "delta": 157,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference/properties/signatures.rs",
+      "old_lines": 0,
+      "lines": 131,
+      "delta": 131,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_inference/scope.rs",
+      "old_lines": 0,
+      "lines": 76,
+      "delta": 76,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declaration_surface.rs",
+      "old_lines": 47,
+      "lines": 52,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations.rs",
+      "old_lines": 75,
+      "lines": 87,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/callables.rs",
+      "old_lines": 422,
+      "lines": 297,
+      "delta": -125,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/callables/signature_comparison.rs",
+      "old_lines": 0,
+      "lines": 152,
+      "delta": 152,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/class.rs",
+      "old_lines": 231,
+      "lines": 272,
+      "delta": 41,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/enumeration.rs",
+      "old_lines": 124,
+      "lines": 120,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/enumeration/integral.rs",
+      "old_lines": 0,
+      "lines": 84,
+      "delta": 84,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/interface.rs",
+      "old_lines": 119,
+      "lines": 115,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/nested.rs",
+      "old_lines": 240,
+      "lines": 243,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/objects.rs",
+      "old_lines": 266,
+      "lines": 267,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/objects/declaration.rs",
+      "old_lines": 283,
+      "lines": 284,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/declarations/structure.rs",
+      "old_lines": 178,
+      "lines": 171,
+      "delta": -7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/access.rs",
+      "old_lines": 271,
+      "lines": 289,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/access/coverage.rs",
+      "old_lines": 84,
+      "lines": 84,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/access/expressions.rs",
+      "old_lines": 372,
+      "lines": 372,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/access/local_types.rs",
+      "old_lines": 0,
+      "lines": 37,
+      "delta": 37,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/access/shapes.rs",
+      "old_lines": 269,
+      "lines": 254,
+      "delta": -15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/inherited.rs",
+      "old_lines": 226,
+      "lines": 226,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/instantiate/expressions.rs",
+      "old_lines": 438,
+      "lines": 438,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/instantiate/statements.rs",
+      "old_lines": 144,
+      "lines": 142,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/lowering.rs",
+      "old_lines": 293,
+      "lines": 383,
+      "delta": 90,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/preparation.rs",
+      "old_lines": 129,
+      "lines": 145,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/preparation/interfaces.rs",
+      "old_lines": 89,
+      "lines": 89,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/registration.rs",
+      "old_lines": 274,
+      "lines": 306,
+      "delta": 32,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/registration/constructors.rs",
+      "old_lines": 92,
+      "lines": 99,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/defaults/registration/locals.rs",
+      "old_lines": 36,
+      "lines": 38,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/derived/declarations.rs",
+      "old_lines": 223,
+      "lines": 243,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/gc_free_pointees/occurrences/body.rs",
+      "old_lines": 634,
+      "lines": 635,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/gc_free_pointees/occurrences/types.rs",
+      "old_lines": 478,
+      "lines": 479,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/gc_free_pointees/requirements.rs",
+      "old_lines": 365,
+      "lines": 365,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/gc_free_pointees/validation.rs",
+      "old_lines": 566,
+      "lines": 565,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/generic_recursion.rs",
+      "old_lines": 287,
+      "lines": 291,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/no_gc_generics/call_sites/expressions.rs",
+      "old_lines": 322,
+      "lines": 322,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/no_gc_generics/call_sites/statements.rs",
+      "old_lines": 125,
+      "lines": 126,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/release/expressions.rs",
+      "old_lines": 204,
+      "lines": 204,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/type_validation.rs",
+      "old_lines": 119,
+      "lines": 119,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/effects/violations.rs",
+      "old_lines": 488,
+      "lines": 489,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr.rs",
+      "old_lines": 591,
+      "lines": 601,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/analysis.rs",
+      "old_lines": 188,
+      "lines": 191,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_literals.rs",
+      "old_lines": 268,
+      "lines": 325,
+      "delta": 57,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_literals/anonymous.rs",
+      "old_lines": 283,
+      "lines": 293,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_literals/anonymous/signature.rs",
+      "old_lines": 0,
+      "lines": 117,
+      "delta": 117,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_literals/returns.rs",
+      "old_lines": 0,
+      "lines": 43,
+      "delta": 43,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_literals/synthesized.rs",
+      "old_lines": 56,
+      "lines": 59,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references.rs",
+      "old_lines": 565,
+      "lines": 244,
+      "delta": -321,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/bound.rs",
+      "old_lines": 0,
+      "lines": 259,
+      "delta": 259,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors.rs",
+      "old_lines": 0,
+      "lines": 145,
+      "delta": 145,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors/adapter.rs",
+      "old_lines": 0,
+      "lines": 165,
+      "delta": 165,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors/enclosing.rs",
+      "old_lines": 0,
+      "lines": 45,
+      "delta": 45,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors/lookup.rs",
+      "old_lines": 0,
+      "lines": 219,
+      "delta": 219,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/constructors/signature.rs",
+      "old_lines": 0,
+      "lines": 222,
+      "delta": 222,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/local.rs",
+      "old_lines": 0,
+      "lines": 101,
+      "delta": 101,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/native.rs",
+      "old_lines": 142,
+      "lines": 153,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/native/declarations.rs",
+      "old_lines": 200,
+      "lines": 213,
+      "delta": 13,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/resolution.rs",
+      "old_lines": 264,
+      "lines": 296,
+      "delta": 32,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/resolution/diagnostics.rs",
+      "old_lines": 100,
+      "lines": 102,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/resolution/imported.rs",
+      "old_lines": 385,
+      "lines": 400,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/resolution/local.rs",
+      "old_lines": 125,
+      "lines": 155,
+      "delta": 30,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/unbound.rs",
+      "old_lines": 0,
+      "lines": 112,
+      "delta": 112,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/unbound/adapter.rs",
+      "old_lines": 0,
+      "lines": 143,
+      "delta": 143,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callable_references/unbound/qualifier.rs",
+      "old_lines": 0,
+      "lines": 130,
+      "delta": 130,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callables.rs",
+      "old_lines": 236,
+      "lines": 219,
+      "delta": -17,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callables/receivers.rs",
+      "old_lines": 0,
+      "lines": 51,
+      "delta": 51,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/callables/values.rs",
+      "old_lines": 124,
+      "lines": 152,
+      "delta": 28,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/captures.rs",
+      "old_lines": 231,
+      "lines": 282,
+      "delta": 51,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/captures/materialize.rs",
+      "old_lines": 0,
+      "lines": 58,
+      "delta": 58,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/constructors.rs",
+      "old_lines": 166,
+      "lines": 108,
+      "delta": -58,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/constructors/aliases.rs",
+      "old_lines": 0,
+      "lines": 143,
+      "delta": 143,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/constructors/arrays.rs",
+      "old_lines": 90,
+      "lines": 91,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/constructors/classes.rs",
+      "old_lines": 93,
+      "lines": 94,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/constructors/structs.rs",
+      "old_lines": 85,
+      "lines": 86,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/constructors/variants.rs",
+      "old_lines": 189,
+      "lines": 193,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/context.rs",
+      "old_lines": 165,
+      "lines": 165,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/fields.rs",
+      "old_lines": 458,
+      "lines": 466,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/generic_calls.rs",
+      "old_lines": 306,
+      "lines": 307,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/generic_calls/intrinsics.rs",
+      "old_lines": 173,
+      "lines": 177,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/generic_inference.rs",
+      "old_lines": 189,
+      "lines": 192,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/generic_inference/context.rs",
+      "old_lines": 428,
+      "lines": 429,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/imported_callables.rs",
+      "old_lines": 194,
+      "lines": 200,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/imported_namespaces.rs",
+      "old_lines": 60,
+      "lines": 60,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/imported_namespaces/types.rs",
+      "old_lines": 138,
+      "lines": 139,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members.rs",
+      "old_lines": 473,
+      "lines": 492,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/explicit_calls.rs",
+      "old_lines": 442,
+      "lines": 462,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/property_invoke.rs",
+      "old_lines": 235,
+      "lines": 236,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/qualifiers.rs",
+      "old_lines": 229,
+      "lines": 227,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/qualifiers/aliases.rs",
+      "old_lines": 0,
+      "lines": 113,
+      "delta": 113,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/qualifiers/applied.rs",
+      "old_lines": 123,
+      "lines": 126,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/resolution.rs",
+      "old_lines": 223,
+      "lines": 226,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/selection.rs",
+      "old_lines": 227,
+      "lines": 244,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/members/selection/inner.rs",
+      "old_lines": 0,
+      "lines": 178,
+      "delta": 178,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls.rs",
+      "old_lines": 374,
+      "lines": 415,
+      "delta": 41,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency.rs",
+      "old_lines": 211,
+      "lines": 218,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/defaults/materialize.rs",
+      "old_lines": 177,
+      "lines": 215,
+      "delta": 38,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/defaults/materialize/constructors.rs",
+      "old_lines": 349,
+      "lines": 360,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/defaults/materialize/expressions.rs",
+      "old_lines": 547,
+      "lines": 542,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/defaults/materialize/statements.rs",
+      "old_lines": 223,
+      "lines": 233,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/generic.rs",
+      "old_lines": 305,
+      "lines": 411,
+      "delta": 106,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/generic/diagnostics.rs",
+      "old_lines": 144,
+      "lines": 144,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/generic/signature.rs",
+      "old_lines": 133,
+      "lines": 136,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/inputs.rs",
+      "old_lines": 109,
+      "lines": 112,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/probe.rs",
+      "old_lines": 337,
+      "lines": 384,
+      "delta": 47,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/probe/native.rs",
+      "old_lines": 137,
+      "lines": 173,
+      "delta": 36,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/imported_dependency/probe/receiver.rs",
+      "old_lines": 154,
+      "lines": 183,
+      "delta": 29,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals.rs",
+      "old_lines": 366,
+      "lines": 213,
+      "delta": -153,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/finish.rs",
+      "old_lines": 0,
+      "lines": 129,
+      "delta": 129,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/functions.rs",
+      "old_lines": 0,
+      "lines": 149,
+      "delta": 149,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/imported.rs",
+      "old_lines": 137,
+      "lines": 141,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/plans.rs",
+      "old_lines": 467,
+      "lines": 355,
+      "delta": -112,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/plans/aliases.rs",
+      "old_lines": 0,
+      "lines": 98,
+      "delta": 98,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/pointers.rs",
+      "old_lines": 54,
+      "lines": 74,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/probes.rs",
+      "old_lines": 0,
+      "lines": 78,
+      "delta": 78,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/named_calls/nominals/selection.rs",
+      "old_lines": 0,
+      "lines": 74,
+      "delta": 74,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/names.rs",
+      "old_lines": 401,
+      "lines": 406,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/operators.rs",
+      "old_lines": 505,
+      "lines": 417,
+      "delta": -88,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/operators/short_circuit.rs",
+      "old_lines": 0,
+      "lines": 109,
+      "delta": 109,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/receivers.rs",
+      "old_lines": 0,
+      "lines": 177,
+      "delta": 177,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/smart_casts.rs",
+      "old_lines": 130,
+      "lines": 34,
+      "delta": -96,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/smart_casts/conditions.rs",
+      "old_lines": 0,
+      "lines": 135,
+      "delta": 135,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/smart_casts/facts.rs",
+      "old_lines": 0,
+      "lines": 78,
+      "delta": 78,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/smart_casts/joins.rs",
+      "old_lines": 0,
+      "lines": 114,
+      "delta": 114,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/smart_casts/reads.rs",
+      "old_lines": 114,
+      "lines": 137,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/support.rs",
+      "old_lines": 371,
+      "lines": 367,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/expr/type_checks.rs",
+      "old_lines": 142,
+      "lines": 179,
+      "delta": 37,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/ffi.rs",
+      "old_lines": 358,
+      "lines": 382,
+      "delta": 24,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/ffi/classification.rs",
+      "old_lines": 349,
+      "lines": 352,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/ffi/errno.rs",
+      "old_lines": 99,
+      "lines": 99,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/generic_entities.rs",
+      "old_lines": 346,
+      "lines": 360,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals.rs",
+      "old_lines": 504,
+      "lines": 389,
+      "delta": -115,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/consts.rs",
+      "old_lines": 405,
+      "lines": 431,
+      "delta": 26,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/consts/enumerations.rs",
+      "old_lines": 0,
+      "lines": 70,
+      "delta": 70,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/consts/expression.rs",
+      "old_lines": 240,
+      "lines": 279,
+      "delta": 39,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/consts/floating_calls.rs",
+      "old_lines": 163,
+      "lines": 163,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/consts/integer_intrinsics.rs",
+      "old_lines": 242,
+      "lines": 238,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/extensions.rs",
+      "old_lines": 211,
+      "lines": 211,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/initialization.rs",
+      "old_lines": 309,
+      "lines": 340,
+      "delta": 31,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/raw.rs",
+      "old_lines": 57,
+      "lines": 188,
+      "delta": 131,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/globals/storage.rs",
+      "old_lines": 209,
+      "lines": 211,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_constructors/prepare.rs",
+      "old_lines": 149,
+      "lines": 181,
+      "delta": 32,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core.rs",
+      "old_lines": 179,
+      "lines": 185,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/generic_primitives.rs",
+      "old_lines": 63,
+      "lines": 63,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/interfaces.rs",
+      "old_lines": 202,
+      "lines": 206,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/intrinsics.rs",
+      "old_lines": 167,
+      "lines": 170,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/members/selections.rs",
+      "old_lines": 89,
+      "lines": 91,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/nominals.rs",
+      "old_lines": 133,
+      "lines": 134,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/nominals/classes.rs",
+      "old_lines": 189,
+      "lines": 193,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/nominals/enums.rs",
+      "old_lines": 161,
+      "lines": 170,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/nominals/parameters.rs",
+      "old_lines": 0,
+      "lines": 46,
+      "delta": 46,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/nominals/source.rs",
+      "old_lines": 133,
+      "lines": 152,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/nominals/structs.rs",
+      "old_lines": 200,
+      "lines": 200,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_core/pointers.rs",
+      "old_lines": 97,
+      "lines": 94,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_generics/intrinsic/maybe_uninit.rs",
+      "old_lines": 90,
+      "lines": 90,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imported_type_aliases.rs",
+      "old_lines": 123,
+      "lines": 175,
+      "delta": 52,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/collect.rs",
+      "old_lines": 563,
+      "lines": 578,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup.rs",
+      "old_lines": 386,
+      "lines": 393,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/calls.rs",
+      "old_lines": 280,
+      "lines": 282,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/calls/extensions.rs",
+      "old_lines": 445,
+      "lines": 452,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/calls/qualifiers.rs",
+      "old_lines": 383,
+      "lines": 394,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/diagnostics.rs",
+      "old_lines": 99,
+      "lines": 101,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/values/diagnostics.rs",
+      "old_lines": 261,
+      "lines": 261,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/values/materialization.rs",
+      "old_lines": 51,
+      "lines": 51,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/values/model.rs",
+      "old_lines": 85,
+      "lines": 85,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/lookup/values/selection.rs",
+      "old_lines": 276,
+      "lines": 279,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests.rs",
+      "old_lines": 284,
+      "lines": 284,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests/materialization.rs",
+      "old_lines": 99,
+      "lines": 100,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests/pipeline.rs",
+      "old_lines": 349,
+      "lines": 352,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests/type_lookup.rs",
+      "old_lines": 456,
+      "lines": 463,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests/value_lookup.rs",
+      "old_lines": 587,
+      "lines": 588,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/imports/tests/value_lookup/regressions.rs",
+      "old_lines": 358,
+      "lines": 361,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/lib.rs",
+      "old_lines": 923,
+      "lines": 946,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types.rs",
+      "old_lines": 0,
+      "lines": 168,
+      "delta": 168,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/bindings.rs",
+      "old_lines": 0,
+      "lines": 61,
+      "delta": 61,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/capture_scope.rs",
+      "old_lines": 0,
+      "lines": 81,
+      "delta": 81,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/captures.rs",
+      "old_lines": 0,
+      "lines": 178,
+      "delta": 178,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/completion.rs",
+      "old_lines": 0,
+      "lines": 164,
+      "delta": 164,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/completion/constructors.rs",
+      "old_lines": 0,
+      "lines": 64,
+      "delta": 64,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/completion/regions.rs",
+      "old_lines": 0,
+      "lines": 100,
+      "delta": 100,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/declarations.rs",
+      "old_lines": 0,
+      "lines": 176,
+      "delta": 176,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/exposure.rs",
+      "old_lines": 0,
+      "lines": 59,
+      "delta": 59,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/local_types/resolution.rs",
+      "old_lines": 0,
+      "lines": 156,
+      "delta": 156,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/model.rs",
+      "old_lines": 312,
+      "lines": 339,
+      "delta": 27,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/overload/diagnostics.rs",
+      "old_lines": 341,
+      "lines": 341,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/overload/diagnostics/integers.rs",
+      "old_lines": 289,
+      "lines": 290,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/overload/named.rs",
+      "old_lines": 352,
+      "lines": 365,
+      "delta": 13,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/overload/probe.rs",
+      "old_lines": 218,
+      "lines": 222,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/patterns/structure/targets.rs",
+      "old_lines": 76,
+      "lines": 76,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_aliases.rs",
+      "old_lines": 161,
+      "lines": 179,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_aliases/tests.rs",
+      "old_lines": 129,
+      "lines": 132,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_dispatch/tests.rs",
+      "old_lines": 358,
+      "lines": 359,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_enum_members.rs",
+      "old_lines": 137,
+      "lines": 140,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_export_bindings.rs",
+      "old_lines": 154,
+      "lines": 155,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_export_bindings/merge.rs",
+      "old_lines": 384,
+      "lines": 394,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_export_bindings/tests.rs",
+      "old_lines": 370,
+      "lines": 373,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_fields.rs",
+      "old_lines": 171,
+      "lines": 213,
+      "delta": 42,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_fields/tests.rs",
+      "old_lines": 163,
+      "lines": 163,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_functions/tests.rs",
+      "old_lines": 234,
+      "lines": 235,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_initialization_units/tests.rs",
+      "old_lines": 310,
+      "lines": 310,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_local_bindings/tests.rs",
+      "old_lines": 251,
+      "lines": 254,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_nominals.rs",
+      "old_lines": 217,
+      "lines": 225,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_properties/tests.rs",
+      "old_lines": 418,
+      "lines": 419,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/persistent_source_contexts/tests.rs",
+      "old_lines": 391,
+      "lines": 392,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/pipeline.rs",
+      "old_lines": 566,
+      "lines": 583,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/pipeline/run.rs",
+      "old_lines": 578,
+      "lines": 626,
+      "delta": 48,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/pipeline/type_parameters.rs",
+      "old_lines": 103,
+      "lines": 111,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties.rs",
+      "old_lines": 413,
+      "lines": 416,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/declarations.rs",
+      "old_lines": 186,
+      "lines": 186,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/declarations/accessors.rs",
+      "old_lines": 399,
+      "lines": 422,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/declarations/classes.rs",
+      "old_lines": 351,
+      "lines": 349,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/declarations/functions.rs",
+      "old_lines": 331,
+      "lines": 409,
+      "delta": 78,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/declarations/storage.rs",
+      "old_lines": 60,
+      "lines": 65,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/delegates/accessor.rs",
+      "old_lines": 210,
+      "lines": 214,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/implicit_values.rs",
+      "old_lines": 292,
+      "lines": 297,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/properties/lookup.rs",
+      "old_lines": 189,
+      "lines": 193,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/release/body.rs",
+      "old_lines": 46,
+      "lines": 48,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/release/restrictions.rs",
+      "old_lines": 45,
+      "lines": 46,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/scope.rs",
+      "old_lines": 115,
+      "lines": 195,
+      "delta": 80,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/signatures.rs",
+      "old_lines": 480,
+      "lines": 496,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/signatures/properties.rs",
+      "old_lines": 42,
+      "lines": 42,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt.rs",
+      "old_lines": 58,
+      "lines": 61,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/assignments.rs",
+      "old_lines": 292,
+      "lines": 293,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/assignments/names.rs",
+      "old_lines": 315,
+      "lines": 314,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/blocks.rs",
+      "old_lines": 286,
+      "lines": 294,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/body.rs",
+      "old_lines": 180,
+      "lines": 206,
+      "delta": 26,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/body/context.rs",
+      "old_lines": 106,
+      "lines": 166,
+      "delta": 60,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/exceptions.rs",
+      "old_lines": 269,
+      "lines": 311,
+      "delta": 42,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/flow.rs",
+      "old_lines": 642,
+      "lines": 635,
+      "delta": -7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/flow/expressions.rs",
+      "old_lines": 139,
+      "lines": 139,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/flow/initialization.rs",
+      "old_lines": 0,
+      "lines": 63,
+      "delta": 63,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/flow/loops.rs",
+      "old_lines": 0,
+      "lines": 48,
+      "delta": 48,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/flow/tests/do_while.rs",
+      "old_lines": 0,
+      "lines": 26,
+      "delta": 26,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/iteration.rs",
+      "old_lines": 162,
+      "lines": 163,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/jumps.rs",
+      "old_lines": 150,
+      "lines": 178,
+      "delta": 28,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/local_functions.rs",
+      "old_lines": 314,
+      "lines": 289,
+      "delta": -25,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/local_functions/body.rs",
+      "old_lines": 0,
+      "lines": 68,
+      "delta": 68,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/local_functions/patching.rs",
+      "old_lines": 399,
+      "lines": 84,
+      "delta": -315,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/loops.rs",
+      "old_lines": 0,
+      "lines": 113,
+      "delta": 113,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/places.rs",
+      "old_lines": 357,
+      "lines": 358,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/places/names.rs",
+      "old_lines": 214,
+      "lines": 213,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/smart_flow.rs",
+      "old_lines": 0,
+      "lines": 145,
+      "delta": 145,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/smart_flow/expressions.rs",
+      "old_lines": 0,
+      "lines": 128,
+      "delta": 128,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/smart_flow/loops.rs",
+      "old_lines": 0,
+      "lines": 136,
+      "delta": 136,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/smart_flow/operands.rs",
+      "old_lines": 0,
+      "lines": 153,
+      "delta": 153,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/smart_flow/regions.rs",
+      "old_lines": 0,
+      "lines": 108,
+      "delta": 108,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/smart_flow/statements.rs",
+      "old_lines": 0,
+      "lines": 112,
+      "delta": 112,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/statements.rs",
+      "old_lines": 291,
+      "lines": 288,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when.rs",
+      "old_lines": 193,
+      "lines": 199,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/conditions.rs",
+      "old_lines": 111,
+      "lines": 96,
+      "delta": -15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/coverage.rs",
+      "old_lines": 68,
+      "lines": 70,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/primary.rs",
+      "old_lines": 161,
+      "lines": 169,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/primary/predicates.rs",
+      "old_lines": 0,
+      "lines": 53,
+      "delta": 53,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/sealed.rs",
+      "old_lines": 0,
+      "lines": 106,
+      "delta": 106,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/sealed/applications.rs",
+      "old_lines": 0,
+      "lines": 205,
+      "delta": 205,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/stmt/when/subject.rs",
+      "old_lines": 109,
+      "lines": 129,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/expressions.rs",
+      "old_lines": 267,
+      "lines": 283,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/functions.rs",
+      "old_lines": 209,
+      "lines": 214,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/member_expressions.rs",
+      "old_lines": 68,
+      "lines": 71,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/mod.rs",
+      "old_lines": 73,
+      "lines": 73,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/nominals.rs",
+      "old_lines": 327,
+      "lines": 331,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/statements.rs",
+      "old_lines": 192,
+      "lines": 194,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/builders/types.rs",
+      "old_lines": 47,
+      "lines": 53,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/arrays.rs",
+      "old_lines": 50,
+      "lines": 51,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/equality.rs",
+      "old_lines": 132,
+      "lines": 133,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/ffi.rs",
+      "old_lines": 286,
+      "lines": 288,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/floating.rs",
+      "old_lines": 115,
+      "lines": 119,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/gc.rs",
+      "old_lines": 61,
+      "lines": 62,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/intrinsic_types.rs",
+      "old_lines": 579,
+      "lines": 582,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/core/module.rs",
+      "old_lines": 277,
+      "lines": 280,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m11/captures.rs",
+      "old_lines": 102,
+      "lines": 103,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m11/literals.rs",
+      "old_lines": 249,
+      "lines": 254,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m11/local_functions.rs",
+      "old_lines": 177,
+      "lines": 178,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m11/mod.rs",
+      "old_lines": 60,
+      "lines": 66,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m11/returns.rs",
+      "old_lines": 0,
+      "lines": 63,
+      "delta": 63,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/annotations.rs",
+      "old_lines": 137,
+      "lines": 138,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/externs.rs",
+      "old_lines": 592,
+      "lines": 592,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/ffi_types.rs",
+      "old_lines": 743,
+      "lines": 743,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/gc_free_pointees.rs",
+      "old_lines": 883,
+      "lines": 894,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m12/mod.rs",
+      "old_lines": 148,
+      "lines": 152,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m14/intrinsic_types.rs",
+      "old_lines": 226,
+      "lines": 227,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m14/operators.rs",
+      "old_lines": 292,
+      "lines": 293,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m17/declarations.rs",
+      "old_lines": 159,
+      "lines": 160,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m17/protocol/materialization.rs",
+      "old_lines": 690,
+      "lines": 693,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m17/protocol/mod.rs",
+      "old_lines": 116,
+      "lines": 118,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m17/protocol/origins.rs",
+      "old_lines": 457,
+      "lines": 458,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m18/mod.rs",
+      "old_lines": 2483,
+      "lines": 2494,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m19_safety.rs",
+      "old_lines": 32,
+      "lines": 33,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_consts.rs",
+      "old_lines": 1113,
+      "lines": 1114,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_delegates.rs",
+      "old_lines": 595,
+      "lines": 596,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_interfaces.rs",
+      "old_lines": 735,
+      "lines": 736,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_nested.rs",
+      "old_lines": 175,
+      "lines": 174,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_objects.rs",
+      "old_lines": 241,
+      "lines": 241,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_properties.rs",
+      "old_lines": 261,
+      "lines": 264,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_top_level_storage.rs",
+      "old_lines": 804,
+      "lines": 804,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m21_visibility.rs",
+      "old_lines": 523,
+      "lines": 524,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_aliases.rs",
+      "old_lines": 777,
+      "lines": 785,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_binding_patterns.rs",
+      "old_lines": 548,
+      "lines": 550,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_contextual_variants.rs",
+      "old_lines": 620,
+      "lines": 622,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_iteration/effects.rs",
+      "old_lines": 120,
+      "lines": 121,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_iteration/generic.rs",
+      "old_lines": 189,
+      "lines": 187,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_iteration/mod.rs",
+      "old_lines": 309,
+      "lines": 311,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_loop_targets.rs",
+      "old_lines": 347,
+      "lines": 357,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_ranges.rs",
+      "old_lines": 797,
+      "lines": 798,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m22_recursive_named_fields.rs",
+      "old_lines": 476,
+      "lines": 478,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_address_of_globals.rs",
+      "old_lines": 283,
+      "lines": 284,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_callable_applications.rs",
+      "old_lines": 439,
+      "lines": 442,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_callable_interface_production.rs",
+      "old_lines": 279,
+      "lines": 279,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_callable_references.rs",
+      "old_lines": 565,
+      "lines": 566,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_const_interface_production.rs",
+      "old_lines": 155,
+      "lines": 156,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_default_template_production.rs",
+      "old_lines": 305,
+      "lines": 306,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_definition_origins.rs",
+      "old_lines": 403,
+      "lines": 409,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_definition_source_production.rs",
+      "old_lines": 182,
+      "lines": 185,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_explicit_receiver_calls.rs",
+      "old_lines": 647,
+      "lines": 647,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_expression_qualifiers.rs",
+      "old_lines": 530,
+      "lines": 534,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_extension_properties.rs",
+      "old_lines": 792,
+      "lines": 792,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_generic_body_consumption/options.rs",
+      "old_lines": 95,
+      "lines": 98,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_local_value_identities.rs",
+      "old_lines": 555,
+      "lines": 558,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_named_calls.rs",
+      "old_lines": 894,
+      "lines": 898,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_nominal_interface_production.rs",
+      "old_lines": 393,
+      "lines": 393,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_core_only.rs",
+      "old_lines": 324,
+      "lines": 327,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_dependencies/extensions.rs",
+      "old_lines": 527,
+      "lines": 527,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_dependency_constants.rs",
+      "old_lines": 292,
+      "lines": 292,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_dependency_defaults.rs",
+      "old_lines": 278,
+      "lines": 278,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_dependency_properties.rs",
+      "old_lines": 327,
+      "lines": 327,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_ordinary_dependency_type_aliases.rs",
+      "old_lines": 200,
+      "lines": 203,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_output_kind.rs",
+      "old_lines": 532,
+      "lines": 533,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_pattern_paths.rs",
+      "old_lines": 298,
+      "lines": 301,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_pattern_paths/enums.rs",
+      "old_lines": 164,
+      "lines": 165,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_property_interface_production.rs",
+      "old_lines": 294,
+      "lines": 294,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_source_call_receivers/inheritance.rs",
+      "old_lines": 44,
+      "lines": 44,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_source_model.rs",
+      "old_lines": 814,
+      "lines": 815,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_type_alias_interface_production.rs",
+      "old_lines": 108,
+      "lines": 111,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_type_alias_targets.rs",
+      "old_lines": 139,
+      "lines": 142,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_type_semantics_production/additional.rs",
+      "old_lines": 227,
+      "lines": 228,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_type_semantics_production/declaration_type_sites/signatures.rs",
+      "old_lines": 87,
+      "lines": 141,
+      "delta": 54,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_type_semantics_production/shared_declaration_combinations/core_extensions.rs",
+      "old_lines": 104,
+      "lines": 104,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m23_type_semantics_production/source_native_boundary.rs",
+      "old_lines": 143,
+      "lines": 143,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m29_static_shapes.rs",
+      "old_lines": 88,
+      "lines": 89,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m29_static_shapes/annotation_arrays.rs",
+      "old_lines": 38,
+      "lines": 109,
+      "delta": 71,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m29_static_shapes/type_annotations.rs",
+      "old_lines": 0,
+      "lines": 118,
+      "delta": 118,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m35_annotations.rs",
+      "old_lines": 83,
+      "lines": 123,
+      "delta": 40,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m37_inference.rs",
+      "old_lines": 0,
+      "lines": 138,
+      "delta": 138,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m37_names.rs",
+      "old_lines": 0,
+      "lines": 16,
+      "delta": 16,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m37_properties.rs",
+      "old_lines": 0,
+      "lines": 85,
+      "delta": 85,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m37_type_annotations.rs",
+      "old_lines": 0,
+      "lines": 289,
+      "delta": 289,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m4/intrinsics.rs",
+      "old_lines": 219,
+      "lines": 217,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m6/conversions.rs",
+      "old_lines": 387,
+      "lines": 384,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m6/type_operators.rs",
+      "old_lines": 102,
+      "lines": 100,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m7/declarations.rs",
+      "old_lines": 412,
+      "lines": 412,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/m8/diagnostics.rs",
+      "old_lines": 143,
+      "lines": 144,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/tests/mod.rs",
+      "old_lines": 390,
+      "lines": 394,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/adaptation.rs",
+      "old_lines": 141,
+      "lines": 152,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/constraints.rs",
+      "old_lines": 270,
+      "lines": 258,
+      "delta": -12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/display.rs",
+      "old_lines": 262,
+      "lines": 269,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/interning.rs",
+      "old_lines": 367,
+      "lines": 388,
+      "delta": 21,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/layout_cycles.rs",
+      "old_lines": 246,
+      "lines": 266,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/layout_cycles/relevance.rs",
+      "old_lines": 143,
+      "lines": 146,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/qualified.rs",
+      "old_lines": 50,
+      "lines": 49,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/qualified/applied.rs",
+      "old_lines": 108,
+      "lines": 111,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/qualified/inner.rs",
+      "old_lines": 0,
+      "lines": 58,
+      "delta": 58,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/types/qualified/names.rs",
+      "old_lines": 187,
+      "lines": 236,
+      "delta": 49,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/qualified/names/bindings.rs",
+      "old_lines": 79,
+      "lines": 117,
+      "delta": 38,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/qualified/nominals.rs",
+      "old_lines": 0,
+      "lines": 93,
+      "delta": 93,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/types/relations.rs",
+      "old_lines": 206,
+      "lines": 209,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/relations/parents.rs",
+      "old_lines": 116,
+      "lines": 118,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/resolution.rs",
+      "old_lines": 649,
+      "lines": 415,
+      "delta": -234,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/types/resolution/names.rs",
+      "old_lines": 0,
+      "lines": 191,
+      "delta": 191,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/types/substitution.rs",
+      "old_lines": 177,
+      "lines": 176,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations.rs",
+      "old_lines": 137,
+      "lines": 152,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/arrays.rs",
+      "old_lines": 47,
+      "lines": 78,
+      "delta": 31,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/binding.rs",
+      "old_lines": 251,
+      "lines": 172,
+      "delta": -79,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/callables.rs",
+      "old_lines": 0,
+      "lines": 137,
+      "delta": 137,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/nested.rs",
+      "old_lines": 0,
+      "lines": 119,
+      "delta": 119,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/properties.rs",
+      "old_lines": 0,
+      "lines": 199,
+      "delta": 199,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/rules.rs",
+      "old_lines": 0,
+      "lines": 75,
+      "delta": 75,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/rules/declarations.rs",
+      "old_lines": 0,
+      "lines": 94,
+      "delta": 94,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/schemas.rs",
+      "old_lines": 0,
+      "lines": 183,
+      "delta": 183,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/serialization.rs",
+      "old_lines": 68,
+      "lines": 99,
+      "delta": 31,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/targets.rs",
+      "old_lines": 172,
+      "lines": 248,
+      "delta": 76,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses.rs",
+      "old_lines": 0,
+      "lines": 165,
+      "delta": 165,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/aliases.rs",
+      "old_lines": 0,
+      "lines": 73,
+      "delta": 73,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/binding.rs",
+      "old_lines": 0,
+      "lines": 124,
+      "delta": 124,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/children.rs",
+      "old_lines": 0,
+      "lines": 71,
+      "delta": 71,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/context.rs",
+      "old_lines": 0,
+      "lines": 53,
+      "delta": 53,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/finish.rs",
+      "old_lines": 0,
+      "lines": 204,
+      "delta": 204,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/type_uses/sites.rs",
+      "old_lines": 0,
+      "lines": 59,
+      "delta": 59,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/types.rs",
+      "old_lines": 0,
+      "lines": 147,
+      "delta": 147,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/use_sites.rs",
+      "old_lines": 0,
+      "lines": 79,
+      "delta": 79,
+      "new": true
+    },
+    {
+      "path": "compiler/hir-lower/src/user_annotations/values.rs",
+      "old_lines": 109,
+      "lines": 121,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/visibility.rs",
+      "old_lines": 310,
+      "lines": 316,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/visibility/access.rs",
+      "old_lines": 272,
+      "lines": 268,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/visibility/domains.rs",
+      "old_lines": 242,
+      "lines": 241,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir-lower/src/visibility/signatures.rs",
+      "old_lines": 299,
+      "lines": 300,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/annotations.rs",
+      "old_lines": 50,
+      "lines": 73,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/annotations/rules.rs",
+      "old_lines": 0,
+      "lines": 134,
+      "delta": 134,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/annotations/rules/tests.rs",
+      "old_lines": 0,
+      "lines": 29,
+      "delta": 29,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/annotations/targets.rs",
+      "old_lines": 0,
+      "lines": 78,
+      "delta": 78,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/annotations/type_uses.rs",
+      "old_lines": 0,
+      "lines": 48,
+      "delta": 48,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/annotations/type_uses/paths.rs",
+      "old_lines": 0,
+      "lines": 152,
+      "delta": 152,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/annotations/type_uses/slots.rs",
+      "old_lines": 0,
+      "lines": 9,
+      "delta": 9,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/annotations/type_uses/tests.rs",
+      "old_lines": 0,
+      "lines": 87,
+      "delta": 87,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/body.rs",
+      "old_lines": 600,
+      "lines": 601,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/body.rs",
+      "old_lines": 374,
+      "lines": 375,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/exact_types.rs",
+      "old_lines": 547,
+      "lines": 555,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/executable_expressions/expressions.rs",
+      "old_lines": 185,
+      "lines": 185,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/local_values/constructors.rs",
+      "old_lines": 144,
+      "lines": 142,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/mod.rs",
+      "old_lines": 78,
+      "lines": 78,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/nominals.rs",
+      "old_lines": 461,
+      "lines": 463,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/nominals/tests.rs",
+      "old_lines": 194,
+      "lines": 196,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/type_relations.rs",
+      "old_lines": 138,
+      "lines": 138,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/concrete/types.rs",
+      "old_lines": 155,
+      "lines": 167,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface.rs",
+      "old_lines": 341,
+      "lines": 342,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations.rs",
+      "old_lines": 168,
+      "lines": 172,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/parameter.rs",
+      "old_lines": 0,
+      "lines": 105,
+      "delta": 105,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/references.rs",
+      "old_lines": 0,
+      "lines": 108,
+      "delta": 108,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/source_targets.rs",
+      "old_lines": 56,
+      "lines": 112,
+      "delta": 56,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/target.rs",
+      "old_lines": 95,
+      "lines": 95,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/target/callable.rs",
+      "old_lines": 0,
+      "lines": 69,
+      "delta": 69,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/target/kind.rs",
+      "old_lines": 0,
+      "lines": 36,
+      "delta": 36,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/target/wire.rs",
+      "old_lines": 0,
+      "lines": 121,
+      "delta": 121,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/type_uses.rs",
+      "old_lines": 0,
+      "lines": 91,
+      "delta": 91,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/type_uses/wire.rs",
+      "old_lines": 0,
+      "lines": 173,
+      "delta": 173,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/type_uses/wire/encode.rs",
+      "old_lines": 0,
+      "lines": 91,
+      "delta": 91,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/type_uses/wire/paths.rs",
+      "old_lines": 0,
+      "lines": 103,
+      "delta": 103,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/value.rs",
+      "old_lines": 127,
+      "lines": 61,
+      "delta": -66,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/value/decoded.rs",
+      "old_lines": 0,
+      "lines": 127,
+      "delta": 127,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/value/element_type.rs",
+      "old_lines": 0,
+      "lines": 70,
+      "delta": 70,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/value/scalar_kind.rs",
+      "old_lines": 0,
+      "lines": 48,
+      "delta": 48,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/value/tests.rs",
+      "old_lines": 73,
+      "lines": 83,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/value/wire.rs",
+      "old_lines": 0,
+      "lines": 75,
+      "delta": 75,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/wire.rs",
+      "old_lines": 177,
+      "lines": 215,
+      "delta": 38,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/annotations/wire/records.rs",
+      "old_lines": 163,
+      "lines": 168,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/binders/scope.rs",
+      "old_lines": 210,
+      "lines": 213,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/binders/scope/tests.rs",
+      "old_lines": 187,
+      "lines": 189,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/binders/semantics.rs",
+      "old_lines": 392,
+      "lines": 397,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/binders/tests.rs",
+      "old_lines": 285,
+      "lines": 285,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/callable_interfaces/common/tests.rs",
+      "old_lines": 291,
+      "lines": 291,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/callable_interfaces/record.rs",
+      "old_lines": 144,
+      "lines": 144,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/callable_interfaces/record/public.rs",
+      "old_lines": 151,
+      "lines": 151,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/callable_interfaces/record/validation.rs",
+      "old_lines": 132,
+      "lines": 138,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates.rs",
+      "old_lines": 240,
+      "lines": 241,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/binder_uses/semantics/tests.rs",
+      "old_lines": 269,
+      "lines": 271,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/binder_uses/substitution/build.rs",
+      "old_lines": 71,
+      "lines": 77,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/binder_uses/substitution/tests.rs",
+      "old_lines": 111,
+      "lines": 113,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/binder_uses/substitution/walk.rs",
+      "old_lines": 89,
+      "lines": 98,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body.rs",
+      "old_lines": 106,
+      "lines": 106,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/callables/tests.rs",
+      "old_lines": 376,
+      "lines": 377,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow.rs",
+      "old_lines": 430,
+      "lines": 386,
+      "delta": -44,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/control.rs",
+      "old_lines": 564,
+      "lines": 512,
+      "delta": -52,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/expression.rs",
+      "old_lines": 356,
+      "lines": 356,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/loops.rs",
+      "old_lines": 0,
+      "lines": 89,
+      "delta": 89,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/tests.rs",
+      "old_lines": 492,
+      "lines": 501,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/tests/do_while.rs",
+      "old_lines": 0,
+      "lines": 89,
+      "delta": 89,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/data_flow/tests/loop_targets.rs",
+      "old_lines": 0,
+      "lines": 92,
+      "delta": 92,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/export_body.rs",
+      "old_lines": 315,
+      "lines": 324,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree.rs",
+      "old_lines": 553,
+      "lines": 553,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/decoded.rs",
+      "old_lines": 350,
+      "lines": 350,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/decoded/resolve.rs",
+      "old_lines": 792,
+      "lines": 792,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/decoded/wire.rs",
+      "old_lines": 904,
+      "lines": 904,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/indexed.rs",
+      "old_lines": 892,
+      "lines": 890,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/indexed/wire.rs",
+      "old_lines": 408,
+      "lines": 408,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/expressions/tree/tests.rs",
+      "old_lines": 542,
+      "lines": 542,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/nested/test_support.rs",
+      "old_lines": 358,
+      "lines": 359,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/semantics/walk/expression.rs",
+      "old_lines": 440,
+      "lines": 440,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/semantics/walk/statement.rs",
+      "old_lines": 244,
+      "lines": 245,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements.rs",
+      "old_lines": 26,
+      "lines": 26,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements/tree.rs",
+      "old_lines": 162,
+      "lines": 174,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements/tree/decoded.rs",
+      "old_lines": 619,
+      "lines": 629,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements/tree/indexed.rs",
+      "old_lines": 402,
+      "lines": 409,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements/tree/loop_target.rs",
+      "old_lines": 0,
+      "lines": 58,
+      "delta": 58,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/body/statements/tree/tests.rs",
+      "old_lines": 375,
+      "lines": 421,
+      "delta": 46,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/locals.rs",
+      "old_lines": 451,
+      "lines": 455,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/locals/semantics.rs",
+      "old_lines": 133,
+      "lines": 136,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/references/closure/compare.rs",
+      "old_lines": 661,
+      "lines": 682,
+      "delta": 21,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/references/closure/walk/expression.rs",
+      "old_lines": 453,
+      "lines": 453,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/references/closure/walk/statement.rs",
+      "old_lines": 200,
+      "lines": 201,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/default_templates/references/tests.rs",
+      "old_lines": 319,
+      "lines": 320,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/external_references/call_sites/source.rs",
+      "old_lines": 172,
+      "lines": 176,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/external_references/type_sites/nominals.rs",
+      "old_lines": 93,
+      "lines": 105,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/generic_templates/callable/decode/tests/captures.rs",
+      "old_lines": 91,
+      "lines": 92,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_callables.rs",
+      "old_lines": 206,
+      "lines": 206,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_callables/signatures.rs",
+      "old_lines": 106,
+      "lines": 116,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_callables/tests/signatures.rs",
+      "old_lines": 86,
+      "lines": 91,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/declaration.rs",
+      "old_lines": 244,
+      "lines": 284,
+      "delta": 40,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/declaration/decode.rs",
+      "old_lines": 180,
+      "lines": 231,
+      "delta": 51,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/declaration/inventory.rs",
+      "old_lines": 157,
+      "lines": 170,
+      "delta": 13,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/declaration/sealed.rs",
+      "old_lines": 0,
+      "lines": 110,
+      "delta": 110,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/field_inventory.rs",
+      "old_lines": 146,
+      "lines": 149,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics.rs",
+      "old_lines": 209,
+      "lines": 164,
+      "delta": -45,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics/enclosing.rs",
+      "old_lines": 0,
+      "lines": 75,
+      "delta": 75,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics/errors.rs",
+      "old_lines": 176,
+      "lines": 184,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics/supertypes.rs",
+      "old_lines": 0,
+      "lines": 79,
+      "delta": 79,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics/tests.rs",
+      "old_lines": 260,
+      "lines": 261,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics/tests/enclosing.rs",
+      "old_lines": 0,
+      "lines": 104,
+      "delta": 104,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/semantics/tests/support.rs",
+      "old_lines": 451,
+      "lines": 458,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/tests.rs",
+      "old_lines": 231,
+      "lines": 232,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_interfaces/tests/sealed.rs",
+      "old_lines": 0,
+      "lines": 92,
+      "delta": 92,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_shapes.rs",
+      "old_lines": 330,
+      "lines": 350,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_shapes/enumeration.rs",
+      "old_lines": 252,
+      "lines": 275,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_shapes/errors.rs",
+      "old_lines": 177,
+      "lines": 185,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_shapes/semantics/fields.rs",
+      "old_lines": 74,
+      "lines": 79,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_shapes/tests.rs",
+      "old_lines": 464,
+      "lines": 464,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/nominal_shapes/wire.rs",
+      "old_lines": 186,
+      "lines": 202,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/section/alias_reference_closure.rs",
+      "old_lines": 227,
+      "lines": 245,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/section/signature_nominal_walk.rs",
+      "old_lines": 78,
+      "lines": 82,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/section/tests.rs",
+      "old_lines": 398,
+      "lines": 401,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/type_alias_interfaces/record.rs",
+      "old_lines": 214,
+      "lines": 339,
+      "delta": 125,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/type_alias_interfaces/record/semantics.rs",
+      "old_lines": 156,
+      "lines": 170,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/type_alias_interfaces/record/semantics/errors.rs",
+      "old_lines": 95,
+      "lines": 98,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/type_alias_interfaces/record/semantics/tests.rs",
+      "old_lines": 250,
+      "lines": 315,
+      "delta": 65,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_interface/type_alias_interfaces/record/tests.rs",
+      "old_lines": 240,
+      "lines": 275,
+      "delta": 35,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation.rs",
+      "old_lines": 412,
+      "lines": 436,
+      "delta": 24,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/decode.rs",
+      "old_lines": 343,
+      "lines": 354,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/semantics/compare.rs",
+      "old_lines": 129,
+      "lines": 138,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/semantics/compare/public.rs",
+      "old_lines": 76,
+      "lines": 84,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/semantics/shared.rs",
+      "old_lines": 163,
+      "lines": 163,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/semantics/tests/fixtures.rs",
+      "old_lines": 108,
+      "lines": 111,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/semantics/tests/mismatches.rs",
+      "old_lines": 267,
+      "lines": 267,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation/tests.rs",
+      "old_lines": 270,
+      "lines": 275,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/representation_fields.rs",
+      "old_lines": 174,
+      "lines": 178,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/inheritance/edges.rs",
+      "old_lines": 104,
+      "lines": 113,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/inheritance/schemas/slots.rs",
+      "old_lines": 112,
+      "lines": 116,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/inheritance/schemas/slots/authority.rs",
+      "old_lines": 136,
+      "lines": 163,
+      "delta": 27,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/keys.rs",
+      "old_lines": 239,
+      "lines": 245,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/type_uses/calls/receivers/parents.rs",
+      "old_lines": 42,
+      "lines": 46,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/type_uses/calls/receivers/relations.rs",
+      "old_lines": 104,
+      "lines": 111,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/type_uses/declarations.rs",
+      "old_lines": 102,
+      "lines": 111,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/type_uses/tests/calls/extensions.rs",
+      "old_lines": 121,
+      "lines": 122,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/type_uses/tests/calls/extensions/functions.rs",
+      "old_lines": 62,
+      "lines": 63,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/shared_foundation/type_uses/tests/fixture/signatures.rs",
+      "old_lines": 67,
+      "lines": 69,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/slot_contracts/tests/support/authority.rs",
+      "old_lines": 192,
+      "lines": 199,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/slot_contracts/validation.rs",
+      "old_lines": 115,
+      "lines": 119,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/slot_contracts/validation/relations.rs",
+      "old_lines": 111,
+      "lines": 116,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/slot_contracts/validation/types.rs",
+      "old_lines": 127,
+      "lines": 132,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/cross_cone_type_semantics/source_callable_selection/signatures.rs",
+      "old_lines": 103,
+      "lines": 109,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/aliases.rs",
+      "old_lines": 32,
+      "lines": 37,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/interfaces.rs",
+      "old_lines": 155,
+      "lines": 156,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/classes.rs",
+      "old_lines": 105,
+      "lines": 126,
+      "delta": 21,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/constructors.rs",
+      "old_lines": 152,
+      "lines": 190,
+      "delta": 38,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/enums.rs",
+      "old_lines": 357,
+      "lines": 360,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/enums/queries.rs",
+      "old_lines": 92,
+      "lines": 106,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/enums/representation.rs",
+      "old_lines": 0,
+      "lines": 97,
+      "delta": 97,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/fields.rs",
+      "old_lines": 118,
+      "lines": 127,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/methods.rs",
+      "old_lines": 70,
+      "lines": 87,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/declarations/nominals/tests.rs",
+      "old_lines": 258,
+      "lines": 259,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/body/expr.rs",
+      "old_lines": 628,
+      "lines": 628,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/body/mod.rs",
+      "old_lines": 300,
+      "lines": 306,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/module.rs",
+      "old_lines": 520,
+      "lines": 567,
+      "delta": 47,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/module/annotations.rs",
+      "old_lines": 94,
+      "lines": 164,
+      "delta": 70,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/dump/static_shapes/names.rs",
+      "old_lines": 112,
+      "lines": 117,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/annotations.rs",
+      "old_lines": 34,
+      "lines": 61,
+      "delta": 27,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/declaration_type_sites.rs",
+      "old_lines": 302,
+      "lines": 321,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/declaration_type_sites/signature.rs",
+      "old_lines": 84,
+      "lines": 99,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/declaration_type_sites/storage.rs",
+      "old_lines": 193,
+      "lines": 198,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation.rs",
+      "old_lines": 658,
+      "lines": 659,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/native_boundary.rs",
+      "old_lines": 370,
+      "lines": 371,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/native_boundary/tests.rs",
+      "old_lines": 192,
+      "lines": 194,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/origins.rs",
+      "old_lines": 318,
+      "lines": 319,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/origins/fields.rs",
+      "old_lines": 16,
+      "lines": 38,
+      "delta": 22,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/origins/requirements.rs",
+      "old_lines": 255,
+      "lines": 257,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/origins/requirements/tests/derived_parameters.rs",
+      "old_lines": 120,
+      "lines": 163,
+      "delta": 43,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/tests.rs",
+      "old_lines": 329,
+      "lines": 330,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/foundation/wire/validation/tests/native_boundary/support.rs",
+      "old_lines": 183,
+      "lines": 185,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/imported_dependency/constructors.rs",
+      "old_lines": 30,
+      "lines": 31,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/integer.rs",
+      "old_lines": 532,
+      "lines": 533,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/integer/wire.rs",
+      "old_lines": 0,
+      "lines": 33,
+      "delta": 33,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/intrinsics/wire.rs",
+      "old_lines": 480,
+      "lines": 459,
+      "delta": -21,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/iteration.rs",
+      "old_lines": 154,
+      "lines": 154,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/lib.rs",
+      "old_lines": 191,
+      "lines": 191,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/c_abi.rs",
+      "old_lines": 64,
+      "lines": 67,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/decode/c_abi.rs",
+      "old_lines": 95,
+      "lines": 98,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/decode/shape.rs",
+      "old_lines": 102,
+      "lines": 130,
+      "delta": 28,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/errors.rs",
+      "old_lines": 89,
+      "lines": 93,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/shape.rs",
+      "old_lines": 247,
+      "lines": 269,
+      "delta": 22,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/tests.rs",
+      "old_lines": 512,
+      "lines": 514,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/tests/c_abi.rs",
+      "old_lines": 164,
+      "lines": 167,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/native_boundary/tests/intrinsics.rs",
+      "old_lines": 157,
+      "lines": 158,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_aliases/tests.rs",
+      "old_lines": 73,
+      "lines": 77,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_enum_members.rs",
+      "old_lines": 325,
+      "lines": 333,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_enum_members/tests.rs",
+      "old_lines": 129,
+      "lines": 130,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_export_bindings.rs",
+      "old_lines": 424,
+      "lines": 422,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_fields.rs",
+      "old_lines": 96,
+      "lines": 96,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_fields/builder.rs",
+      "old_lines": 171,
+      "lines": 286,
+      "delta": 115,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_fields/records.rs",
+      "old_lines": 203,
+      "lines": 247,
+      "delta": 44,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_fields/records/delegates.rs",
+      "old_lines": 0,
+      "lines": 29,
+      "delta": 29,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/persistent_fields/tests.rs",
+      "old_lines": 293,
+      "lines": 292,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_native_boundary/records.rs",
+      "old_lines": 202,
+      "lines": 205,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_native_boundary/roots.rs",
+      "old_lines": 291,
+      "lines": 294,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_nominals.rs",
+      "old_lines": 380,
+      "lines": 403,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_types/builder.rs",
+      "old_lines": 512,
+      "lines": 513,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/persistent_types/signature.rs",
+      "old_lines": 302,
+      "lines": 306,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/annotations.rs",
+      "old_lines": 133,
+      "lines": 158,
+      "delta": 25,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/annotations/targets.rs",
+      "old_lines": 0,
+      "lines": 94,
+      "delta": 94,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/production/callable_interfaces/constructors.rs",
+      "old_lines": 276,
+      "lines": 286,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/core_protocol_surface/operation_signatures.rs",
+      "old_lines": 342,
+      "lines": 343,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/core_protocols/validation.rs",
+      "old_lines": 323,
+      "lines": 326,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/cross_cone_section.rs",
+      "old_lines": 212,
+      "lines": 214,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/body/expressions.rs",
+      "old_lines": 432,
+      "lines": 432,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/body/initialization.rs",
+      "old_lines": 46,
+      "lines": 46,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/body/statements.rs",
+      "old_lines": 205,
+      "lines": 208,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/errors.rs",
+      "old_lines": 170,
+      "lines": 165,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/errors/display.rs",
+      "old_lines": 223,
+      "lines": 216,
+      "delta": -7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/initialization/classes.rs",
+      "old_lines": 239,
+      "lines": 241,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/initialization/fragment.rs",
+      "old_lines": 166,
+      "lines": 176,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/initialization/structures.rs",
+      "old_lines": 74,
+      "lines": 75,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/default_templates/locals.rs",
+      "old_lines": 146,
+      "lines": 153,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/external_references/declaration_types/constructors.rs",
+      "old_lines": 60,
+      "lines": 70,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/external_references/surface.rs",
+      "old_lines": 90,
+      "lines": 97,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_dispatch/selections/receivers.rs",
+      "old_lines": 47,
+      "lines": 53,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_dispatch/targets.rs",
+      "old_lines": 261,
+      "lines": 267,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/mod.rs",
+      "old_lines": 374,
+      "lines": 374,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/nested_bindings.rs",
+      "old_lines": 249,
+      "lines": 260,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/class_primary.rs",
+      "old_lines": 48,
+      "lines": 52,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/projection.rs",
+      "old_lines": 208,
+      "lines": 227,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/roots.rs",
+      "old_lines": 132,
+      "lines": 139,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/roots/index.rs",
+      "old_lines": 148,
+      "lines": 151,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/roots/shared/defaults.rs",
+      "old_lines": 120,
+      "lines": 120,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/roots/storage.rs",
+      "old_lines": 89,
+      "lines": 92,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_contracts/shapes.rs",
+      "old_lines": 54,
+      "lines": 54,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/nominal_interfaces/source_shape.rs",
+      "old_lines": 267,
+      "lines": 297,
+      "delta": 30,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/public_nominal_shapes/materialization/declarations.rs",
+      "old_lines": 78,
+      "lines": 81,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/type_alias_interfaces.rs",
+      "old_lines": 227,
+      "lines": 267,
+      "delta": 40,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/type_semantics/inheritance/edges.rs",
+      "old_lines": 86,
+      "lines": 99,
+      "delta": 13,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/production/type_semantics/nominals/representation.rs",
+      "old_lines": 179,
+      "lines": 182,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/native_boundary/shapes.rs",
+      "old_lines": 69,
+      "lines": 72,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/production_authority/fields.rs",
+      "old_lines": 52,
+      "lines": 60,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/selection.rs",
+      "old_lines": 314,
+      "lines": 315,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/selection/annotations.rs",
+      "old_lines": 25,
+      "lines": 33,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/selection/catalog.rs",
+      "old_lines": 514,
+      "lines": 528,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/selection/nominals.rs",
+      "old_lines": 239,
+      "lines": 241,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/semantic_world/tests/native_boundary.rs",
+      "old_lines": 221,
+      "lines": 221,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/static_shape.rs",
+      "old_lines": 78,
+      "lines": 80,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/static_shape/annotations.rs",
+      "old_lines": 139,
+      "lines": 141,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/static_shape/constructors/parameters.rs",
+      "old_lines": 153,
+      "lines": 160,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/static_shape/fields.rs",
+      "old_lines": 111,
+      "lines": 110,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/static_shape/fields/identities.rs",
+      "old_lines": 129,
+      "lines": 126,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/hir/src/static_shape/type_annotations.rs",
+      "old_lines": 0,
+      "lines": 123,
+      "delta": 123,
+      "new": true
+    },
+    {
+      "path": "compiler/hir/src/types.rs",
+      "old_lines": 273,
+      "lines": 289,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/exact_signature.rs",
+      "old_lines": 158,
+      "lines": 169,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/exact_type.rs",
+      "old_lines": 149,
+      "lines": 164,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/exact_type/decode.rs",
+      "old_lines": 449,
+      "lines": 496,
+      "delta": 47,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/exact_type/diagnostic/render.rs",
+      "old_lines": 168,
+      "lines": 174,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/exact_type/tests.rs",
+      "old_lines": 195,
+      "lines": 198,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/field.rs",
+      "old_lines": 553,
+      "lines": 608,
+      "delta": 55,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/field/decode.rs",
+      "old_lines": 435,
+      "lines": 495,
+      "delta": 60,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/field/decode/tests.rs",
+      "old_lines": 237,
+      "lines": 248,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/field/delegates.rs",
+      "old_lines": 0,
+      "lines": 38,
+      "delta": 38,
+      "new": true
+    },
+    {
+      "path": "compiler/identity/src/entity/field/view.rs",
+      "old_lines": 140,
+      "lines": 163,
+      "delta": 23,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_callable.rs",
+      "old_lines": 738,
+      "lines": 720,
+      "delta": -18,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_callable/decode.rs",
+      "old_lines": 611,
+      "lines": 607,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_callable/decode/tests.rs",
+      "old_lines": 245,
+      "lines": 243,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_callable/wire_tests.rs",
+      "old_lines": 54,
+      "lines": 54,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_nominal.rs",
+      "old_lines": 274,
+      "lines": 263,
+      "delta": -11,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_nominal/decode.rs",
+      "old_lines": 370,
+      "lines": 364,
+      "delta": -6,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/generated_nominal/decode/tests.rs",
+      "old_lines": 155,
+      "lines": 150,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/materialization.rs",
+      "old_lines": 297,
+      "lines": 301,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/materialization/decode.rs",
+      "old_lines": 395,
+      "lines": 403,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/materialization/decode/tests.rs",
+      "old_lines": 172,
+      "lines": 174,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/signature.rs",
+      "old_lines": 375,
+      "lines": 397,
+      "delta": 22,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/signature/decode.rs",
+      "old_lines": 590,
+      "lines": 634,
+      "delta": 44,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/entity/structural/decode.rs",
+      "old_lines": 523,
+      "lines": 523,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/identity/src/syntax.rs",
+      "old_lines": 210,
+      "lines": 212,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/abi/leaves.rs",
+      "old_lines": 120,
+      "lines": 121,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/callbacks.rs",
+      "old_lines": 172,
+      "lines": 170,
+      "delta": -2,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/exact_layouts/physical.rs",
+      "old_lines": 292,
+      "lines": 297,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/exact_layouts/physical/enumeration.rs",
+      "old_lines": 90,
+      "lines": 96,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/exact_layouts/source.rs",
+      "old_lines": 311,
+      "lines": 311,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/exact_layouts/source/classes.rs",
+      "old_lines": 107,
+      "lines": 115,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/exact_layouts/value.rs",
+      "old_lines": 110,
+      "lines": 121,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/externs.rs",
+      "old_lines": 266,
+      "lines": 275,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/externs/direct_c.rs",
+      "old_lines": 93,
+      "lines": 97,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/function/call/dispatch.rs",
+      "old_lines": 157,
+      "lines": 157,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/function/expression.rs",
+      "old_lines": 446,
+      "lines": 464,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/metadata/descriptors/functions.rs",
+      "old_lines": 151,
+      "lines": 146,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/metadata/layouts/objects.rs",
+      "old_lines": 236,
+      "lines": 246,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/metadata/layouts/values.rs",
+      "old_lines": 167,
+      "lines": 148,
+      "delta": -19,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/metadata/representation.rs",
+      "old_lines": 275,
+      "lines": 287,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/metadata/scans.rs",
+      "old_lines": 150,
+      "lines": 151,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/metadata/types.rs",
+      "old_lines": 376,
+      "lines": 375,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/native_abi/c_storage.rs",
+      "old_lines": 227,
+      "lines": 244,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests.rs",
+      "old_lines": 1691,
+      "lines": 1700,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/basics/layouts.rs",
+      "old_lines": 434,
+      "lines": 435,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/basics/runtime_calls.rs",
+      "old_lines": 255,
+      "lines": 256,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/enums/niche.rs",
+      "old_lines": 302,
+      "lines": 306,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/enums/tagged.rs",
+      "old_lines": 358,
+      "lines": 360,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/exact_layouts.rs",
+      "old_lines": 354,
+      "lines": 357,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/exact_layouts/support/representation.rs",
+      "old_lines": 205,
+      "lines": 208,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/functions.rs",
+      "old_lines": 319,
+      "lines": 320,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/native_storage/c_projection.rs",
+      "old_lines": 140,
+      "lines": 141,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/objects/memory.rs",
+      "old_lines": 344,
+      "lines": 344,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/storage_replay.rs",
+      "old_lines": 310,
+      "lines": 311,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/support/builder.rs",
+      "old_lines": 386,
+      "lines": 387,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir-lower/src/tests/support/builder/identities.rs",
+      "old_lines": 175,
+      "lines": 176,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/abi.rs",
+      "old_lines": 224,
+      "lines": 224,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/dump/mod.rs",
+      "old_lines": 389,
+      "lines": 394,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/exact_layout/replay/aggregate.rs",
+      "old_lines": 139,
+      "lines": 142,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/exact_shape_support/replay.rs",
+      "old_lines": 217,
+      "lines": 219,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/externs.rs",
+      "old_lines": 381,
+      "lines": 391,
+      "delta": 10,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/instruction.rs",
+      "old_lines": 673,
+      "lines": 674,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/metadata.rs",
+      "old_lines": 1437,
+      "lines": 1443,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/lir/src/production/static_storage_registrations.rs",
+      "old_lines": 859,
+      "lines": 866,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/arrays.rs",
+      "old_lines": 272,
+      "lines": 273,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/callbacks.rs",
+      "old_lines": 229,
+      "lines": 228,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/callbacks/adapter/storage.rs",
+      "old_lines": 96,
+      "lines": 96,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/expressions.rs",
+      "old_lines": 726,
+      "lines": 726,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/function/adapters.rs",
+      "old_lines": 258,
+      "lines": 261,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/function/dynamic_adapters.rs",
+      "old_lines": 31,
+      "lines": 32,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/statements.rs",
+      "old_lines": 355,
+      "lines": 357,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/body/static_callbacks.rs",
+      "old_lines": 239,
+      "lines": 239,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cfg/control.rs",
+      "old_lines": 310,
+      "lines": 269,
+      "delta": -41,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cfg/control/loops.rs",
+      "old_lines": 0,
+      "lines": 104,
+      "delta": 104,
+      "new": true
+    },
+    {
+      "path": "compiler/mir-lower/src/cfg/mod.rs",
+      "old_lines": 298,
+      "lines": 299,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cfg/transfers.rs",
+      "old_lines": 250,
+      "lines": 246,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/context.rs",
+      "old_lines": 141,
+      "lines": 142,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/coroutine_registry.rs",
+      "old_lines": 329,
+      "lines": 333,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cross_cone_callables/applications.rs",
+      "old_lines": 199,
+      "lines": 194,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cross_cone_constructors.rs",
+      "old_lines": 114,
+      "lines": 109,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cross_cone_types/applications.rs",
+      "old_lines": 197,
+      "lines": 198,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/cross_cone_types/representation.rs",
+      "old_lines": 210,
+      "lines": 217,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/dispatch/boxing.rs",
+      "old_lines": 381,
+      "lines": 400,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/dispatch/boxing/integral.rs",
+      "old_lines": 0,
+      "lines": 46,
+      "delta": 46,
+      "new": true
+    },
+    {
+      "path": "compiler/mir-lower/src/dispatch/function_bridges.rs",
+      "old_lines": 208,
+      "lines": 207,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/dispatch/variance.rs",
+      "old_lines": 224,
+      "lines": 224,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/dynamic_adapters.rs",
+      "old_lines": 284,
+      "lines": 277,
+      "delta": -7,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/local_values.rs",
+      "old_lines": 319,
+      "lines": 322,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/pipeline/declarations.rs",
+      "old_lines": 352,
+      "lines": 363,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/source_callables.rs",
+      "old_lines": 259,
+      "lines": 289,
+      "delta": 30,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/structured.rs",
+      "old_lines": 495,
+      "lines": 496,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/callbacks.rs",
+      "old_lines": 561,
+      "lines": 564,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/control_flow.rs",
+      "old_lines": 1211,
+      "lines": 1225,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/coroutine_pending.rs",
+      "old_lines": 562,
+      "lines": 563,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/coroutines.rs",
+      "old_lines": 944,
+      "lines": 945,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/function_adapters.rs",
+      "old_lines": 363,
+      "lines": 364,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/harness_core.rs",
+      "old_lines": 449,
+      "lines": 450,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/harness_metadata.rs",
+      "old_lines": 247,
+      "lines": 262,
+      "delta": 15,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/harness_nominals/applications.rs",
+      "old_lines": 298,
+      "lines": 299,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/harness_nominals/classes.rs",
+      "old_lines": 287,
+      "lines": 291,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/harness_nominals/interfaces.rs",
+      "old_lines": 111,
+      "lines": 112,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/harness_nominals/structs.rs",
+      "old_lines": 232,
+      "lines": 233,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/optimization.rs",
+      "old_lines": 205,
+      "lines": 206,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/tests/value_types/enums.rs",
+      "old_lines": 701,
+      "lines": 702,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir-lower/src/types.rs",
+      "old_lines": 475,
+      "lines": 492,
+      "delta": 17,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/boxed_value.rs",
+      "old_lines": 263,
+      "lines": 264,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/coroutine_shape.rs",
+      "old_lines": 361,
+      "lines": 362,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/callables/tests/source.rs",
+      "old_lines": 185,
+      "lines": 231,
+      "delta": 46,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/callables/validation.rs",
+      "old_lines": 372,
+      "lines": 375,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/callables/validation/generated.rs",
+      "old_lines": 315,
+      "lines": 318,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/dispatch/graph.rs",
+      "old_lines": 315,
+      "lines": 331,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/finite_production/representation.rs",
+      "old_lines": 132,
+      "lines": 137,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/representation.rs",
+      "old_lines": 145,
+      "lines": 146,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/representation_wire.rs",
+      "old_lines": 294,
+      "lines": 318,
+      "delta": 24,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/semantic_refs/tests/types.rs",
+      "old_lines": 193,
+      "lines": 194,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/tests/validation.rs",
+      "old_lines": 266,
+      "lines": 267,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/validation.rs",
+      "old_lines": 372,
+      "lines": 391,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/cross_cone_type_bridge/validation/members.rs",
+      "old_lines": 100,
+      "lines": 103,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/dump/declarations.rs",
+      "old_lines": 593,
+      "lines": 600,
+      "delta": 7,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/dump/types.rs",
+      "old_lines": 99,
+      "lines": 103,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/exact_owner.rs",
+      "old_lines": 391,
+      "lines": 392,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/function_adapter.rs",
+      "old_lines": 416,
+      "lines": 411,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/function_bridge.rs",
+      "old_lines": 401,
+      "lines": 402,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/module.rs",
+      "old_lines": 1385,
+      "lines": 1385,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/types.rs",
+      "old_lines": 273,
+      "lines": 285,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/types/enumeration.rs",
+      "old_lines": 206,
+      "lines": 210,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/types/enumeration/representation.rs",
+      "old_lines": 0,
+      "lines": 85,
+      "delta": 85,
+      "new": true
+    },
+    {
+      "path": "compiler/mir/src/validation/boxed_values.rs",
+      "old_lines": 152,
+      "lines": 172,
+      "delta": 20,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/callbacks.rs",
+      "old_lines": 181,
+      "lines": 181,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/callbacks/static_callbacks.rs",
+      "old_lines": 214,
+      "lines": 211,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/function_adapters.rs",
+      "old_lines": 166,
+      "lines": 163,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/function_bridges.rs",
+      "old_lines": 298,
+      "lines": 309,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests.rs",
+      "old_lines": 1787,
+      "lines": 1796,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/callbacks.rs",
+      "old_lines": 750,
+      "lines": 756,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/closure_environments.rs",
+      "old_lines": 270,
+      "lines": 271,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/constants.rs",
+      "old_lines": 279,
+      "lines": 281,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/coroutines.rs",
+      "old_lines": 922,
+      "lines": 924,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/mir/src/validation/tests/function_bridges.rs",
+      "old_lines": 142,
+      "lines": 143,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/annotations.rs",
+      "old_lines": 70,
+      "lines": 103,
+      "delta": 33,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/annotations/declaration.rs",
+      "old_lines": 72,
+      "lines": 73,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/annotations/values.rs",
+      "old_lines": 114,
+      "lines": 125,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/compatibility.rs",
+      "old_lines": 0,
+      "lines": 92,
+      "delta": 92,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/decl/enums.rs",
+      "old_lines": 322,
+      "lines": 372,
+      "delta": 50,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/functions.rs",
+      "old_lines": 312,
+      "lines": 301,
+      "delta": -11,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/generics.rs",
+      "old_lines": 97,
+      "lines": 105,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/local_types.rs",
+      "old_lines": 0,
+      "lines": 128,
+      "delta": 128,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/decl/mod.rs",
+      "old_lines": 215,
+      "lines": 231,
+      "delta": 16,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/nominals.rs",
+      "old_lines": 574,
+      "lines": 524,
+      "delta": -50,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/nominals/constructors.rs",
+      "old_lines": 134,
+      "lines": 136,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/nominals/members.rs",
+      "old_lines": 340,
+      "lines": 359,
+      "delta": 19,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/nominals/prefix.rs",
+      "old_lines": 184,
+      "lines": 226,
+      "delta": 42,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/nominals/supertypes.rs",
+      "old_lines": 0,
+      "lines": 56,
+      "delta": 56,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/decl/properties.rs",
+      "old_lines": 343,
+      "lines": 338,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/decl/type_aliases.rs",
+      "old_lines": 75,
+      "lines": 67,
+      "delta": -8,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr.rs",
+      "old_lines": 270,
+      "lines": 258,
+      "delta": -12,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr/callables.rs",
+      "old_lines": 141,
+      "lines": 180,
+      "delta": 39,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr/labels.rs",
+      "old_lines": 0,
+      "lines": 63,
+      "delta": 63,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/expr/places.rs",
+      "old_lines": 150,
+      "lines": 151,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr/postfix.rs",
+      "old_lines": 176,
+      "lines": 172,
+      "delta": -4,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr/primary.rs",
+      "old_lines": 359,
+      "lines": 383,
+      "delta": 24,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr/qualifiers.rs",
+      "old_lines": 67,
+      "lines": 68,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/expr/trailing.rs",
+      "old_lines": 88,
+      "lines": 91,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/header.rs",
+      "old_lines": 171,
+      "lines": 171,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/lexer.rs",
+      "old_lines": 416,
+      "lines": 419,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/lexer/identifiers.rs",
+      "old_lines": 0,
+      "lines": 43,
+      "delta": 43,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/lexer/interpolation.rs",
+      "old_lines": 126,
+      "lines": 126,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/lexer/token.rs",
+      "old_lines": 218,
+      "lines": 221,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/lib.rs",
+      "old_lines": 98,
+      "lines": 116,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/parser.rs",
+      "old_lines": 512,
+      "lines": 514,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/pattern.rs",
+      "old_lines": 359,
+      "lines": 365,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/stmt.rs",
+      "old_lines": 396,
+      "lines": 393,
+      "delta": -3,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/stmt/control_flow.rs",
+      "old_lines": 171,
+      "lines": 202,
+      "delta": 31,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/stmt/declarations.rs",
+      "old_lines": 0,
+      "lines": 34,
+      "delta": 34,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/stmt/jumps.rs",
+      "old_lines": 64,
+      "lines": 117,
+      "delta": 53,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests.rs",
+      "old_lines": 393,
+      "lines": 387,
+      "delta": -6,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m12.rs",
+      "old_lines": 222,
+      "lines": 228,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m14.rs",
+      "old_lines": 205,
+      "lines": 204,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m17.rs",
+      "old_lines": 166,
+      "lines": 165,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m19.rs",
+      "old_lines": 166,
+      "lines": 161,
+      "delta": -5,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m2/diagnostics.rs",
+      "old_lines": 128,
+      "lines": 127,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m21.rs",
+      "old_lines": 303,
+      "lines": 330,
+      "delta": 27,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m22_control_flow.rs",
+      "old_lines": 330,
+      "lines": 289,
+      "delta": -41,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m22_type_aliases.rs",
+      "old_lines": 193,
+      "lines": 160,
+      "delta": -33,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m24.rs",
+      "old_lines": 81,
+      "lines": 84,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m3.rs",
+      "old_lines": 401,
+      "lines": 401,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m35.rs",
+      "old_lines": 246,
+      "lines": 246,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_control_bodies.rs",
+      "old_lines": 0,
+      "lines": 59,
+      "delta": 59,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_interface_delegation.rs",
+      "old_lines": 0,
+      "lines": 54,
+      "delta": 54,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_local_types.rs",
+      "old_lines": 0,
+      "lines": 74,
+      "delta": 74,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_loop_jumps.rs",
+      "old_lines": 0,
+      "lines": 81,
+      "delta": 81,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_modifiers.rs",
+      "old_lines": 0,
+      "lines": 84,
+      "delta": 84,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_names.rs",
+      "old_lines": 0,
+      "lines": 85,
+      "delta": 85,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_receivers.rs",
+      "old_lines": 0,
+      "lines": 61,
+      "delta": 61,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_return_labels.rs",
+      "old_lines": 0,
+      "lines": 56,
+      "delta": 56,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m37_type_annotations.rs",
+      "old_lines": 0,
+      "lines": 85,
+      "delta": 85,
+      "new": true
+    },
+    {
+      "path": "compiler/parser/src/tests_m4/annotations.rs",
+      "old_lines": 105,
+      "lines": 108,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m6/class_diagnostics.rs",
+      "old_lines": 142,
+      "lines": 151,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m6/classes.rs",
+      "old_lines": 183,
+      "lines": 182,
+      "delta": -1,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m6/method_calls.rs",
+      "old_lines": 99,
+      "lines": 99,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/tests_m6/value_members.rs",
+      "old_lines": 143,
+      "lines": 143,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/parser/src/ty.rs",
+      "old_lines": 176,
+      "lines": 248,
+      "delta": 72,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/compile_decode/native_boundary/source_closure.rs",
+      "old_lines": 433,
+      "lines": 447,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/compile_decode/native_boundary/target/layout/c_projection.rs",
+      "old_lines": 79,
+      "lines": 97,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/compile_decode/native_boundary/target/layout/scoop.rs",
+      "old_lines": 218,
+      "lines": 227,
+      "delta": 9,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/compile_decode/native_boundary/target/layout/tests/declared_structs/nullable_projection.rs",
+      "old_lines": 145,
+      "lines": 146,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/compile_decode/native_boundary/target/scoop_abi/dependencies/shared/shapes.rs",
+      "old_lines": 68,
+      "lines": 71,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/compile_decode/native_boundary/target/signatures.rs",
+      "old_lines": 133,
+      "lines": 139,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_closure/route_validation/external_target/fields.rs",
+      "old_lines": 83,
+      "lines": 91,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_closure/type_alias_expansion.rs",
+      "old_lines": 229,
+      "lines": 229,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_compile_decode/tests/const_value/annotations.rs",
+      "old_lines": 147,
+      "lines": 194,
+      "delta": 47,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_compile_decode/tests/const_value/annotations/type_uses.rs",
+      "old_lines": 0,
+      "lines": 143,
+      "delta": 143,
+      "new": true
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_compile_decode/tests/source_interface/default_envelope/local_functions.rs",
+      "old_lines": 105,
+      "lines": 106,
+      "delta": 1,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_compile_decode/tests/source_interface/default_fixture.rs",
+      "old_lines": 220,
+      "lines": 224,
+      "delta": 4,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority.rs",
+      "old_lines": 512,
+      "lines": 530,
+      "delta": 18,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/annotations.rs",
+      "old_lines": 120,
+      "lines": 131,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/annotations/type_uses.rs",
+      "old_lines": 0,
+      "lines": 118,
+      "delta": 118,
+      "new": true
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/annotations/types.rs",
+      "old_lines": 103,
+      "lines": 103,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/annotations/types/atoms.rs",
+      "old_lines": 0,
+      "lines": 82,
+      "delta": 82,
+      "new": true
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/annotations/types/tests.rs",
+      "old_lines": 30,
+      "lines": 42,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/annotations/values.rs",
+      "old_lines": 0,
+      "lines": 99,
+      "delta": 99,
+      "new": true
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/callable.rs",
+      "old_lines": 221,
+      "lines": 227,
+      "delta": 6,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/callable/inner.rs",
+      "old_lines": 0,
+      "lines": 35,
+      "delta": 35,
+      "new": true
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/default_contracts/declarations.rs",
+      "old_lines": 101,
+      "lines": 106,
+      "delta": 5,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/default_contracts/references.rs",
+      "old_lines": 207,
+      "lines": 210,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/cross_cone_hir_authority/nominal_declarations.rs",
+      "old_lines": 248,
+      "lines": 260,
+      "delta": 12,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/lir_layouts/replay/value.rs",
+      "old_lines": 147,
+      "lines": 158,
+      "delta": 11,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/lir_strong/functions.rs",
+      "old_lines": 154,
+      "lines": 156,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/mir_source_callables/constructors/signatures.rs",
+      "old_lines": 132,
+      "lines": 140,
+      "delta": 8,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/mir_types/applications.rs",
+      "old_lines": 250,
+      "lines": 264,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/mir_types/helpers.rs",
+      "old_lines": 157,
+      "lines": 195,
+      "delta": 38,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/mir_types/representation.rs",
+      "old_lines": 217,
+      "lines": 231,
+      "delta": 14,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/layout_compile_closure/mir_types/representation/policies.rs",
+      "old_lines": 80,
+      "lines": 101,
+      "delta": 21,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/profile/capabilities.rs",
+      "old_lines": 92,
+      "lines": 92,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/profile/contracts.rs",
+      "old_lines": 226,
+      "lines": 226,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/profile/tests.rs",
+      "old_lines": 370,
+      "lines": 370,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/profile/tests/interface_version.rs",
+      "old_lines": 149,
+      "lines": 149,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "compiler/slib/src/profile/tests/layout.rs",
+      "old_lines": 172,
+      "lines": 172,
+      "delta": 0,
+      "new": false
+    },
+    {
+      "path": "runtime/src/boxing.c",
+      "old_lines": 103,
+      "lines": 105,
+      "delta": 2,
+      "new": false
+    },
+    {
+      "path": "runtime/src/image/type_relations.c",
+      "old_lines": 144,
+      "lines": 157,
+      "delta": 13,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_int.scoop",
+      "old_lines": 140,
+      "lines": 143,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_int16.scoop",
+      "old_lines": 137,
+      "lines": 140,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_int8.scoop",
+      "old_lines": 137,
+      "lines": 140,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_long.scoop",
+      "old_lines": 137,
+      "lines": 140,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_uint.scoop",
+      "old_lines": 133,
+      "lines": 136,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_uint16.scoop",
+      "old_lines": 133,
+      "lines": 136,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_uint8.scoop",
+      "old_lines": 133,
+      "lines": 136,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/integer_ulong.scoop",
+      "old_lines": 133,
+      "lines": 136,
+      "delta": 3,
+      "new": false
+    },
+    {
+      "path": "sysroot/lib/scoop.core/src/serialization_annotations.scoop",
+      "old_lines": 2,
+      "lines": 20,
+      "delta": 18,
+      "new": false
+    }
+  ]
+}

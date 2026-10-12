@@ -114,12 +114,12 @@ struct Box<Int> GenericTemplate(PersistentGenericTypeId([103, 127, 56, 51, 71, 1
   public property value: Int 23e59aa0bcafaee0a81197d9e41c7783cb79abf11c117306bcedeaac07294bfa no-field
   constructor Constructor(PersistentConstructorId([39, 192, 122, 90, 65, 190, 83, 100, 215, 156, 72, 136, 190, 60, 22, 190, 102, 208, 181, 87, 36, 244, 25, 87, 85, 228, 189, 99, 244, 242, 59, 218]))
     parameter value: Int Field(Field(PersistentFieldId([77, 60, 108, 135, 194, 152, 44, 40, 29, 15, 217, 217, 239, 31, 124, 134, 11, 138, 194, 165, 70, 24, 156, 230, 26, 234, 110, 175, 63, 51, 255, 217])))
-pointer Ptr<T>
-interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
-  parameter T: Any
 interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
 interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+  parameter T: Any
 interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+pointer Ptr<T>
 interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
   parameter T: Any
 interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
@@ -183,8 +183,8 @@ LocalConcrete 5dd9a1334d8f085d37e95483d58314dd77ca8d93d45712eab820bf8048a5ea56 L
   coroutines []
 == CrossCone ==
 CrossCone 5dd9a1334d8f085d37e95483d58314dd77ca8d93d45712eab820bf8048a5ea56
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(28), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(28), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Method { owner: Idx::<Type>(31), method_arguments: [] } }
   public_bindings count=4
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([98, 119, 79, 99, 156, 101, 25, 164, 93, 96, 158, 111, 61, 187, 110, 177, 87, 151, 197, 161, 250, 26, 72, 100, 104, 131, 113, 228, 167, 173, 162, 87]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([97, 106, 245, 179, 211, 242, 75, 74, 162, 94, 80, 150, 248, 54, 247, 217, 69, 143, 45, 55, 53, 147, 202, 211, 16, 154, 207, 52, 26, 198, 174, 58])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([120, 45, 177, 239, 184, 26, 210, 122, 13, 179, 105, 29, 21, 191, 202, 253, 50, 41, 69, 230, 144, 88, 4, 119, 148, 130, 241, 87, 94, 103, 141, 26]), source: DeclaredCurrent { declaration: TypeAlias(PersistentTypeAliasId([247, 184, 42, 84, 206, 214, 95, 72, 211, 221, 189, 13, 233, 134, 116, 55, 0, 71, 75, 113, 1, 187, 113, 10, 100, 30, 110, 17, 241, 121, 115, 97])) } }

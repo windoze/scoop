@@ -74,6 +74,7 @@ SourceFile
       MethodCall transform
         Var localHost
         Lambda 0 suspend=false
+          label transform
           param value: _
           Call localIdentity
             Var value
@@ -82,6 +83,7 @@ SourceFile
       MethodCall transform
         Var importedHost
         Lambda 1 suspend=false
+          label transform
           param value: _
           Call identity
             Var value

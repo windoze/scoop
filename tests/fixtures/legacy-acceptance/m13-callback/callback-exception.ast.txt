@@ -10,6 +10,7 @@ SourceFile
       val worker
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 0 suspend=false
+            label foreignCallback
             param value: Int
             throw
               Call CallbackError

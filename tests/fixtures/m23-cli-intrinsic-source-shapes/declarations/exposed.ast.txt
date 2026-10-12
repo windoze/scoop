@@ -6,6 +6,7 @@ SourceFile
         Var initialCapacity
         Argument trailing
           Lambda 0 suspend=false
+            label MutableArray
             param _: _
             MethodCall uninit
               TypeQualifier MaybeUninit<T>
@@ -235,6 +236,7 @@ SourceFile
           IntLiteral 1L
         Argument trailing
           Lambda 0 suspend=false
+            label MutableArray
             param index: _
             if
               Binary Eq
@@ -628,6 +630,11 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: Int <const> = <expr>
+        Unary Neg
+          IntLiteral 2147483648
+      public const val MAX_VALUE: Int <const> = <expr>
+        IntLiteral 2147483647
       public fun encode
       public fun decode
 SourceFile
@@ -670,6 +677,11 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: Int16 <const> = <expr>
+        Unary Neg
+          IntLiteral 32768
+      public const val MAX_VALUE: Int16 <const> = <expr>
+        IntLiteral 32767
       public fun encode
       public fun decode
 SourceFile
@@ -712,6 +724,11 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: Int8 <const> = <expr>
+        Unary Neg
+          IntLiteral 128
+      public const val MAX_VALUE: Int8 <const> = <expr>
+        IntLiteral 127
       public fun encode
       public fun decode
 SourceFile
@@ -754,6 +771,11 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: Long <const> = <expr>
+        Unary Neg
+          IntLiteral 9223372036854775808L
+      public const val MAX_VALUE: Long <const> = <expr>
+        IntLiteral 9223372036854775807L
       public fun encode
       public fun decode
 SourceFile
@@ -795,6 +817,10 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: UInt <const> = <expr>
+        IntLiteral 0u
+      public const val MAX_VALUE: UInt <const> = <expr>
+        IntLiteral 4294967295u
       public fun encode
       public fun decode
 SourceFile
@@ -836,6 +862,10 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: UInt16 <const> = <expr>
+        IntLiteral 0u
+      public const val MAX_VALUE: UInt16 <const> = <expr>
+        IntLiteral 65535u
       public fun encode
       public fun decode
 SourceFile
@@ -877,6 +907,10 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: UInt8 <const> = <expr>
+        IntLiteral 0u
+      public const val MAX_VALUE: UInt8 <const> = <expr>
+        IntLiteral 255u
       public fun encode
       public fun decode
 SourceFile
@@ -918,6 +952,10 @@ SourceFile
     public fun toString
     public fun hash
     public companion object
+      public const val MIN_VALUE: ULong <const> = <expr>
+        IntLiteral 0uL
+      public const val MAX_VALUE: ULong <const> = <expr>
+        IntLiteral 18446744073709551615uL
       public fun encode
       public fun decode
 SourceFile
@@ -1021,6 +1059,7 @@ SourceFile
         Var count
         Argument trailing
           Lambda 0 suspend=false
+            label Array
             param index: _
             Index
               This
@@ -1033,6 +1072,7 @@ SourceFile
         Var count
         Argument trailing
           Lambda 1 suspend=false
+            label MutableArray
             param index: _
             Index
               This
@@ -1184,6 +1224,33 @@ SourceFile
   RootPackage
   public annotation class SerialName(val name: String)
   public annotation class Transient()
+  public enum AnnotationTarget : Int
+    CLASS =
+      IntLiteral 1
+    ANNOTATION_CLASS =
+      IntLiteral 2
+    ENUM_VARIANT =
+      IntLiteral 3
+    FIELD =
+      IntLiteral 4
+    PROPERTY =
+      IntLiteral 5
+    FUNCTION =
+      IntLiteral 6
+    CONSTRUCTOR =
+      IntLiteral 7
+    VALUE_PARAMETER =
+      IntLiteral 8
+    PROPERTY_GETTER =
+      IntLiteral 9
+    PROPERTY_SETTER =
+      IntLiteral 10
+    TYPEALIAS =
+      IntLiteral 11
+    TYPE =
+      IntLiteral 12
+  public annotation class Target(val allowed: Array<AnnotationTarget>)
+  public annotation class Repeatable()
 SourceFile
   RootPackage
   public struct SourceLocation

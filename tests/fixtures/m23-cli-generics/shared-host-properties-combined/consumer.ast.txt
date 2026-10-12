@@ -23,6 +23,7 @@ SourceFile
       Call Host<T>
         Var item
         Lambda 0 suspend=false
+          label Host
           Var seed
     if
       Binary Ne
@@ -66,5 +67,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 1 suspend=false
+          label exercise
           param value: _
           Var value

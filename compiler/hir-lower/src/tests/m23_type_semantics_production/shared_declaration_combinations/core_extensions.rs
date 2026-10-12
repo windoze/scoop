@@ -56,12 +56,12 @@ fn modified_core_closes_object_enum_and_compound_storage_declarations() {
     let public = hir::CanonicalNominalInterfacesV1::from_export_hir(&module).unwrap();
     let expected = [
         "Box",
+        "CValue",
         "Fields",
         "Payload",
         "Result",
         "Selection",
         "Storage",
-        "Target",
     ];
     let names = module
         .structs

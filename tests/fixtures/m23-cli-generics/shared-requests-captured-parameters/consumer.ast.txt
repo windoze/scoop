@@ -24,6 +24,7 @@ SourceFile
       Call apply<Int>
         IntLiteral 0
         Lambda 0 suspend=false
+          label apply
           param number: _
           Var number
   public fun exercise<T>(seed: T, read: (T) -> Int): Int
@@ -48,5 +49,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 1 suspend=false
+          label exercise
           param value: _
           Var value

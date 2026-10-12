@@ -58,6 +58,7 @@ SourceFile
       Call Completion
     Call startCoroutine
       Lambda 0 suspend=true
+        label startCoroutine
         parameters omitted
         MethodCall suspended<Int>
           Var samples

@@ -58,6 +58,7 @@ SourceFile
         IntLiteral 43
         Var seed
         Lambda 5 suspend=false
+          label readers
           param value: _
           Var value
     if
@@ -137,5 +138,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 6 suspend=false
+          label exercise
           param value: _
           Var value

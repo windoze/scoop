@@ -85,6 +85,7 @@ SourceFile
         IntLiteral 41
         Argument trailing
           Lambda 1 suspend=false
+            label mapper
             param value: Int
             MethodCall toString
               Var value

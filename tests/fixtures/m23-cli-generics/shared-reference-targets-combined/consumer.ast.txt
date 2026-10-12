@@ -54,6 +54,7 @@ SourceFile
         Call LocalValue
           IntLiteral 42
         Lambda 0 suspend=false
+          label captured
           param value: _
           FieldAccess value
             Var value
@@ -62,6 +63,7 @@ SourceFile
         Call LocalValue
           IntLiteral 43
         Lambda 1 suspend=false
+          label captured
           param value: _
           FieldAccess value
             Var value
@@ -153,5 +155,6 @@ SourceFile
       Call exercise<Int>
         IntLiteral 42
         Lambda 2 suspend=false
+          label exercise
           param value: _
           Var value

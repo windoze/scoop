@@ -87,6 +87,7 @@ SourceFile
         IntLiteral 7
         Argument trailing
           Lambda 0 suspend=false
+            label apply
             param value: _
             MethodCall toString
               Var value

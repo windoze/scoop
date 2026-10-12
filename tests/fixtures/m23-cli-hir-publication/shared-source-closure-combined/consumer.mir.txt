@@ -5,11 +5,11 @@ Module
   class SourceHost<String> vtable=0 itables=0
   class SourceRegistry vtable=0 itables=0
   class box<Int> vtable=0 itables=0
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn7 captures=1
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn7 captures=0
     bridge function_type3 -> @fn21 id=edd89a33b05568e4744564553e35fb6100e43046c81ce065ec05982e553625dd
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
     bridge function_type3 -> @fn22 id=9e20ac05318eaafdf8aeda3d896a6fa6053e01fd9950c3a6243b476861603b10
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn15 captures=1
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn15 captures=0
     bridge function_type3 -> @fn23 id=e07e68f50f5ec17b19ae76d1cd48e73cca6f1cb5f8222f21264e9ed4dae84b06
   closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn17 captures=0
     bridge function_type3 -> @fn24 id=8a10a7a275b6dea706606154e02025bc1d2a3196dfb65a90d9322e24498b5f12
@@ -240,9 +240,6 @@ Module
       val $dependency.local.31: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          CaptureInit field=0
-            Type SourceHost<Int>
-            Local $dependency.local.30
       call $call.3: () -> Int = @fn8 direct
         Type () -> Int
         Local $dependency.local.31
@@ -416,9 +413,6 @@ Module
       val $dependency.local.31: () -> Int
         Type () -> Int
         ClosureAlloc cc2 $Closure$lambda2
-          CaptureInit field=0
-            Type SourceHost<String>
-            Local $dependency.local.30
       call $call.3: () -> Int = @fn16 direct
         Type () -> Int
         Local $dependency.local.31

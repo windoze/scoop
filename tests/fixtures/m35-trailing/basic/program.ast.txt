@@ -70,6 +70,7 @@ SourceFile
       Call apply
         Argument trailing
           Lambda 3 suspend=false
+            label apply
             parameters omitted
             Binary Add
               Var it
@@ -80,6 +81,7 @@ SourceFile
           IntLiteral 3
         Argument trailing
           Lambda 4 suspend=false
+            label apply
             parameters omitted
             Binary Add
               Var it
@@ -89,6 +91,7 @@ SourceFile
         IntLiteral 5
         Argument trailing
           Lambda 5 suspend=false
+            label apply
             parameters omitted
             Binary Add
               Var it
@@ -97,6 +100,7 @@ SourceFile
       Call apply
         Argument trailing
           Lambda 6 suspend=false
+            label apply
             parameters omitted
             Binary Add
               Var it
@@ -105,15 +109,18 @@ SourceFile
       Call choose
         Argument trailing
           Lambda 7 suspend=false
+            label choose
             parameters omitted
             IntLiteral 3
     Call println
       Call choose
         Lambda 8 suspend=false
+          label choose
           parameters omitted
           IntLiteral 4
         Argument trailing
           Lambda 9 suspend=false
+            label choose
             parameters omitted
             IntLiteral 5
     Call println
@@ -122,6 +129,7 @@ SourceFile
           IntLiteral 10
         Argument trailing
           Lambda 10 suspend=false
+            label jump
             parameters omitted
             IntLiteral 20
     val items: Array<Int>
@@ -135,12 +143,14 @@ SourceFile
           Var items
         Argument trailing
           Lambda 11 suspend=false
+            label visit
             parameters omitted
             IntLiteral 3
     Call println
       Call visit
         Argument trailing
           Lambda 12 suspend=false
+            label visit
             parameters omitted
             IntLiteral 4
     Call println
@@ -151,12 +161,14 @@ SourceFile
             IntLiteral 2
         Argument trailing
           Lambda 13 suspend=false
+            label visit
             parameters omitted
             IntLiteral 5
     Call println
       Call defaultVararg
         Argument trailing
           Lambda 14 suspend=false
+            label defaultVararg
             parameters omitted
             IntLiteral 9
     Call println
@@ -166,18 +178,21 @@ SourceFile
             IntLiteral 7
           Argument trailing
             Lambda 15 suspend=false
+              label transform
               parameters omitted
               Var it
     Call println
       Call execute<Int>
         Argument trailing
           Lambda 16 suspend=false
+            label execute
             parameters omitted
             IntLiteral 13
     val inferred: Int
       Call execute
         Argument trailing
           Lambda 17 suspend=false
+            label execute
             parameters omitted
             IntLiteral 14
     Call println
@@ -186,6 +201,7 @@ SourceFile
       Call identity<() -> Int>
         Argument trailing
           Lambda 18 suspend=false
+            label identity
             parameters omitted
             IntLiteral 15
     Call println
@@ -194,6 +210,7 @@ SourceFile
       Call identity
         Argument trailing
           Lambda 19 suspend=false
+            label identity
             parameters omitted
             IntLiteral 16
     Call println
@@ -210,6 +227,7 @@ SourceFile
         IntLiteral 2
         Argument trailing
           Lambda 21 suspend=false
+            label value
             parameters omitted
             IntLiteral 3
     Call println
@@ -231,12 +249,14 @@ SourceFile
       Call execute<Int>
         Argument trailing
           Lambda 24 suspend=false
+            label execute
             parameters omitted
             IntLiteral 17
     Call println
       Call execute<Int>
         Argument trailing
           Lambda 25 suspend=false
+            label execute
             parameters omitted
             IntLiteral 18
     Call factory
@@ -247,6 +267,7 @@ SourceFile
       Call selected
         Argument trailing
           Lambda 26 suspend=false
+            label selected
             parameters omitted
             IntLiteral 19
     Call println
@@ -254,6 +275,7 @@ SourceFile
         IntLiteral 20
         Argument trailing
           Lambda 27 suspend=false
+            label overloaded
             parameters omitted
             Binary Add
               Var it
@@ -263,6 +285,7 @@ SourceFile
         StringLiteral "abc"
         Argument trailing
           Lambda 28 suspend=false
+            label overloaded
             parameters omitted
             MethodCall toInt32
               FieldAccess length

@@ -369,7 +369,7 @@ Module
     store param0 -> local3
     store local3 -> local0
     store local3 -> local5
-    store local0 -> local6
+    store local3 -> local6
     t1 = box_value td5, local6 scan=none sp<managed-call:0> live=[]
     call no-gc-direct-target0 t2 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(t1, td5)
     cbr t2 then @if.then.3 else @if.else.4

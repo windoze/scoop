@@ -121,6 +121,7 @@ SourceFile
     val maybeFunction: ((Int) -> Int)?
       Call Some
         Lambda 0 suspend=false
+          label Some
           param value: Int
           Binary Add
             Var value

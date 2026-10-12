@@ -10,6 +10,7 @@ SourceFile
       val callback
         Call foreignCallback<(Int, Ptr<Unit>) -> Int>
           Lambda 0 suspend=false
+            label foreignCallback
             param value: Int
             val count
               Call zeroStep

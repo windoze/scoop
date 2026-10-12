@@ -186,7 +186,6 @@ interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22
 interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
 interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
   parameter T: Any
-interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 interface Equality<Boolean> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210, 3, 48, 221, 107, 191, 241, 100, 17, 53, 76, 49, 63, 204, 117, 99, 142, 157, 176, 60, 133, 12, 48, 143, 81, 181, 109]))
   base Exception
@@ -215,6 +214,7 @@ enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 1
       parameter _1: String Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
   variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
     constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+interface Equality<Int> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 intrinsic core_char Char Concrete(PersistentTypeId([158, 93, 238, 155, 68, 59, 82, 53, 211, 3, 87, 194, 93, 247, 116, 41, 99, 61, 182, 12, 206, 26, 143, 90, 26, 32, 180, 115, 157, 244, 47, 48]))
   interface ToString
   interface Hash
