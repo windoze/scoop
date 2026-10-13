@@ -12,7 +12,7 @@ use crate::{ExportHir, FunctionGenericity, FunctionId, FunctionKind, HirSourceFu
 /// Request-local Export HIR function proven to belong to the current Cone.
 ///
 /// The raw arena id cannot be constructed through this type without also
-/// validating its persistent source identity and executable-entry shape.
+/// validating its persistent declaration identity and executable-entry shape.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct CurrentFunctionId(FunctionId);
 
@@ -22,7 +22,7 @@ impl CurrentFunctionId {
     }
 }
 
-/// Unique, fully validated local source entry of an executable Cone.
+/// Unique, fully validated local entry of an executable Cone.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocalExecutableEntry {
     identity: ExecutableEntryIdentity,
@@ -46,25 +46,6 @@ impl LocalExecutableEntry {
             return Err(LocalExecutableEntryError::HasReceiver);
         }
 
-        let identity = module.function_identities[function_id]
-            .source_identity()
-            .ok_or(LocalExecutableEntryError::NotSourceFunction)?;
-        if identity.declaration().origin() != module.cone {
-            return Err(LocalExecutableEntryError::NotCurrentCone);
-        }
-        if !identity.declaration().owners().owners().is_empty() {
-            return Err(LocalExecutableEntryError::NotTopLevel);
-        }
-        if !matches!(
-            identity.declaration().name(),
-            DeclarationName::Named(name) if name.as_str() == "main"
-        ) || function.name != "main"
-        {
-            return Err(LocalExecutableEntryError::NotMain);
-        }
-        let HirSourceFunctionIdentity::Plain(record) = identity else {
-            return Err(LocalExecutableEntryError::Generic);
-        };
         if !matches!(function.genericity, FunctionGenericity::Plain) {
             return Err(LocalExecutableEntryError::Generic);
         }
@@ -93,17 +74,46 @@ impl LocalExecutableEntry {
                 .collect::<Result<_, _>>()?,
             exact_type(function.return_ty)?,
         );
-        let declaration = record.id();
-        let origin = module
-            .export_definition_origins
-            .get(DefinitionOriginSubject::Function(declaration))
-            .ok_or(LocalExecutableEntryError::MissingDefinitionOrigin)?;
-        if origin.origin().source().cone() != module.cone {
-            return Err(LocalExecutableEntryError::DefinitionOriginConeMismatch);
-        }
+        let identity = match &module.function_identities[function_id] {
+            crate::HirFunctionIdentity::Source(identity) => {
+                if identity.declaration().origin() != module.cone {
+                    return Err(LocalExecutableEntryError::NotCurrentCone);
+                }
+                if !identity.declaration().owners().owners().is_empty() {
+                    return Err(LocalExecutableEntryError::NotTopLevel);
+                }
+                if !matches!(
+                    identity.declaration().name(),
+                    DeclarationName::Named(name) if name.as_str() == "main"
+                ) || function.name != "main"
+                {
+                    return Err(LocalExecutableEntryError::NotMain);
+                }
+                let HirSourceFunctionIdentity::Plain(record) = identity else {
+                    return Err(LocalExecutableEntryError::Generic);
+                };
+                let declaration = record.id();
+                let origin = module
+                    .export_definition_origins
+                    .get(DefinitionOriginSubject::Function(declaration))
+                    .ok_or(LocalExecutableEntryError::MissingDefinitionOrigin)?;
+                if origin.origin().source().cone() != module.cone {
+                    return Err(LocalExecutableEntryError::DefinitionOriginConeMismatch);
+                }
 
-        let identity = ExecutableEntryIdentity::try_new(record, signature)
-            .map_err(LocalExecutableEntryError::Identity)?;
+                ExecutableEntryIdentity::try_new(record, signature)
+                    .map_err(LocalExecutableEntryError::Identity)?
+            }
+            crate::HirFunctionIdentity::TestEntry(record) => {
+                if !matches!(record.key(), scoop_identity::GeneratedCallableKey::TestEntry { cone } if *cone == module.cone)
+                {
+                    return Err(LocalExecutableEntryError::NotCurrentCone);
+                }
+                ExecutableEntryIdentity::for_test(record, signature)
+                    .map_err(LocalExecutableEntryError::Identity)?
+            }
+            _ => return Err(LocalExecutableEntryError::NotSourceFunction),
+        };
         Ok(Self {
             identity,
             local_function: CurrentFunctionId(function_id),
@@ -161,9 +171,11 @@ impl fmt::Display for LocalExecutableEntryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::MissingFunction => "the executable entry does not belong to Export HIR",
-            Self::NotTopLevel => "the executable entry is not a top-level source function",
+            Self::NotTopLevel => "the executable entry is not a top-level function",
             Self::HasReceiver => "the executable entry has a receiver",
-            Self::NotSourceFunction => "the executable entry is not a source function",
+            Self::NotSourceFunction => {
+                "the executable entry is neither a source function nor a generated test entry"
+            }
             Self::NotCurrentCone => "the executable entry does not belong to the current Cone",
             Self::NotMain => "the executable entry is not named `main`",
             Self::Generic => "the executable entry is generic",

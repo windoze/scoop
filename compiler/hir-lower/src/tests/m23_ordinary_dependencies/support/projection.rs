@@ -56,7 +56,7 @@ pub(crate) fn project_dependency_text(
     project_parsed_dependency(core, &parsed, core_types, false)
 }
 
-fn project_parsed_dependency(
+pub(crate) fn project_parsed_dependency(
     core: &TrustedCoreFixture,
     parsed: &scoop_ast::CurrentConeParsedSources,
     core_types: &[&str],

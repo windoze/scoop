@@ -201,6 +201,18 @@ impl CurrentUnitImports {
         &self.bindings[id.0]
     }
 
+    pub(crate) fn package_bindings(
+        &self,
+        package: PackageId,
+        name: &str,
+    ) -> Vec<CurrentUnitBindingId> {
+        self.namespaces
+            .get(&ResolvedNamespace::Package(package))
+            .and_then(|namespace| namespace.get(name))
+            .cloned()
+            .unwrap_or_default()
+    }
+
     fn insert(
         &mut self,
         namespace: ResolvedNamespace,

@@ -275,7 +275,11 @@ fn validate_concrete_entry(
     if !module.top_level.contains(&function_id) {
         return Err(ConcreteExecutableEntryError::NotTopLevel);
     }
-    if function.name != "main" {
+    if matches!(
+        source.declaration(),
+        scoop_identity::ExecutableEntryDeclaration::Source(_)
+    ) && function.name != "main"
+    {
         return Err(ConcreteExecutableEntryError::NotMain);
     }
     if function.receiver.value_type().is_some() {

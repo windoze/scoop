@@ -93,3 +93,13 @@
 - 四组正式 CLI fixture 覆盖每用例新实例、串行顺序、缺省／单个 hooks、默认实参／字段／init 的真实构造失败、四阶段异常及 finally、双重失败、调用处与显式来源位置、Context 恢复、异常引用与 GC 保活。测试库实现分别为 25、44 行，fixture 源码各为 44～80 行。
 - 格式化、workspace clippy 和三个 CLI 构建通过，见[日志](validation/lifecycle-build.log.gz)。Darwin debug/release 共 4 个 fixture、8 个变体、24 个进程步骤全部通过，含普通运行与 moving-GC 运行，见[报告](validation/lifecycle-darwin.json)。准备期间修正了 fixture 的可变局部捕获、成员可见性、数值转换、if 表达式和 enum 模式警告；据实际 closure 规则将动作创建移入初始化回调，没有放宽语言规则。
 - 验证沿用本批未变化的 core／runtime 缓存；核对归档报告后清理上一批 `target/m43/discovery`（约 294 MB）。本批仅验证普通库的每用例执行，合成入口／调用适配、测试构建编排、独立结果通道与命令报告、scoop.std 应用及 Linux 最终验收仍待完成。
+
+## 2026-10-14：前端生成测试入口与生命周期调用
+
+- 先补实现规范 2.6，再增加独立 TestEntry HIR 函数身份及 `lower_current_tests` 入口。生成函数沿用既有 generated callable key、词法闭包、具体化和 executable entry 合同；源码 main 保留为普通声明，不参与测试入口选择。未新增 wire 编码或 runtime ABI。
+- 根据已检查目录构造每用例初始化回调，物化先前选定构造器的默认／空 vararg 实参，再创建捕获同一实例不可变引用的正文和 hooks。调用普通 scoop.test.execution 的 TestAction、TestActions 与 runTestCase；按普通 typed binding 和调用决议消费当前测试库或直接依赖产物，不进行字符串反射调用。失败后继续后续用例，入口汇总失败退出码。
+- 生成闭包保留测试容器的文件域与类词法域，跨文件同名 private 容器使用各自声明及位置。SourceLocation 复用 core intrinsic 与原声明来源；生成入口、闭包与已有 main 可共同完成 HIR 产物投影。运行库调用不匹配时保留普通重载诊断，合成调用失败且尚无诊断时也必须报错，不能静默跳过用例。
+- 格式化、workspace clippy 与三个 CLI 构建通过，见[构建日志](validation/test-entry-build.log.gz)。M43 定向测试与新增运行库签名负例合计覆盖 33 项，生产入口 9 项、持久化身份相关 28 项通过；最终入口组 6 项全部通过，包含完整 HIR 产物投影、实际测试库依赖消费、private 多文件、默认参数、空入口进入 MIR，以及运行库签名负例的准确位置，见[日志](validation/test-entry-rust.log.gz)。完整用例的 MIR／LIR／原生执行将随 driver 接入验证，当前未用空依赖伪造测试运行库的机器调用合同。
+- Darwin 正式 CLI 的四种合法入口与七类签名负例全部通过，共 11 个 fixture、15 个变体、107 个进程步骤，包含 debug/release、参数／UTF-8／退出码、移除源码后的 artifact-only 链接与 moving/minor GC，见[报告](validation/test-entry-darwin.json)。这些是共享生产入口回归，不代表 scoop test 已可运行。
+- 入口主体 190 行，绑定、普通调用、用例合成分别为 99／113／112 行模块。核对归档报告后清理 `target/m43/lifecycle`（约 191 MB），保留当前编译缓存。
+- 本批仅生成默认未忽略用例的生命周期调用，静态目录仍保留全部用例与 Ignore 原因。执行时过滤／ignored 选择、测试用途的编译请求与构建图、目录缓存、独立结果通道及报告尚待接入；scoop.std 首个实际应用与 Linux 最终验收继续按设计实施，不宣称 M43-3 或 M43 完成。

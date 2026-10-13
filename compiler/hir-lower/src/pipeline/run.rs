@@ -563,6 +563,9 @@ impl Lowerer {
         if self.diagnostics.is_empty() {
             self.discover_tests();
         }
+        if self.diagnostics.is_empty() && self.test_compilation.is_some() {
+            self.generate_test_entry();
+        }
         if self.diagnostics.is_empty()
             && let Err(error) = self.prepare_coroutine_declarations()
         {

@@ -156,6 +156,7 @@ mod signatures;
 mod snapshot_arena;
 mod stmt;
 mod test_annotations;
+mod test_entry;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -163,7 +164,7 @@ mod user_annotations;
 mod visibility;
 
 pub use current_input::*;
-pub use current_lowering::lower_current_cone;
+pub use current_lowering::{lower_current_cone, lower_current_tests};
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -685,6 +686,7 @@ pub(crate) struct Lowerer {
     >,
     pub(crate) annotation_metadata: hir::SourceAnnotations,
     pub(crate) test_containers: Vec<hir::TestContainer>,
+    pub(crate) test_compilation: Option<test_entry::TestCompilation>,
     pub(crate) type_annotations: user_annotations::type_uses::PendingTypeAnnotations,
     pub(crate) annotation_resolution:
         HashMap<scoop_identity::PersistentAnnotationId, user_annotations::AnnotationResolution>,

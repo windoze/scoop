@@ -69,6 +69,12 @@ impl FunctionIdentityBuilder<'_> {
                     Err(self.failure(function, Detail::InvalidLexicalRoot))
                 }
             }
+            hir::HirFunctionIdentity::TestEntry(record) => Ok(CallableContext {
+                parent: LexicalCallableParent::from_generated_key(record.key())
+                    .map_err(|_| self.failure(function, Detail::InvalidLexicalRoot))?,
+                owners: vec![DefinitionOwnerAtom::GeneratedCallable(record.id())],
+                binders: Vec::new(),
+            }),
             hir::HirFunctionIdentity::DerivedEquality(_) => {
                 Err(self.failure(function, Detail::InvalidLexicalRoot))
             }

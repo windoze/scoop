@@ -166,6 +166,7 @@ fn project_functions_and_constructors(
             )) => generic_functions.push(record.clone()),
             crate::HirFunctionIdentity::PropertyAccessor(_) => {}
             crate::HirFunctionIdentity::LexicalGenerated(record)
+            | crate::HirFunctionIdentity::TestEntry(record)
             | crate::HirFunctionIdentity::Initialization { record, .. } => insert_identity(
                 &mut generated,
                 record,

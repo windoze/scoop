@@ -210,6 +210,7 @@ impl SourceRoots {
             }
             // Generated bodies are closed by their attached body metadata.
             HirFunctionIdentity::LexicalGenerated(_)
+            | HirFunctionIdentity::TestEntry(_)
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => Ok(()),
         }

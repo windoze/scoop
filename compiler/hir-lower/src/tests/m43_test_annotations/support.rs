@@ -30,34 +30,22 @@ pub(super) fn lower(
 pub(super) fn lower_files(
     files: &[(&str, &str, SourceRole)],
 ) -> Result<hir::DependencyHirOutput, Vec<ast::Diagnostic>> {
+    lower_mode(files, false)
+}
+
+pub(super) fn lower_tests(
+    files: &[(&str, &str, SourceRole)],
+) -> Result<hir::DependencyHirOutput, Vec<ast::Diagnostic>> {
+    lower_mode(files, true)
+}
+
+fn lower_mode(
+    files: &[(&str, &str, SourceRole)],
+    tests: bool,
+) -> Result<hir::DependencyHirOutput, Vec<ast::Diagnostic>> {
+    let sources = parsed_sources(files, tests);
+    let cone = sources.cone();
     let core = marker_core();
-    let cone = ConeCoordinate::new("scoop", "scoop.test", "0.1.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    let identity =
-        |path| SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap();
-    let marker_identity = identity("src/markers.scoop");
-    let identities = files
-        .iter()
-        .map(|(path, _, _)| identity(path))
-        .collect::<Vec<_>>();
-    let sources = scoop_parser::parse_current_cone(ast::NonEmptyVec::new(
-        scoop_parser::CurrentConeSourceInput::new(
-            &marker_identity,
-            MARKERS,
-            "src/markers.scoop".as_ref(),
-        ),
-        files
-            .iter()
-            .zip(&identities)
-            .map(|((path, text, role), identity)| {
-                scoop_parser::CurrentConeSourceInput::new(identity, text, path.as_ref())
-                    .with_role(*role)
-            })
-            .collect(),
-    ))
-    .unwrap();
     let world = core.world(sources.cone());
     let input = CurrentConeSources::try_new(
         &sources,
@@ -69,5 +57,57 @@ pub(super) fn lower_files(
         cone,
         "scoop:scoop.test:0.1.0".into(),
     )]));
-    lower_current_cone(RequestedConeKind::Library, &input)
+    if tests {
+        crate::lower_current_tests(&input)
+    } else {
+        lower_current_cone(RequestedConeKind::Library, &input)
+    }
+}
+
+pub(super) fn parsed_sources(
+    files: &[(&str, &str, SourceRole)],
+    tests: bool,
+) -> ast::CurrentConeParsedSources {
+    let mut files = files.to_vec();
+    files.push(("src/markers.scoop", MARKERS, SourceRole::Production));
+    if tests {
+        files.extend([
+            (
+                "src/execution/data.scoop",
+                include_str!("../../../../../sysroot/lib/scoop.test/src/execution/data.scoop"),
+                SourceRole::Production,
+            ),
+            (
+                "src/execution/run.scoop",
+                include_str!("../../../../../sysroot/lib/scoop.test/src/execution/run.scoop"),
+                SourceRole::Production,
+            ),
+            (
+                "src/failure.scoop",
+                include_str!("../../../../../sysroot/lib/scoop.test/src/failure.scoop"),
+                SourceRole::Production,
+            ),
+        ]);
+    }
+    files.sort_by_key(|(path, _, _)| *path);
+    let cone = ConeCoordinate::new("scoop", "scoop.test", "0.1.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let identity =
+        |path| SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap();
+    let identities = files
+        .iter()
+        .map(|(path, _, _)| identity(path))
+        .collect::<Vec<_>>();
+    let mut parsed_inputs = files
+        .iter()
+        .zip(&identities)
+        .map(|((path, text, role), identity)| {
+            scoop_parser::CurrentConeSourceInput::new(identity, text, path.as_ref())
+                .with_role(*role)
+        })
+        .collect::<Vec<_>>();
+    let first = parsed_inputs.remove(0);
+    scoop_parser::parse_current_cone(ast::NonEmptyVec::new(first, parsed_inputs)).unwrap()
 }

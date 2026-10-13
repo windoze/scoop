@@ -117,6 +117,7 @@ pub enum HirFunctionIdentity {
     Source(HirSourceFunctionIdentity),
     PropertyAccessor(HirPropertyAccessorFunction),
     LexicalGenerated(HirGeneratedFunctionIdentity),
+    TestEntry(HirGeneratedFunctionIdentity),
     Initialization {
         unit: InitializationUnitId,
         role: InitializationCallableRole,
@@ -158,6 +159,14 @@ impl HirFunctionIdentity {
         .map_err(HirFunctionIdentityError::GeneratedIdentity)
     }
 
+    pub fn test_entry(
+        cone: scoop_identity::ConeIdentity,
+    ) -> Result<Self, HirFunctionIdentityError> {
+        CborIdentityRecord::from_key(GeneratedCallableKey::TestEntry { cone })
+            .map(Self::TestEntry)
+            .map_err(HirFunctionIdentityError::GeneratedIdentity)
+    }
+
     pub const fn derived_equality(applications: Vec<HirDerivedEqualityFunctionIdentity>) -> Self {
         Self::DerivedEquality(applications)
     }
@@ -178,7 +187,9 @@ impl HirFunctionIdentity {
 
     pub const fn generated_record(&self) -> Option<&HirGeneratedFunctionIdentity> {
         match self {
-            Self::LexicalGenerated(record) | Self::Initialization { record, .. } => Some(record),
+            Self::LexicalGenerated(record)
+            | Self::TestEntry(record)
+            | Self::Initialization { record, .. } => Some(record),
             Self::Source(_) | Self::PropertyAccessor(_) | Self::DerivedEquality(_) => None,
         }
     }

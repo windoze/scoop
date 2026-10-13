@@ -131,7 +131,8 @@ impl<'a, 'input> CallbackContextResolver<'a, 'input> {
                     binders: outer.binders,
                 }
             }
-            HirFunctionIdentity::Initialization { record, .. } => CallbackSiteContext {
+            HirFunctionIdentity::TestEntry(record)
+            | HirFunctionIdentity::Initialization { record, .. } => CallbackSiteContext {
                 parent: LexicalCallableParent::from_generated_key(record.key())
                     .map_err(|_| Detail::InvalidFunctionIdentity)?,
                 binders: binder_group(&function_type_parameters(declaration))?,

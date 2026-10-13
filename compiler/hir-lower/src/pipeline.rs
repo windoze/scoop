@@ -321,6 +321,7 @@ impl Lowerer {
             source_annotations: std::collections::BTreeMap::new(),
             annotation_metadata: hir::SourceAnnotations::default(),
             test_containers: Vec::new(),
+            test_compilation: None,
             type_annotations: Default::default(),
             annotation_resolution: HashMap::new(),
             defined_intrinsic_type_core: None,

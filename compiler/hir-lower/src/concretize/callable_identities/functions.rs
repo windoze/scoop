@@ -115,6 +115,16 @@ impl CallableIdentityBuilder<'_> {
                 };
                 CallableMaterialization::new(CallableTemplateOwner::Generated(record.id()), context)
             }
+            export::HirFunctionIdentity::TestEntry(record) => {
+                let id = record.id();
+                self.generated_callable_identities
+                    .entry(id)
+                    .or_insert(record);
+                CallableMaterialization::new(
+                    CallableTemplateOwner::Generated(id),
+                    CallableMaterializationContext::NoSubstitution,
+                )
+            }
             export::HirFunctionIdentity::DerivedEquality(_) => {
                 let exact_owner = self.exact_method_owner(
                     key.owner

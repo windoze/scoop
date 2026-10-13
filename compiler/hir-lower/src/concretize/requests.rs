@@ -105,6 +105,7 @@ impl Concretizer<'_> {
                 Declaration::PropertyAccessor(identity.id())
             }
             export::HirFunctionIdentity::LexicalGenerated(record)
+            | export::HirFunctionIdentity::TestEntry(record)
             | export::HirFunctionIdentity::Initialization { record, .. } => {
                 Declaration::Generated(record.id())
             }

@@ -105,6 +105,15 @@ fn validate_entry(
 ) -> Result<(), HirFunctionIdentityError> {
     let is_derived = matches!(declaration.kind, FunctionKind::DerivedEquality);
     match (identity, claim) {
+        (HirFunctionIdentity::TestEntry(record), None)
+            if matches!(record.key(), GeneratedCallableKey::TestEntry { .. })
+                && matches!(declaration.kind, FunctionKind::User(_))
+                && matches!(declaration.genericity, crate::FunctionGenericity::Plain)
+                && !declaration.is_suspend
+                && declaration.method.is_none() =>
+        {
+            Ok(())
+        }
         (HirFunctionIdentity::Source(_), None) if !is_derived => Ok(()),
         (
             HirFunctionIdentity::Source(source),
@@ -273,6 +282,7 @@ fn collect_unique_ids(
             }
         }
         HirFunctionIdentity::LexicalGenerated(record)
+        | HirFunctionIdentity::TestEntry(record)
         | HirFunctionIdentity::Initialization { record, .. } => {
             insert_generated(function, record.id(), generated)?;
         }

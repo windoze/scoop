@@ -144,6 +144,7 @@ impl<'input> Concretizer<'input> {
                     .is_some()
             }
             export::HirFunctionIdentity::LexicalGenerated(_)
+            | export::HirFunctionIdentity::TestEntry(_)
             | export::HirFunctionIdentity::Initialization { .. }
             | export::HirFunctionIdentity::DerivedEquality(_) => false,
         }

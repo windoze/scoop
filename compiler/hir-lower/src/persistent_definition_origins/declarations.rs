@@ -69,6 +69,7 @@ impl DefinitionOriginBuilder<'_> {
                     DefinitionOriginSubject::GeneratedCallable(record.id())
                 }
                 hir::HirFunctionIdentity::PropertyAccessor(_)
+                | hir::HirFunctionIdentity::TestEntry(_)
                 | hir::HirFunctionIdentity::Initialization { .. }
                 | hir::HirFunctionIdentity::DerivedEquality(_) => continue,
             };

@@ -48,6 +48,7 @@ pub(crate) fn finish_default_local_scopes(
                             CallableTemplateOwner::Accessor(identity.id())
                         }
                         hir::HirFunctionIdentity::LexicalGenerated(record)
+                        | hir::HirFunctionIdentity::TestEntry(record)
                         | hir::HirFunctionIdentity::Initialization { record, .. } => {
                             CallableTemplateOwner::Generated(record.id())
                         }

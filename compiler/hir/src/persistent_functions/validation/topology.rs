@@ -143,6 +143,7 @@ fn function_lexical_parent(
             Ok(LexicalCallableParent::accessor(id))
         }
         HirFunctionIdentity::LexicalGenerated(record)
+        | HirFunctionIdentity::TestEntry(record)
         | HirFunctionIdentity::Initialization { record, .. } => {
             LexicalCallableParent::from_generated_key(record.key())
                 .map_err(HirFunctionIdentityError::LexicalParent)
@@ -179,6 +180,7 @@ fn function_definition_owner(
             Ok(DefinitionOwnerAtom::PropertyAccessor(id))
         }
         HirFunctionIdentity::LexicalGenerated(record)
+        | HirFunctionIdentity::TestEntry(record)
         | HirFunctionIdentity::Initialization { record, .. } => {
             Ok(DefinitionOwnerAtom::GeneratedCallable(record.id()))
         }
@@ -264,6 +266,7 @@ fn root_lexical_parent(
                     Ok(LexicalCallableParent::accessor(id))
                 }
                 HirFunctionIdentity::LexicalGenerated(record)
+                | HirFunctionIdentity::TestEntry(record)
                 | HirFunctionIdentity::Initialization { record, .. } => {
                     LexicalCallableParent::from_generated_key(record.key())
                         .map_err(HirFunctionIdentityError::LexicalParent)

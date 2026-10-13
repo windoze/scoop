@@ -61,6 +61,7 @@ fn function(
         HirFunctionIdentity::Source(source) => source,
         HirFunctionIdentity::PropertyAccessor(_)
         | HirFunctionIdentity::LexicalGenerated(_)
+        | HirFunctionIdentity::TestEntry(_)
         | HirFunctionIdentity::Initialization { .. }
         | HirFunctionIdentity::DerivedEquality(_) => return Ok(()),
     };
