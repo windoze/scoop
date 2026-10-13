@@ -1,0 +1,36 @@
+import scoop.text.*
+import scoop.io.encoding.Base64
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+class Source public constructor(private val length: Long, private val failure: Boolean) : List<Byte> {
+    public var reads: Long = 0L
+    public override val size: Long get() = length
+    public override operator fun get(index: Long): Byte {
+        reads += 1L
+        if (failure) throw IllegalStateException(Some("source failure"))
+        return index.toInt8()
+    }
+    public override operator fun iterator(): Iterator<Byte> { throw IllegalStateException() }
+}
+fun main() {
+    val source = Source(256L, false)
+    source.toHexString()
+    check(source.reads == 256L)
+    Base64.Default.encode(source)
+    check(source.reads == 512L)
+    val huge = Source(Long.MAX_VALUE, false)
+    var failures = 0
+    try { huge.toHexString() } catch (error: ArithmeticException) { failures += 1 }
+    try { Base64.Default.encode(huge) } catch (error: ArithmeticException) { failures += 1 }
+    check(failures == 2 && huge.reads == 0L)
+    val broken = Source(1L, true)
+    try { broken.toHexString() } catch (error: IllegalStateException) { failures += 1 }
+    try { Base64.UrlSafe.encode(broken) } catch (error: IllegalStateException) { failures += 1 }
+    check(failures == 4 && broken.reads == 2L)
+    val input = MutableArray<Byte>(1L) { _ -> 102.toInt8() }
+    val text = Base64.Default.encode(input)
+    val bytes = Base64.Default.decode(text)
+    input[0L] = 0.toInt8()
+    check(text == "Zg==" && bytes[0L] == 102.toInt8())
+    println("encoding sources passed")
+}

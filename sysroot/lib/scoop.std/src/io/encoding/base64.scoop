@@ -1,0 +1,18 @@
+package scoop.io.encoding
+
+public class Base64 private constructor(private val urlSafe: Boolean, public val paddingOption: Base64.PaddingOption) {
+    public enum PaddingOption { REQUIRED, ABSENT, OPTIONAL }
+
+    public companion object {
+        public val Default: Base64 = Base64(false, PaddingOption.REQUIRED)
+        public val UrlSafe: Base64 = Base64(true, PaddingOption.REQUIRED)
+    }
+
+    public fun withPadding(option: PaddingOption): Base64 = Base64(urlSafe, option)
+    public fun encode(source: List<Byte>): String = encodeBase64(source, urlSafe, paddingOption)
+    public fun decodeOrNull(source: String): Array<Byte>? = decodeBase64(source, urlSafe, paddingOption)
+    public fun decode(source: String): Array<Byte> = when (decodeOrNull(source)) {
+        case Some(value) -> value
+        case None -> throw IllegalArgumentException(Some("invalid Base64"))
+    }
+}

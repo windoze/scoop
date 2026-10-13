@@ -126,6 +126,8 @@ M42-7 按 Unicode 标量处理文本。搜索使用普通 Scoop 编写的 KMP �
 
 M42-8 的 ByteArrayBuilder 使用普通 MutableArray<Byte> 与有效长度，按几何容量增长；批量 append 先检查表示溢出并快照输入，再按回调完成后的当前长度保证容量和一次提交。定宽写入共用 ULong 位移路径，先保证整项空间。ByteArrayReader 在构造时复制来源，统一检查 remaining 后读取，成功后才提交 position；使用 count≤remaining 避免 position+count 溢出。浮点只调用 core 的位型方法，清理、快照与字节序转换均无 native 依赖。
 
+Hex 与 Base64 使用 [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648) 的固定字母表、分组与标准向量，独立编写普通 Scoop 移位／除余实现，没有移植 RFC 的 C 代码。编码先检查实际 ASCII 输出长度，逐字节填充 Char 数组；解码按字符顺序读取，通过 ByteArrayBuilder 产生独立结果。Hex 保存首个非法标量位置；Base64 分别验证字母表、尾部符号数、padding 数量与未使用的零位。配置命名参考 [Kotlin Base64](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.io.encoding/-base64/)，Scoop 只交付已约定的三种 padding 模式和 Default／UrlSafe，不扩大为 MIME 或流式 I/O。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

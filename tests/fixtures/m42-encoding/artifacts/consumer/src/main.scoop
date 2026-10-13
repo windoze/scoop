@@ -1,0 +1,17 @@
+import scoop.bytes.*
+import scoop.io.encoding.Base64
+import scoop.io.encoding.Base64.PaddingOption
+import scoop.text.*
+
+fun main() {
+    val builder = ByteArrayBuilder()
+    builder.writeInt(42, ByteOrder.BIG_ENDIAN)
+    builder.writeDouble(Double.fromBits(0x7ff0000000000123L), ByteOrder.LITTLE_ENDIAN)
+    val hex = builder.toByteArray().toHexString()
+    val codec = Base64.UrlSafe.withPadding(PaddingOption.ABSENT)
+    val frame = codec.encode(hex.hexToByteArray())
+    val reader = ByteArrayReader(codec.decode(frame))
+    if (reader.readInt(ByteOrder.BIG_ENDIAN) != 42 ||
+        reader.readDouble(ByteOrder.LITTLE_ENDIAN).toBits() != 0x7ff0000000000123L || reader.remaining != 0L) throw IllegalStateException()
+    println("encoded frame passed")
+}

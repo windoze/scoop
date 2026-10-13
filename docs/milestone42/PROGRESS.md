@@ -246,3 +246,17 @@ Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `
 - `contracts` 精确检查省略写／读字节序参数及直接写 position 的三条源码诊断。证据 `target/m42/bytes-contracts-report.json`：1 fixture、1 variant、2 process。
 
 新增库源码最大文件 66 行，风格与 `git diff --check` 通过。没有编译器／runtime 改动，未运行无关完整测试。已清理完成 case 和一次性诊断构建，保留报告、当前 core 产物和共享 cache。Hex／Base64 仍需完成，M42-9～12 与三目标最终定向验收保持原范围。
+
+### M42-8 完成：Hex 与 Base64
+
+新增 List<Byte>.toHexString、String.hexToByteArray／OrNull，以及 Base64.Default／UrlSafe、嵌套 PaddingOption 与不可变 withPadding 配置。Hex 大小写转换、首个非法标量位置和末尾不完整字节均有明确错误行为；Base64 严格检查字母表、符号分组、完整 padding 与零 pad bits，OPTIONAL 只允许完整 padding 或全部省略。编码先检查输出长度，逐个读取输入 byte，结果均为独立快照。源码单文件最多 55 行，没有 native helper 或新增依赖。
+
+`tests/fixtures/m42-encoding` 的五个正式 fixture 均通过普通／moving GC：
+
+- hex／base64 覆盖 RFC 4648 的空串至 foobar 向量、UTF-8／NUL、全部 256 个 byte 值、大小写／URL 字母表、三种 padding、不同分组长度。256-byte Base64 的固定期望另以 Python 标准库独立核对；解码未借用宿主结果。Hex 错误检查包含精确标量 index。
+- base64-errors 覆盖非法字符／空白／NUL／Unicode、混合字母表、错位／多余／部分 padding，并穷举 64 个尾部字符，分别检查剩余 4-bit／2-bit 为零的要求；sources 检查每 byte 只读取一次、getter 异常传播、输出长度溢出在读取前失败以及快照隔离。
+- artifacts 将 ByteArrayBuilder→Hex→URL-safe Base64→ByteArrayReader 组合成带 NaN payload 的帧，移除 core／std／consumer 源码后独立链接运行成功。
+
+证据：`target/m42/encoding-contracts-artifacts-report.json` 中 base64-errors／sources／artifacts 三项通过；初次另外两个用例分别使用了无调用的 Unit statement、捕获可变局部变量，按既有语言规则修正后，`target/m42/encoding-vectors-report.json` 记录 hex／base64 两项、2 variant、8 process 全部通过。库实现未因用例修正而改变。
+
+普通 std Cone 构建、源码风格与 `git diff --check` 通过。已清理完成 case 和单次检查构建，保留报告与共享 cache。M42-8 全部功能完成；本批没有 compiler/runtime 修改，没有运行无关完整测试。M42-9～12 和 Linux GNU/musl 的本组最终定向验证仍待完成。

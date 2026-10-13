@@ -218,7 +218,11 @@ builder 使用无参数构造；size: Long，append／write／clear 返回 Unit�
 
 text 提供 `toHexString`、`hexToByteArray/hexToByteArrayOrNull`；默认输出小写，可显式 uppercase，输入接受大小写 ASCII hex 且长度必须偶数。不接受空白、分隔符和 0x 前缀。空输入合法，错误报告第一个非法标量位置。
 
+签名为 `List<Byte>.toHexString(uppercase: Boolean = false): String`、`String.hexToByteArray(): Array<Byte>` 与返回 Array<Byte>? 的 OrNull 版本。非法输入抛 IllegalArgumentException，message 含从零开始的非法标量 index；若只有结尾缺少半个字节，index 为字符串末尾位置。输出大小超出 Long 表示范围时抛 ArithmeticException。
+
 `Base64.Default`、`Base64.UrlSafe` 分别使用 RFC 4648 的标准和 URL-safe 字母表；encode/decode 接收显式输入。`PaddingOption.REQUIRED/ABSENT/OPTIONAL` 控制 padding：encode 在 REQUIRED/OPTIONAL 时写 padding，ABSENT 不写；decode 分别要求规范 padding、禁止 padding、接受二者。默认 REQUIRED。
+
+Base64 为不可变 final class，构造私有，通过两个预定义实例和 `withPadding(option: Base64.PaddingOption): Base64` 取得配置。PaddingOption 为 Base64 的嵌套 enum；paddingOption 是只读属性。`encode(source: List<Byte>): String`，`decode(source: String): Array<Byte>`，`decodeOrNull(source: String): Array<Byte>?`。完整三字节分组不需要 `=`，所有模式均接受空输入；OPTIONAL 只接受完整规范 padding 或完全省略，不能省略所需两个 `=` 中的一个。编码结果长度溢出 Long 时抛 ArithmeticException。
 
 decode 拒绝混用字母表、非法字符、空白、错误长度、错误位置/数量的 `=` 和非零 pad bits；不增加 MIME 换行模式。非法输入抛 IllegalArgumentException，decodeOrNull 返回 None；所有结果为独立字节快照。实现只读显式数据，不进行 I/O。
 
