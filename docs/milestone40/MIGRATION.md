@@ -80,6 +80,11 @@ ODR 的 typed 物理定义与强弱绑定测试保持原样，普通多 consumer
 保留的 MIR 检查返回/清理顺序、优化分支、真实内联与本地/导入分派目标；
 LIR 检查引用活跃位置、聚合 carrier 与 Scoop/C ABI 及跨 Cone 调用。
 原来的 debug/release、moving/minor 和三 target 配置不变。
+
+后续 M41 将 `legacy-m8-exceptions-return-paths` 收敛为六个用户函数完整 CFG 的
+逐字节片段检查，以 main 的函数边界结束；返回、异常清理与 finally 分支仍完整锁定。
+仅移除无关 core 声明、打印函数正文和其引用编号的整模块快照，运行输出继续精确比较。
+
 已有 provider/default-template、getter/setter 按需物化及来源位置的局部结构 checks
 继续保留，只请求其实际使用的阶段；没有把整份 golden 换成新加的关键词匹配。
 库产物发布用例继续编译真实 provider/consumer；它们的布局/分派结构由对应 typed IR

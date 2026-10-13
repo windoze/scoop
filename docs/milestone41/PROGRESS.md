@@ -114,3 +114,9 @@
 
 - 三目标实际生成的 native-storage provider 均由 66 个物理成员变为 65 个，与 Unit 不再物化派生比较一致。审阅实际 MIR，Wide 和指针相等、六个 native callback bridge 均保留；审阅时重建的 Darwin `.slib` 与正式 fixture 字节完全一致。
 - 仅更新三份归档成员清单的一行；Darwin、GNU、musl 均在普通比较模式通过正式用例，每目标 1 个变体、10 次进程、1 次 golden，包含无源码独立链接与 moving GC。
+
+### 异常返回路径的局部结构检查
+
+- GNU 全量发现 M8 返回路径的旧整模块 MIR 快照仍记录 Equality 和展开的 core 元数据。逐段核对后，六个用户函数的 CFG 没有变化；差异只在无关 core 声明与打印函数引用编号。
+- 删除 397 行整模块快照，改为六个用户函数完整 CFG 的逐字节片段检查，以 main 的函数边界结束；保留返回、异常清理、finally 返回覆盖及运行输出。未加入筛选脚本、IR 归一化或新的 fixture 机制。
+- 本机格式化、workspace clippy 后，正式用例通过（1 变体、2 次进程）。Linux 正在使用启动时加载的旧声明，待旧用例完成后同步并定向复验，保留全量原始报告。
