@@ -1,0 +1,3 @@
+import scoop.test.*
+
+@Test abstract class Cases

@@ -194,3 +194,10 @@
 - 增加含普通生产依赖、测试辅助库和 scoop.test 的 executable 根：先从源码运行同 Cone 测试，再把两种普通依赖改为显式生产 .slib 并删除依赖源码，重新构建和运行测试；最后删除根源码，使用测试入口 .slib 与显式依赖执行 artifact-only 链接和原生运行。
 - 两个依赖均含故意无效的 tests 输入，确认测试目标不会递归启用依赖测试。根测试可访问自身 internal API；生产 main 不被自动执行，测试仍可显式调用它。Darwin debug/release 共 2 个变体、12 个进程步骤通过，包含 moving GC，见 [报告](validation/artifact-dependencies-darwin.json.gz) 与 [日志](validation/artifact-dependencies-darwin.log.gz)。
 - 新增两组独立验收最初用软链接复用 cache，被现有 private staging 目录类型检查拒绝；后改为复制已发布缓存条目到普通目录，保留 [进程初轮报告](validation/process-initial-darwin.json.gz) 与 [产物初轮报告](validation/artifact-dependencies-initial-darwin.json.gz)，不修改编译器绕过检查。进程 fixture 准备中修正了 native 字段名及嵌套 argv 展开写法。全部通过并归档后删除两组临时工作区，清理约 2.4 GB 的逻辑输出，主验收与声明负例仍继续运行。
+
+## 2026-10-14：测试声明的正式 CLI 负例
+
+- 补齐 49 个独立 fixture，覆盖容器种类／层级／泛型、方法归属／签名／安全性、重复注解、角色冲突、重复 hooks、Ignore 目标／参数／配对，以及空容器和全部忽略容器的缺参／歧义／unsafe 构造。每项使用真实 scoop.test 依赖，检查完整诊断及精确源码区间，并确认没有发布测试程序。
+- 成员 extension、Extern、Intrinsic 和缺少正文的非法声明由原有普通语法／声明规则先拒绝，期望保留实际诊断，不强行要求统一的测试错误。Intrinsic 用例使用已存在的 rt_gc_collect 标识，避免用未知 intrinsic 代替函数目标检查。Ignore 与 hook 组合已使用修复后的实际 Ignore 位置。
+- Darwin 49 个 fixture、49 个变体、49 个进程步骤全部通过，见 [报告](validation/declarations-darwin.json.gz) 与 [日志](validation/declarations-darwin.log.gz)。前端修改已完成格式化、workspace clippy、21 项定向 Rust 验证和工具重建；此次 CLI 使用该新工具，未为负例重复执行无关全量测试。
+- 另一组既有 43 项 M43 定向验收完成，41 项通过，两个 generated-entry fixture 因热缓存实际零编译调用而不满足原有固定一次调用断言；见 [首轮报告](validation/acceptance-initial-darwin.json.gz) 与 [日志](validation/acceptance-initial-darwin.log.gz)。已核实缓存正常命中，下一批改用产物差异与实际输出验证，并只复验受影响项。

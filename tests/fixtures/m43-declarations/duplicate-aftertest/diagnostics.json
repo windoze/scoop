@@ -1,0 +1,26 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a test container may declare at most one `@AfterTest` method",
+    "notes": [
+      {
+        "message": "the other lifecycle method is declared here",
+        "origin": {
+          "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+          "end": 55,
+          "kind": "source",
+          "path": "tests/case.scoop",
+          "start": 45
+        }
+      }
+    ],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 85,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  }
+]

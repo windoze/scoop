@@ -1,0 +1,5 @@
+import scoop.test.*
+
+@Test class Cases {
+    context(value: String) @Test fun check() {}
+}
