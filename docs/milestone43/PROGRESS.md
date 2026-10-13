@@ -183,3 +183,8 @@
 
 - 补充首个实际应用的正式 CLI 组合：列出 3 个容器、10 个用例，再筛选 ListTests 的 4 个用例，以及 SequenceTests 的单个 window 用例。过滤后的列表与运行保留相同完整用例名，产物指纹不变，后续命令均为零编译器调用；实际执行启用 moving GC。
 - Darwin debug/release 共 2 个变体、8 个进程步骤通过，见 [完成日志](validation/std-selection-darwin.log.gz)。该日志保存完整 M43 定向组仍在运行时的已完成部分，不能视为整组完成报告；scoop.std 原有生产构建、只构建、全组报告与直接 moving GC 验收也已在本轮通过。Linux 验收仍待本机组结束后进行。
+
+## 2026-10-14：测试进程中断与真实退出
+
+- 增加 core exit(0)、native SIGSEGV 和发送给父 scoop 的 SIGINT 三种正式 CLI 场景。SIGINT 等待测试用例真实进入 native 阻塞点后发送，验证父命令转发信号、收割子进程并保留测试报告；已开始用例失败，下一用例未运行，清理方法不被伪报执行。
+- Darwin debug/release 共 2 个变体、8 个进程步骤通过，见 [报告](validation/process-darwin.json.gz) 与 [日志](validation/process-darwin.log.gz)。exit(0) 保留进程实际退出码 0，但缺少完成记录使测试命令失败；crash 与中断分别保留 SIGSEGV／SIGINT，报告后没有残留 .test-run 目录。该组复用已验证的报告实现，不改信号或 runtime 退出语义。
