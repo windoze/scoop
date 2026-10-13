@@ -266,6 +266,7 @@ pub(super) fn assemble(
         .cloned()
         .collect::<Vec<_>>();
     crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, &source, &mir_section, &section)
+        .with_test_directory(hir.test_directory)
         .with_native_objects(native_objects)
         .with_native_libraries(
             super::native::libraries(request).map_err(CurrentConeProductionFailure::Native)?,

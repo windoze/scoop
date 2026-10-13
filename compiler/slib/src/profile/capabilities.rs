@@ -24,6 +24,10 @@ pub fn manifest_single_cone_production_capability() -> CapabilityId {
         .expect("built-in capability id is valid")
 }
 
+pub fn manifest_test_directory_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.manifest", "test-directory")
+}
+
 pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
     CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 15)
         .expect("built-in capability id is valid")

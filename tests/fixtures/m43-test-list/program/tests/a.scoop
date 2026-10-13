@@ -1,0 +1,16 @@
+import scoop.test.*
+
+@Test
+private class Cases {
+    init { println("initializer must not run") }
+
+    @Test
+    fun `检查::名字`() { assertEquals(42, answer()) }
+
+    @Ignore("needs a resource")
+    @Test
+    fun skipped() { fail(Some("ignored body must not run")) }
+}
+
+@Test
+private class Empty { init { println("empty must not run") } }

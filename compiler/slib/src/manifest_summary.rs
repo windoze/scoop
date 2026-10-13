@@ -26,9 +26,14 @@ pub struct ArtifactManifestSummaryV1 {
     member_count: u64,
     manifest_length: u64,
     archive_length: u64,
+    test_directory: Option<crate::TestDirectory>,
 }
 
 impl ArtifactManifestSummaryV1 {
+    pub fn test_directory(&self) -> Option<&crate::TestDirectory> {
+        self.test_directory.as_ref()
+    }
+
     pub const fn cone(&self) -> &ConeRecord {
         &self.cone
     }
@@ -111,7 +116,7 @@ pub fn read_artifact_manifest_summary(
         member_count,
         manifest_length,
         archive_length,
-    );
+    )?;
     Ok(summary)
 }
 
@@ -121,8 +126,8 @@ fn summary_from_manifest(
     member_count: u64,
     manifest_length: u64,
     archive_length: u64,
-) -> ArtifactManifestSummaryV1 {
-    ArtifactManifestSummaryV1 {
+) -> Result<ArtifactManifestSummaryV1, ArtifactManifestSummaryError> {
+    Ok(ArtifactManifestSummaryV1 {
         cone: manifest.cone().clone(),
         direct_dependencies: manifest.direct_dependencies().to_vec(),
         compatibility: manifest.compatibility().clone(),
@@ -133,7 +138,9 @@ fn summary_from_manifest(
         member_count,
         manifest_length,
         archive_length,
-    }
+        test_directory: crate::TestDirectory::from_manifest(manifest)
+            .map_err(ArtifactManifestSummaryError::TestDirectory)?,
+    })
 }
 
 fn length(value: usize) -> Result<u64, ArtifactManifestSummaryError> {
@@ -145,6 +152,7 @@ pub enum ArtifactManifestSummaryError {
     Envelope(SlibReadError),
     Graph(GraphValidationError),
     LengthOverflow,
+    TestDirectory(crate::TestDirectoryError),
 }
 
 impl fmt::Display for ArtifactManifestSummaryError {
@@ -152,6 +160,7 @@ impl fmt::Display for ArtifactManifestSummaryError {
         match self {
             Self::Envelope(error) => error.fmt(formatter),
             Self::Graph(error) => error.fmt(formatter),
+            Self::TestDirectory(error) => error.fmt(formatter),
             Self::LengthOverflow => formatter.write_str("artifact summary length does not fit u64"),
         }
     }
@@ -162,6 +171,7 @@ impl std::error::Error for ArtifactManifestSummaryError {
         match self {
             Self::Envelope(error) => Some(error),
             Self::Graph(error) => Some(error),
+            Self::TestDirectory(error) => Some(error),
             Self::LengthOverflow => None,
         }
     }
@@ -181,6 +191,7 @@ mod tests {
         assert_eq!(summary.archive_length(), bytes.len() as u64);
         assert!(summary.manifest_length() < summary.archive_length());
         assert!(summary.member_count() > 0);
+        assert!(summary.test_directory().is_none());
         assert_eq!(
             summary.profile(),
             &scoop_identity::ArtifactCapabilityProfileId::single_cone_strong()

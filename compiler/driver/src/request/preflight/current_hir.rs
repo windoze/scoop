@@ -1,9 +1,11 @@
 //! Complete HIR products shared by core and ordinary Cones.
 
 mod errors;
+mod test_directory;
 pub use errors::CurrentConeHirStageError;
 
 pub(super) struct CurrentConeHirArtifacts {
+    pub test_directory: Option<scoop_slib::TestDirectory>,
     pub hir: scoop_hir::DependencyHirOutput,
     pub foundation: scoop_hir::CanonicalHirFoundation,
     pub production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
@@ -35,6 +37,7 @@ impl CurrentConeHirArtifacts {
         source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
         test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     ) -> Result<Self, CurrentConeHirStageError> {
+        let parsed_sources = sources;
         let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
             .with_source_names(source_names)
@@ -42,7 +45,11 @@ impl CurrentConeHirArtifacts {
             .map_err(CurrentConeHirStageError::Input)?;
         let hir = scoop_hir_lower::lower_current_tests(&sources)
             .map_err(CurrentConeHirStageError::Lowering)?;
-        Self::from_hir(hir, world)
+        let directory =
+            test_directory::project(&hir.output().export.test_containers, parsed_sources);
+        let mut artifacts = Self::from_hir(hir, world)?;
+        artifacts.test_directory = Some(directory);
+        Ok(artifacts)
     }
 
     fn from_hir(
@@ -77,6 +84,7 @@ impl CurrentConeHirArtifacts {
             )
             .map_err(CurrentConeHirStageError::Foundation)?;
         Ok(Self {
+            test_directory: None,
             hir,
             foundation,
             production_section,

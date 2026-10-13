@@ -121,8 +121,11 @@ pub(super) struct TestArgs {
     #[command(flatten)]
     pub options: BuildOptions,
     /// Build and link without running the test executable.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "list")]
     pub no_run: bool,
+    /// List compiled test containers and cases without running them.
+    #[arg(long)]
+    pub list: bool,
 }
 
 #[derive(Args)]

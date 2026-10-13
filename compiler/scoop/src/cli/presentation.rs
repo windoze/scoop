@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use super::args::MessageFormat;
 
 mod diagnostics;
+mod test_list;
 
 pub(super) struct Reporter(pub MessageFormat);
 

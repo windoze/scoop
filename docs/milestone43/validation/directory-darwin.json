@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 1,
+  "selected": 1,
+  "unselected": 0,
+  "counts": {
+    "passed": 1
+  },
+  "variants": 2,
+  "processes": 8,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "m43-test-list",
+      "status": "passed",
+      "seconds": 376.8349452088587,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

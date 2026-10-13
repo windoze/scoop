@@ -367,7 +367,7 @@ stdout/stderr 的捕获覆盖串行用例从实例初始化到清理结束的完
 
 ### 7.2 构建隔离与 `.slib`
 
-测试用途、实际测试源码、测试依赖和测试库版本进入测试编译键；target、profile、toolchain 和普通依赖指纹继续进入现有构建键。filter、ignored、nocapture 等执行选择不改变编译产物。列表/只构建所需静态目录可以随对应测试构建结果保存并复用，不从 native 符号或依赖 Export 表重建。
+测试用途、实际测试源码、测试依赖和测试库版本进入测试编译键；target、profile、toolchain 和普通依赖指纹继续进入现有构建键。filter、ignored、nocapture 等执行选择不改变编译产物。列表所需的目录展示数据保存在测试 `.slib` 的可选 manifest section `org.scoop-lang.manifest/test-directory/1`，由现有 manifest summary 解码并在缓存命中时复用。嵌套目录直接保留容器、用例、源码位置与忽略原因；实际调用仍使用 HIR 的 typed 引用，不从 native 符号或依赖 Export 表重建。
 
 测试输出放在 `target/<canonical-target-triple>/<profile>/tests/` 下，不覆盖普通 build 输出。发布继续使用原子替换，实际运行本次成功构建的内容，不能因失败或并发发布执行旧版本。
 

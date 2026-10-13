@@ -126,6 +126,11 @@ impl CapabilityContractRegistry {
             capability.name(),
             capability.major_version(),
         ) {
+            ("org.scoop-lang.manifest", "test-directory", 1) => (
+                SectionLocation::Manifest,
+                MemberPurposeSet::NONE,
+                FingerprintSinkSet::ENVELOPE_ONLY,
+            ),
             ("org.scoop-lang.hir", "identity-foundation", 9) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE_AND_LINK,

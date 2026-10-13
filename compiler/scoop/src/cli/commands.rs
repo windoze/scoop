@@ -43,7 +43,7 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             }
         }
         Command::Test(args) => {
-            let mut request = build_request(args.options, None, !args.no_run)?;
+            let mut request = build_request(args.options, None, !args.no_run && !args.list)?;
             request.graph = request
                 .graph
                 .with_purpose(scoop_protocol::CompilationPurpose::Test)
@@ -51,6 +51,16 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             let cwd = request.cwd.clone();
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
+            if args.list {
+                let summary = result.artifacts().graph.root().artifact().summary();
+                let directory = summary
+                    .test_directory()
+                    .ok_or_else(|| config("test artifact has no test directory"))?;
+                reporter
+                    .test_list(summary.cone().coordinate().name(), directory)
+                    .map_err(config)?;
+                return Ok(None);
+            }
             if args.no_run {
                 return Ok(None);
             }

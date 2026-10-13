@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离、测试构建图／缓存与输出已接入 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与调用适配合成、默认用例的原生执行已接入；目录持久化与运行时用例选择待实施 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
-| M43-4 CLI 与运行报告 | 基础 scoop test／--no-run 已接入；过滤、目录、捕获与报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
+| M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与调用适配合成、默认用例的原生执行与目录持久化已接入；运行时用例选择待实施 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
+| M43-4 CLI 与运行报告 | 基础 scoop test／--no-run／--list 已接入；过滤、运行时忽略选择、捕获与执行报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
 | M43-5 scoop.std 应用、产物与平台验收 | scoop.std 首批同 Cone 测试已接入；完整 CLI 组合与 Linux 验收待完成 | 3 个容器、10 个用例；Darwin debug/release、生产隔离、缓存与 moving GC |
 
 ## 工作约定
@@ -136,3 +136,11 @@
 - 使用正式 scoop test 构建并运行标准库，新增 m43-std-application fixture。Darwin debug/release 的 2 个变体、8 个进程步骤全部通过，包含普通生产构建只依赖 core、测试构建加入 scoop.test、--no-run、缓存复用、正常执行与 moving GC。见[报告](validation/std-application-darwin.json)及[日志](validation/std-darwin.log.gz)。格式化、workspace clippy 与配套工具构建通过。
 - 测试准备中把 Option<Array<Byte>> 与 None 的相等比较改为模式匹配，符合数组没有 Equals 能力的既有规则；未改变语言或标准库的相等语义。复用当前 core、测试库及生产标准库缓存，没有重跑已通过的无关 fixture。
 - 当前实际应用验证基础串行执行；静态目录、过滤／忽略选择、输出捕获和完整报告仍待实现，随后补充标准库的对应 CLI 组合与 Linux GNU/musl 验收。M43 全部完成后继续 M44，当前目标保持进行中。
+
+## 2026-10-14：测试目录持久化与静态列表
+
+- 先补实现规范 2.6／2.7 和设计 7.2，再由 driver 将已检查的 HIR 测试目录投影为嵌套的展示数据。可选 manifest section `org.scoop-lang.manifest/test-directory/1` 保存容器、用例名称、完整显示名、Cone-relative 位置与 Ignore 原因；测试空目录也保存，生产产物不附带。实际调用仍保留原有 typed 引用，不解析显示字符串重建关系，也不重放前端形态或构造检查。
+- 现有 manifest summary 在读取边界解码目录，检查 wire、路径与一基行列后复用。section 只受 ArtifactFingerprint 覆盖，不增加 Compile／Link 语义要求或更改整个归档格式。新增目录、wire、driver 投影与列表渲染分别为 106、91、45、66 行。
+- `scoop test --list` 构建后读取根产物目录，不启动测试程序；human 输出到 stdout，JSON 沿现有 stderr 记录流在构建记录后输出 `test-list`。列表保留容器分组、位置、忽略原因与计数，空目录明确显示 0 用例；与 `--no-run` 互斥。
+- 格式化、workspace clippy 和配套三个命令构建通过；目录编码／非法路径和位置／Unicode 与空 Ignore 原因、manifest summary 和 capability profile 的 27 项 Rust 定向测试通过。Darwin 正式 CLI 的 debug/release 共 2 个变体、8 个进程步骤通过，覆盖同名 private 容器、带 `::` 的中文用例、空容器／空目录、JSON／human、首次构建和零编译器调用的缓存命中；所有列表均无 initializer／hook／正文输出。位置期望使用前端目录中实际的 Test 标记位置。见[报告](validation/directory-darwin.json)及同名前缀日志；另验证 `--list --no-run` 返回参数错误。
+- 核对已归档 umbrella 验收后清理旧 cases/1～3 输出约 62 MB，保留本批输出、sysroot 与缓存。运行时 filter／ignored、独立结果通道、输出捕获与报告、完整 scoop.std CLI 组合及 Linux 验收仍待完成；M43 全部完成后继续 M44。

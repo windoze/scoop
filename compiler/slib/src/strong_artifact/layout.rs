@@ -50,9 +50,15 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
     layout_code: VerifiedCrossConeLayoutCodeFingerprintV1<'ir>,
     link_objects: Vec<SlibMember>,
+    test_directory: Option<crate::TestDirectory>,
 }
 
 impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
+    pub fn with_test_directory(mut self, directory: Option<crate::TestDirectory>) -> Self {
+        self.test_directory = directory;
+        self
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         producer: ProducerRecord,
@@ -89,6 +95,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
             lir_layout_abi,
             layout_code,
             link_objects,
+            test_directory: None,
         }
     }
 }
@@ -121,6 +128,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             lir_layout_abi,
             layout_code,
             link_objects,
+            test_directory,
         } = input;
         let identity = cone.identity();
         let link_object_count = link_objects.len();
@@ -210,6 +218,14 @@ impl AssembledCrossConeLayoutArtifactV1 {
         members.push(metadata.mir.into_member(identity)?);
         members.push(metadata.lir.into_member(identity)?);
         members.extend(link_objects);
+        let mut manifest_sections = vec![manifest_section];
+        if let Some(directory) = test_directory {
+            manifest_sections.push(
+                directory
+                    .section()
+                    .map_err(CrossConeLayoutArtifactWriteError::TestDirectory)?,
+            );
+        }
         let manifest = BootstrapManifest::new(
             producer,
             compatibility,
@@ -217,7 +233,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             direct_dependencies,
             &members,
             semantic_fingerprints,
-            vec![manifest_section],
+            manifest_sections,
         )
         .map_err(CrossConeLayoutArtifactWriteError::Manifest)?;
         let summary = crate::CrossConeArtifactSummary::from_layout(

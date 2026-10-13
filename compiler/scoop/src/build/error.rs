@@ -151,6 +151,9 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
             member: match source {
                 ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
                 ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::TestDirectory(_) => {
+                    "manifest:test-directory".to_owned()
+                }
                 ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
             },
         },

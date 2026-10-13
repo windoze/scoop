@@ -90,6 +90,9 @@ impl Error {
                     slib::ArtifactManifestSummaryError::Graph(error) => {
                         error.diagnostic().semantic_path()
                     }
+                    slib::ArtifactManifestSummaryError::TestDirectory(_) => {
+                        "manifest:test-directory".to_owned()
+                    }
                     slib::ArtifactManifestSummaryError::LengthOverflow => "container".to_owned(),
                 },
             ),
