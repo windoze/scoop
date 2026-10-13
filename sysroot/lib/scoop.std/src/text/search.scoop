@@ -1,0 +1,60 @@
+package scoop.text
+
+private fun requireTextIndex(index: Long, length: Long) {
+    if (index < 0L || index > length) throw IndexOutOfBoundsException()
+}
+
+public fun String.indexOf(value: String, startIndex: Long = 0L): Long {
+    requireTextIndex(startIndex, length)
+    val pattern = TextPattern(value)
+    if (pattern.size == 0L) return startIndex
+    var index = 0L
+    var matched = 0L
+    for (character in this) {
+        if (index >= startIndex) {
+            matched = pattern.advance(matched, character)
+            if (matched == pattern.size) return index - pattern.size + 1L
+        }
+        index += 1L
+    }
+    return -1L
+}
+
+public fun String.lastIndexOf(value: String, startIndex: Long = this.length): Long {
+    val length = this.length
+    requireTextIndex(startIndex, length)
+    val pattern = TextPattern(value)
+    if (pattern.size == 0L) return startIndex
+    val limit = if (pattern.size > length - startIndex) length else startIndex + pattern.size
+    var result = -1L
+    var index = 0L
+    var matched = 0L
+    for (character in this) {
+        if (index == limit) break
+        matched = pattern.advance(matched, character)
+        if (matched == pattern.size) result = index - pattern.size + 1L
+        index += 1L
+    }
+    return result
+}
+
+public fun String.indexOf(value: Char, startIndex: Long = 0L): Long = indexOf(value.toString(), startIndex)
+public fun String.lastIndexOf(value: Char, startIndex: Long = this.length): Long = lastIndexOf(value.toString(), startIndex)
+public operator fun String.contains(value: String): Boolean = indexOf(value) >= 0L
+public operator fun String.contains(value: Char): Boolean = indexOf(value) >= 0L
+
+private fun String.matchesAt(value: String, start: Long): Boolean {
+    val source = iterator()
+    var skip = start
+    while (skip > 0L) { source.next(); skip -= 1L }
+    for (character in value) { if (source.next() != Some(character)) return false }
+    return true
+}
+
+public fun String.startsWith(prefix: String): Boolean = matchesAt(prefix, 0L)
+public fun String.startsWith(prefix: Char): Boolean = startsWith(prefix.toString())
+public fun String.endsWith(suffix: String): Boolean {
+    val start = length - suffix.length
+    return start >= 0L && matchesAt(suffix, start)
+}
+public fun String.endsWith(suffix: Char): Boolean = endsWith(suffix.toString())

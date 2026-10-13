@@ -188,9 +188,15 @@ trim/isBlank 使用固定 Unicode 17.0 White_Space 集合，并提供显式 pred
 
 padStart/padEnd 的目标长度和 repeat 次数非负；padding 是一个 Char。低于已有长度时返回等内容 String。输出字节大小检查实际溢出和分配界限，不提供任意长度预算。基础格式化复用 f-string、StringBuilder、数值 toString 和补齐，不加入 printf／通用格式 DSL。
 
+搜索和切片索引均为 Long：`indexOf(value, startIndex=0)` 找从 startIndex 开始的首次匹配，`lastIndexOf(value, startIndex=length)` 找起点不超过 startIndex 的末次匹配（允许重叠）。startsWith/endsWith、contains、indexOf/lastIndexOf、substringBefore/After 同时提供 String 和 Char 参数；replace/replaceFirst 提供 String→String 与 Char→Char 重载。substring 的 endIndex 默认 length，substringBefore/After 的 missingDelimiterValue 默认 receiver；removePrefix/Suffix 接收 String。split 的 limit、padStart/padEnd 的 length 和 repeat 的 count 使用 Long，paddingChar 默认为空格。
+
+trim(predicate) 先从左向右检查前缀，再从右向左检查剩余后缀，不重复检查已删除字符；trimStart/trimEnd 分别使用对应方向。isBlank(predicate) 在首次不满足 predicate 的字符处停止，空串为 true。lineSequence 在首次消费时建立字符迭代器，每次只生成下一行，支持重复迭代；空串和结束换行后的尾部各产生空行。输出 UTF-8 字节数算术超过 Long.MAX_VALUE 抛 ArithmeticException；可表示的实际分配仍遵守 core 的分配边界，不增设人为长度上限。
+
 ### 4.2 数值与布尔解析
 
-交付八种定宽整数的 `toInt8/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_`、类型后缀或 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
+交付八种定宽整数的 `toInt8/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_` 或类型后缀，也不识别 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
+
+canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toULong，并提供 core alias 对应的 toByte/toShort/toInt32/toInt64、toUByte/toUShort/toUInt32/toUInt64 转发名，各有 OrNull。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
 
 浮点接受 ASCII 十进制 `[+-]?(digits(\.digits?)?|\.digits)([eE][+-]?digits)?`，以及精确拼写 NaN、Infinity、+Infinity、-Infinity。十进制结果直接按目标 Float/Double 精度最近偶数舍入，不通过 Double 再转 Float；有限输入溢出目标有限范围为失败，underflow 可得到 subnormal 或带符号零。禁止 hex float、后缀、空白、尾随内容和 locale 变体。NaN 使用 core NaN 常量位型；显式 Infinity 返回相应无穷。
 

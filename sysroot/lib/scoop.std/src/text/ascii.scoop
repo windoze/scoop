@@ -1,0 +1,16 @@
+package scoop.text
+
+private fun String.convertAscii(uppercase: Boolean): String {
+    val chars = toCharArray()
+    var index = 0L
+    while (index < chars.size) {
+        val code = chars[index].code
+        if (uppercase && code >= 97 && code <= 122) chars[index] = (code - 32).toChar()
+        if (!uppercase && code >= 65 && code <= 90) chars[index] = (code + 32).toChar()
+        index += 1L
+    }
+    return String.fromChars(chars)
+}
+
+public fun String.lowercaseAscii(): String = convertAscii(false)
+public fun String.uppercaseAscii(): String = convertAscii(true)

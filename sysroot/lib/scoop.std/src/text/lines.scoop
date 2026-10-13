@@ -1,0 +1,40 @@
+package scoop.text
+
+import scoop.sequences.Sequence
+import scoop.sequences.FactorySequence
+import scoop.sequences.toList
+
+private class LineIterator(private val source: Iterator<Char>) : Iterator<String> {
+    private var pending: Char? = None
+    private var ended: Boolean = false
+    private var lastLine: Boolean = false
+
+    private fun character(): Char? = when (pending) {
+        case Some(value) -> { pending = None; Some(value) }
+        case None -> if (ended) None else source.next()
+    }
+
+    public override fun next(): String? {
+        if (lastLine) return None
+        val chars = ArrayList<Char>()
+        while (true) {
+            when (character()) {
+                case None -> { lastLine = true; return Some(String.fromChars(chars)) }
+                case Some(value) -> {
+                    if (value == '\n') return Some(String.fromChars(chars))
+                    if (value == '\r') {
+                        when (source.next()) {
+                            case None -> ended = true
+                            case Some(next) -> { if (next != '\n') pending = Some(next) }
+                        }
+                        return Some(String.fromChars(chars))
+                    }
+                    chars.add(value)
+                }
+            }
+        }
+    }
+}
+
+public fun String.lineSequence(): Sequence<String> = FactorySequence<String> { LineIterator(iterator()) }
+public fun String.lines(): List<String> = lineSequence().toList()

@@ -112,6 +112,8 @@ Comparator/Random 的普通 interface 不依赖 SAM 自动转换。comparatorOf 
 
 M42-6 的 Result/Option 组合直接模式匹配；Result 状态属性与 getOrThrow/recover 命名参考 [Kotlin Result](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-result/)，错误类型和回调行为以 Scoop 规范第 7 节为准。Sequence 使用普通 iterator factory 和每次迭代独立的延迟 wrapper：第一次 next 才建立上游，正常耗尽永久结束，失败后拒绝再次调用来源。once-only 的来源在 iterator 请求时占用；各算子只保存自己的进度和窗口等必要数据。终结操作通过私有 Iterable 适配复用已实现的急切算法。参考 [Kotlin Sequence 分类与生命周期](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.sequences/)，不新增 suspend builder 或 native helper。
 
+M42-7 按 Unicode 标量处理文本。搜索使用普通 Scoop 编写的 KMP 前缀表，替换／切分复用匹配状态与一次字符快照，输出片段直接从快照构造，不反复调用 O(n) 的 String.get/slice 扫描前缀。lineSequence 使用字符 iterator 并保留 CR 后至多一个前瞻字符。重复文本按二进制倍增组合，先检查实际 UTF-8 大小；padding 复用该实现。White_Space 采用 [Unicode 17.0 PropList](https://www.unicode.org/Public/17.0.0/ucd/PropList.txt) 的 25 个标量，数据许可随 std 保存于 licenses/Unicode-3.0.txt；不携带或读取整个 Unicode 数据库。API 名称参考 [Kotlin text](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.text/)，匹配、索引、空白和错误行为以 Scoop 规范为准。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

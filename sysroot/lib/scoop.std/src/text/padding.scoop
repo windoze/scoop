@@ -1,0 +1,27 @@
+package scoop.text
+
+public fun String.repeat(count: Long): String {
+    if (count < 0L) throw IllegalArgumentException(Some("negative repeat count"))
+    if (count == 0L || byteLength == 0L) return ""
+    checkedTextProduct(byteLength, count)
+    val result = StringBuilder()
+    var part = this
+    var remaining = count
+    while (remaining > 0L) {
+        if (remaining % 2L != 0L) result.add(part)
+        remaining /= 2L
+        if (remaining > 0L) part = part + part
+    }
+    return result.build()
+}
+
+private fun String.padding(length: Long, paddingChar: Char): String {
+    if (length < 0L) throw IllegalArgumentException(Some("negative padding length"))
+    val count = length - this.length
+    if (count <= 0L) return ""
+    checkedTextSum(byteLength, checkedTextProduct(charByteLength(paddingChar), count))
+    return paddingChar.toString().repeat(count)
+}
+
+public fun String.padStart(length: Long, paddingChar: Char = ' '): String = padding(length, paddingChar) + this
+public fun String.padEnd(length: Long, paddingChar: Char = ' '): String = this + padding(length, paddingChar)

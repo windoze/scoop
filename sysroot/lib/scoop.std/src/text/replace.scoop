@@ -1,0 +1,56 @@
+package scoop.text
+
+private class ReplacementOutput {
+    private val chars: ArrayList<Char> = ArrayList<Char>()
+    private var bytes: Long = 0L
+
+    fun add(value: Char) {
+        bytes = checkedTextSum(bytes, charByteLength(value))
+        chars.add(value)
+    }
+
+    fun addRange(source: List<Char>, start: Long, end: Long) {
+        var index = start
+        while (index < end) { add(source[index]); index += 1L }
+    }
+
+    fun build(): String = String.fromChars(chars)
+}
+
+private fun String.replaceText(oldValue: String, newValue: String, firstOnly: Boolean): String {
+    if (oldValue == newValue) return this
+    val chars = toCharArray()
+    val replacement = newValue.toCharArray()
+    val pattern = TextPattern(oldValue)
+    val output = ReplacementOutput()
+    if (pattern.size == 0L) {
+        output.addRange(replacement, 0L, replacement.size)
+        for (value in chars) {
+            output.add(value)
+            if (!firstOnly) output.addRange(replacement, 0L, replacement.size)
+        }
+        return output.build()
+    }
+    var start = 0L
+    var index = 0L
+    var matched = 0L
+    while (index < chars.size) {
+        matched = pattern.advance(matched, chars[index])
+        index += 1L
+        if (matched == pattern.size) {
+            output.addRange(chars, start, index - pattern.size)
+            output.addRange(replacement, 0L, replacement.size)
+            start = index
+            matched = 0L
+            if (firstOnly) break
+        }
+    }
+    if (start == 0L) return this
+    output.addRange(chars, start, chars.size)
+    return output.build()
+}
+
+public fun String.replace(oldValue: String, newValue: String): String = replaceText(oldValue, newValue, false)
+public fun String.replaceFirst(oldValue: String, newValue: String): String = replaceText(oldValue, newValue, true)
+public fun String.replace(oldValue: Char, newValue: Char): String = replace(oldValue.toString(), newValue.toString())
+public fun String.replaceFirst(oldValue: Char, newValue: Char): String = replaceFirst(oldValue.toString(), newValue.toString())

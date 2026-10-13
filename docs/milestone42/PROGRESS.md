@@ -191,3 +191,13 @@ Sequence 补齐查找／成员判断、遍历／归约／计数、partition/reve
 Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个基础、6 个算子／终结、5 个约束／产物用例；运行类全有 normal/moving 两次执行。报告依次为 `target/m42/sequences-foundation-report.json`（8 个进程）、`sequences-operations-report.json`（24 个进程）、`sequences-artifacts-report.json`（14 个进程）。后两轮命令使用相同 `TMPDIR="$PWD/target/m42/scratch"`、`--suite tests/fixtures/m42-sequences --work-dir target/m42/foundation --jobs 4`；第二轮 exact filter 选择 pipeline/windows/terminals/destinations/failures/sorting，第三轮选择 `m42-sequences-*-bound`、invariant、artifacts。没有重复运行已通过且未修改的基础用例。
 
 结合 Result/Option 的 5 个 fixture，M42-6 共 18 个当前 fixture 均有明确通过证据，本批计划范围完成；文件按职责拆分，Sequence 实现的最大单文件为 63 行。没有 compiler/runtime 修改，未运行无关完整套件。已清理完成的 case、检查构建和四个诊断构建目录，保留报告与共享 cache。M42-7 至 M42-12 以及 Linux GNU/musl 的本组最终定向验收继续保持原范围。
+
+## M42-7 进行中：文本搜索与处理已完成
+
+日期：2026-10-13。交付 String/Char 搜索与 contains、前后缀、substring/before/after、removePrefix/Suffix、replace/replaceFirst、split、lines/lineSequence、默认／predicate trim 与 blank、padding/repeat、ASCII 大小写转换。统一使用 Unicode 标量与 Long 索引，保留 NUL，不做 normalization。KMP 前缀表复用于搜索、替换与切分；批量操作一次取得字符快照，片段直接从快照构造，避免反复 O(n) 的 String 索引和 slice。lineSequence 使用普通延迟 iterator，CRLF 合并并保留尾部空行；repeat 按二进制倍增，padding 复用 repeat，先检查实际 UTF-8 大小。
+
+固定 White_Space 取自 Unicode 17.0 的 25 个标量，许可证随 std 保存；不依赖 locale 或系统数据文件。trim 的 predicate 顺序、lastIndexOf 的起点含义、split limit 与大小溢出行为已补明规范。
+
+本机新增 search、replace-split、whitespace-padding、lines 四个 fixture 全部通过正常和 moving GC，4 个变体、16 个进程。命令：`TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-text --work-dir target/m42/foundation --jobs 4`；证据为 `target/m42/text-strings-report.json`。搜索以独立逐位置匹配模型核对每个合法 startIndex，含空 needle、重叠、NUL、补充平面标量与组合字符；另有重复前缀长输入。其他覆盖非重叠替换、空旧串所有边界、连续／尾部分隔与 limit、1024 段输入、全部 25 个 White_Space 及边界反例、predicate 顺序和异常、ASCII 保留非 ASCII、负数及 UTF-8 长度溢出、三类混合换行和 Sequence 短路／重复消费。
+
+已通过普通 std Cone 构建及源码风格／`git diff --check`；无底层修改，不运行完整测试套件。报告和共享 cache 保留，已清理完成的 case。整数、布尔、精确浮点解析及后续阶段继续按原范围实施。
