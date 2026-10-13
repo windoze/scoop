@@ -155,6 +155,7 @@ mod shared;
 mod signatures;
 mod snapshot_arena;
 mod stmt;
+mod test_annotations;
 #[cfg(test)]
 mod tests;
 mod types;

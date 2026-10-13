@@ -560,6 +560,9 @@ impl Lowerer {
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);
         self.finish_type_annotations();
+        if self.diagnostics.is_empty() {
+            self.validate_test_declarations();
+        }
         if self.diagnostics.is_empty()
             && let Err(error) = self.prepare_coroutine_declarations()
         {

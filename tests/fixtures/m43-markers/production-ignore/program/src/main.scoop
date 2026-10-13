@@ -1,0 +1,4 @@
+import scoop.test.Ignore
+
+@Ignore("later")
+fun ignored() {}

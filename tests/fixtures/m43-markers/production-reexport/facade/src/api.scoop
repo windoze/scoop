@@ -1,0 +1,3 @@
+package test.api
+
+public import scoop.test.Test as Check

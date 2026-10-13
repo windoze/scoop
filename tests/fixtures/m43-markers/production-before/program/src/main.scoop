@@ -1,0 +1,4 @@
+import scoop.test.BeforeTest
+
+@BeforeTest
+fun prepare() {}

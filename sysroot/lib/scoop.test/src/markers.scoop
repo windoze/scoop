@@ -1,0 +1,13 @@
+package scoop.test
+
+@Target([AnnotationTarget.CLASS, AnnotationTarget.FUNCTION])
+public annotation class Test
+
+@Target([AnnotationTarget.FUNCTION])
+public annotation class BeforeTest
+
+@Target([AnnotationTarget.FUNCTION])
+public annotation class AfterTest
+
+@Target([AnnotationTarget.FUNCTION])
+public annotation class Ignore(val reason: String)

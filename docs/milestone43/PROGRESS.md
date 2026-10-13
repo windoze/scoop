@@ -6,9 +6,9 @@
 
 | 批次 | 状态 | 证据 |
 | --- | --- | --- |
-| M43-1 断言与测试库 | 断言已完成；测试标记随发现功能交付 | 普通 scoop.test Cone、8 个断言函数、失败数据及 10 个独立 fixture；语言规范第 16 章 |
+| M43-1 断言与测试库 | 断言、四种测试标记已完成 | 普通 scoop.test Cone、8 个断言函数、失败数据、Test/BeforeTest/AfterTest/Ignore；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择与定义处声明／依赖候选隔离已完成；测试用途编排与依赖接入待实施 | test.sources/test-dependencies 解码；源码角色贯穿发现、解析与前端；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 生成入口的身份与产物传递已完成；前端合成、发现与生命周期待实施 | Source／Generated 封闭入口声明、TestEntry key、HIR/MIR/LIR metadata 与根网关回归 |
+| M43-3 静态发现与生命周期入口 | 入口身份与产物传递、注解及声明形态检查已完成；构造选择、静态目录、前端合成与生命周期待实施 | Source／Generated 封闭入口声明、TestEntry key、HIR/MIR/LIR metadata、源码角色与测试声明检查 |
 | M43-4 CLI 与运行报告 | 待实施 | |
 | M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
 
@@ -66,3 +66,12 @@
 - 入口身份实现拆为 209 行主体与 120 行声明模块；LIR/codegen 的测试 fixture 构造移入各自 support 模块，测试主文件分别为 216/167 行。清理已归档的 target/m43/dependency-roles（约 689 MB）。
 - Darwin 正式 CLI 的四种入口、7 类签名负例及 4 类 shutdown 场景全部通过：15 个 fixture、23 个变体、169 个进程步骤；含 debug/release、删除源码后的 artifact-only 链接、参数／UTF-8／退出码、异常与 moving/minor GC，见[报告](validation/entry-darwin.json)。本批未重复不受影响的全量 CLI 或提前执行 Linux 验收。
 - 本批尚未合成前端测试函数正文，也未接入测试构建用途、静态目录、生命周期运行器或 scoop test；这些能力与 scoop.std 首个实际应用继续按设计实施，不把本批 metadata 支持视为 M43-3 或 M43 完成。
+
+## 2026-10-14：测试标记与声明形态
+
+- 先补语言规范 16.3 和实现规范 2.6，在普通 scoop.test Cone 中声明 Test、BeforeTest、AfterTest 与带必需 reason 的 Ignore；使用现有 Target 和不可重复注解规则，没有新增产物格式或 runtime ABI。
+- 前端按实际绑定的 typed annotation identity 识别标记，拒绝生产源码中的应用；检查容器的 class／顶层／非泛型／具体形态、直接声明的实例方法及 safe／同步／Unit／无额外参数要求、角色冲突、孤立 Ignore 和同类重复 hook。重复 hook 同时定位两处声明。未标记 helper 继续遵守普通语言规则。
+- 格式化、workspace clippy、三个 CLI 构建通过。23 项 M43 定向测试与 36 项 annotation 回归通过（两组共有 9 项新增标记测试）；覆盖测试库自身无自依赖、跨 Cone 导入与 alias、同名用户注解、普通名称冲突、private 容器／方法／hooks、Unicode 名称及精确源码角色，见[验证日志](validation/markers-rust.log.gz)。测试准备中修正了 core 源文长度、声明分隔符、context 前缀及普通诊断期望，未修改语言规则迁就测试。
+- Darwin 正式 CLI 的 5 项新负例与原有 10 项断言 fixture 全部通过，共 21 个变体、39 个进程步骤；新负例精确检查四种标记及 alias／跨库 re-export 的生产源码诊断和位置，断言回归包含 debug/release、跨 Cone 调用位置及 moving GC，见[报告](validation/markers-darwin.json)。复用首次构建缓存，没有运行无关全量测试。
+- 形态检查主体为 200 行，身份识别为独立小模块，测试辅助与跨库用例分别拆分。核对归档报告后清理上一批 target/m43/entry（约 316 MB）；scoop.std 首个应用已同步进路线图，提交为 `f119a228`。
+- 零实参构造选择与默认实参的实际求值、静态目录、调用适配和运行器仍须随前端合成接入。本批不宣称 scoop test 已可用，也未执行 Linux 最终验收。

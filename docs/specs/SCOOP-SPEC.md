@@ -3214,3 +3214,15 @@ assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一�
 `AssertionValue` 为普通 enum，具有 `Unavailable`、`Text(String)`、`RenderingFailed(Throwable)` 三个变体。比较断言失败时才尝试渲染 expected/actual：实际值实现 ToString 时普通调用其 toString，否则记录 Unavailable；渲染抛出的 Throwable 保存在 RenderingFailed 中，仍抛出原来的 AssertionFailure 并保留消息、位置及另一个值的渲染结果。渲染不增加断言的 ToString 类型约束，不重新执行实参或比较。fail 和 assertFailsWith 不设置 expected/actual。
 
 assertFailsWith 同步调用 block 一次，捕获 Throwable 后按普通 `is E` 关系检查，包括子类；匹配时返回捕获到的 managed 异常对象，便于继续检查其字段。异常物化沿运行时规范 5.3～5.4，不额外保证与 throw 实参的引用身份相同。block 正常结束或类型不匹配时，在捕获区域之外抛出 AssertionFailure；类型不匹配时 cause 保存捕获到的异常，未抛出时为 None。此规则避免该断言自己生成的失败满足 E。用户 block 自己抛出的 AssertionFailure 仍按普通类型匹配。panic、native crash、abort 或进程退出不属于可捕获的预期异常。
+
+### 16.3 测试标记与声明
+
+测试库在 `scoop.test` package 声明四个公开、不可重复的普通注解：`Test` 的 Target 为 CLASS 与 FUNCTION，`BeforeTest`、`AfterTest`、`Ignore` 的 Target 为 FUNCTION。前三者无参数，Ignore 有一个必需的 `val reason: String` 参数。参数求值、Target、重复应用与 import 沿用 9.4；编译器按 `scoop:scoop.test:0.1.0` 中这些真实声明的 typed annotation identity 识别测试语义，alias 与 re-export 保留作用，同名用户注解不因此变成测试标记。
+
+四种标记的应用只允许出现在 12.2.4 的测试源码集合，普通生产源码上的应用是编译错误。声明这些 annotation class 的测试库源码仍属于普通生产输入。标记只产生编译期语义，不物化为运行期注解对象。
+
+类上的 Test 声明测试容器；容器必须为顶层、具名、非泛型、可实例化的普通 class，不接受 abstract/sealed、局部／嵌套／inner class、struct、enum、interface、object／companion 或 annotation class。容器按普通零实参调用规则唯一选择 safe 构造器，允许默认实参；生产可见性规则保持，生成调用适配位于容器的词法域。private/internal 容器及其构造器、方法和 hooks 均可使用。空容器合法，不因此构造实例。
+
+Test 用例、BeforeTest 和 AfterTest 必须是该容器直接声明、具有普通 Scoop 正文的具名实例方法：仅有普通 this，无 extension receiver、context 参数、值参数（包括有默认值的参数）或自身类型参数，非 suspend，返回 Unit，且可在 safe 上下文调用。每个方法只能承担三种角色中的一种；每类至多一个 BeforeTest 和一个 AfterTest，名称自由。Ignore 必须与同一用例方法的 Test 配对，不允许标记容器、hook 或普通 helper。非法形态、孤立 Ignore、角色冲突和重复 hook 均为编译错误，重复 hook 的诊断同时指出两处声明。
+
+类上的 Test 不自动发现全部方法；未标记 helper 遵守普通函数规则。只发现当前 Cone 测试源码中的直接声明，不扫描依赖或继承用例，不因导入、re-export 或泛型实例化复制用例。Ignore、运行过滤和空容器不跳过声明检查。
