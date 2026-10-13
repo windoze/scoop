@@ -73,3 +73,26 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 - `target/m42/linked-final-report.json`：本组 suite 中 exact filter 选择 artifacts、bulk 和 readonly 两项，4/4 通过。补齐只读 Map/Set 的精确拒绝诊断、通过 MutableSet 接口使用自定义等价规则的 retainAll，以及移除源码后的 std 产物消费和独立链接运行。
 
 两轮均使用 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --work-dir target/m42/foundation`。仍没有发现需要修复的底层宿主实现缺陷。M42-4 至 M42-12 和 Linux GNU/musl 定向验收尚未完成。
+
+## M42-4 前置修复：开放结构比较的展开来源
+
+日期：2026-10-13。Tree 的 AVL 结构 fixture 首次在普通库内具体化多个泛型方法，产物成功生成后，下游读取因 HIR expression 的 evaluation context 属于另一个方法而失败。已提取只依赖 core 的最小复现：同一泛型 class 的两个方法分别比较 `T?`，在 provider 中具体化这两个方法，再让 consumer 加载 provider 产物。旧编译器在 consumer 构建时出现相同的 CallSites/Evaluation/Context 错误；与 Collection 接口无关。
+
+原因是按类型复用开放派生比较正文后，内联复制仍保留第一次派生时的来源。修复 HIR lowering，让每次内联及嵌套比较使用本次操作的完整 definition/evaluation origin 与源码 span；默认参数继续通过原有复制路径传播求值来源。未放宽产物校验，未改变 callable 身份、产物格式、runtime ABI 或库算法。实现规范 2.2 明确这一既有来源要求。
+
+已完成 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，随后 `cargo test -p scoop-hir-lower equality`（33 项通过）、`cargo test -p scoop-hir-lower executable_type_sites`（4 项通过，两组包含同一个新回归），并重建三个配套 CLI。新增 HIR 回归检查每个实际依赖调用与类型使用的来源；独立正式 fixture 覆盖同一 class 的重复 Option 比较、默认参数、provider 内具体化与下游继续具体化、移除源码后的产物消费及 moving GC。
+
+本次实际修改了编译器，因此最终验证范围按设计 7.1 增加该问题的独立回归和受影响的相等／默认参数用例。修复仅涉及 lowering 的来源信息，不据此扩大到无关 runtime、ABI 或完整仓库测试。
+
+本机 CLI 验证证据：
+
+- `target/m42/equality-regressions-report.json`：10 个选择项中的 9 项通过；包括 `evaluation-order-derived-binding`、`generic-equality-defaults`、`source-defaults-derived-generic-defaults`、`source-defaults-derived-default-combinations`、`source-defaults-derived-default-order`、`m33-equality-derived-nominal-artifacts`、`m33-equality-derived-field-semantics`、`m42-tree-structure` 和 `m42-tree-artifacts`。原有 fixture 的 debug/release 变体照常执行。新增回归中的嵌套 tuple 情况暴露下述另一个缺陷，随后单独提取。
+- `target/m42/equality-origins-report.json`：来源问题的独立 fixture 最终 1/1、6 个进程通过；命令为 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-regressions/derived-equality-origins --work-dir target/m42/foundation --jobs 1`。拆分独立问题后重新运行格式化、全工作区 clippy 和新增 HIR 单测，均通过。
+
+来源问题的修复已通过本机定向验收；Linux 留在后续本组定向验证中。当前 Tree 实现尚未提交，M42-4 不标记完成。
+
+### 新发现、待修复：嵌套 enum 的派生比较
+
+普通 `fun <T : Equals<T>> same(left: T?, right: T?): Boolean = (left, left) == (right, right)`，以 Int 调用，在 MIR 验证阶段被拒绝：VariantPayloadProject 缺少同一 stable value 上对应 VariantTest 的 true-edge 支配。最小复现为独立 core-only 程序，日志为 `target/m42/equality-repro/nested.stderr`。它不需要两个方法或跨 Cone 复用即可触发，与上述来源问题独立。
+
+定位线索：开放派生比较将嵌套 enum 保留为值字段投影，MIR 当前的 stable variant identity 只接受不可变 local；后续需处理合法嵌套值的 tag 检查与 payload 读取关系，不能删除必要的支配校验或改写 std 来绕过。工作区保留 `m42-regression-nested-derived-equality` 作为待闭合回归，尚未声明通过或提交。先修复此问题，再继续 M42。

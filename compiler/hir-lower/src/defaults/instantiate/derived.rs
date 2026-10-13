@@ -10,6 +10,7 @@ impl Lowerer {
         receiver: hir::Expr,
         other: hir::Expr,
         bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
+        origin: hir::ExpressionOrigin,
     ) -> hir::Expr {
         let application = self.derived_equality_applications[application].clone();
         let [
@@ -28,7 +29,9 @@ impl Lowerer {
             locals: vec![receiver, other],
             captures: HashMap::new(),
             loop_targets: Vec::new(),
-            evaluation: InstantiationEvaluation::Template,
+            // The cached derivation is synthetic at each comparison, not a
+            // source body belonging to the first method which requested it.
+            evaluation: InstantiationEvaluation::Derived(origin),
         };
         self.instantiate_default_expr(value, &mut context)
     }

@@ -18,7 +18,13 @@ impl Lowerer {
                 .into_iter()
                 .map(|parameter| (parameter.id, self.intern_type(Type::Param(parameter.id))))
                 .collect();
-            return self.inline_derived_equality(application, receiver, other, bindings);
+            return self.inline_derived_equality(
+                application,
+                receiver,
+                other,
+                bindings,
+                self.expression_origin(span),
+            );
         }
         hir::Expr {
             kind: hir::ExprKind::MethodCall {

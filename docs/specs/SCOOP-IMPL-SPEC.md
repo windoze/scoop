@@ -141,6 +141,8 @@ core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR
 
 结构比较在当前静态类型环境中绑定字段的 operator equals。宿主包含类型参数时，先按顺序保存两个操作数，再将已绑定的比较正文展开为普通字段调用和短路表达式；enum 的 payload 读取受相应 variant 检查保护。泛型正文、默认参数和跨 Cone 模板保留这些普通 HIR 操作，具体化时不得按具体宿主重新选择字段重载，也不得与直接比较该具体宿主的派生正文合并。封闭宿主仍使用按 exact owner 标识的既有派生 callable。`Equals.equals` 继续由普通接口、泛型正文、装箱和跨库调用机制承担。
 
+开放结构比较的展开模板可以复用已绑定的字段比较，但每次内联生成的表达式必须采用本次比较操作的完整 definition/evaluation origin；嵌套展开沿用该来源。不能把第一次生成模板的方法上下文或位置带入其他方法。比较位于默认参数中时，保留该默认表达式已有的定义／求值来源，由普通缺省实例化继续传播实际调用位置。
+
 按 exact owner 生成的派生 callable 没有独立的词法源码正文，其表达式保留触发派生的来源；该来源可以是依赖中的默认值或模板。检查其中的依赖调用时仍验证 definition/evaluation 的文件、位置和上下文引用，但不能要求求值来源属于当前 Cone，或要求这个按类型生成的 helper 出现在导入函数模板表中。生成身份继续只由 exact owner 决定，不因首次触发派生的文件或调用点改变。
 
 派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equals` 及其他普通接口方法；具体值的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。

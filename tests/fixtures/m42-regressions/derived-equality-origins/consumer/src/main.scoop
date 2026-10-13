@@ -1,0 +1,4 @@
+import repeated.verify
+import repeated.verifyValues
+
+fun main() { println(verify() && verifyValues<String>("same")) }
