@@ -21,7 +21,7 @@ fun main() {
     check(!same(42, 43))
     check(same("跨库", "跨库"))
     check(same(0f, -0f))
-    check(!same(Float.NaN, Float.NaN))
+    check(same(Float.NaN, Float.NaN))
     check(same(Key("left", 7), Key("right", 7)))
     check(sameKey(Key(1, 7), Key(2, 7)))
     check(through(42, 42))
