@@ -3146,3 +3146,42 @@ core 提供普通安全函数 `write(message: String)`、`writeError(message: St
 | `Option<T>` 的智能转换 | `when` 解构（7.3） |
 | interface 方法自身泛型、任何泛型虚方法 | 泛型宿主的非泛型方法，或 final direct 泛型方法（3.2） |
 | 捕获外层词法局部 `var` | 显式 `val` 快照，或捕获普通引用对象并访问其 property（8.1.3） |
+
+## 16. 测试支持
+
+### 16.1 普通测试库
+
+`scoop:scoop.test:0.1.0` 是显式依赖的普通 library Cone，安装于 `sysroot/lib/scoop.test/`，按 12.2 的普通 `scoop` group 定位规则加载。公开 API 位于 `scoop.test` package，没有默认导入，也不加入最小 core 或 single-file 模式的隐式依赖。断言可由普通程序调用，不依赖测试发现、专用入口或运行期反射。
+
+M43 只提供同 Cone 单元测试；独立 Cone 的 integration-test 留待 multi-cone workspace 定型后另行设计。
+
+### 16.2 断言与失败数据
+
+各断言在 debug/release 下都执行，实参按 8.5 的普通顺序求值一次。签名如下；`message` 是可选的用户消息，`location` 使用 11.12 的调用处默认参数来源，helper 转发时显式传递。
+
+```scoop
+public fun assertTrue(condition: Boolean, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun assertFalse(condition: Boolean, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : Equals<T>> assertEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : ref> assertSame(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : ref> assertNotSame(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <E : Throwable> assertFailsWith(message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation(), block: () -> Unit): E
+public fun fail(message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()): Nothing
+```
+
+assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`，使用普通 `Equals<T>` 契约及 11.11 的浮点默认相等。结构可比较不隐含 Equals conformance；struct/enum/tuple 可用 `assertTrue(actual == expected)`，不增加结构型 bound 或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
+
+失败抛出普通 `AssertionFailure : Throwable`，不继承 Exception；显式 catch Throwable 仍可捕获。它公开只读字段 `kind: String`、`message: String?`、`location: SourceLocation`、`expected: AssertionValue`、`actual: AssertionValue` 和 `cause: Throwable?`。kind 是所调用断言的名称（例如 `assertEquals`）；构造器依次接受这些参数，expected/actual 默认 Unavailable，cause 默认 None。
+
+`AssertionValue` 为普通 enum，具有 `Unavailable`、`Text(String)`、`RenderingFailed(Throwable)` 三个变体。比较断言失败时才尝试渲染 expected/actual：实际值实现 ToString 时普通调用其 toString，否则记录 Unavailable；渲染抛出的 Throwable 保存在 RenderingFailed 中，仍抛出原来的 AssertionFailure 并保留消息、位置及另一个值的渲染结果。渲染不增加断言的 ToString 类型约束，不重新执行实参或比较。fail 和 assertFailsWith 不设置 expected/actual。
+
+assertFailsWith 同步调用 block 一次，捕获 Throwable 后按普通 `is E` 关系检查，包括子类；匹配时返回捕获到的 managed 异常对象，便于继续检查其字段。异常物化沿运行时规范 5.3～5.4，不额外保证与 throw 实参的引用身份相同。block 正常结束或类型不匹配时，在捕获区域之外抛出 AssertionFailure；类型不匹配时 cause 保存捕获到的异常，未抛出时为 None。此规则避免该断言自己生成的失败满足 E。用户 block 自己抛出的 AssertionFailure 仍按普通类型匹配。panic、native crash、abort 或进程退出不属于可捕获的预期异常。

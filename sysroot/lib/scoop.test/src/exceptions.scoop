@@ -1,0 +1,21 @@
+package scoop.test
+
+public fun <E : Throwable> assertFailsWith(
+    message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation(),
+    block: () -> Unit
+): E {
+    val caught: Throwable? = try {
+        block()
+        None
+    } catch (error: Throwable) {
+        Some(error)
+    }
+    when (caught) {
+        case Some(error) -> {
+            if (error is E) return error
+            throw AssertionFailure("assertFailsWith", message, location, cause = Some(error))
+        }
+        case None -> throw AssertionFailure("assertFailsWith", message, location)
+    }
+}

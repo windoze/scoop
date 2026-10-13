@@ -567,6 +567,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - math（含 BigInteger/Decimal）、regex、完整 Unicode、压缩、密码学、更多格式、持久化集合及系统库独立排期，不成为本里程碑的验收前置。
 - M42-1～12 全部交付，TreeMap／TreeSet 使用内联键值的 B-tree。三目标各通过本组 130 个 fixture、139 个变体；含必要既有回归后 Darwin／GNU 各覆盖 150 项、musl 149 项。五个实际底层缺陷均独立修复及回归，没有运行无关全量套件。
 
+### M43 测试库与 `scoop test`（实施中，[设计](milestone43/DESIGN.md)）
+
+- 交付普通 `scoop.test` Cone、断言、显式测试容器与方法、每用例实例及 BeforeTest/AfterTest 生命周期。
+- 增加同 Cone 测试源码、测试依赖与构建用途，由 `scoop test` 静态发现、构建、过滤、列出并串行运行，保留准确的生命周期失败与进程结果。
+- 按功能分批更新规范、实现、验证并提交；定向验证后完成三个现有 target 的 CLI、产物与必要回归验收。
+- integration-test 等待 multi-cone workspace 定型后另行设计，不纳入本里程碑。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture、组合 fixture 和准确的 negative 诊断。普通功能用例验证编译与运行；各 stage 的结构由少量代表性的 golden 或 typed IR 精确断言覆盖，产物、ABI、GC、链接与优化专测保留对应合同（见 AGENTS.md 编码准则）。

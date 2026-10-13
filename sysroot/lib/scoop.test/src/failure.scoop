@@ -1,0 +1,47 @@
+package scoop.test
+
+public enum AssertionValue {
+    Unavailable,
+    Text(String),
+    RenderingFailed(Throwable)
+}
+
+public class AssertionFailure public constructor(
+    public val kind: String,
+    public val message: String?,
+    public val location: SourceLocation,
+    public val expected: AssertionValue = AssertionValue.Unavailable,
+    public val actual: AssertionValue = AssertionValue.Unavailable,
+    public val cause: Throwable? = None
+) : Throwable()
+
+internal fun renderAssertionValue(value: Any): AssertionValue {
+    if (value is ToString) {
+        return try {
+            AssertionValue.Text(value.toString())
+        } catch (error: Throwable) {
+            AssertionValue.RenderingFailed(error)
+        }
+    }
+    return AssertionValue.Unavailable
+}
+
+internal fun comparisonFailure(
+    kind: String,
+    expected: Any,
+    actual: Any,
+    message: String?,
+    location: SourceLocation
+): Nothing {
+    throw AssertionFailure(
+        kind, message, location,
+        renderAssertionValue(expected), renderAssertionValue(actual)
+    )
+}
+
+public fun fail(
+    message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()
+): Nothing {
+    throw AssertionFailure("fail", message, location)
+}
