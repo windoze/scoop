@@ -9,7 +9,7 @@
 - LocalConcrete intrinsic 保存完整物理参数类型；实际分派入口复用 callable materialization 和 primitive lowering，生产、导入两侧按声明的 slot/dispatch selection 发布与选择入口，没有新增 runtime ABI 或产物 wire tag。
 - 跨库扩展正文的隐式 struct 字段读取复用字段身份，避免选择没有函数体的 Storage getter。
 - Add 功能提交：`45339fb3`。
-- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 迁移已完成；浮点语义实施尚未完成。
+- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 和浮点默认比较迁移已完成，本机定向验证通过，正在执行 Linux GNU/musl 完整验收。
 - IEEE 四态 API 定名为 IeeeComparison / ieeeCompare。
 - 临时目录和日志使用 `target/m41/`，测试命令设置 TMPDIR；保留 M39 编译依赖以避免重复构建。
 
@@ -77,4 +77,5 @@
 ## Linux 验证中的既有测试修正
 
 - Linux 全量入口发现 child runner 的旧测试仍要求 GNU 和 musl 都设置 REALGCC，与 M39 已交付的 musl wrapper 专用规则矛盾。修正测试：GNU 验证变量未设置，musl 验证实际 GCC 可执行；继续验证 PATH、私有 scratch 位置及结束后的清理。生产实现和语言行为未改。
-- 两台宿主的 fmt / workspace clippy 通过；Linux scoop 单元测试 100 项通过。后续继续执行该包的实际产物集成检查与尚未执行的其余 workspace，避免重跑整套已完成测试。
+- 两台宿主的 fmt / workspace clippy 通过；Linux scoop 单元测试 100 项、依赖边界集成测试 3 项和实际产物持有集成测试 1 项全部通过。其余 workspace 使用 `--exclude scoop --no-fail-fast` 续跑，避免重跑该包已完成的测试。
+- default callable 产物测试原先以 Unit 比较覆盖 DerivedEquality。Unit 已改为普通 Equals 成员，原输入不再产生这一引用；保留 Unit 用例，并增加具体 tuple 的默认参数比较，继续检查全部七类 callable 引用。本机 fmt、workspace clippy 和该完整产物读写用例通过；Linux 仅补验受影响用例。

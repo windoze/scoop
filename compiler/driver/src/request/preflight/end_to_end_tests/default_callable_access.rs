@@ -9,7 +9,7 @@ fn ordinary_reader_consumes_default_callable_references_from_published_bytes() {
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     let directory = crate::workspace_root().join("tests/fixtures/m23-default-callable-access");
-    for (case, expected_templates) in [("standalone", 1), ("combined", 20)] {
+    for (case, expected_templates) in [("standalone", 1), ("combined", 21)] {
         let source = std::fs::read_to_string(directory.join(format!("{case}.scoop"))).unwrap();
         let root = sysroot.path().join(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);
