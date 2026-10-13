@@ -1,0 +1,38 @@
+package scoop.text
+
+public fun String.toFloatOrNull(): Float? {
+    if (this == "NaN") return Some(Float.NaN)
+    if (this == "Infinity" || this == "+Infinity") return Some(Float.POSITIVE_INFINITY)
+    if (this == "-Infinity") return Some(Float.NEGATIVE_INFINITY)
+    val rounded = when (roundDecimal(this, 24L, -149L, -46L, 38L)) {
+        case None -> return None
+        case Some(value) -> value
+    }
+    var scale = 1f
+    var exponent = rounded.exponent
+    while (exponent < 0L) { scale /= 2f; exponent += 1L }
+    while (exponent > 0L) { scale *= 2f; exponent -= 1L }
+    val value = rounded.significand.toFloat() * scale
+    if (!value.isFinite()) return None
+    return Some(if (rounded.negative) -value else value)
+}
+
+public fun String.toDoubleOrNull(): Double? {
+    if (this == "NaN") return Some(Double.NaN)
+    if (this == "Infinity" || this == "+Infinity") return Some(Double.POSITIVE_INFINITY)
+    if (this == "-Infinity") return Some(Double.NEGATIVE_INFINITY)
+    val rounded = when (roundDecimal(this, 53L, -1074L, -324L, 308L)) {
+        case None -> return None
+        case Some(value) -> value
+    }
+    var scale = 1.0
+    var exponent = rounded.exponent
+    while (exponent < 0L) { scale /= 2.0; exponent += 1L }
+    while (exponent > 0L) { scale *= 2.0; exponent -= 1L }
+    val value = rounded.significand.toDouble() * scale
+    if (!value.isFinite()) return None
+    return Some(if (rounded.negative) -value else value)
+}
+
+public fun String.toFloat(): Float = requireParsedNumber<Float>(toFloatOrNull())
+public fun String.toDouble(): Double = requireParsedNumber<Double>(toDoubleOrNull())

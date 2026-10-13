@@ -209,3 +209,17 @@ Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个�
 本机 integers/radices/parse-errors/artifacts 四个 fixture 全部通过，4 个变体、18 个进程，所有运行类覆盖 normal/moving。证据为 `target/m42/text-integers-report.json`。命令使用相同 `TMPDIR="$PWD/target/m42/scratch"`、`--suite tests/fixtures/m42-text --work-dir target/m42/foundation --jobs 4`，exact filter 只选择本轮四项。覆盖各类型最小／最大值和越界一位、全部 alias、符号／前导零、独立二／八／十六／三十六进制极值向量、2..36 全 radix 代表值往返、四种 radix 的 Int8 全值域、严格布尔／数字语法、无效 radix 与 NumberFormatException。产物用例组合混合换行、Unicode key、split/trim/ASCII 规范化、整数解析／格式化、Sequence 与 Result；删除 core/std/消费者源码后独立 link，链接计划与运行结果正确。
 
 本轮新增源码最长为 43 行。普通 std Cone 构建、源码风格与 `git diff --check` 通过；没有 compiler/runtime 修改，不跑完整套件。已清理完成的 case 和检查构建，保留报告与共享 cache。M42-7 的精确 Float/Double 解析尚未完成，M42-8～12 和 Linux GNU/musl 的本组最终验证仍待实施，不将本批通过等同于整个 M42 已验收。
+
+### M42-7 完成：精确 Float／Double 文本解析
+
+新增 toFloat/toDouble 与 OrNull，完整校验 ASCII 十进制语法、特殊值与指数，保留 signed zero，按目标精度直接最近偶数舍入。有限输入只有舍入到无穷才失败；略大于 MAX_VALUE 但仍舍入到 MAX_VALUE 的文本成功。公开规范同步明确该边界与 +NaN/-NaN 的拒绝行为。
+
+实现由普通 Scoop 的十进制扫描、指数抵消、UInt limb 整数、精确商／余数舍入与目标类型缩放组成。有效位保留数量由 IEEE 格式中点的有限十进制长度推导，长尾只保存非零标志；全输入继续验证，不添加数值长度配额。没有使用 Double 中转 Float、JSON native parser、Extern/Intrinsic 或宿主 helper。新增库源码单文件最多 81 行。
+
+正式 CLI 验证：
+
+- float-grammar 覆盖合法语法、42 种非法形式、OrNull／NumberFormatException、特殊值、负零与有限溢出；float-long 覆盖 2048 位输入、巨大指数、指数与小数点抵消、远端 sticky、负号及明确的 Double→Float 二次舍入反例。两者普通／moving GC 通过，证据为 `target/m42/text-float-grammar-long-report.json` 的对应通过记录。
+- float32／float64 各有 324 个独立向量，覆盖正负输入、中点两侧与奇偶 tie、零／subnormal／normal 边界、binade 进位、溢出阈值、超过有效位保留范围的长尾和固定种子随机十进制。期望由 `tests/generate_float_text_vectors.py` 以 Fraction 在 IEEE 相邻值间二分并比较精确距离生成；宿主浮点只用于输出已选定位型的字面量。脚本仅离线再生 fixture，不接入 runner 或库实现。
+- 两组向量在 debug／release 下分别以普通／moving GC 运行通过。artifacts 增加 Sequence→浮点解析组合，移除 core／std／应用源码后独立链接运行通过。证据 `target/m42/text-float-vectors-artifacts-report.json`：3 fixture、5 variant、22 process 均通过。
+
+Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `git diff --check`，普通 std 构建成功。初次生成脚本 lint 失败导致尚无源码的两个向量 Cone 构建失败，修正并生成向量后的正式验收均通过；没有库算法或底层失败。已清理完成的 case 与单次检查构建，保留报告及共享 cache。本批没有 compiler/runtime 修改，不运行无关完整套件。M42-7 已完成，M42-8～12 及 Linux GNU/musl 的本组最终验证继续实施。

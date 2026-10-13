@@ -1,0 +1,42 @@
+package scoop.text
+
+internal struct RoundedDecimal(val significand: ULong, val exponent: Long, val negative: Boolean)
+
+private fun roundedQuotient(numerator: DecimalMagnitude, denominator: DecimalMagnitude, sticky: Boolean): ULong {
+    var shift = numerator.bitLength - denominator.bitLength
+    var quotient = 0uL
+    while (shift >= 0L) {
+        if (numerator.compareShifted(denominator, shift) >= 0L) {
+            numerator.subtractShifted(denominator, shift)
+            quotient = quotient or (1uL shl shift)
+        }
+        shift -= 1L
+    }
+    val halfway = numerator.shifted(1L).compareShifted(denominator, 0L)
+    if (halfway > 0L || (halfway == 0L && (sticky || (quotient and 1uL) != 0uL))) quotient += 1uL
+    return quotient
+}
+
+internal fun roundDecimal(text: String, precision: Long, minExponent: Long, minOrder: Long, maxOrder: Long): RoundedDecimal? {
+    val parsed = when (scanDecimal(text, precision + 2L - minExponent)) {
+        case None -> return None
+        case Some(value) -> value
+    }
+    if (parsed.digits == 0L || parsed.order < minOrder) return Some(RoundedDecimal(0uL, 0L, parsed.negative))
+    if (parsed.order > maxOrder) return None
+    var numerator = parsed.magnitude
+    var denominator = DecimalMagnitude()
+    denominator.multiplyAdd(10u, 1u)
+    var decimalExponent = parsed.order - parsed.digits + 1L
+    while (decimalExponent > 0L) { numerator.multiplyAdd(10u, 0u); decimalExponent -= 1L }
+    while (decimalExponent < 0L) { denominator.multiplyAdd(10u, 0u); decimalExponent += 1L }
+    var binaryOrder = numerator.bitLength - denominator.bitLength
+    val comparison = if (binaryOrder >= 0L) numerator.compareShifted(denominator, binaryOrder)
+        else numerator.shifted(-binaryOrder).compareShifted(denominator, 0L)
+    if (comparison < 0L) binaryOrder -= 1L
+    val normalExponent = binaryOrder - precision + 1L
+    val exponent = if (normalExponent < minExponent) minExponent else normalExponent
+    if (exponent < 0L) numerator = numerator.shifted(-exponent)
+    else denominator = denominator.shifted(exponent)
+    return Some(RoundedDecimal(roundedQuotient(numerator, denominator, parsed.sticky), exponent, parsed.negative))
+}

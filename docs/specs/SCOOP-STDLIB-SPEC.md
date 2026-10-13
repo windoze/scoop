@@ -198,7 +198,7 @@ trim(predicate) 先从左向右检查前缀，再从右向左检查剩余后缀�
 
 canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toULong，并提供 core alias 对应的 toByte/toShort/toInt32/toInt64、toUByte/toUShort/toUInt32/toUInt64 转发名，各有 OrNull。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
 
-浮点接受 ASCII 十进制 `[+-]?(digits(\.digits?)?|\.digits)([eE][+-]?digits)?`，以及精确拼写 NaN、Infinity、+Infinity、-Infinity。十进制结果直接按目标 Float/Double 精度最近偶数舍入，不通过 Double 再转 Float；有限输入溢出目标有限范围为失败，underflow 可得到 subnormal 或带符号零。禁止 hex float、后缀、空白、尾随内容和 locale 变体。NaN 使用 core NaN 常量位型；显式 Infinity 返回相应无穷。
+浮点接受 ASCII 十进制 `[+-]?(digits(\.digits?)?|\.digits)([eE][+-]?digits)?`，以及精确拼写 NaN、Infinity、+Infinity、-Infinity。十进制结果直接按目标 Float/Double 精度最近偶数舍入，不通过 Double 再转 Float；有限输入舍入后成为无穷时为解析失败，略大于 MAX_VALUE 但仍舍入到 MAX_VALUE 的输入成功。underflow 可得到 subnormal 或带符号零。禁止 hex float、后缀、空白、尾随内容和 locale 变体；+NaN/-NaN 也不接受。即使数值明显溢出、下溢或全零，仍检查完整语法。NaN 使用 core NaN 常量位型；显式 Infinity 返回相应无穷。
 
 布尔只接受 true/false。失败的非 OrNull 版本抛 NumberFormatException；无效 radix 仍抛 IllegalArgumentException。解析实现全用 Scoop；不能直接绑定既有 JSON 内部的 runtime 浮点转换 helper。必要的精确十进制到二进制运算是 text 的私有算法，不导出通用 BigInteger/Decimal 或 math 包。
 

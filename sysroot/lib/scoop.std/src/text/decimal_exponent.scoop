@@ -1,0 +1,26 @@
+package scoop.text
+
+internal fun appendDecimalExponent(value: ULong, digit: ULong): ULong {
+    if (value > ULong.MAX_VALUE / 10uL ||
+        (value == ULong.MAX_VALUE / 10uL && digit > ULong.MAX_VALUE % 10uL)) return ULong.MAX_VALUE
+    return value * 10uL + digit
+}
+
+// Cancel the decimal-point offset before reducing to a signed order of magnitude.
+internal fun decimalOrder(exponent: ULong, negative: Boolean, offset: Long): Long {
+    val offsetNegative = offset < 0L
+    val offsetMagnitude = if (offsetNegative) (0uL - offset.toUInt64()) else offset.toUInt64()
+    var resultNegative = negative
+    var magnitude = exponent
+    if (negative == offsetNegative) {
+        magnitude = if (exponent > ULong.MAX_VALUE - offsetMagnitude) ULong.MAX_VALUE
+            else exponent + offsetMagnitude
+    } else if (exponent >= offsetMagnitude) {
+        magnitude = exponent - offsetMagnitude
+    } else {
+        magnitude = offsetMagnitude - exponent
+        resultNegative = offsetNegative
+    }
+    val bounded = if (magnitude > Long.MAX_VALUE.toUInt64()) Long.MAX_VALUE else magnitude.toInt64()
+    return if (resultNegative) -bounded else bounded
+}
