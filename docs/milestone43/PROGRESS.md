@@ -178,3 +178,8 @@
 
 - 正式声明负例的审阅发现：BeforeTest／AfterTest 后附加 Ignore 且没有 Test 时，发现阶段将错误指向第一个 hook 标记。现在直接使用该 Ignore 应用的源码位置；错误规则与生命周期语义保持。
 - 新增精确字节区间测试，分别验证两种 hook 后的诊断确实覆盖 `@Ignore("later")`。格式化、workspace clippy、配套工具构建与 21 项测试声明／发现／入口定向测试全部通过，见 [Rust 日志](validation/ignore-location-rust.log.gz)、[lint](validation/ignore-location-clippy.log.gz) 与 [构建](validation/ignore-location-build.log.gz)。正式 CLI 负例随本批声明验收补齐。
+
+## 2026-10-14：scoop.std 的列表与过滤验收
+
+- 补充首个实际应用的正式 CLI 组合：列出 3 个容器、10 个用例，再筛选 ListTests 的 4 个用例，以及 SequenceTests 的单个 window 用例。过滤后的列表与运行保留相同完整用例名，产物指纹不变，后续命令均为零编译器调用；实际执行启用 moving GC。
+- Darwin debug/release 共 2 个变体、8 个进程步骤通过，见 [完成日志](validation/std-selection-darwin.log.gz)。该日志保存完整 M43 定向组仍在运行时的已完成部分，不能视为整组完成报告；scoop.std 原有生产构建、只构建、全组报告与直接 moving GC 验收也已在本轮通过。Linux 验收仍待本机组结束后进行。
