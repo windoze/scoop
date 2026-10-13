@@ -118,3 +118,15 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 日期：2026-10-13。ArrayDeque 以普通 typed 环形数组实现两端增删、首尾 OrNull、clear 与头尾顺序迭代。增长只复制有效区间；退出有效范围的 MaybeUninit 槽清零。iterator 持有容器而非旧 backing，结构修改失效、空操作保持有效、首次 None 后永久耗尽。与 PriorityQueue 共用的 ElementBuffer 只封装实际使用的 typed 槽读写和增长容量计算，没有新增集合接口或 native 能力。
 
 本机通过 `m42-queue-deque-basic` 与 `m42-queue-deque-model`，正常与 moving GC 均执行：包括嵌套 Option、空队列异常、两端交错操作、1500 步模型对照、多轮环形绕回、扩容，以及与 HashSet 组合的广度优先遍历。证据保留于 `target/m42/queues-functional-report.json`；同轮 PriorityQueue 与组合 GC 验证见后续记录。先完成普通源码构建与 `git diff --check`，无底层宿主改动，不运行全仓库套件。
+
+### PriorityQueue 已完成
+
+普通数组二叉堆支持显式 Comparator、自然顺序／显式比较器工厂、peek、removeFirst 及 OrNull、clear、size 和失效检测 iterator。插入先查找目标祖先，删除先计算下降路径，全部比较成功后才提交搬移；路径由二叉堆索引保存，无额外路径数组。每次用户比较返回后检查修改计数，异常不提交本次调整，重入修改保留副作用并拒绝继续使用旧状态。有效槽外及时清零；迭代器不保持旧 backing。
+
+本批正式验证共 7 个 fixture 均通过，全部使用 `TMPDIR="$PWD/target/m42/scratch"`、`--work-dir target/m42/foundation`，按以下实际改动范围运行：
+
+- `--suite tests/fixtures/m42-queues --jobs 4`：当时的 5 个功能／模型／GC fixture 全通过，5 个变体、20 个进程。`target/m42/queues-functional-report.json`。堆以 2400 步有重复值模型插删及最终有序排空验证优先级和比较次数上界；覆盖自定义无 Hash/Equals/Compare 的元素、嵌套 Option、满容量时比较异常、删除比较异常、重入 add/clear 与 iterator 规则。
+- 同 suite 中以 `--filter` 选择 `m42-queue-artifacts` 和 `m42-queue-natural-bound`，`--jobs 2`：2/2、8 个进程通过。`target/m42/queues-artifacts-report.json`。负例锁定自然工厂缺少 Compare 的消息及源码位置；组合 artifact-only 用例移除 core/std/消费者源码后链接运行，含 managed struct、Comparator closure、Deque→PriorityQueue 流水线与 moving GC。
+- 将 GC 用例加强为连续移除 40 个含引用与 tuple 字段的 struct、逐项对照 Deque 与 Heap 后，仅重跑 `--suite tests/fixtures/m42-queues/gc --jobs 1`：1/1、4 个进程通过。`target/m42/queues-gc-report.json`。删除及 clear 分别确认 payload 回收，扩容前创建的失效 iterator 仍被持有；正常和 moving GC 均通过。
+
+没有 compiler/runtime 修改。已清理各轮 case 临时产物并保留报告与共享 cache；未运行完整仓库测试。M42-5 的急切集合算法、稳定排序和二分尚待完成，后续批次及 Linux GNU/musl 本组定向验收保持原范围。

@@ -120,7 +120,7 @@ List/ArrayList 原有按索引迭代规则保持语言规范 11.10.3；不同容
 
 `ArrayDeque<T>` 为实现 Collection<T> 的普通 final class，提供 size、isEmpty、addFirst/addLast、removeFirst/removeLast、removeFirstOrNull/removeLastOrNull、firstOrNull/lastOrNull、clear 和从头到尾的 iterator。用环形数组实现，两端插入/删除摊还 O(1)。空的非 OrNull remove 抛 NoSuchElementException。栈和队列直接使用这组 API，不增加只有改名意义的 Stack/Queue 实现。
 
-`PriorityQueue<T>` 为实现 Collection<T> 的普通 final class，接收 Comparator，提供 add、peek/peekOrNull、removeFirst/removeFirstOrNull、clear、size 和 iterator；自然顺序工厂 `priorityQueueOf` 要求 Compare bound。堆顶为最小元素，peek O(1)、add/remove O(log n)，同优先级不保证稳定性。iterator 不保证排序顺序，排序输出须使用显式 sorted 操作或在副本上重复移除。
+`PriorityQueue<T>` 为实现 Collection<T> 的普通 final class，接收并公开 comparator，提供 add、peek/peekOrNull、removeFirst/removeFirstOrNull、clear、size 和 iterator；自然顺序工厂 `priorityQueueOf(vararg elements)` 要求 Compare bound，另有显式 Comparator 重载。堆顶为最小元素，peek O(1)、add 摊还 O(log n)、remove 最坏 O(log n)；动态数组单次扩容 O(n)。同优先级不保证稳定性。iterator 不保证排序顺序，排序输出须使用显式 sorted 操作或在副本上重复移除。
 
 PriorityQueue.add 返回 Unit，空队列的 peek/removeFirst 抛 NoSuchElementException。插入与移除先通过 Comparator 规划 sift 路径，全部比较成功后再提交元素移动；比较失败不留下破坏堆性质的半次 sift。Deque 两端 add 返回 Unit，其非空读取/移除返回 T。
 

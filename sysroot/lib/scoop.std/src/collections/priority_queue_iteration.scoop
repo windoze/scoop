@@ -1,0 +1,30 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+import scoop.comparisons.naturalOrder
+
+public fun <T> priorityQueueOf(comparator: Comparator<T>, vararg elements: T): PriorityQueue<T> {
+    val result = PriorityQueue<T>(comparator)
+    for (element in elements) result.add(element)
+    return result
+}
+
+public fun <T : Compare<T>> priorityQueueOf(vararg elements: T): PriorityQueue<T> =
+    priorityQueueOf<T>(naturalOrder<T>(), *elements)
+
+internal class HeapIterator<T> internal constructor(
+    private val source: PriorityQueue<T>, private val structure: ModificationCounter
+) : Iterator<T> {
+    private val stamp: RevisionStamp = structure.snapshot()
+    private var index: Long = 0L
+    private var exhausted: Boolean = false
+
+    public override fun next(): T? {
+        if (exhausted) return None
+        structure.check(stamp)
+        if (index == source.size) { exhausted = true; return None }
+        val value = source.elementAt(index)
+        index += 1L
+        return Some(value)
+    }
+}

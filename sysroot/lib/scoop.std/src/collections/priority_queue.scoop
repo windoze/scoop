@@ -1,0 +1,97 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+
+public class PriorityQueue<T> public constructor(public val comparator: Comparator<T>) : Collection<T> {
+    private var storage: ElementBuffer<T> = ElementBuffer<T>(8L)
+    private var elementCount: Long = 0L
+    private val structure: ModificationCounter = ModificationCounter()
+    public override val size: Long get() = elementCount
+
+    internal fun elementAt(index: Long): T = storage.read(index)
+
+    private fun compare(left: T, right: T, stamp: RevisionStamp): Long {
+        val result = comparator.compare(left, right)
+        structure.check(stamp)
+        return result
+    }
+
+    private fun ensureRoom() {
+        if (elementCount < storage.capacity) return
+        val replacement = ElementBuffer<T>(expandedCollectionCapacity(storage.capacity))
+        var index = 0L
+        while (index < elementCount) { replacement.write(index, storage.read(index)); index += 1L }
+        storage = replacement
+    }
+
+    public fun add(element: T) {
+        val stamp = structure.snapshot()
+        var destination = elementCount
+        while (destination > 0L) {
+            val parent = (destination - 1L) / 2L
+            if (compare(element, storage.read(parent), stamp) >= 0L) break
+            destination = parent
+        }
+        ensureRoom()
+        var index = elementCount
+        while (index > destination) {
+            val parent = (index - 1L) / 2L
+            storage.write(index, storage.read(parent))
+            index = parent
+        }
+        storage.write(destination, element)
+        elementCount += 1L
+        structure.advance()
+    }
+
+    public fun peek(): T {
+        if (elementCount == 0L) throw NoSuchElementException("empty priority queue")
+        return storage.read(0L)
+    }
+
+    public fun peekOrNull(): T? = if (elementCount == 0L) None else Some(storage.read(0L))
+    public fun removeFirstOrNull(): T? = if (elementCount == 0L) None else Some(removeFirst())
+
+    public fun removeFirst(): T {
+        if (elementCount == 0L) throw NoSuchElementException("empty priority queue")
+        val result = storage.read(0L)
+        val remaining = elementCount - 1L
+        if (remaining > 0L) {
+            val last = storage.read(remaining)
+            val stamp = structure.snapshot()
+            var destination = 0L
+            var mask = 1L
+            while (destination < remaining / 2L) {
+                var child = destination * 2L + 1L
+                if (child + 1L < remaining && compare(storage.read(child + 1L), storage.read(child), stamp) < 0L) child += 1L
+                if (compare(last, storage.read(child), stamp) <= 0L) break
+                destination = child
+                mask *= 2L
+            }
+            // The bits of destination + 1 encode the root-to-node path.
+            var index = 0L
+            mask /= 2L
+            while (mask > 0L) {
+                val child = index * 2L + 1L + ((destination + 1L) / mask) % 2L
+                storage.write(index, storage.read(child))
+                index = child
+                mask /= 2L
+            }
+            storage.write(destination, last)
+        }
+        storage.erase(remaining)
+        elementCount = remaining
+        structure.advance()
+        return result
+    }
+
+    public fun clear() {
+        if (elementCount == 0L) return
+        var index = 0L
+        while (index < elementCount) { storage.erase(index); index += 1L }
+        elementCount = 0L
+        structure.advance()
+    }
+
+    public override operator fun iterator(): Iterator<T> = HeapIterator<T>(this, structure)
+}

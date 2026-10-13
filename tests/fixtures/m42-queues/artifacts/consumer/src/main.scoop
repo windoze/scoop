@@ -1,0 +1,16 @@
+import scoop.collections.*
+import scoop.comparisons.*
+
+struct Event(val rank: Long, val message: String)
+
+fun main() {
+    val deque = ArrayDeque<Event>()
+    deque.addFirst(Event(3L, "c"))
+    deque.addLast(Event(1L, "a"))
+    deque.addFirst(Event(2L, "b"))
+    val queue = PriorityQueue<Event>(comparatorOf<Event> { a, b -> a.rank.compareTo(b.rank) })
+    while (deque.isNotEmpty()) queue.add(deque.removeFirst())
+    gcCollect()
+    while (queue.isNotEmpty()) println(queue.removeFirst().message)
+    println(deque.isEmpty() && queue.isEmpty())
+}
