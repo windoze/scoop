@@ -109,3 +109,8 @@
 
 - `Int` 的 RangeTo/RangeUntil 实现使形状消费实际到达 `IntRange`，其 Contains、Iterable、Iterator 与 Option<Int> 必须进入普通名义应用清单。补齐四项具体期望，继续精确比较完整集合，未放宽产物或布局检查。
 - 本机格式化、workspace clippy 后，`actual_core_sources_produce_closed_mir_and_lir_export_tables` 完整通过，包含 standalone/combined 消费、机器产物和错误产物检查。Linux 对这项已定位的旧清单进行定向补验。
+
+### 原生存储归档成员清单
+
+- 三目标实际生成的 native-storage provider 均由 66 个物理成员变为 65 个，与 Unit 不再物化派生比较一致。审阅实际 MIR，Wide 和指针相等、六个 native callback bridge 均保留；审阅时重建的 Darwin `.slib` 与正式 fixture 字节完全一致。
+- 仅更新三份归档成员清单的一行；Darwin、GNU、musl 均在普通比较模式通过正式用例，每目标 1 个变体、10 次进程、1 次 golden，包含无源码独立链接与 moving GC。
