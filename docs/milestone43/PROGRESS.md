@@ -201,3 +201,10 @@
 - 成员 extension、Extern、Intrinsic 和缺少正文的非法声明由原有普通语法／声明规则先拒绝，期望保留实际诊断，不强行要求统一的测试错误。Intrinsic 用例使用已存在的 rt_gc_collect 标识，避免用未知 intrinsic 代替函数目标检查。Ignore 与 hook 组合已使用修复后的实际 Ignore 位置。
 - Darwin 49 个 fixture、49 个变体、49 个进程步骤全部通过，见 [报告](validation/declarations-darwin.json.gz) 与 [日志](validation/declarations-darwin.log.gz)。前端修改已完成格式化、workspace clippy、21 项定向 Rust 验证和工具重建；此次 CLI 使用该新工具，未为负例重复执行无关全量测试。
 - 另一组既有 43 项 M43 定向验收完成，41 项通过，两个 generated-entry fixture 因热缓存实际零编译调用而不满足原有固定一次调用断言；见 [首轮报告](validation/acceptance-initial-darwin.json.gz) 与 [日志](validation/acceptance-initial-darwin.log.gz)。已核实缓存正常命中，下一批改用产物差异与实际输出验证，并只复验受影响项。
+
+## 2026-10-14：热缓存复验与编译失败后的旧输出
+
+- 两个 generated-entry fixture 不再假定首次命令必须启动一次编译器；外部保留的合法缓存允许首次命中。仍检查生产／测试产物隔离，以及后续相同构建零编译调用。测试源码变化改为比较前后实际产物指纹，并用 --nocapture 精确验证修改后的执行输出；生产源码对应产物保持不变。原有热缓存零调用的 [观察记录](validation/warm-cache-no-run.jsonl.gz) 已保留。
+- 扩展过滤负例：先成功构建并保存测试 binary，再恢复一个未选中方法的非法参数，确认过滤仍不能隐藏编译错误，原 binary 字节保持不变，命令只产生编译诊断，没有运行报告或残留测试运行目录。
+- 格式化、workspace clippy 与三个受影响 fixture 的 Darwin 复验全部通过，共 5 个变体、47 个进程步骤，见 [报告](validation/warm-cache-darwin.json.gz)、[日志](validation/warm-cache-darwin.log.gz) 与 [lint](validation/warm-cache-clippy.log.gz)。仅修正 fixture 断言，复用未变化的工具与热缓存；复验前清理上一轮 cases 约 514 MB。
+- 仍在按设计矩阵补齐源码可见性、源码选择和测试依赖图的正式 CLI 边界验收；本机完成后再执行 Linux GNU／musl，当前不宣称 M43 全部完成。

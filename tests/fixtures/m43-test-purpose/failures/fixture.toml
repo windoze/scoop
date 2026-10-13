@@ -82,7 +82,6 @@ diagnostics = []
 checks = [
  {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/tests/generated-failures"},
  {actual = "${umbrella.result.root.path}", not_equals = "${production.result.root.path}"},
- {actual = "${umbrella.result.observations.child_invocations.length}", equals = 1},
 ]
 
 [[steps]]
@@ -104,10 +103,10 @@ checks = [
     {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.0.message}", equals = "body"},
     {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.1.message}", equals = "cleanup"},
     {actual = "${umbrella-run.test_result.containers.0.cases.2.output.stdout.text}", equals = "init 3\nbefore 3\nbody 3\nafter 3\n"},
-
     {actual = "${umbrella-run.test_result.status}", equals = "failed"},
     {actual = "${umbrella-run.test_result.complete}", equals = true},
-{actual = "${umbrella-run.result.observations.child_invocations.length}", equals = 0}]
+    {actual = "${umbrella-run.result.observations.child_invocations.length}", equals = 0},
+]
 
 [[steps]]
 name = "umbrella-moving"
@@ -130,7 +129,6 @@ checks = [
     {actual = "${umbrella-moving.test_result.containers.0.cases.2.failures.0.message}", equals = "body"},
     {actual = "${umbrella-moving.test_result.containers.0.cases.2.failures.1.message}", equals = "cleanup"},
     {actual = "${umbrella-moving.test_result.containers.0.cases.2.output.stdout.text}", equals = "init 3\nbefore 3\nbody 3\nafter 3\n"},
-
     {actual = "${umbrella-moving.test_result.status}", equals = "failed"},
     {actual = "${umbrella-moving.test_result.complete}", equals = true},
 ]
