@@ -22,6 +22,7 @@ impl LoadedExplicitDependencyInputs {
         manifest: Option<&LoadedConeManifest>,
         current_identity: ConeIdentity,
         target: &ResolvedTargetProfile,
+        purpose: scoop_protocol::CompilationPurpose,
     ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
         let mut group_names = BTreeMap::<(String, String), (String, ConeIdentity)>::new();
@@ -86,7 +87,7 @@ impl LoadedExplicitDependencyInputs {
             );
         }
 
-        validate_manifest_direct_set(manifest, current_identity, &nodes)?;
+        validate_manifest_direct_set(manifest, current_identity, &nodes, purpose)?;
         validate_dependency_records(current_identity, &nodes)?;
         validate_acyclic(&nodes)?;
         validate_support_closure(&nodes)?;

@@ -13,9 +13,9 @@ use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_
 use scoop_toolchain::load_cone_manifest;
 
 use super::{
-    CurrentConeDiagnosticSet, CurrentConeInput, DiagnosticOutputPolicy, EmittedStageDump,
-    SingleConeBuildRequest, SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind,
-    StageDumpPolicy, TrustedCoreInput,
+    CompilationPurpose, CurrentConeDiagnosticSet, CurrentConeInput, DiagnosticOutputPolicy,
+    EmittedStageDump, SingleConeBuildRequest, SingleConeProductionSuccess, SlibOutputDestination,
+    StageDumpKind, StageDumpPolicy, TrustedCoreInput,
 };
 
 mod current_hir;
@@ -87,6 +87,7 @@ pub struct LoadedSingleConeBuildRequest {
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
+    purpose: CompilationPurpose,
     native_inputs: super::NativeInputOrigin,
 }
 
@@ -221,9 +222,15 @@ impl SingleConeProductionError {
 fn parse_manifest_current(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
+    purpose: CompilationPurpose,
 ) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
-    let sources = discover_manifest_sources(manifest, target)
-        .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
+    let sources = match purpose {
+        CompilationPurpose::Production => discover_manifest_sources(manifest, target),
+        CompilationPurpose::Test => {
+            scoop_manifest::discover_manifest_sources_for_tests(manifest, target)
+        }
+    }
+    .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
     parse_discovered_sources(&sources)
 }
 

@@ -25,6 +25,30 @@ impl CurrentConeHirArtifacts {
         let hir = scoop_hir_lower::lower_current_cone(requested, &sources)
             .map_err(CurrentConeHirStageError::Lowering)?;
 
+        Self::from_hir(hir, world)
+    }
+
+    pub fn lower_tests(
+        sources: &scoop_ast::CurrentConeParsedSources,
+        protocols: scoop_hir_lower::CoreProtocolInput,
+        world: &scoop_hir::ImportedSemanticWorld<'_>,
+        source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
+        test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
+    ) -> Result<Self, CurrentConeHirStageError> {
+        let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
+            .map_err(CurrentConeHirStageError::Input)?
+            .with_source_names(source_names)
+            .with_test_dependencies(test_dependencies)
+            .map_err(CurrentConeHirStageError::Input)?;
+        let hir = scoop_hir_lower::lower_current_tests(&sources)
+            .map_err(CurrentConeHirStageError::Lowering)?;
+        Self::from_hir(hir, world)
+    }
+
+    fn from_hir(
+        hir: scoop_hir::DependencyHirOutput,
+        world: &scoop_hir::ImportedSemanticWorld<'_>,
+    ) -> Result<Self, CurrentConeHirStageError> {
         let mut foundation = scoop_hir::CanonicalHirFoundation::from_type_semantics_output(&hir)
             .map_err(CurrentConeHirStageError::Foundation)?;
         let production_section =

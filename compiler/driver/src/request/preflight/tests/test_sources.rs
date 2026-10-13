@@ -1,15 +1,5 @@
 use super::*;
 use scoop_identity::SourceRole;
-use scoop_manifest::discover_manifest_sources_for_tests;
-
-fn parse_manifest_test_sources(
-    manifest: &LoadedConeManifest,
-    target: TargetProfileId,
-) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
-    let discovered = discover_manifest_sources_for_tests(manifest, target)
-        .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
-    parse_discovered_sources(&discovered)
-}
 
 #[test]
 fn test_source_parsing_preserves_roles_and_reports_the_original_source() {
@@ -28,8 +18,9 @@ fn test_source_parsing_preserves_roles_and_reports_the_original_source() {
     std::fs::write(root.join("cases/test.scoop"), "fun check() { api() }\n").unwrap();
     let manifest = load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
     let target = scoop_target_data::DARWIN_AARCH64_ID;
-    let production = parse_manifest_current(&manifest, target).unwrap();
-    let tests = parse_manifest_test_sources(&manifest, target).unwrap();
+    let production =
+        parse_manifest_current(&manifest, target, CompilationPurpose::Production).unwrap();
+    let tests = parse_manifest_current(&manifest, target, CompilationPurpose::Test).unwrap();
     let sources = tests.iter().collect::<Vec<_>>();
     assert_eq!(sources.len(), 2);
     assert_eq!(sources[0].source().role(), SourceRole::Test);
@@ -42,9 +33,9 @@ fn test_source_parsing_preserves_roles_and_reports_the_original_source() {
     assert_eq!(tests.cone(), production.cone());
 
     std::fs::write(root.join("cases/test.scoop"), "fun broken(\n").unwrap();
-    parse_manifest_current(&manifest, target).unwrap();
+    parse_manifest_current(&manifest, target, CompilationPurpose::Production).unwrap();
     let CurrentConeSourceStageError::Parser(error) =
-        parse_manifest_test_sources(&manifest, target).unwrap_err()
+        parse_manifest_current(&manifest, target, CompilationPurpose::Test).unwrap_err()
     else {
         panic!("the test source must fail during parsing");
     };

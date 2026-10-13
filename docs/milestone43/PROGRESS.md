@@ -7,8 +7,8 @@
 | 批次 | 状态 | 证据 |
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
-| M43-2 测试输入与依赖 | manifest、源码选择与定义处声明／依赖候选隔离已完成；测试用途编排与依赖接入待实施 | test.sources/test-dependencies 解码；源码角色贯穿发现、解析与前端；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 入口身份与产物传递、声明检查、前端静态目录、构造选择及普通库生命周期已完成；目录持久化、入口合成与调用适配待实施 | Source／Generated 入口、TestEntry key、HIR/MIR/LIR metadata；当前目标 typed 目录；普通 runTestCase 的构造／hooks／正文执行与失败保留 |
+| M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离与 single-Cone 测试用途已接入；umbrella 构建图、测试缓存与输出编排待实施 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
+| M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与调用适配合成、默认用例的原生执行已接入；目录持久化与运行时用例选择待实施 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
 | M43-4 CLI 与运行报告 | 待实施 | |
 | M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
 
@@ -103,3 +103,13 @@
 - Darwin 正式 CLI 的四种合法入口与七类签名负例全部通过，共 11 个 fixture、15 个变体、107 个进程步骤，包含 debug/release、参数／UTF-8／退出码、移除源码后的 artifact-only 链接与 moving/minor GC，见[报告](validation/test-entry-darwin.json)。这些是共享生产入口回归，不代表 scoop test 已可运行。
 - 入口主体 190 行，绑定、普通调用、用例合成分别为 99／113／112 行模块。核对归档报告后清理 `target/m43/lifecycle`（约 191 MB），保留当前编译缓存。
 - 本批仅生成默认未忽略用例的生命周期调用，静态目录仍保留全部用例与 Ignore 原因。执行时过滤／ignored 选择、测试用途的编译请求与构建图、目录缓存、独立结果通道及报告尚待接入；scoop.std 首个实际应用与 Linux 最终验收继续按设计实施，不宣称 M43-3 或 M43 完成。
+
+## 2026-10-14：single-Cone 测试编译与实际入口运行
+
+- 先补实现规范 2.7，再为正式编译请求增加 Production／Test 用途；默认生产，`scoopc build --test` 选择测试用途，single-file 输入明确拒绝。machine protocol 升至 6，request field 11 显式编码用途，缺失字段、未知值与旧协议不被隐式接受；其他产物格式和 runtime ABI 不变。
+- driver 在解析前核对生产依赖与测试依赖合并后的 direct artifact 集合，沿既有 support 闭包检查；解析复用正式测试源码发现，并将测试依赖身份传给前端的定义处候选筛选。当前 Cone 维持原 identity，以生成 TestEntry 产出 executable `.slib`，library 源 manifest 无需改 kind；生产模式继续使用原输入和输出规则。
+- 生成入口已沿正式 HIR／MIR／LIR、codegen、产物发布和 artifact-only link 完成原生运行。正例覆盖 library 与 executable 根、已有 main 不被自动执行、internal 调用、跨文件同名 private 容器、private/protected 构造器和方法、默认／空 vararg 实参、每用例新实例、hooks、默认忽略，以及初始化／准备／正文／清理失败后继续后续用例并返回失败码。
+- 格式化、workspace clippy、三个 CLI 构建通过。协议 24 项、正式源码解析 1 项、请求 7 项、driver 子协议 4 项、machine capability 1 项和父进程 child 6 项通过，见[日志](validation/test-purpose-rust.log.gz)。请求固定帧长度按新增的两个字节从 194 改为 196，没有放宽 reader 检查。
+- Darwin 正式 CLI 共 4 个 fixture、6 个变体、31 个进程步骤通过：见[生成入口与 single-file 负例](validation/test-purpose-generated-darwin.json)、[失败流程与生产 import 负例](validation/test-purpose-additional-darwin.json)。两个运行用例均覆盖 debug/release 和 moving GC；生产文件即使处于测试编译中，也不能 import 测试专用依赖。编译失败时不产生新产物，正式链接只消费传入的 `.slib` 与既有 runtime 对象。
+- 初次 CLI 验证与 Cargo 的二进制重建并行，触发了已有的配套编译器变化诊断；等待 Cargo 完成后使用配套命令副本重验通过。fixture 准备中修正了默认表达式的可见域、Option 消息参数和 `${...}` 插值写法，没有修改语言规则迁就用例。复用本批缓存，只重验受影响的用例组，没有运行无关全量测试。
+- CompilationPurpose 是独立的 30 行模块，共享 HIR 产物构造复用同一实现，driver 相关主体各为 96～333 行。核对归档报告后清理上一批 `target/m43/test-entry`（约 195 MB）。umbrella 测试依赖图／缓存／输出、静态目录传递、运行时选择与报告、scoop.std 应用及 Linux 最终验收继续实施；本批不宣称 `scoop test` 已交付。

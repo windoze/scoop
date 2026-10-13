@@ -9,6 +9,8 @@ mod dump;
 pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod framing;
 mod path;
+mod purpose;
+pub use purpose::CompilationPurpose;
 mod request;
 pub use scoop_lir::OptimizationMode;
 mod response;
@@ -35,7 +37,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 5;
+pub const PROTOCOL_VERSION: u32 = 6;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 
@@ -52,6 +54,7 @@ pub enum ProtocolValidationError {
 
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
+    TestRequiresManifest,
     InvalidTargetTriple,
 
     TooManyEmittedDumps(usize),
@@ -95,6 +98,9 @@ impl std::fmt::Display for ProtocolValidationError {
                 .write_str("current Cone input and trusted core request are not a permitted pair"),
             Self::SingleFileHasDependencies => {
                 formatter.write_str("single-file input cannot carry dependency artifacts")
+            }
+            Self::TestRequiresManifest => {
+                formatter.write_str("test compilation requires a manifest Cone")
             }
             Self::InvalidTargetTriple => formatter.write_str(
                 "target triple must be 1..255 printable ASCII bytes without path separators",

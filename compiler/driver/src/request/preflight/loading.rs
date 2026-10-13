@@ -13,6 +13,7 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
             optimization,
+            purpose,
             native_inputs,
         } = self;
         let current = load_current_input(current)?;
@@ -56,6 +57,7 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
             optimization,
+            purpose,
             native_inputs,
         })
     }

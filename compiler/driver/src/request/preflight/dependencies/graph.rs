@@ -40,6 +40,7 @@ pub(super) fn validate_manifest_direct_set(
     manifest: Option<&LoadedConeManifest>,
     current: ConeIdentity,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
+    purpose: scoop_protocol::CompilationPurpose,
 ) -> DependencyValidationResult<()> {
     let mut declared = BTreeMap::new();
     for coordinate in manifest
@@ -49,6 +50,14 @@ pub(super) fn validate_manifest_direct_set(
                 .semantic()
                 .dependency_iter()
                 .map(|(_, coordinate)| coordinate)
+                .chain(
+                    manifest
+                        .parsed()
+                        .tests()
+                        .dependency_iter()
+                        .filter(move |_| purpose == scoop_protocol::CompilationPurpose::Test)
+                        .map(|(_, dependency)| dependency.coordinate()),
+                )
         })
         .into_iter()
         .flatten()

@@ -6,6 +6,7 @@ use scoop_protocol::{
 #[derive(Debug, Default)]
 pub struct DirectBuildOptions {
     pub optimization: scoop_lir::OptimizationMode,
+    pub purpose: CompilationPurpose,
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
@@ -22,6 +23,13 @@ pub fn normalize_direct_build_request(
 ) -> Result<SingleConeBuildRequest, BuildRequestNormalizationError> {
     let current = classify_current_cone_operand(operand)
         .map_err(BuildRequestNormalizationError::CurrentOperand)?;
+    if options.purpose == CompilationPurpose::Test
+        && matches!(current, CurrentConeInput::SingleFile { .. })
+    {
+        return Err(BuildRequestNormalizationError::Request(
+            SingleConeBuildRequestError::TestRequiresManifest,
+        ));
+    }
     let dependencies = explicit_dependencies(direct, support)?;
     validate_dependency_shape_before_toolchain(&current, &dependencies)
         .map_err(BuildRequestNormalizationError::Request)?;
@@ -64,7 +72,11 @@ pub fn normalize_direct_build_request(
         diagnostics,
         emit,
     )
-    .map(|request| request.with_optimization(options.optimization))
+    .and_then(|request| {
+        request
+            .with_optimization(options.optimization)
+            .with_purpose(options.purpose)
+    })
     .map_err(BuildRequestNormalizationError::Request)
 }
 
@@ -151,9 +163,11 @@ pub fn normalize_protocol_build_request(
     )
     .map_err(BuildRequestNormalizationError::Request)
     .and_then(|request| {
-        Ok(request
+        request
             .with_optimization(build.optimization())
-            .with_native_inputs(protocol_paths(build.native_inputs())?))
+            .with_native_inputs(protocol_paths(build.native_inputs())?)
+            .with_purpose(build.purpose())
+            .map_err(BuildRequestNormalizationError::Request)
     })
 }
 
