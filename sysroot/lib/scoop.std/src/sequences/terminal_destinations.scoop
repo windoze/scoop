@@ -1,0 +1,27 @@
+package scoop.sequences
+
+import scoop.collections.*
+
+public fun <T> Sequence<T>.toCollection(destination: MutableList<T>): MutableList<T> =
+    terminalInput<T>().toCollection<T>(destination)
+
+public fun <T, R> Sequence<T>.mapTo(destination: MutableList<R>, transform: (T) -> R): MutableList<R> =
+    terminalInput<T>().mapTo<T, R>(destination, transform)
+
+public fun <T> Sequence<T>.filterTo(destination: MutableList<T>, predicate: (T) -> Boolean): MutableList<T> =
+    terminalInput<T>().filterTo<T>(destination, predicate)
+
+public fun <T, R> Sequence<T>.flatMapTo(destination: MutableList<R>, transform: (T) -> Sequence<R>): MutableList<R> =
+    terminalInput<T>().flatMapTo<T, R>(destination) { value -> transform(value).terminalInput<R>() }
+
+public fun <T> Sequence<T>.toCollection(destination: MutableSet<T>): MutableSet<T> =
+    terminalInput<T>().toCollection<T>(destination)
+
+public fun <T, R> Sequence<T>.mapTo(destination: MutableSet<R>, transform: (T) -> R): MutableSet<R> =
+    terminalInput<T>().mapTo<T, R>(destination, transform)
+
+public fun <T> Sequence<T>.filterTo(destination: MutableSet<T>, predicate: (T) -> Boolean): MutableSet<T> =
+    terminalInput<T>().filterTo<T>(destination, predicate)
+
+public fun <T, R> Sequence<T>.flatMapTo(destination: MutableSet<R>, transform: (T) -> Sequence<R>): MutableSet<R> =
+    terminalInput<T>().flatMapTo<T, R>(destination) { value -> transform(value).terminalInput<R>() }

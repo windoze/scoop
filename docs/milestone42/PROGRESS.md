@@ -181,3 +181,13 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 `m42-sequences-pipeline/windows/failures/sorting` 全部通过正常与 moving GC：无限 generator 经 filter/drop/take 的精确调用次数；take(0) 不占用上游 once-only iterator；嵌套 Option、空 inner flatten、zip 左侧多读约定、去重保留首项；480 组有限窗口模型、无限重叠窗口与大间隙短路；首个 next 才收集排序、selector 每项一次及相等 key 的稳定性。异常组合覆盖 map/filter、flatMap 内层、zip 右侧、distinct selector、window 上游、Comparator 和排序 selector，每次第一次异常传播、再次 next 不重试。
 
 证据为 `target/m42/sequences-operations-report.json` 中上述四项；该轮另两项终结操作见后续收尾记录。新增 compare-bound/hash-bound/string-bound/invariant 四项精确负例均通过，诊断包含缺失 Compare/Hash/ToString 和 Sequence<String> 不能隐式转换为 Sequence<Any>，记录在 `target/m42/sequences-artifacts-report.json`。普通 std Cone 构建、源码风格和 `git diff --check` 已通过；没有底层实现修改。
+
+### M42-6 完成：终结操作与组合产物验收
+
+Sequence 补齐查找／成员判断、遍历／归约／计数、partition/reversed、极值、分组／关联、List/Set 目的地操作及 List/Set/tuple-entry Map 的只读和可变 materialize。通过内部 Iterable 适配复用 M42-5 的实现，保留短路读取、目标别名快照、只读结果与前缀提交规则；不另写一套算法。binarySearch 和原地排序仍仅属于 List/MutableList。
+
+`m42-sequences-terminals` 验证只能读取一次的无限来源在 first/any/none/all/find/elementAt/contains/indexOf 时正确停止，并覆盖各无参数／predicate 重载、空归约、partition、reversed、极值和有限 join。`destinations` 覆盖 List/Set 的转换及两套目的地重载、flatMapTo 内层别名、两套 groupBy/groupByTo/associateBy 与其他关联操作、分组顺序和重复 tuple key 覆盖。`artifacts` 组合含引用 struct、Result、无限 generator、mapNotNull/windowed/take、跨 Cone generic collect 和 Map materialize；移除 core/std/消费者源码后独立链接，正常与 moving GC 均通过，并检查短路仅处理五个来源元素。
+
+Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个基础、6 个算子／终结、5 个约束／产物用例；运行类全有 normal/moving 两次执行。报告依次为 `target/m42/sequences-foundation-report.json`（8 个进程）、`sequences-operations-report.json`（24 个进程）、`sequences-artifacts-report.json`（14 个进程）。后两轮命令使用相同 `TMPDIR="$PWD/target/m42/scratch"`、`--suite tests/fixtures/m42-sequences --work-dir target/m42/foundation --jobs 4`；第二轮 exact filter 选择 pipeline/windows/terminals/destinations/failures/sorting，第三轮选择 `m42-sequences-*-bound`、invariant、artifacts。没有重复运行已通过且未修改的基础用例。
+
+结合 Result/Option 的 5 个 fixture，M42-6 共 18 个当前 fixture 均有明确通过证据，本批计划范围完成；文件按职责拆分，Sequence 实现的最大单文件为 63 行。没有 compiler/runtime 修改，未运行无关完整套件。已清理完成的 case、检查构建和四个诊断构建目录，保留报告与共享 cache。M42-7 至 M42-12 以及 Linux GNU/musl 的本组最终定向验收继续保持原范围。

@@ -1,6 +1,6 @@
 package scoop.sequences
 
-import scoop.collections.toList
+import scoop.collections.*
 
 private class SequenceIterable<T>(private val source: Sequence<T>) : Iterable<T> {
     public override operator fun iterator(): Iterator<T> = source.iterator()
@@ -9,3 +9,18 @@ private class SequenceIterable<T>(private val source: Sequence<T>) : Iterable<T>
 internal fun <T> Sequence<T>.terminalInput(): Iterable<T> = SequenceIterable<T>(this)
 
 public fun <T> Sequence<T>.toList(): List<T> = terminalInput<T>().toList<T>()
+
+public fun <T> Sequence<T>.toMutableList(): MutableList<T> =
+    terminalInput<T>().toMutableList<T>()
+
+public fun <T> Sequence<T>.toSet(): Set<T> where T : Equals<T>, T : Hash =
+    terminalInput<T>().toSet<T>()
+
+public fun <T> Sequence<T>.toMutableSet(): MutableSet<T> where T : Equals<T>, T : Hash =
+    terminalInput<T>().toMutableSet<T>()
+
+public fun <K, V> Sequence<(K, V)>.toMap(): Map<K, V> where K : Equals<K>, K : Hash =
+    terminalInput<(K, V)>().toMap<K, V>()
+
+public fun <K, V> Sequence<(K, V)>.toMutableMap(): MutableMap<K, V> where K : Equals<K>, K : Hash =
+    terminalInput<(K, V)>().toMutableMap<K, V>()
