@@ -1,0 +1,47 @@
+package scoop.collections
+
+public fun <T> Iterable<T>.toCollection(destination: MutableList<T>): MutableList<T> {
+    for (element in toList<T>()) destination.add(element)
+    return destination
+}
+
+public fun <T> Iterable<T>.toCollection(destination: MutableSet<T>): MutableSet<T> {
+    for (element in toList<T>()) destination.add(element)
+    return destination
+}
+
+public fun <T, R> Iterable<T>.mapTo(destination: MutableList<R>, transform: (T) -> R): MutableList<R> {
+    for (element in toList<T>()) destination.add(transform(element))
+    return destination
+}
+
+public fun <T, R> Iterable<T>.mapTo(destination: MutableSet<R>, transform: (T) -> R): MutableSet<R> {
+    for (element in toList<T>()) destination.add(transform(element))
+    return destination
+}
+
+public fun <T> Iterable<T>.filterTo(destination: MutableList<T>, predicate: (T) -> Boolean): MutableList<T> {
+    for (element in toList<T>()) { if (predicate(element)) destination.add(element) }
+    return destination
+}
+
+public fun <T> Iterable<T>.filterTo(destination: MutableSet<T>, predicate: (T) -> Boolean): MutableSet<T> {
+    for (element in toList<T>()) { if (predicate(element)) destination.add(element) }
+    return destination
+}
+
+public fun <T, R> Iterable<T>.flatMapTo(destination: MutableList<R>, transform: (T) -> Iterable<R>): MutableList<R> {
+    for (element in toList<T>()) {
+        val values = transform(element).toList()
+        for (value in values) destination.add(value)
+    }
+    return destination
+}
+
+public fun <T, R> Iterable<T>.flatMapTo(destination: MutableSet<R>, transform: (T) -> Iterable<R>): MutableSet<R> {
+    for (element in toList<T>()) {
+        val values = transform(element).toList()
+        for (value in values) destination.add(value)
+    }
+    return destination
+}

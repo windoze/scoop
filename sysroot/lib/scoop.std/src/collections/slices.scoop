@@ -1,0 +1,64 @@
+package scoop.collections
+
+internal fun requireCollectionCount(count: Long) {
+    if (count < 0L) throw IllegalArgumentException(Some("negative count"))
+}
+
+public fun <T> Iterable<T>.take(count: Long): List<T> {
+    requireCollectionCount(count)
+    if (count == 0L) return emptyList<T>()
+    val result = ArrayList<T>()
+    val source = iterator()
+    var remaining = count
+    while (remaining > 0L) {
+        when (source.next()) {
+            case None -> break
+            case Some(element) -> result.add(element)
+        }
+        remaining -= 1L
+    }
+    return ListSnapshot<T>(result.toArray())
+}
+
+public fun <T> Iterable<T>.drop(count: Long): List<T> {
+    requireCollectionCount(count)
+    val result = ArrayList<T>()
+    var remaining = count
+    for (element in this) {
+        if (remaining > 0L) remaining -= 1L else result.add(element)
+    }
+    return ListSnapshot<T>(result.toArray())
+}
+
+public fun <T> Iterable<T>.takeWhile(predicate: (T) -> Boolean): List<T> {
+    val result = ArrayList<T>()
+    for (element in this) {
+        if (!predicate(element)) break
+        result.add(element)
+    }
+    return ListSnapshot<T>(result.toArray())
+}
+
+public fun <T> Iterable<T>.dropWhile(predicate: (T) -> Boolean): List<T> {
+    val result = ArrayList<T>()
+    var dropping = true
+    for (element in this) {
+        if (dropping) dropping = predicate(element)
+        if (!dropping) result.add(element)
+    }
+    return ListSnapshot<T>(result.toArray())
+}
+
+public fun <T> Iterable<T>.reversed(): List<T> {
+    val result = toMutableList<T>()
+    var left = 0L
+    var right = result.size - 1L
+    while (left < right) {
+        val value = result[left]
+        result[left] = result[right]
+        result[right] = value
+        left += 1L
+        right -= 1L
+    }
+    return ListSnapshot<T>(result.toArray())
+}

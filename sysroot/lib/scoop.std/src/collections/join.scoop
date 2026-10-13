@@ -1,0 +1,23 @@
+package scoop.collections
+
+public fun <T> Iterable<T>.joinToString(
+    separator: String = ", ", prefix: String = "", postfix: String = "",
+    limit: Long = -1L, truncated: String = "...", transform: (T) -> String
+): String {
+    if (limit < -1L) throw IllegalArgumentException(Some("invalid join limit"))
+    val builder = StringBuilder()
+    builder.add(prefix)
+    var count = 0L
+    for (element in this) {
+        if (count > 0L) builder.add(separator)
+        if (limit >= 0L && count == limit) { builder.add(truncated); break }
+        builder.add(transform(element))
+        count = nextCollectionCount(count)
+    }
+    builder.add(postfix)
+    return builder.build()
+}
+
+public fun <T : ToString> Iterable<T>.joinToString(
+    separator: String = ", ", prefix: String = "", postfix: String = "", limit: Long = -1L, truncated: String = "..."
+): String = joinToString<T>(separator, prefix, postfix, limit, truncated) { element -> element.toString() }

@@ -134,7 +134,7 @@ PriorityQueue.add 返回 Unit，空队列的 peek/removeFirst 抛 NoSuchElementE
 | --- | --- |
 | 转换 | map、mapIndexed、mapNotNull、filter、filterNot、filterNotNull、flatMap、flatten、partition |
 | 遍历与归约 | forEach、forEachIndexed、onEach、fold、reduce、reduceOrNull、count、any、all、none |
-| 查找 | find、first/firstOrNull、last/lastOrNull、single/singleOrNull、elementAt/elementAtOrNull、indexOf |
+| 查找 | find、first/firstOrNull、last/lastOrNull、single/singleOrNull、elementAt/elementAtOrNull、contains、indexOf |
 | 组合与截取 | zip、withIndex、take、drop、takeWhile、dropWhile、chunked、windowed、reversed |
 | 分组与去重 | groupBy、groupByTo、associate、associateBy、associateWith、distinct、distinctBy |
 | 输出与目的地 | joinToString、mapTo、filterTo、flatMapTo、toCollection |
@@ -149,6 +149,14 @@ withIndex 使用普通 `IndexedValue<T>(index: Long, value: T)` struct；zip/par
 groupBy/associate/distinct 默认使用 LinkedHashMap/LinkedHashSet，key 要求 Equals+Hash。groupBy 保留首次 key 次序及组内输入次序；associate 的重复 key 遵守 Map 工厂覆盖规则。按值 contains/indexOf 等只要求 Equals；排序只要求 Compare 或显式 Comparator。joinToString 无 transform 的重载要求 ToString，不回退到 Any。
 
 排序稳定；非原地版本返回快照。`MutableList.sortWith` 先复制、排序后再顺序写回，比较器抛异常时不写回；自定义 setter 抛异常可以留下写回前缀。实现不以重复 List.get 构造低效的 linked-list 算法。binarySearch 接收 List、半开范围与自然/显式比较器；范围外失败，命中返回任一相等项下标，未命中返回 `-(insertionPoint + 1)`，计算必须正确覆盖 Long 边界。输入已按同一比较器排序是调用方前提，不每次重新验证全序。
+
+具体调用约定：first/last/single 及其 OrNull 同时提供无参数与 predicate 重载；find 等于 firstOrNull(predicate)。elementAt 的负数或越界 index 抛 IndexOutOfBoundsException，elementAtOrNull 返回 None；负数不取得 iterator。count/any/none 提供无参数与 predicate 重载，all 接收 predicate。onEach 急切执行 action 后返回原 Iterable。fold 使用显式 initial，reduce 使用首元素作为 initial。indexed 回调参数顺序为 `(index: Long, element: T)`；计数无法用 Long 表示时抛 ArithmeticException。
+
+groupBy/groupByTo/associateBy 提供仅 keySelector 与额外 valueTransform 的重载；groupByTo 的目标为 MutableMap<K, MutableList<V>>，使用目标的 key 等价语义，不额外要求 Hash。groupBy 返回只读 Map<K,List<V>>，分组 List 也是独立只读快照；associate 系列同样返回只读独立 Map。withIndex、zip、chunked、windowed 返回独立 List；partition 返回两个独立 List 组成的 tuple，true 组在前。目的地操作 toCollection/mapTo/filterTo/flatMapTo/groupByTo 先取得一次输入快照，再顺序执行回调和写入，支持输入与目标别名；快照失败不改目标，回调／目标写入失败保留成功前缀。flatMapTo 还在每次写入前取得该次 transform 返回的内层 Iterable 快照，允许内层来源与目标相同。
+
+joinToString 的参数为 separator=", "、prefix=""、postfix=""、limit=-1、truncated="..."，以及可选的显式 transform（无 transform 重载要求 ToString）。limit 使用 Long，-1 表示不限，其他负数非法；计数参数非负的通常规则不限制此 sentinel。超过 limit 时最多额外读取一项以判断是否添加 truncated，不转换该项；truncated 和普通元素一样由 separator 分隔。所有急切算法在回调异常时直接传播，不吞成 OrNull。
+
+binarySearch 的签名为 `List<T>.binarySearch(element, fromIndex=0, toIndex=size)` 与 `List<T>.binarySearch(element, comparator, fromIndex=0, toIndex=size)`；自然顺序要求 Compare。fromIndex>toIndex 抛 IllegalArgumentException，任一端不在 0..size 抛 IndexOutOfBoundsException；半开空范围合法。
 
 ### 3.2 Sequence
 

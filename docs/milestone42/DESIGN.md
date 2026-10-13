@@ -100,6 +100,8 @@ M42-4 采用最小度数 8 的 B-tree：非根节点常态保存 7..15 个键值
 
 M42-5 的 ArrayDeque 使用 head/count 与环形 typed buffer，增长时一次复制有效元素并归零 head。PriorityQueue 使用数组二叉堆；插入先确定目标祖先，移除先选择下降路径，再按索引路径提交移动，不在搬移期间调用 Comparator。两者复用实际使用的 MaybeUninit 槽存储与容量增长计算，不引入共同可变集合接口。iterator 读取容器当前存储，不保留扩容前的 backing。容器/API 资料参考 [Kotlin ArrayDeque](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-array-deque/) 与 [OpenJDK PriorityQueue](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/PriorityQueue.html)；Kotlin 使用 Apache-2.0，OpenJDK 使用 GPLv2 with Classpath Exception。这里独立实现普通环形数组／二叉堆算法，没有移植宿主源码或增加依赖。
 
+急切算法只取得一次上游 iterator，按需短路。windowed 复用 ArrayDeque 保存活动窗口，支持重叠与步长大于窗口的间隙；每个输出窗口复制为只读浅快照。稳定排序先取得普通 ArrayList 副本，再用两个私有数组列表逐层归并，相等时取左项；sortWith 完整排序后才写回调用者。sortedBy 先保存每个元素的 key，避免比较期间重算 selector。二分计算 midpoint 与负插入点时避免 Long 中间溢出。算法参考作者维护的 [algs4 MergeBU 说明](https://github.com/kevin-wayne/algs4/blob/master/src/main/java/edu/princeton/cs/algs4/MergeBU.java)（GPLv3-or-later）；采用标准自底向上归并思想并独立实现 Scoop 的双缓冲半开区间算法，未移植该 Java 源码。joinToString 参数命名参考 [Kotlin 文档](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/join-to-string.html)，回调及 Option 行为遵守 Scoop 规范。
+
 ### 3.3 泛型 API 可实现性
 
 interface method 不声明自身泛型。Map/Set 接口不对所有 K/T 强加 Hash，Hash 容器才具有 Equals+Hash bound；Tree 构造器显式接收 Comparator，自然顺序工厂在普通 generic callable 上声明 Compare bound。MutableSet.retainAll 是使用接口自身 T 的普通成员，由实现提供目标等价语义；其余适用批量操作保留泛型扩展。

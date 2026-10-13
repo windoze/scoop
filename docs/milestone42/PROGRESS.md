@@ -130,3 +130,11 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 - 将 GC 用例加强为连续移除 40 个含引用与 tuple 字段的 struct、逐项对照 Deque 与 Heap 后，仅重跑 `--suite tests/fixtures/m42-queues/gc --jobs 1`：1/1、4 个进程通过。`target/m42/queues-gc-report.json`。删除及 clear 分别确认 payload 回收，扩容前创建的失效 iterator 仍被持有；正常和 moving GC 均通过。
 
 没有 compiler/runtime 修改。已清理各轮 case 临时产物并保留报告与共享 cache；未运行完整仓库测试。M42-5 的急切集合算法、稳定排序和二分尚待完成，后续批次及 Linux GNU/musl 本组定向验收保持原范围。
+
+### 急切转换、遍历、窗口与目的地操作已完成
+
+日期：2026-10-13。交付 map/filter/flatMap/partition 系列、遍历与归约、first/last/single/elementAt 与 OrNull、contains/indexOf、截取与反转、zip/withIndex、chunked/windowed、List/Set 目的地重载及 joinToString。所有操作遵守单次输入遍历；短路后不读取无关后缀，take(0) 与负数 elementAtOrNull 不取得 iterator。目的地操作先快照输入，flatMapTo 还逐次快照内层来源，支持目标别名并保留异常前的成功前缀。新建结果使用只读浅快照。
+
+本机 `m42-algorithms-transforms`、`terminals`、`windows`、`join` 均已通过普通运行与 moving GC；首轮报告保留为 `target/m42/algorithms-first-report.json`。窗口模型覆盖长度 0..11、窗口 1..5、步长 1..7、两种 partialWindows 共 840 组；其他用例覆盖嵌套 Option、短路读取和回调次数、空输入、非法数量、目的地自身／内层别名、prefix 提交和有限 join 对无限输入的停止。新增 `m42-algorithms-string-bound` 拒绝无 ToString 又未提供 transform 的调用，精确锁定源码位置及诊断。后续定向报告与整个 M42-5 收尾记录见下文。
+
+先完成普通 std Cone 构建、源码风格检查与 `git diff --check`。这批只修改 Scoop 源码和相关规范／fixture，没有底层改动，不运行完整测试套件。
