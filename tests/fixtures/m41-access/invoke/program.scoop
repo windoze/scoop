@@ -1,0 +1,23 @@
+class Supplier<T>(val value: T) : Invoke0<T> {
+    public override operator fun invoke(): T = value
+}
+class Label(val prefix: String) : Invoke<Int, String> {
+    public override operator fun invoke(argument: Int): String = prefix + argument.toString()
+}
+class Join() : Invoke2<String, Int, String> {
+    public override operator fun invoke(first: String, second: Int): String = first + second.toString()
+}
+fun <R, F : Invoke0<R>> supply(function: F): R = function()
+fun <A, R, F : Invoke<A, R>> apply(function: F, argument: A): R = function(argument)
+fun <A, B, R, F : Invoke2<A, B, R>> apply2(function: F, first: A, second: B): R = function(first, second)
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(supply(Supplier(42)) == 42)
+    check(apply(Label("value="), 42) == "value=42")
+    check(apply2(Join(), "value=", 42) == "value=42")
+    val zero: Invoke0<String> = Supplier("zero")
+    val one: Invoke<Int, String> = Label("one=")
+    val two: Invoke2<String, Int, String> = Join()
+    check(zero() == "zero" && one(1) == "one=1" && two("two=", 2) == "two=2")
+    println("operator invoke")
+}

@@ -1,5 +1,5 @@
 @Intrinsic("core_string")
-public class String : Compare<String>, Add<String, String>, Equality<String>, ToString, Hash, Iterable<Char> {
+public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equality<String>, ToString, Hash, Iterable<Char> {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 
@@ -16,7 +16,7 @@ public class String : Compare<String>, Add<String, String>, Equality<String>, To
     public override fun toString(): String = this
     public override fun hash(): Long = coreStringHash(this)
 
-    public operator fun get(index: Long): Char {
+    public override operator fun get(index: Long): Char {
         val value = coreStringGet(this, index)
         if (value == None) { throw IndexOutOfBoundsException() }
         return value!!

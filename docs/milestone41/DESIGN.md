@@ -67,9 +67,9 @@ public struct Offset(val value: Long) : Add<Offset, Offset> {
 | `== !=` | 已确定的 `Equals<Rhs>`，成员为 `operator fun equals(other: Rhs): Boolean` | 删除旧 Equality/equalTo 并迁移声明、调用与产物；核对成员限定和显式派生实现规则 |
 | `< <= > >=` | `Compare<Rhs>`，`compareTo(other: Rhs): Long` | 整数、Char、String 先行；浮点随默认全序迁移 |
 | `in !in`、区间操作 | `Contains<Element>`、`RangeTo/RangeUntil<Rhs, Result>` | 已定稿，四种整数 range 与八种整数沿用既有方法 |
-| `++ --`、复合赋值 | `Increment<Result : Increment<Result>>`、对应 Decrement；复合赋值接口另行补齐 | 递归上界保留既有返回子类型要求；普通数值 op= 沿用写回规则 |
-| `get/set/invoke` | 为下标与调用能力确定可表达的接口签名 | 多参数、默认参数、`vararg`、结果类型与现有函数类型的关系 |
-| `iterator/componentN` | 与迭代、位置解构约定一致的能力接口 | 与已有 Iterable、Iterator 和结构解构的关系 |
+| `++ --`、复合赋值 | `Increment<Result : Increment<Result>>`、对应 Decrement；`AddAssign/SubAssign/MulAssign/DivAssign/RemAssign<Rhs>` | 已定稿，保留既有返回子类型、歧义与写回规则 |
+| `get/set/invoke` | `Get/Set<Index, Value>`、`Get2/Set2<I, J, Value>`、`Invoke0<Result>`、`Invoke<Arg, Result>`、`Invoke2<A, B, Result>` | 已在 9.3.6 定稿；固定参数签名，函数值不自动实现接口 |
+| `iterator/componentN` | 复用 Iterable/Iterator；`Component1/Component2<Result>` | 普通 componentN 调用支持 class、interface 与上界；struct/tuple 仍内建解构 |
 
 普通 interface 方法当前不能声明自己的类型参数。现有 generic operator、`suspend` 或 unsafe operator 的适配必须逐项明确，不能通过接口隐去调用效果，也不能仅为接口统一而引入泛型虚方法或参数包机制。接口尚未覆盖某种签名，不应使原本合法的直接运算符调用被自动拒绝；签名覆盖与兼容性取舍须先写入 spec。
 

@@ -322,7 +322,7 @@ impl Lowerer {
             && signature.type_params[0].kind() == hir::TypeParamKind::Any
             && parameters_match
             && (signature.modifiers.operator == Some(operator)
-                || (operator == hir::OperatorKind::Get && signature.modifiers.operator.is_none()))
+                || signature.modifiers.operator.is_none())
             && !signature.modifiers.is_infix;
         if !valid {
             self.malformed_operator_intrinsic(function, kind.name());

@@ -1,0 +1,8 @@
+class Counter : Add<Int, Counter>, AddAssign<Int> {
+    public override operator fun plus(other: Int): Counter = this
+    public override operator fun plusAssign(other: Int) {}
+}
+fun main() {
+    var counter = Counter()
+    counter += 1
+}

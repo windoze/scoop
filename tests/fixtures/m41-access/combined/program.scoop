@@ -1,0 +1,26 @@
+class Cell<T>(var value: T) : Get<Long, T>, Set<Long, T>, Invoke0<T>, Component1<T> {
+    public override operator fun get(index: Long): T = value
+    public override operator fun set(index: Long, value: T) { this.value = value }
+    public override operator fun invoke(): T = value
+    public override operator fun component1(): T = value
+}
+fun <T, C> replace(cell: C, value: T): T where C : Get<Long, T>, C : Set<Long, T>, C : Invoke0<T> {
+    val old = cell[0L]
+    cell[0L] = value
+    val next = cell()
+    return old
+}
+typealias TextCell = Cell<String>
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val cell = TextCell("before")
+    check(replace(cell, "after") == "before" && cell() == "after")
+    val (text,) = cell
+    check(text == "after")
+    val array = MutableArray<TextCell>(2L) { index -> TextCell(index.toString()) }
+    val view: Get<Long, TextCell> = array
+    check(view[1L]() == "1")
+    val boxed: Any = cell
+    check(boxed is Get<Long, String> && boxed is Invoke0<String>)
+    println("operator combined access")
+}

@@ -23,7 +23,7 @@ public class Array<T> : List<T> {
 }
 
 @Intrinsic("core_mutable_array")
-public class MutableArray<T> : List<T> {
+public class MutableArray<T> : List<T>, Set<Long, T> {
     @Intrinsic("mutable_array_length")
     private fun arrayLength(): Long
 
@@ -35,7 +35,9 @@ public class MutableArray<T> : List<T> {
     public override operator fun get(index: Long): T = arrayRead(index)
 
     @Intrinsic("mutable_array_set")
-    public operator fun set(index: Long, value: T)
+    private fun arrayWrite(index: Long, value: T)
+
+    public override operator fun set(index: Long, value: T): Unit = arrayWrite(index, value)
 
     @Intrinsic("array_to_immutable")
     public fun toArray(): Array<T>

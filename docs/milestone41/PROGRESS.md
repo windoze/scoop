@@ -9,7 +9,7 @@
 - LocalConcrete intrinsic 保存完整物理参数类型；实际分派入口复用 callable materialization 和 primitive lowering，生产、导入两侧按声明的 slot/dispatch selection 发布与选择入口，没有新增 runtime ABI 或产物 wire tag。
 - 跨库扩展正文的隐式 struct 字段读取复用字段身份，避免选择没有函数体的 Storage getter。
 - Add 功能提交：`45339fb3`。
-- 算术、一元、自增减、Compare 与整数区间能力已实现；读写/调用/复合赋值接口、Equals 迁移与浮点语义实施尚未完成。
+- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 迁移与浮点语义实施尚未完成。
 - IEEE 四态 API 定名为 IeeeComparison / ieeeCompare。
 - 临时目录和日志使用 `target/m41/`，测试命令设置 TMPDIR；保留 M39 编译依赖以避免重复构建。
 
@@ -37,3 +37,12 @@
 - 本机 `m41-*` 正式 CLI 共 23 项全部通过：34 个变体、110 次进程执行。新增 12 项覆盖十种数值类型、String/Char 比较、四种 range、实际接口分派、异常、写回副作用、三层库模板再次发布和 5 个准确负例；同时复验 Add。
 - fmt、workspace clippy、release CLI 构建和 core bootstrap 结构检查通过。复验复用已完成的 core/cache，避免重复构建两种 profile 的 core。
 - 跨库 shape 产物检查通过；本批本机验证无未闭合失败。完成后清理旧 Add、效果回归和首轮算术 fixture 的工作产物，保留报告与当前可复用缓存。
+
+## 索引、调用、解构与复合赋值能力
+
+- 新增 Get/Set/Get2/Set2、Invoke0/Invoke/Invoke2、Component1/Component2 及五个复合赋值接口；使用普通固定参数签名。List、MutableList、MutableArray 和 String 显式提供相应实现，数组写入沿用普通方法包装存储 intrinsic 的既有分层。
+- binding 的 component 路径接受 interface 与类型参数，复用成员和 bound 调用决议；struct/tuple 的直接解构仍投影字段。规范同步明确 `_` 位置也调用 componentN，不改变求值顺序。
+- 新增 12 个正式 CLI fixture：七个正例覆盖单／二维下标、副作用、三种调用元数、接口与泛型解构、for、五类 op=、组合以及三层库再次发布和无源码链接；五个负例逐项核对歧义、结果类型和显式 conformance 诊断。
+- 本机 fmt、workspace clippy、release CLI 构建、M41 typed IR 4 项、解构 Rust 回归 12 项、core bootstrap 结构检查通过。
+- 全部 M41 共 35 项完成验证。首轮 34 项通过；唯一失败为新产物用例未公开构造函数，修正后与新增 struct/for 解构组合一同补验，两项全部通过（4 个变体、22 次进程执行）。正例均覆盖 debug/release 及正常、moving、minor GC。
+- 清理旧 fixture cases/cache/sysroot、诊断采集产物及约 1.9 GiB 增量编译目录；保留报告、日志和最新 core 缓存。

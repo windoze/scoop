@@ -1,0 +1,5 @@
+fun <T : Invoke0<Int>> call(value: T): Int = value()
+fun main() {
+    val closure: () -> Int = { 42 }
+    println(call(closure))
+}

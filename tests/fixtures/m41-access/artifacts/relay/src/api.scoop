@@ -1,0 +1,5 @@
+package relayed
+import cells.*
+public import cells.Cell
+public fun <T, C> update(cell: C, value: T): T where C : Get<Long, T>, C : Set<Long, T> = replace(cell, value)
+public fun <T, C : Invoke0<T>> read(cell: C): T = current(cell)

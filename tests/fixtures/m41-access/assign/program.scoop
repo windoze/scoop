@@ -1,0 +1,33 @@
+class Counter(var value: Int) : AddAssign<Int>, SubAssign<Int>, MulAssign<Int>, DivAssign<Int>, RemAssign<Int> {
+    public override operator fun plusAssign(other: Int) { value += other }
+    public override operator fun minusAssign(other: Int) { value -= other }
+    public override operator fun timesAssign(other: Int) { value *= other }
+    public override operator fun divAssign(other: Int) { value /= other }
+    public override operator fun remAssign(other: Int) { value %= other }
+}
+fun <T> calculate(value: T) where T : AddAssign<Int>, T : SubAssign<Int>, T : MulAssign<Int>,
+    T : DivAssign<Int>, T : RemAssign<Int> {
+    value += 3
+    value -= 1
+    value *= 4
+    value /= 2
+    value %= 5
+}
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val counter = Counter(10)
+    calculate(counter)
+    check(counter.value == 4)
+    val add: AddAssign<Int> = counter
+    val sub: SubAssign<Int> = counter
+    val mul: MulAssign<Int> = counter
+    val div: DivAssign<Int> = counter
+    val rem: RemAssign<Int> = counter
+    add += 10
+    sub -= 2
+    mul *= 3
+    div /= 4
+    rem %= 7
+    check(counter.value == 2)
+    println("operator assign")
+}

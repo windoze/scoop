@@ -392,11 +392,11 @@ binding上下文中，除`_`以及4.3定义的内建Unit字面量写法`Unit`/`(
 
 规则：
 
-- **tuple/struct固定元数位置模式**`(p1, p2, ...)`按位置解构；每个位置可以是绑定名、`_`、`..`或递归binding pattern。不使用`..`时元数必须与被解构值一致。class component位置模式不适用该元数规则，单独按下文处理。
+- **tuple/struct固定元数位置模式**`(p1, p2, ...)`按位置解构；每个位置可以是绑定名、`_`、`..`或递归binding pattern。不使用`..`时元数必须与被解构值一致。component位置模式不适用该元数规则，单独按下文处理。
 - **字段模式**由`field`、`field: subpattern`和末尾可选`..`组成。`field`精确等价于`field: field`，展开后的RHS仍按所在上下文的完整规则分类；因此在本节的binding上下文中通常建立同名binding，但字段名恰为`Unit`时，RHS仍是内建Unit literal并被拒绝，需要写成`Unit: value`等显式不同绑定名。第5章的match上下文先应用同一个Unit literal特例，再对其他名称应用variant-first规则；若字段的exact enum type恰有同名unit variant，shorthand会匹配该variant，需要catch-all binding时应显式写成`field: value`等不同名称。`field: renamed`绑定到`renamed`；`field: _`显式忽略该字段。冒号右侧是完整递归pattern，不再只是rename。`_`不能作为字段key，但可以作为RHS。字段不能未知或重复，整个pattern内的binding名称必须唯一。
 - 每个显式字段名必须属于 subject 的 exact type。位置模式按字段声明顺序匹配；命名字段模式按源码书写顺序递归执行。末尾 `..` 忽略未列出的字段，不读取这些字段。未列出全部字段时必须以 `..` 结尾；列全时可省略。字段模式可带类型前缀（`S { f1: x, .. }`），前缀必须解析到 subject 的 exact type。
 - struct既可按主构造字段顺序位置解构，也可按字段名解构；tuple/struct投影是语言内建能力，不查找`componentN`。
-- 普通class可以按位置使用9.3的`componentN` operator解构。每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`。每次调用正常返回后，结果先保存到新的immutable hidden temporary，再depth-first处理对应子模式。class没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。挂起调用以异常恢复时等价于在原调用点抛出，后续动作不执行；在不允许挂起的求值上下文中选到`suspend componentN`是effect错误。
+- 普通class、interface静态类型和具有相应上界的类型参数可以按位置使用9.3的`componentN` operator解构。候选从该静态类型的普通成员、继承成员、上界成员与适用扩展中选择，不要求特定core接口身份。每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`，包括子模式为`_`的位置。每次调用正常返回后，结果先保存到新的immutable hidden temporary，再depth-first处理对应子模式。component协议没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。挂起调用以异常恢复时等价于在原调用点抛出，后续动作不执行；在不允许挂起的求值上下文中选到`suspend componentN`是effect错误。
 - binding pattern的不可失败性递归成立：binding、`_`、rest补位不可失败；tuple/struct只有全部展开后的子模式不可失败时才合法；literal（包括`Unit`/`()`）与上述显式enum variant shape在binding位置均非法。lambda和`for`引入的binding不可重新绑定；`var`解构声明中只有用户可见的叶binding是mutable，subject、投影及component结果等hidden temporary始终immutable。
 - 三种binding位置共享同一求值、投影与component计划；每个完整subject只求值一次并进入immutable hidden temporary，位置元素按源码从左到右、命名字段按源码书写顺序递归depth-first执行。任一component调用抛出时，已经发生的外部副作用不回滚，后续投影、调用和binding均不执行；调用挂起时保存subject与全部已完成的hidden temporary，恢复后从该调用返回之后继续，不重新求值subject或任何已完成步骤。
 
@@ -414,7 +414,7 @@ val s = S(1, 2, 3, 4)
 val S { f1: x, f2: y, .. } = s
 ```
 
-- 在tuple、struct及enum variant的固定元数位置模式中：`..`忽略任意数量（含0个）的连续元素，可出现在开头、中间或结尾，但**至多出现一次**（出现两次会产生歧义，是编译错误）；使用`..`时不要求模式元数与值的元数一致。class component位置模式始终禁止`..`，不适用本条。
+- 在tuple、struct及enum variant的固定元数位置模式中：`..`忽略任意数量（含0个）的连续元素，可出现在开头、中间或结尾，但**至多出现一次**（出现两次会产生歧义，是编译错误）；使用`..`时不要求模式元数与值的元数一致。component位置模式始终禁止`..`，不适用本条。
 - 在字段模式中：`..` 只能出现在最后，表示忽略所有未列出的字段；**未列出全部字段时必须写 `..`**（列出全部字段时 `..` 可省略）。
 - `..` 自身不绑定任何值。
 
@@ -440,7 +440,7 @@ val S { f1: x, f2: y, .. } = s
 
 ## 5. `when` 表达式扩展
 
-when 支持值、类型、成员关系与无 subject 的条件分支；显式 case 引入可失败模式，包括 **enum、tuple 与 struct** 的结构模式。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。class的`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性判断。
+when 支持值、类型、成员关系与无 subject 的条件分支；显式 case 引入可失败模式，包括 **enum、tuple 与 struct** 的结构模式。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性判断。
 
 `if`、`when` 与 `try` 都是表达式，也可在结果被丢弃的语句位置使用。作为值使用时，每个可正常结束的分支块以最后一个表达式的值作为该分支结果；空块或以非表达式语句结束的块结果为 `Unit`，以`return`/`throw`或8.7的`break`/`continue`结束的路径不参与结果类型合并。外层有期望类型时，每个正常分支结果必须是其子类型；否则取所有正常分支结果的唯一可表达最小上界，存在多个不可比较的最小共同上界时退化为 `Any`。依赖期望类型的分支结果可由其他分支先确定类型，分支检查顺序不影响结果。
 
@@ -1442,7 +1442,7 @@ local、parameter、capture、global、普通成员或扩展属性，以及 obje
 
 `lhs name rhs`等价于`lhs.name(rhs)`，要求直接function-like候选带`infix`，或property-like候选最终选中的`invoke`同时带`operator infix`；其余决议与求值规则不变。infix调用左结合，必须显式写receiver（当前`this`上调用写成`this name rhs`）。其优先级从高到低位于range与Elvis之间：postfix、prefix、cast、乘法、加法、range、infix name、Elvis、`in`/`is`、比较、相等、`&&`、`||`、赋值。不同infix名称没有自定义优先级。
 
-普通class可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口。
+普通class、interface静态类型与具有相应上界的类型参数可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口。
 
 
 #### 9.3.6 Core 运算符接口
@@ -1490,6 +1490,31 @@ Managed 调用合同；NoGC 实现沿普通接口适配规则消费，不将 gen
 | `Contains<Element>` | `contains(value: Element): Boolean` | IntRange/LongRange/UIntRange/ULongRange，对应 Int/Long/UInt/ULong |
 
 Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver 子类型要求；具体实现仍须返回其实际 receiver 的子类型。泛型 `T : Increment<T>` 可以对可写 T place 使用 `++`；仅持有 `Increment<T>` 视图时，写回的静态类型仍是该接口。接口不会放宽 place 可写性，也不使不可写回的结果合法。八种整数的区间结果沿用 11.8：Int8/Int16/Int 使用 IntRange，UInt8/UInt16/UInt 使用 UIntRange，Long/ULong 各使用同名 range。普通数值 `op=` 继续使用 9.3.3 的读写回退；不为值类型另外添加就地修改方法。
+
+下标、调用、复合赋值与位置解构采用以下普通接口，具有与上表相同的可见性、effect 和 invariant 规则。显式参数均为 required、非 vararg；不引入 generic virtual method、参数包或函数值到接口的隐式适配：
+
+| 接口 | 方法签名 |
+| --- | --- |
+| `Get<Index, Value>` | `get(index: Index): Value` |
+| `Set<Index, Value>` | `set(index: Index, value: Value): Unit` |
+| `Get2<I, J, Value>` | `get(first: I, second: J): Value` |
+| `Set2<I, J, Value>` | `set(first: I, second: J, value: Value): Unit` |
+| `Invoke0<Result>` | `invoke(): Result` |
+| `Invoke<Arg, Result>` | `invoke(argument: Arg): Result` |
+| `Invoke2<A, B, Result>` | `invoke(first: A, second: B): Result` |
+| `AddAssign<Rhs>` | `plusAssign(other: Rhs): Unit` |
+| `SubAssign<Rhs>` | `minusAssign(other: Rhs): Unit` |
+| `MulAssign<Rhs>` | `timesAssign(other: Rhs): Unit` |
+| `DivAssign<Rhs>` | `divAssign(other: Rhs): Unit` |
+| `RemAssign<Rhs>` | `remAssign(other: Rhs): Unit` |
+| `Component1<Result>` | `component1(): Result` |
+| `Component2<Result>` | `component2(): Result` |
+
+List<T> 继承 Get<Long, T> 并保留自己的 override get；MutableList<T> 另继承 Set<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 Get；MutableArray<T> 另外显式实现 Set<Long, T>；String 显式实现 Get<Long, Char>。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
+
+其余表中接口由需要这些操作的用户类型显式实现。函数值、FunPtr、struct/tuple 的内建解构和只有同名方法的对象均不自动获得对应接口。Component1/2 为前两个位置提供独立约束，不改变 struct/tuple 的内建解构；class、interface 及有对应成员上界的泛型使用既有 componentN 决议。迭代能力继续由 11.8 的 Iterable<T>/Iterator<T> 表达，不增加平行迭代协议。标准接口覆盖这些固定签名；其他参数数量、component 位置以及 generic、suspend、unsafe、default、vararg 形式继续按 9.3.1～9.3.4 合法声明和调用，需要名义 bound 时可声明普通用户接口。接口列表不成为运算符可用性的前置条件。
+
+就地赋值接口不改变可写 place 与只读 receiver 的区别；同时存在适用的 opAssign 与普通 op 时，仍按 9.3.3 报歧义。get/set 的 index 保存、求值顺序、结果适配和写回规则保持一致。
 
 ### 9.4 注解
 
@@ -1668,7 +1693,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 - 下标访问 `a[i]`通过普通成员`operator fun get(index: Long): T`；`MutableArray`通过`operator fun set(index: Long, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
 - `vararg T`的spread和普通形参`Array<T>`都要求exact `Array<T>`；需要改变element type时，调用方显式逐元素构造/转换目标array。
-- `size: Long` 属性；通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都只实现 `List<T>`，不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
+- `size: Long` 属性；通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都实现 `List<T>`，MutableArray<T> 另实现 Set<Long, T>；二者均不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
 
 ### 10.6 按长度初始化
 
