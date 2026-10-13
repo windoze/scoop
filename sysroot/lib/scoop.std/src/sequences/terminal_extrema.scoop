@@ -1,0 +1,17 @@
+package scoop.sequences
+
+import scoop.collections.*
+
+import scoop.comparisons.Comparator
+
+public fun <T : Compare<T>> Sequence<T>.minOrNull(): T? =
+    terminalInput<T>().minOrNull<T>()
+
+public fun <T> Sequence<T>.minWithOrNull(comparator: Comparator<T>): T? =
+    terminalInput<T>().minWithOrNull<T>(comparator)
+
+public fun <T : Compare<T>> Sequence<T>.maxOrNull(): T? =
+    terminalInput<T>().maxOrNull<T>()
+
+public fun <T> Sequence<T>.maxWithOrNull(comparator: Comparator<T>): T? =
+    terminalInput<T>().maxWithOrNull<T>(comparator)

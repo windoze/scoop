@@ -1,0 +1,132 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+
+internal struct TreeLocation<K, V>(val node: BTreeNode<K, V>?, val index: Long, val found: Boolean)
+
+public class TreeMap<K, V> public constructor(
+    public override val comparator: Comparator<K>
+) : MutableSortedMap<K, V> {
+    private val tree: BTree<K, V> = BTree<K, V>()
+    private val changes: ModificationCounter = ModificationCounter()
+    private val structure: ModificationCounter = ModificationCounter()
+
+    public override val size: Long get() = tree.size
+    public override val keys: Set<K> get() = MapKeys<K, V>(this)
+    public override val values: Collection<V> get() = MapValues<K, V>(this)
+    public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
+
+    private fun compare(key: K, node: BTreeNode<K, V>, index: Long, stamp: RevisionStamp): Long {
+        val result = comparator.compare(key, node.entry(index).key)
+        changes.check(stamp)
+        return result
+    }
+
+    private fun locate(key: K): TreeLocation<K, V> {
+        val stamp = changes.snapshot()
+        var current = tree.root
+        while (current != None) {
+            val node = current!!
+            var low = 0L
+            var high = node.count
+            while (low < high) {
+                val middle = (low + high) / 2L
+                val result = compare(key, node, middle, stamp)
+                if (result == 0L) return TreeLocation<K, V>(Some(node), middle, true)
+                if (result > 0L) low = middle + 1L else high = middle
+            }
+            if (node.leaf) return TreeLocation<K, V>(Some(node), low, false)
+            current = node.child(low)
+        }
+        return TreeLocation<K, V>(None, 0L, false)
+    }
+
+    public override operator fun get(key: K): V? {
+        val location = locate(key)
+        return if (location.found) Some(location.node!!.entry(location.index).value) else None
+    }
+
+    public override fun containsKey(key: K): Boolean = locate(key).found
+    public override fun put(key: K, value: V): V? = putEntry(key, value, true)
+    internal fun putIfAbsent(key: K, value: V): V? = putEntry(key, value, false)
+
+    private fun putEntry(key: K, value: V, replace: Boolean): V? {
+        val location = locate(key)
+        if (location.found) {
+            val old = location.node!!.entry(location.index).value
+            if (replace) {
+                tree.replace(location.node!!, location.index, value)
+                changes.advance()
+            }
+            return Some(old)
+        }
+        tree.insert(key, value, location.node, location.index)
+        changes.advance()
+        structure.advance()
+        return None
+    }
+
+    public override fun remove(key: K): V? {
+        val location = locate(key)
+        if (!location.found) return None
+        val value = tree.remove(location.node!!, location.index)
+        changes.advance()
+        structure.advance()
+        return Some(value)
+    }
+
+    public override fun clear() {
+        if (size == 0L) return
+        tree.clear()
+        changes.advance()
+        structure.advance()
+    }
+
+    private fun bound(key: K, greater: Boolean, inclusive: Boolean): Map.Entry<K, V>? {
+        val stamp = changes.snapshot()
+        var current = tree.root
+        var candidate: Map.Entry<K, V>? = None
+        val strict = if (greater) !inclusive else inclusive
+        while (current != None) {
+            val node = current!!
+            var low = 0L
+            var high = node.count
+            while (low < high) {
+                val middle = (low + high) / 2L
+                val result = compare(key, node, middle, stamp)
+                if (result > 0L || (strict && result == 0L)) low = middle + 1L else high = middle
+            }
+            if (greater && low < node.count) candidate = Some(node.entry(low))
+            if (!greater && low > 0L) candidate = Some(node.entry(low - 1L))
+            current = node.child(low)
+        }
+        return candidate
+    }
+
+    public override fun firstEntryOrNull(): Map.Entry<K, V>? {
+        val node = tree.first(tree.root)
+        return if (node == None) None else Some(node!!.entry(0L))
+    }
+
+    public override fun lastEntryOrNull(): Map.Entry<K, V>? {
+        val node = tree.last(tree.root)
+        return if (node == None) None else Some(node!!.entry(node!!.count - 1L))
+    }
+
+    public override fun lowerEntry(key: K): Map.Entry<K, V>? = bound(key, false, false)
+    public override fun floorEntry(key: K): Map.Entry<K, V>? = bound(key, false, true)
+    public override fun ceilingEntry(key: K): Map.Entry<K, V>? = bound(key, true, true)
+    public override fun higherEntry(key: K): Map.Entry<K, V>? = bound(key, true, false)
+    public override operator fun iterator(): Iterator<Map.Entry<K, V>> = TreeIterator<K, V>(tree, structure)
+
+    public companion object {
+        public fun encoder(key: Encodable<K>, value: Encodable<V>): Encodable<TreeMap<K, V>> =
+            EncodeFunction<TreeMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        public fun decoder(key: Decodable<K>, value: Decodable<V>, comparator: Comparator<K>): Decodable<TreeMap<K, V>> =
+            DecodeFunction<TreeMap<K, V>> { decoder ->
+                val result = TreeMap<K, V>(comparator)
+                decodeMapInto(decoder, key, value, result)
+                result
+            }
+    }
+}

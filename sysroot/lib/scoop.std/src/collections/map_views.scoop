@@ -1,0 +1,31 @@
+package scoop.collections
+
+internal class MappingIterator<S, T> internal constructor(
+    private val source: Iterator<S>,
+    private val transform: (S) -> T
+) : Iterator<T> {
+    public override fun next(): T? = when (source.next()) {
+        case Some(value) -> Some(transform(value))
+        case None -> None
+    }
+}
+
+internal class MapKeys<K, V> internal constructor(private val source: Map<K, V>) : Set<K> {
+    public override val size: Long get() = source.size
+    public override operator fun contains(value: K): Boolean = source.containsKey(value)
+    public override operator fun iterator(): Iterator<K> =
+        MappingIterator<Map.Entry<K, V>, K>(source.iterator()) { entry -> entry.key }
+}
+
+internal class MapValues<K, V> internal constructor(private val source: Map<K, V>) : Collection<V> {
+    public override val size: Long get() = source.size
+    public override operator fun iterator(): Iterator<V> =
+        MappingIterator<Map.Entry<K, V>, V>(source.iterator()) { entry -> entry.value }
+}
+
+internal class MapEntries<K, V> internal constructor(
+    private val source: Map<K, V>
+) : Collection<Map.Entry<K, V>> {
+    public override val size: Long get() = source.size
+    public override operator fun iterator(): Iterator<Map.Entry<K, V>> = source.iterator()
+}

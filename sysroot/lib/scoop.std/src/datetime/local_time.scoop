@@ -1,0 +1,51 @@
+package scoop.datetime
+
+import scoop.decodeTextValue
+
+import scoop.time.Duration
+
+public class LocalTime public constructor(
+    public val hour: Int, public val minute: Int, public val second: Int = 0, public val nanosecond: Int = 0
+) : Equals<LocalTime>, Compare<LocalTime>, Hash, ToString, Add<Duration, LocalTime>, Sub<Duration, LocalTime> {
+    init {
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 ||
+            nanosecond < 0 || nanosecond >= 1000000000) throw IllegalArgumentException(Some("invalid time"))
+    }
+    public fun toNanosecondOfDay(): Long =
+        (hour.toInt64() * 3600L + minute.toInt64() * 60L + second.toInt64()) * 1000000000L + nanosecond.toInt64()
+    public override operator fun plus(other: Duration): LocalTime =
+        LocalTime.fromNanosecondOfDay(shiftedTimeOfDay(this, other, false)._2)
+    public override operator fun minus(other: Duration): LocalTime =
+        LocalTime.fromNanosecondOfDay(shiftedTimeOfDay(this, other, true)._2)
+    public override operator fun equals(other: LocalTime): Boolean =
+        hour == other.hour && minute == other.minute && second == other.second && nanosecond == other.nanosecond
+    public override operator fun compareTo(other: LocalTime): Long = toNanosecondOfDay().compareTo(other.toNanosecondOfDay())
+    public override fun hash(): Long = toNanosecondOfDay().hash()
+    public override fun toString(): String = formatLocalTime(this)
+
+    public companion object : Encodable<LocalTime>, Decodable<LocalTime> {
+        public override fun encode(value: LocalTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): LocalTime =
+            decodeTextValue<LocalTime>(decoder, { text -> parseOrNull(text) }, "time")
+
+        public fun fromNanosecondOfDay(value: Long): LocalTime {
+            if (value < 0L || value >= 86400000000000L) throw IllegalArgumentException(Some("invalid nanosecond of day"))
+            val seconds = value / 1000000000L
+            return LocalTime((seconds / 3600L).toInt32(), (seconds / 60L % 60L).toInt32(),
+                (seconds % 60L).toInt32(), (value % 1000000000L).toInt32())
+        }
+        public fun parseOrNull(text: String): LocalTime? = parseLocalTime(text)
+        public fun parse(text: String): LocalTime = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid time"))
+        }
+    }
+}
+
+internal fun shiftedTimeOfDay(time: LocalTime, amount: Duration, subtract: Boolean): (Long, Long) {
+    val days = amount.seconds / 86400L
+    val remainder = (amount.seconds % 86400L) * 1000000000L + amount.nanosecondsOfSecond.toInt64()
+    val nanos = time.toNanosecondOfDay() + (if (subtract) -remainder else remainder)
+    val carry = calendarFloorDiv(nanos, 86400000000000L)
+    return ((if (subtract) -days else days) + carry, nanos - carry * 86400000000000L)
+}

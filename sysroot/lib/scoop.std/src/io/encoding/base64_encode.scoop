@@ -1,0 +1,31 @@
+package scoop.io.encoding
+
+import scoop.io.encoding.Base64.PaddingOption
+import scoop.text.checkedTextProduct
+import scoop.text.checkedTextSum
+
+internal fun encodeBase64(source: List<Byte>, urlSafe: Boolean, padding: PaddingOption): String {
+    val length = source.size
+    val remainder = length % 3L
+    val tail = if (remainder == 0L) 0L else if (padding == PaddingOption.ABSENT) remainder + 1L else 4L
+    val size = checkedTextSum(checkedTextProduct(length / 3L, 4L), tail)
+    val output = MutableArray<Char>(size) { _ -> '=' }
+    val alphabet = if (urlSafe) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        else "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    var position = 0L
+    var target = 0L
+    while (position < length) {
+        val available = length - position
+        val first = source[position].toUInt8().toInt32()
+        val second = if (available > 1L) source[position + 1L].toUInt8().toInt32() else 0
+        val third = if (available > 2L) source[position + 2L].toUInt8().toInt32() else 0
+        output[target] = alphabet[(first / 4).toInt64()]
+        output[target + 1L] = alphabet[((first % 4) * 16 + second / 16).toInt64()]
+        if (available > 1L) output[target + 2L] = alphabet[((second % 16) * 4 + third / 64).toInt64()]
+        if (available > 2L) output[target + 3L] = alphabet[(third % 64).toInt64()]
+        if (available <= 3L) break
+        position += 3L
+        target += 4L
+    }
+    return String.fromChars(output)
+}

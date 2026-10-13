@@ -1,0 +1,25 @@
+package scoop.text
+
+public fun String.toByteOrNull(radix: Int = 10): Byte? = toInt8OrNull(radix)
+public fun String.toByte(radix: Int = 10): Byte = toInt8(radix)
+
+public fun String.toShortOrNull(radix: Int = 10): Short? = toInt16OrNull(radix)
+public fun String.toShort(radix: Int = 10): Short = toInt16(radix)
+
+public fun String.toInt32OrNull(radix: Int = 10): Int32? = toIntOrNull(radix)
+public fun String.toInt32(radix: Int = 10): Int32 = toInt(radix)
+
+public fun String.toInt64OrNull(radix: Int = 10): Int64? = toLongOrNull(radix)
+public fun String.toInt64(radix: Int = 10): Int64 = toLong(radix)
+
+public fun String.toUByteOrNull(radix: Int = 10): UByte? = toUInt8OrNull(radix)
+public fun String.toUByte(radix: Int = 10): UByte = toUInt8(radix)
+
+public fun String.toUShortOrNull(radix: Int = 10): UShort? = toUInt16OrNull(radix)
+public fun String.toUShort(radix: Int = 10): UShort = toUInt16(radix)
+
+public fun String.toUInt32OrNull(radix: Int = 10): UInt32? = toUIntOrNull(radix)
+public fun String.toUInt32(radix: Int = 10): UInt32 = toUInt(radix)
+
+public fun String.toUInt64OrNull(radix: Int = 10): UInt64? = toULongOrNull(radix)
+public fun String.toUInt64(radix: Int = 10): UInt64 = toULong(radix)

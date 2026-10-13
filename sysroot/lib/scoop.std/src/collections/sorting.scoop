@@ -1,0 +1,65 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+import scoop.comparisons.comparatorOf
+import scoop.comparisons.naturalOrder
+import scoop.comparisons.reverseOrder
+
+private fun <T> mergeCollectionRuns(source: List<T>, target: MutableList<T>, width: Long, comparator: Comparator<T>) {
+    var start = 0L
+    while (start < source.size) {
+        val middle = start + (if (width < source.size - start) width else source.size - start)
+        val end = middle + (if (width < source.size - middle) width else source.size - middle)
+        var left = start
+        var right = middle
+        var output = start
+        while (output < end) {
+            if (right == end || (left < middle && comparator.compare(source[left], source[right]) <= 0L)) {
+                target[output] = source[left]
+                left += 1L
+            } else {
+                target[output] = source[right]
+                right += 1L
+            }
+            output += 1L
+        }
+        start = end
+    }
+}
+
+private fun <T> sortedCollectionElements(input: Iterable<T>, comparator: Comparator<T>): MutableList<T> {
+    var source = input.toMutableList()
+    if (source.size < 2L) return source
+    var target = source.toMutableList()
+    var width = 1L
+    while (width < source.size) {
+        mergeCollectionRuns<T>(source, target, width, comparator)
+        val old = source
+        source = target
+        target = old
+        width = if (width > source.size / 2L) source.size else width * 2L
+    }
+    return source
+}
+
+public fun <T> Iterable<T>.sortedWith(comparator: Comparator<T>): List<T> =
+    ListSnapshot<T>(sortedCollectionElements<T>(this, comparator).toArray())
+
+public fun <T : Compare<T>> Iterable<T>.sorted(): List<T> = sortedWith<T>(naturalOrder<T>())
+public fun <T : Compare<T>> Iterable<T>.sortedDescending(): List<T> = sortedWith<T>(reverseOrder<T>())
+
+private struct CollectionSortKey<T, K>(val value: T, val key: K)
+
+public fun <T, K : Compare<K>> Iterable<T>.sortedBy(selector: (T) -> K): List<T> {
+    val decorated = map<T, CollectionSortKey<T, K>> { value -> CollectionSortKey<T, K>(value, selector(value)) }
+    val order = comparatorOf<CollectionSortKey<T, K>> { left, right -> left.key.compareTo(right.key) }
+    return decorated.sortedWith(order).map<CollectionSortKey<T, K>, T> { entry -> entry.value }
+}
+
+public fun <T> MutableList<T>.sortWith(comparator: Comparator<T>) {
+    val sorted = sortedCollectionElements<T>(this, comparator)
+    var index = 0L
+    for (element in sorted) { this[index] = element; index += 1L }
+}
+
+public fun <T : Compare<T>> MutableList<T>.sort() { sortWith<T>(naturalOrder<T>()) }

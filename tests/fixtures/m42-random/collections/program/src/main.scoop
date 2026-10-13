@@ -1,0 +1,65 @@
+import scoop.collections.*
+import scoop.random.Random
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+class Stream : Iterable<Int>, Iterator<Int> {
+    public var consumed: Long = 0L
+    private var requested: Boolean = false
+    public override operator fun iterator(): Iterator<Int> {
+        check(!requested); requested = true; return this
+    }
+    public override fun next(): Int? {
+        if (consumed == 4L) return None
+        consumed += 1L
+        return Some(consumed.toInt32())
+    }
+}
+class ObservedRandom public constructor(private val stream: Stream) : Random {
+    public var calls: Long = 0L
+    public override fun nextBits(bitCount: Int): Int {
+        check(bitCount == 32 && stream.consumed == calls / 2L + 2L)
+        val value = if (calls == 3L) 1 else 0
+        calls += 1L
+        return value
+    }
+}
+class Choices : Random {
+    public var calls: Long = 0L
+    public override fun nextBits(bitCount: Int): Int {
+        check(bitCount == 32 && calls < 4L)
+        val value = if (calls == 1L) 3 else 0
+        calls += 1L
+        return value
+    }
+}
+class Indexed : List<Int> {
+    public var reads: Long = 0L
+    public override val size: Long get() = 4L
+    public override operator fun get(index: Long): Int { reads += 1L; return index.toInt32() }
+    public override operator fun iterator(): Iterator<Int> { throw IllegalStateException() }
+}
+fun main() {
+    val stream = Stream()
+    val observed = ObservedRandom(stream)
+    check(stream.random<Int>(observed) == 4 && observed.calls == 6L && stream.consumed == 4L)
+    val list = Indexed()
+    val choices = Choices()
+    check(list.random<Int>(choices) == 3 && choices.calls == 2L && list.reads == 1L)
+    val empty = emptyList<Int>()
+    check(empty.randomOrNull<Int>(choices) == None && listOf<Int>(7).random<Int>(choices) == 7)
+    check(listOf<Int?>(None).randomOrNull<Int?>(choices) == Some(None) && choices.calls == 2L)
+    var failed = false
+    try { empty.random<Int>(choices) } catch (error: NoSuchElementException) { failed = true }
+    check(failed)
+    val input = mutableListOf<Int>(1, 2, 3)
+    val copy = input.shuffled<Int>(Choices())
+    check(input[0L] == 1 && copy[0L] == 2 && copy[1L] == 3 && copy[2L] == 1)
+    input.shuffle<Int>(Choices())
+    check(input[0L] == 2 && input[1L] == 3 && input[2L] == 1)
+    input[0L] = 9
+    check(copy[0L] == 2 && !(copy is MutableList<Int>))
+    val noCalls = Choices()
+    mutableListOf<Int>().shuffle<Int>(noCalls); mutableListOf<Int>(1).shuffle<Int>(noCalls)
+    check(noCalls.calls == 0L)
+    println("random collections passed")
+}

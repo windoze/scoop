@@ -1,0 +1,42 @@
+package scoop.collections
+
+public class HashSet<T> public constructor() : MutableSet<T> where T : Equals<T>, T : Hash {
+    private val elements: HashMap<T, Unit> = HashMap<T, Unit>()
+
+    public override val size: Long get() = elements.size
+    public override operator fun contains(value: T): Boolean = elements.containsKey(value)
+    public override fun add(value: T): Boolean = when (elements.putIfAbsent(value, Unit)) {
+        case None -> true
+        case Some(_) -> false
+    }
+    public override fun remove(value: T): Boolean = when (elements.remove(value)) {
+        case None -> false
+        case Some(_) -> true
+    }
+    public override fun clear() { elements.clear() }
+    public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
+    public override fun retainAll(elements: Iterable<T>): Boolean = retainHashed<T>(this, elements)
+
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<HashSet<T>> =
+            EncodeFunction<HashSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: Decodable<T>): Decodable<HashSet<T>> = DecodeFunction<HashSet<T>> { decoder ->
+            val result = HashSet<T>()
+            decodeSetInto(decoder, element, result)
+            result
+        }
+    }
+}
+
+public fun <K, V> hashMapOf(vararg entries: (K, V)): HashMap<K, V>
+    where K : Equals<K>, K : Hash {
+    val result = HashMap<K, V>()
+    for ((key, value) in entries) result.put(key, value)
+    return result
+}
+
+public fun <T> hashSetOf(vararg elements: T): HashSet<T> where T : Equals<T>, T : Hash {
+    val result = HashSet<T>()
+    for (element in elements) result.add(element)
+    return result
+}

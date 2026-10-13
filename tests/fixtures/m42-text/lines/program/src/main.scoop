@@ -1,0 +1,22 @@
+import scoop.text.*
+import scoop.collections.joinToString
+import scoop.collections.listOf
+import scoop.sequences.*
+
+fun check(value: Boolean, label: String) { if (!value) { println(label); throw Exception(Some(label)) } }
+fun main() {
+    check("".lines().size == 1L && "".lines()[0L] == "", "empty line")
+    for (separator in listOf<String>("\r", "\n", "\r\n")) {
+        check(separator.lines().size == 2L && ("a" + separator + "b" + separator).lines().joinToString("|") == "a|b|", "line ending")
+    }
+    check("a\r\rb\n\r\nc\r".lines().joinToString("|") == "a||b||c|", "mixed newlines")
+    check("雪\u0000\r\n😀".lines().joinToString("|") == "雪\u0000|😀", "multibyte and NUL")
+    check("x\u2028y\u2029z".lines().size == 1L, "only CR LF delimit lines")
+    val sequence = ("one\n" + "雪".repeat(4096L)).lineSequence()
+    check(sequence.take(1L).toList().joinToString() == "one", "first line only")
+    check(sequence.count() == 2L && sequence.first() == "one", "repeatable line sequence")
+    check(!("a\nb".lines() is MutableList<String>), "readonly lines")
+    val iterator = "x\r".lineSequence().iterator()
+    check(iterator.next() == Some("x") && iterator.next() == Some("") && iterator.next() == None && iterator.next() == None, "tail and exhaustion")
+    println("text lines passed")
+}

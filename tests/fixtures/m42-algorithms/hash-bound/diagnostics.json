@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `groupBy`: type argument `Key` for `K` must satisfy upper bound `Hash`",
+    "notes": [],
+    "origin": {
+      "cone": "b49c4ab79647de03b8698384f149211924caed480e8d26472d46548989a178ec",
+      "end": 184,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 137
+    },
+    "severity": "error"
+  }
+]

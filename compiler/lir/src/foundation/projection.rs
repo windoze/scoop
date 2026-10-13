@@ -902,6 +902,10 @@ mod tests {
             ),
             vec![
                 (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomSubkey::Singleton
+                ),
+                (
                     DefinitionAtomRole::CompactUnwind,
                     DefinitionAtomSubkey::CallableBody(body.id()),
                 ),
@@ -922,7 +926,11 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(
                 roles,
-                [DefinitionAtomRole::EhFrame, DefinitionAtomRole::Stackmap]
+                [
+                    DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomRole::EhFrame,
+                    DefinitionAtomRole::Stackmap
+                ]
             );
         }
 
@@ -966,6 +974,10 @@ mod tests {
             ),
             vec![
                 (
+                    DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomSubkey::Singleton
+                ),
+                (
                     DefinitionAtomRole::CompactUnwind,
                     DefinitionAtomSubkey::CallableBody(body.id()),
                 ),
@@ -994,6 +1006,7 @@ mod tests {
             assert_eq!(
                 roles,
                 [
+                    DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::EhFrame,
                     DefinitionAtomRole::Stackmap,
                     DefinitionAtomRole::Lsda,

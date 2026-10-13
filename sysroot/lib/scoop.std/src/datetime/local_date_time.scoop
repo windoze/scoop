@@ -1,0 +1,60 @@
+package scoop.datetime
+
+import scoop.decodeTextValue
+
+import scoop.time.Duration
+import scoop.time.Instant
+import scoop.text.indexOf
+import scoop.text.substring
+
+public class LocalDateTime public constructor(public val date: LocalDate, public val time: LocalTime)
+    : Equals<LocalDateTime>, Compare<LocalDateTime>, Hash, ToString, Add<Duration, LocalDateTime>, Sub<Duration, LocalDateTime> {
+    public constructor(year: Int, monthNumber: Int, dayOfMonth: Int, hour: Int, minute: Int, second: Int = 0, nanosecond: Int = 0)
+        : this(LocalDate(year, monthNumber, dayOfMonth), LocalTime(hour, minute, second, nanosecond)) {}
+    public val year: Int get() = date.year
+    public val monthNumber: Int get() = date.monthNumber
+    public val dayOfMonth: Int get() = date.dayOfMonth
+    public val hour: Int get() = time.hour
+    public val minute: Int get() = time.minute
+    public val second: Int get() = time.second
+    public val nanosecond: Int get() = time.nanosecond
+    public override operator fun plus(other: Duration): LocalDateTime = shifted(other, false)
+    public override operator fun minus(other: Duration): LocalDateTime = shifted(other, true)
+    private fun shifted(amount: Duration, subtract: Boolean): LocalDateTime {
+        val parts = shiftedTimeOfDay(time, amount, subtract)
+        return LocalDateTime(date.plusDays(parts._1), LocalTime.fromNanosecondOfDay(parts._2))
+    }
+    public operator fun plus(other: DatePeriod): LocalDateTime = LocalDateTime(date + other, time)
+    public operator fun minus(other: DatePeriod): LocalDateTime = LocalDateTime(date - other, time)
+    public operator fun plus(other: DateTimePeriod): LocalDateTime = (this + other.date) + other.time
+    public operator fun minus(other: DateTimePeriod): LocalDateTime = (this - other.date) - other.time
+    public fun toInstant(offset: UtcOffset): Instant =
+        Instant.fromComponents(localEpochSeconds(this) - offset.totalSeconds.toInt64(), nanosecond)
+    public override operator fun equals(other: LocalDateTime): Boolean = date == other.date && time == other.time
+    public override operator fun compareTo(other: LocalDateTime): Long =
+        if (date != other.date) date.compareTo(other.date) else time.compareTo(other.time)
+    public override fun hash(): Long = date.hash() * 31L + time.hash()
+    public override fun toString(): String = date.toString() + "T" + time.toString()
+
+    public companion object : Encodable<LocalDateTime>, Decodable<LocalDateTime> {
+        public override fun encode(value: LocalDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): LocalDateTime =
+            decodeTextValue<LocalDateTime>(decoder, { text -> parseOrNull(text) }, "local date-time")
+
+        public fun parseOrNull(text: String): LocalDateTime? {
+            val split = text.indexOf('T')
+            if (split < 0L) return None
+            val date = LocalDate.parseOrNull(text.substring(0L, split))
+            val time = LocalTime.parseOrNull(text.substring(split + 1L))
+            if (date == None || time == None) return None
+            return Some(LocalDateTime(date!!, time!!))
+        }
+        public fun parse(text: String): LocalDateTime = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid local date-time"))
+        }
+    }
+}
+
+internal fun localEpochSeconds(value: LocalDateTime): Long =
+    value.date.toEpochDays() * 86400L + value.time.toNanosecondOfDay() / 1000000000L

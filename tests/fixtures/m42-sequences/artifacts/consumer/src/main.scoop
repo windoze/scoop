@@ -1,0 +1,22 @@
+import scoop.*
+import scoop.sequences.*
+import scoop.collections.joinToString
+
+struct Entry(val text: String, val rank: Int)
+class State { var calls: Int = 0 }
+fun stream(state: State): Sequence<Result<Entry, String>> =
+    generateSequence<Int>(0) { value -> Some(value + 1) }.map<Int, Result<Entry, String>> { value ->
+        state.calls += 1
+        if (value % 2 == 0) Result.Success<Entry, String>(Entry(value.toString(), value))
+        else Result.Failure<Entry, String>("odd")
+    }
+fun <T> collectTwo(source: Sequence<T>): List<T> = source.take(2L).toList()
+fun main() {
+    val state = State()
+    val windows = stream(state).mapNotNull<Result<Entry, String>, Entry> { result -> result.toOption() }.windowed(2L)
+    val labels = windows.map<List<Entry>, String> { window -> f"${window[0L].text}:${window[1L].text}" }
+    val result = runCatching<List<String>> { collectTwo<String>(labels) }.getOrThrow()
+    println(result.joinToString(";"))
+    val lookup = sequenceOf<(Int, String)>((1, "a"), (2, "b"), (1, "c")).toMap()
+    println(state.calls == 5 && lookup[1] == Some("c") && !(result is MutableList<String>))
+}

@@ -1,0 +1,13 @@
+schema = 1
+
+[cone]
+group = "dev.m42"
+name = "app-consumer"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.json" = "0.1.0"
+"dev.m42:app-provider" = "0.1.0"

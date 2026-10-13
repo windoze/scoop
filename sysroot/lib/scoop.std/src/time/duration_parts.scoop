@@ -1,0 +1,45 @@
+package scoop.time
+
+internal struct DurationParts(val negative: Boolean, val seconds: ULong, val nanos: Int) {
+    internal fun negated(): DurationParts = DurationParts(!negative, seconds, nanos)
+}
+
+internal fun normalizeDuration(seconds: Long, adjustment: Long): (Long, Int) {
+    var extra = adjustment / 1000000000L
+    var nanos = adjustment % 1000000000L
+    if (nanos < 0L) { extra -= 1L; nanos += 1000000000L }
+    val result = seconds + extra
+    if (((seconds xor result) and (extra xor result)) < 0L) throw ArithmeticException()
+    return (result, nanos.toInt32())
+}
+
+internal fun durationParts(value: Duration): DurationParts {
+    if (value.seconds >= 0L) return DurationParts(false, value.seconds.toUInt64(), value.nanosecondsOfSecond)
+    if (value.nanosecondsOfSecond == 0) return DurationParts(true, -value.seconds.toUInt64(), 0)
+    return DurationParts(true, -(value.seconds + 1L).toUInt64(), 1000000000 - value.nanosecondsOfSecond)
+}
+
+internal fun addDurationParts(first: DurationParts, second: DurationParts): DurationParts {
+    if (first.negative == second.negative) {
+        val seconds = first.seconds + second.seconds
+        if (seconds < first.seconds) throw ArithmeticException()
+        val nanos = first.nanos + second.nanos
+        val carry = if (nanos >= 1000000000) 1uL else 0uL
+        if (seconds > ULong.MAX_VALUE - carry) throw ArithmeticException()
+        return DurationParts(first.negative, seconds + carry, nanos % 1000000000)
+    }
+    val firstLarger = first.seconds > second.seconds || (first.seconds == second.seconds && first.nanos >= second.nanos)
+    val high = if (firstLarger) first else second
+    val low = if (firstLarger) second else first
+    val borrow = high.nanos < low.nanos
+    return DurationParts(high.negative, high.seconds - low.seconds - (if (borrow) 1uL else 0uL),
+        high.nanos - low.nanos + (if (borrow) 1000000000 else 0))
+}
+
+internal fun durationWholeUnits(parts: DurationParts, unitsPerSecond: ULong): Long {
+    val limit = if (parts.negative) 0x8000000000000000uL else 0x7fffffffffffffffuL
+    val fraction = parts.nanos.toUInt64() / (1000000000uL / unitsPerSecond)
+    if (parts.seconds > (limit - fraction) / unitsPerSecond) throw ArithmeticException()
+    val value = parts.seconds * unitsPerSecond + fraction
+    return (if (parts.negative) -value else value).toInt64()
+}

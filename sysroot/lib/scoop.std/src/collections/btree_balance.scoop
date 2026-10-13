@@ -1,0 +1,69 @@
+package scoop.collections
+
+internal fun <K, V> borrowBTreeLeft(node: BTreeNode<K, V>, parent: BTreeNode<K, V>, index: Long) {
+    val left = parent.child(index - 1L)!!
+    var position = node.count
+    while (position > 0L) {
+        node.write(position, node.entry(position - 1L))
+        position -= 1L
+    }
+    if (!node.leaf) {
+        position = node.count + 1L
+        while (position > 0L) {
+            node.setChild(position, node.child(position - 1L))
+            position -= 1L
+        }
+        node.setChild(0L, left.child(left.count))
+        left.clearChild(left.count)
+    }
+    node.write(0L, parent.entry(index - 1L))
+    parent.write(index - 1L, left.entry(left.count - 1L))
+    left.erase(left.count - 1L)
+    left.count -= 1L
+    node.count += 1L
+}
+
+internal fun <K, V> borrowBTreeRight(node: BTreeNode<K, V>, parent: BTreeNode<K, V>, index: Long) {
+    val right = parent.child(index + 1L)!!
+    node.write(node.count, parent.entry(index))
+    if (!node.leaf) node.setChild(node.count + 1L, right.child(0L))
+    parent.write(index, right.entry(0L))
+    var position = 0L
+    while (position + 1L < right.count) {
+        right.write(position, right.entry(position + 1L))
+        position += 1L
+    }
+    right.erase(right.count - 1L)
+    if (!right.leaf) {
+        position = 0L
+        while (position < right.count) {
+            right.setChild(position, right.child(position + 1L))
+            position += 1L
+        }
+        right.clearChild(right.count)
+    }
+    right.count -= 1L
+    node.count += 1L
+}
+
+internal fun <K, V> mergeBTreeChildren(parent: BTreeNode<K, V>, index: Long) {
+    val left = parent.child(index)!!
+    val right = parent.child(index + 1L)!!
+    val offset = left.count + 1L
+    left.write(left.count, parent.entry(index))
+    var position = 0L
+    while (position < right.count) {
+        left.write(offset + position, right.entry(position))
+        position += 1L
+    }
+    if (!left.leaf) {
+        position = 0L
+        while (position <= right.count) {
+            left.setChild(offset + position, right.child(position))
+            position += 1L
+        }
+    }
+    left.count += right.count + 1L
+    right.retire()
+    parent.removeSlot(index)
+}

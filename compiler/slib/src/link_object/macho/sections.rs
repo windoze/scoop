@@ -84,7 +84,10 @@ fn classify_section(
             BuiltinObjectSectionRoleV1::Text,
             macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
         )),
-        (b"__TEXT", b"__const") | (b"__DATA", b"__const") | (b"__DATA_CONST", b"__const") => {
+        (b"__TEXT", b"__const")
+        | (b"__DATA", b"__const")
+        | (b"__DATA_CONST", b"__const")
+        | (b"__DATA_CONST", b"__scoop_const") => {
             Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
         }
         (b"__TEXT", b"__literal4") => Some((

@@ -1,0 +1,45 @@
+package scoop.text
+
+internal class TextPattern(value: String) {
+    private val chars: MutableArray<Char> = value.toCharArray()
+    private val prefix: MutableArray<Long> = MutableArray<Long>(chars.size) { _ -> 0L }
+    internal val size: Long get() = chars.size
+
+    init {
+        var index = 1L
+        var matched = 0L
+        while (index < chars.size) {
+            while (matched > 0L && chars[index] != chars[matched]) matched = prefix[matched - 1L]
+            if (chars[index] == chars[matched]) matched += 1L
+            prefix[index] = matched
+            index += 1L
+        }
+    }
+
+    internal fun advance(previous: Long, value: Char): Long {
+        var matched = previous
+        while (matched > 0L && (matched == size || chars[matched] != value)) matched = prefix[matched - 1L]
+        if (matched < size && chars[matched] == value) matched += 1L
+        return matched
+    }
+}
+
+internal fun textRange(chars: List<Char>, start: Long, end: Long): String =
+    String.fromChars(Array<Char>(end - start) { index -> chars[start + index] })
+
+internal fun checkedTextSum(left: Long, right: Long): Long {
+    if (right > Long.MAX_VALUE - left) throw ArithmeticException()
+    return left + right
+}
+
+internal fun checkedTextProduct(bytes: Long, count: Long): Long {
+    if (bytes > 0L && count > Long.MAX_VALUE / bytes) throw ArithmeticException()
+    return bytes * count
+}
+
+internal fun charByteLength(value: Char): Long {
+    if (value.code < 0x80) return 1L
+    if (value.code < 0x800) return 2L
+    if (value.code < 0x10000) return 3L
+    return 4L
+}

@@ -1,0 +1,7 @@
+import scoop.collections.HashSet
+
+class Key : Hash {
+    public override fun hash(): Long = 0L
+}
+
+fun main() { val values = HashSet<Key>() }

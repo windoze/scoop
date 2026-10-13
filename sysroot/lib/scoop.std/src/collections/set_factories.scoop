@@ -1,0 +1,26 @@
+package scoop.collections
+
+internal class SetSnapshot<T> internal constructor(private val elements: Set<T>) : Set<T> by elements
+
+public fun <T> linkedSetOf(vararg elements: T): LinkedHashSet<T> where T : Equals<T>, T : Hash {
+    val result = LinkedHashSet<T>()
+    for (element in elements) result.add(element)
+    return result
+}
+
+public fun <T> mutableSetOf(vararg elements: T): MutableSet<T> where T : Equals<T>, T : Hash =
+    linkedSetOf<T>(*elements)
+
+public fun <T> setOf(vararg elements: T): Set<T> where T : Equals<T>, T : Hash =
+    SetSnapshot<T>(linkedSetOf<T>(*elements))
+
+public fun <T> emptySet(): Set<T> where T : Equals<T>, T : Hash = setOf<T>()
+
+public fun <T> Iterable<T>.toMutableSet(): MutableSet<T> where T : Equals<T>, T : Hash {
+    val result = LinkedHashSet<T>()
+    for (element in this) result.add(element)
+    return result
+}
+
+public fun <T> Iterable<T>.toSet(): Set<T> where T : Equals<T>, T : Hash =
+    SetSnapshot<T>(toMutableSet())

@@ -1,0 +1,29 @@
+package scoop.collections
+
+internal class ListSnapshot<T> internal constructor(private val elements: Array<T>) : List<T> {
+    public override val size: Long get() = elements.size
+
+    public override operator fun get(index: Long): T = elements[index]
+
+    public override operator fun iterator(): Iterator<T> = elements.iterator()
+}
+
+public fun <T> emptyList(): List<T> = listOf<T>()
+
+public fun <T> listOf(vararg elements: T): List<T> = ListSnapshot<T>(elements)
+
+public fun <T> arrayListOf(vararg elements: T): ArrayList<T> {
+    val result = ArrayList<T>(elements.size)
+    for (element in elements) result.add(element)
+    return result
+}
+
+public fun <T> mutableListOf(vararg elements: T): MutableList<T> = arrayListOf<T>(*elements)
+
+public fun <T> Iterable<T>.toMutableList(): MutableList<T> {
+    val result = ArrayList<T>()
+    for (element in this) result.add(element)
+    return result
+}
+
+public fun <T> Iterable<T>.toList(): List<T> = ListSnapshot<T>(toMutableList().toArray())

@@ -1,0 +1,29 @@
+package scoop.sequences
+
+public interface Sequence<T> {
+    public operator fun iterator(): Iterator<T>
+}
+
+internal class FactorySequence<T>(private val factory: () -> Iterator<T>) : Sequence<T> {
+    public override operator fun iterator(): Iterator<T> = DeferredSequenceIterator<T>(factory)
+}
+
+internal class OnceSequence<T>(private val factory: () -> Iterator<T>) : Sequence<T> {
+    private var used: Boolean = false
+
+    public override operator fun iterator(): Iterator<T> {
+        if (used) throw IllegalStateException(Some("sequence can only be iterated once"))
+        used = true
+        return DeferredSequenceIterator<T>(factory)
+    }
+}
+
+private class EmptySequenceIterator<T> : Iterator<T> {
+    public override fun next(): T? = None
+}
+
+public fun <T> emptySequence(): Sequence<T> = FactorySequence<T> { EmptySequenceIterator<T>() }
+public fun <T> sequenceOf(vararg elements: T): Sequence<T> = elements.asSequence<T>()
+
+public fun <T> Iterable<T>.asSequence(): Sequence<T> = FactorySequence<T> { iterator() }
+public fun <T> Iterator<T>.asSequence(): Sequence<T> = OnceSequence<T> { this }

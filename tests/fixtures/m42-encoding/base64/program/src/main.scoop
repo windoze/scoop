@@ -1,0 +1,43 @@
+import scoop.io.encoding.Base64
+import scoop.io.encoding.Base64.PaddingOption
+import scoop.text.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun same(first: List<Byte>, second: List<Byte>) {
+    check(first.size == second.size)
+    var index = 0L
+    while (index < first.size) { check(first[index] == second[index]); index += 1L }
+}
+fun vector(text: String, encoded: String) {
+    val bytes = text.toByteArray()
+    val absent = encoded.trimEnd { value -> value == '=' }
+    check(Base64.Default.encode(bytes) == encoded && Base64.UrlSafe.encode(bytes) == encoded)
+    same(Base64.Default.decode(encoded), bytes)
+    val optional = Base64.Default.withPadding(PaddingOption.OPTIONAL)
+    val without = Base64.Default.withPadding(PaddingOption.ABSENT)
+    check(optional.encode(bytes) == encoded && without.encode(bytes) == absent)
+    same(optional.decode(encoded), bytes); same(optional.decode(absent), bytes); same(without.decode(absent), bytes)
+}
+fun main() {
+    vector("", ""); vector("f", "Zg=="); vector("fo", "Zm8="); vector("foo", "Zm9v")
+    vector("foob", "Zm9vYg=="); vector("fooba", "Zm9vYmE="); vector("foobar", "Zm9vYmFy")
+    val bytes = "ff00fe00".hexToByteArray()
+    check(Base64.Default.encode(bytes) == "/wD+AA==" && Base64.UrlSafe.encode(bytes) == "_wD-AA==")
+    same(Base64.Default.decode("/wD+AA=="), bytes); same(Base64.UrlSafe.decode("_wD-AA=="), bytes)
+    val all = Array<Byte>(256L) { index -> index.toInt8() }
+    val encoded = Base64.Default.encode(all)
+    same(Base64.Default.decode(encoded), all)
+    check(encoded == "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w==")
+    val url = Base64.UrlSafe.withPadding(PaddingOption.ABSENT)
+    check(url.encode(all) == encoded.replace('+', '-').replace('/', '_').trimEnd { c -> c == '=' })
+    same(url.decode(url.encode(all)), all)
+    var length = 0L
+    while (length < 40L) {
+        val count = length
+        val sample = Array<Byte>(count) { index -> (index * 73L + count).toInt8() }
+        same(url.decode(url.encode(sample)), sample)
+        length += 1L
+    }
+    check(Base64.Default.paddingOption == PaddingOption.REQUIRED && url.paddingOption == PaddingOption.ABSENT)
+    println("encoding base64 passed")
+}

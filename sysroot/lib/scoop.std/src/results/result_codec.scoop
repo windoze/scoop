@@ -1,0 +1,26 @@
+package scoop
+
+internal class ResultEncoder<T, E>(private val success: Encodable<T>, private val failure: Encodable<E>) : Encodable<Result<T, E>> {
+    public override fun encode(value: Result<T, E>, encoder: Encoder) {
+        val fields = encoder.keyed()
+        when (value) {
+            case Result.Success(item) -> success.encode(item, fields.field("success"))
+            case Result.Failure(error) -> failure.encode(error, fields.field("failure"))
+        }
+        fields.end()
+    }
+}
+
+internal class ResultDecoder<T, E>(private val success: Decodable<T>, private val failure: Decodable<E>) : Decodable<Result<T, E>> {
+    public override fun decode(decoder: Decoder): Result<T, E> {
+        val fields = decoder.keyed()
+        val names = fields.keys
+        if (names.size != 1L) throw DecodingException(decoder.path, "expected exactly one Result variant")
+        val name = names[0L]
+        val result = if (name == "success") Result.Success<T, E>(success.decode(fields.required(name)))
+            else if (name == "failure") Result.Failure<T, E>(failure.decode(fields.required(name)))
+            else throw DecodingException(decoder.path, "unknown Result variant")
+        fields.end()
+        return result
+    }
+}

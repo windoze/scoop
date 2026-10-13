@@ -1,0 +1,58 @@
+package scoop.collections
+
+internal struct HashEntry<K, V>(val key: K, val value: V, val hash: Long)
+
+// Empty terminates a probe; deleted slots preserve the remaining probe chain.
+internal class HashStorage<K, V> internal constructor(capacity: Long) {
+    internal val states: MutableArray<Int> = MutableArray<Int>(capacity) { _ -> 0 }
+    private val elements: MutableArray<MaybeUninit<HashEntry<K, V>>> =
+        MutableArray<MaybeUninit<HashEntry<K, V>>>(capacity) { _ -> MaybeUninit<HashEntry<K, V>>.uninit() }
+
+    internal val capacity: Long get() = states.size
+
+    internal fun read(index: Long): HashEntry<K, V> {
+        @Unsafe { return elements[index].assumeInit() }
+    }
+
+    internal fun write(index: Long, entry: HashEntry<K, V>) {
+        elements[index] = MaybeUninit<HashEntry<K, V>>.initialized(entry)
+        states[index] = 1
+    }
+
+    internal fun erase(index: Long) {
+        elements[index] = MaybeUninit<HashEntry<K, V>>.uninit()
+        states[index] = 2
+    }
+
+    internal fun start(hash: Long): Long = (hash and 9223372036854775807L) % capacity
+
+    internal fun next(index: Long): Long = if (index + 1L == capacity) 0L else index + 1L
+
+    internal fun vacant(hash: Long): Long {
+        var index = start(hash)
+        while (states[index] == 1) index = next(index)
+        return index
+    }
+
+    internal fun cleared() {
+        var index = 0L
+        while (index < capacity) {
+            elements[index] = MaybeUninit<HashEntry<K, V>>.uninit()
+            states[index] = 0
+            index += 1L
+        }
+    }
+
+    internal fun rehashed(capacity: Long): HashStorage<K, V> {
+        val result = HashStorage<K, V>(capacity)
+        var index = 0L
+        while (index < this.capacity) {
+            if (states[index] == 1) {
+                val entry = read(index)
+                result.write(result.vacant(entry.hash), entry)
+            }
+            index += 1L
+        }
+        return result
+    }
+}

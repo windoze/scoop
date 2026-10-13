@@ -1,0 +1,24 @@
+package scoop.datetime
+
+public struct DatePeriod(val years: Int = 0, val months: Int = 0, val days: Long = 0L) : Equals<DatePeriod>, Hash {
+    public override operator fun equals(other: DatePeriod): Boolean = years == other.years && months == other.months && days == other.days
+    public override fun hash(): Long = (years.hash() * 31L + months.hash()) * 31L + days.hash()
+
+    public companion object : Encodable<DatePeriod>, Decodable<DatePeriod> {
+        public override fun encode(value: DatePeriod, encoder: Encoder) {
+            val fields = encoder.keyed()
+            Int.encode(value.years, fields.field("years"))
+            Int.encode(value.months, fields.field("months"))
+            Long.encode(value.days, fields.field("days"))
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): DatePeriod {
+            val fields = decoder.keyed()
+            val years = Int.decode(fields.required("years"))
+            val months = Int.decode(fields.required("months"))
+            val days = Long.decode(fields.required("days"))
+            fields.end()
+            return DatePeriod(years, months, days)
+        }
+    }
+}

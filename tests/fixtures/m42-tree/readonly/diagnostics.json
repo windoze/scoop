@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `SortedSet<Int>` has no method `add`",
+    "notes": [],
+    "origin": {
+      "cone": "07f5ab199059e326e4a8b647a86ee31a97204f373599933ee223d7c62452da79",
+      "end": 101,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

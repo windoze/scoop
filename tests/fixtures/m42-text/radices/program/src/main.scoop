@@ -1,0 +1,37 @@
+import scoop.text.*
+import scoop.collections.listOf
+
+fun check(value: Boolean, label: String) { if (!value) { println(label); throw Exception(Some(label)) } }
+fun main() {
+    check("-8000000000000000".toLong(16) == Long.MIN_VALUE && "7FFFFFFFFFFFFFFF".toLong(16) == Long.MAX_VALUE, "hex signed bounds")
+    check("ffffffffffffffff".toULong(16) == ULong.MAX_VALUE && ULong.MAX_VALUE.toString(16) == "ffffffffffffffff", "hex unsigned bounds")
+    check(Long.MIN_VALUE.toString(16) == "-8000000000000000" && Long.MAX_VALUE.toString(16) == "7fffffffffffffff", "hex signed format")
+    check("1777777777777777777777".toULong(8) == ULong.MAX_VALUE && ULong.MAX_VALUE.toString(8) == "1777777777777777777777", "octal unsigned bound")
+    check("3w5e11264sgsf".toULong(36) == ULong.MAX_VALUE && ULong.MAX_VALUE.toString(36) == "3w5e11264sgsf", "base36 unsigned bound")
+    check("-1y2p0ij32e8e8".toLong(36) == Long.MIN_VALUE && Long.MIN_VALUE.toString(36) == "-1y2p0ij32e8e8", "base36 signed minimum")
+    check("1y2p0ij32e8e7".toLong(36) == Long.MAX_VALUE && Long.MAX_VALUE.toString(36) == "1y2p0ij32e8e7", "base36 signed maximum")
+    check("1".repeat(64L).toULong(2) == ULong.MAX_VALUE && ULong.MAX_VALUE.toString(2) == "1".repeat(64L), "binary maximum")
+    check("8000000000000000".toLongOrNull(16) == None && "-8000000000000001".toLongOrNull(16) == None && "10000000000000000".toULongOrNull(16) == None, "nondecimal overflow")
+    check("z".toInt(36) == 35 && "Z".toInt(36) == 35 && "z".toIntOrNull(35) == None, "radix digit boundary")
+    check("0x".toInt(36) == 33 && "1u".toInt(36) == 66 && "0x10".toIntOrNull(16) == None, "letters are digits without prefix or suffix parsing")
+    var radix = 2
+    while (radix <= 36) {
+        for (value in listOf<Long>(Long.MIN_VALUE, -255L, -1L, 0L, 1L, 255L, Long.MAX_VALUE)) {
+            check(value.toString(radix).toLong(radix) == value, "signed all-radix round trip")
+        }
+        for (value in listOf<ULong>(0uL, 1uL, 255uL, 9223372036854775808uL, ULong.MAX_VALUE)) {
+            val text = value.toString(radix)
+            check(text.toULong(radix) == value && text.uppercaseAscii().toULong(radix) == value, "unsigned all-radix round trip")
+        }
+        radix += 1
+    }
+    for (radix in listOf<Int>(2, 10, 16, 36)) {
+        var value = -128
+        while (value <= 127) {
+            val number = value.toInt8()
+            check(number.toString(radix).toInt8(radix) == number, "all Int8 values")
+            value += 1
+        }
+    }
+    println("text radices passed")
+}

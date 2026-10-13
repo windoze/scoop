@@ -1,0 +1,26 @@
+package scoop.collections
+
+internal fun <K, V> encodeMap(values: Map<K, V>, key: Encodable<K>, value: Encodable<V>, encoder: Encoder) {
+    val entries = encoder.unkeyed()
+    for (entry in values) {
+        val pair = entries.element().unkeyed()
+        key.encode(entry.key, pair.element())
+        value.encode(entry.value, pair.element())
+        pair.end()
+    }
+    entries.end()
+}
+
+internal fun <K, V> decodeMapInto(decoder: Decoder, key: Decodable<K>, value: Decodable<V>, result: MutableMap<K, V>) {
+    val entries = decoder.unkeyed()
+    while (entries.hasNext) {
+        val pair = entries.element().unkeyed()
+        val keySource = pair.element()
+        val entryKey = key.decode(keySource)
+        if (result.containsKey(entryKey)) throw DecodingException(keySource.path, "duplicate map key")
+        val entryValue = value.decode(pair.element())
+        pair.end()
+        result.put(entryKey, entryValue)
+    }
+    entries.end()
+}

@@ -1,0 +1,69 @@
+package scoop.collections
+
+internal fun nextCollectionCount(value: Long): Long {
+    if (value == 9223372036854775807L) throw ArithmeticException()
+    return value + 1L
+}
+
+public fun <T> Iterable<T>.forEach(action: (T) -> Unit) {
+    for (element in this) action(element)
+}
+
+public fun <T> Iterable<T>.forEachIndexed(action: (Long, T) -> Unit) {
+    var index = 0L
+    for (element in this) {
+        action(index, element)
+        index = nextCollectionCount(index)
+    }
+}
+
+public fun <T> Iterable<T>.onEach(action: (T) -> Unit): Iterable<T> {
+    forEach<T>(action)
+    return this
+}
+
+public fun <T, R> Iterable<T>.fold(initial: R, operation: (R, T) -> R): R {
+    var result = initial
+    for (element in this) result = operation(result, element)
+    return result
+}
+
+public fun <T> Iterable<T>.reduceOrNull(operation: (T, T) -> T): T? {
+    var result: T? = None
+    for (element in this) {
+        result = when (result) {
+            case None -> Some(element)
+            case Some(previous) -> Some(operation(previous, element))
+        }
+    }
+    return result
+}
+
+public fun <T> Iterable<T>.reduce(operation: (T, T) -> T): T =
+    requireCollectionElement<T>(reduceOrNull<T>(operation))
+
+public fun <T> Iterable<T>.count(predicate: (T) -> Boolean): Long {
+    var result = 0L
+    for (element in this) { if (predicate(element)) result = nextCollectionCount(result) }
+    return result
+}
+
+public fun <T> Iterable<T>.count(): Long = count<T> { _ -> true }
+
+public fun <T> Iterable<T>.any(predicate: (T) -> Boolean): Boolean {
+    for (element in this) { if (predicate(element)) return true }
+    return false
+}
+
+public fun <T> Iterable<T>.any(): Boolean = when (iterator().next()) {
+    case None -> false
+    case Some(_) -> true
+}
+
+public fun <T> Iterable<T>.all(predicate: (T) -> Boolean): Boolean {
+    for (element in this) { if (!predicate(element)) return false }
+    return true
+}
+
+public fun <T> Iterable<T>.none(): Boolean = !any<T>()
+public fun <T> Iterable<T>.none(predicate: (T) -> Boolean): Boolean = !any<T>(predicate)

@@ -1,0 +1,36 @@
+import scoop.text.*
+import scoop.collections.listOf
+
+class State { var calls: Int = 0; val order: StringBuilder = StringBuilder() }
+fun check(value: Boolean, label: String) { if (!value) { println(label); throw Exception(Some(label)) } }
+fun main() {
+    val whitespace = listOf<Int>(9, 10, 11, 12, 13, 32, 133, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288)
+    for (code in whitespace) {
+        val value = code.toChar().toString()
+        check(value.isBlank() && !value.isNotBlank(), "Unicode White_Space")
+        check((value + "雪" + value).trim() == "雪" && (value + "雪").trimStart() == "雪" && ("雪" + value).trimEnd() == "雪", "Unicode trim")
+    }
+    for (code in listOf<Int>(0, 8, 14, 28, 132, 134, 5759, 5761, 6158, 8191, 8203, 8231, 8234, 8238, 8240, 8286, 8288, 12287, 12289, 65279)) {
+        check(code.toChar().toString().isNotBlank(), "non-whitespace neighbors")
+    }
+    check("".isBlank() && "".trim() == "" && " \t\r\n".trim() == "", "empty and all blank")
+    val state = State()
+    check("xxAy".trim { value -> state.order.add(value); value == 'x' || value == 'y' } == "A" && state.order.build() == "xxAyA", "trim direction")
+    check("xxAx".trimStart { value -> value == 'x' } == "Ax" && "xAxx".trimEnd { value -> value == 'x' } == "xA", "predicate trim sides")
+    check(!"a b".isBlank { value -> state.calls += 1; value == ' ' } && state.calls == 1, "blank short circuit")
+    check("xxx".isNotBlank { value -> value == 'x' } == false, "predicate not blank")
+    var caught = false
+    try { "x".trim { _ -> throw Exception(Some("predicate")) } } catch (error: Exception) { caught = error.message == Some("predicate") }
+    check(caught, "predicate exception")
+    check("雪".padStart(3L) == "  雪" && "雪".padEnd(3L, '😀') == "雪😀😀", "padding scalar count")
+    check("snow".padStart(2L, 'x') == "snow" && "".padEnd(0L) == "", "padding no growth")
+    check("雪\u0000".repeat(3L) == "雪\u0000雪\u0000雪\u0000" && "".repeat(Long.MAX_VALUE) == "" && "x".repeat(0L) == "", "repeat")
+    check("aZé雪😀".lowercaseAscii() == "azé雪😀" && "aZé雪😀".uppercaseAscii() == "AZé雪😀", "ASCII only case")
+    var errors = 0
+    try { "x".repeat(-1L) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { "x".padEnd(-1L) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { "雪".repeat(Long.MAX_VALUE) } catch (error: ArithmeticException) { errors += 1 }
+    try { "x".padStart(Long.MAX_VALUE, '😀') } catch (error: ArithmeticException) { errors += 1 }
+    check(errors == 4, "count and byte overflow")
+    println("text whitespace-padding passed")
+}

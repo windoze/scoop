@@ -1,0 +1,39 @@
+import scoop.random.Random
+import scoop.sequences.*
+import scoop.collections.NoSuchElementException
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+class Choices : Random {
+    public var calls: Long = 0L
+    public override fun nextBits(bitCount: Int): Int {
+        check(bitCount == 32 && calls < 8L)
+        val value = if (calls == 1L) 3 else if (calls == 5L) 5 else 0
+        calls += 1L
+        return value
+    }
+}
+class Visits { public var count: Long = 0L }
+fun main() {
+    val visits = Visits()
+    val random = Choices()
+    val sequence = sequenceOf<Int>(1, 2, 3).onEach<Int> { _ -> visits.count += 1L }.shuffled<Int>(random)
+    check(visits.count == 0L && random.calls == 0L)
+    val first = sequence.iterator()
+    check(visits.count == 0L && random.calls == 0L)
+    check(first.next() == Some(2) && visits.count == 3L && random.calls == 4L)
+    check(first.next() == Some(3) && first.next() == Some(1) && first.next() == None && first.next() == None)
+    val second = sequence.toList<Int>()
+    check(second[0L] == 2 && second[1L] == 1 && second[2L] == 3 && visits.count == 6L && random.calls == 8L)
+    val noCalls = Choices()
+    check(emptySequence<Int>().randomOrNull<Int>(noCalls) == None)
+    check(sequenceOf<Int?>(None).randomOrNull<Int?>(noCalls) == Some(None) && noCalls.calls == 0L)
+    var failed = false
+    try { emptySequence<Int>().random<Int>(noCalls) } catch (error: NoSuchElementException) { failed = true }
+    check(failed)
+    val once = sequenceOf<Int>(1, 2, 3).iterator().asSequence<Int>().shuffled<Int>(Choices())
+    check(once.toList<Int>().size == 3L)
+    var repeated = false
+    try { once.iterator().next() } catch (error: IllegalStateException) { repeated = true }
+    check(repeated)
+    println("random sequences passed")
+}

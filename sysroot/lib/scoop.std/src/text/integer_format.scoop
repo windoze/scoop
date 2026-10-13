@@ -1,0 +1,31 @@
+package scoop.text
+
+private fun formatInteger(magnitude: ULong, negative: Boolean, radix: Int): String {
+    requireTextRadix(radix)
+    if (magnitude == 0uL) return "0"
+    val chars = ArrayList<Char>()
+    val base = radix.toUInt64()
+    var remaining = magnitude
+    while (remaining > 0uL) {
+        val digit = (remaining % base).toInt32()
+        chars.add((if (digit < 10) 48 + digit else 87 + digit).toChar())
+        remaining /= base
+    }
+    if (negative) chars.add('-')
+    return String.fromChars(Array<Char>(chars.size) { index -> chars[chars.size - 1L - index] })
+}
+
+private fun formatSignedInteger(value: Long, radix: Int): String {
+    val negative = value < 0L
+    val magnitude = if (negative) 0uL - value.toUInt64() else value.toUInt64()
+    return formatInteger(magnitude, negative, radix)
+}
+
+public fun Int8.toString(radix: Int): String = formatSignedInteger(toInt64(), radix)
+public fun Int16.toString(radix: Int): String = formatSignedInteger(toInt64(), radix)
+public fun Int.toString(radix: Int): String = formatSignedInteger(toInt64(), radix)
+public fun Long.toString(radix: Int): String = formatSignedInteger(this, radix)
+public fun UInt8.toString(radix: Int): String = formatInteger(toUInt64(), false, radix)
+public fun UInt16.toString(radix: Int): String = formatInteger(toUInt64(), false, radix)
+public fun UInt.toString(radix: Int): String = formatInteger(toUInt64(), false, radix)
+public fun ULong.toString(radix: Int): String = formatInteger(this, false, radix)

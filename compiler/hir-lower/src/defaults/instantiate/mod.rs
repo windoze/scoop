@@ -25,6 +25,7 @@ struct InstantiationContext {
 enum InstantiationEvaluation {
     Template,
     Concrete(hir::EvaluationOrigin),
+    Derived(hir::ExpressionOrigin),
 }
 
 impl Lowerer {
@@ -205,6 +206,7 @@ fn instantiate_origin(
     match evaluation {
         InstantiationEvaluation::Template => hir::ExpressionOrigin::Definition(source.definition()),
         InstantiationEvaluation::Concrete(evaluation) => source.instantiate(evaluation),
+        InstantiationEvaluation::Derived(origin) => origin,
     }
 }
 

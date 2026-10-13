@@ -175,7 +175,7 @@ impl Lowerer {
                         .collect(),
                     source.origin,
                 ),
-                InstantiationEvaluation::Concrete(_) => (
+                InstantiationEvaluation::Concrete(_) | InstantiationEvaluation::Derived(_) => (
                     hir::CallableReferenceRoot::Source(self.current_definition_root()),
                     self.definition_paths
                         .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion),

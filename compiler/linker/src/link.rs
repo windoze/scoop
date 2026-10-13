@@ -11,6 +11,7 @@ use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup:
 mod darwin;
 mod elf;
 pub(crate) mod map;
+mod response;
 
 #[cfg(test)]
 mod tests;

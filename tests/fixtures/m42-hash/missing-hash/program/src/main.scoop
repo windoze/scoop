@@ -1,0 +1,3 @@
+import scoop.collections.HashMap
+
+fun main() { val values = HashMap<Double, Int>() }

@@ -1,0 +1,78 @@
+import scoop.collections.*
+
+class Cell(val value: Long)
+struct Item(val value: Long, val cell: Cell, val padding: (Long, Long, Long, Long))
+
+fun check(value: Boolean, label: String) {
+    if (!value) throw Exception(Some(label))
+}
+
+fun fill(values: MutableMap<Long, Item>) {
+    var index = 0L
+    while (index < 80L) {
+        values[index] = Item(index, Cell(index + 1L), (index, index + 2L, index + 3L, index + 4L))
+        index += 1L
+    }
+}
+
+fun clearReleases(): Boolean {
+    val values = sortedMapOf<Long, Item>()
+    fill(values)
+    val iterator = values.iterator()
+    gcCollect()
+    val before = gcStats()
+    values.clear()
+    gcCollect()
+    val released = before >= gcStats() + 80uL
+    var invalidated = false
+    try { iterator.next() } catch (error: ConcurrentModificationException) { invalidated = true }
+    return values.size == 0L && released && invalidated
+}
+
+fun removeKey(values: MutableMap<Long, Item>, key: Long) { values.remove(key) }
+
+fun putSingle(values: MutableMap<Long, Item>) {
+    values[0L] = Item(0L, Cell(1L), (0L, 2L, 3L, 4L))
+}
+
+fun retainedLeafReleases(clear: Boolean): Boolean {
+    val values = sortedMapOf<Long, Item>()
+    putSingle(values)
+    val iterator = values.iterator()
+    gcCollect()
+    val before = gcStats()
+    if (clear) values.clear() else removeKey(values, 0L)
+    gcCollect()
+    val released = before > gcStats()
+    var invalidated = false
+    try { iterator.next() } catch (error: ConcurrentModificationException) { invalidated = true }
+    return released && invalidated && values.size == 0L
+}
+
+fun removeReleases(key: Long): Boolean {
+    val values = sortedMapOf<Long, Item>()
+    fill(values)
+    gcCollect()
+    val before = gcStats()
+    removeKey(values, key)
+    gcCollect()
+    return values.size == 79L && before > gcStats() && !values.containsKey(key) && values[40L]!!.value == 40L
+}
+
+fun main() {
+    val values = sortedMapOf<Long, Item>()
+    fill(values)
+    gcCollect()
+    var sum = 0L
+    for ((key, value) in values) {
+        check(key == value.value, "entry fields")
+        check(value.padding == (key, key + 2L, key + 3L, key + 4L), "inline value moves")
+        sum += value.cell.value - key
+    }
+    check(sum == 80L && clearReleases() && removeReleases(79L) && removeReleases(39L), "managed slots")
+    check(retainedLeafReleases(true) && retainedLeafReleases(false), "retained leaf slots")
+    val any = sortedMapOf<Int, Any>()
+    any[1] = 42
+    check(any[1]!! as Int == 42, "boxed value")
+    println("tree values-gc passed")
+}

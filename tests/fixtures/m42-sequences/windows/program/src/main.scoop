@@ -1,0 +1,51 @@
+import scoop.sequences.*
+import scoop.collections.joinToString
+
+class State { var count: Long = 0L }
+fun check(value: Boolean) { if (!value) throw Exception(Some("window model")) }
+
+fun main() {
+    var count = 0L
+    while (count < 10L) {
+        val input = Array<Long>(count) { index -> index }
+        var size = 1L
+        while (size < 5L) {
+            var step = 1L
+            while (step < 7L) {
+                for (partial in Array<Boolean>(2L) { index -> index == 0L }) {
+                    val result = input.asSequence().windowed(size, step, partial).toList()
+                    var start = 0L
+                    var index = 0L
+                    while (start < count && (partial || size <= count - start)) {
+                        val length = if (size < count - start) size else count - start
+                        check(index < result.size && result[index].size == length)
+                        var offset = 0L
+                        while (offset < length) { check(result[index][offset] == start + offset); offset += 1L }
+                        check(!(result[index] is MutableList<Long>))
+                        start += step
+                        index += 1L
+                    }
+                    check(index == result.size)
+                }
+                step += 1L
+            }
+            size += 1L
+        }
+        count += 1L
+    }
+    val state = State()
+    val input = generateSequence<Long> { state.count += 1L; Some(state.count) }
+    val windows = input.windowed(3L, 2L).take(2L).toList()
+    check(state.count == 5L && windows[0L].joinToString() == "1, 2, 3" && windows[1L].joinToString() == "3, 4, 5")
+    state.count = 0L
+    check(generateSequence<Long> { state.count += 1L; Some(state.count) }.windowed(2L, 7L).take(1L).toList()[0L].size == 2L && state.count == 2L)
+    check(sequenceOf<Int>(1, 2, 3).chunked(2L).toList()[1L].joinToString() == "3")
+    var errors = 0
+    try { input.windowed(0L) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { input.windowed(1L, 0L) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { input.chunked(-1L) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { input.take(-1L) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { input.drop(-1L) } catch (error: IllegalArgumentException) { errors += 1 }
+    check(errors == 5)
+    println("sequences windows passed")
+}

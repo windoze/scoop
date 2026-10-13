@@ -1,0 +1,5 @@
+import scoop.uuid.Uuid
+
+fun main() {
+    val uuid = Uuid.random()
+}

@@ -1,0 +1,22 @@
+package scoop.text
+
+public fun String.substring(startIndex: Long, endIndex: Long = this.length): String = slice(startIndex, endIndex)
+
+public fun String.substringBefore(delimiter: String, missingDelimiterValue: String = this): String {
+    val index = indexOf(delimiter)
+    return if (index < 0L) missingDelimiterValue else slice(0L, index)
+}
+
+public fun String.substringAfter(delimiter: String, missingDelimiterValue: String = this): String {
+    val index = indexOf(delimiter)
+    return if (index < 0L) missingDelimiterValue else slice(index + delimiter.length, length)
+}
+
+public fun String.substringBefore(delimiter: Char, missingDelimiterValue: String = this): String =
+    substringBefore(delimiter.toString(), missingDelimiterValue)
+
+public fun String.substringAfter(delimiter: Char, missingDelimiterValue: String = this): String =
+    substringAfter(delimiter.toString(), missingDelimiterValue)
+
+public fun String.removePrefix(prefix: String): String = if (startsWith(prefix)) slice(prefix.length, length) else this
+public fun String.removeSuffix(suffix: String): String = if (endsWith(suffix)) slice(0L, length - suffix.length) else this

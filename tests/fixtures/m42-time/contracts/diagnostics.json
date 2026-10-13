@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `Duration` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "519f91398773b20d2f4bc3ea80aa751418b9d23d3fc460d2f4043cee34b7a66c",
+      "end": 128,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 120
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `seconds`",
+    "notes": [],
+    "origin": {
+      "cone": "519f91398773b20d2f4bc3ea80aa751418b9d23d3fc460d2f4043cee34b7a66c",
+      "end": 161,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 154
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `HashMap`: type argument `TimeMark` for `K` must satisfy upper bound `Hash`",
+    "notes": [],
+    "origin": {
+      "cone": "519f91398773b20d2f4bc3ea80aa751418b9d23d3fc460d2f4043cee34b7a66c",
+      "end": 207,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 183
+    },
+    "severity": "error"
+  }
+]

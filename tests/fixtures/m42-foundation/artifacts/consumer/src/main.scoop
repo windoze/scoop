@@ -1,0 +1,12 @@
+import scoop.collections.*
+import scoop.comparisons.*
+
+fun main() {
+    val values = mutableListOf<String>("b", "a")
+    val snapshot = values.toList()
+    values.clear()
+    val order = naturalOrder<String>().reversed()
+    println(snapshot.size)
+    println(order.compare(snapshot[0L], snapshot[1L]) < 0L)
+    println(snapshot is MutableList<String>)
+}

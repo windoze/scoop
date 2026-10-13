@@ -1,0 +1,49 @@
+package scoop.collections
+
+import scoop.random.Random
+
+public fun <T> List<T>.randomOrNull(random: Random): T? {
+    val count = size
+    if (count == 0L) return None
+    return Some(this[if (count == 1L) 0L else random.nextLong(count)])
+}
+
+public fun <T> Iterable<T>.randomOrNull(random: Random): T? {
+    var selected: T? = None
+    var count = 0L
+    for (value in this) {
+        if (count == Long.MAX_VALUE) throw ArithmeticException()
+        count += 1L
+        if (count == 1L || random.nextLong(count) == 0L) selected = Some(value)
+    }
+    return selected
+}
+
+public fun <T> List<T>.random(random: Random): T = when (randomOrNull<T>(random)) {
+    case Some(value) -> value
+    case None -> throw NoSuchElementException("empty collection")
+}
+
+public fun <T> Iterable<T>.random(random: Random): T = when (randomOrNull<T>(random)) {
+    case Some(value) -> value
+    case None -> throw NoSuchElementException("empty iterable")
+}
+
+public fun <T> MutableList<T>.shuffle(random: Random) {
+    var count = size
+    while (count > 1L) {
+        val chosen = random.nextLong(count)
+        count -= 1L
+        if (chosen != count) {
+            val last = this[count]
+            this[count] = this[chosen]
+            this[chosen] = last
+        }
+    }
+}
+
+public fun <T> Iterable<T>.shuffled(random: Random): List<T> {
+    val result = toMutableList<T>()
+    result.shuffle<T>(random)
+    return ListSnapshot<T>(result.toArray())
+}

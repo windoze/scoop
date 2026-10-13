@@ -1,0 +1,43 @@
+package scoop.datetime
+
+import scoop.decodeTextValue
+
+public class YearMonth public constructor(public val year: Int, public val monthNumber: Int)
+    : Equals<YearMonth>, Compare<YearMonth>, Hash, ToString {
+    init {
+        if (!validCalendarDate(year, monthNumber, 1)) throw IllegalArgumentException(Some("invalid year-month"))
+    }
+    public constructor(year: Int, month: Month) : this(year, month.number) {}
+    public val month: Month get() = Month.of(monthNumber)
+    public val lengthOfMonth: Int get() = calendarMonthLength(year, monthNumber)
+    public val isLeapYear: Boolean get() = calendarLeapYear(year)
+    public fun atDay(dayOfMonth: Int): LocalDate = LocalDate(year, monthNumber, dayOfMonth)
+    public fun plusMonths(value: Long): YearMonth {
+        val target = shiftedCalendarMonth(year, monthNumber, value)
+        return YearMonth(target._1, target._2)
+    }
+    public fun plusYears(value: Long): YearMonth {
+        checkCalendarYearShift(year, value)
+        return YearMonth((year.toInt64() + value).toInt32(), monthNumber)
+    }
+    public override operator fun equals(other: YearMonth): Boolean = year == other.year && monthNumber == other.monthNumber
+    public override operator fun compareTo(other: YearMonth): Long =
+        if (year != other.year) year.compareTo(other.year) else monthNumber.compareTo(other.monthNumber)
+    public override fun hash(): Long = year.hash() * 31L + monthNumber.hash()
+    public override fun toString(): String = formatCalendarYear(year) + "-" + calendarTwoDigits(monthNumber)
+
+    public companion object : Encodable<YearMonth>, Decodable<YearMonth> {
+        public override fun encode(value: YearMonth, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): YearMonth =
+            decodeTextValue<YearMonth>(decoder, { text -> parseOrNull(text) }, "year-month")
+
+        public fun parseOrNull(text: String): YearMonth? = when (parseCalendarFields(text, false)) {
+            case Some(parts) -> Some(YearMonth(parts._1, parts._2))
+            case None -> None
+        }
+        public fun parse(text: String): YearMonth = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid year-month"))
+        }
+    }
+}

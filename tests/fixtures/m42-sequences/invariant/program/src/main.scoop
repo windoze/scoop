@@ -1,0 +1,3 @@
+import scoop.sequences.*
+
+fun main() { val invalid: Sequence<Any> = sequenceOf<String>("value") }

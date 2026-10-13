@@ -1,0 +1,24 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+import scoop.comparisons.naturalOrder
+
+public fun <T> List<T>.binarySearch(
+    element: T, comparator: Comparator<T>, fromIndex: Long = 0L, toIndex: Long = this.size
+): Long {
+    if (fromIndex > toIndex) throw IllegalArgumentException(Some("reversed search range"))
+    if (fromIndex < 0L || toIndex > size || fromIndex > size || toIndex < 0L) throw IndexOutOfBoundsException()
+    var low = fromIndex
+    var high = toIndex
+    while (low < high) {
+        val middle = low + (high - low) / 2L
+        val compared = comparator.compare(this[middle], element)
+        if (compared == 0L) return middle
+        if (compared < 0L) low = middle + 1L else high = middle
+    }
+    return -low - 1L
+}
+
+public fun <T : Compare<T>> List<T>.binarySearch(
+    element: T, fromIndex: Long = 0L, toIndex: Long = this.size
+): Long = binarySearch<T>(element, naturalOrder<T>(), fromIndex, toIndex)

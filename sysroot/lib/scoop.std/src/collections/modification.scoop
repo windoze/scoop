@@ -1,0 +1,27 @@
+package scoop.collections
+
+internal class RevisionEpoch {}
+
+internal struct RevisionStamp(val count: Long, val epoch: RevisionEpoch)
+
+internal class ModificationCounter {
+    private var count: Long = 0L
+    private var epoch: RevisionEpoch = RevisionEpoch()
+
+    internal fun snapshot(): RevisionStamp = RevisionStamp(count, epoch)
+
+    internal fun check(stamp: RevisionStamp) {
+        if (stamp.count != count || stamp.epoch !== epoch) {
+            throw ConcurrentModificationException("collection changed during traversal or callback")
+        }
+    }
+
+    internal fun advance() {
+        if (count == 9223372036854775807L) {
+            epoch = RevisionEpoch()
+            count = 0L
+        } else {
+            count += 1L
+        }
+    }
+}

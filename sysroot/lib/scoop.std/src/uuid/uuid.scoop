@@ -1,0 +1,58 @@
+package scoop.uuid
+
+import scoop.decodeTextValue
+
+import scoop.random.Random
+import scoop.text.toHexString
+
+public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULong)
+    : Equals<Uuid>, Compare<Uuid>, Hash, ToString {
+    public override operator fun equals(other: Uuid): Boolean =
+        mostSignificantBits == other.mostSignificantBits && leastSignificantBits == other.leastSignificantBits
+
+    public override operator fun compareTo(other: Uuid): Long =
+        if (mostSignificantBits != other.mostSignificantBits) mostSignificantBits.compareTo(other.mostSignificantBits)
+        else leastSignificantBits.compareTo(other.leastSignificantBits)
+
+    public override fun hash(): Long = mostSignificantBits.hash() * 31L + leastSignificantBits.hash()
+    public fun toLongs(): (Long, Long) = (mostSignificantBits.toInt64(), leastSignificantBits.toInt64())
+    public fun toByteArray(): Array<Byte> = Array<Byte>(16L) { index ->
+        val part = if (index < 8L) mostSignificantBits else leastSignificantBits;
+        (part shr ((7L - index % 8L) * 8L)).toInt8()
+    }
+    public fun toHexString(): String = toByteArray().toHexString()
+    public fun toHexDashString(): String {
+        val hex = toHexString()
+        return String.fromChars(Array<Char>(36L) { index ->
+            if (index == 8L || index == 13L || index == 18L || index == 23L) '-'
+            else {
+                val offset = if (index < 8L) 0L else if (index < 13L) 1L else if (index < 18L) 2L
+                    else if (index < 23L) 3L else 4L
+                hex[index - offset]
+            }
+        })
+    }
+    public override fun toString(): String = toHexDashString()
+
+    public companion object : Encodable<Uuid>, Decodable<Uuid> {
+        public override fun encode(value: Uuid, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): Uuid =
+            decodeTextValue<Uuid>(decoder, { text -> parseOrNull(text) }, "UUID")
+
+        public val NIL: Uuid = Uuid(0uL, 0uL)
+        public val MAX: Uuid = Uuid(ULong.MAX_VALUE, ULong.MAX_VALUE)
+        public fun fromLongs(mostSignificantBits: Long, leastSignificantBits: Long): Uuid =
+            Uuid(mostSignificantBits.toUInt64(), leastSignificantBits.toUInt64())
+        public fun fromByteArray(bytes: List<Byte>): Uuid = uuidFromBytes(bytes)
+        public fun parseOrNull(text: String): Uuid? = parseUuid(text)
+        public fun parse(text: String): Uuid = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid UUID"))
+        }
+        public fun random(random: Random): Uuid {
+            val value = fromByteArray(random.nextBytes(16L))
+            return Uuid((value.mostSignificantBits and 0xffffffffffff0fffuL) or 0x4000uL,
+                (value.leastSignificantBits and 0x3fffffffffffffffuL) or 0x8000000000000000uL)
+        }
+    }
+}

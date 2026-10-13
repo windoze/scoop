@@ -1,0 +1,45 @@
+package scoop.sequences
+
+import scoop.collections.*
+
+public fun <T> Sequence<T>.forEach(action: (T) -> Unit): Unit =
+    terminalInput<T>().forEach<T>(action)
+
+public fun <T> Sequence<T>.forEachIndexed(action: (Long, T) -> Unit): Unit =
+    terminalInput<T>().forEachIndexed<T>(action)
+
+public fun <T, R> Sequence<T>.fold(initial: R, operation: (R, T) -> R): R =
+    terminalInput<T>().fold<T, R>(initial, operation)
+
+public fun <T> Sequence<T>.reduce(operation: (T, T) -> T): T =
+    terminalInput<T>().reduce<T>(operation)
+
+public fun <T> Sequence<T>.reduceOrNull(operation: (T, T) -> T): T? =
+    terminalInput<T>().reduceOrNull<T>(operation)
+
+public fun <T> Sequence<T>.all(predicate: (T) -> Boolean): Boolean =
+    terminalInput<T>().all<T>(predicate)
+
+public fun <T> Sequence<T>.partition(predicate: (T) -> Boolean): (List<T>, List<T>) =
+    terminalInput<T>().partition<T>(predicate)
+
+public fun <T> Sequence<T>.reversed(): List<T> =
+    terminalInput<T>().reversed<T>()
+
+public fun <T> Sequence<T>.count(): Long =
+    terminalInput<T>().count<T>()
+
+public fun <T> Sequence<T>.count(predicate: (T) -> Boolean): Long =
+    terminalInput<T>().count<T>(predicate)
+
+public fun <T> Sequence<T>.any(): Boolean =
+    terminalInput<T>().any<T>()
+
+public fun <T> Sequence<T>.any(predicate: (T) -> Boolean): Boolean =
+    terminalInput<T>().any<T>(predicate)
+
+public fun <T> Sequence<T>.none(): Boolean =
+    terminalInput<T>().none<T>()
+
+public fun <T> Sequence<T>.none(predicate: (T) -> Boolean): Boolean =
+    terminalInput<T>().none<T>(predicate)

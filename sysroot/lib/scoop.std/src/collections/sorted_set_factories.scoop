@@ -1,0 +1,25 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+import scoop.comparisons.naturalOrder
+
+internal class SortedSetSnapshot<T> internal constructor(
+    private val elements: SortedSet<T>
+) : SortedSet<T> by elements
+
+public fun <T> sortedSetOf(comparator: Comparator<T>, vararg elements: T): TreeSet<T> {
+    val result = TreeSet<T>(comparator)
+    for (element in elements) result.add(element)
+    return result
+}
+
+public fun <T : Compare<T>> sortedSetOf(vararg elements: T): TreeSet<T> =
+    sortedSetOf<T>(naturalOrder<T>(), *elements)
+
+public fun <T> Iterable<T>.toSortedSet(comparator: Comparator<T>): SortedSet<T> {
+    val result = TreeSet<T>(comparator)
+    for (element in this) result.add(element)
+    return SortedSetSnapshot<T>(result)
+}
+
+public fun <T : Compare<T>> Iterable<T>.toSortedSet(): SortedSet<T> = toSortedSet<T>(naturalOrder<T>())

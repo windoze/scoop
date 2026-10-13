@@ -1,0 +1,19 @@
+package scoop.collections
+
+internal fun expandedCollectionCapacity(capacity: Long): Long {
+    if (capacity == 9223372036854775807L) throw IllegalStateException(Some("collection capacity exhausted"))
+    return if (capacity == 0L) 8L else if (capacity > 4611686018427387903L) 9223372036854775807L else capacity * 2L
+}
+
+internal class ElementBuffer<T> internal constructor(capacity: Long) {
+    private val elements: MutableArray<MaybeUninit<T>> =
+        MutableArray<MaybeUninit<T>>(capacity) { _ -> MaybeUninit<T>.uninit() }
+    internal val capacity: Long get() = elements.size
+
+    internal fun read(index: Long): T {
+        @Unsafe { return elements[index].assumeInit() }
+    }
+
+    internal fun write(index: Long, value: T) { elements[index] = MaybeUninit<T>.initialized(value) }
+    internal fun erase(index: Long) { elements[index] = MaybeUninit<T>.uninit() }
+}

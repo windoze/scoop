@@ -6,6 +6,8 @@
 
 运行时提供 managed 对象分配、精确移动 GC、类型检查与动态分派所需的数据、异常展开、一次性初始化、Task-local Context 和 FFI 支持。运行时不得重新进行源码名称解析、重载选择或泛型实例化。
 
+M42 的平台无关标准基础库按 [标准基础库规范](SCOOP-STDLIB-SPEC.md) 完全使用普通 Scoop Cone 实现，只通过公开 core API 使用既有运行时能力。集合、排序、文本和字节处理、数值文本转换、RNG、日期／时间运算均不增加 runtime helper、native 后备或专用 ABI；Clock／TimeSource 只有普通库接口，没有系统取时实现。库代码触发的实际 GC、异常或 ABI 缺陷必须先在对应底层修复并建立独立回归，不能将缺陷处理转移成库专用绕行。
+
 受支持目标使用 little-endian、64-bit data/code pointer 和 natural 8-byte metadata alignment。所有大小、数量、对齐和地址范围计算必须检查溢出及实际存储边界；不满足目标表示或 ABI 的输入必须拒绝。
 
 ## 2. 对象模型
@@ -608,6 +610,8 @@ integer Hash 与 compareTo 返回 Long。`==` / `!=` 执行编译器已选定的
 ### 6.1 Float / Double
 
 Float 为 4-byte、4-aligned IEEE binary32，Double 为 8-byte、8-aligned binary64，均 GC-free。存储、复制、FFI 与 toBits/fromBits 保持全部位型，包括 NaN；不使用浮点 niche 替代 Option tag。
+
+toBits/fromBits 的整数载体分别为同宽 Int／Long；这些方法通过既有局部 place 取址与 Ptr load 实现，不新增 ABI 或 native 入口。方法局部副本不逃逸，正文不分配、不执行浮点算术。toBits 为 NoGC；fromBits 仍遵守普通 companion managed call 的初始化与 GC 规则。
 
 默认比较将所有 NaN 视为相等且排在正无穷之后，正负零相等；显式 IEEE 比较沿用 NaN 无序规则。比较不修改位型，不增加 runtime 比较入口；编译器 intrinsic 与普通 core body 实现语言规范 11.2.2 的契约。
 

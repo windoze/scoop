@@ -1,5 +1,8 @@
-public interface List<T> : Iterable<T>, Get<Long, T> {
+public interface Collection<T> : Iterable<T> {
     public val size: Long
+}
+
+public interface List<T> : Collection<T>, Get<Long, T> {
     public override operator fun get(index: Long): T
 }
 

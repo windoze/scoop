@@ -1,0 +1,81 @@
+package scoop.text
+
+// Only the exact decimal-to-binary conversion uses these unsigned base-2^32 limbs.
+internal class DecimalMagnitude internal constructor() {
+    private val words: ArrayList<UInt> = ArrayList<UInt>()
+
+    internal val bitLength: Long get() {
+        if (words.size == 0L) return 0L
+        var top = words[words.size - 1L]
+        var bits = (words.size - 1L) * 32L
+        while (top != 0u) { top = top shr 1L; bits += 1L }
+        return bits
+    }
+
+    // The caller only accumulates base-ten digits or multiplies by ten.
+    internal fun multiplyAdd(multiplier: UInt, digit: UInt) {
+        var carry = digit.toUInt64()
+        var index = 0L
+        while (index < words.size) {
+            val product = words[index].toUInt64() * multiplier.toUInt64() + carry
+            words[index] = product.toUInt32()
+            carry = product shr 32L
+            index += 1L
+        }
+        if (carry != 0uL) words.add(carry.toUInt32())
+    }
+
+    internal fun shifted(bits: Long): DecimalMagnitude {
+        val result = DecimalMagnitude()
+        if (words.size == 0L) return result
+        var index = 0L
+        while (index < bits / 32L) { result.words.add(0u); index += 1L }
+        var carry = 0uL
+        index = 0L
+        while (index < words.size) {
+            val value = (words[index].toUInt64() shl (bits % 32L)) or carry
+            result.words.add(value.toUInt32())
+            carry = value shr 32L
+            index += 1L
+        }
+        if (carry != 0uL) result.words.add(carry.toUInt32())
+        return result
+    }
+
+    private fun word(index: Long): UInt =
+        if (index < 0L || index >= words.size) 0u else words[index]
+
+    private fun shiftedWord(index: Long, bits: Long): UInt {
+        val position = index - bits / 32L
+        val shift = bits % 32L
+        val low = word(position) shl shift
+        return if (shift == 0L) low else low or (word(position - 1L) shr (32L - shift))
+    }
+
+    internal fun compareShifted(other: DecimalMagnitude, bits: Long): Long {
+        val leftBits = bitLength
+        val rightBits = other.bitLength + bits
+        if (leftBits != rightBits) return if (leftBits < rightBits) -1L else 1L
+        var index = words.size
+        while (index > 0L) {
+            index -= 1L
+            val right = other.shiftedWord(index, bits)
+            if (words[index] != right) return if (words[index] < right) -1L else 1L
+        }
+        return 0L
+    }
+
+    // Called only after comparison establishes a nonnegative difference.
+    internal fun subtractShifted(other: DecimalMagnitude, bits: Long) {
+        var borrow = 0uL
+        var index = 0L
+        while (index < words.size) {
+            val left = words[index].toUInt64()
+            val right = other.shiftedWord(index, bits).toUInt64() + borrow
+            words[index] = (left - right).toUInt32()
+            borrow = if (left < right) 1uL else 0uL
+            index += 1L
+        }
+        while (words.size > 0L && words[words.size - 1L] == 0u) words.removeAt(words.size - 1L)
+    }
+}

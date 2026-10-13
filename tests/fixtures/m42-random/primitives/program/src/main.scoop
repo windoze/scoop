@@ -1,0 +1,27 @@
+import scoop.collections.*
+
+fun main() {
+    val random = Scripted(
+        listOf<Int>(0, 1, Int.MIN_VALUE, -1, 0x89abcdefu.toInt32(), 0x01234567, 0x01234567, 0x89abcdefu.toInt32(),
+            0, 0xffffff, 0, 0, 0x3ffffff, 0x7ffffff, 0, 128, 255, 7, 8),
+        listOf<Int>(1, 1, 32, 32, 32, 32, 32, 32, 24, 24, 26, 27, 26, 27, 8, 8, 8, 8, 8))
+    check(!random.nextBoolean() && random.nextBoolean())
+    check(random.nextInt() == Int.MIN_VALUE && random.nextUInt() == UInt.MAX_VALUE)
+    check(random.nextLong().toUInt64() == 0x89abcdef01234567uL)
+    check(random.nextULong() == 0x0123456789abcdefuL)
+    check(random.nextFloat() == 0f && random.nextFloat().toBits() == 0x3f7fffff)
+    check(random.nextDouble() == 0.0 && random.nextDouble().toBits() == 0x3fefffffffffffffL)
+    check(random.nextBytes(0L).size == 0L && random.calls == 14L)
+    val bytes = random.nextBytes(3L)
+    check(bytes[0L] == 0.toInt8() && bytes[1L] == Int8.MIN_VALUE && bytes[2L] == (-1).toInt8())
+    val target = MutableArray<Byte>(4L) { _ -> 99.toInt8() }
+    check(random.nextBytes(target, 1L, 3L) === target)
+    check(target[0L] == 99.toInt8() && target[1L] == 7.toInt8() && target[2L] == 8.toInt8() && target[3L] == 99.toInt8())
+    random.nextBytes(target, 4L, 4L)
+    check(random.calls == 19L)
+    val whole = Scripted(listOf<Int>(1, 2), listOf<Int>(8, 8))
+    val fill = MutableArray<Byte>(2L) { _ -> 0.toInt8() }
+    whole.nextBytes(fill)
+    check(fill[0L] == 1.toInt8() && fill[1L] == 2.toInt8())
+    println("random primitives passed")
+}

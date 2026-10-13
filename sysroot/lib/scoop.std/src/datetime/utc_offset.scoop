@@ -1,0 +1,55 @@
+package scoop.datetime
+
+import scoop.decodeTextValue
+
+public class UtcOffset private constructor(public val totalSeconds: Int)
+    : Equals<UtcOffset>, Compare<UtcOffset>, Hash, ToString {
+    public override operator fun equals(other: UtcOffset): Boolean = totalSeconds == other.totalSeconds
+    public override operator fun compareTo(other: UtcOffset): Long = totalSeconds.compareTo(other.totalSeconds)
+    public override fun hash(): Long = totalSeconds.hash()
+    public override fun toString(): String {
+        if (totalSeconds == 0) return "Z"
+        val magnitude = if (totalSeconds < 0) -totalSeconds else totalSeconds
+        val base = (if (totalSeconds < 0) "-" else "+") + calendarTwoDigits(magnitude / 3600) + ":" +
+            calendarTwoDigits(magnitude / 60 % 60)
+        return if (magnitude % 60 == 0) base else base + ":" + calendarTwoDigits(magnitude % 60)
+    }
+    public companion object : Encodable<UtcOffset>, Decodable<UtcOffset> {
+        public override fun encode(value: UtcOffset, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): UtcOffset =
+            decodeTextValue<UtcOffset>(decoder, { text -> parseOrNull(text) }, "UTC offset")
+
+        public val ZERO: UtcOffset = UtcOffset(0)
+        public fun fromTotalSeconds(value: Int): UtcOffset {
+            if (value < -64800 || value > 64800) throw IllegalArgumentException(Some("offset exceeds 18 hours"))
+            return UtcOffset(value)
+        }
+        public fun fromHoursMinutesSeconds(hours: Int = 0, minutes: Int = 0, seconds: Int = 0): UtcOffset {
+            if (hours < -18 || hours > 18 || minutes < -59 || minutes > 59 || seconds < -59 || seconds > 59 ||
+                ((hours < 0 || minutes < 0 || seconds < 0) && (hours > 0 || minutes > 0 || seconds > 0))) {
+                throw IllegalArgumentException(Some("invalid offset components"))
+            }
+            return fromTotalSeconds(hours * 3600 + minutes * 60 + seconds)
+        }
+        public fun parseOrNull(text: String): UtcOffset? {
+            if (text == "Z") return Some(ZERO)
+            val chars = text.toCharArray()
+            if ((chars.size != 6L && chars.size != 9L) || (chars[0L] != '+' && chars[0L] != '-') || chars[3L] != ':') return None
+            val hours = calendarParseTwo(chars, 1L)
+            val minutes = calendarParseTwo(chars, 4L)
+            var seconds = 0
+            if (chars.size == 9L) {
+                if (chars[6L] != ':') return None
+                seconds = calendarParseTwo(chars, 7L)
+            }
+            if (hours < 0 || hours > 18 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) return None
+            val total = hours * 3600 + minutes * 60 + seconds
+            if (total > 64800) return None
+            return Some(UtcOffset(if (chars[0L] == '-') -total else total))
+        }
+        public fun parse(text: String): UtcOffset = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid UTC offset"))
+        }
+    }
+}

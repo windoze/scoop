@@ -28,6 +28,9 @@ mod optimized;
 #[path = "statepoint_tests/terminal_poll.rs"]
 mod terminal_poll;
 
+#[path = "statepoint_tests/tail_duplication.rs"]
+mod tail_duplication;
+
 fn verify_rewritten(
     module: &Module<'_>,
     expected: &ExpectedSafepoints,

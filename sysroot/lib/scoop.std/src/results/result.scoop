@@ -1,0 +1,50 @@
+package scoop
+
+public enum Result<T, E> {
+    Success(T),
+    Failure(E)
+
+    public val isSuccess: Boolean get() = when (this) {
+        case Success(_) -> true
+        case Failure(_) -> false
+    }
+    public val isFailure: Boolean get() = !isSuccess
+
+    public companion object {
+        public fun encoder(success: Encodable<T>, failure: Encodable<E>): Encodable<Result<T, E>> = ResultEncoder<T, E>(success, failure)
+        public fun decoder(success: Decodable<T>, failure: Decodable<E>): Decodable<Result<T, E>> = ResultDecoder<T, E>(success, failure)
+    }
+}
+
+public fun <T, E> Result<T, E>.getOrNull(): T? = when (this) {
+    case Result.Success(value) -> Some(value)
+    case Result.Failure(_) -> None
+}
+
+public fun <T, E> Result<T, E>.errorOrNull(): E? = when (this) {
+    case Result.Success(_) -> None
+    case Result.Failure(error) -> Some(error)
+}
+
+public fun <T, E> Result<T, E>.getOrElse(onFailure: (E) -> T): T = when (this) {
+    case Result.Success(value) -> value
+    case Result.Failure(error) -> onFailure(error)
+}
+
+public fun <T, E, R> Result<T, E>.fold(onSuccess: (T) -> R, onFailure: (E) -> R): R = when (this) {
+    case Result.Success(value) -> onSuccess(value)
+    case Result.Failure(error) -> onFailure(error)
+}
+
+public fun <T, E : Throwable> Result<T, E>.getOrThrow(): T = when (this) {
+    case Result.Success(value) -> value
+    case Result.Failure(error) -> throw error
+}
+
+public fun <T> runCatching(block: () -> T): Result<T, Throwable> = try {
+    Result.Success<T, Throwable>(block())
+} catch (error: Throwable) {
+    Result.Failure<T, Throwable>(error)
+}
+
+public fun <T, E> Result<T, E>.toOption(): T? = getOrNull<T, E>()

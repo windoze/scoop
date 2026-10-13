@@ -1,0 +1,22 @@
+class Value(val seconds: Long, val nanos: Int) {
+    public fun toComponents(): (Long, Int) = (seconds, nanos)
+}
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun verify(expected: (Long, Int)?, operation: () -> Value) {
+    when (expected) {
+        case Some(parts) -> check(operation().toComponents() == parts)
+        case None -> {
+            var failed = false
+            try { operation() } catch (error: ArithmeticException) { failed = true }
+            check(failed)
+        }
+    }
+}
+fun main() {
+    verify(Some((2L, 3))) { Value(2L, 3) }
+    verify(None) { throw ArithmeticException() }
+    var propagated = false
+    try { verify(None) { Value(0L, 0) } } catch (error: IllegalStateException) { propagated = true }
+    check(propagated)
+    println("statepoint taildup passed")
+}

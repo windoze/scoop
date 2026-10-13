@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `priorityQueueOf` in star import layer:\n  - dependency function `priorityQueueOf` required parameter `comparator` has no argument\n  - dependency function `priorityQueueOf`: Key is not a subtype of Compare<T>",
+    "notes": [],
+    "origin": {
+      "cone": "c722ad5d04a105b28f28c83d14198d2665d41d9d96fc0745db67145ef0459b27",
+      "end": 77,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 55
+    },
+    "severity": "error"
+  }
+]

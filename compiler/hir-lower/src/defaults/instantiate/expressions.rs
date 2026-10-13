@@ -18,10 +18,15 @@ impl Lowerer {
             // A rejected release block never acquires a lexical callable owner.
             return source.clone();
         }
+        let origin = instantiate_origin(source.origin, context.evaluation);
+        let span = match context.evaluation {
+            InstantiationEvaluation::Derived(_) => origin.definition().span,
+            _ => source.span,
+        };
         if let hir::ExprKind::Local(local) = source.kind {
             let mut value = context.locals[arena_index(local)].clone();
-            value.span = source.span;
-            value.origin = instantiate_origin(source.origin, context.evaluation);
+            value.span = span;
+            value.origin = origin;
             let ty = self.instantiate_method_ty(source.ty, &context.bindings);
             return self.known_type_read(value, ty);
         }
@@ -29,8 +34,8 @@ impl Lowerer {
             && let Some(value) = context.captures.get(&binding)
         {
             let mut value = value.clone();
-            value.span = source.span;
-            value.origin = instantiate_origin(source.origin, context.evaluation);
+            value.span = span;
+            value.origin = origin;
             let ty = self.instantiate_method_ty(source.ty, &context.bindings);
             return self.known_type_read(value, ty);
         }
@@ -50,9 +55,9 @@ impl Lowerer {
                 receiver,
                 other,
                 context.bindings.clone(),
+                origin,
             );
         }
-        let origin = instantiate_origin(source.origin, context.evaluation);
         let kind = match &source.kind {
             hir::ExprKind::ContextLookup(requirement) => {
                 hir::ExprKind::ContextLookup(requirement.clone())
@@ -420,8 +425,8 @@ impl Lowerer {
         hir::Expr {
             kind,
             ty: self.instantiate_method_ty(source.ty, &context.bindings),
-            span: source.span,
-            origin: instantiate_origin(source.origin, context.evaluation),
+            span,
+            origin,
         }
     }
 

@@ -492,14 +492,14 @@ impl<'a> CfgLowerer<'a> {
                 }
             }
             smir::ExprKind::VariantTest { operand, variant } => {
-                let operand = self.lower_expr(operand, span)?;
+                let operand = self.lower_variant_operand(operand, span)?;
                 let lowered = mir::Expr::variant_test(self.enums, operand, *variant)
                     .expect("structured MIR preserves its checked variant-test contract");
                 assert_eq!(lowered.ty, expr.ty);
                 return Some(lowered);
             }
             smir::ExprKind::VariantPayloadProject { operand, field } => {
-                let operand = self.lower_expr(operand, span)?;
+                let operand = self.lower_variant_operand(operand, span)?;
                 let lowered = mir::Expr::variant_payload_project(self.enums, operand, *field)
                     .expect("structured MIR preserves its checked payload-projection contract");
                 assert_eq!(lowered.ty, expr.ty);

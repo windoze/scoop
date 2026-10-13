@@ -4,6 +4,23 @@ use std::collections::BTreeSet;
 
 mod shared;
 
+#[cfg(all(test, target_os = "linux"))]
+mod tests;
+
+fn append_objects(
+    command: &mut std::process::Command,
+    directory: &Path,
+    paths: &[PathBuf],
+) -> Result<(), LinkError> {
+    response::write_objects(directory, paths)?;
+    // Keep @ away from the driver response-file parser. The relative name
+    // also avoids -Wl comma splitting when the scratch path contains commas.
+    command
+        .current_dir(directory)
+        .arg(format!("-Wl,@{}", response::FILE_NAME));
+    Ok(())
+}
+
 pub(super) fn link(
     profile: &LinuxFinalLinkProfile,
     inputs: &ProgramInputs<'_>,
@@ -15,7 +32,8 @@ pub(super) fn link(
     let mut command = profile
         .command(directory, candidate, link_map)
         .map_err(error)?;
-    command.args(paths).arg("-Xlinker").arg(format!(
+    append_objects(&mut command, directory, paths)?;
+    command.arg("-Xlinker").arg(format!(
         "--defsym={}={}",
         inputs.symbol("scoop_td_String"),
         inputs.string_target

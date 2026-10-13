@@ -1,0 +1,5 @@
+import scoop.collections.*
+
+class Key {}
+
+fun main() { sortedSetOf<Key>() }

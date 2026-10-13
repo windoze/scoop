@@ -1,0 +1,17 @@
+package scoop.text
+
+private fun String.trimText(predicate: (Char) -> Boolean, trimLeft: Boolean, trimRight: Boolean): String {
+    val chars = toCharArray()
+    var start = 0L
+    var end = chars.size
+    if (trimLeft) { while (start < end && predicate(chars[start])) start += 1L }
+    if (trimRight) { while (end > start && predicate(chars[end - 1L])) end -= 1L }
+    return textRange(chars, start, end)
+}
+
+public fun String.trim(predicate: (Char) -> Boolean): String = trimText(predicate, true, true)
+public fun String.trimStart(predicate: (Char) -> Boolean): String = trimText(predicate, true, false)
+public fun String.trimEnd(predicate: (Char) -> Boolean): String = trimText(predicate, false, true)
+public fun String.trim(): String = trim(::isTextWhitespace)
+public fun String.trimStart(): String = trimStart(::isTextWhitespace)
+public fun String.trimEnd(): String = trimEnd(::isTextWhitespace)

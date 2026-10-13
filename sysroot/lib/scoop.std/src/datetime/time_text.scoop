@@ -1,0 +1,35 @@
+package scoop.datetime
+
+import scoop.text.padStart
+import scoop.text.substring
+
+internal fun formatLocalTime(time: LocalTime): String {
+    val base = calendarTwoDigits(time.hour) + ":" + calendarTwoDigits(time.minute) + ":" + calendarTwoDigits(time.second)
+    if (time.nanosecond == 0) return base
+    val digits = time.nanosecond.toString().padStart(9L, '0')
+    var end = 9L
+    while (digits[end - 1L] == '0') end -= 1L
+    return base + "." + digits.substring(0L, end)
+}
+
+internal fun parseLocalTime(text: String): LocalTime? {
+    val chars = text.toCharArray()
+    if (chars.size < 8L || chars.size > 18L || chars[2L] != ':' || chars[5L] != ':') return None
+    val hour = calendarParseTwo(chars, 0L)
+    val minute = calendarParseTwo(chars, 3L)
+    val second = calendarParseTwo(chars, 6L)
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return None
+    var nanos = 0
+    if (chars.size > 8L) {
+        if (chars.size == 9L || chars[8L] != '.') return None
+        var index = 9L
+        while (index < chars.size) {
+            val digit = chars[index].code - 48
+            if (digit < 0 || digit > 9) return None
+            nanos = nanos * 10 + digit
+            index += 1L
+        }
+        while (index < 18L) { nanos *= 10; index += 1L }
+    }
+    return Some(LocalTime(hour, minute, second, nanos))
+}

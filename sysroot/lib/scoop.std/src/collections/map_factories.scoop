@@ -1,0 +1,39 @@
+package scoop.collections
+
+internal class MapSnapshot<K, V> internal constructor(
+    private val elements: Map<K, V>
+) : Map<K, V> by elements
+
+public fun <K, V> linkedMapOf(vararg entries: (K, V)): LinkedHashMap<K, V>
+    where K : Equals<K>, K : Hash {
+    val result = LinkedHashMap<K, V>()
+    for ((key, value) in entries) result.put(key, value)
+    return result
+}
+
+public fun <K, V> mutableMapOf(vararg entries: (K, V)): MutableMap<K, V>
+    where K : Equals<K>, K : Hash = linkedMapOf<K, V>(*entries)
+
+public fun <K, V> mapOf(vararg entries: (K, V)): Map<K, V>
+    where K : Equals<K>, K : Hash = MapSnapshot<K, V>(linkedMapOf<K, V>(*entries))
+
+public fun <K, V> emptyMap(): Map<K, V> where K : Equals<K>, K : Hash = mapOf<K, V>()
+
+public fun <K, V> Iterable<(K, V)>.toMutableMap(): MutableMap<K, V>
+    where K : Equals<K>, K : Hash {
+    val result = LinkedHashMap<K, V>()
+    for ((key, value) in this) result.put(key, value)
+    return result
+}
+
+public fun <K, V> Iterable<(K, V)>.toMap(): Map<K, V> where K : Equals<K>, K : Hash =
+    MapSnapshot<K, V>(toMutableMap())
+
+public fun <K, V> Map<K, V>.toMutableMap(): MutableMap<K, V> where K : Equals<K>, K : Hash {
+    val result = LinkedHashMap<K, V>()
+    for ((key, value) in this) result.put(key, value)
+    return result
+}
+
+public fun <K, V> Map<K, V>.toMap(): Map<K, V> where K : Equals<K>, K : Hash =
+    MapSnapshot<K, V>(toMutableMap())

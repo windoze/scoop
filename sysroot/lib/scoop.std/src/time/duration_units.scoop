@@ -1,0 +1,16 @@
+package scoop.time
+
+public fun Int.nanoseconds(): Duration = Duration.nanoseconds(toInt64())
+public fun Long.nanoseconds(): Duration = Duration.nanoseconds(this)
+public fun Int.microseconds(): Duration = Duration.microseconds(toInt64())
+public fun Long.microseconds(): Duration = Duration.microseconds(this)
+public fun Int.milliseconds(): Duration = Duration.milliseconds(toInt64())
+public fun Long.milliseconds(): Duration = Duration.milliseconds(this)
+public fun Int.seconds(): Duration = Duration.seconds(toInt64())
+public fun Long.seconds(): Duration = Duration.seconds(this)
+public fun Int.minutes(): Duration = Duration.minutes(toInt64())
+public fun Long.minutes(): Duration = Duration.minutes(this)
+public fun Int.hours(): Duration = Duration.hours(toInt64())
+public fun Long.hours(): Duration = Duration.hours(this)
+public fun Int.days(): Duration = Duration.days(toInt64())
+public fun Long.days(): Duration = Duration.days(this)

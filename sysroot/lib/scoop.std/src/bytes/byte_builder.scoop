@@ -1,0 +1,66 @@
+package scoop.bytes
+
+public class ByteArrayBuilder public constructor() {
+    private var storage: MutableArray<Byte> = MutableArray<Byte>(0L) { _ -> 0.toInt8() }
+    private var count: Long = 0L
+    public val size: Long get() = count
+
+    private fun reserve(extra: Long) {
+        if (extra > Long.MAX_VALUE - count) throw ArithmeticException()
+        val required = count + extra
+        if (required <= storage.size) return
+        val grown = if (storage.size == 0L) 8L
+            else if (storage.size > Long.MAX_VALUE / 2L) Long.MAX_VALUE else storage.size * 2L
+        val capacity = if (required > grown) required else grown
+        val old = storage
+        val length = count
+        storage = MutableArray<Byte>(capacity) { index -> if (index < length) old[index] else 0.toInt8() }
+    }
+
+    public fun append(value: Byte) {
+        reserve(1L)
+        storage[count] = value
+        count += 1L
+    }
+
+    public fun append(input: List<Byte>) {
+        val length = input.size
+        if (length > Long.MAX_VALUE - count) throw ArithmeticException()
+        val snapshot = Array<Byte>(length) { index -> input[index] }
+        reserve(snapshot.size)
+        var index = 0L
+        while (index < snapshot.size) { storage[count + index] = snapshot[index]; index += 1L }
+        count += snapshot.size
+    }
+
+    public fun clear() {
+        var index = 0L
+        while (index < count) { storage[index] = 0.toInt8(); index += 1L }
+        count = 0L
+    }
+
+    public fun toByteArray(): Array<Byte> = Array<Byte>(count) { index -> storage[index] }
+    public fun toMutableByteArray(): MutableArray<Byte> = MutableArray<Byte>(count) { index -> storage[index] }
+
+    private fun write(value: ULong, width: Long, order: ByteOrder) {
+        reserve(width)
+        var index = 0L
+        while (index < width) {
+            val shift = (if (order == ByteOrder.BIG_ENDIAN) width - index - 1L else index) * 8L
+            storage[count + index] = (value shr shift).toInt8()
+            index += 1L
+        }
+        count += width
+    }
+
+    public fun writeInt8(value: Int8) { append(value) }
+    public fun writeUInt8(value: UInt8) { append(value.toInt8()) }
+    public fun writeInt16(value: Int16, order: ByteOrder) { write(value.toUInt64(), 2L, order) }
+    public fun writeUInt16(value: UInt16, order: ByteOrder) { write(value.toUInt64(), 2L, order) }
+    public fun writeInt(value: Int, order: ByteOrder) { write(value.toUInt64(), 4L, order) }
+    public fun writeUInt(value: UInt, order: ByteOrder) { write(value.toUInt64(), 4L, order) }
+    public fun writeLong(value: Long, order: ByteOrder) { write(value.toUInt64(), 8L, order) }
+    public fun writeULong(value: ULong, order: ByteOrder) { write(value, 8L, order) }
+    public fun writeFloat(value: Float, order: ByteOrder) { writeInt(value.toBits(), order) }
+    public fun writeDouble(value: Double, order: ByteOrder) { writeLong(value.toBits(), order) }
+}

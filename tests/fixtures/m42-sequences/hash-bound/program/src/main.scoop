@@ -1,0 +1,4 @@
+import scoop.sequences.*
+
+class Key : Equals<Key> { public override operator fun equals(other: Key): Boolean = true }
+fun main() { sequenceOf<Key>(Key()).distinct() }

@@ -1,0 +1,23 @@
+package scoop.sequences
+
+import scoop.collections.HashSet
+
+private class DistinctSequenceIterator<T, K>(private val source: Iterator<T>, private val selector: (T) -> K) : Iterator<T>
+    where K : Equals<K>, K : Hash {
+    private val seen: HashSet<K> = HashSet<K>()
+
+    public override fun next(): T? {
+        while (true) {
+            when (source.next()) {
+                case None -> return None
+                case Some(value) -> { if (seen.add(selector(value))) return Some(value) }
+            }
+        }
+    }
+}
+
+public fun <T, K> Sequence<T>.distinctBy(selector: (T) -> K): Sequence<T> where K : Equals<K>, K : Hash =
+    FactorySequence<T> { DistinctSequenceIterator<T, K>(iterator(), selector) }
+
+public fun <T> Sequence<T>.distinct(): Sequence<T> where T : Equals<T>, T : Hash =
+    distinctBy<T, T> { value -> value }

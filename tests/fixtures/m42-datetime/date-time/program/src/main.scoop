@@ -1,0 +1,48 @@
+import scoop.datetime.*
+import scoop.time.*
+import scoop.collections.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun overflow(block: () -> Unit) {
+    var failed = false
+    try { block() } catch (error: ArithmeticException) { failed = true }
+    check(failed)
+}
+fun main() {
+    val start = LocalDateTime(2024, 1, 31, 23, 59, 59, 999999999)
+    val next = LocalDateTime(2024, 2, 1, 0, 0)
+    check(start + 1.nanoseconds() == next && next - 1.nanoseconds() == start)
+    check(next + (-1).nanoseconds() == start && start - (-1).nanoseconds() == next)
+    check(start + DateTimePeriod(DatePeriod(months = 1), 1.nanoseconds()) == LocalDateTime(2024, 3, 1, 0, 0))
+    check(LocalDateTime(2024, 3, 31, 0, 0) - DateTimePeriod(DatePeriod(months = 1), 1.nanoseconds()) ==
+        LocalDateTime(2024, 2, 28, 23, 59, 59, 999999999))
+    check(start + DatePeriod(days = 1L) == LocalDateTime(2024, 2, 1, 23, 59, 59, 999999999))
+    check(start + DateTimePeriod() == start)
+    check(LocalDateTime(0, 1, 1, 0, 0) - 1.nanoseconds() == LocalDateTime(-1, 12, 31, 23, 59, 59, 999999999))
+    check(start < next && start.date == LocalDate(2024, 1, 31) && start.time == LocalTime(23, 59, 59, 999999999))
+    check(start.year == 2024 && start.monthNumber == 1 && start.dayOfMonth == 31)
+    check(start.hour == 23 && start.minute == 59 && start.second == 59 && start.nanosecond == 999999999)
+    check(hashMapOf((DateTimePeriod(), 2))[DateTimePeriod(DatePeriod(), Duration.ZERO)] == Some(2))
+    check(hashMapOf((start, 3))[LocalDateTime.parse(start.toString())] == Some(3))
+    val maximum = LocalDateTime(LocalDate.MAX, LocalTime(23, 59, 59, 999999999))
+    val minimum = LocalDateTime(LocalDate.MIN, LocalTime(0, 0))
+    check(minimum + (Instant.MAX - Instant.MIN) == maximum)
+    check(maximum - (Instant.MAX - Instant.MIN) == minimum)
+    overflow { minimum - 1.nanoseconds() }; overflow { maximum + 1.nanoseconds() }
+    overflow { start + Duration.seconds(Long.MIN_VALUE) }; overflow { start - Duration.seconds(Long.MIN_VALUE) }
+    overflow { start + Duration.seconds(Long.MAX_VALUE) }; overflow { start - Duration.seconds(Long.MAX_VALUE) }
+    val eastern = OffsetDateTime.parse("2024-02-29T23:00:00+01:00")
+    val utc = eastern.withOffsetSameInstant(UtcOffset.ZERO)
+    check(utc.toString() == "2024-02-29T22:00:00Z" && utc.toInstant() == eastern.toInstant())
+    check(utc != eastern && utc.hash() == OffsetDateTime.parse(utc.toString()).hash())
+    check(eastern.withOffsetSameLocal(UtcOffset.ZERO).toString() == "2024-02-29T23:00:00Z")
+    val outside = OffsetDateTime(minimum, UtcOffset.fromTotalSeconds(1))
+    check(OffsetDateTime.parse(outside.toString()) == outside)
+    overflow { outside.toInstant() }; overflow { outside.withOffsetSameInstant(UtcOffset.ZERO) }
+    check(LocalDateTime.parseOrNull("2024-02-29 23:00:00") == None)
+    check(LocalDateTime.parseOrNull("2024-02-29T23:00:00Z") == None)
+    check(OffsetDateTime.parseOrNull("2024-02-29T23:00:00") == None)
+    check(OffsetDateTime.parseOrNull("2024-02-29T23:00:00ZZ") == None)
+    check(OffsetDateTime.parseOrNull("2024-02-30T23:00:00Z") == None)
+    println("date-time passed")
+}

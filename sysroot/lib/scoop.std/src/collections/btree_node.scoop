@@ -1,0 +1,107 @@
+package scoop.collections
+
+// Degree eight: 7..15 entries, with one temporary overflow slot.
+internal class BTreeNode<K, V> internal constructor(internal val leaf: Boolean)
+    : Equals<BTreeNode<K, V>> {
+    private val entries: MutableArray<MaybeUninit<Map.Entry<K, V>>> =
+        MutableArray<MaybeUninit<Map.Entry<K, V>>>(16L) { _ -> MaybeUninit<Map.Entry<K, V>>.uninit() }
+    private val children: MutableArray<BTreeNode<K, V>?>? =
+        if (leaf) None else Some(MutableArray<BTreeNode<K, V>?>(17L) { _ -> None })
+    internal var count: Long = 0L
+    internal var parent: BTreeNode<K, V>? = None
+    internal var parentIndex: Long = 0L
+
+    public override operator fun equals(other: BTreeNode<K, V>): Boolean = this === other
+
+    internal fun entry(index: Long): Map.Entry<K, V> {
+        @Unsafe { return entries[index].assumeInit() }
+    }
+
+    internal fun write(index: Long, entry: Map.Entry<K, V>) {
+        entries[index] = MaybeUninit<Map.Entry<K, V>>.initialized(entry)
+    }
+
+    internal fun erase(index: Long) { entries[index] = MaybeUninit<Map.Entry<K, V>>.uninit() }
+    internal fun child(index: Long): BTreeNode<K, V>? = if (leaf) None else children!![index]
+    internal fun clearChild(index: Long) { if (!leaf) children!![index] = None }
+
+    internal fun setChild(index: Long, child: BTreeNode<K, V>?) {
+        children!![index] = child
+        if (child != None) {
+            child!!.parent = Some(this)
+            child!!.parentIndex = index
+        }
+    }
+
+    internal fun insert(index: Long, entry: Map.Entry<K, V>, right: BTreeNode<K, V>?) {
+        var position = count
+        while (position > index) {
+            write(position, this.entry(position - 1L))
+            position -= 1L
+        }
+        if (!leaf) {
+            position = count + 1L
+            while (position > index + 1L) {
+                setChild(position, child(position - 1L))
+                position -= 1L
+            }
+            setChild(index + 1L, right)
+        }
+        write(index, entry)
+        count += 1L
+    }
+
+    // Internal-node removal also removes the child right of the separator.
+    internal fun removeSlot(index: Long) {
+        var position = index
+        while (position + 1L < count) {
+            write(position, entry(position + 1L))
+            position += 1L
+        }
+        erase(count - 1L)
+        if (!leaf) {
+            position = index + 1L
+            while (position < count) {
+                setChild(position, child(position + 1L))
+                position += 1L
+            }
+            clearChild(count)
+        }
+        count -= 1L
+    }
+
+    internal fun split(): (Map.Entry<K, V>, BTreeNode<K, V>) {
+        val promoted = entry(8L)
+        val right = BTreeNode<K, V>(leaf)
+        var index = 0L
+        while (index < 7L) {
+            right.write(index, entry(index + 9L))
+            erase(index + 9L)
+            index += 1L
+        }
+        if (!leaf) {
+            index = 0L
+            while (index < 8L) {
+                right.setChild(index, child(index + 9L))
+                clearChild(index + 9L)
+                index += 1L
+            }
+        }
+        erase(8L)
+        count = 8L
+        right.count = 7L
+        return (promoted, right)
+    }
+
+    internal fun retire() {
+        var index = 0L
+        while (index < count) { erase(index); index += 1L }
+        if (!leaf) {
+            index = 0L
+            while (index <= count) { clearChild(index); index += 1L }
+        }
+        count = 0L
+        parent = None
+        parentIndex = 0L
+    }
+}

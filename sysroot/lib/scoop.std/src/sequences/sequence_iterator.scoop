@@ -1,0 +1,27 @@
+package scoop.sequences
+
+internal class DeferredSequenceIterator<T>(private val factory: () -> Iterator<T>) : Iterator<T> {
+    private var source: Iterator<T>? = None
+    private var ended: Boolean = false
+    private var failed: Boolean = false
+
+    public override fun next(): T? {
+        if (failed) throw IllegalStateException(Some("sequence iterator has failed"))
+        if (ended) return None
+        failed = true
+        val input = when (source) {
+            case Some(existing) -> existing
+            case None -> {
+                val created = factory()
+                source = Some(created)
+                created
+            }
+        }
+        val result = input.next()
+        failed = false
+        return when (result) {
+            case Some(_) -> result
+            case None -> { ended = true; source = None; None }
+        }
+    }
+}

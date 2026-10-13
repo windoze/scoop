@@ -1,0 +1,9 @@
+package scoop.time
+
+internal fun instantMilliseconds(seconds: Long, nanos: Int): Long {
+    val fraction = (nanos / 1000000).toInt64()
+    if (seconds < -9223372036854776L || seconds > 9223372036854775L ||
+        (seconds == -9223372036854776L && fraction < 192L) ||
+        (seconds == 9223372036854775L && fraction > 807L)) throw ArithmeticException()
+    return if (seconds < 0L) (seconds + 1L) * 1000L - (1000L - fraction) else seconds * 1000L + fraction
+}

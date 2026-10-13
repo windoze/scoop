@@ -7,6 +7,8 @@ public struct Pair(val single: Small, val double: Wide)
 public fun <T> consistent(a: T, b: T): Boolean where T : Equals<T>, T : Compare<T> =
     (a == b) == (a.compareTo(b) == 0L)
 public fun ieee(a: Small, b: Small): IeeeComparison = a.ieeeCompare(b)
+public fun bitValues(single: Int, double: Long): Pair = Pair(Float.fromBits(single), Double.fromBits(double))
+@NoGC public fun bitPatterns(value: Pair): (Int, Long) = (value.single.toBits(), value.double.toBits())
 public interface Sample {
     public fun equal(a: Wide, b: Wide): Boolean = a == b
 }

@@ -39,6 +39,7 @@ impl BoundaryDefinitionV1 {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct MachOSection {
+    header_offset: usize,
     pub(super) ordinal: u8,
     segment: [u8; 16],
     section: [u8; 16],
@@ -49,6 +50,11 @@ pub(crate) struct MachOSection {
 }
 
 impl MachOSection {
+    pub(crate) fn place_callable_constants(self, bytes: &mut [u8]) {
+        bytes[self.header_offset..self.header_offset + 32].fill(0);
+        bytes[self.header_offset..self.header_offset + 13].copy_from_slice(b"__scoop_const");
+        bytes[self.header_offset + 16..self.header_offset + 28].copy_from_slice(b"__DATA_CONST");
+    }
     pub(crate) const fn ordinal(self) -> u8 {
         self.ordinal
     }
@@ -325,6 +331,7 @@ fn parse_sections(
             .and_then(|offset| offset.checked_add(index.checked_mul(SECTION_64_SIZE)?))
             .ok_or_else(malformed)?;
         sections.push(MachOSection {
+            header_offset: offset,
             ordinal: u8::try_from(index + 1).map_err(|_| malformed())?,
             section: read_fixed_name(bytes, offset)?,
             segment: read_fixed_name(bytes, offset + 16)?,

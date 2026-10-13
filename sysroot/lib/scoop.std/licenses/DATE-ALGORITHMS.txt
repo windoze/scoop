@@ -1,0 +1,10 @@
+Civil date conversion formulas by Howard Hinnant.
+Source: https://howardhinnant.github.io/date_algorithms.html
+Document date: 2021-09-01
+
+The document's Summary donates these formulas to the public domain:
+"Consider these donated to the public domain."
+
+Scoop adapts the days_from_civil and civil_from_days formulas to its checked
+year domain and explicit integer types. No C++ library or platform time code
+is included.

@@ -4,6 +4,7 @@ use object::{Object, ObjectSymbol};
 
 use super::*;
 
+mod constants;
 mod no_gc;
 mod optimized;
 
@@ -186,7 +187,13 @@ fn emitted_object_set_owns_verified_temporary_members() {
         emitted.target_selection(),
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1
     );
-    assert_eq!(emitted.foundation(), input.foundation());
+    let projected = ScoopLirObjectPartitionV1::from_foundation(
+        &input,
+        emitted.foundation(),
+        emitted.production().canonical_definitions(),
+    )
+    .unwrap();
+    assert_eq!(&projected, emitted.partition());
     assert!(emitted.members().iter().all(|member| {
         std::fs::metadata(member.path())
             .is_ok_and(|metadata| metadata.len() > 0 && metadata.permissions().readonly())

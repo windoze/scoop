@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `joinToString` required parameter `transform` has no argument",
+    "notes": [],
+    "origin": {
+      "cone": "3ba3b439e8d0318dc07eaa468672bca83bc210820fb58867924a6a87e30eb2d3",
+      "end": 87,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 52
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,27 @@
+package scoop.comparisons
+
+public fun <T, K : Compare<K>> compareBy(selector: (T) -> K): Comparator<T> =
+    compareBy<T, K>(naturalOrder<K>(), selector)
+
+public fun <T, K> compareBy(comparator: Comparator<K>, selector: (T) -> K): Comparator<T> =
+    comparatorOf<T> { left, right ->
+        val leftKey = selector(left)
+        val rightKey = selector(right)
+        comparator.compare(leftKey, rightKey)
+    }
+
+public fun <T, K : Compare<K>> Comparator<T>.thenBy(selector: (T) -> K): Comparator<T> =
+    thenBy<T, K>(naturalOrder<K>(), selector)
+
+public fun <T, K> Comparator<T>.thenBy(
+    comparator: Comparator<K>, selector: (T) -> K
+): Comparator<T> {
+    val primary = this
+    return comparatorOf<T> { left, right ->
+        val result = primary.compare(left, right)
+        if (result != 0L) return@comparatorOf result
+        val leftKey = selector(left)
+        val rightKey = selector(right)
+        comparator.compare(leftKey, rightKey)
+    }
+}

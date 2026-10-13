@@ -1,0 +1,61 @@
+package scoop.text
+
+internal struct ParsedDecimal(
+    val magnitude: DecimalMagnitude, val negative: Boolean,
+    val digits: Long, val order: Long, val sticky: Boolean
+)
+
+internal fun scanDecimal(text: String, digitLimit: Long): ParsedDecimal? {
+    val source = text.iterator()
+    var current = source.next()
+    val negative = current == Some('-')
+    if (negative || current == Some('+')) current = source.next()
+    val magnitude = DecimalMagnitude()
+    var dot = false
+    var anyDigit = false
+    var fractional = 0L
+    var significant = 0L
+    var kept = 0L
+    var sticky = false
+    while (true) {
+        val character = when (current) { case None -> break; case Some(value) -> value }
+        if (character == '.' && !dot) {
+            dot = true
+        } else if (character >= '0' && character <= '9') {
+            anyDigit = true
+            if (dot) fractional += 1L
+            val digit = (character.code - 48).toUInt32()
+            if (significant != 0L || digit != 0u) {
+                significant += 1L
+                if (kept < digitLimit) {
+                    magnitude.multiplyAdd(10u, digit)
+                    kept += 1L
+                } else if (digit != 0u) {
+                    sticky = true
+                }
+            }
+        } else {
+            break
+        }
+        current = source.next()
+    }
+    if (!anyDigit) return None
+    var exponent = 0uL
+    var exponentNegative = false
+    if (current == Some('e') || current == Some('E')) {
+        current = source.next()
+        exponentNegative = current == Some('-')
+        if (exponentNegative || current == Some('+')) current = source.next()
+        if (current == None) return None
+        while (true) {
+            val character = when (current) { case None -> break; case Some(value) -> value }
+            if (character < '0' || character > '9') return None
+            exponent = appendDecimalExponent(exponent, (character.code - 48).toUInt64())
+            current = source.next()
+        }
+    }
+    if (current != None) return None
+    val order = if (significant == 0L) 0L
+        else decimalOrder(exponent, exponentNegative, significant - 1L - fractional)
+    return Some(ParsedDecimal(magnitude, negative, kept, order, sticky))
+}

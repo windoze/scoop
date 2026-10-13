@@ -1,0 +1,35 @@
+import scoop.*
+
+class Token(val value: String)
+class Marker(val token: Token) : Throwable()
+class State { var calls: Int = 0 }
+fun check(value: Boolean, label: String) { if (!value) { println(label); throw Exception(Some(label)) } }
+
+fun main() {
+    val token = Token("payload")
+    val marker = Marker(token)
+    val state = State()
+    val success = runCatching<Int> { state.calls += 1; 6 }
+    check(success.getOrThrow() == 6 && state.calls == 1, "runCatching success once")
+    val failure = runCatching<Int> { state.calls += 1; throw marker }
+    val captured = failure.errorOrNull()!!
+    check(failure.isFailure && captured is Marker && captured.token === token && state.calls == 2, "Throwable payload")
+    var caught = false
+    try { failure.getOrThrow() } catch (error: Marker) { caught = error.token === token }
+    check(caught, "getOrThrow original error")
+    val typed = Result.Failure<Int, Marker>(marker)
+    caught = false
+    try { typed.getOrThrow() } catch (error: Marker) { caught = error.token === token }
+    check(caught, "getOrThrow subtype bound")
+    var count = 0
+    try { success.map<Int, Throwable, Int> { _ -> throw marker } } catch (error: Marker) { if (error.token === token) count += 1 }
+    try { failure.mapError<Int, Throwable, String> { _ -> throw marker } } catch (error: Marker) { if (error.token === token) count += 1 }
+    try { success.flatMap<Int, Throwable, Int> { _ -> throw marker } } catch (error: Marker) { if (error.token === token) count += 1 }
+    try { failure.recover { _ -> throw marker } } catch (error: Marker) { if (error.token === token) count += 1 }
+    try { success.onSuccess { _ -> throw marker } } catch (error: Marker) { if (error.token === token) count += 1 }
+    try { failure.onFailure { _ -> throw marker } } catch (error: Marker) { if (error.token === token) count += 1 }
+    check(count == 6, "callbacks propagate without capture")
+    val nested = runCatching<Int?> { None }
+    check(nested.isSuccess && nested.getOrNull() == Some(None), "runCatching nested None")
+    println("results exceptions passed")
+}

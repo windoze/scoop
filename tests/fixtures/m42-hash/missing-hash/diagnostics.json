@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `HashMap`: type argument `Double` for `K` must satisfy upper bound `Hash`",
+    "notes": [],
+    "origin": {
+      "cone": "beba4a6ba5e217117c028b5f6c0b9287e60caf6416350dcbd810507eee4ce075",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  }
+]

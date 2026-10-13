@@ -1,0 +1,33 @@
+package scoop.sequences
+
+import scoop.collections.*
+
+public fun <T, K, V> Sequence<T>.groupBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, List<V>>
+    where K : Equals<K>, K : Hash =
+    terminalInput<T>().groupBy<T, K, V>(keySelector, valueTransform)
+
+public fun <T, K> Sequence<T>.groupBy(keySelector: (T) -> K): Map<K, List<T>>
+    where K : Equals<K>, K : Hash =
+    terminalInput<T>().groupBy<T, K>(keySelector)
+
+public fun <T, K, V> Sequence<T>.groupByTo(destination: MutableMap<K, MutableList<V>>, keySelector: (T) -> K, valueTransform: (T) -> V): MutableMap<K, MutableList<V>> =
+    terminalInput<T>().groupByTo<T, K, V>(destination, keySelector, valueTransform)
+
+public fun <T, K> Sequence<T>.groupByTo(destination: MutableMap<K, MutableList<T>>, keySelector: (T) -> K): MutableMap<K, MutableList<T>> =
+    terminalInput<T>().groupByTo<T, K>(destination, keySelector)
+
+public fun <T, K, V> Sequence<T>.associate(transform: (T) -> (K, V)): Map<K, V>
+    where K : Equals<K>, K : Hash =
+    terminalInput<T>().associate<T, K, V>(transform)
+
+public fun <T, K, V> Sequence<T>.associateBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, V>
+    where K : Equals<K>, K : Hash =
+    terminalInput<T>().associateBy<T, K, V>(keySelector, valueTransform)
+
+public fun <T, K> Sequence<T>.associateBy(keySelector: (T) -> K): Map<K, T>
+    where K : Equals<K>, K : Hash =
+    terminalInput<T>().associateBy<T, K>(keySelector)
+
+public fun <T, V> Sequence<T>.associateWith(valueSelector: (T) -> V): Map<T, V>
+    where T : Equals<T>, T : Hash =
+    terminalInput<T>().associateWith<T, V>(valueSelector)

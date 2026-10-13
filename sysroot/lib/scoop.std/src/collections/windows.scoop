@@ -1,0 +1,53 @@
+package scoop.collections
+
+public struct IndexedValue<T>(val index: Long, val value: T)
+
+public fun <T> Iterable<T>.withIndex(): List<IndexedValue<T>> =
+    mapIndexed<T, IndexedValue<T>> { index, element -> IndexedValue<T>(index, element) }
+
+public fun <T, R> Iterable<T>.zip(other: Iterable<R>): List<(T, R)> {
+    val result = ArrayList<(T, R)>()
+    val left = iterator()
+    val right = other.iterator()
+    while (true) {
+        val first = left.next()
+        when (first) {
+            case None -> break
+            case Some(value) -> when (right.next()) {
+                case None -> break
+                case Some(otherValue) -> result.add((value, otherValue))
+            }
+        }
+    }
+    return ListSnapshot<(T, R)>(result.toArray())
+}
+
+public fun <T> Iterable<T>.windowed(size: Long, step: Long = 1L, partialWindows: Boolean = false): List<List<T>> {
+    if (size <= 0L || step <= 0L) throw IllegalArgumentException(Some("non-positive window size or step"))
+    val result = ArrayList<List<T>>()
+    val window = ArrayDeque<T>()
+    val source = iterator()
+    var ended = false
+    while (true) {
+        while (!ended && window.size < size) {
+            when (source.next()) {
+                case None -> ended = true
+                case Some(element) -> window.addLast(element)
+            }
+        }
+        if (window.isEmpty()) break
+        if (window.size < size && !partialWindows) break
+        result.add(window.toList())
+        var skip = step
+        while (skip > 0L && window.isNotEmpty()) { window.removeFirst(); skip -= 1L }
+        while (skip > 0L && !ended) {
+            when (source.next()) {
+                case None -> ended = true
+                case Some(_) -> skip -= 1L
+            }
+        }
+    }
+    return ListSnapshot<List<T>>(result.toArray())
+}
+
+public fun <T> Iterable<T>.chunked(size: Long): List<List<T>> = windowed<T>(size, size, true)

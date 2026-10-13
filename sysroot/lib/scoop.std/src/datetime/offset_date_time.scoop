@@ -1,0 +1,40 @@
+package scoop.datetime
+
+import scoop.decodeTextValue
+
+import scoop.time.Instant
+import scoop.text.indexOf
+import scoop.text.substring
+
+public class OffsetDateTime public constructor(public val dateTime: LocalDateTime, public val offset: UtcOffset)
+    : Equals<OffsetDateTime>, Hash, ToString {
+    public fun toInstant(): Instant = dateTime.toInstant(offset)
+    public fun withOffsetSameInstant(offset: UtcOffset): OffsetDateTime = OffsetDateTime(toInstant().toLocalDateTime(offset), offset)
+    public fun withOffsetSameLocal(offset: UtcOffset): OffsetDateTime = OffsetDateTime(dateTime, offset)
+    public override operator fun equals(other: OffsetDateTime): Boolean = dateTime == other.dateTime && offset == other.offset
+    public override fun hash(): Long = dateTime.hash() * 31L + offset.hash()
+    public override fun toString(): String = dateTime.toString() + offset.toString()
+
+    public companion object : Encodable<OffsetDateTime>, Decodable<OffsetDateTime> {
+        public override fun encode(value: OffsetDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): OffsetDateTime =
+            decodeTextValue<OffsetDateTime>(decoder, { text -> parseOrNull(text) }, "offset date-time")
+
+        public fun parseOrNull(text: String): OffsetDateTime? {
+            val split = text.indexOf('T')
+            if (split < 0L) return None
+            val chars = text.toCharArray()
+            var index = split + 1L
+            while (index < chars.size && chars[index] != 'Z' && chars[index] != '+' && chars[index] != '-') index += 1L
+            if (index == chars.size) return None
+            val local = LocalDateTime.parseOrNull(text.substring(0L, index))
+            val offset = UtcOffset.parseOrNull(text.substring(index))
+            if (local == None || offset == None) return None
+            return Some(OffsetDateTime(local!!, offset!!))
+        }
+        public fun parse(text: String): OffsetDateTime = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid offset date-time"))
+        }
+    }
+}
