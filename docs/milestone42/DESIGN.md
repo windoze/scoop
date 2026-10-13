@@ -110,6 +110,8 @@ Comparator/Random 的普通 interface 不依赖 SAM 自动转换。comparatorOf 
 
 结果缺失保留嵌套 Option。例如 Map<String,Option<Int>> 的 get 返回 Option<Option<Int>>，producer、containsKey 和 decoder 均不能用 inner None 判断键缺失。需要相等、哈希、字符串化的扩展在声明处带 bound；不根据调用者具体类型在编译器中偷偷补齐能力。
 
+M42-6 的 Result/Option 组合直接模式匹配；Result 状态属性与 getOrThrow/recover 命名参考 [Kotlin Result](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-result/)，错误类型和回调行为以 Scoop 规范第 7 节为准。Sequence 使用普通 iterator factory 和每次迭代独立的延迟 wrapper：第一次 next 才建立上游，正常耗尽永久结束，失败后拒绝再次调用来源。once-only 的来源在 iterator 请求时占用；各算子只保存自己的进度和窗口等必要数据。终结操作通过私有 Iterable 适配复用已实现的急切算法。参考 [Kotlin Sequence 分类与生命周期](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.sequences/)，不新增 suspend builder 或 native helper。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

@@ -1,0 +1,3 @@
+import scoop.*
+
+fun main() { Result.Failure<Int, String>("error").getOrThrow() }

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `getOrThrow`: type argument `String` for `E` must satisfy upper bound `Throwable`",
+    "notes": [],
+    "origin": {
+      "cone": "4963cab38625a4f55ef831efbaf5e436cc338286c7e43cdbe1defcf00ea8aa91",
+      "end": 78,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  }
+]

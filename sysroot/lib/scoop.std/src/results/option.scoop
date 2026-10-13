@@ -1,0 +1,36 @@
+package scoop
+
+public fun <T, R> Option<T>.map(transform: (T) -> R): R? = when (this) {
+    case Some(value) -> Some(transform(value))
+    case None -> None
+}
+
+public fun <T, R> Option<T>.flatMap(transform: (T) -> R?): R? = when (this) {
+    case Some(value) -> transform(value)
+    case None -> None
+}
+
+public fun <T> Option<T>.filter(predicate: (T) -> Boolean): T? = when (this) {
+    case Some(value) -> if (predicate(value)) this else None
+    case None -> None
+}
+
+public fun <T, R> Option<T>.fold(onSome: (T) -> R, onNone: () -> R): R = when (this) {
+    case Some(value) -> onSome(value)
+    case None -> onNone()
+}
+
+public fun <T> Option<T>.getOrElse(defaultValue: () -> T): T = when (this) {
+    case Some(value) -> value
+    case None -> defaultValue()
+}
+
+public fun <T> Option<T>.orElse(defaultValue: () -> T?): T? = when (this) {
+    case Some(_) -> this
+    case None -> defaultValue()
+}
+
+public fun <T, E> Option<T>.toResult(errorProducer: () -> E): Result<T, E> = when (this) {
+    case Some(value) -> Result.Success<T, E>(value)
+    case None -> Result.Failure<T, E>(errorProducer())
+}

@@ -170,6 +170,8 @@ Sequence 的 flatten 接收 Sequence<Sequence<T>>；flatMap 的 transform 返回
 
 构造中间操作不取得 iterator、不执行用户回调。每个 iterator 有自己的进度和缓存；短路操作不调用无关后缀回调。next 抛异常后该迭代器进入失败终止状态，再次 next 抛 IllegalStateException，不重新执行已经失败的回调。操作不提供事务回滚。M42 不提供 suspend sequence builder、yield、资源 close 协议或异步 Flow。
 
+库提供的 Sequence 在首次 next 时才取得所需上游 iterator，包括 Iterable.asSequence 对源 iterator 的调用和 sorted 的收集；once-only 在调用自身 iterator 时即占用唯一迭代机会。首次 None 后始终返回 None，不再次访问来源。take(0) 不取得上游 iterator，即使请求或消费结果的 iterator 也如此；负数量与非法窗口参数在创建操作时报告。上述生命周期同样是自定义 Sequence 实现须遵守的协议，不依赖编译器注入。
+
 ## 4. 文本与数值文本转换
 
 ### 4.1 文本 API
@@ -244,7 +246,11 @@ nextBytes 提供新数组和写入 MutableArray<Byte> 区间两种形式；边�
 
 `getOrThrow` 只适用于 `E : Throwable`；`runCatching(block)` 返回 Result<T,Throwable>，捕获普通可抛出的 Throwable，不捕获 runtime fatal、进程信号或终止。结果方法通过普通模式匹配实现，不改变 try/throw、Option 或 Nothing 的语言规则。采用 Kotlin 的 Result/Success/Failure/getOrThrow 命名，但保留 Scoop 的显式错误类型 E；不新增隐式异常转换。
 
+runCatching 保存普通 catch 物化后的 managed 异常；getOrThrow 与直接 throw 使用同一既有异常契约。运行时规范 5.1～5.4 的 payload 复制和 catch 物化仍适用，不额外承诺 throw 前后保持对象 identity；动态类型、值字段和 payload 中引用字段的浅复制语义保持。
+
 Option 增加 map/flatMap/filter/fold/getOrElse/orElse、toResult(errorProducer)，Result 提供 toOption。Some(None) 保留层次；懒缺省只在缺失／失败分支调用一次。无约束的 T/E 不因此取得 Equals、Hash、ToString 或编码能力。
+
+isSuccess/isFailure 是只读 Boolean 属性。Result 的 getOrElse 接收 `(E)->T`，fold 按 `onSuccess: (T)->R, onFailure: (E)->R` 接收分支；map 只改变成功类型，mapError 只改变错误类型，flatMap 接收 `(T)->Result<R,E>`。recover 接收 `(E)->T` 并返回 Result<T,E>，恢复成功时保存 Success，回调异常直接传播。Option.fold 按 `onSome: (T)->R, onNone: ()->R` 接收分支；getOrElse、orElse 的缺省 producer 分别返回 T、Option<T>，toResult 的 errorProducer 返回 E。扩展均在 scoop package 中，不改变 core 的默认导入。
 
 ## 8. 时间、时钟与日期
 

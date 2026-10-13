@@ -157,3 +157,13 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 - 收尾在同 suite 使用 `--filter m42-algorithms-sorting --filter m42-algorithms-artifacts --filter 'm42-algorithms-*-bound'`，5/5、5 个变体、16 个进程通过；`target/m42/algorithms-final-report.json`。所有运行类 fixture 都包含正常与 moving GC。
 
 结合此前 Deque/PriorityQueue，M42-5 的计划交付已完成。全部新增库仍为普通 Scoop Cone；本批没有 compiler/runtime 修改，没有运行无关完整套件。已保留报告与共享 cache，并清理完成的 case 及单次检查产物。M42-6 至 M42-12、Linux GNU/musl 的本组最终定向验收仍待完成。
+
+## M42-6 进行中：Result 与 Option 扩展已完成
+
+日期：2026-10-13。普通 invariant Result<T,E> 使用 Success/Failure，E 可为非 Throwable。已交付状态属性、两侧 OrNull、getOrElse/fold、map/mapError/flatMap/recover、onSuccess/onFailure、toOption、受 Throwable bound 约束的 getOrThrow，以及显式捕获 Throwable 的 runCatching。Option 的 map/flatMap/filter/fold/getOrElse/orElse/toResult 保留 Some(None) 层次，缺省 producer 仅在缺失时调用一次。所有普通组合操作直接传播回调异常。codec 随 M42-12 交付。
+
+本机新增 5 个正式 fixture 全部闭合：basic、option、exceptions、throw-bound、artifacts。覆盖非异常 typed error、成功与失败分支短路、不同结果／错误类型变换、含引用 payload、嵌套 Option、集合组合、Throwable 直接子类与自定义异常子类、精确 bound 负例；artifact-only 用例移除 core/std/消费者源码后独立链接运行。所有运行类均执行普通和 moving GC。
+
+证据保留为 `target/m42/results-first-report.json` 的 basic/throw-bound/artifacts 三项，以及 `target/m42/results-final-report.json` 的 option/exceptions 两项（2 个变体、8 个进程）。正式命令均使用 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-results --work-dir target/m42/foundation`；首轮 `--jobs 4`，收尾只选择两项受修改 fixture，`--jobs 2`。初始测试误以为 catch 与 throw 前的对象具有相同 identity；core-only probe 与运行时规范 5.1～5.4 均确认现有复制／物化行为。修正测试为动态类型和 payload 浅复制检查，普通 Result 包装仍检查引用保持；没有修改底层或库代码来绕过问题。
+
+已执行源码风格检查、`git diff --check` 和普通 std Cone 构建。无 Rust/C 修改，不运行完整测试套件；已清理本轮 case、诊断 probe 及单次负例目录，保留报告与共享 cache。Sequence 及后续阶段保持原交付范围。
