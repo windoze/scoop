@@ -1,0 +1,16 @@
+fun label(index: Int): String = when (index) {
+    case 0 -> "alpha"; case 1 -> "bravo"; case 2 -> "charlie"; case 3 -> "delta"
+    case 4 -> "echo"; case 5 -> "foxtrot"; case 6 -> "golf"; case 7 -> "hotel"
+    case 8 -> "india"; case 9 -> "juliet"; case 10 -> "kilo"; case 11 -> "lima"
+    case _ -> "outside"
+}
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun main() {
+    check(label(0) == "alpha"); check(label(1) == "bravo"); check(label(2) == "charlie")
+    check(label(3) == "delta"); check(label(4) == "echo"); check(label(5) == "foxtrot")
+    check(label(6) == "golf"); check(label(7) == "hotel"); check(label(8) == "india")
+    check(label(9) == "juliet"); check(label(10) == "kilo"); check(label(11) == "lima")
+    check(label(-1) == "outside"); check(label(12) == "outside")
+    println("switch reference table passed")
+}

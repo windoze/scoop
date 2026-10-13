@@ -297,7 +297,10 @@ pub(super) fn callable_body_associated_atoms(
 ) -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
     let body = function.callable_body.id();
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
-    let mut associated = Vec::new();
+    let mut associated = vec![(
+        DefinitionAtomRole::AddressTakenConstant,
+        DefinitionAtomSubkey::Singleton,
+    )];
     let context_keys = crate::function_context_keys(function);
     if !context_keys.is_empty() {
         associated.push((

@@ -332,6 +332,8 @@ relocation 的 section、atom、offset 和 target 均属于本次实际对象。
 
 body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属于该 body 的同一次物理选择。TD、scan、dispatch、static storage、初始化和六类 registration 满足运行时规范；release hook 为 raw C、nounwind、NoGC，无 managed transition 或 EH/safepoint。
 
+LLVM 在机器发射中由 switch 生成的引用查找表同样属于该 callable 的关联常量。每个 callable 使用已有 AddressTakenConstant／Singleton 子键描述这组后端常量，机器发射后按实际对象保留或移除；表内对 immortal object 等实体的重定位沿用普通引用闭合及 fingerprint。Mach-O 的后端表放入只读 __DATA_CONST 段，ELF 放入 .data.rel.ro.scoop.constants 并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；无引用的数值 literal pool 保持原有按内容表示。
+
 C extern 按 2.4 的 DirectC/StorageBridge 计划发射。DirectC 使用真实 native symbol 和完整目标 C ABI，不生成或经过 outbound storage bridge；对象中的调用 relocation 直接表达该 native 引用。只有实际采用 StorageBridge 的调用才要求相应 generated-C unit；callback、native global/TLS 等其他桥接用途照常保留。两种路径均保留相同的 native contract 与 library requirement，不因省去 bridge 丢失链接需求。
 
 generated-C bridge 保留实际声明的 C 类型、签名、目标工具链与编译选项；bridge 具有精确 primary/signature/context 定义范围，不能由邻近符号猜测。DirectC 与 StorageBridge 均不得按 extern 名称被 builtin 替换。普通 C ABI 与 Scoop NativeBorrowed 调用不混用 storage bridge。标量直接调用不依赖 bridge 内联、跨对象 LTO 或相容的 Clang bitcode；现有 generated-C 独立编译流程继续适用于保留的 bridge。

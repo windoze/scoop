@@ -72,6 +72,7 @@ mod atom_boundaries;
 mod c_bridge;
 mod c_bridge_emission;
 mod callable_atom_boundaries;
+mod callable_constants;
 mod callable_runtime_scans;
 mod dataflow;
 mod declarations;

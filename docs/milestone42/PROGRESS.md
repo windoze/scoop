@@ -319,3 +319,13 @@ TimeSource 仅声明 markNow；TimeMark 保存显式 source 与 Duration reading
 LocalTime 提供受检分量、一天内纳秒转换、比较／Hash、严格 ISO 文本，以及按 24 小时回绕的 Duration 加减。运算先分离整天和有界余数，直接处理 Duration 负极值，不先取负整个时长。UtcOffset 支持 ±18 小时、同号分量构造、严格 Z／±HH:MM[:SS] 解析、零偏移规范化和按总秒数的值语义。
 
 两项独立 fixture 均通过正常／moving GC，见 `target/m42/datetime-time-first-report.json`：local-time 包含 Python 整数取余独立核对的四个 Duration 极值向量、纳秒跨午夜、严格小数和无效范围；offset 覆盖非整分钟偏移、±18 小时边界、分量异号拒绝、文本往返及 HashMap。实现文件最大 52 行，风格／diff 检查通过，无底层变更。该报告中 date-time 组合也通过；Instant fixture 的 FakeClock override 缺少 public，已按既有可见性规则修正，待独立 debug/release 及产物组合确认后提交。
+
+## M42-10 前置修复：LLVM 引用查找表的物理归属
+
+Instant release 触发 OrphanRelocation；debug 与普通产物组合正常。对象证据显示 LLVM 将 Month.toString 的分支变成含 12 个 immortal String 指针的查找表，原对象计划没有覆盖这张机器生成的表。已提取不依赖 std 的 `m42-switch-reference-table`：普通 when 返回字符串，旧编译器 release 复现同类错误，证据在 `target/m42/relocation-gap/minimal-before.stderr`。
+
+按实现规范先补充 callable 关联常量合同，复用 AddressTakenConstant／Singleton 记录后端常量，机器发射后按实际 section 保留或移除候选。Mach-O 查找表移入 __DATA_CONST，ELF 使用既有 RELRO 路径；边界、表内 relocation、引用闭合及 fingerprint 继续走普通对象处理。没有禁用 switch 优化、跳过 orphan 检查或改写库中的分支。临时 LLVM／对象转储代码已经删除。
+
+验证：全工作区 fmt／clippy 通过；codegen object_partition 9 项、LIR foundation 45 项、production 184 项、slib relocation_verification 6 项通过。新增对象用例覆盖三目标 debug/release：Darwin release 的表有精确边界与只读段；此用例的 Linux 后端不生成表，候选被正确移除。既有测试中依赖未裁剪 foundation 全量相等的断言改为核对实际产物 partition，关联原子期望同步新增候选。
+
+正式 CLI 的最小复现 debug/release、普通／moving GC 全部通过（2 variant、8 process），见 `target/m42/relocation-gap/minimal-after-report.json`。原 Instant debug/release、日期时间产物独立重链接与 6 条静态合同诊断全部通过（3 fixture、4 variant、16 process），见 `target/m42/relocation-gap/instant-after-report.json`。未运行无关完整套件；Linux 实际运行仍随本组最终定向验收完成。

@@ -10,16 +10,25 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) fn finalize_production<'a, D, C, I>(
     input: &scoop_lir::ConeLirOutput,
     production: &mut scoop_lir::ConeProductionSection<D, C, I>,
-    bodies: impl IntoIterator<Item = (scoop_lir::PersistentCallableBodyId, &'a CallableCodePlan)>,
+    bodies: impl IntoIterator<
+        Item = (
+            scoop_lir::PersistentCallableBodyId,
+            &'a CallableCodePlan,
+            bool,
+        ),
+    >,
 ) -> Result<scoop_lir::ConeLirFoundation, CodegenError> {
-    let bodies = bodies.into_iter().collect::<BTreeMap<_, _>>();
+    let bodies = bodies
+        .into_iter()
+        .map(|(body, plan, constants)| (body, (plan, constants)))
+        .collect::<BTreeMap<_, _>>();
     let mut counts = BTreeMap::new();
     for registration in production
         .registration_production()
         .safepoints()
         .registrations()
     {
-        let plan = bodies
+        let (plan, _) = bodies
             .get(&registration.owner())
             .expect("every callable was prepared before finalizing production");
         if let Some(count) = plan.safepoints.root_count(registration.safepoint().get()) {
@@ -39,10 +48,13 @@ pub(super) fn finalize_production<'a, D, C, I>(
         let StrongDefinitionEntityKind::CallableBody(body) = definition.owner().kind() else {
             unreachable!("callable definitions have typed callable owners");
         };
-        let plan = bodies
+        let (plan, constants) = bodies
             .get(&body)
             .expect("every callable was prepared before finalizing production");
         let mut roles = Vec::new();
+        if !constants {
+            removed_atoms.insert(crate::callable_constants::atom(definition)?);
+        }
         if plan.safepoints.site_count() == 0 {
             roles.push(DefinitionAtomRole::Stackmap);
         }

@@ -42,7 +42,11 @@ pub fn render_llvm_ir_members(
     let foundation = finalization::finalize_production(
         input,
         &mut production,
-        callables.iter().map(|(body, (_, plan))| (*body, plan)),
+        // IR rendering precedes machine-generated constants; retain their candidate
+        // atom here. Object emission projects the actual section before packaging.
+        callables
+            .iter()
+            .map(|(body, (_, plan))| (*body, plan, true)),
     )?;
     let partition = ScoopLirObjectPartitionV1::from_foundation(
         input,

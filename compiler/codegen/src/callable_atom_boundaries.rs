@@ -55,6 +55,7 @@ pub(crate) fn materialize_v1(
 
     let mut additions = Vec::new();
     let mut planned_backend_sections = BTreeSet::new();
+    let constants_atom = crate::callable_constants::atom(plan)?;
     for boundary in plan.atom_boundaries() {
         let start_name = normalization
             .compiler_generated_object_symbol(boundary.start().symbol().as_str())
@@ -62,6 +63,23 @@ pub(crate) fn materialize_v1(
         let end_name = normalization
             .compiler_generated_object_symbol(boundary.end().symbol().as_str())
             .into_bytes();
+        if boundary.atom() == constants_atom {
+            let section = layout.require_section(b"__DATA", b"__const")?;
+            section.place_callable_constants(&mut bytes);
+            additions.push(BoundaryDefinitionV1::new(
+                start_name,
+                section.ordinal(),
+                section.address(),
+                boundary.start().linkage(),
+            ));
+            additions.push(BoundaryDefinitionV1::new(
+                end_name,
+                section.ordinal(),
+                section.checked_end()?,
+                boundary.end().linkage(),
+            ));
+            continue;
+        }
         match boundary.atom_role() {
             DefinitionAtomRole::Primary => {
                 if boundary.atom() != plan.primary_atom() {

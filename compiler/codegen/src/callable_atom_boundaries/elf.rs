@@ -30,6 +30,7 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
     let mut associated = vec![primary_section];
     let mut planned_backend = BTreeSet::new();
     let personality_atom = personality::atom(plan)?;
+    let constants_atom = crate::callable_constants::atom(plan)?;
     for boundary in plan.atom_boundaries() {
         if boundary.atom() == personality_atom {
             let section = personality::materialize(&mut output, *boundary)?;
@@ -37,36 +38,47 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
             planned_backend.insert(section.0);
             continue;
         }
-        let extent = match boundary.atom_role() {
-            DefinitionAtomRole::Primary => Some((primary_section, primary_start, primary_end)),
-            role @ (DefinitionAtomRole::Stackmap
-            | DefinitionAtomRole::Lsda
-            | DefinitionAtomRole::EhFrame) => {
-                let sections = output
-                    .file
-                    .sections()
-                    .filter(|section| section.name().ok().and_then(backend_role) == Some(role))
-                    .collect::<Vec<_>>();
-                let [section] = sections.as_slice() else {
-                    return Err(CodegenError(format!(
-                        "ELF callable requires exactly one {role:?} contribution"
-                    )));
-                };
-                if section.size() == 0 {
-                    return Err(CodegenError("ELF backend atom is empty".into()));
+        let extent = if boundary.atom() == constants_atom {
+            let section = output
+                .file
+                .section_by_name(".data.rel.ro")
+                .ok_or_else(|| error("missing callable constants"))?;
+            let index = section.index();
+            let size = section.size();
+            output.rename_section(index, ".data.rel.ro.scoop.constants")?;
+            Some((index, 0, size))
+        } else {
+            match boundary.atom_role() {
+                DefinitionAtomRole::Primary => Some((primary_section, primary_start, primary_end)),
+                role @ (DefinitionAtomRole::Stackmap
+                | DefinitionAtomRole::Lsda
+                | DefinitionAtomRole::EhFrame) => {
+                    let sections = output
+                        .file
+                        .sections()
+                        .filter(|section| section.name().ok().and_then(backend_role) == Some(role))
+                        .collect::<Vec<_>>();
+                    let [section] = sections.as_slice() else {
+                        return Err(CodegenError(format!(
+                            "ELF callable requires exactly one {role:?} contribution"
+                        )));
+                    };
+                    if section.size() == 0 {
+                        return Err(CodegenError("ELF backend atom is empty".into()));
+                    }
+                    planned_backend.insert(section.index().0);
+                    Some((section.index(), 0, section.size()))
                 }
-                planned_backend.insert(section.index().0);
-                Some((section.index(), 0, section.size()))
+                DefinitionAtomRole::CompactUnwind => {
+                    return Err(CodegenError(
+                        "ELF callable plan contains a Mach-O compact-unwind atom".into(),
+                    ));
+                }
+                DefinitionAtomRole::AddressTakenConstant
+                | DefinitionAtomRole::RuntimeRecord
+                | DefinitionAtomRole::ContextKeyCell
+                | DefinitionAtomRole::ContextKeyTable => None,
             }
-            DefinitionAtomRole::CompactUnwind => {
-                return Err(CodegenError(
-                    "ELF callable plan contains a Mach-O compact-unwind atom".into(),
-                ));
-            }
-            DefinitionAtomRole::AddressTakenConstant
-            | DefinitionAtomRole::RuntimeRecord
-            | DefinitionAtomRole::ContextKeyCell
-            | DefinitionAtomRole::ContextKeyTable => None,
         };
         if let Some((section, start, end)) = extent {
             associated.push(section);
