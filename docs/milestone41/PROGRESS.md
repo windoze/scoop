@@ -73,3 +73,8 @@
 
 - 审阅并更新 M31 SSA roots 与 M34 small-values 的 8 份本机 LIR 期望，保留专用 ABI、GC 与优化合同断言。变化来自新增的名义运算符接口、Equals 身份与其可达类型支持；逐份比较函数体，除 external-fn/external-td/td 引用编号变化外，指令和签名没有差异。
 - 更新轮 4 项通过（含新 compareTo 精度混用负例），8 个变体、39 次进程、9 个 golden 检查；随后普通模式复验 3 项全部通过，7 个变体、38 次进程、9 个 golden 检查。Linux 专属的 12 份 LIR 期望留待对应目标实际生成和审阅，不从 Darwin 推测。
+
+## Linux 验证中的既有测试修正
+
+- Linux 全量入口发现 child runner 的旧测试仍要求 GNU 和 musl 都设置 REALGCC，与 M39 已交付的 musl wrapper 专用规则矛盾。修正测试：GNU 验证变量未设置，musl 验证实际 GCC 可执行；继续验证 PATH、私有 scratch 位置及结束后的清理。生产实现和语言行为未改。
+- 两台宿主的 fmt / workspace clippy 通过；Linux scoop 单元测试 100 项通过。后续继续执行该包的实际产物集成检查与尚未执行的其余 workspace，避免重跑整套已完成测试。
