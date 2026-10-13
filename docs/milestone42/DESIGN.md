@@ -98,6 +98,8 @@ M42-4 采用最小度数 8 的 B-tree：非根节点常态保存 7..15 个键值
 
 删除、移动、合并后及时清空闲置 payload 与子引用；clear 遍历并清空所有节点，避免失效 iterator 持有旧节点时保活已删除值。iterator 保存节点与槽位，结构修改失效，单纯 value 替换可见，耗尽后永久返回 None。结构测试覆盖占用范围、排序、子节点数量、相同叶深、parent/位置一致性，以及连续分裂、两侧借位、合并与根收缩。实现参考 [Abseil 的 B-tree 设计说明](https://abseil.io/about/design/btree) 和 [Rust BTreeMap 的存储取舍](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)。两者分别使用 Apache-2.0 和 MIT/Apache-2.0；这里独立编写普通 Scoop 源码，不引入 native 依赖或移植其宿主实现。
 
+M42-5 的 ArrayDeque 使用 head/count 与环形 typed buffer，增长时一次复制有效元素并归零 head。PriorityQueue 使用数组二叉堆；插入先确定目标祖先，移除先选择下降路径，再按索引路径提交移动，不在搬移期间调用 Comparator。两者复用实际使用的 MaybeUninit 槽存储与容量增长计算，不引入共同可变集合接口。iterator 读取容器当前存储，不保留扩容前的 backing。容器/API 资料参考 [Kotlin ArrayDeque](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-array-deque/) 与 [OpenJDK PriorityQueue](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/PriorityQueue.html)；Kotlin 使用 Apache-2.0，OpenJDK 使用 GPLv2 with Classpath Exception。这里独立实现普通环形数组／二叉堆算法，没有移植宿主源码或增加依赖。
+
 ### 3.3 泛型 API 可实现性
 
 interface method 不声明自身泛型。Map/Set 接口不对所有 K/T 强加 Hash，Hash 容器才具有 Equals+Hash bound；Tree 构造器显式接收 Comparator，自然顺序工厂在普通 generic callable 上声明 Compare bound。MutableSet.retainAll 是使用接口自身 T 的普通成员，由实现提供目标等价语义；其余适用批量操作保留泛型扩展。

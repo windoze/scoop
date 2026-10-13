@@ -1,0 +1,96 @@
+package scoop.collections
+
+public class ArrayDeque<T> public constructor() : Collection<T> {
+    private var storage: ElementBuffer<T> = ElementBuffer<T>(8L)
+    private var head: Long = 0L
+    private var elementCount: Long = 0L
+    private val structure: ModificationCounter = ModificationCounter()
+    public override val size: Long get() = elementCount
+
+    private fun position(index: Long): Long {
+        val tailSpace = storage.capacity - head
+        return if (index < tailSpace) head + index else index - tailSpace
+    }
+
+    internal fun elementAt(index: Long): T = storage.read(position(index))
+
+    private fun ensureRoom() {
+        if (elementCount < storage.capacity) return
+        val replacement = ElementBuffer<T>(expandedCollectionCapacity(storage.capacity))
+        var index = 0L
+        while (index < elementCount) { replacement.write(index, elementAt(index)); index += 1L }
+        storage = replacement
+        head = 0L
+    }
+
+    public fun addFirst(element: T) {
+        ensureRoom()
+        head = if (head == 0L) storage.capacity - 1L else head - 1L
+        storage.write(head, element)
+        elementCount += 1L
+        structure.advance()
+    }
+
+    public fun addLast(element: T) {
+        ensureRoom()
+        storage.write(position(elementCount), element)
+        elementCount += 1L
+        structure.advance()
+    }
+
+    public fun firstOrNull(): T? = if (elementCount == 0L) None else Some(elementAt(0L))
+    public fun lastOrNull(): T? = if (elementCount == 0L) None else Some(elementAt(elementCount - 1L))
+
+    public fun removeFirst(): T {
+        if (elementCount == 0L) throw NoSuchElementException("empty deque")
+        val value = storage.read(head)
+        storage.erase(head)
+        head = if (head + 1L == storage.capacity) 0L else head + 1L
+        elementCount -= 1L
+        if (elementCount == 0L) head = 0L
+        structure.advance()
+        return value
+    }
+
+    public fun removeLast(): T {
+        if (elementCount == 0L) throw NoSuchElementException("empty deque")
+        val index = position(elementCount - 1L)
+        val value = storage.read(index)
+        storage.erase(index)
+        elementCount -= 1L
+        if (elementCount == 0L) head = 0L
+        structure.advance()
+        return value
+    }
+
+    public fun removeFirstOrNull(): T? = if (elementCount == 0L) None else Some(removeFirst())
+    public fun removeLastOrNull(): T? = if (elementCount == 0L) None else Some(removeLast())
+
+    public fun clear() {
+        if (elementCount == 0L) return
+        var index = 0L
+        while (index < elementCount) { storage.erase(position(index)); index += 1L }
+        head = 0L
+        elementCount = 0L
+        structure.advance()
+    }
+
+    public override operator fun iterator(): Iterator<T> = DequeIterator<T>(this, structure)
+}
+
+internal class DequeIterator<T> internal constructor(
+    private val source: ArrayDeque<T>, private val structure: ModificationCounter
+) : Iterator<T> {
+    private val stamp: RevisionStamp = structure.snapshot()
+    private var index: Long = 0L
+    private var exhausted: Boolean = false
+
+    public override fun next(): T? {
+        if (exhausted) return None
+        structure.check(stamp)
+        if (index == source.size) { exhausted = true; return None }
+        val value = source.elementAt(index)
+        index += 1L
+        return Some(value)
+    }
+}

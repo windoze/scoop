@@ -112,3 +112,9 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 - 带 managed 引用的较大 struct 经节点移动仍保持字段内容；持有失效 iterator 时，单节点 clear／remove 的 payload 可回收。另覆盖 readonly 与缺失 Compare bound 的编译错误，以及删除 core/std/消费者源码后的 artifact-only link。
 
 本批库代码全部为普通 Scoop。先行修复的两个独立编译器缺陷分别见上文；不因它们扩大到无关完整测试。M42-5 至 M42-12 与 Linux GNU/musl 本组定向验收仍待完成。
+
+## M42-5 进行中：ArrayDeque 已完成
+
+日期：2026-10-13。ArrayDeque 以普通 typed 环形数组实现两端增删、首尾 OrNull、clear 与头尾顺序迭代。增长只复制有效区间；退出有效范围的 MaybeUninit 槽清零。iterator 持有容器而非旧 backing，结构修改失效、空操作保持有效、首次 None 后永久耗尽。与 PriorityQueue 共用的 ElementBuffer 只封装实际使用的 typed 槽读写和增长容量计算，没有新增集合接口或 native 能力。
+
+本机通过 `m42-queue-deque-basic` 与 `m42-queue-deque-model`，正常与 moving GC 均执行：包括嵌套 Option、空队列异常、两端交错操作、1500 步模型对照、多轮环形绕回、扩容，以及与 HashSet 组合的广度优先遍历。证据保留于 `target/m42/queues-functional-report.json`；同轮 PriorityQueue 与组合 GC 验证见后续记录。先完成普通源码构建与 `git diff --check`，无底层宿主改动，不运行全仓库套件。

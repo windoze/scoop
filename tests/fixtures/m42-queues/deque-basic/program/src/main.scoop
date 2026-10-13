@@ -1,0 +1,44 @@
+import scoop.collections.*
+
+fun check(value: Boolean, label: String) { if (!value) throw Exception(Some(label)) }
+
+fun main() {
+    val values = ArrayDeque<Int?>()
+    check(values.isEmpty() && values.firstOrNull() == None && values.lastOrNull() == None, "empty")
+    val empty = values.iterator()
+    values.clear()
+    check(values.removeFirstOrNull() == None && values.removeLastOrNull() == None && empty.next() == None, "empty no-op")
+    values.addFirst(None)
+    values.addLast(Some(2))
+    values.addFirst(Some(1))
+    check(empty.next() == None && values.size == 3L, "permanent exhaustion")
+    check(values.firstOrNull() == Some(Some(1)) && values.lastOrNull() == Some(Some(2)), "ends")
+    val iterator = values.iterator()
+    check(iterator.next() == Some(Some(1)) && iterator.next() == Some(None), "nested option")
+    check(values.removeFirst() == Some(1) && values.removeLast() == Some(2), "two ends")
+    var caught = false
+    try { iterator.next() } catch (error: ConcurrentModificationException) { caught = true }
+    check(caught && values.removeFirstOrNull() == Some(None), "mutation invalidation")
+    caught = false
+    try { values.removeFirst() } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "empty remove first")
+    caught = false
+    try { values.removeLast() } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "empty remove last")
+
+    // Breadth-first traversal composes a deque with the hash set API.
+    val pending = ArrayDeque<Int>()
+    val seen = hashSetOf<Int>()
+    pending.addLast(0)
+    var expected = 0
+    while (pending.isNotEmpty()) {
+        val current = pending.removeFirst()
+        if (seen.add(current)) {
+            check(current == expected, "breadth-first order")
+            expected += 1
+            if (current < 31) { pending.addLast(current * 2 + 1); pending.addLast(current * 2 + 2) }
+        }
+    }
+    check(expected == 63 && seen.size == 63L, "combined traversal")
+    println("queue deque-basic passed")
+}
