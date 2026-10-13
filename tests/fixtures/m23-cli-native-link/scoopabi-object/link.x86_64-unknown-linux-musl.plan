@@ -3,4 +3,4 @@ native library m23_scoopabi requirement=45b8d82074d706eb0175da18693487ad8fd077b4
 native library m23_scoop_leaf requirement=eb0d13cdf5fcaf1a7f08056542e91a12197bd189a760ed263913deda8f06e1a7 input=$NATIVE_INPUT_1 origins=dev.programlink:scoopabi-provider:0.1.0
 native object $NATIVE_INPUT_0 slice=0..3536
 native object $NATIVE_INPUT_1 slice=0..1232
-ELF system imports=71
+ELF system imports=73
