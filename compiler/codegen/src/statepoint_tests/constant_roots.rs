@@ -7,10 +7,12 @@ fn constant_pointer_selections_do_not_relocate_but_dynamic_inputs_do() {
         "%value = select i1 %condition, ptr addrspace(1) FIRST, ptr addrspace(1) OTHER",
         "br i1 %condition, label %left, label %right\nleft:\n br label %join\nright:\n br label %join\njoin:\n %value = phi ptr addrspace(1) [FIRST, %left], [OTHER, %right]",
     ] {
-        for dynamic in [false, true] {
-            let selection = selection
-                .replace("FIRST", if dynamic { "null" } else { "@first" })
-                .replace("OTHER", if dynamic { "%input" } else { "@second" });
+        for (first, other, dynamic) in [
+            ("@first", "@second", false),
+            ("null", "%input", true),
+            ("@first", "%input", true),
+        ] {
+            let selection = selection.replace("FIRST", first).replace("OTHER", other);
             let source = format!(
                 r#"
 @first = addrspace(1) constant i8 0
@@ -51,4 +53,34 @@ attributes #1 = {{ "statepoint-id"="7" }}
             }
         }
     }
+}
+
+#[test]
+fn a_derived_address_hidden_in_a_root_merge_is_rejected() {
+    let context = Context::create();
+    let llvm = parse(
+        &context,
+        r#"
+@first = addrspace(1) constant i8 0
+declare void @callee()
+declare void @llvm.fake.use(...)
+define void @f(i1 %condition, ptr addrspace(1) %input) #0 gc "statepoint-example" {
+entry:
+  %derived = getelementptr i8, ptr addrspace(1) %input, i64 8
+  %value = select i1 %condition, ptr addrspace(1) @first, ptr addrspace(1) %derived
+  call void @callee() #1
+  call void (...) @llvm.fake.use(ptr addrspace(1) %value), !scoop.statepoint-root-identity !0
+  ret void
+}
+attributes #0 = { "disable-tail-calls"="true" "frame-pointer"="all" }
+attributes #1 = { "statepoint-id"="7" }
+!0 = !{i64 7, i64 0, i64 0, i64 0}
+"#,
+    );
+    let profile = ValidatedBackendProfile::darwin_aarch64_for_test();
+    let machine = profile.create_target_machine().unwrap();
+    let error =
+        crate::statepoint::rewrite(&llvm, &machine, &manifest(Some((7, one_root()))), profile)
+            .unwrap_err();
+    assert!(error.0.contains("derived address"), "{error:?}");
 }

@@ -157,3 +157,9 @@
 
 - 增加显式 `json = "test-stderr"`，读取构建记录之后的 test-report／test-list 与工具诊断；result 保留构建结果，test_result 保存测试结果。原 stderr 模式仍在构建结果处停止，保持用户输出的原始字节边界。
 - 覆盖报告中的 JSON 形似用户输出、报告后的工具失败诊断、编译失败没有测试结果，以及重复报告拒绝。Ruff 0.16.10 格式化／lint 与 49 项公共 runner 测试全部通过，见 [日志](validation/report-python.log.gz)。执行端与报告端继续以正式 CLI 验证。
+
+## 2026-10-14：修复常量与动态对象的 GC 根合并
+
+- 报告库的 release 构建暴露普通 String 分支合并问题：RS4GC 将 immortal 分支的 base 置为 null，额外生成 base phi／select，与当前对象起点及 base=derived 合同不符。新增 LLVM 最小回归和不依赖测试库的 Scoop fixture；旧工具在后者的 release 构建稳定失败，见 [初始日志](validation/base-merge-before.log.gz)、[源码初始日志](validation/base-merge-fixture-before.log.gz)。
+- 在最终 SSA 根分组时检查合并链中的派生地址，并使用 [LLVM 22.1 的 is_base_value 处理](https://github.com/llvm/llvm-project/blob/release/22.x/llvm/lib/Transforms/Scalar/RewriteStatepointsForGC.cpp) 保留对象起点事实；纯常量选择仍不 relocation。不放宽根数量、typed 恢复或机器 stackmap 校验，不改测试库绕过错误，也不改变公共 ABI／产物格式。
+- 格式化、workspace clippy 与配套工具构建通过；codegen 全组 370 项测试通过，包括 phi／select、纯常量／null／动态组合及派生地址负例，见 [日志](validation/base-merge-codegen.log.gz)。Darwin 独立 fixture 的 debug/release 共 2 个变体、6 个进程步骤通过，覆盖完整移动与 minor GC，见 [完成日志](validation/base-merge-darwin.log.gz)。M43 报告的其余 CLI 验收仍在继续，Linux 验收尚未开始。
