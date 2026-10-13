@@ -9,9 +9,7 @@ import equality.api.through
 
 struct Local(val value: Int) : Match<Local> {
     @NoGC
-    public operator fun equals(other: Local): Boolean = value == other.value
-    @NoGC
-    public override fun equalTo(other: Local): Boolean = this.equals(other)
+    public override operator fun equals(other: Local): Boolean = value == other.value
 }
 
 fun check(value: Boolean) {
@@ -31,17 +29,17 @@ fun main() {
     check(Number(42) == 42)
     check(same(Local(42), Local(42)))
     val view: Match<Local> = Local(42)
-    check(view.equalTo(Local(42)))
+    check(view.equals(Local(42)))
     val boxed: Any = Local(42)
-    check(boxed is Equality<Local>)
-    check((boxed as Equality<Local>).equalTo(Local(42)))
+    check(boxed is Equals<Local>)
+    check((boxed as Equals<Local>).equals(Local(42)))
     val key: Any = Key("payload", 7)
-    check(key is Equality<Key<String>>)
-    check((key as Equality<Key<String>>).equalTo(Key("other", 7)))
+    check(key is Equals<Key<String>>)
+    check((key as Equals<Key<String>>).equals(Key("other", 7)))
     val split = Split()
     check(!operatorSame(split, split))
     check(split != split)
-    check(same(split, split))
-    check(through(split, split))
+    check(!same(split, split))
+    check(!through(split, split))
     println("artifact equality contracts")
 }

@@ -11,8 +11,8 @@ fun main() {
     observe(state)
     val raw: Int8 = state
     observe(raw)
-    val equality: Equality<Int8> = state
-    println(equality.equalTo(7))
+    val equality: Equals<Int8> = state
+    println(equality.equals(7))
     val text: ToString = state
     println(text.toString())
     val boxed: Any = state

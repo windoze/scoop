@@ -12,7 +12,7 @@ public struct ULong :
     Compare<ULong>,
     RangeTo<ULong, ULongRange>,
     RangeUntil<ULong, ULongRange>,
-    Equality<ULong>, ToString, Hash {
+    Equals<ULong>, ToString, Hash {
     @NoGC @Intrinsic("ulong_to_float")
     public fun toFloat(): Float
 
@@ -21,10 +21,8 @@ public struct ULong :
 
     @NoGC
     @Intrinsic("ulong_equals")
-    public operator fun equals(other: ULong): Boolean
+    public override operator fun equals(other: ULong): Boolean
 
-    @NoGC
-    public override fun equalTo(other: ULong): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("ulong_unary_plus")

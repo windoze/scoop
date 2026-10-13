@@ -1,0 +1,26 @@
+interface Key<T> : Equals<T>, Add<T, T> {}
+struct Number(val value: Int) : Key<Number>, Hash {
+    @NoGC
+    public override operator fun equals(other: Number): Boolean = value == other.value
+    @NoGC
+    public override operator fun plus(other: Number): Number = Number(value + other.value)
+    public override fun hash(): Long = value.toInt64()
+}
+fun <T : Equals<T>> same(left: T, right: T): Boolean = left == right
+fun <T> combined(left: T, right: T, result: T): Boolean where T : Add<T, T>, T : Equals<T> =
+    left + right == result
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(same(42, 42) && !same(42, 43))
+    check(same("same", "same") && same(Unit, Unit))
+    check(combined(20, 22, 42) && combined(Number(20), Number(22), Number(42)))
+    val number = Number(42)
+    val view: Equals<Number> = number
+    check(view == number && !(view != number))
+    check(view.equals(number) && same(number, number))
+    val boxed: Any = number
+    check(boxed is Equals<Number> && (boxed as Equals<Number>) == number)
+    val reference = view::equals
+    check(reference(Number(42)) && !reference(Number(43)))
+    println("equals capability")
+}

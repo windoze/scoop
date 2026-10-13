@@ -9,7 +9,7 @@ public struct Float :
     UnaryMinus<Float>,
     Increment<Float>,
     Decrement<Float>,
-    Equality<Float>, ToString {
+    Equals<Float>, ToString {
     public companion object : Encodable<Float>, Decodable<Float> {
         public override fun encode(value: Float, encoder: Encoder): Unit =
             encoder.singleValue().writeFloat(value)
@@ -53,10 +53,8 @@ public struct Float :
     public override operator fun rem(other: Float): Float
 
     @NoGC @Intrinsic("float_equals")
-    public operator fun equals(other: Float): Boolean
+    public override operator fun equals(other: Float): Boolean
 
-    @NoGC
-    public override fun equalTo(other: Float): Boolean = this.equals(other)
 
     @NoGC @Intrinsic("float_is_nan")
     public fun isNaN(): Boolean
@@ -114,7 +112,7 @@ public struct Double :
     UnaryMinus<Double>,
     Increment<Double>,
     Decrement<Double>,
-    Equality<Double>, ToString {
+    Equals<Double>, ToString {
     public companion object : Encodable<Double>, Decodable<Double> {
         public override fun encode(value: Double, encoder: Encoder): Unit =
             encoder.singleValue().writeDouble(value)
@@ -158,10 +156,8 @@ public struct Double :
     public override operator fun rem(other: Double): Double
 
     @NoGC @Intrinsic("double_equals")
-    public operator fun equals(other: Double): Boolean
+    public override operator fun equals(other: Double): Boolean
 
-    @NoGC
-    public override fun equalTo(other: Double): Boolean = this.equals(other)
 
     @NoGC @Intrinsic("double_is_nan")
     public fun isNaN(): Boolean

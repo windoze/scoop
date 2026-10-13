@@ -1,6 +1,18 @@
 package hidden
 
-import Equality
+import Equals
+import Add
+import Sub
+import Mul
+import Div
+import Rem
+import UnaryPlus
+import UnaryMinus
+import Increment
+import Decrement
+import Compare
+import RangeTo
+import RangeUntil
 import ToString
 import Hash
 import Float

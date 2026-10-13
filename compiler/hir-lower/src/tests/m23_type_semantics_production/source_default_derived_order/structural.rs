@@ -29,7 +29,7 @@ fn structural_defaults_follow_operand_visibility_through_hir_and_mir() {
                     .find(|(_, c)| c.name == "Holder")
                     .unwrap();
                 let owner = hir::ExportParameterOwner::ClassConstructor(holder.constructors[0]);
-                check(output, owner, 0);
+                check(output, owner, 0, false);
             }
         });
     }
@@ -60,21 +60,38 @@ fn check_functions(output: &hir::DependencyHirOutput, names: &[&str]) {
             .find(|(_, f)| f.name == *name)
             .unwrap()
             .0;
-        check(output, hir::ExportParameterOwner::Function(id), 2);
+        check(
+            output,
+            hir::ExportParameterOwner::Function(id),
+            2,
+            *name == "unitDefault",
+        );
     }
 }
 
-fn check(output: &hir::DependencyHirOutput, owner: hir::ExportParameterOwner, position: usize) {
+fn check(
+    output: &hir::DependencyHirOutput,
+    owner: hir::ExportParameterOwner,
+    position: usize,
+    unit: bool,
+) {
     let source = default_expression(output, owner, position);
     let references = source
         .references
         .callables
         .iter()
         .filter(|r| {
-            matches!(
-                r.target,
-                hir::ExportDefaultCallableTarget::DerivedEquality(_)
-            )
+            if unit {
+                matches!(
+                    r.target,
+                    hir::ExportDefaultCallableTarget::ImportedDependency(_)
+                )
+            } else {
+                matches!(
+                    r.target,
+                    hir::ExportDefaultCallableTarget::DerivedEquality(_)
+                )
+            }
         })
         .collect::<Vec<_>>();
     assert_eq!(references.len(), 1);

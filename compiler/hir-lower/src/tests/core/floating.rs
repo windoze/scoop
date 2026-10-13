@@ -64,11 +64,6 @@ fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::Fun
                 let helper = format!("core{}ToString", owner.expect("toString is a member"));
                 FunctionBody::Expr(Box::new(call(&helper, vec![this_expr()])))
             }
-            "equalTo" => FunctionBody::Expr(Box::new(method_call(
-                this_expr(),
-                "equals",
-                vec![var("other")],
-            ))),
             _ => panic!("unexpected numeric source body"),
         },
         FunctionBody::Block(_) => panic!("numeric signatures have no block body"),
@@ -79,9 +74,9 @@ fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::Fun
         .map(|parameter| (parameter.name.text.as_str(), synthetic_type(&parameter.ty)))
         .collect();
     let mut result = method_full(
-        // This minimal fixture retains only ToString and Equality conformance.
+        // This minimal fixture retains only ToString and Equals conformance.
         // Full sysroot tests cover the ordinary operator interfaces.
-        value.is_override && matches!(value.name.text.as_str(), "toString" | "equalTo"),
+        value.is_override && matches!(value.name.text.as_str(), "toString" | "equals"),
         false,
         &value.name.text,
         parameters,

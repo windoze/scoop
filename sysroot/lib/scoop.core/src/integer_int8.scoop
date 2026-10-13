@@ -12,7 +12,7 @@ public struct Int8 :
     Compare<Int8>,
     RangeTo<Int8, IntRange>,
     RangeUntil<Int8, IntRange>,
-    Equality<Int8>, ToString, Hash {
+    Equals<Int8>, ToString, Hash {
     @NoGC @Intrinsic("int8_to_float")
     public fun toFloat(): Float
 
@@ -21,10 +21,8 @@ public struct Int8 :
 
     @NoGC
     @Intrinsic("int8_equals")
-    public operator fun equals(other: Int8): Boolean
+    public override operator fun equals(other: Int8): Boolean
 
-    @NoGC
-    public override fun equalTo(other: Int8): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("int8_unary_plus")

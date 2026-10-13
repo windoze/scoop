@@ -45,9 +45,9 @@ pub(super) fn check(
             mir::type_name(input.mir.module(), root.ty())
         })
         .collect::<BTreeSet<_>>();
-    let mut expected = BTreeSet::from(["Equality<Int>".to_owned()]);
+    let mut expected = BTreeSet::from(["Equals<Int>".to_owned()]);
     if name != "standalone" {
-        expected.insert("Equality<Unit>".to_owned());
+        expected.insert("Equals<Unit>".to_owned());
     }
     for capability in ["Add", "Sub", "Mul", "Div", "Rem"] {
         expected.insert(format!("{capability}<Int, Int>"));

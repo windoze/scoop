@@ -500,7 +500,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 提供平台库需要的编译器与 runtime 能力：NativeSafe 握手、GCLeaf 与标量直接 C ABI、作用域数据借用、计数 pin、受检 UTF-8 与 C 字符串、四种 main／argv／退出码、NativeSafe 输出及 errno 捕获。
 - 完成 Cone 内 C/C++ 源码、目标条件源码选择、native 系统库、sysroot 中已声明 scoop 依赖的默认定位；C++ 支持 Darwin/GNU，musl 明确拒绝。
-- `==` / `!=` 使用普通成员 `operator fun equals`，Map 的 key 比较使用独立的普通 `Equality<T>.equalTo` 接口；结构比较不派生接口，两项能力分别显式提供。后续有序 Map 的比较接口保持独立库设计；M33 提供五种内存序的原子类型及线程退出诊断，不扩大为平台库公开 API 或新的通用框架。
+- `==` / `!=` 使用普通成员 `operator fun equals`，Map 的 key 比较使用独立的普通 `Equality<T>.equalTo` 接口；结构比较不派生接口，两项能力分别显式提供。上述接口拆分由 M41 的 Equals/operator equals 统一方案替代；后续有序 Map 的比较能力见 M41。M33 提供五种内存序的原子类型及线程退出诊断，不扩大为平台库公开 API 或新的通用框架。
 - 按设计第 12 节拆分功能提交，完成三份规范、独立与组合 fixture、负例及各阶段转储；最小平台 Cone 在三个 target 上完成源码、产物、独立链接、文件操作及并发 GC 闭环，musl 另有 PIE 验收。
 - 2026-10-09 总验收完成：Rust 工作区 5,394 项和公共 runner 44 项通过；Darwin 的 2,850 项适用 fixture 覆盖闭合，其中 1,977 项普通比较、873 项审阅后的完整快照更新执行，另 16 项不适用。Linux GNU／musl 的 M33 专项分别为 260／255 项普通通过，各另通过 6 项必要旧回归；保留实际选择范围与逐项成功来源，避免重复全量测试。既有泛型结构比较正文选择问题单独记录，未扩展 Equality 或 M33 的验收范围。
 

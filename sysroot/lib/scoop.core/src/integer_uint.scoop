@@ -12,7 +12,7 @@ public struct UInt :
     Compare<UInt>,
     RangeTo<UInt, UIntRange>,
     RangeUntil<UInt, UIntRange>,
-    Equality<UInt>, ToString, Hash {
+    Equals<UInt>, ToString, Hash {
     @NoGC @Intrinsic("uint_to_float")
     public fun toFloat(): Float
 
@@ -21,10 +21,8 @@ public struct UInt :
 
     @NoGC
     @Intrinsic("uint_equals")
-    public operator fun equals(other: UInt): Boolean
+    public override operator fun equals(other: UInt): Boolean
 
-    @NoGC
-    public override fun equalTo(other: UInt): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("uint_unary_plus")

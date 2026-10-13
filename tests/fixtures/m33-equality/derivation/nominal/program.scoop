@@ -1,6 +1,6 @@
 struct Point(val x: Int, val y: Int)
-struct Declared(val value: Int) : Equality<Declared> {
-    public override fun equalTo(other: Declared): Boolean = this.equals(other)
+struct Declared(val value: Int) : Equals<Declared> {
+    public override operator fun equals(other: Declared): Boolean = value == other.value
 }
 struct Empty()
 struct Record(val label: String, val point: Point)
@@ -20,12 +20,12 @@ fun main() {
     check(point.equals(Point(1, 2)))
     check(!point.equals(Point(2, 1)))
     val pointBox: Any = point
-    check(!(pointBox is Equality<Point>))
+    check(!(pointBox is Equals<Point>))
     check(Declared(7) == Declared(7))
     check(Declared(7) != Declared(8))
-    val declared: Equality<Declared> = Declared(7)
-    check(declared.equalTo(Declared(7)))
-    check(!declared.equalTo(Declared(8)))
+    val declared: Equals<Declared> = Declared(7)
+    check(declared.equals(Declared(7)))
+    check(!declared.equals(Declared(8)))
     check(Empty() == Empty())
     val record = Record("value", point)
     check(record == Record("value", Point(1, 2)))
@@ -39,6 +39,6 @@ fun main() {
     check(Floating(1f, Double.NaN) != Floating(1f, Double.NaN))
     check(Floating(0f, -0.0) == Floating(-0f, 0.0))
     val opaque: Any = Incomparable(Opaque(3))
-    check(!(opaque is Equality<Incomparable>))
+    check(!(opaque is Equals<Incomparable>))
     println("derived nominal equality")
 }

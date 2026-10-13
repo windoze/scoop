@@ -234,15 +234,15 @@ Float 与 Double 分别提供同类型参数的方法 `ieeeCompare(other: Float)
 
 ### 6.1 设计与 spec 任务，先于对应实现
 
-- [ ] 完成第 2.2 节的接口覆盖清单：最终名称、签名、各内建类型的实现，以及 generic/suspend/unsafe、多参数和 place 操作的处理。
-- [x] 确定删除 `Equality<T>` / `equalTo`，由 `Equals<T>` / `operator equals` 代替，见第 2.3 节；实际 spec 和代码迁移仍待完成。
+- [x] 完成第 2.2 节的接口覆盖清单：最终名称、签名、各内建类型的实现，以及 generic/suspend/unsafe、多参数和 place 操作的处理。
+- [x] 确定删除 `Equality<T>` / `equalTo`，由 `Equals<T>` / `operator equals` 代替，见第 2.3 节；spec 与 core 接口迁移已完成，本机验证见 PROGRESS.md。
 - [x] 确定默认浮点比较按等价类排序：正负零相等、全部 NaN 相等且排在正无穷之后，见第 4.1 节；实际实现仍待完成。
 - [x] 确定删除旧 `isTotallyOrdered` API 及其 IEEE totalOrder 功能，直接采用第 4 节的新比较方案；实际 spec 和代码更新仍待完成。
-- [ ] 核对现有成员限定 equals、结构派生与显式 conformance 的规则；不把签名匹配自动变成接口实现。
+- [x] 核对现有成员限定 equals、结构派生与显式 conformance 的规则；不把签名匹配自动变成接口实现。
 - [x] 定稿第 4.2 节 IEEE 四态 enum API 的名称：IeeeComparison / ieeeCompare。
 - [ ] 更新 [SCOOP-SPEC.md](../specs/SCOOP-SPEC.md) 3.2、8.5～8.6、9.3、11.8、11.11、12.4 及相应 core API 小节：标准运算符接口、先展开再决议、扩展与 bound 的区别、默认比较契约和兼容性规则。
 - [ ] 更新语言规范 5、9.1.2、11.2.2 及结构相等相关条款：默认等价类全序、显式 IEEE 四态比较、const、模式匹配与派生比较的一致性；删除旧 `isTotallyOrdered` API 与“普通关系直接采用 IEEE 比较”等被新方案替代的条款。
-- [ ] 全文迁移旧 Equality/equalTo 的规范与示例，包括 core 内建类型、generic bound、Hash 契约、NoGC 接口适配和 Ptr 声明；不能只替换接口定义而遗漏旧调用语义。
+- [x] 全文迁移旧 Equality/equalTo 的规范与示例，包括 core 内建类型、generic bound、Hash 契约、NoGC 接口适配和 Ptr 声明；不能只替换接口定义而遗漏旧调用语义。
 - [ ] 更新 [SCOOP-IMPL-SPEC.md](../specs/SCOOP-IMPL-SPEC.md) 2.2～2.3、2.9～2.10、2.12～2.13、2.18～2.19：调用绑定与具体化、普通 core 接口发布、默认/IEEE 浮点操作、常量求值、优化和产物消费职责，移除旧 totalOrder 操作约定。
 - [ ] 更新 [SCOOP-RUNTIME-SPEC.md](../specs/SCOOP-RUNTIME-SPEC.md) 2.2～2.3、6.1：接口关系、装箱与现有 Equality 描述的迁移，浮点默认比较与 IEEE 算术/FFI 边界；按实际需要修订引用，不把库方法变更扩展为新 runtime ABI。
 - [ ] 同步三份 spec 的章节交叉引用、core API 示例与相关语言示例；核对 M30 浮点、M33 相等设计中的历史描述，标明后续替代关系，保留原验收事实。

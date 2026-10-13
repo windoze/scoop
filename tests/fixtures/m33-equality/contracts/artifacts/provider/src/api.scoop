@@ -1,10 +1,9 @@
 package equality.api
 
-public interface Match<T> : Equality<T> {}
+public interface Match<T> : Equals<T> {}
 
 public struct Key<T>(val payload: T, val number: Int) : Match<Key<T>>, Hash {
-    public operator fun equals(other: Key<T>): Boolean = number == other.number
-    public override fun equalTo(other: Key<T>): Boolean = this.equals(other)
+    public override operator fun equals(other: Key<T>): Boolean = number == other.number
     public override fun hash(): Long = number.toInt64()
 }
 
@@ -16,14 +15,13 @@ public interface Operator<T> {
     public operator fun equals(other: T): Boolean
 }
 
-public class Split public constructor() : Operator<Split>, Equality<Split> {
+public class Split public constructor() : Operator<Split>, Equals<Split> {
     public override operator fun equals(other: Split): Boolean = false
-    public override fun equalTo(other: Split): Boolean = true
 }
 
 public fun <T : Operator<T>> operatorSame(left: T, right: T): Boolean = left == right
-public fun <T : Equality<T>> same(left: T, right: T): Boolean = left.equalTo(right)
-public fun <T> through(view: Equality<T>, other: T): Boolean = view.equalTo(other)
+public fun <T : Equals<T>> same(left: T, right: T): Boolean = left.equals(right)
+public fun <T> through(view: Equals<T>, other: T): Boolean = view.equals(other)
 
-public fun <T> sameKey(left: T, right: T): Boolean where T : Equality<T>, T : Hash =
-    left.hash() == right.hash() && left.equalTo(right)
+public fun <T> sameKey(left: T, right: T): Boolean where T : Equals<T>, T : Hash =
+    left.hash() == right.hash() && left.equals(right)

@@ -9,7 +9,7 @@
 - LocalConcrete intrinsic 保存完整物理参数类型；实际分派入口复用 callable materialization 和 primitive lowering，生产、导入两侧按声明的 slot/dispatch selection 发布与选择入口，没有新增 runtime ABI 或产物 wire tag。
 - 跨库扩展正文的隐式 struct 字段读取复用字段身份，避免选择没有函数体的 Storage getter。
 - Add 功能提交：`45339fb3`。
-- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 迁移与浮点语义实施尚未完成。
+- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 迁移已完成；浮点语义实施尚未完成。
 - IEEE 四态 API 定名为 IeeeComparison / ieeeCompare。
 - 临时目录和日志使用 `target/m41/`，测试命令设置 TMPDIR；保留 M39 编译依赖以避免重复构建。
 
@@ -46,3 +46,14 @@
 - 本机 fmt、workspace clippy、release CLI 构建、M41 typed IR 4 项、解构 Rust 回归 12 项、core bootstrap 结构检查通过。
 - 全部 M41 共 35 项完成验证。首轮 34 项通过；唯一失败为新产物用例未公开构造函数，修正后与新增 struct/for 解构组合一同补验，两项全部通过（4 个变体、22 次进程执行）。正例均覆盖 debug/release 及正常、moving、minor GC。
 - 清理旧 fixture cases/cache/sysroot、诊断采集产物及约 1.9 GiB 增量编译目录；保留报告、日志和最新 core 缓存。
+
+## Equals 统一接口
+
+- 三份 spec 与 core 将 Equality/equalTo 迁移为 Equals/operator equals，不保留兼容 alias 或转发方法。成员限定、名义 conformance、接口参数不变性和 NoGC/Managed slot 规则保留；结构比较不补齐接口实现。
+- Unit 显式成员参与普通调用，不再同时生成同签名派生比较；默认参数和跨 Cone 消费保存真正的 core callable。原 23 份代表性 HIR 期望只变更接口名称与 operator 声明两行，逐一与实际差异核对；Unit 的相关结构断言改为普通依赖入口。
+- 迁移真实程序与负例，包括两种旧 API 删除诊断、派生／手写成员不产生 conformance、继承接口不变性、NoGC、指针、原子引用、整型枚举和同名用户接口。新 M41 用例覆盖 Equals 与 Add/Hash、接口视图、方法引用、装箱和泛型运算符的组合。
+- 重建 core 的夹具同步实际声明片段与 import。226 份共享 Long 声明替换规则仅调整匹配片段，保留原用例行为；重定位 Int、String 和继承能力的代表用例已验证。
+- fmt、workspace clippy、release CLI 构建通过。完整 HIR lowering 1,427 项与 core bootstrap 结构检查通过，包含 core 113 个 intrinsic 接口入口的精确签名和 MIR 验证。
+- 正式 CLI 选择 79 项，全部完成验证：首轮 69 项通过；9 项预载旧诊断，以及重定位 String 夹具漏保留测试成员，在核对和修正后补验 10 项全部通过（10 个变体、18 次进程执行）。新增／原相等正例覆盖 debug/release、正常/moving/minor GC 与仅产物链接；Unit 跨库默认参数及重建 core 后的链接均通过。
+- 浮点默认比较仍待下一批迁移。受公共接口增加影响的优化／ABI 专用 LIR 期望与跨平台完整验收，在浮点批次完成后统一处理；不以这批定向验证替代最终验收。
+- 清理前两轮缓存、case、sysroot 与诊断采集产物，保留报告、日志和最新可复用缓存。

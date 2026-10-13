@@ -1,5 +1,7 @@
 # M33 设计：平台库的编译器、driver 与 runtime 前置能力
 
+后续变更：M41 以普通名义 `Equals<T>`／`operator equals` 替代本里程碑的 `Equality<T>`／`equalTo` 拆分 API；结构比较仍不产生接口实现。以下保留 M33 当时的设计与验收事实，当前合同见[语言规范 11.11](../specs/SCOOP-SPEC.md#1111-相等字符串化与哈希约定)与 [M41 实施记录](../milestone41/PROGRESS.md)。
+
 状态：已完成。M33-1～M33-9 的规范、实现、功能组合与总回归均已验收，并按功能提交；实际范围、验证方式和结果见[验收记录](ACCEPTANCE.md)。数据竞争、NativeSafe/collector、GCLeaf/DirectC、errno、main/root gateway、C++、源码选择和三种 UTF-8 转换均已落地。第 10 节保留已定结论和技术验证结果。
 
 2026-10-08 修订 9.2：`==` / `!=` 只使用普通成员 `operator fun equals`；库接口 `Equality<T>` 提供独立的 `equalTo`。结构比较只派生运算符，不派生接口。三份规范、实现及受影响测试已完成迁移，恢复后的三平台验收见 M33-7g；旧统一接口方案的测试记录只保留为历史。

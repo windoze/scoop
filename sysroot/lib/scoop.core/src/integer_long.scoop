@@ -12,7 +12,7 @@ public struct Long :
     Compare<Long>,
     RangeTo<Long, LongRange>,
     RangeUntil<Long, LongRange>,
-    Equality<Long>, ToString, Hash {
+    Equals<Long>, ToString, Hash {
     @NoGC @Intrinsic("long_to_float")
     public fun toFloat(): Float
 
@@ -21,10 +21,8 @@ public struct Long :
 
     @NoGC
     @Intrinsic("long_equals")
-    public operator fun equals(other: Long): Boolean
+    public override operator fun equals(other: Long): Boolean
 
-    @NoGC
-    public override fun equalTo(other: Long): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("long_unary_plus")

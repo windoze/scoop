@@ -1,22 +1,21 @@
 @Intrinsic("core_string")
-public class String : Equality<String>, ToString, Hash, Iterable<Char> {
+public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 
-    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+    public override operator fun equals(other: String): Boolean = coreStringEquals(this, other)
 
-    public override fun equalTo(other: String): Boolean = this.equals(other)
 
     @Intrinsic("string_concat")
-    public operator fun plus(other: String): String
+    public override operator fun plus(other: String): String
 
     @Intrinsic("string_compare_to")
-    public operator fun compareTo(other: String): Long
+    public override operator fun compareTo(other: String): Long
 
     public override fun toString(): String = this
     public override fun hash(): Long = coreStringHash(this)
 
-    public operator fun get(index: Long): Char {
+    public override operator fun get(index: Long): Char {
         val value = coreStringGet(this, index)
         if (value == None) { throw IndexOutOfBoundsException() }
         return value!!

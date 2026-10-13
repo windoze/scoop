@@ -20,7 +20,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
         }
     }
     assert_eq!(
-        exported, 102,
+        exported, 113,
         "only intrinsic implementations of published capabilities need entries"
     );
     let module = scoop_mir_lower::lower(&output.local).unwrap();
@@ -69,7 +69,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
     }
     assert_eq!(count, 11);
     assert_eq!(
-        entries, 102,
+        entries, 113,
         "the core publishes all built-in intrinsic capability implementations"
     );
 }
