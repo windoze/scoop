@@ -138,3 +138,9 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 本机 `m42-algorithms-transforms`、`terminals`、`windows`、`join` 均已通过普通运行与 moving GC；首轮报告保留为 `target/m42/algorithms-first-report.json`。窗口模型覆盖长度 0..11、窗口 1..5、步长 1..7、两种 partialWindows 共 840 组；其他用例覆盖嵌套 Option、短路读取和回调次数、空输入、非法数量、目的地自身／内层别名、prefix 提交和有限 join 对无限输入的停止。新增 `m42-algorithms-string-bound` 拒绝无 ToString 又未提供 transform 的调用，精确锁定源码位置及诊断。后续定向报告与整个 M42-5 收尾记录见下文。
 
 先完成普通 std Cone 构建、源码风格检查与 `git diff --check`。这批只修改 Scoop 源码和相关规范／fixture，没有底层改动，不运行完整测试套件。
+
+### 分组、关联与去重已完成
+
+交付 groupBy/groupByTo、associate/associateBy/associateWith、distinct/distinctBy。默认结果使用 LinkedHash 容器，保留首次 key 次序和组内次序；覆盖重复 key 时保留原 key、采用末次 value。groupBy 和 associate 返回不可强转回 Mutable 接口的独立 Map，groupBy 的每个组也是只读快照。groupByTo 使用目标容器的等价关系，不强加 Hash，并在成功转换该项 value 后才创建或追加组。
+
+`m42-algorithms-grouping` 已通过正常与 moving GC：验证两组 valueTransform 重载、首项保留、现存目标分组追加、以无 Hash/Equals 的 Key 配合 TreeMap、自定义回调异常及前缀结果。证据为 `target/m42/algorithms-first-report.json` 中的 grouping 项。`m42-algorithms-hash-bound` 在元素已实现 Equals 的前提下，精确验证普通 groupBy 拒绝缺失 Hash 的 key；通过记录在 `target/m42/algorithms-final-report.json`。没有底层实现修改。

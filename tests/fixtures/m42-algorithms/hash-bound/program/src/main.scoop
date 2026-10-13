@@ -1,0 +1,6 @@
+import scoop.collections.*
+
+class Key : Equals<Key> {
+    public override operator fun equals(other: Key): Boolean = true
+}
+fun main() { listOf<Int>(1).groupBy<Int, Key> { _ -> Key() } }

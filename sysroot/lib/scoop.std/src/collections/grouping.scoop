@@ -1,0 +1,66 @@
+package scoop.collections
+
+public fun <T, K, V> Iterable<T>.groupByTo(
+    destination: MutableMap<K, MutableList<V>>, keySelector: (T) -> K, valueTransform: (T) -> V
+): MutableMap<K, MutableList<V>> {
+    for (element in toList<T>()) {
+        val key = keySelector(element)
+        val value = valueTransform(element)
+        val group = when (destination[key]) {
+            case Some(existing) -> existing
+            case None -> {
+                val created: MutableList<V> = ArrayList<V>()
+                destination[key] = created
+                created
+            }
+        }
+        group.add(value)
+    }
+    return destination
+}
+
+public fun <T, K> Iterable<T>.groupByTo(
+    destination: MutableMap<K, MutableList<T>>, keySelector: (T) -> K
+): MutableMap<K, MutableList<T>> = groupByTo<T, K, T>(destination, keySelector) { value -> value }
+
+public fun <T, K, V> Iterable<T>.groupBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, List<V>>
+    where K : Equals<K>, K : Hash {
+    val groups = LinkedHashMap<K, MutableList<V>>()
+    groupByTo<T, K, V>(groups, keySelector, valueTransform)
+    val result = LinkedHashMap<K, List<V>>()
+    for ((key, values) in groups) result[key] = values.toList()
+    return MapSnapshot<K, List<V>>(result)
+}
+
+public fun <T, K> Iterable<T>.groupBy(keySelector: (T) -> K): Map<K, List<T>>
+    where K : Equals<K>, K : Hash = groupBy<T, K, T>(keySelector) { value -> value }
+
+public fun <T, K, V> Iterable<T>.associate(transform: (T) -> (K, V)): Map<K, V>
+    where K : Equals<K>, K : Hash {
+    val result = LinkedHashMap<K, V>()
+    for (element in this) {
+        val (key, value) = transform(element)
+        result[key] = value
+    }
+    return MapSnapshot<K, V>(result)
+}
+
+public fun <T, K, V> Iterable<T>.associateBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, V>
+    where K : Equals<K>, K : Hash = associate<T, K, V> { element -> (keySelector(element), valueTransform(element)) }
+
+public fun <T, K> Iterable<T>.associateBy(keySelector: (T) -> K): Map<K, T>
+    where K : Equals<K>, K : Hash = associateBy<T, K, T>(keySelector) { value -> value }
+
+public fun <T, V> Iterable<T>.associateWith(valueSelector: (T) -> V): Map<T, V>
+    where T : Equals<T>, T : Hash = associate<T, T, V> { value -> (value, valueSelector(value)) }
+
+public fun <T, K> Iterable<T>.distinctBy(selector: (T) -> K): List<T>
+    where K : Equals<K>, K : Hash {
+    val seen = LinkedHashSet<K>()
+    val result = ArrayList<T>()
+    for (element in this) { if (seen.add(selector(element))) result.add(element) }
+    return ListSnapshot<T>(result.toArray())
+}
+
+public fun <T> Iterable<T>.distinct(): List<T> where T : Equals<T>, T : Hash =
+    distinctBy<T, T> { value -> value }
