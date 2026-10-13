@@ -58,6 +58,10 @@ pub(super) fn check(
         "Increment",
         "Decrement",
         "Compare",
+        "Contains",
+        "Iterable",
+        "Iterator",
+        "Option",
     ] {
         expected.insert(format!("{capability}<Int>"));
     }

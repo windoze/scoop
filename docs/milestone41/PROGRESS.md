@@ -104,3 +104,8 @@
 
 - Linux 全量发现旧求值顺序组合仍将 `Double.NaN >= 0.0` 的结果写为 false；按已经实现的默认全序改为 true。Nothing、异常、短路与副作用顺序断言保持完整。
 - 本机格式化、workspace clippy 后，两个浮点 Nothing 用例通过：4 个 debug/release 变体、12 次进程执行，包含 moving GC。Linux 以定向补验闭合这项旧期望，不重复已完成的全量用例。
+
+### Core 形状依赖精确清单
+
+- `Int` 的 RangeTo/RangeUntil 实现使形状消费实际到达 `IntRange`，其 Contains、Iterable、Iterator 与 Option<Int> 必须进入普通名义应用清单。补齐四项具体期望，继续精确比较完整集合，未放宽产物或布局检查。
+- 本机格式化、workspace clippy 后，`actual_core_sources_produce_closed_mir_and_lir_export_tables` 完整通过，包含 standalone/combined 消费、机器产物和错误产物检查。Linux 对这项已定位的旧清单进行定向补验。
