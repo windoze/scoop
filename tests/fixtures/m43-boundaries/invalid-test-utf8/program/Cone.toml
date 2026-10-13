@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m43"
+name = "invalid-test-utf8"
+version = "0.1.0"
+kind = "library"

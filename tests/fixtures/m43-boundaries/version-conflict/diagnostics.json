@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_GRAPH_MULTIPLE_VERSIONS",
+    "message": "resolved graph contains multiple exact versions; dev.m43:values = 0.1.0 0.2.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "GraphVersionKind",
+    "severity": "error"
+  }
+]

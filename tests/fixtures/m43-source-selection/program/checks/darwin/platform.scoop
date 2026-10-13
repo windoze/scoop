@@ -1,0 +1,1 @@
+fun platform(): String = "aarch64-apple-darwin"

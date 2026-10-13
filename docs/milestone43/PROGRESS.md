@@ -208,3 +208,10 @@
 - 扩展过滤负例：先成功构建并保存测试 binary，再恢复一个未选中方法的非法参数，确认过滤仍不能隐藏编译错误，原 binary 字节保持不变，命令只产生编译诊断，没有运行报告或残留测试运行目录。
 - 格式化、workspace clippy 与三个受影响 fixture 的 Darwin 复验全部通过，共 5 个变体、47 个进程步骤，见 [报告](validation/warm-cache-darwin.json.gz)、[日志](validation/warm-cache-darwin.log.gz) 与 [lint](validation/warm-cache-clippy.log.gz)。仅修正 fixture 断言，复用未变化的工具与热缓存；复验前清理上一轮 cases 约 514 MB。
 - 仍在按设计矩阵补齐源码可见性、源码选择和测试依赖图的正式 CLI 边界验收；本机完成后再执行 Linux GNU／musl，当前不宣称 M43 全部完成。
+
+## 2026-10-14：测试源码与依赖边界验收
+
+- 新增 10 个正式 CLI 负例，覆盖跨文件 private、成员 private、生产代码引用测试声明、生产／测试源码重叠、显式缺失路径、非目录 tests、非法 UTF-8、空生产源码，以及测试依赖引入的循环和版本冲突。每项检查完整诊断与适用的源码位置，失败不发布测试程序。
+- 新增源码选择正例，在 debug/release 下通过自定义 test.sources 选择 Darwin／GNU／musl 文件，排除默认目录和条件不匹配路径；验证测试 import alias、同名普通 Test 注解、普通泛型 helper，以及生产正文／默认实参／泛型正文不会被测试重载改变。随后将测试源码清单设为空，确认报告 0 个用例。
+- 格式化、workspace clippy 与本机全部新增验收通过：11 个 fixture、12 个变体、16 个进程步骤，含缓存复用与 moving GC，见 [报告](validation/boundaries-darwin.json.gz)、[日志](validation/boundaries-darwin.log.gz) 和 [lint](validation/boundaries-clippy.log.gz)。报告 complete=false 表示本次为定向选择而非全仓 --all；所选项均已结束并通过。
+- Linux 测试环境复查通过：远端工作区干净，LLVM 22.1.2、Rust 1.99.0 和 musl-gcc 可用。平台验收尚未执行，M43 仍在实施中。
