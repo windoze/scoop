@@ -291,3 +291,11 @@ LLVM 22.1 的机器 pass 日志将原因定位到寄存器分配后的独立 Tai
 新增 codegen 回归先在旧配置的 Darwin/Release 下失败，修复后覆盖三目标、debug/release 的对象生成及 stackmap 验证。已通过 cargo fmt、全工作区 clippy，以及 `cargo test -p scoop-codegen statepoint::tests` 的 28 项相关测试，含既有条件 poll、byval frame、managed roots 和异常边组合。诊断与前后对照保留在 `target/m42/stackmap-gap/`；临时 LLVM 转储代码已经删除。
 
 正式 CLI 修复验收通过：`target/m42/stackmap-fixed-duration-time-report.json` 记录 core-only 复现、原 Duration 算术及两个时间合同 fixture 共 4 项、6 个变体、22 个进程全部通过，原问题的 debug/release 和 moving GC 均闭合。既有 `m31-local-effects`、`m31-ssa-roots` 共 6 个变体、18 个进程、3 个必要 LIR golden 通过，包含 moving/minor GC、异常／closure／Context 与移除源码后的重新链接；报告为 `target/m42/stackmap-optimization-regressions-report.json`。一次尝试共享 cache 的软链接被现有快照规则拒绝，已删除该临时目录并使用正式 work-dir 重跑，未修改快照规则。没有运行无关完整套件；Linux 程序运行仍随本组最终定向验收完成。
+
+### M42-10 进行中：Duration 已完成
+
+Duration 使用普通不可变 final class，保存 floor-normalized 秒／纳秒；受检工厂、七种 Int/Long 单位扩展、精确加减／负号／Long 乘除、比较／Hash、整单位截断、分量与严格 ISO 文本均已交付。内部只使用局部的 unsigned 秒 magnitude 与纳秒，不需要底层 128-bit、BigInteger 或 math 包。负极值、跨零区间和分量规范化不会因为 signed 中间值溢出而错误拒绝合法结果。
+
+四组正式 fixture 均通过正常和 moving GC。construction 覆盖规范化、工厂、负极值与 HashMap/B-tree；units 覆盖向零取整、各单位 Long 边界及舍弃不足单位的尾数；text 覆盖多分量、负数、精度、规范输出与非法格式／范围。三组通过见 `target/m42/duration-first-report.json`；该报告的算术 release 失败由上文独立底层修复解决。arithmetic 的 60 组加减、80 组乘除共 280 个期望值由 Python 整数纳秒模型独立生成，debug/release 最终均通过，见 `target/m42/stackmap-fixed-duration-time-report.json`。生成器使用固定版本 Ruff 格式化／lint，向量固定入库，正式 fixture 不执行 Python oracle。
+
+源码已检查风格及 `git diff --check`，最大文件 69 行。除已独立提交的底层修复外，没有 compiler/runtime helper 或新 ABI。Clock／Instant、日期／offset／period、codec 和 Linux GNU/musl 本组最终验收尚待完成，M42 整体仍在实施。

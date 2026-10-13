@@ -302,6 +302,8 @@ Clock/TimeSource 为供外部实现的普通接口，只有 `Clock.now(): Instan
 
 ISO 文本接受可选整体负号以及按 D/H/M/S 顺序的 `P...DT...H...M...S`，至少一个分量，只有秒允许 1..9 位小数，各整数非负；不接受 years/months/weeks、混合分量符号或空白。输出统一为 `[-]PT<绝对值整秒>[.<去尾零小数>]S`，零为 PT0S。负极值的输出和解析不能先做有符号 abs 导致溢出。
 
+普通 companion 工厂为 `seconds(value: Long, nanosecondAdjustment: Long = 0)`、milliseconds/microseconds/nanoseconds/minutes/hours/days(value: Long)，对应 Int/Long 的同名零参数扩展函数。seconds 工厂先规范化调整量，再检查最终秒值；所有不可表示结果抛 ArithmeticException。公开只读 seconds、nanosecondsOfSecond；`toComponents(): (Long, Int)` 返回这两个 floor-normalized 分量，重建时将纳秒分量显式转为 Long 传给 seconds 工厂。inWholeX 与 absoluteValue 是只读属性。parse 拒绝格式或范围错误（IllegalArgumentException），parseOrNull 返回 None；其它异常不隐藏。文本仅接受大写设计符；存在 T 时其后必须有时间分量，不接受整体加号。
+
 ### 8.3 Instant 与 wall clock
 
 Instant 采用 Unix/POSIX epoch seconds 与 0..999999999 nanos：1970-01-01T00:00:00Z 为零，一天按 86400 秒处理，不表示闰秒 23:59:60，也不实施 UTC-SLS smear。可表示范围为第 8.5 节 LocalDate.MIN 的 UTC 零时至 LocalDate.MAX 的 UTC 当日末纳秒。

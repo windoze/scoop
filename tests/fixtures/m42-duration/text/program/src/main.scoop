@@ -1,0 +1,30 @@
+import scoop.time.Duration
+import scoop.collections.listOf
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun valid(text: String, seconds: Long, nanos: Int, canonical: String) {
+    val value = Duration.seconds(seconds, nanos.toInt64())
+    check(Duration.parse(text) == value && Duration.parseOrNull(text) == Some(value))
+    check(value.toIsoString() == canonical && value.toString() == canonical && Duration.parse(canonical) == value)
+}
+fun main() {
+    valid("PT0S", 0L, 0, "PT0S"); valid("-PT0.000S", 0L, 0, "PT0S")
+    valid("P1DT2H3M4.500S", 93784L, 500000000, "PT93784.5S")
+    valid("-PT0.000000001S", -1L, 999999999, "-PT0.000000001S")
+    valid("-PT1.25S", -2L, 750000000, "-PT1.25S")
+    valid("P2D", 172800L, 0, "PT172800S"); valid("PT000001M", 60L, 0, "PT60S")
+    valid("PT0H0M1.000010000S", 1L, 10000, "PT1.00001S")
+    valid("PT9223372036854775807.999999999S", Long.MAX_VALUE, 999999999, "PT9223372036854775807.999999999S")
+    valid("-PT9223372036854775808S", Long.MIN_VALUE, 0, "-PT9223372036854775808S")
+    valid("-PT9223372036854775807.999999999S", Long.MIN_VALUE, 1, "-PT9223372036854775807.999999999S")
+    for (text in listOf<String>("", "P", "PT", "-P", "P1DT", "P1D1D", "PT1S1S", "PT1M1H", "P1H", "PT1D",
+        "PT.1S", "PT1.S", "PT1.1234567890S", "PT1,5S", "PT-1S", "-PT-1S", "+PT1S", "P1Y", "P1M", "P1W",
+        "P1.0D", "PT1.0H", "PT1.0M", "P1S", "PT1", "PT1TT1S", "pt1s", " PT1S", "PT1S ", "PT１S", "PT1\u0000S",
+        "PT9223372036854775808S", "-PT9223372036854775808.000000001S", "P999999999999999D", "PT18446744073709551616S")) {
+        check(Duration.parseOrNull(text) == None)
+        var failed = false
+        try { Duration.parse(text) } catch (error: IllegalArgumentException) { failed = true }
+        check(failed)
+    }
+    println("duration text passed")
+}

@@ -1,0 +1,39 @@
+import scoop.time.*
+import scoop.collections.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun overflow(block: () -> Duration) {
+    var failed = false
+    try { block() } catch (error: ArithmeticException) { failed = true }
+    check(failed)
+}
+fun main() {
+    check(Duration.ZERO.seconds == 0L && Duration.ZERO.nanosecondsOfSecond == 0)
+    check((-1L).nanoseconds().toComponents() == (-1L, 999999999))
+    check(Duration.seconds(1L, -1L).toComponents() == (0L, 999999999))
+    check(Duration.seconds(-1L, 1000000001L).toComponents() == (0L, 1))
+    check(Duration.seconds(Long.MAX_VALUE, -1000000000L).seconds == Long.MAX_VALUE - 1L)
+    check(Duration.seconds(Long.MIN_VALUE, 999999999L).nanosecondsOfSecond == 999999999)
+    check(Duration.seconds(9223372036L, Long.MIN_VALUE).toComponents() == (-1L, 145224192))
+    check(Duration.seconds(-9223372036L, Long.MAX_VALUE).toComponents() == (0L, 854775807))
+    overflow { Duration.seconds(Long.MAX_VALUE, 1000000000L) }
+    overflow { Duration.seconds(Long.MIN_VALUE, -1L) }
+    overflow { Duration.days(Long.MAX_VALUE) }; overflow { Duration.hours(Long.MIN_VALUE) }
+    check(1.days() == 24L.hours() && 1.hours() == 60L.minutes() && 1.minutes() == 60L.seconds())
+    check(1.seconds() == 1000L.milliseconds() && 1.milliseconds() == 1000L.microseconds())
+    check(1.microseconds() == 1000L.nanoseconds())
+    check((-1).days() == (-24L).hours())
+    val value = Duration.seconds(-2L, 750000000L)
+    val parts = value.toComponents()
+    check(Duration.seconds(parts._1, parts._2.toInt64()) == value)
+    check(value.absoluteValue == Duration.seconds(1L, 250000000L))
+    check(-value == value.absoluteValue && Duration.ZERO.absoluteValue == Duration.ZERO)
+    overflow { -Duration.seconds(Long.MIN_VALUE) }
+    overflow { Duration.seconds(Long.MIN_VALUE).absoluteValue }
+    check(-Duration.seconds(Long.MIN_VALUE, 1L) == Duration.seconds(Long.MAX_VALUE, 999999999L))
+    val map = hashMapOf<Duration, Int>((value, 1), (Duration.seconds(-1L, -250000000L), 2))
+    check(map.size == 1L && map[value] == Some(2))
+    val order = sortedSetOf<Duration>(1.nanoseconds(), Duration.ZERO, value).iterator()
+    check(order.next() == Some(value) && order.next() == Some(Duration.ZERO) && order.next() == Some(1.nanoseconds()))
+    println("duration construction passed")
+}

@@ -138,6 +138,8 @@ wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源�
 
 Duration 使用 floor-normalized 秒/纳秒和受检运算，Instant 使用 POSIX 时间轴，日历采用 proleptic Gregorian。月份变化与经过时长分离，日期加月夹至目标月末，转换到 Instant 必须显式给 UtcOffset。不同 TimeSource 的 mark 比较/相减失败，同源检查是操作前提，不是安全认证机制。
 
+Duration 的秒／纳秒表示参考 [Java Duration](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html)，接口和文本的差异以 std 规范为准，独立实现必要整数运算。内部临时值以符号及 unsigned 秒 magnitude 表达负极值，加减按同号相加／异号相减处理；乘法先分解因子，除法只对余秒与纳秒进行固定宽度二进制长除。最终范围检查不依赖易溢出的 signed 中间值，也不引入 BigInteger、通用 math 框架或 native 128-bit 支持。
+
 初次构造验证 canonical 分量，后续 getter/比较复用不变结果。文本解析根据语法验证输入，转换检查新的目标范围；不在每个时间操作中重放所有字段校验。不读系统 locale、时区数据库或 native 时间函数。
 
 ### 3.5 复用与新依赖
