@@ -1,0 +1,20 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+import scoop.comparisons.naturalOrder
+import scoop.comparisons.reversed
+
+public fun <T> Iterable<T>.minWithOrNull(comparator: Comparator<T>): T? {
+    var result: T? = None
+    for (element in this) {
+        result = when (result) {
+            case None -> Some(element)
+            case Some(previous) -> if (comparator.compare(element, previous) < 0L) Some(element) else result
+        }
+    }
+    return result
+}
+
+public fun <T> Iterable<T>.maxWithOrNull(comparator: Comparator<T>): T? = minWithOrNull<T>(comparator.reversed())
+public fun <T : Compare<T>> Iterable<T>.minOrNull(): T? = minWithOrNull<T>(naturalOrder<T>())
+public fun <T : Compare<T>> Iterable<T>.maxOrNull(): T? = maxWithOrNull<T>(naturalOrder<T>())

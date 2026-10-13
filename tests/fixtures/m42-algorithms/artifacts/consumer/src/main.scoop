@@ -1,0 +1,17 @@
+import scoop.collections.*
+
+struct Row(val key: Int, val label: String)
+
+fun main() {
+    val rows = listOf<Row>(Row(2, "a"), Row(1, "b"), Row(2, "c"), Row(1, "d"))
+    val ordered = rows.sortedBy<Row, Int> { row -> row.key }
+    println(ordered.joinToString(separator = ",") { row -> row.label })
+    val groups = rows.groupBy<Row, Int, String>({ row -> row.key }) { row -> row.label }
+    println(groups[2]!!.size)
+    val windows = ordered.windowed(2L)
+    val firsts = windows.map<List<Row>, String> { window -> window.first().label }
+    val keys = ordered.map<Row, Int> { row -> row.key }
+    val found = keys.binarySearch(2)
+    val passed = firsts.joinToString() == "b, d, a" && found >= 2L && found < 4L
+    println(passed && groups[1]!!.joinToString() == "b, d" && !(ordered is MutableList<Row>))
+}

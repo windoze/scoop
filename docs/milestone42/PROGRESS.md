@@ -144,3 +144,16 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 交付 groupBy/groupByTo、associate/associateBy/associateWith、distinct/distinctBy。默认结果使用 LinkedHash 容器，保留首次 key 次序和组内次序；覆盖重复 key 时保留原 key、采用末次 value。groupBy 和 associate 返回不可强转回 Mutable 接口的独立 Map，groupBy 的每个组也是只读快照。groupByTo 使用目标容器的等价关系，不强加 Hash，并在成功转换该项 value 后才创建或追加组。
 
 `m42-algorithms-grouping` 已通过正常与 moving GC：验证两组 valueTransform 重载、首项保留、现存目标分组追加、以无 Hash/Equals 的 Key 配合 TreeMap、自定义回调异常及前缀结果。证据为 `target/m42/algorithms-first-report.json` 中的 grouping 项。`m42-algorithms-hash-bound` 在元素已实现 Equals 的前提下，精确验证普通 groupBy 拒绝缺失 Hash 的 key；通过记录在 `target/m42/algorithms-final-report.json`。没有底层实现修改。
+
+### M42-5 完成：稳定排序、二分与算法组合验收
+
+交付 sorted/sortedDescending/sortedBy/sortedWith、sort/sortWith、binarySearch 和自然／显式 Comparator 的 min/maxOrNull。归并仅索引私有 ArrayList，先遍历复制调用者；相等时取左项，selector 每项执行一次。原地排序完整比较结束才写回，比较失败不改来源，自定义 setter 失败按规范留下写回前缀。二分使用半开区间及防溢出的中点、负插入点计算，默认 toIndex 取 receiver.size。
+
+`m42-algorithms-sorting` 验证稳定性、只支持顺序遍历的 List、逆序／自然排序、首次并列极值、NaN／正负零、511 项置换模型及 O(n log n) 比较上界；虚拟 Long.MAX_VALUE 大小的 List 覆盖极限命中、空区间与 Long.MIN_VALUE 的未命中编码。`natural-bound` 精确拒绝没有 Compare 的自然排序。`artifacts` 将含引用 struct 的稳定排序、窗口、分组、默认参数二分与 join 组合，删除 core/std/消费者源码后独立 link，并验证链接计划一致及 normal/moving 运行结果。
+
+本机算法测试现有 10 个 fixture 全部闭合，未重复运行此前已通过且未修改的用例。两轮均使用 `TMPDIR="$PWD/target/m42/scratch"`、`--work-dir target/m42/foundation --jobs 4`：
+
+- 首轮 `--suite tests/fixtures/m42-algorithms` 当时选择 6 项，5 项通过、22 个进程；`target/m42/algorithms-first-report.json`。sorting fixture 中对不具备 Equals 的 class 使用 Option 相等是普通源码错误，修正为模式匹配后定向重跑，没有绕过合法程序的底层缺陷。
+- 收尾在同 suite 使用 `--filter m42-algorithms-sorting --filter m42-algorithms-artifacts --filter 'm42-algorithms-*-bound'`，5/5、5 个变体、16 个进程通过；`target/m42/algorithms-final-report.json`。所有运行类 fixture 都包含正常与 moving GC。
+
+结合此前 Deque/PriorityQueue，M42-5 的计划交付已完成。全部新增库仍为普通 Scoop Cone；本批没有 compiler/runtime 修改，没有运行无关完整套件。已保留报告与共享 cache，并清理完成的 case 及单次检查产物。M42-6 至 M42-12、Linux GNU/musl 的本组最终定向验收仍待完成。

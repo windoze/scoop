@@ -1,0 +1,4 @@
+import scoop.collections.*
+
+class Key
+fun main() { listOf<Key>(Key()).sorted() }
