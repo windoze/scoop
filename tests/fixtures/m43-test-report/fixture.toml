@@ -1,0 +1,217 @@
+schema = 1
+name = "m43-test-report"
+inputs = ["program"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m43", "test-report", "process", "capture"]
+variants = [
+    {name = "debug", vars = {profile = "debug"}},
+    {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "passed"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "0"}
+checks = [
+    {actual = "${passed.test_result.status}", equals = "passed"},
+    {actual = "${passed.test_result.complete}", equals = true},
+    {actual = "${passed.test_result.counts.passed}", equals = 2},
+    {actual = "${passed.test_result.counts.failed}", equals = 0},
+    {actual = "${passed.test_result.output.stdout.text}", equals = "startup\nshutdown\n"},
+]
+
+[[steps]]
+name = "exit-zero"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = [{code = "SCOOP_TEST_RUN", phase = "Run", severity = "error", message = "test run failed; see the test report", origin = {kind = "none"}, notes = []}]
+env = {M43_REPORT_MODE = "1"}
+checks = [
+    {actual = "${exit-zero.test_result.status}", equals = "failed"},
+    {actual = "${exit-zero.test_result.complete}", equals = false},
+    {actual = "${exit-zero.test_result.counts.failed}", equals = 1},
+    {actual = "${exit-zero.test_result.counts.not_run}", equals = 1},
+    {actual = "${exit-zero.test_result.output.stdout.text}", equals = "startup\n"},
+    {actual = "${exit-zero.test_result.containers.0.cases.0.output.stdout.text}", equals = "init\nbefore\nbody\nnative\nshutdown\n"},
+]
+
+[[steps]]
+name = "abort"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+signal = "SIGABRT"
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "2"}
+checks = [
+    {actual = "${abort.test_result.status}", equals = "failed"},
+    {actual = "${abort.test_result.complete}", equals = false},
+    {actual = "${abort.test_result.counts.failed}", equals = 1},
+    {actual = "${abort.test_result.counts.not_run}", equals = 1},
+    {actual = "${abort.test_result.output.stdout.text}", equals = "startup\n"},
+]
+
+[[steps]]
+name = "shutdown"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 19
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "3"}
+checks = [
+    {actual = "${shutdown.test_result.status}", equals = "failed"},
+    {actual = "${shutdown.test_result.complete}", equals = true},
+    {actual = "${shutdown.test_result.counts.passed}", equals = 2},
+    {actual = "${shutdown.test_result.counts.failed}", equals = 0},
+    {actual = "${shutdown.test_result.output.stdout.text}", equals = "startup\nshutdown\n"},
+]
+
+[[steps]]
+name = "startup"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "4"}
+checks = [
+    {actual = "${startup.test_result.status}", equals = "failed"},
+    {actual = "${startup.test_result.complete}", equals = false},
+    {actual = "${startup.test_result.counts.failed}", equals = 0},
+    {actual = "${startup.test_result.counts.not_run}", equals = 2},
+]
+
+[[steps]]
+name = "raw-failure"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "5"}
+checks = [
+    {actual = "${raw-failure.test_result.status}", equals = "failed"},
+    {actual = "${raw-failure.test_result.complete}", equals = true},
+    {actual = "${raw-failure.test_result.counts.passed}", equals = 1},
+    {actual = "${raw-failure.test_result.counts.failed}", equals = 1},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.phase}", equals = "body"},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.assertion}", equals = "assertEquals"},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.expected.text}", equals = "42"},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.actual.text}", equals = "7"},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.message}", equals = "雪\n\"failure\""},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.location.file}", equals = "dev.m43:report-tests:0.1.0/tests/cases.scoop"},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.failures.0.location.line}", equals = 28},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.output.stdout.hex}", equals = "696e69740a6265666f72650a626f64790a6e61746976650aff61667465720a"},
+    {actual = "${raw-failure.test_result.containers.0.cases.0.output.stderr.hex}", equals = "7b226576656e74223a22636f6d706c657465227d0afe"},
+    {actual = "${raw-failure.test_result.output.stdout.text}", equals = "startup\nshutdown\n"},
+]
+
+[[steps]]
+name = "moving"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "5", SCOOP_GC_STRESS_MOVE = "1"}
+checks = [
+    {actual = "${moving.test_result.status}", equals = "failed"},
+    {actual = "${moving.test_result.complete}", equals = true},
+    {actual = "${moving.test_result.counts.passed}", equals = 1},
+    {actual = "${moving.test_result.counts.failed}", equals = 1},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.phase}", equals = "body"},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.assertion}", equals = "assertEquals"},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.expected.text}", equals = "42"},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.actual.text}", equals = "7"},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.message}", equals = "雪\n\"failure\""},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.location.file}", equals = "dev.m43:report-tests:0.1.0/tests/cases.scoop"},
+    {actual = "${moving.test_result.containers.0.cases.0.failures.0.location.line}", equals = 28},
+    {actual = "${moving.test_result.containers.0.cases.0.output.stdout.hex}", equals = "696e69740a6265666f72650a626f64790a6e61746976650aff61667465720a"},
+    {actual = "${moving.test_result.containers.0.cases.0.output.stderr.hex}", equals = "7b226576656e74223a22636f6d706c657465227d0afe"},
+    {actual = "${moving.test_result.output.stdout.text}", equals = "startup\nshutdown\n"},
+]
+
+[[steps]]
+name = "empty"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "NO MATCH"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "4"}
+checks = [
+    {actual = "${empty.test_result.status}", equals = "passed"},
+    {actual = "${empty.test_result.complete}", equals = true},
+    {actual = "${empty.test_result.counts.cases}", equals = 0},
+    {actual = "${empty.test_result.empty_reason}", equals = "no matching tests"},
+]
+
+[[steps]]
+name = "nocapture"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--nocapture"]
+exit = 0
+stdout = "startup\ninit\nbefore\nbody\nnative\nafter\ninit\nbefore\nsecond\nafter\nshutdown\n"
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "6"}
+checks = [
+    {actual = "${nocapture.test_result.status}", equals = "passed"},
+    {actual = "${nocapture.test_result.complete}", equals = true},
+    {actual = "${nocapture.test_result.counts.passed}", equals = 2},
+    {actual = "${nocapture.test_result.counts.failed}", equals = 0},
+]
+
+[[steps]]
+name = "rendering"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "7", SCOOP_GC_STRESS_MOVE = "1"}
+checks = [
+    {actual = "${rendering.test_result.status}", equals = "failed"},
+    {actual = "${rendering.test_result.complete}", equals = true},
+    {actual = "${rendering.test_result.counts.failed}", equals = 1},
+    {actual = "${rendering.test_result.counts.passed}", equals = 1},
+    {actual = "${rendering.test_result.containers.0.cases.0.failures.0.expected.kind}", equals = "rendering-failed"},
+    {actual = "${rendering.test_result.containers.0.cases.0.failures.0.expected.message}", equals = "render failed"},
+    {actual = "${rendering.test_result.containers.0.cases.0.failures.0.actual.kind}", equals = "rendering-failed"},
+    {actual = "${rendering.test_result.containers.0.cases.0.failures.0.actual.message}", equals = "render failed"},
+]
+
+[[steps]]
+name = "description"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {M43_REPORT_MODE = "8", SCOOP_GC_STRESS_MOVE = "1"}
+checks = [
+    {actual = "${description.test_result.status}", equals = "failed"},
+    {actual = "${description.test_result.complete}", equals = true},
+    {actual = "${description.test_result.counts.failed}", equals = 1},
+    {actual = "${description.test_result.counts.passed}", equals = 1},
+    {actual = "${description.test_result.containers.0.cases.0.failures.0.kind}", equals = "exception"},
+    {actual = "${description.test_result.containers.0.cases.0.failures.0.message}", equals = "Throwable (description rendering failed)"},
+]

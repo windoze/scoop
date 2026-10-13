@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use scoop::BuildProfile;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Parser)]
 #[command(
     name = "scoop",
@@ -132,6 +135,9 @@ pub(super) struct TestArgs {
     /// Select only tests marked Ignore.
     #[arg(long)]
     pub ignored: bool,
+    /// Show test stdout/stderr as it is produced instead of capturing it.
+    #[arg(long, conflicts_with_all = ["list", "no_run"])]
+    pub nocapture: bool,
 }
 
 #[derive(Args)]

@@ -6,6 +6,8 @@ use std::ffi::OsString;
 
 pub(super) struct SelectedTests {
     pub directory: TestDirectory,
+    pub report_directory: TestDirectory,
+    pub run_ignored: bool,
     pub arguments: Vec<OsString>,
     pub empty_reason: Option<&'static str>,
 }
@@ -17,9 +19,18 @@ pub(super) fn select(
 ) -> SelectedTests {
     let mut arguments = vec![OsString::from("--scoop-test-cases")];
     let mut selected = TestDirectory::default();
+    let mut report_directory = TestDirectory::default();
     let mut index = 0usize;
     let mut matching = 0usize;
     for container in &directory.containers {
+        let mut report = container.clone();
+        report.cases.retain(|case| {
+            filter.is_none_or(|filter| case.display_name.contains(filter))
+                && (!ignored || case.ignore_reason.is_some())
+        });
+        if !report.cases.is_empty() {
+            report_directory.containers.push(report);
+        }
         let mut copy = container.clone();
         copy.cases.retain(|case| {
             let current = index;
@@ -49,6 +60,8 @@ pub(super) fn select(
     };
     SelectedTests {
         directory: selected,
+        report_directory,
+        run_ignored: ignored,
         arguments,
         empty_reason,
     }

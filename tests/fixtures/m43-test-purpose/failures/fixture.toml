@@ -89,18 +89,48 @@ checks = [
 name = "umbrella-run"
 argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
 exit = 1
-stdout = "init 1\ninit 2\nbefore 2\nafter 2\ninit 3\nbefore 3\nbody 3\nafter 3\ninit 4\nbefore 4\nbody 4\nafter 4\ninit 5\nbefore 5\nbody 5\nafter 5\n"
+stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
-checks = [{actual = "${umbrella-run.result.observations.child_invocations.length}", equals = 0}]
+checks = [
+    {actual = "${umbrella-run.test_result.counts.failed}", equals = 4},
+    {actual = "${umbrella-run.test_result.counts.passed}", equals = 1},
+    {actual = "${umbrella-run.test_result.containers.0.cases.0.failures.0.phase}", equals = "initialization"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.1.failures.0.phase}", equals = "before-test"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.0.phase}", equals = "body"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.3.failures.0.phase}", equals = "after-test"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.1.phase}", equals = "after-test"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.0.message}", equals = "body"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.1.message}", equals = "cleanup"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.output.stdout.text}", equals = "init 3\nbefore 3\nbody 3\nafter 3\n"},
+
+    {actual = "${umbrella-run.test_result.status}", equals = "failed"},
+    {actual = "${umbrella-run.test_result.complete}", equals = true},
+{actual = "${umbrella-run.result.observations.child_invocations.length}", equals = 0}]
 
 [[steps]]
 name = "umbrella-moving"
 argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
 exit = 1
-stdout = "init 1\ninit 2\nbefore 2\nafter 2\ninit 3\nbefore 3\nbody 3\nafter 3\ninit 4\nbefore 4\nbody 4\nafter 4\ninit 5\nbefore 5\nbody 5\nafter 5\n"
+stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+checks = [
+    {actual = "${umbrella-moving.test_result.counts.failed}", equals = 4},
+    {actual = "${umbrella-moving.test_result.counts.passed}", equals = 1},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.0.failures.0.phase}", equals = "initialization"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.1.failures.0.phase}", equals = "before-test"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.2.failures.0.phase}", equals = "body"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.3.failures.0.phase}", equals = "after-test"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.2.failures.1.phase}", equals = "after-test"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.2.failures.0.message}", equals = "body"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.2.failures.1.message}", equals = "cleanup"},
+    {actual = "${umbrella-moving.test_result.containers.0.cases.2.output.stdout.text}", equals = "init 3\nbefore 3\nbody 3\nafter 3\n"},
+
+    {actual = "${umbrella-moving.test_result.status}", equals = "failed"},
+    {actual = "${umbrella-moving.test_result.complete}", equals = true},
+]

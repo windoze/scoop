@@ -3252,10 +3252,15 @@ public fun runTestCase(location: SourceLocation = getCurrentSourceLocation(),
     initialize: () -> TestActions): TestResult
 public fun isTestSelected(arguments: Array<String>, caseIndex: String,
     ignored: Boolean): Boolean
+public fun runReportedTestCase(caseIndex: String, location: SourceLocation,
+    initialize: () -> TestActions): TestResult
+public fun completeTestRun(): Unit
 ```
 
 调用适配在 initialize 回调实际执行时调用已解析的构造器，再将捕获该实例不可变引用的正文和可选 hooks 组成 TestActions 返回；不预建实例，也不捕获可变局部变量。TestAction 保存已解析方法的 typed 动作与声明位置。runTestCase 的 location 对应实例初始化位置；它和 TestAction 的默认位置供普通源码调用使用，合成适配显式传递对应的源码位置。runTestCase 同步调用初始化回调与后续动作，捕获普通 Throwable 并返回 Passed 或 Failed。Failed 的第一项保存首次失败，第二项仅保存该失败之后的 AfterTest 失败；只有清理失败时，第一项的阶段为 AfterTest，第二项为 None。
 
 TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规范 5.3～5.4 的异常物化规则。cause 为 AssertionFailure 时 location 使用断言自己的位置，否则使用当前动作的位置；原始异常数据不渲染、不丢弃。finally、Context 与 GC 沿普通调用和异常规则执行。panic、abort、native crash 和进程退出不在此捕获范围内，进程结果由测试命令另行报告。
+
+合成入口通过 runReportedTestCase 包围上述执行：先记录开始，再调用 runTestCase，在完整生命周期结束后记录单调耗时、结果及首次／清理失败；全部选中用例结束后调用 completeTestRun。没有父命令设置的结果通道时，这两个适配不捕获输出或渲染结果，直接运行仍保持普通 stdout/stderr。事件 I/O、计时和串行 stdio 重定向由 scoop.test 自身的普通 native 源码提供，不增加公共 runtime ABI。诊断保留断言 kind/message、expected/actual 的可用／渲染失败状态和 cause；普通 Exception 使用 message，其他 Throwable 可通过 ToString 提供说明，说明转换抛出时保留固定的渲染失败说明，不覆盖原测试失败。
 
 测试入口接受普通 `Array<String>` 参数并返回 Int，数组按 12.4.4 包含 `argv[0]` 的启动路径。`scoop` 按已编译目录的顺序选择用例，以 `--scoop-test-cases` 后跟扁平目录下零基序号的十进制字符串传给入口；该序号仅在当前测试程序内定位目录项，不代替 callable 的实体身份。`isTestSelected` 在没有用户参数时选择未忽略用例，在上述显式清单中跳过启动路径与标记，再按 caseIndex 是否出现选择；只有选中后才进入完整生命周期。过滤与忽略选择由 `scoop` 使用目录中的完整显示名及 Ignore 信息完成，列表复用同一选择结果。

@@ -9,7 +9,7 @@
 | M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离、测试构建图／缓存与输出已接入 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
 | M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与全部用例适配、目录持久化和运行时选择已接入 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
-| M43-4 CLI 与运行报告 | scoop test／--no-run／--list／--filter／--ignored 已接入；独立结果通道、捕获与执行报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
+| M43-4 CLI 与运行报告 | 命令选择、独立结果通道、输出捕获与分层报告已接入；完整验收待完成 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存、moving GC、生命周期失败与进程异常结束 |
 | M43-5 scoop.std 应用、产物与平台验收 | scoop.std 首批同 Cone 测试已接入；完整 CLI 组合与 Linux 验收待完成 | 3 个容器、10 个用例；Darwin debug/release、生产隔离、缓存与 moving GC |
 
 ## 工作约定
@@ -163,3 +163,13 @@
 - 报告库的 release 构建暴露普通 String 分支合并问题：RS4GC 将 immortal 分支的 base 置为 null，额外生成 base phi／select，与当前对象起点及 base=derived 合同不符。新增 LLVM 最小回归和不依赖测试库的 Scoop fixture；旧工具在后者的 release 构建稳定失败，见 [初始日志](validation/base-merge-before.log.gz)、[源码初始日志](validation/base-merge-fixture-before.log.gz)。
 - 在最终 SSA 根分组时检查合并链中的派生地址，并使用 [LLVM 22.1 的 is_base_value 处理](https://github.com/llvm/llvm-project/blob/release/22.x/llvm/lib/Transforms/Scalar/RewriteStatepointsForGC.cpp) 保留对象起点事实；纯常量选择仍不 relocation。不放宽根数量、typed 恢复或机器 stackmap 校验，不改测试库绕过错误，也不改变公共 ABI／产物格式。
 - 格式化、workspace clippy 与配套工具构建通过；codegen 全组 370 项测试通过，包括 phi／select、纯常量／null／动态组合及派生地址负例，见 [日志](validation/base-merge-codegen.log.gz)。Darwin 独立 fixture 的 debug/release 共 2 个变体、6 个进程步骤通过，覆盖完整移动与 minor GC，见 [完成日志](validation/base-merge-darwin.log.gz)。M43 报告的其余 CLI 验收仍在继续，Linux 验收尚未开始。
+
+## 2026-10-14：独立测试结果通道、输出捕获与报告
+
+- 先补语言规范 16.5、实现规范 2.7 与设计的提前退出输出归属。合成入口调用普通测试库的 runReportedTestCase／completeTestRun；每次运行使用独立临时目录，begin／end／complete 事件与用户 stdout／stderr 分开。父命令按已选择的目录顺序读取事件，不从用户输出识别状态，不增加公共 runtime ABI。
+- 测试库通过普通 native 源码完成单调计时与 fd 捕获，覆盖实例初始化到清理的完整生命周期；结束后恢复 stdio，再渲染结果。默认隐藏通过用例输出，保留失败／中断用例及目标输出；非 UTF-8 字节在 JSON 中以 hex 保留。--nocapture 直接继承输出，与 --list／--no-run 互斥。运行目录随报告结束清理，不缓存测试结果。
+- human／JSON 报告保留目标、容器和用例层级、状态、位置、耗时、忽略原因、四阶段失败、首次与清理失败、断言 expected／actual／cause 及渲染失败信息。缺失完成记录时 exit(0) 仍判失败；已开始的用例标记失败，后续未开始用例标记未运行。完整记录不能掩盖真实 shutdown 失败或进程信号。空选择不启动程序，并报告原因。
+- 格式化、workspace clippy 与工具构建通过；20 项前端定向测试和 11 项 CLI 测试通过，见 [前端日志](validation/report-hir.log.gz)、[CLI 日志](validation/report-cli-rust.log.gz)、[lint](validation/report-clippy.log.gz) 与 [构建](validation/report-build.log.gz)。父命令运行主体 118 行，事件读取 75 行，human 输出 137 行；native 事件与捕获分别为 82、79 行，库的报告适配与渲染分别拆分。
+- Darwin 的最终有效验收合计 7 个 fixture、14 个 debug/release 变体、98 个进程步骤通过：[主组报告](validation/report-darwin.json.gz) 的 64 步覆盖报告、选择、全部生命周期失败及常量／动态 GC 回归；[应用组报告](validation/report-applications-initial.json.gz) 中 scoop.std 的 8 步与真实 runtime shutdown 的 2 步通过；[generated 复验报告](validation/report-generated-darwin.json.gz) 的 24 步通过。标准库两个 profile 均报告 10 个用例通过；shutdown 专测在全部用例通过且 complete 后仍保留 owned callback token，确认目标失败与实际退出码 1。
+- 应用组首轮 generated 失败来自不同 fixture 选择复用同一 cases 索引后残留源码，保留其失败报告及 [日志](validation/report-applications.log.gz)。全部进程结束后清理 cases，再复用同一工具和缓存完成干净复验；没有为该输入污染修改编译器。清理了旧用例输出约 411 MB 和两处临时验证产物约 14 MB，保留当前工具与热缓存。
+- scoop.std 的 list／filter 组合、完整 M43 验收和 Linux GNU／musl 验收仍待完成；本批不宣称 M43 已全部交付，完成后继续推进 M44。

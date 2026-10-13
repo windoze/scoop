@@ -5,7 +5,7 @@ use crate::tests::m23_ordinary_dependencies::support::{
 use crate::tests::m43_test_annotations::support::{marker_core, parsed_sources};
 
 #[test]
-fn generated_entry_consumes_the_actual_execution_library_through_typed_imports() {
+fn generated_entry_consumes_the_execution_contract_through_typed_imports() {
     let mut core = marker_core();
     let runtime = parsed_sources(&[], true);
     let coordinate = scoop_identity::ConeCoordinate::new("scoop", "scoop.test", "0.1.0").unwrap();

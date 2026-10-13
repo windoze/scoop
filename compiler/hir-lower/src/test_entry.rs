@@ -145,11 +145,11 @@ impl Lowerer {
                     };
                     let mut case_body = Vec::new();
                     if let Some(result) =
-                        state.generate_test_case(entry, &container, case, &mut case_body)
+                        state.generate_test_case(entry, index - 1, &container, case, &mut case_body)
                     {
                         let span = case.method.origin.span;
                         let Some(passed) = state.named_enum_variant(result.ty, "Passed") else {
-                            state.error(span, "test execution requires runTestCase to return TestResult with a Passed variant".into());
+                            state.error(span, "test execution requires runReportedTestCase to return TestResult with a Passed variant".into());
                             continue;
                         };
                         case_body.push(hir::Statement {
@@ -190,6 +190,15 @@ impl Lowerer {
             }
             state.current_file = file;
             state.set_source_context(hir::SourceContextSubject::Function(entry));
+            if index > 0 && state.diagnostics.is_empty()
+                && let Some(completed) = state.test_api_call("completeTestRun", Vec::new(), span, &mut statements)
+            {
+                if !state.types_equal(completed.ty, state.unit) {
+                    state.error(span, "test execution requires completeTestRun to return Unit".into());
+                } else {
+                    statements.push(hir::Statement { span, kind: hir::StatementKind::Expr(completed) });
+                }
+            }
             statements.push(hir::Statement {
                 span,
                 kind: hir::StatementKind::Return {

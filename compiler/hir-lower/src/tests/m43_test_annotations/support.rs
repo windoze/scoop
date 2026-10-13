@@ -72,6 +72,17 @@ pub(super) fn parsed_sources(
     files.push(("src/markers.scoop", MARKERS, SourceRole::Production));
     if tests {
         files.extend([
+            // This HIR fixture models the reporting ABI; native I/O and the actual
+            // library bodies are exercised by the CLI fixtures with the real core.
+            (
+                "src/execution/report.scoop",
+                "package scoop.test.execution\n\
+                 @Extern(name = \"test_report\", abi = \"scoop\")\n\
+                 public fun runReportedTestCase(caseIndex: String, location: SourceLocation, initialize: () -> TestActions): TestResult\n\
+                 @Extern(name = \"test_complete\", abi = \"scoop\")\n\
+                 public fun completeTestRun(): Unit",
+                SourceRole::Production,
+            ),
             (
                 "src/execution/selection.scoop",
                 include_str!("../../../../../sysroot/lib/scoop.test/src/execution/selection.scoop"),

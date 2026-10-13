@@ -70,12 +70,21 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
                     .map_err(config)?;
                 return Ok(None);
             }
+            let target = summary.cone().coordinate().name().to_owned();
             match result {
                 BuildOutcome::Executable {
                     build,
                     execution_copy: Some(copy),
                     ..
-                } => super::run::program(&build.output, copy, &selected.arguments, &cwd).map(Some),
+                } => super::test_run::program(
+                    &build.output,
+                    copy,
+                    &selected,
+                    args.nocapture,
+                    &cwd,
+                    reporter,
+                    &target,
+                ),
                 _ => Err(config("test did not produce a private executable copy")),
             }
         }

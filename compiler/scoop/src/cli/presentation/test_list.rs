@@ -69,6 +69,6 @@ impl Reporter {
     }
 }
 
-fn location(location: &TestSourceLocation) -> Value {
+pub(super) fn location(location: &TestSourceLocation) -> Value {
     json!({"path": location.path, "line": location.line, "column": location.column})
 }

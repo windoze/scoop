@@ -4,6 +4,7 @@ impl Lowerer {
     pub(super) fn generate_test_case(
         &mut self,
         entry: hir::FunctionId,
+        index: usize,
         container: &hir::TestContainer,
         case: &hir::TestCase,
         sink: &mut Vec<hir::Statement>,
@@ -14,7 +15,7 @@ impl Lowerer {
             .replace(crate::Owner::Class(container.class));
         let outer_context = self.current_source_context;
         self.set_source_context(hir::SourceContextSubject::Function(entry));
-        let result = self.generate_test_case_inner(container, case, sink);
+        let result = self.generate_test_case_inner(index, container, case, sink);
         self.current_file = outer_file;
         self.current_owner = outer_owner;
         self.current_source_context = outer_context;
@@ -23,6 +24,7 @@ impl Lowerer {
 
     fn generate_test_case_inner(
         &mut self,
+        index: usize,
         container: &hir::TestContainer,
         case: &hir::TestCase,
         sink: &mut Vec<hir::Statement>,
@@ -72,7 +74,13 @@ impl Lowerer {
                 })
             })?;
         let location = self.test_location(container.origin, sink)?;
-        self.test_api_call("runTestCase", vec![location, initializer], span, sink)
+        let key = self.test_case_key(index, span);
+        self.test_api_call(
+            "runReportedTestCase",
+            vec![key, location, initializer],
+            span,
+            sink,
+        )
     }
 
     fn generate_test_action(

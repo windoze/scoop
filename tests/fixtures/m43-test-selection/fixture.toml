@@ -22,11 +22,16 @@ diagnostics = []
 name = "default"
 argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
-stdout = "init\nbefore\nfirst\nafter\ninit\nbefore\nsecond\nafter\n"
+stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 checks = [
+    {actual = "${default.test_result.status}", equals = "passed"},
+    {actual = "${default.test_result.complete}", equals = true},
+    {actual = "${default.test_result.counts.passed}", equals = 2},
+    {actual = "${default.test_result.counts.ignored}", equals = 2},
+
     {actual = "${default.result.observations.child_invocations.length}", equals = 0},
     {actual = "${default.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
 ]
@@ -35,11 +40,16 @@ checks = [
 name = "first"
 argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::first 雪"]
 exit = 0
-stdout = "init\nbefore\nfirst\nafter\n"
+stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 checks = [
+    {actual = "${first.test_result.status}", equals = "passed"},
+    {actual = "${first.test_result.complete}", equals = true},
+    {actual = "${first.test_result.counts.passed}", equals = 1},
+    {actual = "${first.test_result.counts.ignored}", equals = 0},
+
     {actual = "${first.result.observations.child_invocations.length}", equals = 0},
     {actual = "${first.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
 ]
@@ -48,11 +58,16 @@ checks = [
 name = "ignored"
 argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Cases::skipped"]
 exit = 0
-stdout = "init\nbefore\nignored\nafter\n"
+stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 checks = [
+    {actual = "${ignored.test_result.status}", equals = "passed"},
+    {actual = "${ignored.test_result.complete}", equals = true},
+    {actual = "${ignored.test_result.counts.passed}", equals = 1},
+    {actual = "${ignored.test_result.counts.ignored}", equals = 0},
+
     {actual = "${ignored.result.observations.child_invocations.length}", equals = 0},
     {actual = "${ignored.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
 ]
@@ -64,9 +79,14 @@ argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--pr
 exit = 0
 stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 checks = [
+    {actual = "${none.test_result.status}", equals = "passed"},
+    {actual = "${none.test_result.complete}", equals = true},
+    {actual = "${none.test_result.counts.passed}", equals = 0},
+    {actual = "${none.test_result.counts.ignored}", equals = 0},
+
     {actual = "${none.result.observations.child_invocations.length}", equals = 0},
     {actual = "${none.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
 ]
@@ -77,9 +97,14 @@ argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--pr
 exit = 0
 stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 checks = [
+    {actual = "${ignored-excluded.test_result.status}", equals = "passed"},
+    {actual = "${ignored-excluded.test_result.complete}", equals = true},
+    {actual = "${ignored-excluded.test_result.counts.passed}", equals = 0},
+    {actual = "${ignored-excluded.test_result.counts.ignored}", equals = 1},
+
     {actual = "${ignored-excluded.result.observations.child_invocations.length}", equals = 0},
     {actual = "${ignored-excluded.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
 ]
@@ -90,9 +115,14 @@ argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--pr
 exit = 1
 stdout = ""
 stderr = ""
-json = "stderr"
+json = "test-stderr"
 diagnostics = []
 checks = [
+    {actual = "${constructor-fails.test_result.status}", equals = "failed"},
+    {actual = "${constructor-fails.test_result.complete}", equals = true},
+    {actual = "${constructor-fails.test_result.counts.passed}", equals = 0},
+    {actual = "${constructor-fails.test_result.counts.ignored}", equals = 0},
+
     {actual = "${constructor-fails.result.observations.child_invocations.length}", equals = 0},
     {actual = "${constructor-fails.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
 ]
