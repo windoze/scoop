@@ -188,3 +188,9 @@
 
 - 增加 core exit(0)、native SIGSEGV 和发送给父 scoop 的 SIGINT 三种正式 CLI 场景。SIGINT 等待测试用例真实进入 native 阻塞点后发送，验证父命令转发信号、收割子进程并保留测试报告；已开始用例失败，下一用例未运行，清理方法不被伪报执行。
 - Darwin debug/release 共 2 个变体、8 个进程步骤通过，见 [报告](validation/process-darwin.json.gz) 与 [日志](validation/process-darwin.log.gz)。exit(0) 保留进程实际退出码 0，但缺少完成记录使测试命令失败；crash 与中断分别保留 SIGSEGV／SIGINT，报告后没有残留 .test-run 目录。该组复用已验证的报告实现，不改信号或 runtime 退出语义。
+
+## 2026-10-14：测试构建消费无源码生产依赖
+
+- 增加含普通生产依赖、测试辅助库和 scoop.test 的 executable 根：先从源码运行同 Cone 测试，再把两种普通依赖改为显式生产 .slib 并删除依赖源码，重新构建和运行测试；最后删除根源码，使用测试入口 .slib 与显式依赖执行 artifact-only 链接和原生运行。
+- 两个依赖均含故意无效的 tests 输入，确认测试目标不会递归启用依赖测试。根测试可访问自身 internal API；生产 main 不被自动执行，测试仍可显式调用它。Darwin debug/release 共 2 个变体、12 个进程步骤通过，包含 moving GC，见 [报告](validation/artifact-dependencies-darwin.json.gz) 与 [日志](validation/artifact-dependencies-darwin.log.gz)。
+- 新增两组独立验收最初用软链接复用 cache，被现有 private staging 目录类型检查拒绝；后改为复制已发布缓存条目到普通目录，保留 [进程初轮报告](validation/process-initial-darwin.json.gz) 与 [产物初轮报告](validation/artifact-dependencies-initial-darwin.json.gz)，不修改编译器绕过检查。进程 fixture 准备中修正了 native 字段名及嵌套 argv 展开写法。全部通过并归档后删除两组临时工作区，清理约 2.4 GB 的逻辑输出，主验收与声明负例仍继续运行。

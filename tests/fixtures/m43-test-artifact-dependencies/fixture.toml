@@ -1,0 +1,100 @@
+schema = 1
+name = "m43-test-artifact-dependencies"
+inputs = ["program", "provider", "helper"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m43", "test-command", "artifact-only", "test-dependencies"]
+variants = [
+    {name = "debug", vars = {profile = "debug"}},
+    {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${fixture}/program", to = "${work}/program"}},
+    {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+    {copy = {from = "${fixture}/helper", to = "${work}/helper"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "helper"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/helper", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "source-run"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+checks = [
+    {actual = "${source-run.test_result.status}", equals = "passed"},
+    {actual = "${source-run.test_result.complete}", equals = true},
+    {actual = "${source-run.test_result.counts.passed}", equals = 2},
+    {actual = "${source-run.test_result.output.stdout.text}", equals = ""},
+    {actual = "${source-run.result.dependencies.length}", equals = 4},
+]
+
+[[steps]]
+name = "artifact-inputs"
+files = [
+    {replace = {path = "${work}/program/Cone.toml", old = 'path = "../provider"', new = 'artifact = "${provider.result.root.path}"'}},
+    {replace = {path = "${work}/program/Cone.toml", old = 'path = "../helper"', new = 'artifact = "${helper.result.root.path}"'}},
+    {remove = {path = "${work}/provider"}},
+    {remove = {path = "${work}/helper"}},
+]
+
+[[steps]]
+name = "artifact-run"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+checks = [
+    {actual = "${artifact-run.test_result.status}", equals = "passed"},
+    {actual = "${artifact-run.test_result.complete}", equals = true},
+    {actual = "${artifact-run.test_result.counts.passed}", equals = 2},
+    {actual = "${artifact-run.test_result.output.stdout.text}", equals = ""},
+    {actual = "${artifact-run.result.dependencies.length}", equals = 4},
+]
+
+[[steps]]
+name = "remove-root-sources"
+files = [{remove = {path = "${work}/program"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${artifact-run.result.root.path}", {each = "${artifact-run.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${artifact-run.result.runtime_index}", "-o", "${work}/artifact-tests", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run-linked"
+argv = ["${work}/artifact-tests"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "production-main\n"
+stderr = ""
