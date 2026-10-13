@@ -81,7 +81,7 @@ std 的浮点解析尤其遵守此要求：现有 JSON 的 runtime parser 是 in
 
 - HashMap 使用普通数组支持的哈希表，存储完整 typed key/value 与缓存 hash；扩容复用缓存 hash，不再次调用用户 hash。选择成熟的 open addressing 策略，查找终止由实际空槽／已检查的表范围保证，无“最大探测次数”语义配额。
 - LinkedHashMap 在实际 entry 中保存插入次序链接，扩容与替换保持顺序。Set 复用相应 Map<T,Unit> 或同一内部存储算法，复用必须是实际调用，不能再造集合插件层。
-- TreeMap 使用成熟的平衡搜索树，首选 AVL：查找先执行 Comparator，结构提交和旋转使用已有位置，不在半修改状态调用用户代码。TreeSet 复用相同树逻辑。Sorted 接口支持边界查询而非只增加一个排序后的 iterator。
+- TreeMap 使用 B-tree，将多个 typed key/value 保存在同一节点中，减少小对象与指针跳转；TreeSet 复用相同树逻辑。查找先执行 Comparator，分裂、借位和合并使用已确定的位置，不在半修改状态调用用户代码。Sorted 接口支持边界查询而非只增加一个排序后的 iterator。
 - ArrayDeque 使用环形 MutableArray<MaybeUninit<T>>；PriorityQueue 使用二叉堆，先比较并规划 sift 路径、再提交移动。删除及时清除 managed 槽，移动元素按普通值复制；不使用对象裸地址或新 runtime payload。
 - 新容器的结构修改检测局限于该容器。可使用计数加仅在回绕时更换的普通引用标记，避免失效 iterator 因回绕复活；不引入全局版本 registry 或资源计费。
 - 用户 hash/equals/comparator 的异常和重入必须在访问过期内部位置前处理。单次修改在完成用户比较前不提交结构；对多元素批量操作只承诺成功前缀。
@@ -91,6 +91,12 @@ std 的浮点解析尤其遵守此要求：现有 JSON 的 runtime parser 是 in
 M42-2 具体采用线性探测、empty/full/deleted 三态槽和缓存完整 hash。已占用槽（含 deleted）达到容量的 3/4 后，下次插入清理墓碑或扩容；rehash 不调用用户代码。状态与 typed entry 分开存储，删除将 entry 的 MaybeUninit 重置为全零。三态与删除后继续探测的资料参考 [Abseil 官方设计说明](https://abseil.io/about/design/swisstables)；其工程使用 [Apache-2.0 许可](https://github.com/abseil/abseil-cpp/blob/master/LICENSE)。这里独立实现标量线性探测，没有移植 C++ 源码、SIMD/group 探测或引入 native 依赖。
 
 M42-3 的 LinkedHashMap 复用 HashMap 的 key→Long 位置索引，另以 ArrayList 内联保存带前后链接的 entry。已删除槽切换为只含 free-list 索引的 enum variant，释放旧 key/value 引用；复用空槽不改变插入次序链。内部查找与无回调的提交步骤分开，LinkedHashMap 查找后只调用一次插入／删除提交，避免在顺序链修改过程中再次执行用户 hash/equals。iterator 仅保存共享存储和位置，不保存旧 backing 或节点值。
+
+M42-4 采用最小度数 8 的 B-tree：非根节点常态保存 7..15 个键值，内部节点保存 keyCount+1 个子节点，所有叶节点深度相同。根允许 1..15 个键值；空集合没有根。每个普通 class 节点使用固定容量的 MutableArray<MaybeUninit<Map.Entry<K,V>>>，key/value 在数组元素内联，不逐项装箱为 Any/interface，也不为每个 entry 分配对象。保留一个溢出槽，内部节点子数组也保留对应槽；叶节点没有子数组。容量是私有实现参数，不是公共 API 或 ABI，后续可按真实性能数据调整。
+
+节点内二分查找，完成所有用户比较后沿 parent 提交修改。插入导致 16 个键值时提升一个中位项、分裂为 8 与 7 项，必要时向根传播；删除内部项先用后继替换，叶节点不足 7 项时向有余量的兄弟借位，否则连同父分隔项合并，必要时向根传播。根空时下降一层。上述步骤不再调用 Comparator；单次操作最坏 O(log n)，完整中序遍历 O(n)。节点内移动具有固定上界，但大值类型的复制可能更贵，不宣称所有负载都优于二叉树。
+
+删除、移动、合并后及时清空闲置 payload 与子引用；clear 遍历并清空所有节点，避免失效 iterator 持有旧节点时保活已删除值。iterator 保存节点与槽位，结构修改失效，单纯 value 替换可见，耗尽后永久返回 None。结构测试覆盖占用范围、排序、子节点数量、相同叶深、parent/位置一致性，以及连续分裂、两侧借位、合并与根收缩。实现参考 [Abseil 的 B-tree 设计说明](https://abseil.io/about/design/btree) 和 [Rust BTreeMap 的存储取舍](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)。两者分别使用 Apache-2.0 和 MIT/Apache-2.0；这里独立编写普通 Scoop 源码，不引入 native 依赖或移植其宿主实现。
 
 ### 3.3 泛型 API 可实现性
 

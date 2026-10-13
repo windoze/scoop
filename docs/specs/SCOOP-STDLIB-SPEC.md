@@ -90,6 +90,8 @@ SortedMap/Set 暴露 comparator 与 `first/last` entry/element 的 OrNull 形式
 
 SortedMap 的具体命名为 firstEntryOrNull/lastEntryOrNull、lowerEntry/floorEntry/ceilingEntry/higherEntry，结果为 Entry?；SortedSet 对应 firstOrNull/lastOrNull、lower/floor/ceiling/higher，结果为 T?。MutableSortedMap/Set 同时继承对应的只读 Sorted 接口与 MutableMap/Set，所有 exact application 保持一致。
 
+范围快照使用 `SortedMap.subMap(fromKey, toKey, fromInclusive = true, toInclusive = false)` 和 `SortedSet.subSet(fromElement, toElement, fromInclusive = true, toInclusive = false)`，返回对应只读 Sorted 接口并保留原 Comparator。两端按 Comparator 顺序解释；from 大于 to 抛 IllegalArgumentException，相等时仅两端都 inclusive 才可能包含该等价类。范围构造不修改来源。sortedMapOf/sortedSetOf 返回新的 TreeMap/TreeSet；toSortedMap/toSortedSet 返回不暴露 Mutable 接口的独立快照。每组均提供显式 Comparator 与要求 Compare bound 的自然顺序重载。
+
 ### 2.4 工厂、转换与集合运算
 
 交付 `emptyList/listOf/mutableListOf/arrayListOf`、`emptySet/setOf/mutableSetOf/hashSetOf/linkedSetOf/sortedSetOf`、`emptyMap/mapOf/mutableMapOf/hashMapOf/linkedMapOf/sortedMapOf`。Map 工厂接收现有 tuple `(K,V)` 的 vararg；不额外复制一套 Pair。命名参数、空工厂期望类型推导、泛型 bound 全部沿普通规则。

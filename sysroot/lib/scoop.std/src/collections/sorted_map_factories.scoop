@@ -1,0 +1,35 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+import scoop.comparisons.naturalOrder
+
+internal class SortedMapSnapshot<K, V> internal constructor(
+    private val elements: SortedMap<K, V>
+) : SortedMap<K, V> by elements
+
+public fun <K, V> sortedMapOf(comparator: Comparator<K>, vararg entries: (K, V)): TreeMap<K, V> {
+    val result = TreeMap<K, V>(comparator)
+    for ((key, value) in entries) result.put(key, value)
+    return result
+}
+
+public fun <K : Compare<K>, V> sortedMapOf(vararg entries: (K, V)): TreeMap<K, V> =
+    sortedMapOf<K, V>(naturalOrder<K>(), *entries)
+
+public fun <K, V> Iterable<(K, V)>.toSortedMap(comparator: Comparator<K>): SortedMap<K, V> {
+    val result = TreeMap<K, V>(comparator)
+    for ((key, value) in this) result.put(key, value)
+    return SortedMapSnapshot<K, V>(result)
+}
+
+public fun <K : Compare<K>, V> Iterable<(K, V)>.toSortedMap(): SortedMap<K, V> =
+    toSortedMap<K, V>(naturalOrder<K>())
+
+public fun <K, V> Map<K, V>.toSortedMap(comparator: Comparator<K>): SortedMap<K, V> {
+    val result = TreeMap<K, V>(comparator)
+    for ((key, value) in this) result.put(key, value)
+    return SortedMapSnapshot<K, V>(result)
+}
+
+public fun <K : Compare<K>, V> Map<K, V>.toSortedMap(): SortedMap<K, V> =
+    toSortedMap<K, V>(naturalOrder<K>())

@@ -1,0 +1,26 @@
+package scoop.collections
+
+internal class TreeIterator<K, V> internal constructor(
+    private val tree: BTree<K, V>,
+    private val structure: ModificationCounter
+) : Iterator<Map.Entry<K, V>> {
+    private val stamp: RevisionStamp = structure.snapshot()
+    private var current: BTreeNode<K, V>? = tree.first(tree.root)
+    private var index: Long = 0L
+    private var exhausted: Boolean = false
+
+    public override fun next(): Map.Entry<K, V>? {
+        if (exhausted) return None
+        structure.check(stamp)
+        if (current == None) {
+            exhausted = true
+            return None
+        }
+        val node = current!!
+        val entry = node.entry(index)
+        val next = tree.successor(node, index)
+        current = next.node
+        index = next.index
+        return Some(entry)
+    }
+}

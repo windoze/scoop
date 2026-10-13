@@ -98,3 +98,17 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 根因是开放派生比较重复展开值字段投影，没有让 tag 检查与后续 payload 使用同一个已保存的 enum 值。MIR lowering 现在在短路条件实际到达时保存嵌套 enum 字段，当前短路分支内对应的 test 与 payload 使用同一 immutable local；嵌套 payload 的取值保留在外层成功分支内，离开分支即结束复用。复用只匹配从不可变 local 出发的 typed value 字段／payload 路径，不合并 class 字段、调用或任意相同文本的表达式。MIR 与 codegen 的原有支配校验不变，没有产物格式、runtime ABI 或 std workaround 改动。
 
 独立 `m42-regression-nested-derived-equality` 覆盖 tuple、struct、嵌套 Option、不同字段与不同 payload，以及 Int/String 的 debug/release 与 moving GC。已执行格式化、全工作区 clippy 和 `cargo test -p scoop-mir-lower`，118 项通过。重建三个 CLI 后，正式定向回归 4/4、6 个变体、30 个进程通过：新增嵌套比较回归、此前的展开来源产物回归、`generic-equality-defaults` 和 `m33-equality-derived-field-semantics`；报告为 `target/m42/nested-equality-report.json`。命令使用 `--filter` 选择这四项，`--work-dir target/m42/foundation --jobs 4`，没有运行无关完整套件。Linux 留待本组统一定向验证。
+
+## M42-4 完成：B-tree SortedMap／SortedSet
+
+日期：2026-10-13。按用户要求，TreeMap／TreeSet 使用 B-tree，替换未提交的 AVL 实现。非根节点保存 7..15 个键值，条目内联存储于普通 typed array，叶节点不分配子数组；节点内二分查找，比较完成后才进行分裂、借位、合并或根收缩。TreeSet 复用 TreeMap，不增加 compiler/runtime helper。算法与容量说明见设计 3.2。
+
+交付 SortedMap／MutableSortedMap、SortedSet／MutableSortedSet、自然／显式 Comparator 工厂、边界查询、保留 Comparator 的只读转换与范围快照。Comparator 等价覆盖时保留最早 key；value 替换不使 iterator 失效，结构修改使其失效，耗尽后不复活。删除／合并／clear 清空失效条目及子引用，即使 iterator 仍持有旧节点也释放已删除 payload。
+
+本机正式验收：`TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-tree --work-dir target/m42/foundation --jobs 4`，9/9 项、9 个变体、35 个进程通过；报告为 `target/m42/btree-report.json`。运行前完成 `git diff --check` 和普通 std Cone 构建。
+
+- 独立结构 probe 在测试用的 std 副本中运行：升序、降序和置换序列的逐次插删，每步检查占用范围、有序性、所有叶深相同、parent/槽位一致性、无重复节点与闲置 child 清空；256 项形成至少三层树，另以 2048 项验证插删的比较次数上界。正常及 moving GC 均通过。
+- 功能与组合覆盖随机模型对照、lower/floor/ceiling/higher、范围端点和逆序比较器、NaN／正负零、无 Hash/Equals 的 key、Comparator 异常及重入。满节点插入遇到比较异常时不提前分裂，已有 iterator 仍有效。
+- 带 managed 引用的较大 struct 经节点移动仍保持字段内容；持有失效 iterator 时，单节点 clear／remove 的 payload 可回收。另覆盖 readonly 与缺失 Compare bound 的编译错误，以及删除 core/std/消费者源码后的 artifact-only link。
+
+本批库代码全部为普通 Scoop。先行修复的两个独立编译器缺陷分别见上文；不因它们扩大到无关完整测试。M42-5 至 M42-12 与 Linux GNU/musl 本组定向验收仍待完成。

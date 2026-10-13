@@ -1,0 +1,33 @@
+package scoop.collections
+
+public fun <K, V> SortedMap<K, V>.subMap(
+    fromKey: K, toKey: K, fromInclusive: Boolean = true, toInclusive: Boolean = false
+): SortedMap<K, V> {
+    val order = comparator
+    if (order.compare(fromKey, toKey) > 0L) throw IllegalArgumentException(Some("reversed map bounds"))
+    val result = TreeMap<K, V>(order)
+    for ((key, value) in this) {
+        val from = order.compare(key, fromKey)
+        val to = order.compare(key, toKey)
+        if ((from > 0L || (fromInclusive && from == 0L)) && (to < 0L || (toInclusive && to == 0L))) {
+            result.put(key, value)
+        }
+    }
+    return SortedMapSnapshot<K, V>(result)
+}
+
+public fun <T> SortedSet<T>.subSet(
+    fromElement: T, toElement: T, fromInclusive: Boolean = true, toInclusive: Boolean = false
+): SortedSet<T> {
+    val order = comparator
+    if (order.compare(fromElement, toElement) > 0L) throw IllegalArgumentException(Some("reversed set bounds"))
+    val result = TreeSet<T>(order)
+    for (element in this) {
+        val from = order.compare(element, fromElement)
+        val to = order.compare(element, toElement)
+        if ((from > 0L || (fromInclusive && from == 0L)) && (to < 0L || (toInclusive && to == 0L))) {
+            result.add(element)
+        }
+    }
+    return SortedSetSnapshot<T>(result)
+}

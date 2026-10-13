@@ -1,0 +1,46 @@
+package scoop.collections
+
+import scoop.comparisons.Comparator
+
+public class TreeSet<T> public constructor(
+    public override val comparator: Comparator<T>
+) : MutableSortedSet<T> {
+    private val elements: TreeMap<T, Unit> = TreeMap<T, Unit>(comparator)
+
+    public override val size: Long get() = elements.size
+    public override operator fun contains(value: T): Boolean = elements.containsKey(value)
+    public override fun add(value: T): Boolean = when (elements.putIfAbsent(value, Unit)) {
+        case None -> true
+        case Some(_) -> false
+    }
+    public override fun remove(value: T): Boolean = when (elements.remove(value)) {
+        case None -> false
+        case Some(_) -> true
+    }
+    public override fun clear() { elements.clear() }
+    public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
+
+    private fun key(entry: Map.Entry<T, Unit>?): T? = when (entry) {
+        case None -> None
+        case Some(value) -> Some(value.key)
+    }
+
+    public override fun firstOrNull(): T? = key(elements.firstEntryOrNull())
+    public override fun lastOrNull(): T? = key(elements.lastEntryOrNull())
+    public override fun lower(element: T): T? = key(elements.lowerEntry(element))
+    public override fun floor(element: T): T? = key(elements.floorEntry(element))
+    public override fun ceiling(element: T): T? = key(elements.ceilingEntry(element))
+    public override fun higher(element: T): T? = key(elements.higherEntry(element))
+
+    public override fun retainAll(elements: Iterable<T>): Boolean {
+        val snapshot = elements.toList()
+        val keep = TreeSet<T>(comparator)
+        for (element in snapshot) keep.add(element)
+        val original = this.toList()
+        var changed = false
+        for (element in original) {
+            if (!keep.contains(element) && remove(element)) changed = true
+        }
+        return changed
+    }
+}

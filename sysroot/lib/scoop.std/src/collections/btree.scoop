@@ -1,0 +1,119 @@
+package scoop.collections
+
+internal struct TreePosition<K, V>(val node: BTreeNode<K, V>?, val index: Long)
+
+internal class BTree<K, V> {
+    private var rootNode: BTreeNode<K, V>? = None
+    private var elementCount: Long = 0L
+    internal val root: BTreeNode<K, V>? get() = rootNode
+    internal val size: Long get() = elementCount
+
+    internal fun insert(key: K, value: V, leaf: BTreeNode<K, V>?, index: Long) {
+        var node = if (leaf == None) BTreeNode<K, V>(true) else leaf!!
+        if (rootNode == None) rootNode = Some(node)
+        node.insert(index, Map.Entry<K, V>(key, value), None)
+        elementCount += 1L
+        while (node.count > 15L) {
+            val (promoted, right) = node.split()
+            val parent = node.parent
+            if (parent == None) {
+                val newRoot = BTreeNode<K, V>(false)
+                newRoot.setChild(0L, Some(node))
+                newRoot.insert(0L, promoted, Some(right))
+                rootNode = Some(newRoot)
+                return
+            }
+            parent!!.insert(node.parentIndex, promoted, Some(right))
+            node = parent!!
+        }
+    }
+
+    internal fun replace(node: BTreeNode<K, V>, index: Long, value: V) {
+        node.write(index, Map.Entry<K, V>(node.entry(index).key, value))
+    }
+
+    internal fun first(start: BTreeNode<K, V>?): BTreeNode<K, V>? {
+        var node = start
+        while (node != None && !node!!.leaf) node = node!!.child(0L)
+        return node
+    }
+
+    internal fun last(start: BTreeNode<K, V>?): BTreeNode<K, V>? {
+        var node = start
+        while (node != None && !node!!.leaf) node = node!!.child(node!!.count)
+        return node
+    }
+
+    internal fun successor(node: BTreeNode<K, V>, index: Long): TreePosition<K, V> {
+        if (!node.leaf) return TreePosition<K, V>(first(node.child(index + 1L)), 0L)
+        if (index + 1L < node.count) return TreePosition<K, V>(Some(node), index + 1L)
+        var child = node
+        var parent = child.parent
+        while (parent != None) {
+            if (child.parentIndex < parent!!.count) return TreePosition<K, V>(parent, child.parentIndex)
+            child = parent!!
+            parent = child.parent
+        }
+        return TreePosition<K, V>(None, 0L)
+    }
+
+    internal fun remove(node: BTreeNode<K, V>, index: Long): V {
+        val result = node.entry(index).value
+        var removed = node
+        var position = index
+        if (!node.leaf) {
+            removed = first(node.child(index + 1L))!!
+            node.write(index, removed.entry(0L))
+            position = 0L
+        }
+        removed.removeSlot(position)
+        elementCount -= 1L
+        rebalance(removed)
+        return result
+    }
+
+    private fun rebalance(start: BTreeNode<K, V>) {
+        var node = start
+        while (node.parent != None && node.count < 7L) {
+            val parent = node.parent!!
+            val index = node.parentIndex
+            if (index > 0L && parent.child(index - 1L)!!.count > 7L) {
+                borrowBTreeLeft<K, V>(node, parent, index)
+                return
+            }
+            if (index < parent.count && parent.child(index + 1L)!!.count > 7L) {
+                borrowBTreeRight<K, V>(node, parent, index)
+                return
+            }
+            mergeBTreeChildren<K, V>(parent, if (index > 0L) index - 1L else index)
+            node = parent
+        }
+        if (rootNode!!.count == 0L) {
+            val oldRoot = rootNode!!
+            rootNode = oldRoot.child(0L)
+            if (rootNode != None) {
+                rootNode!!.parent = None
+                rootNode!!.parentIndex = 0L
+            }
+            oldRoot.retire()
+        }
+    }
+
+    internal fun clear() {
+        var current = rootNode
+        while (current != None) {
+            val node = current!!
+            var index = 0L
+            while (index <= node.count && node.child(index) == None) index += 1L
+            if (index <= node.count) {
+                current = node.child(index)
+                node.clearChild(index)
+            } else {
+                current = node.parent
+                node.retire()
+            }
+        }
+        rootNode = None
+        elementCount = 0L
+    }
+}
