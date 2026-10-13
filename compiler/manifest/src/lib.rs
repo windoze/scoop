@@ -33,9 +33,9 @@ pub use selection::{
 };
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
-    DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,
-    ManifestParseError, ManifestParseErrorKind, ManifestSpan, ParsedConeManifest,
-    parse_cone_manifest,
+    DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDependency,
+    ManifestDiagnosticSpans, ManifestParseError, ManifestParseErrorKind, ManifestSpan,
+    ParsedConeManifest, TestManifestConfig, parse_cone_manifest,
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,

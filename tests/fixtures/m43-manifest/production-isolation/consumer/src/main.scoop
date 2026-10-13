@@ -1,0 +1,5 @@
+import provider.answer
+
+fun main() {
+    println(f"production ${answer()}")
+}

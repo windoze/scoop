@@ -1,0 +1,11 @@
+schema = 1
+
+[cone]
+group = "dev.m43"
+name = "manifest-source-condition"
+version = "0.1.0"
+kind = "library"
+
+[[test.sources]]
+path = "tests"
+when = { os = "unknown" }

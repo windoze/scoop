@@ -1,0 +1,17 @@
+schema = 1
+
+[cone]
+group = "dev.m43"
+name = "production-isolation"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.m43:production-provider" = { version = "0.1.0", path = "../provider" }
+
+[[test.sources]]
+path = "missing-tests"
+when = { os = ["darwin", "linux"] }
+
+[test-dependencies]
+"dev.m43:another-test-source" = { version = "9.1.0", path = "../also-missing" }

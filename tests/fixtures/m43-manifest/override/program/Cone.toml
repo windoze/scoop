@@ -1,0 +1,12 @@
+schema = 1
+
+[cone]
+group = "dev.m43"
+name = "manifest-override"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.m43:helper" = "0.1.0"
+[test-dependencies]
+"dev.m43:helper" = { version = "2.0.0", path = "../other" }

@@ -2427,7 +2427,7 @@ kind = "library" # 或 "executable"
 - dependency key是exact `group:name`，value必须给出exact version；字符串短式只省略locator。table value至多给一个`path` source-Cone locator或`artifact` `.slib` locator；二者都省略时，`scoop`在每个显式artifact search root下检查`<group>/<name>/<version>/cone.slib`，三项都使用canonical文本且`.`不拆目录。所有存在的候选必须具有相同完整`ArtifactFingerprint`，否则是ambiguous artifact错误；search-root顺序不能决定选择不同内容；
 - 除 core 按 12.6 定位外，没有显式 locator 且全部显式 artifact search root 均无候选时，仅 `group = "scoop"` 的依赖继续检查 `<sysroot>/lib/<name>/Cone.toml`。其完整 coordinate 必须匹配所声明的 group/name/version，且为普通 library Cone；其他 group 不作此默认查找。已选择的显式来源损坏、歧义或不兼容时直接报错，不以 sysroot 覆盖。默认查找不注入新依赖、不改变名称可见性或实体身份；
 - locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
-- dependency声明没有version range、`latest`、optional/dev/build dependency、feature、platform条件或dependency alias。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
+- dependency声明没有version range、`latest`、optional/build dependency、feature、platform条件或dependency alias；测试专用依赖见 12.2.4。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
 - `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
 - `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency恰好为core的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；它不接受其他Cone dependency。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
 - manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file artifact/cache key另外包含source content digest、core semantic/code fingerprints、compiler/schema/target/toolchain，不因共用reserved identity而碰撞；
@@ -2491,6 +2491,27 @@ when = { os = "darwin" }
 库解析先检查全部显式 library roots；没有候选时允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。显式候选损坏、不兼容或歧义仍报错，不能静默改用系统库。
 
 平台默认查找只解析已经声明的逻辑库需求，不发现相邻 native 源码或任意库；空 lib 的默认 namespace 也不因此扫描系统目录。具体 target、link mode、候选格式、产物绑定和缓存规则见实现规范 2.8。
+
+#### 12.2.4 测试配置与生产构建隔离
+
+manifest 可声明 `[test]` 的 `sources` 与顶层 `[test-dependencies]`。测试源码清单使用 12.2.2 的 path/when 语法；`test.sources` 省略时选择 `tests/`，不存在的默认测试目录表示没有测试；显式空数组表示关闭测试源码选择，显式缺失路径仍是测试构建的输入错误。显式测试清单不追加默认目录。字段、路径形式和平台条件的格式与生产清单使用相同的检查及源码定位。
+
+```toml
+[[test.sources]]
+path = "tests/common"
+
+[[test.sources]]
+path = "tests/linux"
+when = { os = "linux" }
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"dev.example:test-helper" = { version = "0.1.0", path = "../test-helper" }
+```
+
+测试依赖沿用生产依赖的 exact coordinate、version、path/artifact locator 及错误定位规则。同一 group:name 已在 `[dependencies]` 声明时，测试使用该生产依赖，不得在 `[test-dependencies]` 再次声明；即使版本与 locator 相同也在测试声明处报错。未知字段、非法 coordinate、冲突 locator 和非法源码清单仍属于 manifest 错误，普通构建也检查这些格式规则。
+
+普通 `scoop build/run` 与生产用途的 `scoopc build` 只选择生产源码和生产依赖，不检查测试路径的存在性，不读取、解析或类型检查测试文件，也不定位测试依赖。测试源码内容、测试依赖、测试源码选择配置及其 locator 均不进入生产编译缓存键或生产 `.slib` 的依赖闭包；测试目录内即使有非法 Scoop 源码、无效 UTF-8 或不可用的测试依赖，生产构建仍可完成。生产源码选择及非空要求保持 12.2.2 的规则。
 
 ### 12.3 静态exact依赖图
 

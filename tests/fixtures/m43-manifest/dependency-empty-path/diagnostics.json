@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: a dependency locator must not be empty",
+    "notes": [],
+    "origin": {
+      "end": 182,
+      "kind": "host",
+      "path": "${fixture}/program/Cone.toml",
+      "start": 180
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

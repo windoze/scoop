@@ -8,6 +8,8 @@ use scoop_identity::{ConeCoordinate, ConeCoordinateError, RequestedConeKind};
 
 mod parse;
 pub use parse::parse_cone_manifest;
+mod testing;
+pub use testing::{ManifestDependency, TestManifestConfig};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DependencyCoordinateKey {
@@ -240,6 +242,7 @@ pub struct ParsedConeManifest {
     semantic: ConeManifestSemantic,
     locators: DependencyLocatorTable,
     diagnostic_spans: ManifestDiagnosticSpans,
+    tests: TestManifestConfig,
 }
 
 impl ParsedConeManifest {
@@ -253,6 +256,10 @@ impl ParsedConeManifest {
 
     pub fn diagnostic_spans(&self) -> &ManifestDiagnosticSpans {
         &self.diagnostic_spans
+    }
+
+    pub fn tests(&self) -> &TestManifestConfig {
+        &self.tests
     }
 }
 
@@ -294,6 +301,7 @@ pub enum ManifestParseErrorKind {
     },
     ConflictingDependencyLocators,
     EmptyDependencyLocator,
+    DuplicateTestDependency(String),
     InvalidSelection(String),
     InvalidNative(String),
 }
@@ -335,6 +343,10 @@ impl fmt::Display for ManifestParseErrorKind {
             Self::EmptyDependencyLocator => {
                 formatter.write_str("a dependency locator must not be empty")
             }
+            Self::DuplicateTestDependency(key) => write!(
+                formatter,
+                "test dependency {key:?} is already declared in dependencies; reuse the production dependency"
+            ),
         }
     }
 }
