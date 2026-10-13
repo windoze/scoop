@@ -2105,7 +2105,7 @@ public fun <T : Equals<T>> sameKey(left: T, right: T): Boolean =
 - generic body 的普通 operator 调用继续遵守已有的泛型 bound 与重载规则。普通 `Equals.equals` 接口不改变既有结构比较的派生、具体化或跨库算法，也不增加按调用上下文区分结构比较正文的要求。
 - 手写 `operator fun equals(other: R): Boolean` 按普通成员规则参与决议，无需声明 Equals。同类型签名被手写成员占用时不再生成第二个同签名方法；判定占用不以 operator 标记或调用处可见性过滤，普通同签名 `equals` 也会阻止派生，但它本身不参与 `==`。其他参数类型的重载不屏蔽同类型派生；实际继承／覆写遵守普通规则。
 - 派生比较遵守 value-type `this` 按值传递规则。tuple 派生方法的有效访问域由完整类型决定，helper 所在文件或首次创建位置不增加源码访问限制；Unit 使用 core 的公开显式成员。含 `@InteriorMutable` 的值仍按 13.7 在构造、读取、传递和比较处执行 unsafe 类型使用检查。
-- Float/Double 的 operator 比较遵守 11.2.2，含 NaN 字段的结构值可能不等于自身。结构比较保留字段语义，不能改用 bitwise equality、`memcmp` 或相同存储／identity 的快捷返回，也不能将 `x == x` 恒折叠为 true；泛型具体化同样适用。
+- Float/Double 字段的 operator 比较遵守 11.2.2：所有 NaN 彼此相等，正负零相等。结构比较仍保留每个字段的实际语义；其他字段的用户自定义 equals 可以不满足自反性。因此不能对任意结构值改用 bitwise equality、`memcmp` 或相同存储／identity 的快捷返回，也不能将任意结构值的 `x == x` 恒折叠为 true；泛型具体化同样适用。
 - **引用类型**：class/object 可以直接声明或继承成员 operator，不自动派生结构比较。只使用表达式静态类型可见的成员；`Any == Any` 非法，运行期对象另有方法不能补齐静态类型的成员。需要 identity 比较时显式使用 `===`。
 - **`Equals<T>`（库相等）**：类型须显式声明或继承适用的 interface application，并提供合法的 `override operator fun equals`；普通继承与接口默认实现规则照常适用。只有手写 operator equals 或结构比较不产生 conformance；显式 adopt 却缺少合法实现仍是编译错误，派生结构比较不补齐接口实现。
 - 继承 `Equals<Base>` 不自动产生 `Equals<Derived>`；`Equals<Point>` 视图的 equals 参数仍是 Point，因此 `view == point` 合法而两个同类接口视图之间不一定可比较。装箱、interface bound、itable 与 `is` / `as` 只使用实际声明／继承的接口关系。tuple 不能声明接口；需要库相等时用显式实现 Equals 的命名类型包装。
