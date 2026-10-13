@@ -142,3 +142,10 @@
 - GNU 全量的 19 个原生链接用例显示 ELF 系统导入数增加 2。Float/Double 的 Rem 接口入口使既有 LLVM 浮点余数及 fmodf/fmod 依赖进入可达实现；实际 cabi-object 程序的动态符号确认这两项导入。
 - GNU/musl 共 40 份计划只调整这一计数，原生库要求、归档成员、选择顺序及绑定内容逐字保持。未修改链接器、归一化规则或测试时限。
 - 本机与 Linux 格式化、workspace clippy 通过；GNU 普通比较补验 19 项全部通过：34 个变体、195 次进程、35 次计划检查。musl 对应期望由进行中的完整运行继续验证。
+
+### 导入默认值中的派生调用来源
+
+- GNU 全量的四项结构默认值／文件预热顺序用例暴露 HIR 来源检查不一致：封闭 tuple 的派生 helper 按 exact owner 生成，其字段普通调用可以保留提供方默认值的位置；源码位置验证已经支持该规则，依赖调用检查却仍只接受本地来源或导入词法模板。Unit 改为普通 equals 成员后触发此路径。
+- 先补充实现规范 2.2，再按已有 typed DerivedEquality 身份及 NoSubstitution 上下文识别这类 helper；完整的 definition/evaluation 文件、位置与上下文投影继续检查，不修改来源、不改生成身份、不引入额外记录或重放语义。实现仅新增 10 行。
+- 新增 Rust 回归确认导入 tuple 默认值的两个字段比较实际调用 core Unit.equals，并保留提供方来源。本机 fmt、workspace clippy、HIR 906 项与 HIR lowering 1,429 项全部通过；release 重建后，20 个源码默认值正式 fixture 全部通过（20 变体、120 次进程），包含四项失败及两种预热顺序、独立链接与 moving GC。
+- Linux 全量原报告继续保留；使用独立构建目录验证修复后的两个目标，避免替换正在执行的旧编译器。

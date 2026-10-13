@@ -1,5 +1,6 @@
 use super::*;
 
+mod defaults;
 mod named;
 
 fn fixture(name: &str) -> String {
