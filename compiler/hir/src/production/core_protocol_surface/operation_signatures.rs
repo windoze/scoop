@@ -37,6 +37,8 @@ pub(super) fn expected_operation_signature(
                     vec![floating(kind)],
                     if operation.is_predicate() {
                         boolean.clone()
+                    } else if operation == crate::FloatBinaryOperator::CompareTo {
+                        long.clone()
                     } else {
                         floating(kind)
                     },

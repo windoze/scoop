@@ -81,7 +81,7 @@ impl Lowerer {
                 };
                 Some((function, hir::MethodOwnerApplication::Enum(application)))
             }
-            Type::Unit | Type::Tuple(_) => None,
+            Type::Tuple(_) => None,
             _ => return Ok(None),
         };
         if let Some((function, owner)) = nominal {

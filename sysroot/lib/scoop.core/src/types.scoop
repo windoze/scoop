@@ -1,5 +1,5 @@
-public interface Equality<T> {
-    public fun equalTo(other: T): Boolean
+public interface Equals<T> {
+    public operator fun equals(other: T): Boolean
 }
 
 public interface ToString {
@@ -20,13 +20,12 @@ public typealias UInt32 = UInt
 public typealias UInt64 = ULong
 
 @Intrinsic("core_boolean")
-public struct Boolean : Equality<Boolean>, ToString, Hash {
-    public operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
+public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
+    public override operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
-    public override fun equalTo(other: Boolean): Boolean = this.equals(other)
 
     @Intrinsic("boolean_not")
-    public operator fun not(): Boolean
+    public override operator fun not(): Boolean
 
     public override fun toString(): String = coreBooleanToString(this)
 

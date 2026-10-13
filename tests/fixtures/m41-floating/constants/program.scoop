@@ -1,0 +1,26 @@
+const val snan: Float = Float.NaN
+const val dnan: Double = -Double.NaN
+const val sameSingle: Boolean = snan.equals(-snan)
+const val sameDouble: Boolean = dnan == -dnan
+const val singleOrder: Long = snan.compareTo(Float.POSITIVE_INFINITY)
+const val doubleOrder: Long = Double.POSITIVE_INFINITY.compareTo(dnan)
+const val bothOrder: Long = snan.compareTo(-snan)
+const val zeroOrder: Long = (-0.0).compareTo(0.0)
+const val less: Boolean = 1f < snan
+const val lessEqual: Boolean = snan <= -snan
+const val greater: Boolean = dnan > Double.POSITIVE_INFINITY
+const val greaterEqual: Boolean = dnan >= -dnan
+const val distinct: Boolean = snan != Float.POSITIVE_INFINITY
+const val reflexive: Boolean = !(dnan != dnan)
+const val roundedOrder: Long = 1.000000059604644775390625000001.compareTo(1.0000001f)
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(sameSingle && sameDouble && less && lessEqual && greater && greaterEqual && distinct && reflexive)
+    check(singleOrder == 1L && doubleOrder == -1L && bothOrder == 0L && zeroOrder == 0L && roundedOrder == 0L)
+    check(sameSingle == snan.equals(-snan) && sameDouble == (dnan == -dnan))
+    check(singleOrder == snan.compareTo(Float.POSITIVE_INFINITY))
+    check(doubleOrder == Double.POSITIVE_INFINITY.compareTo(dnan))
+    check(less == (1f < snan) && lessEqual == (snan <= -snan))
+    check(greater == (dnan > Double.POSITIVE_INFINITY) && greaterEqual == (dnan >= -dnan))
+    println("floating constants")
+}

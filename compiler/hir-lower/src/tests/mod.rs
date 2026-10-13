@@ -107,6 +107,8 @@ mod m37_names;
 mod m37_properties;
 mod m37_type_annotations;
 mod m4;
+mod m41_f_bounds;
+mod m41_operators;
 mod m5;
 mod m6;
 mod m7;

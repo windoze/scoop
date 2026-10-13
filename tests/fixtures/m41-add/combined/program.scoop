@@ -1,0 +1,25 @@
+struct Offset(val value: Long) : Add<Offset, Offset>, ToString {
+    public override operator fun plus(other: Offset): Offset = Offset(value + other.value)
+    public override fun toString(): String = value.toString()
+}
+struct Vector(val x: Int, val y: Int)
+struct Point(val x: Int, val y: Int) : Add<Vector, Point> {
+    public override operator fun plus(other: Vector): Point = Point(x + other.x, y + other.y)
+}
+typealias Key = Offset
+class FancyMap<K : Add<K, K>, V> {
+    public fun combineKeys(left: K, right: K): K = left + right
+}
+fun <L : Add<R, O>, R, O> combine(left: L, right: R): O = left + right
+fun <T : Add<T, T>> describe(left: T, right: T): String where T : ToString =
+    (left + right).toString()
+fun main() {
+    if (FancyMap<Int, String>().combineKeys(19, 23) != 42) { throw IllegalStateException() }
+    if (FancyMap<Key, String>().combineKeys(Key(19L), Key(23L)).value != 42L) { throw IllegalStateException() }
+    val point: Point = combine(Point(2, 3), Vector(5, 7))
+    if (point.x != 7 || point.y != 10) { throw IllegalStateException() }
+    if (describe(Offset(19L), Offset(23L)) != "42") { throw IllegalStateException() }
+    val any: Any = Offset(1L)
+    if (!(any is Add<Offset, Offset>) || any is Add<Long, Long>) { throw IllegalStateException() }
+    println("add combined")
+}

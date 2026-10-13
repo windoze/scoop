@@ -1,0 +1,55 @@
+public interface Add<Rhs, Result> {
+    public operator fun plus(other: Rhs): Result
+}
+
+public interface Sub<Rhs, Result> {
+    public operator fun minus(other: Rhs): Result
+}
+
+public interface Mul<Rhs, Result> {
+    public operator fun times(other: Rhs): Result
+}
+
+public interface Div<Rhs, Result> {
+    public operator fun div(other: Rhs): Result
+}
+
+public interface Rem<Rhs, Result> {
+    public operator fun rem(other: Rhs): Result
+}
+
+public interface UnaryPlus<Result> {
+    public operator fun unaryPlus(): Result
+}
+
+public interface UnaryMinus<Result> {
+    public operator fun unaryMinus(): Result
+}
+
+public interface Increment<Result : Increment<Result>> {
+    public operator fun inc(): Result
+}
+
+public interface Decrement<Result : Decrement<Result>> {
+    public operator fun dec(): Result
+}
+
+public interface Not<Result> {
+    public operator fun not(): Result
+}
+
+public interface Compare<Rhs> {
+    public operator fun compareTo(other: Rhs): Long
+}
+
+public interface RangeTo<Rhs, Result> {
+    public operator fun rangeTo(endpoint: Rhs): Result
+}
+
+public interface RangeUntil<Rhs, Result> {
+    public operator fun rangeUntil(endpoint: Rhs): Result
+}
+
+public interface Contains<Element> {
+    public operator fun contains(value: Element): Boolean
+}

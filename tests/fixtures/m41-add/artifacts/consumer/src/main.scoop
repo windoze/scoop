@@ -1,0 +1,11 @@
+import additions.*
+
+operator fun Foreign.plus(other: Foreign): Foreign = Foreign(value + other.value + 1000)
+fun main() {
+    if (add(19, 23) != 42 || add(Key(19), Key(23)).value != 42) { throw IllegalStateException() }
+    if (dispatchKey(Key(19), Key(23)).value != 42) { throw IllegalStateException() }
+    if (dispatch(19, 23) != 42) { throw IllegalStateException() }
+    if (selected(Foreign(19), Foreign(23), "token").value != 42) { throw IllegalStateException() }
+    if ((Foreign(19) + Foreign(23)).value != 1042) { throw IllegalStateException() }
+    println("add artifacts")
+}

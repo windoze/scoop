@@ -64,7 +64,18 @@ pub(super) fn check(
             "each materialized descriptor keeps its matching exact layout"
         );
     }
-    let expected = [
+    let mut expected: BTreeSet<_> = [
+        "Add<Double, Double>",
+        "Add<Float, Float>",
+        "Add<Int16, Int16>",
+        "Add<Int8, Int8>",
+        "Add<Int, Int>",
+        "Add<Long, Long>",
+        "Add<String, String>",
+        "Add<UInt16, UInt16>",
+        "Add<UInt8, UInt8>",
+        "Add<UInt, UInt>",
+        "Add<ULong, ULong>",
         "Array<Char>",
         "Array<Int8>",
         "Array<String>",
@@ -98,22 +109,31 @@ pub(super) fn check(
         "Encodable<UInt>",
         "Encodable<ULong>",
         "Encodable<Unit>",
-        "Equality<Boolean>",
-        "Equality<Char>",
-        "Equality<Double>",
-        "Equality<Float>",
-        "Equality<Int16>",
-        "Equality<Int8>",
-        "Equality<Int>",
-        "Equality<Long>",
-        "Equality<Ptr<Int8>>",
-        "Equality<Ptr<UInt8>>",
-        "Equality<String>",
-        "Equality<UInt16>",
-        "Equality<UInt8>",
-        "Equality<UInt>",
-        "Equality<ULong>",
-        "Equality<Unit>",
+        "Equals<Boolean>",
+        "Equals<Char>",
+        "Equals<Double>",
+        "Equals<Float>",
+        "Equals<Int16>",
+        "Equals<Int8>",
+        "Equals<Int>",
+        "Equals<Long>",
+        "Equals<Ptr<Int8>>",
+        "Equals<Ptr<UInt8>>",
+        "Equals<String>",
+        "Equals<UInt16>",
+        "Equals<UInt8>",
+        "Equals<UInt>",
+        "Equals<ULong>",
+        "Equals<Unit>",
+        "Get<Long, Char>",
+        "Get<Long, Int8>",
+        "Get<Long, MaybeUninit<String>>",
+        "Get<Long, String>",
+        "Get<Long, UInt8>",
+        "Set<Long, Char>",
+        "Set<Long, Int8>",
+        "Set<Long, MaybeUninit<String>>",
+        "Set<Long, String>",
         "Iterable<Char>",
         "Iterable<Int8>",
         "Iterable<Int>",
@@ -163,6 +183,40 @@ pub(super) fn check(
     .into_iter()
     .map(str::to_owned)
     .collect();
+    for owner in [
+        "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Float", "Double",
+    ] {
+        for capability in ["Sub", "Mul", "Div", "Rem"] {
+            expected.insert(format!("{capability}<{owner}, {owner}>"));
+        }
+        for capability in ["UnaryPlus", "UnaryMinus", "Increment", "Decrement"] {
+            expected.insert(format!("{capability}<{owner}>"));
+        }
+    }
+    expected.insert("Not<Boolean>".into());
+    for owner in [
+        "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Char", "String",
+        "Float", "Double",
+    ] {
+        expected.insert(format!("Compare<{owner}>"));
+    }
+    for (owner, range) in [
+        ("Int8", "IntRange"),
+        ("Int16", "IntRange"),
+        ("Int", "IntRange"),
+        ("Long", "LongRange"),
+        ("UInt8", "UIntRange"),
+        ("UInt16", "UIntRange"),
+        ("UInt", "UIntRange"),
+        ("ULong", "ULongRange"),
+    ] {
+        for capability in ["RangeTo", "RangeUntil"] {
+            expected.insert(format!("{capability}<{owner}, {range}>"));
+        }
+    }
+    for owner in ["Int", "Long", "UInt", "ULong"] {
+        expected.insert(format!("Contains<{owner}>"));
+    }
     assert_eq!(applications, expected);
     assert_eq!(coroutine_descriptors, coroutine_types);
 

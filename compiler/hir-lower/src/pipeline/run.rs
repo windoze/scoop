@@ -210,6 +210,7 @@ impl Lowerer {
             self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
             self.validate_option_enum(files);
         }
+        self.deferred_type_bounds = Some(Vec::new());
         self.resolve_all_type_aliases();
 
         self.resolve_nominal_parameter_constraints(
@@ -252,7 +253,9 @@ impl Lowerer {
             self.interfaces[id].parents = parents;
         }
         self.current_owner = None;
-        self.check_interface_inheritance_cycles(&pending_interfaces);
+        if !self.check_interface_inheritance_cycles(&pending_interfaces) {
+            return Err(self.take_source_diagnostics());
+        }
 
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
@@ -312,6 +315,11 @@ impl Lowerer {
             self.resolve_object(id, decl);
         }
         self.current_owner = None;
+
+        if !self.check_class_inheritance_cycles(&pending_classes, &pending_objects) {
+            return Err(self.take_source_diagnostics());
+        }
+        self.validate_deferred_type_bounds();
 
         // Inline value layout must be finite before signatures or bodies can
         // request concrete applications. The declaration graph deliberately

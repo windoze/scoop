@@ -39,7 +39,7 @@ fn actual_generic_calls_retain_odr_roots_in_the_shared_machine_input() {
             .filter(|root| matches!(root.subject(), mir::CallableSignatureSubject::Odr(_)))
             .count();
         assert_eq!(
-            odr, 13,
+            odr, 12,
             "provider templates and the local relay retain their instances"
         );
         for root in roots {

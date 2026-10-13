@@ -1,0 +1,5 @@
+class Box {
+    public operator fun get(index: Long): Int = 42
+}
+fun <T : Get<Long, Int>> read(value: T): Int = value[0L]
+fun main() { println(read(Box())) }

@@ -9,8 +9,8 @@ fun main() {
     println(value as Int16)
     println(describe(value as Code))
     println(less(Code.Cold, 0))
-    val equality: Equality<Int16> = Code.Hot
-    println(equality.equalTo(13))
+    val equality: Equals<Int16> = Code.Hot
+    println(equality.equals(13))
     val text: ToString = Code.Hot
     println(text.toString())
     val tokens = Array(2) { _: Long -> Token<Int>.High }

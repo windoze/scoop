@@ -8,8 +8,8 @@ const val divided: Double = 1.0 / 0.0
 const val negativeZero: Double = -0.0
 const val remainder: Double = -4.0 % 2.0
 const val invalid: Boolean = (0.0 / 0.0).isNaN()
-const val unordered: Boolean = !((0.0 / 0.0) >= 0.0)
-const val total: Boolean = (-0.0).isTotallyOrdered(belowOrEqualTo = 0.0)
+const val nanLast: Boolean = (0.0 / 0.0) >= 0.0
+const val zeroOrder: Long = (-0.0).compareTo(0.0)
 const val clamp: Int8 = 1000.0.toInt8()
 const val unsignedClamp: UInt8 = (-1000f).toUInt8()
 const val longClamp: Int64 = divided.toInt64()
@@ -37,7 +37,7 @@ fun doubleBits(value: Double): UInt64
         floatBits(maximum) != 0x7f7fffffU || doubleBits(minimum) != 1UL ||
         floatBits(normal) != 0x00800000U) { println("bits"); return }
     println(f"${rounded} ${narrowStep} ${wideStep} ${negativeZero} ${remainder}")
-    println(invalid && unordered && total && quiet.isNaN() && copiedQuiet.isNaN())
+    println(invalid && nanLast && zeroOrder == 0L && quiet.isNaN() && copiedQuiet.isNaN())
     println(f"${clamp} ${unsignedClamp} ${longClamp} ${nanInteger} ${incremented}")
     println(f"${integerFloat} ${integerDouble} ${shortened} ${enlarged}")
     println(f"${maximum} ${minimum} ${normal} ${Float.MIN_VALUE} ${Double.MIN_NORMAL}")

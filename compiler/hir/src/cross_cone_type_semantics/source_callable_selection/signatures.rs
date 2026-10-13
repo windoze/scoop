@@ -8,12 +8,24 @@ use scoop_identity::SignatureTypeKey;
 pub(super) struct MaterializableSignatures<'a> {
     nominals: &'a CanonicalNominalInterfacesV1,
     closure: NominalMaterializationClosure,
+    dispatched: BTreeSet<Origin>,
 }
 
 impl<'a> MaterializableSignatures<'a> {
     pub(super) fn new(public: &'a CrossConeHirInterfaceSectionV1) -> Result<Self, Error> {
         Ok(Self {
             nominals: public.nominal_interfaces(),
+            dispatched: public
+                .nominal_interfaces()
+                .all_records()
+                .flat_map(|nominal| {
+                    nominal
+                        .declaration_details()
+                        .dispatch_selections()
+                        .records()
+                })
+                .map(|selection| selection.callable_target())
+                .collect(),
             closure: NominalMaterializationClosure::from_declarations(
                 public.nominal_interfaces(),
                 public.callable_interfaces(),
@@ -28,7 +40,16 @@ impl<'a> MaterializableSignatures<'a> {
     }
 
     pub(super) fn callable(&self, source: &CallableDeclarationRecordV1) -> bool {
-        if source.effects().implementation() != CallableImplementationV1::Scoop
+        let has_body = match source.effects().implementation() {
+            CallableImplementationV1::Scoop => true,
+            CallableImplementationV1::Intrinsic(_) => {
+                !source.slot_relations().is_empty()
+                    || self.dispatched.contains(&source.declaration())
+            }
+            CallableImplementationV1::SourceExternScoop
+            | CallableImplementationV1::SourceExternC(..) => false,
+        };
+        if !has_body
             || !source.type_parameters().is_empty()
             || !self.owner(source.owner().nominal_owner())
         {

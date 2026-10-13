@@ -1,7 +1,7 @@
 use super::super::*;
 
 /// Reuse real numeric signatures with the synthetic spans used by this fixture.
-/// Codec companions are exercised by the complete sysroot fixtures.
+/// Codec companions and ordinary IEEE comparison bodies use full sysroot fixtures.
 pub(super) fn floating_declarations() -> Vec<Decl> {
     static DECLARATIONS: std::sync::OnceLock<Vec<Decl>> = std::sync::OnceLock::new();
     DECLARATIONS
@@ -26,6 +26,9 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
                 .members
                 .into_iter()
                 .filter_map(|member| match member {
+                    ast::StructMember::Function(method) if method.name.text == "ieeeCompare" => {
+                        None
+                    }
                     ast::StructMember::Function(method) => {
                         Some(synthetic_function(*method, Some(&value.name.text)))
                     }
@@ -64,11 +67,6 @@ fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::Fun
                 let helper = format!("core{}ToString", owner.expect("toString is a member"));
                 FunctionBody::Expr(Box::new(call(&helper, vec![this_expr()])))
             }
-            "equalTo" => FunctionBody::Expr(Box::new(method_call(
-                this_expr(),
-                "equals",
-                vec![var("other")],
-            ))),
             _ => panic!("unexpected numeric source body"),
         },
         FunctionBody::Block(_) => panic!("numeric signatures have no block body"),
@@ -79,7 +77,9 @@ fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::Fun
         .map(|parameter| (parameter.name.text.as_str(), synthetic_type(&parameter.ty)))
         .collect();
     let mut result = method_full(
-        value.is_override,
+        // This minimal fixture retains only ToString and Equals conformance.
+        // Full sysroot tests cover the ordinary operator interfaces.
+        value.is_override && matches!(value.name.text.as_str(), "toString" | "equals"),
         false,
         &value.name.text,
         parameters,

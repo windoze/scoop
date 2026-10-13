@@ -31,8 +31,8 @@ Module
     fun next(): Option<T0>
   interface Iterable<T>
     operator fun iterator(): Iterator<T0>
-  interface Equality<T>
-    fun equalTo(other: T0): Boolean
+  interface Equals<T>
+    operator fun equals(other: T0): Boolean
   interface Continuation<T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit

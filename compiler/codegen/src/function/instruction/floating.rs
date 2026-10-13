@@ -1,4 +1,4 @@
-//! IEEE operations without fast-math flags or an intermediate precision.
+//! Target-precision operations without fast-math flags.
 
 use super::*;
 use inkwell::FloatPredicate;
@@ -117,20 +117,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             O::Multiply => builder.build_float_mul(lhs, rhs, "float.mul")?.into(),
             O::Divide => builder.build_float_div(lhs, rhs, "float.div")?.into(),
             O::Remainder => builder.build_float_rem(lhs, rhs, "float.rem")?.into(),
-            O::TotalOrder => self.float_total_order(kind, lhs, rhs)?.into(),
+            O::CompareTo => self.float_compare_to(kind, lhs, rhs)?.into(),
             O::Equal | O::NotEqual | O::Less | O::LessEqual | O::Greater | O::GreaterEqual => {
-                let predicate = match operation {
-                    O::Equal => FloatPredicate::OEQ,
-                    O::NotEqual => FloatPredicate::UNE,
-                    O::Less => FloatPredicate::OLT,
-                    O::LessEqual => FloatPredicate::OLE,
-                    O::Greater => FloatPredicate::OGT,
-                    O::GreaterEqual => FloatPredicate::OGE,
-                    _ => unreachable!("comparison arm contains only predicates"),
-                };
-                builder
-                    .build_float_compare(predicate, lhs, rhs, "float.cmp")?
-                    .into()
+                self.float_predicate(kind, operation, lhs, rhs)?.into()
             }
         })
     }

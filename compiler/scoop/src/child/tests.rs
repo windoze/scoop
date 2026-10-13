@@ -203,10 +203,15 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
         let directory = tempfile::tempdir().unwrap();
         let compiler = directory.path().join("scoopc");
         let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
+        let gcc_check = if triple.ends_with("-musl") {
+            "test -x \"$REALGCC\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9"
+        } else {
+            "test -z \"${REALGCC+x}\" || exit 9"
+        };
         fake_compiler_body(
             &compiler,
             &format!(
-                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\ntest -x \"$REALGCC\" || exit 9\ncase \"$TMPDIR\" in \"$SCOOP_SYSROOT\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9\nprintf '{response}'"
+                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\n{gcc_check}\ncase \"$TMPDIR\" in \"$SCOOP_SYSROOT\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\nprintf '{response}'"
             ),
         );
         let io = ChildIoPlan::new(directory.path().to_owned(), directory.path().to_owned())

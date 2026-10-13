@@ -1,5 +1,18 @@
 @Intrinsic("core_uint16")
-public struct UInt16 : Equality<UInt16>, ToString, Hash {
+public struct UInt16 :
+    Add<UInt16, UInt16>,
+    Sub<UInt16, UInt16>,
+    Mul<UInt16, UInt16>,
+    Div<UInt16, UInt16>,
+    Rem<UInt16, UInt16>,
+    UnaryPlus<UInt16>,
+    UnaryMinus<UInt16>,
+    Increment<UInt16>,
+    Decrement<UInt16>,
+    Compare<UInt16>,
+    RangeTo<UInt16, UIntRange>,
+    RangeUntil<UInt16, UIntRange>,
+    Equals<UInt16>, ToString, Hash {
     @NoGC @Intrinsic("uint16_to_float")
     public fun toFloat(): Float
 
@@ -8,48 +21,46 @@ public struct UInt16 : Equality<UInt16>, ToString, Hash {
 
     @NoGC
     @Intrinsic("uint16_equals")
-    public operator fun equals(other: UInt16): Boolean
+    public override operator fun equals(other: UInt16): Boolean
 
-    @NoGC
-    public override fun equalTo(other: UInt16): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("uint16_unary_plus")
-    public operator fun unaryPlus(): UInt16
+    public override operator fun unaryPlus(): UInt16
 
     @NoGC
     @Intrinsic("uint16_unary_minus")
-    public operator fun unaryMinus(): UInt16
+    public override operator fun unaryMinus(): UInt16
 
     @NoGC
     @Intrinsic("uint16_inc")
-    public operator fun inc(): UInt16
+    public override operator fun inc(): UInt16
 
     @NoGC
     @Intrinsic("uint16_dec")
-    public operator fun dec(): UInt16
+    public override operator fun dec(): UInt16
 
     @NoGC
     @Intrinsic("uint16_add")
-    public operator fun plus(other: UInt16): UInt16
+    public override operator fun plus(other: UInt16): UInt16
 
     @NoGC
     @Intrinsic("uint16_sub")
-    public operator fun minus(other: UInt16): UInt16
+    public override operator fun minus(other: UInt16): UInt16
 
     @NoGC
     @Intrinsic("uint16_mul")
-    public operator fun times(other: UInt16): UInt16
+    public override operator fun times(other: UInt16): UInt16
 
     @Intrinsic("uint16_div")
-    public operator fun div(other: UInt16): UInt16
+    public override operator fun div(other: UInt16): UInt16
 
     @Intrinsic("uint16_rem")
-    public operator fun rem(other: UInt16): UInt16
+    public override operator fun rem(other: UInt16): UInt16
 
     @NoGC
     @Intrinsic("uint16_compare_to")
-    public operator fun compareTo(other: UInt16): Long
+    public override operator fun compareTo(other: UInt16): Long
 
     @NoGC
     @Intrinsic("uint16_and")
@@ -107,10 +118,10 @@ public struct UInt16 : Equality<UInt16>, ToString, Hash {
     @Intrinsic("uint16_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: UInt16): UIntRange =
+    public override operator fun rangeTo(endpoint: UInt16): UIntRange =
         UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, true)
 
-    public operator fun rangeUntil(endpoint: UInt16): UIntRange =
+    public override operator fun rangeUntil(endpoint: UInt16): UIntRange =
         UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, false)
 
     public infix fun until(endpoint: UInt16): UIntRange =

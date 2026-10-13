@@ -1,10 +1,10 @@
-public interface List<T> : Iterable<T> {
+public interface List<T> : Iterable<T>, Get<Long, T> {
     public val size: Long
-    public operator fun get(index: Long): T
+    public override operator fun get(index: Long): T
 }
 
-public interface MutableList<T> : List<T> {
-    public operator fun set(index: Long, value: T): Unit
+public interface MutableList<T> : List<T>, Set<Long, T> {
+    public override operator fun set(index: Long, value: T): Unit
     public fun add(value: T): Unit
     public fun add(index: Long, value: T): Unit
     public fun removeAt(index: Long): T

@@ -1,0 +1,41 @@
+class Entry(val key: Int, val value: String) : Component1<Int>, Component2<String> {
+    var reads: Int = 0
+    public override operator fun component1(): Int { reads += 1; return key }
+    public override operator fun component2(): String { reads += 1; return value }
+}
+fun <T> parts(value: T): (Int, String) where T : Component1<Int>, T : Component2<String> {
+    val (key, text) = value
+    return (key, text)
+}
+struct Offset(val value: Int, val ignored: Int) : Component1<Int> {
+    public override operator fun component1(): Int = value + 1
+}
+fun <T : Component1<Int>> first(value: T): Int {
+    val (result,) = value
+    return result
+}
+fun <T : Component1<Int>> sum(values: Array<T>): Int {
+    var result = 0
+    for ((value,) in values) { result += value }
+    return result
+}
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val entry = Entry(42, "answer")
+    check(parts(entry) == (42, "answer") && entry.reads == 2)
+    val (_, text) = entry
+    check(text == "answer" && entry.reads == 4)
+    val first: Component1<Int> = entry
+    val second: Component2<String> = entry
+    val (numberFromInterface,) = first
+    check(numberFromInterface == 42 && second.component2() == "answer")
+    val ordinary = (42, "answer")
+    val (number, label) = ordinary
+    check(number == 42 && label == "answer")
+    val offset = Offset(41, 7)
+    val (raw, _) = offset
+    check(raw == 41 && first(offset) == 42)
+    val offsets = Array<Offset>(2L) { index -> Offset(index.toInt32(), 0) }
+    check(sum(offsets) == 3)
+    println("operator components")
+}

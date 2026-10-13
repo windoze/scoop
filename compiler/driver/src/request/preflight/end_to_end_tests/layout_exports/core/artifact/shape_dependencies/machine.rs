@@ -45,15 +45,30 @@ pub(super) fn check(
             mir::type_name(input.mir.module(), root.ty())
         })
         .collect::<BTreeSet<_>>();
-    let expected: &[&str] = if name == "standalone" {
-        &["Equality<Int>"]
-    } else {
-        &["Equality<Int>", "Equality<Unit>"]
-    };
-    assert_eq!(
-        applications,
-        expected.iter().map(|name| (*name).to_owned()).collect()
-    );
+    let mut expected = BTreeSet::from(["Equals<Int>".to_owned()]);
+    if name != "standalone" {
+        expected.insert("Equals<Unit>".to_owned());
+    }
+    for capability in ["Add", "Sub", "Mul", "Div", "Rem"] {
+        expected.insert(format!("{capability}<Int, Int>"));
+    }
+    for capability in [
+        "UnaryPlus",
+        "UnaryMinus",
+        "Increment",
+        "Decrement",
+        "Compare",
+        "Contains",
+        "Iterable",
+        "Iterator",
+        "Option",
+    ] {
+        expected.insert(format!("{capability}<Int>"));
+    }
+    for capability in ["RangeTo", "RangeUntil"] {
+        expected.insert(format!("{capability}<Int, IntRange>"));
+    }
+    assert_eq!(applications, expected);
     let exact = plan
         .source_nominal_shapes()
         .iter()

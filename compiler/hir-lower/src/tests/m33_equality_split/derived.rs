@@ -6,13 +6,13 @@ fn ordinary_member_calls_can_use_structural_comparison() {
         scoop_parser::parse(
             r#"
         struct Box<T>(val value: T)
-        struct Point(val x: Int) : Equality<Point> {
-            public override fun equalTo(other: Point): Boolean = this.equals(other)
+        struct Point(val x: Int) : Equals<Point> {
+            public override operator fun equals(other: Point): Boolean = x == other.x
         }
         fun main() {
             val box = Box(1).equals(Box(1))
             val tuple = (1, false).equals((1, false))
-            val point = Point(1).equalTo(Point(1))
+            val point = Point(1).equals(Point(1))
         }
     "#,
         )

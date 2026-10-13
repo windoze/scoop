@@ -1,0 +1,4 @@
+struct Foreign(val value: Int)
+operator fun Foreign.plus(other: Foreign): Foreign = Foreign(value + other.value)
+fun <T : Add<T, T>> add(left: T, right: T): T = left + right
+fun main() { add(Foreign(1), Foreign(2)) }

@@ -20,13 +20,13 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
         .unwrap();
     let applications = metadata.derived_equality_applications().unwrap();
     let mut exports = 0;
-    let mut unit_exports = 0;
     let mut deferred = 0;
     let mut private = 0;
     let mut unused = 0;
     for (generated, owner) in applications {
+        assert_ne!(owner, unit, "Unit equality uses its declared core member");
         let owner_name = exact(owner);
-        if !owner_name.contains("SharedEquality") && owner != unit {
+        if !owner_name.contains("SharedEquality") {
             continue;
         }
         let definition = replay.strong.get(CallableOwner::Generated(generated));
@@ -36,14 +36,6 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
             .entries()
             .iter()
             .find(|binding| super::callable(binding) == Some(generated));
-        if owner == unit {
-            assert!(definition.is_none());
-            assert!(matches!(
-                binding.unwrap().implementation(),
-                scoop_identity::CallableDefinitionOwner::Odr(_)
-            ));
-            unit_exports += 1;
-        }
         if owner_name.contains("SharedEqualityDeferred") {
             assert!(definition.is_some() && binding.is_some());
             deferred += 1;
@@ -62,14 +54,8 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
         }
     }
     if name.ends_with("standalone") {
-        assert_eq!(
-            (exports, deferred, private, unused, unit_exports),
-            (4, 1, 1, 1, 1)
-        );
+        assert_eq!((exports, deferred, private, unused), (3, 1, 1, 1));
     } else {
-        assert_eq!(
-            (exports, deferred, private, unused, unit_exports),
-            (6, 0, 0, 0, 0)
-        );
+        assert_eq!((exports, deferred, private, unused), (6, 0, 0, 0));
     }
 }

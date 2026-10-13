@@ -4,13 +4,13 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException() }
 }
 
-fun <T : Equality<T>> verify(left: T, right: T, expected: Boolean) {
+fun <T : Equals<T>> verify(left: T, right: T, expected: Boolean) {
     check(compare(left, right) == expected)
-    val view: Equality<T> = left
-    check(view.equalTo(right) == expected)
+    val view: Equals<T> = left
+    check(view.equals(right) == expected)
     val boxed: Any = left
-    check(boxed is Equality<T>)
-    check((boxed as Equality<T>).equalTo(right) == expected)
+    check(boxed is Equals<T>)
+    check((boxed as Equals<T>).equals(right) == expected)
 }
 
 fun main() {
@@ -19,7 +19,7 @@ fun main() {
     check(point != Point(1, 3))
     check(point.equals(Point(1, 2)))
     val pointBox = boxedPoint(point)
-    check(!(pointBox is Equality<Point>))
+    check(!(pointBox is Equals<Point>))
     check((pointBox as Point).equals(point))
     check(Secret(3) == Secret(3))
     check(Secret(3) != Secret(4))
@@ -27,7 +27,7 @@ fun main() {
     check(record == Record(Secret(3), "stored"))
     check(record != Record(Secret(3), "changed"))
     val boxed = boxedRecord(record)
-    check(!(boxed is Equality<Record>))
+    check(!(boxed is Equals<Record>))
     check((boxed as Record).equals(record))
     check(Choice.Empty == Choice.Empty)
     check(Choice.Value(record) == Choice.Value(record))
@@ -39,6 +39,6 @@ fun main() {
     check(multiple.equals(7))
     check(multiple.equals(Multiple(7)))
     val opaque: Any = Incomparable(Opaque(1))
-    check(!(opaque is Equality<Incomparable>))
+    check(!(opaque is Equals<Incomparable>))
     println("derived equality artifacts")
 }

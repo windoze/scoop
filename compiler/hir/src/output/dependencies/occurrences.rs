@@ -221,6 +221,15 @@ fn validate_origins(
     occurrence: ExecutableExpressionOccurrence<'_>,
 ) -> Result<(), DependencyCallOccurrenceError> {
     let export = output.export.module();
+    let root = occurrence.position.root;
+    let type_owned = matches!(
+        root.context(),
+        scoop_identity::CallableMaterializationContext::NoSubstitution
+    ) && matches!(root.template(), scoop_identity::CallableTemplateOwner::Generated(id)
+    if output.local.module().generated_callable_identities.iter().any(|record| {
+        record.id() == id && matches!(record.key(),
+            scoop_identity::GeneratedCallableKey::DerivedEquality { .. })
+    }));
     let origin = occurrence.expression.origin;
     let evaluation = crate::DefinitionOrigin {
         provider: origin.evaluation.provider,
@@ -242,6 +251,7 @@ fn validate_origins(
             })?;
         if side == DependencyCallOrigin::Evaluation
             && projected.origin().source().cone() != export.cone
+            && !type_owned
         {
             let origin = export.imported_generic_templates.iter().find_map(|(_, template)| {
                 let matches = match (occurrence.position.root.template(), template.declaration.body_owner()) {

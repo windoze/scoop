@@ -1,0 +1,4 @@
+struct Foreign(val value: Int)
+operator fun Foreign.minus(other: Foreign): Foreign = Foreign(value - other.value)
+fun <T : Sub<T, T>> subtract(left: T, right: T): T = left - right
+fun main() { subtract(Foreign(2), Foreign(1)) }

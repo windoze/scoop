@@ -1,0 +1,2 @@
+struct Key(val value: Int) : Equals<Key>
+fun main() {}

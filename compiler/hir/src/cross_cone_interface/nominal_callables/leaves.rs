@@ -10,6 +10,7 @@ impl NominalExactLeafClassifierV1 {
     ) -> Result<Self, Error> {
         let path = &WirePath::root();
         let mut leaves = Vec::new();
+        let mut dispatched = std::collections::BTreeSet::new();
         let mut generic_sources = Vec::new();
         append(
             &mut leaves,
@@ -17,6 +18,14 @@ impl NominalExactLeafClassifierV1 {
             path,
         )?;
         for nominal in nominals {
+            dispatched.extend(
+                nominal
+                    .declaration_details()
+                    .dispatch_selections()
+                    .records()
+                    .iter()
+                    .map(|selection| selection.callable_target()),
+            );
             match nominal.declaration() {
                 SourceNominalId::Concrete(source) => append(&mut leaves, source, path)?,
                 SourceNominalId::GenericTemplate(source) => {
@@ -33,6 +42,7 @@ impl NominalExactLeafClassifierV1 {
         generic_sources.dedup();
         Ok(Self {
             leaves,
+            dispatched,
             generic_sources,
         })
     }

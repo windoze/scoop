@@ -81,7 +81,7 @@ impl Lowerer {
 
         let subject_ty = types[0];
         if let Some(kind) = self.float_kind(subject_ty) {
-            // IEEE equality never matches NaN. Only wildcard heads can cover
+            // Float literal syntax cannot express NaN. Only wildcard heads can cover
             // that remaining domain, and their tails must cover the product.
             let remainder = matrix
                 .iter()

@@ -50,18 +50,31 @@ operators!(FloatBinaryOperator {
     Multiply = 3 => "times",
     Divide = 4 => "div",
     Remainder = 5 => "rem",
-    Equal = 6 => "equals",
-    NotEqual = 7 => "not_equal",
-    Less = 8 => "less",
-    LessEqual = 9 => "less_equal",
-    Greater = 10 => "greater",
-    GreaterEqual = 11 => "greater_equal",
-    TotalOrder = 12 => "total_order",
+    // Tags 6..=12 belonged to IEEE predicates and bitwise totalOrder.
+    CompareTo = 13 => "compare_to",
+    Equal = 14 => "equals",
+    NotEqual = 15 => "not_equal",
+    Less = 16 => "less",
+    LessEqual = 17 => "less_equal",
+    Greater = 18 => "greater",
+    GreaterEqual = 19 => "greater_equal",
 });
 
 impl FloatBinaryOperator {
     pub const fn is_predicate(self) -> bool {
-        !matches!(
+        matches!(
+            self,
+            Self::Equal
+                | Self::NotEqual
+                | Self::Less
+                | Self::LessEqual
+                | Self::Greater
+                | Self::GreaterEqual
+        )
+    }
+
+    pub const fn is_arithmetic(self) -> bool {
+        matches!(
             self,
             Self::Add | Self::Subtract | Self::Multiply | Self::Divide | Self::Remainder
         )

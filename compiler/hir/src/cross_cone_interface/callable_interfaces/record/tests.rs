@@ -10,6 +10,7 @@ use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 use super::*;
 
 mod context;
+mod intrinsics;
 use crate::{
     CallableInfixV1, CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsBuildError,
     CanonicalBinderListV1, SourceParameterShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,

@@ -1,0 +1,25 @@
+fun <T> calculate(left: T, right: T): (T, T, T, T)
+    where T : Sub<T, T>, T : Mul<T, T>, T : Div<T, T>, T : Rem<T, T> =
+    (left - right, left * right, left / right, left % right)
+
+fun <T> divide(left: Div<T, T>, right: T): T = left / right
+fun <T> remainder(left: Rem<T, T>, right: T): T = left % right
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(calculate(20.toInt8(), 3.toInt8()) == (17.toInt8(), 60.toInt8(), 6.toInt8(), 2.toInt8()))
+    check(calculate(20.toInt16(), 3.toInt16()) == (17.toInt16(), 60.toInt16(), 6.toInt16(), 2.toInt16()))
+    check(calculate(20, 3) == (17, 60, 6, 2))
+    check(calculate(20L, 3L) == (17L, 60L, 6L, 2L))
+    check(calculate(20.toUInt8(), 3.toUInt8()) == (17.toUInt8(), 60.toUInt8(), 6.toUInt8(), 2.toUInt8()))
+    check(calculate(20.toUInt16(), 3.toUInt16()) == (17.toUInt16(), 60.toUInt16(), 6.toUInt16(), 2.toUInt16()))
+    check(calculate(20u, 3u) == (17u, 60u, 6u, 2u))
+    check(calculate(20uL, 3uL) == (17uL, 60uL, 6uL, 2uL))
+    check(calculate(20f, 4f) == (16f, 80f, 5f, 0f))
+    check(calculate(20.0, 4.0) == (16.0, 80.0, 5.0, 0.0))
+    val sub: Sub<Int, Int> = 20
+    val mul: Mul<Double, Double> = 1.5
+    check(sub - 3 == 17 && mul * 2.0 == 3.0)
+    check(divide(20, 3) == 6 && remainder(20uL, 3uL) == 2uL)
+    check(divide(20f, 4f) == 5f && remainder(21.0, 4.0) == 1.0)
+    println("operator arithmetic")
+}

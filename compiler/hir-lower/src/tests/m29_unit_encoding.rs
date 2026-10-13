@@ -39,11 +39,11 @@ fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
     let (equality, _) = module
         .interfaces
         .iter()
-        .find(|(_, declaration)| declaration.name == "Equality")
+        .find(|(_, declaration)| declaration.name == "Equals")
         .unwrap();
     assert_eq!(declaration.interfaces.len(), 1);
     let hir::Type::Interface(application) = &module.types[declaration.interfaces[0]] else {
-        panic!("Unit explicitly implements Equality<Unit>");
+        panic!("Unit explicitly implements Equals<Unit>");
     };
     let application = &module.interface_applications[*application];
     assert_eq!(

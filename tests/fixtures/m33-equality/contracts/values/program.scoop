@@ -1,10 +1,8 @@
-interface Same<T> : Equality<T> {}
+interface Same<T> : Equals<T> {}
 
 struct Key(val value: Int) : Same<Key>, Hash {
     @NoGC
-    public operator fun equals(other: Key): Boolean = value == other.value
-    @NoGC
-    public override fun equalTo(other: Key): Boolean = this.equals(other)
+    public override operator fun equals(other: Key): Boolean = value == other.value
     public override fun hash(): Long = value.toInt64()
 }
 
@@ -18,13 +16,12 @@ class Ordered(val value: Int, val trace: Trace) {
     public operator fun equals(other: Int): Boolean = value == other
 }
 
-class LibraryOnly() : Equality<LibraryOnly> {
-    public override fun equalTo(other: LibraryOnly): Boolean = true
+class Explicit() : Equals<Explicit> {
+    public override operator fun equals(other: Explicit): Boolean = true
 }
 
-class Split() : Equality<Split> {
-    public operator fun equals(other: Split): Boolean = false
-    public override fun equalTo(other: Split): Boolean = true
+class Split() : Equals<Split> {
+    public override operator fun equals(other: Split): Boolean = false
 }
 
 fun make(trace: Trace, digit: Int): Ordered {
@@ -36,18 +33,18 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException() }
 }
 
-fun <T : Equality<T>> same(left: T, right: T): Boolean = left.equalTo(right)
+fun <T : Equals<T>> same(left: T, right: T): Boolean = left.equals(right)
 
-fun <T> keyMatch(left: T, right: T): Boolean where T : Equality<T>, T : Hash =
-    left.hash() == right.hash() && left.equalTo(right)
+fun <T> keyMatch(left: T, right: T): Boolean where T : Equals<T>, T : Hash =
+    left.hash() == right.hash() && left.equals(right)
 
-fun <T : Equality<T>> verify(value: T) {
+fun <T : Equals<T>> verify(value: T) {
     check(same(value, value))
-    val view: Equality<T> = value
-    check(view.equalTo(value))
+    val view: Equals<T> = value
+    check(view.equals(value))
     val boxed: Any = value
-    check(boxed is Equality<T>)
-    check((boxed as Equality<T>).equalTo(value))
+    check(boxed is Equals<T>)
+    check((boxed as Equals<T>).equals(value))
 }
 
 @NoGC
@@ -69,25 +66,25 @@ fun main() {
     verify(42uL)
     verify(true)
     verify('x')
-    verify("Equality")
+    verify("Equals")
     verify(1f)
     verify(1.0)
     verify(Unit)
     verify(Key(42))
-    verify(LibraryOnly())
+    verify(Explicit())
     val split = Split()
-    verify(split)
+    check(!same(split, split))
     check(split != split)
     check(!split.equals(split))
     check(direct(42, 'x', 1f, Key(42)))
     check(keyMatch(Key(42), Key(42)))
     check(!keyMatch(Key(42), Key(41)))
-    check(!same(Float.NaN, Float.NaN))
-    check(!same(Double.NaN, Double.NaN))
+    check(same(Float.NaN, Float.NaN))
+    check(same(Double.NaN, Double.NaN))
     check(same(0f, -0f))
     check(same(0.0, -0.0))
-    val nan: Equality<Float> = Float.NaN
-    check(!nan.equalTo(Float.NaN))
+    val nan: Equals<Float> = Float.NaN
+    check(nan.equals(Float.NaN))
     val trace = Trace(0)
     check(make(trace, 1) == make(trace, 2))
     check(trace.visits == 123)

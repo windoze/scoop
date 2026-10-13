@@ -1,5 +1,7 @@
 # M30 验收记录
 
+> 后续变更：M41 将浮点默认比较改为等价类全序（全部 NaN 相等且排在正无穷之后，正负零相等），增加 Compare / compareTo 与 IeeeComparison / ieeeCompare，删除 isTotallyOrdered。本文保留 M30 的实施与验收历史；当前契约见语言规范 11.2.2。
+
 日期：2026-10-07。状态：实现、正式验收与指纹测试清理已完成。Darwin 覆盖全部适用 fixture；Linux 覆盖 M30 专项及下述受影响组合和补充样本。
 
 设计、分批提交和工具链调研分别见 [DESIGN.md](DESIGN.md)、[PROGRESS.md](PROGRESS.md) 与 [INVESTIGATION.md](INVESTIGATION.md)。本记录区分初次完整运行、快照迁移和普通模式复验；更新快照本身不计作验收通过。

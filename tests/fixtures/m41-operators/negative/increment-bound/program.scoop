@@ -1,0 +1,2 @@
+interface Invalid<T> : Increment<T> {}
+fun main() {}

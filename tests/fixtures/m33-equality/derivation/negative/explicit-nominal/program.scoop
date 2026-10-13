@@ -1,2 +1,2 @@
-struct Unchecked(val value: Any) : Equality<Unchecked>
+struct Unchecked(val value: Any) : Equals<Unchecked>
 fun main() {}

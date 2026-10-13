@@ -58,9 +58,9 @@ impl Lowerer {
         self.lower_extern_functions(module);
 
         // Declare every fully concrete user function first, so calls resolve
-        // regardless of declaration order. Intrinsics have no body;
-        // their callsites map to `Callee::Runtime` shims (see
-        // `BodyLowerer::lower_call`). HIR has already closed and instantiated
+        // regardless of declaration order. Intrinsics lower directly at calls;
+        // actual interface targets receive callable bodies during dispatch.
+        // HIR has already closed and instantiated
         // every generic dependency before this stage starts.
         // Member functions are declared too (hir-lower keeps them out of
         // `top_level`). Abstract interface declarations emit the same fatal

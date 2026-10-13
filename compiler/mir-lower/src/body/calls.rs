@@ -279,6 +279,27 @@ impl BodyLowerer<'_> {
             };
             return self.lower_maybe_uninit(*kind, operand, result_ty);
         }
+        if let hir::FunctionKind::Intrinsic(intrinsic) = &f.kind
+            && let Some(operation) =
+                crate::closures::primitive::PrimitiveReference::from_intrinsic(intrinsic.kind)
+        {
+            // A bound call can select a concrete intrinsic during monomorphization.
+            // Preserve its direct operation instead of calling its itable entry.
+            let receiver = self.lower_expr(receiver);
+            let result = self.lower_type(result_ty);
+            return match operation {
+                crate::closures::primitive::PrimitiveReference::Unary(operation) => {
+                    self.unary_reference_value(operation, receiver, &result)
+                }
+                crate::closures::primitive::PrimitiveReference::Binary(operation) => {
+                    let [rhs] = args else {
+                        unreachable!("a binary intrinsic has one explicit operand")
+                    };
+                    let right = self.lower_expr(rhs);
+                    self.binary_reference_value(operation, receiver, right, &result, rhs.span)
+                }
+            };
+        }
         let callee = self.instances.get(function).map_or_else(
             || mir::DispatchCallee::User(self.function_map[&function]),
             mir::DispatchCallee::Monomorphized,

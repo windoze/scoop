@@ -1,5 +1,7 @@
 # M30 设计：Float / Double 与 128 位数值调研
 
+> 后续变更：M41 将浮点默认比较改为等价类全序（全部 NaN 相等且排在正无穷之后，正负零相等），增加 Compare / compareTo 与 IeeeComparison / ieeeCompare，删除 isTotallyOrdered。本文保留 M30 的实施与验收历史；当前契约见语言规范 11.2.2。
+
 状态：实现与正式验收完成。实际平台范围、版本和测试结果见[验收记录](ACCEPTANCE.md)，分批功能与平台实施见[实施记录](PROGRESS.md)。
 
 日期：2026-10-06。

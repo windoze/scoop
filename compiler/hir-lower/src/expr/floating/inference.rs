@@ -55,13 +55,16 @@ impl Lowerer {
                     kind: actual,
                     operation,
                     ..
-                } if *actual == kind => !operation.is_predicate(),
+                } if *actual == kind => operation.is_arithmetic(),
                 ExprKind::FloatConversion {
                     conversion:
                         hir::HirFloatConversion::ToInteger { source, .. }
                         | hir::HirFloatConversion::BetweenFloats { source, .. },
                     ..
                 } if *source == kind => false,
+                _ if layer.state.is_float_source_member(&layer.expression, kind) => {
+                    layer.state.float_kind(layer.expression.ty) == Some(kind)
+                }
                 _ => continue,
             };
             successful.push((kind, preserves_kind, layer));
@@ -75,5 +78,36 @@ impl Lowerer {
             .or_else(|| successful.iter().position(|(kind, _, _)| *kind == kinds[0]))
             .or_else(|| (successful.len() == 1).then_some(0))?;
         Some(successful.swap_remove(selected).2)
+    }
+
+    fn is_float_source_member(&self, expression: &hir::Expr, kind: hir::FloatKind) -> bool {
+        match expression.kind {
+            ExprKind::MethodCall {
+                callee: hir::MethodCallee::Callable(hir::CallableTarget::Local(callable)),
+                ..
+            } => self.function_has_intrinsic_owner(
+                self.callable_function_id(callable),
+                hir::IntrinsicTypeKind::Float(kind),
+            ),
+            ExprKind::Call {
+                callee: hir::CallableTarget::Dependency(callee),
+                ..
+            } => {
+                let selected = self.imported_dependency_callables[callee];
+                if selected.receiver().and_then(|ty| self.float_kind(ty)) != Some(kind) {
+                    return false;
+                }
+                self.dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.resolve_callable(selected.reference()))
+                    .is_some_and(|callable| {
+                        matches!(
+                            callable.interface().owner(),
+                            hir::PublicDeclarationOwnerV1::Nominal(_)
+                        )
+                    })
+            }
+            _ => false,
+        }
     }
 }

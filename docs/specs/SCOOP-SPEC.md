@@ -102,7 +102,7 @@ Scoop 的类型分为两大类：
 
 ### 3.1 顶层与底层类型
 
-- `Any`：所有类型（引用类型与值类型）的根类型。值类型向上转型为引用类型时发生**装箱**（见 4.4.4）。`Any` **没有任何成员方法**：`==` 通过普通成员 `operator fun equals` 决议；库中的相等、字符串化与哈希分别通过独立的 `Equality<T>`、`ToString` / `Hash` 接口（见 11.11）。
+- `Any`：所有类型（引用类型与值类型）的根类型。值类型向上转型为引用类型时发生**装箱**（见 4.4.4）。`Any` **没有任何成员方法**：`==` 通过普通成员 `operator fun equals` 决议；库中的相等、字符串化与哈希分别通过独立的 `Equals<T>`、`ToString` / `Hash` 接口（见 11.11）。
 - `Nothing`：所有类型的子类型，无实例。结果类型为 `Nothing` 的表达式没有正常完成路径；它不是 `Unit`，也不产生可供装箱、复制或返回的值。`Nothing` 与 `Any` 均由 11.1 的真实 core intrinsic class 声明提供，名称查找、alias、可见性与依赖消费遵守普通声明规则。
 - `Any` 使用 managed reference 表示；`Nothing` 的名义类别也是引用类型，满足 `ref` kind，但不存在合法的非空引用。两者没有源码构造入口、字段或成员，也不接受类型实参或显式继承／implements 列表。所有类型到 `Any`、`Nothing` 到所有类型的关系由对应 intrinsic 的顶／底类型语义产生，不要求或允许在普通声明的继承列表中写出这两个根类型。
 - 从 `Nothing` 到任意目标类型的适配只保留原求值及其控制转移，不生成装箱、引用转换、目标值或正常返回。要求 Boolean 的条件、guard 和短路运算数同样接受 Nothing；短路分支仍遵守原求值规则。`LUB(Nothing, T) = T`；只有不正常完成的分支时，控制表达式的类型为 `Nothing`。类型名或同形普通 class 不会获得这些规则。
@@ -128,8 +128,8 @@ Scoop 的类型分为两大类：
 - Scoop不提供use-site `in`/`out` projection、star projection或wildcard capture。需要只读/只写抽象时，优先让消费操作本身成为带bound的generic callable，例如`fun <T : Animal> consume(values: Array<T>)`；需要保存未知application时，必须声明显式的非generic interface或用户实现的type-erased wrapper。语言不会隐式制造existential类型、runtime generic dictionary或capture-open dispatch。
 - 除类型上界外，类型参数还可以用 `value` / `ref` 约束限定为值类型或引用类型（见 13.9）。
 - 类型上界在参数列表中写作`T : Bound`，或在声明头后的`where T : Bound`子句中给出。同一参数至多有一个class上界，并可同时具有多个不同interface上界；class上界保证实际参数是该exact class application的引用子类型，成员候选包括class及其继承闭包。class/interface上界都必须是参数完整的exact reference application；不接受value type、函数类型、`Any`或另一type parameter，也不产生可作为普通表达式类型的交叉类型。`value` / `ref` kind bound与任一nominal上界互斥（见13.9）。
-- 类型实参必须同时满足参数的全部上界；class/interface 关系按普通继承、显式 conformance 及完整 application identity 判断，包括 `Equality<T>` 在内的接口都不能按同名成员或字段结构推导。11.11 的结构相等派生只提供运算符，不产生接口 conformance。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把 bound 失败降为警告或回退为 `Any`。11.13 的编码与解码能力属于显式 codec 值，不为目标数据类型增加特殊 bound 或结构型 conformance。
-- 上界的完整 interface application 可以引用被约束参数自身，例如 `T : Equality<T>`；它表示实际类型必须实现 `Equality<该实际类型>`，不是裸参数上界 `T : T` 或隐式 `Self`。所有形参先建立身份，再解析 bound 中的参数引用；普通继承环与非法 bound 规则仍适用。
+- 类型实参必须同时满足参数的全部上界；class/interface 关系按普通继承、显式 conformance 及完整 application identity 判断，包括 `Equals<T>` 在内的接口都不能按同名成员或字段结构推导。11.11 的结构相等派生只提供运算符，不产生接口 conformance。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把 bound 失败降为警告或回退为 `Any`。11.13 的编码与解码能力属于显式 codec 值，不为目标数据类型增加特殊 bound 或结构型 conformance。
+- 上界的完整 interface application 可以引用被约束参数自身，例如 `T : Equals<T>`；它表示实际类型必须实现 `Equals<该实际类型>`，不是裸参数上界 `T : T` 或隐式 `Self`。所有形参先建立身份，再解析 bound 中的参数引用；普通继承环与非法 bound 规则仍适用。
 - receiver为有界type parameter时，成员候选只来自唯一class上界、interface上界及其继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct/virtual/interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。 class 上界中的属性同样参与查询：存储、计算属性和函数值属性使用完整上界实参及其继承替换；读取、赋值、复合赋值和安全访问保留原 receiver 的访问域检查，getter／setter 在定义处选定。该规则与声明位于当前 Cone 或依赖无关。
 - 每个合法且参数完整的exact class/interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound。Scoop不引入`dyn`/trait object语法、object-safety分类或可空witness；所有合法interface成员仍可经concrete、exact interface或bounded receiver调用。`Encodable<T>`、`Decodable<T>`及其方法也使用普通interface语义。
 - interface 方法不能声明自己的类型参数，包括带 default body 或 private helper 的方法；`interface I { fun <T> f(value: T) }` 是编译错误。interface 宿主可以是泛型，例如 `interface I<T> { fun f(value: T) }`，完整 application `I<String>` 中的方法遵循普通接口调用规则。方法自身泛型与任何泛型虚方法是单态化及固定签名 vtable/itable 下的明确语言排除项，不作为未来动态分派能力预留；`final override` 也不能形成泛型虚槽。
@@ -219,7 +219,7 @@ secondary参数使用8.5的required/default/`vararg`协议但不能写`val`/`var
 
 struct 自动获得：
 
-- 结构相等：全部字段可比较时，条件派生同类型的 `operator fun equals`，按字段顺序比较；不因此实现 `Equality<T>` 或满足其接口 bound（见 11.11）；
+- 结构相等：全部字段可比较时，条件派生同类型的 `operator fun equals`，按字段顺序比较；不因此实现 `Equals<T>` 或满足其接口 bound（见 11.11）；
 - 不自动获得`ToString`或`Hash`；两者都必须在struct声明中显式adopt并实现（见11.11）；
 - 解构（见 4.6）：可按字段顺序或按字段名解构；
 - 副本更新表达式（见 4.5）。
@@ -258,7 +258,7 @@ enum E {
 - 与 Kotlin enum class 的 entries 类似，变体名可以通过`import some.package.E.*`引入后不写前缀直接使用；`scoop.core.Option.*`由core prelude的typed default import引入（见第7章），`Some`/`None`不具有短名称特判。
 - 表达式位的裸`V`/`V(...)`除普通可见候选外，还可由唯一的expected exact enum application `E<Args...>`引入：只在该enum内寻找同名variant。expected type仍未固定时，该构造与`None`、lambda、空数组一样进入8.6的candidate-local postponed检查；最终expected为`Any`/interface、多个enum或未解变量时，不扫描全程序猜测，必须写`E.V`或补type annotation。普通词法/import候选遵守既有分层并优先；contextual variant不能绕过遮蔽，也不能扩展为按返回类型选择普通函数。unit variant的contextual name只在普通value-name lookup没有找到实体时启用，词法value binding即使类型不适配也hard-shadow该回退；payload variant call继续服从8.6既有named-call与local-value shadow规则。
 - 在`when`匹配处，变体名可以省略`E.`前缀，由subject的exact enum type解析（见第5章）；这与表达式位的contextual candidate是两个不同入口。
-- 与 struct 一样：immutable、无 identity，可条件派生同类型的 `operator fun equals` 及结构相等实现；`Equality<T>`、`ToString` 与 `Hash` 都必须显式 adopt 并实现（见 11.11）。
+- 与 struct 一样：immutable、无 identity，可条件派生同类型的 `operator fun equals` 及结构相等实现；`Equals<T>`、`ToString` 与 `Hash` 都必须显式 adopt 并实现（见 11.11）。
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
 - 泛型 enum 允许，例如核心库的`enum Option<T>`（见7.2）；不同类型实参形成互不转换的exact application。
@@ -271,7 +271,7 @@ enum E {
 
 `E` 的合法值仅为其 variant。赋值、参数、返回、分支合流及函数值适配可以将 `E` 按值上转为 `I`；上转不分配、不改变数值位表示，并产生不再保留 enum 来源的 `I`。`I` 不能隐式转成 `E`，字面量、常量传播或数值恰好等于某个 variant 都不能绕过该限制；相同父类型的不同 enum 也不能隐式互转。普通显式 `as` / `as?` 判断实际类型，不是按整数内容构造 enum 的入口。
 
-整型枚举使用 `I` 的既有数值成员与接口关系，不另行派生同类型 equals，也不声明专属数学 operator。成员签名中的 `I` 不替换成 `E`，因此算术、位运算和转换按父类型的声明产生结果；例如 `e + 1` 为 `I`，`e += 1` 和 `e++` 因结果不能写回 `E` 而报错。继承的 `Equality<I>` 不能变成 `Equality<E>`。其他普通成员与显式 interface 实现按既有规则检查。
+整型枚举使用 `I` 的既有数值成员与接口关系，不另行派生同类型 equals，也不声明专属数学 operator。成员签名中的 `I` 不替换成 `E`，因此算术、位运算和转换按父类型的声明产生结果；例如 `e + 1` 为 `I`，`e += 1` 和 `e++` 因结果不能写回 `E` 而报错。继承的 `Equals<I>` 不能变成 `Equals<E>`。其他普通成员与显式 interface 实现按既有规则检查。
 
 直接装箱 `E` 保留实际 enum application；箱子同时符合 `E`、`I` 及其适用的接口关系，可以按 `E` 或 `I` 解箱。先上转 `I` 再装箱只保存 `I`，不能凭数值相同通过 `is E` 或解箱为 `E`。`is`、`as`、`as?` 与函数值适配使用相同的类型关系。
 
@@ -295,8 +295,8 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 - **0 元 tuple 写作 `()`**；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器，`()` 与 `Unit` 等价。
 - **1 元 tuple 必须写作 `(e,)`**（尾随逗号），类型记作 `(T,)`；`(e)` 是带括号的表达式 `e` 本身。消歧汇总：`()` = Unit；`(e)` = 括号表达式；`(e,)` = 1 元 tuple；`(e1, e2, ...)` = 多元 tuple。
 - 元素通过解构（见 4.6）或位置访问：`val (a, b) = t1`、`t1._1`、`t1._2`（位置访问从 `_1` 开始）。
-- tuple 是值类型：immutable、无 identity；全部元素可比较时条件派生同类型的 `operator fun equals`，不自动产生接口 conformance。Unit 的同类型比较恒为 true，core 另显式提供 `Equality<Unit>`（见 11.11）。
-- tuple 不支持在源码中显式声明 implements 列表，也不支持命名字段，不实现 `ToString`。结构相等不使 tuple 自动获得 `Equality<T>` 或其他接口；Unit 的显式 core 声明按 11.11 处理。编码与解码分别由普通 `Encodable<(T1, T2, ...)>`、`Decodable<(T1, T2, ...)>` 实现承担，见 11.13；不为 tuple 添加 companion 或编码／解码的条件接口。需要数据值自身实现接口时使用命名 struct 显式声明。
+- tuple 是值类型：immutable、无 identity；全部元素可比较时条件派生同类型的 `operator fun equals`，不自动产生接口 conformance。Unit 的同类型比较恒为 true，core 另显式提供 `Equals<Unit>`（见 11.11）。
+- tuple 不支持在源码中显式声明 implements 列表，也不支持命名字段，不实现 `ToString`。结构相等不使 tuple 自动获得 `Equals<T>` 或其他接口；Unit 的显式 core 声明按 11.11 处理。编码与解码分别由普通 `Encodable<(T1, T2, ...)>`、`Decodable<(T1, T2, ...)>` 实现承担，见 11.13；不为 tuple 添加 companion 或编码／解码的条件接口。需要数据值自身实现接口时使用命名 struct 显式声明。
 
 ### 4.4 值类型通用规则
 
@@ -343,7 +343,7 @@ struct Point(val x: Int, val y: Int) : Describable {
 #### 4.4.4 装箱与引用类型
 
 - 值类型向上转型为**任何引用类型**（`Any`、它实现的 interface 等）时，自动**装箱**为堆上的引用对象（类似 Java 的 `int` → `Integer`）。
-- 装箱后的对象具有 identity（可用 `===` 比较）且 immutable。`==` 按装箱后表达式的**静态引用类型**查找可用的成员 `operator fun equals`；`Any` 没有该成员，单独的 `Equality<T>` 视图只提供 `equalTo`。装箱的接口集合来自值类型实际声明或继承的 conformance，结构比较不增加接口表项。经 `as` / 模式匹配取回原 value 后，按原 value 的静态类型决议。
+- 装箱后的对象具有 identity（可用 `===` 比较）且 immutable。`==` 按装箱后表达式的**静态引用类型**查找可用的成员 `operator fun equals`；`Any` 没有该成员，`Equals<T>` 视图提供以 T 为参数的 operator equals。装箱的接口集合来自值类型实际声明或继承的 conformance，结构比较不增加接口表项。经 `as` / 模式匹配取回原 value 后，按原 value 的静态类型决议。
 - **auto-boxing 只发生在 O(1) 场景**：单个值的转换（赋值/初始化、函数实参、返回值等单点转换）允许自动装箱；数组字面量的元素位置等批量场景不做自动装箱，需要显式 `as`（见 10.3）。
 - `is` / `as` / `as?` 可用于判断与取回装箱前的值类型；`as?` 失败时返回 `None`（见第 7 章）。
 - 值类型在类型系统上也是 `Nothing` 的父类型；向 `Nothing` 的检查与转换遵守 3.1，不会成功产生一个底类型值。
@@ -392,11 +392,11 @@ binding上下文中，除`_`以及4.3定义的内建Unit字面量写法`Unit`/`(
 
 规则：
 
-- **tuple/struct固定元数位置模式**`(p1, p2, ...)`按位置解构；每个位置可以是绑定名、`_`、`..`或递归binding pattern。不使用`..`时元数必须与被解构值一致。class component位置模式不适用该元数规则，单独按下文处理。
+- **tuple/struct固定元数位置模式**`(p1, p2, ...)`按位置解构；每个位置可以是绑定名、`_`、`..`或递归binding pattern。不使用`..`时元数必须与被解构值一致。component位置模式不适用该元数规则，单独按下文处理。
 - **字段模式**由`field`、`field: subpattern`和末尾可选`..`组成。`field`精确等价于`field: field`，展开后的RHS仍按所在上下文的完整规则分类；因此在本节的binding上下文中通常建立同名binding，但字段名恰为`Unit`时，RHS仍是内建Unit literal并被拒绝，需要写成`Unit: value`等显式不同绑定名。第5章的match上下文先应用同一个Unit literal特例，再对其他名称应用variant-first规则；若字段的exact enum type恰有同名unit variant，shorthand会匹配该variant，需要catch-all binding时应显式写成`field: value`等不同名称。`field: renamed`绑定到`renamed`；`field: _`显式忽略该字段。冒号右侧是完整递归pattern，不再只是rename。`_`不能作为字段key，但可以作为RHS。字段不能未知或重复，整个pattern内的binding名称必须唯一。
 - 每个显式字段名必须属于 subject 的 exact type。位置模式按字段声明顺序匹配；命名字段模式按源码书写顺序递归执行。末尾 `..` 忽略未列出的字段，不读取这些字段。未列出全部字段时必须以 `..` 结尾；列全时可省略。字段模式可带类型前缀（`S { f1: x, .. }`），前缀必须解析到 subject 的 exact type。
 - struct既可按主构造字段顺序位置解构，也可按字段名解构；tuple/struct投影是语言内建能力，不查找`componentN`。
-- 普通class可以按位置使用9.3的`componentN` operator解构。每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`。每次调用正常返回后，结果先保存到新的immutable hidden temporary，再depth-first处理对应子模式。class没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。挂起调用以异常恢复时等价于在原调用点抛出，后续动作不执行；在不允许挂起的求值上下文中选到`suspend componentN`是effect错误。
+- 普通class、interface静态类型和具有相应上界的类型参数可以按位置使用9.3的`componentN` operator解构。候选从该静态类型的普通成员、继承成员、上界成员与适用扩展中选择，不要求特定core接口身份。每个实际位置按顺序选择并调用唯一typed operator；写出的N个位置精确调用`component1`至`componentN`，包括子模式为`_`的位置。每次调用正常返回后，结果先保存到新的immutable hidden temporary，再depth-first处理对应子模式。component协议没有声明式总元数，因此该位置模式不能包含`..`；调用可以按普通规则抛出或在允许的上下文挂起，但pattern本身没有“匹配失败”分支。挂起调用以异常恢复时等价于在原调用点抛出，后续动作不执行；在不允许挂起的求值上下文中选到`suspend componentN`是effect错误。
 - binding pattern的不可失败性递归成立：binding、`_`、rest补位不可失败；tuple/struct只有全部展开后的子模式不可失败时才合法；literal（包括`Unit`/`()`）与上述显式enum variant shape在binding位置均非法。lambda和`for`引入的binding不可重新绑定；`var`解构声明中只有用户可见的叶binding是mutable，subject、投影及component结果等hidden temporary始终immutable。
 - 三种binding位置共享同一求值、投影与component计划；每个完整subject只求值一次并进入immutable hidden temporary，位置元素按源码从左到右、命名字段按源码书写顺序递归depth-first执行。任一component调用抛出时，已经发生的外部副作用不回滚，后续投影、调用和binding均不执行；调用挂起时保存subject与全部已完成的hidden temporary，恢复后从该调用返回之后继续，不重新求值subject或任何已完成步骤。
 
@@ -414,7 +414,7 @@ val s = S(1, 2, 3, 4)
 val S { f1: x, f2: y, .. } = s
 ```
 
-- 在tuple、struct及enum variant的固定元数位置模式中：`..`忽略任意数量（含0个）的连续元素，可出现在开头、中间或结尾，但**至多出现一次**（出现两次会产生歧义，是编译错误）；使用`..`时不要求模式元数与值的元数一致。class component位置模式始终禁止`..`，不适用本条。
+- 在tuple、struct及enum variant的固定元数位置模式中：`..`忽略任意数量（含0个）的连续元素，可出现在开头、中间或结尾，但**至多出现一次**（出现两次会产生歧义，是编译错误）；使用`..`时不要求模式元数与值的元数一致。component位置模式始终禁止`..`，不适用本条。
 - 在字段模式中：`..` 只能出现在最后，表示忽略所有未列出的字段；**未列出全部字段时必须写 `..`**（列出全部字段时 `..` 可省略）。
 - `..` 自身不绑定任何值。
 
@@ -440,7 +440,7 @@ val S { f1: x, f2: y, .. } = s
 
 ## 5. `when` 表达式扩展
 
-when 支持值、类型、成员关系与无 subject 的条件分支；显式 case 引入可失败模式，包括 **enum、tuple 与 struct** 的结构模式。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。class的`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性判断。
+when 支持值、类型、成员关系与无 subject 的条件分支；显式 case 引入可失败模式，包括 **enum、tuple 与 struct** 的结构模式。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性判断。
 
 `if`、`when` 与 `try` 都是表达式，也可在结果被丢弃的语句位置使用。作为值使用时，每个可正常结束的分支块以最后一个表达式的值作为该分支结果；空块或以非表达式语句结束的块结果为 `Unit`，以`return`/`throw`或8.7的`break`/`continue`结束的路径不参与结果类型合并。外层有期望类型时，每个正常分支结果必须是其子类型；否则取所有正常分支结果的唯一可表达最小上界，存在多个不可比较的最小共同上界时退化为 `Any`。依赖期望类型的分支结果可由其他分支先确定类型，分支检查顺序不影响结果。
 
@@ -460,7 +460,7 @@ when 支持值、类型、成员关系与无 subject 的条件分支；显式 ca
 - enum的有限constructor集合是其全部variant，variant payload继续作为子列检查；出现variant名称本身不代表覆盖其全部payload；
 - tuple与struct各有一个product constructor，字段按位置/声明顺序展开；命名字段与`..`先补全为完整wildcard vector；
 - `Boolean`有`false`/`true`两个有限constructor，`Unit`有一个constructor；
-- binding、`_`、rest 补位与 `else` 均为 wildcard。定宽整数是有限域；不同无 guard literal 覆盖全部位型时可省略 wildcard，否则未覆盖示例必须是该 signed/unsigned 类型中的实际缺失值，unsigned 示例带 `u` 后缀。Char 的有限域只含 Unicode 标量，未覆盖示例不得落入 surrogate 区间。String 是无限域，有限 literal 分支仍需 wildcard 覆盖余值。Float/Double literal 按 11.2.2 的 IEEE 相等匹配，正负零覆盖同一值，始终需要 wildcard 覆盖剩余域。
+- binding、`_`、rest 补位与 `else` 均为 wildcard。定宽整数是有限域；不同无 guard literal 覆盖全部位型时可省略 wildcard，否则未覆盖示例必须是该 signed/unsigned 类型中的实际缺失值，unsigned 示例带 `u` 后缀。Char 的有限域只含 Unicode 标量，未覆盖示例不得落入 surrogate 区间。String 是无限域，有限 literal 分支仍需 wildcard 覆盖余值。Float/Double literal 按 11.2.2 的默认相等匹配，正负零覆盖同一值，始终需要 wildcard 覆盖剩余域。
 - 多个arm可以组合覆盖product，例如`(true, _)`与`(false, _)`共同穷尽；`Some(0)`与`None`不穷尽`Option<Int>`；
 - 运行期始终按源码first-match顺序工作：先匹配结构，成功后才求值guard，guard为false时从下一arm继续。穷尽proof不得改变该副作用顺序。
 
@@ -630,7 +630,7 @@ fun describe(point: Point): String {
 
 任意合法表达式都可以作为 subject，包括 String、Boolean、class、interface、函数值和泛型值。具体条件仍必须能按普通规则通过类型检查：`Any` 可以接受 `is String` 条件，但当 x 的静态类型为 Any 时，`when (x) { y -> ... }` 不会因此获得不存在的 `Any.equals`。类、数组或函数值没有适用的成员 `operator equals` 时，普通值条件照常报错；需要 identity 判断可以使用无 subject 的 `when { x === y -> ... }`。
 
-值条件复用语言规范 11.11 的成员选择、参数适配、泛型 bound 和结构比较规则。既不交换左右操作数，也不使用 `Equality.equalTo`、地址比较或运行期动态方法作为 fallback。普通表达式的数字字面量与 contextual enum variant 可以使用比较目标提供的期望类型，但这不改变表达式与模式的语法分类。
+值条件复用语言规范 11.11 的成员选择、参数适配、泛型 bound 和结构比较规则。既不交换左右操作数，也不补用未选定的接口、地址比较或运行期动态方法作为 fallback。普通表达式的数字字面量与 contextual enum variant 可以使用比较目标提供的期望类型，但这不改变表达式与模式的语法分类。
 
 有 subject 时，`when (flag) { predicate() -> ... }` 比较两个 Boolean 值；不会把 `predicate()` 偷换为无 subject 的谓词条件。
 
@@ -647,7 +647,7 @@ fun describe(point: Point): String {
 
 无 subject 的值形式必须有无条件 else；不把某个条件恰好写为 `true` 当作 else。无条件 else 覆盖剩余输入。任何带 guard 的 arm，包括 `else if`，都不贡献静态覆盖，即使 guard 看起来是常量真。
 
-case 继续使用现有递归 constructor matrix：variant payload、tuple/struct product、Boolean、Unit、定宽整数、Char、String 与 Float/Double 的覆盖规则不退化。缺失覆盖保留稳定、可重新解析的 witness；guard 不替代实际覆盖。Float/Double 继续采用 IEEE 相等语义，不能把 NaN 或正负零按位相等处理。
+case 继续使用现有递归 constructor matrix：variant payload、tuple/struct product、Boolean、Unit、定宽整数、Char、String 与 Float/Double 的覆盖规则不退化。缺失覆盖保留稳定、可重新解析的 witness；guard 不替代实际覆盖。Float/Double 继续采用 11.2.2 的默认相等语义，不能把 NaN 或正负零按位相等处理。
 
 普通条件只有具有确定语言语义的部分参与覆盖：Boolean 的字面量 `true` / `false`、可确定的内建标量 literal 比较，以及使用编译器已知结构相等的 enum unit variant 等，可以转成现有 checker 的覆盖事实。任意变量、const 引用、调用、`in` 条件或用户定义 equals 均不被当作构造器覆盖；不能由两个复杂 Boolean 常量表达式推导完备性。普通值条件仍以原表达式和已选 equals 执行，覆盖事实不改变求值行为。
 
@@ -1177,7 +1177,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 #### 9.1.2 `const val`
 
 - `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type必须是`Boolean`、基本数值类型、`Char`或`String`。
-- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括整数的 `compareTo`、两类数值的 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类和 `isTotallyOrdered` 方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
+- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括两类数值的 `compareTo`、 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
 - 除上述封闭数值表示 intrinsic 外，函数/方法调用（包括 `toString`）、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
 - 导出的 `const val` 的类型和值属于 `.slib` 接口，下游 Cone 在编译期直接使用；值变化使依赖该值的编译缓存失效。const 没有 getter 或可寻址 storage，`addressOf(const)` 非法；可见性按声明检查，不因常量求值而绕过。
 
@@ -1375,13 +1375,13 @@ property 按 getter/setter slot 转发，整体类型和 mutability 仍遵守 9.
 
 属性委托所需的`provideDelegate` / `getValue` / `setValue`不是本表的`set`下标角色；它们按9.2形成三个独立typed role，不能仅按名称或本表的普通operator identity参与delegate协议。
 
-`operator fun equals` 必须是成员函数，恰有一个显式参数并返回 `Boolean`，不得为 generic 或 suspend；顶层、局部和 extension 函数不得声明该 operator。class、object、struct、enum 和 interface 均可直接声明它，不要求实现或继承 `Equality<T>`。实际覆写继承成员时遵守普通 override 规则；没有被覆写成员时不写 override。普通非 operator 函数仍可名为 `equals`，但不参与 `==`。不同参数类型形成普通成员重载，具体决议见 11.11。
+`operator fun equals` 必须是成员函数，恰有一个显式参数并返回 `Boolean`，不得为 generic 或 suspend；顶层、局部和 extension 函数不得声明该 operator。class、object、struct、enum 和 interface 均可直接声明它，不要求实现或继承 `Equals<T>`。实际覆写继承成员时遵守普通 override 规则；没有被覆写成员时不写 override。普通非 operator 函数仍可名为 `equals`，但不参与 `==`。不同参数类型形成普通成员重载，具体决议见 11.11。
 
-`equals` 签名中的参数必须写普通显式类型。Scoop 没有 `Self` 类型；例如用户接口可以声明 `interface EqualOperator<T> { operator fun equals(other: T): Boolean }`，由普通继承与 generic bound 提供运算符，不必继承 core 接口。编译器不把 interface 中的任何名字隐式替换为实现者类型。库接口 `Equality<T>` 使用独立的普通方法 `equalTo`；两个入口互不授予能力（见 11.11）。
+`equals` 签名中的参数必须写普通显式类型。Scoop 没有 `Self` 类型；例如用户接口可以声明 `interface EqualOperator<T> { operator fun equals(other: T): Boolean }`，由普通继承与 generic bound 提供运算符，不必继承 core 接口。编译器不把 interface 中的任何名字隐式替换为实现者类型。core 的普通 `Equals<T>` 接口声明同一 operator equals，供库共享名义 bound；仅有同形成员不自动实现该接口（见 11.11）。
 
 #### 9.3.2 表达式展开
 
-除单独说明外，operator展开后使用8.6的普通显式receiver调用决议，只保留具有对应typed operator identity的成员/extension候选，并完整复用8.5的default、`vararg`、泛型与求值协议：
+除单独说明外，先把 operator 表达式展开为带对应 operator 角色的调用请求，再使用8.6的普通显式receiver调用决议；不能在展开和决议之前要求 receiver 实现某个 core 运算符接口。只保留具有对应typed operator identity的成员/extension候选，并完整复用8.5的default、`vararg`、泛型与求值协议：
 
 | 源码 | 概念调用 |
 | --- | --- |
@@ -1392,12 +1392,12 @@ property 按 getter/setter slot 转发，整体类型和 mutability 仍遵守 9.
 | `a[i1, ..., iN]` | `a.get(i1, ..., iN)` |
 | `a[i1, ..., iN] = v` | `a.set(i1, ..., iN, v)` |
 | `a(args...)` | function-value call，或`a.invoke(args...)`（见9.3.4） |
-| `a < b` / `a <= b` / `a > b` / `a >= b` | 同一种 core 浮点类型按 11.2.2 直接执行 IEEE 比较；其他类型将 `a.compareTo(b)` 的 `Long` 结果与 0 比较 |
+| `a < b` / `a <= b` / `a > b` / `a >= b` | 将 `a.compareTo(b)` 的 `Long` 结果与 0 比较；core 浮点采用 11.2.2 的默认全序 |
 | `a == b` / `a != b` | 11.11的成员`equals`调用 / 对同一结果取反 |
 
 receiver先于调用实参求值，因此`a in b`与`a !in b`按概念调用先求值`b`、再求值`a`；这是有意保留的Kotlin顺序。其他表项按书写的receiver再到operand顺序求值。`&&` / `||`仍是只接受`Boolean`的内建短路操作，`===` / `!==`仍是不可重载的引用identity比较；`=`, `?:`, `!!`, `is` / `as`及安全导航本身也不可重载。
 
-core 浮点关系运算的例外由已解析 nominal owner 的 typed representation 决定；透明 alias 相同，用户定义的同名类型不获得该行为。两个 operand 从左到右各求值一次，literal 按 11.2.2 定型；不先默认为 Double，也不通过 `compareTo` 或 total-order 方法间接实现。该例外不增加可由用户重载的 operator 名称。
+已解析的 core 浮点比较可直接降低为等价的 typed predicate；透明 alias 相同，用户定义的同名类型不获得 intrinsic 行为。两个 operand 从左到右各求值一次，literal 按 11.2.2 定型，不先默认为 Double；直接降低与调用已选定的 `compareTo` 遵守同一默认全序。
 
 浮点 receiver 已确定时，右侧 `Nothing` 表达式按 3.1 的底类型规则接受：先求值左侧，再执行右侧的控制转移，不产生浮点比较结果。这不放宽可正常完成的 Float、Double 或整数操作数之间的类型匹配要求。
 
@@ -1442,7 +1442,80 @@ local、parameter、capture、global、普通成员或扩展属性，以及 obje
 
 `lhs name rhs`等价于`lhs.name(rhs)`，要求直接function-like候选带`infix`，或property-like候选最终选中的`invoke`同时带`operator infix`；其余决议与求值规则不变。infix调用左结合，必须显式写receiver（当前`this`上调用写成`this name rhs`）。其优先级从高到低位于range与Elvis之间：postfix、prefix、cast、乘法、加法、range、infix name、Elvis、`in`/`is`、比较、相等、`&&`、`||`、赋值。不同infix名称没有自定义优先级。
 
-普通class可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口。
+普通class、interface静态类型与具有相应上界的类型参数可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口。
+
+
+#### 9.3.6 Core 运算符接口
+
+core 运算符接口使用普通名义声明与显式 conformance，不按接口拼写获得编译器特权。
+标准加法契约为：
+
+```scoop
+public interface Add<Rhs, Result> {
+    public operator fun plus(other: Rhs): Result
+}
+```
+
+`Rhs` 与 `Result` 分别表示右操作数和结果，均保持 invariant，不引入隐式 Self 或 associated type。
+八种整数、Float、Double 与 String 显式实现 `Add<该类型, 该类型>`，已有 `plus` 方法以
+`override operator` 实现 slot；数值 intrinsic 仍保留既有 NoGC effect。该接口为 ordinary、safe、
+Managed 调用合同；NoGC 实现沿普通接口适配规则消费，不将 generic bound call 隐式降为 NoGC。
+`Ptr<T>` 的加法是 unsafe，不能以它实现这个 safe slot，仍可在合法 unsafe 上下文直接调用。
+
+`K : Add<K, K>` 使泛型正文的 `left + right` 在定义处绑定到 Add 的成员，具体化后取得 K 的
+实际实现。异构 `Add<Vector, Point>` 同样合法。普通成员或当前作用域可见的 extension operator
+不要求 Add conformance；反过来，只有同名成员、扩展或可执行的加法表达式都不产生 Add 接口关系，
+不改变 bound、装箱、`is/as` 或 itable。缺少显式 conformance 的类型不能用于要求 Add 的参数。
+调用方后来 import 的扩展既不能补救定义处不成立的调用，也不能替换已发布正文保存的 typed 目标。
+
+接口方法自身仍不能泛型化；suspend、unsafe、default 和 vararg 的适配遵守普通声明及 override
+规则，不为统一运算符接口而隐藏调用效果或改变原本合法的直接调用。
+
+以下接口同样为 public、ordinary、safe、Managed，所有方法都是 public operator，类型参数均为 invariant；表中列出完整的显式参数与结果：
+
+| 接口 | 方法签名 | core 显式实现 |
+| --- | --- | --- |
+| `Sub<Rhs, Result>` | `minus(other: Rhs): Result` | 八种整数及 Float/Double，同型 operand/result |
+| `Mul<Rhs, Result>` | `times(other: Rhs): Result` | 同上 |
+| `Div<Rhs, Result>` | `div(other: Rhs): Result` | 同上 |
+| `Rem<Rhs, Result>` | `rem(other: Rhs): Result` | 同上 |
+| `UnaryPlus<Result>` | `unaryPlus(): Result` | 八种整数及 Float/Double，同型 result |
+| `UnaryMinus<Result>` | `unaryMinus(): Result` | 同上 |
+| `Not<Result>` | `not(): Result` | Boolean，result 为 Boolean |
+| `Increment<Result : Increment<Result>>` | `inc(): Result` | 八种整数及 Float/Double，同型 result |
+| `Decrement<Result : Decrement<Result>>` | `dec(): Result` | 同上 |
+| `Equals<Rhs>` | `equals(other: Rhs): Boolean` | 基本类型、String、Unit 与 Ptr<T>，见 11.11 |
+| `Compare<Rhs>` | `compareTo(other: Rhs): Long` | 八种整数、Float/Double、Char、String，同型 operand |
+| `RangeTo<Rhs, Result>` | `rangeTo(endpoint: Rhs): Result` | 八种整数，同型 endpoint；结果为对应整数 range |
+| `RangeUntil<Rhs, Result>` | `rangeUntil(endpoint: Rhs): Result` | 同上 |
+| `Contains<Element>` | `contains(value: Element): Boolean` | IntRange/LongRange/UIntRange/ULongRange，对应 Int/Long/UInt/ULong |
+
+Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver 子类型要求；具体实现仍须返回其实际 receiver 的子类型。泛型 `T : Increment<T>` 可以对可写 T place 使用 `++`；仅持有 `Increment<T>` 视图时，写回的静态类型仍是该接口。接口不会放宽 place 可写性，也不使不可写回的结果合法。八种整数的区间结果沿用 11.8：Int8/Int16/Int 使用 IntRange，UInt8/UInt16/UInt 使用 UIntRange，Long/ULong 各使用同名 range。普通数值 `op=` 继续使用 9.3.3 的读写回退；不为值类型另外添加就地修改方法。
+
+下标、调用、复合赋值与位置解构采用以下普通接口，具有与上表相同的可见性、effect 和 invariant 规则。显式参数均为 required、非 vararg；不引入 generic virtual method、参数包或函数值到接口的隐式适配：
+
+| 接口 | 方法签名 |
+| --- | --- |
+| `Get<Index, Value>` | `get(index: Index): Value` |
+| `Set<Index, Value>` | `set(index: Index, value: Value): Unit` |
+| `Get2<I, J, Value>` | `get(first: I, second: J): Value` |
+| `Set2<I, J, Value>` | `set(first: I, second: J, value: Value): Unit` |
+| `Invoke0<Result>` | `invoke(): Result` |
+| `Invoke<Arg, Result>` | `invoke(argument: Arg): Result` |
+| `Invoke2<A, B, Result>` | `invoke(first: A, second: B): Result` |
+| `AddAssign<Rhs>` | `plusAssign(other: Rhs): Unit` |
+| `SubAssign<Rhs>` | `minusAssign(other: Rhs): Unit` |
+| `MulAssign<Rhs>` | `timesAssign(other: Rhs): Unit` |
+| `DivAssign<Rhs>` | `divAssign(other: Rhs): Unit` |
+| `RemAssign<Rhs>` | `remAssign(other: Rhs): Unit` |
+| `Component1<Result>` | `component1(): Result` |
+| `Component2<Result>` | `component2(): Result` |
+
+List<T> 继承 Get<Long, T> 并保留自己的 override get；MutableList<T> 另继承 Set<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 Get；MutableArray<T> 另外显式实现 Set<Long, T>；String 显式实现 Get<Long, Char>。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
+
+其余表中接口由需要这些操作的用户类型显式实现。函数值、FunPtr、struct/tuple 的内建解构和只有同名方法的对象均不自动获得对应接口。Component1/2 为前两个位置提供独立约束，不改变 struct/tuple 的内建解构；class、interface 及有对应成员上界的泛型使用既有 componentN 决议。迭代能力继续由 11.8 的 Iterable<T>/Iterator<T> 表达，不增加平行迭代协议。标准接口覆盖这些固定签名；其他参数数量、component 位置以及 generic、suspend、unsafe、default、vararg 形式继续按 9.3.1～9.3.4 合法声明和调用，需要名义 bound 时可声明普通用户接口。接口列表不成为运算符可用性的前置条件。
+
+就地赋值接口不改变可写 place 与只读 receiver 的区别；同时存在适用的 opAssign 与普通 op 时，仍按 9.3.3 报歧义。get/set 的 index 保存、求值顺序、结果适配和写回规则保持一致。
 
 ### 9.4 注解
 
@@ -1621,7 +1694,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 - 下标访问 `a[i]`通过普通成员`operator fun get(index: Long): T`；`MutableArray`通过`operator fun set(index: Long, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
 - `vararg T`的spread和普通形参`Array<T>`都要求exact `Array<T>`；需要改变element type时，调用方显式逐元素构造/转换目标array。
-- `size: Long` 属性；通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都只实现 `List<T>`，不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
+- `size: Long` 属性；通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都实现 `List<T>`，MutableArray<T> 另实现 Set<Long, T>；二者均不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
 
 ### 10.6 按长度初始化
 
@@ -1691,7 +1764,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 - signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Long`的`-1L/0L/1L`；
 - const evaluator与运行期使用完全相同的width、wrapping、division和shift语义；const除零是定义错误，普通表达式仍按运行期异常执行。
 
-每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个基本类型显式声明同类型的 `operator fun equals`，并以独立的普通 `equalTo` 方法显式实现 `Equality<该类型>`，同时实现 `ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。
+每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个基本类型显式声明同类型的 `operator fun equals`，并以该成员显式实现 `Equals<该类型>`，同时实现 `ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。
 
 八个canonical integer struct及`Byte`/`Short`/`Int32`/`Int64`/`UByte`/`UShort`/`UInt32`/`UInt64` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
 
@@ -1705,13 +1778,13 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 - 单引号字符字面量在转义后必须恰好含一个标量值，例如 `'A'`、`'雪'`、`'😀'`、`'\u{1F600}'`；空、多标量、未闭合或含物理换行的字符字面量非法。转义规则与第 6 章一致，surrogate pair 不作为两次转义合成为一个字符。
 - `Char.code: Int` 返回标量编号；普通 core extension `Int.toChar(): Char` 检查该编号属于上述域，否则抛 `IllegalArgumentException`。其他整数先显式转换为 Int；该转换仍遵守已有整数截断规则。
-- Char 声明同类型的 `operator fun equals`、`compareTo: Long`，并通过独立的 `equalTo` 方法显式实现 `Equality<Char>`，同时实现 `ToString` 和 `Hash`；两种相等与次序均按标量编号，`toString()` 编码为一个标量的 String，`hash()` 返回编号对应的 Long。没有隐式数字算术或 CharRange。
+- Char 声明同类型的 `operator fun equals`、`compareTo: Long`，并通过该成员显式实现 `Equals<Char>`，同时实现 `ToString` 和 `Hash`；相等与次序均按标量编号，`toString()` 编码为一个标量的 String，`hash()` 返回编号对应的 Long。没有隐式数字算术或 CharRange。
 - Char 字面量和同类型 const 引用可以用于 `const val`、默认值与递归 literal pattern；Char 普通方法调用不因此扩大既有 const-call 集合。模式覆盖遵守第 5 章的标量值有限域。
 - C ABI 使用 `uint32_t` 承载 Char，外部实现仍须保证入站值是合法标量；其余 by-value、array、aggregate、Option、boxing 与 FFI 布局沿各自既有规则。Char 的源码身份不能以同宽 UInt 代替。
 
 #### 11.2.2 `Float` / `Double`
 
-`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型分别声明同类型的 `operator fun equals`，通过独立的 `equalTo` 方法显式实现 `Equality<Float>` / `Equality<Double>`，并实现 `ToString`；两种相等均遵守下述 IEEE 规则。它们不实现 `Hash`，不支持把标量按空 struct 解构。
+`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型分别声明同类型的 `operator fun equals`，以该成员显式实现 `Equals<Float>` / `Equals<Double>`，通过同类型参数、返回 Long 的 `operator fun compareTo` 实现 `Compare<Float>` / `Compare<Double>`，并实现 `ToString`；默认比较遵守下述等价类全序。它们不实现 `Hash`，不支持把标量按空 struct 解构。
 
 **字面量与定型。** 十进制浮点字面量具有小数部分、指数部分或 `f/F` 后缀中的至少一项，例如 `1.0`、`.5`、`1e3`、`1f`、`1.5e-2F`。小数点后必须有数字；`1.` 不是浮点字面量，`1..2` 和 `1.toDouble()` 保留原有词法。指数 `e/E` 后可带 `+/-`，随后必须有十进制数字；`_` 只可位于同一数字段的两个数字之间。无十六进制/二进制浮点语法或 `d/D` 后缀；已有整数 `0x1f` 仍是十六进制整数。
 
@@ -1729,25 +1802,33 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 - Float 到 Double 对有限值精确，Double 到 Float 最近偶数舍入，允许产生 Infinity 或下溢；同类型转换保持位型，跨格式转换保留零的符号，但不承诺 NaN payload 的映射；
 - 浮点到整数向零截断，结果越界时饱和到目标整数的最小/最大值，NaN 转为 0；负数转无符号的下界为 0。按目标实际位宽饱和，不能先转 Long/ULong 再截断成窄整数。
 
-**普通比较。** `equals` 与 `==` 使用 IEEE 数值相等，`!=` 是该结果取反；`< <= > >=` 直接使用 IEEE 有序关系：
+**默认比较。** `equals` 与 `==` 按比较等价类判断相等，`!=` 是该结果取反；`compareTo` 返回 -1、0 或 1，`< <= > >=` 使用其符号构成同一全序：
 
-| 输入 | `==` | `!=` | `<` / `<=` / `>` / `>=` |
-| --- | --- | --- | --- |
-| 任一 operand 为 NaN，包括同一 NaN | false | true | 全部 false |
-| `-0.0` 与 `+0.0` | true | false | `<` / `>` 为 false，`<=` / `>=` 为 true |
-| 其他值，包括 Infinity | 数值相等 | 数值不等 | 数学次序，`-Infinity < 有限值 < +Infinity` |
+| 输入 | `==` | `compareTo` |
+| --- | --- | --- |
+| 两个 NaN，无论 sign、quiet/signaling 或 payload | true | 0 |
+| 左侧 NaN、右侧非 NaN | false | 1 |
+| 左侧非 NaN、右侧 NaN | false | -1 |
+| `-0.0` 与 `+0.0`，任一方向 | true | 0 |
+| 其他值，包括 Infinity | IEEE 数值相等 | 数值次序，`-Infinity < 有限值 < +Infinity` |
 
-因此 `!(a < b)` 不等价于 `a >= b`；所有输入上的普通关系不构成全序。Float/Double 不提供返回 Long 的 `compareTo`，关系运算不经过该协议。已合法的泛型调用、alias 和派生的 struct/tuple/enum 字段相等均使用同一浮点语义；不能因为值在相同存储中就跳过字段比较，也不新增 `Any.equals`。需要全序的算法应显式使用下面的方法。
+全部 NaN 相等且排在正无穷之后；正负零相等。所有输入满足 `a == b` 当且仅当 `a.compareTo(b) == 0`。泛型、alias、结构派生相等与 when 值匹配使用同一语义，不新增 `Any.equals`。比较仅归类，不改写表示：`1.0 / -0.0` 仍为负无穷，存储与复制继续保留 NaN payload 和零的符号。默认的 `x != x` 不能用于检测 NaN，使用 `x.isNaN()`。
 
-**显式全序。** 两种类型分别提供同类型参数的方法 `public fun isTotallyOrdered(belowOrEqualTo: Float): Boolean` / `public fun isTotallyOrdered(belowOrEqualTo: Double): Boolean`，调用为 `a.isTotallyOrdered(belowOrEqualTo = b)`。返回 IEEE 754 `totalOrder(a, b)`，是非严格的“全序小于等于”。其顺序为负 NaN、负 Infinity、负有限数、负零、正零、正有限数、正 Infinity、正 NaN；NaN 内部再按 IEEE 规则区分 sign、quiet/signaling 与 payload。相同位型对自身返回 true；正负零和不同 NaN 位型不合并。
+**显式 IEEE 比较。** 普通 core enum `IeeeComparison { Less, Equal, Greater, Unordered }` 表示一次 IEEE 数值比较。Float/Double 分别提供同类型方法 `public fun ieeeCompare(other: Float): IeeeComparison` / `public fun ieeeCompare(other: Double): IeeeComparison`：
 
-若算法接收严格的先后谓词，使用 `!b.isTotallyOrdered(belowOrEqualTo = a)`，不能直接传入非严格方法。该方法及 `isNaN()` / `isInfinite()` / `isFinite()` 均为 NoGC intrinsic。它们不改变普通运算符，也不要求公开 `toBits` / `fromBits` / byte sequence / `transmute` API。
+- 任一 operand 为 NaN，包括同一 NaN，返回 `Unordered`；
+- 数值相等，包括正负零，返回 `Equal`；
+- 其余按数值次序返回 `Less` 或 `Greater`，包括无穷。
 
-**常量与表示。** 两种 companion 提供 `const val NaN`、`POSITIVE_INFINITY`、`NEGATIVE_INFINITY`、`MAX_VALUE`（最大正有限值）、`MIN_VALUE`（最小正 subnormal）与 `MIN_NORMAL`（最小正 normal）。NaN 常量固定为正 quiet NaN，Float 位型 `0x7fc00000`、Double 位型 `0x7ff8000000000000`。9.1.2 的浮点 const 运算使用同样的目标精度；产生 NaN 的算术 const 结果使用该类型的固定 quiet NaN，一元 sign 操作和同类型复制/转换仍保留其规定的位型。运行期算术不承诺 NaN 的 sign/payload 与 const 相同；普通存储、传参、返回和复制保持位型，显式 totalOrder 总是比较当时的表示。metadata 保存 kind 与 raw bits，保留负零和已确定的 NaN 表示。
+IEEE 相等对应 Equal，不等对应其余三种结果；小于/小于等于对应 Less / Less 或 Equal，大于/大于等于对应 Greater / Greater 或 Equal。Unordered 不满足任何有序关系，不能用“不是 Less”代替 IEEE 大于等于。
+
+`ieeeCompare` 是 `@NoGC` 普通 core body，通过 `isNaN` 与 `compareTo` 实现，不属于 9.1.2 的 const-call 集合。`isNaN()` / `isInfinite()` / `isFinite()` 及默认比较为 NoGC intrinsic。旧 `isTotallyOrdered(belowOrEqualTo:)` 与逐位型 totalOrder 功能已删除，不保留兼容入口。
+
+**常量与表示。** 两种 companion 提供 `const val NaN`、`POSITIVE_INFINITY`、`NEGATIVE_INFINITY`、`MAX_VALUE`（最大正有限值）、`MIN_VALUE`（最小正 subnormal）与 `MIN_NORMAL`（最小正 normal）。NaN 常量固定为正 quiet NaN，Float 位型 `0x7fc00000`、Double 位型 `0x7ff8000000000000`。9.1.2 的浮点 const 运算使用同样的目标精度；产生 NaN 的算术 const 结果使用该类型的固定 quiet NaN，一元 sign 操作和同类型复制/转换仍保留其规定的位型。运行期算术不承诺 NaN 的 sign/payload 与 const 相同；普通存储、传参、返回和复制保持位型；默认比较不区分 NaN 位型。metadata 保存 kind 与 raw bits，保留负零和已确定的 NaN 表示。
 
 所有上述表示 intrinsic（包括浮点 `div/rem`）均为 `@NoGC`、ordinary；`toString` 和 codec 使用普通 core body，不属于 const-call 集合。`toString()` 输出不依赖 locale：有限值采用能按原精度读回相同位型的最短有效十进制数字，非零值规范化十进制指数在 `[-3, 7)` 时用定点，否则用科学记数法；始终有小数点和至少一位小数，科学指数用小写 `e`、不写正号或多余前导零。零分别为 `0.0` / `-0.0`，非有限值为 `NaN` / `Infinity` / `-Infinity`。不承诺 NaN payload 的文本往返。
 
-**组合与范围。** const、默认参数、annotation、literal pattern、generic/跨 Cone、boxing、数组、普通 aggregate 与 FFI 都保留实际浮点类型。literal pattern 按目标精度定型并用 IEEE `==` 匹配，正负零覆盖同一值；浮点域的穷尽检查始终要求覆盖剩余值的 wildcard，不能通过枚举字面量覆盖 NaN。NaN 可由 `isNaN()` guard 判断，guard 不提供穷尽证明。核心 companion codec 与 JSON 规则见 11.13，C ABI 见 13.8。不引入 FloatRange、隐式数值提升、数值比较接口层次、Hash conformance、通用数学包或 128 位数值类型。
+**组合与范围。** const、默认参数、annotation、literal pattern、generic/跨 Cone、boxing、数组、普通 aggregate 与 FFI 都保留实际浮点类型。literal pattern 按目标精度定型并用默认 `==` 匹配，正负零覆盖同一值；浮点域的穷尽检查始终要求覆盖剩余值的 wildcard，不能通过枚举字面量覆盖 NaN。NaN 可由 `isNaN()` guard 判断，guard 不提供穷尽证明。核心 companion codec 与 JSON 规则见 11.13，C ABI 见 13.8。不引入 FloatRange、隐式数值提升、额外的数值比较接口层次、Hash conformance、通用数学包或 128 位数值类型。
 
 ### 11.3 `Unit`
 
@@ -1755,7 +1836,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 ### 11.4 `String`
 
-String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量序列，允许 U+0000，不隐含结尾 NUL。它声明同类型的 `operator fun equals`，并以独立的 `equalTo` 方法显式实现 `Equality<String>`；`+`、两种相等、比较与 hash 均按内容工作。
+String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量序列，允许 U+0000，不隐含结尾 NUL。它声明同类型的 `operator fun equals`，并以该成员显式实现 `Equals<String>`；`+`、相等、比较与 hash 均按内容工作。
 
 | API | 语义 |
 | --- | --- |
@@ -1797,7 +1878,7 @@ pointer 重载要求 `length >= 0`；负长度抛出 `IllegalArgumentException`�
 
 `withCString` 在执行 block 前检查源内容，含任意 U+0000 时不执行 block 并抛出 IllegalArgumentException；否则复制 byteLength 个 UTF-8 字节并补一个 NUL。临时副本不修改原 String，空字符串也提供可读的终止符。指针仅在普通非 suspend block 内有效，保活、地址稳定和正常／异常 cleanup 沿用 13.11；保存指针供作用域外使用属于 unsafe 契约违例。`fromCString` 要求输入从 pointer 到首个 NUL 的完整区间可读、稳定且有效，managed 区间必须固定；终止符不进入结果，编码错误仍以该前缀内的 byteOffset 抛出 CharacterCodingException。它不读取首个 NUL 后的内容，不把非法 UTF-8 替换为 U+FFFD。
 
-`public operator fun equals(other: String): Boolean` 与实现 `Equality<String>` 的 `public override fun equalTo(other: String): Boolean` 是两个独立成员，两者和 Hash 均基于 UTF-8 内容；`compareTo` 按标量字典序（合法 UTF-8 的字节字典序给出相同结果）；`toString()` 返回自身。这些能力不来自 Any 或 TypeDescriptor 缺省槽。结果内容与源容器独立，但不要求空串、完整 slice 或其他相同不可变 String 具有不同引用身份。
+`public override operator fun equals(other: String): Boolean` 显式实现 `Equals<String>`，相等和 Hash 均基于 UTF-8 内容；`compareTo` 按标量字典序（合法 UTF-8 的字节字典序给出相同结果）；`toString()` 返回自身。这些能力不来自 Any 或 TypeDescriptor 缺省槽。结果内容与源容器独立，但不要求空串、完整 slice 或其他相同不可变 String 具有不同引用身份。
 
 ### 11.5 `Option<T>`
 
@@ -2004,34 +2085,34 @@ Array、MutableArray 和 ArrayList 的 iterator 按索引逐次读取，每次 n
 
 ### 11.11 相等、字符串化与哈希约定
 
-运算符相等与库相等相互独立：`==` / `!=` 只使用成员 `operator fun equals`；core 的 `Equality<T>` 是供 Map 等普通库使用的接口，提供普通方法 `equalTo`。
+`==` / `!=` 与普通库的相等约束统一使用成员 `operator fun equals`。core 提供普通名义接口 `Equals<T>`，供 Map 等泛型库声明所需能力。原 core `Equality<T>` 与 `equalTo` 已删除，不保留 alias 或转发入口；同名用户声明继续按其自身身份处理。
 
 ```scoop
-public interface Equality<T> {
-    public fun equalTo(other: T): Boolean
+public interface Equals<T> {
+    public operator fun equals(other: T): Boolean
 }
 
-public fun <T : Equality<T>> sameKey(left: T, right: T): Boolean =
-    left.equalTo(right)
+public fun <T : Equals<T>> sameKey(left: T, right: T): Boolean =
+    left == right
 ```
 
-`Equality<T>` 的类型参数保持 invariant；`T` 是 `equalTo` 的参数类型，没有隐式 Self，也不要求 T 反过来实现接口。`T : Equality<T>` 只让泛型代码能够调用 `equalTo`，不使 `left == right` 合法。需要泛型运算符的代码可使用声明了 `operator equals` 的普通用户接口作为 bound（见 9.3.1）。
+`Equals<T>` 的类型参数保持 invariant；`T` 是 `equals` 的参数类型，没有隐式 Self，也不要求 T 反过来实现接口。`T : Equals<T>` 使泛型正文能够使用 `left == right`、`left != right` 和 `left.equals(right)`。其他声明 operator equals 的普通用户接口同样可以作为 bound（见 9.3.1），运算符决议不要求特定 core 接口身份。
 
 - **`===` / `!==`（引用相等）**：identity 比较，仅适用于引用类型，不可重载（见 4.4.2）。
-- **`==` / `!=`（运算符相等）**：`lhs == rhs` 从 lhs 静态类型的成员、继承成员或 type-parameter bounds 中收集具有 equals operator 标记的候选，按普通参数适配与成员 overload 规则选择唯一目标。两侧按顺序各求值一次；`lhs != rhs` 调用同一目标后对结果取反。缺少目标或决议歧义时是编译错误；不交换操作数，不使用 extension、`equalTo`、地址比较、`Any.equals` 或 TypeDescriptor fallback。
-- **值类型的结构比较**：普通 struct、enum 和 tuple 在没有手写同签名成员且全部字段／元素可比较时，条件派生同类型的 `operator fun equals`。字段可比较表示两个该字段静态类型的值执行 `==` 能选出唯一目标。struct/tuple 按声明顺序逐字段短路；enum 先比较 tag，再只比较 active variant payload；Unit 的同类型比较恒为 true。派生只提供比较方法，不生成 `Equality<完整宿主类型>`、`equalTo` 或其他接口 conformance。
-- generic value 的结构比较只依赖实际字段／payload，不额外约束未存储的 phantom 参数。`Box<T>(val value: T)` 可对任意合法 T 构造；只有需要比较时才要求相应字段可比较。例如 `Box<Int>` 可使用结构 `==`，仍不自动满足 `Equality<Box<Int>>`。字段不可比较时，在要求结构比较的使用处诊断首个失败字段／variant 路径；仅构造、传递或装箱不要求生成比较正文。
-- generic body 的普通 operator 调用继续遵守已有的泛型 bound 与重载规则。引入普通 `Equality.equalTo` 接口不改变既有结构比较的派生、具体化或跨库算法，也不增加按调用上下文区分结构比较正文的要求。
-- 手写 `operator fun equals(other: R): Boolean` 按普通成员规则参与决议，无需声明 Equality。同类型签名被手写成员占用时不再生成第二个同签名方法；判定占用不以 operator 标记或调用处可见性过滤，普通同签名 `equals` 也会阻止派生，但它本身不参与 `==`。其他参数类型的重载不屏蔽同类型派生；实际继承／覆写遵守普通规则。
-- 派生比较遵守 value-type `this` 按值传递规则。tuple/Unit 的有效访问域由完整类型决定，helper 所在文件或首次创建位置不增加源码访问限制。含 `@InteriorMutable` 的值仍按 13.7 在构造、读取、传递和比较处执行 unsafe 类型使用检查。
-- Float/Double 的 operator 比较遵守 11.2.2，含 NaN 字段的结构值可能不等于自身。结构比较保留字段语义，不能改用 bitwise equality、`memcmp` 或相同存储／identity 的快捷返回，也不能将 `x == x` 恒折叠为 true；泛型具体化同样适用。
+- **`==` / `!=`（运算符相等）**：`lhs == rhs` 从 lhs 静态类型的成员、继承成员或 type-parameter bounds 中收集具有 equals operator 标记的候选，按普通参数适配与成员 overload 规则选择唯一目标。两侧按顺序各求值一次；`lhs != rhs` 调用同一目标后对结果取反。缺少目标或决议歧义时是编译错误；不交换操作数，不使用 extension、地址比较、`Any.equals` 或 TypeDescriptor fallback。
+- **值类型的结构比较**：普通 struct、enum 和 tuple 在没有手写同签名成员且全部字段／元素可比较时，条件派生同类型的 `operator fun equals`。字段可比较表示两个该字段静态类型的值执行 `==` 能选出唯一目标。struct/tuple 按声明顺序逐字段短路；enum 先比较 tag，再只比较 active variant payload；Unit 的同类型比较恒为 true。派生只提供比较方法，不生成 `Equals<完整宿主类型>` 或其他接口 conformance。
+- generic value 的结构比较只依赖实际字段／payload，不额外约束未存储的 phantom 参数。`Box<T>(val value: T)` 可对任意合法 T 构造；只有需要比较时才要求相应字段可比较。例如 `Box<Int>` 可使用结构 `==`，仍不自动满足 `Equals<Box<Int>>`。字段不可比较时，在要求结构比较的使用处诊断首个失败字段／variant 路径；仅构造、传递或装箱不要求生成比较正文。
+- generic body 的普通 operator 调用继续遵守已有的泛型 bound 与重载规则。普通 `Equals.equals` 接口不改变既有结构比较的派生、具体化或跨库算法，也不增加按调用上下文区分结构比较正文的要求。
+- 手写 `operator fun equals(other: R): Boolean` 按普通成员规则参与决议，无需声明 Equals。同类型签名被手写成员占用时不再生成第二个同签名方法；判定占用不以 operator 标记或调用处可见性过滤，普通同签名 `equals` 也会阻止派生，但它本身不参与 `==`。其他参数类型的重载不屏蔽同类型派生；实际继承／覆写遵守普通规则。
+- 派生比较遵守 value-type `this` 按值传递规则。tuple 派生方法的有效访问域由完整类型决定，helper 所在文件或首次创建位置不增加源码访问限制；Unit 使用 core 的公开显式成员。含 `@InteriorMutable` 的值仍按 13.7 在构造、读取、传递和比较处执行 unsafe 类型使用检查。
+- Float/Double 字段的 operator 比较遵守 11.2.2：所有 NaN 彼此相等，正负零相等。结构比较仍保留每个字段的实际语义；其他字段的用户自定义 equals 可以不满足自反性。因此不能对任意结构值改用 bitwise equality、`memcmp` 或相同存储／identity 的快捷返回，也不能将任意结构值的 `x == x` 恒折叠为 true；泛型具体化同样适用。
 - **引用类型**：class/object 可以直接声明或继承成员 operator，不自动派生结构比较。只使用表达式静态类型可见的成员；`Any == Any` 非法，运行期对象另有方法不能补齐静态类型的成员。需要 identity 比较时显式使用 `===`。
-- **`Equality<T>`（库相等）**：类型须显式声明或继承适用的 interface application，并通过普通成员实现 `equalTo`；普通继承与接口默认实现规则照常适用。只有 operator equals，或只有结构比较，都不能满足该接口；显式声明 Equality 却缺少合法 `equalTo` 实现仍是编译错误。反过来，只实现 `equalTo` 也不会获得 operator equals。两项能力需要同时使用时分别声明和实现，可以在普通源码中显式转发或复用函数；编译器不自动桥接，也不强制两者结果相同。
-- 继承 `Equality<Base>` 不自动产生 `Equality<Derived>`；`Equality<Point>` 视图的 `equalTo` 参数仍是 Point，该接口自身不声明 operator equals。装箱、interface bound、itable 与 `is` / `as` 只使用实际声明／继承的接口关系，不因结构比较产生额外表项。tuple 不能声明接口；需要库相等时用显式实现 Equality 的命名类型包装。
-- String、Boolean、Char、八种定宽整数、Float/Double 和 `Ptr<T>` 的 core 声明保留已有的同类型 operator equals，并显式实现普通 `Equality<该类型>.equalTo`；Unit 保留既有结构 operator，并显式实现 `Equality<Unit>.equalTo`。alias 保持同一成员与 conformance。两个入口使用相同的内容／数值规则，其中 Float/Double 的 `equalTo` 也保持 IEEE 语义，Unit 的两个结果均恒为 true。接口实现来自普通 core 声明，不按 intrinsic 的空字段表示派生接口，也不增加 Equality 专用 intrinsic 或 runtime 协议。数组、函数、FunPtr 等没有既有实现的类型不因此获得这两项能力。
-- Equality 只声明比较操作，不保证所有实现构成数学上的等价关系，编译器不能仅凭该接口假定自反性。Map 的 key 比较通过 Equality 的 `equalTo` 调用；后续有序 Map 所需的比较接口同样是独立库能力，不与 `operator compareTo` 或关系运算符自动关联。
+- **`Equals<T>`（库相等）**：类型须显式声明或继承适用的 interface application，并提供合法的 `override operator fun equals`；普通继承与接口默认实现规则照常适用。只有手写 operator equals 或结构比较不产生 conformance；显式 adopt 却缺少合法实现仍是编译错误，派生结构比较不补齐接口实现。
+- 继承 `Equals<Base>` 不自动产生 `Equals<Derived>`；`Equals<Point>` 视图的 equals 参数仍是 Point，因此 `view == point` 合法而两个同类接口视图之间不一定可比较。装箱、interface bound、itable 与 `is` / `as` 只使用实际声明／继承的接口关系。tuple 不能声明接口；需要库相等时用显式实现 Equals 的命名类型包装。
+- String、Boolean、Char、八种定宽整数、Float/Double、`Ptr<T>` 和 Unit 通过普通 core 声明显式实现 `Equals<该类型>`，其 override operator equals 同时服务直接比较、泛型 bound 与实际接口调用。Unit 的结果恒为 true；其余沿用各类型的内容／数值合同，Float/Double 见 11.2.2。alias 保持同一成员与 conformance。接口实现不按 intrinsic 的空字段表示派生，也不增加 Equals 专用 intrinsic 或 runtime 协议。数组、函数、FunPtr 等没有既有实现的类型不因此获得相等能力。
+- Equals 声明比较能力，编译器不证明用户实现满足自反、对称或传递性，也不能仅凭该接口折叠比较。Map 的 key 使用 Equals.equals，Hash 的一致性是库作者的合同。有序库可另约束 9.3.6 的 Compare；两项 conformance 均由显式声明决定。
 - **`ToString`（字符串化）**：接口 `interface ToString { fun toString(): String }`。class/object/struct/enum 都必须在声明中显式列出该 interface 并提供合法 override；字段或 payload 实现 ToString 不会让宿主自动获得 conformance。generic nominal type 若在实现体中调用类型参数值的 `toString()`，必须为相应参数声明普通 ToString 上界。tuple 不能声明 implements 列表；Unit 的 core 声明也未实现 ToString。String 与基础类型由 core 中的 intrinsic nominal 声明显式 adopt，String 实现返回自身。`print` / `println` 定义为 `fun <T : ToString> print(v: T)` 并经普通单态化 bound call 实现，不接受 Any fallback，也不按成员同形或字段结构补齐 conformance。
-- **`Hash`（哈希）**：接口 `interface Hash { fun hash(): Long }`。**没有任何缺省或派生实现**；Boolean、Char、八种定宽整数与 String 由核心库显式提供内容相关实现，其他类型显式 opt-in。Float/Double 及其 alias 不实现 Hash，也不提供默认 `hash()`；基本类型或值类型身份本身不产生 conformance。供哈希容器组合使用时，`a.equalTo(b)` 为 true 的 key 必须产生相同 hash；该约定以库相等为准，编译器不证明其成立。不以对象地址作为 hash，也不承诺算法跨 runtime 版本保持相同数值。struct 不自动获得哈希；Equality 与 Hash 的组合仍按普通 interface bound 检查。
+- **`Hash`（哈希）**：接口 `interface Hash { fun hash(): Long }`。**没有任何缺省或派生实现**；Boolean、Char、八种定宽整数与 String 由核心库显式提供内容相关实现，其他类型显式 opt-in。Float/Double 及其 alias 不实现 Hash，也不提供默认 `hash()`；基本类型或值类型身份本身不产生 conformance。供哈希容器组合使用时，`a.equals(b)` 为 true 的 key 必须产生相同 hash；该约定以 Equals 的默认相等为准，编译器不证明其成立。不以对象地址作为 hash，也不承诺算法跨 runtime 版本保持相同数值。struct 不自动获得哈希；Equals 与 Hash 的组合仍按普通 interface bound 检查。
 
 ### 11.12 `SourceLocation` 与位置 intrinsic
 
@@ -2244,7 +2325,7 @@ public class DecodeFunction<T>(private val body: (Decoder) -> T) : Decodable<T> 
 
 ### 11.14 原子类型与内存序
 
-core 提供 `AtomicInt`、`AtomicLong`、`AtomicBoolean` 和 `AtomicRef<T : ref>` 四个 intrinsic final class，构造时接收对应类型的初值。复制原子对象的引用仍访问同一存储位置；不能继承这些类型，也不能在源码中直接访问其值字段。它们不提供 operator equals，也不实现 Equality、Hash 或 ToString，比较应显式读取值后进行。
+core 提供 `AtomicInt`、`AtomicLong`、`AtomicBoolean` 和 `AtomicRef<T : ref>` 四个 intrinsic final class，构造时接收对应类型的初值。复制原子对象的引用仍访问同一存储位置；不能继承这些类型，也不能在源码中直接访问其值字段。它们不提供 operator equals，也不实现 Equals、Hash 或 ToString，比较应显式读取值后进行。
 
 ```scoop
 public enum MemoryOrder {
@@ -2281,7 +2362,7 @@ Relaxed 只保证该原子位置的原子性与修改顺序。release 写与读�
 
 四个原子类还提供 `getAndUpdate(update: (V) -> V): V` 与 `updateAndGet(update: (V) -> V): V`，分别返回成功更新前后的值。它们是同一类中的普通 Scoop CAS 循环，读取与 CAS 使用 SeqCst；更新函数可分配、抛出异常并因竞争重试。异常发生前未成功的 CAS 不写入；更新函数自己的副作用不回滚，不增加 intrinsic。
 
-core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equality。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性调用 sched_yield。
+core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equals。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性调用 sched_yield。
 
 无符号宽度包装也可由普通库组合既有原子类型实现；上述组合不赋予普通字段、数组元素或 aggregate copy 原子语义。首版不提供 `Ptr<T>` 所指 native 内存上的原子操作，后续按平台库的实际需求增加。
 
@@ -2545,17 +2626,14 @@ annotation class Intrinsic(val name: String)
 
 ```
 @Intrinsic("core_int")
-public struct Int : Equality<Int>, ToString, Hash {
+public struct Int : Equals<Int>, ToString, Hash {
     @Intrinsic("int_add")
     @NoGC
     public operator fun plus(rhs: Int): Int
 
     @Intrinsic("int_equals")
     @NoGC
-    public operator fun equals(other: Int): Boolean
-
-    @NoGC
-    public override fun equalTo(other: Int): Boolean = this == other
+    public override operator fun equals(other: Int): Boolean
 
     public override fun toString(): String = coreLongToString(this.toLong())
 
@@ -2594,7 +2672,7 @@ annotation class NoGC
 - `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
-- value type 的 `@NoGC` 成员可以实现未标注 NoGC 的普通接口方法，这是对实现体 GC effect 的收紧，其参数、结果、receiver 和 body 仍须满足全部 NoGC 约束。经具体类型直接选中该实现时保留 NoGC 合同；经 interface 或只有该 interface bound 的静态类型调用时，仍使用接口的 Managed 合同，不能因为某个实现是 NoGC 就把所有实现视为 NoGC。装箱／接口表入口按实现规范 2.9 适配；基本类型显式提供的 NoGC `equalTo` 因此可实现普通 `Equality<T>`；独立的 operator equals 继续直接使用 NoGC intrinsic，整数／浮点比较不增加 GC 操作。
+- value type 的 `@NoGC` 成员可以实现未标注 NoGC 的普通接口方法，这是对实现体 GC effect 的收紧，其参数、结果、receiver 和 body 仍须满足全部 NoGC 约束。经具体类型直接选中该实现时保留 NoGC 合同；经 interface 或只有该 interface bound 的静态类型调用时，仍使用接口的 Managed 合同，不能因为某个实现是 NoGC 就把所有实现视为 NoGC。装箱／接口表入口按实现规范 2.9 适配；基本类型显式提供的 NoGC operator equals 因此可实现普通 `Equals<T>`；已知具体类型的直接比较继续使用 NoGC intrinsic，整数／浮点比较不增加 GC 操作。
 - 8.3 的 contextual declaration 不得标注 `@NoGC`；`context(value) { ... }` 也不是 NoGC 操作。runtime 的无分配 lookup/restore leaf 不等于源码 `@NoGC`，它们仍读取或写入 managed ref。
 - 9.1.6 的 release block 不是普通 callable 或 `@NoGC` target。定义方在已有 NoGc 检查上推导更窄的 release-call effect 与 `ReleaseValue` 条件，并通过普通 callable 接口供依赖使用；`@NoGC` 本身不保证没有 native transition、TLS 或 GC capability 操作。
 
@@ -2795,14 +2873,12 @@ needValue("hello")    // 编译错误：String 不是值类型
 
 ```
 @Intrinsic("core_ptr")
-public struct Ptr<T : value> : Equality<Ptr<T>> {
-    public operator fun equals(other: Ptr<T>): Boolean {
+public struct Ptr<T : value> : Equals<Ptr<T>> {
+    public override operator fun equals(other: Ptr<T>): Boolean {
         @Unsafe {
             return this.toULong() == other.toULong()
         }
     }
-
-    public override fun equalTo(other: Ptr<T>): Boolean = this.equals(other)
 
     @NoGC @Unsafe
     @Intrinsic("ptr_to_ulong")

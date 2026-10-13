@@ -1,0 +1,1 @@
+fun main() { (-0f).isTotallyOrdered(belowOrEqualTo = 0f) }

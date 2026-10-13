@@ -20,6 +20,7 @@ mod signatures;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalExactLeafClassifierV1 {
     leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
+    dispatched: std::collections::BTreeSet<CallableTemplateOrigin>,
     generic_sources: Vec<scoop_identity::PersistentGenericTypeId>,
 }
 
@@ -31,6 +32,14 @@ impl NominalExactLeafClassifierV1 {
         &self,
         callable: &CallableDeclarationRecordV1,
     ) -> Result<Option<ParamFreeNominalCallableV1>, NominalCallableClassificationError> {
+        if matches!(
+            callable.effects().implementation(),
+            CallableImplementationV1::Intrinsic(_)
+        ) && callable.slot_relations().is_empty()
+            && !self.dispatched.contains(&callable.declaration())
+        {
+            return Ok(None);
+        }
         let Some(implementation) = eligible_declaration(callable) else {
             return Ok(None);
         };
@@ -96,13 +105,7 @@ fn eligible_declaration(
         PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(_)) => true,
         PublicDeclarationOwnerV1::Nominal(SourceNominalId::GenericTemplate(_)) => false,
     };
-    if !direct_owner
-        || !callable.type_parameters().is_empty()
-        || matches!(
-            callable.effects().implementation(),
-            CallableImplementationV1::Intrinsic(_)
-        )
-    {
+    if !direct_owner || !callable.type_parameters().is_empty() {
         return None;
     }
     match callable.declaration() {

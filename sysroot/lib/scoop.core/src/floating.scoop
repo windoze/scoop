@@ -1,5 +1,15 @@
 @Intrinsic("core_float")
-public struct Float : Equality<Float>, ToString {
+public struct Float :
+    Add<Float, Float>,
+    Sub<Float, Float>,
+    Mul<Float, Float>,
+    Div<Float, Float>,
+    Rem<Float, Float>,
+    UnaryPlus<Float>,
+    UnaryMinus<Float>,
+    Increment<Float>,
+    Decrement<Float>,
+    Equals<Float>, Compare<Float>, ToString {
     public companion object : Encodable<Float>, Decodable<Float> {
         public override fun encode(value: Float, encoder: Encoder): Unit =
             encoder.singleValue().writeFloat(value)
@@ -16,37 +26,34 @@ public struct Float : Equality<Float>, ToString {
     }
 
     @NoGC @Intrinsic("float_unary_plus")
-    public operator fun unaryPlus(): Float
+    public override operator fun unaryPlus(): Float
 
     @NoGC @Intrinsic("float_unary_minus")
-    public operator fun unaryMinus(): Float
+    public override operator fun unaryMinus(): Float
 
     @NoGC @Intrinsic("float_inc")
-    public operator fun inc(): Float
+    public override operator fun inc(): Float
 
     @NoGC @Intrinsic("float_dec")
-    public operator fun dec(): Float
+    public override operator fun dec(): Float
 
     @NoGC @Intrinsic("float_plus")
-    public operator fun plus(other: Float): Float
+    public override operator fun plus(other: Float): Float
 
     @NoGC @Intrinsic("float_minus")
-    public operator fun minus(other: Float): Float
+    public override operator fun minus(other: Float): Float
 
     @NoGC @Intrinsic("float_times")
-    public operator fun times(other: Float): Float
+    public override operator fun times(other: Float): Float
 
     @NoGC @Intrinsic("float_div")
-    public operator fun div(other: Float): Float
+    public override operator fun div(other: Float): Float
 
     @NoGC @Intrinsic("float_rem")
-    public operator fun rem(other: Float): Float
+    public override operator fun rem(other: Float): Float
 
     @NoGC @Intrinsic("float_equals")
-    public operator fun equals(other: Float): Boolean
-
-    @NoGC
-    public override fun equalTo(other: Float): Boolean = this.equals(other)
+    public override operator fun equals(other: Float): Boolean
 
     @NoGC @Intrinsic("float_is_nan")
     public fun isNaN(): Boolean
@@ -57,8 +64,17 @@ public struct Float : Equality<Float>, ToString {
     @NoGC @Intrinsic("float_is_finite")
     public fun isFinite(): Boolean
 
-    @NoGC @Intrinsic("float_total_order")
-    public fun isTotallyOrdered(belowOrEqualTo: Float): Boolean
+    @NoGC @Intrinsic("float_compare_to")
+    public override operator fun compareTo(other: Float): Long
+
+    @NoGC
+    public fun ieeeCompare(other: Float): IeeeComparison {
+        if (isNaN() || other.isNaN()) return IeeeComparison.Unordered
+        val order = compareTo(other)
+        if (order < 0L) return IeeeComparison.Less
+        if (order > 0L) return IeeeComparison.Greater
+        return IeeeComparison.Equal
+    }
 
     @NoGC @Intrinsic("float_to_int8")
     public fun toInt8(): Int8
@@ -94,7 +110,17 @@ public struct Float : Equality<Float>, ToString {
 }
 
 @Intrinsic("core_double")
-public struct Double : Equality<Double>, ToString {
+public struct Double :
+    Add<Double, Double>,
+    Sub<Double, Double>,
+    Mul<Double, Double>,
+    Div<Double, Double>,
+    Rem<Double, Double>,
+    UnaryPlus<Double>,
+    UnaryMinus<Double>,
+    Increment<Double>,
+    Decrement<Double>,
+    Equals<Double>, Compare<Double>, ToString {
     public companion object : Encodable<Double>, Decodable<Double> {
         public override fun encode(value: Double, encoder: Encoder): Unit =
             encoder.singleValue().writeDouble(value)
@@ -111,37 +137,34 @@ public struct Double : Equality<Double>, ToString {
     }
 
     @NoGC @Intrinsic("double_unary_plus")
-    public operator fun unaryPlus(): Double
+    public override operator fun unaryPlus(): Double
 
     @NoGC @Intrinsic("double_unary_minus")
-    public operator fun unaryMinus(): Double
+    public override operator fun unaryMinus(): Double
 
     @NoGC @Intrinsic("double_inc")
-    public operator fun inc(): Double
+    public override operator fun inc(): Double
 
     @NoGC @Intrinsic("double_dec")
-    public operator fun dec(): Double
+    public override operator fun dec(): Double
 
     @NoGC @Intrinsic("double_plus")
-    public operator fun plus(other: Double): Double
+    public override operator fun plus(other: Double): Double
 
     @NoGC @Intrinsic("double_minus")
-    public operator fun minus(other: Double): Double
+    public override operator fun minus(other: Double): Double
 
     @NoGC @Intrinsic("double_times")
-    public operator fun times(other: Double): Double
+    public override operator fun times(other: Double): Double
 
     @NoGC @Intrinsic("double_div")
-    public operator fun div(other: Double): Double
+    public override operator fun div(other: Double): Double
 
     @NoGC @Intrinsic("double_rem")
-    public operator fun rem(other: Double): Double
+    public override operator fun rem(other: Double): Double
 
     @NoGC @Intrinsic("double_equals")
-    public operator fun equals(other: Double): Boolean
-
-    @NoGC
-    public override fun equalTo(other: Double): Boolean = this.equals(other)
+    public override operator fun equals(other: Double): Boolean
 
     @NoGC @Intrinsic("double_is_nan")
     public fun isNaN(): Boolean
@@ -152,8 +175,17 @@ public struct Double : Equality<Double>, ToString {
     @NoGC @Intrinsic("double_is_finite")
     public fun isFinite(): Boolean
 
-    @NoGC @Intrinsic("double_total_order")
-    public fun isTotallyOrdered(belowOrEqualTo: Double): Boolean
+    @NoGC @Intrinsic("double_compare_to")
+    public override operator fun compareTo(other: Double): Long
+
+    @NoGC
+    public fun ieeeCompare(other: Double): IeeeComparison {
+        if (isNaN() || other.isNaN()) return IeeeComparison.Unordered
+        val order = compareTo(other)
+        if (order < 0L) return IeeeComparison.Less
+        if (order > 0L) return IeeeComparison.Greater
+        return IeeeComparison.Equal
+    }
 
     @NoGC @Intrinsic("double_to_int8")
     public fun toInt8(): Int8

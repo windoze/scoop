@@ -1,0 +1,36 @@
+typealias Small = Float32
+typealias Wide = Float64
+struct Pair(val single: Small, val double: Wide)
+enum Value { Number(Pair), Empty }
+fun <T : Equals<T>> same(a: T, b: T): Boolean = a == b
+fun <T : Compare<T>> order(a: T, b: T): Long = a.compareTo(b)
+fun <T : Compare<T>> before(a: T, b: T): Boolean = a < b
+fun classify(value: Small): Int = when (value) {
+    Float.NaN -> 1
+    -0f -> 2
+    else -> 3
+}
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val a: Small = Float.NaN
+    val b: Wide = Double.NaN
+    check(same(a, -a) && same(b, -b) && order(a, -a) == 0L && order(b, -b) == 0L)
+    check(before(Float.POSITIVE_INFINITY, a) && before(Double.POSITIVE_INFINITY, b))
+    check(classify(-a) == 1 && classify(0f) == 2 && classify(1f) == 3)
+    check(Pair(a, b) == Pair(-a, -b) && Value.Number(Pair(a, b)) == Value.Number(Pair(-a, -b)))
+    check((a, b) == (-a, -b) && Some(a) == Some(-a))
+    val equalView: Equals<Small> = a
+    val orderView: Compare<Small> = a
+    val wideView: Compare<Wide> = b
+    gcCollect()
+    check(equalView == -a && orderView.compareTo(-a) == 0L && wideView > Double.POSITIVE_INFINITY)
+    val boxed: Any = b
+    check(boxed is Equals<Wide> && boxed is Compare<Wide>)
+    check((boxed as Equals<Wide>) == b && (boxed as Compare<Wide>) >= b)
+    val boundOrder = orderView::compareTo
+    val concreteOrder = b::compareTo
+    check(boundOrder(0f) == 1L && concreteOrder(-b) == 0L)
+    val numbers = [Float.POSITIVE_INFINITY, a, -0f, 0f]
+    check(numbers[1] > numbers[0] && numbers[2] == numbers[3])
+    println("floating combinations")
+}

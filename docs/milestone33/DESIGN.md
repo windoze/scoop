@@ -1,5 +1,7 @@
 # M33 设计：平台库的编译器、driver 与 runtime 前置能力
 
+后续变更：M41 以普通名义 `Equals<T>`／`operator equals` 替代本里程碑的 `Equality<T>`／`equalTo` 拆分 API；结构比较仍不产生接口实现。以下保留 M33 当时的设计与验收事实，当前合同见[语言规范 11.11](../specs/SCOOP-SPEC.md#1111-相等字符串化与哈希约定)与 [M41 实施记录](../milestone41/PROGRESS.md)。
+
 状态：已完成。M33-1～M33-9 的规范、实现、功能组合与总回归均已验收，并按功能提交；实际范围、验证方式和结果见[验收记录](ACCEPTANCE.md)。数据竞争、NativeSafe/collector、GCLeaf/DirectC、errno、main/root gateway、C++、源码选择和三种 UTF-8 转换均已落地。第 10 节保留已定结论和技术验证结果。
 
 2026-10-08 修订 9.2：`==` / `!=` 只使用普通成员 `operator fun equals`；库接口 `Equality<T>` 提供独立的 `equalTo`。结构比较只派生运算符，不派生接口。三份规范、实现及受影响测试已完成迁移，恢复后的三平台验收见 M33-7g；旧统一接口方案的测试记录只保留为历史。
@@ -670,6 +672,8 @@ struct Key(val value: Int) : Equality<Key> {
 `Box<T>(val value: T)` 的构造不要求 T 可比较；具体 application 需要使用结构比较时才检查相应字段。未存储的 phantom 参数不产生条件。`Box<Int>` 即使有结构 `==`，也不满足 `Equality<Box<Int>>`；显式声明该接口却缺少 `equalTo` 仍是定义处错误。仅构造或装箱不生成相等接口或比较正文，tuple 也不需要为 Equality 维护全局条件 conformance。已有结构比较的 typed 字段调用、普通泛型具体化和 ODR 规则继续适用。
 
 Equality 保持普通接口语义：继承 `Equality<Base>` 不成为 `Equality<Derived>`；`Equality<Point>` 视图的 `equalTo` 参数仍是 Point。bound、装箱、itable 与 `is` / `as` 使用实际声明或继承的接口集合，operator 的存在不改变该集合。
+
+> M41 后续替代：下段为 M33 历史设计。当前默认相等采用 Equals/equals；浮点按等价类全序比较，IEEE 数值比较经 ieeeCompare 显式调用。
 
 Float/Double 的 operator 与 core `equalTo` 均保持 `NaN != NaN` 和正负零相等；含 NaN 的结构比较保留字段行为，不做 identity／memcmp 或 `x == x` 恒真优化。Float/Double 仍不实现 Hash。未来 HashMap 用普通 `Equality<K>` 与 `Hash` bounds，key 比较调用 `equalTo`，相等 key 的 hash 一致性以该方法为准。未来 BTreeMap 所需的比较接口同样独立于 `operator compareTo` 和关系运算符，随实际库需求设计；M33 不增加 Map 实现或比较接口 API。
 

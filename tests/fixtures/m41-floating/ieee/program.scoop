@@ -1,0 +1,25 @@
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+@NoGC fun describe(value: IeeeComparison): Int = when (value) {
+    case Less -> -1
+    case Equal -> 0
+    case Greater -> 1
+    case Unordered -> 2
+}
+fun main() {
+    check(describe((-1f).ieeeCompare(0f)) == -1)
+    check(describe((-0f).ieeeCompare(0f)) == 0)
+    check(describe(Float.POSITIVE_INFINITY.ieeeCompare(Float.MAX_VALUE)) == 1)
+    check(describe(Float.NaN.ieeeCompare(Float.NaN)) == 2)
+    check(Float.NaN.ieeeCompare(1f) == IeeeComparison.Unordered)
+    check(1f.ieeeCompare(Float.NaN) == IeeeComparison.Unordered)
+    check(Double.NEGATIVE_INFINITY.ieeeCompare(-Double.MAX_VALUE) == IeeeComparison.Less)
+    check((-0.0).ieeeCompare(0.0) == IeeeComparison.Equal)
+    check(Double.POSITIVE_INFINITY.ieeeCompare(Double.MAX_VALUE) == IeeeComparison.Greater)
+    check(Double.NaN.ieeeCompare(Double.NaN) == IeeeComparison.Unordered)
+    check(Double.NaN.ieeeCompare(1.0) == IeeeComparison.Unordered)
+    check(1.0.ieeeCompare(Double.NaN) == IeeeComparison.Unordered)
+    val compare = Float.NaN::ieeeCompare
+    check(compare(0f) == IeeeComparison.Unordered)
+    check(1.000000059604644775390625000001.ieeeCompare(1.0000001f) == IeeeComparison.Equal)
+    println("floating ieee")
+}

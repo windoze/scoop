@@ -1,0 +1,4 @@
+class Invalid() : Increment<Int> {
+    public override operator fun inc(): Int = 1
+}
+fun main() {}

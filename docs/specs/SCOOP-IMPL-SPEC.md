@@ -107,6 +107,10 @@ receiver 函数类型在源码 HIR、共享签名及 exact type identity 中保�
 
 nominal application 保存原声明与完整实参；struct、enum、class、interface 各有独立 typed identity。alias 透明展开；字段、variant、构造与 property accessor 保存各自原身份。按值循环、继承环、泛型约束、GC-free 和 ZST 属性在所属语义边界确定。
 
+依赖 struct 的存储属性读取使用已发布字段身份；显式 receiver 与成员、扩展正文中的隐式 receiver 遵守同一规则。Storage accessor 不要求另行导出不存在的函数体。
+
+解析名义声明头时，先建立该批声明的完整继承与接口关系并检查继承环，再验证依赖这些关系的类型实参上界；合法的 `S : I<S>` / `I<T : I<T>>` 不因声明顺序或尚未填入 S 的接口表而失败。延后检查只保留本次实际出现的 typed 上界要求及诊断上下文；局部声明与依赖接口使用同一时机，不重放完整声明解析。
+
 sealed 的继承限制在 HIR 按真实 origin、package 与声明作用域检查；成功声明保存完整直接子类型集合，class 的有效 modality 仍为 abstract。when 按这些关系与已有类型替换检查闭合家族，不在 MIR 或链接阶段重新求穷尽性。共享 nominal details 对 sealed 增加第 12 字段的规范化直接子类型身份列表，未 sealed 的原 11 字段编码保持不变；相关子类型的普通声明与继承签名进入现有共享声明闭包，私有数据不增加 public lookup binding。reader 在普通格式与引用边界检查集合及关系，消费方复用已读信息，不增加继承授权或运行期注册协议。
 
 interface implementation delegation 在 HIR lowering 中完成 slot 选择、隐藏字段分配和普通转发成员的生成。字段身份由真实宿主与继承项位置确定，和源码 property backing/delegate 字段区分；它不产生可查找的源码属性。构造记录在 base/primary store 后、body 初始化前保存 delegate，转发正文只包含普通字段读取与已绑定的接口调用。泛型构造及转发正文保留原 binder、字段和 slot 身份，跨 Cone 通过现有声明、字段和正文闭包消费，不在下游重新决定委托成员；MIR/runtime 沿用普通对象布局、接口分派和 GC 扫描。
@@ -127,15 +131,19 @@ inner class（语言规范 9.1.3.1）的 binder 先保存外层 class 的完整 
 
 singleton、runtime property 与 generic delegated application 保存完整初始化单元及 cycle throw target。constant 已完成依赖环检查与求值，没有 runtime unit。interface/default/virtual 选择在 HIR 唯一确定，qualified super 保存 direct target。
 
-`==` / `!=` 按语言规范 9.3、11.11 从普通成员中选择 operator equals，保存实际 callable 或普通接口 bound target；不要求 core Equality conformance。`Equality<T>.equalTo` 按普通 interface 声明、override 和 bound call 处理，不进入 core operator／protocol 身份表，也不为同形方法或结构比较补齐接口。
+core 的 Add 等普通运算符接口不进入编译器内建 protocol 表。HIR 先将 operator 表达式形成相应角色的普通调用请求，在定义处完成成员、bound 或扩展决议；不以某个 core 接口的实现关系作为前置过滤。generic/default body 保存所选 typed callable 或 bound slot，具体化按实际 conformance 映射实现，消费方不得重新按 import 或方法名选择。已有数值 intrinsic 可以显式覆写普通 interface slot：其声明保持 Final，产物保存实际 slot 关系与原 intrinsic implementation，不能要求它只能是 DirectOnly。top-level、extension、constructor 与 source extern 仍遵守原直接调用合同。NoGC 实现与 Managed slot 的适配复用现有 callable/ABI；具体值直接调用仍保留 intrinsic。LocalConcrete intrinsic 必须从已解析的 source parameter interface（或已导入模板签名）保留完整物理参数类型，包括 receiver；它没有源码 local arena，不伪造参数 local id。当实际 itable 引用 intrinsic 实现时，MIR 以该实现原有 callable materialization 生成一个具备完整参数、返回值及 effect 的可调用正文，复用直接运算与 callable reference 的 typed 运算降级；不为未参与分派的 intrinsic 额外生成入口。装箱与 receiver 调整仍使用既有 interface adapter。由声明 slot 或 nominal dispatch selection 实际引用的 intrinsic 实现入口随普通 callable binding 导出，供 dependency 的 itable、装箱适配与 bound 具体化引用；只有直接展开用途的 intrinsic 不导出机器入口。
+
+`==` / `!=` 按语言规范 9.3、11.11 从普通成员中选择 operator equals，保存实际 callable 或普通接口 bound target；不要求 core Equals conformance。`Equals<T>.equals` 按普通 interface 声明、override 和 bound call 处理，不进入 core operator／protocol 身份表，也不为同形方法或结构比较补齐接口。
 
 不可重载的 `===` / `!==` 同样从左到右各求值一次；右侧展开出的 HIR 前置语句必须位于左侧取值之后，不能改变左侧已取得的引用。
 
 判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 operator 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会成为 operator；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
 
-结构比较在当前静态类型环境中绑定字段的 operator equals。宿主包含类型参数时，先按顺序保存两个操作数，再将已绑定的比较正文展开为普通字段调用和短路表达式；enum 的 payload 读取受相应 variant 检查保护。泛型正文、默认参数和跨 Cone 模板保留这些普通 HIR 操作，具体化时不得按具体宿主重新选择字段重载，也不得与直接比较该具体宿主的派生正文合并。封闭宿主仍使用按 exact owner 标识的既有派生 callable。`Equality.equalTo` 继续由普通接口、泛型正文、装箱和跨库调用机制承担。
+结构比较在当前静态类型环境中绑定字段的 operator equals。宿主包含类型参数时，先按顺序保存两个操作数，再将已绑定的比较正文展开为普通字段调用和短路表达式；enum 的 payload 读取受相应 variant 检查保护。泛型正文、默认参数和跨 Cone 模板保留这些普通 HIR 操作，具体化时不得按具体宿主重新选择字段重载，也不得与直接比较该具体宿主的派生正文合并。封闭宿主仍使用按 exact owner 标识的既有派生 callable。`Equals.equals` 继续由普通接口、泛型正文、装箱和跨库调用机制承担。
 
-派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equalTo` 及其他普通接口方法；独立的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。
+按 exact owner 生成的派生 callable 没有独立的词法源码正文，其表达式保留触发派生的来源；该来源可以是依赖中的默认值或模板。检查其中的依赖调用时仍验证 definition/evaluation 的文件、位置和上下文引用，但不能要求求值来源属于当前 Cone，或要求这个按类型生成的 helper 出现在导入函数模板表中。生成身份继续只由 exact owner 决定，不因首次触发派生的文件或调用点改变。
+
+派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equals` 及其他普通接口方法；具体值的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。
 
 extern 声明产生完整 `SourceNativeExternalContract`：symbol bytes、逻辑 library/default namespace、function/data/TLS、mutability、C/Scoop ABI、calling convention、完整的 native 签名、GC effect 与定义位置。Scoop callable 另保留完整源码签名；启用 errno 捕获时，两者按语言规范 13.4.2 建立明确的结果适配关系。普通／suspend 效果与 GC effect 独立，后续不得由 symbol 或参数类型反推。
 
@@ -187,9 +195,9 @@ structured MIR 与最终 MIR 的动态调用将 receiver 保存在对应目标�
 
 CFG 的私有协程工作记录保留挂起操作的语义顺序、块内位置、receiver 与结果 local；尚未生成的注册调用不使用普通 callee 或空语句占位。协程变换把这些记录与已有 CFG 语句一起用于 liveness 和恢复分析，生成 continuation adapter 后直接形成完整接口调用。cleanup 中的待定 return／throw／break／continue 继续保留原值和目标，最终只输出引用实际 saved slots 与恢复入口的协程 metadata。
 
-`==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equality<T>.equalTo` 是独立的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals 或 equalTo。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
+`==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equals<T>.equals` 是同一 operator 契约的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
 
-使用结构表示的值，其装箱接口闭包来自 LocalConcreteHir 的实际声明／继承关系，并由 MIR 的实际表项写入产物。tuple 的结构比较不增加 Equality 表项；Ptr 的显式接口仍按普通规则保留。产物读写检查接口引用、slot、callable 与签名的一致性，不因 exact type 使用结构表示就强制接口集合为空，也不在后续 stage 重放字段相等或源码 implements 的决议。
+使用结构表示的值，其装箱接口闭包来自 LocalConcreteHir 的实际声明／继承关系，并由 MIR 的实际表项写入产物。tuple 的结构比较不增加 Equals 表项；Ptr 的显式接口仍按普通规则保留。产物读写检查接口引用、slot、callable 与签名的一致性，不因 exact type 使用结构表示就强制接口集合为空，也不在后续 stage 重放字段相等或源码 implements 的决议。
 
 class allocation 只分配最派生对象一次，使用实际 exact TD；base/this initializer 不分配、不修改 TD。receiver 在可能 GC 的操作间保活并重读，只有完整构造成功后发布 release-ready 与结果。构造失败没有可用结果。
 
@@ -305,6 +313,8 @@ LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、T
 
 codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；发射前的 ABI 规划入口只消费 LIR 定义的布局／签名数据，不读取 HIR 或重新解释 MIR 正文。具体 LLVM 初始化、CPU/features、data layout、机器栈与过程 ABI 规则归 codegen；目标布局描述与 backend contract 作为完整数据传递。Scoop producer 消费 LIR target/backend，generated-C 源码生成消费 LIR target/C toolchain 合同。宿主 compiler/SDK/sysroot 路径、环境与命令构造归 toolchain，driver 执行 generated-C 编译后将对象交回现有对象边界处理。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 
+元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
+
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
@@ -395,13 +405,13 @@ production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR �
 
 executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M34 的 runtime ABI contract 12、metadata ABI 8 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
-operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
+operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
 自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。M35 普通 when 增加可缺省 subject、Case/Predicate/Always 条件和显式 Fallthrough 后，版本升级为 `cross-cone-interface/70`、`cross-cone-type-semantics/28`；随后显式 Nothing/Unreachable 表达式增加为 `cross-cone-interface/71`、`cross-cone-type-semantics/29`。旧 body 编码必须重建。注解参数完整 signature key 与静态数组值随后将 `cross-cone-interface` 升至 72；type semantics、MIR/LIR 与 runtime ABI 在这一批保持原版本。
 
-派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
+派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名；派生候选不伪造 Equals slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 
-接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；旧的 Equality equals slot 不能作为 equalTo 消费。不因这次库接口拆分增加 runtime 比较 ABI。
+接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；M41 删除 core Equality/equalTo，改为普通 Equals/operator equals，旧依赖须按既有失效规则重建。不为库接口迁移增加 runtime 比较 ABI。
 
 `single-cone-production/6` 的 field 4 为完整 typed registration projection，field 6 为 RuntimeImage fingerprint，field 11 为物理 ODR member 目录，field 12 为 OptimizationMode；field 5 保留不用。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。
 
@@ -575,7 +585,7 @@ LIR 的 dispatch slot 显式保存单字 object receiver projection 和完整入
 
 intrinsic class 的 adapter 同样使用该声明已经确定的物理类型与 exact identity。`String`／`Any` 的 receiver 保持本层对应的 intrinsic reference type，不为 adapter 另造普通 `Class` 别名；源级接口继承及 default body 仍按普通声明处理。
 
-值类型只有显式声明或继承的普通 interface conformance；有界泛型调用、interface 调用、装箱与 `is` / `as` 消费同一实际接口闭包。结构 operator equals 不产生 Equality conformance。显式 `Equality<T>.equalTo` 与其他接口方法使用相同的调用规则；已知 concrete value 的直接调用不因另有接口实现而强制装箱或运行期查表。
+值类型只有显式声明或继承的普通 interface conformance；有界泛型调用、interface 调用、装箱与 `is` / `as` 消费同一实际接口闭包。结构 operator equals 不产生 Equals conformance。显式 `Equals<T>.equals` 与其他接口方法使用相同的调用规则；已知 concrete value 的直接调用不因另有接口实现而强制装箱或运行期查表。
 
 按语言规范 13.2，NoGc value method 可以实现 Managed interface slot。源级实现兼容性允许这种 effect 收紧，但实际 itable entry 仍须符合 slot 的完整 Managed ABI：由普通 value/interface adapter 完成 receiver 适配，并以 NoGc 合同调用实际实现；adapter 保留自身的 Managed effect、入口 poll 与必要 roots。具体类型直接调用原 NoGc 方法不经过该 adapter。签名与产物分别记录 slot、adapter 和实现，不能用强制转换或抹去 GC effect 代替适配；不引入新的 runtime 分派机制。
 
@@ -779,9 +789,9 @@ codec 不因数据继承关系自动传递，不能按 value 的动态类型改�
 
 语言语义见语言规范 11.2.2，运行边界见运行时规范 6.1。Float/Double 分别为 F32/F64，alias 不建立新 nominal identity。literal 与 const 按目标精度直接求值，成功输出保存原始同宽 bits，不经宿主浮点近似。
 
-算术、关系、分类、totalOrder 与转换使用明确 typed operation。浮点除零不使用整数异常规则；相等不能替换为 identity 或位型相等。所有 storage、aggregate、数组、closure、frame、boxing 和 C ABI 保留完整精度及 exact type。
+算术、默认比较、分类与转换使用明确 typed operation。`compareTo` 返回 Long；六种默认 predicate 与其符号保持一致。显式 `ieeeCompare` 通过普通 core body 组合分类与比较，返回普通 IeeeComparison enum，不增加 enum 专用 intrinsic。浮点除零不使用整数异常规则；相等不能替换为 identity 或位型相等。所有 storage、aggregate、数组、closure、frame、boxing 和 C ABI 保留完整精度及 exact type。
 
-浮点操作不得使用 fast、nnan、ninf、nsz、reassoc 或 contract 等改变语言语义的假设。关系分别满足 IEEE ordered/unordered 规则，不能以 `!(a < b)` 替代 `a >= b`。float→integer 按目标位宽饱和，不生成越界 poison 或先转 64-bit 再截断；同格式转换保持 bits。
+浮点操作不得使用 fast、nnan、ninf、nsz、reassoc 或 contract 等改变语言语义的假设。默认比较将所有 NaN 合并并排在正无穷之后，将正负零合并；const 与后端使用相同规则。显式 IEEE 比较的 Unordered 不满足有序关系。float→integer 按目标位宽饱和，不生成越界 poison 或先转 64-bit 再截断；同格式转换保持 bits。
 
 C storage 使用真实 float/double；fmodf/fmod 的 NoGC 签名分别为 `(F32,F32)->F32`、`(F64,F64)->F64`，作为 target support tags 4/5 进入普通 native 链接闭包。内部常量池与机器局部 label 不获得源码实体身份。
 
@@ -801,7 +811,9 @@ metadata 的相等、去重与 hash 比较 raw bits，包括 signed zero 与 NaN
 | literal equality pattern | 4，payload 为 FloatKind。 |
 | object relocation constant-pool target | 15，payload 为实际常量 ByteSpan。 |
 
-浮点 literal 不匹配 NaN，有限 literal 集合不能覆盖完整浮点域，剩余域需要 wildcard。JSON 使用显式 codec 和目标精度直接解析，有限／非有限值遵守语言格式规则。
+FloatBinaryOperator 的算术 wire tags 1～5 不变；旧 IEEE predicates 的 6～11 与 totalOrder 的 12 退役，不再解码。CompareTo 使用 13，默认 Equal/NotEqual/Less/LessEqual/Greater/GreaterEqual 使用 14～19，避免消费旧 IR 时悄然改变其比较语义。受影响 core 与依赖须重建；沿用现有未知 tag 与 core 协议兼容性检查，不增加 runtime ABI。
+
+浮点 literal 语法不能表示 NaN，有限 literal 集合不能覆盖完整浮点域，剩余域需要 wildcard。JSON 使用显式 codec 和目标精度直接解析，有限／非有限值遵守语言格式规则。
 
 ### 2.19 优化与物理定义选择
 

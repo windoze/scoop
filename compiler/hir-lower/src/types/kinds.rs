@@ -34,18 +34,13 @@ impl Lowerer {
                     hir::NominalBoundRef::Interface(bound) => (bound.ty, "interface"),
                 };
                 let required = self.instantiate_ty(required, args);
-                if !self.is_subtype(arg, required) {
-                    let found = self.type_name(arg);
-                    let required = self.type_name(required);
-                    self.error(
-                        span,
-                        format!(
-                            "type argument `{found}` for `{}` of {target} must satisfy {description} upper bound `{required}`",
-                            param.name
-                        ),
-                    );
-                    valid = false;
-                }
+                let diagnostic = format!(
+                    "type argument `{}` for `{}` of {target} must satisfy {description} upper bound `{}`",
+                    self.type_name(arg),
+                    param.name,
+                    self.type_name(required),
+                );
+                valid &= self.check_type_argument_bound(arg, required, span, diagnostic);
             }
         }
         valid

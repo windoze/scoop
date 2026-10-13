@@ -2,6 +2,7 @@ use super::*;
 
 mod captures;
 mod definition;
+mod intrinsics;
 
 use definition::DefinitionReceiver;
 
@@ -118,9 +119,18 @@ impl Concretizer<'_> {
                 );
                 (concrete::FunctionKind::User(body), Some(locals))
             }
-            export::FunctionKind::Intrinsic(intrinsic) => {
-                (concrete::FunctionKind::Intrinsic(*intrinsic), None)
-            }
+            export::FunctionKind::Intrinsic(intrinsic) => (
+                concrete::FunctionKind::Intrinsic(concrete::IntrinsicFunction {
+                    kind: intrinsic.kind,
+                    provider: intrinsic.provider,
+                    parameters: self.lower_intrinsic_parameters(
+                        key,
+                        &arguments,
+                        &definition.receiver,
+                    ),
+                }),
+                None,
+            ),
             export::FunctionKind::Extern(external) => (
                 concrete::FunctionKind::Extern(self.extern_map[external]),
                 None,

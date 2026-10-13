@@ -4,7 +4,8 @@ impl Lowerer {
     pub(crate) fn check_interface_inheritance_cycles(
         &mut self,
         pending: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
-    ) {
+    ) -> bool {
+        let errors = self.diagnostics.len();
         for &(interface, declaration, file) in pending {
             self.current_file = file;
             let mut visiting = Vec::new();
@@ -18,6 +19,7 @@ impl Lowerer {
                 );
             }
         }
+        self.diagnostics.len() == errors
     }
 
     fn interface_reaches(

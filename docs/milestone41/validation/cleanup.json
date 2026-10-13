@@ -1,0 +1,61 @@
+{
+  "final_batches": [
+    {
+      "host": "darwin",
+      "time": "2026-10-13T06:30:46.511395+00:00",
+      "scope": "Final cleanup batch; earlier periodic cleanup is recorded separately.",
+      "removed": [
+        "target/m41/66-default-origins/cache",
+        "target/m41/66-default-origins/sysroot",
+        "target/m41/profile-core/target",
+        "target/m41/profile-core-divided/target",
+        "target/m41/profile-core-sorted/target",
+        "target/m41/tmp"
+      ],
+      "task_directory_kib_before": 322492,
+      "task_directory_kib_after": 8500,
+      "preserved": [
+        "target/debug dependency cache",
+        "target/release current CLI tools and dependencies",
+        "sysroot/native LLVM unwind installation",
+        "target/m41 logs and reports"
+      ]
+    },
+    {
+      "host": "linux",
+      "time": "2026-10-13T06:30:48.545690+00:00",
+      "scope": "Final cleanup batch; earlier periodic cleanup is recorded separately.",
+      "removed": [
+        "target/m41/05-goldens-gnu/core-debug",
+        "target/m41/05-goldens-gnu/core-release",
+        "target/m41/05-goldens-musl/core-debug",
+        "target/m41/05-goldens-musl/core-release",
+        "target/m41/25-default-origins-gnu/cache",
+        "target/m41/25-default-origins-gnu/cases",
+        "target/m41/25-default-origins-gnu/sysroot",
+        "target/m41/25-default-origins-musl/cache",
+        "target/m41/25-default-origins-musl/cases",
+        "target/m41/25-default-origins-musl/sysroot",
+        "target/m41/linux-musl/cache",
+        "target/m41/linux-musl/cases",
+        "target/m41/linux-musl/sysroot",
+        "target/m41/origin-build",
+        "target/m41/tmp"
+      ],
+      "task_directory_kib_before": 13775708,
+      "task_directory_kib_after": 6296,
+      "preserved": [
+        "target/debug dependency cache",
+        "target/release current CLI tools and dependencies",
+        "sysroot/native LLVM unwind installation",
+        "target/m41 logs and reports"
+      ]
+    }
+  ],
+  "periodic_records": [
+    "darwin-cleanup-events.jsonl.gz",
+    "linux-cleanup-events.jsonl.gz",
+    "linux-periodic-cleanup.log.gz"
+  ],
+  "note": "Directory sizes use du -sk for the final batch only; they are not total physical bytes reclaimed during the milestone."
+}

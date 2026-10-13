@@ -1,5 +1,18 @@
 @Intrinsic("core_int8")
-public struct Int8 : Equality<Int8>, ToString, Hash {
+public struct Int8 :
+    Add<Int8, Int8>,
+    Sub<Int8, Int8>,
+    Mul<Int8, Int8>,
+    Div<Int8, Int8>,
+    Rem<Int8, Int8>,
+    UnaryPlus<Int8>,
+    UnaryMinus<Int8>,
+    Increment<Int8>,
+    Decrement<Int8>,
+    Compare<Int8>,
+    RangeTo<Int8, IntRange>,
+    RangeUntil<Int8, IntRange>,
+    Equals<Int8>, ToString, Hash {
     @NoGC @Intrinsic("int8_to_float")
     public fun toFloat(): Float
 
@@ -8,48 +21,46 @@ public struct Int8 : Equality<Int8>, ToString, Hash {
 
     @NoGC
     @Intrinsic("int8_equals")
-    public operator fun equals(other: Int8): Boolean
+    public override operator fun equals(other: Int8): Boolean
 
-    @NoGC
-    public override fun equalTo(other: Int8): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("int8_unary_plus")
-    public operator fun unaryPlus(): Int8
+    public override operator fun unaryPlus(): Int8
 
     @NoGC
     @Intrinsic("int8_unary_minus")
-    public operator fun unaryMinus(): Int8
+    public override operator fun unaryMinus(): Int8
 
     @NoGC
     @Intrinsic("int8_inc")
-    public operator fun inc(): Int8
+    public override operator fun inc(): Int8
 
     @NoGC
     @Intrinsic("int8_dec")
-    public operator fun dec(): Int8
+    public override operator fun dec(): Int8
 
     @NoGC
     @Intrinsic("int8_add")
-    public operator fun plus(other: Int8): Int8
+    public override operator fun plus(other: Int8): Int8
 
     @NoGC
     @Intrinsic("int8_sub")
-    public operator fun minus(other: Int8): Int8
+    public override operator fun minus(other: Int8): Int8
 
     @NoGC
     @Intrinsic("int8_mul")
-    public operator fun times(other: Int8): Int8
+    public override operator fun times(other: Int8): Int8
 
     @Intrinsic("int8_div")
-    public operator fun div(other: Int8): Int8
+    public override operator fun div(other: Int8): Int8
 
     @Intrinsic("int8_rem")
-    public operator fun rem(other: Int8): Int8
+    public override operator fun rem(other: Int8): Int8
 
     @NoGC
     @Intrinsic("int8_compare_to")
-    public operator fun compareTo(other: Int8): Long
+    public override operator fun compareTo(other: Int8): Long
 
     @NoGC
     @Intrinsic("int8_and")
@@ -111,10 +122,10 @@ public struct Int8 : Equality<Int8>, ToString, Hash {
     @Intrinsic("int8_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: Int8): IntRange =
+    public override operator fun rangeTo(endpoint: Int8): IntRange =
         IntRange(this.toInt32(), endpoint.toInt32(), 1, false, true)
 
-    public operator fun rangeUntil(endpoint: Int8): IntRange =
+    public override operator fun rangeUntil(endpoint: Int8): IntRange =
         IntRange(this.toInt32(), endpoint.toInt32(), 1, false, false)
 
     public infix fun until(endpoint: Int8): IntRange =

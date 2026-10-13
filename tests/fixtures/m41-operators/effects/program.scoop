@@ -1,0 +1,15 @@
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    val division: Div<Int, Int> = 10
+    val remainder: Rem<ULong, ULong> = 10uL
+    var caught = 0
+    try { division / 0 } catch (error: ArithmeticException) { caught += 1 }
+    try { remainder % 0uL } catch (error: ArithmeticException) { caught += 1 }
+    check(caught == 2)
+    val floating: Div<Float, Float> = 1f
+    val double: Rem<Double, Double> = 1.0
+    check((floating / 0f).isInfinite() && (double % 0.0).isNaN())
+    val overflow: UnaryMinus<Int8> = (-128).toInt8()
+    check(-overflow == (-128).toInt8())
+    println("operator effects")
+}

@@ -1,0 +1,4 @@
+class Box : Set<Long, Int> {
+    public override operator fun set(index: Long, value: Int): Int = value
+}
+fun main() {}

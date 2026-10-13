@@ -39,7 +39,18 @@ pub(crate) enum BinaryReference {
 }
 
 impl PrimitiveReference {
-    pub(super) fn classify(intrinsic: hir::PrimitiveMemberIntrinsic) -> Self {
+    pub(crate) fn from_intrinsic(kind: hir::IntrinsicFunctionKind) -> Option<Self> {
+        use hir::{IntrinsicFunctionKind as I, PrimitiveMemberIntrinsic as P};
+        Some(Self::classify(match kind {
+            I::Integer(kind) => P::Integer(kind),
+            I::Float(kind) => P::Float(kind),
+            I::Char(kind) => P::Char(kind),
+            I::PrimitiveUnary(kind) => P::Unary(kind),
+            I::PrimitiveBinary(kind) => P::Binary(kind),
+            _ => return None,
+        }))
+    }
+    pub(crate) fn classify(intrinsic: hir::PrimitiveMemberIntrinsic) -> Self {
         use hir::{
             CharIntrinsic as C, FloatIntrinsicKind as F, IntegerIntrinsicKind as I,
             PrimitiveMemberIntrinsic as P,

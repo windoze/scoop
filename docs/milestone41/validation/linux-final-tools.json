@@ -1,0 +1,23 @@
+{
+  "commit": "d35522aa",
+  "binaries": [
+    {
+      "binary": "scoop",
+      "canonical_sha256": "e72ea995025f05afbd053ff651a2cb3c9926c2580563bd02627f1cf1b06a82d7",
+      "tested_sha256": "e72ea995025f05afbd053ff651a2cb3c9926c2580563bd02627f1cf1b06a82d7",
+      "identical": true
+    },
+    {
+      "binary": "scoopc",
+      "canonical_sha256": "12081ff5b3c4c4a24d6c5941aa1ab96fd8eb39a7561ff2b22f8eed3814760778",
+      "tested_sha256": "12081ff5b3c4c4a24d6c5941aa1ab96fd8eb39a7561ff2b22f8eed3814760778",
+      "identical": true
+    },
+    {
+      "binary": "scoop-link",
+      "canonical_sha256": "1d41a7d8f0f35a2e0da9f9cc6f98dfd401f7629bf673e0d15abd4c28f527ef2f",
+      "tested_sha256": "1d41a7d8f0f35a2e0da9f9cc6f98dfd401f7629bf673e0d15abd4c28f527ef2f",
+      "identical": true
+    }
+  ]
+}

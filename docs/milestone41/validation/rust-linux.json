@@ -1,0 +1,59 @@
+{
+  "scope": "Complete Linux workspace coverage, with the four affected tests repaired and rerun; codegen and all driver tests rerun after metadata projection changes, both HIR crates rerun after the derived-call origin correction; latest result per test target and name.",
+  "runs": [
+    {
+      "log": "linux-02-rust-workspace.log.gz",
+      "passed": 99,
+      "failed": 1
+    },
+    {
+      "log": "linux-07-scoop.log.gz",
+      "passed": 105
+    },
+    {
+      "log": "linux-08-rust-workspace.log.gz",
+      "passed": 5463,
+      "failed": 5
+    },
+    {
+      "log": "linux-11-default-callable.log.gz",
+      "passed": 1
+    },
+    {
+      "log": "linux-12-shared-equality.log.gz",
+      "passed": 1
+    },
+    {
+      "log": "linux-14-codegen.log.gz",
+      "passed": 382
+    },
+    {
+      "log": "linux-15-driver-all.log.gz",
+      "passed": 81,
+      "failed": 1
+    },
+    {
+      "log": "linux-19-core-exports.log.gz",
+      "passed": 1
+    },
+    {
+      "log": "linux-21-driver-entry.log.gz",
+      "passed": 8
+    },
+    {
+      "log": "linux-21-driver-doc.log.gz"
+    },
+    {
+      "log": "linux-25-hir.log.gz",
+      "passed": 2335
+    }
+  ],
+  "test_targets": 48,
+  "tests": 5584,
+  "passed": 5584,
+  "implementation_commit": "d35522aa",
+  "codegen_implementation_commit": "e5ba66a9",
+  "test_expectations_commit": "d35522aa",
+  "failed": 0,
+  "ignored": 0
+}

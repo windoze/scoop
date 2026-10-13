@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "no applicable candidate for `same` in current-unit top-level candidate layer:\n  - fun same<T : Equality<T>>(left: T, right: T): Boolean — Point is not a subtype of Equality<T>",
+    "message": "no applicable candidate for `same` in current-unit top-level candidate layer:\n  - fun same<T : Equals<T>>(left: T, right: T): Boolean — Point is not a subtype of Equals<T>",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 151,
+      "end": 148,
       "kind": "source",
       "path": "main.scoop",
-      "start": 127
+      "start": 124
     },
     "severity": "error"
   }

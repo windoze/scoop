@@ -1,5 +1,18 @@
 @Intrinsic("core_long")
-public struct Long : Equality<Long>, ToString, Hash {
+public struct Long :
+    Add<Long, Long>,
+    Sub<Long, Long>,
+    Mul<Long, Long>,
+    Div<Long, Long>,
+    Rem<Long, Long>,
+    UnaryPlus<Long>,
+    UnaryMinus<Long>,
+    Increment<Long>,
+    Decrement<Long>,
+    Compare<Long>,
+    RangeTo<Long, LongRange>,
+    RangeUntil<Long, LongRange>,
+    Equals<Long>, ToString, Hash {
     @NoGC @Intrinsic("long_to_float")
     public fun toFloat(): Float
 
@@ -8,48 +21,46 @@ public struct Long : Equality<Long>, ToString, Hash {
 
     @NoGC
     @Intrinsic("long_equals")
-    public operator fun equals(other: Long): Boolean
+    public override operator fun equals(other: Long): Boolean
 
-    @NoGC
-    public override fun equalTo(other: Long): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("long_unary_plus")
-    public operator fun unaryPlus(): Long
+    public override operator fun unaryPlus(): Long
 
     @NoGC
     @Intrinsic("long_unary_minus")
-    public operator fun unaryMinus(): Long
+    public override operator fun unaryMinus(): Long
 
     @NoGC
     @Intrinsic("long_inc")
-    public operator fun inc(): Long
+    public override operator fun inc(): Long
 
     @NoGC
     @Intrinsic("long_dec")
-    public operator fun dec(): Long
+    public override operator fun dec(): Long
 
     @NoGC
     @Intrinsic("long_add")
-    public operator fun plus(other: Long): Long
+    public override operator fun plus(other: Long): Long
 
     @NoGC
     @Intrinsic("long_sub")
-    public operator fun minus(other: Long): Long
+    public override operator fun minus(other: Long): Long
 
     @NoGC
     @Intrinsic("long_mul")
-    public operator fun times(other: Long): Long
+    public override operator fun times(other: Long): Long
 
     @Intrinsic("long_div")
-    public operator fun div(other: Long): Long
+    public override operator fun div(other: Long): Long
 
     @Intrinsic("long_rem")
-    public operator fun rem(other: Long): Long
+    public override operator fun rem(other: Long): Long
 
     @NoGC
     @Intrinsic("long_compare_to")
-    public operator fun compareTo(other: Long): Long
+    public override operator fun compareTo(other: Long): Long
 
     @NoGC
     @Intrinsic("long_and")
@@ -111,10 +122,10 @@ public struct Long : Equality<Long>, ToString, Hash {
     @Intrinsic("long_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: Long): LongRange =
+    public override operator fun rangeTo(endpoint: Long): LongRange =
         LongRange(this, endpoint, 1L, false, true)
 
-    public operator fun rangeUntil(endpoint: Long): LongRange =
+    public override operator fun rangeUntil(endpoint: Long): LongRange =
         LongRange(this, endpoint, 1L, false, false)
 
     public infix fun until(endpoint: Long): LongRange =

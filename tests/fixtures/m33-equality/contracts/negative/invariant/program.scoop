@@ -1,6 +1,6 @@
-open class Base() : Equality<Base> {
-    public override fun equalTo(other: Base): Boolean = true
+open class Base() : Equals<Base> {
+    public override operator fun equals(other: Base): Boolean = true
 }
 class Child() : Base()
-fun requireChild(value: Equality<Child>) {}
+fun requireChild(value: Equals<Child>) {}
 fun main() { requireChild(Child()) }

@@ -1,0 +1,35 @@
+public interface Get<Index, Value> {
+    public operator fun get(index: Index): Value
+}
+
+public interface Set<Index, Value> {
+    public operator fun set(index: Index, value: Value): Unit
+}
+
+public interface Get2<I, J, Value> {
+    public operator fun get(first: I, second: J): Value
+}
+
+public interface Set2<I, J, Value> {
+    public operator fun set(first: I, second: J, value: Value): Unit
+}
+
+public interface Invoke0<Result> {
+    public operator fun invoke(): Result
+}
+
+public interface Invoke<Arg, Result> {
+    public operator fun invoke(argument: Arg): Result
+}
+
+public interface Invoke2<A, B, Result> {
+    public operator fun invoke(first: A, second: B): Result
+}
+
+public interface Component1<Result> {
+    public operator fun component1(): Result
+}
+
+public interface Component2<Result> {
+    public operator fun component2(): Result
+}

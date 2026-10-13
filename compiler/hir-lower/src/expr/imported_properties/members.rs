@@ -90,6 +90,9 @@ impl Lowerer {
             .map_err(|error| self.error(name.span, error.diagnostic("dependency property")))?;
         let storage =
             match (&self.types[owner], property.declaration()) {
+                (hir::Type::Struct(_), _) => self
+                    .struct_field(owner, &name.text)
+                    .map(|field| field.reference),
                 (
                     hir::Type::Class(application),
                     scoop_identity::PropertyOwner::Property(property),

@@ -1,5 +1,18 @@
 @Intrinsic("core_ulong")
-public struct ULong : Equality<ULong>, ToString, Hash {
+public struct ULong :
+    Add<ULong, ULong>,
+    Sub<ULong, ULong>,
+    Mul<ULong, ULong>,
+    Div<ULong, ULong>,
+    Rem<ULong, ULong>,
+    UnaryPlus<ULong>,
+    UnaryMinus<ULong>,
+    Increment<ULong>,
+    Decrement<ULong>,
+    Compare<ULong>,
+    RangeTo<ULong, ULongRange>,
+    RangeUntil<ULong, ULongRange>,
+    Equals<ULong>, ToString, Hash {
     @NoGC @Intrinsic("ulong_to_float")
     public fun toFloat(): Float
 
@@ -8,48 +21,46 @@ public struct ULong : Equality<ULong>, ToString, Hash {
 
     @NoGC
     @Intrinsic("ulong_equals")
-    public operator fun equals(other: ULong): Boolean
+    public override operator fun equals(other: ULong): Boolean
 
-    @NoGC
-    public override fun equalTo(other: ULong): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("ulong_unary_plus")
-    public operator fun unaryPlus(): ULong
+    public override operator fun unaryPlus(): ULong
 
     @NoGC
     @Intrinsic("ulong_unary_minus")
-    public operator fun unaryMinus(): ULong
+    public override operator fun unaryMinus(): ULong
 
     @NoGC
     @Intrinsic("ulong_inc")
-    public operator fun inc(): ULong
+    public override operator fun inc(): ULong
 
     @NoGC
     @Intrinsic("ulong_dec")
-    public operator fun dec(): ULong
+    public override operator fun dec(): ULong
 
     @NoGC
     @Intrinsic("ulong_add")
-    public operator fun plus(other: ULong): ULong
+    public override operator fun plus(other: ULong): ULong
 
     @NoGC
     @Intrinsic("ulong_sub")
-    public operator fun minus(other: ULong): ULong
+    public override operator fun minus(other: ULong): ULong
 
     @NoGC
     @Intrinsic("ulong_mul")
-    public operator fun times(other: ULong): ULong
+    public override operator fun times(other: ULong): ULong
 
     @Intrinsic("ulong_div")
-    public operator fun div(other: ULong): ULong
+    public override operator fun div(other: ULong): ULong
 
     @Intrinsic("ulong_rem")
-    public operator fun rem(other: ULong): ULong
+    public override operator fun rem(other: ULong): ULong
 
     @NoGC
     @Intrinsic("ulong_compare_to")
-    public operator fun compareTo(other: ULong): Long
+    public override operator fun compareTo(other: ULong): Long
 
     @NoGC
     @Intrinsic("ulong_and")
@@ -107,10 +118,10 @@ public struct ULong : Equality<ULong>, ToString, Hash {
     @Intrinsic("ulong_to_ulong")
     public fun toUInt64(): ULong
 
-    public operator fun rangeTo(endpoint: ULong): ULongRange =
+    public override operator fun rangeTo(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, false, true)
 
-    public operator fun rangeUntil(endpoint: ULong): ULongRange =
+    public override operator fun rangeUntil(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, false, false)
 
     public infix fun until(endpoint: ULong): ULongRange =

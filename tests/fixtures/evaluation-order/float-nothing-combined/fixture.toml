@@ -21,7 +21,7 @@ checks = []
 name = "run"
 argv = ["${build.result.output}"]
 exit = 0
-stdout = "left\nlt\nfinally\nleft\nle\nfinally\nsingle\ngt\nfinally\nsingle\nge\nfinally\nleft\ndeferred\nfinally\nleft\nrhs finally\ncontrol\nfinally\nfalse\ntrue\nfalse\nfalse\n"
+stdout = "left\nlt\nfinally\nleft\nle\nfinally\nsingle\ngt\nfinally\nsingle\nge\nfinally\nleft\ndeferred\nfinally\nleft\nrhs finally\ncontrol\nfinally\nfalse\ntrue\nfalse\ntrue\n"
 stderr = ""
 
 [[steps]]
@@ -29,5 +29,5 @@ name = "moving"
 argv = ["${build.result.output}"]
 env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
-stdout = "left\nlt\nfinally\nleft\nle\nfinally\nsingle\ngt\nfinally\nsingle\nge\nfinally\nleft\ndeferred\nfinally\nleft\nrhs finally\ncontrol\nfinally\nfalse\ntrue\nfalse\nfalse\n"
+stdout = "left\nlt\nfinally\nleft\nle\nfinally\nsingle\ngt\nfinally\nsingle\nge\nfinally\nleft\ndeferred\nfinally\nleft\nrhs finally\ncontrol\nfinally\nfalse\ntrue\nfalse\ntrue\n"
 stderr = ""

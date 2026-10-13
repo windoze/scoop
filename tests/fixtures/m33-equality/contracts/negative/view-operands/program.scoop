@@ -1,5 +1,5 @@
 fun main() {
-    val left: Equality<Int> = 42
-    val right: Equality<Int> = 42
+    val left: Equals<Int> = 42
+    val right: Equals<Int> = 42
     println(left == right)
 }

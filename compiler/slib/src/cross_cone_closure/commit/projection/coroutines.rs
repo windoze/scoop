@@ -22,7 +22,7 @@ impl ValidatedCrossConeSemanticClosure {
                 callee: concrete::CallableTarget::Local(callable), ..
             } = occurrence.expression.kind {
                 let function = module.callable_function(callable);
-                if matches!(module.functions[function].kind, concrete::FunctionKind::Intrinsic(intrinsic)
+                if matches!(module.functions[function].kind, concrete::FunctionKind::Intrinsic(ref intrinsic)
                     if intrinsic.kind == concrete::IntrinsicFunctionKind::CoroutineStart)
                 {
                     starts.insert(function);

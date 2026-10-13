@@ -1,0 +1,17 @@
+struct Foreign(val value: Int)
+operator fun Foreign.plus(other: Foreign): Foreign = Foreign(value + other.value)
+class Member(val value: Int) {
+    public operator fun plus(other: Member): Member = Member(value + other.value)
+}
+operator fun Member.plus(other: Member): Member = Member(999)
+struct Box<T>(val value: T)
+operator fun <T> Box<T>.plus(other: Box<T>): Box<T> = other
+fun <T> selected(left: Box<T>, right: Box<T>): Box<T> = left + right
+fun main() {
+    if ((Foreign(19) + Foreign(23)).value != 42) { throw IllegalStateException() }
+    if ((Member(19) + Member(23)).value != 42) { throw IllegalStateException() }
+    if (selected(Box(19), Box(23)).value != 23) { throw IllegalStateException() }
+    val any: Any = Foreign(1)
+    if (any is Add<Foreign, Foreign>) { throw IllegalStateException() }
+    println("add extensions")
+}

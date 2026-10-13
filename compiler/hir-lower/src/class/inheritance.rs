@@ -27,20 +27,6 @@ impl Lowerer {
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
-        for &(id, decl, file_index) in pending_classes {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Class(id));
-            self.check_inheritance_cycle(id, decl.span, "class");
-        }
-        for &(object, source, file_index) in pending_objects {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Object(object));
-            self.check_inheritance_cycle(
-                self.objects[object].backing_class,
-                source.span(),
-                source.description(),
-            );
-        }
         let owners = pending_interfaces
             .iter()
             .map(|&(id, _, file)| (Owner::Interface(id), file))
@@ -138,6 +124,30 @@ impl Lowerer {
             }
         }
         self.current_owner = None;
+    }
+
+    pub(crate) fn check_class_inheritance_cycles(
+        &mut self,
+        pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
+        pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
+    ) -> bool {
+        let errors = self.diagnostics.len();
+        for &(id, decl, file_index) in pending_classes {
+            self.current_file = file_index;
+            self.current_owner = Some(Owner::Class(id));
+            self.check_inheritance_cycle(id, decl.span, "class");
+        }
+        for &(object, source, file_index) in pending_objects {
+            self.current_file = file_index;
+            self.current_owner = Some(Owner::Object(object));
+            self.check_inheritance_cycle(
+                self.objects[object].backing_class,
+                source.span(),
+                source.description(),
+            );
+        }
+        self.current_owner = None;
+        self.diagnostics.len() == errors
     }
 
     /// A class may not directly or indirectly inherit from itself.

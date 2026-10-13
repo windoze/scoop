@@ -4,28 +4,25 @@ mod derived;
 mod derived_binding;
 
 #[test]
-fn independent_operator_and_library_equality_select_their_own_members() {
+fn explicit_core_bound_and_operator_select_the_same_member() {
     let output = lower_user_output(
         scoop_parser::parse(
             r#"
         class OperatorOnly() {
             public operator fun equals(other: OperatorOnly): Boolean = false
         }
-        class LibraryOnly() : Equality<LibraryOnly> {
-            public override fun equalTo(other: LibraryOnly): Boolean = true
+        class Value() : Equals<Value> {
+            public override operator fun equals(other: Value): Boolean = true
         }
-        class Both() : Equality<Both> {
-            public operator fun equals(other: Both): Boolean = false
-            public override fun equalTo(other: Both): Boolean = true
-        }
-        fun <T : Equality<T>> library(left: T, right: T): Boolean = left.equalTo(right)
+        fun <T : Equals<T>> same(left: T, right: T): Boolean = left == right
         fun main() {
             val operator = OperatorOnly() == OperatorOnly()
-            val library = library(LibraryOnly(), LibraryOnly())
-            val both = Both()
-            val direct = both == both
-            val ordinary = both.equalTo(both)
-            val bound = library(both, both)
+            val value = Value()
+            val direct = value == value
+            val ordinary = value.equals(value)
+            val bound = same(value, value)
+            val view: Equals<Value> = value
+            val dynamic = view == value
         }
     "#,
         )
@@ -35,9 +32,8 @@ fn independent_operator_and_library_equality_select_their_own_members() {
     let dump = hir::dump(&output.export);
     for target in [
         "MethodCall OperatorOnly.equals",
-        "MethodCall Both.equals",
-        "MethodCall Both.equalTo",
-        "via Equality<T0> -> Equality.equalTo",
+        "MethodCall Value.equals",
+        "via Equals<T0> -> Equals.equals",
     ] {
         assert!(dump.contains(target), "missing {target}: {dump}");
     }
@@ -69,9 +65,10 @@ fn user_operator_bound_does_not_require_core_equality() {
 }
 
 #[test]
-fn equality_bound_alone_does_not_supply_an_operator() {
+fn non_operator_bound_does_not_supply_an_operator() {
     let source = r#"
-        fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
+        interface Ordinary<T> { public fun equals(other: T): Boolean }
+        fun <T : Ordinary<T>> same(left: T, right: T): Boolean = left == right
         fun main() {}
     "#;
     let errors = lower_user(scoop_parser::parse(source).unwrap()).unwrap_err();
@@ -115,9 +112,9 @@ fn structural_comparison_does_not_add_library_equality() {
     }
 
     for source in [
-        "struct Point(val x: Int)\nfun main() { val value: Equality<Point> = Point(1) }",
-        "fun main() { val value: Equality<(Int, Boolean)> = (1, false) }",
-        "class Value() : Equality<Value> { public operator fun equals(other: Value): Boolean = true }\nfun main() {}",
+        "struct Point(val x: Int)\nfun main() { val value: Equals<Point> = Point(1) }",
+        "fun main() { val value: Equals<(Int, Boolean)> = (1, false) }",
+        "struct Value(val number: Int) : Equals<Value>\nfun main() {}",
     ] {
         let errors = lower_user(scoop_parser::parse(source).unwrap()).unwrap_err();
         assert!(!errors.is_empty());

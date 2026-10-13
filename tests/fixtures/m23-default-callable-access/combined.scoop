@@ -35,6 +35,7 @@ public class CallableHost<Host> {
     } else { fun(): Int { return 2 } }): () -> Int = value
     public fun equality(left: CallableValue<Host>, right: CallableValue<Host>, value: Boolean = left == right): Boolean = value
     public fun unit(left: Unit, right: Unit, value: Boolean = left == right): Boolean = value
+    public fun concreteTuple(left: (Unit, Unit), right: (Unit, Unit), value: Boolean = left == right): Boolean = value
     public fun tuple(left: (CallableValue<Host>, Unit), right: (CallableValue<Host>, Unit), value: Boolean = left == right): Boolean = value
     public fun <T: CallableBase<Host>> classBound(source: T, seed: Host, value: Host = source.read(seed)): Host = value
     public fun <T: CallableReader<Host>> interfaceBound(source: T, seed: Host, value: Host = source.read(seed)): Host = value

@@ -1,0 +1,19 @@
+public interface AddAssign<Rhs> {
+    public operator fun plusAssign(other: Rhs): Unit
+}
+
+public interface SubAssign<Rhs> {
+    public operator fun minusAssign(other: Rhs): Unit
+}
+
+public interface MulAssign<Rhs> {
+    public operator fun timesAssign(other: Rhs): Unit
+}
+
+public interface DivAssign<Rhs> {
+    public operator fun divAssign(other: Rhs): Unit
+}
+
+public interface RemAssign<Rhs> {
+    public operator fun remAssign(other: Rhs): Unit
+}

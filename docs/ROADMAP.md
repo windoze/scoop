@@ -471,7 +471,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ### M30 Float / Double 与 128 位数值调研（已完成，[设计](milestone30/DESIGN.md)，[实施记录](milestone30/PROGRESS.md)，[验收](milestone30/ACCEPTANCE.md)，[调研](milestone30/INVESTIGATION.md)）
 
 - 正式交付两个GC-free值类型：Float/Float32为IEEE binary32，Double/Float64为binary64；后两种固定宽度拼写分别是透明alias。覆盖十进制literal、目标精度const、基础算术/分类、显式转换和ToString，以及泛型、默认值、annotation、pattern、数组/aggregate、boxing、协程与moving GC。
-- 普通`== != < <= > >=`遵守IEEE语义：NaN无序、正负零相等。浮点关系直接降为typed comparison，不通过`compareTo(): Long`；另提供Swift风格的`isTotallyOrdered(belowOrEqualTo = ...)`，采用区分正负零及NaN sign/quiet/payload的IEEE totalOrder。Float/Double不实现Hash，不新增比较interface层次或Map key专用规则。
+- M30 最初交付 IEEE 默认比较与 isTotallyOrdered。后续 M41 将默认比较改为等价类全序，新增 Compare / compareTo 与显式 IeeeComparison / ieeeCompare，删除旧 totalOrder API；当前语义见语言规范 11.2.2。Float/Double 仍不实现 Hash。
 - literal、const与JSON按实际目标精度直接舍入，避免先Double再Float；运行期不使用fast-math。数值转换显式，浮点转整数向零截断并按目标位宽饱和，NaN转0。公开位/字节转换与transmute留待具体需求，不作为本次totalOrder的前置条件。
 - 两种companion实现普通Encodable/Decodable，single-value协议增加Float/Double read/write；JSON保持整数精确解析，浮点只编码有限值，保留负零，按路径报告非法值与overflow，允许合法subnormal/underflow。字符串化使用成熟的最短往返转换，C ABI以float/double通过既有generated-C bridge接入。
 - 复用既有IR/meta、布局、GC和native-support机制；`frem`产生的fmodf/fmod覆盖Darwin、glibc动态以及musl静态/动态实际链接与运行。三份spec已同步实际契约与格式版本，见实现规范2.18；完成门为独立/组合/negative/golden、workspace与正式CLI/fixture验收。
@@ -500,7 +500,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 提供平台库需要的编译器与 runtime 能力：NativeSafe 握手、GCLeaf 与标量直接 C ABI、作用域数据借用、计数 pin、受检 UTF-8 与 C 字符串、四种 main／argv／退出码、NativeSafe 输出及 errno 捕获。
 - 完成 Cone 内 C/C++ 源码、目标条件源码选择、native 系统库、sysroot 中已声明 scoop 依赖的默认定位；C++ 支持 Darwin/GNU，musl 明确拒绝。
-- `==` / `!=` 使用普通成员 `operator fun equals`，Map 的 key 比较使用独立的普通 `Equality<T>.equalTo` 接口；结构比较不派生接口，两项能力分别显式提供。后续有序 Map 的比较接口保持独立库设计；M33 提供五种内存序的原子类型及线程退出诊断，不扩大为平台库公开 API 或新的通用框架。
+- `==` / `!=` 使用普通成员 `operator fun equals`，Map 的 key 比较使用独立的普通 `Equality<T>.equalTo` 接口；结构比较不派生接口，两项能力分别显式提供。上述接口拆分由 M41 的 Equals/operator equals 统一方案替代；后续有序 Map 的比较能力见 M41。M33 提供五种内存序的原子类型及线程退出诊断，不扩大为平台库公开 API 或新的通用框架。
 - 按设计第 12 节拆分功能提交，完成三份规范、独立与组合 fixture、负例及各阶段转储；最小平台 Cone 在三个 target 上完成源码、产物、独立链接、文件操作及并发 GC 闭环，musl 另有 PIE 验收。
 - 2026-10-09 总验收完成：Rust 工作区 5,394 项和公共 runner 44 项通过；Darwin 的 2,850 项适用 fixture 覆盖闭合，其中 1,977 项普通比较、873 项审阅后的完整快照更新执行，另 16 项不适用。Linux GNU／musl 的 M33 专项分别为 260／255 项普通通过，各另通过 6 项必要旧回归；保留实际选择范围与逐项成功来源，避免重复全量测试。既有泛型结构比较正文选择问题单独记录，未扩展 Equality 或 M33 的验收范围。
 
@@ -549,6 +549,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ### M40 fixture 精简与回归验证职责收敛（已完成并验收，[设计](milestone40/DESIGN.md)，[验收记录](milestone40/ACCEPTANCE.md)）
 
 基线为 `b59294fbc`。普通功能保留编译、运行和精确诊断，阶段结构由 typed IR 及 9 项专测负责；原生链接计划仅精确比较相关输入与绑定。fixture 内容由约 8.29 GB 减至 16.00 MB，snapshot 声明由 12,257 降至 57，4,939 份 Scoop 源码保持原样。产物持有 CLI 改为同步 artifact-only 链接；内部字节持有在 Rust 函数边界测试，不改变生产代码或产物格式。按功能提交后完成三平台适用范围验收：Darwin 3,755、GNU 3,741、musl 3,739 项通过，无未闭合失败；具体来源、补验和清理记录见验收文档。
+
+### M41 运算符接口与浮点默认比较（已完成并验收，[设计](milestone41/DESIGN.md)，[验收记录](milestone41/ACCEPTANCE.md)）
+
+- 通过普通 core 运算符接口及显式 conformance 支持泛型操作约束，保留普通成员和作用域扩展调用。
+- 以 Equals/equals 替换 Equality/equalTo；Float/Double 默认比较按正负零与全部 NaN 的等价类构成全序，提供显式 IEEE 四态比较。
+- 按功能先更新 spec、实现并验证后提交。Rust 完整覆盖 5,584 项通过；Linux 正式 CLI 完整覆盖 GNU 3,785 项、musl 3,783 项通过，无未闭合失败。本机定向回归、完整运行与补验来源、产物差异审阅及清理见验收记录。
 
 ## 3. 备注
 

@@ -13,6 +13,7 @@ impl Lowerer {
         where_clause: Option<&ast::WhereClause>,
         target: &str,
     ) -> Vec<hir::TypeParamDecl> {
+        let outer_checks = self.deferred_type_bounds.replace(Vec::new());
         self.type_params_in_scope = params.clone();
         let own_indices: std::collections::HashMap<_, _> = params
             .iter()
@@ -63,6 +64,7 @@ impl Lowerer {
             }
         }
 
+        self.complete_parameter_bound_checks(outer_checks, &params);
         self.type_params_in_scope.clear();
         params
     }

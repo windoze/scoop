@@ -66,6 +66,7 @@ mod arrays;
 mod atomics;
 mod characters;
 mod constraints;
+mod deferred_bounds;
 mod display;
 mod fields;
 mod floating;
@@ -80,6 +81,7 @@ mod relations;
 mod resolution;
 mod substitution;
 mod variants;
+pub(crate) use deferred_bounds::DeferredTypeBound;
 pub(crate) use variants::EnumVariant;
 
 pub(crate) use qualified::ResolvedTypeName;

@@ -1,0 +1,3 @@
+struct Pair(val first: Int, val second: String)
+fun <T : Component1<Int>> first(value: T): Int = value.component1()
+fun main() { println(first(Pair(1, "one"))) }

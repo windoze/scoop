@@ -1,4 +1,4 @@
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
 native library m23_cabi requirement=61082129e1998b55dfdc86f9dff151b94dd6d8cd4a1a8ae1c03c9931104313ce input=$NATIVE_INPUT_0 origins=dev.programlink:cabi:0.1.0
 native object $NATIVE_INPUT_0 slice=0..2896
-ELF system imports=71
+ELF system imports=73

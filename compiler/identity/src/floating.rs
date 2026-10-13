@@ -51,7 +51,7 @@ impl FloatKind {
     }
 }
 
-/// Compiler data equality compares bits, independently of source IEEE equality.
+/// Compiler data equality compares bits, independently of source comparison equality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FloatConstant {
     F32(u32),
@@ -165,6 +165,19 @@ mod tests {
             );
             assert_ne!(value, value.negate());
             assert_eq!(value, value.negate().negate());
+        }
+    }
+
+    #[test]
+    fn comparison_wire_tags_reject_old_ieee_semantics() {
+        for tag in 6..=12 {
+            assert!(decode_canonical::<FloatBinaryOperator>(&[tag]).is_err());
+        }
+        for &operation in FloatBinaryOperator::ALL {
+            assert_eq!(
+                decode_canonical::<FloatBinaryOperator>(&encode(&operation).unwrap()).unwrap(),
+                operation
+            );
         }
     }
 
