@@ -394,4 +394,5 @@ fn case_pattern(arm: hir::WhenArmRef<'_>) -> &hir::Pattern {
         _ => panic!("expected case arm"),
     }
 }
+mod m43_dependency_roles;
 mod m43_source_roles;

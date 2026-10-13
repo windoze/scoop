@@ -47,6 +47,7 @@ fn lower_current_cone_inner(
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_dependencies(dependency_selection);
     lowerer.source_names = input.source_names().clone();
+    lowerer.test_dependencies = input.test_dependencies().clone();
     let lowerer = match input.core() {
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),

@@ -318,13 +318,19 @@ impl Lowerer {
         let mut candidates = self.imported_type_candidates(self.imports.canonicalize(bindings));
         candidates.extend(
             self.dependency_type_candidates(
-                self.imports
-                    .direct_package_types
-                    .get(&package.path)
-                    .and_then(|members| members.get(name))
-                    .into_iter()
-                    .flatten()
-                    .cloned(),
+                self.imports.canonicalize_dependencies(
+                    self.imports
+                        .direct_package_types
+                        .get(&package.path)
+                        .into_iter()
+                        .flatten()
+                        .filter(|contribution| {
+                            self.dependency_in_source_scope(contribution.provider)
+                        })
+                        .flat_map(|contribution| contribution.types.get(name))
+                        .flatten()
+                        .cloned(),
+                ),
             ),
         );
         self.select_type_layer(vec![LookupLayer {

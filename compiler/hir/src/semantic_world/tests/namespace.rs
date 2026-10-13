@@ -172,6 +172,42 @@ fn reexported_owners_expose_nested_bindings_from_support_providers() {
     assert_eq!(snapshot.len(), 1);
     assert_eq!(snapshot[0].name().as_str(), "Nested");
     assert_eq!(snapshot[0].targets()[0].target(), target.target());
+
+    let package = world.direct_package(&package(&["facade", "api"])).unwrap();
+    for facade in &facades {
+        let selected = package
+            .binding_group_filtered(BindingNamespace::Type, "Outer", |provider| {
+                provider == facade.identity()
+            })
+            .unwrap();
+        let outer = selected.targets().next().unwrap();
+        assert_eq!(outer.source_count(), 1);
+        assert_eq!(
+            outer.sources().next().unwrap().route().immediate_provider(),
+            facade.identity()
+        );
+        let snapshot = package.snapshot_filtered(|provider| provider == facade.identity());
+        assert_eq!(snapshot[0].targets().len(), 1);
+        assert_eq!(snapshot[0].targets()[0].target(), outer.target());
+        assert_eq!(snapshot[0].targets()[0].source_count(), 1);
+        let ImportedTarget::Type(declaration) = outer.target() else {
+            panic!("the reexport selects the original nominal");
+        };
+        assert!(
+            world
+                .imported_static_namespace(crate::SourceNominalId::Concrete(
+                    declaration.persistent()
+                ))
+                .unwrap()
+                .binding_group(BindingNamespace::Type, "Nested")
+                .is_some()
+        );
+    }
+    assert!(
+        package
+            .binding_group_filtered(BindingNamespace::Type, "Outer", |_| false)
+            .is_none()
+    );
 }
 
 #[test]
@@ -227,6 +263,12 @@ fn longest_package_prefix_never_falls_back_to_a_shorter_static_path() {
             .consumed_segments(),
         3
     );
+    let production = world
+        .direct_packages()
+        .longest_prefix_filtered(&path, |provider| provider != shadow.identity())
+        .unwrap();
+    assert_eq!(production.consumed_segments(), 2);
+    assert_eq!(production.provider_count(), 1);
     assert!(matches!(
         world.resolve_direct_exact(&path, BindingNamespace::Type),
         Err(DirectNamespaceLookupError::MissingBinding { segment: 3, .. })

@@ -414,6 +414,7 @@ impl Lowerer {
             smart_casts: Default::default(),
             current_file: 0,
             intrinsic_sources: Vec::new(),
+            test_dependencies: Default::default(),
             source_names: std::collections::BTreeMap::new(),
             imported_source_files: Vec::new(),
             imported_source_indices: HashMap::new(),

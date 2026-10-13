@@ -3,7 +3,7 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_identity::ConeIdentity;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Compiler protocols come from current declarations or one imported library.
 pub enum CoreProtocolInput {
@@ -23,6 +23,7 @@ pub struct CurrentConeSources<'input, 'world> {
     core: CoreProtocolInput,
     world: &'world hir::ImportedSemanticWorld<'input>,
     source_names: BTreeMap<ConeIdentity, String>,
+    test_dependencies: BTreeSet<ConeIdentity>,
 }
 
 impl<'input, 'world> CurrentConeSources<'input, 'world> {
@@ -54,6 +55,7 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
             core,
             world,
             source_names: BTreeMap::new(),
+            test_dependencies: BTreeSet::new(),
         })
     }
 
@@ -61,6 +63,26 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
     pub fn with_source_names(mut self, names: BTreeMap<ConeIdentity, String>) -> Self {
         self.source_names = names;
         self
+    }
+
+    pub fn with_test_dependencies(
+        mut self,
+        dependencies: impl IntoIterator<Item = ConeIdentity>,
+    ) -> Result<Self, CurrentConeSourceError> {
+        for dependency in dependencies {
+            if dependency == ConeIdentity::CORE {
+                return Err(CurrentConeSourceError::TestOnlyCore);
+            }
+            if self.world.direct_provider(dependency).is_none() {
+                return Err(CurrentConeSourceError::TestDependencyNotDirect(dependency));
+            }
+            self.test_dependencies.insert(dependency);
+        }
+        Ok(self)
+    }
+
+    pub(crate) fn test_dependencies(&self) -> &BTreeSet<ConeIdentity> {
+        &self.test_dependencies
     }
 
     pub(crate) fn source_names(&self) -> &BTreeMap<ConeIdentity, String> {
@@ -86,6 +108,8 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CurrentConeSourceError {
+    TestOnlyCore,
+    TestDependencyNotDirect(ConeIdentity),
     CoreImportsOwnProtocols,
     CurrentProtocolsInOrdinaryCone(ConeIdentity),
     SemanticWorldCurrentConeMismatch {
@@ -97,6 +121,13 @@ pub enum CurrentConeSourceError {
 impl std::fmt::Display for CurrentConeSourceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::TestOnlyCore => {
+                formatter.write_str("core is a production dependency, not a test-only dependency")
+            }
+            Self::TestDependencyNotDirect(cone) => write!(
+                formatter,
+                "test dependency {cone} is not a direct dependency of the current Cone"
+            ),
             Self::CoreImportsOwnProtocols => formatter.write_str(
                 "the current core declarations cannot import their own compiler protocols",
             ),

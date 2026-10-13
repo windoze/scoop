@@ -24,6 +24,14 @@ impl CurrentUnitImports {
 }
 
 impl Lowerer {
+    pub(crate) fn dependency_in_source_scope(
+        &self,
+        provider: scoop_identity::ConeIdentity,
+    ) -> bool {
+        self.intrinsic_sources[self.current_file].role == scoop_identity::SourceRole::Test
+            || !self.test_dependencies.contains(&provider)
+    }
+
     pub(crate) fn declaration_source_in_scope(&self, file: usize) -> bool {
         self.top_level_namespaces
             .source_in_scope(self.current_file, file)

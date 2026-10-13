@@ -45,7 +45,17 @@ impl CurrentUnitImports {
                 self.extend_current_group(lowerer, &mut group, *current, namespace, name);
             }
             NamespaceCursor::Direct(direct) => {
-                Self::extend_direct_group(&mut group, direct.binding_group(namespace, name));
+                let bindings = match direct {
+                    hir::DirectNamespaceView::Package(package) => {
+                        package.binding_group_filtered(namespace, name, |provider| {
+                            lowerer.dependency_in_source_scope(provider)
+                        })
+                    }
+                    hir::DirectNamespaceView::Static(namespace_view) => {
+                        namespace_view.binding_group(namespace, name)
+                    }
+                };
+                Self::extend_direct_group(&mut group, bindings);
             }
             NamespaceCursor::SplitPackage { current, direct } => {
                 self.extend_current_group(
@@ -55,7 +65,12 @@ impl CurrentUnitImports {
                     namespace,
                     name,
                 );
-                Self::extend_direct_group(&mut group, direct.binding_group(namespace, name));
+                Self::extend_direct_group(
+                    &mut group,
+                    direct.binding_group_filtered(namespace, name, |provider| {
+                        lowerer.dependency_in_source_scope(provider)
+                    }),
+                );
             }
         }
         group
@@ -193,8 +208,15 @@ impl CurrentUnitImports {
         }
 
         let direct = match cursor {
-            NamespaceCursor::Direct(namespace) => Some(namespace.snapshot()),
-            NamespaceCursor::SplitPackage { direct, .. } => Some(direct.snapshot()),
+            NamespaceCursor::Direct(hir::DirectNamespaceView::Package(package)) => Some(
+                package.snapshot_filtered(|provider| lowerer.dependency_in_source_scope(provider)),
+            ),
+            NamespaceCursor::Direct(hir::DirectNamespaceView::Static(namespace)) => {
+                Some(namespace.snapshot())
+            }
+            NamespaceCursor::SplitPackage { direct, .. } => Some(
+                direct.snapshot_filtered(|provider| lowerer.dependency_in_source_scope(provider)),
+            ),
             NamespaceCursor::Current(_) => None,
         };
         for group in direct.into_iter().flatten() {

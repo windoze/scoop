@@ -237,7 +237,9 @@ impl CurrentUnitImports {
         let mut snapshot = BTreeMap::<String, Vec<_>>::new();
         // The implicit prelude is a later lookup layer, even when its ordinary
         // provider contributes to the same package as the current source.
-        for group in package.snapshot_filtered(|provider| Some(provider) != prelude) {
+        for group in package.snapshot_filtered(|provider| {
+            Some(provider) != prelude && lowerer.dependency_in_source_scope(provider)
+        }) {
             snapshot
                 .entry(group.name().as_str().to_owned())
                 .or_default()
