@@ -87,41 +87,46 @@ pub(super) fn emit_object_set_with_production<
         metadata,
         production.canonical_definitions(),
     )?;
+    let mut metadata_members = metadata.map_partitions(
+        &machine,
+        profile,
+        &partition,
+        |units, llvm, runtime_metadata| {
+            let path = backing
+                .path()
+                .join(format!("{}.o", units.definition_plans()[0]));
+            let selected_safepoints = expected_safepoints.without_body_sites();
+            let selected_eh = expected_eh.without_body_metadata();
+            write_object(&machine, &llvm, &path)?;
+            atom_boundaries::materialize_global_linkages_v1(
+                &path,
+                module.meta.target_profile,
+                production.canonical_definitions(),
+                units.definition_plans(),
+            )?;
+            verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
+            let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
+                &path,
+                module.meta.target_profile,
+                production.canonical_definitions(),
+                &runtime_metadata,
+            )?;
+            Ok(EmittedConeObjectMemberV1 {
+                units: units.clone(),
+                path,
+                kind: EmittedConeObjectMemberKind::NonCallable {
+                    runtime_metadata,
+                    digest_patches,
+                },
+            })
+        },
+    )?;
     let mut members = Vec::with_capacity(partition.objects().len());
     for units in partition.objects() {
         let member = match units.kind() {
-            ScoopLirObjectKindV1::NonCallable => {
-                let path = backing
-                    .path()
-                    .join(format!("{}.o", units.definition_plans()[0]));
-                let selected_safepoints = expected_safepoints.without_body_sites();
-                let selected_eh = expected_eh.without_body_metadata();
-                let (llvm, runtime_metadata) =
-                    metadata.project(&machine, profile, units.definition_plans())?;
-                write_object(&machine, &llvm, &path)?;
-                atom_boundaries::materialize_global_linkages_v1(
-                    &path,
-                    module.meta.target_profile,
-                    production.canonical_definitions(),
-                    units.definition_plans(),
-                )?;
-                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
-                let digest_patches =
-                    object_materialization::resolve_digest_patch_materializations_v1(
-                        &path,
-                        module.meta.target_profile,
-                        production.canonical_definitions(),
-                        &runtime_metadata,
-                    )?;
-                EmittedConeObjectMemberV1 {
-                    units: units.clone(),
-                    path,
-                    kind: EmittedConeObjectMemberKind::NonCallable {
-                        runtime_metadata,
-                        digest_patches,
-                    },
-                }
-            }
+            ScoopLirObjectKindV1::NonCallable => metadata_members
+                .remove(&units.definition_plans()[0])
+                .expect("every metadata object was prepared"),
             ScoopLirObjectKindV1::CallableBody(body) => {
                 let prepared = callables
                     .remove(&body)

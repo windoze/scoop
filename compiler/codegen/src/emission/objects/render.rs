@@ -64,16 +64,18 @@ pub fn render_llvm_ir_members(
         metadata,
         production.canonical_definitions(),
     )?;
+    let mut metadata_modules =
+        metadata.map_partitions(&machine, profile, &partition, |_, llvm, _| {
+            Ok(llvm.print_to_string().to_string())
+        })?;
     partition
         .objects()
         .iter()
         .map(|units| {
             let llvm_ir = match units.kind() {
-                ScoopLirObjectKindV1::NonCallable => metadata
-                    .project(&machine, profile, units.definition_plans())?
-                    .0
-                    .print_to_string()
-                    .to_string(),
+                ScoopLirObjectKindV1::NonCallable => metadata_modules
+                    .remove(&units.definition_plans()[0])
+                    .expect("every metadata module was rendered"),
                 ScoopLirObjectKindV1::CallableBody(body) => {
                     callables
                         .remove(&body)

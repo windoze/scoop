@@ -14,6 +14,7 @@ use scoop_lir::{ObjectDefinitionPlanId, ObjectSymbolSurfaceV1};
 use std::collections::BTreeSet;
 
 mod index;
+mod partitions;
 
 pub(super) struct MetadataModule<'ctx> {
     llvm: Module<'ctx>,

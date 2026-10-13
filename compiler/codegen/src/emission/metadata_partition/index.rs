@@ -7,6 +7,7 @@ use llvm_sys::core::{
 use std::collections::BTreeMap;
 use std::ffi::CString;
 
+#[derive(Clone)]
 pub(super) struct MetadataDefinition {
     pub plan: scoop_lir::DefinitionSymbolPlanV1,
     pub declarations: Vec<(String, String)>,
