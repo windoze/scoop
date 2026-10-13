@@ -122,3 +122,9 @@
 - 格式化、workspace clippy 和三个命令构建通过。scoop crate 的 102 项 Rust 用例中，首次仅新增测试的错误 manifest 写法失败；修正为 path 条目后，相关 3 项定向复验全部通过。新增覆盖测试依赖只在根展开、依赖的无效测试文件不读取、源码快照角色与不可变性、用途和配置的缓存隔离，以及子编译器用途传递。见[日志](validation/umbrella-rust.log.gz)。
 - Darwin 正式 CLI 的 4 个 fixture、6 个变体、48 个进程步骤全部通过，覆盖 library/executable 根、原生产 main 不自动执行、每用例生命周期、失败继续、debug/release、moving GC、只构建、缓存命中、仅测试根重编译及生产缓存保持。见[报告](validation/umbrella-darwin.json)和[运行日志](validation/umbrella-darwin.log.gz)。
 - 核对归档报告后清理 target/m43/manifest（约 48 MB）；本批仍保留当前配套工具和热缓存。静态目录持久化、运行时选择、独立结果通道、输出捕获与报告、scoop.std 应用和 Linux 最终验收继续实施，不宣称完整 scoop test 或 M43 已交付。M43 全部完成后再按同样纪律推进 M44。
+
+## 2026-10-14：显式 core 版本的默认定位
+
+- scoop.std 首次通过测试命令接入时，实际暴露版本声明但无 locator 的 core 边在搜索目录无候选后直接失败，未使用既有 sysroot 默认 core 来源；该问题同样影响普通生产构建。
+- 先明确实现规范 2.7，再让这类 core 边等待其他声明展开。复用已发现的显式 core 来源，否则由原有默认 slot 选择源码／产物；显式 search root 的有效 core 产物仍优先，损坏候选和明确 locator 的错误不回退。
+- 格式化、workspace clippy 与三个命令构建通过；18 项 discovery 用例通过，新增覆盖 production/test 两种根及稍后发现的默认库提供 core locator，既有显式产物、路径冲突、无效 locator、循环来源等回归保持。见[日志](validation/std-core-locator.log.gz)。scoop.std 的源码测试与原生验收继续进行。

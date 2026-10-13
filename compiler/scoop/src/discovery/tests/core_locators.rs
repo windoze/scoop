@@ -149,3 +149,69 @@ fn distinct_explicit_core_sources_report_the_common_locator_conflict() {
         matches!(request(&root, &temp.path().join("absent"), vec![]).load_root().unwrap().discover(), Err(BuildGraphDiscoveryError::ConflictingSourceLocator { coordinate, .. }) if coordinate == ConeCoordinate::reserved_core())
     );
 }
+
+#[test]
+fn version_only_core_uses_the_default_slot_in_production_and_test_graphs() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("root");
+    let sysroot = temp.path().join("sysroot");
+    write_core(&sysroot);
+    write_manifest(
+        &root,
+        "root",
+        "[dependencies]\n\"scoop:scoop.core\" = \"0.1.0\"",
+    );
+    for purpose in [
+        scoop_protocol::CompilationPurpose::Production,
+        scoop_protocol::CompilationPurpose::Test,
+    ] {
+        let graph = request(&root, &sysroot, vec![])
+            .with_purpose(purpose)
+            .unwrap()
+            .load_root()
+            .unwrap()
+            .discover()
+            .unwrap();
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.edge_count(), 1);
+        assert!(matches!(
+            graph.edges().next().unwrap().origins(),
+            [EdgeOrigin::ManifestDeclaration { .. }]
+        ));
+        assert_eq!(
+            graph.resolve().unwrap().dependency_first()[0],
+            ConeIdentity::CORE
+        );
+    }
+}
+
+#[test]
+fn version_only_core_waits_for_default_libraries_explicit_core_locators() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("root");
+    let sysroot = temp.path().join("sysroot");
+    write_core(&sysroot);
+    let alternate = sysroot.join("alternate-core");
+    write_core_at(&alternate);
+    let helper = sysroot.join("lib/scoop.helper");
+    std::fs::create_dir_all(&helper).unwrap();
+    std::fs::write(helper.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.helper\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:scoop.core\" = { version = \"0.1.0\", path = \"../../alternate-core\" }\n").unwrap();
+    write_manifest(
+        &root,
+        "root",
+        "[dependencies]\n\"scoop:scoop.core\" = \"0.1.0\"\n\"scoop:scoop.helper\" = \"1.0.0\"\n",
+    );
+    let graph = request(&root, &sysroot, vec![])
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap();
+    let GraphNode::ManifestSource(core) = &graph.nodes[&ConeIdentity::CORE] else {
+        panic!("the helper supplies the core source locator");
+    };
+    assert_eq!(core.real_root(), std::fs::canonicalize(alternate).unwrap());
+    assert_eq!(
+        graph.resolve().unwrap().dependency_first()[0],
+        ConeIdentity::CORE
+    );
+}
