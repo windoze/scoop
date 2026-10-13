@@ -99,3 +99,8 @@
 - 本机 fmt、workspace clippy 与完整 codegen 367 项通过。实际 debug core 的一次冷构建从约 62 秒降到 12.96 秒，新旧 `.slib` 的 SHA-256 完全一致；[测量记录](validation/metadata-projection.json)保存计时方式，不能视作多轮基准统计。
 - 正式 CLI 定向验证 10 项全部通过：16 个变体、119 次进程、6 次 golden。包含四项私有缓存／冷构建、M34 native 与跨库产物、M41 Add/access/floating 三层库及浮点特殊位型矩阵；没有更新任何期望。
 - 旧 GNU 全量在 102 项通过、15 项冷构建超时后主动结束，另 3,668 项中断与 30 项不适用；该报告保留为诊断记录，不计为完成验收。新后端将重新覆盖 codegen/driver 和完整 CLI，其他未变 crate 已通过的测试继续复用。
+
+### 浮点求值顺序组合的期望迁移
+
+- Linux 全量发现旧求值顺序组合仍将 `Double.NaN >= 0.0` 的结果写为 false；按已经实现的默认全序改为 true。Nothing、异常、短路与副作用顺序断言保持完整。
+- 本机格式化、workspace clippy 后，两个浮点 Nothing 用例通过：4 个 debug/release 变体、12 次进程执行，包含 moving GC。Linux 以定向补验闭合这项旧期望，不重复已完成的全量用例。
