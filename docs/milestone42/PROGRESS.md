@@ -342,8 +342,14 @@ date-time 的普通／moving GC 通过记录在 `target/m42/datetime-time-first-
 
 ## M42-12 进行中：显式 codec 已完成
 
-Hash／LinkedHash／Tree 的 Map 和 Set、ArrayDeque、PriorityQueue 提供显式元素 codec 工厂，List decoder 返回独立只读快照。Map 使用二元素 entry 序列，重复 key／Set 元素按实际容器相等关系拒绝；Tree 与 PriorityQueue decoder 必传 Comparator。Result 只编码选中分支，严格要求一个 success／failure 字段。Uuid 与九类时间日期文本值使用规范文本，DatePeriod／DateTimePeriod 使用必填字段结构；TimeMark 与 RNG 来源不提供默认 codec。codec 值显式使用类型的 Companion，遵守普通 Scoop 表达式规则。
+Hash／LinkedHash／Tree 的 Map 和 Set、ArrayDeque、PriorityQueue 提供显式元素 codec 工厂，List decoder 返回独立只读快照。Map 使用二元素 entry 序列，重复 key／Set 元素按实际容器相等关系拒绝；Tree 与 PriorityQueue decoder 必传 Comparator。Result 只编码选中分支，严格要求一个 success／failure 字段。Uuid 与八类时间日期文本值使用规范文本，DatePeriod／DateTimePeriod 使用必填字段结构；TimeMark 与 RNG 来源不提供默认 codec。codec 值显式使用类型的 Companion，遵守普通 Scoop 表达式规则。
 
 本机 maps／sequences／result／values／errors 五项均通过正常与 moving GC，报告 `target/m42/codecs-values-report.json`：5 variant、20 process。覆盖自定义无 Hash／Equals 键、Comparator 等价重复、嵌套 Option、全域值、严格错误路径、pair 长度、未选分支不调用以及用户 codec／hash／comparator 异常原样传播。初次 fixture 将类型名直接作为 codec 值使用，已按现有语法改成 Companion，没有修改底层。contracts 的五条静态诊断通过，报告 `target/m42/codecs-contracts-report.json`：1 variant、2 process。
 
 源码风格与 staged diff 检查通过，本批全部是普通 Scoop，没有底层改动。已清理完成 case 与一次性构建，保留报告和共享 cache。完整应用组合与三目标本组最终验证继续实施。
+
+### M42-12 应用集成已完成
+
+`m42-application` 使用三个实际业务 Cone：release provider 定义含 Uuid／Instant 的 Event 及显式 codec、泛型列表编解码；debug consumer 解析显式文本、返回 typed Result，并经 ByteArrayBuilder／Base64／ByteArrayReader 传递 JSON；release application 完成稳定排序、按 UTC 日期分组、B-tree 汇总与 codec 往返、Sequence 短路，以及日历月和精确天数的差别验证。core／std／json 和每层业务源码在下一层消费前移除，最后隔离 Scoop 命令，只靠 `.slib` 和 runtime 对象重新链接。
+
+本机普通／moving GC 均通过，`target/m42/application-report.json` 记录 1 fixture、1 variant、9 process。用例曾将 Base64 写在错误包名，已按规范改为 scoop.io.encoding；List 结果按元素比较，不假定 List 具有结构 equals。没有库或底层修正。业务源码各文件不超过 45 行，风格和 staged diff 检查通过。M42 功能与集成均已实现，随后执行三目标本组最终定向验收。

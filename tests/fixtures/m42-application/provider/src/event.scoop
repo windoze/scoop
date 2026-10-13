@@ -1,0 +1,32 @@
+package sample.model
+
+import scoop.collections.*
+import scoop.json.Json
+import scoop.time.Instant
+import scoop.uuid.Uuid
+
+public struct Event(val id: Uuid, val moment: Instant, val score: Int, val label: String) : Equals<Event> {
+    public override operator fun equals(other: Event): Boolean =
+        id == other.id && moment == other.moment && score == other.score && label == other.label
+
+    public companion object : Encodable<Event>, Decodable<Event> {
+        public override fun encode(value: Event, encoder: Encoder) {
+            val fields = encoder.keyed()
+            Uuid.encode(value.id, fields.field("id"))
+            Instant.encode(value.moment, fields.field("moment"))
+            Int.encode(value.score, fields.field("score"))
+            String.encode(value.label, fields.field("label"))
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Event {
+            val fields = decoder.keyed()
+            val result = Event(Uuid.decode(fields.required("id")), Instant.decode(fields.required("moment")),
+                Int.decode(fields.required("score")), String.decode(fields.required("label")))
+            fields.end()
+            return result
+        }
+    }
+}
+
+public fun <T> encodeRows(rows: List<T>, codec: Encodable<T>): String = Json.encode(rows, listEncoder(codec))
+public fun <T> decodeRows(text: String, codec: Decodable<T>): List<T> = Json.decode(text, listDecoder(codec))
