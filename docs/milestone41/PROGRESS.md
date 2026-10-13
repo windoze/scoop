@@ -79,3 +79,9 @@
 - Linux 全量入口发现 child runner 的旧测试仍要求 GNU 和 musl 都设置 REALGCC，与 M39 已交付的 musl wrapper 专用规则矛盾。修正测试：GNU 验证变量未设置，musl 验证实际 GCC 可执行；继续验证 PATH、私有 scratch 位置及结束后的清理。生产实现和语言行为未改。
 - 两台宿主的 fmt / workspace clippy 通过；Linux scoop 单元测试 100 项、依赖边界集成测试 3 项和实际产物持有集成测试 1 项全部通过。其余 workspace 使用 `--exclude scoop --no-fail-fast` 续跑，避免重跑该包已完成的测试。
 - default callable 产物测试原先以 Unit 比较覆盖 DerivedEquality。Unit 已改为普通 Equals 成员，原输入不再产生这一引用；保留 Unit 用例，并增加具体 tuple 的默认参数比较，继续检查全部七类 callable 引用。本机 fmt、workspace clippy 和该完整产物读写用例通过；Linux 仅补验受影响用例。
+
+## 优化与 ABI 期望迁移：Linux GNU
+
+- 在 GNU 目标实际生成并审阅 M34 native 与跨库产物的 6 份 LIR 期望。新增接口 TD/layout 与 Equals 身份符合 M41 声明；逐份归一化引用编号后，函数指令与签名没有差异。
+- 两个正式 fixture 通过：4 个变体、26 次进程执行、6 次 golden 检查。完整 CLI 验收仍使用普通比较模式。
+- 与大型 Rust 测试并行时，两轮冷构建触及 fixture 原有 300 秒时限。保留失败记录，单独构建 debug/release core 并复用正常构建缓存后完成两项验证；没有修改测试时限。已清理结束用例的私有产物，保留报告与日志。
