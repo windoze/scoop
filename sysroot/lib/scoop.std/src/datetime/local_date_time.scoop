@@ -1,5 +1,7 @@
 package scoop.datetime
 
+import scoop.decodeTextValue
+
 import scoop.time.Duration
 import scoop.time.Instant
 import scoop.text.indexOf
@@ -34,7 +36,11 @@ public class LocalDateTime public constructor(public val date: LocalDate, public
     public override fun hash(): Long = date.hash() * 31L + time.hash()
     public override fun toString(): String = date.toString() + "T" + time.toString()
 
-    public companion object {
+    public companion object : Encodable<LocalDateTime>, Decodable<LocalDateTime> {
+        public override fun encode(value: LocalDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): LocalDateTime =
+            decodeTextValue<LocalDateTime>(decoder, { text -> parseOrNull(text) }, "local date-time")
+
         public fun parseOrNull(text: String): LocalDateTime? {
             val split = text.indexOf('T')
             if (split < 0L) return None

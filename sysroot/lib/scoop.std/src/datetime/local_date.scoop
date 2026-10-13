@@ -1,5 +1,7 @@
 package scoop.datetime
 
+import scoop.decodeTextValue
+
 public class LocalDate public constructor(public val year: Int, public val monthNumber: Int, public val dayOfMonth: Int)
     : Equals<LocalDate>, Compare<LocalDate>, Hash, ToString, Add<DatePeriod, LocalDate>, Sub<DatePeriod, LocalDate> {
     init {
@@ -42,7 +44,11 @@ public class LocalDate public constructor(public val year: Int, public val month
     public override fun hash(): Long = (year.hash() * 31L + monthNumber.hash()) * 31L + dayOfMonth.hash()
     public override fun toString(): String = yearMonth.toString() + "-" + calendarTwoDigits(dayOfMonth)
 
-    public companion object {
+    public companion object : Encodable<LocalDate>, Decodable<LocalDate> {
+        public override fun encode(value: LocalDate, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): LocalDate =
+            decodeTextValue<LocalDate>(decoder, { text -> parseOrNull(text) }, "date")
+
         public val MIN: LocalDate = LocalDate(-999999999, 1, 1)
         public val MAX: LocalDate = LocalDate(999999999, 12, 31)
         public fun fromEpochDays(value: Long): LocalDate {

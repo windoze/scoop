@@ -339,3 +339,11 @@ LocalDateTime 组合已验证的日期与时间，提供分量、精确时长及
 date-time 的普通／moving GC 通过记录在 `target/m42/datetime-time-first-report.json`；跨午夜／year 0、全域差值、月份夹取、极值拒绝、period／HashMap 组合均覆盖。Instant 的 debug/release、普通／moving GC，以及三十二组显式 seeded 时间和 UUID／B-tree／Sequence 的 source-removed artifact 重链接通过记录在 `target/m42/relocation-gap/instant-after-report.json`。该报告还验证了 immutable LocalTime、受控 Instant／UtcOffset 构造、必传 offset、缺少 Clock.System 及 OffsetDateTime 无 Compare 的 6 条精确诊断。
 
 新库源码最大 65 行，风格与 staged diff 检查通过。除上文单独提交的查找表修复外，全部是普通 Scoop；M42-10／11 数据功能已完成，相关 codec、最终应用组合及 Linux GNU/musl 的本组定向验收继续实施。
+
+## M42-12 进行中：显式 codec 已完成
+
+Hash／LinkedHash／Tree 的 Map 和 Set、ArrayDeque、PriorityQueue 提供显式元素 codec 工厂，List decoder 返回独立只读快照。Map 使用二元素 entry 序列，重复 key／Set 元素按实际容器相等关系拒绝；Tree 与 PriorityQueue decoder 必传 Comparator。Result 只编码选中分支，严格要求一个 success／failure 字段。Uuid 与九类时间日期文本值使用规范文本，DatePeriod／DateTimePeriod 使用必填字段结构；TimeMark 与 RNG 来源不提供默认 codec。codec 值显式使用类型的 Companion，遵守普通 Scoop 表达式规则。
+
+本机 maps／sequences／result／values／errors 五项均通过正常与 moving GC，报告 `target/m42/codecs-values-report.json`：5 variant、20 process。覆盖自定义无 Hash／Equals 键、Comparator 等价重复、嵌套 Option、全域值、严格错误路径、pair 长度、未选分支不调用以及用户 codec／hash／comparator 异常原样传播。初次 fixture 将类型名直接作为 codec 值使用，已按现有语法改成 Companion，没有修改底层。contracts 的五条静态诊断通过，报告 `target/m42/codecs-contracts-report.json`：1 variant、2 process。
+
+源码风格与 staged diff 检查通过，本批全部是普通 Scoop，没有底层改动。已清理完成 case 与一次性构建，保留报告和共享 cache。完整应用组合与三目标本组最终验证继续实施。

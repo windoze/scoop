@@ -94,4 +94,14 @@ public class PriorityQueue<T> public constructor(public val comparator: Comparat
     }
 
     public override operator fun iterator(): Iterator<T> = HeapIterator<T>(this, structure)
+
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<PriorityQueue<T>> =
+            EncodeFunction<PriorityQueue<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: Decodable<T>, comparator: Comparator<T>): Decodable<PriorityQueue<T>> = DecodeFunction<PriorityQueue<T>> { decoder ->
+            val result = PriorityQueue<T>(comparator)
+            decodeElements(decoder, element) { value -> result.add(value) }
+            result
+        }
+    }
 }

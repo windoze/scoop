@@ -1,0 +1,12 @@
+import scoop.collections.*
+import scoop.time.TimeMark
+import scoop.random.Random
+import scoop.json.Json
+
+fun main() {
+    TreeMap<Int, Int>.decoder(Int.Companion, Int.Companion)
+    TreeSet<Int>.decoder(Int.Companion)
+    PriorityQueue<Int>.decoder(Int.Companion)
+    val markCodec = TimeMark.Companion
+    Json.encode(Random.seeded(1L), Random.Companion)
+}

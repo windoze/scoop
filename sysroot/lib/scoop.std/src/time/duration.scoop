@@ -1,5 +1,7 @@
 package scoop.time
 
+import scoop.decodeTextValue
+
 public class Duration private constructor(public val seconds: Long, public val nanosecondsOfSecond: Int)
     : Equals<Duration>, Compare<Duration>, Hash, ToString, Add<Duration, Duration>, Sub<Duration, Duration>,
       Mul<Long, Duration>, Div<Long, Duration>, UnaryMinus<Duration> {
@@ -28,7 +30,11 @@ public class Duration private constructor(public val seconds: Long, public val n
     public fun toIsoString(): String = formatDuration(durationParts(this))
     public override fun toString(): String = toIsoString()
 
-    public companion object {
+    public companion object : Encodable<Duration>, Decodable<Duration> {
+        public override fun encode(value: Duration, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): Duration =
+            decodeTextValue<Duration>(decoder, { text -> parseOrNull(text) }, "duration")
+
         public val ZERO: Duration = Duration(0L, 0)
         public fun seconds(value: Long, nanosecondAdjustment: Long = 0L): Duration {
             val parts = normalizeDuration(value, nanosecondAdjustment)

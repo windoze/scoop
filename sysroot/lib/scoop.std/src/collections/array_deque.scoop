@@ -76,6 +76,16 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
     }
 
     public override operator fun iterator(): Iterator<T> = DequeIterator<T>(this, structure)
+
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<ArrayDeque<T>> =
+            EncodeFunction<ArrayDeque<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: Decodable<T>): Decodable<ArrayDeque<T>> = DecodeFunction<ArrayDeque<T>> { decoder ->
+            val result = ArrayDeque<T>()
+            decodeElements(decoder, element) { value -> result.addLast(value) }
+            result
+        }
+    }
 }
 
 internal class DequeIterator<T> internal constructor(

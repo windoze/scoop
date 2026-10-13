@@ -1,5 +1,7 @@
 package scoop.time
 
+import scoop.decodeTextValue
+
 import scoop.datetime.*
 
 public interface Clock {
@@ -29,7 +31,11 @@ public class Instant private constructor(public val epochSeconds: Long, public v
     }
     public override fun toString(): String = toLocalDateTime(UtcOffset.ZERO).toString() + "Z"
 
-    public companion object {
+    public companion object : Encodable<Instant>, Decodable<Instant> {
+        public override fun encode(value: Instant, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): Instant =
+            decodeTextValue<Instant>(decoder, { text -> parseOrNull(text) }, "instant")
+
         public val MIN: Instant = Instant(LocalDate.MIN.toEpochDays() * 86400L, 0)
         public val MAX: Instant = Instant(LocalDate.MAX.toEpochDays() * 86400L + 86399L, 999999999)
         public fun fromEpochSeconds(seconds: Long, nanosecondAdjustment: Long = 0L): Instant {

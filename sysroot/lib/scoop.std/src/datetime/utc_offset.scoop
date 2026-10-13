@@ -1,5 +1,7 @@
 package scoop.datetime
 
+import scoop.decodeTextValue
+
 public class UtcOffset private constructor(public val totalSeconds: Int)
     : Equals<UtcOffset>, Compare<UtcOffset>, Hash, ToString {
     public override operator fun equals(other: UtcOffset): Boolean = totalSeconds == other.totalSeconds
@@ -12,7 +14,11 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             calendarTwoDigits(magnitude / 60 % 60)
         return if (magnitude % 60 == 0) base else base + ":" + calendarTwoDigits(magnitude % 60)
     }
-    public companion object {
+    public companion object : Encodable<UtcOffset>, Decodable<UtcOffset> {
+        public override fun encode(value: UtcOffset, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): UtcOffset =
+            decodeTextValue<UtcOffset>(decoder, { text -> parseOrNull(text) }, "UTC offset")
+
         public val ZERO: UtcOffset = UtcOffset(0)
         public fun fromTotalSeconds(value: Int): UtcOffset {
             if (value < -64800 || value > 64800) throw IllegalArgumentException(Some("offset exceeds 18 hours"))

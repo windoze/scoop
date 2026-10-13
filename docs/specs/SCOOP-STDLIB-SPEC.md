@@ -363,6 +363,12 @@ Result 使用一个 keyed 字段 success 或 failure，值交给对应 codec，�
 
 TimeMark、Clock、TimeSource、Random、Iterator 不提供默认 codec；来源对象、执行状态与 RNG state 不作为可移植数据。JSON 通过它现有的显式 codec 入口消费 std codec，不需要识别 std 类型名或改变格式协议。
 
+HashMap／LinkedHashMap／TreeMap 的 companion 提供 encoder(key, value)；decoder(key, value) 对 TreeMap 另有必传的最后一个 comparator 参数。HashSet／LinkedHashSet／TreeSet／ArrayDeque／PriorityQueue 提供 encoder(element) 和 decoder(element)，其中 TreeSet／PriorityQueue 的 decoder 另有必传的最后一个 comparator 参数。工厂返回对应具体容器的 Encodable／Decodable；解码每次创建独立容器。Result<T,E> 的 encoder(success, failure)／decoder(success, failure) 接收两支的显式 codec。这里参数 key/value/element/success/failure 的类型分别为对应 Encodable 或 Decodable，不要求元素本身实现编码接口。
+
+Uuid、Duration、Instant、各日期时间值、UtcOffset、DatePeriod 与 DateTimePeriod 的 companion 直接实现相应 Encodable<T>／Decodable<T>，调用方显式传递该 companion。DatePeriod 的三个字段与 DateTimePeriod 的两个字段在编码时全部写出、解码时全部要求存在；构造器缺省不代表文本字段可省略。未知字段和容器消费边界沿用 core／格式库合同。重复 Map key 的错误 path 指向重复 entry 的 key，重复 Set 元素指向该元素；entry 恰好两项，不能静默接受多余项。格式、元素 codec、hash／equals／comparator 的其它异常照常传播，不被统一转成 DecodingException。
+
+Scoop 的类型名不是值；传 codec 时写 `LocalDate.Companion`、`Int.Companion` 等实际 singleton，调用工厂则可以按普通 companion 转发写 `HashMap<Int, String>.decoder(Int.Companion, String.Companion)`。
+
 ## 10. M42 之外
 
 独立 math 包（含数学函数、BigInteger、Decimal）、正则、完整 Unicode 数据与算法、压缩、密码学、更多格式库、持久化不可变集合均另行排期。系统库负责文件/网络/进程/线程、熵、实际 wall/monotonic 取时、sleep/timer、时区数据库和 native resource。M42 不预置空实现或运行期“尚未支持”分支。

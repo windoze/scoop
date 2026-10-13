@@ -9,6 +9,11 @@ public enum Result<T, E> {
         case Failure(_) -> false
     }
     public val isFailure: Boolean get() = !isSuccess
+
+    public companion object {
+        public fun encoder(success: Encodable<T>, failure: Encodable<E>): Encodable<Result<T, E>> = ResultEncoder<T, E>(success, failure)
+        public fun decoder(success: Decodable<T>, failure: Decodable<E>): Decodable<Result<T, E>> = ResultDecoder<T, E>(success, failure)
+    }
 }
 
 public fun <T, E> Result<T, E>.getOrNull(): T? = when (this) {

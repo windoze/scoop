@@ -16,6 +16,16 @@ public class HashSet<T> public constructor() : MutableSet<T> where T : Equals<T>
     public override fun clear() { elements.clear() }
     public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
     public override fun retainAll(elements: Iterable<T>): Boolean = retainHashed<T>(this, elements)
+
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<HashSet<T>> =
+            EncodeFunction<HashSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: Decodable<T>): Decodable<HashSet<T>> = DecodeFunction<HashSet<T>> { decoder ->
+            val result = HashSet<T>()
+            decodeSetInto(decoder, element, result)
+            result
+        }
+    }
 }
 
 public fun <K, V> hashMapOf(vararg entries: (K, V)): HashMap<K, V>

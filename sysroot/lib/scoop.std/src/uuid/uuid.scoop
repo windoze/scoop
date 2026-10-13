@@ -1,5 +1,7 @@
 package scoop.uuid
 
+import scoop.decodeTextValue
+
 import scoop.random.Random
 import scoop.text.toHexString
 
@@ -32,7 +34,11 @@ public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULo
     }
     public override fun toString(): String = toHexDashString()
 
-    public companion object {
+    public companion object : Encodable<Uuid>, Decodable<Uuid> {
+        public override fun encode(value: Uuid, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        public override fun decode(decoder: Decoder): Uuid =
+            decodeTextValue<Uuid>(decoder, { text -> parseOrNull(text) }, "UUID")
+
         public val NIL: Uuid = Uuid(0uL, 0uL)
         public val MAX: Uuid = Uuid(ULong.MAX_VALUE, ULong.MAX_VALUE)
         public fun fromLongs(mostSignificantBits: Long, leastSignificantBits: Long): Uuid =

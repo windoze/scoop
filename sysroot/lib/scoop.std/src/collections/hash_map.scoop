@@ -110,6 +110,17 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
         HashIterator<K, V>(this, structure)
 
     internal val table: HashStorage<K, V> get() = storage
+
+    public companion object {
+        public fun encoder(key: Encodable<K>, value: Encodable<V>): Encodable<HashMap<K, V>> =
+            EncodeFunction<HashMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        public fun decoder(key: Decodable<K>, value: Decodable<V>): Decodable<HashMap<K, V>> =
+            DecodeFunction<HashMap<K, V>> { decoder ->
+                val result = HashMap<K, V>()
+                decodeMapInto(decoder, key, value, result)
+                result
+            }
+    }
 }
 
 internal class HashIterator<K, V> internal constructor(

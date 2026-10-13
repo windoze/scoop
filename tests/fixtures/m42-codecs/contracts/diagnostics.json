@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `decoder` expects 3 argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "a736750cdc8f142c415062fc046fb4058640fdecf7f452d71f4dcf8d9c1cfee9",
+      "end": 177,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 122
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `decoder` expects 2 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "a736750cdc8f142c415062fc046fb4058640fdecf7f452d71f4dcf8d9c1cfee9",
+      "end": 217,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 182
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `decoder` expects 2 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "a736750cdc8f142c415062fc046fb4058640fdecf7f452d71f4dcf8d9c1cfee9",
+      "end": 263,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 222
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `TimeMark` has no accessible static member `Companion`",
+    "notes": [],
+    "origin": {
+      "cone": "a736750cdc8f142c415062fc046fb4058640fdecf7f452d71f4dcf8d9c1cfee9",
+      "end": 302,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 293
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `encode`: Companion is not a subtype of Encodable<T>",
+    "notes": [],
+    "origin": {
+      "cone": "a736750cdc8f142c415062fc046fb4058640fdecf7f452d71f4dcf8d9c1cfee9",
+      "end": 354,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 338
+    },
+    "severity": "error"
+  }
+]

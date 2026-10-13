@@ -6,4 +6,20 @@ public struct DateTimePeriod(val date: DatePeriod = DatePeriod(), val time: Dura
     : Equals<DateTimePeriod>, Hash {
     public override operator fun equals(other: DateTimePeriod): Boolean = date == other.date && time == other.time
     public override fun hash(): Long = date.hash() * 31L + time.hash()
+
+    public companion object : Encodable<DateTimePeriod>, Decodable<DateTimePeriod> {
+        public override fun encode(value: DateTimePeriod, encoder: Encoder) {
+            val fields = encoder.keyed()
+            DatePeriod.encode(value.date, fields.field("date"))
+            Duration.encode(value.time, fields.field("time"))
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): DateTimePeriod {
+            val fields = decoder.keyed()
+            val date = DatePeriod.decode(fields.required("date"))
+            val time = Duration.decode(fields.required("time"))
+            fields.end()
+            return DateTimePeriod(date, time)
+        }
+    }
 }

@@ -118,4 +118,15 @@ public class TreeMap<K, V> public constructor(
     public override fun ceilingEntry(key: K): Map.Entry<K, V>? = bound(key, true, true)
     public override fun higherEntry(key: K): Map.Entry<K, V>? = bound(key, true, false)
     public override operator fun iterator(): Iterator<Map.Entry<K, V>> = TreeIterator<K, V>(tree, structure)
+
+    public companion object {
+        public fun encoder(key: Encodable<K>, value: Encodable<V>): Encodable<TreeMap<K, V>> =
+            EncodeFunction<TreeMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        public fun decoder(key: Decodable<K>, value: Decodable<V>, comparator: Comparator<K>): Decodable<TreeMap<K, V>> =
+            DecodeFunction<TreeMap<K, V>> { decoder ->
+                val result = TreeMap<K, V>(comparator)
+                decodeMapInto(decoder, key, value, result)
+                result
+            }
+    }
 }

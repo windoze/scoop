@@ -68,6 +68,17 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
 
     public override operator fun iterator(): Iterator<Map.Entry<K, V>> =
         LinkedIterator<K, V>(storage, structure)
+
+    public companion object {
+        public fun encoder(key: Encodable<K>, value: Encodable<V>): Encodable<LinkedHashMap<K, V>> =
+            EncodeFunction<LinkedHashMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        public fun decoder(key: Decodable<K>, value: Decodable<V>): Decodable<LinkedHashMap<K, V>> =
+            DecodeFunction<LinkedHashMap<K, V>> { decoder ->
+                val result = LinkedHashMap<K, V>()
+                decodeMapInto(decoder, key, value, result)
+                result
+            }
+    }
 }
 
 internal class LinkedIterator<K, V> internal constructor(
