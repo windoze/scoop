@@ -609,6 +609,8 @@ integer Hash 与 compareTo 返回 Long。`==` / `!=` 执行编译器已选定的
 
 Float 为 4-byte、4-aligned IEEE binary32，Double 为 8-byte、8-aligned binary64，均 GC-free。存储、复制、FFI 与 toBits/fromBits 保持全部位型，包括 NaN；不使用浮点 niche 替代 Option tag。
 
+默认比较将所有 NaN 视为相等且排在正无穷之后，正负零相等；显式 IEEE 比较沿用 NaN 无序规则。比较不修改位型，不增加 runtime 比较入口；编译器 intrinsic 与普通 core body 实现语言规范 11.2.2 的契约。
+
 C FFI 使用目标真实 float/double ABI。数值操作遵守语言规范 11.2.2 的 rounding、NaN、无穷、signed zero 和转换规则，不能启用改变这些语义的 fast-math。线程的浮点环境采用 round-to-nearest ties-to-even、无 trap、保留 subnormal。
 
 文本转换不依赖进程 locale。解析按声明精度正确舍入；非法输入和溢出返回 None，合法下溢仍返回相应浮点值。格式化遵守语言规定的可往返文本、特殊值与 signed zero 形式。

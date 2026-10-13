@@ -196,6 +196,7 @@ pub(super) fn check(
     expected.insert("Not<Boolean>".into());
     for owner in [
         "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Char", "String",
+        "Float", "Double",
     ] {
         expected.insert(format!("Compare<{owner}>"));
     }

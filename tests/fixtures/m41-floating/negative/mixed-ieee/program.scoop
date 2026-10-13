@@ -1,0 +1,1 @@
+fun main() { val value: Float = 1f; value.ieeeCompare(1.0.toDouble()) }

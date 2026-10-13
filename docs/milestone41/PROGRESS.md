@@ -57,3 +57,14 @@
 - 正式 CLI 选择 79 项，全部完成验证：首轮 69 项通过；9 项预载旧诊断，以及重定位 String 夹具漏保留测试成员，在核对和修正后补验 10 项全部通过（10 个变体、18 次进程执行）。新增／原相等正例覆盖 debug/release、正常/moving/minor GC 与仅产物链接；Unit 跨库默认参数及重建 core 后的链接均通过。
 - 浮点默认比较仍待下一批迁移。受公共接口增加影响的优化／ABI 专用 LIR 期望与跨平台完整验收，在浮点批次完成后统一处理；不以这批定向验证替代最终验收。
 - 清理前两轮缓存、case、sysroot 与诊断采集产物，保留报告、日志和最新可复用缓存。
+
+## 浮点默认比较与显式 IEEE API
+
+- 三份 spec 同步默认等价类全序：正负零相等，全部 NaN 相等且排在正无穷之后。Float/Double 显式实现 Compare，compareTo 返回 -1/0/1；const、普通运算、when 值匹配与结构派生共用同一语义。
+- 新增普通 IeeeComparison enum 与 NoGC ieeeCompare 方法，以分类和默认比较组合四态结果。移除 isTotallyOrdered、totalOrder intrinsic 及位型排序辅助实现；不改变算术、舍入、转换、存储或 FFI。
+- FloatBinaryOperator 的旧 IEEE 比较与 totalOrder tags 6～12 退役，新默认比较与 compareTo 使用 13～19。解码明确拒绝旧语义，raw bits 保存规则不变；不增加 runtime ABI 或兼容入口。
+- 普通 core 浮点成员参与 literal receiver 的精度探测，按实际 nominal owner 判断；源 core 与依赖 core 各有验证，扩展仍不能借此改变字面量推导。同步 M30/M33 历史说明与旧 NaN 检测、派生比较期望。
+- M41 浮点共 10 个正式 fixture（其中两项迁移自 M30）：默认六种关系与 compareTo 的两种精度、18 种特殊位型交叉矩阵；独立 IEEE 四态、常量、generic/alias/boxing/when/结构组合、三层仅产物消费，以及五个准确负例。正例覆盖 debug/release 与 GC 组合；矩阵另检查 signaling NaN 比较后位型不变。
+- 本机 fmt、workspace clippy、release CLI 构建通过。HIR lowering 原 1,427 项与新增源 core 字面量用例通过；3 项浮点 wire 测试及 core bootstrap 结构检查通过。实际 intrinsic 接口入口增加至 115，参数、GC effect 与 MIR 完整性检查通过。
+- 正式 CLI 首轮选择 99 项：95 通过、1 项 musl 专属不适用；旧 compareTo 缺失负例及两个新夹具源码错误在迁移后闭合。补验 9 项全部通过（14 个变体、56 次进程），包含 7 项结构派生回归；精度混用的新 compareTo 负例也通过正式 runner。最终适用用例均已闭合，不把新语义下成功编译的旧负例继续保留为错误规则。
+- 本批仅完成本机功能验证；优化/ABI 专用 LIR 期望审阅及 Linux GNU/musl 完整验收仍待下一批。清理旧 cases/cache/sysroot 和诊断采集产物，保留报告与当前可复用缓存。

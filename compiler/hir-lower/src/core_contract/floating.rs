@@ -47,11 +47,14 @@ impl Lowerer {
                         hir::FloatBinaryOperator::Divide => Some(hir::OperatorKind::Div),
                         hir::FloatBinaryOperator::Remainder => Some(hir::OperatorKind::Rem),
                         hir::FloatBinaryOperator::Equal => Some(hir::OperatorKind::Equals),
+                        hir::FloatBinaryOperator::CompareTo => Some(hir::OperatorKind::CompareTo),
                         _ => None,
                     };
                     (
                         if operation.is_predicate() {
                             self.boolean
+                        } else if operation == hir::FloatBinaryOperator::CompareTo {
+                            self.integer_type(hir::IntegerKind::SIGNED_64)
                         } else {
                             owner
                         },
@@ -74,20 +77,12 @@ impl Lowerer {
                 }
             };
             let signature = &self.signatures[&function];
-            let total_order = matches!(
-                intrinsic,
-                hir::FloatIntrinsicKind::Binary {
-                    operation: hir::FloatBinaryOperator::TotalOrder,
-                    ..
-                }
-            );
             let valid = self.function_has_intrinsic_owner(function, owner_kind)
                 && signature.params.len() == arity
                 && signature
                     .params
                     .iter()
                     .all(|parameter| parameter.ty == owner)
-                && (!total_order || signature.params[0].name.text == "belowOrEqualTo")
                 && signature.type_params.is_empty()
                 && !signature.is_suspend
                 && signature.return_ty == result

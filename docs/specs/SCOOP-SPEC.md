@@ -460,7 +460,7 @@ when 支持值、类型、成员关系与无 subject 的条件分支；显式 ca
 - enum的有限constructor集合是其全部variant，variant payload继续作为子列检查；出现variant名称本身不代表覆盖其全部payload；
 - tuple与struct各有一个product constructor，字段按位置/声明顺序展开；命名字段与`..`先补全为完整wildcard vector；
 - `Boolean`有`false`/`true`两个有限constructor，`Unit`有一个constructor；
-- binding、`_`、rest 补位与 `else` 均为 wildcard。定宽整数是有限域；不同无 guard literal 覆盖全部位型时可省略 wildcard，否则未覆盖示例必须是该 signed/unsigned 类型中的实际缺失值，unsigned 示例带 `u` 后缀。Char 的有限域只含 Unicode 标量，未覆盖示例不得落入 surrogate 区间。String 是无限域，有限 literal 分支仍需 wildcard 覆盖余值。Float/Double literal 按 11.2.2 的 IEEE 相等匹配，正负零覆盖同一值，始终需要 wildcard 覆盖剩余域。
+- binding、`_`、rest 补位与 `else` 均为 wildcard。定宽整数是有限域；不同无 guard literal 覆盖全部位型时可省略 wildcard，否则未覆盖示例必须是该 signed/unsigned 类型中的实际缺失值，unsigned 示例带 `u` 后缀。Char 的有限域只含 Unicode 标量，未覆盖示例不得落入 surrogate 区间。String 是无限域，有限 literal 分支仍需 wildcard 覆盖余值。Float/Double literal 按 11.2.2 的默认相等匹配，正负零覆盖同一值，始终需要 wildcard 覆盖剩余域。
 - 多个arm可以组合覆盖product，例如`(true, _)`与`(false, _)`共同穷尽；`Some(0)`与`None`不穷尽`Option<Int>`；
 - 运行期始终按源码first-match顺序工作：先匹配结构，成功后才求值guard，guard为false时从下一arm继续。穷尽proof不得改变该副作用顺序。
 
@@ -647,7 +647,7 @@ fun describe(point: Point): String {
 
 无 subject 的值形式必须有无条件 else；不把某个条件恰好写为 `true` 当作 else。无条件 else 覆盖剩余输入。任何带 guard 的 arm，包括 `else if`，都不贡献静态覆盖，即使 guard 看起来是常量真。
 
-case 继续使用现有递归 constructor matrix：variant payload、tuple/struct product、Boolean、Unit、定宽整数、Char、String 与 Float/Double 的覆盖规则不退化。缺失覆盖保留稳定、可重新解析的 witness；guard 不替代实际覆盖。Float/Double 继续采用 IEEE 相等语义，不能把 NaN 或正负零按位相等处理。
+case 继续使用现有递归 constructor matrix：variant payload、tuple/struct product、Boolean、Unit、定宽整数、Char、String 与 Float/Double 的覆盖规则不退化。缺失覆盖保留稳定、可重新解析的 witness；guard 不替代实际覆盖。Float/Double 继续采用 11.2.2 的默认相等语义，不能把 NaN 或正负零按位相等处理。
 
 普通条件只有具有确定语言语义的部分参与覆盖：Boolean 的字面量 `true` / `false`、可确定的内建标量 literal 比较，以及使用编译器已知结构相等的 enum unit variant 等，可以转成现有 checker 的覆盖事实。任意变量、const 引用、调用、`in` 条件或用户定义 equals 均不被当作构造器覆盖；不能由两个复杂 Boolean 常量表达式推导完备性。普通值条件仍以原表达式和已选 equals 执行，覆盖事实不改变求值行为。
 
@@ -1177,7 +1177,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 #### 9.1.2 `const val`
 
 - `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type必须是`Boolean`、基本数值类型、`Char`或`String`。
-- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括整数的 `compareTo`、两类数值的 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类和 `isTotallyOrdered` 方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
+- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括两类数值的 `compareTo`、 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
 - 除上述封闭数值表示 intrinsic 外，函数/方法调用（包括 `toString`）、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
 - 导出的 `const val` 的类型和值属于 `.slib` 接口，下游 Cone 在编译期直接使用；值变化使依赖该值的编译缓存失效。const 没有 getter 或可寻址 storage，`addressOf(const)` 非法；可见性按声明检查，不因常量求值而绕过。
 
@@ -1392,12 +1392,12 @@ property 按 getter/setter slot 转发，整体类型和 mutability 仍遵守 9.
 | `a[i1, ..., iN]` | `a.get(i1, ..., iN)` |
 | `a[i1, ..., iN] = v` | `a.set(i1, ..., iN, v)` |
 | `a(args...)` | function-value call，或`a.invoke(args...)`（见9.3.4） |
-| `a < b` / `a <= b` / `a > b` / `a >= b` | 同一种 core 浮点类型按 11.2.2 直接执行 IEEE 比较；其他类型将 `a.compareTo(b)` 的 `Long` 结果与 0 比较 |
+| `a < b` / `a <= b` / `a > b` / `a >= b` | 将 `a.compareTo(b)` 的 `Long` 结果与 0 比较；core 浮点采用 11.2.2 的默认全序 |
 | `a == b` / `a != b` | 11.11的成员`equals`调用 / 对同一结果取反 |
 
 receiver先于调用实参求值，因此`a in b`与`a !in b`按概念调用先求值`b`、再求值`a`；这是有意保留的Kotlin顺序。其他表项按书写的receiver再到operand顺序求值。`&&` / `||`仍是只接受`Boolean`的内建短路操作，`===` / `!==`仍是不可重载的引用identity比较；`=`, `?:`, `!!`, `is` / `as`及安全导航本身也不可重载。
 
-core 浮点关系运算的例外由已解析 nominal owner 的 typed representation 决定；透明 alias 相同，用户定义的同名类型不获得该行为。两个 operand 从左到右各求值一次，literal 按 11.2.2 定型；不先默认为 Double，也不通过 `compareTo` 或 total-order 方法间接实现。该例外不增加可由用户重载的 operator 名称。
+已解析的 core 浮点比较可直接降低为等价的 typed predicate；透明 alias 相同，用户定义的同名类型不获得 intrinsic 行为。两个 operand 从左到右各求值一次，literal 按 11.2.2 定型，不先默认为 Double；直接降低与调用已选定的 `compareTo` 遵守同一默认全序。
 
 浮点 receiver 已确定时，右侧 `Nothing` 表达式按 3.1 的底类型规则接受：先求值左侧，再执行右侧的控制转移，不产生浮点比较结果。这不放宽可正常完成的 Float、Double 或整数操作数之间的类型匹配要求。
 
@@ -1485,7 +1485,7 @@ Managed 调用合同；NoGC 实现沿普通接口适配规则消费，不将 gen
 | `Increment<Result : Increment<Result>>` | `inc(): Result` | 八种整数及 Float/Double，同型 result |
 | `Decrement<Result : Decrement<Result>>` | `dec(): Result` | 同上 |
 | `Equals<Rhs>` | `equals(other: Rhs): Boolean` | 基本类型、String、Unit 与 Ptr<T>，见 11.11 |
-| `Compare<Rhs>` | `compareTo(other: Rhs): Long` | 八种整数、Char、String，同型 operand |
+| `Compare<Rhs>` | `compareTo(other: Rhs): Long` | 八种整数、Float/Double、Char、String，同型 operand |
 | `RangeTo<Rhs, Result>` | `rangeTo(endpoint: Rhs): Result` | 八种整数，同型 endpoint；结果为对应整数 range |
 | `RangeUntil<Rhs, Result>` | `rangeUntil(endpoint: Rhs): Result` | 同上 |
 | `Contains<Element>` | `contains(value: Element): Boolean` | IntRange/LongRange/UIntRange/ULongRange，对应 Int/Long/UInt/ULong |
@@ -1784,7 +1784,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 #### 11.2.2 `Float` / `Double`
 
-`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型分别声明同类型的 `operator fun equals`，以该成员显式实现 `Equals<Float>` / `Equals<Double>`，并实现 `ToString`；相等遵守下述 IEEE 规则。它们不实现 `Hash`，不支持把标量按空 struct 解构。
+`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型分别声明同类型的 `operator fun equals`，以该成员显式实现 `Equals<Float>` / `Equals<Double>`，通过同类型参数、返回 Long 的 `operator fun compareTo` 实现 `Compare<Float>` / `Compare<Double>`，并实现 `ToString`；默认比较遵守下述等价类全序。它们不实现 `Hash`，不支持把标量按空 struct 解构。
 
 **字面量与定型。** 十进制浮点字面量具有小数部分、指数部分或 `f/F` 后缀中的至少一项，例如 `1.0`、`.5`、`1e3`、`1f`、`1.5e-2F`。小数点后必须有数字；`1.` 不是浮点字面量，`1..2` 和 `1.toDouble()` 保留原有词法。指数 `e/E` 后可带 `+/-`，随后必须有十进制数字；`_` 只可位于同一数字段的两个数字之间。无十六进制/二进制浮点语法或 `d/D` 后缀；已有整数 `0x1f` 仍是十六进制整数。
 
@@ -1802,25 +1802,33 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 - Float 到 Double 对有限值精确，Double 到 Float 最近偶数舍入，允许产生 Infinity 或下溢；同类型转换保持位型，跨格式转换保留零的符号，但不承诺 NaN payload 的映射；
 - 浮点到整数向零截断，结果越界时饱和到目标整数的最小/最大值，NaN 转为 0；负数转无符号的下界为 0。按目标实际位宽饱和，不能先转 Long/ULong 再截断成窄整数。
 
-**普通比较。** `equals` 与 `==` 使用 IEEE 数值相等，`!=` 是该结果取反；`< <= > >=` 直接使用 IEEE 有序关系：
+**默认比较。** `equals` 与 `==` 按比较等价类判断相等，`!=` 是该结果取反；`compareTo` 返回 -1、0 或 1，`< <= > >=` 使用其符号构成同一全序：
 
-| 输入 | `==` | `!=` | `<` / `<=` / `>` / `>=` |
-| --- | --- | --- | --- |
-| 任一 operand 为 NaN，包括同一 NaN | false | true | 全部 false |
-| `-0.0` 与 `+0.0` | true | false | `<` / `>` 为 false，`<=` / `>=` 为 true |
-| 其他值，包括 Infinity | 数值相等 | 数值不等 | 数学次序，`-Infinity < 有限值 < +Infinity` |
+| 输入 | `==` | `compareTo` |
+| --- | --- | --- |
+| 两个 NaN，无论 sign、quiet/signaling 或 payload | true | 0 |
+| 左侧 NaN、右侧非 NaN | false | 1 |
+| 左侧非 NaN、右侧 NaN | false | -1 |
+| `-0.0` 与 `+0.0`，任一方向 | true | 0 |
+| 其他值，包括 Infinity | IEEE 数值相等 | 数值次序，`-Infinity < 有限值 < +Infinity` |
 
-因此 `!(a < b)` 不等价于 `a >= b`；所有输入上的普通关系不构成全序。Float/Double 不提供返回 Long 的 `compareTo`，关系运算不经过该协议。已合法的泛型调用、alias 和派生的 struct/tuple/enum 字段相等均使用同一浮点语义；不能因为值在相同存储中就跳过字段比较，也不新增 `Any.equals`。需要全序的算法应显式使用下面的方法。
+全部 NaN 相等且排在正无穷之后；正负零相等。所有输入满足 `a == b` 当且仅当 `a.compareTo(b) == 0`。泛型、alias、结构派生相等与 when 值匹配使用同一语义，不新增 `Any.equals`。比较仅归类，不改写表示：`1.0 / -0.0` 仍为负无穷，存储与复制继续保留 NaN payload 和零的符号。默认的 `x != x` 不能用于检测 NaN，使用 `x.isNaN()`。
 
-**显式全序。** 两种类型分别提供同类型参数的方法 `public fun isTotallyOrdered(belowOrEqualTo: Float): Boolean` / `public fun isTotallyOrdered(belowOrEqualTo: Double): Boolean`，调用为 `a.isTotallyOrdered(belowOrEqualTo = b)`。返回 IEEE 754 `totalOrder(a, b)`，是非严格的“全序小于等于”。其顺序为负 NaN、负 Infinity、负有限数、负零、正零、正有限数、正 Infinity、正 NaN；NaN 内部再按 IEEE 规则区分 sign、quiet/signaling 与 payload。相同位型对自身返回 true；正负零和不同 NaN 位型不合并。
+**显式 IEEE 比较。** 普通 core enum `IeeeComparison { Less, Equal, Greater, Unordered }` 表示一次 IEEE 数值比较。Float/Double 分别提供同类型方法 `public fun ieeeCompare(other: Float): IeeeComparison` / `public fun ieeeCompare(other: Double): IeeeComparison`：
 
-若算法接收严格的先后谓词，使用 `!b.isTotallyOrdered(belowOrEqualTo = a)`，不能直接传入非严格方法。该方法及 `isNaN()` / `isInfinite()` / `isFinite()` 均为 NoGC intrinsic。它们不改变普通运算符，也不要求公开 `toBits` / `fromBits` / byte sequence / `transmute` API。
+- 任一 operand 为 NaN，包括同一 NaN，返回 `Unordered`；
+- 数值相等，包括正负零，返回 `Equal`；
+- 其余按数值次序返回 `Less` 或 `Greater`，包括无穷。
 
-**常量与表示。** 两种 companion 提供 `const val NaN`、`POSITIVE_INFINITY`、`NEGATIVE_INFINITY`、`MAX_VALUE`（最大正有限值）、`MIN_VALUE`（最小正 subnormal）与 `MIN_NORMAL`（最小正 normal）。NaN 常量固定为正 quiet NaN，Float 位型 `0x7fc00000`、Double 位型 `0x7ff8000000000000`。9.1.2 的浮点 const 运算使用同样的目标精度；产生 NaN 的算术 const 结果使用该类型的固定 quiet NaN，一元 sign 操作和同类型复制/转换仍保留其规定的位型。运行期算术不承诺 NaN 的 sign/payload 与 const 相同；普通存储、传参、返回和复制保持位型，显式 totalOrder 总是比较当时的表示。metadata 保存 kind 与 raw bits，保留负零和已确定的 NaN 表示。
+IEEE 相等对应 Equal，不等对应其余三种结果；小于/小于等于对应 Less / Less 或 Equal，大于/大于等于对应 Greater / Greater 或 Equal。Unordered 不满足任何有序关系，不能用“不是 Less”代替 IEEE 大于等于。
+
+`ieeeCompare` 是 `@NoGC` 普通 core body，通过 `isNaN` 与 `compareTo` 实现，不属于 9.1.2 的 const-call 集合。`isNaN()` / `isInfinite()` / `isFinite()` 及默认比较为 NoGC intrinsic。旧 `isTotallyOrdered(belowOrEqualTo:)` 与逐位型 totalOrder 功能已删除，不保留兼容入口。
+
+**常量与表示。** 两种 companion 提供 `const val NaN`、`POSITIVE_INFINITY`、`NEGATIVE_INFINITY`、`MAX_VALUE`（最大正有限值）、`MIN_VALUE`（最小正 subnormal）与 `MIN_NORMAL`（最小正 normal）。NaN 常量固定为正 quiet NaN，Float 位型 `0x7fc00000`、Double 位型 `0x7ff8000000000000`。9.1.2 的浮点 const 运算使用同样的目标精度；产生 NaN 的算术 const 结果使用该类型的固定 quiet NaN，一元 sign 操作和同类型复制/转换仍保留其规定的位型。运行期算术不承诺 NaN 的 sign/payload 与 const 相同；普通存储、传参、返回和复制保持位型；默认比较不区分 NaN 位型。metadata 保存 kind 与 raw bits，保留负零和已确定的 NaN 表示。
 
 所有上述表示 intrinsic（包括浮点 `div/rem`）均为 `@NoGC`、ordinary；`toString` 和 codec 使用普通 core body，不属于 const-call 集合。`toString()` 输出不依赖 locale：有限值采用能按原精度读回相同位型的最短有效十进制数字，非零值规范化十进制指数在 `[-3, 7)` 时用定点，否则用科学记数法；始终有小数点和至少一位小数，科学指数用小写 `e`、不写正号或多余前导零。零分别为 `0.0` / `-0.0`，非有限值为 `NaN` / `Infinity` / `-Infinity`。不承诺 NaN payload 的文本往返。
 
-**组合与范围。** const、默认参数、annotation、literal pattern、generic/跨 Cone、boxing、数组、普通 aggregate 与 FFI 都保留实际浮点类型。literal pattern 按目标精度定型并用 IEEE `==` 匹配，正负零覆盖同一值；浮点域的穷尽检查始终要求覆盖剩余值的 wildcard，不能通过枚举字面量覆盖 NaN。NaN 可由 `isNaN()` guard 判断，guard 不提供穷尽证明。核心 companion codec 与 JSON 规则见 11.13，C ABI 见 13.8。不引入 FloatRange、隐式数值提升、数值比较接口层次、Hash conformance、通用数学包或 128 位数值类型。
+**组合与范围。** const、默认参数、annotation、literal pattern、generic/跨 Cone、boxing、数组、普通 aggregate 与 FFI 都保留实际浮点类型。literal pattern 按目标精度定型并用默认 `==` 匹配，正负零覆盖同一值；浮点域的穷尽检查始终要求覆盖剩余值的 wildcard，不能通过枚举字面量覆盖 NaN。NaN 可由 `isNaN()` guard 判断，guard 不提供穷尽证明。核心 companion codec 与 JSON 规则见 11.13，C ABI 见 13.8。不引入 FloatRange、隐式数值提升、额外的数值比较接口层次、Hash conformance、通用数学包或 128 位数值类型。
 
 ### 11.3 `Unit`
 

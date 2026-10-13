@@ -1,10 +1,11 @@
 schema = 1
-name = "m30-floating-total-order"
+name = "m41-floating-order"
 root = "program.scoop"
 inputs = ["program.scoop", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m30", "floating", "single-file", "run", "native"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+tags = ["m41", "floating", "single-file", "run", "native"]
 
 [[steps]]
 name = "prepare_native"
@@ -26,7 +27,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib"]
 exit = 0
 stdout = ""
 stderr = ""

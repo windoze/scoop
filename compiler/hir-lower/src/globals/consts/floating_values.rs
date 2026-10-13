@@ -6,7 +6,7 @@ use rustc_apfloat::{
 };
 use scoop_hir::{
     ConstPropertyValue, FloatBinaryOperator as B, FloatKind, FloatUnaryOperator as U,
-    HirFloatConstant,
+    HirFloatConstant, HirIntegerConstant,
 };
 
 mod conversions;
@@ -85,9 +85,6 @@ pub(in crate::globals) fn evaluate_float_binary(
         rhs.kind(),
         "typed floating operands have the same format"
     );
-    if operation == B::TotalOrder {
-        return ConstPropertyValue::Boolean(order_key(lhs) <= order_key(rhs));
-    }
     let left = u128::from(lhs.raw_bits());
     let right = u128::from(rhs.raw_bits());
     match lhs.kind() {
@@ -114,13 +111,34 @@ fn binary<F: Float>(operation: B, lhs: F, rhs: F, kind: FloatKind) -> ConstPrope
         B::Multiply => lhs.mul_r(rhs, round).value,
         B::Divide => lhs.div_r(rhs, round).value,
         B::Remainder => lhs.c_fmod(rhs).value,
-        B::Equal => return ConstPropertyValue::Boolean(lhs == rhs),
-        B::NotEqual => return ConstPropertyValue::Boolean(lhs != rhs),
-        B::Less => return ConstPropertyValue::Boolean(lhs < rhs),
-        B::LessEqual => return ConstPropertyValue::Boolean(lhs <= rhs),
-        B::Greater => return ConstPropertyValue::Boolean(lhs > rhs),
-        B::GreaterEqual => return ConstPropertyValue::Boolean(lhs >= rhs),
-        B::TotalOrder => unreachable!("totalOrder uses the original bits"),
+        B::Equal
+        | B::NotEqual
+        | B::Less
+        | B::LessEqual
+        | B::Greater
+        | B::GreaterEqual
+        | B::CompareTo => {
+            let order = match (lhs.is_nan(), rhs.is_nan()) {
+                (true, true) => std::cmp::Ordering::Equal,
+                (true, false) => std::cmp::Ordering::Greater,
+                (false, true) => std::cmp::Ordering::Less,
+                (false, false) => lhs.partial_cmp(&rhs).expect("non-NaN floats are ordered"),
+            };
+            if operation == B::CompareTo {
+                return ConstPropertyValue::Integer(HirIntegerConstant::Signed64(
+                    order as i64 as u64,
+                ));
+            }
+            return ConstPropertyValue::Boolean(match operation {
+                B::Equal => order.is_eq(),
+                B::NotEqual => order.is_ne(),
+                B::Less => order.is_lt(),
+                B::LessEqual => order.is_le(),
+                B::Greater => order.is_gt(),
+                B::GreaterEqual => order.is_ge(),
+                _ => unreachable!("comparison arm contains only predicates"),
+            });
+        }
     };
     // Arithmetic NaNs have the language's fixed positive quiet representation.
     pack(kind, if value.is_nan() { F::NAN } else { value })
@@ -131,17 +149,4 @@ fn pack<F: Float>(kind: FloatKind, value: F) -> ConstPropertyValue {
         FloatKind::F32 => HirFloatConstant::F32(value.to_bits() as u32),
         FloatKind::F64 => HirFloatConstant::F64(value.to_bits() as u64),
     })
-}
-
-fn order_key(value: HirFloatConstant) -> u64 {
-    let sign = 1_u64 << (value.kind().bits() - 1);
-    let raw = value.raw_bits();
-    if raw & sign == 0 {
-        raw ^ sign
-    } else {
-        !raw & match value.kind() {
-            FloatKind::F32 => u64::from(u32::MAX),
-            FloatKind::F64 => u64::MAX,
-        }
-    }
 }

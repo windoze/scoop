@@ -1,0 +1,11 @@
+import relayed.*
+class Reader : Sample {}
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(constants() && compare(Float.NaN, -Float.NaN) && compare(Double.NaN, Double.POSITIVE_INFINITY))
+    check(ieee(Float.NaN, 0f) == IeeeComparison.Unordered)
+    val reader: Sample = Reader()
+    check(reader.equal(Double.NaN, -Double.NaN))
+    check(Pair(Float.NaN, -0.0) == Pair(-Float.NaN, 0.0))
+    println("floating artifacts")
+}

@@ -37,7 +37,7 @@ impl Lowerer {
     ) -> Option<hir::FloatKind> {
         let operation = float_binary_operator(operator)?;
         self.select_const_float_receiver_kind(receiver, expected, |_, kind, _| {
-            argument_accepts(kind).then_some(!operation.is_predicate())
+            argument_accepts(kind).then_some(operation.is_arithmetic())
         })
     }
 
@@ -74,7 +74,7 @@ impl Lowerer {
             }
             Some(match resolved.kind {
                 hir::FloatIntrinsicKind::Unary { operation, .. } => !operation.is_predicate(),
-                hir::FloatIntrinsicKind::Binary { operation, .. } => !operation.is_predicate(),
+                hir::FloatIntrinsicKind::Binary { operation, .. } => operation.is_arithmetic(),
                 hir::FloatIntrinsicKind::Conversion(_) => false,
             })
         })

@@ -1,0 +1,2 @@
+const val order: IeeeComparison = 1f.ieeeCompare(2f)
+fun main() {}

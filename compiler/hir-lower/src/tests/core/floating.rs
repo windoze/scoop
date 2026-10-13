@@ -1,7 +1,7 @@
 use super::super::*;
 
 /// Reuse real numeric signatures with the synthetic spans used by this fixture.
-/// Codec companions are exercised by the complete sysroot fixtures.
+/// Codec companions and ordinary IEEE comparison bodies use full sysroot fixtures.
 pub(super) fn floating_declarations() -> Vec<Decl> {
     static DECLARATIONS: std::sync::OnceLock<Vec<Decl>> = std::sync::OnceLock::new();
     DECLARATIONS
@@ -26,6 +26,9 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
                 .members
                 .into_iter()
                 .filter_map(|member| match member {
+                    ast::StructMember::Function(method) if method.name.text == "ieeeCompare" => {
+                        None
+                    }
                     ast::StructMember::Function(method) => {
                         Some(synthetic_function(*method, Some(&value.name.text)))
                     }

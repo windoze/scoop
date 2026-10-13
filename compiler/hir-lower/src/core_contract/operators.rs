@@ -366,7 +366,7 @@ impl Lowerer {
             .text
     }
 
-    pub(super) fn function_has_intrinsic_owner(
+    pub(crate) fn function_has_intrinsic_owner(
         &self,
         function: FunctionId,
         kind: hir::IntrinsicTypeKind,

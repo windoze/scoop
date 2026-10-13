@@ -24,14 +24,23 @@ fun doubleBits(value: Double): UInt64
         doubleFromBits(0x7fefffffffffffffUL), doubleFromBits(0x7ff0000000000000UL), doubleFromBits(0x7ff0000000000001UL),
         doubleFromBits(0x7ff0000000000002UL), doubleFromBits(0x7ff8000000000001UL), doubleFromBits(0x7ff8000000000002UL)
     ]
+    val rank = [9L, 9L, 9L, 9L, 0L, 1L, 2L, 3L, 4L, 4L, 5L, 6L, 7L, 8L, 9L, 9L, 9L, 9L]
     gcCollect()
     var i = 0L
     while (i < 18L) {
         var j = 0L
         while (j < 18L) {
-            if (singles[i].isTotallyOrdered(singles[j]) != (i <= j) ||
-                doubles[i].isTotallyOrdered(doubles[j]) != (i <= j)) {
+            val order = rank[i].compareTo(rank[j])
+            if (!checkSingle(singles[i], singles[j], order) ||
+                !checkDouble(doubles[i], doubles[j], order)) {
                 println("order"); return
+            }
+            val ieee = if (rank[i] == 9L || rank[j] == 9L) IeeeComparison.Unordered
+                else if (order < 0L) IeeeComparison.Less
+                else if (order > 0L) IeeeComparison.Greater
+                else IeeeComparison.Equal
+            if (singles[i].ieeeCompare(singles[j]) != ieee || doubles[i].ieeeCompare(doubles[j]) != ieee) {
+                println("ieee"); return
             }
             j = j + 1L
         }
@@ -44,8 +53,27 @@ fun doubleBits(value: Double): UInt64
         floatBits(snan.toFloat()) != 0x7f800042U || doubleBits(dnan.toDouble()) != 0x7ff0000000000042UL) {
         println("payload"); return
     }
-    if (!snan.isNaN() || !dnan.isNaN() || snan == snan || dnan == dnan) {
+    if (!snan.isNaN() || !dnan.isNaN() || snan != snan || dnan != dnan) {
         println("signaling"); return
+    }
+    val signalingOrder = snan.compareTo(-snan)
+    val signalingIeee = dnan.ieeeCompare(-dnan)
+    if (signalingOrder != 0L || signalingIeee != IeeeComparison.Unordered ||
+        floatBits(snan) != 0x7f800042U || doubleBits(dnan) != 0x7ff0000000000042UL) {
+        println("comparison mutated bits"); return
     }
     println(42)
 }
+
+@NoGC fun compare(a: Float, b: Float): Long = a.compareTo(b)
+@NoGC fun compare(a: Double, b: Double): Long = a.compareTo(b)
+
+fun checkSingle(a: Float, b: Float, order: Long): Boolean =
+    (a == b) == (order == 0L) && (a != b) == (order != 0L) &&
+    (a < b) == (order < 0L) && (a <= b) == (order <= 0L) &&
+    (a > b) == (order > 0L) && (a >= b) == (order >= 0L) && compare(a, b) == order
+
+fun checkDouble(a: Double, b: Double, order: Long): Boolean =
+    (a == b) == (order == 0L) && (a != b) == (order != 0L) &&
+    (a < b) == (order < 0L) && (a <= b) == (order <= 0L) &&
+    (a > b) == (order > 0L) && (a >= b) == (order >= 0L) && compare(a, b) == order

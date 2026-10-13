@@ -1,0 +1,6 @@
+public enum IeeeComparison {
+    Less,
+    Equal,
+    Greater,
+    Unordered
+}

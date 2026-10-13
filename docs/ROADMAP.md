@@ -471,7 +471,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ### M30 Float / Double 与 128 位数值调研（已完成，[设计](milestone30/DESIGN.md)，[实施记录](milestone30/PROGRESS.md)，[验收](milestone30/ACCEPTANCE.md)，[调研](milestone30/INVESTIGATION.md)）
 
 - 正式交付两个GC-free值类型：Float/Float32为IEEE binary32，Double/Float64为binary64；后两种固定宽度拼写分别是透明alias。覆盖十进制literal、目标精度const、基础算术/分类、显式转换和ToString，以及泛型、默认值、annotation、pattern、数组/aggregate、boxing、协程与moving GC。
-- 普通`== != < <= > >=`遵守IEEE语义：NaN无序、正负零相等。浮点关系直接降为typed comparison，不通过`compareTo(): Long`；另提供Swift风格的`isTotallyOrdered(belowOrEqualTo = ...)`，采用区分正负零及NaN sign/quiet/payload的IEEE totalOrder。Float/Double不实现Hash，不新增比较interface层次或Map key专用规则。
+- M30 最初交付 IEEE 默认比较与 isTotallyOrdered。后续 M41 将默认比较改为等价类全序，新增 Compare / compareTo 与显式 IeeeComparison / ieeeCompare，删除旧 totalOrder API；当前语义见语言规范 11.2.2。Float/Double 仍不实现 Hash。
 - literal、const与JSON按实际目标精度直接舍入，避免先Double再Float；运行期不使用fast-math。数值转换显式，浮点转整数向零截断并按目标位宽饱和，NaN转0。公开位/字节转换与transmute留待具体需求，不作为本次totalOrder的前置条件。
 - 两种companion实现普通Encodable/Decodable，single-value协议增加Float/Double read/write；JSON保持整数精确解析，浮点只编码有限值，保留负零，按路径报告非法值与overflow，允许合法subnormal/underflow。字符串化使用成熟的最短往返转换，C ABI以float/double通过既有generated-C bridge接入。
 - 复用既有IR/meta、布局、GC和native-support机制；`frem`产生的fmodf/fmod覆盖Darwin、glibc动态以及musl静态/动态实际链接与运行。三份spec已同步实际契约与格式版本，见实现规范2.18；完成门为独立/组合/negative/golden、workspace与正式CLI/fixture验收。

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m41"
+name = "float-relay"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.m41:float-provider" = "0.1.0"

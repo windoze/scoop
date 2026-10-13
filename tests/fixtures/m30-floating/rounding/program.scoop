@@ -24,7 +24,7 @@ fun reflexive(value: Double): Boolean = value == value
         !addThenSubtract(largeWide, largeWide).isInfinite()) { println("reassociated"); return }
     val quietSingle = fromFloatBits(0x7fc00042U)
     val quietWide = fromDoubleBits(0x7ff8000000000042UL)
-    if (reflexive(quietSingle) || reflexive(quietWide)) { println("nan"); return }
+    if (!reflexive(quietSingle) || !reflexive(quietWide)) { println("nan"); return }
     val negativeSingle = fromFloatBits(0x80000000U)
     val negativeWide = fromDoubleBits(0x8000000000000000UL)
     if (floatBits(multiplyAdd(negativeSingle, 1f, negativeSingle)) != 0x80000000U ||

@@ -15,7 +15,7 @@
 - core 运算符接口采用普通名义接口与显式实现关系。类型作者提供通用操作契约，各个泛型库共享该契约；特定场景的扩展操作不必承诺满足泛型库的要求。
 - 删除原有 `Equality<T>`，以提供 `operator equals` 的 `Equals<T>` 代替；移除旧 `equalTo` 入口，统一默认相等的接口调用与运算符语义。
 - 有界泛型正文仍在定义处绑定成员契约，具体化时映射到具体实现；不从调用者的 import 或扩展集合重新选择操作。
-- Float/Double 的默认相等与关系运算按比较等价类构成全序：正负零相等，所有 NaN 相等且排在正无穷之后。IEEE 数值比较通过显式方法提供，不作为默认 Equals 的实现；四态枚举 API 草案见第 4 节。删除旧 `isTotallyOrdered` API，直接采用新比较方案。
+- Float/Double 的默认相等与关系运算按比较等价类构成全序：正负零相等，所有 NaN 相等且排在正无穷之后。IEEE 数值比较通过显式方法提供，不作为默认 Equals 的实现；四态枚举 API 见第 4 节。删除旧 `isTotallyOrdered` API，直接采用新比较方案。
 
 运算符接口属于最小 core 的基础契约。Map 容器的存储与算法、结构化并发、平台库均不在本次交付范围；`FancyMap` 仅作为真实需求的最小示例。任意命名函数的可用性约束、追溯接口实现和按上下文选择接口实现也不属于本里程碑。
 
@@ -23,7 +23,7 @@
 
 语言规范 3.2 已支持 `K : I<K>` 这样的名义接口上界；9.3 已要求运算符展开后使用普通显式 receiver 调用决议，并保留对应 `operator` 标记。普通扩展不会改变目标类型的接口集合。
 
-当前缺少统一的算术等运算符接口。库作者可以自行声明 `Addable<K>`，但 [Int](../../sysroot/lib/scoop.core/src/integer_int.scoop) 即使已有 `operator fun plus`，也不会实现这个外部库定义的接口。泛化的 newtype 包装同样无法在无约束的 `K` 上调用加法。
+实施前缺少统一的算术等运算符接口。库作者可以自行声明 `Addable<K>`，但 [Int](../../sysroot/lib/scoop.core/src/integer_int.scoop) 即使已有 `operator fun plus`，也不会实现这个外部库定义的接口。泛化的 newtype 包装同样无法在无约束的 `K` 上调用加法。
 
 M41 通过共享 core 接口解决通用运算符的约束问题，不把同名方法匹配改成结构型 conformance。现有 [bound 调用具体化](../../compiler/hir-lower/src/concretize/methods.rs) 已能按具体 receiver 的接口实现找到实际方法，可继续复用。
 
@@ -65,7 +65,7 @@ public struct Offset(val value: Long) : Add<Offset, Offset> {
 | `+ - * / %` | `Add/Sub/Mul/Div/Rem<Rhs, Result>` | 已在语言规范 9.3.6 定稿，分批实现 |
 | 一元 `+ - !` | `UnaryPlus/UnaryMinus/Not<Result>` | 已定稿；数值实现前两项，Boolean 实现 Not<Boolean> |
 | `== !=` | 已确定的 `Equals<Rhs>`，成员为 `operator fun equals(other: Rhs): Boolean` | 删除旧 Equality/equalTo 并迁移声明、调用与产物；核对成员限定和显式派生实现规则 |
-| `< <= > >=` | `Compare<Rhs>`，`compareTo(other: Rhs): Long` | 整数、Char、String 先行；浮点随默认全序迁移 |
+| `< <= > >=` | `Compare<Rhs>`，`compareTo(other: Rhs): Long` | 整数、Char、String 与浮点均已实现；浮点使用默认全序 |
 | `in !in`、区间操作 | `Contains<Element>`、`RangeTo/RangeUntil<Rhs, Result>` | 已定稿，四种整数 range 与八种整数沿用既有方法 |
 | `++ --`、复合赋值 | `Increment<Result : Increment<Result>>`、对应 Decrement；`AddAssign/SubAssign/MulAssign/DivAssign/RemAssign<Rhs>` | 已定稿，保留既有返回子类型、歧义与写回规则 |
 | `get/set/invoke` | `Get/Set<Index, Value>`、`Get2/Set2<I, J, Value>`、`Invoke0<Result>`、`Invoke<Arg, Result>`、`Invoke2<A, B, Result>` | 已在 9.3.6 定稿；固定参数签名，函数值不自动实现接口 |
@@ -170,7 +170,7 @@ Float/Double 分别通过 `operator equals` 显式实现 `Equals<Float>` / `Equa
 
 算术、转换、舍入、位型存储、FFI 和浮点环境仍遵守原有 IEEE 规则。比较时归类不修改值本身，`1.0 / -0.0` 仍为负无穷；传参、返回、复制仍保留原来的零符号和 NaN 位型。
 
-### 4.2 显式 IEEE 比较：四态枚举草案
+### 4.2 显式 IEEE 比较：四态枚举
 
 以普通 core enum 返回一次 IEEE 数值比较的结果。API 定名为 `IeeeComparison` 和 `ieeeCompare`：
 
@@ -212,7 +212,7 @@ Float 与 Double 分别提供同类型参数的方法 `ieeeCompare(other: Float)
 
 ### 4.4 语义迁移范围
 
-当前规范与实现采用 IEEE 默认比较，本次按新语义统一更新以下已有处理环节：
+实施前规范与实现采用 IEEE 默认比较，本次按新语义统一更新以下处理环节：
 
 - core 浮点方法与接口、默认比较 intrinsic，以及显式 IEEE 比较入口。
 - const 比较、常量折叠、literal pattern、when 分支匹配及结构相等派生。
@@ -226,7 +226,7 @@ Float 与 Double 分别提供同类型参数的方法 `ieeeCompare(other: Float)
 
 - core 接口通过普通声明、继承与导出接口表提供，不按接口拼写触发编译器特权。运算符决议只需要相应的 operator 角色，不需要先识别 Add 的身份。
 - HIR 完成调用决议和 bound 绑定；具体化消费真实的接口实现。MIR/LIR 与 codegen 保留已确定的 dispatch 和 intrinsic 语义，不在下游重放成员查找。
-- 默认浮点比较与显式 IEEE 四态比较使用明确的 typed 操作表示，常量求值与后端各自实现同一语义。删除旧 totalOrder 的 intrinsic 登记与专用操作。四态结果使用普通 enum 表示，不增加异常通道或接口对象。
+- 默认浮点比较使用明确的 typed 操作表示，常量求值与后端各自实现同一语义。显式 IEEE 四态比较用普通 NoGC core body 组合 isNaN 与 compareTo，不扩充 const-call 集合。删除旧 totalOrder 的 intrinsic 登记与专用操作。四态结果使用普通 enum 表示，不增加异常通道或接口对象。
 - core 新增接口及 conformance 通过既有 `.slib` 声明与方法发布路径消费。兼容性、缓存和格式版本按实际 API、语义或 wire 变化处理，不预先增加新格式或 runtime ABI。
 - 装箱和接口调用使用原有 TD/itable/ABI；扩展函数不增加接口表项。NoGC 实现与 Managed slot 的适配继续使用既有规则。
 
@@ -236,17 +236,17 @@ Float 与 Double 分别提供同类型参数的方法 `ieeeCompare(other: Float)
 
 - [x] 完成第 2.2 节的接口覆盖清单：最终名称、签名、各内建类型的实现，以及 generic/suspend/unsafe、多参数和 place 操作的处理。
 - [x] 确定删除 `Equality<T>` / `equalTo`，由 `Equals<T>` / `operator equals` 代替，见第 2.3 节；spec 与 core 接口迁移已完成，本机验证见 PROGRESS.md。
-- [x] 确定默认浮点比较按等价类排序：正负零相等、全部 NaN 相等且排在正无穷之后，见第 4.1 节；实际实现仍待完成。
-- [x] 确定删除旧 `isTotallyOrdered` API 及其 IEEE totalOrder 功能，直接采用第 4 节的新比较方案；实际 spec 和代码更新仍待完成。
+- [x] 确定默认浮点比较按等价类排序：正负零相等、全部 NaN 相等且排在正无穷之后，见第 4.1 节；实现与本机验证已完成，最终验收见 PROGRESS.md。
+- [x] 确定删除旧 `isTotallyOrdered` API 及其 IEEE totalOrder 功能，直接采用第 4 节的新比较方案；spec、代码与本机验证已完成。
 - [x] 核对现有成员限定 equals、结构派生与显式 conformance 的规则；不把签名匹配自动变成接口实现。
 - [x] 定稿第 4.2 节 IEEE 四态 enum API 的名称：IeeeComparison / ieeeCompare。
-- [ ] 更新 [SCOOP-SPEC.md](../specs/SCOOP-SPEC.md) 3.2、8.5～8.6、9.3、11.8、11.11、12.4 及相应 core API 小节：标准运算符接口、先展开再决议、扩展与 bound 的区别、默认比较契约和兼容性规则。
-- [ ] 更新语言规范 5、9.1.2、11.2.2 及结构相等相关条款：默认等价类全序、显式 IEEE 四态比较、const、模式匹配与派生比较的一致性；删除旧 `isTotallyOrdered` API 与“普通关系直接采用 IEEE 比较”等被新方案替代的条款。
+- [x] 更新 [SCOOP-SPEC.md](../specs/SCOOP-SPEC.md) 3.2、8.5～8.6、9.3、11.8、11.11、12.4 及相应 core API 小节：标准运算符接口、先展开再决议、扩展与 bound 的区别、默认比较契约和兼容性规则。
+- [x] 更新语言规范 5、9.1.2、11.2.2 及结构相等相关条款：默认等价类全序、显式 IEEE 四态比较、const、模式匹配与派生比较的一致性；删除旧 `isTotallyOrdered` API 与“普通关系直接采用 IEEE 比较”等被新方案替代的条款。
 - [x] 全文迁移旧 Equality/equalTo 的规范与示例，包括 core 内建类型、generic bound、Hash 契约、NoGC 接口适配和 Ptr 声明；不能只替换接口定义而遗漏旧调用语义。
-- [ ] 更新 [SCOOP-IMPL-SPEC.md](../specs/SCOOP-IMPL-SPEC.md) 2.2～2.3、2.9～2.10、2.12～2.13、2.18～2.19：调用绑定与具体化、普通 core 接口发布、默认/IEEE 浮点操作、常量求值、优化和产物消费职责，移除旧 totalOrder 操作约定。
-- [ ] 更新 [SCOOP-RUNTIME-SPEC.md](../specs/SCOOP-RUNTIME-SPEC.md) 2.2～2.3、6.1：接口关系、装箱与现有 Equality 描述的迁移，浮点默认比较与 IEEE 算术/FFI 边界；按实际需要修订引用，不把库方法变更扩展为新 runtime ABI。
-- [ ] 同步三份 spec 的章节交叉引用、core API 示例与相关语言示例；核对 M30 浮点、M33 相等设计中的历史描述，标明后续替代关系，保留原验收事实。
-- [ ] 更新 API 与示例说明：统一后的 Equals/equals、compareTo 默认全序、显式 IEEE 四态比较与 NaN 检测写法；删除旧 Equality/equalTo 和 isTotallyOrdered 的用法。
+- [x] 更新 [SCOOP-IMPL-SPEC.md](../specs/SCOOP-IMPL-SPEC.md) 2.2～2.3、2.9～2.10、2.12～2.13、2.18～2.19：调用绑定与具体化、普通 core 接口发布、默认/IEEE 浮点操作、常量求值、优化和产物消费职责，移除旧 totalOrder 操作约定。
+- [x] 更新 [SCOOP-RUNTIME-SPEC.md](../specs/SCOOP-RUNTIME-SPEC.md) 2.2～2.3、6.1：接口关系、装箱与现有 Equality 描述的迁移，浮点默认比较与 IEEE 算术/FFI 边界；按实际需要修订引用，不把库方法变更扩展为新 runtime ABI。
+- [x] 同步三份 spec 的章节交叉引用、core API 示例与相关语言示例；核对 M30 浮点、M33 相等设计中的历史描述，标明后续替代关系，保留原验收事实。
+- [x] 更新 API 与示例说明：统一后的 Equals/equals、compareTo 默认全序、显式 IEEE 四态比较与 NaN 检测写法；删除旧 Equality/equalTo 和 isTotallyOrdered 的用法。
 - [ ] 随实际实施更新本设计的状态；验收后补充实际命令、目标、profile、结果与剩余限制，不以设计文档完成代替功能交付。
 
 ### 6.2 实施顺序

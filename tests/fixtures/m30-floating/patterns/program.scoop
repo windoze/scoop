@@ -24,8 +24,8 @@ fun main() {
     val generic = Cell(Float.NaN)
     val tuple = (Float.NaN, 0.0)
     val variant = Reading.Value(Cell(Float.NaN), (Double.NaN, false))
-    println(nan != nan && generic != generic && tuple != tuple && variant != variant)
+    println(nan == nan && generic == generic && tuple == tuple && variant == variant)
     println(Pair(-0f, -0.0) == Pair(0f, 0.0) && Cell(-0f) == Cell(0f) && Some(-0f) == Some(0f))
     gcCollect()
-    println(defaults() == 1.5f && Some(Float.NaN) != Some(Float.NaN))
+    println(defaults() == 1.5f && Some(Float.NaN) == Some(Float.NaN))
 }

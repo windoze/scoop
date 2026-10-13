@@ -2,6 +2,15 @@ use super::*;
 use scoop_mir as mir;
 
 #[test]
+fn ordinary_float_members_fit_literal_receivers_in_source_core() {
+    core::lower_with_sysroot(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m41-floating/ieee/program.scoop"
+    )))
+    .unwrap();
+}
+
+#[test]
 fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
     let output = bootstrap_sysroot();
     let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(&output.export).unwrap();
@@ -20,7 +29,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
         }
     }
     assert_eq!(
-        exported, 113,
+        exported, 115,
         "only intrinsic implementations of published capabilities need entries"
     );
     let module = scoop_mir_lower::lower(&output.local).unwrap();
@@ -69,7 +78,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
     }
     assert_eq!(count, 11);
     assert_eq!(
-        entries, 113,
+        entries, 115,
         "the core publishes all built-in intrinsic capability implementations"
     );
 }

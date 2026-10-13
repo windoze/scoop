@@ -673,6 +673,8 @@ struct Key(val value: Int) : Equality<Key> {
 
 Equality 保持普通接口语义：继承 `Equality<Base>` 不成为 `Equality<Derived>`；`Equality<Point>` 视图的 `equalTo` 参数仍是 Point。bound、装箱、itable 与 `is` / `as` 使用实际声明或继承的接口集合，operator 的存在不改变该集合。
 
+> M41 后续替代：下段为 M33 历史设计。当前默认相等采用 Equals/equals；浮点按等价类全序比较，IEEE 数值比较经 ieeeCompare 显式调用。
+
 Float/Double 的 operator 与 core `equalTo` 均保持 `NaN != NaN` 和正负零相等；含 NaN 的结构比较保留字段行为，不做 identity／memcmp 或 `x == x` 恒真优化。Float/Double 仍不实现 Hash。未来 HashMap 用普通 `Equality<K>` 与 `Hash` bounds，key 比较调用 `equalTo`，相等 key 的 hash 一致性以该方法为准。未来 BTreeMap 所需的比较接口同样独立于 `operator compareTo` 和关系运算符，随实际库需求设计；M33 不增加 Map 实现或比较接口 API。
 
 实现收敛到两条现有路径：

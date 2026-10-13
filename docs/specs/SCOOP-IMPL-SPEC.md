@@ -785,9 +785,9 @@ codec 不因数据继承关系自动传递，不能按 value 的动态类型改�
 
 语言语义见语言规范 11.2.2，运行边界见运行时规范 6.1。Float/Double 分别为 F32/F64，alias 不建立新 nominal identity。literal 与 const 按目标精度直接求值，成功输出保存原始同宽 bits，不经宿主浮点近似。
 
-算术、关系、分类、totalOrder 与转换使用明确 typed operation。浮点除零不使用整数异常规则；相等不能替换为 identity 或位型相等。所有 storage、aggregate、数组、closure、frame、boxing 和 C ABI 保留完整精度及 exact type。
+算术、默认比较、分类与转换使用明确 typed operation。`compareTo` 返回 Long；六种默认 predicate 与其符号保持一致。显式 `ieeeCompare` 通过普通 core body 组合分类与比较，返回普通 IeeeComparison enum，不增加 enum 专用 intrinsic。浮点除零不使用整数异常规则；相等不能替换为 identity 或位型相等。所有 storage、aggregate、数组、closure、frame、boxing 和 C ABI 保留完整精度及 exact type。
 
-浮点操作不得使用 fast、nnan、ninf、nsz、reassoc 或 contract 等改变语言语义的假设。关系分别满足 IEEE ordered/unordered 规则，不能以 `!(a < b)` 替代 `a >= b`。float→integer 按目标位宽饱和，不生成越界 poison 或先转 64-bit 再截断；同格式转换保持 bits。
+浮点操作不得使用 fast、nnan、ninf、nsz、reassoc 或 contract 等改变语言语义的假设。默认比较将所有 NaN 合并并排在正无穷之后，将正负零合并；const 与后端使用相同规则。显式 IEEE 比较的 Unordered 不满足有序关系。float→integer 按目标位宽饱和，不生成越界 poison 或先转 64-bit 再截断；同格式转换保持 bits。
 
 C storage 使用真实 float/double；fmodf/fmod 的 NoGC 签名分别为 `(F32,F32)->F32`、`(F64,F64)->F64`，作为 target support tags 4/5 进入普通 native 链接闭包。内部常量池与机器局部 label 不获得源码实体身份。
 
@@ -807,7 +807,9 @@ metadata 的相等、去重与 hash 比较 raw bits，包括 signed zero 与 NaN
 | literal equality pattern | 4，payload 为 FloatKind。 |
 | object relocation constant-pool target | 15，payload 为实际常量 ByteSpan。 |
 
-浮点 literal 不匹配 NaN，有限 literal 集合不能覆盖完整浮点域，剩余域需要 wildcard。JSON 使用显式 codec 和目标精度直接解析，有限／非有限值遵守语言格式规则。
+FloatBinaryOperator 的算术 wire tags 1～5 不变；旧 IEEE predicates 的 6～11 与 totalOrder 的 12 退役，不再解码。CompareTo 使用 13，默认 Equal/NotEqual/Less/LessEqual/Greater/GreaterEqual 使用 14～19，避免消费旧 IR 时悄然改变其比较语义。受影响 core 与依赖须重建；沿用现有未知 tag 与 core 协议兼容性检查，不增加 runtime ABI。
+
+浮点 literal 语法不能表示 NaN，有限 literal 集合不能覆盖完整浮点域，剩余域需要 wildcard。JSON 使用显式 codec 和目标精度直接解析，有限／非有限值遵守语言格式规则。
 
 ### 2.19 优化与物理定义选择
 
