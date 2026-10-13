@@ -1,0 +1,40 @@
+import scoop.datetime.*
+import scoop.collections.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun invalid(block: () -> Unit) {
+    var failed = false
+    try { block() } catch (error: IllegalArgumentException) { failed = true }
+    check(failed)
+}
+fun main() {
+    check(UtcOffset.ZERO.totalSeconds == 0 && UtcOffset.ZERO.toString() == "Z")
+    check(UtcOffset.parse("+00:00") == UtcOffset.ZERO && UtcOffset.parse("-00:00:00") == UtcOffset.ZERO)
+    check(UtcOffset.fromHoursMinutesSeconds(5, 30).totalSeconds == 19800)
+    check(UtcOffset.fromHoursMinutesSeconds(0, -30, -45).toString() == "-00:30:45")
+    check(UtcOffset.fromHoursMinutesSeconds(-18).toString() == "-18:00")
+    check(UtcOffset.parse("+18:00:00").totalSeconds == 64800)
+    check(UtcOffset.parse("-01:02:03").totalSeconds == -3723)
+    check(UtcOffset.parse("+01:02:03").toString() == "+01:02:03")
+    check(UtcOffset.parse("-00:00:01") < UtcOffset.ZERO)
+    check(hashMapOf((UtcOffset.ZERO, 8))[UtcOffset.parse("-00:00")] == Some(8))
+    var value = -64800
+    while (value <= 64800) {
+        val offset = UtcOffset.fromTotalSeconds(value)
+        check(UtcOffset.parse(offset.toString()) == offset)
+        value += 1801
+    }
+    val bad = ArrayList<String>()
+    bad.add(""); bad.add("z"); bad.add("+00"); bad.add("+0000"); bad.add("+0:00"); bad.add("+00:0")
+    bad.add("+18:00:01"); bad.add("-18:01"); bad.add("+19:00"); bad.add("+00:60"); bad.add("+00:00:60")
+    bad.add("+00:00:0"); bad.add("+00:00:00.0"); bad.add("+00:00 "); bad.add(" +00:00")
+    bad.add("+０0:00"); bad.add("+00:-1"); bad.add("UTC"); bad.add("Z+00:00")
+    for (text in bad) { check(UtcOffset.parseOrNull(text) == None); invalid { UtcOffset.parse(text) } }
+    invalid { UtcOffset.fromTotalSeconds(-64801) }; invalid { UtcOffset.fromTotalSeconds(64801) }
+    invalid { UtcOffset.fromTotalSeconds(Int.MIN_VALUE) }; invalid { UtcOffset.fromTotalSeconds(Int.MAX_VALUE) }
+    invalid { UtcOffset.fromHoursMinutesSeconds(1, -1) }; invalid { UtcOffset.fromHoursMinutesSeconds(-1, 0, 1) }
+    invalid { UtcOffset.fromHoursMinutesSeconds(0, 1, -1) }; invalid { UtcOffset.fromHoursMinutesSeconds(18, 0, 1) }
+    invalid { UtcOffset.fromHoursMinutesSeconds(-18, -1) }; invalid { UtcOffset.fromHoursMinutesSeconds(0, 60) }
+    invalid { UtcOffset.fromHoursMinutesSeconds(0, 0, -60) }; invalid { UtcOffset.fromHoursMinutesSeconds(Int.MIN_VALUE) }
+    println("offset passed")
+}

@@ -313,3 +313,9 @@ TimeSource 仅声明 markNow；TimeMark 保存显式 source 与 Duration reading
 `calendar` 使用 Python datetime 加 400 年周期平移独立计算的 72 组固定向量，覆盖负极值、世纪、闰年、year 0、正极值，同时验证 HashMap 与 B-tree。`date-arithmetic` 覆盖全域跨度、月份夹取、负年进位、原始 period 分量相等和极值拒绝；两项均通过正常／moving GC，见 `target/m42/calendar-first-report.json`。该轮 date-text 使用了不支持的字符串转义，已按现有 Scoop 语法修正。随后 `date-text` 正常／moving GC 和 `contracts` 的两条 immutable property 精确诊断全部通过，见 `target/m42/calendar-final-report.json`。
 
 本批库源码最大 62 行，风格及 staged diff 检查通过；无底层实现修改，未运行完整套件。日期基础按独立功能提交，其余时间分量、offset、Instant、codec 及三目标最终定向验收继续实施。
+
+### M42-11 进行中：LocalTime 与 UtcOffset 已完成
+
+LocalTime 提供受检分量、一天内纳秒转换、比较／Hash、严格 ISO 文本，以及按 24 小时回绕的 Duration 加减。运算先分离整天和有界余数，直接处理 Duration 负极值，不先取负整个时长。UtcOffset 支持 ±18 小时、同号分量构造、严格 Z／±HH:MM[:SS] 解析、零偏移规范化和按总秒数的值语义。
+
+两项独立 fixture 均通过正常／moving GC，见 `target/m42/datetime-time-first-report.json`：local-time 包含 Python 整数取余独立核对的四个 Duration 极值向量、纳秒跨午夜、严格小数和无效范围；offset 覆盖非整分钟偏移、±18 小时边界、分量异号拒绝、文本往返及 HashMap。实现文件最大 52 行，风格／diff 检查通过，无底层变更。该报告中 date-time 组合也通过；Instant fixture 的 FakeClock override 缺少 public，已按既有可见性规则修正，待独立 debug/release 及产物组合确认后提交。
