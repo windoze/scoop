@@ -256,6 +256,8 @@ collections 提供 List／Iterable 的 random(random)／randomOrNull(random)、M
 
 `Uuid` 是普通 struct，以两个 ULong 保存 128 位，全部位型均合法；显式实现 Equals<Uuid>、Hash、ToString 和 Compare<Uuid>，按高位再低位的 unsigned 字典序比较。提供 NIL、MAX、fromLongs/toLongs、fromByteArray/toByteArray、parse/parseOrNull、toHexString/toHexDashString。字节表示固定 network order，恰好 16 bytes；标准文本为 8-4-4-4-12，parse 同时接受精确 32 hex 和 36 字符带横线形式，接受大小写，不接受前后空白、花括号或 URN 前缀。toString 使用小写带横线形式。
 
+public val 字段名为 mostSignificantBits、leastSignificantBits，类型均为 ULong；普通主构造与副本更新不限制任何位型。companion 的 fromLongs 接收两个 Long，toLongs(): (Long, Long) 返回相同位型的 signed 载体；fromByteArray 接收 List<Byte>，toByteArray 返回独立 Array<Byte>。非法长度与 parse 格式失败抛 IllegalArgumentException；parseOrNull 仅将格式失败转为 None。NIL／MAX 是 companion 的普通 val，分别保存全零／全一位型，不读取时钟或随机源。
+
 `Uuid.random(random: Random)` 生成 RFC 9562 v4，将调用方提供的 16 bytes 设置规定的 version/variant bits。无隐式 RNG，不承诺密码学强度或绝对不碰撞。时间型 UUID、name-based hash UUID 和系统 UUID 服务留待相应库；表示和解析仍允许其他版本的位型。
 
 ## 7. Result 与 Option 扩展

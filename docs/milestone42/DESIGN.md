@@ -130,6 +130,8 @@ Hex 与 Base64 使用 [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648) 的固�
 
 M42-9 的 Random 只要求 nextBits，实现其余普通 default method；有界采样在 unsigned 值域计算跨度与拒绝阈值，避免 signed 跨零区间溢出。Xoshiro256StarStar 保存四个 ULong，采用原作者 [xoshiro256**](https://prng.di.unimi.it/xoshiro256starstar.c) 的核心状态转移和 [SplitMix64](https://prng.di.unimi.it/splitmix64.c) 种子展开；作者将两者贡献至 public domain，并提供可自由使用／修改／分发的许可，归属与许可保存在 std/licenses/PRNG.txt。只移植必要的下一项算法，不引入 jump、宿主随机库或系统熵。固定向量离线用独立原作者 C 实现核对，发布库和正式 fixture 运行仍只使用 Scoop。
 
+Uuid 使用两个内联 ULong，按 [RFC 9562 第 4／5.4 节](https://www.rfc-editor.org/rfc/rfc9562.html#section-5.4) 处理 network order、文本分组与 v4 的 version/variant 位。解析复用严格 Hex 解码，先检查长度与横线位置；random 从显式 RNG 取得 16 个字节，仅替换规定的六个位。所有位型均可存储、比较和格式化，解析不限制版本。没有系统 UUID 调用或新 native helper，也没有移植 RFC 的代码组件。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

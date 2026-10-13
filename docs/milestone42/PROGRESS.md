@@ -273,3 +273,11 @@ Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `
 - `contracts` 精确拒绝无种子的 Xoshiro256StarStar、Random.Default 和未传 Random 的 random 调用，锁定诊断位置与信息。
 
 前六组报告为 `target/m42/random-values-report.json`，共 7 个变体、28 个进程；contracts 与随后 UUID 组合验证共同运行，其单项已通过。新库源码最大 60 行；已检查风格与 `git diff --check`，没有底层实现修改，不运行完整仓库套件。Uuid、时间／日期／codec 和 Linux GNU/musl 的本组最终验证继续实施。
+
+### M42-9 实现完成：Uuid 与随机库组合
+
+Uuid 是保存两个 ULong 的普通 struct，支持全位型、unsigned 顺序、Hash、固定 network order 的 16 字节、signed Long 位型载体、严格 32／36 字符解析和小写规范文本。v4 生成仅消费显式 Random 的 16 个字节并设置规定的六个位；NIL／MAX 不读取平台信息。
+
+本机五个 UUID fixture 均有通过证据：values 验证位型、字节快照、HashMap 与 B-tree 顺序；parsing 验证大小写、非法形状／字符／长度及来源异常传播；random 验证全零、全一、顺序字节向量、规定以外位保持与准确消费次数；contracts 拒绝省略 RNG。artifacts 将 Random、Uuid、Base64、TreeMap 与 Sequence 组合，移除 core/std/consumer 源码并在隔离环境只靠产物重新链接，正常与 moving GC 均通过。
+
+`target/m42/random-contracts-uuid-first-report.json` 保留 RNG contracts 和 UUID parsing/random/artifacts 四项通过；首轮 values 的 tuple 访问语法错误已修正，`target/m42/uuid-values-contracts-report.json` 中 values/contracts 两项通过，共 6 个进程。无需重复已通过且未改动的其他 fixture。新增库最大 53 行，风格与 `git diff --check` 通过，没有底层实现修改；已清理完成 case 与单次检查产物，保留报告和共享 cache。M42-9 的库实现已完成，三目标序列一致性仍随 Linux GNU/musl 本组最终定向验收确认；M42-10～12 保持原范围。

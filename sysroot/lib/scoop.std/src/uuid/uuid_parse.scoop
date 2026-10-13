@@ -1,0 +1,36 @@
+package scoop.uuid
+
+import scoop.text.hexToByteArrayOrNull
+
+internal fun uuidFromBytes(bytes: List<Byte>): Uuid {
+    if (bytes.size != 16L) throw IllegalArgumentException(Some("UUID requires 16 bytes"))
+    var high = 0uL
+    var low = 0uL
+    var index = 0L
+    while (index < 16L) {
+        val byte = bytes[index].toUInt8().toUInt64()
+        if (index < 8L) high = (high shl 8L) or byte
+        else low = (low shl 8L) or byte
+        index += 1L
+    }
+    return Uuid(high, low)
+}
+
+internal fun parseUuid(text: String): Uuid? {
+    if (text.byteLength != 32L && text.byteLength != 36L) return None
+    val chars = text.toCharArray()
+    if (chars.size != text.byteLength) return None
+    var compact = text
+    if (chars.size == 36L) {
+        if (chars[8L] != '-' || chars[13L] != '-' || chars[18L] != '-' || chars[23L] != '-') return None
+        compact = String.fromChars(Array<Char>(32L) { index ->
+            val offset = if (index < 8L) 0L else if (index < 12L) 1L else if (index < 16L) 2L
+                else if (index < 20L) 3L else 4L
+            chars[index + offset]
+        })
+    }
+    return when (compact.hexToByteArrayOrNull()) {
+        case None -> None
+        case Some(bytes) -> Some(uuidFromBytes(bytes))
+    }
+}
