@@ -1,0 +1,16 @@
+package scoop.sequences
+
+import scoop.collections.sortedWith
+import scoop.collections.sortedBy
+import scoop.comparisons.Comparator
+import scoop.comparisons.naturalOrder
+import scoop.comparisons.reverseOrder
+
+public fun <T> Sequence<T>.sortedWith(comparator: Comparator<T>): Sequence<T> =
+    FactorySequence<T> { terminalInput<T>().sortedWith<T>(comparator).iterator() }
+
+public fun <T : Compare<T>> Sequence<T>.sorted(): Sequence<T> = sortedWith<T>(naturalOrder<T>())
+public fun <T : Compare<T>> Sequence<T>.sortedDescending(): Sequence<T> = sortedWith<T>(reverseOrder<T>())
+
+public fun <T, K : Compare<K>> Sequence<T>.sortedBy(selector: (T) -> K): Sequence<T> =
+    FactorySequence<T> { terminalInput<T>().sortedBy<T, K>(selector).iterator() }

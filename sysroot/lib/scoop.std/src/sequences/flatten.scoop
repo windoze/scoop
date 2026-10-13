@@ -1,0 +1,25 @@
+package scoop.sequences
+
+private class FlatteningIterator<T, R>(private val source: Iterator<T>, private val transform: (T) -> Sequence<R>) : Iterator<R> {
+    private var inner: Iterator<R>? = None
+
+    public override fun next(): R? {
+        while (true) {
+            when (inner) {
+                case Some(active) -> when (active.next()) {
+                    case Some(value) -> return Some(value)
+                    case None -> inner = None
+                }
+                case None -> when (source.next()) {
+                    case Some(value) -> inner = Some(transform(value).iterator())
+                    case None -> return None
+                }
+            }
+        }
+    }
+}
+
+public fun <T, R> Sequence<T>.flatMap(transform: (T) -> Sequence<R>): Sequence<R> =
+    FactorySequence<R> { FlatteningIterator<T, R>(iterator(), transform) }
+
+public fun <T> Sequence<Sequence<T>>.flatten(): Sequence<T> = flatMap<Sequence<T>, T> { value -> value }

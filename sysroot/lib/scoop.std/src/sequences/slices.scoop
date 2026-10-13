@@ -1,0 +1,63 @@
+package scoop.sequences
+
+import scoop.collections.requireCollectionCount
+
+private class TakingIterator<T>(private val source: Iterator<T>, private var remaining: Long) : Iterator<T> {
+    public override fun next(): T? {
+        if (remaining == 0L) return None
+        remaining -= 1L
+        return source.next()
+    }
+}
+
+private class DroppingIterator<T>(private val source: Iterator<T>, private var remaining: Long) : Iterator<T> {
+    public override fun next(): T? {
+        while (remaining > 0L) {
+            when (source.next()) {
+                case None -> return None
+                case Some(_) -> remaining -= 1L
+            }
+        }
+        return source.next()
+    }
+}
+
+private class TakingWhileIterator<T>(private val source: Iterator<T>, private val predicate: (T) -> Boolean) : Iterator<T> {
+    public override fun next(): T? = when (source.next()) {
+        case Some(value) -> if (predicate(value)) Some(value) else None
+        case None -> None
+    }
+}
+
+private class DroppingWhileIterator<T>(private val source: Iterator<T>, private val predicate: (T) -> Boolean) : Iterator<T> {
+    private var dropping: Boolean = true
+    public override fun next(): T? {
+        while (true) {
+            when (source.next()) {
+                case None -> return None
+                case Some(value) -> {
+                    if (!dropping) return Some(value)
+                    dropping = predicate(value)
+                    if (!dropping) return Some(value)
+                }
+            }
+        }
+    }
+}
+
+public fun <T> Sequence<T>.take(count: Long): Sequence<T> {
+    requireCollectionCount(count)
+    if (count == 0L) return emptySequence<T>()
+    return FactorySequence<T> { TakingIterator<T>(iterator(), count) }
+}
+
+public fun <T> Sequence<T>.drop(count: Long): Sequence<T> {
+    requireCollectionCount(count)
+    return FactorySequence<T> { DroppingIterator<T>(iterator(), count) }
+}
+
+public fun <T> Sequence<T>.takeWhile(predicate: (T) -> Boolean): Sequence<T> =
+    FactorySequence<T> { TakingWhileIterator<T>(iterator(), predicate) }
+
+public fun <T> Sequence<T>.dropWhile(predicate: (T) -> Boolean): Sequence<T> =
+    FactorySequence<T> { DroppingWhileIterator<T>(iterator(), predicate) }

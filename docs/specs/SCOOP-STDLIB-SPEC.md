@@ -168,6 +168,8 @@ Iterable.asSequence 每次迭代委托原 Iterable，不强行保证来源可重
 
 Sequence 的 flatten 接收 Sequence<Sequence<T>>；flatMap 的 transform 返回 Sequence<R>，Iterable 来源通过 asSequence 显式适配。不依赖 invariant application 的隐式上转或根据名字合并 Iterable/Sequence 两个协议。
 
+终结操作包括 3.1 的查找、遍历、归约、计数、极值、partition、reversed、分组／关联和目的地操作，以及 toList/toMutableList、toSet/toMutableSet、tuple entry 的 toMap/toMutableMap、joinToString；返回值和约束沿用急切版本。Sequence.flatMapTo 的 transform 同样返回 Sequence<R>。sorted/sortedDescending/sortedBy/sortedWith 返回延迟排序的 Sequence，稳定性和 selector 求值次数沿用集合排序。binarySearch 与原地 sort/sortWith 只属于 List／MutableList，不为 Sequence 增加对应操作。
+
 构造中间操作不取得 iterator、不执行用户回调。每个 iterator 有自己的进度和缓存；短路操作不调用无关后缀回调。next 抛异常后该迭代器进入失败终止状态，再次 next 抛 IllegalStateException，不重新执行已经失败的回调。操作不提供事务回滚。M42 不提供 suspend sequence builder、yield、资源 close 协议或异步 Flow。
 
 库提供的 Sequence 在首次 next 时才取得所需上游 iterator，包括 Iterable.asSequence 对源 iterator 的调用和 sorted 的收集；once-only 在调用自身 iterator 时即占用唯一迭代机会。首次 None 后始终返回 None，不再次访问来源。take(0) 不取得上游 iterator，即使请求或消费结果的 iterator 也如此；负数量与非法窗口参数在创建操作时报告。上述生命周期同样是自定义 Sequence 实现须遵守的协议，不依赖编译器注入。

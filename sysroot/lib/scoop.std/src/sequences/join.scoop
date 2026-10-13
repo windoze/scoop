@@ -1,0 +1,12 @@
+package scoop.sequences
+
+import scoop.collections.joinToString
+
+public fun <T> Sequence<T>.joinToString(
+    separator: String = ", ", prefix: String = "", postfix: String = "",
+    limit: Long = -1L, truncated: String = "...", transform: (T) -> String
+): String = terminalInput<T>().joinToString<T>(separator, prefix, postfix, limit, truncated, transform)
+
+public fun <T : ToString> Sequence<T>.joinToString(
+    separator: String = ", ", prefix: String = "", postfix: String = "", limit: Long = -1L, truncated: String = "..."
+): String = terminalInput<T>().joinToString<T>(separator, prefix, postfix, limit, truncated)

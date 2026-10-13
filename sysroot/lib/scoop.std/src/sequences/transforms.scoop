@@ -1,0 +1,55 @@
+package scoop.sequences
+
+import scoop.collections.nextCollectionCount
+import scoop.collections.IndexedValue
+
+private class MappingIterator<T, R>(private val source: Iterator<T>, private val transform: (T) -> R) : Iterator<R> {
+    public override fun next(): R? = when (source.next()) {
+        case None -> None
+        case Some(value) -> Some(transform(value))
+    }
+}
+
+private class IndexedMappingIterator<T, R>(private val source: Iterator<T>, private val transform: (Long, T) -> R) : Iterator<R> {
+    private var index: Long = 0L
+    public override fun next(): R? = when (source.next()) {
+        case None -> None
+        case Some(value) -> {
+            val result = transform(index, value)
+            index = nextCollectionCount(index)
+            Some(result)
+        }
+    }
+}
+
+private class NullableMappingIterator<T, R>(private val source: Iterator<T>, private val transform: (T) -> R?) : Iterator<R> {
+    public override fun next(): R? {
+        while (true) {
+            when (source.next()) {
+                case None -> return None
+                case Some(value) -> when (transform(value)) {
+                    case None -> continue
+                    case Some(result) -> return Some(result)
+                }
+            }
+        }
+    }
+}
+
+public fun <T, R> Sequence<T>.map(transform: (T) -> R): Sequence<R> =
+    FactorySequence<R> { MappingIterator<T, R>(iterator(), transform) }
+
+public fun <T, R> Sequence<T>.mapIndexed(transform: (Long, T) -> R): Sequence<R> =
+    FactorySequence<R> { IndexedMappingIterator<T, R>(iterator(), transform) }
+
+public fun <T, R> Sequence<T>.mapNotNull(transform: (T) -> R?): Sequence<R> =
+    FactorySequence<R> { NullableMappingIterator<T, R>(iterator(), transform) }
+
+public fun <T> Sequence<T>.filter(predicate: (T) -> Boolean): Sequence<T> =
+    mapNotNull<T, T> { value -> if (predicate(value)) Some(value) else None }
+
+public fun <T> Sequence<T>.filterNot(predicate: (T) -> Boolean): Sequence<T> = filter<T> { value -> !predicate(value) }
+public fun <T> Sequence<T?>.filterNotNull(): Sequence<T> = mapNotNull<T?, T> { value -> value }
+public fun <T> Sequence<T>.onEach(action: (T) -> Unit): Sequence<T> = map<T, T> { value -> action(value); value }
+public fun <T> Sequence<T>.withIndex(): Sequence<IndexedValue<T>> =
+    mapIndexed<T, IndexedValue<T>> { index, value -> IndexedValue<T>(index, value) }

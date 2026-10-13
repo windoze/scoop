@@ -1,0 +1,42 @@
+package scoop.sequences
+
+import scoop.collections.ArrayDeque
+import scoop.collections.toList
+
+private class WindowingIterator<T>(
+    private val source: Iterator<T>, private val size: Long, private val step: Long, private val partial: Boolean
+) : Iterator<List<T>> {
+    private val window: ArrayDeque<T> = ArrayDeque<T>()
+    private var first: Boolean = true
+    private var ended: Boolean = false
+
+    private fun advance() {
+        var skip = step
+        while (skip > 0L && window.size > 0L) { window.removeFirst(); skip -= 1L }
+        while (skip > 0L && !ended) {
+            when (source.next()) {
+                case None -> ended = true
+                case Some(_) -> skip -= 1L
+            }
+        }
+    }
+
+    public override fun next(): List<T>? {
+        if (first) first = false else advance()
+        while (!ended && window.size < size) {
+            when (source.next()) {
+                case None -> ended = true
+                case Some(value) -> window.addLast(value)
+            }
+        }
+        if (window.size == 0L || (window.size < size && !partial)) return None
+        return Some(window.toList<T>())
+    }
+}
+
+public fun <T> Sequence<T>.windowed(size: Long, step: Long = 1L, partialWindows: Boolean = false): Sequence<List<T>> {
+    if (size <= 0L || step <= 0L) throw IllegalArgumentException(Some("non-positive window size or step"))
+    return FactorySequence<List<T>> { WindowingIterator<T>(iterator(), size, step, partialWindows) }
+}
+
+public fun <T> Sequence<T>.chunked(size: Long): Sequence<List<T>> = windowed<T>(size, size, true)

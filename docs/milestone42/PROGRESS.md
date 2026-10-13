@@ -173,3 +173,11 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 交付独立的 Sequence<T> 协议、emptySequence/sequenceOf、Iterable/Iterator.asSequence、两种 generateSequence 与 toList。普通 iterator factory 在首次 next 时建立来源；每次迭代独立保存进度，once-only 在请求 iterator 时占用。延迟 wrapper 统一保持永久耗尽与失败终止，第一次失败传播原异常，后续 next 抛 IllegalStateException，不重跑来源或回调。Sequence 按语言规范 11.8 的普通 operator iterator 规则直接用于 for，无需修改编译器，也不让 Sequence 隐式继承 Iterable；toList 通过内部普通适配复用集合算法。
 
 `m42-sequences-foundation` 与 `m42-sequences-lifecycle` 在普通和 moving GC 下全部通过，2 个变体、8 个进程，证据 `target/m42/sequences-foundation-report.json`。命令为 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-sequences --work-dir target/m42/foundation --jobs 2`。覆盖延迟创建来源、for、重复 Iterable、交错 seeded iterator、Some(None) seed、消费前的 once-only 预约、源 factory／generator 异常不重试，以及第一次 None 后不访问会恢复产值的底层 iterator。已构建普通 std Cone、检查源码格式并清理完成的 case；惰性算子、其余终结操作与组合产物验证继续实施。
+
+### Sequence 惰性算子与排序已完成
+
+交付 map/mapIndexed/mapNotNull、filter/filterNot/filterNotNull、flatMap/flatten、onEach、take/drop/takeWhile/dropWhile、zip/withIndex、distinct/distinctBy、chunked/windowed、sorted/sortedDescending/sortedBy/sortedWith，以及 joinToString。每个算子的状态随 iterator 独立建立；windowed 在下次 next 才滑动或跨过间隙，当前输出不提前消费后续元素，输出窗口为独立只读快照。排序在首次消费时完整收集并稳定排序，后续读取使用本次结果。共用延迟 wrapper 保证回调或上游失败后不重试。
+
+`m42-sequences-pipeline/windows/failures/sorting` 全部通过正常与 moving GC：无限 generator 经 filter/drop/take 的精确调用次数；take(0) 不占用上游 once-only iterator；嵌套 Option、空 inner flatten、zip 左侧多读约定、去重保留首项；480 组有限窗口模型、无限重叠窗口与大间隙短路；首个 next 才收集排序、selector 每项一次及相等 key 的稳定性。异常组合覆盖 map/filter、flatMap 内层、zip 右侧、distinct selector、window 上游、Comparator 和排序 selector，每次第一次异常传播、再次 next 不重试。
+
+证据为 `target/m42/sequences-operations-report.json` 中上述四项；该轮另两项终结操作见后续收尾记录。新增 compare-bound/hash-bound/string-bound/invariant 四项精确负例均通过，诊断包含缺失 Compare/Hash/ToString 和 Sequence<String> 不能隐式转换为 Sequence<Any>，记录在 `target/m42/sequences-artifacts-report.json`。普通 std Cone 构建、源码风格和 `git diff --check` 已通过；没有底层实现修改。
