@@ -1,0 +1,5 @@
+package scoop.collections
+
+public class NoSuchElementException public constructor(message: String) : Exception(Some(message))
+
+public class ConcurrentModificationException public constructor(message: String) : Exception(Some(message))

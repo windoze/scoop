@@ -1,0 +1,11 @@
+package scoop.collections
+
+public interface Set<T> : Collection<T>, Contains<T> {
+    public override operator fun contains(value: T): Boolean
+}
+
+public interface MutableSet<T> : Set<T> {
+    public fun add(value: T): Boolean
+    public fun remove(value: T): Boolean
+    public fun clear(): Unit
+}

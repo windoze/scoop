@@ -88,6 +88,8 @@ std 的浮点解析尤其遵守此要求：现有 JSON 的 runtime parser 是 in
 - 快照集合使用不实现 Mutable 接口的普通包装与独立 backing；不能把可变对象上转一次就声称不可变快照。
 - 排序使用稳定 O(n log n) 算法，首选迭代 merge sort；随机采样使用无偏 rejection/reservoir/Fisher–Yates。算法有明确输入、输出和局部状态，不引入框架式策略注册。
 
+M42-2 具体采用线性探测、empty/full/deleted 三态槽和缓存完整 hash。已占用槽（含 deleted）达到容量的 3/4 后，下次插入清理墓碑或扩容；rehash 不调用用户代码。状态与 typed entry 分开存储，删除将 entry 的 MaybeUninit 重置为全零。三态与删除后继续探测的资料参考 [Abseil 官方设计说明](https://abseil.io/about/design/swisstables)；其工程使用 [Apache-2.0 许可](https://github.com/abseil/abseil-cpp/blob/master/LICENSE)。这里独立实现标量线性探测，没有移植 C++ 源码、SIMD/group 探测或引入 native 依赖。
+
 ### 3.3 泛型 API 可实现性
 
 interface method 不声明自身泛型。Map/Set 接口不对所有 K/T 强加 Hash，Hash 容器才具有 Equals+Hash bound；Tree 构造器显式接收 Comparator，自然顺序工厂在普通 generic callable 上声明 Compare bound。

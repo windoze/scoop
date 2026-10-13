@@ -1,0 +1,127 @@
+package scoop.collections
+
+internal struct HashLocation(val index: Long, val hash: Long)
+
+public class HashMap<K, V> public constructor() : MutableMap<K, V>
+    where K : Equals<K>, K : Hash {
+    private var storage: HashStorage<K, V> = HashStorage<K, V>(8L)
+    private var elementCount: Long = 0L
+    private var occupied: Long = 0L
+    private val changes: ModificationCounter = ModificationCounter()
+    private val structure: ModificationCounter = ModificationCounter()
+
+    public override val size: Long get() = elementCount
+    public override val keys: Set<K> get() = MapKeys<K, V>(this)
+    public override val values: Collection<V> get() = MapValues<K, V>(this)
+    public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
+
+    private fun locate(key: K): HashLocation {
+        val stamp = changes.snapshot()
+        val hash = key.hash()
+        changes.check(stamp)
+        var index = storage.start(hash)
+        while (storage.states[index] != 0) {
+            if (storage.states[index] == 1) {
+                val entry = storage.read(index)
+                if (entry.hash == hash) {
+                    val equal = entry.key == key
+                    changes.check(stamp)
+                    if (equal) return HashLocation(index, hash)
+                }
+            }
+            index = storage.next(index)
+        }
+        return HashLocation(-1L, hash)
+    }
+
+    public override operator fun get(key: K): V? {
+        val location = locate(key)
+        return if (location.index < 0L) None else Some(storage.read(location.index).value)
+    }
+
+    public override fun containsKey(key: K): Boolean = locate(key).index >= 0L
+
+    private fun ensureRoom() {
+        val capacity = storage.capacity
+        if (occupied < capacity - capacity / 4L) return
+        val nextCapacity = if (elementCount < capacity / 2L) capacity else {
+            if (capacity <= 4611686018427387903L) capacity * 2L else 9223372036854775807L
+        }
+        storage = storage.rehashed(nextCapacity)
+        occupied = elementCount
+    }
+
+    public override fun put(key: K, value: V): V? = putEntry(key, value, true)
+
+    internal fun putIfAbsent(key: K, value: V): V? = putEntry(key, value, false)
+
+    private fun putEntry(key: K, value: V, replace: Boolean): V? {
+        val location = locate(key)
+        if (location.index >= 0L) {
+            val old = storage.read(location.index)
+            if (replace) {
+                storage.write(location.index, HashEntry<K, V>(old.key, value, old.hash))
+                changes.advance()
+            }
+            return Some(old.value)
+        }
+        ensureRoom()
+        val index = storage.vacant(location.hash)
+        if (storage.states[index] == 0) occupied += 1L
+        storage.write(index, HashEntry<K, V>(key, value, location.hash))
+        elementCount += 1L
+        changes.advance()
+        structure.advance()
+        return None
+    }
+
+    public override fun remove(key: K): V? {
+        val location = locate(key)
+        if (location.index < 0L) return None
+        val value = storage.read(location.index).value
+        storage.erase(location.index)
+        elementCount -= 1L
+        changes.advance()
+        structure.advance()
+        return Some(value)
+    }
+
+    public override fun clear() {
+        if (elementCount == 0L) return
+        storage.cleared()
+        elementCount = 0L
+        occupied = 0L
+        changes.advance()
+        structure.advance()
+    }
+
+    public override operator fun iterator(): Iterator<Map.Entry<K, V>> =
+        HashIterator<K, V>(this, structure)
+
+    internal val table: HashStorage<K, V> get() = storage
+}
+
+internal class HashIterator<K, V> internal constructor(
+    private val source: HashMap<K, V>,
+    private val structure: ModificationCounter
+) : Iterator<Map.Entry<K, V>> where K : Equals<K>, K : Hash {
+    private val stamp: RevisionStamp = structure.snapshot()
+    private var index: Long = 0L
+    private var exhausted: Boolean = false
+
+    public override fun next(): Map.Entry<K, V>? {
+        if (exhausted) return None
+        structure.check(stamp)
+        val storage = source.table
+        while (index < storage.capacity) {
+            val current = index
+            index += 1L
+            if (storage.states[current] == 1) {
+                val entry = storage.read(current)
+                return Some(Map.Entry<K, V>(entry.key, entry.value))
+            }
+        }
+        exhausted = true
+        return None
+    }
+}

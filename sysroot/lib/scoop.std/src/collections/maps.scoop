@@ -1,0 +1,57 @@
+package scoop.collections
+
+import Set as IndexSet
+
+public interface Map<K, V> : Get<K, V?>, Contains<K>, Iterable<Map.Entry<K, V>> {
+    public val size: Long
+    public override operator fun get(key: K): V?
+    public fun containsKey(key: K): Boolean
+    public override operator fun contains(value: K): Boolean = containsKey(value)
+    public val keys: Set<K>
+    public val values: Collection<V>
+    public val entries: Collection<Map.Entry<K, V>>
+
+    public struct Entry<K, V>(val key: K, val value: V)
+}
+
+public interface MutableMap<K, V> : Map<K, V>, IndexSet<K, V> {
+    public fun put(key: K, value: V): V?
+    public override operator fun set(key: K, value: V) { put(key, value) }
+    public fun remove(key: K): V?
+    public fun clear(): Unit
+}
+
+public fun <K, V> Map<K, V>.isEmpty(): Boolean = size == 0L
+
+public fun <K, V> Map<K, V>.isNotEmpty(): Boolean = size != 0L
+
+public fun <K, V : Equals<V>> Map<K, V>.containsValue(value: V): Boolean {
+    for (entry in this) {
+        if (entry.value == value) return true
+    }
+    return false
+}
+
+public fun <K, V> Map<K, V>.getValue(key: K): V = when (get(key)) {
+    case Some(value) -> value
+    case None -> throw NoSuchElementException("key is absent")
+}
+
+public fun <K, V> Map<K, V>.getOrDefault(key: K, defaultValue: V): V = when (get(key)) {
+    case Some(value) -> value
+    case None -> defaultValue
+}
+
+public fun <K, V> Map<K, V>.getOrElse(key: K, defaultValue: () -> V): V = when (get(key)) {
+    case Some(value) -> value
+    case None -> defaultValue()
+}
+
+public fun <K, V> MutableMap<K, V>.getOrPut(key: K, defaultValue: () -> V): V = when (get(key)) {
+    case Some(value) -> value
+    case None -> {
+        val value = defaultValue()
+        put(key, value)
+        value
+    }
+}
