@@ -238,7 +238,8 @@ impl<'a> OriginRequirements<'a> {
                         | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
                         | GeneratedCallableKey::CoroutineStart { .. }
                         | GeneratedCallableKey::FunctionBridge { .. }
-                        | GeneratedCallableKey::BoxingAdjust { .. } => return Ok(None),
+                        | GeneratedCallableKey::BoxingAdjust { .. }
+                        | GeneratedCallableKey::TestEntry { .. } => return Ok(None),
                     }
                     depth = depth.checked_add(1).ok_or_else(|| {
                         HirFoundationValidationError::Resource(WireError::new(

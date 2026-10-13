@@ -2597,7 +2597,7 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 - Cone是独立的编译/静态链接单元，不默认按每个`.scoop`文件生成一个可依赖的语言模块。manifest Cone按12.2.2得到当前target的完整源码集合，`scoopc`消费该集合，不额外扫描`src/`；文件以normalized Cone-relative `/` path的UTF-8 byte order排序，空集合与路径冲突等构建错误在parse前报告。single-file mode是显式root-input例外：整个synthetic Cone恰好包含指定文件，它不会使每个普通source file获得可分发Cone identity；
 - 同一Cone的全部source file一起建立语义环境，文件之间没有编译顺序。声明能否用短名访问仍由package/import与visibility决定，“同一Cone编译”不等于忽略namespace；
 - `internal`精确表示origin Cone内可见；默认visibility及其他access domain见9.1.5；
-- library不需要entry；其中名为`main`的普通声明不会因此获得entry linkage。executable root必须恰有一个符合下表的top-level ordinary、non-generic、non-suspend `main`，具有普通Scoop函数体；只在root Cone中发现，dependency中的`main`不参与竞争，entry可以保持internal；
+- 普通生产用途的 library 不需要 entry；其中名为 `main` 的普通声明不会因此获得 entry linkage。生产用途的 executable root 必须恰有一个符合下表的 top-level ordinary、non-generic、non-suspend `main`，具有普通 Scoop 函数体；只在 root Cone 中发现，dependency 中的 `main` 不参与竞争，entry 可以保持 internal；
 - 最终程序从program metadata保存的typed root entry调用`main`；源码package或固定native符号名不决定entry。
 
 | 入口签名 | 正常结束时的退出码 |
@@ -2608,6 +2608,8 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 | `fun main(args: Array<String>): Int` | 实际返回的 `Int` 值 |
 
 表中的参数名 `args` 不作要求；有参数时恰有一个普通参数，其类型是实际 core `Array<String>` 的 exact application，透明 alias 按普通类型规则展开。其他参数／返回形态不能充当入口；缺少入口、入口不唯一或候选签名不合法均为编译错误，诊断给出实际签名和允许的形态。
+
+测试用途为当前 Cone 合成独立的 executable entry，生产 manifest 的 library／executable kind 均可作为被测对象。合成入口使用 generated callable 身份，参数与返回值遵守上述入口 ABI；已有源码 main 保持普通声明，不参与测试入口选择，也不由测试启动自动调用。测试入口沿用既有 eager 初始化、root gateway、异常和 shutdown 语义。
 
 `args` 包含完整原生 argv：`args[0]` 是可执行程序自身的启动路径，后续元素才是用户传入的参数。这一点与 Java/Kotlin 的 `main(args)` **不一致**：Java/Kotlin 不在 `args` 中包含程序路径。Scoop 保留启动者传入的原生 `argv[0]` 字符串，不将其解析为绝对路径或规范化真实路径；`scoop run` 使用稳定的可执行输出路径。没有用户参数时 `args` 仍有这一项。参数按原有顺序保留，包括空字符串，不重新按空格拆分。
 

@@ -6,8 +6,8 @@ pub use annotations::AnnotationProductionError;
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DecodedExecutableSourceEntryIdentity, DecodedPersistentId,
-    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, PersistentExportBindingId,
+    ConeIdentity, DecodedExecutableEntryIdentity, DecodedPersistentId, ExecutableEntryIdentity,
+    ExecutableEntryIdentityError, PersistentExportBindingId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -60,7 +60,7 @@ pub use type_semantics::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirOutputContractV1 {
     Library,
-    Executable(Box<ExecutableSourceEntryIdentity>),
+    Executable(Box<ExecutableEntryIdentity>),
 }
 
 impl HirOutputContractV1 {
@@ -96,7 +96,7 @@ impl WireEncode for HirOutputContractV1 {
 #[derive(Debug)]
 pub enum DecodedHirOutputContractV1 {
     Library,
-    Executable(Box<DecodedExecutableSourceEntryIdentity>),
+    Executable(Box<DecodedExecutableEntryIdentity>),
 }
 
 impl DecodedHirOutputContractV1 {
@@ -115,18 +115,31 @@ impl DecodedHirOutputContractV1 {
         match self {
             Self::Library => Ok(HirOutputContractV1::Library),
             Self::Executable(decoded) => {
-                let declaration = foundation
-                    .function_record_by_bytes(decoded.declaration().as_array())
-                    .ok_or(HirOutputContractValidationError::UnknownEntry(
-                        *decoded.declaration().as_array(),
-                    ))?;
                 let signature = decoded
                     .source_signature()
                     .clone()
                     .resolve(&mut &*foundation)
                     .map_err(|_| HirOutputContractValidationError::InvalidSignature)?;
-                let expected = ExecutableSourceEntryIdentity::try_new(declaration, signature)
-                    .map_err(HirOutputContractValidationError::InvalidEntry)?;
+                let unknown = || {
+                    HirOutputContractValidationError::UnknownEntry(
+                        *decoded.declaration().as_array(),
+                    )
+                };
+                let expected = match decoded.declaration() {
+                    scoop_identity::DecodedExecutableEntryDeclaration::Source(id) => {
+                        let record = foundation
+                            .function_record_by_bytes(id.as_array())
+                            .ok_or_else(unknown)?;
+                        ExecutableEntryIdentity::try_new(record, signature)
+                    }
+                    scoop_identity::DecodedExecutableEntryDeclaration::Generated(id) => {
+                        let record = foundation
+                            .generated_callable_record_by_bytes(id.as_array())
+                            .ok_or_else(unknown)?;
+                        ExecutableEntryIdentity::for_test(record, signature)
+                    }
+                }
+                .map_err(HirOutputContractValidationError::InvalidEntry)?;
                 if expected.root_cone() != artifact {
                     return Err(HirOutputContractValidationError::ForeignEntry {
                         artifact,
@@ -183,7 +196,7 @@ impl WireDecode for DecodedHirOutputContractV1 {
             2 => {
                 require_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedExecutableSourceEntryIdentity::decode)
+                    .field(1, DecodedExecutableEntryIdentity::decode)
                     .map(Box::new)
                     .map(Self::Executable)
             }
@@ -196,7 +209,7 @@ impl WireDecode for DecodedHirOutputContractV1 {
 pub enum HirOutputContractValidationError {
     UnknownEntry([u8; 32]),
     InvalidSignature,
-    InvalidEntry(ExecutableSourceEntryIdentityError),
+    InvalidEntry(ExecutableEntryIdentityError),
     ForeignEntry {
         artifact: ConeIdentity,
         entry: ConeIdentity,
@@ -210,7 +223,7 @@ impl fmt::Display for HirOutputContractValidationError {
         match self {
             Self::UnknownEntry(id) => write!(
                 formatter,
-                "HIR executable source entry {} is absent from the identity foundation",
+                "HIR executable entry {} is absent from the identity foundation",
                 HexIdentity(id)
             ),
             Self::InvalidSignature => {
@@ -219,7 +232,7 @@ impl fmt::Display for HirOutputContractValidationError {
             Self::InvalidEntry(error) => error.fmt(formatter),
             Self::ForeignEntry { artifact, entry } => write!(
                 formatter,
-                "HIR executable source entry belongs to Cone {entry}, not artifact Cone {artifact}"
+                "HIR executable entry belongs to Cone {entry}, not artifact Cone {artifact}"
             ),
             Self::Encode(error) => error.fmt(formatter),
             Self::EntryMismatch => formatter.write_str(
@@ -428,7 +441,7 @@ mod tests {
     use scoop_identity::{
         BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
         DeclarationScope, DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey,
-        ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath, PersistentExactTypeId,
+        ExecutableEntryIdentity, ExportBindingKey, PackagePath, PersistentExactTypeId,
         PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
@@ -456,7 +469,7 @@ mod tests {
         let executable = executable_contract(&function);
         assert_eq!(
             hex(&encode(&executable).unwrap()),
-            "a2000201a50158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02582092c7d9b606546e8e3a46c17972ace56a987446fecd6c88b62c454eea4196152e03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c9257055820221846fe4135ff2faad68a82a75e090f40964eadd46ca1ac8722d22471c5c40e"
+            "a2000201a50158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02a2000101582092c7d9b606546e8e3a46c17972ace56a987446fecd6c88b62c454eea4196152e03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c9257055820221846fe4135ff2faad68a82a75e090f40964eadd46ca1ac8722d22471c5c40e"
         );
     }
 
@@ -704,7 +717,7 @@ mod tests {
     fn executable_contract(
         declaration: &CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
     ) -> HirOutputContractV1 {
-        let entry = ExecutableSourceEntryIdentity::try_new(
+        let entry = ExecutableEntryIdentity::try_new(
             declaration,
             ExactCallableSignature::new(
                 scoop_identity::Effect::Ordinary,

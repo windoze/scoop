@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言已完成；测试标记随发现功能交付 | 普通 scoop.test Cone、8 个断言函数、失败数据及 10 个独立 fixture；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择与定义处声明／依赖候选隔离已完成；测试用途编排与依赖接入待实施 | test.sources/test-dependencies 解码；源码角色贯穿发现、解析与前端；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 待实施 | |
+| M43-3 静态发现与生命周期入口 | 生成入口的身份与产物传递已完成；前端合成、发现与生命周期待实施 | Source／Generated 封闭入口声明、TestEntry key、HIR/MIR/LIR metadata 与根网关回归 |
 | M43-4 CLI 与运行报告 | 待实施 | |
-| M43-5 产物与平台验收 | 待实施 | |
+| M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
 
 ## 工作约定
 
@@ -55,3 +55,14 @@
 - Darwin 正式 CLI 的 7 项跨 Cone 定向 fixture 全部通过，合计 7 个变体、60 个进程步骤；覆盖包前缀、冲突、support package 不可见、diamond re-export、泛型嵌套类型／别名、无源码产物消费及 moving GC 运行，见[报告](validation/dependency-roles-darwin.json)。没有运行无关全量测试。
 - `scoop.std` 已明确为首个实际测试应用，设计变更独立提交 `62c1cb3b`。清理已归档报告对应的 `target/m43/source-roles`（约 593 MB），保留当前构建缓存。
 - 测试构建请求、根 Cone 的测试依赖图合并、测试构建键与输出、静态目录和生成入口仍待接入；当前仅完成共享前端的依赖名称边界，正式 `scoop test` 和标准库应用尚未交付。
+
+## 2026-10-14：生成测试入口的身份与产物传递
+
+- 先修订语言规范 12.4.4 与实现规范 2.6～2.7，区分生产 main 与生成测试入口；源码／生成声明使用不同的 typed id，TestEntry key 由当前 ConeIdentity 与 role 构成。入口声明、完整签名与 Strong callable body 一起传递，不借用源码 main 的身份。
+- HIR 输出合同、MIR bridge、LIR entry plan 和 artifact-only 入口读取保留 Source／Generated 分支；入口实现必须对应选中的声明。生成入口沿用现有 gateway、failure-root、root descriptor、GC 与异常协议，生产 main 的 body identity 保持不变。
+- 按实际编码变化更新 HIR identity-foundation/9、core-bootstrap-interface/15，MIR identity-foundation/7、core-bootstrap-bridge/2，以及 LIR cone-production/12、strong-production/22。旧 section 被拒绝并要求重建，未变更 runtime ABI、manifest 或 link-identity-closure 格式。
+- 格式化、workspace clippy、三个 CLI 构建通过。identity 349 项及 1 项 doctest；HIR/MIR/LIR production 分别 55/15/187 项；MIR/LIR bridge lowering 1/2 项；根网关 5 项、前端入口 9 项、codegen 6 项通过。slib 全量首轮 567 项通过，唯一失败是 section 版本改变后的语义指纹固定向量，更新该向量后定向补验通过；profile 的 57 项已通过。固定编码向量只按新的声明分支与版本更新，未放宽原有检查。完整日志见[验证记录](validation/entry-rust.log.gz)。
+- 新增专测覆盖生成 key 与入口的读写、不同 identity domain 的区分、错误 generated role／签名、同 Cone 源码 main 并存、外 Cone／缺失声明、错误实现、复用生产 gateway 的拒绝、链接端恢复，以及生成入口的正常 LLVM root descriptor 与 managed/no-GC 网关。
+- 入口身份实现拆为 209 行主体与 120 行声明模块；LIR/codegen 的测试 fixture 构造移入各自 support 模块，测试主文件分别为 216/167 行。清理已归档的 target/m43/dependency-roles（约 689 MB）。
+- Darwin 正式 CLI 的四种入口、7 类签名负例及 4 类 shutdown 场景全部通过：15 个 fixture、23 个变体、169 个进程步骤；含 debug/release、删除源码后的 artifact-only 链接、参数／UTF-8／退出码、异常与 moving/minor GC，见[报告](validation/entry-darwin.json)。本批未重复不受影响的全量 CLI 或提前执行 Linux 验收。
+- 本批尚未合成前端测试函数正文，也未接入测试构建用途、静态目录、生命周期运行器或 scoop test；这些能力与 scoop.std 首个实际应用继续按设计实施，不把本批 metadata 支持视为 M43-3 或 M43 完成。

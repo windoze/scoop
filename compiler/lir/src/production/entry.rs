@@ -1,8 +1,8 @@
 use scoop_identity::{
     DecodedExactCallableSignature, DecodedPersistentId, DecodedPersistentSymbolRequest,
-    DigestPatchIntentId, ExactCallableSignature, ExecutableSourceEntryIdentity, MainCallableBodyId,
-    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentFunctionId,
-    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    DigestPatchIntentId, ExactCallableSignature, ExecutableEntryIdentity, MainCallableBodyId,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentStaticStorageId,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     SourceSignatureFingerprint,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
@@ -17,11 +17,11 @@ use validation::{build_executable, validate_library_foundation};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EntryProductionSourceV1 {
     Library,
-    Executable(Box<ExecutableSourceEntryIdentity>),
+    Executable(Box<ExecutableEntryIdentity>),
 }
 
 impl EntryProductionSourceV1 {
-    pub fn executable(entry: ExecutableSourceEntryIdentity) -> Self {
+    pub fn executable(entry: ExecutableEntryIdentity) -> Self {
         Self::Executable(Box::new(entry))
     }
 }
@@ -29,7 +29,7 @@ impl EntryProductionSourceV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExecutableEntryPlanV1 {
     root_cone: scoop_identity::ConeIdentity,
-    declaration: PersistentFunctionId,
+    declaration: scoop_identity::ExecutableEntryDeclaration,
     source_signature: ExactCallableSignature,
     source_signature_fingerprint: SourceSignatureFingerprint,
     main: MainCallableBodyId,
@@ -46,7 +46,7 @@ impl ExecutableEntryPlanV1 {
         self.root_cone
     }
 
-    pub const fn declaration(&self) -> PersistentFunctionId {
+    pub const fn declaration(&self) -> scoop_identity::ExecutableEntryDeclaration {
         self.declaration
     }
 
@@ -170,7 +170,7 @@ impl WireEncode for EntryProductionPlanV1 {
 #[derive(Debug)]
 pub struct DecodedExecutableEntryPlanV1 {
     root_cone: DecodedPersistentId<scoop_identity::ConeIdentity>,
-    declaration: DecodedPersistentId<PersistentFunctionId>,
+    declaration: scoop_identity::DecodedExecutableEntryDeclaration,
     source_signature: DecodedExactCallableSignature,
     source_signature_fingerprint: DecodedPersistentId<SourceSignatureFingerprint>,
     main: DecodedPersistentId<PersistentCallableBodyId>,
@@ -215,7 +215,8 @@ impl WireDecode for DecodedExecutableEntryPlanV1 {
         decoder.expect_map(11)?;
         Ok(Self {
             root_cone: decoder.field(1, DecodedPersistentId::decode)?,
-            declaration: decoder.field(2, DecodedPersistentId::decode)?,
+            declaration: decoder
+                .field(2, scoop_identity::DecodedExecutableEntryDeclaration::decode)?,
             source_signature: decoder.field(3, DecodedExactCallableSignature::decode)?,
             source_signature_fingerprint: decoder.field(4, DecodedPersistentId::decode)?,
             main: decoder.field(5, DecodedPersistentId::decode)?,

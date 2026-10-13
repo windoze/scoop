@@ -24,7 +24,7 @@ pub fn lower_entry_production_source(
 
 pub(super) fn lower_root_artifacts(
     producer: scoop_identity::ConeIdentity,
-    source: &scoop_identity::ExecutableSourceEntryIdentity,
+    source: &scoop_identity::ExecutableEntryIdentity,
     main: RootMain<'_>,
     layout: scoop_lir::StaticStorageLayout,
     globals: &mut Arena<scoop_lir::Global>,
@@ -152,33 +152,43 @@ pub(super) fn lower_initialization_startup_gateway(
 #[cfg(test)]
 mod tests {
     use scoop_identity::{
-        CallableOwner, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
+        CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
         DeclarationScope, DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey,
-        ExecutableSourceEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
+        ExecutableEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
 
     use super::lower_entry_production_source;
 
     #[test]
-    fn lowering_preserves_the_complete_mir_entry_proof() {
+    fn lowering_preserves_the_selected_mir_entry() {
         let source = source();
-        let implementation = CallableOwner::Function(source.declaration());
-        let mir = scoop_mir::EntryMirBridgeBranchV1::Executable(Box::new(
-            scoop_mir::EntryMirBridgeV1::new(source.clone(), implementation).unwrap(),
-        ));
+        let generated =
+            CborIdentityRecord::from_key(scoop_identity::GeneratedCallableKey::TestEntry {
+                cone: source.root_cone(),
+            })
+            .unwrap();
+        let generated =
+            ExecutableEntryIdentity::for_test(&generated, source.source_signature().clone())
+                .unwrap();
+        for source in [source, generated] {
+            let implementation = source.declaration().owner();
+            let mir = scoop_mir::EntryMirBridgeBranchV1::Executable(Box::new(
+                scoop_mir::EntryMirBridgeV1::new(source.clone(), implementation).unwrap(),
+            ));
 
-        assert_eq!(
-            lower_entry_production_source(&mir),
-            scoop_lir::EntryProductionSourceV1::executable(source)
-        );
-        assert_eq!(
-            lower_entry_production_source(&scoop_mir::EntryMirBridgeBranchV1::Library),
-            scoop_lir::EntryProductionSourceV1::Library
-        );
+            assert_eq!(
+                lower_entry_production_source(&mir),
+                scoop_lir::EntryProductionSourceV1::executable(source)
+            );
+            assert_eq!(
+                lower_entry_production_source(&scoop_mir::EntryMirBridgeBranchV1::Library),
+                scoop_lir::EntryProductionSourceV1::Library
+            );
+        }
     }
 
-    fn source() -> ExecutableSourceEntryIdentity {
+    fn source() -> ExecutableEntryIdentity {
         let declaration = CborIdentityRecord::from_key(SourceDeclarationKey::function(
             SourceDeclarationSite::new(
                 ConeIdentity::SINGLE_FILE,
@@ -197,7 +207,7 @@ mod tests {
             CoreBuiltinNominal::Unit.identity_record().id(),
         ))
         .unwrap();
-        ExecutableSourceEntryIdentity::try_new(
+        ExecutableEntryIdentity::try_new(
             &declaration,
             ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
         )

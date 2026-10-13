@@ -63,13 +63,13 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ][..],
             &[
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             ][..],
         ),
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),
@@ -114,5 +114,25 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 }
             }
         }
+    }
+}
+
+#[test]
+fn generated_entry_formats_require_the_updated_hir_and_mir_sections() {
+    for (current, version) in [
+        (hir_identity_foundation_capability(), 9),
+        (mir_identity_foundation_capability(), 7),
+        (hir_core_bootstrap_interface_capability(), 15),
+        (mir_core_bootstrap_bridge_capability(), 2),
+    ] {
+        assert_eq!(current.major_version(), version);
+        assert!(CapabilityContractRegistry::contract(&current).is_some());
+        let old = CapabilityId::new(current.namespace(), current.name(), version - 1).unwrap();
+        assert!(CapabilityContractRegistry::contract(&old).is_none());
+        let descriptor = ArtifactCapabilityProfile::CROSS_CONE_GENERIC.descriptor();
+        assert!(
+            descriptor.required_hir().contains(&current)
+                || descriptor.required_mir().contains(&current)
+        );
     }
 }

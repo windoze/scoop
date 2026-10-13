@@ -66,7 +66,8 @@ pub(super) fn source_subject(
                     | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
                     | GeneratedCallableKey::CoroutineStart { .. }
                     | GeneratedCallableKey::FunctionBridge { .. }
-                    | GeneratedCallableKey::BoxingAdjust { .. } => return None,
+                    | GeneratedCallableKey::BoxingAdjust { .. }
+                    | GeneratedCallableKey::TestEntry { .. } => return None,
                 }
             }
             CallableTemplateOwner::VariantConstructor(_) => return None,

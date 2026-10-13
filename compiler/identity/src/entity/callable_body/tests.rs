@@ -1,11 +1,11 @@
+use crate::{ExecutableEntryIdentity, ExecutableEntryIdentityError};
 use scoop_wire::{
     RuntimeDecodeErrorKind, decode_canonical, decode_runtime, encode, encode_runtime,
 };
 
 use super::{
     CallableBodyKey, CallableBodyKeyKind, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
-    DecodedStrongCallableDefinitionOwner, ExecutableSourceEntryIdentity,
-    ExecutableSourceEntryIdentityError, MainCallableBodyId, StrongCallableDefinitionOwner,
+    DecodedStrongCallableDefinitionOwner, MainCallableBodyId, StrongCallableDefinitionOwner,
 };
 use crate::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
@@ -23,10 +23,13 @@ fn executable_source_entry_proves_main_shape_before_refining_the_body() {
         Vec::new(),
         PersistentExactTypeId([7; 32]),
     );
-    let entry = ExecutableSourceEntryIdentity::try_new(&declaration, signature.clone()).unwrap();
+    let entry = ExecutableEntryIdentity::try_new(&declaration, signature.clone()).unwrap();
 
     assert_eq!(entry.root_cone(), ConeIdentity::SINGLE_FILE);
-    assert_eq!(entry.declaration(), declaration.id());
+    assert_eq!(
+        entry.declaration(),
+        crate::ExecutableEntryDeclaration::Source(declaration.id())
+    );
     assert_eq!(entry.source_signature(), &signature);
     assert_eq!(
         entry.main().body(),
@@ -38,8 +41,8 @@ fn executable_source_entry_proves_main_shape_before_refining_the_body() {
 
     let wrong_name = source_function("start", None, Vec::new());
     assert_eq!(
-        ExecutableSourceEntryIdentity::try_new(&wrong_name, signature.clone()),
-        Err(ExecutableSourceEntryIdentityError::NotMain)
+        ExecutableEntryIdentity::try_new(&wrong_name, signature.clone()),
+        Err(ExecutableEntryIdentityError::NotMain)
     );
     let receiver = source_function(
         "main",
@@ -49,8 +52,8 @@ fn executable_source_entry_proves_main_shape_before_refining_the_body() {
         Vec::new(),
     );
     assert_eq!(
-        ExecutableSourceEntryIdentity::try_new(&receiver, signature),
-        Err(ExecutableSourceEntryIdentityError::InvalidDeclarationShape)
+        ExecutableEntryIdentity::try_new(&receiver, signature),
+        Err(ExecutableEntryIdentityError::InvalidDeclarationShape)
     );
 }
 

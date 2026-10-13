@@ -54,6 +54,7 @@ macro_rules! test_identity {
     };
 }
 
+test_identity!(crate::ConeIdentity);
 test_identity!(PersistentFunctionId);
 test_identity!(PersistentGenericFunctionId);
 test_identity!(PersistentConstructorId);
@@ -113,6 +114,9 @@ fn all_generated_callable_records_round_trip_and_resolve() {
         CallableMaterializationContext::NoSubstitution,
     );
     let keys = vec![
+        GeneratedCallableKey::TestEntry {
+            cone: crate::ConeIdentity::expected(),
+        },
         GeneratedCallableKey::Lexical {
             parent,
             role: LexicalCallableRole::LambdaBody,

@@ -66,13 +66,16 @@ pub use entity::{
     DecodedCallableMaterialization, DecodedCallableMaterializationContext,
     DecodedCallableTemplateOrigin, DecodedCallableTemplateOwner, DecodedCallbackApplicationKey,
     DecodedCallbackRegistrationKey, DecodedDependencyCallableDeclarationId,
-    DecodedExecutableSourceEntryIdentity, DecodedExportBindingKey, DecodedLocalBindingKey,
-    DecodedPropertyAccessorKey, DecodedSignatureCallableShape,
-    DecodedStrongCallableDefinitionOwner, DependencyCallableDeclarationId,
-    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, ExportBindingKey,
-    LocalBindingKey, LocalBindingRole, MainCallableBodyId, PropertyAccessorKey,
-    SignatureCallableShape, StrongCallableDefinitionOwner,
+    DecodedExportBindingKey, DecodedLocalBindingKey, DecodedPropertyAccessorKey,
+    DecodedSignatureCallableShape, DecodedStrongCallableDefinitionOwner,
+    DependencyCallableDeclarationId, ExportBindingKey, LocalBindingKey, LocalBindingRole,
+    MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape, StrongCallableDefinitionOwner,
 };
+pub use entity::{
+    DecodedExecutableEntryDeclaration, DecodedExecutableEntryIdentity, ExecutableEntryDeclaration,
+    ExecutableEntryIdentity, ExecutableEntryIdentityError,
+};
+
 pub use entity::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,
     CanonicalCAbiFunctionSignature, CanonicalCAbiLayout, CanonicalCAbiLayoutField,

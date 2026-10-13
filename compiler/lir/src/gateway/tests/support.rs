@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey, ExecutableSourceEntryIdentity,
+    DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey, ExecutableEntryIdentity,
     GeneratedCallableKey, InitializationCallableRole, InitializationUnitKey, PackagePath,
     PersistentExactTypeId, PersistentGeneratedCallableId, PersistentPropertyId, PropertyOwner,
     SourceDeclarationKey, SourceDeclarationSite,
@@ -69,10 +69,40 @@ pub(super) fn root(managed: bool) -> Module {
         CoreBuiltinNominal::Unit.identity_record().id(),
     ))
     .unwrap();
-    let source = ExecutableSourceEntryIdentity::try_new(
+    let source = ExecutableEntryIdentity::try_new(
         &declaration,
         ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
     )
+    .unwrap();
+    root_with_entry(managed, source)
+}
+
+pub(super) fn test_root(managed: bool) -> Module {
+    let record = CborIdentityRecord::from_key(GeneratedCallableKey::TestEntry {
+        cone: ConeIdentity::SINGLE_FILE,
+    })
+    .unwrap();
+    let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))
+    .unwrap();
+    let source = ExecutableEntryIdentity::for_test(
+        &record,
+        ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
+    )
+    .unwrap();
+    root_with_entry(managed, source)
+}
+
+fn root_with_entry(managed: bool, source: ExecutableEntryIdentity) -> Module {
+    let body = match source.declaration() {
+        scoop_identity::ExecutableEntryDeclaration::Source(id) => {
+            CallableBodyIdentity::for_function(id)
+        }
+        scoop_identity::ExecutableEntryDeclaration::Generated(id) => {
+            CallableBodyIdentity::for_generated_callable(id)
+        }
+    }
     .unwrap();
     let mut locals = LocalFunctionIdentities::default();
     let (entry, effect) = if managed {
@@ -85,10 +115,7 @@ pub(super) fn root(managed: bool) -> Module {
     };
     locals.alloc_managed();
     let mut module = crate::test_support::module(vec![
-        function(
-            CallableBodyIdentity::for_function(declaration.id()).unwrap(),
-            effect,
-        ),
+        function(body, effect),
         function(crate::tests::callable_body("other"), GcEffect::Managed),
     ]);
     module.output = LirOutput::Executable { entry };

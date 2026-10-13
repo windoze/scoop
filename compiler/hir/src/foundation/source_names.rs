@@ -184,7 +184,8 @@ impl CanonicalHirFoundation {
             | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
             | GeneratedCallableKey::CoroutineStart { .. }
             | GeneratedCallableKey::FunctionBridge { .. }
-            | GeneratedCallableKey::BoxingAdjust { .. } => Some(SourceContextNames::default()),
+            | GeneratedCallableKey::BoxingAdjust { .. }
+            | GeneratedCallableKey::TestEntry { .. } => Some(SourceContextNames::default()),
         }
     }
 }

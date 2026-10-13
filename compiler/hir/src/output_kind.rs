@@ -3,9 +3,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    DeclarationName, DefinitionOriginSubject, ExactCallableSignature,
-    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, PersistentFunctionId,
-    SourceSignatureFingerprint,
+    DeclarationName, DefinitionOriginSubject, ExactCallableSignature, ExecutableEntryIdentity,
+    ExecutableEntryIdentityError, SourceSignatureFingerprint,
 };
 
 use crate::{ExportHir, FunctionGenericity, FunctionId, FunctionKind, HirSourceFunctionIdentity};
@@ -26,7 +25,7 @@ impl CurrentFunctionId {
 /// Unique, fully validated local source entry of an executable Cone.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocalExecutableEntry {
-    identity: ExecutableSourceEntryIdentity,
+    identity: ExecutableEntryIdentity,
     local_function: CurrentFunctionId,
 }
 
@@ -103,7 +102,7 @@ impl LocalExecutableEntry {
             return Err(LocalExecutableEntryError::DefinitionOriginConeMismatch);
         }
 
-        let identity = ExecutableSourceEntryIdentity::try_new(record, signature)
+        let identity = ExecutableEntryIdentity::try_new(record, signature)
             .map_err(LocalExecutableEntryError::Identity)?;
         Ok(Self {
             identity,
@@ -111,7 +110,7 @@ impl LocalExecutableEntry {
         })
     }
 
-    pub const fn declaration(&self) -> PersistentFunctionId {
+    pub const fn declaration(&self) -> scoop_identity::ExecutableEntryDeclaration {
         self.identity.declaration()
     }
 
@@ -127,7 +126,7 @@ impl LocalExecutableEntry {
         self.identity.source_signature_fingerprint()
     }
 
-    pub const fn identity(&self) -> &ExecutableSourceEntryIdentity {
+    pub const fn identity(&self) -> &ExecutableEntryIdentity {
         &self.identity
     }
 }
@@ -155,7 +154,7 @@ pub enum LocalExecutableEntryError {
     MissingExactType,
     MissingDefinitionOrigin,
     DefinitionOriginConeMismatch,
-    Identity(ExecutableSourceEntryIdentityError),
+    Identity(ExecutableEntryIdentityError),
 }
 
 impl fmt::Display for LocalExecutableEntryError {

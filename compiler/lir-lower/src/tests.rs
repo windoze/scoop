@@ -19,13 +19,13 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
-    ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey, InitializationUnitKey,
-    LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
-    PendingIdentityValidation, PersistentCallbackApplicationId, PersistentExactTypeId,
-    PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId,
-    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, ExecutableEntryIdentity,
+    FieldIdentityKey, GeneratedCallableKey, InitializationUnitKey, LexicalCallableParent,
+    LexicalCallableRole, NonEmptyVec, PackagePath, PendingIdentityValidation,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
+    PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId, PersistentTypeId,
+    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
+    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
     SourceNativeExternalContract, SourceNativeExternalContractKey,
     SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
     SourceNominalKind, SourceScoopAbiFunctionSignature, SpecializationKey,
@@ -221,7 +221,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
                 .expect("test module supplies Unit exact type")
                 .identity_record()
                 .id();
-            let source = ExecutableSourceEntryIdentity::try_new(
+            let source = ExecutableEntryIdentity::try_new(
                 &declaration,
                 ExactCallableSignature::new(
                     scoop_identity::Effect::Ordinary,
