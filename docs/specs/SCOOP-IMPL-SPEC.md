@@ -825,7 +825,7 @@ debug 使用 Scoop machine O0 与 generated-C O0，release 使用 O2；两者均
 
 Linux/amd64 的 managed 调用保留固定的 outgoing argument area，使运行时规范 3.2 的 `FP = SP + N - 8` 对每个 safepoint 都成立。LLVM 22.1 后端关闭 X86 call-frame size optimization，避免按值参数被改成调用点临时 push/pop；源码参数语义、calling convention 和其余 O2 优化保持。此设置在创建任何 target machine 前由 codegen 统一初始化。
 
-LLVM 22.1 的机器基本块布局关闭 tail duplication，避免在 roots 与 site identity 定稿后复制 STATEPOINT。条件 poll 后接不返回的 Managed 调用也必须只保留一个实际调用点及一条对应 stackmap 记录；给 statepoint 添加 LLVM `noduplicate`／`convergent` 调用属性不能阻止该机器优化。此限制沿用统一的 target machine 初始化，不改变 SafepointId、返回地址或对象验证规则。
+LLVM 22.1 关闭寄存器分配后的独立 tail duplication pass 及机器基本块布局中的 tail duplication，避免在 roots 与 site identity 定稿后复制 STATEPOINT。只关闭布局阶段不够：独立 pass 也可能复制共同的终结调用或异常合流后的 Managed 调用。条件 poll 后接不返回的 Managed 调用也必须只保留一个实际调用点及一条对应 stackmap 记录；给 statepoint 添加 LLVM `noduplicate`／`convergent` 调用属性不能阻止该机器优化。此限制沿用统一的 target machine 初始化，保留其余 release O2 优化，不改变 SafepointId、返回地址或对象验证规则。
 
 普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
 

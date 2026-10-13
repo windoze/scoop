@@ -281,3 +281,13 @@ Uuid 是保存两个 ULong 的普通 struct，支持全位型、unsigned 顺序�
 本机五个 UUID fixture 均有通过证据：values 验证位型、字节快照、HashMap 与 B-tree 顺序；parsing 验证大小写、非法形状／字符／长度及来源异常传播；random 验证全零、全一、顺序字节向量、规定以外位保持与准确消费次数；contracts 拒绝省略 RNG。artifacts 将 Random、Uuid、Base64、TreeMap 与 Sequence 组合，移除 core/std/consumer 源码并在隔离环境只靠产物重新链接，正常与 moving GC 均通过。
 
 `target/m42/random-contracts-uuid-first-report.json` 保留 RNG contracts 和 UUID parsing/random/artifacts 四项通过；首轮 values 的 tuple 访问语法错误已修正，`target/m42/uuid-values-contracts-report.json` 中 values/contracts 两项通过，共 6 个进程。无需重复已通过且未改动的其他 fixture。新增库最大 53 行，风格与 `git diff --check` 通过，没有底层实现修改；已清理完成 case 与单次检查产物，保留报告和共享 cache。M42-9 的库实现已完成，三目标序列一致性仍随 Linux GNU/musl 本组最终定向验收确认；M42-10～12 保持原范围。
+
+## M42-10 前置修复：机器 tail duplication 复制 safepoint
+
+Duration 的独立算术向量在 debug 正常／moving GC 通过，release 生成对象时被拒绝：同一个 SafepointId 出现两条 stackmap 记录。已从中提取 core-only 的 `m42-statepoint-taildup`：Option 分支中的 closure 调用经 try/catch 合流，再调用普通 check。旧编译器复现同类错误，说明这不是 Duration 或 Collection API 缺口。
+
+LLVM 22.1 的机器 pass 日志将原因定位到寄存器分配后的独立 Tail Duplication。仅设置既有 tail-dup-placement=false 不足以约束该 pass；一个独立 LLVM 测试的两条分支汇入共同终结 Managed 调用，指令选择后一个 STATEPOINT，经该 pass 变成两个。修复在统一 target machine 初始化中另加 disable-tail-duplicate，保留其它 release O2 优化和严格对象／GC 检查，不改 site ID、runtime ABI、产物格式或库算法。
+
+新增 codegen 回归先在旧配置的 Darwin/Release 下失败，修复后覆盖三目标、debug/release 的对象生成及 stackmap 验证。已通过 cargo fmt、全工作区 clippy，以及 `cargo test -p scoop-codegen statepoint::tests` 的 28 项相关测试，含既有条件 poll、byval frame、managed roots 和异常边组合。诊断与前后对照保留在 `target/m42/stackmap-gap/`；临时 LLVM 转储代码已经删除。
+
+正式 CLI 修复验收通过：`target/m42/stackmap-fixed-duration-time-report.json` 记录 core-only 复现、原 Duration 算术及两个时间合同 fixture 共 4 项、6 个变体、22 个进程全部通过，原问题的 debug/release 和 moving GC 均闭合。既有 `m31-local-effects`、`m31-ssa-roots` 共 6 个变体、18 个进程、3 个必要 LIR golden 通过，包含 moving/minor GC、异常／closure／Context 与移除源码后的重新链接；报告为 `target/m42/stackmap-optimization-regressions-report.json`。一次尝试共享 cache 的软链接被现有快照规则拒绝，已删除该临时目录并使用正式 work-dir 重跑，未修改快照规则。没有运行无关完整套件；Linux 程序运行仍随本组最终定向验收完成。
