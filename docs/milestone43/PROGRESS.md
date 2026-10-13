@@ -152,3 +152,8 @@
 - 20 项前端测试及 2 项选择逻辑测试通过；覆盖 Ignore 适配保留、真正的跨库调用、选择函数结果类型错误诊断、完整 argv 入口的 MIR 依赖、Unicode 匹配、空分组与空选择原因。首次原生验证发现直接运行时误将 argv[0] 当成用户参数，已按既有 12.4.4 修正；其后 7 项入口测试复验通过，debug/release 直接运行恢复默认未忽略选择。
 - 格式化、workspace clippy 与三个配套命令构建通过。Darwin 最终执行／负例[报告](validation/selection-darwin.json)为 2 个 fixture、3 个变体、17 个进程步骤全部通过；[初轮报告](validation/selection-initial-darwin.json)中的列表 fixture 已通过 debug/release 共 10 步，其同轮执行 fixture 的 argv[0] 失败由最终报告覆盖修复。合计 3 个 fixture、5 个变体、27 个通过步骤，覆盖 default／filter／ignored／空匹配、同一产物指纹与缓存零编译调用、忽略用例完整 hooks 与 moving GC、构造失败、直接启动，以及过滤不隐藏未选中用例的编译错误及准确位置。
 - 选择器 55 行、生成调用条件 38 行、普通库选择函数 15 行；入口主体 217 行。复用未变化的列表验证与 core 缓存，未重跑无关全量测试。独立结果通道、输出捕获与完整执行报告、scoop.std 全套 CLI 组合和 Linux GNU／musl 验收仍待完成；M43 完成后继续 M44。
+
+## 2026-10-14：正式 fixture 读取测试报告
+
+- 增加显式 `json = "test-stderr"`，读取构建记录之后的 test-report／test-list 与工具诊断；result 保留构建结果，test_result 保存测试结果。原 stderr 模式仍在构建结果处停止，保持用户输出的原始字节边界。
+- 覆盖报告中的 JSON 形似用户输出、报告后的工具失败诊断、编译失败没有测试结果，以及重复报告拒绝。Ruff 0.16.10 格式化／lint 与 49 项公共 runner 测试全部通过，见 [日志](validation/report-python.log.gz)。执行端与报告端继续以正式 CLI 验证。

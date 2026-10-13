@@ -116,6 +116,11 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `json = "stdout"` 用于普通工具的逐行 JSON，保留原 stdout。步骤结果还包含
 `records`、`diagnostics`、`returncode`、`pid`、`stdout`、`stderr`、`raw_stderr`。
 
+`json = "test-stderr"` 用于默认捕获输出的 `scoop test` 或 `--list`：继续读取构建记录后的
+`test-report`／`test-list` 与工具诊断，`result` 保留构建结果，`test_result` 保存测试结果。
+同样必须声明完整 diagnostics；捕获的用户输出只作为报告字段读取，不从中识别结构化记录。
+`--nocapture` 将用户 stderr 混入工具记录时不能使用这个模式。
+
 每一步的 `checks` 选择 `actual`（JSON 引用）、`file` 或 `glob`（排序后的路径数组），并选择一个比较：
 `equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
