@@ -312,6 +312,8 @@ Instant 采用 Unix/POSIX epoch seconds 与 0..999999999 nanos：1970-01-01T00:0
 
 parse 接受第 8.5 节 ISO 日期和时间，必须携带 Z 或固定 offset；输出转换到 UTC，以 Z 结尾。没有 offset 的 LocalDateTime 不能隐式解释为 UTC 或本地时间。wall clock 可以被校时，不承诺不同 Clock.now 读数单调；求耗时应使用同源 TimeMark。
 
+fromEpochSeconds 的两个参数均为 Long，nanosecondAdjustment 缺省为零；先规范化再检查域，参数无效抛 IllegalArgumentException。fromEpochMilliseconds 接收 Long。plus/minus、toEpochMilliseconds 和与 LocalDateTime 的转换越界抛 ArithmeticException；parse 超出域视为非法文本，parseOrNull 返回 None。
+
 ### 8.4 单调时间与 TimeMark
 
 TimeMark 保存 `source: TimeSource` 与 `reading: Duration`，reading 是相对于该来源任意原点的有限坐标，不是 Unix 时间。供系统库从已经取得的读数构造，也可由用户数据源生成。source 使用普通引用身份，只用于判断读数是否同源，不是授权凭证、跨进程 ID 或注册表项。
@@ -326,6 +328,8 @@ TimeMark 保存 `source: TimeSource` 与 `reading: Duration`，reading 是相对
 
 采用 proleptic Gregorian calendar，包含 year 0，year 范围 -999999999..999999999。Month 使用 JANUARY..DECEMBER，DayOfWeek 使用 MONDAY..SUNDAY；monthNumber 为 1..12，ISO weekday 为 1..7。
 
+Month／DayOfWeek 是普通 enum，分别提供 number／isoDayNumber、of(Int) 受检工厂，以及按上述编号的 Equals/Compare/Hash 和大写变体名称 ToString。LocalDate(year: Int, monthNumber: Int, dayOfMonth: Int) 与 YearMonth(year: Int, monthNumber: Int) 在构造时验证；两者另提供 Month 参数重载、month 和 yearMonth（LocalDate）属性。plusDays/plusMonths/plusYears 接收 Long，fromEpochDays 接收 Long 并拒绝域外参数（IllegalArgumentException）；已有日期的偏移越界为 ArithmeticException。日期减 DatePeriod 直接反向应用总月数及 days，不要求先构造逐字段取负的 period，因此不会因 Long.MIN_VALUE 的中间取负而错误接受 wrapping 结果。
+
 - LocalDate：受检 year/month/day 构造，MIN/MAX、year/monthNumber/dayOfMonth/dayOfYear/dayOfWeek、toEpochDays/fromEpochDays、plusDays/plusMonths/plusYears、daysUntil、DatePeriod 加减、parse/parseOrNull/toString。epoch day 0 为 1970-01-01，使用 Long；daysUntil 为 other 减 receiver 的日数。
 - LocalTime：hour 0..23、minute/second 0..59、nanosecond 0..999999999；提供 from/toNanosecondOfDay、分量、比较、加减 Duration（按 24 小时回绕）与 ISO 文本。拒绝 24:00、闰秒和带日期/offset 的输入。
 - LocalDateTime：组合 LocalDate/LocalTime，plus/minus(Duration)、DatePeriod/DateTimePeriod 运算、日期时间分量、与显式 UtcOffset 的 toInstant 转换、parse/parseOrNull/toString。按民用 86400 秒日进行纯值计算，不隐式调用时区规则。
@@ -339,7 +343,13 @@ DatePeriod 保存 years:Int、months:Int、days:Long，各分量可有符号；�
 
 日期文本使用 ISO 扩展形式：year 0000..9999 为四位；负年为负号及至少四位绝对值数字；大于 9999 的正年必须有 + 号。月份和日期两位。时间为 HH:mm:ss，可有 1..9 位小数；输出去掉小数尾零，无小数时不写点。LocalDateTime 用 T 连接，OffsetDateTime/Instant 必须带 offset；不接受空白、区域名或 locale 拼写。
 
+日期年份的无符号输入必须恰好四位；显式正号要求数值大于 9999，负号要求非零负年且至少四位绝对值数字，拒绝 -0000。YearMonth 使用同一年份规则及两位月份，形式为 year-MM。DatePeriod 的 years/months/days 缺省为零，按原始分量判等和哈希；本期的 period 运算指应用到日期／日期时间，不另提供 period 间的合并或规范化规则。
+
 无效构造参数与文本分别按 IllegalArgumentException／parseOrNull 返回 None；已合法值的算术或转换超出域抛 ArithmeticException。已验证的不变对象不在每个 getter、比较、序列化时重放日期合法性检查。
+
+LocalTime(hour: Int, minute: Int, second: Int = 0, nanosecond: Int = 0) 的分量只读；fromNanosecondOfDay(Long) 接受 0..<86400000000000，toNanosecondOfDay() 返回同一范围。加减 Duration 在整数运算中按天取余，负极值时长也不能因中间取负而溢出。LocalDateTime(date: LocalDate, time: LocalTime) 另提供 year/monthNumber/dayOfMonth/hour/minute/second/nanosecond 分量构造（秒与纳秒缺省为零），暴露 date/time 与相应只读分量。DateTimePeriod(date: DatePeriod = DatePeriod(), time: Duration = Duration.ZERO) 按两个原始字段判等和哈希；减法与加法一样先日历、后精确时长。
+
+UtcOffset.fromTotalSeconds(Int) 与 fromHoursMinutesSeconds(hours: Int = 0, minutes: Int = 0, seconds: Int = 0) 是受检工厂，提供 ZERO。分量形式要求小时在 -18..18、分钟和秒各在 -59..59，所有非零分量的符号相同，最终总秒数仍须在 ±64800 内；不接受相互抵消的符号或超范围分量。OffsetDateTime(dateTime: LocalDateTime, offset: UtcOffset) 提供 toInstant()、withOffsetSameInstant(offset) 和 withOffsetSameLocal(offset)；构造与保留 local 的替换不要求此值对应的 Instant 在 Instant 域内，显式转换时才检查。
 
 ## 9. Codec 组合
 

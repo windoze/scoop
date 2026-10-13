@@ -1,0 +1,6 @@
+package scoop.datetime
+
+public struct DatePeriod(val years: Int = 0, val months: Int = 0, val days: Long = 0L) : Equals<DatePeriod>, Hash {
+    public override operator fun equals(other: DatePeriod): Boolean = years == other.years && months == other.months && days == other.days
+    public override fun hash(): Long = (years.hash() * 31L + months.hash()) * 31L + days.hash()
+}

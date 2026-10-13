@@ -305,3 +305,11 @@ Duration 使用普通不可变 final class，保存 floor-normalized 秒／纳�
 TimeSource 仅声明 markNow；TimeMark 保存显式 source 与 Duration reading，提供 Duration 平移、同源读数相减和比较。相等要求来源引用相同且读数相等；异源相等为 false，相减／顺序比较抛 IllegalArgumentException，不调用用户的来源 equals，也不提供默认 Hash。数据操作不调用 markNow，后续系统库负责实际取时。
 
 `m42-time-marks` 在正常与 moving GC 下通过：来源引用与值相等的区别、正负平移、差值、顺序、异源拒绝、Duration 溢出及来源调用计数均验证；`m42-time-contracts` 精确验证 Duration 原始构造不可访问、seconds 不可写，以及 TimeMark 不满足 Hash bound。两项通过见 `target/m42/stackmap-fixed-duration-time-report.json`。实现 23 行，为普通 Scoop，源码风格与 `git diff --check` 通过。已清理完成的 case 与单次检查产物，保留报告和共享 cache；Clock/Instant、M42-11～12 与 Linux 本组最终定向验收继续实施。
+
+## M42-11 进行中：日期基础已完成
+
+为 Instant 的范围及 ISO 转换先交付 LocalDate、YearMonth、Month、DayOfWeek 和 DatePeriod。普通 Scoop 实现公历日期、year 0、±999999999 年、epoch day、星期、日序、严格 ISO 文本、月份夹到月末及日期偏移。年月先合成一次总月数，之后应用天数；减法不会先取负 Long.MIN_VALUE。日期算法采用 Howard Hinnant 公开捐赠的公式，来源和说明保存在 DATE-ALGORITHMS.txt，没有 C++ 或系统时间依赖。
+
+`calendar` 使用 Python datetime 加 400 年周期平移独立计算的 72 组固定向量，覆盖负极值、世纪、闰年、year 0、正极值，同时验证 HashMap 与 B-tree。`date-arithmetic` 覆盖全域跨度、月份夹取、负年进位、原始 period 分量相等和极值拒绝；两项均通过正常／moving GC，见 `target/m42/calendar-first-report.json`。该轮 date-text 使用了不支持的字符串转义，已按现有 Scoop 语法修正。随后 `date-text` 正常／moving GC 和 `contracts` 的两条 immutable property 精确诊断全部通过，见 `target/m42/calendar-final-report.json`。
+
+本批库源码最大 62 行，风格及 staged diff 检查通过；无底层实现修改，未运行完整套件。日期基础按独立功能提交，其余时间分量、offset、Instant、codec 及三目标最终定向验收继续实施。

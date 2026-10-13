@@ -1,0 +1,42 @@
+package scoop.datetime
+
+import scoop.text.padStart
+
+internal fun calendarTwoDigits(value: Int): String = value.toString().padStart(2L, '0')
+
+internal fun formatCalendarYear(year: Int): String =
+    if (year < 0) "-" + (-year).toString().padStart(4L, '0')
+    else if (year > 9999) "+" + year.toString() else year.toString().padStart(4L, '0')
+
+internal fun parseCalendarFields(text: String, withDay: Boolean): (Int, Int, Int)? {
+    val chars = text.toCharArray()
+    val yearEnd = chars.size - (if (withDay) 6L else 3L)
+    if (yearEnd < 4L || chars[yearEnd] != '-') return None
+    val negative = chars[0L] == '-'
+    val positive = chars[0L] == '+'
+    var index = if (negative || positive) 1L else 0L
+    if (yearEnd - index < 4L || (!negative && !positive && yearEnd != 4L)) return None
+    var year = 0
+    while (index < yearEnd) {
+        val digit = chars[index].code - 48
+        if (digit < 0 || digit > 9 || year > (999999999 - digit) / 10) return None
+        year = year * 10 + digit
+        index = index + 1L
+    }
+    if ((negative && year == 0) || (positive && year <= 9999)) return None
+    if (negative) year = -year
+    val month = calendarParseTwo(chars, yearEnd + 1L)
+    var day = 1
+    if (withDay) {
+        if (chars[yearEnd + 3L] != '-') return None
+        day = calendarParseTwo(chars, yearEnd + 4L)
+    }
+    if (!validCalendarDate(year, month, day)) return None
+    return Some((year, month, day))
+}
+
+internal fun calendarParseTwo(chars: List<Char>, index: Long): Int {
+    val first = chars[index].code - 48
+    val second = chars[index + 1L].code - 48
+    return if (first >= 0 && first <= 9 && second >= 0 && second <= 9) first * 10 + second else -1
+}

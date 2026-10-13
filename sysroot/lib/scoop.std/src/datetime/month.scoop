@@ -1,0 +1,27 @@
+package scoop.datetime
+
+public enum Month : Equals<Month>, Compare<Month>, Hash, ToString {
+    JANUARY, FEBRUARY, MARCH, APRIL, MAY, JUNE, JULY, AUGUST, SEPTEMBER, OCTOBER, NOVEMBER, DECEMBER
+
+    public val number: Int get() = when (this) {
+        case JANUARY -> 1; case FEBRUARY -> 2; case MARCH -> 3; case APRIL -> 4
+        case MAY -> 5; case JUNE -> 6; case JULY -> 7; case AUGUST -> 8
+        case SEPTEMBER -> 9; case OCTOBER -> 10; case NOVEMBER -> 11; case DECEMBER -> 12
+    }
+    public override operator fun equals(other: Month): Boolean = number == other.number
+    public override operator fun compareTo(other: Month): Long = number.compareTo(other.number)
+    public override fun hash(): Long = number.hash()
+    public override fun toString(): String = when (this) {
+        case JANUARY -> "JANUARY"; case FEBRUARY -> "FEBRUARY"; case MARCH -> "MARCH"; case APRIL -> "APRIL"
+        case MAY -> "MAY"; case JUNE -> "JUNE"; case JULY -> "JULY"; case AUGUST -> "AUGUST"
+        case SEPTEMBER -> "SEPTEMBER"; case OCTOBER -> "OCTOBER"; case NOVEMBER -> "NOVEMBER"; case DECEMBER -> "DECEMBER"
+    }
+    public companion object {
+        public fun of(number: Int): Month = when (number) {
+            case 1 -> JANUARY; case 2 -> FEBRUARY; case 3 -> MARCH; case 4 -> APRIL
+            case 5 -> MAY; case 6 -> JUNE; case 7 -> JULY; case 8 -> AUGUST
+            case 9 -> SEPTEMBER; case 10 -> OCTOBER; case 11 -> NOVEMBER; case 12 -> DECEMBER
+            case _ -> throw IllegalArgumentException(Some("month must be in 1..12"))
+        }
+    }
+}

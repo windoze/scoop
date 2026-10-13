@@ -142,6 +142,8 @@ Duration 的秒／纳秒表示参考 [Java Duration](https://docs.oracle.com/en/
 
 初次构造验证 canonical 分量，后续 getter/比较复用不变结果。文本解析根据语法验证输入，转换检查新的目标范围；不在每个时间操作中重放所有字段校验。不读系统 locale、时区数据库或 native 时间函数。
 
+日期与 epoch day 的互转采用 Howard Hinnant 的 [civil date algorithms](https://howardhinnant.github.io/date_algorithms.html)，以三月为内部年首、按 400 年划分 era，用 Long 避免大年份中间值溢出。作者明确将公式贡献至 public domain，出处保留在 std/licenses/DATE-ALGORITHMS.txt；不引入 C++ date 库、时区数据或 native 依赖。月份偏移先在可表示的总月序号范围内检查，再进行加法和月末夹取。日期基础先于 Instant 的 ISO 文本交付，以便两者复用同一日历与解析实现；这只是 M42-10/11 的依赖顺序调整，不减少任一类型的交付范围。
+
 ### 3.5 复用与新依赖
 
 实现前核对选定成熟算法的原作者资料、维护状态与许可；优先移植必要算法到 Scoop，保留许可归属，不通过绑定 native 库绕过本里程碑的纯 Scoop 要求。M42 不预先增加 Cargo、C 或宿主运行时依赖。
