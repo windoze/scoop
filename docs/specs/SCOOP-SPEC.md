@@ -21,7 +21,7 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 - Scoop 的核心语法；
 - 支撑核心语法所需的**最小核心库**（见第 11 章）。
 
-除 11.10 为字符串构建提供的最小 `List` / `MutableList` / `ArrayList` 和 11.14 的原子类型外，标准库的其他部分（其他集合、IO、高层并发工具、序列库等）不在本规范范围内。
+除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。IO、系统取时、系统熵和高层并发工具另行设计。
 
 ### 1.2 并发安全与数据竞争
 
@@ -2048,9 +2048,14 @@ suspend fun <T> suspendCoroutine(
 
 #### 11.10.1 `List<T>` 与 `MutableList<T>`
 
+M42 目标修订（尚未实现）：增加普通 `Collection<T>`，供现有 List、新 Set 和 Map 的值／entry 视图共享已知大小的只读访问协议。它只要求 size 与迭代，不假定元素相等、哈希或字符串化；不增加编译器协议角色。新 Set／Map 等 API 见标准基础库规范第 2 章。
+
 ```scoop
-public interface List<T> : Iterable<T> {
+public interface Collection<T> : Iterable<T> {
     public val size: Long
+}
+
+public interface List<T> : Collection<T> {
     public operator fun get(index: Long): T
 }
 

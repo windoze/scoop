@@ -556,6 +556,16 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 以 Equals/equals 替换 Equality/equalTo；Float/Double 默认比较按正负零与全部 NaN 的等价类构成全序，提供显式 IEEE 四态比较。
 - 按功能先更新 spec、实现并验证后提交。Rust 完整覆盖 5,584 项通过；Linux 正式 CLI 完整覆盖 GNU 3,785 项、musl 3,783 项通过，无未闭合失败。本机定向回归、完整运行与补验来源、产物差异审阅及清理见验收记录。
 
+### M42 平台无关标准基础库（设计完成，待实现，[详细设计](milestone42/DESIGN.md)，[目标规范](specs/SCOOP-STDLIB-SPEC.md)）
+
+- 增加普通 `scoop:scoop.std:0.1.0` Cone，显式依赖 core，按 Kotlin 习惯组织 collections/comparisons/sequences/text/bytes/io.encoding/random/time/datetime/uuid 与 Result；不改变 single-file 的 core-only 依赖或默认导入。
+- 集合同时包含 unordered HashMap/HashSet、insertion-ordered LinkedHashMap/LinkedHashSet、sorted TreeMap/TreeSet 与 Sorted 接口，另有 Deque、PriorityQueue、工厂/快照、集合算法和惰性 Sequence。core 仅补普通 Collection 公共接口，保留原 List/ArrayList/StringBuilder 的依赖与行为。
+- 补齐文本、数值解析、堆内字节读写、大小端、Hex/Base64、typed Result/Option 组合、显式 RNG 抽象与 seeded PRNG、Uuid 及显式 codec。
+- 时间包含 Duration、Instant、Clock/TimeSource 来源接口、同源 TimeMark、LocalDate/LocalTime/LocalDateTime、固定 UtcOffset/OffsetDateTime、YearMonth 和日历 period；本期仅数据、运算与处理，无系统取时、熵、时区数据库或调度。
+- 所有实现必须由普通 Scoop Cone 与公开 core API 完成，不新增 native 后备、intrinsic、compiler/runtime 特判。合法源码遇到底层缺陷时先独立修复和回归，再继续库实现，不保留库侧绕行。
+- 验收按实际修改范围：未改底层实现时，最终只跑 M42 这组 Cone 的三目标定向测试及必要的 core API 定向回归，不运行完整测试套件；底层修改按影响补回归，共享 ABI/GC/产物变化才据实际影响扩大验证，详见设计第 7 章。
+- math（含 BigInteger/Decimal）、regex、完整 Unicode、压缩、密码学、更多格式、持久化集合及系统库独立排期，不成为本里程碑的验收前置。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture、组合 fixture 和准确的 negative 诊断。普通功能用例验证编译与运行；各 stage 的结构由少量代表性的 golden 或 typed IR 精确断言覆盖，产物、ABI、GC、链接与优化专测保留对应合同（见 AGENTS.md 编码准则）。

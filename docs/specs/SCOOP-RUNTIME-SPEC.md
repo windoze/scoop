@@ -6,6 +6,8 @@
 
 运行时提供 managed 对象分配、精确移动 GC、类型检查与动态分派所需的数据、异常展开、一次性初始化、Task-local Context 和 FFI 支持。运行时不得重新进行源码名称解析、重载选择或泛型实例化。
 
+M42 的平台无关标准基础库按 [标准基础库规范](SCOOP-STDLIB-SPEC.md) 完全使用普通 Scoop Cone 实现，只通过公开 core API 使用既有运行时能力。集合、排序、文本和字节处理、数值文本转换、RNG、日期／时间运算均不增加 runtime helper、native 后备或专用 ABI；Clock／TimeSource 只有普通库接口，没有系统取时实现。库代码触发的实际 GC、异常或 ABI 缺陷必须先在对应底层修复并建立独立回归，不能将缺陷处理转移成库专用绕行。
+
 受支持目标使用 little-endian、64-bit data/code pointer 和 natural 8-byte metadata alignment。所有大小、数量、对齐和地址范围计算必须检查溢出及实际存储边界；不满足目标表示或 ABI 的输入必须拒绝。
 
 ## 2. 对象模型
