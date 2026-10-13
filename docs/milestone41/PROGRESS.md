@@ -68,3 +68,8 @@
 - 本机 fmt、workspace clippy、release CLI 构建通过。HIR lowering 原 1,427 项与新增源 core 字面量用例通过；3 项浮点 wire 测试及 core bootstrap 结构检查通过。实际 intrinsic 接口入口增加至 115，参数、GC effect 与 MIR 完整性检查通过。
 - 正式 CLI 首轮选择 99 项：95 通过、1 项 musl 专属不适用；旧 compareTo 缺失负例及两个新夹具源码错误在迁移后闭合。补验 9 项全部通过（14 个变体、56 次进程），包含 7 项结构派生回归；精度混用的新 compareTo 负例也通过正式 runner。最终适用用例均已闭合，不把新语义下成功编译的旧负例继续保留为错误规则。
 - 本批仅完成本机功能验证；优化/ABI 专用 LIR 期望审阅及 Linux GNU/musl 完整验收仍待下一批。清理旧 cases/cache/sysroot 和诊断采集产物，保留报告与当前可复用缓存。
+
+## 优化与 ABI 期望迁移：本机
+
+- 审阅并更新 M31 SSA roots 与 M34 small-values 的 8 份本机 LIR 期望，保留专用 ABI、GC 与优化合同断言。变化来自新增的名义运算符接口、Equals 身份与其可达类型支持；逐份比较函数体，除 external-fn/external-td/td 引用编号变化外，指令和签名没有差异。
+- 更新轮 4 项通过（含新 compareTo 精度混用负例），8 个变体、39 次进程、9 个 golden 检查；随后普通模式复验 3 项全部通过，7 个变体、38 次进程、9 个 golden 检查。Linux 专属的 12 份 LIR 期望留待对应目标实际生成和审阅，不从 Darwin 推测。
