@@ -1,0 +1,25 @@
+package scoop.sequences
+
+private class SeedSequenceIterator<T>(seed: T, private val advance: (T) -> T?) : Iterator<T> {
+    private var previous: T? = Some(seed)
+    private var started: Boolean = false
+
+    public override fun next(): T? {
+        if (!started) { started = true; return previous }
+        previous = when (previous) {
+            case Some(value) -> advance(value)
+            case None -> None
+        }
+        return previous
+    }
+}
+
+private class PollSequenceIterator<T>(private val produce: () -> T?) : Iterator<T> {
+    public override fun next(): T? = produce()
+}
+
+public fun <T> generateSequence(seed: T, next: (T) -> T?): Sequence<T> =
+    FactorySequence<T> { SeedSequenceIterator<T>(seed, next) }
+
+public fun <T> generateSequence(next: () -> T?): Sequence<T> =
+    OnceSequence<T> { PollSequenceIterator<T>(next) }

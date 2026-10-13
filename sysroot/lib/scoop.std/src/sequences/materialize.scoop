@@ -1,0 +1,11 @@
+package scoop.sequences
+
+import scoop.collections.toList
+
+private class SequenceIterable<T>(private val source: Sequence<T>) : Iterable<T> {
+    public override operator fun iterator(): Iterator<T> = source.iterator()
+}
+
+internal fun <T> Sequence<T>.terminalInput(): Iterable<T> = SequenceIterable<T>(this)
+
+public fun <T> Sequence<T>.toList(): List<T> = terminalInput<T>().toList<T>()

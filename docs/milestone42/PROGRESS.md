@@ -167,3 +167,9 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 证据保留为 `target/m42/results-first-report.json` 的 basic/throw-bound/artifacts 三项，以及 `target/m42/results-final-report.json` 的 option/exceptions 两项（2 个变体、8 个进程）。正式命令均使用 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-results --work-dir target/m42/foundation`；首轮 `--jobs 4`，收尾只选择两项受修改 fixture，`--jobs 2`。初始测试误以为 catch 与 throw 前的对象具有相同 identity；core-only probe 与运行时规范 5.1～5.4 均确认现有复制／物化行为。修正测试为动态类型和 payload 浅复制检查，普通 Result 包装仍检查引用保持；没有修改底层或库代码来绕过问题。
 
 已执行源码风格检查、`git diff --check` 和普通 std Cone 构建。无 Rust/C 修改，不运行完整测试套件；已清理本轮 case、诊断 probe 及单次负例目录，保留报告与共享 cache。Sequence 及后续阶段保持原交付范围。
+
+### Sequence 构造与迭代生命周期已完成
+
+交付独立的 Sequence<T> 协议、emptySequence/sequenceOf、Iterable/Iterator.asSequence、两种 generateSequence 与 toList。普通 iterator factory 在首次 next 时建立来源；每次迭代独立保存进度，once-only 在请求 iterator 时占用。延迟 wrapper 统一保持永久耗尽与失败终止，第一次失败传播原异常，后续 next 抛 IllegalStateException，不重跑来源或回调。Sequence 按语言规范 11.8 的普通 operator iterator 规则直接用于 for，无需修改编译器，也不让 Sequence 隐式继承 Iterable；toList 通过内部普通适配复用集合算法。
+
+`m42-sequences-foundation` 与 `m42-sequences-lifecycle` 在普通和 moving GC 下全部通过，2 个变体、8 个进程，证据 `target/m42/sequences-foundation-report.json`。命令为 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-sequences --work-dir target/m42/foundation --jobs 2`。覆盖延迟创建来源、for、重复 Iterable、交错 seeded iterator、Some(None) seed、消费前的 once-only 预约、源 factory／generator 异常不重试，以及第一次 None 后不访问会恢复产值的底层 iterator。已构建普通 std Cone、检查源码格式并清理完成的 case；惰性算子、其余终结操作与组合产物验证继续实施。
