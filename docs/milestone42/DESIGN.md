@@ -1,6 +1,6 @@
 # M42 设计：平台无关标准基础库
 
-状态：正在实施，分批交付与实际验证见 [进度记录](PROGRESS.md)。基线 `89da1b35`。日期：2026-10-13。
+状态：已完成，三目标定向覆盖见 [验收记录](ACCEPTANCE.md)，分批交付见 [进度记录](PROGRESS.md)。基线 `89da1b35`。日期：2026-10-13。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)与[路线图](../ROADMAP.md)。公共 API 行为以标准基础库规范为准；本文规定实现组织、依赖、交付批次和验证范围。
 

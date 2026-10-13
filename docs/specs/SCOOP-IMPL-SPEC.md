@@ -680,7 +680,7 @@ symbol 只表示已存在的 typed entity，不能反向补声明或决定 ABI�
 
 core 是普通 library Cone，可修改和重建，使用相同声明、可见性、泛型、产物、ABI 与链接规则。sysroot 只提供默认 locator，不改变实体归属或来源资格。
 
-M42 目标补充（尚未实现）：`scoop:scoop.std:0.1.0` 是只直接依赖 core 的普通 library Cone，公开契约见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)。其代码全部由 Scoop 源码组成，使用公开 core API 和普通跨 Cone 编译、单态化、产物及链接路径。不得为库新增 native source、`@Extern`／`@Intrinsic`、按库名识别的 lowering、特殊容器布局或产物字段。Collection 是普通 core 源码接口扩充，新增接口关系按已有 API／布局／代码指纹失效规则重建依赖，不另增版本或发布机制。若合法库源码暴露编译器、core 或 runtime 缺陷，先建立独立最小回归并修复底层，再继续库功能；不得在库中建立绕过缺陷的平行实现。修复确实改变既有语言、ABI 或格式契约时，先修订相应规范并按原规则迁移，不预先为 M42 扩大协议。
+M42 标准基础库：`scoop:scoop.std:0.1.0` 是只直接依赖 core 的普通 library Cone，公开契约见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)。其代码全部由 Scoop 源码组成，使用公开 core API 和普通跨 Cone 编译、单态化、产物及链接路径。不得为库新增 native source、`@Extern`／`@Intrinsic`、按库名识别的 lowering、特殊容器布局或产物字段。Collection 是普通 core 源码接口扩充，新增接口关系按已有 API／布局／代码指纹失效规则重建依赖，不另增版本或发布机制。若合法库源码暴露编译器、core 或 runtime 缺陷，先建立独立最小回归并修复底层，再继续库功能；不得在库中建立绕过缺陷的平行实现。修复确实改变既有语言、ABI 或格式契约时，先修订相应规范并按原规则迁移，不预先为 M42 扩大协议。
 
 只有编译器主动构造或调用的语言角色需要独立的 typed protocol 引用，例如 Unit/Any/Nothing、整数/Char/Float/Double 表示、Option/Iterator、编译器异常、初始化循环、协程和 callback。引用必须解析到实际声明及完整签名，缺失、重复或形状错误在相应边界报告。Any/Nothing 必须具有语言规范 11.1 的源码声明和普通 public binding；内部顶／底类型表示只引用这些声明，不能用固定名字补建缺失的名义声明。
 

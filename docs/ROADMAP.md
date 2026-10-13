@@ -556,7 +556,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 以 Equals/equals 替换 Equality/equalTo；Float/Double 默认比较按正负零与全部 NaN 的等价类构成全序，提供显式 IEEE 四态比较。
 - 按功能先更新 spec、实现并验证后提交。Rust 完整覆盖 5,584 项通过；Linux 正式 CLI 完整覆盖 GNU 3,785 项、musl 3,783 项通过，无未闭合失败。本机定向回归、完整运行与补验来源、产物差异审阅及清理见验收记录。
 
-### M42 平台无关标准基础库（实施中，[详细设计](milestone42/DESIGN.md)，[目标规范](specs/SCOOP-STDLIB-SPEC.md)，[进度](milestone42/PROGRESS.md)）
+### M42 平台无关标准基础库（已完成，[详细设计](milestone42/DESIGN.md)，[规范](specs/SCOOP-STDLIB-SPEC.md)，[验收记录](milestone42/ACCEPTANCE.md)）
 
 - 增加普通 `scoop:scoop.std:0.1.0` Cone，显式依赖 core，按 Kotlin 习惯组织 collections/comparisons/sequences/text/bytes/io.encoding/random/time/datetime/uuid 与 Result；不改变 single-file 的 core-only 依赖或默认导入。
 - 集合同时包含 unordered HashMap/HashSet、insertion-ordered LinkedHashMap/LinkedHashSet、sorted TreeMap/TreeSet 与 Sorted 接口，另有 Deque、PriorityQueue、工厂/快照、集合算法和惰性 Sequence。core 仅补普通 Collection 公共接口，保留原 List/ArrayList/StringBuilder 的依赖与行为。
@@ -565,6 +565,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 所有实现必须由普通 Scoop Cone 与公开 core API 完成，不新增 native 后备、intrinsic、compiler/runtime 特判。合法源码遇到底层缺陷时先独立修复和回归，再继续库实现，不保留库侧绕行。
 - 验收按实际修改范围：未改底层实现时，最终只跑 M42 这组 Cone 的三目标定向测试及必要的 core API 定向回归，不运行完整测试套件；底层修改按影响补回归，共享 ABI/GC/产物变化才据实际影响扩大验证，详见设计第 7 章。
 - math（含 BigInteger/Decimal）、regex、完整 Unicode、压缩、密码学、更多格式、持久化集合及系统库独立排期，不成为本里程碑的验收前置。
+- M42-1～12 全部交付，TreeMap／TreeSet 使用内联键值的 B-tree。三目标各通过本组 130 个 fixture、139 个变体；含必要既有回归后 Darwin／GNU 各覆盖 150 项、musl 149 项。五个实际底层缺陷均独立修复及回归，没有运行无关全量套件。
 
 ## 3. 备注
 

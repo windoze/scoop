@@ -1,8 +1,8 @@
 # Scoop 平台无关标准基础库规范
 
-状态：M42 目标规范，正在实施；已实现范围和实际验证见 [进度记录](../milestone42/PROGRESS.md)。日期：2026-10-13。
+状态：M42 已实现，三目标定向覆盖见 [验收记录](../milestone42/ACCEPTANCE.md)。日期：2026-10-13。
 
-本文件规定 `scoop.std` 的公共库行为；语法、类型和 core 规则以 [语言规范](SCOOP-SPEC.md) 为准，产物与运行机制分别遵守 [实现规范](SCOOP-IMPL-SPEC.md) 和 [运行时规范](SCOOP-RUNTIME-SPEC.md)。实施次序与验证见 [M42 设计](../milestone42/DESIGN.md)。本文件不是已经交付这些 API 的声明。
+本文件规定 `scoop.std` 的公共库行为；语法、类型和 core 规则以 [语言规范](SCOOP-SPEC.md) 为准，产物与运行机制分别遵守 [实现规范](SCOOP-IMPL-SPEC.md) 和 [运行时规范](SCOOP-RUNTIME-SPEC.md)。实施次序与验证见 [M42 设计](../milestone42/DESIGN.md)。
 
 ## 1. 库边界与公共约定
 
