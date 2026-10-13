@@ -1,10 +1,8 @@
 use crate::runtime::ValidatedRuntimeBuildProfile;
 use std::path::PathBuf;
 
-use scoop_lir::{
-    BackendProfile, LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation,
-    ValidatedLirTargetSelection,
-};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{BackendProfile, LirTargetProfile, TargetProfileId, ValidatedLirTargetSelection};
 
 use crate::{
     FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile,
@@ -33,28 +31,33 @@ impl ResolvedTargetProfile {
     }
 
     pub fn resolve_with(triple: &str, options: &CToolchainOptions) -> Result<Self, ToolchainError> {
-        let target = validate_target(triple)?;
+        let lir_target = validate_target(triple)?;
+        let target = lir_target.target();
         let c_bridge_toolchain = match target.id() {
-            TargetProfileId::DarwinAarch64 => {
+            scoop_target_data::DARWIN_AARCH64_ID => {
                 if options.compiler.is_some() || options.native_sysroot.is_some() {
                     return Err(ToolchainError("--cc and --native-sysroot apply to Linux targets; Darwin uses the selected Xcode toolchain".into()));
                 }
                 resolve_system_c_bridge_toolchain()?
             }
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 crate::resolve_linux_c_toolchain(
                     target,
                     options.compiler.as_deref(),
                     options.native_sysroot.as_deref(),
                 )?
             }
+            _ => {
+                return Err(ToolchainError(
+                    "unsupported target for C toolchain selection".into(),
+                ));
+            }
         };
-        let lir_target = ValidatedLirTargetSelection::from_id(target.id());
         Ok(Self {
             lir_target,
             backend: lir_target.backend(),
             c_bridge_toolchain,
-            runtime_build: ValidatedRuntimeBuildProfile::for_target(target),
+            runtime_build: ValidatedRuntimeBuildProfile::for_target(target)?,
         })
     }
 
@@ -123,13 +126,13 @@ pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
     }
 }
 
-pub(crate) fn validate_target(triple: &str) -> Result<LirTargetProfile, ToolchainError> {
+pub(crate) fn validate_target(triple: &str) -> Result<ValidatedLirTargetSelection, ToolchainError> {
     match triple {
         "x86_64-unknown-linux-gnu" | "x86_64-linux-gnu" => {
-            return Ok(LirTargetProfile::LINUX_X86_64_GNU);
+            return Ok(scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1);
         }
         "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
-            return Ok(LirTargetProfile::LINUX_X86_64_MUSL);
+            return Ok(scoop_target_data::LINUX_X86_64_MUSL_LLVM_22_1);
         }
         _ => {}
     }
@@ -144,7 +147,7 @@ pub(crate) fn validate_target(triple: &str) -> Result<LirTargetProfile, Toolchai
         && supported_os
         && !has_extra_identity
     {
-        Ok(LirTargetProfile::DARWIN_AARCH64)
+        Ok(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
     } else {
         Err(ToolchainError(format!(
             "unsupported target {triple:?}; M28 supports macOS/AArch64, Linux glibc/amd64 and Linux musl/amd64"
@@ -179,13 +182,13 @@ mod tests {
         ] {
             let profile = ResolvedTargetProfile::resolve(triple).unwrap();
             assert_eq!(profile, expected);
-            assert_eq!(profile.id(), TargetProfileId::DarwinAarch64);
+            assert_eq!(profile.id(), scoop_target_data::DARWIN_AARCH64_ID);
             assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
             assert_eq!(
                 profile.lir_target_selection(),
-                ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+                scoop_target_data::DARWIN_AARCH64_LLVM_22_1
             );
-            assert_eq!(profile.backend(), BackendProfile::LLVM_22_1);
+            assert_eq!(profile.backend(), scoop_target_data::LLVM_22_1);
             assert_eq!(
                 profile
                     .c_bridge_toolchain()

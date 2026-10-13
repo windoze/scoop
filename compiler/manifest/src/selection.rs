@@ -3,6 +3,9 @@
 use scoop_identity::TargetProfileId;
 use scoop_wire::{Encoder, WireEncode};
 
+mod catalog;
+use catalog::SelectedSourceTarget;
+pub use catalog::SourceTarget;
 mod parse;
 mod path;
 
@@ -31,15 +34,15 @@ impl ConditionalSourcePath {
     }
 }
 
-/// The closed target set is the canonical semantic form of a predicate.
+/// The selected caller-provided target set is the canonical predicate form.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TargetPredicate {
-    targets: Vec<TargetProfileId>,
+    targets: Vec<SelectedSourceTarget>,
 }
 
 impl TargetPredicate {
     pub fn matches(&self, target: TargetProfileId) -> bool {
-        self.targets.contains(&target)
+        self.targets.iter().any(|candidate| candidate.id == target)
     }
 }
 
@@ -64,7 +67,7 @@ impl WireEncode for SourceSelection {
                     encoder.text(path.path.as_str())?;
                     encoder.array(path.predicate.targets.len() as u64)?;
                     for target in &path.predicate.targets {
-                        encoder.text(target.canonical_triple())?;
+                        encoder.text(&target.triple)?;
                     }
                 }
                 Ok(())

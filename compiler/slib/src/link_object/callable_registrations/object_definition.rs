@@ -163,7 +163,7 @@ impl CanonicalObjectRelocationV1 {
         let start = usize::try_from(self.offset_within_atom)
             .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         match self.form {
-            VerifiedObjectRelocationFormV1::ElfRela { width, .. } => {
+            VerifiedObjectRelocationFormV1::ElfX86_64Rela { width, .. } => {
                 let slot = bytes
                     .get_mut(start..start + usize::from(width))
                     .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;

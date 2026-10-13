@@ -77,7 +77,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             scoop_identity::RepresentationRole::ManagedObject,
         ),
         instance_shape: TypeInstanceShapeV1::fixed_object(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             56,
             8,
             RefScan::References(vec![16, 40, 48]),

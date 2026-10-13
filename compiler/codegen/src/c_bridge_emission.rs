@@ -1,4 +1,3 @@
-use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 
 use super::*;
@@ -64,18 +63,15 @@ impl EmittedGeneratedCBridgeObjectSetV1 {
     }
 }
 
-/// Generate and compile exactly one canonical C translation unit for every
-/// bridge unit in a sealed strong LIR product.
+/// Render each bridge unit, invoke the driver-owned C compilation step, and
+/// materialize its object boundaries. Host toolchain execution is not a stage
+/// dependency; the driver supplies it for the selected persistent profile.
 pub fn emit_c_bridge_object_set(
     input: &scoop_lir::ConeLirOutput,
     temporary_parent: &Path,
-    profile: &scoop_lir::ValidatedCBridgeToolchainInvocation,
+    profile: &scoop_lir::CBridgeToolchainProfileV1,
+    mut compile: impl FnMut(&Path, &Path) -> Result<(), CodegenError>,
 ) -> Result<EmittedGeneratedCBridgeObjectSetV1, CodegenError> {
-    profile
-        .validate_target(input.module().meta.target_profile)
-        .map_err(|error| {
-            CodegenError(format!("invalid generated-C toolchain projection: {error}"))
-        })?;
     let target = input.module().meta.target_profile;
     let symbol_surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation())
         .map_err(|error| {
@@ -87,24 +83,9 @@ pub fn emit_c_bridge_object_set(
     emit_source_set_with_compiler(
         sources,
         temporary_parent,
-        profile.profile().clone(),
+        profile.clone(),
         |plan, source, object| {
-            let output = profile
-                .object_compilation_command(source, object)
-                .scoop_output()
-                .map_err(|error| {
-                    CodegenError(format!(
-                        "failed to run generated-C compiler `{}`: {error}",
-                        profile.compiler_driver().display()
-                    ))
-                })?;
-            if !output.status.success() {
-                return Err(CodegenError(format!(
-                    "generated-C compilation failed (status {}): {}",
-                    output.status,
-                    String::from_utf8_lossy(&output.stderr).trim()
-                )));
-            }
+            compile(source, object)?;
             crate::generated_c_atom_boundaries::materialize_v1(
                 object,
                 target,

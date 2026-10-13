@@ -10,7 +10,7 @@ use crate::{
 fn core_uses_the_shared_empty_layout_profile_graph() {
     let closure = DecodedCrossConeLayoutCompileClosure::new(
         ConeIdentity::CORE,
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         Vec::new(),
     )
@@ -62,7 +62,7 @@ fn layout_profile_graph_uses_actual_declared_providers() {
 
     let closure = DecodedCrossConeLayoutCompileClosure::new(
         cone_named("layout-current").identity(),
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         vec![identity],
         vec![core, artifact],
     )
@@ -82,7 +82,7 @@ fn layout_profile_graph_rejects_current_artifact_in_provider_storage() {
     assert_eq!(
         DecodedCrossConeLayoutCompileClosure::new(
             identity,
-            scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             vec![ConeIdentity::CORE],
             vec![artifact],
         )

@@ -399,6 +399,9 @@ impl SlibDiagnostic for GraphValidationError {
 
 fn compatibility_diagnostic(error: &CompatibilityValidationError) -> SlibDiagnosticRecord {
     let (code, field) = match error {
+        CompatibilityValidationError::UnsupportedSelection => {
+            (SlibErrorCode::CompatibilityProfile, 5)
+        }
         CompatibilityValidationError::UnsupportedSchema { kind, .. } => (
             SlibErrorCode::CompatibilitySchema,
             match kind {
@@ -416,6 +419,13 @@ fn compatibility_diagnostic(error: &CompatibilityValidationError) -> SlibDiagnos
         | CompatibilityValidationError::BackendProfile(_) => {
             (SlibErrorCode::CompatibilityProfile, 5)
         }
+        CompatibilityValidationError::ProfileMismatch { kind, .. } => (
+            SlibErrorCode::CompatibilityProfile,
+            match kind {
+                crate::CompatibilityProfileKind::Target => 5,
+                crate::CompatibilityProfileKind::Backend => 7,
+            },
+        ),
         CompatibilityValidationError::ArtifactProfile(_) => {
             (SlibErrorCode::CompatibilityProfile, 13)
         }

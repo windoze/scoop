@@ -250,5 +250,5 @@ fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
 }
 
 fn selection() -> ValidatedLirTargetSelection {
-    ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    scoop_target_data::DARWIN_AARCH64_LLVM_22_1
 }

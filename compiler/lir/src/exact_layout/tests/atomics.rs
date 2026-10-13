@@ -34,9 +34,9 @@ fn atomic_instances_keep_hidden_storage_and_reference_scans_through_wire() {
 #[test]
 fn atomic_storage_matches_the_supported_target_abi() {
     for target in [
-        LirTargetProfile::DARWIN_AARCH64,
-        LirTargetProfile::LINUX_X86_64_GNU,
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        crate::target_fixtures::DARWIN_AARCH64,
+        crate::target_fixtures::LINUX_X86_64_GNU,
+        crate::target_fixtures::LINUX_X86_64_MUSL,
     ] {
         for kind in AtomicValueKind::ALL.iter().copied() {
             let layout = atomic_object_layout(target, kind).unwrap();

@@ -125,7 +125,7 @@ pub(super) fn macho_object(
         })
         .map(|registration| registration.type_registration());
     let external_type_symbols = external_type.map(|exact_type| {
-        let normalization = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+        let normalization = scoop_target_data::DARWIN_AARCH64
             .contract()
             .native_symbol_normalization();
         let descriptor = PersistentSymbolRequest::new(

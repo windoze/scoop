@@ -38,7 +38,10 @@ struct RawDependencyDetails {
     artifact: Option<String>,
 }
 
-pub fn parse_cone_manifest(source: &str) -> Result<ParsedConeManifest, ManifestParseError> {
+pub fn parse_cone_manifest(
+    source: &str,
+    catalog: &[crate::SourceTarget<'_>],
+) -> Result<ParsedConeManifest, ManifestParseError> {
     let document = source.parse::<toml_edit::ImDocument<String>>().map_err(
         |error: toml_edit::TomlError| {
             ManifestParseError::new(
@@ -213,8 +216,8 @@ pub fn parse_cone_manifest(source: &str) -> Result<ParsedConeManifest, ManifestP
             coordinate,
             requested_kind,
             dependencies,
-            sources: crate::selection::parse_sources(raw.sources)?,
-            native: raw.native.parse()?,
+            sources: crate::selection::parse_sources(raw.sources, catalog)?,
+            native: raw.native.parse(catalog)?,
         },
         locators: DependencyLocatorTable(locators),
         diagnostic_spans: ManifestDiagnosticSpans {

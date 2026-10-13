@@ -1,6 +1,7 @@
 //! Single-Cone compiler driver and artifact-production pipeline.
 
 mod artifact_production;
+mod generated_c;
 mod object_production;
 mod request;
 mod trusted_core;
@@ -45,3 +46,5 @@ pub use trusted_core::{
 pub(crate) fn workspace_root() -> std::path::PathBuf {
     scoop_toolchain::development_workspace_root()
 }
+
+mod lir_pipeline;

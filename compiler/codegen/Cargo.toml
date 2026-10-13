@@ -4,6 +4,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-target-data.workspace = true
+scoop-abi-plan.workspace = true
 scoop-process.workspace = true
 inkwell.workspace = true
 la-arena.workspace = true

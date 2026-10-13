@@ -6,7 +6,10 @@ use scoop_identity as identity;
 use super::*;
 
 mod c_storage;
+mod prepared;
 mod scoop;
+pub(super) use prepared::PreparedNativeAbi;
+use prepared::PreparedScoopExtern;
 
 pub(super) use scoop::canonical_scoop_signature;
 
@@ -25,13 +28,13 @@ pub(super) struct LoweredNativeAbi {
 /// Normalize every C boundary used by this module while the source exact-type
 /// relation is still available. LIR's physical `CType` deliberately does not
 /// carry enough source semantics to reconstruct these records later.
-pub(super) fn lower<'root>(
+pub(super) fn prepare<'root>(
     context: &LoweringContext,
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     materialized_types: impl IntoIterator<Item = &'root mir::Type>,
-) -> StorageResult<LoweredNativeAbi> {
+) -> StorageResult<PreparedNativeAbi> {
     let mut builder = CanonicalCAbiBuilder::new(context.target_profile(), module, structs, enums);
 
     // An exported C-layout representation needs its complete canonical
@@ -50,8 +53,8 @@ pub(super) fn lower<'root>(
         }
     }
 
-    for (_, external) in module.extern_functions.iter() {
-        builder.add_external_function(context, external)?;
+    for (id, external) in module.extern_functions.iter() {
+        builder.add_external_function(id, external)?;
     }
     for (_, global) in module.globals.iter() {
         if let mir::GlobalStorage::Extern {
@@ -81,6 +84,7 @@ struct CanonicalCAbiBuilder<'module> {
     signatures: Vec<identity::CanonicalCAbiSignatureFingerprintRecord>,
     layouts: Vec<identity::CanonicalCAbiLayoutFingerprintRecord>,
     contracts: Vec<identity::NativeExternalContractRecord>,
+    scoop_externs: Vec<PreparedScoopExtern>,
     link_requirements: Vec<NativeLinkRequirementRecord>,
     callback_signatures: HashMap<mir::FunctionTypeId, identity::CanonicalCAbiSignatureFingerprint>,
     layout_fingerprints: HashMap<mir::StructId, identity::CanonicalCAbiLayoutFingerprint>,
@@ -102,6 +106,7 @@ impl<'module> CanonicalCAbiBuilder<'module> {
             signatures: Vec::new(),
             layouts: Vec::new(),
             contracts: Vec::new(),
+            scoop_externs: Vec::new(),
             link_requirements: Vec::new(),
             callback_signatures: HashMap::new(),
             layout_fingerprints: HashMap::new(),
@@ -109,22 +114,20 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         }
     }
 
-    fn finish(self) -> LoweredNativeAbi {
-        LoweredNativeAbi {
+    fn finish(self) -> PreparedNativeAbi {
+        PreparedNativeAbi {
             canonical_c_abi: lir::CanonicalCAbiMetadata::checked(self.signatures, self.layouts)
                 .expect("canonical C ABI hashes must not collide"),
-            native_externals: lir::NativeExternalMetadata::checked(
-                self.contracts,
-                self.link_requirements,
-            )
-            .expect("validated source externs normalize to one target contract each"),
+            contracts: self.contracts,
+            link_requirements: self.link_requirements,
             callback_signatures: self.callback_signatures,
+            scoop_externs: self.scoop_externs,
         }
     }
 
     fn add_external_function(
         &mut self,
-        context: &LoweringContext,
+        id: mir::ExternFunctionId,
         external: &mir::ExternFunction,
     ) -> StorageResult<()> {
         let (symbol, source_library) = source_target(external.source_contract.contract());
@@ -136,36 +139,12 @@ impl<'module> CanonicalCAbiBuilder<'module> {
                 self.add_signature(&external.params, external.result.native_type())?,
             ),
             mir::ExternAbi::Scoop => {
-                let physical = abi::classify_mir_signature(
-                    context,
-                    self.module,
-                    external.params.iter(),
-                    external.result.native_type(),
-                    self.structs,
-                    self.enums,
-                )?;
-                identity::NativeExternalContract::scoop_function(
+                self.scoop_externs.push(PreparedScoopExtern {
+                    id,
+                    symbol: symbol_key,
                     library,
-                    canonical_scoop_signature(
-                        self.module,
-                        self.enums,
-                        identity::ExactCallableSignature::new(
-                            identity::Effect::Ordinary,
-                            None,
-                            external
-                                .params
-                                .iter()
-                                .map(|ty| self.exact_type(ty))
-                                .collect(),
-                            self.exact_type(external.result.native_type()),
-                        ),
-                        &external.params,
-                        external.result.native_type(),
-                        external.gc_effect,
-                        &physical,
-                    ),
-                    identity::TargetCallingConvention::Cdecl,
-                )
+                });
+                return Ok(());
             }
         };
         self.contracts.push(
@@ -206,8 +185,12 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         &self,
         symbol: &identity::SourceNativeSymbol,
     ) -> identity::NativeExternalSymbolKey {
-        identity::NativeExternalSymbolKey::for_target(self.target_profile.wire_id(), symbol)
-            .expect("validated source native symbols normalize for the selected target")
+        identity::NativeExternalSymbolKey::for_target(
+            self.target_profile.wire_id(),
+            self.target_profile.contract().native_symbol_normalization(),
+            symbol,
+        )
+        .expect("validated source native symbols normalize for the selected target")
     }
 
     fn library_binding(

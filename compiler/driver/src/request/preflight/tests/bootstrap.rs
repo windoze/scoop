@@ -7,16 +7,15 @@ use super::*;
 fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let slot = crate::trusted_core::resolve_trusted_core_slot_at(
         &crate::workspace_root().join("sysroot"),
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    let manifest = scoop_manifest::load_cone_manifest(&ManifestRootLocator::cone_directory(
+    let manifest = scoop_toolchain::load_cone_manifest(&ManifestRootLocator::cone_directory(
         slot.source_root(),
     ))
     .unwrap();
     let sources =
-        discover_manifest_sources(&manifest, scoop_identity::TargetProfileId::DarwinAarch64)
-            .unwrap();
+        discover_manifest_sources(&manifest, scoop_target_data::DARWIN_AARCH64_ID).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
     let world =
         scoop_hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())
@@ -289,10 +288,10 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         &real_mir.strong,
         &real_mir.public,
         &scoop_lir::SelectedExternalLirSet::empty(scoop_identity::ConeIdentity::CORE),
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &scoop_lir::StrongProductionDependencySelectionV2::empty(
             ConeIdentity::CORE,
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
         )
         .unwrap(),
         &diagnostics,

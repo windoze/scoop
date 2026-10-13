@@ -19,11 +19,6 @@ impl FunctionLowerer<'_> {
         self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
             vec![
-                lir::METADATA_PTR,
-                lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
-            ],
-            lir::MANAGED_PTR,
-            vec![
                 td,
                 lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),
             ],
@@ -46,11 +41,6 @@ impl FunctionLowerer<'_> {
         let td = lir::Value::TypeDescriptor(self.type_descriptors.for_closure(*class));
         let object = self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
-            vec![
-                lir::METADATA_PTR,
-                lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
-            ],
-            lir::MANAGED_PTR,
             vec![
                 td,
                 lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),

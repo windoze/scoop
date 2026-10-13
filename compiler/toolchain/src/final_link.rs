@@ -2,7 +2,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use scoop_lir::{LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{LirTargetProfile, TargetProfileId};
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
 
 use crate::{CToolchainOptions, ResolvedTargetProfile, SystemProvider, ToolchainError};
@@ -58,7 +59,7 @@ impl ValidatedFinalLinkProfile {
             .then(|| crate::ValidatedCxxToolchain::resolve(&startup))
             .transpose()?;
         match startup.profile().contract().target().id() {
-            TargetProfileId::DarwinAarch64 => {
+            scoop_target_data::DARWIN_AARCH64_ID => {
                 if options.mode == Some(LinkMode::Static) || options.unwind_prefix.is_some() {
                     return Err(error(
                         "Darwin uses dynamic libSystem unwinding; static mode and an unwind prefix are not applicable",
@@ -66,9 +67,10 @@ impl ValidatedFinalLinkProfile {
                 }
                 DarwinFinalLinkProfile::from_startup(startup, cxx).map(Self::Darwin)
             }
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 LinuxFinalLinkProfile::resolve(startup, options, cxx).map(Self::Linux)
             }
+            _ => Err(error("unsupported target for final linking")),
         }
     }
 
@@ -84,11 +86,11 @@ impl ValidatedFinalLinkProfile {
     }
 
     pub fn target(&self) -> LirTargetProfile {
-        LirTargetProfile::from_id(self.id())
+        self.startup_toolchain().target()
     }
 
     pub fn canonical_triple(&self) -> &'static str {
-        self.id().canonical_triple()
+        self.target().contract().canonical_triple()
     }
 
     pub fn startup_toolchain(&self) -> &ValidatedCBridgeToolchainInvocation {

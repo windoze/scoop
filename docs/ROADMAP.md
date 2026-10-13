@@ -539,6 +539,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 `inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 
+### M39 目标平台边界重构（已完成并验收，[设计](milestone39/DESIGN.md)，[验收记录](milestone39/ACCEPTANCE.md)）
+
+- 保持 Darwin/AArch64、Linux GNU/musl x86-64 三个现有 target，不新增架构支持。
+- 分离公共 typed 数据、目标目录、codegen ABI 规划与 LLVM 实现、工具链执行及对象架构规则。
+- driver 编排布局／签名准备、ABI 规划和完整 LIR 构造；依赖 ABI 直接映射复用。
+- 11 项功能分别提交并完成验证；Linux Rust 5,576 项、GNU CLI 3,741 项、musl CLI 3,739 项通过，本机定向 CLI 83 项通过。现有 wire、runtime ABI 与 golden 保持，构建产物按阶段清理。
+
 ### M40 fixture 精简与回归验证职责收敛（已完成并验收，[设计](milestone40/DESIGN.md)，[验收记录](milestone40/ACCEPTANCE.md)）
 
 基线为 `b59294fbc`。普通功能保留编译、运行和精确诊断，阶段结构由 typed IR 及 9 项专测负责；原生链接计划仅精确比较相关输入与绑定。fixture 内容由约 8.29 GB 减至 16.00 MB，snapshot 声明由 12,257 降至 57，4,939 份 Scoop 源码保持原样。产物持有 CLI 改为同步 artifact-only 链接；内部字节持有在 Rust 函数边界测试，不改变生产代码或产物格式。按功能提交后完成三平台适用范围验收：Darwin 3,755、GNU 3,741、musl 3,739 项通过，无未闭合失败；具体来源、补验和清理记录见验收文档。

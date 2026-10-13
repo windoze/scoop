@@ -16,15 +16,8 @@ use crate::{
 pub struct DecodedNativeLinkSymbol(Vec<u8>);
 
 impl DecodedNativeLinkSymbol {
-    pub fn validate_darwin(self) -> Result<NativeLinkSymbol, NativeLinkValidationError> {
-        self.validate_for_target(&TargetProfileWireId::darwin_aarch64())
-    }
-
-    pub fn validate_for_target(
-        self,
-        target: &TargetProfileWireId,
-    ) -> Result<NativeLinkSymbol, NativeLinkValidationError> {
-        NativeLinkSymbol::from_owned_for_target(target, self.0)
+    pub fn validate(self) -> Result<NativeLinkSymbol, NativeLinkValidationError> {
+        NativeLinkSymbol::from_owned(self.0)
     }
 }
 
@@ -49,9 +42,7 @@ pub struct DecodedNativeExternalSymbolKey {
 impl DecodedNativeExternalSymbolKey {
     pub fn validate(self) -> Result<NativeExternalSymbolKey, NativeLinkValidationError> {
         let target_profile = resolve_target_profile(self.target_profile)?;
-        let native_link_symbol = self
-            .native_link_symbol
-            .validate_for_target(&target_profile)?;
+        let native_link_symbol = self.native_link_symbol.validate()?;
         Ok(NativeExternalSymbolKey {
             target_profile,
             native_link_symbol,
@@ -269,7 +260,6 @@ pub enum NativeLinkValidationError {
     TargetProfile(CapabilityRefinementError),
     Library(CanonicalNativeNameError),
     Group(CanonicalNativeNameError),
-    MissingMachOExternalPrefix,
     SourceSymbol(SourceNativeSymbolError),
     LinkSymbol(NativeLinkSymbolError),
 }
@@ -281,9 +271,6 @@ impl fmt::Display for NativeLinkValidationError {
             Self::TargetProfile(error) => error.fmt(formatter),
             Self::Library(error) => error.fmt(formatter),
             Self::Group(error) => error.fmt(formatter),
-            Self::MissingMachOExternalPrefix => {
-                formatter.write_str("Mach-O external symbol must start with '_'")
-            }
             Self::SourceSymbol(error) => error.fmt(formatter),
             Self::LinkSymbol(error) => error.fmt(formatter),
         }

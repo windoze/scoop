@@ -670,9 +670,8 @@ mod tests {
     #[test]
     fn frozen_metadata_layout_matches_the_qualified_data_layout() {
         let context = Context::create();
-        let target_data = TargetData::create(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout(),
-        );
+        let target_data =
+            TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
         RuntimeMetadataV1Types::new(&context)
             .validate_layout(&target_data)
             .expect("qualified target data must reproduce the private C ABI");

@@ -25,7 +25,7 @@ fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
     assert_eq!(plans.producer(), ConeIdentity::SINGLE_FILE);
     assert_eq!(
         plans.target(),
-        &crate::LirTargetProfile::DARWIN_AARCH64.wire_id()
+        &crate::target_fixtures::DARWIN_AARCH64.wire_id()
     );
     assert_eq!(plans.registrations().len(), 2);
     assert!(
@@ -82,7 +82,7 @@ fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
 
     let validated = crate::validate_types(
         decoded,
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
         &fixture.digests,
@@ -148,7 +148,7 @@ fn records_and_round_trips_the_exact_typed_itable_directory() {
     assert_eq!(
         crate::validate_types(
             decoded,
-            crate::LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &fixture.foundation,
             &fixture.identities,
             &fixture.digests,

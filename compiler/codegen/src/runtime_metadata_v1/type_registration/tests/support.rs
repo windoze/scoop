@@ -12,8 +12,8 @@ use scoop_identity::{
 use scoop_lir::{
     CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
     DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Layout, LayoutIdentity, LayoutKind,
-    LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot,
-    Module, NativeExternalMetadata, NativeGlobalBridges, RefScan, RegistrationIdentitySurfaceV1,
+    LirMeta, LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module,
+    NativeExternalMetadata, NativeGlobalBridges, RefScan, RegistrationIdentitySurfaceV1,
     RuntimeTypeMappingRecord, StrongTypeDescriptorSemanticPlanSetV1,
     StrongTypeRegistrationPlanSetV1, StructDefs, TypeDescriptor, TypeDescriptorIdentity,
     TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord, WellKnownTypeDescriptors,
@@ -88,7 +88,7 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
     let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let semantics = type_semantics(&types);
     StrongTypeRegistrationPlanSetV1::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
         &identities,
         &semantics,
@@ -133,8 +133,9 @@ fn type_artifacts(name: &str) -> TypeArtifacts {
     );
     let nominal = PersistentTypeId::from_source_declaration(&source).unwrap();
     let exact_type = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type,
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedObject,
     ))
     .unwrap();
@@ -184,7 +185,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
         .unwrap();
         let instance_layout = LayoutIdentity::managed_object(
             item.exact_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap();
@@ -196,7 +197,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
             identity,
             instance_layout,
             instance_shape: TypeInstanceShapeV1::fixed_object(
-                LirTargetProfile::DARWIN_AARCH64,
+                scoop_target_data::DARWIN_AARCH64,
                 16,
                 8,
                 RefScan::None,
@@ -214,7 +215,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
     let _first_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             types[0].exact_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),
@@ -248,7 +249,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
         },
         meta: LirMeta {
             exact_types: Vec::new(),
-            target_profile: LirTargetProfile::DARWIN_AARCH64,
+            target_profile: scoop_target_data::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
             well_known_type_descriptors: WellKnownTypeDescriptors {

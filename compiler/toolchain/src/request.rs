@@ -1,5 +1,4 @@
 //! Same-host compiler requests retain the selected native tool locators.
-use scoop_lir::TargetProfileId;
 use scoop_protocol::{HostPathCarrier, TargetSelectionRequestV1};
 
 use crate::{CToolchainOptions, ResolvedTargetProfile, ToolchainError};
@@ -30,7 +29,7 @@ impl ResolvedTargetProfile {
     pub fn child_request(&self) -> Result<TargetSelectionRequestV1, ToolchainError> {
         let request = TargetSelectionRequestV1::new(self.canonical_triple().to_owned())
             .map_err(|error| ToolchainError(error.to_string()))?;
-        if self.id() == TargetProfileId::DarwinAarch64 {
+        if self.id() == scoop_target_data::DARWIN_AARCH64_ID {
             return Ok(request);
         }
         let invocation = self.c_bridge_toolchain();

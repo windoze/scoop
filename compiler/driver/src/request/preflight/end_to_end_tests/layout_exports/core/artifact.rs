@@ -51,7 +51,7 @@ pub(super) fn check(
     shared_initialization::check(input.mir.production(), &ordinary, lir);
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
     let generated =
-        scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
+        crate::generated_c::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();
     let metadata = crate::CrossConeArtifactMetadataInputV1::new(
         scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION"))).unwrap(),

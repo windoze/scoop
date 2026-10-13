@@ -4,7 +4,7 @@ use scoop_wire::WireError;
 use crate::exact_layout::tests::{Bound, exact, source, unit};
 use crate::*;
 
-pub(super) const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+pub(super) const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 pub(super) struct DirectFixture {
     pub owner: ExactLayoutExportV1,

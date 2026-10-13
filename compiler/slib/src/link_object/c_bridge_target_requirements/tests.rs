@@ -1,5 +1,3 @@
-use scoop_lir::{LirTargetProfile, ValidatedLirTargetSelection};
-
 use super::super::generated_bridge_semantics::tests::{
     SemanticFixture, semantic_fixture, semantic_fixture_with_additional_contracts,
 };
@@ -114,13 +112,10 @@ fn runtime_closure(fixture: &SemanticFixture) -> VerifiedRuntimeAndEhRequirement
         .strong_relocations()
         .clone();
     let core =
-        verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[])
+        verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
             .unwrap();
     let source =
         verify_source_external_requirements_v1(core, fixture.native_requirements.clone()).unwrap();
-    verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap()
+    verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+        .unwrap()
 }

@@ -7,7 +7,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, WireEncode, encode};
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 fn exact(name: &str) -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
     let site = SourceDeclarationSite::new(

@@ -61,12 +61,12 @@ impl NativeObjectInfo {
         toolchain: &CBridgeToolchainProfileV1,
     ) -> Result<Self, LinkError> {
         match toolchain.contract().target().id() {
-            TargetProfileId::DarwinAarch64 => {
+            scoop_target_data::DARWIN_AARCH64_ID => {
                 Self::read(bytes, toolchain.contract().deployment().map_err(error)?)
             }
-            target @ (TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl) => {
-                elf::read(bytes, target)
-            }
+            target @ (scoop_target_data::LINUX_X86_64_GNU_ID
+            | scoop_target_data::LINUX_X86_64_MUSL_ID) => elf::read(bytes, target),
+            _ => Err(error("unsupported native object target")),
         }
     }
 
@@ -87,14 +87,14 @@ impl NativeObjectIndex {
         cxx: bool,
     ) -> Result<Self, LinkError> {
         match toolchain.contract().target().id() {
-            TargetProfileId::DarwinAarch64 => Self::read_with_mode(
+            scoop_target_data::DARWIN_AARCH64_ID => Self::read_with_mode(
                 bytes,
                 toolchain.contract().deployment().map_err(error)?,
                 cxx,
             ),
-            target @ (TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl) => {
-                elf::index(bytes, target, cxx)
-            }
+            target @ (scoop_target_data::LINUX_X86_64_GNU_ID
+            | scoop_target_data::LINUX_X86_64_MUSL_ID) => elf::index(bytes, target, cxx),
+            _ => Err(error("unsupported native object target")),
         }
     }
 

@@ -14,11 +14,11 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         .parent()
         .unwrap();
     for target in [
-        LirTargetProfile::LINUX_X86_64_GNU,
-        LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let invocation = resolve_linux_c_toolchain(target, None, None).unwrap();
-        let profile = ValidatedRuntimeBuildProfile::for_target(target);
+        let profile = ValidatedRuntimeBuildProfile::for_target(target).unwrap();
         let directory = tempfile::tempdir().unwrap();
         let unwind = workspace
             .join("sysroot/native")
@@ -110,10 +110,10 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         assert_eq!(decoded.fingerprint(), runtime.fingerprint());
         assert_eq!(decoded.symbols(), runtime.symbols());
         assert_eq!(decoded.target(), target);
-        let other = if target == LirTargetProfile::LINUX_X86_64_GNU {
-            LirTargetProfile::LINUX_X86_64_MUSL
+        let other = if target == scoop_target_data::LINUX_X86_64_GNU {
+            scoop_target_data::LINUX_X86_64_MUSL
         } else {
-            LirTargetProfile::LINUX_X86_64_GNU
+            scoop_target_data::LINUX_X86_64_GNU
         };
         assert!(RuntimeObjectSet::read_index(&index, other, invocation.profile()).is_err());
         let first = &decoded.input_paths()[1];

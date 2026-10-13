@@ -37,7 +37,7 @@ fn binds_object_bytes_to_member_ids_only_through_their_canonical_units() {
     ];
 
     let planned = plan_objects(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &producer_units,
         sources,
         Vec::new(),
@@ -88,7 +88,7 @@ fn binds_generated_c_bytes_from_the_actual_singleton_unit_set() {
     let producer_units = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
 
     let planned = plan_objects(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &producer_units,
         vec![UnboundScoopLirObject {
             units: vec![image.id()],
@@ -128,7 +128,7 @@ fn rejects_one_physical_object_whose_units_resolve_to_different_members() {
     let foundation = foundation(&[image.clone(), entry.clone()]);
     let producer_units = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &producer_units,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(vec![image.id()]).unwrap(),
@@ -190,9 +190,12 @@ fn foundation_with_bridges(
 }
 
 fn bridge_unit() -> CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey> {
-    let symbol =
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("native").unwrap())
-            .unwrap();
+    let symbol = NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+        &SourceNativeSymbol::new("native").unwrap(),
+    )
+    .unwrap();
     let contract = NativeExternalContract::c_function(
         NativeLibraryBinding::DefaultNativeNamespace,
         scoop_identity::CanonicalCAbiFunctionSignature::cdecl(

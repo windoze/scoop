@@ -3,15 +3,18 @@ use super::*;
 mod arguments;
 mod invoke;
 
-pub(crate) enum RootArguments {
+pub(crate) enum RootArguments<'a> {
     Unused,
-    Build(scoop_lir::ManagedCallDestination),
+    Build(
+        scoop_lir::ManagedCallDestination,
+        &'a scoop_lir::ScoopAbiSignature,
+    ),
 }
 
 pub(crate) struct RootMain<'a> {
     pub target: scoop_lir::LocalFunctionRef,
     pub signature: &'a scoop_lir::ScoopAbiSignature,
-    pub arguments: RootArguments,
+    pub arguments: RootArguments<'a>,
 }
 
 pub(super) fn root_gateway(
@@ -19,6 +22,7 @@ pub(super) fn root_gateway(
     main_body: scoop_identity::MainCallableBodyId,
     main: RootMain<'_>,
     failure_root: scoop_lir::GlobalId,
+    signatures: &crate::abi::plans::Signatures,
 ) -> LoweredFunction {
     let callable_body = scoop_lir::CallableBodyIdentity::for_root_gateway(producer, main_body)
         .expect("a validated executable entry derives one root-gateway identity");
@@ -94,19 +98,18 @@ pub(super) fn root_gateway(
     let managed_exception = temps.alloc(scoop_lir::Temp {
         ty: scoop_lir::MANAGED_PTR,
     });
-    let reference = scoop_lir::AbiValue::new(
-        scoop_lir::MANAGED_PTR,
-        scoop_lir::AbiNonZeroLayout::new(8, 8)
-            .expect("the exception reference has the target pointer layout"),
-        scoop_lir::RefScan::References(vec![0]),
-    )
-    .expect("the exception reference has one managed leaf");
+    let runtime = signatures.runtime(scoop_lir::RuntimeFunction::Managed(
+        scoop_lir::ManagedRuntimeFunction::MaterializeException,
+    ));
+    let scoop_lir::AbiReturn::Direct(reference) = runtime.result() else {
+        unreachable!("exception materialization returns a managed reference")
+    };
     let signature = call_targets
         .direct_signatures
         .alloc(scoop_lir::DirectCallSignature::new(
-            vec![scoop_lir::AbiArgument::Direct(reference.clone().into())],
-            reference,
-            scoop_lir::CallingConvention::Cdecl,
+            runtime.arguments().to_vec(),
+            reference.clone(),
+            runtime.calling_convention(),
         ));
     let target = call_targets
         .managed_targets
@@ -146,39 +149,22 @@ pub(super) fn root_gateway(
         scoop_lir::Instruction::EndCatch,
     ]);
 
-    let result = scoop_lir::AbiValue::new(
-        scoop_lir::LirType::I32,
-        scoop_lir::AbiNonZeroLayout::new(4, 4)
-            .expect("the root gateway result has a valid uint32 layout"),
-        scoop_lir::RefScan::None,
-    )
-    .expect("the root gateway result layout matches uint32 storage");
+    let gateway_signature = signatures.plans.scoop(signatures.requests.root);
+    let scoop_lir::AbiReturn::Direct(result) = gateway_signature.result() else {
+        unreachable!("root gateway returns an exit status")
+    };
     blocks[success]
         .instructions
         .push(scoop_lir::Instruction::RawStore {
             pointer: scoop_lir::Value::Param(2),
             value: exit_code,
-            pointee: result.clone(),
+            pointee: result.value().clone(),
         });
-    let pointer = scoop_lir::AbiValue::new(
-        scoop_lir::RAW_PTR,
-        scoop_lir::AbiNonZeroLayout::new(8, 8).expect("a supported target has 64-bit pointers"),
-        scoop_lir::RefScan::None,
-    )
-    .expect("raw pointers have no managed leaves");
     LoweredFunction {
         function: scoop_lir::Function {
             callable_body,
             gc_effect: scoop_lir::GcEffect::Managed,
-            signature: scoop_lir::ScoopAbiSignature::new(
-                vec![
-                    scoop_lir::AbiArgument::Direct(result.clone().into()),
-                    scoop_lir::AbiArgument::Direct(pointer.clone().into()),
-                    scoop_lir::AbiArgument::Direct(pointer.into()),
-                ],
-                scoop_lir::AbiReturn::Direct(result.into()),
-                scoop_lir::CallingConvention::Cdecl,
-            ),
+            signature: gateway_signature.clone(),
             call_targets,
             safepoints: scoop_lir::SafepointIdentities::default(),
             locals: Arena::new(),

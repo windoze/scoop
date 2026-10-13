@@ -9,7 +9,7 @@ use super::*;
 
 mod c_layout;
 
-pub(super) const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+pub(super) const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 fn source(name: &str) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(
@@ -58,7 +58,11 @@ pub(super) fn value(
     .unwrap();
     ValueLayoutConstituentV1::new(
         TARGET,
-        LayoutKey::darwin_aarch64(exact(name), RepresentationRole::ManagedValue),
+        LayoutKey::new(
+            exact(name),
+            scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
+            RepresentationRole::ManagedValue,
+        ),
         storage,
     )
     .unwrap()
@@ -73,7 +77,11 @@ fn input<'a>(values: &'a [ValueLayoutConstituentV1]) -> Vec<DeclaredFieldStorage
 }
 
 fn class_key(name: &str) -> LayoutKey {
-    LayoutKey::darwin_aarch64(exact(name), RepresentationRole::ManagedObject)
+    LayoutKey::new(
+        exact(name),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
+        RepresentationRole::ManagedObject,
+    )
 }
 
 #[test]

@@ -12,9 +12,11 @@ fn a_parent_relocation_must_match_the_exact_external_descriptor_symbol() {
     let unit = PersistentSymbolKey::TypeDescriptor(exact(CoreBuiltinNominal::Unit));
     let other = PersistentSymbolKey::TypeDescriptor(exact(CoreBuiltinNominal::Any));
     for profile in [
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Gnu),
-        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Musl),
+        scoop_target_data::DARWIN_AARCH64,
+        scoop_target_data::layout(scoop_target_data::LINUX_X86_64_GNU_ID)
+            .expect("implemented target selected by this consumer"),
+        scoop_target_data::layout(scoop_target_data::LINUX_X86_64_MUSL_ID)
+            .expect("implemented target selected by this consumer"),
     ] {
         let target = VerifiedRelocationTargetV1::ExternalUndefined {
             table_index: 7,
@@ -40,9 +42,11 @@ fn a_separate_hook_object_is_referenced_by_its_exact_callable_body_symbol() {
     let expected = PersistentSymbolKey::CallableBody(hook(CoreBuiltinNominal::Unit));
     let other = PersistentSymbolKey::CallableBody(hook(CoreBuiltinNominal::Any));
     for profile in [
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Gnu),
-        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Musl),
+        scoop_target_data::DARWIN_AARCH64,
+        scoop_target_data::layout(scoop_target_data::LINUX_X86_64_GNU_ID)
+            .expect("implemented target selected by this consumer"),
+        scoop_target_data::layout(scoop_target_data::LINUX_X86_64_MUSL_ID)
+            .expect("implemented target selected by this consumer"),
     ] {
         let target = VerifiedRelocationTargetV1::ExternalUndefined {
             table_index: 4,

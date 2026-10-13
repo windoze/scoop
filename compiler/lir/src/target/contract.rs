@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{TargetProfileId, TargetProfileWireId};
+use scoop_identity::TargetProfileWireId;
 use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use super::{
@@ -9,7 +9,6 @@ use super::{
 };
 
 const TARGET_PROFILE_DOMAIN: &str = "scoop-target-profile-contract-v1";
-const MAXIMUM_MANAGED_OBJECT_SIZE: u64 = i64::MAX as u64;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ByteOrder {
@@ -44,33 +43,7 @@ impl WireEncode for CAbiLoweringProfile {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum NativeSymbolNormalization {
-    MachOExternalUnderscore,
-    ElfIdentity,
-}
-
-impl NativeSymbolNormalization {
-    /// Normalize a canonical compiler-generated logical symbol to the bytes
-    /// used by the target object format. Unlike ordinary C identifiers, a C
-    /// `asm` label names these bytes directly and therefore must consume this
-    /// target projection explicitly.
-    pub fn compiler_generated_object_symbol(self, logical_symbol: &str) -> String {
-        match self {
-            Self::MachOExternalUnderscore => format!("_{logical_symbol}"),
-            Self::ElfIdentity => logical_symbol.to_owned(),
-        }
-    }
-}
-
-impl WireEncode for NativeSymbolNormalization {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::MachOExternalUnderscore => 1,
-            Self::ElfIdentity => 2,
-        })
-    }
-}
+pub use scoop_identity::NativeSymbolNormalization;
 
 #[cfg(test)]
 mod tests {
@@ -97,23 +70,23 @@ impl TargetProfileContract {
     }
 
     pub const fn canonical_triple(self) -> &'static str {
-        self.profile.id().canonical_triple()
+        self.profile.description().canonical_triple
     }
 
     pub const fn byte_order(self) -> ByteOrder {
-        ByteOrder::Little
+        self.profile.description().byte_order
     }
 
     pub const fn stack_alignment_bytes(self) -> u64 {
-        16
+        self.profile.description().stack_alignment
     }
 
     pub const fn maximum_managed_alignment(self) -> u64 {
-        16
+        self.profile.description().maximum_managed_alignment
     }
 
     pub const fn maximum_managed_object_size(self) -> u64 {
-        MAXIMUM_MANAGED_OBJECT_SIZE
+        self.profile.description().maximum_managed_object_size
     }
 
     pub const fn scoop_abi_classifier(self) -> ScoopAbiClassifier {
@@ -125,12 +98,7 @@ impl TargetProfileContract {
     }
 
     pub const fn native_symbol_normalization(self) -> NativeSymbolNormalization {
-        match self.profile.id() {
-            TargetProfileId::DarwinAarch64 => NativeSymbolNormalization::MachOExternalUnderscore,
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
-                NativeSymbolNormalization::ElfIdentity
-            }
-        }
+        self.profile.description().native_symbol_normalization
     }
 }
 
@@ -142,7 +110,10 @@ impl WireEncode for TargetProfileContract {
         encoder.field(2)?;
         encoder.text(self.profile.canonical_llvm_data_layout())?;
         encoder.field(3)?;
-        self.profile.id().object_format().encode(encoder)?;
+        self.profile
+            .native_object_format()
+            .wire_id()
+            .encode(encoder)?;
         encoder.field(4)?;
         self.byte_order().encode(encoder)?;
         encoder.field(5)?;

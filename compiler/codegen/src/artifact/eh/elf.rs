@@ -3,7 +3,7 @@
 use object::{Object, ObjectSection};
 
 use crate::ValidatedBackendProfile;
-use crate::artifact::elf::{ElfCode, error};
+use crate::artifact::elf::{ElfArchitecture, ElfCode, error};
 
 use super::*;
 
@@ -13,17 +13,14 @@ pub(in crate::artifact) fn verify_elf_eh(
     expected: &ExpectedEh,
     observed_safepoints: &ObservedSafepoints,
     profile: ValidatedBackendProfile,
+    architecture: ElfArchitecture,
 ) -> Result<(), CodegenError> {
     let mut fdes = Vec::new();
     let mut lsda_sections = BTreeMap::new();
     for section in file.sections() {
         let name = section.name().map_err(error)?;
         if name == ".eh_frame" {
-            fdes.extend(elf_frame::parse(
-                file,
-                section.index(),
-                profile.architecture(),
-            )?);
+            fdes.extend(elf_frame::parse(file, section.index(), architecture)?);
         } else if name == ".gcc_except_table" || name.starts_with(".gcc_except_table.") {
             if section.relocations().next().is_some() {
                 return Err(CodegenError(

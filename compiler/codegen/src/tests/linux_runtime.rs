@@ -182,7 +182,7 @@ fn linux_thread_publications_refresh_growing_main_stack_bounds() {
             for source in [
                 "runtime/tests/linux_stack_growth_test.c",
                 "runtime/src/platform/os/linux.c",
-                "runtime/src/floating.c",
+                "runtime/src/platform/arch/x86_64_float_environment.c",
                 "runtime/src/thread.c",
                 "runtime/src/thread/collection.c",
                 "runtime/src/thread/transitions.c",

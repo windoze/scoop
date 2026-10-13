@@ -531,11 +531,20 @@ dependencies = [
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "scoop-abi-plan"
+version = "0.0.0"
+dependencies = [
+ "scoop-lir",
+ "scoop-target-data",
 ]
 
 [[package]]
@@ -553,10 +562,12 @@ dependencies = [
  "la-arena",
  "llvm-sys",
  "object",
+ "scoop-abi-plan",
  "scoop-identity",
  "scoop-lir",
  "scoop-process",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "tempfile",
 ]
@@ -606,6 +617,7 @@ dependencies = [
  "scoop-lir",
  "scoop-process",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
  "tempfile",
@@ -626,9 +638,11 @@ version = "0.0.0"
 dependencies = [
  "insta",
  "la-arena",
+ "scoop-abi-plan",
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-target-data",
  "scoop-wire",
 ]
 
@@ -638,6 +652,7 @@ version = "0.0.0"
 dependencies = [
  "rustix",
  "scoop-identity",
+ "scoop-target-data",
  "scoop-wire",
  "serde",
  "tempfile",
@@ -704,6 +719,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-target-data",
  "scoop-wire",
  "tempfile",
  "yaxpeax-arch",
@@ -711,15 +727,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-target-data"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+ "scoop-lir",
+ "scoop-wire",
+]
+
+[[package]]
 name = "scoop-toolchain"
 version = "0.0.0"
 dependencies = [
  "object",
+ "scoop-identity",
  "scoop-lir",
  "scoop-manifest",
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-wire",
  "serde",
  "serde_yaml_ng",
@@ -756,6 +783,7 @@ dependencies = [
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
+ "scoop-target-data",
  "scoop-toolchain",
  "scoop-wire",
  "tempfile",

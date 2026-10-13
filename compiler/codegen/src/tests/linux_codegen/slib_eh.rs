@@ -8,8 +8,8 @@ use super::*;
 fn elf_exception_personality_pointer_belongs_to_its_callable() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for odr in [false, true] {
             let mut module = for_target(exceptions_module(), target);

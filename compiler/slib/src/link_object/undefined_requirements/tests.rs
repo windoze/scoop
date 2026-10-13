@@ -1,7 +1,7 @@
 use scoop_identity::{ConeIdentity, NativeLibraryBinding};
 use scoop_lir::{
     CBridgeTargetSupportRequirementV1, CBridgeTargetSupportV1, CanonicalLirFoundation,
-    ConeLirFoundation, GeneratedBridgePlanSetV1, LirTargetProfile, ValidatedLirTargetSelection,
+    ConeLirFoundation, GeneratedBridgePlanSetV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -67,7 +67,7 @@ fn odr_requirement_uses_a_new_tag_and_keeps_service_tags_retired() {
 fn c_bridge_target_support_uses_the_seventh_requirement_tag() {
     let profile = profile("clang-2100.1.1.101", 0x000d_0100, 0x000e_0200);
     let contract = CBridgeTargetSupportRequirementV1::current(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &profile,
         CBridgeTargetSupportV1::Memcpy,
     )
@@ -164,7 +164,7 @@ fn finalizes_source_external_requirements() {
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let core =
-        verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[])
+        verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
             .unwrap();
     let native = native_surface(
         producer,
@@ -177,11 +177,9 @@ fn finalizes_source_external_requirements() {
         Vec::new(),
     );
     let source = verify_source_external_requirements_v1(core, native).unwrap();
-    let external = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let external =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     let final_set =
         finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
             .unwrap();
@@ -268,18 +266,16 @@ pub(in crate::link_object) fn sealed_without_externals(
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {
     let producer = strong.producer();
     let core =
-        verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[])
+        verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
             .unwrap();
     let source = verify_source_external_requirements_v1(
         core,
         native_surface(producer, Vec::new(), Vec::new()),
     )
     .unwrap();
-    let external = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let external =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     seal_without_generated(external)
 }
 
@@ -291,18 +287,16 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let core =
-        verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[])
+        verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
             .unwrap();
     let source = verify_source_external_requirements_v1(
         core,
         native_surface(producer, Vec::new(), Vec::new()),
     )
     .unwrap();
-    let external = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let external =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
 }
 

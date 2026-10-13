@@ -1,5 +1,5 @@
 use scoop_identity::ConeIdentity;
-use scoop_lir::{RuntimeAbiSymbolV1, TargetEhSupportV1, ValidatedLirTargetSelection};
+use scoop_lir::{RuntimeAbiSymbolV1, TargetEhSupportV1};
 
 use super::super::native_requirements::tests::{dependency_closure, native_surface};
 use super::super::strong_relocation_closure::tests::verified_member_with_undefined_form;
@@ -127,8 +127,5 @@ fn classify_with_form(
     let core = dependency_closure(member);
     let native = native_surface(producer, Vec::new(), Vec::new());
     let source = verify_source_external_requirements_v1(core, native).unwrap();
-    verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
+    verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
 }

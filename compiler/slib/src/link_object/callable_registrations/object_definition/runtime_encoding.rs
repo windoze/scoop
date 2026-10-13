@@ -188,7 +188,7 @@ fn encode_relocation_form(
     form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), RuntimeEncodeError> {
     match form {
-        VerifiedObjectRelocationFormV1::ElfRela {
+        VerifiedObjectRelocationFormV1::ElfX86_64Rela {
             kind,
             addend,
             width,

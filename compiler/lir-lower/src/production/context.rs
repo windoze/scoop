@@ -3,27 +3,22 @@ use scoop_lir as lir;
 use super::LoweredFunction;
 
 /// Safepoint completion inserts the mandatory gateway poll before this call.
-pub(crate) fn initialize_task(gateway: &mut LoweredFunction, descriptor: lir::TypeDescriptorRef) {
+pub(crate) fn initialize_task(
+    gateway: &mut LoweredFunction,
+    descriptor: lir::TypeDescriptorRef,
+    planned: &lir::ScoopAbiSignature,
+) {
     let function = &mut gateway.function;
-    let metadata = lir::AbiValue::new(
-        lir::METADATA_PTR,
-        lir::AbiNonZeroLayout::new(8, 8).expect("metadata pointer layout"),
-        lir::RefScan::None,
-    )
-    .expect("metadata pointers are GC-free");
-    let reference = lir::AbiValue::new(
-        lir::MANAGED_PTR,
-        lir::AbiNonZeroLayout::new(8, 8).expect("managed pointer layout"),
-        lir::RefScan::References(vec![0]),
-    )
-    .expect("Task Context has one reference leaf");
+    let lir::AbiReturn::Direct(reference) = planned.result() else {
+        unreachable!("task initialization returns a managed reference")
+    };
     let signature = function
         .call_targets
         .direct_signatures
         .alloc(lir::DirectCallSignature::new(
-            vec![lir::AbiArgument::Direct(metadata.into())],
-            reference,
-            lir::CallingConvention::Cdecl,
+            planned.arguments().to_vec(),
+            reference.clone(),
+            planned.calling_convention(),
         ));
     let target = function
         .call_targets

@@ -8,8 +8,7 @@ use scoop_identity::{
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, LirTargetProfile, ObjectSymbolSurfaceV1,
-    ProducerUnitPartitionV1,
+    CanonicalLirFoundation, ConeLirFoundation, ObjectSymbolSurfaceV1, ProducerUnitPartitionV1,
 };
 
 use super::*;
@@ -19,7 +18,7 @@ use crate::CanonicalScoopLirObjectUnitSetV1;
 fn assigns_primary_and_boundaries_to_the_definition_member() {
     let fixture = fixture("entry");
     let planned = PlannedStrongObjectSymbolSetV1::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &fixture.surface,
         &fixture.members,
     )
@@ -76,7 +75,7 @@ fn rejects_surfaces_and_member_assignments_from_different_plan_sets() {
     let right = fixture("right");
     assert_eq!(
         PlannedStrongObjectSymbolSetV1::new(
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             &left.surface,
             &right.members,
         ),
@@ -145,7 +144,7 @@ fn fixture(name: &str) -> Fixture {
     let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),

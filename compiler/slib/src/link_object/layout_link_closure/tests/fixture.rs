@@ -3,7 +3,7 @@ use scoop_lir::*;
 use scoop_wire::{decode_canonical, encode};
 
 pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
-    LirTargetProfile::DARWIN_AARCH64;
+    scoop_target_data::DARWIN_AARCH64;
 
 pub(in crate::link_object) struct Provider {
     pub foundation: ConeLirFoundation,

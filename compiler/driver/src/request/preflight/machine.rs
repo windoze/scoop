@@ -68,14 +68,13 @@ pub(super) fn lower_selected_lir(
     ),
     CurrentConeLirStageError,
 > {
-    let lir = scoop_lir_lower::lower_with_layout_dependencies(
+    let lir = crate::lir_pipeline::lower_with_layout_dependencies(
         strong,
         selected_callables,
         target,
         selected_layout,
         diagnostics,
-    )
-    .map_err(CurrentConeLirStageError::Lowering)?;
+    )?;
     let public = scoop_lir_lower::lower_cross_cone_bridge_section(strong, public, &lir)
         .map_err(CurrentConeLirStageError::CrossConeBridge)?;
     Ok((lir, public))

@@ -204,7 +204,7 @@ impl MachineScalarValue {
 }
 
 /// A type after layout resolution: maps directly onto LLVM types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LirType {
     Void,
     I1,

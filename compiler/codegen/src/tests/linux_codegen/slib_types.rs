@@ -9,12 +9,13 @@ use super::*;
 fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for odr in [false, true] {
             let mut module = super::super::objects::classes_module_for(
-                scoop_lir::LirTargetProfile::from_id(target),
+                scoop_target_data::layout(target)
+                    .expect("implemented target selected by this consumer"),
             );
             if odr {
                 odr_point(&mut module);
@@ -65,7 +66,8 @@ fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
                     .unwrap(),
             ] {
                 let mut damaged = fixture.objects.clone();
-                let VerifiedObjectRelocationFormV1::ElfRela { addend, .. } = pointer.shape().form()
+                let VerifiedObjectRelocationFormV1::ElfX86_64Rela { addend, .. } =
+                    pointer.shape().form()
                 else {
                     panic!("ELF metadata must keep RELA facts");
                 };

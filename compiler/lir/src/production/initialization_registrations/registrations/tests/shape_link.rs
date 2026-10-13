@@ -4,7 +4,7 @@ use scoop_identity::*;
 use scoop_wire::{decode_canonical, encode};
 
 use ExternalStrongShapeSubjectV1 as Subject;
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 mod fixture;
 use fixture::ProviderFixture;

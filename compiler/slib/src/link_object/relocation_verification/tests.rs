@@ -15,7 +15,7 @@ fn assigns_relocations_to_exact_atoms_and_resolves_primary_targets() {
         Some((0, primary)),
     );
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object.bytes,
     )
     .unwrap()
@@ -67,7 +67,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
     let object =
         object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, Some((0, start)));
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object.bytes,
     )
     .unwrap()
@@ -99,7 +99,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
     let object =
         object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, Some((0, end)));
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object.bytes,
     )
     .unwrap()
@@ -121,7 +121,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
         Some((4, primary_role(&fixture.symbols))),
     );
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object.bytes,
     )
     .unwrap()
@@ -149,7 +149,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
     );
     let used_bytes = add_undefined_symbols(object.bytes.clone(), true, &[b"_external"]);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &used_bytes,
     )
     .unwrap()
@@ -170,7 +170,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
 
     let unused_bytes = add_undefined_symbols(object.bytes, false, &[b"_external"]);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &unused_bytes,
     )
     .unwrap()
@@ -197,7 +197,7 @@ fn assigns_local_machine_symbols_to_atom_owners() {
     );
     let local_bytes = add_local_symbol(object.bytes.clone(), 2);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &local_bytes,
     )
     .unwrap()
@@ -221,7 +221,7 @@ fn assigns_local_machine_symbols_to_atom_owners() {
 
     let unowned_bytes = add_local_symbol(object.bytes, 6);
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &unowned_bytes,
     )
     .unwrap()

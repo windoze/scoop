@@ -1,7 +1,8 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use scoop_manifest::{ManifestRootLocator, load_cone_manifest};
+use crate::load_cone_manifest;
+use scoop_manifest::ManifestRootLocator;
 use scoop_process::CommandExt;
 
 use super::*;

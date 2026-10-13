@@ -13,9 +13,6 @@ pub fn validate_linux_elf_object_envelope_v1(
     let object = ValidatedElfObject::read(bytes, target)?;
     let file = object.file();
     let endian = file.endian();
-    if file.elf_header().e_flags(endian) != 0 {
-        return Err(error("nonzero flags in amd64 ELF header"));
-    }
     let mut groups = Vec::new();
     let mut sections = Vec::new();
     for section in file.sections() {
@@ -130,11 +127,13 @@ pub fn validate_linux_elf_object_envelope_v1(
                 .ok_or_else(|| error("null relocation section"))?,
                 offset: r.offset,
                 encoded_value: u64::from_le_bytes(value),
-                shape: ObjectRelocationShapeV1::ElfRela {
-                    kind: r.kind,
-                    target_symbol: u32::try_from(r.symbol.0).map_err(error)?,
-                    addend: r.addend,
-                    width: r.width,
+                shape: match object.architecture() {
+                    ElfArchitecture::X86_64 => ObjectRelocationShapeV1::ElfX86_64Rela {
+                        kind: r.kind,
+                        target_symbol: u32::try_from(r.symbol.0).map_err(error)?,
+                        addend: r.addend,
+                        width: r.width,
+                    },
                 },
             })
         })
@@ -144,7 +143,7 @@ pub fn validate_linux_elf_object_envelope_v1(
         content_digest: scoop_wire::sha256(bytes),
         format: ObjectEnvelopeFormatV1::Elf64 {
             target,
-            flags: 0,
+            flags: file.elf_header().e_flags(endian),
             groups,
         },
         sections,

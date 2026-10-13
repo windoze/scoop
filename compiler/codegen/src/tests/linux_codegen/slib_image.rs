@@ -6,8 +6,8 @@ use scoop_slib::*;
 fn elf_cone_image_references_its_support_atoms_and_registration_tables() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for module in [
             for_target(

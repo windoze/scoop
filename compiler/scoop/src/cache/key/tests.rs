@@ -1,7 +1,7 @@
 use scoop_identity::{ConeIdentity, NormalizedSourcePath};
 use scoop_lir::{
-    AppleClangCompilerIdentityV1, CBridgeToolchainFingerprint, CBridgeToolchainProfileV1,
-    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, ValidatedLirTargetSelection,
+    AppleClangCompilerIdentityV1, CBridgeToolchainFingerprint, DarwinCBridgeDeploymentContractV1,
+    DarwinPackedVersionV1,
 };
 use scoop_protocol::ScoopcProtocolCapabilityV1;
 use scoop_slib::{
@@ -25,8 +25,8 @@ fn optimization_changes_only_the_current_compile_key() {
 }
 
 fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV1 {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let c_bridge = CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+    let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
+    let c_bridge = scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
@@ -75,7 +75,7 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
 }
 
 fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolchainFingerprint {
-    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+    scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(minimum).unwrap(),
             DarwinPackedVersionV1::new(sdk).unwrap(),
@@ -89,9 +89,9 @@ fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolch
 }
 
 fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummaryV1) {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let core = crate::test_artifacts::manifest_archive(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
@@ -105,7 +105,7 @@ fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummary
     let core = read_artifact_manifest_summary(core.as_bytes(), selection).unwrap();
     let semantic = core.semantic_fingerprints();
     let dependency = crate::test_artifacts::manifest_archive(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::new("dev.example", "dependency", "1.0.0").unwrap(),
@@ -129,7 +129,7 @@ fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummary
 }
 
 fn rich_input() -> ConeCompileCacheInputV1 {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let (core, dependency) = dependency_summaries();
     let current_coordinate = ConeCoordinate::new("dev.example", "current", "1.0.0").unwrap();
     let current_identity = current_coordinate.identity().unwrap();
@@ -261,7 +261,7 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         else {
             unreachable!()
         };
-        let manifest = scoop_manifest::parse_cone_manifest(
+        let manifest = scoop_toolchain::parse_cone_manifest(
             "schema = 1\n[[sources]]\npath = 'src'\n[cone]\ngroup = 'test'\nname = 'selection'\nversion = '1.0.0'\nkind = 'library'\n",
         ).unwrap();
         *sources = manifest.semantic().sources().clone();

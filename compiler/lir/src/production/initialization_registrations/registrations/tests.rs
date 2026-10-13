@@ -14,8 +14,8 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, Global, GlobalInit, LayoutIdentity, LirStaticInitialState,
-    LirTargetProfile, LirType, MaterializationRoot, PointerKind, RefScan, StaticStorageIdentity,
+    CanonicalLirFoundation, Global, GlobalInit, LayoutIdentity, LirStaticInitialState, LirType,
+    MaterializationRoot, PointerKind, RefScan, StaticStorageIdentity,
     StrongInitializationUnitSemanticPlanSetV1, StrongInitializationUnitSemanticPlanV1,
     StrongStaticStorageSemanticPlanSetV1,
 };

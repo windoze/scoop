@@ -13,6 +13,7 @@ use crate::CanonicalLirFoundation;
 #[test]
 fn groups_identical_contracts_and_resolves_their_library() {
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -27,7 +28,7 @@ fn groups_identical_contracts_and_resolves_their_library() {
     let foundation = foundation(records, vec![requirement.clone()]);
 
     let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap();
@@ -57,7 +58,7 @@ fn preserves_default_native_namespace_without_fabricating_a_requirement() {
     );
 
     let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap();
@@ -72,6 +73,7 @@ fn preserves_default_native_namespace_without_fabricating_a_requirement() {
 #[test]
 fn rejects_conflicting_contracts_for_one_link_symbol() {
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("conflict").unwrap(),
     ))
     .unwrap();
@@ -99,7 +101,7 @@ fn rejects_conflicting_contracts_for_one_link_symbol() {
 
     assert!(matches!(
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &foundation,
         ),
         Err(CanonicalNativeExternalRequirementBuildError::ConflictingContract { .. })
@@ -109,6 +111,7 @@ fn rejects_conflicting_contracts_for_one_link_symbol() {
 #[test]
 fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     let missing = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("missing").unwrap(),
     ))
     .unwrap()
@@ -126,7 +129,7 @@ fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     );
     assert!(matches!(
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &missing_foundation,
         ),
         Err(CanonicalNativeExternalRequirementBuildError::MissingLibraryRequirement {
@@ -136,12 +139,13 @@ fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     ));
 
     let orphan = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("orphan").unwrap(),
     ))
     .unwrap();
     let orphan_foundation = foundation(Vec::new(), vec![orphan.clone()]);
     let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &orphan_foundation,
     )
     .unwrap();
@@ -167,8 +171,12 @@ fn contract_record(
 ) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source(source_seed),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new(symbol).unwrap(),
+        )
+        .unwrap(),
         contract,
     )
     .unwrap()

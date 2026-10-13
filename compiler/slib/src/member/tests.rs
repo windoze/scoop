@@ -86,7 +86,7 @@ fn only_link_inputs_can_form_link_fingerprints() {
             logical_key: logical_key(b"unit"),
         },
         SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             object_format: ObjectFormatId::macho_relocatable(),
             verifier_capability: verifier,
         },

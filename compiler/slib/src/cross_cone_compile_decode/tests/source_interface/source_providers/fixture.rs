@@ -1,6 +1,5 @@
 use scoop_hir::{OdrFreeHirFoundation, SourceRecord};
 use scoop_identity::ConeCoordinate;
-use scoop_lir::ValidatedLirTargetSelection;
 
 use super::*;
 use crate::strong_compile_decode::tests::cone_named;
@@ -145,7 +144,7 @@ impl Fixture {
     pub(super) fn profiled(&self) -> ProfileValidatedCrossConeHirClosure<'_> {
         DecodedCrossConeClosure::new(
             cone_named("source-request").identity(),
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             self.direct.clone(),
             self.artifacts.iter().map(|bytes| decode(bytes)).collect(),
         )

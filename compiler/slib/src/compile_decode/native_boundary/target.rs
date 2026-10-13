@@ -213,8 +213,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         actual: &NativeExternalContractRecord,
     ) -> Result<NativeExternalContractRecord, NativeBoundaryCompileError> {
         let (symbol, source_library) = source_target(source.contract());
-        let symbol = NativeExternalSymbolKey::for_target(self.target.wire_id(), symbol)
-            .map_err(NativeBoundaryTargetError::NativeSymbol)?;
+        let symbol = NativeExternalSymbolKey::for_target(
+            self.target.wire_id(),
+            self.target.contract().native_symbol_normalization(),
+            symbol,
+        )
+        .map_err(NativeBoundaryTargetError::NativeSymbol)?;
         let library = self.library(source_library)?;
         let contract = match source.contract() {
             SourceNativeExternalContract::Function { abi, .. } => match abi {
@@ -521,3 +525,6 @@ fn source_target(
         } => (symbol, library),
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::*;
 
-pub(super) const TARGET: crate::LirTargetProfile = crate::LirTargetProfile::DARWIN_AARCH64;
+pub(super) const TARGET: crate::LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 pub(super) fn cone(name: &str) -> ConeIdentity {
     ConeCoordinate::new("test", name, "1.0.0")

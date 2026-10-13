@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 4,
+  "unselected": 3767,
+  "counts": {
+    "passed": 4
+  },
+  "variants": 5,
+  "processes": 40,
+  "stage_and_plan_goldens": 4,
+  "results": [
+    {
+      "name": "m34-small-values-artifacts",
+      "status": "passed",
+      "seconds": 65.00123699987307,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "release-blocks-generic-cross-cone",
+      "status": "passed",
+      "seconds": 56.26239716610871,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "release-blocks-native-aggregate-cross-cone",
+      "status": "passed",
+      "seconds": 55.913048499962315,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "suspend-members-cross-cone",
+      "status": "passed",
+      "seconds": 56.22823095903732,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

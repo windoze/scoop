@@ -34,7 +34,9 @@ pub fn normalize_stackmap_record_v1(
     provisional: ProvisionalLlvmStackmapRecordV3,
 ) -> Result<VerifiedNormalizedStackmapRecordV1, StackmapNormalizationError> {
     normalize_record(
-        StackmapArchitecture::for_target(target),
+        StackmapArchitecture::for_target(target).ok_or(
+            StackmapNormalizationError::UnsupportedTarget(Box::new(target)),
+        )?,
         ExpectedStackmapSemanticsV1 {
             site: plan.site(),
             safepoint_id: plan.safepoint().get(),
@@ -255,6 +257,7 @@ fn validate_root_pairs(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StackmapNormalizationError {
+    UnsupportedTarget(Box<scoop_identity::TargetProfileId>),
     SafepointIdMismatch {
         expected: u64,
         actual: u64,

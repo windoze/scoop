@@ -35,6 +35,9 @@ impl DecodedCompatibilityRecord {
         self,
         selection: ValidatedLirTargetSelection,
     ) -> Result<CompatibilityRecord, CompatibilityValidationError> {
+        if scoop_target_data::selection(selection.target().id()) != Some(selection) {
+            return Err(CompatibilityValidationError::UnsupportedSelection);
+        }
         require_schema(CompatibilitySchemaKind::Identity, self.identity_schema)?;
         require_schema(CompatibilitySchemaKind::Hir, self.hir_schema)?;
         require_schema(CompatibilitySchemaKind::Mir, self.mir_schema)?;
@@ -56,18 +59,38 @@ impl DecodedCompatibilityRecord {
                 actual: self.mangling_schema,
             });
         }
-        TargetProfileWireId::refine(
+        let target = TargetProfileWireId::refine(
             self.target_profile
                 .validate()
                 .map_err(CompatibilityValidationError::Capability)?,
         )
         .map_err(CompatibilityValidationError::TargetProfile)?;
-        BackendProfileWireId::refine(
+        let backend = BackendProfileWireId::refine(
             self.backend_profile
                 .validate()
                 .map_err(CompatibilityValidationError::Capability)?,
         )
         .map_err(CompatibilityValidationError::BackendProfile)?;
+        for (kind, actual, required) in [
+            (
+                CompatibilityProfileKind::Target,
+                target.capability(),
+                expected.target_profile().capability(),
+            ),
+            (
+                CompatibilityProfileKind::Backend,
+                backend.capability(),
+                expected.backend_profile().capability(),
+            ),
+        ] {
+            if actual != required {
+                return Err(CompatibilityValidationError::ProfileMismatch {
+                    kind,
+                    expected: Box::new(required.clone()),
+                    actual: Box::new(actual.clone()),
+                });
+            }
+        }
         require_fingerprint(
             CompatibilityFingerprintKind::LanguageAbi,
             expected.language_abi().as_array(),
@@ -217,8 +240,24 @@ impl fmt::Display for CompatibilityFingerprintKind {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompatibilityProfileKind {
+    Target,
+    Backend,
+}
+
+impl fmt::Display for CompatibilityProfileKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Target => "target profile",
+            Self::Backend => "backend profile",
+        })
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CompatibilityValidationError {
+    UnsupportedSelection,
     UnsupportedSchema {
         kind: CompatibilitySchemaKind,
         actual: u32,
@@ -230,6 +269,11 @@ pub enum CompatibilityValidationError {
     TargetProfile(CapabilityRefinementError),
     BackendProfile(CapabilityRefinementError),
     ArtifactProfile(ArtifactCapabilityProfileRefinementError),
+    ProfileMismatch {
+        kind: CompatibilityProfileKind,
+        expected: Box<scoop_identity::CapabilityId>,
+        actual: Box<scoop_identity::CapabilityId>,
+    },
     FingerprintMismatch {
         kind: CompatibilityFingerprintKind,
         expected: [u8; 32],
@@ -242,6 +286,9 @@ pub enum CompatibilityValidationError {
 impl fmt::Display for CompatibilityValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnsupportedSelection => {
+                formatter.write_str("unsupported target/backend selection for artifact consumption")
+            }
             Self::UnsupportedSchema { kind, actual } => {
                 write!(
                     formatter,
@@ -259,6 +306,20 @@ impl fmt::Display for CompatibilityValidationError {
             Self::TargetProfile(error) => error.fmt(formatter),
             Self::BackendProfile(error) => error.fmt(formatter),
             Self::ArtifactProfile(error) => error.fmt(formatter),
+            Self::ProfileMismatch {
+                kind,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "{kind} identity mismatch: expected {}/{}/{}, found {}/{}/{}",
+                expected.namespace(),
+                expected.name(),
+                expected.major_version(),
+                actual.namespace(),
+                actual.name(),
+                actual.major_version()
+            ),
             Self::FingerprintMismatch {
                 kind,
                 expected,
@@ -321,47 +382,4 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 }
 
 #[cfg(test)]
-mod tests {
-    use scoop_wire::{decode_canonical, encode};
-
-    use super::*;
-
-    #[test]
-    fn compatibility_reader_selects_the_exact_registered_artifact_profile() {
-        let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-        for profile in [
-            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
-        ] {
-            let expected = CompatibilityRecord::new(selection, profile).unwrap();
-            let decoded =
-                decode_canonical::<DecodedCompatibilityRecord>(&encode(&expected).unwrap())
-                    .unwrap();
-            let actual = decoded.validate(selection).unwrap();
-            assert_eq!(actual, expected);
-            assert_eq!(actual.artifact_profile(), &profile.id());
-        }
-    }
-
-    #[test]
-    fn compatibility_reader_rejects_each_old_outer_schema_and_mixed_generations() {
-        let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-        let current =
-            CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
-                .unwrap();
-        for (kind, schemas) in [
-            (CompatibilitySchemaKind::Hir, (1, 2, 2)),
-            (CompatibilitySchemaKind::Mir, (2, 1, 2)),
-            (CompatibilitySchemaKind::Lir, (2, 2, 1)),
-            (CompatibilitySchemaKind::Hir, (1, 1, 1)),
-        ] {
-            let mut decoded =
-                decode_canonical::<DecodedCompatibilityRecord>(&encode(&current).unwrap()).unwrap();
-            (decoded.hir_schema, decoded.mir_schema, decoded.lir_schema) = schemas;
-            assert!(
-                matches!(decoded.validate(selection), Err(CompatibilityValidationError::UnsupportedSchema { kind: actual, actual: 1 }) if actual == kind)
-            );
-        }
-    }
-}
+mod tests;

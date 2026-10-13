@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
-    CrossConeLirBridgeSectionV1, LirTargetProfile,
+    CrossConeLirBridgeSectionV1,
 };
 use scoop_wire::decode_canonical;
 
@@ -203,6 +203,7 @@ fn changing_the_contract_changes_the_code_projection() {
     )
     .unwrap();
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -219,7 +220,7 @@ fn changing_the_contract_changes_the_code_projection() {
         .unwrap();
     let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     let linked = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap();
@@ -270,7 +271,7 @@ fn requirement_surface(
     canonical.set_native_contracts(contracts).unwrap();
     let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap()
@@ -283,8 +284,12 @@ fn contract_record(
 ) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source(source_seed),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new(symbol).unwrap(),
+        )
+        .unwrap(),
         contract,
     )
     .unwrap()
@@ -327,7 +332,7 @@ fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberRecord {
             logical_key: LogicalMemberKey::new(logical_key.as_bytes().to_vec()).unwrap(),
         },
         SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             object_format: ObjectFormatId::macho_relocatable(),
             verifier_capability: capability,
         },

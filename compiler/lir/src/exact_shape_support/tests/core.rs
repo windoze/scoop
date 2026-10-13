@@ -72,7 +72,7 @@ fn core_shapes_require_the_same_descriptor_and_payload_relationships() {
         .unwrap()
         .exact();
     let descriptors = CanonicalExactDescriptorExportsV1::try_new(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         fixture.foundation(),
         fixture
             .descriptors()

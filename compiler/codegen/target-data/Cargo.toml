@@ -1,0 +1,10 @@
+[package]
+name = "scoop-target-data"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-lir.workspace = true
+scoop-identity.workspace = true
+
+scoop-wire.workspace = true

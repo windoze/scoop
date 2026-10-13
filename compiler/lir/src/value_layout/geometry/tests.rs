@@ -1,6 +1,6 @@
 use super::*;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 #[test]
 fn failed_append_keeps_the_checked_prefix_and_cannot_wrap() {

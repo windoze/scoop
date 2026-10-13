@@ -37,9 +37,6 @@ pub use runtime_abi::*;
 mod c_bridge_toolchain;
 pub use c_bridge_toolchain::*;
 
-mod c_bridge_invocation;
-pub use c_bridge_invocation::*;
-
 mod target_selection;
 pub use target_selection::*;
 
@@ -62,8 +59,6 @@ pub use callable_abi::*;
 
 mod external_callable;
 pub use external_callable::*;
-
-mod external_callable_abi;
 
 mod external_type_descriptor;
 pub use external_type_descriptor::*;
@@ -178,3 +173,13 @@ pub use task_context::{
 };
 
 pub type LirFloatConversion = scoop_identity::FloatConversion<IntegerKind>;
+
+// Compile the real data catalog against this test crate's types, avoiding a
+// dev-dependency cycle that would create a second, distinct scoop-lir instance.
+#[cfg(test)]
+extern crate self as scoop_lir;
+#[cfg(test)]
+#[path = "../../codegen/target-data/src/lib.rs"]
+mod target_fixtures;
+#[cfg(test)]
+use target_fixtures::*;

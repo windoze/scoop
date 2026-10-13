@@ -73,13 +73,13 @@ fn empty_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
     )
     .unwrap();
     let layouts = crate::CanonicalExactLayoutExportsV1::try_new(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
         Vec::new(),
     )
     .unwrap();
     let descriptors = crate::CanonicalExactDescriptorExportsV1::try_new(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
         Vec::new(),
     )
@@ -88,13 +88,13 @@ fn empty_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
         layouts.clone(),
         descriptors.clone(),
         crate::CanonicalExactDispatchExportsV1::try_new(
-            crate::LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &foundation,
             Vec::new(),
         )
         .unwrap(),
         crate::CanonicalExactCallableAbiExportsV1::try_new(
-            crate::LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &foundation,
             Vec::new(),
         )

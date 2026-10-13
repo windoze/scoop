@@ -71,7 +71,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     ];
     let diagnostics =
         scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
-    let target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
+    let target = scoop_target_data::DARWIN_AARCH64;
     let empty =
         scoop_lir::SelectedExternalLirSet::try_from_callables(ConeIdentity::CORE, Vec::new())
             .unwrap();

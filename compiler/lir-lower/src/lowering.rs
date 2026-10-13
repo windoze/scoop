@@ -6,98 +6,50 @@ pub(super) struct LoweredModule {
     pub module: lir::Module,
 }
 
-pub(super) fn lower_graph(
-    input: &mir::ConeMirInput,
-    external_descriptors: &[lir::ExternalTypeDescriptor],
-    selected_callables: &lir::SelectedExternalLirSet,
-    target_profile: lir::LirTargetProfile,
-    selected_layout: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
-) -> Result<LoweredModule, LirLoweringError> {
-    let module = input.module();
-    let context = LoweringContext::new(target_profile);
-    let identity_roots = IdentityRoots::new(input);
-    let mut external_type_descriptors = external_descriptors.iter().copied().collect();
-    let dependency_types = dependency_types::lower(
-        input,
-        target_profile,
-        selected_layout,
-        &mut external_type_descriptors,
-    )?;
-    let imported_runtime_string = dependency_types
-        .source
-        .iter()
-        .find_map(|(ty, reference)| (*ty == mir::Type::String).then_some(*reference));
-    validate_strong_materialization(input, &identity_roots, &dependency_types)
-        .map_err(LirLoweringError::Capability)?;
-    // Every string selected by the sealed materialization plan becomes a
-    // global with the same typed identity.
-    let mut globals = Arena::new();
-    let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
-    for &id in input.materialization().strings() {
-        let string = &module.strings[id];
-        let global = globals.alloc(lir::Global {
-            address_kind: lir::PointerKind::Managed,
-            scan: lir::RefScan::None,
-            init: lir::GlobalInit::StringConst {
-                identity: lir::ImmortalObjectIdentity::from_key(
-                    string.identity.clone(),
-                    identity_roots.for_immortal_object(&string.identity),
-                )
-                .expect("validated MIR string identities have canonical CBOR records"),
-                value: string.value.clone(),
-            },
-        });
-        string_global_map.insert(id, global);
-    }
+mod prepared;
+pub use prepared::{PreparedLir, prepare};
 
-    // Enum definitions with fixed representations, in the MIR arena's
-    // order: `mir::EnumId` and `lir::EnumDefId` align.
-    let enums = lower_enums(&context, module)?;
-    // Struct ids also transpose 1:1. Their definitions retain the exact
-    // physical layout needed by codegen and C bridge generation.
-    let structs = lower_structs(&context, module, &enums)?;
-    let (external_callables, external_callable_map) = lower_external_callables(
-        &context,
+pub(super) fn lower_graph(
+    prepared: PreparedLir<'_, '_>,
+    plans: lir::AbiPlanSet,
+) -> Result<LoweredModule, LirLoweringError> {
+    let PreparedLir {
         input,
-        selected_callables,
         selected_layout,
-        &structs,
-        &enums,
-    )?;
-    let native_abi = native_abi::lower(
-        &context,
-        module,
-        &structs,
-        &enums,
-        identity_roots
-            .source_nominal_shapes()
-            .iter()
-            .map(mir::SourceNominalShapeRoot::ty),
-    )?;
-    // Classify every final MIR function before any body is lowered. Callee
-    // definitions and all statically selected call sites reuse these exact
-    // signatures rather than independently rebuilding a physical ABI.
-    let function_signatures = module
+        context,
+        identity_roots,
+        external_type_descriptors,
+        dependency_types,
+        imported_runtime_string,
+        mut globals,
+        string_global_map,
+        enums,
+        structs,
+        external_callables,
+        external_callable_map,
+        planning: _,
+        requests,
+        native_abi,
+    } = prepared;
+    let module = input.module();
+    let signatures = abi::plans::Signatures { requests, plans };
+    let native_abi = native_abi.complete(module, &enums, &signatures);
+    let function_signatures = signatures
+        .requests
         .functions
         .iter()
-        .map(|(id, function)| {
-            let signature = abi::classify_mir_signature(
-                &context,
-                module,
-                function.params.iter().map(|parameter| &parameter.ty),
-                &function.return_ty,
-                &structs,
-                &enums,
-            )?;
-            Ok((id, signature))
-        })
-        .collect::<StorageResult<HashMap<_, _>>>()?;
-    let (extern_functions, extern_function_refs) = lower_extern_functions(
-        &context,
+        .map(|(&id, &request)| (id, signatures.plans.scoop(request).clone()))
+        .collect::<HashMap<_, _>>();
+    let externs::LoweredExternFunctions {
+        functions: extern_functions,
+        references: extern_function_refs,
+        bridges: bridge_signatures,
+    } = lower_extern_functions(
         module,
         &structs,
         &enums,
         &native_abi.native_externals,
+        &signatures,
     )?;
     let globals::LoweredGlobals {
         storage: storage_globals,
@@ -157,7 +109,12 @@ pub(super) fn lower_graph(
                 unreachable!("initialization ensure functions are always managed")
             };
             let reference = local_function_identities.alloc_managed();
-            let gateway = lower_initialization_startup_gateway(unit.identity.id(), ensure);
+            let gateway = lower_initialization_startup_gateway(
+                unit.identity.id(),
+                ensure,
+                &function_signatures[&unit.ensure],
+                signatures.plans.scoop(signatures.requests.startup),
+            );
             (reference, gateway)
         })
         .collect::<Vec<_>>();
@@ -170,14 +127,19 @@ pub(super) fn lower_graph(
             let arguments = match arguments {
                 mir::ProgramArguments::Unused => production::RootArguments::Unused,
                 mir::ProgramArguments::Local(builder) => {
+                    let builder_signature = &function_signatures[&builder];
                     let lir::LocalFunctionRef::Managed(builder) = local_function_map[&builder]
                     else {
                         unreachable!("the core argument builder has managed effect")
                     };
-                    production::RootArguments::Build(lir::ManagedCallDestination::local(builder))
+                    production::RootArguments::Build(
+                        lir::ManagedCallDestination::local(builder),
+                        builder_signature,
+                    )
                 }
                 mir::ProgramArguments::External(builder) => production::RootArguments::Build(
                     lir::ManagedCallDestination::external(external_callable_map[&builder]),
+                    external_callables[external_callable_map[&builder]].signature(),
                 ),
             };
             Some(lower_root_artifacts(
@@ -196,6 +158,7 @@ pub(super) fn lower_graph(
                     selected_layout,
                 )?,
                 &mut globals,
+                &signatures,
             ))
         }
     };
@@ -257,6 +220,8 @@ pub(super) fn lower_graph(
             &callback_map,
             &extern_functions,
             &extern_function_refs,
+            &bridge_signatures,
+            &signatures,
         )
     };
     let mut lowered_functions = module
@@ -276,8 +241,7 @@ pub(super) fn lower_graph(
             )
         })
         .collect::<StorageResult<Vec<_>>>()?;
-    let release_signature =
-        abi::classify_signature(&context, [lir::RAW_PTR], None, &structs, &enums)?;
+    let release_signature = signatures.plans.scoop(signatures.requests.release);
     let mut release_hooks = Arena::new();
     for (_, hook) in module.release_hooks.iter() {
         let owner_type = mir::Type::Class(hook.owner);
@@ -289,8 +253,16 @@ pub(super) fn lower_graph(
             &identity_roots.for_type(&owner_type),
         )
         .expect("an exact release owner derives its machine body identity");
-        let body = lower_body(identity, &hook.code, &release_signature, None)?;
-        let code = safepoints::complete_function(&context, body, &structs, &enums)?;
+        let body = lower_body(identity, &hook.code, release_signature, None)?;
+        let code = safepoints::complete_function(
+            &context,
+            body,
+            &structs,
+            &enums,
+            signatures.runtime(lir::RuntimeFunction::Managed(
+                lir::ManagedRuntimeFunction::Safepoint,
+            )),
+        )?;
         release_hooks.alloc(lir::ReleaseHook {
             owner: type_descriptor_refs.for_type(&owner_type),
             code,
@@ -318,7 +290,13 @@ pub(super) fn lower_graph(
             lowered_functions.len(),
             "the root gateway reference must address its appended LIR function"
         );
-        production::initialize_task(&mut gateway, task_descriptor());
+        production::initialize_task(
+            &mut gateway,
+            task_descriptor(),
+            signatures.runtime(lir::RuntimeFunction::Managed(
+                lir::ManagedRuntimeFunction::ContextEnsureRoot,
+            )),
+        );
         lowered_functions.push(gateway);
     }
     for (reference, mut gateway) in startup_gateways {
@@ -327,12 +305,28 @@ pub(super) fn lower_graph(
             lowered_functions.len(),
             "an initialization startup-gateway reference must address its appended LIR function"
         );
-        production::initialize_task(&mut gateway, task_descriptor());
+        production::initialize_task(
+            &mut gateway,
+            task_descriptor(),
+            signatures.runtime(lir::RuntimeFunction::Managed(
+                lir::ManagedRuntimeFunction::ContextEnsureRoot,
+            )),
+        );
         lowered_functions.push(gateway);
     }
     let functions = lowered_functions
         .into_iter()
-        .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
+        .map(|function| {
+            safepoints::complete_function(
+                &context,
+                function,
+                &structs,
+                &enums,
+                signatures.runtime(lir::RuntimeFunction::Managed(
+                    lir::ManagedRuntimeFunction::Safepoint,
+                )),
+            )
+        })
         .collect::<StorageResult<Vec<_>>>()?;
 
     let layouts = layouts(

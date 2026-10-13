@@ -178,8 +178,9 @@ pub(super) fn immortal_registration_artifacts(
 pub(super) fn type_registration_artifacts(
     exact_type: PersistentExactTypeId,
 ) -> TypeRegistrationArtifacts {
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type,
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedObject,
     ))
     .unwrap();

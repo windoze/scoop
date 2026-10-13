@@ -11,7 +11,7 @@ mod section;
 fn surface(fixture: &Fixture, foreign: bool) -> StrongRegistrationProductionSurfaceV2 {
     let producer = fixture.foundation.producer();
     StrongRegistrationProductionSurfaceV2::from_semantics(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.digests,
         fixture.identities.clone(),
@@ -38,7 +38,7 @@ fn replay(
     let decoded: DecodedStrongRegistrationProductionSurfaceV2 = decode_canonical(bytes).unwrap();
     let producer = fixture.foundation.producer();
     decoded.replay(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.digests,
         definitions,

@@ -56,7 +56,7 @@ fn c_projection_produces_uint64_contracts_without_changing_the_scoop_struct() {
         scoop_identity::CanonicalCAbiReturn::value(exact, expected).unwrap()
     );
     let scoop = abi::classify_signature(
-        &LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64),
+        &LoweringContext::new(scoop_target_data::DARWIN_AARCH64),
         [lir::LirType::Struct(struct_def_id(id))],
         Some(lir::LirType::Struct(struct_def_id(id))),
         &module.structs,

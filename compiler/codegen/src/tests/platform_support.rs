@@ -15,3 +15,11 @@ pub(crate) fn native_profile_source() -> &'static str {
         host => panic!("no runtime test profile for {host:?}"),
     }
 }
+
+pub(crate) fn native_float_environment_source() -> &'static str {
+    match std::env::consts::ARCH {
+        "x86_64" => "runtime/src/platform/arch/x86_64_float_environment.c",
+        "aarch64" => "runtime/src/platform/arch/aarch64_float_environment.c",
+        host => panic!("no runtime floating environment component for {host}"),
+    }
+}

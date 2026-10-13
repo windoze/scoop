@@ -74,6 +74,7 @@ pub(super) fn prepare(
         .prefix("scoop-preprocess-")
         .tempdir()
         .map_err(error)?;
+    let target_facts = crate::manifest::source_target(target)?;
     for _ in 0..3 {
         let mut result = PreparedNativeInputs {
             libraries: libraries.clone(),
@@ -86,12 +87,18 @@ pub(super) fn prepare(
             let depfile = directory.path().join("unit.d");
             let mut command = command::base(compiler, *language, optimization)?;
             command.args([
-                format!("-DSCOOP_TARGET_OS_{}=1", target.os().to_ascii_uppercase()),
+                format!(
+                    "-DSCOOP_TARGET_OS_{}=1",
+                    target_facts.os.to_ascii_uppercase()
+                ),
                 format!(
                     "-DSCOOP_TARGET_ARCH_{}=1",
-                    target.arch().to_ascii_uppercase()
+                    target_facts.arch.to_ascii_uppercase()
                 ),
-                format!("-DSCOOP_TARGET_ENV_{}=1", target.env().to_ascii_uppercase()),
+                format!(
+                    "-DSCOOP_TARGET_ENV_{}=1",
+                    target_facts.env.to_ascii_uppercase()
+                ),
             ]);
             command::configure_preprocessor(&mut command, config, *language, &roots.cone);
             command

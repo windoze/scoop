@@ -3,7 +3,8 @@ use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use scoop_lir::{LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{LirTargetProfile, TargetProfileId};
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
 use crate::{SystemProvider, ToolchainError, c_bridge};
@@ -80,10 +81,10 @@ impl DarwinFinalLinkProfile {
     }
 
     pub const fn id(&self) -> TargetProfileId {
-        TargetProfileId::DarwinAarch64
+        scoop_target_data::DARWIN_AARCH64_ID
     }
     pub const fn target(&self) -> LirTargetProfile {
-        LirTargetProfile::DARWIN_AARCH64
+        scoop_target_data::DARWIN_AARCH64
     }
     pub const fn canonical_triple(&self) -> &'static str {
         "aarch64-apple-darwin"

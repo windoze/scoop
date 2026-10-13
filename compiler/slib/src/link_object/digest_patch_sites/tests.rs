@@ -3,7 +3,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
-    DigestInputRefV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
+    DigestInputRefV1, GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
 };
 
 use super::*;
@@ -290,7 +290,7 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     let member_plan = member_plan(&base, &bridge_plan);
     let surface = ObjectSymbolSurfaceV1::from_foundation(&base.foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &surface,
         &member_plan,
     )

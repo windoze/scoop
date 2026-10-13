@@ -383,7 +383,7 @@ fn validate_personality_relocation(
         || !entries[0].r_pcrel
         || entries[0].r_length != 2
         || entries[0].symbol
-            != scoop_lir::LirTargetProfile::DARWIN_AARCH64
+            != scoop_target_data::DARWIN_AARCH64
                 .contract()
                 .native_symbol_normalization()
                 .compiler_generated_object_symbol(

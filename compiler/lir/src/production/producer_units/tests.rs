@@ -50,9 +50,12 @@ fn fixture(
     scoop_identity::ObjectDefinitionPlanId,
     GeneratedBridgeUnitId,
 ) {
-    let native_symbol =
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("native").unwrap())
-            .unwrap();
+    let native_symbol = NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+        &SourceNativeSymbol::new("native").unwrap(),
+    )
+    .unwrap();
     let native_contract = NativeExternalContract::c_function(
         scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
         scoop_identity::CanonicalCAbiFunctionSignature::cdecl(

@@ -151,27 +151,12 @@ pub(in crate::function) fn runtime_call_destination(
 }
 
 impl<'a> FunctionLowerer<'a> {
-    fn classified_call_signature(
-        &self,
-        parameter_types: Vec<lir::LirType>,
-        result_type: lir::LirType,
-    ) -> StorageResult<lir::ScoopAbiSignature> {
-        abi::classify_signature(
-            self.context,
-            parameter_types,
-            (result_type != lir::LirType::Void).then_some(result_type),
-            self.structs,
-            self.enums,
-        )
-    }
-
-    pub(in crate::function) fn typed_call(
+    pub(in crate::function) fn typed_runtime_call(
         &mut self,
-        parameter_types: Vec<lir::LirType>,
-        result_type: lir::LirType,
+        function: lir::RuntimeFunction,
         args: Vec<lir::Value>,
     ) -> StorageResult<(PendingTypedCall, Option<lir::Value>)> {
-        let signature = self.classified_call_signature(parameter_types, result_type)?;
+        let signature = self.signatures.runtime(function).clone();
         self.typed_call_with_signature(&signature, args)
     }
 

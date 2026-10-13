@@ -9,8 +9,8 @@ pub(super) fn paired_driver(
         .and_then(|name| name.to_str())
         .unwrap_or_default();
     let paired = match c.profile().contract().target().id() {
-        TargetProfileId::DarwinAarch64 => "clang++".to_owned(),
-        TargetProfileId::LinuxX86_64Gnu => match name.rsplit_once("gcc") {
+        scoop_target_data::DARWIN_AARCH64_ID => "clang++".to_owned(),
+        scoop_target_data::LINUX_X86_64_GNU_ID => match name.rsplit_once("gcc") {
             Some((prefix, version)) => format!("{prefix}g++{version}"),
             None if name == "cc" => "c++".to_owned(),
             None => {
@@ -20,9 +20,10 @@ pub(super) fn paired_driver(
                 )));
             }
         },
-        TargetProfileId::LinuxX86_64Musl => {
+        scoop_target_data::LINUX_X86_64_MUSL_ID => {
             return Err(error("C++ is not supported for Linux musl"));
         }
+        _ => return Err(error("unsupported target for C++ driver selection")),
     };
     // Preserve clang++'s spelling: its argv[0] selects C++ link defaults.
     let driver = path.with_file_name(paired);
@@ -40,7 +41,7 @@ pub(super) fn inputs(
     driver: &Path,
     inputs: &mut Vec<Digest256>,
 ) -> Result<(), ToolchainError> {
-    if c.profile().contract().target().id() == TargetProfileId::DarwinAarch64 {
+    if c.profile().contract().target().id() == scoop_target_data::DARWIN_AARCH64_ID {
         let sdk = c.sdk_root().map_err(error)?;
         let library = ["usr/lib/libc++.tbd", "usr/lib/libc++.1.tbd"]
             .into_iter()

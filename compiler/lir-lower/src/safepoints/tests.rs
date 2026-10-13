@@ -1,7 +1,7 @@
 use super::*;
 
 fn context() -> LoweringContext {
-    LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64)
+    LoweringContext::new(scoop_target_data::DARWIN_AARCH64)
 }
 
 fn tagged(enums: &mut lir::EnumDefs, size: u64, scan: lir::RefScan) -> lir::LirType {

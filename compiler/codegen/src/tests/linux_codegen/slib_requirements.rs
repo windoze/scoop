@@ -8,8 +8,8 @@ use scoop_slib::*;
 fn elf_allocation_tls_is_a_runtime_requirement_with_a_platform_resolver() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        scoop_lir::LirTargetProfile::LINUX_X86_64_GNU,
-        scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL,
+        scoop_target_data::LINUX_X86_64_GNU,
+        scoop_target_data::LINUX_X86_64_MUSL,
     ] {
         let module = super::super::objects::heap_module_for(target);
         let semantics = scoop_lir::StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
@@ -50,8 +50,8 @@ fn elf_strong_closure_rejects_mixed_libc_members_and_requirement_targets() {
     let directory = tempfile::tempdir().unwrap();
     let mut closures = Vec::new();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let fixture = SlibObjects::new(
             for_target(
@@ -63,7 +63,7 @@ fn elf_strong_closure_rejects_mixed_libc_members_and_requirement_targets() {
         let builtins = fixture.builtins(&fixture.objects);
         let closure = builtins.strong_relocations().clone();
         assert_eq!(closure.target().id(), target);
-        let wrong_target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
+        let wrong_target = scoop_target_data::DARWIN_AARCH64;
         assert!(matches!(
             verify_dependency_strong_requirements_v1(wrong_target, closure.clone(), &[]),
             Err(CrossConeStrongRequirementValidationError::TargetMismatch { .. })

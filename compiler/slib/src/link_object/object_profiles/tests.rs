@@ -7,7 +7,7 @@ use scoop_lir::{
 #[test]
 fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
     let qualified = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object(None),
     )
     .unwrap();
@@ -17,7 +17,7 @@ fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
     );
 
     let error = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &object(Some((0x000d_0000, 0x000d_0000, &[]))),
     )
     .unwrap_err();
@@ -198,4 +198,20 @@ fn push_fixed_name(bytes: &mut Vec<u8>, name: &[u8]) {
     let mut fixed = [0; 16];
     fixed[..name.len()].copy_from_slice(name);
     bytes.extend_from_slice(&fixed);
+}
+
+#[test]
+fn canonical_unknown_target_is_rejected_before_object_parsing() {
+    const UNKNOWN: scoop_lir::TargetProfileId =
+        match scoop_lir::TargetProfileId::new("unknown-target", 1) {
+            Ok(id) => id,
+            Err(_) => panic!("canonical test identity"),
+        };
+    let target =
+        scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
+    assert!(matches!(
+        validate_scoop_lir_llvm_22_1_object_envelope_v1(target, &[]),
+        Err(ScoopLirObjectEnvelopeValidationError::UnsupportedTarget)
+    ));
+    assert!(crate::ElfArchitecture::for_target(UNKNOWN).is_err());
 }

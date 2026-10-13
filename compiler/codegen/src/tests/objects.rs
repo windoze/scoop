@@ -5,7 +5,7 @@ use super::*;
 /// indirect calls through a table pointer (vtable / itable dispatch shape,
 /// impl spec 2.9).
 pub(super) fn classes_module() -> Module {
-    classes_module_for(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+    classes_module_for(scoop_target_data::DARWIN_AARCH64)
 }
 
 pub(super) fn classes_module_for(target: scoop_lir::LirTargetProfile) -> Module {
@@ -223,7 +223,7 @@ fn emits_m6_type_descriptors_and_call_indirect() {
 /// field, ptr field, TD vtable pointer), and a descriptor-refined box operation
 /// with a typed aggregate payload local.
 pub(super) fn heap_module() -> Module {
-    heap_module_for(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+    heap_module_for(scoop_target_data::DARWIN_AARCH64)
 }
 
 pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {

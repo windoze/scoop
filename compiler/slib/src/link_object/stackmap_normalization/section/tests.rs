@@ -143,12 +143,9 @@ fn binds_parsing_to_exact_object_bytes_and_requires_zero_address_slots() {
 }
 
 fn validated_sections(bytes: &[u8]) -> ValidatedBuiltinObjectSectionInventoryV1 {
-    validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        bytes,
-    )
-    .unwrap()
-    .into_sections()
+    validate_scoop_lir_llvm_22_1_object_envelope_v1(scoop_target_data::DARWIN_AARCH64, bytes)
+        .unwrap()
+        .into_sections()
 }
 
 fn stackmap_object(

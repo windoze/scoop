@@ -31,7 +31,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             vec![plans.registrations()[0].semantic().clone()],
         );
         let original = crate::StrongRegistrationProductionSurfaceV2::from_semantics(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &fixture.foundation,
             &fixture.digests,
             fixture.identities.clone(),
@@ -41,7 +41,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             .unwrap(),
             crate::StrongTypeDescriptorSemanticPlanSetV2::from_artifact(
                 producer,
-                LirTargetProfile::DARWIN_AARCH64.wire_id(),
+                crate::target_fixtures::DARWIN_AARCH64.wire_id(),
                 Vec::new(),
             ),
             crate::StrongSafepointSemanticPlanSetV1::from_artifact(producer, Vec::new()),
@@ -53,7 +53,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             decode_canonical(&encode(&original).unwrap()).unwrap();
         let replayed = decoded
             .replay(
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 &fixture.foundation,
                 &fixture.digests,
                 &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &[]).unwrap(),
@@ -93,7 +93,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             .replay(
                 coordinate,
                 &[],
-                LirTargetProfile::DARWIN_AARCH64,
+                crate::target_fixtures::DARWIN_AARCH64,
                 &fixture.foundation,
                 crate::EntryProductionSourceV1::Library,
                 &[],

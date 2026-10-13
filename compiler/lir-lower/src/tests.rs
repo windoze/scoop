@@ -587,7 +587,7 @@ fn selected_target_profile_is_embedded_in_lir_meta() {
 
     assert_eq!(
         module.meta.target_profile,
-        lir::LirTargetProfile::DARWIN_AARCH64
+        scoop_target_data::DARWIN_AARCH64
     );
 }
 
@@ -873,7 +873,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
 
 #[test]
 fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
-    let profile = lir::LirTargetProfile::DARWIN_AARCH64;
+    let profile = scoop_target_data::DARWIN_AARCH64;
     let context = LoweringContext::new(profile);
     let physical = |layout: lir::ScalarLayout| PhysicalLayout {
         size: layout.size_bytes(),
@@ -938,7 +938,7 @@ fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
 
 #[test]
 fn profile_layout_drives_aggregate_root_scan_offsets() {
-    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let context = LoweringContext::new(scoop_target_data::DARWIN_AARCH64);
     let structs = lir::StructDefs::default();
     let enums = lir::EnumDefs::default();
     let ty = lir::LirType::Aggregate(vec![lir::LirType::I1, lir::MANAGED_PTR]);
@@ -997,7 +997,9 @@ fn scoop_extern_produces_one_exact_target_contract() {
     .unwrap();
     let expected = scoop_identity::NativeExternalContractRecord::new(
         source_contract,
-        scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+        scoop_identity::NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
             &SourceNativeSymbol::new("scoop_read").unwrap(),
         )
         .unwrap(),
@@ -1325,7 +1327,10 @@ fn canonical_c_abi_metadata_includes_external_global_layouts() {
     };
     let library = scoop_identity::CanonicalNativeLibraryName::new("native-headers").unwrap();
     let expected_requirement = scoop_identity::CborIdentityRecord::from_key(
-        scoop_identity::NativeLinkRequirementKey::target_default(library.clone()),
+        scoop_identity::NativeLinkRequirementKey::target_default(
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
+            library.clone(),
+        ),
     )
     .unwrap();
     let source_contract = test_source_native_data_contract(

@@ -160,7 +160,7 @@ fn check_core_layout_exports(names: &[&str]) {
         let diagnostics =
             scoop_identity::ExactTypeDiagnosticCatalog::try_new(&source_graph, &coordinates)
                 .unwrap();
-        let lir = scoop_lir_lower::lower_with_diagnostics(
+        let lir = crate::lir_pipeline::lower_with_diagnostics(
             &mir.strong,
             &[],
             &lir::SelectedExternalLirSet::empty(ConeIdentity::CORE),

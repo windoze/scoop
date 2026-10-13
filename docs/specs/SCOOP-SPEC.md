@@ -2370,6 +2370,8 @@ cxx_flags = ["-std=c++20"]
 
 #### 12.2.2 Scoop 源码选择与平台条件
 
+平台条件的允许 os/arch/env 值来自 driver 提供给 manifest 解析器的实际支持目标目录，不由公共身份类型或 LLVM 枚举推导；条件始终按构建 target 选择，与宿主平台无关。
+
 manifest 顶层可使用 `[[sources]]` 表数组，每项具有必需的 `path` 和可选的 `when`。例如：
 
 ```toml

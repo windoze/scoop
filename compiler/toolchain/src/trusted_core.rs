@@ -47,7 +47,7 @@ mod tests {
     fn target_qualified_layout_has_one_shared_spelling() {
         let layout = TrustedCoreSlotLayoutV1::new(
             Path::new("/opt/scoop"),
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         );
         assert_eq!(layout.source_root(), Path::new("/opt/scoop/lib/scoop.core"));
         assert_eq!(

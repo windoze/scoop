@@ -27,7 +27,7 @@ pub(super) enum RuntimeLibraries {
 
 impl RuntimeLibraries {
     pub(super) fn resolve(
-        target: TargetProfileId,
+        target: scoop_lir::LirTargetProfile,
         options: &FinalLinkOptions,
         cxx: Option<ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
@@ -46,7 +46,7 @@ impl RuntimeLibraries {
             return Err(error(format!(
                 "missing LLVM unwind archive {}; run scripts/build_llvm_unwind.py for {}",
                 archive.display(),
-                target.canonical_triple()
+                target.contract().canonical_triple()
             )));
         }
         Ok(Self::C { unwind_prefix })

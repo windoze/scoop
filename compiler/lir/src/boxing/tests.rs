@@ -129,7 +129,7 @@ fn fixture(
     let mut external = Arena::new();
     let id = external.alloc(definition);
     let shape =
-        TypeInstanceShapeV1::boxed_value(LirTargetProfile::DARWIN_AARCH64, storage).unwrap();
+        TypeInstanceShapeV1::boxed_value(crate::target_fixtures::DARWIN_AARCH64, storage).unwrap();
     let proof = BoxedValueDescriptor::from_shape(
         BoxedDescriptorReference::External { id, definition },
         exact,

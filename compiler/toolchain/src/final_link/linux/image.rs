@@ -1,6 +1,6 @@
 use super::*;
 use object::read::elf::{Dyn, ElfFile64, ProgramHeader};
-use object::{Architecture, Object, ObjectKind, ObjectSymbol, elf};
+use object::{Object, ObjectKind, ObjectSymbol, elf};
 
 pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(), ToolchainError> {
     let file: ElfFile64<'_> = ElfFile64::parse(bytes).map_err(error)?;
@@ -8,12 +8,12 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(),
         LinkMode::Static => ObjectKind::Executable,
         LinkMode::Dynamic => ObjectKind::Dynamic,
     };
-    if file.architecture() != Architecture::X86_64
+    if file.architecture() != profile.target.machine.object_architecture()
         || !file.is_little_endian()
         || file.kind() != expected
     {
         return Err(error(
-            "linker did not produce the selected ELF64 amd64 executable mode",
+            "linker did not produce the selected ELF64 executable mode",
         ));
     }
     let endian = file.endian();
@@ -60,13 +60,7 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(),
         (LinkMode::Static, None) => {}
         (LinkMode::Dynamic, Some(interpreter)) => {
             let interpreter = std::str::from_utf8(interpreter).map_err(error)?;
-            let expected = match profile.startup.profile().contract().target().id() {
-                TargetProfileId::LinuxX86_64Gnu => "ld-linux-x86-64.so.2",
-                TargetProfileId::LinuxX86_64Musl => "ld-musl-x86_64.so.1",
-                TargetProfileId::DarwinAarch64 => {
-                    return Err(error("ELF profile has a Darwin target"));
-                }
-            };
+            let expected = profile.target.interpreter_name();
             if !Path::new(interpreter).is_absolute()
                 || Path::new(interpreter).file_name() != Some(std::ffi::OsStr::new(expected))
                 || !read_only_after_relocation

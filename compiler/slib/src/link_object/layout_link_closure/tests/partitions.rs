@@ -135,11 +135,9 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
         native_surface(consumer_id, vec![], vec![]),
     )
     .unwrap();
-    let runtime = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let runtime =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     let external = seal_builtin_object_external_requirements_v1(
         without_generated_bridge_semantics_for_test(runtime),
     )
@@ -160,11 +158,9 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
         ),
     )
     .unwrap();
-    let runtime = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let runtime =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     let overlapping_external = seal_builtin_object_external_requirements_v1(
         without_generated_bridge_semantics_for_test(runtime),
     )

@@ -58,18 +58,18 @@ fn compiler_identity_rejects_ambiguous_build_spelling() {
 fn linux_c_profile_separates_libc_and_tracks_consumed_inputs() {
     let identity =
         |bytes: &[u8]| GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(bytes)).unwrap();
-    let gnu = CBridgeToolchainProfileV1::new_linux_gcc(
-        LirTargetProfile::LINUX_X86_64_GNU,
+    let gnu = crate::target_fixtures::linux_c_bridge_profile(
+        crate::target_fixtures::LINUX_X86_64_GNU,
         identity(b"compiler and headers"),
     )
     .unwrap();
-    let musl = CBridgeToolchainProfileV1::new_linux_gcc(
-        LirTargetProfile::LINUX_X86_64_MUSL,
+    let musl = crate::target_fixtures::linux_c_bridge_profile(
+        crate::target_fixtures::LINUX_X86_64_MUSL,
         identity(b"compiler and headers"),
     )
     .unwrap();
-    let changed = CBridgeToolchainProfileV1::new_linux_gcc(
-        LirTargetProfile::LINUX_X86_64_GNU,
+    let changed = crate::target_fixtures::linux_c_bridge_profile(
+        crate::target_fixtures::LINUX_X86_64_GNU,
         identity(b"changed specs or headers"),
     )
     .unwrap();
@@ -77,8 +77,8 @@ fn linux_c_profile_separates_libc_and_tracks_consumed_inputs() {
     assert_ne!(gnu.fingerprint(), changed.fingerprint());
     assert!(gnu.contract().deployment().is_err());
     assert!(
-        CBridgeToolchainProfileV1::new_linux_gcc(
-            LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::linux_c_bridge_profile(
+            crate::target_fixtures::DARWIN_AARCH64,
             identity(b"compiler and headers"),
         )
         .is_err()
@@ -179,7 +179,7 @@ fn fixture_profile_with(
     )
     .unwrap();
     let compiler = AppleClangCompilerIdentityV1::new(compiler_major, 0, 0, compiler_build).unwrap();
-    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(deployment, compiler).unwrap()
+    crate::target_fixtures::darwin_c_bridge_profile(deployment, compiler).unwrap()
 }
 
 fn hex(bytes: &[u8]) -> String {

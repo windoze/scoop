@@ -165,7 +165,7 @@ fn storage_global(
             identity,
             layout: LayoutIdentity::managed_value(
                 exact_type,
-                LirTargetProfile::DARWIN_AARCH64,
+                scoop_target_data::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap()
@@ -182,7 +182,7 @@ fn metadata() -> LirMeta {
     let _string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             string_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),
@@ -200,7 +200,7 @@ fn metadata() -> LirMeta {
     );
     LirMeta {
         exact_types: Vec::new(),
-        target_profile: LirTargetProfile::DARWIN_AARCH64,
+        target_profile: scoop_target_data::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),
         well_known_type_descriptors: WellKnownTypeDescriptors {

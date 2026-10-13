@@ -124,7 +124,8 @@ where
         }
         verify_only_image_slot_changed(member, &bytes, source.bytes(), image_member, image_patch)?;
         let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-            scoop_lir::LirTargetProfile::from_id(source.envelope().sections().envelope().target()),
+            scoop_target_data::layout(source.envelope().sections().envelope().target())
+                .expect("implemented target selected by this consumer"),
             &bytes,
         )
         .map_err(|source| RuntimeImagePatchError::FinalEnvelope { member, source })?;

@@ -205,6 +205,7 @@ impl std::error::Error for ManifestRootError {
 
 pub fn load_cone_manifest(
     locator: &ManifestRootLocator,
+    catalog: &[crate::SourceTarget<'_>],
 ) -> Result<LoadedConeManifest, ManifestRootError> {
     let (real_root, manifest_path) = match locator {
         ManifestRootLocator::ConeDirectory(root) => {
@@ -266,7 +267,7 @@ pub fn load_cone_manifest(
     let source = String::from_utf8(bytes).map_err(|_| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::InvalidUtf8)
     })?;
-    let parsed = parse_cone_manifest(&source).map_err(|error| {
+    let parsed = parse_cone_manifest(&source, catalog).map_err(|error| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::Parse(error))
     })?;
     let identity = parsed.semantic().coordinate().identity().map_err(|error| {
@@ -297,6 +298,7 @@ fn canonicalize(path: &Path) -> Result<PathBuf, ManifestRootError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_catalog::load_cone_manifest;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::*;

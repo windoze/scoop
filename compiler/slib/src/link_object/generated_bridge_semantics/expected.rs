@@ -330,7 +330,7 @@ fn register_expected_atom(
 
 fn relocation_targets(shape: &VerifiedObjectRelocationShapeV1) -> Vec<&VerifiedRelocationTargetV1> {
     match shape {
-        VerifiedObjectRelocationShapeV1::ElfRela { target, .. }
+        VerifiedObjectRelocationShapeV1::ElfX86_64Rela { target, .. }
         | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
         | VerifiedObjectRelocationShapeV1::Branch26 { target }
         | VerifiedObjectRelocationShapeV1::Page21 { target, .. }

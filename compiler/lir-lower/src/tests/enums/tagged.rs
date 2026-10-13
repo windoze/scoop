@@ -156,7 +156,7 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
         outer_layout.identity,
         lir::LayoutIdentity::c_value(
             outer_exact,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             lir::MaterializationRoot::cone_owned(),
         )
         .unwrap()

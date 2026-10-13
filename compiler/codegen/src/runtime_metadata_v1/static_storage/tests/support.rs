@@ -13,11 +13,11 @@ use scoop_lir::{
     CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
     DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global,
     GlobalInit, ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity,
-    LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
-    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, PointerKind, RefScan, RegistrationIdentitySurfaceV1,
-    StaticStorageIdentity, StrongStaticStorageRegistrationPlanSetV1,
-    StrongStaticStorageSemanticPlanSetV1, StructDefs, TypeDescriptorRef, WellKnownTypeDescriptors,
+    LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirType, LocalFunctionIdentities,
+    LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges,
+    PointerKind, RefScan, RegistrationIdentitySurfaceV1, StaticStorageIdentity,
+    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageSemanticPlanSetV1, StructDefs,
+    TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 {
@@ -347,7 +347,7 @@ fn semantic_module() -> Module {
     let _string_layout = layouts.alloc(Layout {
         identity: LayoutIdentity::managed_object(
             string_type,
-            LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),
@@ -382,7 +382,7 @@ fn semantic_module() -> Module {
         output: scoop_lir::LirOutput::Executable { entry },
         meta: LirMeta {
             exact_types: Vec::new(),
-            target_profile: LirTargetProfile::DARWIN_AARCH64,
+            target_profile: scoop_target_data::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
             well_known_type_descriptors: WellKnownTypeDescriptors {
@@ -414,7 +414,7 @@ fn storage_global(
             .unwrap(),
             layout: LayoutIdentity::managed_value(
                 exact_type(name, SourceNominalKind::Struct),
-                LirTargetProfile::DARWIN_AARCH64,
+                scoop_target_data::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
             .unwrap()

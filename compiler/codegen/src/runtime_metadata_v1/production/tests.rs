@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, ConeLirFoundation, ConeProductionSectionV1, ConeProductionSectionV2,
-    DigestFinalizationPlanV1, DigestNodeV1, EntryProductionSourceV1, LirTargetProfile,
+    DigestFinalizationPlanV1, DigestNodeV1, EntryProductionSourceV1,
     StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionSurfaceV2,
 };
 
@@ -21,7 +21,7 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     let context = Context::create();
     let llvm = context.create_module("strong-runtime-metadata");
     let target_data =
-        TargetData::create(LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout());
+        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let producer = production.image_plan().cone().identity();
     let bounds_message = crate::emission::emit_cone_trap_message(
         &context,
@@ -126,7 +126,7 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
     let context = Context::create();
     let llvm = context.create_module("strong-runtime-metadata-v2");
     let target_data =
-        TargetData::create(LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout());
+        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let producer = production.image_plan().cone().identity();
     let bounds_message = crate::emission::emit_cone_trap_message(
         &context,
@@ -222,7 +222,7 @@ fn production() -> (
     let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations = StrongRegistrationProductionSurfaceV1::empty(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
         &digests,
     )
@@ -293,7 +293,7 @@ fn production_v2() -> (
     let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations = StrongRegistrationProductionSurfaceV2::empty(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
         &digests,
     )

@@ -10,13 +10,13 @@ use scoop_identity::{
 use scoop_wire::HashError;
 
 use crate::{
-    CallingConvention, GcEffect, ScoopAbiSignature, SelectedDependencyLirCallableV1,
-    external_callable_abi::{CanonicalScoopAbiMismatch, validate_canonical_scoop_abi},
+    AbiStorageSignature, CallingConvention, GcEffect, ScoopAbiSignature,
+    SelectedDependencyLirCallableV1,
 };
 
 /// One external definition declared by the consumer's LLVM module. The
 /// selected semantic bridge owns all link-facing facts; the target-specific
-/// signature is admitted only after exact ABI replay.
+/// signature binds consumer-local storage to the provider's saved physical ABI.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExternalCallable {
     origin: ExternalCallableOrigin,
@@ -40,7 +40,7 @@ pub enum ExternalCallableOrigin {
 impl ExternalCallable {
     pub(crate) fn new(
         selected: SelectedDependencyLirCallableV1,
-        signature: ScoopAbiSignature,
+        signature: AbiStorageSignature,
     ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
         Self::from_direct(
@@ -54,16 +54,11 @@ impl ExternalCallable {
     fn from_direct(
         provider: ConeIdentity,
         bridge: &crate::ParamFreeLirCallableExportV1,
-        signature: ScoopAbiSignature,
+        signature: AbiStorageSignature,
         origin: ExternalCallableOrigin,
     ) -> Result<Self, ExternalCallableBuildError> {
-        validate_signature(bridge.abi_signature(), &signature, bridge.root_plan())?;
-        if signature.calling_convention() != bridge.calling_convention() {
-            return Err(ExternalCallableBuildError::CallingConventionMismatch {
-                expected: bridge.calling_convention(),
-                actual: signature.calling_convention(),
-            });
-        }
+        let signature = signature.bind(bridge.abi_signature(), bridge.calling_convention())?;
+        validate_root_plan(bridge.abi_signature(), bridge.root_plan())?;
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(bridge.target()))
             .map_err(ExternalCallableBuildError::Identity)?;
         Ok(Self {
@@ -83,7 +78,7 @@ impl ExternalCallable {
     pub(crate) fn from_layout_direct(
         provider: ConeIdentity,
         record: &crate::ParamFreeLirCallableExportV1,
-        signature: ScoopAbiSignature,
+        signature: AbiStorageSignature,
     ) -> Result<Self, crate::LayoutExternalMaterializationError> {
         Self::from_direct(
             provider,
@@ -99,7 +94,7 @@ impl ExternalCallable {
         record: &crate::ExactCallableAbiExportV1,
         expected_symbol: PersistentSymbolRequest,
         required_definition: ObjectDefinitionPlanId,
-        signature: ScoopAbiSignature,
+        signature: AbiStorageSignature,
     ) -> Result<Self, crate::LayoutExternalMaterializationError> {
         let scoop_identity::CallableDefinitionOwner::Strong(target) = record.target() else {
             return Err(crate::LayoutExternalMaterializationError::PhysicalCallable(
@@ -112,16 +107,11 @@ impl ExternalCallable {
             }
             crate::ExactCallableProtocolV1::OrdinaryNoGc => crate::ExternalCallableRootPlan::NoGc,
         };
-        validate_signature(record.canonical_signature(), &signature, root_plan)
+        let signature = signature
+            .bind(record.canonical_signature(), record.calling_convention())
             .map_err(crate::LayoutExternalMaterializationError::CallableAbi)?;
-        if signature.calling_convention() != record.calling_convention() {
-            return Err(crate::LayoutExternalMaterializationError::CallableAbi(
-                ExternalCallableBuildError::CallingConventionMismatch {
-                    expected: record.calling_convention(),
-                    actual: signature.calling_convention(),
-                },
-            ));
-        }
+        validate_root_plan(record.canonical_signature(), root_plan)
+            .map_err(crate::LayoutExternalMaterializationError::CallableAbi)?;
         let physical = record.physical_definition();
         if physical.provider() != provider
             || physical.symbol() != expected_symbol
@@ -197,20 +187,10 @@ impl ExternalCallable {
     }
 }
 
-fn validate_signature(
+fn validate_root_plan(
     canonical: &CanonicalScoopAbiFunctionSignature,
-    physical: &ScoopAbiSignature,
     root_plan: ExternalCallableRootPlan,
 ) -> Result<(), ExternalCallableBuildError> {
-    validate_canonical_scoop_abi(canonical, physical).map_err(|error| match error {
-        CanonicalScoopAbiMismatch::ArgumentCount { expected, actual } => {
-            ExternalCallableBuildError::AbiArgumentCount { expected, actual }
-        }
-        CanonicalScoopAbiMismatch::Argument { index } => {
-            ExternalCallableBuildError::AbiArgumentMismatch { index }
-        }
-        CanonicalScoopAbiMismatch::Result => ExternalCallableBuildError::AbiResultMismatch,
-    })?;
     let expected = match canonical.gc_effect() {
         CanonicalGcEffect::Managed => GcEffect::Managed,
         CanonicalGcEffect::NoGc => GcEffect::NoGc,
@@ -223,18 +203,9 @@ fn validate_signature(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExternalCallableBuildError {
-    AbiArgumentCount {
-        expected: usize,
-        actual: usize,
-    },
-    AbiArgumentMismatch {
-        index: usize,
-    },
+    AbiArgumentCount { expected: usize, actual: usize },
+    AbiArgumentMismatch { index: usize },
     AbiResultMismatch,
-    CallingConventionMismatch {
-        expected: CallingConvention,
-        actual: CallingConvention,
-    },
     RootProtocolMismatch,
     Identity(HashError),
 }
@@ -253,10 +224,6 @@ impl fmt::Display for ExternalCallableBuildError {
             Self::AbiResultMismatch => {
                 formatter.write_str("external canonical and physical result ABI disagree")
             }
-            Self::CallingConventionMismatch { expected, actual } => write!(
-                formatter,
-                "external calling convention {actual:?} disagrees with {expected:?}"
-            ),
             Self::RootProtocolMismatch => formatter
                 .write_str("external caller root protocol disagrees with its canonical GC effect"),
             Self::Identity(source) => {
@@ -273,7 +240,6 @@ impl std::error::Error for ExternalCallableBuildError {
             Self::AbiArgumentCount { .. }
             | Self::AbiArgumentMismatch { .. }
             | Self::AbiResultMismatch
-            | Self::CallingConventionMismatch { .. }
             | Self::RootProtocolMismatch => None,
         }
     }

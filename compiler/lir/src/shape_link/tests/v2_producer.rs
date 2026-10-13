@@ -9,9 +9,9 @@ mod lir_fixture;
 mod physical_replay;
 use fixture::{Provider, consumer_layout_section};
 use initialization_fixture::attach_eager_initialization;
-use lir_fixture::{consumer_module, pointer_result_signature};
+use lir_fixture::consumer_module;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 #[test]
 fn pending_selection_drives_dependency_descriptor_dispatch_and_initialization_production() {
@@ -80,7 +80,17 @@ fn exercise_dependency_production(provider: Provider) {
         .materialize_callable(
             provider.identity,
             provider.callable,
-            pointer_result_signature(),
+            AbiStorageSignature {
+                arguments: Vec::new(),
+                result: AbiStorageReturn::Value(AbiStorage::NonZero(
+                    AbiValue::new(
+                        MANAGED_PTR,
+                        AbiNonZeroLayout::new(8, 8).unwrap(),
+                        RefScan::References(vec![0]),
+                    )
+                    .unwrap(),
+                )),
+            },
         )
         .unwrap();
     let descriptor_id = consumer.meta.external_type_descriptors.alloc(descriptor);
@@ -231,7 +241,9 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
         selected.materialize_callable(
             provider.identity,
             provider.callable,
-            pointer_result_signature(),
+            AbiStorageSignature { arguments: Vec::new(), result: AbiStorageReturn::Value(
+                AbiStorage::NonZero(AbiValue::new(MANAGED_PTR, AbiNonZeroLayout::new(8, 8).unwrap(), RefScan::References(vec![0])).unwrap())
+            ) },
 
         ),
         Err(LayoutExternalMaterializationError::MissingCallable {

@@ -5,26 +5,8 @@ pub struct ValidatedLirTargetSelection {
 }
 
 impl ValidatedLirTargetSelection {
-    pub const DARWIN_AARCH64_LLVM_22_1: Self = Self {
-        target: crate::LirTargetProfile::DARWIN_AARCH64,
-        backend: crate::BackendProfile::LLVM_22_1,
-    };
-
-    pub const LINUX_X86_64_GNU_LLVM_22_1: Self = Self {
-        target: crate::LirTargetProfile::LINUX_X86_64_GNU,
-        backend: crate::BackendProfile::LLVM_22_1_LINUX_X86_64,
-    };
-    pub const LINUX_X86_64_MUSL_LLVM_22_1: Self = Self {
-        target: crate::LirTargetProfile::LINUX_X86_64_MUSL,
-        backend: crate::BackendProfile::LLVM_22_1_LINUX_X86_64,
-    };
-
-    pub const fn from_id(id: crate::TargetProfileId) -> Self {
-        match id {
-            crate::TargetProfileId::DarwinAarch64 => Self::DARWIN_AARCH64_LLVM_22_1,
-            crate::TargetProfileId::LinuxX86_64Gnu => Self::LINUX_X86_64_GNU_LLVM_22_1,
-            crate::TargetProfileId::LinuxX86_64Musl => Self::LINUX_X86_64_MUSL_LLVM_22_1,
-        }
+    pub const fn new(target: crate::LirTargetProfile, backend: crate::BackendProfile) -> Self {
+        Self { target, backend }
     }
 
     pub const fn target(self) -> crate::LirTargetProfile {
@@ -38,18 +20,23 @@ impl ValidatedLirTargetSelection {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{BackendProfile, NativeSymbolNormalization, TargetProfileId};
+
+    use crate::NativeSymbolNormalization;
 
     #[test]
     fn linux_libcs_have_distinct_targets_and_share_the_x86_backend() {
-        let gnu = ValidatedLirTargetSelection::from_id(TargetProfileId::LinuxX86_64Gnu);
-        let musl = ValidatedLirTargetSelection::from_id(TargetProfileId::LinuxX86_64Musl);
+        let gnu = crate::target_fixtures::selection(crate::target_fixtures::LINUX_X86_64_GNU_ID)
+            .expect("implemented target selected by this consumer");
+        let musl = crate::target_fixtures::selection(crate::target_fixtures::LINUX_X86_64_MUSL_ID)
+            .expect("implemented target selected by this consumer");
         assert_eq!(gnu.backend(), musl.backend());
-        assert_ne!(gnu.backend().wire_id(), BackendProfile::LLVM_22_1.wire_id());
+        assert_ne!(
+            gnu.backend().wire_id(),
+            crate::target_fixtures::LLVM_22_1.wire_id()
+        );
         assert_ne!(
             gnu.backend().fingerprint().unwrap(),
-            BackendProfile::LLVM_22_1.fingerprint().unwrap()
+            crate::target_fixtures::LLVM_22_1.fingerprint().unwrap()
         );
         assert_ne!(gnu.target().wire_id(), musl.target().wire_id());
         assert_ne!(
@@ -64,7 +51,7 @@ mod tests {
             assert_eq!(profile.contract().stack_alignment_bytes(), 16);
             assert_eq!(profile.managed_pointer_layout().size_bytes(), 8);
             assert_eq!(
-                profile.id().object_format(),
+                profile.native_object_format().wire_id(),
                 scoop_identity::ObjectFormatId::elf_relocatable()
             );
             assert_eq!(

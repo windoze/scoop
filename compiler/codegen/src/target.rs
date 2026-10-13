@@ -169,10 +169,12 @@ pub struct ValidatedBackendProfile {
 
 impl ValidatedBackendProfile {
     const DARWIN_AARCH64: Self = Self {
-        lir_target_selection: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        canonical_triple: "aarch64-apple-darwin",
-        cpu: "generic",
-        features: "",
+        lir_target_selection: scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
+        canonical_triple: scoop_target_data::DARWIN_AARCH64
+            .contract()
+            .canonical_triple(),
+        cpu: scoop_target_data::LLVM_22_1.contract().cpu,
+        features: scoop_target_data::LLVM_22_1.contract().features,
         optimization: scoop_lir::OptimizationMode::Debug,
         relocation: RelocMode::PIC,
         code_model: CodeModel::Default,
@@ -191,21 +193,37 @@ impl ValidatedBackendProfile {
     };
 
     pub fn from_selection(selection: ValidatedLirTargetSelection) -> Result<Self, CodegenError> {
+        if Some(selection) != scoop_target_data::selection(selection.target().id()) {
+            return Err(CodegenError(format!(
+                "unsupported target/backend contract for `{}`",
+                selection.target().contract().canonical_triple()
+            )));
+        }
         validate_linked_llvm()?;
         Ok(match selection.target().id() {
-            TargetProfileId::DarwinAarch64 => Self::DARWIN_AARCH64,
-            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => Self {
-                lir_target_selection: selection,
-                canonical_triple: selection.target().id().canonical_triple(),
-                cpu: "x86-64",
-                object_format: ObjectFormat::Elf64,
-                writable_storage_section: ".data",
-                zero_fill_storage_section: ".bss",
-                c_string_section: ".rodata.str1.1",
-                eh: EhProfile::LINUX_X86_64,
-                llvm_target_backend: CodeArchitecture::X86_64,
-                ..Self::DARWIN_AARCH64
-            },
+            scoop_target_data::DARWIN_AARCH64_ID => Self::DARWIN_AARCH64,
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+                Self {
+                    lir_target_selection: selection,
+                    canonical_triple: selection.target().contract().canonical_triple(),
+                    cpu: selection.backend().contract().cpu,
+                    features: selection.backend().contract().features,
+                    object_format: ObjectFormat::Elf64,
+                    writable_storage_section: ".data",
+                    zero_fill_storage_section: ".bss",
+                    c_string_section: ".rodata.str1.1",
+                    eh: EhProfile::LINUX_X86_64,
+                    llvm_target_backend: CodeArchitecture::X86_64,
+                    ..Self::DARWIN_AARCH64
+                }
+            }
+            id => {
+                return Err(CodegenError(format!(
+                    "unsupported codegen target {}/{}",
+                    id.canonical_name(),
+                    id.major_version()
+                )));
+            }
         })
     }
 

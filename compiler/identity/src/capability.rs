@@ -2,7 +2,13 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+mod profile_name;
 mod target;
+use profile_name::ProfileName;
+mod backend;
+mod c_toolchain;
+pub use backend::{BackendProfileId, BackendProfileWireId};
+pub use c_toolchain::CBridgeToolchainProfileId;
 pub use target::{TargetProfileId, TargetProfileWireId};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -141,6 +147,7 @@ macro_rules! capability_refinement {
                 } else {
                     Err(CapabilityRefinementError {
                         expected,
+                        namespace: None,
                         actual: capability,
                     })
                 }
@@ -158,10 +165,19 @@ macro_rules! capability_refinement {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CapabilityRefinementError {
     expected: Vec<CapabilityId>,
+    namespace: Option<&'static str>,
     actual: CapabilityId,
 }
 
 impl CapabilityRefinementError {
+    fn namespace(namespace: &'static str, actual: CapabilityId) -> Self {
+        Self {
+            expected: Vec::new(),
+            namespace: Some(namespace),
+            actual,
+        }
+    }
+
     pub fn expected(&self) -> &[CapabilityId] {
         &self.expected
     }
@@ -174,6 +190,9 @@ impl CapabilityRefinementError {
 impl fmt::Display for CapabilityRefinementError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("expected capability ")?;
+        if let Some(namespace) = self.namespace {
+            write!(formatter, "namespace {namespace}")?;
+        }
         for (index, expected) in self.expected.iter().enumerate() {
             if index != 0 {
                 formatter.write_str(" or ")?;
@@ -197,19 +216,6 @@ impl fmt::Display for CapabilityRefinementError {
 }
 
 impl std::error::Error for CapabilityRefinementError {}
-capability_refinement!(
-    BackendProfileWireId,
-    "org.scoop-lang.backend-profile",
-    llvm_22_1 => "llvm-22-1",
-    llvm_22_1_linux_x86_64 => "llvm-22-1-linux-x86-64",
-);
-capability_refinement!(
-    CBridgeToolchainProfileId,
-    "org.scoop-lang.c-bridge-toolchain-profile",
-    darwin_aarch64_apple_clang => "darwin-aarch64-apple-clang",
-    linux_x86_64_gnu_gcc => "linux-x86-64-gnu-gcc",
-    linux_x86_64_musl_gcc => "linux-x86-64-musl-gcc",
-);
 capability_refinement!(
     ObjectFormatId,
     "org.scoop-lang.object-format",
@@ -363,19 +369,24 @@ fn validate_namespace(value: &str) -> Result<(), CapabilityIdError> {
     Ok(())
 }
 
-fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLabelError> {
-    if value.is_empty() {
+const fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLabelError> {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() {
         return Err(CapabilityLabelError::Empty);
     }
-    if value.len() > maximum_length {
+    if bytes.len() > maximum_length {
         return Err(CapabilityLabelError::TooLong);
     }
-    let mut bytes = value.bytes();
-    if !bytes.next().is_some_and(|byte| byte.is_ascii_lowercase()) {
+    if !bytes[0].is_ascii_lowercase() {
         return Err(CapabilityLabelError::InvalidStart);
     }
-    if !bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-') {
-        return Err(CapabilityLabelError::InvalidContinuation);
+    let mut index = 1;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && byte != b'-' {
+            return Err(CapabilityLabelError::InvalidContinuation);
+        }
+        index += 1;
     }
     Ok(())
 }
@@ -406,7 +417,10 @@ mod tests {
     #[test]
     fn target_profile_refinement_has_fixed_wire() {
         assert_eq!(
-            hex(&encode(&TargetProfileWireId::darwin_aarch64()).unwrap()),
+            hex(&encode(&TargetProfileWireId::new(
+                crate::test_targets::DARWIN_AARCH64_ID
+            ))
+            .unwrap()),
             "a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301"
         );
     }
@@ -414,7 +428,11 @@ mod tests {
     #[test]
     fn c_bridge_toolchain_profile_refinement_has_fixed_wire() {
         assert_eq!(
-            hex(&encode(&CBridgeToolchainProfileId::darwin_aarch64_apple_clang()).unwrap()),
+            hex(&encode(
+                &CBridgeToolchainProfileId::new("darwin-aarch64-apple-clang", 1)
+                    .expect("canonical toolchain identity")
+            )
+            .unwrap()),
             "a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e670301"
         );
     }
@@ -458,7 +476,7 @@ mod tests {
 
     #[test]
     fn capability_decode_validates_grammar_before_refinement() {
-        let target = TargetProfileWireId::darwin_aarch64();
+        let target = TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID);
         let decoded =
             decode_canonical::<DecodedCapabilityId>(&encode(target.capability()).unwrap()).unwrap();
         assert_eq!(
@@ -475,7 +493,7 @@ mod tests {
         );
         assert!(
             TargetProfileWireId::refine(
-                CapabilityId::new("org.scoop-lang.target-profile", "other", 1).unwrap()
+                CapabilityId::new("org.scoop-lang.backend-profile", "other", 1).unwrap()
             )
             .is_err()
         );

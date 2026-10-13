@@ -322,8 +322,9 @@ fn source_fixture_parts(source: SourceDeclarationKey) -> FixtureParts {
 
 fn add_exact_subject(parts: &mut FixtureParts, nominal: PersistentTypeId) {
     let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact.id(),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedValue,
     ))
     .unwrap();

@@ -23,7 +23,7 @@ fn empty_foundation_has_all_tables_and_c_runtime_mode() {
 
 #[test]
 fn native_cxx_mode_survives_wire_and_all_target_requirement_projections() {
-    use crate::{CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, LirTargetProfile};
+    use crate::{CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation};
     for cxx in [false, true] {
         let foundation =
             ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty())
@@ -33,9 +33,9 @@ fn native_cxx_mode_survives_wire_and_all_target_requirement_projections() {
         let decoded = scoop_wire::decode_canonical::<crate::DecodedLirFoundation>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         for target in [
-            LirTargetProfile::DARWIN_AARCH64,
-            LirTargetProfile::LINUX_X86_64_GNU,
-            LirTargetProfile::LINUX_X86_64_MUSL,
+            crate::target_fixtures::DARWIN_AARCH64,
+            crate::target_fixtures::LINUX_X86_64_GNU,
+            crate::target_fixtures::LINUX_X86_64_MUSL,
         ] {
             let requirements =
                 CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation)
@@ -90,13 +90,15 @@ fn duplicate_materialized_exact_type_reference_is_rejected() {
 fn simple_and_runtime_mapping_tables_are_canonicalized_by_primary_id() {
     let (first_exact, _) = nominal_exact("First");
     let (second_exact, _) = nominal_exact("Second");
-    let first_layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let first_layout = CborIdentityRecord::from_key(LayoutKey::new(
         first_exact,
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         scoop_identity::RepresentationRole::ManagedObject,
     ))
     .unwrap();
-    let second_layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let second_layout = CborIdentityRecord::from_key(LayoutKey::new(
         second_exact,
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         scoop_identity::RepresentationRole::ManagedObject,
     ))
     .unwrap();
@@ -138,8 +140,9 @@ fn callable_bodies_without_dependencies_are_sorted_by_persistent_id() {
 #[test]
 fn duplicate_primary_identity_is_rejected_before_encoding() {
     let (exact, _) = nominal_exact("Duplicate");
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact,
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         scoop_identity::RepresentationRole::ManagedValue,
     ))
     .unwrap();

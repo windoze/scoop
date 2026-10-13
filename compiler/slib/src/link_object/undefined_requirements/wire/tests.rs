@@ -16,7 +16,7 @@ impl WireDecode for Form {
 #[test]
 fn elf_rela_wire_preserves_signed_addends_and_has_a_distinct_tag() {
     for addend in [i64::MIN, -4, 0, 17, i64::MAX] {
-        let value = Form(VerifiedObjectRelocationFormV1::ElfRela {
+        let value = Form(VerifiedObjectRelocationFormV1::ElfX86_64Rela {
             kind: object::elf::R_X86_64_PLT32,
             width: 4,
             addend,
@@ -36,7 +36,7 @@ fn elf_rela_wire_preserves_signed_addends_and_has_a_distinct_tag() {
         scoop_wire::encode(&Form(VerifiedObjectRelocationFormV1::Unsigned64)).unwrap(),
         [0xa1, 0, 1]
     );
-    let invalid = Form(VerifiedObjectRelocationFormV1::ElfRela {
+    let invalid = Form(VerifiedObjectRelocationFormV1::ElfX86_64Rela {
         kind: 4,
         width: 3,
         addend: 0,

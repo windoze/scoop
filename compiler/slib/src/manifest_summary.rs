@@ -174,11 +174,9 @@ mod tests {
     #[test]
     fn summary_retains_archive_and_manifest_fields() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
-        let summary = read_artifact_manifest_summary(
-            &bytes,
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        )
-        .unwrap();
+        let summary =
+            read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+                .unwrap();
 
         assert_eq!(summary.archive_length(), bytes.len() as u64);
         assert!(summary.manifest_length() < summary.archive_length());
@@ -200,11 +198,9 @@ mod tests {
     #[test]
     fn summary_does_not_claim_link_semantic_validation() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
-        let summary = read_artifact_manifest_summary(
-            &bytes,
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        )
-        .unwrap();
+        let summary =
+            read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+                .unwrap();
         assert_eq!(summary.archive_length(), bytes.len() as u64);
     }
 
@@ -213,11 +209,9 @@ mod tests {
         let mut bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let last = bytes.last_mut().expect("test artifact is nonempty");
         *last ^= 0x01;
-        let error = read_artifact_manifest_summary(
-            &bytes,
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        )
-        .unwrap_err();
+        let error =
+            read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+                .unwrap_err();
         assert!(matches!(error, ArtifactManifestSummaryError::Envelope(_)));
     }
 }

@@ -49,7 +49,7 @@ fn replay(
     let decoded: crate::DecodedStrongRegistrationProductionSurfaceV2 =
         decode_canonical(bytes).unwrap();
     decoded.replay(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.digests,
         &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &[]).unwrap(),

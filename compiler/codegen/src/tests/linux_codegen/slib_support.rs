@@ -23,7 +23,8 @@ impl SlibObjects {
             scoop_toolchain::resolve_linux_c_toolchain(module.meta.target_profile, None, None)
                 .unwrap();
         let backend = ValidatedBackendProfile::from_selection(
-            scoop_lir::ValidatedLirTargetSelection::from_id(module.meta.target_profile.id()),
+            scoop_target_data::selection(module.meta.target_profile.id())
+                .expect("implemented target selected by this consumer"),
         )
         .unwrap();
         let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
@@ -36,7 +37,13 @@ impl SlibObjects {
             backend,
         )
         .unwrap();
-        let c_emitted = emit_c_bridge_object_set(&input, directory, &invocation).unwrap();
+        let c_emitted =
+            emit_c_bridge_object_set(&input, directory, invocation.profile(), |source, object| {
+                invocation
+                    .compile_object(source, object)
+                    .map_err(|error| CodegenError(error.to_string()))
+            })
+            .unwrap();
         let partition =
             scoop_lir::ProducerUnitPartitionV1::from_foundation(emitted.foundation()).unwrap();
         let plans = PlannedLinkObjectMemberSetV1::new(

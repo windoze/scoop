@@ -6,7 +6,7 @@ use crate::*;
 mod diagnostics;
 use diagnostics::Graph;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 pub(super) struct Fixture {
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,

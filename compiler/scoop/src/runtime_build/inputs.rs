@@ -42,9 +42,11 @@ impl Inputs {
             .keys()
             .map(|path| request.runtime_root.join(path))
             .collect();
-        let unwind =
-            scoop_toolchain::runtime_unwind_include(request.target.id(), request.unwind_prefix)
-                .map_err(error)?;
+        let unwind = scoop_toolchain::runtime_unwind_include(
+            request.target.lir_target(),
+            request.unwind_prefix,
+        )
+        .map_err(error)?;
         if let Some(include) = &unwind {
             let mut headers = BTreeMap::new();
             read_headers(include, Path::new(""), true, &mut headers)?;

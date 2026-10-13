@@ -227,7 +227,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &dependencies,
             &selected_layout,
         );
-        let generated = scoop_codegen::emit_c_bridge_object_set(
+        let generated = crate::generated_c::emit_c_bridge_object_set(
             &lir,
             sysroot.path(),
             target.c_bridge_toolchain(),

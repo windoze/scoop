@@ -2,7 +2,7 @@ use super::*;
 use scoop_lir::{
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicLocation,
     AtomicMemoryOrder, AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind, OptimizationMode,
-    TargetProfileId, ValidatedLirTargetSelection,
+    TargetProfileId,
 };
 
 mod fixture;
@@ -10,14 +10,15 @@ mod fixture;
 #[test]
 fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let module = fixture::module(target);
             let profile = ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
+                scoop_target_data::selection(target)
+                    .expect("implemented target selected by this consumer"),
             )
             .unwrap()
             .with_optimization(mode);
@@ -104,7 +105,7 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
 #[test]
 fn source_atomic_fields_reject_invalid_locations_and_result_types() {
     for invalid in [0, 1, 2] {
-        let mut module = fixture::module(TargetProfileId::DarwinAarch64);
+        let mut module = fixture::module(scoop_target_data::DARWIN_AARCH64_ID);
         let function = &mut module.functions[0];
         let Instruction::AtomicLoad { location, out, .. } =
             &mut function.blocks[function.entry].instructions[0]

@@ -1,18 +1,19 @@
 use super::*;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::OptimizationMode;
 
 #[test]
 fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let profile = ValidatedBackendProfile::from_selection(
-                ValidatedLirTargetSelection::from_id(target),
+                scoop_target_data::selection(target)
+                    .expect("implemented target selected by this consumer"),
             )
             .unwrap()
             .with_optimization(mode);
@@ -51,7 +52,9 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
             verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
             assert_eq!(plan.root_count(7), Some(0));
             assert_eq!(plan.root_count(8), Some(0));
-            let output = directory.path().join(format!("{target:?}-{mode:?}.o"));
+            let output = directory
+                .path()
+                .join(format!("{}-{mode:?}.o", target.canonical_name()));
             machine
                 .write_to_file(&llvm, FileType::Object, &output)
                 .unwrap();

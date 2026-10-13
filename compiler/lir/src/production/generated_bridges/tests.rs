@@ -132,9 +132,12 @@ fn fixture(include_definition: bool) -> Fixture {
 }
 
 fn unit_record() -> CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey> {
-    let symbol =
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("native").unwrap())
-            .unwrap();
+    let symbol = NativeExternalSymbolKey::for_target(
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
+        scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+        &SourceNativeSymbol::new("native").unwrap(),
+    )
+    .unwrap();
     let contract = NativeExternalContract::c_function(
         NativeLibraryBinding::DefaultNativeNamespace,
         scoop_identity::CanonicalCAbiFunctionSignature::cdecl(

@@ -53,9 +53,10 @@ impl ElfDynamic {
     pub fn read(bytes: &[u8], target: scoop_lir::TargetProfileId) -> Result<Self, LinkError> {
         let file: ElfFile64<'_> = ElfFile64::parse(bytes).map_err(error)?;
         let architecture = match target {
-            scoop_lir::TargetProfileId::LinuxX86_64Gnu
-            | scoop_lir::TargetProfileId::LinuxX86_64Musl => Architecture::X86_64,
-            scoop_lir::TargetProfileId::DarwinAarch64 => {
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
+                Architecture::X86_64
+            }
+            _ => {
                 return Err(error("ELF DSO requires an ELF target"));
             }
         };

@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CurrentConeLirStageError {
+    AbiPlanning(scoop_codegen::AbiPlanningError),
     Identity(scoop_identity::IdentityValidationError),
     DiagnosticCatalog(scoop_identity::ExactTypeDiagnosticCatalogError),
 
@@ -13,6 +14,7 @@ pub enum CurrentConeLirStageError {
 impl fmt::Display for CurrentConeLirStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::AbiPlanning(source) => source.fmt(formatter),
             Self::Identity(source) => source.fmt(formatter),
             Self::DiagnosticCatalog(source) => source.fmt(formatter),
 
@@ -26,6 +28,7 @@ impl fmt::Display for CurrentConeLirStageError {
 impl std::error::Error for CurrentConeLirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::AbiPlanning(source) => source,
             Self::Identity(source) => source,
             Self::DiagnosticCatalog(source) => source,
 
@@ -66,5 +69,16 @@ impl std::error::Error for CurrentConeMirStageError {
             Self::CrossConeBridge(source) => source,
             Self::Sealing(source) => source,
         })
+    }
+}
+
+impl From<scoop_lir_lower::LirLoweringError> for CurrentConeLirStageError {
+    fn from(error: scoop_lir_lower::LirLoweringError) -> Self {
+        Self::Lowering(error)
+    }
+}
+impl From<scoop_codegen::AbiPlanningError> for CurrentConeLirStageError {
+    fn from(error: scoop_codegen::AbiPlanningError) -> Self {
+        Self::AbiPlanning(error)
     }
 }

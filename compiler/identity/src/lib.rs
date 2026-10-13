@@ -44,10 +44,10 @@ pub use entity::{CAbiCallMode, CResultAdaptation, ExternResult};
 pub use context::{ContextKey, ContextStorageRole, ContextStorageType, DecodedContextStorageType};
 
 pub use capability::{
-    ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileWireId,
-    CBridgeToolchainProfileId, CapabilityId, CapabilityIdError, CapabilityLabelError,
-    CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId, TargetProfileId,
-    TargetProfileWireId,
+    ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileId,
+    BackendProfileWireId, CBridgeToolchainProfileId, CapabilityId, CapabilityIdError,
+    CapabilityLabelError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
+    TargetProfileId, TargetProfileWireId,
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,
@@ -156,7 +156,8 @@ pub use entity::{
     NativeExternalContractFingerprintInput, NativeExternalContractRecord,
     NativeExternalContractResolutionError, NativeExternalSymbolKey, NativeLibraryBinding,
     NativeLibraryGrouping, NativeLibraryKind, NativeLinkRequirementKey, NativeLinkSymbol,
-    NativeLinkSymbolError, NativeLinkValidationError, SourceNativeSymbol, SourceNativeSymbolError,
+    NativeLinkSymbolError, NativeLinkValidationError, NativeSymbolNormalization,
+    SourceNativeSymbol, SourceNativeSymbolError,
 };
 pub use entity::{
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage,
@@ -249,3 +250,6 @@ pub use validation::{
     SemanticIdentityImport, SemanticIdentityImportError, SemanticIdentitySession,
     SemanticOriginFingerprint, ValidatedIdentityGraph,
 };
+
+#[cfg(test)]
+mod test_targets;

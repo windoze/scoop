@@ -407,7 +407,7 @@ fn encode_relocation_form(
     form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     match form {
-        VerifiedObjectRelocationFormV1::ElfRela {
+        VerifiedObjectRelocationFormV1::ElfX86_64Rela {
             kind,
             addend,
             width,
@@ -452,7 +452,7 @@ fn decode_relocation_form(
                 return Err(wire_error(decoder, WireErrorKind::IntegerOutOfRange));
             }
             let addend = decoder.field(3, Decoder::unsigned)? as i64;
-            Ok(VerifiedObjectRelocationFormV1::ElfRela {
+            Ok(VerifiedObjectRelocationFormV1::ElfX86_64Rela {
                 kind,
                 addend,
                 width: width as u8,

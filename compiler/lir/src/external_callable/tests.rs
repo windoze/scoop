@@ -10,7 +10,7 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    AbiReturn, CallingConvention, ExternalCallableRootPlan, ScoopAbiSignature,
+    AbiStorageReturn, AbiStorageSignature, CallingConvention, ExternalCallableRootPlan,
     SelectedDependencyLirCallableV1,
 };
 
@@ -19,11 +19,10 @@ fn selected_bridge_materializes_one_typed_dependency_external() {
     let provider = cone("provider");
     let selected = selected(provider, CallingConvention::Cdecl);
     let external = selected
-        .materialize(ScoopAbiSignature::new(
-            Vec::new(),
-            AbiReturn::UnitVoid,
-            CallingConvention::Cdecl,
-        ))
+        .materialize(AbiStorageSignature {
+            arguments: Vec::new(),
+            result: AbiStorageReturn::UnitVoid,
+        })
         .unwrap();
 
     assert_eq!(external.provider(), provider);
@@ -59,19 +58,17 @@ fn selected_bridge_materializes_one_typed_dependency_external() {
 fn materialization_rejects_physical_abi_drift() {
     let selected = selected(cone("provider"), CallingConvention::Cdecl);
     assert!(matches!(
-        selected.materialize(ScoopAbiSignature::new(
-            vec![crate::AbiArgument::Direct(
+        selected.materialize(AbiStorageSignature {
+            arguments: vec![crate::AbiStorage::NonZero(
                 crate::AbiValue::new(
                     crate::LirType::I64,
                     crate::AbiNonZeroLayout::new(8, 8).unwrap(),
                     crate::RefScan::None,
                 )
                 .unwrap()
-                .into()
             )],
-            AbiReturn::UnitVoid,
-            CallingConvention::Cdecl,
-        )),
+            result: AbiStorageReturn::UnitVoid
+        }),
         Err(ExternalCallableBuildError::AbiArgumentCount {
             expected: 0,
             actual: 1

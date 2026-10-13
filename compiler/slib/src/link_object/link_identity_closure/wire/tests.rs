@@ -54,7 +54,7 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     let bytes = encoded_link_identity_closure_for_member_plan_test(&plan);
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     let checked = decoded
-        .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
+        .validate_materializations(scoop_target_data::DARWIN_AARCH64, &partition)
         .unwrap();
     assert_eq!(checked.member_plan(), &plan);
 
@@ -63,7 +63,7 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     )
     .unwrap();
     assert!(matches!(
-        decoded.validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
+        decoded.validate_materializations(scoop_target_data::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(_))
     ));
 
@@ -77,7 +77,7 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
         decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&encode(&stale_member).unwrap())
             .unwrap();
     assert!(matches!(
-        decoded.validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
+        decoded.validate_materializations(scoop_target_data::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::ProjectionMismatch)
     ));
 }
@@ -94,7 +94,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![units],
         Vec::new(),
@@ -112,7 +112,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     let bytes = encoded_link_identity_closure_for_patch_test(&plan, None, intent, member, 144);
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     let checked = decoded
-        .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
+        .validate_materializations(scoop_target_data::DARWIN_AARCH64, &partition)
         .unwrap()
         .validate_digest_patch_inputs(digest_plan)
         .unwrap();
@@ -127,7 +127,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         &encoded_link_identity_closure_for_member_plan_test(&plan),
     )
     .unwrap()
-    .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
+    .validate_materializations(scoop_target_data::DARWIN_AARCH64, &partition)
     .unwrap();
     assert_eq!(
         missing.validate_digest_patch_inputs(digest_plan),
@@ -149,7 +149,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         &encoded_link_identity_closure_for_patch_test(&plan, None, unknown_intent, member, 144),
     )
     .unwrap()
-    .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
+    .validate_materializations(scoop_target_data::DARWIN_AARCH64, &partition)
     .unwrap();
     assert_eq!(
         unknown.validate_digest_patch_inputs(digest_plan),
@@ -290,7 +290,7 @@ fn materialization_plan() -> (
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![units],
         Vec::new(),

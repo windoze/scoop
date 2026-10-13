@@ -94,11 +94,6 @@ impl FunctionLowerer<'_> {
         let object = self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
             vec![
-                lir::METADATA_PTR,
-                lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
-            ],
-            lir::MANAGED_PTR,
-            vec![
                 self.td_ref(ty),
                 lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(layout.size)),
             ],

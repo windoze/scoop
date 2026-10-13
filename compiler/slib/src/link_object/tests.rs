@@ -50,9 +50,9 @@ fn generated_bridge_units_use_a_distinct_domain_and_capability() {
     assert_eq!(
         generated
             .logical_key()
-            .member_role(scoop_lir::LirTargetProfile::DARWIN_AARCH64),
+            .member_role(scoop_target_data::DARWIN_AARCH64),
         SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             object_format: ObjectFormatId::macho_relocatable(),
             verifier_capability: generated_c_bridge_link_object_capability(),
         }
@@ -125,25 +125,25 @@ fn member_plan_freezes_identity_before_object_bytes_exist() {
     let second = definition_plan(21);
     let forward = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
     )
     .unwrap();
     let reversed = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![second, first]).unwrap(),
     )
     .unwrap();
     let split = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first]).unwrap(),
     )
     .unwrap();
     let other_cone = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::CORE,
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
     )
     .unwrap();
@@ -157,7 +157,7 @@ fn member_plan_freezes_identity_before_object_bytes_exist() {
         &forward
             .units()
             .logical_key()
-            .member_role(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+            .member_role(scoop_target_data::DARWIN_AARCH64)
     );
 }
 

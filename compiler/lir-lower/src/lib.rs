@@ -172,7 +172,11 @@ pub use strong_production_v2::{
 
 mod lower_profile;
 mod lowering;
-pub use lower_profile::{lower, lower_with_diagnostics, lower_with_layout_dependencies};
+pub use lowering::{PreparedLir, prepare};
+#[cfg(test)]
+mod test_pipeline;
+#[cfg(test)]
+use test_pipeline::lower;
 
 mod abi;
 mod callbacks;

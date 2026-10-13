@@ -8,6 +8,7 @@ use crate::link_object::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StackmapMachineCodeError {
+    UnsupportedTarget(Box<scoop_identity::TargetProfileId>),
     Aarch64(super::aarch64::DarwinAarch64StackmapMachineCodeError),
     X86_64(super::x86_64::X86_64StackmapMachineCodeError),
 }
@@ -15,6 +16,12 @@ pub enum StackmapMachineCodeError {
 impl std::fmt::Display for StackmapMachineCodeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::UnsupportedTarget(id) => write!(
+                formatter,
+                "unsupported stackmap machine target {}/{}",
+                id.canonical_name(),
+                id.major_version()
+            ),
             Self::Aarch64(error) => error.fmt(formatter),
             Self::X86_64(error) => error.fmt(formatter),
         }
@@ -29,7 +36,9 @@ pub(super) fn validate_stackmap_function_machine_code(
     symbol: &VerifiedStrongDefinitionSymbolV1,
     function: &ParsedLlvmStackmapFunctionV3,
 ) -> Result<Vec<u64>, StackmapMachineCodeError> {
-    match StackmapArchitecture::for_target(sections.envelope().target()) {
+    match StackmapArchitecture::for_target(sections.envelope().target()).ok_or(
+        StackmapMachineCodeError::UnsupportedTarget(Box::new(sections.envelope().target())),
+    )? {
         StackmapArchitecture::Aarch64 => super::aarch64::validate_stackmap_function_machine_code(
             bytes, sections, definition, symbol, function,
         )

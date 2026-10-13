@@ -10,6 +10,7 @@ mod tests;
 
 pub(crate) struct ElfImage<'a> {
     file: ElfFile64<'a>,
+    architecture: scoop_slib::ElfArchitecture,
     symbols: BTreeMap<String, Vec<(u64, bool)>>,
     mode: LinkMode,
     relocations: BTreeMap<u64, object::Relocation>,
@@ -32,7 +33,17 @@ pub(crate) fn verify(
             .push((symbol.address(), symbol.kind() == SymbolKind::Tls));
     }
     let relocations = file.dynamic_relocations().into_iter().flatten().collect();
+    let architecture = scoop_slib::ElfArchitecture::for_target(
+        profile
+            .startup_toolchain()
+            .profile()
+            .contract()
+            .target()
+            .id(),
+    )
+    .map_err(error)?;
     let image = ElfImage {
+        architecture,
         file,
         relocations,
         symbols,
@@ -155,7 +166,7 @@ impl ElfImage<'_> {
                 .ok_or_else(|| error(format!("ELF PIE pointer {address:#x} has no relocation")))?;
             if relocation.flags()
                 != (object::RelocationFlags::Elf {
-                    r_type: elf::R_X86_64_RELATIVE,
+                    r_type: self.architecture.relative_pointer_relocation(),
                 })
                 || relocation.addend() as u64 != value
             {

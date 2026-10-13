@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CallingConvention, CanonicalLirFoundation, ConeLirFoundation, CrossConeLirBridgeSectionV1,
-    ExternalCallableRootPlan, LirTargetProfile, SelectedDependencyLirCallableV1,
+    ExternalCallableRootPlan, SelectedDependencyLirCallableV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -175,7 +175,7 @@ fn classifier_claims_only_selected_dependency_relocations() {
     let callable = CallableFixture::new("dependency-provider", "dependencyCall");
     let lir = bridge(consumer, vec![callable.selected()]);
     let semantic = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&lir).unwrap();
-    let physical_symbol = LirTargetProfile::DARWIN_AARCH64
+    let physical_symbol = scoop_target_data::DARWIN_AARCH64
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(semantic.imports()[0].expected_symbol().symbol().as_str())
@@ -244,7 +244,7 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
     let callable = CallableFixture::new("partition-provider", "partitionCall");
     let lir = bridge(consumer, vec![callable.selected()]);
     let semantic = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&lir).unwrap();
-    let physical_symbol = LirTargetProfile::DARWIN_AARCH64
+    let physical_symbol = scoop_target_data::DARWIN_AARCH64
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(semantic.imports()[0].expected_symbol().symbol().as_str())
@@ -266,11 +266,9 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
         ),
     )
     .unwrap();
-    let runtime = verify_runtime_and_eh_requirements_v1(
-        source,
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let runtime =
+        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap();
     let external = seal_builtin_object_external_requirements_v1(
         without_generated_bridge_semantics_for_test(runtime),
     )

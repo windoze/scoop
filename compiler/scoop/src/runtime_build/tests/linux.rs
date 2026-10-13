@@ -7,7 +7,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
     let prefix = directory.path().join("unwind");
     let include = prefix.join("include");
     std::fs::create_dir_all(&include).unwrap();
-    let installed = scoop_toolchain::runtime_unwind_include(target.id(), None)
+    let installed = scoop_toolchain::runtime_unwind_include(target.lir_target(), None)
         .unwrap()
         .unwrap();
     copy_headers(&installed, &include);
@@ -29,7 +29,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
     assert!(first.input_paths().contains(&include.join("unwind.h")));
     assert_eq!(
         first.objects().target(),
-        scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL
+        scoop_target_data::LINUX_X86_64_MUSL
     );
     let header = include.join("unwind.h");
     let mut changed = std::fs::read(&header).unwrap();

@@ -31,7 +31,7 @@ fn v2_reader_replays_legacy_and_foreign_complete_registration_records() {
     let actual = validate(&fixture, decoded(&plans), &catalog(&expected)).unwrap();
     assert_eq!(actual, expected);
     let replayed = StrongTypeRegistrationPlanSetV2::new(
-        crate::LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
         &actual,

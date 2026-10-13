@@ -31,7 +31,7 @@ impl Drop for TempDirectory {
 }
 
 fn target() -> ValidatedLirTargetSelection {
-    ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    scoop_target_data::DARWIN_AARCH64_LLVM_22_1
 }
 
 #[test]

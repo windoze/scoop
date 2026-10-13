@@ -15,12 +15,13 @@ pub(crate) struct RawConditionalPath {
 
 pub(crate) fn parse_sources(
     raw: Option<Vec<RawConditionalPath>>,
+    catalog: &[SourceTarget<'_>],
 ) -> Result<SourceSelection, ManifestParseError> {
     match raw {
         None => Ok(SourceSelection::Default),
         Some(raw) => raw
             .into_iter()
-            .map(parse_path)
+            .map(|raw| parse_path(raw, catalog))
             .collect::<Result<Vec<_>, _>>()
             .map(SourceSelection::Explicit),
     }
@@ -28,6 +29,7 @@ pub(crate) fn parse_sources(
 
 pub(crate) fn parse_path(
     raw: RawConditionalPath,
+    catalog: &[SourceTarget<'_>],
 ) -> Result<ConditionalSourcePath, ManifestParseError> {
     let path = ConeRelativePath::new(raw.path.get_ref()).map_err(|reason| {
         ManifestParseError::new(
@@ -40,14 +42,15 @@ pub(crate) fn parse_path(
     })?;
     Ok(ConditionalSourcePath {
         path,
-        predicate: parse_predicate(raw.when)?,
+        predicate: parse_predicate(raw.when, catalog)?,
     })
 }
 
 pub(crate) fn parse_predicate(
     when: Option<BTreeMap<String, Spanned<toml::Value>>>,
+    catalog: &[SourceTarget<'_>],
 ) -> Result<TargetPredicate, ManifestParseError> {
-    let mut targets = TargetProfileId::ALL.to_vec();
+    let mut targets: Vec<_> = catalog.iter().collect();
     for (key, value) in when.into_iter().flatten() {
         let error = |reason: String| {
             ManifestParseError::new(
@@ -55,10 +58,10 @@ pub(crate) fn parse_predicate(
                 Some(value.span()),
             )
         };
-        let field: fn(TargetProfileId) -> &'static str = match key.as_str() {
-            "os" => TargetProfileId::os,
-            "arch" => TargetProfileId::arch,
-            "env" => TargetProfileId::env,
+        let field: for<'a> fn(&SourceTarget<'a>) -> &'a str = match key.as_str() {
+            "os" => |target| target.os,
+            "arch" => |target| target.arch,
+            "env" => |target| target.env,
             _ => return Err(error(format!("unknown target predicate key {key:?}"))),
         };
         let values = match value.get_ref() {
@@ -75,16 +78,22 @@ pub(crate) fn parse_predicate(
             }
         };
         for value in &values {
-            if !TargetProfileId::ALL
-                .into_iter()
-                .any(|target| field(target) == *value)
-            {
+            if !catalog.iter().any(|target| field(target) == *value) {
                 return Err(error(format!(
                     "unknown target predicate {key:?} value {value:?}"
                 )));
             }
         }
-        targets.retain(|target| values.contains(&field(*target)));
+        targets.retain(|target| values.contains(&field(target)));
     }
-    Ok(TargetPredicate { targets })
+    targets.sort_by(|a, b| a.triple.cmp(b.triple));
+    Ok(TargetPredicate {
+        targets: targets
+            .into_iter()
+            .map(|target| SelectedSourceTarget {
+                id: target.id,
+                triple: target.triple.to_owned(),
+            })
+            .collect(),
+    })
 }

@@ -184,7 +184,7 @@ fn emitted_object_set_owns_verified_temporary_members() {
     assert_eq!(emitted.target(), input.module().meta.target_profile);
     assert_eq!(
         emitted.target_selection(),
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1
     );
     assert_eq!(emitted.foundation(), input.foundation());
     assert!(emitted.members().iter().all(|member| {

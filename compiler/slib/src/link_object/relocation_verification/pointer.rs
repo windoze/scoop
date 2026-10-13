@@ -7,7 +7,7 @@ impl Form {
         matches!(
             self,
             Self::Unsigned64
-                | Self::ElfRela {
+                | Self::ElfX86_64Rela {
                     kind: object::elf::R_X86_64_64,
                     width: 8,
                     ..
@@ -19,7 +19,7 @@ impl Form {
     pub fn absolute64_addend(self, encoded_field: u64) -> Option<i128> {
         match self {
             Self::Unsigned64 => Some(i128::from(encoded_field)),
-            Self::ElfRela {
+            Self::ElfX86_64Rela {
                 kind: object::elf::R_X86_64_64,
                 width: 8,
                 addend,
@@ -60,7 +60,7 @@ impl Shape {
     pub fn absolute64_target(&self) -> Option<&super::VerifiedRelocationTargetV1> {
         match self {
             Self::Unsigned64 { target }
-            | Self::ElfRela {
+            | Self::ElfX86_64Rela {
                 kind: object::elf::R_X86_64_64,
                 width: 8,
                 target,
@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn rela_signed_addends_are_separate_from_the_relocation_field() {
-        let absolute = |addend| Form::ElfRela {
+        let absolute = |addend| Form::ElfX86_64Rela {
             kind: object::elf::R_X86_64_64,
             addend,
             width: 8,
@@ -98,7 +98,7 @@ mod tests {
             object::elf::R_X86_64_TPOFF64,
         ] {
             assert!(
-                !Form::ElfRela {
+                !Form::ElfX86_64Rela {
                     kind,
                     addend: 0,
                     width: 8

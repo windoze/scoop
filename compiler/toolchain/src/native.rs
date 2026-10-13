@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedCBridgeToolchainInvocation};
+use crate::ValidatedCBridgeToolchainInvocation;
+use scoop_lir::{OptimizationMode, TargetProfileId};
 use scoop_manifest::{ConeRelativePath, LoadedConeManifest, NativeConfig, NativeSourceLanguage};
 use scoop_wire::{Digest256, Encoder, WireEncode, sha256};
 

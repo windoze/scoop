@@ -103,13 +103,13 @@ fn native_contract_record_rejects_wrong_symbol_id_and_fingerprint() {
 fn native_contract_record_revalidates_symbol_key() {
     let record = record();
     let mut bytes = encode(&record).unwrap();
-    replace_once(&mut bytes, b"_entry", b"xentry");
+    replace_once(&mut bytes, b"_entry", b"\0entry");
     let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(&bytes).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(NativeExternalContractResolutionError::SymbolKey(
-            NativeLinkValidationError::MissingMachOExternalPrefix
+            NativeLinkValidationError::SourceSymbol(crate::SourceNativeSymbolError::Nul)
         ))
     );
 }
@@ -211,8 +211,12 @@ fn record() -> NativeExternalContractRecord {
 }
 
 fn symbol_key() -> NativeExternalSymbolKey {
-    NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new("entry").unwrap())
-        .unwrap()
+    NativeExternalSymbolKey::for_target(
+        crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
+        crate::NativeSymbolNormalization::MachOExternalUnderscore,
+        &SourceNativeSymbol::new("entry").unwrap(),
+    )
+    .unwrap()
 }
 
 fn mutate_id(bytes: &mut [u8], id: &[u8; 32]) {

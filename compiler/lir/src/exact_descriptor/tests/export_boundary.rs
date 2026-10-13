@@ -39,7 +39,7 @@ fn descriptor_exports_require_exact_dispatch_coverage() {
 }
 
 fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExportConstituentsV1 {
-    let target = LirTargetProfile::DARWIN_AARCH64;
+    let target = crate::target_fixtures::DARWIN_AARCH64;
     let foundation = fixture.foundation();
 
     let record = fixture.replay(fixture.semantic()).unwrap();

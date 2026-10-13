@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use crate::tests::platform_support::native_os_source;
+use crate::tests::platform_support::{native_float_environment_source, native_os_source};
 
 #[path = "runtime_collector_tests/nursery.rs"]
 mod nursery;
@@ -122,6 +122,7 @@ fn compile_and_run_with_flags(
         "runtime/src/thread.c",
         // Discard unused formatter entries in this collector-only runtime subset.
         "runtime/src/floating.c",
+        native_float_environment_source(),
         "runtime/src/thread/collection.c",
         "runtime/src/thread/debug.c",
         "runtime/src/thread/roots.c",
@@ -315,6 +316,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/thread.c"))
         .arg(workspace.join("runtime/src/floating.c"))
+        .arg(workspace.join(native_float_environment_source()))
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
@@ -348,6 +350,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
 fn generic_runtime_has_no_target_specific_vm_dependency() {
     let workspace = workspace_root();
     let generic_sources = [
+        "runtime/src/floating.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
         "runtime/src/gc/mark.c",
@@ -389,6 +392,8 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
         "<sys/mman.h>",
         "__APPLE__",
         "__aarch64__",
+        "__x86_64__",
+        "<xmmintrin.h>",
         "mmap(",
         "mprotect(",
     ];

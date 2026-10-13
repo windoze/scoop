@@ -42,7 +42,7 @@ pub(crate) fn module(functions: Vec<Function>) -> Module {
         output: LirOutput::Library,
         meta: LirMeta {
             exact_types: Vec::new(),
-            target_profile: LirTargetProfile::DARWIN_AARCH64,
+            target_profile: crate::target_fixtures::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
             well_known_type_descriptors: WellKnownTypeDescriptors {

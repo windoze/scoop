@@ -7,10 +7,17 @@
 use std::fmt;
 
 mod c_bridge;
+mod c_bridge_invocation;
+pub use c_bridge_invocation::{
+    CBridgeToolchainInvocationError, ValidatedCBridgeToolchainInvocation,
+};
 mod compiler;
 mod cxx;
 mod final_link;
 mod linux_c;
+mod linux_target;
+mod manifest;
+pub use manifest::{SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
 mod native;
 mod paths;
 mod registry;

@@ -2,7 +2,7 @@ use scoop_wire::{WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedImmortalObjectKey, DecodedLayoutKey, DecodedScanKey, DecodedStaticStorageKey,
-    LayoutKeyResolutionError, StaticStorageResolutionError,
+    StaticStorageResolutionError,
 };
 use crate::{
     CallableMaterialization, CallableMaterializationContext, CallableOwner, CallableTemplateOwner,
@@ -89,7 +89,11 @@ fn every_layout_and_scan_role_round_trips_and_resolves() {
         RepresentationRole::CValue,
         RepresentationRole::NativeFunctionPointer,
     ] {
-        let key = LayoutKey::darwin_aarch64(exact_type(), representation);
+        let key = LayoutKey::new(
+            exact_type(),
+            crate::TargetProfileWireId::new(crate::test_targets::DARWIN_AARCH64_ID),
+            representation,
+        );
         let decoded = decode_canonical::<DecodedLayoutKey>(&encode(&key).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
     }
@@ -106,7 +110,7 @@ fn every_layout_and_scan_role_round_trips_and_resolves() {
 }
 
 #[test]
-fn layout_resolution_rejects_an_unregistered_target_profile() {
+fn layout_resolution_preserves_a_canonical_unknown_target_profile() {
     let raw = RawLayoutKey {
         exact_type: exact_type(),
         target_profile: CapabilityId::new("org.scoop-lang.target-profile", "darwin-xarch64", 1)
@@ -115,10 +119,11 @@ fn layout_resolution_rejects_an_unregistered_target_profile() {
     };
     let decoded = decode_canonical::<DecodedLayoutKey>(&encode(&raw).unwrap()).unwrap();
 
-    assert!(matches!(
-        decoded.resolve(&mut Resolver),
-        Err(LayoutKeyResolutionError::TargetProfile(_))
-    ));
+    let layout = decoded.resolve(&mut Resolver).unwrap();
+    assert_eq!(
+        layout.target_profile().id().canonical_name(),
+        "darwin-xarch64"
+    );
 }
 
 #[test]

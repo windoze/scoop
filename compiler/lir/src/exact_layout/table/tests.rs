@@ -66,8 +66,12 @@ fn fixture() -> (ConeLirFoundation, Vec<ExactLayoutExportV1>) {
 
 fn table() -> CanonicalExactLayoutExportsV1 {
     let (foundation, records) = fixture();
-    CanonicalExactLayoutExportsV1::try_new(LirTargetProfile::DARWIN_AARCH64, &foundation, records)
-        .unwrap()
+    CanonicalExactLayoutExportsV1::try_new(
+        crate::target_fixtures::DARWIN_AARCH64,
+        &foundation,
+        records,
+    )
+    .unwrap()
 }
 
 fn decode_records(records: &[&ExactLayoutExportV1]) -> DecodedCanonicalExactLayoutExportsV1 {
@@ -90,14 +94,14 @@ fn layout_table_canonicalizes_roles_without_collapsing_exact_identity() {
     let expected = table();
     records.reverse();
     let actual = CanonicalExactLayoutExportsV1::try_new(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
         records,
     )
     .unwrap();
     assert_eq!(expected, actual);
     assert_eq!(expected.provider(), ConeIdentity::SINGLE_FILE);
-    assert_eq!(expected.target(), LirTargetProfile::DARWIN_AARCH64);
+    assert_eq!(expected.target(), crate::target_fixtures::DARWIN_AARCH64);
     assert_eq!(expected.records().len(), 2);
     for record in expected.records() {
         assert_eq!(expected.get(record.identity().layout()), Some(record));
@@ -114,7 +118,7 @@ fn layout_table_rejects_duplicate_keys_and_foreign_or_incomplete_foundation() {
     let (foundation, records) = fixture();
     assert!(matches!(
         CanonicalExactLayoutExportsV1::try_new(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &foundation,
             vec![records[0].clone(), records[0].clone()]
         ),
@@ -126,7 +130,7 @@ fn layout_table_rejects_duplicate_keys_and_foreign_or_incomplete_foundation() {
     ] {
         let empty = ConeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
         let error = CanonicalExactLayoutExportsV1::try_new(
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &empty,
             records.clone(),
         )
@@ -155,7 +159,7 @@ fn layout_table_preserves_empty_wire() {
         ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
     let empty = CanonicalExactLayoutExportsV1::try_new(
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &foundation,
         vec![],
     )

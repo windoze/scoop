@@ -24,13 +24,17 @@ fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
         );
     }
     for target in [
-        scoop_lir::TargetProfileId::DarwinAarch64,
-        scoop_lir::TargetProfileId::LinuxX86_64Gnu,
-        scoop_lir::TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
-        module.meta = string_metadata_for(scoop_lir::LirTargetProfile::from_id(target));
+        module.meta = string_metadata_for(
+            scoop_target_data::layout(target)
+                .expect("implemented target selected by this consumer"),
+        );
         let profile = ValidatedBackendProfile::from_selection(
-            scoop_lir::ValidatedLirTargetSelection::from_id(target),
+            scoop_target_data::selection(target)
+                .expect("implemented target selected by this consumer"),
         )
         .unwrap();
         let machine = profile

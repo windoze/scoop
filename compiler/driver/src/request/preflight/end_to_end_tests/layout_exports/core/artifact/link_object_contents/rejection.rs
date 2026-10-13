@@ -131,7 +131,7 @@ pub(super) fn views_and_profile(
         lir::CBridgePlatformContractV1::Darwin {
             deployment,
             compiler,
-        } => lir::CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+        } => scoop_target_data::darwin_c_bridge_profile(
             deployment.clone(),
             lir::AppleClangCompilerIdentityV1::new(
                 compiler.version_major() + 1,
@@ -150,7 +150,7 @@ pub(super) fn views_and_profile(
                 .unwrap()
                 .parse::<u32>()
                 .unwrap();
-            lir::CBridgeToolchainProfileV1::new_linux_gcc(
+            scoop_target_data::linux_c_bridge_profile(
                 artifact.target_selection().target(),
                 lir::GccCompilerIdentityV1::new(&format!("{}.0.0", major + 1), compiler.inputs())
                     .unwrap(),

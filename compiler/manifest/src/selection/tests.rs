@@ -1,5 +1,5 @@
 use super::*;
-use crate::parse_cone_manifest;
+use crate::test_catalog::parse_cone_manifest;
 
 const CONE: &str =
     "[cone]\ngroup = 'dev.selection'\nname = 'test'\nversion = '1.0.0'\nkind = 'library'\n";
@@ -30,15 +30,35 @@ fn predicates_use_target_os_arch_and_libc_with_and_or_semantics() {
     ) else {
         panic!("explicit selection expected")
     };
-    assert!(!paths[0].predicate.matches(TargetProfileId::DarwinAarch64));
-    assert!(paths[0].predicate.matches(TargetProfileId::LinuxX86_64Gnu));
-    assert!(paths[0].predicate.matches(TargetProfileId::LinuxX86_64Musl));
-    assert!(paths[1].predicate.matches(TargetProfileId::LinuxX86_64Gnu));
-    assert!(!paths[1].predicate.matches(TargetProfileId::LinuxX86_64Musl));
     assert!(
-        TargetProfileId::ALL
-            .into_iter()
-            .all(|target| !paths[2].predicate.matches(target))
+        !paths[0]
+            .predicate
+            .matches(scoop_target_data::DARWIN_AARCH64_ID)
+    );
+    assert!(
+        paths[0]
+            .predicate
+            .matches(scoop_target_data::LINUX_X86_64_GNU_ID)
+    );
+    assert!(
+        paths[0]
+            .predicate
+            .matches(scoop_target_data::LINUX_X86_64_MUSL_ID)
+    );
+    assert!(
+        paths[1]
+            .predicate
+            .matches(scoop_target_data::LINUX_X86_64_GNU_ID)
+    );
+    assert!(
+        !paths[1]
+            .predicate
+            .matches(scoop_target_data::LINUX_X86_64_MUSL_ID)
+    );
+    assert!(
+        crate::test_catalog::SOURCE_TARGETS
+            .iter()
+            .all(|target| !paths[2].predicate.matches(target.id))
     );
 }
 
@@ -105,5 +125,23 @@ fn cache_projection_ignores_entry_order_and_equivalent_predicate_spelling() {
     assert_ne!(
         scoop_wire::encode(&first).unwrap(),
         scoop_wire::encode(&selection("")).unwrap()
+    );
+}
+
+#[test]
+fn predicate_validation_uses_the_supplied_catalog_and_canonicalizes_its_order() {
+    let source = format!(
+        "schema = 1\nsources = [{{ path = \"linux.scoop\", when = {{ os = \"linux\" }} }}]\n{CONE}"
+    );
+    let catalog = crate::test_catalog::SOURCE_TARGETS;
+    let error = crate::parse_cone_manifest(&source, &catalog[..1]).unwrap_err();
+    assert!(error.to_string().contains("unknown target predicate"));
+    let normal = crate::parse_cone_manifest(&source, catalog).unwrap();
+    let mut reversed = catalog.to_vec();
+    reversed.reverse();
+    let reordered = crate::parse_cone_manifest(&source, &reversed).unwrap();
+    assert_eq!(
+        scoop_wire::encode(normal.semantic().sources()).unwrap(),
+        scoop_wire::encode(reordered.semantic().sources()).unwrap(),
     );
 }

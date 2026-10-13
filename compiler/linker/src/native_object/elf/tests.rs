@@ -34,8 +34,8 @@ fn elf_native_objects_keep_tls_visibility_weakness_and_debug_relocations() {
         &[],
     );
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let info = read(&bytes, target).unwrap();
         assert_eq!(
@@ -71,7 +71,7 @@ fn elf_native_inputs_reject_initializers_common_storage_and_cpp_eh() {
         ),
     ] {
         let bytes = compile(source, "c", flags);
-        let error = read(&bytes, TargetProfileId::LinuxX86_64Gnu).unwrap_err();
+        let error = read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap_err();
         assert!(error.to_string().contains(expected), "{error}");
     }
 }
@@ -88,8 +88,8 @@ fn elf_native_inputs_accept_libc_exit_cleanup_without_accepting_cpp_eh() {
         &[],
     );
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let info = read(&bytes, target).unwrap();
         assert!(info.requirements.contains("__cxa_atexit"));
@@ -106,7 +106,7 @@ function: call foreign\nret\n.size function,.-function\n\
 #[test]
 fn elf_reader_checks_actual_relocation_width_and_symbol_indices() {
     let bytes = compile(RELOCATIONS, "S", &[]);
-    let parsed = ValidatedElfObject::read(&bytes, TargetProfileId::LinuxX86_64Gnu).unwrap();
+    let parsed = ValidatedElfObject::read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap();
     assert!(
         parsed
             .relocations()
@@ -136,15 +136,15 @@ fn elf_reader_checks_actual_relocation_width_and_symbol_indices() {
     let offset = rela.sh_offset(endian) as usize;
     let mut invalid = bytes.clone();
     invalid[offset..offset + 8].copy_from_slice(&1u64.to_le_bytes());
-    let error = read(&invalid, TargetProfileId::LinuxX86_64Gnu).unwrap_err();
+    let error = read(&invalid, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap_err();
     assert!(error.to_string().contains("relocation write"), "{error}");
     let mut invalid = bytes.clone();
     invalid[offset + 12..offset + 16].copy_from_slice(&u32::MAX.to_le_bytes());
-    let error = read(&invalid, TargetProfileId::LinuxX86_64Gnu).unwrap_err();
+    let error = read(&invalid, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap_err();
     assert!(error.to_string().contains("missing symbol"), "{error}");
     let mut invalid = bytes.clone();
     invalid[18..20].copy_from_slice(&elf::EM_AARCH64.to_le_bytes());
-    assert!(read(&invalid, TargetProfileId::LinuxX86_64Gnu).is_err());
+    assert!(read(&invalid, scoop_target_data::LINUX_X86_64_GNU_ID).is_err());
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn elf_reader_checks_symbol_extent_and_comdat_group_references() {
         "S",
         &[],
     );
-    let parsed = ValidatedElfObject::read(&bytes, TargetProfileId::LinuxX86_64Gnu).unwrap();
+    let parsed = ValidatedElfObject::read(&bytes, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap();
     let file = parsed.file();
     let endian = file.endian();
     let group = file
@@ -167,7 +167,7 @@ fn elf_reader_checks_symbol_extent_and_comdat_group_references() {
     let member_offset = group.sh_offset(endian) as usize + 4;
     let mut invalid = bytes.clone();
     invalid[member_offset..member_offset + 4].copy_from_slice(&u32::MAX.to_le_bytes());
-    assert!(read(&invalid, TargetProfileId::LinuxX86_64Gnu).is_err());
+    assert!(read(&invalid, scoop_target_data::LINUX_X86_64_GNU_ID).is_err());
     let symbol = file.symbol_by_name("body").unwrap();
     let symtab = file
         .elf_section_table()
@@ -176,6 +176,6 @@ fn elf_reader_checks_symbol_extent_and_comdat_group_references() {
     let size_offset = symtab.sh_offset(endian) as usize + symbol.index().0 * 24 + 16;
     let mut invalid = bytes.clone();
     invalid[size_offset..size_offset + 8].copy_from_slice(&u64::MAX.to_le_bytes());
-    let error = read(&invalid, TargetProfileId::LinuxX86_64Gnu).unwrap_err();
+    let error = read(&invalid, scoop_target_data::LINUX_X86_64_GNU_ID).unwrap_err();
     assert!(error.to_string().contains("symbol extent"), "{error}");
 }

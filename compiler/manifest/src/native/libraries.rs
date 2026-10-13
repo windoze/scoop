@@ -53,7 +53,10 @@ pub(super) struct RawNativeLibrary {
     when: Option<BTreeMap<String, Spanned<toml::Value>>>,
 }
 
-pub(super) fn parse(raw: RawNativeLibrary) -> Result<NativeLibrary, ManifestParseError> {
+pub(super) fn parse(
+    raw: RawNativeLibrary,
+    catalog: &[crate::SourceTarget<'_>],
+) -> Result<NativeLibrary, ManifestParseError> {
     let name = CanonicalNativeLibraryName::new(raw.name.get_ref())
         .map_err(|reason| error(&raw.name, reason))?;
     let kind = match raw.kind.as_ref().map(|kind| kind.get_ref().as_str()) {
@@ -71,7 +74,7 @@ pub(super) fn parse(raw: RawNativeLibrary) -> Result<NativeLibrary, ManifestPars
     Ok(NativeLibrary {
         name,
         kind,
-        predicate: crate::selection::parse_predicate(raw.when)?,
+        predicate: crate::selection::parse_predicate(raw.when, catalog)?,
     })
 }
 

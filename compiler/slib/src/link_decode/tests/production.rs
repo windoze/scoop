@@ -149,11 +149,11 @@ pub(super) fn digest_patch_intent() -> scoop_identity::DigestPatchIntentId {
 }
 
 pub(super) fn selection() -> ValidatedLirTargetSelection {
-    ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+    scoop_target_data::DARWIN_AARCH64_LLVM_22_1
 }
 
 pub(in super::super) fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
-    CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+    scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
             DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
             DarwinPackedVersionV1::new(0x000e_0200).unwrap(),

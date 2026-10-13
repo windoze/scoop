@@ -177,7 +177,7 @@ fn controlled(shape: &Shape) -> bool {
         )
     };
     match shape {
-        Shape::ElfRela { target, .. }
+        Shape::ElfX86_64Rela { target, .. }
         | Shape::Unsigned64 { target }
         | Shape::Branch26 { target }
         | Shape::Page21 { target, .. }

@@ -9,7 +9,6 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
-    LirTargetProfile,
 };
 
 use super::super::strong_relocation_closure::tests::{
@@ -123,6 +122,7 @@ fn admits_tlvp_relocations_only_for_typed_tls_contracts() {
 fn carries_the_exact_library_requirement_into_each_use() {
     let producer = ConeIdentity::SINGLE_FILE;
     let library = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
+        scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
         CanonicalNativeLibraryName::new("sample").unwrap(),
     ))
     .unwrap();
@@ -196,7 +196,8 @@ pub(in crate::link_object) fn dependency_closure(
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
 
-    verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[]).unwrap()
+    verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
+        .unwrap()
 }
 
 pub(in crate::link_object) fn native_surface(
@@ -209,7 +210,7 @@ pub(in crate::link_object) fn native_surface(
     canonical.set_native_link_requirements(libraries).unwrap();
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &foundation,
     )
     .unwrap()
@@ -237,8 +238,12 @@ fn contract_record_with_contract(
 ) -> NativeExternalContractRecord {
     NativeExternalContractRecord::new(
         source_contract(producer, declaration),
-        NativeExternalSymbolKey::darwin_macho_external(&SourceNativeSymbol::new(symbol).unwrap())
-            .unwrap(),
+        NativeExternalSymbolKey::for_target(
+            scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
+            scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
+            &SourceNativeSymbol::new(symbol).unwrap(),
+        )
+        .unwrap(),
         contract,
     )
     .unwrap()

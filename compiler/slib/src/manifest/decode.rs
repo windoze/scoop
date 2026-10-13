@@ -1,7 +1,8 @@
 mod compatibility;
 use compatibility::DecodedCompatibilityRecord;
 pub use compatibility::{
-    CompatibilityFingerprintKind, CompatibilitySchemaKind, CompatibilityValidationError,
+    CompatibilityFingerprintKind, CompatibilityProfileKind, CompatibilitySchemaKind,
+    CompatibilityValidationError,
 };
 
 mod records;

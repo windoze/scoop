@@ -842,7 +842,7 @@ mod tests {
 
     #[test]
     fn runtime_registry_has_one_contract_per_typed_symbol() {
-        let target = LirTargetProfile::DARWIN_AARCH64;
+        let target = crate::target_fixtures::DARWIN_AARCH64;
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
         assert_eq!(registry.contracts().len(), RuntimeAbiSymbolV1::ALL.len());
         assert_eq!(
@@ -891,7 +891,7 @@ mod tests {
     #[test]
     fn target_eh_registry_normalizes_each_closed_requirement() {
         let registry = TargetEhRequirementRegistryV1::current(
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            crate::target_fixtures::DARWIN_AARCH64_LLVM_22_1,
         )
         .unwrap();
         assert_eq!(registry.requirements().len(), 2);

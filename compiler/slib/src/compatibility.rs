@@ -241,7 +241,7 @@ fn encode_initial_schema(
 
 #[cfg(test)]
 mod tests {
-    use scoop_lir::ValidatedLirTargetSelection;
+
     use scoop_wire::encode;
 
     use super::*;
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn compatibility_record_is_derived_from_the_only_registered_contracts() {
         let record = CompatibilityRecord::new(
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         )
         .unwrap();

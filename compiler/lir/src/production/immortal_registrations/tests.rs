@@ -12,8 +12,8 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, Global, GlobalInit, ImmortalObjectIdentity, LirTargetProfile,
-    MaterializationRoot, PointerKind, RefScan,
+    CanonicalLirFoundation, Global, GlobalInit, ImmortalObjectIdentity, MaterializationRoot,
+    PointerKind, RefScan,
 };
 
 #[test]
@@ -35,7 +35,7 @@ fn semantic_plans_are_sorted_and_bind_utf8_object_extent() {
 
     let plans = StrongImmortalObjectSemanticPlanSetV1::from_globals(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &globals,
         ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
             provider: ConeIdentity::CORE,
@@ -74,7 +74,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
     assert!(matches!(
         StrongImmortalObjectSemanticPlanSetV1::from_globals(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &globals,
             ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: ConeIdentity::CORE,
@@ -93,7 +93,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
     assert!(matches!(
         StrongImmortalObjectSemanticPlanSetV1::from_globals(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &wrong_address,
             ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: ConeIdentity::CORE,
@@ -110,7 +110,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
     assert!(matches!(
         StrongImmortalObjectSemanticPlanSetV1::from_globals(
             ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             &wrong_scan,
             ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
                 provider: ConeIdentity::CORE,

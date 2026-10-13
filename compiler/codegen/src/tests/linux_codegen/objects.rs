@@ -8,8 +8,8 @@ use super::*;
 fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
     let parent = tempfile::tempdir().unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for odr in [false, true] {
             let mut module = for_target(exceptions_module(), target);
@@ -39,7 +39,8 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                 });
             }
             let profile = ValidatedBackendProfile::from_selection(
-                scoop_lir::ValidatedLirTargetSelection::from_id(target),
+                scoop_target_data::selection(target)
+                    .expect("implemented target selected by this consumer"),
             )
             .unwrap();
             let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();

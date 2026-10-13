@@ -60,8 +60,8 @@ odr: .quad 7
     );
     let bytes = std::fs::read(output).unwrap();
     for target in [
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         let envelope = validate_linux_elf_object_envelope_v1(&bytes, target).unwrap();
         assert_eq!(envelope.target(), target);
@@ -95,7 +95,7 @@ odr: .quad 7
         assert!(groups[0].sections.contains(&odr.section_ordinal().unwrap()));
         for relocation in envelope.relocations() {
             assert_eq!(relocation.encoded_value(), 0);
-            let ObjectRelocationShapeV1::ElfRela {
+            let ObjectRelocationShapeV1::ElfX86_64Rela {
                 kind,
                 addend,
                 width,

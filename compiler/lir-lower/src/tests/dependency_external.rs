@@ -11,7 +11,7 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
                 &input,
                 core,
                 &lir::SelectedExternalLirSet::empty(input.module().cone),
-                lir::LirTargetProfile::DARWIN_AARCH64,
+                scoop_target_data::DARWIN_AARCH64,
             ),
             Err(LirLoweringError::ExternalCallableCountMismatch { mir: 1, lir: 0 })
         ));
@@ -20,7 +20,7 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
             &input,
             core,
             &selected_lir,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
         )
         .unwrap();
         let module = output.module();
@@ -69,7 +69,7 @@ fn dependency_strong_lowering_rejects_gc_effect_drift() {
             &input,
             core,
             &selected_lir,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
         ),
         Err(LirLoweringError::ExternalCallableGcEffectMismatch {
             mir: mir::GcEffect::Managed,
@@ -89,7 +89,7 @@ fn dependency_strong_lowering_classifies_an_extension_receiver_as_the_first_argu
         &input,
         core,
         &selected_lir,
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
     .unwrap();
     let (_, external) = output
@@ -114,7 +114,7 @@ fn cross_cone_lir_bridge_projects_local_exports_and_dependency_selections() {
             &input,
             core,
             &selected_lir,
-            lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64,
         )
         .unwrap();
 
@@ -167,7 +167,7 @@ fn cross_cone_lir_bridge_rejects_a_mir_selection_not_owned_by_the_input() {
         &input,
         core,
         &selected_lir,
-        lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
     )
     .unwrap();
 

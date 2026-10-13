@@ -316,7 +316,7 @@ impl Fixture {
                 symbol: symbol(PersistentSymbolKey::StaticStorage(artifacts.storage.id())),
                 layout: crate::LayoutIdentity::managed_value(
                     shape.layout.key().exact_type(),
-                    crate::LirTargetProfile::DARWIN_AARCH64,
+                    crate::target_fixtures::DARWIN_AARCH64,
                     crate::MaterializationRoot::cone_owned(),
                 )
                 .unwrap()
@@ -362,8 +362,9 @@ impl Fixture {
 }
 
 fn shape_artifacts() -> ShapeArtifacts {
-    let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
+    let layout = CborIdentityRecord::from_key(LayoutKey::new(
         exact_type("StorageValue"),
+        scoop_identity::TargetProfileWireId::new(crate::target_fixtures::DARWIN_AARCH64_ID),
         RepresentationRole::ManagedValue,
     ))
     .unwrap();

@@ -299,7 +299,7 @@ fn type_descriptors_carry_tables_parents_and_itables() {
         assert!(
             descriptor
                 .instance_layout
-                .is_managed_instance_of(exact_type, lir::LirTargetProfile::DARWIN_AARCH64,)
+                .is_managed_instance_of(exact_type, scoop_target_data::DARWIN_AARCH64,)
         );
     }
     assert_eq!(

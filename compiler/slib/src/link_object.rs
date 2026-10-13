@@ -136,7 +136,8 @@ pub use object_envelope::*;
 
 mod elf;
 pub use elf::{
-    ElfObjectError, ElfRelocation, ValidatedElfObject, validate_linux_elf_object_envelope_v1,
+    ElfArchitecture, ElfObjectError, ElfRelocation, ValidatedElfObject,
+    validate_linux_elf_object_envelope_v1,
 };
 
 macro_rules! typed_digest {
@@ -478,7 +479,7 @@ fn link_object_role(
 ) -> SlibMemberRole {
     SlibMemberRole::LinkObject {
         target_profile: target.wire_id(),
-        object_format: target.id().object_format(),
+        object_format: target.native_object_format().wire_id(),
         verifier_capability,
     }
 }

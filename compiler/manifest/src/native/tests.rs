@@ -1,5 +1,6 @@
 use super::*;
-use crate::{ManifestParseErrorKind, SourceSelection, parse_cone_manifest};
+use crate::test_catalog::parse_cone_manifest;
+use crate::{ManifestParseErrorKind, SourceSelection};
 
 const CONE: &str = "schema = 1\n[cone]\ngroup = 'native.test'\nname = 'inputs'\nversion = '1.0.0'\nkind = 'library'\n";
 
@@ -16,12 +17,12 @@ fn native_sources_do_not_change_the_default_scoop_source_set() {
     assert!(
         native.sources()[0]
             .predicate()
-            .matches(scoop_identity::TargetProfileId::LinuxX86_64Gnu)
+            .matches(scoop_target_data::LINUX_X86_64_GNU_ID)
     );
     assert!(
         !native.sources()[0]
             .predicate()
-            .matches(scoop_identity::TargetProfileId::DarwinAarch64)
+            .matches(scoop_target_data::DARWIN_AARCH64_ID)
     );
     assert_eq!(
         native.c_flags(),
@@ -114,7 +115,7 @@ fn malformed_native_paths_and_tables_fail_before_source_selection() {
 
 #[test]
 fn library_requirements_select_the_target_and_deduplicate_complete_keys() {
-    use scoop_identity::{NativeLibraryKind, TargetProfileId};
+    use scoop_identity::NativeLibraryKind;
     let source = format!(
         "{CONE}
 [[native.libraries]]
@@ -131,7 +132,10 @@ when = {{env = ['gnu', 'musl']}}
 "
     );
     let manifest = parse_cone_manifest(&source).unwrap();
-    for target in TargetProfileId::ALL {
+    for target in crate::test_catalog::SOURCE_TARGETS
+        .iter()
+        .map(|target| target.id)
+    {
         let libraries = manifest
             .semantic()
             .native()
@@ -139,7 +143,7 @@ when = {{env = ['gnu', 'musl']}}
             .unwrap();
         assert_eq!(libraries.len(), 1);
         assert_eq!(libraries[0].key().target_profile().id(), target);
-        let (name, kind) = if target == TargetProfileId::DarwinAarch64 {
+        let (name, kind) = if target == scoop_target_data::DARWIN_AARCH64_ID {
             ("CoreFoundation", NativeLibraryKind::Framework)
         } else {
             ("m", NativeLibraryKind::TargetDefault)

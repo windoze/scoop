@@ -28,7 +28,9 @@ pub use root::{
     ManifestRootLocator, load_cone_manifest,
 };
 pub use scoop_identity::RequestedConeKind;
-pub use selection::{ConditionalSourcePath, ConeRelativePath, SourceSelection, TargetPredicate};
+pub use selection::{
+    ConditionalSourcePath, ConeRelativePath, SourceSelection, SourceTarget, TargetPredicate,
+};
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
     DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,
@@ -41,3 +43,6 @@ pub use single_file::{
 };
 
 pub use file_snapshot::{ImmutableInputSnapshot, SnapshotFileError, SnapshotIoOperation};
+
+#[cfg(test)]
+mod test_catalog;

@@ -7,7 +7,7 @@ use scoop_identity::{
     SourceNominalKind, StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
-use crate::{AbiReturn, CallingConvention, GcEffect, ScoopAbiSignature};
+use crate::{AbiStorageReturn, AbiStorageSignature, CallingConvention, GcEffect};
 
 #[test]
 fn callable_binds_actual_provider_target_symbol_definition_and_root_protocol() {
@@ -62,11 +62,10 @@ fn check_callable(provider: ConeIdentity) {
             .unwrap(),
         )
         .unwrap()
-        .materialize(ScoopAbiSignature::new(
-            Vec::new(),
-            AbiReturn::UnitVoid,
-            CallingConvention::Cdecl,
-        ))
+        .materialize(AbiStorageSignature {
+            arguments: Vec::new(),
+            result: AbiStorageReturn::UnitVoid,
+        })
         .unwrap();
 
     assert_eq!(callable.target(), target);

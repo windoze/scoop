@@ -45,6 +45,11 @@ pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
     target: scoop_lir::LirTargetProfile,
     bytes: &[u8],
 ) -> Result<ValidatedScoopLirObjectEnvelopeV1, ScoopLirObjectEnvelopeValidationError> {
+    if scoop_target_data::layout(target.id()).map(|profile| profile.native_object_format())
+        != Some(target.native_object_format())
+    {
+        return Err(ScoopLirObjectEnvelopeValidationError::UnsupportedTarget);
+    }
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         return crate::link_object::elf::builtin::sections(
             bytes,
@@ -111,24 +116,36 @@ pub fn validate_generated_c_object_for_profile_v1(
     profile: &scoop_lir::CBridgeToolchainProfileV1,
 ) -> Result<ValidatedGeneratedCBridgeObjectEnvelopeV1, GeneratedCBridgeObjectEnvelopeValidationError>
 {
-    match profile.contract().platform() {
-        scoop_lir::CBridgePlatformContractV1::Darwin { deployment, .. } => {
-            validate_generated_c_bridge_object_envelope_v1(bytes, deployment)
-        }
-        scoop_lir::CBridgePlatformContractV1::Linux { .. } => {
-            crate::link_object::elf::builtin::sections(
-                bytes,
-                profile.contract().target().id(),
-                BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
-            )
-            .map(|sections| ValidatedGeneratedCBridgeObjectEnvelopeV1 { sections })
-            .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Elf)
-        }
+    if scoop_target_data::c_bridge_toolchain_id(profile.contract().target().id()).as_ref()
+        != Some(profile.id())
+    {
+        return Err(GeneratedCBridgeObjectEnvelopeValidationError::UnsupportedTarget);
+    }
+    match (
+        profile.contract().platform(),
+        profile.contract().target().id(),
+    ) {
+        (
+            scoop_lir::CBridgePlatformContractV1::Darwin { deployment, .. },
+            scoop_target_data::DARWIN_AARCH64_ID,
+        ) => validate_generated_c_bridge_object_envelope_v1(bytes, deployment),
+        (
+            scoop_lir::CBridgePlatformContractV1::Linux { .. },
+            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID,
+        ) => crate::link_object::elf::builtin::sections(
+            bytes,
+            profile.contract().target().id(),
+            BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
+        )
+        .map(|sections| ValidatedGeneratedCBridgeObjectEnvelopeV1 { sections })
+        .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Elf),
+        _ => Err(GeneratedCBridgeObjectEnvelopeValidationError::UnsupportedTarget),
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopLirObjectEnvelopeValidationError {
+    UnsupportedTarget,
     Elf(crate::link_object::ElfObjectError),
     Envelope(ObjectEnvelopeValidationError),
     UnexpectedDeployment(DarwinDeploymentCommandV1),
@@ -148,6 +165,7 @@ impl std::error::Error for ScoopLirObjectEnvelopeValidationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GeneratedCBridgeObjectEnvelopeValidationError {
+    UnsupportedTarget,
     Elf(crate::link_object::ElfObjectError),
     Envelope(ObjectEnvelopeValidationError),
     MissingDeployment,

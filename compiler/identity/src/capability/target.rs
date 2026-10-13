@@ -1,158 +1,90 @@
-use std::sync::LazyLock;
-
+use super::{CapabilityId, CapabilityIdError, CapabilityRefinementError, ProfileName};
 use scoop_wire::{Encoder, WireEncode};
 
-use super::{CapabilityId, CapabilityRefinementError, ObjectFormatId};
+const NAMESPACE: &str = "org.scoop-lang.target-profile";
 
-/// Closed executable targets; these identities include the libc environment.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum TargetProfileId {
-    DarwinAarch64,
-    LinuxX86_64Gnu,
-    LinuxX86_64Musl,
-}
+pub struct TargetProfileId(ProfileName);
 
 impl TargetProfileId {
-    pub const ALL: [Self; 3] = [
-        Self::DarwinAarch64,
-        Self::LinuxX86_64Gnu,
-        Self::LinuxX86_64Musl,
-    ];
-
-    pub const fn canonical_name(self) -> &'static str {
-        match self {
-            Self::DarwinAarch64 => "darwin-aarch64",
-            Self::LinuxX86_64Gnu => "linux-x86-64-gnu",
-            Self::LinuxX86_64Musl => "linux-x86-64-musl",
+    pub const fn new(name: &str, version: u32) -> Result<Self, CapabilityIdError> {
+        match ProfileName::new(name, version) {
+            Ok(name) => Ok(Self(name)),
+            Err(error) => Err(error),
         }
     }
-
-    pub const fn canonical_triple(self) -> &'static str {
-        match self {
-            Self::DarwinAarch64 => "aarch64-apple-darwin",
-            Self::LinuxX86_64Gnu => "x86_64-unknown-linux-gnu",
-            Self::LinuxX86_64Musl => "x86_64-unknown-linux-musl",
-        }
+    pub fn canonical_name(&self) -> &str {
+        self.0.name()
     }
-
-    pub const fn os(self) -> &'static str {
-        match self {
-            Self::DarwinAarch64 => "darwin",
-            Self::LinuxX86_64Gnu | Self::LinuxX86_64Musl => "linux",
-        }
-    }
-
-    pub const fn arch(self) -> &'static str {
-        match self {
-            Self::DarwinAarch64 => "aarch64",
-            Self::LinuxX86_64Gnu | Self::LinuxX86_64Musl => "x86_64",
-        }
-    }
-
-    pub const fn env(self) -> &'static str {
-        match self {
-            Self::DarwinAarch64 => "none",
-            Self::LinuxX86_64Gnu => "gnu",
-            Self::LinuxX86_64Musl => "musl",
-        }
-    }
-
-    pub fn object_format(self) -> ObjectFormatId {
-        match self {
-            Self::DarwinAarch64 => ObjectFormatId::macho_relocatable(),
-            Self::LinuxX86_64Gnu | Self::LinuxX86_64Musl => ObjectFormatId::elf_relocatable(),
-        }
-    }
-
-    pub const fn external_symbol_prefix(self) -> &'static [u8] {
-        match self {
-            Self::DarwinAarch64 => b"_",
-            Self::LinuxX86_64Gnu | Self::LinuxX86_64Musl => b"",
-        }
+    pub const fn major_version(self) -> u32 {
+        self.0.version()
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct TargetProfileWireId {
+pub struct TargetProfileWireId(std::sync::Arc<TargetProfileIdentity>);
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct TargetProfileIdentity {
     id: TargetProfileId,
+    capability: CapabilityId,
 }
 
 impl TargetProfileWireId {
-    pub const fn new(id: TargetProfileId) -> Self {
-        Self { id }
+    pub fn new(id: TargetProfileId) -> Self {
+        Self(std::sync::Arc::new(TargetProfileIdentity {
+            id,
+            capability: CapabilityId::new(NAMESPACE, id.canonical_name(), id.major_version())
+                .expect("typed target identity is canonical"),
+        }))
     }
-
-    pub fn darwin_aarch64() -> Self {
-        Self::new(TargetProfileId::DarwinAarch64)
-    }
-    pub fn linux_x86_64_gnu() -> Self {
-        Self::new(TargetProfileId::LinuxX86_64Gnu)
-    }
-    pub fn linux_x86_64_musl() -> Self {
-        Self::new(TargetProfileId::LinuxX86_64Musl)
-    }
-
-    pub const fn id(&self) -> TargetProfileId {
-        self.id
+    pub fn id(&self) -> TargetProfileId {
+        self.0.id
     }
     pub fn capability(&self) -> &CapabilityId {
-        static DARWIN: LazyLock<CapabilityId> = LazyLock::new(|| {
-            CapabilityId::known("org.scoop-lang.target-profile", "darwin-aarch64")
-        });
-        static GNU: LazyLock<CapabilityId> = LazyLock::new(|| {
-            CapabilityId::known("org.scoop-lang.target-profile", "linux-x86-64-gnu")
-        });
-        static MUSL: LazyLock<CapabilityId> = LazyLock::new(|| {
-            CapabilityId::known("org.scoop-lang.target-profile", "linux-x86-64-musl")
-        });
-        match self.id {
-            TargetProfileId::DarwinAarch64 => &DARWIN,
-            TargetProfileId::LinuxX86_64Gnu => &GNU,
-            TargetProfileId::LinuxX86_64Musl => &MUSL,
-        }
+        &self.0.capability
     }
-
     pub fn refine(capability: CapabilityId) -> Result<Self, CapabilityRefinementError> {
-        let mut expected = Vec::new();
-        for id in TargetProfileId::ALL {
-            let target = Self::new(id);
-            if target.capability() == &capability {
-                return Ok(target);
-            }
-            expected.push(target.capability().clone());
+        if capability.namespace() != NAMESPACE {
+            return Err(CapabilityRefinementError::namespace(NAMESPACE, capability));
         }
-        Err(CapabilityRefinementError {
-            expected,
-            actual: capability,
-        })
+        let id = TargetProfileId::new(capability.name(), capability.major_version())
+            .expect("validated capability has canonical name and version");
+        Ok(Self(std::sync::Arc::new(TargetProfileIdentity {
+            id,
+            capability,
+        })))
     }
 }
 
 impl WireEncode for TargetProfileWireId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        self.capability().encode(encoder)
+        self.0.capability.encode(encoder)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DecodedCapabilityId;
-    use scoop_wire::{decode_canonical, encode};
-
     #[test]
-    fn target_wire_ids_are_closed_and_keep_their_platform() {
-        for id in TargetProfileId::ALL {
-            let profile = TargetProfileWireId::new(id);
-            let decoded = decode_canonical::<DecodedCapabilityId>(&encode(&profile).unwrap())
-                .unwrap()
-                .validate()
-                .unwrap();
-            assert_eq!(TargetProfileWireId::refine(decoded).unwrap().id(), id);
+    fn target_identity_is_format_data_not_a_support_registry() {
+        for (name, version) in [("darwin-aarch64", 2), ("future-target", 7)] {
+            let capability = CapabilityId::new(NAMESPACE, name, version).unwrap();
+            let identity = TargetProfileWireId::refine(capability.clone()).unwrap();
+            assert_eq!(identity.capability(), &capability);
+            assert_eq!(identity.id().canonical_name(), name);
+            assert_eq!(identity.id().major_version(), version);
         }
-        for (name, version) in [("linux-aarch64-gnu", 1), ("linux-x86-64-gnu", 2)] {
-            let value = CapabilityId::new("org.scoop-lang.target-profile", name, version).unwrap();
-            assert!(TargetProfileWireId::refine(value).is_err());
+        assert!(
+            TargetProfileWireId::refine(
+                CapabilityId::new("org.scoop-lang.backend-profile", "darwin-aarch64", 1).unwrap()
+            )
+            .is_err()
+        );
+        for (name, version) in [("", 1), ("Upper", 1), ("a.b", 1), ("llvm", 0)] {
+            assert!(TargetProfileId::new(name, version).is_err());
         }
+        assert!(TargetProfileId::new(&"a".repeat(63), 1).is_ok());
+        assert!(TargetProfileId::new(&"a".repeat(64), 1).is_err());
     }
 }

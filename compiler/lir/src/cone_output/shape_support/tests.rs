@@ -14,10 +14,9 @@ use super::{
 };
 use crate::{
     CanonicalCAbiMetadata, EnumDefs, ExternFunctions, Layout, LayoutIdentity, LayoutKind, LirMeta,
-    LirOutput, LirTargetProfile, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, RefScan, RuntimeTypeMappingRecord, StructDefs, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
-    WellKnownTypeDescriptors,
+    LirOutput, MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges, RefScan,
+    RuntimeTypeMappingRecord, StructDefs, TypeDescriptor, TypeDescriptorIdentity,
+    TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord, WellKnownTypeDescriptors,
 };
 
 #[test]
@@ -231,7 +230,7 @@ fn fixture_module(producer: ConeIdentity) -> Module {
         output: LirOutput::Library,
         meta: LirMeta {
             exact_types,
-            target_profile: LirTargetProfile::DARWIN_AARCH64,
+            target_profile: crate::target_fixtures::DARWIN_AARCH64,
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
             well_known_type_descriptors: WellKnownTypeDescriptors {
@@ -335,7 +334,7 @@ fn layout(exact: PersistentExactTypeId) -> Layout {
     Layout {
         identity: LayoutIdentity::managed_value(
             exact,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),
@@ -355,7 +354,7 @@ fn instance_layout(exact: PersistentExactTypeId) -> Layout {
     Layout {
         identity: LayoutIdentity::managed_object(
             exact,
-            LirTargetProfile::DARWIN_AARCH64,
+            crate::target_fixtures::DARWIN_AARCH64,
             MaterializationRoot::cone_owned(),
         )
         .unwrap(),

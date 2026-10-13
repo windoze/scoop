@@ -1,0 +1,87 @@
+{
+  "local_final": [
+    {
+      "path": "target/m39/01-darwin/cache",
+      "allocated_kib": 74004
+    },
+    {
+      "path": "target/m39/01-darwin/sysroot",
+      "allocated_kib": 252
+    },
+    {
+      "path": "target/m39/02-darwin/cache",
+      "allocated_kib": 113604
+    },
+    {
+      "path": "target/m39/02-darwin/sysroot",
+      "allocated_kib": 252
+    },
+    {
+      "path": "target/m39/03-darwin/cache",
+      "allocated_kib": 68188
+    },
+    {
+      "path": "target/m39/03-darwin/sysroot",
+      "allocated_kib": 252
+    },
+    {
+      "path": "target/m39/06-darwin/cache",
+      "allocated_kib": 60728
+    },
+    {
+      "path": "target/m39/06-darwin/sysroot",
+      "allocated_kib": 252
+    },
+    {
+      "path": "target/m39/07-darwin/cache",
+      "allocated_kib": 240676
+    },
+    {
+      "path": "target/m39/07-darwin/sysroot",
+      "allocated_kib": 252
+    },
+    {
+      "path": "target/m39/08-fixtures/cache",
+      "allocated_kib": 73416
+    },
+    {
+      "path": "target/m39/08-fixtures/sysroot",
+      "allocated_kib": 252
+    },
+    {
+      "path": "target/m39/11-fixtures/cache",
+      "allocated_kib": 83112
+    },
+    {
+      "path": "target/m39/11-fixtures/sysroot",
+      "allocated_kib": 252
+    }
+  ],
+  "linux_final": [
+    {
+      "path": "target/m39/linux-musl/cache",
+      "allocated_kib": 6261668
+    },
+    {
+      "path": "target/m39/linux-musl/cases",
+      "allocated_kib": 4
+    },
+    {
+      "path": "target/m39/linux-musl/sysroot",
+      "allocated_kib": 780
+    },
+    {
+      "path": "target/m39/tmp",
+      "allocated_kib": 20
+    },
+    {
+      "path": "target/debug/incremental",
+      "allocated_kib": 4
+    }
+  ],
+  "notes": [
+    "Completed fixture cases were removed periodically during both Linux runs.",
+    "GNU cache/cases/sysroot were removed after GNU completion, approximately 6 GiB.",
+    "Compiler dependency caches and release tools are retained for M41."
+  ]
+}

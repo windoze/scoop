@@ -10,13 +10,17 @@ pub(super) fn check(
     provider: Provider<'_, '_>,
 ) {
     let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>| {
-        scoop_lir_lower::lower_with_layout_dependencies(
+        crate::lir_pipeline::lower_with_layout_dependencies(
             input,
             callables,
             provider.target.lir_target(),
             selection,
             diagnostics,
         )
+        .map_err(|error| match error {
+            crate::CurrentConeLirStageError::Lowering(error) => error,
+            error => panic!("expected layout lowering error: {error}"),
+        })
     };
     let absent = Source {
         roots: vec![],

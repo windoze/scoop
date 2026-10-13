@@ -169,6 +169,9 @@ fn dependency_external(
         root_plan,
     )
     .unwrap()
-    .materialize(plain_scoop_signature(Vec::new(), LirType::Void))
+    .materialize(scoop_lir::AbiStorageSignature {
+        arguments: Vec::new(),
+        result: scoop_lir::AbiStorageReturn::UnitVoid,
+    })
     .unwrap()
 }

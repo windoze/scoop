@@ -39,7 +39,7 @@ pub fn normalize_direct_build_request(
         .map_err(BuildRequestNormalizationError::Backend)?;
     let is_core = match &current {
         CurrentConeInput::Manifest { root } => {
-            scoop_manifest::load_cone_manifest(root)
+            scoop_toolchain::load_cone_manifest(root)
                 .map_err(BuildRequestNormalizationError::ManifestRoot)?
                 .parsed()
                 .semantic()

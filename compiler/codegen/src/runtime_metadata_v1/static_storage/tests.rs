@@ -3,7 +3,7 @@ use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::targets::TargetData;
 use inkwell::values::{AnyValue, GlobalValue, StructValue};
-use scoop_lir::{LirTargetProfile, StaticStorageScanKindV1, StrongStaticStorageInitialStatePlanV1};
+use scoop_lir::{StaticStorageScanKindV1, StrongStaticStorageInitialStatePlanV1};
 
 use super::{
     DIGEST_SIZE, EMPTY_RELOCATION_SENTINEL, EMPTY_TEMPLATE_SENTINEL,
@@ -297,7 +297,7 @@ fn declare_storage<'ctx>(
 }
 
 fn target_data() -> TargetData {
-    TargetData::create(LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout())
+    TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout())
 }
 
 fn constant_u64(value: StructValue<'_>, index: u32) -> u64 {

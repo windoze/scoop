@@ -9,7 +9,7 @@ mod fixtures;
 mod reader;
 mod table;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 
 #[test]
 fn abi_records_preserve_receiver_order_and_carrier_plans() {

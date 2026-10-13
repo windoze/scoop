@@ -51,7 +51,7 @@ impl ValidatedObjectEnvelopeV1 {
     }
     pub const fn target(&self) -> TargetProfileId {
         match self.format {
-            ObjectEnvelopeFormatV1::DarwinArm64 { .. } => TargetProfileId::DarwinAarch64,
+            ObjectEnvelopeFormatV1::DarwinArm64 { .. } => scoop_target_data::DARWIN_AARCH64_ID,
             ObjectEnvelopeFormatV1::Elf64 { target, .. } => target,
         }
     }
@@ -181,7 +181,7 @@ impl ObservedObjectSymbolV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectRelocationShapeV1 {
     DarwinArm64(DarwinArm64RelocationShapeV1),
-    ElfRela {
+    ElfX86_64Rela {
         kind: u32,
         target_symbol: u32,
         addend: i64,
@@ -193,7 +193,7 @@ impl ObjectRelocationShapeV1 {
     pub const fn width_bytes(self) -> u8 {
         match self {
             Self::DarwinArm64(shape) => shape.width_bytes(),
-            Self::ElfRela { width, .. } => width,
+            Self::ElfX86_64Rela { width, .. } => width,
         }
     }
 }

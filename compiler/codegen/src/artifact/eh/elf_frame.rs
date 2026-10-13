@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use object::{Object, ObjectSection, SectionIndex};
 
 use crate::CodegenError;
+use crate::artifact::elf::ElfArchitecture;
 use crate::artifact::elf::error;
-use crate::target::CodeArchitecture;
 
 use super::cursor::Cursor;
 use super::elf_relocations::{self, ElfPoint};
@@ -19,14 +19,14 @@ pub(super) struct ElfFde {
 
 struct FrameReader<'data, 'file> {
     file: &'file object::File<'data>,
-    architecture: CodeArchitecture,
+    architecture: ElfArchitecture,
     relocations: BTreeMap<u64, object::Relocation>,
 }
 
 pub(super) fn parse(
     file: &object::File<'_>,
     section: SectionIndex,
-    architecture: CodeArchitecture,
+    architecture: ElfArchitecture,
 ) -> Result<Vec<ElfFde>, CodegenError> {
     let section = file.section_by_index(section).map_err(error)?;
     let mut reader = FrameReader {
@@ -129,10 +129,7 @@ impl FrameReader<'_, '_> {
             return Err(CodegenError("ELF CIE requires version 1".into()));
         }
         let augmentation = cursor.nul_terminated("CIE augmentation")?;
-        let expected_register = match self.architecture {
-            CodeArchitecture::Aarch64 => 30,
-            CodeArchitecture::X86_64 => 16,
-        };
+        let expected_register = self.architecture.return_address_register();
         if cursor.uleb("CIE code alignment")? != 1
             || cursor.sleb("CIE data alignment")? != -8
             || cursor.u8("CIE return-address register")? != expected_register

@@ -4,28 +4,22 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use object::{Architecture, BinaryFormat, Object, ObjectKind};
-use scoop_lir::{
-    CBridgeToolchainProfileV1, GccCompilerIdentityV1, LirTargetProfile, TargetProfileId,
-    ValidatedCBridgeToolchainInvocation,
-};
+use crate::ValidatedCBridgeToolchainInvocation;
+use object::{BinaryFormat, Object, ObjectKind};
+use scoop_lir::{GccCompilerIdentityV1, LirTargetProfile};
 use scoop_process::{CommandExt, parse_make_dependencies};
 use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
 use crate::ToolchainError;
+use crate::linux_target::{LinuxLibc, LinuxTarget};
 
 pub fn resolve_linux_c_toolchain(
     target: LirTargetProfile,
     compiler: Option<&Path>,
     native_sysroot: Option<&Path>,
 ) -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
-    let default_driver = match target.id() {
-        TargetProfileId::LinuxX86_64Gnu => "gcc",
-        TargetProfileId::LinuxX86_64Musl => "musl-gcc",
-        TargetProfileId::DarwinAarch64 => {
-            return Err(error("GCC discovery requires a Linux target"));
-        }
-    };
+    let selected = LinuxTarget::select(target.id())?;
+    let default_driver = selected.libc.default_c_driver();
     let search_path = std::env::var_os("PATH").ok_or_else(|| error("PATH is not set"))?;
     let driver = find_program(
         compiler
@@ -33,9 +27,12 @@ pub fn resolve_linux_c_toolchain(
             .as_os_str(),
         &search_path,
     )?;
-    let real_gcc = find_program(
-        &std::env::var_os("REALGCC").unwrap_or_else(|| OsString::from("x86_64-linux-gnu-gcc")),
+    // REALGCC is a musl wrapper input. A direct GCC invocation already names
+    // its actual compiler and must not require a second, architecture-named GCC.
+    let real_gcc = underlying_compiler(
+        selected.libc,
         &search_path,
+        std::env::var_os("REALGCC").as_deref(),
     )?;
     let sysroot = native_sysroot
         .map(std::fs::canonicalize)
@@ -54,11 +51,7 @@ pub fn resolve_linux_c_toolchain(
     };
     let source = directory.path().join("probe.c");
     let object = directory.path().join("probe.o");
-    let libc_check = if target.id() == TargetProfileId::LinuxX86_64Gnu {
-        "#ifndef __GLIBC__\n#error glibc target requires glibc headers\n#endif\n"
-    } else {
-        "#ifdef __GLIBC__\n#error musl target cannot use glibc headers\n#endif\n"
-    };
+    let libc_check = selected.libc.header_probe();
     std::fs::write(
         &source,
         format!("{PROBE_PREFIX}{libc_check}\nint scoop_linux_c_probe(void) {{ return 0; }}\n"),
@@ -97,7 +90,7 @@ pub fn resolve_linux_c_toolchain(
         domain_separated_cbor_hash("scoop-linux-c-inputs-v1", &InputDigests(&fingerprints))
             .map_err(error)?;
     let compiler = GccCompilerIdentityV1::new(&version, compiler_inputs).map_err(error)?;
-    let profile = CBridgeToolchainProfileV1::new_linux_gcc(target, compiler).map_err(error)?;
+    let profile = scoop_target_data::linux_c_bridge_profile(target, compiler).map_err(error)?;
     let invocation = ValidatedCBridgeToolchainInvocation::new_linux(
         target,
         profile,
@@ -110,14 +103,14 @@ pub fn resolve_linux_c_toolchain(
     run(&mut invocation.object_compilation_command(&source, &object))?;
     let bytes = std::fs::read(object).map_err(error)?;
     let file = object::File::parse(bytes.as_slice()).map_err(error)?;
-    if file.architecture() != Architecture::X86_64
+    if file.architecture() != selected.machine.object_architecture()
         || file.format() != BinaryFormat::Elf
         || file.kind() != ObjectKind::Relocatable
         || !file.is_little_endian()
         || !file.is_64()
         || file.symbol_by_name("scoop_linux_c_probe").is_none()
     {
-        return Err(error("GCC did not emit the expected ELF64 amd64 C object"));
+        return Err(error("GCC did not emit the selected ELF64 C object"));
     }
     Ok(invocation)
 }
@@ -128,7 +121,7 @@ _Static_assert(CHAR_BIT == 8 && sizeof(void *) == 8 && sizeof(long) == 8, \"LP64
 
 struct CompilerPaths {
     driver: PathBuf,
-    real_gcc: PathBuf,
+    real_gcc: Option<PathBuf>,
     search_path: OsString,
     sysroot: Option<PathBuf>,
     temporary: PathBuf,
@@ -143,14 +136,32 @@ impl CompilerPaths {
             .env("LANG", "C")
             .env("TZ", "UTC")
             .env("PATH", &self.search_path)
-            .env("REALGCC", &self.real_gcc)
             .env("TMPDIR", &self.temporary);
+        if let Some(compiler) = &self.real_gcc {
+            command.env("REALGCC", compiler);
+        }
         if let Some(sysroot) = &self.sysroot {
             command.arg("--sysroot").arg(sysroot);
         }
         command
     }
 }
+
+fn underlying_compiler(
+    libc: LinuxLibc,
+    search_path: &OsStr,
+    real_gcc: Option<&OsStr>,
+) -> Result<Option<PathBuf>, ToolchainError> {
+    match libc {
+        LinuxLibc::Gnu => Ok(None),
+        LinuxLibc::Musl => {
+            find_program(real_gcc.unwrap_or_else(|| OsStr::new("gcc")), search_path).map(Some)
+        }
+    }
+}
+
+#[cfg(test)]
+mod discovery_tests;
 
 pub(crate) fn find_program(
     program: &OsStr,

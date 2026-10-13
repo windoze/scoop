@@ -3,7 +3,7 @@
 use super::*;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::FileType;
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedLirTargetSelection};
+use scoop_lir::OptimizationMode;
 
 fn expected() -> ExpectedSafepoints {
     let result = CallerRootSource::Temp(la_arena::Idx::from_raw(0.into()));
@@ -50,14 +50,15 @@ fn interface_parts_call_invoke_and_relocation_survive_target_codegen() {
         "select i1 %choose, {ptr addrspace(1), ptr} %a.complete, {ptr addrspace(1), ptr} %b.complete",
     );
     for target in [
-        TargetProfileId::DarwinAarch64,
-        TargetProfileId::LinuxX86_64Gnu,
-        TargetProfileId::LinuxX86_64Musl,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        scoop_target_data::LINUX_X86_64_GNU_ID,
+        scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             for source in [source, selected.as_str()] {
                 let profile = ValidatedBackendProfile::from_selection(
-                    ValidatedLirTargetSelection::from_id(target),
+                    scoop_target_data::selection(target)
+                        .expect("implemented target selected by this consumer"),
                 )
                 .unwrap()
                 .with_optimization(mode);

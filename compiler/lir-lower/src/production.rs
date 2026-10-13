@@ -28,6 +28,7 @@ pub(super) fn lower_root_artifacts(
     main: RootMain<'_>,
     layout: scoop_lir::StaticStorageLayout,
     globals: &mut Arena<scoop_lir::Global>,
+    signatures: &crate::abi::plans::Signatures,
 ) -> LoweredFunction {
     let failure_root = globals.alloc(scoop_lir::Global {
         address_kind: scoop_lir::PointerKind::Raw,
@@ -45,12 +46,14 @@ pub(super) fn lower_root_artifacts(
         },
     });
 
-    root_gateway(producer, source.main(), main, failure_root)
+    root_gateway(producer, source.main(), main, failure_root, signatures)
 }
 
 pub(super) fn lower_initialization_startup_gateway(
     unit: scoop_identity::PersistentInitializationUnitId,
     ensure: scoop_lir::ManagedLocalFunctionRef,
+    ensure_signature: &scoop_lir::ScoopAbiSignature,
+    gateway_signature: &scoop_lir::ScoopAbiSignature,
 ) -> LoweredFunction {
     let callable_body = scoop_lir::CallableBodyIdentity::for_initialization_startup_gateway(unit)
         .expect("a validated eager initialization unit derives one startup-gateway identity");
@@ -58,8 +61,8 @@ pub(super) fn lower_initialization_startup_gateway(
     let signature = call_targets
         .void_signatures
         .alloc(scoop_lir::VoidCallSignature::new(
-            Vec::new(),
-            scoop_lir::CallingConvention::Cdecl,
+            ensure_signature.arguments().to_vec(),
+            ensure_signature.calling_convention(),
         ));
     let target = call_targets
         .managed_targets
@@ -129,22 +132,11 @@ pub(super) fn lower_initialization_startup_gateway(
         },
         scoop_lir::Instruction::EndCatch,
     ]);
-    let result = scoop_lir::AbiValue::new(
-        scoop_lir::LirType::I32,
-        scoop_lir::AbiNonZeroLayout::new(4, 4)
-            .expect("the startup-gateway result has a valid uint32 layout"),
-        scoop_lir::RefScan::None,
-    )
-    .expect("the startup-gateway result layout matches uint32 storage");
     LoweredFunction {
         function: scoop_lir::Function {
             callable_body,
             gc_effect: scoop_lir::GcEffect::Managed,
-            signature: scoop_lir::ScoopAbiSignature::new(
-                Vec::new(),
-                scoop_lir::AbiReturn::Direct(result.into()),
-                scoop_lir::CallingConvention::Cdecl,
-            ),
+            signature: gateway_signature.clone(),
             call_targets,
             safepoints: scoop_lir::SafepointIdentities::default(),
             locals: Arena::new(),

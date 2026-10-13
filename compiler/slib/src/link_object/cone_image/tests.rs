@@ -11,7 +11,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalLirFoundation, ConeImagePlanV1, ConeLirFoundation,
-    DigestFinalizationPlanV1, EntryProductionPlanV1, GeneratedBridgePlanSetV1, LirTargetProfile,
+    DigestFinalizationPlanV1, EntryProductionPlanV1, GeneratedBridgePlanSetV1,
     ObjectSymbolSurfaceV1, ProducerUnitPartitionV1, RegistrationIdentitySurfaceV1,
 };
 
@@ -322,7 +322,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap();
     let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(
@@ -337,7 +337,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     .unwrap();
     let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
-        LirTargetProfile::DARWIN_AARCH64,
+        scoop_target_data::DARWIN_AARCH64,
         &surface,
         &member_plan,
     )

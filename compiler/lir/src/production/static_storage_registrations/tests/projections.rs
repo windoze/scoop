@@ -31,7 +31,7 @@ fn plan(encoded: bool) -> StrongStaticStorageSemanticPlanV1 {
     ));
     StrongStaticStorageSemanticPlanSetV1::from_parts(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &globals,
         &structs,
         &crate::EnumDefs::default(),
@@ -86,7 +86,7 @@ fn storage_projection_replays_immortal_initializers_and_rejects_wrong_extent() {
     ));
     let plans = StrongStaticStorageSemanticPlanSetV1::from_parts(
         ConeIdentity::SINGLE_FILE,
-        LirTargetProfile::DARWIN_AARCH64,
+        crate::target_fixtures::DARWIN_AARCH64,
         &globals,
         &crate::StructDefs::default(),
         &crate::EnumDefs::default(),

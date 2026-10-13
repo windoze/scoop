@@ -1,5 +1,4 @@
 use scoop_identity::ConeCoordinate;
-use scoop_lir::ValidatedLirTargetSelection;
 
 use super::*;
 use crate::{
@@ -10,7 +9,7 @@ use crate::{
 
 fn compatibility() -> CompatibilityRecord {
     CompatibilityRecord::new(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
     )
     .unwrap()

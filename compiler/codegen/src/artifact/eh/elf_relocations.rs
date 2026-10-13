@@ -1,12 +1,12 @@
 //! ELF EH pointers resolve to a section and offset, never a fabricated address.
 
 use object::{
-    Object, ObjectSection, ObjectSymbol, RelocationFlags, RelocationTarget, SectionIndex, elf,
+    Object, ObjectSection, ObjectSymbol, RelocationFlags, RelocationTarget, SectionIndex,
 };
 
 use crate::CodegenError;
+use crate::artifact::elf::ElfArchitecture;
 use crate::artifact::elf::error;
-use crate::target::CodeArchitecture;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct ElfPoint {
@@ -17,16 +17,9 @@ pub(super) struct ElfPoint {
 pub(super) fn resolve(
     file: &object::File<'_>,
     relocation: &object::Relocation,
-    architecture: CodeArchitecture,
+    architecture: ElfArchitecture,
 ) -> Result<ElfPoint, CodegenError> {
-    let expected = match architecture {
-        CodeArchitecture::X86_64 => elf::R_X86_64_PC32,
-        CodeArchitecture::Aarch64 => {
-            return Err(CodegenError(
-                "AArch64 backend selects Mach-O EH pointers".into(),
-            ));
-        }
-    };
+    let expected = architecture.eh_pointer_relocation();
     if relocation.flags() != (RelocationFlags::Elf { r_type: expected })
         || relocation.has_implicit_addend()
     {
@@ -54,7 +47,7 @@ pub(super) fn resolve(
 pub(super) fn validate_personality(
     file: &object::File<'_>,
     point: ElfPoint,
-    architecture: CodeArchitecture,
+    architecture: ElfArchitecture,
 ) -> Result<(), CodegenError> {
     let section = file.section_by_index(point.section).map_err(error)?;
     let start = usize::try_from(point.offset).map_err(error)?;
@@ -78,15 +71,10 @@ pub(super) fn validate_personality(
         || relocations.next().is_some()
         || relocation.addend() != 0
         || relocation.has_implicit_addend()
-        || !matches!(
-            (architecture, relocation.flags()),
-            (
-                CodeArchitecture::X86_64,
-                RelocationFlags::Elf {
-                    r_type: elf::R_X86_64_64
-                }
-            )
-        )
+        || relocation.flags()
+            != (RelocationFlags::Elf {
+                r_type: architecture.absolute_pointer_relocation(),
+            })
     {
         return Err(CodegenError(
             "ELF personality indirection requires one absolute pointer relocation".into(),
