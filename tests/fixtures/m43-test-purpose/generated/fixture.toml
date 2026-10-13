@@ -66,3 +66,68 @@ env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "init\nbefore\none\nafter\ninit\nbefore\ntwo\nafter\nother\n"
 stderr = ""
+
+[[steps]]
+name = "copy-for-test-command"
+files = [{copy = {from = "${fixture}/program", to = "${work}/program"}}]
+
+[[steps]]
+name = "umbrella"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json", "--no-run"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/tests/generated-tests"},
+ {actual = "${umbrella.result.root.path}", not_equals = "${production.result.root.path}"},
+ {actual = "${umbrella.result.observations.child_invocations.length}", equals = 1},
+]
+
+[[steps]]
+name = "umbrella-run"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+exit = 0
+stdout = "init\nbefore\none\nafter\ninit\nbefore\ntwo\nafter\nother\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${umbrella-run.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "umbrella-moving"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+exit = 0
+stdout = "init\nbefore\none\nafter\ninit\nbefore\ntwo\nafter\nother\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "change-test-body"
+files = [{replace = {path = "${work}/program/tests/a.scoop", old = 'println("one")', new = 'println("changed one")'}}]
+
+[[steps]]
+name = "changed-test"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+exit = 0
+stdout = "init\nbefore\nchanged one\nafter\ninit\nbefore\ntwo\nafter\nother\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed-test.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "production-after-test-change"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${production-after-test-change.result.root.path}", equals = "${production.result.root.path}"},
+ {actual = "${production-after-test-change.result.observations.child_invocations.length}", equals = 0},
+]

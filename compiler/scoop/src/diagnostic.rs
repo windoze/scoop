@@ -165,6 +165,7 @@ const fn phase_only(phase: BuildFailurePhase) -> BuildFailureClassification {
 impl ClassifyBuildFailure for BuildGraphRequestError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
+            Self::TestRequiresManifest => phase_only(BuildFailurePhase::Request),
             Self::Toolchain(_) => classified(
                 BuildFailurePhase::Toolchain,
                 BuildDiagnosticCode::CHILD_TOOL_MISMATCH,

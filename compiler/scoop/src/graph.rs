@@ -210,7 +210,11 @@ impl GraphResolver {
     }
 
     fn resolve(self) -> Result<ResolvedBuildGraph, ResolveBuildGraphError> {
-        let root_kind = validate_nodes(self.root, &self.nodes, &self.edges)?;
+        let declared_kind = validate_nodes(self.root, &self.nodes, &self.edges)?;
+        let root_kind = match self.context.purpose {
+            scoop_protocol::CompilationPurpose::Production => declared_kind,
+            scoop_protocol::CompilationPurpose::Test => RequestedConeKind::Executable,
+        };
         validate_edges(&self.nodes, &self.edges)?;
         validate_reachability(self.root, &self.nodes, &self.edges)?;
         let adjacency = canonical_adjacency(&self.nodes, &self.edges);

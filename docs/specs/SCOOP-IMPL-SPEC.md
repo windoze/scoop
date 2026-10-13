@@ -489,6 +489,10 @@ SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Exec
 
 single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Production；直接调用 `scoopc build --test` 选择 Test，且输入必须是 manifest Cone。测试用途在解析源码前将 manifest 的生产依赖与测试依赖并为所需 direct artifact 集合，support 仍恰为其余传递闭包；scoopc 不定位或补建缺失的测试依赖。解析时使用同一 manifest 的生产／测试源码选择规则，将仅用于测试的依赖身份交给前端，并以原 ConeIdentity 产生具有 TestEntry 的 executable `.slib`，不要求改写源码 manifest kind。该字段加入子编译器请求后，machine protocol 升为 6，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 
+`scoop test [root-input]` 使用同一构建图，只对 manifest 根 Cone 启用 Test 用途：发现根的生产与测试依赖，依赖节点仍按 Production 构建，不递归启用依赖自身的测试。根按 executable 产物规划和链接，保留源码 manifest 及 ConeIdentity。测试编译键包含用途、每个源码的角色、测试源码选择与测试依赖语义，路径 locator 和诊断 span 不进入键；生产键不包含这些测试配置。测试源码或配置改变不使未改变的生产依赖缓存失效。
+
+测试程序发布到 `target/<canonical-target-triple>/<profile>/tests/<cone-name>`，`--target-dir` 替换 target 根目录，`--no-run` 完成构建和链接后返回。运行复用既有成功产物的私有执行副本，不能执行失败构建留下的旧文件。过滤和忽略选择不改变测试编译产物；最终报告需要独立的用例结果通道，不能仅凭进程退出码判定整轮执行完成。
+
 测试源码发现复用相同的路径选择、平台筛选和文件读取规则，在合并前保留生产集合的非空要求，在合并时检查两种角色之间的路径重叠及物理文件重复。源码角色是编译输入属性，不参与 SourceIdentity；parser 将角色随每个已解析文件交给前端，不能由目录名、文件顺序或显示路径重新推断。成功结果保留按完整 source identity 排序的全部文件及其角色，解析错误仍按原文件定位。
 
 前端输入显式标明仅用于测试的 direct dependency 身份，在同一已加载的依赖语义数据上按源码角色收集名称候选。package binding 在按实体合并前筛选直接来源，qualified-type 索引保留来源贡献以复用相同数据；选中真实 nominal 后的静态成员遍历不按原始声明 Cone 再次排除实体。不为生产与测试分别加载或完整校验相同的依赖闭包，不在下游 IR 重做定义处名称查找。

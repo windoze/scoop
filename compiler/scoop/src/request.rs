@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
-use scoop_protocol::TargetSelectionRequestV1;
+use scoop_protocol::{CompilationPurpose, TargetSelectionRequestV1};
 
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
@@ -187,6 +187,7 @@ pub struct BuildGraphRequest {
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
     optimization: scoop_lir::OptimizationMode,
+    purpose: CompilationPurpose,
 }
 
 pub(crate) struct BuildGraphRequestParts {
@@ -198,6 +199,7 @@ pub(crate) struct BuildGraphRequestParts {
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
     pub(crate) optimization: scoop_lir::OptimizationMode,
+    pub(crate) purpose: CompilationPurpose,
 }
 
 impl BuildGraphRequest {
@@ -225,12 +227,24 @@ impl BuildGraphRequest {
             compiler,
             diagnostics,
             optimization: scoop_lir::OptimizationMode::Debug,
+            purpose: CompilationPurpose::Production,
         })
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
         self
+    }
+
+    pub fn with_purpose(
+        mut self,
+        purpose: CompilationPurpose,
+    ) -> Result<Self, BuildGraphRequestError> {
+        if purpose == CompilationPurpose::Test && self.root.single_file_source().is_some() {
+            return Err(BuildGraphRequestError::TestRequiresManifest);
+        }
+        self.purpose = purpose;
+        Ok(self)
     }
 
     pub const fn root(&self) -> &BuildRootInput {
@@ -271,12 +285,14 @@ impl BuildGraphRequest {
             compiler: self.compiler,
             diagnostics: self.diagnostics,
             optimization: self.optimization,
+            purpose: self.purpose,
         }
     }
 }
 
 #[derive(Debug)]
 pub enum BuildGraphRequestError {
+    TestRequiresManifest,
     Toolchain(ToolchainError),
 }
 
@@ -284,6 +300,7 @@ impl fmt::Display for BuildGraphRequestError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Toolchain(error) => error.fmt(formatter),
+            Self::TestRequiresManifest => formatter.write_str("test requires a manifest Cone"),
         }
     }
 }
@@ -292,6 +309,7 @@ impl std::error::Error for BuildGraphRequestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Toolchain(error) => Some(error),
+            Self::TestRequiresManifest => None,
         }
     }
 }

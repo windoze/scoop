@@ -116,7 +116,8 @@ impl PreparedBuildGraph {
             backend,
             c_bridge_toolchain,
         )
-        .with_optimization(self.context.optimization))
+        .with_optimization(self.context.optimization)
+        .with_purpose(self.compilation_purpose(identity)))
     }
 
     pub fn compile_cache_key(
@@ -198,7 +199,11 @@ fn manifest_cache_inputs(
         cone,
         CurrentConeSemanticProjectionV1::Manifest {
             coordinate: snapshot.coordinate.clone(),
-            requested_kind,
+            requested_kind: snapshot.manifest_semantic.requested_kind(),
+            tests: snapshot
+                .test_config
+                .as_ref()
+                .map(crate::cache::TestCompileConfiguration::new),
             dependencies,
             sources: snapshot.manifest_semantic.sources().clone(),
             native: Box::new(snapshot.native.clone()),
@@ -211,7 +216,10 @@ fn source_inputs<'a>(
     sources: impl Iterator<Item = &'a super::SourceSnapshot>,
 ) -> Vec<SourceCacheInputV1> {
     sources
-        .map(|source| SourceCacheInputV1::new(source.identity().clone(), source.content_digest()))
+        .map(|source| {
+            SourceCacheInputV1::new(source.identity().clone(), source.content_digest())
+                .with_role(source.role())
+        })
         .collect()
 }
 

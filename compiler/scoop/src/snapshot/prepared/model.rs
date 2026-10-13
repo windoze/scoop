@@ -89,6 +89,7 @@ pub struct ManifestSourceSnapshot {
     pub(super) coordinate: ConeCoordinate,
     pub(super) requested_kind: RequestedConeKind,
     pub(super) manifest_semantic: ConeManifestSemantic,
+    pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
     pub(super) manifest_bytes: Arc<[u8]>,
     pub(super) manifest_digest: Digest256,
@@ -243,6 +244,17 @@ pub struct PreparedBuildGraph {
 }
 
 impl PreparedBuildGraph {
+    pub fn compilation_purpose(
+        &self,
+        identity: ConeIdentity,
+    ) -> scoop_protocol::CompilationPurpose {
+        if identity == self.root {
+            self.context.purpose
+        } else {
+            scoop_protocol::CompilationPurpose::Production
+        }
+    }
+
     pub const fn root_identity(&self) -> ConeIdentity {
         self.root
     }

@@ -266,7 +266,11 @@ impl DiscoveryBuilder {
             let Some(GraphNode::ManifestSource(manifest)) = self.nodes.get(&identity) else {
                 return Err(BuildGraphDiscoveryError::InternalSourceClaim(identity));
             };
-            manifest_dependency_plans(manifest)?
+            manifest_dependency_plans(
+                manifest,
+                identity == self.root
+                    && self.context.purpose == scoop_protocol::CompilationPurpose::Test,
+            )?
         };
         if identity != ConeIdentity::CORE
             && !plans

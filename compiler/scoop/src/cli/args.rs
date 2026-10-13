@@ -5,7 +5,11 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use scoop::BuildProfile;
 
 #[derive(Parser)]
-#[command(name = "scoop", version, about = "Build, run, and link Scoop programs")]
+#[command(
+    name = "scoop",
+    version,
+    about = "Build, test, run, and link Scoop programs"
+)]
 pub(super) struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -17,6 +21,8 @@ pub(super) enum Command {
     Build(BuildArgs),
     /// Build an executable and run it with the caller's environment and stdio.
     Run(RunArgs),
+    /// Build and run the current manifest Cone’s tests.
+    Test(TestArgs),
     /// Link existing artifacts without compiling sources.
     Link(LinkArgs),
 }
@@ -111,6 +117,15 @@ pub(super) struct RunArgs {
 }
 
 #[derive(Args)]
+pub(super) struct TestArgs {
+    #[command(flatten)]
+    pub options: BuildOptions,
+    /// Build and link without running the test executable.
+    #[arg(long)]
+    pub no_run: bool,
+}
+
+#[derive(Args)]
 pub(super) struct LinkArgs {
     #[arg(long)]
     pub root_slib: PathBuf,
@@ -172,6 +187,7 @@ impl Command {
         match self {
             Self::Build(args) => args.options.message_format,
             Self::Run(args) => args.options.message_format,
+            Self::Test(args) => args.options.message_format,
             Self::Link(args) => args.message_format,
         }
     }

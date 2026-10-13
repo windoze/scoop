@@ -123,7 +123,9 @@ impl PreparedBuildGraph {
         )
         .map_err(ChildRequestPlanError::Protocol)?
         .with_optimization(self.context.optimization)
-        .with_native_inputs(native_inputs);
+        .with_native_inputs(native_inputs)
+        .with_purpose(self.compilation_purpose(identity))
+        .map_err(ChildRequestPlanError::Protocol)?;
         Ok(ChildInvocationPlanV1 {
             #[cfg(test)]
             identity,

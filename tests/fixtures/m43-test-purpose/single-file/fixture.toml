@@ -2,7 +2,7 @@ schema = 1
 name = "m43-test-purpose-single-file"
 root = "program.scoop"
 inputs = ["program.scoop"]
-tools = ["scoopc"]
+tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m43", "test-purpose", "negative"]
 
@@ -13,3 +13,11 @@ exit = 1
 stdout = ""
 stderr = "error: test compilation requires a manifest Cone\n"
 checks = [{file = "${work}/tests.slib", exists = false}]
+
+[[steps]]
+name = "reject-test-command"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/output"]
+exit = 1
+stdout = ""
+stderr = "error[SCOOP_CLI_CONFIG]: test requires a manifest Cone\n"
+checks = [{file = "${work}/output", exists = false}]

@@ -24,6 +24,7 @@ use crate::{
 
 mod core;
 mod observation_locks;
+mod testing;
 
 struct FailureRunner;
 

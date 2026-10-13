@@ -72,7 +72,13 @@ impl Preparer {
         for (identity, node) in self.parts.nodes {
             let prepared = match node {
                 GraphNode::ManifestSource(manifest) => {
-                    let snapshot = capture_manifest_source(*manifest, &self.parts.context)?;
+                    let purpose = if identity == self.parts.root {
+                        self.parts.context.purpose
+                    } else {
+                        scoop_protocol::CompilationPurpose::Production
+                    };
+                    let snapshot =
+                        capture_manifest_source(*manifest, &self.parts.context, purpose)?;
                     let input_root =
                         materialize_manifest_snapshot(&self.staging, identity, &snapshot)?;
                     let native_inputs = snapshot
@@ -164,6 +170,7 @@ impl Preparer {
 fn capture_manifest_source(
     manifest: LoadedConeManifest,
     context: &BuildContext,
+    purpose: scoop_protocol::CompilationPurpose,
 ) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
     let manifest_input = ImmutableInputSnapshot::capture(manifest.manifest_path())
         .map_err(PrepareBuildGraphError::ManifestSnapshot)?;
@@ -172,14 +179,28 @@ fn capture_manifest_source(
             manifest.manifest_path().to_path_buf(),
         ));
     }
-    let discovered = discover_manifest_sources(&manifest, context.target.id())
-        .map_err(PrepareBuildGraphError::SourceDiscovery)?;
+    let discovered = match purpose {
+        scoop_protocol::CompilationPurpose::Production => {
+            discover_manifest_sources(&manifest, context.target.id())
+        }
+        scoop_protocol::CompilationPurpose::Test => {
+            scoop_manifest::discover_manifest_sources_for_tests(&manifest, context.target.id())
+        }
+    }
+    .map_err(PrepareBuildGraphError::SourceDiscovery)?;
     let source_directories = discovered.selected_directories().to_vec();
     let (first, rest) = discovered.into_parts();
 
     let coordinate = manifest.coordinate().clone();
     let identity = manifest.identity();
-    let requested_kind = manifest.parsed().semantic().requested_kind();
+    let requested_kind = match purpose {
+        scoop_protocol::CompilationPurpose::Production => {
+            manifest.parsed().semantic().requested_kind()
+        }
+        scoop_protocol::CompilationPurpose::Test => scoop_identity::RequestedConeKind::Executable,
+    };
+    let test_config = (purpose == scoop_protocol::CompilationPurpose::Test)
+        .then(|| manifest.parsed().tests().clone());
     let manifest_semantic = manifest.parsed().semantic().clone();
     let native = scoop_toolchain::prepare_native_inputs(
         &manifest,
@@ -194,6 +215,7 @@ fn capture_manifest_source(
         coordinate,
         requested_kind,
         manifest_semantic,
+        test_config,
         native,
         source_directories,
         manifest_locator: manifest.manifest_path().to_path_buf(),

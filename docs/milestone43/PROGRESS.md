@@ -7,9 +7,9 @@
 | 批次 | 状态 | 证据 |
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
-| M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离与 single-Cone 测试用途已接入；umbrella 构建图、测试缓存与输出编排待实施 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
+| M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离、测试构建图／缓存与输出已接入 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
 | M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与调用适配合成、默认用例的原生执行已接入；目录持久化与运行时用例选择待实施 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
-| M43-4 CLI 与运行报告 | 待实施 | |
+| M43-4 CLI 与运行报告 | 基础 scoop test／--no-run 已接入；过滤、目录、捕获与报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
 | M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
 
 ## 工作约定
@@ -113,3 +113,12 @@
 - Darwin 正式 CLI 共 4 个 fixture、6 个变体、31 个进程步骤通过：见[生成入口与 single-file 负例](validation/test-purpose-generated-darwin.json)、[失败流程与生产 import 负例](validation/test-purpose-additional-darwin.json)。两个运行用例均覆盖 debug/release 和 moving GC；生产文件即使处于测试编译中，也不能 import 测试专用依赖。编译失败时不产生新产物，正式链接只消费传入的 `.slib` 与既有 runtime 对象。
 - 初次 CLI 验证与 Cargo 的二进制重建并行，触发了已有的配套编译器变化诊断；等待 Cargo 完成后使用配套命令副本重验通过。fixture 准备中修正了默认表达式的可见域、Option 消息参数和 `${...}` 插值写法，没有修改语言规则迁就用例。复用本批缓存，只重验受影响的用例组，没有运行无关全量测试。
 - CompilationPurpose 是独立的 30 行模块，共享 HIR 产物构造复用同一实现，driver 相关主体各为 96～333 行。核对归档报告后清理上一批 `target/m43/test-entry`（约 195 MB）。umbrella 测试依赖图／缓存／输出、静态目录传递、运行时选择与报告、scoop.std 应用及 Linux 最终验收继续实施；本批不宣称 `scoop test` 已交付。
+
+## 2026-10-14：umbrella 测试构建、缓存与基础命令
+
+- 先补实现规范 2.7，再接通 BuildGraphRequest 的测试用途：只合并根 Cone 的测试依赖与源码，依赖保持生产用途，原 manifest 与 ConeIdentity 保留；根按 executable 规划、缓存、完成与链接。
+- 编译键纳入用途、源码角色、测试源码选择及测试依赖语义，使用 cache key v3；locator 和诊断 span 不进入键。测试输入改变不影响普通生产编译键，未改变的生产依赖继续复用。测试配置的编码独立为 34 行模块，命令编排主体 193 行。
+- 增加基础 scoop test 和 --no-run，复用 profile、target、工具链及缓存选项，测试程序发布到 target/<triple>/<profile>/tests/<name>；执行复用既有私有成功产物副本，拒绝单文件输入。当前仍按前端生成的默认未忽略用例串行执行，仅返回基础进程结果。
+- 格式化、workspace clippy 和三个命令构建通过。scoop crate 的 102 项 Rust 用例中，首次仅新增测试的错误 manifest 写法失败；修正为 path 条目后，相关 3 项定向复验全部通过。新增覆盖测试依赖只在根展开、依赖的无效测试文件不读取、源码快照角色与不可变性、用途和配置的缓存隔离，以及子编译器用途传递。见[日志](validation/umbrella-rust.log.gz)。
+- Darwin 正式 CLI 的 4 个 fixture、6 个变体、48 个进程步骤全部通过，覆盖 library/executable 根、原生产 main 不自动执行、每用例生命周期、失败继续、debug/release、moving GC、只构建、缓存命中、仅测试根重编译及生产缓存保持。见[报告](validation/umbrella-darwin.json)和[运行日志](validation/umbrella-darwin.log.gz)。
+- 核对归档报告后清理 target/m43/manifest（约 48 MB）；本批仍保留当前配套工具和热缓存。静态目录持久化、运行时选择、独立结果通道、输出捕获与报告、scoop.std 应用和 Linux 最终验收继续实施，不宣称完整 scoop test 或 M43 已交付。M43 全部完成后再按同样纪律推进 M44。

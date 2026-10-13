@@ -241,11 +241,15 @@ fn output_path(
         }
         (root, name)
     };
-    Ok(target_dir
+    let mut directory = target_dir
         .unwrap_or_else(|| root.join("target"))
         .join(target.canonical_triple())
-        .join(profile.as_str())
-        .join(name))
+        .join(profile.as_str());
+    if graph.compilation_purpose(graph.root_identity()) == scoop_protocol::CompilationPurpose::Test
+    {
+        directory.push("tests");
+    }
+    Ok(directory.join(name))
 }
 
 fn sanitized_stem(path: &Path) -> String {

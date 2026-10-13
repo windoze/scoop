@@ -42,6 +42,27 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
                 _ => Err(config("run did not produce a private executable copy")),
             }
         }
+        Command::Test(args) => {
+            let mut request = build_request(args.options, None, !args.no_run)?;
+            request.graph = request
+                .graph
+                .with_purpose(scoop_protocol::CompilationPurpose::Test)
+                .map_err(config)?;
+            let cwd = request.cwd.clone();
+            let result = scoop::build(request)?;
+            reporter.built(&result).map_err(config)?;
+            if args.no_run {
+                return Ok(None);
+            }
+            match result {
+                BuildOutcome::Executable {
+                    build,
+                    execution_copy: Some(copy),
+                    ..
+                } => super::run::program(&build.output, copy, &[], &cwd).map(Some),
+                _ => Err(config("test did not produce a private executable copy")),
+            }
+        }
         Command::Link(args) => {
             let cwd = std::env::current_dir().map_err(config)?;
             let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
