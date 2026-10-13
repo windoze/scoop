@@ -1,0 +1,42 @@
+import scoop.bytes.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun rejected(reader: ByteArrayReader, negativeCount: Boolean, action: () -> Unit) {
+    val before = reader.position
+    var failed = false
+    try { action() }
+    catch (error: IllegalArgumentException) { check(negativeCount); failed = true }
+    catch (error: IndexOutOfBoundsException) { check(!negativeCount); failed = true }
+    check(failed && reader.position == before)
+}
+fun main() {
+    val reader = ByteArrayReader(Array<Byte>(9L) { index -> index.toInt8() })
+    reader.seek(2L)
+    rejected(reader, false) { reader.seek(-1L) }
+    rejected(reader, false) { reader.seek(10L) }
+    rejected(reader, true) { reader.skip(-1L) }
+    rejected(reader, true) { reader.readBytes(-1L) }
+    rejected(reader, false) { reader.skip(Long.MAX_VALUE) }
+    rejected(reader, false) { reader.readBytes(Long.MAX_VALUE) }
+    rejected(reader, false) { reader.readLong(ByteOrder.BIG_ENDIAN) }
+    rejected(reader, false) { reader.readULong(ByteOrder.LITTLE_ENDIAN) }
+    rejected(reader, false) { reader.readDouble(ByteOrder.BIG_ENDIAN) }
+    reader.seek(6L)
+    rejected(reader, false) { reader.readInt(ByteOrder.LITTLE_ENDIAN) }
+    rejected(reader, false) { reader.readUInt(ByteOrder.BIG_ENDIAN) }
+    rejected(reader, false) { reader.readFloat(ByteOrder.LITTLE_ENDIAN) }
+    reader.seek(8L)
+    rejected(reader, false) { reader.readInt16(ByteOrder.BIG_ENDIAN) }
+    rejected(reader, false) { reader.readUInt16(ByteOrder.LITTLE_ENDIAN) }
+    check(reader.readUInt8() == 8u.toUInt8())
+    rejected(reader, false) { reader.readInt8() }
+    rejected(reader, false) { reader.readUInt8() }
+    check(reader.readBytes(0L).size == 0L)
+    reader.skip(0L)
+    reader.seek(9L)
+    check(reader.remaining == 0L)
+    val empty = ByteArrayReader(Array<Byte>(0L) { _ -> 0.toInt8() })
+    check(empty.size == 0L && empty.readBytes(0L).size == 0L)
+    rejected(empty, false) { empty.readInt8() }
+    println("bytes bounds passed")
+}

@@ -1,0 +1,17 @@
+import scoop.bytes.*
+import scoop.text.*
+
+fun main() {
+    val text = "雪\u{0}A"
+    val payload = text.toByteArray()
+    val output = ByteArrayBuilder()
+    output.writeUInt(payload.size.toUInt32(), ByteOrder.BIG_ENDIAN)
+    output.append(payload)
+    output.writeDouble(Double.fromBits(0x7ff0000000000123L), ByteOrder.LITTLE_ENDIAN)
+    val input = ByteArrayReader(output.toByteArray())
+    val content = input.readBytes(input.readUInt(ByteOrder.BIG_ENDIAN).toInt64())
+    val decoded = String.fromUtf8(Array<UInt8>(content.size) { index -> content[index].toUInt8() })
+    if (decoded != text || input.readDouble(ByteOrder.LITTLE_ENDIAN).toBits() != 0x7ff0000000000123L ||
+        input.remaining != 0L || "1.25".toFloat() != 1.25f) throw IllegalStateException()
+    println("byte frame passed")
+}

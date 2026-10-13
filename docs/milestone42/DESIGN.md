@@ -124,6 +124,8 @@ M42-7 按 Unicode 标量处理文本。搜索使用普通 Scoop 编写的 KMP �
 
 整数解析以 ULong 保存数学 magnitude，按目标上限预计算 quotient/remainder，在每次 radix 乘加前判定是否超界；signed 的负边界额外允许一个 magnitude，覆盖 Long.MIN_VALUE。符号只在验证后转为目标表示，unsigned 不接受负号。格式化用 unsigned magnitude 反复除 radix 再反转字符，避免 signed 最小值取绝对值溢出。各定宽与 alias 入口复用这套私有算法，布尔只匹配 true/false；不借用 JSON 的内部 parser 或 native helper。
 
+M42-8 的 ByteArrayBuilder 使用普通 MutableArray<Byte> 与有效长度，按几何容量增长；批量 append 先检查表示溢出并快照输入，再按回调完成后的当前长度保证容量和一次提交。定宽写入共用 ULong 位移路径，先保证整项空间。ByteArrayReader 在构造时复制来源，统一检查 remaining 后读取，成功后才提交 position；使用 count≤remaining 避免 position+count 溢出。浮点只调用 core 的位型方法，清理、快照与字节序转换均无 native 依赖。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

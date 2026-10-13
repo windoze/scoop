@@ -212,6 +212,8 @@ canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toU
 
 builder 输出为独立快照，后续 append/clear 不改变结果；append(List) 先取得本次输入快照，再一次提交，允许同源输入与 getter 抛异常。write 固定位宽操作先保证空间再写入，不对外留下半个数值。容量增长和清零使用普通 core 存储；不提供 direct/off-heap buffer、Ptr、pin、borrow/view、显式 close 或 file/socket stream。
 
+builder 使用无参数构造；size: Long，append／write／clear 返回 Unit，toByteArray 返回 Array<Byte>，toMutableByteArray 返回 MutableArray<Byte>。字节长度相加超出 Long.MAX_VALUE 时抛 ArithmeticException。reader 使用 `ByteArrayReader(input: List<Byte>)` 构造，size、position、remaining 均为只读 Long 属性；seek(position: Long)、skip(count: Long) 返回 Unit，readBytes(count: Long) 返回独立 Array<Byte>。零长度读取和跳过允许位于末尾。read/writeInt8 与 UInt8 无字节序参数，其他定宽方法必须显式传入 order: ByteOrder。
+
 ### 5.2 Hex 与 Base64
 
 text 提供 `toHexString`、`hexToByteArray/hexToByteArrayOrNull`；默认输出小写，可显式 uppercase，输入接受大小写 ASCII hex 且长度必须偶数。不接受空白、分隔符和 0x 前缀。空输入合法，错误报告第一个非法标量位置。

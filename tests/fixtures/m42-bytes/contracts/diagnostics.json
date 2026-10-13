@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `writeInt` expects 2 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "a941738bd9f703b8e1a13c9917d19ea57889609f8bc33f47afc5bfa7776e3681",
+      "end": 95,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `readLong` expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "a941738bd9f703b8e1a13c9917d19ea57889609f8bc33f47afc5bfa7776e3681",
+      "end": 173,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `position`",
+    "notes": [],
+    "origin": {
+      "cone": "a941738bd9f703b8e1a13c9917d19ea57889609f8bc33f47afc5bfa7776e3681",
+      "end": 193,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 185
+    },
+    "severity": "error"
+  }
+]

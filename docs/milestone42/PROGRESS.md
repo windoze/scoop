@@ -234,3 +234,15 @@ Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `
 - `m41-floating-ieee` 和扩充后的三 Cone `m41-floating-artifacts` 在相同 profile／GC 模式下通过；provider/relay/consumer 源码移除后的链接与跨库 payload 保持正确。通过记录见 `target/m42/core-bits-regressions-report.json` 的对应两项。初次新用例把 companion 方法引用写成未绑定实例方法引用，改为显式 Companion 后单独复验通过；未放宽语言规则。
 
 变更先检查源码风格与 `git diff --check`；清理已完成 case，保留报告与共享 cache。普通 core API 的定向回归已覆盖，本批不运行完整仓库测试。ByteArrayBuilder／Reader 与 Hex／Base64 继续按 M42-8 交付。
+
+### M42-8 字节构建与读取已完成
+
+新增 ByteOrder、ByteArrayBuilder 和 ByteArrayReader，提供全部八种定宽整数及 Float／Double 的显式大小端读写。builder 批量输入先复制、长度溢出先拒绝、单次数值写入先保证空间；快照和 clear 互不影响。reader 构造时复制来源，检查剩余长度后才读取并更新 position，零长度末尾操作合法，失败不移动位置。public API 不提供指针、view、系统 I/O 或 native byte buffer。
+
+`tests/fixtures/m42-bytes` 的六个正式 fixture 全部通过：
+
+- `integers`／`floating` 以独立十六进制字节向量检查大小端，覆盖全部整数极值、4096 字节增长、NaN payload／signaling bit、负零、无穷与 subnormal；`snapshots` 检查只读／可变输出、同源批量输入、getter 抛异常、构造输入复制，以及虚拟大 List 触发真实长度溢出的提前拒绝。
+- `bounds` 覆盖全部读取宽度、负数量、非法 seek、Long.MAX_VALUE 数量、失败原子性、末尾和空输入；`artifacts` 移除 core／std／consumer 源码后独立链接，以 UTF-8 长度前缀与浮点 payload 帧组合验证。五个运行 fixture 均以普通／moving GC 执行，证据 `target/m42/bytes-values-report.json`：5 fixture、5 variant、22 process。
+- `contracts` 精确检查省略写／读字节序参数及直接写 position 的三条源码诊断。证据 `target/m42/bytes-contracts-report.json`：1 fixture、1 variant、2 process。
+
+新增库源码最大文件 66 行，风格与 `git diff --check` 通过。没有编译器／runtime 改动，未运行无关完整测试。已清理完成 case 和一次性诊断构建，保留报告、当前 core 产物和共享 cache。Hex／Base64 仍需完成，M42-9～12 与三目标最终定向验收保持原范围。
