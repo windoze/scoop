@@ -550,11 +550,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 基线为 `b59294fbc`。普通功能保留编译、运行和精确诊断，阶段结构由 typed IR 及 9 项专测负责；原生链接计划仅精确比较相关输入与绑定。fixture 内容由约 8.29 GB 减至 16.00 MB，snapshot 声明由 12,257 降至 57，4,939 份 Scoop 源码保持原样。产物持有 CLI 改为同步 artifact-only 链接；内部字节持有在 Rust 函数边界测试，不改变生产代码或产物格式。按功能提交后完成三平台适用范围验收：Darwin 3,755、GNU 3,741、musl 3,739 项通过，无未闭合失败；具体来源、补验和清理记录见验收文档。
 
-### M41 运算符接口与浮点默认比较（实施中，[设计](milestone41/DESIGN.md)，[进度](milestone41/PROGRESS.md)）
+### M41 运算符接口与浮点默认比较（已完成并验收，[设计](milestone41/DESIGN.md)，[验收记录](milestone41/ACCEPTANCE.md)）
 
 - 通过普通 core 运算符接口及显式 conformance 支持泛型操作约束，保留普通成员和作用域扩展调用。
 - 以 Equals/equals 替换 Equality/equalTo；Float/Double 默认比较按正负零与全部 NaN 的等价类构成全序，提供显式 IEEE 四态比较。
-- 按功能先更新 spec、实现并验证后提交；本机定向回归后执行 Linux 完整验收。
+- 按功能先更新 spec、实现并验证后提交。Rust 完整覆盖 5,584 项通过；Linux 正式 CLI 完整覆盖 GNU 3,785 项、musl 3,783 项通过，无未闭合失败。本机定向回归、完整运行与补验来源、产物差异审阅及清理见验收记录。
 
 ## 3. 备注
 

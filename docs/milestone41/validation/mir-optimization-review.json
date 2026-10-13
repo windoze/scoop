@@ -1,0 +1,70 @@
+[
+  {
+    "file": "tests/fixtures/m31-optimization/local-values/program.debug.mir.txt",
+    "function_bodies_identical": false,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {
+      "external2": "external0",
+      "external3": "external1",
+      "external4": "external2"
+    }
+  },
+  {
+    "file": "tests/fixtures/m31-optimization/local-values/program.release.mir.txt",
+    "function_bodies_identical": false,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {
+      "external2": "external0",
+      "external3": "external1",
+      "external4": "external2"
+    }
+  },
+  {
+    "file": "tests/fixtures/m34-devirtualization/artifacts/consumer.debug.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-devirtualization/artifacts/consumer.release.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-devirtualization/locals/program.debug.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-devirtualization/locals/program.release.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-inlining/artifacts/consumer.debug.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-inlining/artifacts/consumer.release.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-inlining/decisions/program.debug.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  },
+  {
+    "file": "tests/fixtures/m34-inlining/decisions/program.release.mir.txt",
+    "function_bodies_identical": true,
+    "function_bodies_identical_after_reference_reindexing": true,
+    "new_to_old_external_reference_map": {}
+  }
+]

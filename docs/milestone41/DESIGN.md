@@ -1,8 +1,8 @@
 # M41 设计：运算符接口与浮点默认比较
 
-状态：实施中，基线 `9e715a3c`（M39 已完成验收与清理）。按功能先更新 spec，再实现；进展见 [PROGRESS.md](PROGRESS.md)。日期：2026-10-13。
+状态：已完成并验收，基线 `9e715a3c`（M39 已完成验收与清理）。逐功能提交见 [PROGRESS.md](PROGRESS.md)，实际验证、修复与清理见 [ACCEPTANCE.md](ACCEPTANCE.md)。日期：2026-10-13。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)与[路线图](../ROADMAP.md)。本文记录已确定的设计方向、实施前决策和任务，不表示相关 core API 或语言行为已经交付。每批先更新对应 spec，再修改实现。
+依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)与[路线图](../ROADMAP.md)。本文记录已交付的设计、实现边界与验收要求。每批实现均先更新对应 spec，再修改代码。
 
 ## 0. 目标与范围
 
@@ -54,17 +54,17 @@ public struct Offset(val value: Long) : Add<Offset, Offset> {
 }
 ```
 
-在相关 core 实现完成后，`FancyMap<Int, String>()` 和 `FancyMap<Offset, String>()` 都能通过 bound 检查。类型作者无需依赖容器所在 Cone，容器使用者无需编写适配包装或传入加法对象。
+在已交付的 core 实现和上述用户声明下，`FancyMap<Int, String>()` 和 `FancyMap<Offset, String>()` 都能通过 bound 检查。类型作者无需依赖容器所在 Cone，容器使用者无需编写适配包装或传入加法对象。
 
 ### 2.2 接口覆盖与签名
 
-以下是接口覆盖的设计清单，不把尚未确定的名字或签名当成已发布 API。各接口使用实际 operand/result 类型，不预设所有运算都同型，也不把不同算术能力合成一个必选的大接口。
+以下接口覆盖清单与语言规范 9.3.6 及已交付 core API 一致。各接口使用实际 operand/result 类型，不预设所有运算都同型，也不把不同算术能力合成一个必选的大接口。
 
-| 运算符类别 | 接口表达方向 | 实施前需确定的细节 |
+| 运算符类别 | 接口表达方向 | 交付规则 |
 | --- | --- | --- |
-| `+ - * / %` | `Add/Sub/Mul/Div/Rem<Rhs, Result>` | 已在语言规范 9.3.6 定稿，分批实现 |
+| `+ - * / %` | `Add/Sub/Mul/Div/Rem<Rhs, Result>` | 已在语言规范 9.3.6 定稿并实现 |
 | 一元 `+ - !` | `UnaryPlus/UnaryMinus/Not<Result>` | 已定稿；数值实现前两项，Boolean 实现 Not<Boolean> |
-| `== !=` | 已确定的 `Equals<Rhs>`，成员为 `operator fun equals(other: Rhs): Boolean` | 删除旧 Equality/equalTo 并迁移声明、调用与产物；核对成员限定和显式派生实现规则 |
+| `== !=` | 已确定的 `Equals<Rhs>`，成员为 `operator fun equals(other: Rhs): Boolean` | 已删除旧 Equality/equalTo 并迁移声明、调用与产物；保留成员限定和显式派生实现规则 |
 | `< <= > >=` | `Compare<Rhs>`，`compareTo(other: Rhs): Long` | 整数、Char、String 与浮点均已实现；浮点使用默认全序 |
 | `in !in`、区间操作 | `Contains<Element>`、`RangeTo/RangeUntil<Rhs, Result>` | 已定稿，四种整数 range 与八种整数沿用既有方法 |
 | `++ --`、复合赋值 | `Increment<Result : Increment<Result>>`、对应 Decrement；`AddAssign/SubAssign/MulAssign/DivAssign/RemAssign<Rhs>` | 已定稿，保留既有返回子类型、歧义与写回规则 |
@@ -131,7 +131,7 @@ fun combineLocal(left: ForeignKey, right: ForeignKey): ForeignKey =
 
 这种扩展不修改 ForeignKey 的名义成员/接口集合、TypeDescriptor、`is/as` 结果或装箱后的接口视图。无需增加全局扩展 conformance 登记，也不涉及 Rust orphan rule 或 Swift 式追溯接口实现。
 
-现有 `operator equals` 有成员限定，扩展 equals 被禁止。是否放宽这项规则需要在接口清单中单独决定；不能仅由加法示例推导出所有历史限制已被删除。
+`operator equals` 保留成员限定，扩展 equals 继续禁止；其他运算符的局部扩展不改变这项规则。
 
 ### 3.3 泛型、跨 Cone 与分派
 
@@ -247,7 +247,7 @@ Float 与 Double 分别提供同类型参数的方法 `ieeeCompare(other: Float)
 - [x] 更新 [SCOOP-RUNTIME-SPEC.md](../specs/SCOOP-RUNTIME-SPEC.md) 2.2～2.3、6.1：接口关系、装箱与现有 Equality 描述的迁移，浮点默认比较与 IEEE 算术/FFI 边界；按实际需要修订引用，不把库方法变更扩展为新 runtime ABI。
 - [x] 同步三份 spec 的章节交叉引用、core API 示例与相关语言示例；核对 M30 浮点、M33 相等设计中的历史描述，标明后续替代关系，保留原验收事实。
 - [x] 更新 API 与示例说明：统一后的 Equals/equals、compareTo 默认全序、显式 IEEE 四态比较与 NaN 检测写法；删除旧 Equality/equalTo 和 isTotallyOrdered 的用法。
-- [ ] 随实际实施更新本设计的状态；验收后补充实际命令、目标、profile、结果与剩余限制，不以设计文档完成代替功能交付。
+- [x] 已按实际实施更新状态；命令、目标、profile、结果、失败补验与限制见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 ### 6.2 实施顺序
 

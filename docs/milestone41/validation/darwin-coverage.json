@@ -1,0 +1,1793 @@
+{
+  "target": "aarch64-apple-darwin",
+  "scope": "Per-feature targeted CLI coverage, latest observed result by current fixture name; not --all.",
+  "counts": {
+    "passed": 177,
+    "inapplicable": 1
+  },
+  "variants": 230,
+  "processes": 825,
+  "stage_and_plan_goldens": 24,
+  "results": [
+    {
+      "name": "cli-build-warm-observation-link",
+      "status": "passed",
+      "seconds": 59.2544069159776,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "cli-core-default-source-and-artifact",
+      "status": "passed",
+      "seconds": 18.519998958101496,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "cli-core-locator-cache",
+      "status": "passed",
+      "seconds": 60.648932832991704,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "cli-core-source-cache",
+      "status": "passed",
+      "seconds": 56.18586733308621,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "core-library-builtin-binding-error",
+      "status": "passed",
+      "seconds": 100.14680520794354,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "evaluation-order-float-nothing",
+      "status": "passed",
+      "seconds": 11.938536291942,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/56-float-evaluation/report.json"
+    },
+    {
+      "name": "evaluation-order-float-nothing-combined",
+      "status": "passed",
+      "seconds": 12.421554750064388,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/56-float-evaluation/report.json"
+    },
+    {
+      "name": "generic-reader-native-storage",
+      "status": "passed",
+      "seconds": 7.566501165973023,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 1,
+      "message": "",
+      "source_report": "target/m41/58-native-storage/report.json"
+    },
+    {
+      "name": "imported-class-combined",
+      "status": "passed",
+      "seconds": 196.77458270802163,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "imported-class-primitive-inherited-combined",
+      "status": "passed",
+      "seconds": 198.74267545784824,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "legacy-m8-exceptions-return-paths",
+      "status": "passed",
+      "seconds": 5.671684915898368,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/59-return-paths/report.json"
+    },
+    {
+      "name": "m30-floating-annotations",
+      "status": "passed",
+      "seconds": 115.89377620792948,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-artifacts",
+      "status": "passed",
+      "seconds": 140.25578574999236,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-artifacts-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-basic",
+      "status": "passed",
+      "seconds": 116.1437899172306,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-constants",
+      "status": "passed",
+      "seconds": 116.22253937483765,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-conversions",
+      "status": "passed",
+      "seconds": 11.909218708053231,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-coroutine",
+      "status": "passed",
+      "seconds": 7.265582249965519,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-environment",
+      "status": "passed",
+      "seconds": 12.712791875004768,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-ffi",
+      "status": "passed",
+      "seconds": 13.544560624985024,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-inference",
+      "status": "passed",
+      "seconds": 6.588158624945208,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-json",
+      "status": "passed",
+      "seconds": 31.983914165990427,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-operations",
+      "status": "passed",
+      "seconds": 14.923995832912624,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-patterns",
+      "status": "passed",
+      "seconds": 6.454967792145908,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-annotation-const-type",
+      "status": "passed",
+      "seconds": 2.525375165976584,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-annotation-fixed",
+      "status": "passed",
+      "seconds": 2.3142347501125187,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-annotation-integer",
+      "status": "passed",
+      "seconds": 2.35751370806247,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-annotation-overflow",
+      "status": "passed",
+      "seconds": 2.3771737501956522,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-bitwise",
+      "status": "passed",
+      "seconds": 2.4333069999702275,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-const-fixed-suffix",
+      "status": "passed",
+      "seconds": 2.389387457864359,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-const-mixed",
+      "status": "passed",
+      "seconds": 2.3614864160772413,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-const-overflow",
+      "status": "passed",
+      "seconds": 2.4671926670707762,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-const-to-string",
+      "status": "passed",
+      "seconds": 2.43824970908463,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-const-user-call",
+      "status": "passed",
+      "seconds": 2.6132493750192225,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-constructor",
+      "status": "passed",
+      "seconds": 2.596575374947861,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-fixed-suffix",
+      "status": "passed",
+      "seconds": 2.3830700831022114,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-generic-fixed",
+      "status": "passed",
+      "seconds": 2.7502071671187878,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-hash-bound",
+      "status": "passed",
+      "seconds": 2.7368077088613063,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-identity",
+      "status": "passed",
+      "seconds": 2.5317285831552,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-implicit-narrow",
+      "status": "passed",
+      "seconds": 2.627246375195682,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-implicit-widen",
+      "status": "passed",
+      "seconds": 2.6342411250807345,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-integer-literal",
+      "status": "passed",
+      "seconds": 2.508221583208069,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-invalid-exponent",
+      "status": "passed",
+      "seconds": 2.589727791957557,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-invalid-suffix",
+      "status": "passed",
+      "seconds": 2.7701244589406997,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-literal-extension",
+      "status": "passed",
+      "seconds": 2.772799334023148,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-mixed-arithmetic",
+      "status": "passed",
+      "seconds": 2.6058737500570714,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-mixed-equality",
+      "status": "passed",
+      "seconds": 2.4305909590329975,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-mixed-order",
+      "status": "passed",
+      "seconds": 2.7137084999121726,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-no-hash",
+      "status": "passed",
+      "seconds": 2.6836844580248,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-overflow-double",
+      "status": "passed",
+      "seconds": 2.739945000037551,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-overflow-float",
+      "status": "passed",
+      "seconds": 2.3273173340130597,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-binding",
+      "status": "passed",
+      "seconds": 2.54794600000605,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-binding-destructure",
+      "status": "passed",
+      "seconds": 2.6077997081447393,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-destructure",
+      "status": "passed",
+      "seconds": 2.597489083185792,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-fixed",
+      "status": "passed",
+      "seconds": 2.368227042024955,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-incomplete",
+      "status": "passed",
+      "seconds": 2.506325874943286,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-integer",
+      "status": "passed",
+      "seconds": 2.621665959013626,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-nan-guard",
+      "status": "passed",
+      "seconds": 2.496575583005324,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-pattern-recursive-incomplete",
+      "status": "passed",
+      "seconds": 2.418549125082791,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-single-value-decoding",
+      "status": "passed",
+      "seconds": 2.4753185000736266,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-reject-single-value-encoding",
+      "status": "passed",
+      "seconds": 2.5077754580415785,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-rounding",
+      "status": "passed",
+      "seconds": 12.855816666968167,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-single-value",
+      "status": "passed",
+      "seconds": 6.820018166908994,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m30-floating-values",
+      "status": "passed",
+      "seconds": 15.513750666985288,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m31-local-values",
+      "status": "passed",
+      "seconds": 13.125251457793638,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 2,
+      "message": "",
+      "source_report": "target/m41/61-mir-optimization/report.json"
+    },
+    {
+      "name": "m31-ssa-roots",
+      "status": "passed",
+      "seconds": 26.69389570900239,
+      "variants": 3,
+      "processes": 12,
+      "snapshots": 3,
+      "message": "",
+      "source_report": "target/m41/39-goldens/report.json"
+    },
+    {
+      "name": "m33-atomics-operations",
+      "status": "passed",
+      "seconds": 178.8149377910886,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-collision-artifacts",
+      "status": "passed",
+      "seconds": 86.97275516600348,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-collision-reject-enum",
+      "status": "passed",
+      "seconds": 2.569157083053142,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-collision-reject-generic-private",
+      "status": "passed",
+      "seconds": 2.5717095418367535,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-collision-reject-struct",
+      "status": "passed",
+      "seconds": 2.4308979159686714,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-artifacts",
+      "status": "passed",
+      "seconds": 23.55123904091306,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/62-equality-contracts/report.json"
+    },
+    {
+      "name": "m33-equality-contract-pointers",
+      "status": "passed",
+      "seconds": 13.251125084003434,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-ambiguous",
+      "status": "passed",
+      "seconds": 2.563991791103035,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-any",
+      "status": "passed",
+      "seconds": 2.5072254170663655,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-derived-only-bound",
+      "status": "passed",
+      "seconds": 2.947142958873883,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-float-hash",
+      "status": "passed",
+      "seconds": 2.479027916910127,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-hash-only",
+      "status": "passed",
+      "seconds": 2.4395494998898357,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-invalid-override",
+      "status": "passed",
+      "seconds": 2.4123216250445694,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-invariant",
+      "status": "passed",
+      "seconds": 2.9464775410015136,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-missing-bound",
+      "status": "passed",
+      "seconds": 2.3956700419075787,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-missing-equals",
+      "status": "passed",
+      "seconds": 2.925806000130251,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-nogc-bound",
+      "status": "passed",
+      "seconds": 2.9115118749905378,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-non-operator-bound",
+      "status": "passed",
+      "seconds": 2.453789500053972,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-operator-only-bound",
+      "status": "passed",
+      "seconds": 2.8091850420460105,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-removed-equal-to",
+      "status": "passed",
+      "seconds": 2.8283572089858353,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-removed-equality",
+      "status": "passed",
+      "seconds": 2.829140415880829,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-reverse-operands",
+      "status": "passed",
+      "seconds": 2.470416792202741,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-reject-view-operands",
+      "status": "passed",
+      "seconds": 2.8075608748476952,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "m33-equality-contract-values",
+      "status": "passed",
+      "seconds": 16.062502749962732,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/62-equality-contracts/report.json"
+    },
+    {
+      "name": "m33-equality-derived-field-semantics",
+      "status": "passed",
+      "seconds": 12.715878458926454,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-derived-nominal",
+      "status": "passed",
+      "seconds": 15.10679024993442,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-derived-nominal-artifacts",
+      "status": "passed",
+      "seconds": 25.480864292010665,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-derived-reject-ambiguous-field",
+      "status": "passed",
+      "seconds": 2.9200659999623895,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-derived-reject-enum-field",
+      "status": "passed",
+      "seconds": 2.359217249788344,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-derived-reject-explicit-nominal",
+      "status": "passed",
+      "seconds": 2.4593404168263078,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-derived-reject-interior-safe",
+      "status": "passed",
+      "seconds": 2.5476390409749,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/36-floating/report.json"
+    },
+    {
+      "name": "m33-equality-effect-artifacts",
+      "status": "passed",
+      "seconds": 25.21030154102482,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-effect-reject-bound-call",
+      "status": "passed",
+      "seconds": 2.40176891698502,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-effect-values",
+      "status": "passed",
+      "seconds": 13.012361541157588,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-operator-bounds",
+      "status": "passed",
+      "seconds": 12.909711875021458,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m33-equality-operator-shadow",
+      "status": "passed",
+      "seconds": 12.511452791048214,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m34-devirtualization-artifacts",
+      "status": "passed",
+      "seconds": 25.746538457926363,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "target/m41/61-mir-optimization/report.json"
+    },
+    {
+      "name": "m34-devirtualization-locals",
+      "status": "passed",
+      "seconds": 13.73072758410126,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 2,
+      "message": "",
+      "source_report": "target/m41/61-mir-optimization/report.json"
+    },
+    {
+      "name": "m34-inlining-artifacts",
+      "status": "passed",
+      "seconds": 24.76658649998717,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "target/m41/61-mir-optimization/report.json"
+    },
+    {
+      "name": "m34-inlining-decisions",
+      "status": "passed",
+      "seconds": 12.295430292142555,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 2,
+      "message": "",
+      "source_report": "target/m41/61-mir-optimization/report.json"
+    },
+    {
+      "name": "m34-small-values-artifacts",
+      "status": "passed",
+      "seconds": 62.050624292111024,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "m34-small-values-native",
+      "status": "passed",
+      "seconds": 13.734609459061176,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 2,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "m37-integral-enums-artifacts",
+      "status": "passed",
+      "seconds": 18.318663417128846,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m37-integral-enums-boxing",
+      "status": "passed",
+      "seconds": 13.50494712498039,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    },
+    {
+      "name": "m41-access-artifacts",
+      "status": "passed",
+      "seconds": 30.184328542090952,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "m41-access-assign",
+      "status": "passed",
+      "seconds": 12.802573916967958,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-combined",
+      "status": "passed",
+      "seconds": 12.887810999993235,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-components",
+      "status": "passed",
+      "seconds": 12.777653875062242,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-indexing",
+      "status": "passed",
+      "seconds": 14.337749750120565,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-invoke",
+      "status": "passed",
+      "seconds": 12.873906082939357,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-matrix",
+      "status": "passed",
+      "seconds": 12.742337125120685,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-reject-ambiguous-assign",
+      "status": "passed",
+      "seconds": 2.449412415968254,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-reject-component-conformance",
+      "status": "passed",
+      "seconds": 2.575808250112459,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-reject-get-conformance",
+      "status": "passed",
+      "seconds": 2.481581458123401,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-reject-invoke-conformance",
+      "status": "passed",
+      "seconds": 2.3786259170155972,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-access-reject-set-result",
+      "status": "passed",
+      "seconds": 2.395926458062604,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-artifacts",
+      "status": "passed",
+      "seconds": 24.4196471250616,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "m41-add-basic",
+      "status": "passed",
+      "seconds": 21.97700308286585,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-combined",
+      "status": "passed",
+      "seconds": 13.722052667057142,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-extensions",
+      "status": "passed",
+      "seconds": 13.234578834148124,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-caller-extension",
+      "status": "passed",
+      "seconds": 2.5616536249872297,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-missing-conformance",
+      "status": "passed",
+      "seconds": 2.4257518330123276,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-missing-operator",
+      "status": "passed",
+      "seconds": 2.4961059170309454,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-nogc-bound",
+      "status": "passed",
+      "seconds": 2.649553957860917,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-suspend-override",
+      "status": "passed",
+      "seconds": 2.590284082805738,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-unsafe-override",
+      "status": "passed",
+      "seconds": 2.4721339591778815,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-add-reject-wrong-result",
+      "status": "passed",
+      "seconds": 2.4475713330321014,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-equals-basic",
+      "status": "passed",
+      "seconds": 13.616936957929283,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-artifacts",
+      "status": "passed",
+      "seconds": 30.197992249857634,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "m41-floating-combinations",
+      "status": "passed",
+      "seconds": 14.212688750121742,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-constants",
+      "status": "passed",
+      "seconds": 13.775549666956067,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-ieee",
+      "status": "passed",
+      "seconds": 14.191745040938258,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-order",
+      "status": "passed",
+      "seconds": 13.281073041958734,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/54-projection/report.json"
+    },
+    {
+      "name": "m41-floating-reject-const-ieee",
+      "status": "passed",
+      "seconds": 2.5447286658454686,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-reject-mixed-compare-to",
+      "status": "passed",
+      "seconds": 2.5670463328715414,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/38-goldens/report.json"
+    },
+    {
+      "name": "m41-floating-reject-mixed-ieee",
+      "status": "passed",
+      "seconds": 2.639689290896058,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-reject-removed-double-order",
+      "status": "passed",
+      "seconds": 2.625842582900077,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-floating-reject-removed-float-order",
+      "status": "passed",
+      "seconds": 2.601971375057474,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-arithmetic",
+      "status": "passed",
+      "seconds": 21.006467500003055,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-artifacts",
+      "status": "passed",
+      "seconds": 31.843879875028506,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-combined",
+      "status": "passed",
+      "seconds": 12.69618087518029,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-comparison",
+      "status": "passed",
+      "seconds": 19.98927345802076,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-effects",
+      "status": "passed",
+      "seconds": 15.006020957836881,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-ranges",
+      "status": "passed",
+      "seconds": 17.953213583910838,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-reject-compare-result",
+      "status": "passed",
+      "seconds": 2.5853984171990305,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-reject-increment-bound",
+      "status": "passed",
+      "seconds": 2.3691163330804557,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-reject-increment-result",
+      "status": "passed",
+      "seconds": 2.534255708102137,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-reject-missing-conformance",
+      "status": "passed",
+      "seconds": 2.5598444999195635,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-reject-readonly-update",
+      "status": "passed",
+      "seconds": 2.6113233340438455,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "m41-operators-unary",
+      "status": "passed",
+      "seconds": 18.88871291698888,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/32-floating/report.json"
+    },
+    {
+      "name": "program-link-rebuilt-core",
+      "status": "passed",
+      "seconds": 79.23490637517534,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/27-equals/report.json"
+    },
+    {
+      "name": "source-defaults-data-flow",
+      "status": "passed",
+      "seconds": 27.830022333189845,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-declaration-binding",
+      "status": "passed",
+      "seconds": 27.84936191700399,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-derived-default-combinations",
+      "status": "passed",
+      "seconds": 27.65125137497671,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-derived-default-order",
+      "status": "passed",
+      "seconds": 26.836561082862318,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-derived-generic-defaults",
+      "status": "passed",
+      "seconds": 15.032665750011802,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-inherited-generics",
+      "status": "passed",
+      "seconds": 15.298008457990363,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-literal",
+      "status": "passed",
+      "seconds": 12.409192250110209,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-nested-identities",
+      "status": "passed",
+      "seconds": 12.724606500007212,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-nested-index",
+      "status": "passed",
+      "seconds": 12.512496250215918,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-nested-parents",
+      "status": "passed",
+      "seconds": 13.240924042183906,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-origin-binding",
+      "status": "passed",
+      "seconds": 13.22569420794025,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-provider-receivers",
+      "status": "passed",
+      "seconds": 12.962194541934878,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-public-provider-receivers",
+      "status": "passed",
+      "seconds": 16.142129708081484,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-reference-closure-combinations",
+      "status": "passed",
+      "seconds": 12.962132833898067,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-structural-default-combinations",
+      "status": "passed",
+      "seconds": 16.18471462512389,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-structural-defaults",
+      "status": "passed",
+      "seconds": 13.21360395802185,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-structural-hidden",
+      "status": "passed",
+      "seconds": 3.0413597088772804,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-type-envelope",
+      "status": "passed",
+      "seconds": 12.624933458166197,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-warmup-first",
+      "status": "passed",
+      "seconds": 12.69040795811452,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "source-defaults-warmup-second",
+      "status": "passed",
+      "seconds": 12.588171375216916,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/66-default-origins/report.json"
+    },
+    {
+      "name": "unit-equality-cross-cone",
+      "status": "passed",
+      "seconds": 11.892967625055462,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "target/m41/26-equals/report.json"
+    }
+  ]
+}

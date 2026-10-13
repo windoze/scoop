@@ -1,0 +1,229 @@
+{
+  "reason": "Float/Double Rem interface entries retain LLVM remainder calls and their existing fmodf/fmod system dependencies. GNU full run shows +2 system bindings; native requirements, selected members and shared bindings are unchanged. Confirmed fmod/fmodf imports with nm -D --undefined-only on the actual cabi-object executable. GNU focused ordinary comparison passed all 19 cases (34 variants, 195 processes, 35 goldens); All 19 corresponding musl cases also passed in the ongoing full ordinary comparison run.",
+  "cases": [
+    "native-link-archive-chain",
+    "native-link-archive-members",
+    "native-link-cabi-archive",
+    "native-link-cabi-object",
+    "native-link-cabi-packed",
+    "native-link-callback-exception",
+    "native-link-callback-reentry",
+    "native-link-callback-tls-archive",
+    "native-link-callback-tls-object",
+    "native-link-direct",
+    "native-link-direct-candidates",
+    "native-link-direct-reexport",
+    "native-link-formats-pointers",
+    "native-link-scoopabi",
+    "native-link-scoopabi-archive",
+    "native-link-scoopabi-object",
+    "native-link-storage",
+    "native-link-storage-archive",
+    "native-link-storage-object"
+  ],
+  "plans": [
+    {
+      "path": "tests/fixtures/m23-cli-native-link/archive-chain/link.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/archive-chain/link.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/archive-members/link.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/archive-members/link.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/cabi-archive/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/cabi-archive/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/cabi-object/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/cabi-object/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/cabi-packed/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/cabi-packed/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-exception/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-exception/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-reentry/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-reentry/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-tls-archive/link.x86_64-unknown-linux-gnu.plan",
+      "before": 75,
+      "after": 77
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-tls-archive/link.x86_64-unknown-linux-musl.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-tls-object/link.x86_64-unknown-linux-gnu.plan",
+      "before": 75,
+      "after": 77
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/callback-tls-object/link.x86_64-unknown-linux-musl.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct/link.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct/link.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct-candidates/duplicate.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct-candidates/duplicate.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct-candidates/link.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct-candidates/link.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct-reexport/link.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/direct-reexport/link.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/formats-pointers/unoptimized.x86_64-unknown-linux-gnu.plan",
+      "before": 72,
+      "after": 74
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/formats-pointers/unoptimized.x86_64-unknown-linux-musl.plan",
+      "before": 70,
+      "after": 72
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/scoopabi/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/scoopabi/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/scoopabi-archive/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/scoopabi-archive/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/scoopabi-object/link.x86_64-unknown-linux-gnu.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/scoopabi-object/link.x86_64-unknown-linux-musl.plan",
+      "before": 71,
+      "after": 73
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/storage/link.x86_64-unknown-linux-gnu.plan",
+      "before": 75,
+      "after": 77
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/storage/link.x86_64-unknown-linux-musl.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/storage-archive/link.x86_64-unknown-linux-gnu.plan",
+      "before": 75,
+      "after": 77
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/storage-archive/link.x86_64-unknown-linux-musl.plan",
+      "before": 73,
+      "after": 75
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/storage-object/link.x86_64-unknown-linux-gnu.plan",
+      "before": 75,
+      "after": 77
+    },
+    {
+      "path": "tests/fixtures/m23-cli-native-link/storage-object/link.x86_64-unknown-linux-musl.plan",
+      "before": 73,
+      "after": 75
+    }
+  ],
+  "gnu_validation": "24-native-plans-gnu.json.gz",
+  "symbol_evidence": "linux-24-cabi-symbols.txt.gz",
+  "musl_validation": "linux-musl.json (full run)"
+}

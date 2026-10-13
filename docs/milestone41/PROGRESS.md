@@ -9,7 +9,7 @@
 - LocalConcrete intrinsic 保存完整物理参数类型；实际分派入口复用 callable materialization 和 primitive lowering，生产、导入两侧按声明的 slot/dispatch selection 发布与选择入口，没有新增 runtime ABI 或产物 wire tag。
 - 跨库扩展正文的隐式 struct 字段读取复用字段身份，避免选择没有函数体的 Storage getter。
 - Add 功能提交：`45339fb3`。
-- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 和浮点默认比较迁移已完成，本机定向验证通过，正在执行 Linux GNU/musl 完整验收。
+- 算术、一元、自增减、Compare、整数区间、读写、调用、component 与复合赋值能力已实现；Equals 和浮点默认比较迁移已完成，本机定向验证及 Linux GNU/musl 完整覆盖均已通过，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 - IEEE 四态 API 定名为 IeeeComparison / ieeeCompare。
 - 临时目录和日志使用 `target/m41/`，测试命令设置 TMPDIR；保留 M39 编译依赖以避免重复构建。
 
@@ -149,3 +149,11 @@
 - 先补充实现规范 2.2，再按已有 typed DerivedEquality 身份及 NoSubstitution 上下文识别这类 helper；完整的 definition/evaluation 文件、位置与上下文投影继续检查，不修改来源、不改生成身份、不引入额外记录或重放语义。实现仅新增 10 行。
 - 新增 Rust 回归确认导入 tuple 默认值的两个字段比较实际调用 core Unit.equals，并保留提供方来源。本机 fmt、workspace clippy、HIR 906 项与 HIR lowering 1,429 项全部通过；release 重建后，20 个源码默认值正式 fixture 全部通过（20 变体、120 次进程），包含四项失败及两种预热顺序、独立链接与 moving GC。
 - Linux 全量原报告继续保留；使用独立构建目录验证修复后的两个目标，避免替换正在执行的旧编译器。
+
+## 最终验收
+
+- 最终实现提交 `d35522aa`。Linux Rust 完整覆盖 5,584 项全部通过、无忽略；元数据投影后重测 codegen/driver，派生来源修复后重测 HIR 906 项与 HIR lowering 1,429 项，其余未变范围复用已完成结果。
+- GNU 正式 CLI 覆盖 3,785 项通过、30 项不适用；musl 3,783 项通过、32 项不适用。两轮全量均选中全部 3,815 项且无中断；29／5 项旧失败分别由准确的期望修订和来源修复补验闭合，原报告与补验分别留存。
+- M41 专项 46 项及原生链接计划的 19 项在两个目标全量中通过。来源修复在三平台各通过全部 20 项源码默认值 fixture；最终标准 Linux release 三工具与补验工具逐字节相同。
+- 本机按最新同名用例去重：177 项通过、1 项不适用，230 变体、825 次进程、24 次 golden；不计作 Darwin 全量。
+- 已定期清理完成用例，最后移除余下用例／缓存、临时目录及重复工具构建。保留 Cargo 依赖、当前工具、native unwind 与日志报告。完整结果、范围、命令及清理记录见 [ACCEPTANCE.md](ACCEPTANCE.md)。
