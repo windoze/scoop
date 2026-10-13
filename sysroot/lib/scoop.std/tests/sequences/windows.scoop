@@ -1,0 +1,35 @@
+package scoop.sequences
+
+import scoop.collections.joinToString
+import scoop.test.*
+
+@Test
+private class SequenceTests {
+    private var reads: Long = 0L
+
+    @Test
+    fun `taking windows consumes only needed elements`() {
+        val input = generateSequence<Long> { reads += 1L; Some(reads) }
+        val selected = input.windowed(3L, 2L).take(2L)
+        assertEquals(0L, reads)
+        val windows = selected.toList()
+        assertEquals(5L, reads)
+        assertEquals(2L, windows.size)
+        assertEquals("1, 2, 3", windows[0L].joinToString())
+        assertEquals("3, 4, 5", windows[1L].joinToString())
+    }
+
+    @Test
+    fun `taking zero leaves the source untouched`() {
+        val input = generateSequence<Long> { reads += 1L; Some(reads) }
+        assertEquals(0L, input.take(0L).toList().size)
+        assertEquals(0L, reads)
+    }
+
+    @Test
+    fun `invalid window size fails before consumption`() {
+        val input = generateSequence<Long> { reads += 1L; Some(reads) }
+        assertFailsWith<IllegalArgumentException> { input.windowed(0L) }
+        assertEquals(0L, reads)
+    }
+}

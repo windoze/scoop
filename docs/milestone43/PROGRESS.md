@@ -10,7 +10,7 @@
 | M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离、测试构建图／缓存与输出已接入 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
 | M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与调用适配合成、默认用例的原生执行已接入；目录持久化与运行时用例选择待实施 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
 | M43-4 CLI 与运行报告 | 基础 scoop test／--no-run 已接入；过滤、目录、捕获与报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
-| M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
+| M43-5 scoop.std 应用、产物与平台验收 | scoop.std 首批同 Cone 测试已接入；完整 CLI 组合与 Linux 验收待完成 | 3 个容器、10 个用例；Darwin debug/release、生产隔离、缓存与 moving GC |
 
 ## 工作约定
 
@@ -128,3 +128,11 @@
 - scoop.std 首次通过测试命令接入时，实际暴露版本声明但无 locator 的 core 边在搜索目录无候选后直接失败，未使用既有 sysroot 默认 core 来源；该问题同样影响普通生产构建。
 - 先明确实现规范 2.7，再让这类 core 边等待其他声明展开。复用已发现的显式 core 来源，否则由原有默认 slot 选择源码／产物；显式 search root 的有效 core 产物仍优先，损坏候选和明确 locator 的错误不回退。
 - 格式化、workspace clippy 与三个命令构建通过；18 项 discovery 用例通过，新增覆盖 production/test 两种根及稍后发现的默认库提供 core locator，既有显式产物、路径冲突、无效 locator、循环来源等回归保持。见[日志](validation/std-core-locator.log.gz)。scoop.std 的源码测试与原生验收继续进行。
+
+## 2026-10-14：scoop.std 首个实际测试应用
+
+- 标准库 manifest 显式增加 scoop.test 测试依赖，生产依赖仍仅 core；标准库规范同步说明同 Cone 测试目录和生产隔离。tests/ 下新增三个 33～50 行的测试文件，共 3 个容器、10 个用例。
+- 集合用例覆盖每用例新实例、BeforeTest/AfterTest、排序与快照、窗口与 map/join 组合、参数异常，以及同 Cone internal ListSnapshot 的访问与索引行为；序列用例覆盖惰性窗口、take 的消费边界与非法参数；编码用例覆盖文本字节、Base64、Hex、URL 字母表和 padding 的组合及失败路径。
+- 使用正式 scoop test 构建并运行标准库，新增 m43-std-application fixture。Darwin debug/release 的 2 个变体、8 个进程步骤全部通过，包含普通生产构建只依赖 core、测试构建加入 scoop.test、--no-run、缓存复用、正常执行与 moving GC。见[报告](validation/std-application-darwin.json)及[日志](validation/std-darwin.log.gz)。格式化、workspace clippy 与配套工具构建通过。
+- 测试准备中把 Option<Array<Byte>> 与 None 的相等比较改为模式匹配，符合数组没有 Equals 能力的既有规则；未改变语言或标准库的相等语义。复用当前 core、测试库及生产标准库缓存，没有重跑已通过的无关 fixture。
+- 当前实际应用验证基础串行执行；静态目录、过滤／忽略选择、输出捕获和完整报告仍待实现，随后补充标准库的对应 CLI 组合与 Linux GNU/musl 验收。M43 全部完成后继续 M44，当前目标保持进行中。
