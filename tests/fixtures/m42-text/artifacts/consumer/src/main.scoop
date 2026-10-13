@@ -1,0 +1,20 @@
+import scoop.*
+import scoop.text.*
+import scoop.sequences.*
+import scoop.collections.map
+import scoop.collections.joinToString
+
+struct Entry(val key: String, val value: Long)
+fun parse(line: String): Result<Entry, String> {
+    val fields = line.split('=', 2L)
+    if (fields.size != 2L) return Result.Failure<Entry, String>("bad entry")
+    return fields[1L].trim().toLongOrNull().toResult<Long, String> { "bad integer" }
+        .map<Long, String, Entry> { value -> Entry(fields[0L].trim().lowercaseAscii(), value) }
+}
+fun main() {
+    val input = "  ALPHA = 255\r\n 雪 = -1\nbad\n"
+    val entries = input.lineSequence().map<String, Result<Entry, String>>(::parse)
+        .mapNotNull<Result<Entry, String>, Entry> { result -> result.toOption() }.toList()
+    println(entries.map<Entry, String> { value -> value.key + "=" + value.value.toString(16) }.joinToString(";"))
+    println(entries.size == 2L && "false".toBooleanStrict() == false && "abc".replace("", "-") == "-a-b-c-")
+}

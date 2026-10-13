@@ -194,7 +194,7 @@ trim(predicate) 先从左向右检查前缀，再从右向左检查剩余后缀�
 
 ### 4.2 数值与布尔解析
 
-交付八种定宽整数的 `toInt8/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_` 或类型后缀，也不识别 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
+交付八种定宽整数的 `toInt8/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_`，也不识别类型后缀或 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
 
 canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toULong，并提供 core alias 对应的 toByte/toShort/toInt32/toInt64、toUByte/toUShort/toUInt32/toUInt64 转发名，各有 OrNull。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
 

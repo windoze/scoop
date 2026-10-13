@@ -114,6 +114,8 @@ M42-6 的 Result/Option 组合直接模式匹配；Result 状态属性与 getOrT
 
 M42-7 按 Unicode 标量处理文本。搜索使用普通 Scoop 编写的 KMP 前缀表，替换／切分复用匹配状态与一次字符快照，输出片段直接从快照构造，不反复调用 O(n) 的 String.get/slice 扫描前缀。lineSequence 使用字符 iterator 并保留 CR 后至多一个前瞻字符。重复文本按二进制倍增组合，先检查实际 UTF-8 大小；padding 复用该实现。White_Space 采用 [Unicode 17.0 PropList](https://www.unicode.org/Public/17.0.0/ucd/PropList.txt) 的 25 个标量，数据许可随 std 保存于 licenses/Unicode-3.0.txt；不携带或读取整个 Unicode 数据库。API 名称参考 [Kotlin text](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.text/)，匹配、索引、空白和错误行为以 Scoop 规范为准。
 
+整数解析以 ULong 保存数学 magnitude，按目标上限预计算 quotient/remainder，在每次 radix 乘加前判定是否超界；signed 的负边界额外允许一个 magnitude，覆盖 Long.MIN_VALUE。符号只在验证后转为目标表示，unsigned 不接受负号。格式化用 unsigned magnitude 反复除 radix 再反转字符，避免 signed 最小值取绝对值溢出。各定宽与 alias 入口复用这套私有算法，布尔只匹配 true/false；不借用 JSON 的内部 parser 或 native helper。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

@@ -1,0 +1,28 @@
+package scoop.text
+
+public class NumberFormatException public constructor(message: String) : Exception(Some(message))
+
+internal fun requireTextRadix(radix: Int) {
+    if (radix < 2 || radix > 36) throw IllegalArgumentException(Some("radix must be in 2..36"))
+}
+
+internal fun textDigit(value: Char): Int {
+    val code = value.code
+    if (code >= 48 && code <= 57) return code - 48
+    if (code >= 65 && code <= 90) return code - 65 + 10
+    if (code >= 97 && code <= 122) return code - 97 + 10
+    return -1
+}
+
+internal fun <T> requireParsedNumber(value: T?): T = when (value) {
+    case Some(result) -> result
+    case None -> throw NumberFormatException("invalid number")
+}
+
+public fun String.toBooleanStrictOrNull(): Boolean? {
+    if (this == "true") return Some(true)
+    if (this == "false") return Some(false)
+    return None
+}
+
+public fun String.toBooleanStrict(): Boolean = requireParsedNumber<Boolean>(toBooleanStrictOrNull())

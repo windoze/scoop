@@ -1,0 +1,43 @@
+package scoop.text
+
+private fun parseIntegerMagnitude(text: String, radix: Int, positiveLimit: ULong, negativeLimit: ULong?): (ULong, Boolean)? {
+    requireTextRadix(radix)
+    val source = text.iterator()
+    var next = source.next()
+    var negative = false
+    var limit = positiveLimit
+    if (next == Some('-')) {
+        limit = when (negativeLimit) { case Some(value) -> value; case None -> return None }
+        negative = true
+        next = source.next()
+    } else if (next == Some('+')) {
+        next = source.next()
+    }
+    if (next == None) return None
+    val base = radix.toUInt64()
+    val quotient = limit / base
+    val remainder = limit % base
+    var result = 0uL
+    while (true) {
+        val character = when (next) { case Some(value) -> value; case None -> break }
+        val digit = textDigit(character)
+        if (digit < 0 || digit >= radix) return None
+        val unsigned = digit.toUInt64()
+        if (result > quotient || (result == quotient && unsigned > remainder)) return None
+        result = result * base + unsigned
+        next = source.next()
+    }
+    return Some((result, negative))
+}
+
+internal fun parseSignedInteger(text: String, radix: Int, maximum: ULong): Long? =
+    when (parseIntegerMagnitude(text, radix, maximum, Some(maximum + 1uL))) {
+        case None -> None
+        case Some(value) -> Some(if (value._2) -value._1.toInt64() else value._1.toInt64())
+    }
+
+internal fun parseUnsignedInteger(text: String, radix: Int, maximum: ULong): ULong? =
+    when (parseIntegerMagnitude(text, radix, maximum, None)) {
+        case None -> None
+        case Some(value) -> Some(value._1)
+    }

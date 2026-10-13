@@ -1,0 +1,23 @@
+package scoop.text
+
+import scoop.map
+
+public fun String.toInt8OrNull(radix: Int = 10): Int8? =
+    parseSignedInteger(this, radix, Int8.MAX_VALUE.toUInt64()).map<Long, Int8> { value -> value.toInt8() }
+
+public fun String.toInt8(radix: Int = 10): Int8 = requireParsedNumber<Int8>(toInt8OrNull(radix))
+
+public fun String.toInt16OrNull(radix: Int = 10): Int16? =
+    parseSignedInteger(this, radix, Int16.MAX_VALUE.toUInt64()).map<Long, Int16> { value -> value.toInt16() }
+
+public fun String.toInt16(radix: Int = 10): Int16 = requireParsedNumber<Int16>(toInt16OrNull(radix))
+
+public fun String.toIntOrNull(radix: Int = 10): Int? =
+    parseSignedInteger(this, radix, Int.MAX_VALUE.toUInt64()).map<Long, Int> { value -> value.toInt32() }
+
+public fun String.toInt(radix: Int = 10): Int = requireParsedNumber<Int>(toIntOrNull(radix))
+
+public fun String.toLongOrNull(radix: Int = 10): Long? =
+    parseSignedInteger(this, radix, Long.MAX_VALUE.toUInt64()).map<Long, Long> { value -> value.toInt64() }
+
+public fun String.toLong(radix: Int = 10): Long = requireParsedNumber<Long>(toLongOrNull(radix))

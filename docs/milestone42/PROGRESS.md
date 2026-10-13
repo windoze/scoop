@@ -201,3 +201,11 @@ Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个�
 本机新增 search、replace-split、whitespace-padding、lines 四个 fixture 全部通过正常和 moving GC，4 个变体、16 个进程。命令：`TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --suite tests/fixtures/m42-text --work-dir target/m42/foundation --jobs 4`；证据为 `target/m42/text-strings-report.json`。搜索以独立逐位置匹配模型核对每个合法 startIndex，含空 needle、重叠、NUL、补充平面标量与组合字符；另有重复前缀长输入。其他覆盖非重叠替换、空旧串所有边界、连续／尾部分隔与 limit、1024 段输入、全部 25 个 White_Space 及边界反例、predicate 顺序和异常、ASCII 保留非 ASCII、负数及 UTF-8 长度溢出、三类混合换行和 Sequence 短路／重复消费。
 
 已通过普通 std Cone 构建及源码风格／`git diff --check`；无底层修改，不运行完整测试套件。报告和共享 cache 保留，已清理完成的 case。整数、布尔、精确浮点解析及后续阶段继续按原范围实施。
+
+### 定宽整数、radix 格式化与布尔解析已完成
+
+交付八种 canonical 整数及八种 core alias 的 String 转换和 OrNull、八种整数的 toString(radix)、toBooleanStrict/OrNull 与 NumberFormatException。解析先校验 radix，严格处理 ASCII 数字和单一符号，使用目标上限的 quotient/remainder 在乘加前阻止溢出；完整覆盖 Long.MIN_VALUE 和 ULong.MAX_VALUE。signed 格式化使用 unsigned magnitude，不对最小 signed 数直接求绝对值；字母统一小写，无正号或多余前导零。OrNull 不吞非法 radix，unsigned 连 -0 也拒绝；高 radix 下的字母只按数字解释，不启用类型后缀或前缀语法。
+
+本机 integers/radices/parse-errors/artifacts 四个 fixture 全部通过，4 个变体、18 个进程，所有运行类覆盖 normal/moving。证据为 `target/m42/text-integers-report.json`。命令使用相同 `TMPDIR="$PWD/target/m42/scratch"`、`--suite tests/fixtures/m42-text --work-dir target/m42/foundation --jobs 4`，exact filter 只选择本轮四项。覆盖各类型最小／最大值和越界一位、全部 alias、符号／前导零、独立二／八／十六／三十六进制极值向量、2..36 全 radix 代表值往返、四种 radix 的 Int8 全值域、严格布尔／数字语法、无效 radix 与 NumberFormatException。产物用例组合混合换行、Unicode key、split/trim/ASCII 规范化、整数解析／格式化、Sequence 与 Result；删除 core/std/消费者源码后独立 link，链接计划与运行结果正确。
+
+本轮新增源码最长为 43 行。普通 std Cone 构建、源码风格与 `git diff --check` 通过；没有 compiler/runtime 修改，不跑完整套件。已清理完成的 case 和检查构建，保留报告与共享 cache。M42-7 的精确 Float/Double 解析尚未完成，M42-8～12 和 Linux GNU/musl 的本组最终验证仍待实施，不将本批通过等同于整个 M42 已验收。
