@@ -556,7 +556,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 以 Equals/equals 替换 Equality/equalTo；Float/Double 默认比较按正负零与全部 NaN 的等价类构成全序，提供显式 IEEE 四态比较。
 - 按功能先更新 spec、实现并验证后提交。Rust 完整覆盖 5,584 项通过；Linux 正式 CLI 完整覆盖 GNU 3,785 项、musl 3,783 项通过，无未闭合失败。本机定向回归、完整运行与补验来源、产物差异审阅及清理见验收记录。
 
-### M42 平台无关标准基础库（设计完成，待实现，[详细设计](milestone42/DESIGN.md)，[目标规范](specs/SCOOP-STDLIB-SPEC.md)）
+### M42 平台无关标准基础库（实施中，[详细设计](milestone42/DESIGN.md)，[目标规范](specs/SCOOP-STDLIB-SPEC.md)，[进度](milestone42/PROGRESS.md)）
 
 - 增加普通 `scoop:scoop.std:0.1.0` Cone，显式依赖 core，按 Kotlin 习惯组织 collections/comparisons/sequences/text/bytes/io.encoding/random/time/datetime/uuid 与 Result；不改变 single-file 的 core-only 依赖或默认导入。
 - 集合同时包含 unordered HashMap/HashSet、insertion-ordered LinkedHashMap/LinkedHashSet、sorted TreeMap/TreeSet 与 Sorted 接口，另有 Deque、PriorityQueue、工厂/快照、集合算法和惰性 Sequence。core 仅补普通 Collection 公共接口，保留原 List/ArrayList/StringBuilder 的依赖与行为。

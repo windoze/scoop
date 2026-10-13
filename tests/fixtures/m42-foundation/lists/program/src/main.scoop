@@ -1,0 +1,36 @@
+import scoop.collections.*
+
+struct Item(val text: String, val number: Int)
+
+fun verify(value: Boolean, message: String) {
+    if (!value) throw Exception(Some(message))
+}
+
+fun main() {
+    val empty = emptyList<Int>()
+    verify(empty.size == 0L && empty.isEmpty() && !empty.isNotEmpty(), "empty")
+    verify(empty.iterator().next() == None, "empty iterator")
+    val source = mutableListOf<Int>(1, 2, 3)
+    val copied = source.toList()
+    val mutable = copied.toMutableList()
+    source[0L] = 9
+    source.add(4)
+    mutable[1L] = 8
+    verify(copied.size == 3L && copied[0L] == 1 && copied[1L] == 2, "snapshot")
+    verify(mutable.size == 3L && source.size == 4L, "independent sizes")
+    verify(!(copied is MutableList<Int>), "snapshot mutability")
+    verify(copied.isNotEmpty(), "nonempty")
+    val values = arrayListOf<Item>(Item("left", 10), Item("right", 20))
+    val snapshot = values.toList()
+    values.clear()
+    verify(snapshot[1L].text == "right" && snapshot[0L].number == 10, "value copy")
+    val optional = listOf<Int?>(None, Some(7))
+    val iterator = optional.iterator()
+    verify(iterator.next() == Some(None), "nested option")
+    verify(iterator.next() == Some(Some(7)), "nested some")
+    verify(iterator.next() == None && iterator.next() == None, "exhaustion")
+    var bounds = false
+    try { empty[0L] } catch (error: IndexOutOfBoundsException) { bounds = true }
+    verify(bounds, "bounds")
+    println("lists passed")
+}

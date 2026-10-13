@@ -1,0 +1,12 @@
+package scoop.collections
+
+public import Collection
+public import Iterable
+public import Iterator
+public import List
+public import MutableList
+public import ArrayList
+
+public fun <T> Collection<T>.isEmpty(): Boolean = size == 0L
+
+public fun <T> Collection<T>.isNotEmpty(): Boolean = size != 0L

@@ -2048,7 +2048,7 @@ suspend fun <T> suspendCoroutine(
 
 #### 11.10.1 `List<T>` 与 `MutableList<T>`
 
-M42 目标修订（尚未实现）：增加普通 `Collection<T>`，供现有 List、新 Set 和 Map 的值／entry 视图共享已知大小的只读访问协议。它只要求 size 与迭代，不假定元素相等、哈希或字符串化；不增加编译器协议角色。新 Set／Map 等 API 见标准基础库规范第 2 章。
+普通 `Collection<T>` 供现有 List、新 Set 和 Map 的值／entry 视图共享已知大小的只读访问协议。它只要求 size 与迭代，不假定元素相等、哈希或字符串化；不增加编译器协议角色。新 Set／Map 等 API 见标准基础库规范第 2 章。
 
 ```scoop
 public interface Collection<T> : Iterable<T> {
@@ -2068,7 +2068,7 @@ public interface MutableList<T> : List<T> {
 }
 ```
 
-`List` 是只读访问接口，不承诺对象或元素不可变，也不产生快照。`ArrayList<T> <: MutableList<T> <: List<T> <: Iterable<T>`；以同一对象建立的 `List<T>` alias 会观察到其他 alias 的修改。`List<Derived>` 不是 `List<Base>` 的子类型，所有转换仍须满足 exact application 规则。数组字面量继续构造 `Array` 或 `MutableArray`，不会因这组接口改为构造 `ArrayList`。
+`List` 是只读访问接口，不承诺对象或元素不可变，也不产生快照。`ArrayList<T> <: MutableList<T> <: List<T> <: Collection<T> <: Iterable<T>`；以同一对象建立的 `List<T>` alias 会观察到其他 alias 的修改。`List<Derived>` 不是 `List<Base>` 的子类型，所有转换仍须满足 exact application 规则。数组字面量继续构造 `Array` 或 `MutableArray`，不会因这组接口改为构造 `ArrayList`。
 
 `get` / `set` / `removeAt` 要求 `0 <= index < size`，按索引插入的 `add(index, value)` 要求 `0 <= index <= size`；失败抛 `IndexOutOfBoundsException`。普通 receiver 与实参先按源码顺序求值，因此越界操作也不能跳过 value 的副作用。追加保持顺序；插入后原后缀右移；`removeAt` 返回被移除的值并使原后缀左移；`clear` 使 size 变为零。`set` 不改变 size。所有操作都支持 `T` 本身是 `Option<U>`，`None` 是合法元素，不表示列表中没有该位置。
 
@@ -2602,13 +2602,13 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 ### 12.6 核心库
 
-第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置；`scoop.core`同时是其源码当前使用的package和Cone `name`，这只是明确约定，不是package与Cone identity之间的语言推导规则。
+第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置。`scoop.core` 是 Cone `name`，不是自动生成的源码 package；当前 core 源码声明位于默认根 package，显式导入采用 `import List` 等形式。Cone identity 与源码 package 没有推导关系。
 
 core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖所需的声明按第 13 章解析；其余类型、可见性、ABI、产物与链接规则和普通库相同。sysroot 只提供默认 locator，不构成来源授权。
 
 - 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认sysroot源码位置。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
 - core 自身不隐式依赖自身。core manifest 的显式 dependency 使用普通语法、定位与无环规则；core 到普通库的依赖若与该库到 core 的依赖形成环，按 12.3 报错。用户可在普通源码目录声明 core coordinate、修改或扩展源码，并重新构建 library；intrinsic 声明遵守第 13 章的名称、类型和唯一性规则；
-- `scoop.core.*`与`scoop.core.Option.*`默认可见性来自core `.slib`中的typed prelude binding，不通过把core源码拼入用户AST、扫描package name或对`Some`/`None`写短名特判实现；
+- core 声明与 Option variant 的默认可见性来自 core `.slib` 中的 typed prelude binding，不通过把 core 源码拼入用户 AST、扫描 package name 或对 `Some`/`None` 写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
 
 ---

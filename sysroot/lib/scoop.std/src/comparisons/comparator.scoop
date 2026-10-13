@@ -1,0 +1,24 @@
+package scoop.comparisons
+
+public interface Comparator<T> {
+    public fun compare(left: T, right: T): Long
+}
+
+internal class FunctionComparator<T> internal constructor(
+    private val comparison: (T, T) -> Long
+) : Comparator<T> {
+    public override fun compare(left: T, right: T): Long = comparison(left, right)
+}
+
+public fun <T> comparatorOf(comparison: (T, T) -> Long): Comparator<T> =
+    FunctionComparator<T>(comparison)
+
+public fun <T : Compare<T>> naturalOrder(): Comparator<T> =
+    comparatorOf<T> { left, right -> left.compareTo(right) }
+
+public fun <T : Compare<T>> reverseOrder(): Comparator<T> = naturalOrder<T>().reversed()
+
+public fun <T> Comparator<T>.reversed(): Comparator<T> {
+    val source = this
+    return comparatorOf<T> { left, right -> source.compare(right, left) }
+}

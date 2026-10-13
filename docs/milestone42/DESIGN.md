@@ -1,6 +1,6 @@
 # M42 设计：平台无关标准基础库
 
-状态：设计完成，尚未开始实现与验收。基线 `89da1b35`。日期：2026-10-13。
+状态：正在实施，分批交付与实际验证见 [进度记录](PROGRESS.md)。基线 `89da1b35`。日期：2026-10-13。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)与[路线图](../ROADMAP.md)。公共 API 行为以标准基础库规范为准；本文规定实现组织、依赖、交付批次和验证范围。
 
@@ -55,7 +55,7 @@ kind = "library"
 
 依赖方向：std → core；JSON 和后续系统/业务库按需依赖 std/core。本期 JSON 实现无需变化，组合 fixture 的应用 Cone 同时声明 std/json。在 std 的 collections 包用明确的 public import 再发布 core Collection/List 等；不批量再次发布整个 core prelude。
 
-`scoop.std` 无默认导入、无隐式依赖，不改变 single-file 入口。示例和 fixture 使用真实 manifest；库安装到 sysroot 后可省略 path locator，但坐标与版本仍显式。std 的 `.slib` 是普通 target-specific 产物，平台无关指源码/API 能力，不意味着跨 target 共用机器码。
+`scoop.std` 无默认导入、无隐式依赖，不改变 single-file 入口。示例和 fixture 使用真实 manifest；库安装到 sysroot 后可省略 std 的 path locator，但坐标与版本仍显式。上述显式 core 版本声明按语言规范 12.6 使用产物搜索，需要先构建 core 并提供 artifact search root。core 源码当前位于默认根 package，collections 再发布使用 `public import List` 等实际 binding，而非从 Cone 名推导 `scoop.core.List`。std 的 `.slib` 是普通 target-specific 产物，平台无关指源码/API 能力，不意味着跨 target 共用机器码。
 
 ## 3. 实现要求
 
