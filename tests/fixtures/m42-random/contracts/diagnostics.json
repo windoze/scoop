@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `Xoshiro256StarStar` in exact import layer:\n  - constructor `Xoshiro256StarStar` is not accessible here\n  - dependency constructor `Xoshiro256StarStar` expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "85dc5e63caa2ef9d74c1aa502cbe031f66825a09cfbd8e1582cd49b0e42f7b90",
+      "end": 144,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 124
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Random` has no accessible static member `Default`",
+    "notes": [],
+    "origin": {
+      "cone": "85dc5e63caa2ef9d74c1aa502cbe031f66825a09cfbd8e1582cd49b0e42f7b90",
+      "end": 178,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 171
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `random` expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "85dc5e63caa2ef9d74c1aa502cbe031f66825a09cfbd8e1582cd49b0e42f7b90",
+      "end": 214,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 183
+    },
+    "severity": "error"
+  }
+]

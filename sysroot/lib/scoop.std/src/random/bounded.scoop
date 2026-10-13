@@ -1,0 +1,17 @@
+package scoop.random
+
+internal fun sampleUInt(random: Random, span: UInt): UInt {
+    val threshold = (0u - span) % span
+    while (true) {
+        val value = random.nextUInt()
+        if (value >= threshold) return value % span
+    }
+}
+
+internal fun sampleULong(random: Random, span: ULong): ULong {
+    val threshold = (0uL - span) % span
+    while (true) {
+        val value = random.nextULong()
+        if (value >= threshold) return value % span
+    }
+}

@@ -1,0 +1,18 @@
+import scoop.random.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun main() {
+    seed0(); seed1(); seed2(); seed3(); seed4()
+    val first = Xoshiro256StarStar(19L)
+    val second = Random.seeded(19L)
+    var errors = 0
+    try { first.nextBits(-1) } catch (error: IllegalArgumentException) { errors += 1 }
+    try { first.nextBits(33) } catch (error: IllegalArgumentException) { errors += 1 }
+    check(errors == 2 && first.nextBits(0) == 0 && first.nextBits(32) == second.nextBits(32))
+    var index = 0
+    while (index < 1024) {
+        check(first.nextBits(index % 33) == second.nextBits(index % 33))
+        index += 1
+    }
+    println("random seeded passed")
+}

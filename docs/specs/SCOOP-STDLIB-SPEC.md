@@ -238,6 +238,10 @@ decode 拒绝混用字母表、非法字符、空白、错误长度、错误位�
 
 nextBytes 提供新数组和写入 MutableArray<Byte> 区间两种形式；边界先检查，非法请求不消费 RNG。random/randomOrNull、shuffle/shuffled 接收显式 Random，shuffle 使用无偏 Fisher–Yates。未知大小 Iterable 的单元素选择用 reservoir sampling，不先全量收集；空输入非 OrNull 抛 NoSuchElementException。
 
+上述 next 系列作为 Random 的普通 default method 提供。`nextBytes(size: Long): Array<Byte>` 拒绝负 size（IllegalArgumentException）；`nextBytes(array: MutableArray<Byte>, fromIndex: Long = 0, toIndex: Long = array.size): MutableArray<Byte>` 填充半开区间并返回原数组，越界抛 IndexOutOfBoundsException，范围反向抛 IllegalArgumentException，空范围不消费 RNG。RNG 抛异常时保留已写入的前缀，不承诺回滚。
+
+collections 提供 List／Iterable 的 random(random)／randomOrNull(random)、MutableList.shuffle(random): Unit 与 Iterable.shuffled(random): List。List 只抽取一个 Long 下标；Iterable 依次对第 n≥2 个元素请求 nextLong(n)，结果为零时替换候选，计数溢出抛 ArithmeticException。空或单元素选择不消费 RNG，Some(None) 不表示空输入。shuffle 从末尾向前对剩余 n≥2 个元素请求 nextLong(n)，与所选下标交换；异常保留已完成的修改。shuffled 返回独立只读浅快照。sequences 提供 random／randomOrNull 终结操作和惰性 shuffled；后者第一次 next 才收集有限输入和消费 RNG，重迭代按来源与同一 RNG 的当前状态执行，不新增随机源或重置种子。
+
 没有 Random.Default、无种子构造、隐式全局生成器、系统熵读取或自动使用时钟播种。后续系统库通过普通 Random 实现接入；M42 不引入 entropy provider registry 或插件层。
 
 ### 6.2 确定性生成器

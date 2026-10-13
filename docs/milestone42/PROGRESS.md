@@ -260,3 +260,16 @@ Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `
 证据：`target/m42/encoding-contracts-artifacts-report.json` 中 base64-errors／sources／artifacts 三项通过；初次另外两个用例分别使用了无调用的 Unit statement、捕获可变局部变量，按既有语言规则修正后，`target/m42/encoding-vectors-report.json` 记录 hex／base64 两项、2 variant、8 process 全部通过。库实现未因用例修正而改变。
 
 普通 std Cone 构建、源码风格与 `git diff --check` 通过。已清理完成 case 和单次检查构建，保留报告与共享 cache。M42-8 全部功能完成；本批没有 compiler/runtime 修改，没有运行无关完整测试。M42-9～12 和 Linux GNU/musl 的本组最终定向验证仍待完成。
+
+## M42-9 进行中：显式 RNG 与随机集合操作已完成
+
+日期：2026-10-13。Random 只要求 nextBits，普通 default method 提供整型、浮点、字节与区间抽样。Xoshiro256StarStar 通过 SplitMix64 展开显式 Long 种子；没有默认随机源、系统熵或时钟读取。有界整数使用完整 unsigned 抽样与拒绝阈值，覆盖 signed 跨零的极宽区间。List 按下标选择，Iterable 使用单遍 reservoir；shuffle 使用 Fisher–Yates，Sequence.shuffled 在第一次 next 才收集和打乱输入。
+
+本机正式 CLI 定向验证：
+
+- `m42-random-seeded`：五种种子、60 个原作者 C 实现独立计算的固定位向量，另验零位请求不推进状态、非法位宽与重复运行一致性；debug/release 均通过正常运行与 moving GC。
+- `primitives`、`bounded`、`invalid`：位宽与调用次序、浮点端点、字节前缀、拒绝分支、整型边界、非法参数先于 RNG 消费、RNG 异常传播通过。
+- `collections`、`sequences`：流式读取与抽样交错、List 不使用 iterator、空／单元素不消费 RNG、嵌套 Option、快照、惰性／重复遍历和 once-only 来源通过。
+- `contracts` 精确拒绝无种子的 Xoshiro256StarStar、Random.Default 和未传 Random 的 random 调用，锁定诊断位置与信息。
+
+前六组报告为 `target/m42/random-values-report.json`，共 7 个变体、28 个进程；contracts 与随后 UUID 组合验证共同运行，其单项已通过。新库源码最大 60 行；已检查风格与 `git diff --check`，没有底层实现修改，不运行完整仓库套件。Uuid、时间／日期／codec 和 Linux GNU/musl 的本组最终验证继续实施。

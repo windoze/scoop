@@ -128,6 +128,8 @@ M42-8 的 ByteArrayBuilder 使用普通 MutableArray<Byte> 与有效长度，按
 
 Hex 与 Base64 使用 [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648) 的固定字母表、分组与标准向量，独立编写普通 Scoop 移位／除余实现，没有移植 RFC 的 C 代码。编码先检查实际 ASCII 输出长度，逐字节填充 Char 数组；解码按字符顺序读取，通过 ByteArrayBuilder 产生独立结果。Hex 保存首个非法标量位置；Base64 分别验证字母表、尾部符号数、padding 数量与未使用的零位。配置命名参考 [Kotlin Base64](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.io.encoding/-base64/)，Scoop 只交付已约定的三种 padding 模式和 Default／UrlSafe，不扩大为 MIME 或流式 I/O。
 
+M42-9 的 Random 只要求 nextBits，实现其余普通 default method；有界采样在 unsigned 值域计算跨度与拒绝阈值，避免 signed 跨零区间溢出。Xoshiro256StarStar 保存四个 ULong，采用原作者 [xoshiro256**](https://prng.di.unimi.it/xoshiro256starstar.c) 的核心状态转移和 [SplitMix64](https://prng.di.unimi.it/splitmix64.c) 种子展开；作者将两者贡献至 public domain，并提供可自由使用／修改／分发的许可，归属与许可保存在 std/licenses/PRNG.txt。只移植必要的下一项算法，不引入 jump、宿主随机库或系统熵。固定向量离线用独立原作者 C 实现核对，发布库和正式 fixture 运行仍只使用 Scoop。
+
 ### 3.4 时间与来源
 
 wall clock 的绝对读数使用 Instant，来源接口叫 Clock；单调来源用 TimeSource，读数用 TimeMark。接口只约定后续提供者的方法，不附带系统实现；本期所有算法显式接收已取得的数据。

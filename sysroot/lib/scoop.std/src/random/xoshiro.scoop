@@ -1,0 +1,41 @@
+package scoop.random
+
+// xoshiro256** by David Blackman and Sebastiano Vigna (2018),
+// seeded with SplitMix64 by Sebastiano Vigna (2015). See licenses/PRNG.txt.
+private fun splitMix(value: ULong): ULong {
+    var mixed = (value xor (value shr 30L)) * 0xbf58476d1ce4e5b9uL
+    mixed = (mixed xor (mixed shr 27L)) * 0x94d049bb133111ebuL
+    return mixed xor (mixed shr 31L)
+}
+
+private fun xoshiroSeed(seed: Long): (ULong, ULong, ULong, ULong) {
+    val step = 0x9e3779b97f4a7c15uL
+    val first = seed.toUInt64() + step
+    return (splitMix(first), splitMix(first + step), splitMix(first + step * 2uL), splitMix(first + step * 3uL))
+}
+
+private fun rotateLeft(value: ULong, bits: Long): ULong =
+    (value shl bits) or (value shr (64L - bits))
+
+public class Xoshiro256StarStar private constructor(state: (ULong, ULong, ULong, ULong)) : Random {
+    private var first: ULong = state._1
+    private var second: ULong = state._2
+    private var third: ULong = state._3
+    private var fourth: ULong = state._4
+
+    public constructor(seed: Long) : this(xoshiroSeed(seed)) {}
+
+    public override fun nextBits(bitCount: Int): Int {
+        if (bitCount < 0 || bitCount > 32) throw IllegalArgumentException(Some("bitCount must be in 0..32"))
+        if (bitCount == 0) return 0
+        val result = rotateLeft(second * 5uL, 7L) * 9uL
+        val shifted = second shl 17L
+        third = third xor first
+        fourth = fourth xor second
+        second = second xor third
+        first = first xor fourth
+        third = third xor shifted
+        fourth = rotateLeft(fourth, 45L)
+        return (result shr (64L - bitCount.toInt64())).toInt32()
+    }
+}

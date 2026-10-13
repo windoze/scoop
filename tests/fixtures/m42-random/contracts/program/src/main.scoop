@@ -1,0 +1,9 @@
+import scoop.random.Random
+import scoop.random.Xoshiro256StarStar
+import scoop.collections.*
+
+fun main() {
+    val random = Xoshiro256StarStar()
+    val implicit = Random.Default
+    listOf<Int>(1, 2).random<Int>()
+}
