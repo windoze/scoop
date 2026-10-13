@@ -146,6 +146,26 @@ fn marker_targets_arguments_repetition_and_roles_use_normal_annotation_rules() {
 }
 
 #[test]
+fn ignore_without_test_points_to_the_ignore_annotation() {
+    for hook in ["BeforeTest", "AfterTest"] {
+        let source = format!(
+            "@Test class Cases {{\n    @{hook}\n    @Ignore(\"later\")\n    fun hook() {{}}\n}}"
+        );
+        let errors = rejects(&source, "requires `@Test`");
+        let diagnostic = errors
+            .iter()
+            .find(|error| error.message.contains("requires `@Test`"))
+            .unwrap();
+        let span = diagnostic.span.unwrap();
+        let full_source = format!("import scoop.test.*\n{source}");
+        assert_eq!(
+            &full_source[span.start as usize..span.end as usize],
+            "@Ignore(\"later\")"
+        );
+    }
+}
+
+#[test]
 fn duplicate_hooks_report_both_declarations() {
     for marker in ["BeforeTest", "AfterTest"] {
         let source = format!(

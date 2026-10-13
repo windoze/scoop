@@ -173,3 +173,8 @@
 - Darwin 的最终有效验收合计 7 个 fixture、14 个 debug/release 变体、98 个进程步骤通过：[主组报告](validation/report-darwin.json.gz) 的 64 步覆盖报告、选择、全部生命周期失败及常量／动态 GC 回归；[应用组报告](validation/report-applications-initial.json.gz) 中 scoop.std 的 8 步与真实 runtime shutdown 的 2 步通过；[generated 复验报告](validation/report-generated-darwin.json.gz) 的 24 步通过。标准库两个 profile 均报告 10 个用例通过；shutdown 专测在全部用例通过且 complete 后仍保留 owned callback token，确认目标失败与实际退出码 1。
 - 应用组首轮 generated 失败来自不同 fixture 选择复用同一 cases 索引后残留源码，保留其失败报告及 [日志](validation/report-applications.log.gz)。全部进程结束后清理 cases，再复用同一工具和缓存完成干净复验；没有为该输入污染修改编译器。清理了旧用例输出约 411 MB 和两处临时验证产物约 14 MB，保留当前工具与热缓存。
 - scoop.std 的 list／filter 组合、完整 M43 验收和 Linux GNU／musl 验收仍待完成；本批不宣称 M43 已全部交付，完成后继续推进 M44。
+
+## 2026-10-14：修正孤立 Ignore 的诊断位置
+
+- 正式声明负例的审阅发现：BeforeTest／AfterTest 后附加 Ignore 且没有 Test 时，发现阶段将错误指向第一个 hook 标记。现在直接使用该 Ignore 应用的源码位置；错误规则与生命周期语义保持。
+- 新增精确字节区间测试，分别验证两种 hook 后的诊断确实覆盖 `@Ignore("later")`。格式化、workspace clippy、配套工具构建与 21 项测试声明／发现／入口定向测试全部通过，见 [Rust 日志](validation/ignore-location-rust.log.gz)、[lint](validation/ignore-location-clippy.log.gz) 与 [构建](validation/ignore-location-build.log.gz)。正式 CLI 负例随本批声明验收补齐。

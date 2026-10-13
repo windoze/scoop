@@ -88,15 +88,15 @@ impl Lowerer {
                 .iter()
                 .filter(|(marker, _)| *marker != TestMarker::Ignore)
                 .collect::<Vec<_>>();
-            if markers
+            if let Some((_, ignore_origin)) = markers
                 .iter()
-                .any(|(marker, _)| *marker == TestMarker::Ignore)
+                .find(|(marker, _)| *marker == TestMarker::Ignore)
                 && !markers
                     .iter()
                     .any(|(marker, _)| *marker == TestMarker::Test)
             {
                 self.test_annotation_error(
-                    origin,
+                    *ignore_origin,
                     "`@Ignore` requires `@Test` on the same test method".into(),
                 );
             }
