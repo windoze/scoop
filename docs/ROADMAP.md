@@ -571,6 +571,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 交付普通 `scoop.test` Cone、断言、显式测试容器与方法、每用例实例及 BeforeTest/AfterTest 生命周期。
 - 增加同 Cone 测试源码、测试依赖与构建用途，由 `scoop test` 静态发现、构建、过滤、列出并串行运行，保留准确的生命周期失败与进程结果。
+- 以 `scoop.std` 作为首个实际落地应用，在 `sysroot/lib/scoop.std/tests/` 编写同 Cone 单元测试，通过 `scoop test sysroot/lib/scoop.std` 验收测试库与命令的完整流程。
 - 按功能分批更新规范、实现、验证并提交；定向验证后完成三个现有 target 的 CLI、产物与必要回归验收。
 - integration-test 等待 multi-cone workspace 定型后另行设计，不纳入本里程碑。
 
