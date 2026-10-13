@@ -6,9 +6,9 @@
 
 | 批次 | 状态 | 证据 |
 | --- | --- | --- |
-| M43-1 断言与测试库 | 断言、四种测试标记已完成 | 普通 scoop.test Cone、8 个断言函数、失败数据、Test/BeforeTest/AfterTest/Ignore；语言规范第 16 章 |
+| M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择与定义处声明／依赖候选隔离已完成；测试用途编排与依赖接入待实施 | test.sources/test-dependencies 解码；源码角色贯穿发现、解析与前端；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 入口身份与产物传递、声明检查、前端静态目录及构造选择已完成；目录持久化、入口合成与生命周期待实施 | Source／Generated 入口、TestEntry key、HIR/MIR/LIR metadata；当前目标 typed 容器／构造器／方法目录 |
+| M43-3 静态发现与生命周期入口 | 入口身份与产物传递、声明检查、前端静态目录、构造选择及普通库生命周期已完成；目录持久化、入口合成与调用适配待实施 | Source／Generated 入口、TestEntry key、HIR/MIR/LIR metadata；当前目标 typed 目录；普通 runTestCase 的构造／hooks／正文执行与失败保留 |
 | M43-4 CLI 与运行报告 | 待实施 | |
 | M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
 
@@ -85,3 +85,11 @@
 - Darwin 的 6 项构造相关 CLI fixture 全部通过，共 6 个变体、19 个进程步骤；包含普通／跨 Cone 的重载与默认参数、继承委派、private 与 unsafe 拒绝、移除源码后的产物消费、链接运行及 moving GC，见[报告](validation/discovery-darwin.json)。没有重跑无关全量测试或提前执行 Linux 验收。
 - 主发现文件 189 行，目录、形态与构造选择分别拆为 102／52／44 行模块，HIR 目录是 31 行普通数据结构；未增加通用测试框架、依赖扫描或 wire 字段。核对归档报告后清理 target/m43/markers（约 192 MB）。
 - 测试目录尚未接入 CLI 的缓存／列表输出，入口函数、生命周期调用、结果通道与 scoop.std 测试应用继续实施；本批不宣称测试命令或 M43-3 已完成。
+
+## 2026-10-14：普通 Scoop 每用例执行与失败保留
+
+- 先补语言规范 16.5，并同步设计 6.2；`scoop.test.execution` 提供 TestAction/TestActions、TestPhase、TestFailure、TestResult 与 runTestCase。实现只依赖 core，沿用普通 closure、try/catch、SourceLocation 和 managed Throwable，不增加 runtime ABI。
+- 初始化回调执行构造并返回捕获实例不可变引用的正文与可选 hooks。实例初始化失败时跳过后续动作；准备失败时跳过正文但仍清理；正文失败后仍清理；清理失败保留原失败及各自阶段和位置。没有原失败时，清理失败成为首次失败。AssertionFailure 使用断言位置，其他异常使用阶段位置；异常数据不提前渲染。
+- 四组正式 CLI fixture 覆盖每用例新实例、串行顺序、缺省／单个 hooks、默认实参／字段／init 的真实构造失败、四阶段异常及 finally、双重失败、调用处与显式来源位置、Context 恢复、异常引用与 GC 保活。测试库实现分别为 25、44 行，fixture 源码各为 44～80 行。
+- 格式化、workspace clippy 和三个 CLI 构建通过，见[日志](validation/lifecycle-build.log.gz)。Darwin debug/release 共 4 个 fixture、8 个变体、24 个进程步骤全部通过，含普通运行与 moving-GC 运行，见[报告](validation/lifecycle-darwin.json)。准备期间修正了 fixture 的可变局部捕获、成员可见性、数值转换、if 表达式和 enum 模式警告；据实际 closure 规则将动作创建移入初始化回调，没有放宽语言规则。
+- 验证沿用本批未变化的 core／runtime 缓存；核对归档报告后清理上一批 `target/m43/discovery`（约 294 MB）。本批仅验证普通库的每用例执行，合成入口／调用适配、测试构建编排、独立结果通道与命令报告、scoop.std 应用及 Linux 最终验收仍待完成。

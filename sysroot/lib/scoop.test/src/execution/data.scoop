@@ -1,0 +1,25 @@
+package scoop.test.execution
+
+public enum TestPhase { Initialization, BeforeTest, Body, AfterTest }
+
+public struct TestAction(
+    val call: () -> Unit,
+    val location: SourceLocation = getCurrentSourceLocation()
+)
+
+public struct TestActions(
+    val body: TestAction,
+    val before: TestAction? = None,
+    val after: TestAction? = None
+)
+
+public struct TestFailure(
+    val phase: TestPhase,
+    val cause: Throwable,
+    val location: SourceLocation
+)
+
+public enum TestResult {
+    Passed,
+    Failed(TestFailure, TestFailure?)
+}

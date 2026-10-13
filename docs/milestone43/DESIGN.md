@@ -329,6 +329,8 @@ class CounterTest {
 
 构造成功后，无论准备或测试方法正常返回还是抛出可捕获异常，已声明的 AfterTest 均执行一次。BeforeTest 应与 AfterTest 配合处理部分准备成功的情况；构造未完成时，已获取资源的清理由构造代码按普通异常规则负责。hooks 不生成独立测试结果。finally、Context 作用域和异常对象的 GC 生命周期沿既有规则执行，不在 C frame 外接管 Scoop unwind。
 
+执行适配使用语言规范 16.5 的 `scoop.test.execution` 普通库接口：初始化回调构造实例后，返回捕获该实例不可变引用的正文与可选 hooks，以及各动作的源码位置。`runTestCase` 负责调用顺序和异常捕获，`TestResult` 保留首次失败与可选的清理失败。该接口不负责发现、过滤或提前创建容器。
+
 新实例只隔离实例字段。singleton、global、数据库或文件等共享状态不会自动复制或重置；串行防止本次运行中的用例生命周期重叠，但不能消除遗留状态的影响。用例通过构造、BeforeTest 和 AfterTest 建立已知状态并显式释放资源；启动的后台工作、线程和 callback 也应在用例结束前按现有 API 完成或清理。用例执行结束不保证实例立即被 GC 回收，不能依赖 GC 或 release hook 及时释放共享资源。
 
 ### 6.3 测试进程与输出

@@ -1,0 +1,44 @@
+package scoop.test.execution
+
+import scoop.test.AssertionFailure
+
+private fun execute(action: TestAction, phase: TestPhase): TestFailure? {
+    try {
+        action.call()
+        return None
+    } catch (error: Throwable) {
+        val location = if (error is AssertionFailure) error.location else action.location
+        return Some(TestFailure(phase, error, location))
+    }
+}
+
+public fun runTestCase(
+    location: SourceLocation = getCurrentSourceLocation(),
+    initialize: () -> TestActions
+): TestResult {
+    val actions: TestActions = try {
+        initialize()
+    } catch (error: Throwable) {
+        val source = if (error is AssertionFailure) error.location else location
+        return TestResult.Failed(TestFailure(TestPhase.Initialization, error, source), None)
+    }
+    val prepared: TestFailure? = when (actions.before) {
+        case Some(action) -> execute(action, TestPhase.BeforeTest)
+        case None -> None
+    }
+    val failure: TestFailure? = when (prepared) {
+        case None -> execute(actions.body, TestPhase.Body)
+        case Some(error) -> Some(error)
+    }
+    val cleanup: TestFailure? = when (actions.after) {
+        case Some(action) -> execute(action, TestPhase.AfterTest)
+        case None -> None
+    }
+    return when (failure) {
+        case Some(error) -> TestResult.Failed(error, cleanup)
+        case None -> when (cleanup) {
+            case Some(error) -> TestResult.Failed(error, None)
+            case None -> TestResult.Passed
+        }
+    }
+}

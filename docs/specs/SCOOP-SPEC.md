@@ -3180,7 +3180,7 @@ core 提供普通安全函数 `write(message: String)`、`writeError(message: St
 
 ### 16.1 普通测试库
 
-`scoop:scoop.test:0.1.0` 是显式依赖的普通 library Cone，安装于 `sysroot/lib/scoop.test/`，按 12.2 的普通 `scoop` group 定位规则加载。公开 API 位于 `scoop.test` package，没有默认导入，也不加入最小 core 或 single-file 模式的隐式依赖。断言可由普通程序调用，不依赖测试发现、专用入口或运行期反射。
+`scoop:scoop.test:0.1.0` 是显式依赖的普通 library Cone，安装于 `sysroot/lib/scoop.test/`，按 12.2 的普通 `scoop` group 定位规则加载。标记与断言位于 `scoop.test` package，执行接口位于 `scoop.test.execution`，均没有默认导入，也不加入最小 core 或 single-file 模式的隐式依赖。断言可由普通程序调用，不依赖测试发现、专用入口或运行期反射。
 
 M43 只提供同 Cone 单元测试；独立 Cone 的 integration-test 留待 multi-cone workspace 定型后另行设计。
 
@@ -3232,3 +3232,26 @@ Test 用例、BeforeTest 和 AfterTest 必须是该容器直接声明、具有�
 前端为当前 Cone 生成按容器组织的目录，保留容器、已选构造器、可选 BeforeTest/AfterTest 与每个用例的 typed 声明引用、源码位置及 Ignore 原因。容器按规范化源码路径和声明位置排序，类内用例按声明位置排序；空容器仍接受构造与声明检查，但不产生用例或实例。显示名包含 Cone、package、类名与方法名，文件内 private 容器用源码路径消除重名歧义；显示名只用于列表、过滤和报告。
 
 构造选择使用普通重载解析，包含零实参适用性、默认参数、vararg、候选优先级、歧义、可见性与 safe 调用检查。检查环境为该容器自身的词法域；不因此扩大测试源码对其他声明的访问权限。目录保存最终选中的构造器；入口合成沿该选择生成实际调用并实例化默认实参，不重新搜索候选或提前执行构造、默认实参、字段初始化与 init。
+
+### 16.5 每用例执行与失败保留
+
+每个选中用例串行完成实例初始化、可选 BeforeTest、测试正文与可选 AfterTest，再开始下一个用例。初始化包括默认实参、字段初始化、构造和 init；成功取得实例后，后续三个阶段使用同一实例。初始化抛出 Throwable 时跳过其余阶段；BeforeTest 抛出时跳过正文但仍执行 AfterTest；正文抛出时仍执行 AfterTest。AfterTest 至多执行一次；若已有失败，清理失败单独保留，不覆盖原失败。忽略或未选中用例不进入这一流程。
+
+`scoop.test.execution` 提供入口适配使用的普通库接口，不增加编译器 intrinsic、反射或 fixture 工厂：
+
+```scoop
+public enum TestPhase { Initialization, BeforeTest, Body, AfterTest }
+public struct TestAction(val call: () -> Unit,
+    val location: SourceLocation = getCurrentSourceLocation())
+public struct TestActions(val body: TestAction,
+    val before: TestAction? = None, val after: TestAction? = None)
+public struct TestFailure(val phase: TestPhase, val cause: Throwable,
+    val location: SourceLocation)
+public enum TestResult { Passed, Failed(TestFailure, TestFailure?) }
+public fun runTestCase(location: SourceLocation = getCurrentSourceLocation(),
+    initialize: () -> TestActions): TestResult
+```
+
+调用适配在 initialize 回调实际执行时调用已解析的构造器，再将捕获该实例不可变引用的正文和可选 hooks 组成 TestActions 返回；不预建实例，也不捕获可变局部变量。TestAction 保存已解析方法的 typed 动作与声明位置。runTestCase 的 location 对应实例初始化位置；它和 TestAction 的默认位置供普通源码调用使用，合成适配显式传递对应的源码位置。runTestCase 同步调用初始化回调与后续动作，捕获普通 Throwable 并返回 Passed 或 Failed。Failed 的第一项保存首次失败，第二项仅保存该失败之后的 AfterTest 失败；只有清理失败时，第一项的阶段为 AfterTest，第二项为 None。
+
+TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规范 5.3～5.4 的异常物化规则。cause 为 AssertionFailure 时 location 使用断言自己的位置，否则使用当前动作的位置；原始异常数据不渲染、不丢弃。finally、Context 与 GC 沿普通调用和异常规则执行。panic、abort、native crash 和进程退出不在此捕获范围内，进程结果由测试命令另行报告。
