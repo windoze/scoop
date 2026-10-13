@@ -8,7 +8,8 @@ impl CfgLowerer<'_> {
         short_value: bool,
         span: Span,
     ) -> Option<mir::Expr> {
-        let lhs = self.lower_expr(lhs, span)?;
+        let operand_depth = self.variant_operands.len();
+        let lhs = self.lower_variant_condition(lhs, span)?;
         let rhs_block = self.new_block("logic.rhs");
         let short_block = self.new_block("logic.short");
         let merge = self.new_block("logic.merge");
@@ -51,6 +52,7 @@ impl CfgLowerer<'_> {
             self.seal(mir::Terminator::Goto(merge));
         }
 
+        self.variant_operands.truncate(operand_depth);
         self.enter(merge);
         Some(mir::Expr::new(
             mir::Type::Boolean,

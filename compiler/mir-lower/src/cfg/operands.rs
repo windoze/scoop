@@ -48,7 +48,7 @@ impl CfgLowerer<'_> {
             .collect()
     }
 
-    fn save_operand(&mut self, value: mir::Expr, span: Span) -> mir::Expr {
+    pub(super) fn save_operand(&mut self, value: mir::Expr, span: Span) -> mir::Expr {
         use mir::ExprKind;
         let stable = match &value.kind {
             ExprKind::Local(local) => !self.locals[*local].mutable,

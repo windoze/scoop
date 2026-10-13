@@ -91,8 +91,10 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 来源问题的修复已通过本机定向验收；Linux 留在后续本组定向验证中。当前 Tree 实现尚未提交，M42-4 不标记完成。
 
-### 新发现、待修复：嵌套 enum 的派生比较
+## M42-4 前置修复：嵌套 enum 的派生比较
 
 普通 `fun <T : Equals<T>> same(left: T?, right: T?): Boolean = (left, left) == (right, right)`，以 Int 调用，在 MIR 验证阶段被拒绝：VariantPayloadProject 缺少同一 stable value 上对应 VariantTest 的 true-edge 支配。最小复现为独立 core-only 程序，日志为 `target/m42/equality-repro/nested.stderr`。它不需要两个方法或跨 Cone 复用即可触发，与上述来源问题独立。
 
-定位线索：开放派生比较将嵌套 enum 保留为值字段投影，MIR 当前的 stable variant identity 只接受不可变 local；后续需处理合法嵌套值的 tag 检查与 payload 读取关系，不能删除必要的支配校验或改写 std 来绕过。工作区保留 `m42-regression-nested-derived-equality` 作为待闭合回归，尚未声明通过或提交。先修复此问题，再继续 M42。
+根因是开放派生比较重复展开值字段投影，没有让 tag 检查与后续 payload 使用同一个已保存的 enum 值。MIR lowering 现在在短路条件实际到达时保存嵌套 enum 字段，当前短路分支内对应的 test 与 payload 使用同一 immutable local；嵌套 payload 的取值保留在外层成功分支内，离开分支即结束复用。复用只匹配从不可变 local 出发的 typed value 字段／payload 路径，不合并 class 字段、调用或任意相同文本的表达式。MIR 与 codegen 的原有支配校验不变，没有产物格式、runtime ABI 或 std workaround 改动。
+
+独立 `m42-regression-nested-derived-equality` 覆盖 tuple、struct、嵌套 Option、不同字段与不同 payload，以及 Int/String 的 debug/release 与 moving GC。已执行格式化、全工作区 clippy 和 `cargo test -p scoop-mir-lower`，118 项通过。重建三个 CLI 后，正式定向回归 4/4、6 个变体、30 个进程通过：新增嵌套比较回归、此前的展开来源产物回归、`generic-equality-defaults` 和 `m33-equality-derived-field-semantics`；报告为 `target/m42/nested-equality-report.json`。命令使用 `--filter` 选择这四项，`--work-dir target/m42/foundation --jobs 4`，没有运行无关完整套件。Linux 留待本组统一定向验证。

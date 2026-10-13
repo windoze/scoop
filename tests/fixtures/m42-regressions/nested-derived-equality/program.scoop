@@ -1,0 +1,24 @@
+fun <T : Equals<T>> same(left: T?, right: T?): Boolean = (left, left) == (right, right)
+
+struct Box<T>(val value: T?)
+fun <T : Equals<T>> sameBox(left: T?, right: T?): Boolean = Box(left) == Box(right)
+fun <T : Equals<T>> sameNested(left: T?, right: T?): Boolean = Some(left) == Some(right)
+fun <T : Equals<T>> samePair(left: (T?, T?), right: (T?, T?)): Boolean = left == right
+
+fun verify(value: Boolean) {
+    if (!value) throw Exception(Some("nested equality"))
+}
+
+fun main() {
+    println(same<Int>(Some(1), None))
+    println(same<Int>(Some(1), Some(1)))
+    verify(!sameBox<Int>(Some(1), None))
+    verify(sameBox<Int>(Some(1), Some(1)))
+    verify(!sameBox<String>(Some("left"), Some("right")))
+    verify(sameNested<String>(Some("same"), Some("same")))
+    verify(!sameNested<String>(Some("left"), None))
+    verify(sameNested<String>(None, None))
+    verify(!samePair<Int>((Some(1), Some(2)), (Some(1), Some(3))))
+    verify(!samePair<Int>((Some(1), Some(2)), (Some(0), Some(2))))
+    verify(samePair<Int>((None, Some(2)), (None, Some(2))))
+}

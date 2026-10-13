@@ -204,6 +204,7 @@ pub(crate) fn lower(
         hidden_count: 0,
         generated_values: Vec::new(),
         call_sites: Vec::new(),
+        variant_operands: Vec::new(),
         return_ty,
         try_stack: Vec::new(),
         unwind_scope_count: 0,
@@ -255,6 +256,7 @@ struct CfgLowerer<'a> {
     hidden_count: usize,
     generated_values: Vec<GeneratedLocalValue>,
     call_sites: Vec<CallSite>,
+    variant_operands: Vec<(smir::Expr, mir::Expr)>,
     return_ty: mir::Type,
     try_stack: Vec<UnwindTarget>,
     unwind_scope_count: u32,
@@ -277,6 +279,7 @@ impl CfgLowerer<'_> {
 
 mod calls;
 mod pending;
+mod variant_operands;
 mod work;
 pub(crate) use pending::{CleanupContext, CleanupTransfer};
 pub(crate) use work::{CallSite, CallSiteKind, SuspendCall};
