@@ -223,3 +223,14 @@ Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个�
 - 两组向量在 debug／release 下分别以普通／moving GC 运行通过。artifacts 增加 Sequence→浮点解析组合，移除 core／std／应用源码后独立链接运行通过。证据 `target/m42/text-float-vectors-artifacts-report.json`：3 fixture、5 variant、22 process 均通过。
 
 Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `git diff --check`，普通 std 构建成功。初次生成脚本 lint 失败导致尚无源码的两个向量 Cone 构建失败，修正并生成向量后的正式验收均通过；没有库算法或底层失败。已清理完成的 case 与单次检查构建，保留报告及共享 cache。本批没有 compiler/runtime 修改，不运行无关完整套件。M42-7 已完成，M42-8～12 及 Linux GNU/musl 的本组最终验证继续实施。
+
+## M42-8 前置 API：浮点位型转换
+
+规范中的 toBits/fromBits 原先没有对应 core 声明；既有 addressOf 与 Ptr.cast/load 已能完整表达所需转换。现补充 Float.toBits(): Int、Float.fromBits(Int)、Double.toBits(): Long、Double.fromBits(Long)，均为普通 Scoop core 方法，不新增 intrinsic、native helper 或 compiler/runtime 修改。toBits 为 NoGC；fromBits 仍遵守 companion 引用 receiver 的普通 managed 调用规则。全部整数位型有效，转换保持 NaN sign／quiet／signaling／payload 和负零。
+
+先同步语言与 runtime 规范，再实现并运行定向 fixture：
+
+- `m42-core-bits` 在 debug／release、普通／moving／minor GC 下通过，覆盖固定 IEEE 位型、1024 组确定性样本、NoGC toBits 调用、companion 方法引用、tuple／array 保存。`target/m42/core-bits-values-report.json`：1 fixture、2 variant、8 process。
+- `m41-floating-ieee` 和扩充后的三 Cone `m41-floating-artifacts` 在相同 profile／GC 模式下通过；provider/relay/consumer 源码移除后的链接与跨库 payload 保持正确。通过记录见 `target/m42/core-bits-regressions-report.json` 的对应两项。初次新用例把 companion 方法引用写成未绑定实例方法引用，改为显式 Companion 后单独复验通过；未放宽语言规则。
+
+变更先检查源码风格与 `git diff --check`；清理已完成 case，保留报告与共享 cache。普通 core API 的定向回归已覆盖，本批不运行完整仓库测试。ByteArrayBuilder／Reader 与 Hex／Base64 继续按 M42-8 交付。

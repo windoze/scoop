@@ -23,6 +23,15 @@ public struct Float :
         public const val MAX_VALUE: Float = 3.4028234663852886e38f
         public const val MIN_VALUE: Float = 1.401298464324817e-45f
         public const val MIN_NORMAL: Float = 1.1754943508222875e-38f
+
+        public fun fromBits(bits: Int): Float {
+            @Unsafe { return addressOf(bits).cast<Float>().load() }
+        }
+    }
+
+    @NoGC
+    public fun toBits(): Int {
+        @Unsafe { return addressOf(this).cast<Int>().load() }
     }
 
     @NoGC @Intrinsic("float_unary_plus")
@@ -134,6 +143,15 @@ public struct Double :
         public const val MAX_VALUE: Double = 1.7976931348623157e308
         public const val MIN_VALUE: Double = 4.9406564584124654e-324
         public const val MIN_NORMAL: Double = 2.2250738585072014e-308
+
+        public fun fromBits(bits: Long): Double {
+            @Unsafe { return addressOf(bits).cast<Double>().load() }
+        }
+    }
+
+    @NoGC
+    public fun toBits(): Long {
+        @Unsafe { return addressOf(this).cast<Long>().load() }
     }
 
     @NoGC @Intrinsic("double_unary_plus")

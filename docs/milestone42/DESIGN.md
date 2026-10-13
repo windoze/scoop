@@ -75,6 +75,8 @@ kind = "library"
 
 std 的浮点解析尤其遵守此要求：现有 JSON 的 runtime parser 是 internal 路径，不可直接复用其 native symbol。text 使用普通 Scoop 实现精确十进制转换，目标结果直接舍入到 Float/Double。所需多精度 limb 操作只作为该算法的私有实现，不能变成公开 BigInteger 或通用 math 框架。
 
+字节库需要的浮点位型转换先在 core 补齐普通 toBits/fromBits 方法，以公开的 addressOf／Ptr.cast/load 读取同宽 GC-free 局部副本。该能力已经可由 Scoop 表达，仅补 API，不新增 compiler intrinsic 或 runtime helper。std 只调用安全的数值方法，不暴露或保存原始指针。
+
 解析先按有效位与十进制指数判定数量级，能确定 overflow/underflow 时直接得到规范要求的失败／带符号零；不能对明显不需要精确展开的巨大指数盲目构造 10 的幂。必要的精确后备按实际输入和目标精度计算，不用任意字符串长度或循环次数作为数值是否合法的条件。
 
 精确转换采用十进制整数／10 的幂形成的有理数，按目标二进制量级缩放后执行整数除法，以余数和商的奇偶性完成最近偶数舍入。最后将已舍入的至多 p+1 位整数乘以目标类型的精确 2 的幂；Float 路径完全不经过 Double。有限输入只有最终舍入到无穷才失败。

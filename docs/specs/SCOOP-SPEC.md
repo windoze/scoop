@@ -1826,6 +1826,8 @@ IEEE 相等对应 Equal，不等对应其余三种结果；小于/小于等于�
 
 **常量与表示。** 两种 companion 提供 `const val NaN`、`POSITIVE_INFINITY`、`NEGATIVE_INFINITY`、`MAX_VALUE`（最大正有限值）、`MIN_VALUE`（最小正 subnormal）与 `MIN_NORMAL`（最小正 normal）。NaN 常量固定为正 quiet NaN，Float 位型 `0x7fc00000`、Double 位型 `0x7ff8000000000000`。9.1.2 的浮点 const 运算使用同样的目标精度；产生 NaN 的算术 const 结果使用该类型的固定 quiet NaN，一元 sign 操作和同类型复制/转换仍保留其规定的位型。运行期算术不承诺 NaN 的 sign/payload 与 const 相同；普通存储、传参、返回和复制保持位型；默认比较不区分 NaN 位型。metadata 保存 kind 与 raw bits，保留负零和已确定的 NaN 表示。
 
+Float 提供 `toBits(): Int`，companion 提供 `fromBits(bits: Int): Float`；Double 对应 `toBits(): Long` 与 `fromBits(bits: Long): Double`。四个方法只重新解释同宽表示，保留全部位型，包括负零与 NaN 的 sign、quiet/signaling bit、payload，不按默认比较等价类归一化。它们是普通 core 方法，使用 13.10 的方法局部副本／参数取址和同宽 Ptr cast/load 实现，不增加 intrinsic 或 runtime helper，也不属于 const-call 集合。toBits 标记 `@NoGC`；fromBits 是 companion 的普通 managed 方法，遵循 companion receiver 的现有 GC 规则。所有 Int／Long 位型均为合法输入；安全调用者不需要 unsafe context。
+
 所有上述表示 intrinsic（包括浮点 `div/rem`）均为 `@NoGC`、ordinary；`toString` 和 codec 使用普通 core body，不属于 const-call 集合。`toString()` 输出不依赖 locale：有限值采用能按原精度读回相同位型的最短有效十进制数字，非零值规范化十进制指数在 `[-3, 7)` 时用定点，否则用科学记数法；始终有小数点和至少一位小数，科学指数用小写 `e`、不写正号或多余前导零。零分别为 `0.0` / `-0.0`，非有限值为 `NaN` / `Infinity` / `-Infinity`。不承诺 NaN payload 的文本往返。
 
 **组合与范围。** const、默认参数、annotation、literal pattern、generic/跨 Cone、boxing、数组、普通 aggregate 与 FFI 都保留实际浮点类型。literal pattern 按目标精度定型并用默认 `==` 匹配，正负零覆盖同一值；浮点域的穷尽检查始终要求覆盖剩余值的 wildcard，不能通过枚举字面量覆盖 NaN。NaN 可由 `isNaN()` guard 判断，guard 不提供穷尽证明。核心 companion codec 与 JSON 规则见 11.13，C ABI 见 13.8。不引入 FloatRange、隐式数值提升、额外的数值比较接口层次、Hash conformance、通用数学包或 128 位数值类型。
