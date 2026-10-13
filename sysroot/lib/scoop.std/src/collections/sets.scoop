@@ -8,4 +8,5 @@ public interface MutableSet<T> : Set<T> {
     public fun add(value: T): Boolean
     public fun remove(value: T): Boolean
     public fun clear(): Unit
+    public fun retainAll(elements: Iterable<T>): Boolean
 }

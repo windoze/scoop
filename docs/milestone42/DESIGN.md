@@ -90,9 +90,11 @@ std 的浮点解析尤其遵守此要求：现有 JSON 的 runtime parser 是 in
 
 M42-2 具体采用线性探测、empty/full/deleted 三态槽和缓存完整 hash。已占用槽（含 deleted）达到容量的 3/4 后，下次插入清理墓碑或扩容；rehash 不调用用户代码。状态与 typed entry 分开存储，删除将 entry 的 MaybeUninit 重置为全零。三态与删除后继续探测的资料参考 [Abseil 官方设计说明](https://abseil.io/about/design/swisstables)；其工程使用 [Apache-2.0 许可](https://github.com/abseil/abseil-cpp/blob/master/LICENSE)。这里独立实现标量线性探测，没有移植 C++ 源码、SIMD/group 探测或引入 native 依赖。
 
+M42-3 的 LinkedHashMap 复用 HashMap 的 key→Long 位置索引，另以 ArrayList 内联保存带前后链接的 entry。已删除槽切换为只含 free-list 索引的 enum variant，释放旧 key/value 引用；复用空槽不改变插入次序链。内部查找与无回调的提交步骤分开，LinkedHashMap 查找后只调用一次插入／删除提交，避免在顺序链修改过程中再次执行用户 hash/equals。iterator 仅保存共享存储和位置，不保存旧 backing 或节点值。
+
 ### 3.3 泛型 API 可实现性
 
-interface method 不声明自身泛型。Map/Set 接口不对所有 K/T 强加 Hash，Hash 容器才具有 Equals+Hash bound；Tree 构造器显式接收 Comparator，自然顺序工厂在普通 generic callable 上声明 Compare bound。
+interface method 不声明自身泛型。Map/Set 接口不对所有 K/T 强加 Hash，Hash 容器才具有 Equals+Hash bound；Tree 构造器显式接收 Comparator，自然顺序工厂在普通 generic callable 上声明 Compare bound。MutableSet.retainAll 是使用接口自身 T 的普通成员，由实现提供目标等价语义；其余适用批量操作保留泛型扩展。
 
 Comparator/Random 的普通 interface 不依赖 SAM 自动转换。comparatorOf 接收真实函数值并返回普通实现；Random 的 derived sampling 使用 default body 或扩展。Sequence 的转换是带额外类型参数的 generic extension，iterator 状态在普通 class 中，避免捕获外层局部 var 或 suspend yield。
 

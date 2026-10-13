@@ -55,4 +55,21 @@ TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py \
 
 本机 `aarch64-apple-darwin` 最终 7/7 fixture、24 个进程通过，报告另存为 `target/m42/hash-report.json`。五个运行用例均包含普通和 moving GC 执行，两个 negative 精确验证缺少 Hash／Equals bound 的位置与信息。覆盖同 hash 碰撞、跨删除槽查找、增长／墓碑清理、原 key 保留、live view、Entry 独立值、永久耗尽与失效 iterator、hash/equals 异常及重入、producer 语义、嵌套 Option、零大小 key、命名 set、引用释放，以及与独立数组模型逐次对照的 600 次操作。
 
-复用同一工作目录时，切换 suite 前先清理已完成的 `cases` 子目录，避免旧测试留下的显式 std 产物优先于新源码；保留共享编译缓存和具名报告。源码变化时同步 runner 的 sysroot 副本。最终验收仍待 M42-3 至 M42-12 与 Linux 两目标闭合。
+复用同一工作目录时，切换 suite 前先清理已完成的 `cases` 子目录，避免旧测试留下的显式 std 产物优先于新源码；保留共享编译缓存和具名报告。源码变化时同步 runner 的 sysroot 副本。
+
+## M42-3：插入顺序集合、快照与批量操作
+
+日期：2026-10-13。新增 LinkedHashMap/LinkedHashSet、linkedMapOf/linkedSetOf，以及默认 mapOf/setOf、mutableMapOf/mutableSetOf、emptyMap/emptySet。Map 和 tuple Iterable 均有独立的 toMap/toMutableMap，Iterable 有 toSet/toMutableSet；只读快照使用不实现 Mutable 接口的独立包装。新增 List/Set 的 addAll/removeAll/retainAll、Map.putAll、union/intersect/subtract。
+
+LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链接保持顺序；替换保留最早 key 与位置，删除重插移到末尾。每次查找后提交不再调用用户方法。HashMap 增加的内部提交函数同时由原 public 操作与 LinkedHashMap 实际使用，没有新增底层实现。
+
+规范先修正 MutableSet.retainAll：它需要目标自己的等价关系，因此成为接口的普通成员，不强加 Equals/Hash bound 或引入泛型虚方法。Hash/Linked 实现按相同哈希等价规则建立 membership，自定义实现和后续 Sorted 实现分别保留其规则。批量输入先取快照；之后逐元素提交，失败保留成功前缀。
+
+### 验证与证据
+
+本机 `aarch64-apple-darwin` 新增 9 个 linked fixture，连同受内部提交和 MutableSet 接口调整影响的 7 个 hash fixture 已覆盖通过。普通运行用例同时执行 moving GC；本批无 Rust/C/Python 实现变更，测试前运行 `git diff --check`。
+
+- `target/m42/linked-components-report.json`：`--filter 'm42-linked-*' --filter 'm42-hash-*' --jobs 4`，13 项通过；两个只读 negative 的预期诊断随后填入。覆盖增长顺序、原 key 保留、删除重插与空槽复用、600 次独立模型对照、异常／重入、live views、快照、批量自引用、成功前缀、值类型与引用释放。
+- `target/m42/linked-final-report.json`：本组 suite 中 exact filter 选择 artifacts、bulk 和 readonly 两项，4/4 通过。补齐只读 Map/Set 的精确拒绝诊断、通过 MutableSet 接口使用自定义等价规则的 retainAll，以及移除源码后的 std 产物消费和独立链接运行。
+
+两轮均使用 `TMPDIR="$PWD/target/m42/scratch" python3 tests/run_fixtures.py --work-dir target/m42/foundation`。仍没有发现需要修复的底层宿主实现缺陷。M42-4 至 M42-12 和 Linux GNU/musl 定向验收尚未完成。

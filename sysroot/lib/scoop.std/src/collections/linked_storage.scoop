@@ -1,0 +1,77 @@
+package scoop.collections
+
+internal struct LinkedEntry<K, V>(val key: K, val value: V, val previous: Long, val next: Long)
+
+internal enum LinkedSlot<K, V> {
+    Free(Long),
+    Occupied(LinkedEntry<K, V>)
+}
+
+internal class LinkedStorage<K, V> {
+    private val slots: ArrayList<LinkedSlot<K, V>> = ArrayList<LinkedSlot<K, V>>()
+    private var free: Long = -1L
+    private var head: Long = -1L
+    private var tail: Long = -1L
+
+    internal val first: Long get() = head
+
+    internal fun read(index: Long): LinkedEntry<K, V> = when (slots[index]) {
+        case LinkedSlot.Occupied(entry) -> entry
+        case LinkedSlot.Free(_) -> throw IllegalStateException(Some("unused linked entry"))
+    }
+
+    private fun write(index: Long, entry: LinkedEntry<K, V>) {
+        slots[index] = LinkedSlot.Occupied(entry)
+    }
+
+    private fun setNext(index: Long, next: Long) {
+        val entry = read(index)
+        write(index, LinkedEntry<K, V>(entry.key, entry.value, entry.previous, next))
+    }
+
+    private fun setPrevious(index: Long, previous: Long) {
+        val entry = read(index)
+        write(index, LinkedEntry<K, V>(entry.key, entry.value, previous, entry.next))
+    }
+
+    internal fun replace(index: Long, value: V): V {
+        val entry = read(index)
+        write(index, LinkedEntry<K, V>(entry.key, value, entry.previous, entry.next))
+        return entry.value
+    }
+
+    internal fun append(key: K, value: V): Long {
+        val index = if (free < 0L) {
+            val index = slots.size
+            slots.add(LinkedSlot.Free(-1L))
+            index
+        } else {
+            val index = free
+            free = when (slots[index]) {
+                case LinkedSlot.Free(next) -> next
+                case LinkedSlot.Occupied(_) -> throw IllegalStateException(Some("occupied free entry"))
+            }
+            index
+        }
+        write(index, LinkedEntry<K, V>(key, value, tail, -1L))
+        if (tail < 0L) head = index else setNext(tail, index)
+        tail = index
+        return index
+    }
+
+    internal fun remove(index: Long): V {
+        val entry = read(index)
+        if (entry.previous < 0L) head = entry.next else setNext(entry.previous, entry.next)
+        if (entry.next < 0L) tail = entry.previous else setPrevious(entry.next, entry.previous)
+        slots[index] = LinkedSlot.Free(free)
+        free = index
+        return entry.value
+    }
+
+    internal fun clear() {
+        slots.clear()
+        head = -1L
+        tail = -1L
+        free = -1L
+    }
+}

@@ -1,0 +1,19 @@
+package scoop.collections
+
+public class LinkedHashSet<T> public constructor() : MutableSet<T> where T : Equals<T>, T : Hash {
+    private val elements: LinkedHashMap<T, Unit> = LinkedHashMap<T, Unit>()
+
+    public override val size: Long get() = elements.size
+    public override operator fun contains(value: T): Boolean = elements.containsKey(value)
+    public override fun add(value: T): Boolean = when (elements.putIfAbsent(value, Unit)) {
+        case None -> true
+        case Some(_) -> false
+    }
+    public override fun remove(value: T): Boolean = when (elements.remove(value)) {
+        case None -> false
+        case Some(_) -> true
+    }
+    public override fun clear() { elements.clear() }
+    public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
+    public override fun retainAll(elements: Iterable<T>): Boolean = retainHashed<T>(this, elements)
+}

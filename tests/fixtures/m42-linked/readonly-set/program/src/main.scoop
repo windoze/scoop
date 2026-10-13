@@ -1,0 +1,6 @@
+import scoop.collections.*
+
+fun main() {
+    val values = setOf<Int>(1, 2)
+    values.add(3)
+}

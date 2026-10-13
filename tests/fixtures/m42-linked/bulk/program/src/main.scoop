@@ -1,0 +1,63 @@
+import scoop.collections.*
+
+fun check(value: Boolean, label: String) {
+    if (!value) throw Exception(Some(label))
+}
+
+class Broken : Iterable<Int>, Iterator<Int> {
+    private var emitted: Boolean = false
+    public override operator fun iterator(): Iterator<Int> = this
+    public override fun next(): Int? {
+        if (emitted) throw Exception(Some("input failed"))
+        emitted = true
+        return Some(7)
+    }
+}
+
+class Key(val number: Int) : Equals<Key>, Hash {
+    public override operator fun equals(other: Key): Boolean = number == other.number
+    public override fun hash(): Long {
+        if (number == 2) throw Exception(Some("key failed"))
+        return 0L
+    }
+}
+
+fun main() {
+    val list = mutableListOf<Int>(1, 2, 1)
+    list.addAll(list)
+    check(list.size == 6L && list[3L] == 1, "self addAll list")
+    check(list.removeAll(listOf<Int>(1)) && list.size == 2L && list[0L] == 2, "remove every occurrence")
+    check(!list.retainAll(list) && list.size == 2L, "self retainAll list")
+    check(list.retainAll(emptyList<Int>()) && list.isEmpty(), "retain empty list")
+    list.addAll(listOf<Int>(3, 4))
+    check(list.removeAll(list) && list.isEmpty(), "self removeAll list")
+    val set: MutableSet<Int> = mutableSetOf<Int>(3, 1, 2)
+    val unchanged = set.iterator()
+    check(!set.addAll(set) && !set.retainAll(set), "self set no-ops")
+    check(unchanged.next() == Some(3), "retain no-op iterator")
+    check(set.retainAll(listOf<Int>(2, 3, 3)), "retain subset")
+    val order = set.toList()
+    check(order[0L] == 3 && order[1L] == 2, "retain order")
+    check(set.addAll(listOf<Int>(2, 4)) && set.size == 3L, "set addAll")
+    check(set.removeAll(set) && set.isEmpty(), "self removeAll set")
+    val hash: MutableSet<Int> = hashSetOf<Int>(1, 2, 3)
+    check(hash.retainAll(listOf<Int>(2)) && hash.size == 1L && 2 in hash, "hash retain")
+    val custom: MutableSet<Int> = ModuloSet()
+    custom.addAll(listOf<Int>(1, 2))
+    check(custom.retainAll(listOf<Int>(11)) && custom.size == 1L && 1 in custom, "target equivalence")
+    val map = mutableMapOf<Int, String>((1, "one"), (2, "two"))
+    val pending = map.iterator()
+    map.putAll(map)
+    check(pending.next()!!.key == 1, "self putAll")
+    map.putAll(listOf<(Int, String)>((2, "changed"), (3, "three")))
+    check(map.size == 3L && map[2] == Some("changed"), "tuple putAll")
+    var caught = false
+    try { list.addAll(Broken()) } catch (error: Exception) { caught = true }
+    check(caught && list.isEmpty(), "snapshot failure before writes")
+    val failing = LinkedHashSet<Key>()
+    caught = false
+    try { failing.addAll(listOf<Key>(Key(1), Key(2), Key(3))) }
+    catch (error: Exception) { caught = true }
+    check(caught && failing.size == 1L && failing.iterator().next()!!.number == 1, "successful prefix")
+    println("linked bulk passed")
+}

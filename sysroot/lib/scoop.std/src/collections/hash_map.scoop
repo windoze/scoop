@@ -15,7 +15,7 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
     public override val values: Collection<V> get() = MapValues<K, V>(this)
     public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
 
-    private fun locate(key: K): HashLocation {
+    internal fun locate(key: K): HashLocation {
         val stamp = changes.snapshot()
         val hash = key.hash()
         changes.check(stamp)
@@ -65,25 +65,36 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
             }
             return Some(old.value)
         }
+        insertAbsent(key, value, location.hash)
+        return None
+    }
+
+    // The caller has completed lookup; no user callbacks run while committing.
+    internal fun insertAbsent(key: K, value: V, hash: Long) {
         ensureRoom()
-        val index = storage.vacant(location.hash)
+        val index = storage.vacant(hash)
         if (storage.states[index] == 0) occupied += 1L
-        storage.write(index, HashEntry<K, V>(key, value, location.hash))
+        storage.write(index, HashEntry<K, V>(key, value, hash))
         elementCount += 1L
         changes.advance()
         structure.advance()
-        return None
     }
 
     public override fun remove(key: K): V? {
         val location = locate(key)
         if (location.index < 0L) return None
-        val value = storage.read(location.index).value
-        storage.erase(location.index)
+        return Some(removeAt(location.index))
+    }
+
+    internal fun valueAt(index: Long): V = storage.read(index).value
+
+    internal fun removeAt(index: Long): V {
+        val value = storage.read(index).value
+        storage.erase(index)
         elementCount -= 1L
         changes.advance()
         structure.advance()
-        return Some(value)
+        return value
     }
 
     public override fun clear() {

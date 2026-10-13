@@ -15,6 +15,7 @@ public class HashSet<T> public constructor() : MutableSet<T> where T : Equals<T>
     }
     public override fun clear() { elements.clear() }
     public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
+    public override fun retainAll(elements: Iterable<T>): Boolean = retainHashed<T>(this, elements)
 }
 
 public fun <K, V> hashMapOf(vararg entries: (K, V)): HashMap<K, V>

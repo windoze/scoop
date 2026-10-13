@@ -1,0 +1,38 @@
+import scoop.collections.*
+
+fun check(value: Boolean, label: String) {
+    if (!value) throw Exception(Some(label))
+}
+
+fun main() {
+    val map = LinkedHashMap<Int, Int?>()
+    val values = MutableArray<Int??>(37L) { _ -> None }
+    val order = ArrayList<Int>()
+    var step = 0
+    while (step < 600) {
+        val key = (step * 17) % 37
+        val slot = key.toInt64()
+        if (step % 5 == 0) {
+            check(map.remove(key) == values[slot], "remove result")
+            if (values[slot] != None) {
+                var at = 0L
+                while (order[at] != key) at += 1L
+                order.removeAt(at)
+            }
+            values[slot] = None
+        } else {
+            val value: Int? = if (step % 7 == 0) None else Some(step)
+            check(map.put(key, value) == values[slot], "put result")
+            if (values[slot] == None) order.add(key)
+            values[slot] = Some(value)
+        }
+        var index = 0L
+        for ((actualKey, actualValue) in map) {
+            check(actualKey == order[index] && Some(actualValue) == values[actualKey.toInt64()], "model entry")
+            index += 1L
+        }
+        check(map.size == order.size && index == order.size, "model size")
+        step += 1
+    }
+    println("linked model passed")
+}

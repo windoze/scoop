@@ -1,0 +1,92 @@
+package scoop.collections
+
+public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
+    where K : Equals<K>, K : Hash {
+    private val positions: HashMap<K, Long> = HashMap<K, Long>()
+    private val storage: LinkedStorage<K, V> = LinkedStorage<K, V>()
+    private val changes: ModificationCounter = ModificationCounter()
+    private val structure: ModificationCounter = ModificationCounter()
+
+    public override val size: Long get() = positions.size
+    public override val keys: Set<K> get() = MapKeys<K, V>(this)
+    public override val values: Collection<V> get() = MapValues<K, V>(this)
+    public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
+
+    private fun locate(key: K): HashLocation {
+        val stamp = changes.snapshot()
+        val location = positions.locate(key)
+        changes.check(stamp)
+        return location
+    }
+
+    public override operator fun get(key: K): V? {
+        val location = locate(key)
+        return if (location.index < 0L) None else Some(storage.read(positions.valueAt(location.index)).value)
+    }
+
+    public override fun containsKey(key: K): Boolean = locate(key).index >= 0L
+
+    public override fun put(key: K, value: V): V? = putEntry(key, value, true)
+
+    internal fun putIfAbsent(key: K, value: V): V? = putEntry(key, value, false)
+
+    private fun putEntry(key: K, value: V, replace: Boolean): V? {
+        val location = locate(key)
+        if (location.index >= 0L) {
+            val index = positions.valueAt(location.index)
+            val old = storage.read(index).value
+            if (replace) {
+                storage.replace(index, value)
+                changes.advance()
+            }
+            return Some(old)
+        }
+        val index = storage.append(key, value)
+        positions.insertAbsent(key, index, location.hash)
+        changes.advance()
+        structure.advance()
+        return None
+    }
+
+    public override fun remove(key: K): V? {
+        val location = locate(key)
+        if (location.index < 0L) return None
+        val index = positions.removeAt(location.index)
+        val value = storage.remove(index)
+        changes.advance()
+        structure.advance()
+        return Some(value)
+    }
+
+    public override fun clear() {
+        if (size == 0L) return
+        positions.clear()
+        storage.clear()
+        changes.advance()
+        structure.advance()
+    }
+
+    public override operator fun iterator(): Iterator<Map.Entry<K, V>> =
+        LinkedIterator<K, V>(storage, structure)
+}
+
+internal class LinkedIterator<K, V> internal constructor(
+    private val storage: LinkedStorage<K, V>,
+    private val structure: ModificationCounter
+) : Iterator<Map.Entry<K, V>> {
+    private val stamp: RevisionStamp = structure.snapshot()
+    private var index: Long = storage.first
+    private var exhausted: Boolean = false
+
+    public override fun next(): Map.Entry<K, V>? {
+        if (exhausted) return None
+        structure.check(stamp)
+        if (index < 0L) {
+            exhausted = true
+            return None
+        }
+        val entry = storage.read(index)
+        index = entry.next
+        return Some(Map.Entry<K, V>(entry.key, entry.value))
+    }
+}

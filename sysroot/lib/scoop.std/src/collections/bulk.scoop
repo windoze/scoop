@@ -1,0 +1,75 @@
+package scoop.collections
+
+public fun <T> MutableList<T>.addAll(elements: Iterable<T>) {
+    val snapshot = elements.toList()
+    for (element in snapshot) add(element)
+}
+
+public fun <T> MutableSet<T>.addAll(elements: Iterable<T>): Boolean {
+    val snapshot = elements.toList()
+    var changed = false
+    for (element in snapshot) {
+        if (add(element)) changed = true
+    }
+    return changed
+}
+
+public fun <K, V> MutableMap<K, V>.putAll(entries: Iterable<(K, V)>) {
+    val snapshot = entries.toList()
+    for ((key, value) in snapshot) put(key, value)
+}
+
+public fun <K, V> MutableMap<K, V>.putAll(entries: Map<K, V>) {
+    val snapshot = entries.toList()
+    for ((key, value) in snapshot) put(key, value)
+}
+
+public fun <T> MutableSet<T>.removeAll(elements: Iterable<T>): Boolean {
+    val snapshot = elements.toList()
+    var changed = false
+    for (element in snapshot) {
+        if (remove(element)) changed = true
+    }
+    return changed
+}
+
+internal fun <T> retainHashed(target: MutableSet<T>, elements: Iterable<T>): Boolean
+    where T : Equals<T>, T : Hash {
+    val snapshot = elements.toList()
+    val keep = HashSet<T>()
+    for (element in snapshot) keep.add(element)
+    val original = target.toList()
+    var changed = false
+    for (element in original) {
+        if (!keep.contains(element) && target.remove(element)) changed = true
+    }
+    return changed
+}
+
+private fun <T : Equals<T>> matchesAny(value: T, elements: List<T>): Boolean {
+    for (element in elements) {
+        if (value == element) return true
+    }
+    return false
+}
+
+private fun <T : Equals<T>> filterList(target: MutableList<T>, elements: Iterable<T>, retain: Boolean): Boolean {
+    val snapshot = elements.toList()
+    var index = 0L
+    var changed = false
+    while (index < target.size) {
+        if (matchesAny<T>(target[index], snapshot) != retain) {
+            target.removeAt(index)
+            changed = true
+        } else {
+            index += 1L
+        }
+    }
+    return changed
+}
+
+public fun <T : Equals<T>> MutableList<T>.removeAll(elements: Iterable<T>): Boolean =
+    filterList<T>(this, elements, false)
+
+public fun <T : Equals<T>> MutableList<T>.retainAll(elements: Iterable<T>): Boolean =
+    filterList<T>(this, elements, true)

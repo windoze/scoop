@@ -1,0 +1,25 @@
+package scoop.collections
+
+public infix fun <T> Iterable<T>.union(other: Iterable<T>): Set<T> where T : Equals<T>, T : Hash {
+    val result = LinkedHashSet<T>()
+    for (element in this) result.add(element)
+    for (element in other) result.add(element)
+    return SetSnapshot<T>(result)
+}
+
+private fun <T> selectSet(source: Iterable<T>, other: Iterable<T>, retain: Boolean): Set<T>
+    where T : Equals<T>, T : Hash {
+    val membership = HashSet<T>()
+    for (element in other) membership.add(element)
+    val result = LinkedHashSet<T>()
+    for (element in source) {
+        if (membership.contains(element) == retain) result.add(element)
+    }
+    return SetSnapshot<T>(result)
+}
+
+public infix fun <T> Iterable<T>.intersect(other: Iterable<T>): Set<T> where T : Equals<T>, T : Hash =
+    selectSet<T>(this, other, true)
+
+public infix fun <T> Iterable<T>.subtract(other: Iterable<T>): Set<T> where T : Equals<T>, T : Hash =
+    selectSet<T>(this, other, false)

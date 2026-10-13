@@ -54,14 +54,14 @@ Collection 不要求 T 可比较；`isEmpty/isNotEmpty` 是普通扩展，按值
 
 ### 2.2 Map、Set 与视图
 
-接口的最小交付表面如下；泛型扩展负责 bulk 和组合操作，不把它们变成 generic interface method。
+接口的最小交付表面如下；大部分 bulk 和组合操作由泛型扩展提供，不引入 generic interface method。retainAll 需要访问目标 Set 的等价关系，作为 MutableSet 的普通非泛型成员。
 
 | 类型 | 必须提供的成员 |
 | --- | --- |
 | `Map<K, V>` | `size: Long`、`get(key): V?`、`containsKey(key): Boolean`、`keys: Set<K>`、`values: Collection<V>`、`entries: Collection<Map.Entry<K, V>>`、按 entry 的 iterator |
 | `MutableMap<K, V> : Map<K, V>` | `put(key, value): V?`、`set(key, value): Unit`、`remove(key): V?`、`clear(): Unit` |
 | `Set<T> : Collection<T>` | `contains(value): Boolean`，实现 Contains<T> |
-| `MutableSet<T> : Set<T>` | `add(value): Boolean`、`remove(value): Boolean`、`clear(): Unit` |
+| `MutableSet<T> : Set<T>` | `add(value): Boolean`、`remove(value): Boolean`、`clear(): Unit`、`retainAll(elements: Iterable<T>): Boolean` |
 | `Map.Entry<K, V>` | 普通 struct，两个 public val 字段 key/value，按既有 struct 规则解构 |
 
 Map 实现 `Get<K, Option<V>>`、`Iterable<Map.Entry<K,V>>` 与 `Contains<K>`，operator contains 委托 containsKey；MutableMap 另实现 core 的下标赋值接口 `Set<K, V>`（使用上述 IndexSet alias）。Map 的 K/V、Set 的 T 在接口层不要求 Hash/Equals，具体实现确定 key/element 的等价关系。containsValue 是单独要求 `V : Equals<V>` 的扩展。
@@ -101,6 +101,8 @@ listOf 返回独立只读快照，mutableListOf 返回新的 ArrayList；setOf/m
 交付 addAll、putAll、removeAll、retainAll、union、intersect、subtract。默认集合运算以 Equals+Hash 建立 LinkedHashSet，保留左输入顺序，union 继续追加右侧新元素；即使来源是 TreeSet，也按结果容器的 Equals+Hash 解释等价关系。需要自定义排序等价关系时，显式提供目标集合，按目标 contains/add 执行。批量操作逐元素提交，异常保留成功前缀，不隐含事务。
 
 Iterable 型批量输入先取得本次元素快照，再修改目标，保证 addAll(self)、putAll(self)、removeAll(self)、retainAll(self) 不依赖失效 iterator；快照期间失败不修改目标。MutableList.addAll 返回 Unit，MutableSet.addAll 返回是否新增元素；removeAll/retainAll 返回是否删除元素，putAll 返回 Unit。List 按值删除要求 Equals，Set 使用目标自己的等价关系；不为它们增加共同的可变父接口。
+
+MutableSet.retainAll 由实现按自身等价关系建立输入 membership，再只移除不保留的原元素；保留元素的位置、对象与未变化时的 iterator 有效性不变。Hash 系列使用 Equals+Hash，Sorted 系列使用原 Comparator，自定义 Set 对其规则负责。该方法不声明额外的类型参数；仅有 contains/remove 的通用扩展无法为任意 Set 推导元素等价关系，因此不以默认 Equals 偷换目标语义。
 
 ### 2.5 迭代、异常和存储
 
