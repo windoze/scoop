@@ -6,7 +6,10 @@ use std::collections::HashMap;
 
 use crate::{Lowerer, Owner};
 
+mod catalogue;
 mod markers;
+mod shapes;
+use catalogue::PendingContainer;
 use markers::TestMarker;
 
 impl Lowerer {
@@ -25,7 +28,7 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn validate_test_declarations(&mut self) {
+    pub(crate) fn discover_tests(&mut self) {
         let mut targets = self
             .annotation_metadata
             .targets
@@ -56,7 +59,7 @@ impl Lowerer {
             };
             match owner {
                 hir::NominalOwner::Class(class) if self.valid_test_container(class) => {
-                    containers.insert(class, *origin);
+                    containers.insert(class, PendingContainer::new(class, *origin));
                 }
                 _ => self.test_annotation_error(*origin,
                     "a test container must be a top-level non-generic concrete class; abstract, sealed, local and nested declarations are not allowed".into()),
@@ -118,6 +121,25 @@ impl Lowerer {
                 self.test_annotation_error(origin, format!("invalid test or lifecycle method: {reason}; expected a safe synchronous instance method with no parameters or type parameters returning Unit"));
             }
             for &(marker, origin) in roles {
+                let method = hir::TestMethod {
+                    function,
+                    name: self.source_function_declarations[&function].name.clone(),
+                    origin,
+                };
+                match marker {
+                    TestMarker::Test => {
+                        let reason = self.test_ignore_reason(target);
+                        containers
+                            .get_mut(&class)
+                            .unwrap()
+                            .cases
+                            .push((method, reason));
+                    }
+                    TestMarker::Before => containers.get_mut(&class).unwrap().before = Some(method),
+                    TestMarker::After => containers.get_mut(&class).unwrap().after = Some(method),
+                    TestMarker::Ignore => unreachable!("Ignore is not a method role"),
+                }
+
                 if matches!(marker, TestMarker::Before | TestMarker::After)
                     && let Some(previous) = hooks.insert((class, marker), origin)
                 {
@@ -139,55 +161,22 @@ impl Lowerer {
                 }
             }
         }
-    }
-
-    fn valid_test_container(&self, class: hir::ClassId) -> bool {
-        let declaration = &self.classes[class];
-        let Some(identity) = self.nominal_identity(Owner::Class(class)).source() else {
-            return false;
-        };
-        let identity = identity.declaration();
-        declaration.owner.is_none()
-            && !matches!(
-                identity.scope(),
-                scoop_identity::DeclarationScope::LexicalScoped { .. }
-            )
-            && declaration.type_params.is_empty()
-            && declaration.modifier != hir::ClassModifier::Abstract
-            && matches!(declaration.inheritance_family, hir::InheritanceFamily::Open)
-            && declaration.is_declared()
-    }
-
-    fn test_method_rejection(&self, function: hir::FunctionId) -> Option<&'static str> {
-        let declaration = &self.functions[function];
-        if declaration.method.is_none() {
-            return Some("missing instance receiver");
+        if self.diagnostics.is_empty() {
+            let mut pending = containers.into_values().collect::<Vec<_>>();
+            pending.sort_by_key(|container| {
+                (
+                    self.intrinsic_sources[container.origin.file as usize]
+                        .identity
+                        .logical_path(),
+                    container.origin.span.start,
+                )
+            });
+            for container in pending {
+                if let Some(container) = self.finish_test_container(container) {
+                    self.test_containers.push(container);
+                }
+            }
         }
-        if self.extension_receivers.contains_key(&function) {
-            return Some("extension receiver is not allowed");
-        }
-        if !declaration.context_parameters.is_empty() {
-            return Some("context parameters are not allowed");
-        }
-        if declaration.params.len() != 1 {
-            return Some("value parameters are not allowed, including defaulted parameters");
-        }
-        if !matches!(declaration.genericity, hir::FunctionGenericity::Plain) {
-            return Some("type parameters are not allowed");
-        }
-        if declaration.is_suspend {
-            return Some("suspend is not allowed");
-        }
-        if declaration.return_ty != self.unit {
-            return Some("return type must be Unit");
-        }
-        if declaration.attributes.safety != hir::Safety::Safe {
-            return Some("unsafe calls are not allowed");
-        }
-        if !matches!(declaration.kind, hir::FunctionKind::User(_)) {
-            return Some("a Scoop function body is required");
-        }
-        None
     }
 
     fn test_annotation_error(&mut self, origin: hir::DefinitionOrigin, message: String) {

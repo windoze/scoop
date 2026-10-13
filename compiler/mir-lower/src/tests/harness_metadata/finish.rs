@@ -613,6 +613,7 @@ impl Harness {
         let source_parameter_interfaces = self.test_parameter_interfaces();
         let module = hir::Module {
             annotations: hir::SourceAnnotations::default(),
+            test_containers: Vec::new(),
             release_hooks: Arena::new(),
             cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             nominal_identities,

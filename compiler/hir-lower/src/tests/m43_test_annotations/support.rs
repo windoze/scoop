@@ -24,6 +24,12 @@ pub(super) fn lower(
     text: &str,
     role: SourceRole,
 ) -> Result<hir::DependencyHirOutput, Vec<ast::Diagnostic>> {
+    lower_files(&[("tests/check.scoop", text, role)])
+}
+
+pub(super) fn lower_files(
+    files: &[(&str, &str, SourceRole)],
+) -> Result<hir::DependencyHirOutput, Vec<ast::Diagnostic>> {
     let core = marker_core();
     let cone = ConeCoordinate::new("scoop", "scoop.test", "0.1.0")
         .unwrap()
@@ -32,21 +38,24 @@ pub(super) fn lower(
     let identity =
         |path| SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap();
     let marker_identity = identity("src/markers.scoop");
-    let test_identity = identity("tests/check.scoop");
+    let identities = files
+        .iter()
+        .map(|(path, _, _)| identity(path))
+        .collect::<Vec<_>>();
     let sources = scoop_parser::parse_current_cone(ast::NonEmptyVec::new(
         scoop_parser::CurrentConeSourceInput::new(
             &marker_identity,
             MARKERS,
             "src/markers.scoop".as_ref(),
         ),
-        vec![
-            scoop_parser::CurrentConeSourceInput::new(
-                &test_identity,
-                text,
-                "tests/check.scoop".as_ref(),
-            )
-            .with_role(role),
-        ],
+        files
+            .iter()
+            .zip(&identities)
+            .map(|((path, text, role), identity)| {
+                scoop_parser::CurrentConeSourceInput::new(identity, text, path.as_ref())
+                    .with_role(*role)
+            })
+            .collect(),
     ))
     .unwrap();
     let world = core.world(sources.cone());
@@ -55,6 +64,10 @@ pub(super) fn lower(
         core.foundation.import_core_inputs(&core.interface).unwrap(),
         &world,
     )
-    .unwrap();
+    .unwrap()
+    .with_source_names(std::collections::BTreeMap::from([(
+        cone,
+        "scoop:scoop.test:0.1.0".into(),
+    )]));
     lower_current_cone(RequestedConeKind::Library, &input)
 }

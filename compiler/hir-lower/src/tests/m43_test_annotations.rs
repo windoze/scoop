@@ -1,6 +1,7 @@
 use scoop_ast as ast;
 use scoop_identity::SourceRole;
 
+mod discovery;
 mod imports;
 mod support;
 use support::lower;

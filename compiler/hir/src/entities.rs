@@ -29,6 +29,8 @@ pub struct Module {
     /// Total persistent identity relation for transparent source aliases.
     pub type_alias_identities: HirTypeAliasIdentities,
     pub annotations: SourceAnnotations,
+    /// Only current-target test declarations, never imported dependency cases.
+    pub test_containers: Vec<TestContainer>,
     /// Total persistent identity relation for source enum variants and fields.
     pub enum_member_identities: HirEnumMemberIdentities,
     /// Total persistent identity relation for struct and class storage fields.

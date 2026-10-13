@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言、四种测试标记已完成 | 普通 scoop.test Cone、8 个断言函数、失败数据、Test/BeforeTest/AfterTest/Ignore；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择与定义处声明／依赖候选隔离已完成；测试用途编排与依赖接入待实施 | test.sources/test-dependencies 解码；源码角色贯穿发现、解析与前端；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 入口身份与产物传递、注解及声明形态检查已完成；构造选择、静态目录、前端合成与生命周期待实施 | Source／Generated 封闭入口声明、TestEntry key、HIR/MIR/LIR metadata、源码角色与测试声明检查 |
+| M43-3 静态发现与生命周期入口 | 入口身份与产物传递、声明检查、前端静态目录及构造选择已完成；目录持久化、入口合成与生命周期待实施 | Source／Generated 入口、TestEntry key、HIR/MIR/LIR metadata；当前目标 typed 容器／构造器／方法目录 |
 | M43-4 CLI 与运行报告 | 待实施 | |
 | M43-5 scoop.std 应用、产物与平台验收 | 待实施 | |
 
@@ -75,3 +75,13 @@
 - Darwin 正式 CLI 的 5 项新负例与原有 10 项断言 fixture 全部通过，共 21 个变体、39 个进程步骤；新负例精确检查四种标记及 alias／跨库 re-export 的生产源码诊断和位置，断言回归包含 debug/release、跨 Cone 调用位置及 moving GC，见[报告](validation/markers-darwin.json)。复用首次构建缓存，没有运行无关全量测试。
 - 形态检查主体为 200 行，身份识别为独立小模块，测试辅助与跨库用例分别拆分。核对归档报告后清理上一批 target/m43/entry（约 316 MB）；scoop.std 首个应用已同步进路线图，提交为 `f119a228`。
 - 零实参构造选择与默认实参的实际求值、静态目录、调用适配和运行器仍须随前端合成接入。本批不宣称 scoop test 已可用，也未执行 Linux 最终验收。
+
+## 2026-10-14：前端静态目录与构造选择
+
+- 先补语言规范 16.4 与实现规范 2.6，再由已检查的注解生成当前目标的 Export HIR 测试目录。容器、构造器、用例和 hooks 保留各自 typed 声明引用；保存原始方法名、位置和 Ignore 原因，未标记 helper 与继承的方法不进入派生类的用例清单。
+- 容器按规范化源码路径／声明位置排序，用例按类内位置排序；同名文件内 private 容器的显示名带源码路径，身份仍由已有 nominal/function identity 决定。空容器保留完整构造检查，没有伪造用例。
+- 普通构造解析拆出原有候选选择，普通调用仍随即完成参数物化；测试目录复用同一选择流程，在容器自身词法域选择唯一 safe 零实参构造器，覆盖默认参数、空 vararg、候选优先级、private/protected 及歧义。目录保存已选构造器，默认实参模板仍属于原声明，不在发现时实例化执行调用。
+- 格式化、workspace clippy、三个 CLI 构建通过；27 项 M43 定向测试及 72 项构造相关回归通过，见[日志](validation/discovery-rust.log.gz)。新增覆盖 typed 关联、hooks、忽略原因、Unicode、跨文件同名 private 容器、源序、普通继承、构造优先级，以及空／忽略容器仍拒绝缺参、歧义和 unsafe 构造。测试准备修正了输入必须按 SourceIdentity 排序和普通缺参诊断的期望。
+- Darwin 的 6 项构造相关 CLI fixture 全部通过，共 6 个变体、19 个进程步骤；包含普通／跨 Cone 的重载与默认参数、继承委派、private 与 unsafe 拒绝、移除源码后的产物消费、链接运行及 moving GC，见[报告](validation/discovery-darwin.json)。没有重跑无关全量测试或提前执行 Linux 验收。
+- 主发现文件 189 行，目录、形态与构造选择分别拆为 102／52／44 行模块，HIR 目录是 31 行普通数据结构；未增加通用测试框架、依赖扫描或 wire 字段。核对归档报告后清理 target/m43/markers（约 192 MB）。
+- 测试目录尚未接入 CLI 的缓存／列表输出，入口函数、生命周期调用、结果通道与 scoop.std 测试应用继续实施；本批不宣称测试命令或 M43-3 已完成。

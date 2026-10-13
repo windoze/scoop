@@ -413,6 +413,8 @@ M43 的 TestEntry generated key 使用 tag 17，HIR／MIR `identity-foundation` 
 
 测试标记按语言规范 16.3 在前端使用已绑定的 annotation identity 和源码角色检查。Target、重复应用与参数复用普通注解规则；容器、方法角色、签名及同类 hook 数量由当前 Cone 的声明关系决定，不依赖名称或运行期扫描。后续 stage 消费已检查的调用与入口，不重做测试声明语义检查。
 
+Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／constructor／function 引用、声明位置和忽略原因，不作为依赖的测试发现接口。构造重载选择与普通调用共享同一候选决议；默认实参的代码生成在入口合成的实际调用处完成，目录发现本身不创建可执行的初始化副作用。
+
 入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M34 的 runtime ABI contract 12、metadata ABI 8 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
