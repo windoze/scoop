@@ -126,6 +126,12 @@ pub(super) struct TestArgs {
     /// List compiled test containers and cases without running them.
     #[arg(long)]
     pub list: bool,
+    /// Match a substring of the complete test name, including its container.
+    #[arg(long)]
+    pub filter: Option<String>,
+    /// Select only tests marked Ignore.
+    #[arg(long)]
+    pub ignored: bool,
 }
 
 #[derive(Args)]

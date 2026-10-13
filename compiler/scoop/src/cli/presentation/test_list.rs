@@ -2,7 +2,12 @@ use super::*;
 use scoop_slib::{TestDirectory, TestSourceLocation};
 
 impl Reporter {
-    pub fn test_list(&self, target: &str, directory: &TestDirectory) -> io::Result<()> {
+    pub fn test_list(
+        &self,
+        target: &str,
+        directory: &TestDirectory,
+        empty_reason: Option<&str>,
+    ) -> io::Result<()> {
         let cases = directory.containers.iter().flat_map(|c| &c.cases).count();
         let ignored = directory
             .containers
@@ -24,7 +29,7 @@ impl Reporter {
                     "schema": 1, "kind": "test-list", "target": target,
                     "containers": containers,
                     "counts": {"containers": containers.len(), "cases": cases, "ignored": ignored},
-                    "empty_reason": if cases == 0 { Some("no tests") } else { None },
+                    "empty_reason": empty_reason,
                 }))
             }
             MessageFormat::Human => {
@@ -50,12 +55,15 @@ impl Reporter {
                         writeln!(out)?;
                     }
                 }
-                writeln!(
+                write!(
                     out,
-                    "{} containers, {cases} tests, {ignored} ignored{}",
+                    "{} containers, {cases} tests, {ignored} ignored",
                     directory.containers.len(),
-                    if cases == 0 { " (no tests)" } else { "" }
-                )
+                )?;
+                if let Some(reason) = empty_reason {
+                    write!(out, " ({reason})")?;
+                }
+                writeln!(out)
             }
         }
     }

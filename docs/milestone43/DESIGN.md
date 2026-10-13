@@ -359,7 +359,7 @@ stdout/stderr 的捕获覆盖串行用例从实例初始化到清理结束的完
 
 测试用途输出具有合成的 executable root entry，library 和 executable 源 Cone 都可测试，不要求用户修改 manifest kind 或写 main。用户已有 main 保持普通声明，测试启动不自动调用它；用户在测试里显式调用时按普通函数规则处理。
 
-生产构建仍按原有四种 main 签名选择入口。测试入口具有独立的 generated callable 身份，并被正常 typed entry 引用，不通过重命名用户 main、固定 FQN 或 native 符号扫描选择。
+生产构建仍按原有四种 main 签名选择入口。测试入口具有独立的 generated callable 身份，并被正常 typed entry 引用，不通过重命名用户 main、固定 FQN 或 native 符号扫描选择。测试入口使用既有 Array<String>／Int ABI，scoop 根据目录选择后传入用例序号；序号仅在当前测试程序内使用，实际执行仍调用生成的 typed 适配。直接启动且没有用户参数时运行未忽略用例；参数数组仍按语言规范 12.4.4 保留 argv[0]。
 
 编译器按已检查的容器与用例目录生成普通构造、方法调用和必要的 typed 调用适配，按第 6.1～6.2 节执行实例初始化、准备、正文及清理。适配只在用例被选择执行后构造实例，不能为建立绑定方法引用而提前创建整类或全部用例的实例；不引入按名字反射调用或通用 fixture 工厂接口。
 

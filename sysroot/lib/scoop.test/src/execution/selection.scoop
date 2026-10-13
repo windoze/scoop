@@ -1,0 +1,15 @@
+package scoop.test.execution
+
+// Full argv starts with the program path, then the command's selection marker.
+// A directly launched test executable defaults to its non-ignored cases.
+public fun isTestSelected(
+    arguments: Array<String>, caseIndex: String, ignored: Boolean
+): Boolean {
+    if (arguments.size <= 1L) { return !ignored }
+    var index = 2L
+    while (index < arguments.size) {
+        if (arguments[index] == caseIndex) { return true }
+        index += 1L
+    }
+    return false
+}

@@ -29,6 +29,7 @@ fn generated_test_entry_calls_checked_lifecycle_with_its_own_identity() {
     };
     let function = local_entry.local_function().function();
     assert_ne!(module.functions[function].name, "main");
+    assert_eq!(module.functions[function].params.len(), 1);
     let hir::HirFunctionIdentity::TestEntry(record) = &module.function_identities[function] else {
         panic!("test entry has a generated identity")
     };
@@ -66,7 +67,7 @@ fn generated_callbacks_keep_each_private_container_in_its_source_file() {
 }
 
 #[test]
-fn empty_and_ignored_tests_do_not_create_instance_callbacks() {
+fn ignored_tests_have_callbacks_guarded_by_runtime_selection() {
     let output = lower_tests(&[(
         "tests/cases.scoop",
         r#"
@@ -80,7 +81,24 @@ fn empty_and_ignored_tests_do_not_create_instance_callbacks() {
     )])
     .unwrap_or_else(|errors| panic!("{errors:#?}"));
     assert_eq!(output.output().export.test_containers.len(), 2);
-    assert!(output.output().export.lambdas.is_empty());
+    let module = &output.output().export;
+    assert_eq!(module.lambdas.len(), 2);
+    let entry = module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "$test_entry")
+        .unwrap()
+        .1;
+    let hir::FunctionKind::User(body) = &entry.kind else {
+        panic!("generated entry has a body")
+    };
+    assert_eq!(
+        body.statements
+            .iter()
+            .filter(|statement| matches!(statement.kind, hir::StatementKind::If { .. }))
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -97,8 +115,30 @@ fn an_empty_generated_entry_survives_the_mir_entry_boundary() {
     )
     .unwrap();
     let output = crate::lower_current_tests(&input).unwrap_or_else(|errors| panic!("{errors:#?}"));
+    let local = &output.output().local;
+    let hir::LocalConeOutputKind::Executable { local_entry } = local.output_kind() else {
+        panic!("test output has an executable entry")
+    };
+    let entry = &local.functions[local_entry.local_function().function()];
+    let hir::CoreProtocolCallableDefinitionV1::Function(arguments) =
+        core.interface.program_arguments().definition()
+    else {
+        panic!("program arguments use the core source function")
+    };
+    let callable = scoop_mir::SelectedDependencyMirCallableV1::try_new(
+        core.foundation.origin(),
+        scoop_identity::DependencyCallableDeclarationId::Function(arguments),
+        scoop_identity::StrongCallableDefinitionOwner::Function(arguments),
+        scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            local.exact_type_identities[entry.params[0].ty].id(),
+        ),
+    )
+    .unwrap();
     let dependencies =
-        scoop_mir::SelectedExternalMirSet::empty(output.output().local.module().cone);
+        scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, vec![callable]).unwrap();
     let mir =
         scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default()).unwrap();
     assert_eq!(mir.module().cone, output.output().local.module().cone);

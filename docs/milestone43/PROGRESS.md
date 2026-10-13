@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
 | M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离、测试构建图／缓存与输出已接入 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与调用适配合成、默认用例的原生执行与目录持久化已接入；运行时用例选择待实施 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
-| M43-4 CLI 与运行报告 | 基础 scoop test／--no-run／--list 已接入；过滤、运行时忽略选择、捕获与执行报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
+| M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与全部用例适配、目录持久化和运行时选择已接入 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
+| M43-4 CLI 与运行报告 | scoop test／--no-run／--list／--filter／--ignored 已接入；独立结果通道、捕获与执行报告待实施 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存与 moving GC |
 | M43-5 scoop.std 应用、产物与平台验收 | scoop.std 首批同 Cone 测试已接入；完整 CLI 组合与 Linux 验收待完成 | 3 个容器、10 个用例；Darwin debug/release、生产隔离、缓存与 moving GC |
 
 ## 工作约定
@@ -144,3 +144,11 @@
 - `scoop test --list` 构建后读取根产物目录，不启动测试程序；human 输出到 stdout，JSON 沿现有 stderr 记录流在构建记录后输出 `test-list`。列表保留容器分组、位置、忽略原因与计数，空目录明确显示 0 用例；与 `--no-run` 互斥。
 - 格式化、workspace clippy 和配套三个命令构建通过；目录编码／非法路径和位置／Unicode 与空 Ignore 原因、manifest summary 和 capability profile 的 27 项 Rust 定向测试通过。Darwin 正式 CLI 的 debug/release 共 2 个变体、8 个进程步骤通过，覆盖同名 private 容器、带 `::` 的中文用例、空容器／空目录、JSON／human、首次构建和零编译器调用的缓存命中；所有列表均无 initializer／hook／正文输出。位置期望使用前端目录中实际的 Test 标记位置。见[报告](validation/directory-darwin.json)及同名前缀日志；另验证 `--list --no-run` 返回参数错误。
 - 核对已归档 umbrella 验收后清理旧 cases/1～3 输出约 62 MB，保留本批输出、sysroot 与缓存。运行时 filter／ignored、独立结果通道、输出捕获与报告、完整 scoop.std CLI 组合及 Linux 验收仍待完成；M43 全部完成后继续 M44。
+
+## 2026-10-14：运行时过滤与忽略选择
+
+- 先补语言规范 16.5 和实现规范 2.7。`scoop` 按完整显示名做大小写敏感的子串匹配，默认选择未忽略用例，`--ignored` 只选择 Ignore 用例；`--list` 复用同一选择函数并移除空分组，区分无测试、无匹配、无忽略用例和匹配项全部忽略。`--no-run` 始终构建完整程序。
+- 全部用例（包括 Ignore）均生成 typed 调用适配。入口使用已有 Array<String>／Int ABI，以扁平目录内的序号接收本次选择；该序号不替代 callable identity。普通测试库的 isTestSelected 控制完整生命周期外层的 if，未选中用例不创建实例、不执行默认实参或 hooks。改变过滤条件只改变程序参数，不改变源码输入、编译键或测试产物。
+- 20 项前端测试及 2 项选择逻辑测试通过；覆盖 Ignore 适配保留、真正的跨库调用、选择函数结果类型错误诊断、完整 argv 入口的 MIR 依赖、Unicode 匹配、空分组与空选择原因。首次原生验证发现直接运行时误将 argv[0] 当成用户参数，已按既有 12.4.4 修正；其后 7 项入口测试复验通过，debug/release 直接运行恢复默认未忽略选择。
+- 格式化、workspace clippy 与三个配套命令构建通过。Darwin 最终执行／负例[报告](validation/selection-darwin.json)为 2 个 fixture、3 个变体、17 个进程步骤全部通过；[初轮报告](validation/selection-initial-darwin.json)中的列表 fixture 已通过 debug/release 共 10 步，其同轮执行 fixture 的 argv[0] 失败由最终报告覆盖修复。合计 3 个 fixture、5 个变体、27 个通过步骤，覆盖 default／filter／ignored／空匹配、同一产物指纹与缓存零编译调用、忽略用例完整 hooks 与 moving GC、构造失败、直接启动，以及过滤不隐藏未选中用例的编译错误及准确位置。
+- 选择器 55 行、生成调用条件 38 行、普通库选择函数 15 行；入口主体 217 行。复用未变化的列表验证与 core 缓存，未重跑无关全量测试。独立结果通道、输出捕获与完整执行报告、scoop.std 全套 CLI 组合和 Linux GNU／musl 验收仍待完成；M43 完成后继续 M44。

@@ -39,6 +39,16 @@ stdout = {file = "list.stdout"}
 stderr = "built ${work}/outputs/${target}/${profile}/tests/list-tests (${profile})\n"
 
 [[steps]]
+name = "ignored-list"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--list", "--ignored", "--filter", "Cases::skipped", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = {file = "ignored.json"}
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${ignored-list.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
 name = "empty-cone"
 files = [
     {copy = {from = "${fixture}/program", to = "${work}/empty"}},

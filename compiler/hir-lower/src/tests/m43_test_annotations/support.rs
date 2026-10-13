@@ -73,6 +73,11 @@ pub(super) fn parsed_sources(
     if tests {
         files.extend([
             (
+                "src/execution/selection.scoop",
+                include_str!("../../../../../sysroot/lib/scoop.test/src/execution/selection.scoop"),
+                SourceRole::Production,
+            ),
+            (
                 "src/execution/data.scoop",
                 include_str!("../../../../../sysroot/lib/scoop.test/src/execution/data.scoop"),
                 SourceRole::Production,

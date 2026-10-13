@@ -8,6 +8,7 @@ mod commands;
 mod native;
 mod presentation;
 mod run;
+mod test_selection;
 
 use args::{Cli, MessageFormat};
 use presentation::Reporter;

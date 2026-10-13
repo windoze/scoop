@@ -51,17 +51,23 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             let cwd = request.cwd.clone();
             let result = scoop::build(request)?;
             reporter.built(&result).map_err(config)?;
-            if args.list {
-                let summary = result.artifacts().graph.root().artifact().summary();
-                let directory = summary
-                    .test_directory()
-                    .ok_or_else(|| config("test artifact has no test directory"))?;
-                reporter
-                    .test_list(summary.cone().coordinate().name(), directory)
-                    .map_err(config)?;
+            if args.no_run {
                 return Ok(None);
             }
-            if args.no_run {
+            let summary = result.artifacts().graph.root().artifact().summary();
+            let directory = summary
+                .test_directory()
+                .ok_or_else(|| config("test artifact has no test directory"))?;
+            let selected =
+                super::test_selection::select(directory, args.filter.as_deref(), args.ignored);
+            if args.list {
+                reporter
+                    .test_list(
+                        summary.cone().coordinate().name(),
+                        &selected.directory,
+                        selected.empty_reason,
+                    )
+                    .map_err(config)?;
                 return Ok(None);
             }
             match result {
@@ -69,7 +75,7 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
                     build,
                     execution_copy: Some(copy),
                     ..
-                } => super::run::program(&build.output, copy, &[], &cwd).map(Some),
+                } => super::run::program(&build.output, copy, &selected.arguments, &cwd).map(Some),
                 _ => Err(config("test did not produce a private executable copy")),
             }
         }

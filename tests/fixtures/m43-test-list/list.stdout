@@ -1,8 +1,6 @@
 list-tests
   Cases (tests/a.scoop:3:1)
     检查::名字 (tests/a.scoop:7:5)
-    skipped (tests/a.scoop:11:5) [ignored: needs a resource]
-  Empty (tests/a.scoop:15:1)
   Cases (tests/z.scoop:3:1)
     other (tests/z.scoop:7:5)
-3 containers, 3 tests, 1 ignored
+2 containers, 2 tests, 0 ignored

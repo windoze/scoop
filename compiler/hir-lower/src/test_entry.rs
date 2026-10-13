@@ -8,6 +8,7 @@ use crate::{FnSig, Lowerer};
 mod bindings;
 mod calls;
 mod cases;
+mod selection;
 
 #[derive(Clone)]
 pub(crate) struct TestCompilation {
@@ -65,6 +66,7 @@ impl Lowerer {
         self.current_file = file;
         let span = ast::Span::new(0, 0);
         let int = self.integer_type(hir::IntegerKind::SIGNED_32);
+        let arguments_ty = self.array_type(crate::types::ArrayKind::Immutable, self.string);
         let entry = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
                 context_parameters: Vec::new(),
@@ -98,12 +100,25 @@ impl Lowerer {
                 attributes: Default::default(),
                 owner_type_param_count: 0,
                 type_params: Vec::new(),
-                params: Vec::new(),
+                params: vec![crate::FnParam {
+                    name: ast::Ident {
+                        text: "$test_arguments".into(),
+                        span,
+                    },
+                    calling: crate::FnParamCalling::Required,
+                    ty: arguments_ty,
+                }],
                 return_ty: int,
             },
         );
         self.top_level.push(entry);
         let body = self.lower_synthesized_body(entry, |state| {
+            let arguments = hir::Expr {
+                kind: hir::ExprKind::Local(state.functions[entry].params[0].local),
+                ty: arguments_ty,
+                span,
+                origin: state.expression_origin(span),
+            };
             let mut statements = Vec::new();
             let status = state.alloc_synthetic_local(
                 "$test_status".into(),
@@ -118,22 +133,26 @@ impl Lowerer {
                     init: state.test_integer(0, span),
                 },
             });
+            let mut index = 0;
             for container in state.test_containers.clone() {
                 state.current_file = container.origin.file as usize;
                 state.set_source_context(hir::SourceContextSubject::Function(entry));
                 for case in &container.cases {
-                    if case.ignore_reason.is_some() {
+                    let selected = state.test_case_selected(arguments.clone(), index, case, &mut statements);
+                    index += 1;
+                    let Some(selected) = selected else {
                         continue;
-                    }
+                    };
+                    let mut case_body = Vec::new();
                     if let Some(result) =
-                        state.generate_test_case(entry, &container, case, &mut statements)
+                        state.generate_test_case(entry, &container, case, &mut case_body)
                     {
                         let span = case.method.origin.span;
                         let Some(passed) = state.named_enum_variant(result.ty, "Passed") else {
                             state.error(span, "test execution requires runTestCase to return TestResult with a Passed variant".into());
                             continue;
                         };
-                        statements.push(hir::Statement {
+                        case_body.push(hir::Statement {
                             span,
                             kind: hir::StatementKind::When(hir::When::Subject {
                                 subject: result,
@@ -157,6 +176,14 @@ impl Lowerer {
                                     },
                                 }]),
                             }),
+                        });
+                        statements.push(hir::Statement {
+                            span,
+                            kind: hir::StatementKind::If {
+                                cond: selected,
+                                then_body: case_body,
+                                else_body: None,
+                            },
                         });
                     }
                 }

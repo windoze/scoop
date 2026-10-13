@@ -1,0 +1,105 @@
+schema = 1
+name = "m43-test-selection"
+inputs = ["program"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m43", "test-selection", "lifecycle", "cache"]
+variants = [
+    {name = "debug", vars = {profile = "debug"}},
+    {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--no-run", "--filter", "no match"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = "init\nbefore\nfirst\nafter\ninit\nbefore\nsecond\nafter\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${default.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${default.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "first"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::first 雪"]
+exit = 0
+stdout = "init\nbefore\nfirst\nafter\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${first.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${first.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "ignored"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Cases::skipped"]
+exit = 0
+stdout = "init\nbefore\nignored\nafter\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${ignored.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${ignored.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "none"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "NOT FOUND"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${none.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${none.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "ignored-excluded"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--filter", "Cases::skipped"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${ignored-excluded.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${ignored-excluded.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "constructor-fails"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json", "--ignored", "--filter", "Failing::"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${constructor-fails.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${constructor-fails.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "direct-default"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "init\nbefore\nfirst\nafter\ninit\nbefore\nsecond\nafter\n"
+stderr = ""

@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3983,
+  "selected": 2,
+  "unselected": 3981,
+  "counts": {
+    "passed": 1,
+    "failed": 1
+  },
+  "variants": 2,
+  "processes": 18,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "m43-test-list",
+      "status": "passed",
+      "seconds": 421.235218959162,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-test-selection",
+      "status": "failed",
+      "seconds": 237.36396604101174,
+      "variants": 0,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "direct-default stdout differs:\n--- expected\n+++ actual\n@@ -1,8 +0,0 @@\n-init\n-before\n-first\n-after\n-init\n-before\n-second\n-after\n"
+    }
+  ]
+}
