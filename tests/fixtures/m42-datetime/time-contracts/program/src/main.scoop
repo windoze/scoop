@@ -1,0 +1,12 @@
+import scoop.datetime.*
+import scoop.time.*
+import scoop.collections.sortedSetOf
+
+fun main() {
+    LocalTime(0, 0).nanosecond = -1
+    val offset = UtcOffset(0)
+    val instant = Instant(0L, 0)
+    LocalDateTime(1970, 1, 1, 0, 0).toInstant()
+    val clock = Clock.System
+    sortedSetOf(OffsetDateTime(LocalDateTime(1970, 1, 1, 0, 0), UtcOffset.ZERO))
+}

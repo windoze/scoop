@@ -1,0 +1,9 @@
+package scoop.datetime
+
+import scoop.time.Duration
+
+public struct DateTimePeriod(val date: DatePeriod = DatePeriod(), val time: Duration = Duration.ZERO)
+    : Equals<DateTimePeriod>, Hash {
+    public override operator fun equals(other: DateTimePeriod): Boolean = date == other.date && time == other.time
+    public override fun hash(): Long = date.hash() * 31L + time.hash()
+}

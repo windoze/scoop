@@ -329,3 +329,13 @@ Instant release 触发 OrphanRelocation；debug 与普通产物组合正常。�
 验证：全工作区 fmt／clippy 通过；codegen object_partition 9 项、LIR foundation 45 项、production 184 项、slib relocation_verification 6 项通过。新增对象用例覆盖三目标 debug/release：Darwin release 的表有精确边界与只读段；此用例的 Linux 后端不生成表，候选被正确移除。既有测试中依赖未裁剪 foundation 全量相等的断言改为核对实际产物 partition，关联原子期望同步新增候选。
 
 正式 CLI 的最小复现 debug/release、普通／moving GC 全部通过（2 variant、8 process），见 `target/m42/relocation-gap/minimal-after-report.json`。原 Instant debug/release、日期时间产物独立重链接与 6 条静态合同诊断全部通过（3 fixture、4 variant、16 process），见 `target/m42/relocation-gap/instant-after-report.json`。未运行无关完整套件；Linux 实际运行仍随本组最终定向验收完成。
+
+### M42-10／11 数据功能完成：Instant、Clock 与日期时间组合
+
+Instant 保存规范化 epoch 秒／纳秒，覆盖 MIN/MAX、纳秒调整、毫秒转换、Duration 加减、时刻之差、比较／Hash、固定 offset 转换及严格 ISO 解析。负 epoch 毫秒向下取整，与 Duration 向零取整区分；纳秒调整和极值算术不借助溢出的中间值。Clock 仅声明 now，测试使用可回拨的普通来源，不提供系统来源或在数据操作中获取当前时间。
+
+LocalDateTime 组合已验证的日期与时间，提供分量、精确时长及日历 period 运算；DateTimePeriod 先日历、后时长。OffsetDateTime 支持保留 instant 或保留 local fields 的两种 offset 变更，按 local+offset 判等，不提供会与此语义冲突的默认 Compare。转换越界时显式失败，单纯持有 local+offset 不要求落在 Instant 域内。
+
+date-time 的普通／moving GC 通过记录在 `target/m42/datetime-time-first-report.json`；跨午夜／year 0、全域差值、月份夹取、极值拒绝、period／HashMap 组合均覆盖。Instant 的 debug/release、普通／moving GC，以及三十二组显式 seeded 时间和 UUID／B-tree／Sequence 的 source-removed artifact 重链接通过记录在 `target/m42/relocation-gap/instant-after-report.json`。该报告还验证了 immutable LocalTime、受控 Instant／UtcOffset 构造、必传 offset、缺少 Clock.System 及 OffsetDateTime 无 Compare 的 6 条精确诊断。
+
+新库源码最大 65 行，风格与 staged diff 检查通过。除上文单独提交的查找表修复外，全部是普通 Scoop；M42-10／11 数据功能已完成，相关 codec、最终应用组合及 Linux GNU/musl 的本组定向验收继续实施。

@@ -1,0 +1,62 @@
+package scoop.time
+
+import scoop.datetime.*
+
+public interface Clock {
+    public fun now(): Instant
+}
+
+public class Instant private constructor(public val epochSeconds: Long, public val nanosecondsOfSecond: Int)
+    : Equals<Instant>, Compare<Instant>, Hash, ToString, Add<Duration, Instant>, Sub<Duration, Instant> {
+    public override operator fun equals(other: Instant): Boolean =
+        epochSeconds == other.epochSeconds && nanosecondsOfSecond == other.nanosecondsOfSecond
+    public override operator fun compareTo(other: Instant): Long =
+        if (epochSeconds != other.epochSeconds) epochSeconds.compareTo(other.epochSeconds)
+        else nanosecondsOfSecond.compareTo(other.nanosecondsOfSecond)
+    public override fun hash(): Long = epochSeconds.hash() * 31L + nanosecondsOfSecond.hash()
+    public override operator fun plus(other: Duration): Instant = Instant.fromDuration(asDuration() + other)
+    public override operator fun minus(other: Duration): Instant = Instant.fromDuration(asDuration() - other)
+    public operator fun minus(other: Instant): Duration =
+        Duration.seconds(epochSeconds - other.epochSeconds, nanosecondsOfSecond.toInt64() - other.nanosecondsOfSecond.toInt64())
+    private fun asDuration(): Duration = Duration.seconds(epochSeconds, nanosecondsOfSecond.toInt64())
+    public fun toEpochMilliseconds(): Long = instantMilliseconds(epochSeconds, nanosecondsOfSecond)
+    public fun toLocalDateTime(offset: UtcOffset): LocalDateTime {
+        val seconds = epochSeconds + offset.totalSeconds.toInt64()
+        val day = calendarFloorDiv(seconds, 86400L)
+        if (day < LocalDate.MIN.toEpochDays() || day > LocalDate.MAX.toEpochDays()) throw ArithmeticException()
+        val nanos = (seconds - day * 86400L) * 1000000000L + nanosecondsOfSecond.toInt64()
+        return LocalDateTime(LocalDate.fromEpochDays(day), LocalTime.fromNanosecondOfDay(nanos))
+    }
+    public override fun toString(): String = toLocalDateTime(UtcOffset.ZERO).toString() + "Z"
+
+    public companion object {
+        public val MIN: Instant = Instant(LocalDate.MIN.toEpochDays() * 86400L, 0)
+        public val MAX: Instant = Instant(LocalDate.MAX.toEpochDays() * 86400L + 86399L, 999999999)
+        public fun fromEpochSeconds(seconds: Long, nanosecondAdjustment: Long = 0L): Instant {
+            val extra = calendarFloorDiv(nanosecondAdjustment, 1000000000L)
+            if (seconds < MIN.epochSeconds - extra || seconds > MAX.epochSeconds - extra) {
+                throw IllegalArgumentException(Some("instant outside supported range"))
+            }
+            val remainder = nanosecondAdjustment % 1000000000L
+            return Instant(seconds + extra, (remainder + (if (remainder < 0L) 1000000000L else 0L)).toInt32())
+        }
+        public fun fromEpochMilliseconds(value: Long): Instant = fromEpochSeconds(value / 1000L, (value % 1000L) * 1000000L)
+        internal fun fromComponents(seconds: Long, nanos: Int): Instant {
+            if (seconds < MIN.epochSeconds || seconds > MAX.epochSeconds) throw ArithmeticException()
+            return Instant(seconds, nanos)
+        }
+        internal fun fromDuration(value: Duration): Instant = fromComponents(value.seconds, value.nanosecondsOfSecond)
+        public fun parseOrNull(text: String): Instant? = when (OffsetDateTime.parseOrNull(text)) {
+            case Some(value) -> {
+                val seconds = localEpochSeconds(value.dateTime) - value.offset.totalSeconds.toInt64()
+                if (seconds < MIN.epochSeconds || seconds > MAX.epochSeconds) None
+                else Some(Instant(seconds, value.dateTime.nanosecond))
+            }
+            case None -> None
+        }
+        public fun parse(text: String): Instant = when (parseOrNull(text)) {
+            case Some(value) -> value
+            case None -> throw IllegalArgumentException(Some("invalid instant"))
+        }
+    }
+}

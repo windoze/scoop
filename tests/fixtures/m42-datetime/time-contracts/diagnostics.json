@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `nanosecond`",
+    "notes": [],
+    "origin": {
+      "cone": "2605b1778d29cb6099e74f90bddc0572c0889f8e19663db6047772573066644d",
+      "end": 125,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 115
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `UtcOffset` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "2605b1778d29cb6099e74f90bddc0572c0889f8e19663db6047772573066644d",
+      "end": 157,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 148
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `Instant` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "2605b1778d29cb6099e74f90bddc0572c0889f8e19663db6047772573066644d",
+      "end": 186,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 179
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `toInstant` expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "2605b1778d29cb6099e74f90bddc0572c0889f8e19663db6047772573066644d",
+      "end": 241,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 198
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Clock` has no accessible static member `System`",
+    "notes": [],
+    "origin": {
+      "cone": "2605b1778d29cb6099e74f90bddc0572c0889f8e19663db6047772573066644d",
+      "end": 270,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 264
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `sortedSetOf` in exact import layer:\n  - dependency function `sortedSetOf`: OffsetDateTime is not a subtype of Comparator<T>\n  - dependency function `sortedSetOf`: OffsetDateTime is not a subtype of Compare<T>",
+    "notes": [],
+    "origin": {
+      "cone": "2605b1778d29cb6099e74f90bddc0572c0889f8e19663db6047772573066644d",
+      "end": 351,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 275
+    },
+    "severity": "error"
+  }
+]
