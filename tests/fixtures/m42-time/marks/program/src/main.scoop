@@ -1,0 +1,36 @@
+import scoop.time.*
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+class Source : TimeSource, Equals<Source> {
+    public var calls: Long = 0L
+    public override fun markNow(): TimeMark { calls += 1L; throw IllegalStateException() }
+    public override operator fun equals(other: Source): Boolean = true
+}
+fun different(block: () -> Unit) {
+    var failed = false
+    try { block() } catch (error: IllegalArgumentException) { failed = true }
+    check(failed)
+}
+fun main() {
+    val first = Source()
+    val second = Source()
+    check(first == second && first !== second)
+    val mark = TimeMark(first, (-10).seconds())
+    val later = mark + 3.seconds()
+    check(later.reading == (-7).seconds() && later.source === first)
+    check(later - mark == 3.seconds() && mark - later == (-3).seconds())
+    check(mark < later && later - 3.seconds() == mark)
+    check(mark == TimeMark(first, (-10).seconds()))
+    val unrelated = TimeMark(second, mark.reading)
+    check(mark != unrelated)
+    different { mark - unrelated }; different { mark.compareTo(unrelated) }
+    different { unrelated - mark }; different { unrelated.compareTo(mark) }
+    val minimum = TimeMark(first, Duration.seconds(Long.MIN_VALUE))
+    check(minimum - minimum == Duration.ZERO)
+    check((minimum + 1.nanoseconds()).reading.nanosecondsOfSecond == 1)
+    var overflowed = false
+    try { minimum - 1.nanoseconds() } catch (error: ArithmeticException) { overflowed = true }
+    check(overflowed && minimum.reading.seconds == Long.MIN_VALUE)
+    check(first.calls == 0L && second.calls == 0L)
+    println("time marks passed")
+}

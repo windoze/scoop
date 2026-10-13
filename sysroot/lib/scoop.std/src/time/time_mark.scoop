@@ -1,0 +1,23 @@
+package scoop.time
+
+public interface TimeSource {
+    public fun markNow(): TimeMark
+}
+
+public struct TimeMark(val source: TimeSource, val reading: Duration)
+    : Equals<TimeMark>, Compare<TimeMark>, Add<Duration, TimeMark>, Sub<Duration, TimeMark> {
+    public override operator fun equals(other: TimeMark): Boolean = source === other.source && reading == other.reading
+    public override operator fun compareTo(other: TimeMark): Long {
+        checkSource(other)
+        return reading.compareTo(other.reading)
+    }
+    public override operator fun plus(other: Duration): TimeMark = TimeMark(source, reading + other)
+    public override operator fun minus(other: Duration): TimeMark = TimeMark(source, reading - other)
+    public operator fun minus(other: TimeMark): Duration {
+        checkSource(other)
+        return reading - other.reading
+    }
+    private fun checkSource(other: TimeMark) {
+        if (source !== other.source) throw IllegalArgumentException(Some("different monotonic time sources"))
+    }
+}

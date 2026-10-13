@@ -1,0 +1,9 @@
+import scoop.time.Duration
+import scoop.time.TimeMark
+import scoop.collections.HashMap
+
+fun main() {
+    val duration = Duration(0L, 0)
+    Duration.ZERO.seconds = 1L
+    val marks = HashMap<TimeMark, Int>()
+}

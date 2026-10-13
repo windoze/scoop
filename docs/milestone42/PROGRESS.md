@@ -299,3 +299,9 @@ Duration 使用普通不可变 final class，保存 floor-normalized 秒／纳�
 四组正式 fixture 均通过正常和 moving GC。construction 覆盖规范化、工厂、负极值与 HashMap/B-tree；units 覆盖向零取整、各单位 Long 边界及舍弃不足单位的尾数；text 覆盖多分量、负数、精度、规范输出与非法格式／范围。三组通过见 `target/m42/duration-first-report.json`；该报告的算术 release 失败由上文独立底层修复解决。arithmetic 的 60 组加减、80 组乘除共 280 个期望值由 Python 整数纳秒模型独立生成，debug/release 最终均通过，见 `target/m42/stackmap-fixed-duration-time-report.json`。生成器使用固定版本 Ruff 格式化／lint，向量固定入库，正式 fixture 不执行 Python oracle。
 
 源码已检查风格及 `git diff --check`，最大文件 69 行。除已独立提交的底层修复外，没有 compiler/runtime helper 或新 ABI。Clock／Instant、日期／offset／period、codec 和 Linux GNU/musl 本组最终验收尚待完成，M42 整体仍在实施。
+
+### M42-10 进行中：TimeSource／TimeMark 已完成
+
+TimeSource 仅声明 markNow；TimeMark 保存显式 source 与 Duration reading，提供 Duration 平移、同源读数相减和比较。相等要求来源引用相同且读数相等；异源相等为 false，相减／顺序比较抛 IllegalArgumentException，不调用用户的来源 equals，也不提供默认 Hash。数据操作不调用 markNow，后续系统库负责实际取时。
+
+`m42-time-marks` 在正常与 moving GC 下通过：来源引用与值相等的区别、正负平移、差值、顺序、异源拒绝、Duration 溢出及来源调用计数均验证；`m42-time-contracts` 精确验证 Duration 原始构造不可访问、seconds 不可写，以及 TimeMark 不满足 Hash bound。两项通过见 `target/m42/stackmap-fixed-duration-time-report.json`。实现 23 行，为普通 Scoop，源码风格与 `git diff --check` 通过。已清理完成的 case 与单次检查产物，保留报告和共享 cache；Clock/Instant、M42-11～12 与 Linux 本组最终定向验收继续实施。
