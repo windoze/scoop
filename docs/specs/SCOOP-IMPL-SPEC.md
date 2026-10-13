@@ -565,6 +565,8 @@ Linux 接受 `.o`、`.a`，动态模式另接受 ELF `.so`；framework 与静态
 
 Linux gnu 默认 dynamic PIE，musl 默认 static ET_EXEC；musl 可显式 dynamic PIE，不支持 glibc static。非 C++ 链接明确选择 CRT、LLVM unwind、libc、libm/线程及算术 builtins；GNU C++ 链接使用配套 libstdc++／C++ ABI 运行库，并统一由配套 libgcc_s 提供 Scoop Level I 与 C++ 所需的 unwind，不再额外链接另一套 LLVM unwind provider。musl 不支持 C++ 模式。动态 metadata/stackmap 满足实际 RELRO，静态 musl 的不可变记录位于只读 PT_LOAD；最终文件不得有 text relocation。
 
+最终链接按既有选择顺序将对象路径写入临时 response file，正确引用路径中的空白、引号和反斜杠。Linux 由实际 GNU linker 展开对象列表，不能由 C／C++ driver 先展开成再次受系统 argv 长度限制的命令。response file 与链接工作目录只承担工具参数传递，不改变对象选择、输入检查、顺序或 ResolvedLinkPlan 身份，也不开放用户 linker 参数。
+
 DSO 依赖查找使用显式 roots、provider 目录、实际 RPATH/RUNPATH 与所选系统目录。真实 SONAME、DT_NEEDED、加载顺序和 RUNPATH 进入 link plan，临时快照路径不写入 executable 的依赖名；同名导出使实际 ELF 顺序无法满足显式库绑定时报告冲突。
 
 链接生成 `int main(int argc, char **argv)`、最终 image descriptors、六张 producer pointer tables、image pointer array 与唯一 root entry 引用。C main 按运行时规范 2.8 调用 `scoop_rt_run_program(images, image_count, root_entry, (int32_t)argc, (const char *const *)argv)`，原样返回其 C int 结果，不丢弃 argv[0] 或主动截断退出码。这些生成物只引用所选记录，不复制 TD、storage、cell 或 gateway body，也不在 C main 中构造 managed Array/String。`scoop_td_String` 是实际 String TD 的同地址 alias。

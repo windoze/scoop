@@ -353,3 +353,13 @@ Hash／LinkedHash／Tree 的 Map 和 Set、ArrayDeque、PriorityQueue 提供显�
 `m42-application` 使用三个实际业务 Cone：release provider 定义含 Uuid／Instant 的 Event 及显式 codec、泛型列表编解码；debug consumer 解析显式文本、返回 typed Result，并经 ByteArrayBuilder／Base64／ByteArrayReader 传递 JSON；release application 完成稳定排序、按 UTC 日期分组、B-tree 汇总与 codec 往返、Sequence 短路，以及日历月和精确天数的差别验证。core／std／json 和每层业务源码在下一层消费前移除，最后隔离 Scoop 命令，只靠 `.slib` 和 runtime 对象重新链接。
 
 本机普通／moving GC 均通过，`target/m42/application-report.json` 记录 1 fixture、1 variant、9 process。用例曾将 Base64 写在错误包名，已按规范改为 scoop.io.encoding；List 结果按元素比较，不假定 List 具有结构 equals。没有库或底层修正。业务源码各文件不超过 45 行，风格和 staged diff 检查通过。M42 功能与集成均已实现，随后执行三目标本组最终定向验收。
+
+## 最终验收前置修复：Linux 对象列表超过 argv 上限
+
+Darwin 的 130 项 M42 已全部通过。Linux GNU／musl 的算法组合在最终链接时暴露 `Argument list too long`：ELF 路径直接把大量已选对象传给 driver，超过操作系统 argv 上限。独立 linker 测试用普通 native 对象构成超过本机 ARG_MAX 的列表，在旧实现上稳定复现 OS error 7；不依赖 std，也没有给库增加 workaround。
+
+先补实现规范，再复用 Darwin 原有 response file 引用代码。Linux 通过固定的相对 response file 名让 GNU linker 展开列表，避免 driver 提前展开及 -Wl 对目录中逗号的拆分；链接工作目录和全部对象定位保持明确。对象选择、顺序、trace／map／最终 image 验证、link plan 和产物格式均不改变。
+
+fmt／全工作区 clippy 及 Linux linker 的 all-targets clippy 通过。独立长列表回归在 gcc／g++／musl-gcc 全通过，精确核对每个对象在 linker trace 中出现的次数；目录含空格、单／双引号、逗号和反斜杠。既有 linker 输入快照与特殊路径回归在 Darwin 通过，Linux 两项（含动态库版本／bytes）通过。前后对照日志保存在 `target/m42/elf-args-gap/`。
+
+原失败的 m42-algorithms-join 在 GNU／musl 正常及 moving GC 均通过，GNU 的既有 C++ values debug/release（普通／moving／minor GC）也通过。Darwin 的三 Cone 应用及同一 C++ 回归共 2 fixture、3 variant、17 process 通过。对应报告为 `target/m42/elf-args-{darwin,gnu,musl}-fixtures-report.json`。已通过项保留结果，只继续尚未通过的 Linux 定向用例；没有运行无关完整套件。

@@ -22,8 +22,10 @@ pub(super) fn link(
         return Err(error("Darwin linking requires its selected target profile"));
     };
     let mut command = darwin.command(&sdk, candidate, link_map).map_err(error)?;
-    let response = object_response_file(directory, paths)?;
-    command.arg(response);
+    response::write_objects(directory, paths)?;
+    let mut argument = std::ffi::OsString::from("@");
+    argument.push(directory.join(response::FILE_NAME));
+    command.arg(argument);
     for argument in ["-alias", &inputs.string_target, "_scoop_td_String"] {
         darwin.linker_argument(&mut command, argument);
     }
@@ -62,26 +64,4 @@ pub(super) fn link(
     crate::final_image::verify(&bytes, inputs, startup, profile, &map)
         .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     Ok(())
-}
-
-fn object_response_file(
-    directory: &Path,
-    paths: &[PathBuf],
-) -> Result<std::ffi::OsString, LinkError> {
-    let mut contents = Vec::new();
-    for path in paths {
-        contents.push(b'"');
-        for byte in path.as_os_str().as_encoded_bytes() {
-            if matches!(byte, b'\\' | b'"') {
-                contents.push(b'\\');
-            }
-            contents.push(*byte);
-        }
-        contents.extend_from_slice(b"\"\n");
-    }
-    let path = directory.join("objects.rsp");
-    write_new(&path, &contents)?;
-    let mut argument = std::ffi::OsString::from("@");
-    argument.push(path);
-    Ok(argument)
 }
