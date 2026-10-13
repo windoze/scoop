@@ -36,7 +36,7 @@ M43 首版交付：
 | Equals、ToString、结构比较、引用相等 | 明确断言的类型约束，不增加 Any 相等或自动接口 conformance |
 | source selection、exact 依赖图、构建缓存与 artifact-only link | 增加测试输入和用途，沿现有 pipeline 产生可执行程序 |
 
-当前 CLI 仅有 build/run/link，manifest 不支持测试源码或测试依赖；现有 executable 入口规则只选择用户 main。这些是 M43 的实际增量。
+M43 开始时 CLI 仅有 build/run/link，manifest 不支持测试源码或测试依赖，executable 入口规则只选择用户 main。这些是 M43 的实际增量；已实现部分见[实施记录](PROGRESS.md)。
 
 `scoop.test` 的断言和基本运行逻辑只需要现有 core。M42 的 `scoop.std` 可以用于组合用例，但其全部交付、系统时间库或高层协程调度不是 M43 的前置条件。
 

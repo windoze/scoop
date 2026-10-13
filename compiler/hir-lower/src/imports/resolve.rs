@@ -308,7 +308,8 @@ impl CurrentUnitImports {
                         assert!(matches!(target, ImportedTargetBinding::DirectDependency(_)));
                     }
                 }
-                let layers = self.layers(file, package, &import.local_name);
+                let layers =
+                    self.layers_in_source_scope(lowerer, file, package, &import.local_name);
                 assert_eq!(layers[0].kind, ImportLookupLayer::Exact);
                 assert!(
                     !layers[0].bindings.is_empty() || !layers[0].dependency_bindings.is_empty()

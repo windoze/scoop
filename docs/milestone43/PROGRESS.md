@@ -7,7 +7,7 @@
 | 批次 | 状态 | 证据 |
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言已完成；测试标记随发现功能交付 | 普通 scoop.test Cone、8 个断言函数、失败数据及 10 个独立 fixture；语言规范第 16 章 |
-| M43-2 测试输入与依赖 | manifest 与生产隔离已完成；测试构建接入待实施 | test.sources/test-dependencies 解码及精确诊断；生产源码、依赖图与缓存不受测试输入影响 |
+| M43-2 测试输入与依赖 | manifest、源码选择与同 Cone 声明候选隔离已完成；测试用途编排与依赖接入待实施 | test.sources/test-dependencies 解码；源码角色贯穿发现、解析与前端；生产源码、依赖图与缓存不受测试输入影响 |
 | M43-3 静态发现与生命周期入口 | 待实施 | |
 | M43-4 CLI 与运行报告 | 待实施 | |
 | M43-5 产物与平台验收 | 待实施 | |
@@ -34,3 +34,14 @@
 - 真实生产构建组合证明：根与依赖 Cone 的测试代码均不解析；无效 UTF-8、不可用的测试源码/产物/search-root 依赖、测试反向依赖均不影响普通 build/run。改变测试文件与配置后，生产产物指纹不变，编译器子进程调用列表为空。
 - 格式化、workspace clippy、三个 CLI 构建通过；`scoop-manifest` 49 项 Rust 测试及 fixture runner 47 项公共规则通过。Darwin 新增 12 项 fixture 通过（[生产隔离](validation/manifest-production-darwin.json)、[11 项负例](validation/manifest-negative-darwin.json)），另通过 [32 项既有源码选择负例](validation/manifest-regressions-darwin.json)。没有重复断言库或无关全量验证。
 - 依赖解析拆入 111 行子模块，manifest 主解析文件降至 177 行；测试配置结构为 42 行。下一步仍需测试用途的源码/依赖合并、定义处名称边界，再交付发现与合成入口；本次不宣称 `scoop test` 已可用。
+
+## 2026-10-14：源码角色与同 Cone 声明候选
+
+- 先补语言规范 12.2.4 和实现规范 2.7，再复用现有源码发现流程合并生产／测试文件；默认测试目录可缺失，测试集合可为空，生产集合仍须非空。跨角色的目录重叠、重复文件、symlink 别名／损坏／逃逸均按实际输入检查。
+- SourceRole 随发现结果、AST 和快照保存，不改变 SourceIdentity，也不从目录名推断。合并集合按完整路径排序；driver 的解析适配保留角色和原文件诊断，HIR 前端据此收集定义处候选。
+- 生产源码的类型、值、函数、扩展、const、别名、注解和 import 排除测试声明；测试专属 package 不遮蔽生产对象限定名。普通调用、泛型正文和默认实参的重载选择不受测试重载改变，测试源码仍能访问生产 internal，不能绕过文件／成员 private。
+- 验证时发现 M42 新增的 Float/Double.toBits 块正文不适用于既有精简数值签名测试辅助代码。按已有 IEEE 比较／codec 的分工排除该普通方法，原始实现仍由完整 sysroot fixture 验证；独立修复提交 `36fa9d24`，22 项 imported-core 回归通过。
+- 格式化、workspace clippy 及三个 CLI 构建通过。Rust 验证：manifest 56、AST 15、parser 506 及 1 项 doctest、driver 1 项发现到解析测试；前端新增 7 项组合测试、430 项 M23 回归和 72 项 import 专测通过。没有运行 workspace 全量测试。
+- Darwin 正式 CLI 的 M43 manifest、M33 source selection 和跨 Cone qualified-types 回归全部通过：51 个 fixture、52 个变体、100 个进程步骤；包含缓存失效边界、生产构建隔离、准确负例、无源码依赖产物消费、链接与 moving GC 运行，见[报告](validation/source-roles-darwin.json)。
+- 源码发现拆出 72 行收集模块；package／源码作用域集中于 140 行模块，namespace 主文件降至 407 行。本轮清理已归档证据的 `target/m43/assertions` 生成目录（约 216 MB）。
+- 测试用途的 CLI／子编译器请求、测试依赖合并与定义处依赖候选、测试构建键、合成入口及运行器仍未交付；上述规则的正式 `scoop test` 文件 fixture 随命令接入补齐，当前不宣称 M43-2 或 M43 完成。

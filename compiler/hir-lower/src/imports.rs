@@ -12,6 +12,7 @@ mod packages;
 mod reexports;
 mod resolve;
 mod selector;
+mod source_scope;
 #[cfg(test)]
 mod tests;
 

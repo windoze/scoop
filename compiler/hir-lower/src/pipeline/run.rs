@@ -45,7 +45,7 @@ impl Lowerer {
         self.top_level_namespaces.initialize_sources(
             self.intrinsic_sources
                 .iter()
-                .map(|source| source.identity.cone()),
+                .map(|source| (source.identity.cone(), source.role)),
             current_cone,
             files,
         );

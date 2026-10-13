@@ -52,6 +52,7 @@ impl SourceDiscoveryError {
 #[derive(Debug)]
 pub enum SourceDiscoveryErrorKind {
     SourceRootNotDirectory,
+    TestRootNotDirectory,
     NonUtf8EntryName,
     EscapesConeRoot,
     SymlinkCycle,
@@ -88,6 +89,9 @@ impl fmt::Display for SourceDiscoveryError {
         match &self.kind {
             SourceDiscoveryErrorKind::SourceRootNotDirectory => {
                 formatter.write_str("resolved src root is not a directory")
+            }
+            SourceDiscoveryErrorKind::TestRootNotDirectory => {
+                formatter.write_str("resolved tests root is not a directory")
             }
             SourceDiscoveryErrorKind::NonUtf8EntryName => {
                 formatter.write_str("directory entry name is not valid UTF-8")

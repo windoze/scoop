@@ -424,6 +424,7 @@ fn materialize_defined_test_sources(
         sources.push(SourceProvider {
             provider: source.provider,
             kind: SourceKind::Core,
+            role: scoop_identity::SourceRole::Production,
             identity: source.identity.clone(),
             name: source.name.to_string(),
             source: source.source_text.to_string(),
@@ -439,6 +440,7 @@ fn materialize_defined_test_sources(
         sources.push(SourceProvider {
             provider: input.user_provider,
             kind: SourceKind::CurrentUnit,
+            role: source.role(),
             identity: source.identity().clone(),
             name: details.display_locator.to_string(),
             source: details.source_text.to_string(),
@@ -461,6 +463,7 @@ fn materialize_current_sources(
             } else {
                 SourceKind::CurrentUnit
             },
+            role: source.source().role(),
             identity: source.source().identity().clone(),
             name: source.diagnostic().display_locator().display().to_string(),
             source: source.text().text().to_owned(),
@@ -479,6 +482,7 @@ pub(crate) enum SourceKind {
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
     kind: SourceKind,
+    role: scoop_identity::SourceRole,
     identity: scoop_identity::SourceIdentity,
     name: String,
     source: String,

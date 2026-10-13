@@ -103,7 +103,9 @@ impl Lowerer {
         package: PackageId,
         name: &str,
     ) -> Vec<ImportCandidateLayer> {
-        let mut layers = self.imports.layers(self.current_file, package, name);
+        let mut layers =
+            self.imports
+                .layers_in_source_scope(self, self.current_file, package, name);
         let mut terminal = None;
         for (index, layer) in layers.iter_mut().enumerate() {
             let mut suppressed_callables = std::mem::take(&mut layer.suppressed_callables);
@@ -149,7 +151,8 @@ impl Lowerer {
     ) -> Vec<TypeLookupCandidate> {
         let mut candidates = Vec::new();
         for binding in bindings {
-            if let Some(target) = self.imports.binding(binding).target.type_target()
+            if self.declaration_source_in_scope(self.imports.binding(binding).file)
+                && let Some(target) = self.imports.binding(binding).target.type_target()
                 && !candidates.iter().any(|candidate: &TypeLookupCandidate| {
                     candidate.target.current() == Some(target)
                 })
@@ -225,7 +228,7 @@ impl Lowerer {
             TopLevelLookupLayer::CorePrelude => vec![core()],
             TopLevelLookupLayer::CurrentPackage(package) => self
                 .imports
-                .layers(self.current_file, package, name)
+                .layers_in_source_scope(self, self.current_file, package, name)
                 .into_iter()
                 .map(|layer| {
                     if layer.kind == ImportLookupLayer::CorePrelude {

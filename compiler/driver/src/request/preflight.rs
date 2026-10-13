@@ -257,6 +257,7 @@ fn parser_source_input(source: &DiscoveredSource) -> CurrentConeSourceInput<'_> 
         source.source_text(),
         source.display_locator().as_path(),
     )
+    .with_role(source.role())
 }
 
 #[derive(Debug)]

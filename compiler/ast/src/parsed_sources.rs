@@ -1,4 +1,4 @@
-use scoop_identity::SourceIdentity;
+use scoop_identity::{SourceIdentity, SourceRole};
 use std::fmt;
 
 use crate::{NonEmptyVec, SourceFile};
@@ -8,11 +8,25 @@ use crate::{NonEmptyVec, SourceFile};
 pub struct IdentifiedParsedSource {
     identity: SourceIdentity,
     ast: SourceFile,
+    role: SourceRole,
 }
 
 impl IdentifiedParsedSource {
     pub fn new(identity: SourceIdentity, ast: SourceFile) -> Self {
-        Self { identity, ast }
+        Self {
+            identity,
+            ast,
+            role: SourceRole::Production,
+        }
+    }
+
+    pub fn with_role(mut self, role: SourceRole) -> Self {
+        self.role = role;
+        self
+    }
+
+    pub const fn role(&self) -> SourceRole {
+        self.role
     }
 
     pub const fn identity(&self) -> &SourceIdentity {

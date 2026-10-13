@@ -7,11 +7,12 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::{
     NormalizedSourcePath, NormalizedSourcePathError, SourceContentDigest, SourceIdentity,
-    TargetProfileId,
+    SourceRole, TargetProfileId,
 };
 
 use crate::{ConeRelativePath, LoadedConeManifest, SourceSelection};
 
+mod collect;
 mod error;
 mod read;
 mod select;
@@ -41,6 +42,7 @@ pub struct DiscoveredSource {
     display_locator: SourceDisplayLocator,
     source_text: String,
     content_digest: SourceContentDigest,
+    role: SourceRole,
 }
 
 impl DiscoveredSource {
@@ -55,7 +57,12 @@ impl DiscoveredSource {
             display_locator,
             source_text,
             content_digest,
+            role: SourceRole::Production,
         }
+    }
+
+    pub const fn role(&self) -> SourceRole {
+        self.role
     }
 
     pub fn identity(&self) -> &SourceIdentity {
@@ -81,12 +88,14 @@ impl DiscoveredSource {
         SourceDisplayLocator,
         String,
         SourceContentDigest,
+        SourceRole,
     ) {
         (
             self.identity,
             self.display_locator,
             self.source_text,
             self.content_digest,
+            self.role,
         )
     }
 }
@@ -133,65 +142,15 @@ pub fn discover_manifest_sources(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
 ) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
-    let roots = selected_roots(manifest, target)?;
-    let mut candidates = Vec::new();
-    let mut directories = Vec::new();
-    for root in roots {
-        if root.resolved.metadata.is_dir() {
-            walk_directory(
-                &root.resolved.path,
-                root.path.as_path(),
-                manifest.real_root(),
-                &root.selection,
-                &mut BTreeSet::new(),
-                &mut candidates,
-            )?;
-            directories.push(root.path);
-        } else {
-            let logical_path = NormalizedSourcePath::new(root.path.as_str()).map_err(|error| {
-                SourceDiscoveryError::new(
-                    root.resolved.path.clone(),
-                    SourceDiscoveryErrorKind::InvalidLogicalPath(error),
-                )
-            })?;
-            candidates.push(SourceCandidate {
-                logical_path,
-                physical_path: root.resolved.path,
-                display_path: manifest.real_root().join(root.path.as_path()),
-                selection: root.selection,
-            });
-        }
-    }
-    candidates.sort_by(|left, right| left.logical_path.cmp(&right.logical_path));
-    let mut physical_sources: BTreeMap<&Path, &SourceCandidate> = BTreeMap::new();
-    for candidate in &candidates {
-        if let Some(first) = physical_sources.insert(&candidate.physical_path, candidate) {
-            return Err(SourceDiscoveryError::new(
-                candidate.display_path.clone(),
-                SourceDiscoveryErrorKind::ConflictingSelections {
-                    first: format!("{}: {}", first.selection, first.logical_path),
-                    second: format!("{}: {}", candidate.selection, candidate.logical_path),
-                },
-            ));
-        }
-    }
-    let cone = manifest.identity();
-    let mut candidates = candidates.into_iter();
-    let first_candidate = candidates.next().ok_or_else(|| {
-        SourceDiscoveryError::new(
-            manifest.manifest_path().to_path_buf(),
-            SourceDiscoveryErrorKind::EmptySourceSet,
-        )
-    })?;
-    let first = read_discovered_source(first_candidate, cone)?;
-    let rest = candidates
-        .map(|candidate| read_discovered_source(candidate, cone))
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(DiscoveredManifestSources {
-        first,
-        rest,
-        directories,
-    })
+    collect::discover(manifest, selected_roots(manifest, target, false)?)
+}
+
+/// Select production and test inputs without changing their Cone identity.
+pub fn discover_manifest_sources_for_tests(
+    manifest: &LoadedConeManifest,
+    target: TargetProfileId,
+) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
+    collect::discover(manifest, selected_roots(manifest, target, true)?)
 }
 
 #[cfg(test)]

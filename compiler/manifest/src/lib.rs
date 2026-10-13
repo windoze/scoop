@@ -17,6 +17,7 @@ mod stable_file;
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,
     SourceDiscoveryErrorKind, SourceDisplayLocator, discover_manifest_sources,
+    discover_manifest_sources_for_tests,
 };
 pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,

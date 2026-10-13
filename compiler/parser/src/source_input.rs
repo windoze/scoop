@@ -7,7 +7,7 @@ use scoop_ast::{
     CurrentSourceDiagnosticContext, CurrentSourceText, Diagnostic, IdentifiedParsedSource,
     NonEmptyVec,
 };
-use scoop_identity::{ConeIdentity, SourceIdentity};
+use scoop_identity::{ConeIdentity, SourceIdentity, SourceRole};
 
 use crate::parser::parse_file;
 
@@ -17,11 +17,21 @@ use crate::parser::parse_file;
 pub struct IdentifiedSourceInput<'a> {
     identity: &'a SourceIdentity,
     text: &'a str,
+    role: SourceRole,
 }
 
 impl<'a> IdentifiedSourceInput<'a> {
     pub const fn new(identity: &'a SourceIdentity, text: &'a str) -> Self {
-        Self { identity, text }
+        Self {
+            identity,
+            text,
+            role: SourceRole::Production,
+        }
+    }
+
+    pub const fn with_role(mut self, role: SourceRole) -> Self {
+        self.role = role;
+        self
     }
 
     pub const fn identity(&self) -> &'a SourceIdentity {
@@ -40,6 +50,7 @@ pub struct CurrentConeSourceInput<'a> {
     identity: &'a SourceIdentity,
     text: &'a str,
     display_locator: &'a Path,
+    role: SourceRole,
 }
 
 impl<'a> CurrentConeSourceInput<'a> {
@@ -52,7 +63,13 @@ impl<'a> CurrentConeSourceInput<'a> {
             identity,
             text,
             display_locator,
+            role: SourceRole::Production,
         }
+    }
+
+    pub const fn with_role(mut self, role: SourceRole) -> Self {
+        self.role = role;
+        self
     }
 
     pub const fn identity(&self) -> &'a SourceIdentity {
@@ -142,7 +159,8 @@ pub fn parse_all(
         }
 
         match parse_file(input.text()) {
-            Ok(ast) => parsed.push(IdentifiedParsedSource::new(identity.clone(), ast)),
+            Ok(ast) => parsed
+                .push(IdentifiedParsedSource::new(identity.clone(), ast).with_role(input.role)),
             Err(source_diagnostics) => {
                 diagnostics.extend(source_diagnostics.into_iter().map(|mut diagnostic| {
                     diagnostic.reattribute_single_source(source_index);
@@ -204,11 +222,13 @@ pub fn parse_current_cone(
             .collect(),
     );
     let parser_inputs = NonEmptyVec::new(
-        IdentifiedSourceInput::new(first.identity(), first.text()),
+        IdentifiedSourceInput::new(first.identity(), first.text()).with_role(first.role),
         inputs
             .iter()
             .skip(1)
-            .map(|input| IdentifiedSourceInput::new(input.identity(), input.text()))
+            .map(|input| {
+                IdentifiedSourceInput::new(input.identity(), input.text()).with_role(input.role)
+            })
             .collect(),
     );
     let parsed = parse_all(parser_inputs).map_err(ParseCurrentConeError::Diagnostics)?;

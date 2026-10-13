@@ -57,7 +57,9 @@ impl Lowerer {
         &self,
         path: &[ast::Ident],
     ) -> Option<QualifiedPackagePrefix> {
-        let (current, current_length) = self.top_level_namespaces.longest_package_prefix(path);
+        let (current, current_length) = self
+            .top_level_namespaces
+            .longest_package_prefix(self.current_file, path);
         let segments = path
             .iter()
             .map(|segment| {
