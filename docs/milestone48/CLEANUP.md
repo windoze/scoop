@@ -151,3 +151,5 @@
 native 外部头文件与指向外部源码的 symlink 负例改为实际编译／运行成功用例。不同声明路径即使是 hardlink／symlink 也作为两个翻译单元；原 inode 去重负例改为真实重复强符号的链接错误。相同规范化声明路径重复、缺失输入、文件／目录类型、目标配置等正常错误仍保留。native 语法错误由实际执行预处理／编译的 parent 报告，三个 target 的诊断期望同步为 `SourceSnapshot`，错误位置与消息保持。
 
 新增 `m48-native-objects-c`／`m48-native-objects-cxx` 以源码与真实工具始终存在的冷／暖和实际输入变更检验复用。Rust 缺失对象用例只要求正常补产所需输出；没有增加缓存内容损坏、权限／来源审计或删除源码后继续成功的验收。
+
+同批 Linux 回归 `linker/src/artifacts/tests.rs::artifact_cxx_requirement_rejects_both_musl_final_link_modes` 保留源目录，继续验证 GNU 产物的 C++ 需求在 musl static／dynamic 两种最终链接模式下报错及来源信息，不再以源码移除作为验收前提。

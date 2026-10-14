@@ -100,4 +100,10 @@ Linux [workspace clippy](validation/native-tools-linux-clippy.log.gz)、[scoop 9
 
 CLI [定向复验](validation/native-objects-darwin-retest.log.gz)通过 17 个用例，含 C++ debug／release、传递依赖、真实 native 冲突、外部实际输入、两个新对象复用用例；2 个 imacros 用例暴露 Clang 的额外观察指令，修复后[最后 5 个用例、54 processes](validation/native-objects-darwin-final.log.gz)全部通过，覆盖 C／C++ flags、头文件、源码更新及新对象复用。新用例按冷／暖、仅 Scoop 更新、头文件更新、增加优先头文件运行，consumer 退出值为 43／44／102。另保留[首次中断](validation/native-objects-darwin-fixtures-first.log.gz)及[修正诊断前的中断结果](validation/native-objects-darwin-fixtures.log.gz)。历史隔离和路径审计迁移见 [清理记录](CLEANUP.md)。本机无 cargo/rustc 进程时清理 `target/debug/incremental` 1,287.2 MiB。
 
-本批尚未完成 runtime 对象、最终 executable 复用、artifact 消费重放清理与全量历史测试迁移，M48 仍未完成。Linux GNU／musl 验证待本批同步后追加。
+本批尚未完成 runtime 对象、最终 executable 复用、artifact 消费重放清理与全量历史测试迁移，M48 仍未完成。
+
+Linux [workspace clippy](validation/native-objects-linux-clippy.log.gz)、[scoop 90 项／protocol 26 项／toolchain 34 项](validation/native-objects-linux-rust.log.gz)、[driver 协议 4 项](validation/native-objects-linux-driver.log.gz)、[release 构建](validation/native-objects-linux-release.log.gz)及 [musl 两种链接模式的 C++ 需求诊断](validation/native-objects-linux-linker.log.gz)通过。首次 Linux clippy 暴露平台限定测试漏传新参数，[原始诊断](validation/native-objects-linux-clippy-first.log.gz)保留；修正调用并移除测试源码删除步骤后重新验证通过，本机[后续 clippy](validation/native-objects-darwin-clippy-followup.log.gz)也通过。
+
+[GNU 正式 CLI](validation/native-objects-gnu-fixtures.log.gz)中 43 项通过；4 个自带工具选择的负例因 runner 额外传入 `--cc` 而重复参数，去掉 runner 的该参数后[4 项独立复验](validation/native-objects-gnu-tool-negatives.log.gz)全部通过，合计 47 个适用用例完成。[musl](validation/native-objects-musl-fixtures.log.gz)通过 38 个用例、41 variants、90 processes，另 10 个按 target 声明不适用。覆盖 native 冷／暖、实际源码／头文件／flags／工具更新、C++ stdlib、重复定义、外部正常路径、传递产物及运行。
+
+保留全部源码、工具与产物，对 GNU 新用例的 C／C++ 库输出分别执行同配置暖构建：[C trace](validation/native-objects-gnu-c-warm.trace.gz)及 [C++ trace](validation/native-objects-gnu-cxx-warm.trace.gz)均仅有 scoop 自身 1 次 execve，没有 native 工具或 scoopc exec，没有打开 Cone.toml／Scoop 或 native 源码／头文件／对象／`.slib` 内容，没有 rename；[C 结果](validation/native-objects-gnu-c-warm.stderr.gz)及 [C++ 结果](validation/native-objects-gnu-cxx-warm.stderr.gz)的 child 数均为 0。首次 trace 误用 `/usr/bin/gcc` 别名而非 runner 传入的规范路径，属于不同请求并触发更新，保留[该次结果](validation/native-objects-gnu-c-request-change.stderr.gz)；上述暖构建证据使用与 fixture 完全相同的 compiler、PATH、target、输出及缓存配置。库验收不替代仍待实施的 runtime／最终 executable 复用。
