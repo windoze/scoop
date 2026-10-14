@@ -4,6 +4,7 @@ pub(super) fn find(
     key: &NativeLinkRequirementKey,
     roots: &[PathBuf],
     profile: &ValidatedFinalLinkProfile,
+    observed: &mut Vec<PathBuf>,
 ) -> Result<Option<NativeFile>, LinkError> {
     let name = key.library().as_str();
     let linux = matches!(profile, ValidatedFinalLinkProfile::Linux(_));
@@ -75,6 +76,7 @@ pub(super) fn find(
         })
         .collect();
     let mut candidates = BTreeMap::new();
+    observed.extend(paths.keys().cloned());
     let mut locators = Vec::new();
     for (path, kind) in paths {
         match std::fs::symlink_metadata(&path) {

@@ -1,0 +1,248 @@
+schema = 1
+name = "m48-executable-record"
+inputs = ["program", "provider", "state.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "executable", "cache", "multi-cone"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/program", to = "${work}/program-source"}}, {copy = {from = "${fixture}/provider", to = "${work}/provider"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 3}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_cold"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "one_result"
+argv = ["${python}", "${fixture}/state.py", "count", "${work}/cache", "${cold.result.output}", "1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"}, {actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "unchanged_warm"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_warm"
+argv = ["${scoop}", "run", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "--", "unused argument"]
+exit = 42
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${run_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "unchanged_run"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "another_output"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/another"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${another_output.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"}, {actual = "${another_output.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "unchanged_another"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_another"
+argv = ["${another_output.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "remove_output"
+files = [{remove = {path = "${work}/another"}}]
+
+[[steps]]
+name = "restore_output"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "-o", "${work}/another"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${restore_output.result.link_plan_fingerprint}", equals = "${cold.result.link_plan_fingerprint}"}, {actual = "${restore_output.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "unchanged_restored"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${cold.result.output}", "${work}/unchanged.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_provider"
+files = [{replace = {path = "${work}/provider/src/value.scoop", old = "Int = 40", new = "Int = 41"}}]
+
+[[steps]]
+name = "provider_changed"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_provider_changed"
+argv = ["${provider_changed.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "two_results"
+argv = ["${python}", "${fixture}/state.py", "count", "${work}/cache", "${cold.result.output}", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_root"
+files = [{replace = {path = "${work}/program-source/src/main.scoop", old = "value() + 2", new = "value() + 3"}}]
+
+[[steps]]
+name = "root_changed"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${root_changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_root_changed"
+argv = ["${root_changed.result.output}"]
+exit = 44
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "three_results"
+argv = ["${python}", "${fixture}/state.py", "count", "${work}/cache", "${cold.result.output}", "3"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "remove_cached_executables"
+argv = ["${python}", "${fixture}/state.py", "remove", "${work}/cache", "${cold.result.output}", "unused"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "restore_cached"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${restore_cached.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"}, {actual = "${restore_cached.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_restored"
+argv = ["${restore_cached.result.output}"]
+exit = 44
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "one_restored_result"
+argv = ["${python}", "${fixture}/state.py", "count", "${work}/cache", "${cold.result.output}", "1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "release"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}, "--release"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_release"
+argv = ["${release.result.output}"]
+exit = 44
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "two_profiles"
+argv = ["${python}", "${fixture}/state.py", "count", "${work}/cache", "${cold.result.output}", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "debug_again"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${debug_again.result.link_plan_fingerprint}", equals = "${root_changed.result.link_plan_fingerprint}"}, {actual = "${debug_again.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "reuse_debug"
+argv = ["${python}", "${fixture}/state.py", "count", "${work}/cache", "${cold.result.output}", "2"]
+exit = 0
+stdout = ""
+stderr = ""

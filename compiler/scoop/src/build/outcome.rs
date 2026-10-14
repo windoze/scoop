@@ -17,9 +17,9 @@ pub enum BuildOutcome {
     Library(BuiltArtifacts),
     Executable {
         build: BuiltArtifacts,
+        executable: PathBuf,
         runtime_index: PathBuf,
         link_plan_fingerprint: ResolvedLinkPlanFingerprint,
-        execution_copy: Option<tempfile::TempPath>,
     },
 }
 

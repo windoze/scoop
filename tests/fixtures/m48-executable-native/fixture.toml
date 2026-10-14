@@ -1,0 +1,211 @@
+schema = 1
+name = "m48-executable-native"
+inputs = ["main.scoop", "value.c", "../m48-executable-record/state.py"]
+tools = ["scoop", "scoopc", "cc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "executable", "cache", "native-link"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--library-path", "${work}/extra", "-o", "${work}/program"]
+
+[[steps]]
+name = "prepare"
+files = [{mkdir = {path = "${work}/native"}}, {mkdir = {path = "${work}/extra"}}, {copy = {from = "${fixture}/value.c", to = "${work}/value.c"}}]
+
+[[steps]]
+name = "compile_initial"
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${work}/value.c", "-o", "${work}/selected.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "select_object"
+files = [{symlink = {from = "${work}/selected.o", to = "${work}/native/value.o"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${work}/program"]
+exit = 40
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "save", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "same"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "same", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "unrelated"
+files = [{write = {path = "${work}/native/unrelated.txt", data = "not a link candidate"}}]
+
+[[steps]]
+name = "unrelated_build"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${unrelated_build.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "same_unrelated"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "same", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "change_native"
+files = [{replace = {path = "${work}/value.c", old = "return 40", new = "return 41"}}]
+
+[[steps]]
+name = "compile_changed"
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${work}/value.c", "-o", "${work}/selected.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${work}/program"]
+exit = 41
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "two_results"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "count", "${work}/cache", "${work}/program", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "change_selection"
+files = [{replace = {path = "${work}/value.c", old = "return 41", new = "return 42"}}]
+
+[[steps]]
+name = "compile_alternative"
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${work}/value.c", "-o", "${work}/alternative.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "retarget"
+files = [{remove = {path = "${work}/native/value.o"}}, {symlink = {from = "${work}/alternative.o", to = "${work}/native/value.o"}}]
+
+[[steps]]
+name = "retargeted"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${retargeted.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_retargeted"
+argv = ["${work}/program"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "three_results"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "count", "${work}/cache", "${work}/program", "3"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "add_candidate"
+files = [{copy = {from = "${work}/alternative.o", to = "${work}/extra/value.o"}}]
+
+[[steps]]
+name = "added_candidate"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${added_candidate.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_added_candidate"
+argv = ["${work}/program"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "four_results"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "count", "${work}/cache", "${work}/program", "4"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_final"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "save", "${work}/cache", "${work}/program", "${work}/final.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "final_warm"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${final_warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "same_final"
+argv = ["${python}", "${fixture}/../m48-executable-record/state.py", "same", "${work}/cache", "${work}/program", "${work}/final.json"]
+exit = 0
+stdout = ""
+stderr = ""

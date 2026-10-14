@@ -15,6 +15,7 @@ mod discovery;
 pub struct ValidatedCxxToolchain {
     driver: PathBuf,
     fingerprint: Digest256,
+    inputs: Vec<crate::build_record::Input>,
 }
 
 impl ValidatedCxxToolchain {
@@ -43,8 +44,9 @@ impl ValidatedCxxToolchain {
             driver: record.result.driver.to_path_buf().map_err(error)?,
             fingerprint: crate::build_record::fingerprint(&(
                 record.result.configuration,
-                record.inputs,
+                &record.inputs,
             ))?,
+            inputs: record.inputs,
         })
     }
 
@@ -94,6 +96,10 @@ impl ValidatedCxxToolchain {
                 configuration: *sha256(&macros.stdout).as_array(),
             },
         })
+    }
+
+    pub(crate) fn input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
+        self.inputs.iter().map(|input| input.path()).collect()
     }
 
     pub fn driver(&self) -> &Path {

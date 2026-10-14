@@ -17,6 +17,14 @@ mod tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
+impl ResolvedLinkPlanFingerprint {
+    pub const fn as_array(&self) -> &[u8; 32] {
+        self.0.as_array()
+    }
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
+        Self(Digest256::from_array(bytes))
+    }
+}
 impl std::fmt::Display for ResolvedLinkPlanFingerprint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -28,7 +36,7 @@ pub struct ProgramLinkOutput {
     pub path: PathBuf,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
-    /// Actual native files used by this link, for destination alias checks.
+    /// Actual native files and lookup candidates used by this link.
     pub input_paths: Vec<PathBuf>,
 }
 
@@ -103,9 +111,8 @@ fn link_inputs(
         plan_dump,
         input_paths: inputs
             .native
-            .files
-            .values()
-            .map(|file| file.locator.clone())
+            .input_paths()
+            .into_iter()
             .chain(inputs.namespace.input_paths())
             .collect(),
     })

@@ -165,3 +165,11 @@ runtime index 改为保存实际对象路径与生产时的符号摘要，删除
 Linux native archive 测试移除“覆盖归档后继续解析保留副本”的分支，继续覆盖实际 archive member 选择、未选中 initializer 的延迟处理和 thin archive 诊断。
 
 共享 `linker/test_support` 取消编译后删除 Scoop Cone 与 native C 文件；相关链接器测试全程保留源码、工具和原产物。
+
+## 最终 executable 复用与发布路径清理
+
+删除 `OutputLocation::check_inputs` 的文件身份与缓存目录归属审计、`same_file`、`copy_program`、私有 execution copy 与发布同步。library fixture 删除 hardlink／symlink／缓存路径拒绝和破坏用户输出后要求重建的旧验收，保留实际输出位置、profile、run-library 诊断，并改用真实存在的 runtime 与 compiler。run／test 使用本次构建结果的稳定缓存路径，argv[0] 沿用用户输出位置；run process fixture 在运行期间也断言没有私有执行副本，保留参数、环境、输入输出、信号、子进程回收及旧程序运行时正常发布替代结果。
+
+新增 executable 独立与 native 组合 fixture，以真实输入始终存在的暖构建、同一输出 metadata 不变、另选输出、所需结果补产、真实依赖／native 更新和库候选变化验证缓存。M43 selection fixture 继续检查过滤、忽略项、构造失败和运行结果，并观察这些请求不改写 executable 或缓存记录；测试事件不缓存。缺失 native 输入仅用于普通失败不发布验收，不要求移除输入后仍成功。SOURCE-ISOLATION 尚待迁移的 1,618 行不因本批减少。
+
+GNU `m48-executable-tools` 继续保留真实 compiler／linker，以标准 `-B` 选择和 symlink 正常改选检验实际工具输入更新；暖构建比较调用日志和生成物 metadata。该用例不删除工具、不提供伪造版本或失败替身。

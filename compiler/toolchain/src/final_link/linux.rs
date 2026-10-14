@@ -34,6 +34,7 @@ pub struct LinuxFinalLinkProfile {
     compiler_digest: Digest256,
     runtime: RuntimeLibraries,
     inputs: Vec<SystemInput>,
+    observed_paths: Vec<PathBuf>,
 }
 
 impl LinuxFinalLinkProfile {
@@ -54,13 +55,16 @@ impl LinuxFinalLinkProfile {
             ));
         }
         let runtime = RuntimeLibraries::resolve(startup.target(), options, cxx)?;
-        let linker = probe::driver_program(&startup, "ld")?;
+        let mut observed_paths = Vec::new();
+        let linker = probe::driver_program(&startup, "ld", &mut observed_paths)?;
         let version = probe::run(Command::new(&linker).arg("--version"))?;
         let linker_version = String::from_utf8(version.stdout).map_err(error)?;
         if !linker_version.starts_with("GNU ld ") {
             return Err(error("this Linux driver profile requires GNU ld"));
         }
-        let compiler_digest = sha256(&std::fs::read(runtime.driver(&startup)).map_err(error)?);
+        let compiler_digest = crate::build_record::fingerprint(&crate::build_record::Input::read(
+            runtime.driver(&startup),
+        )?)?;
         let mut profile = Self {
             startup,
             target: selected,
@@ -70,8 +74,11 @@ impl LinuxFinalLinkProfile {
             compiler_digest,
             runtime,
             inputs: Vec::new(),
+            observed_paths: Vec::new(),
         };
-        profile.inputs = probe::check(&profile)?;
+        observed_paths.extend(probe::search_paths(&profile.startup, &profile.linker)?);
+        profile.inputs = probe::check(&profile, &mut observed_paths)?;
+        profile.observed_paths = observed_paths;
         Ok(profile)
     }
 
@@ -98,6 +105,16 @@ impl LinuxFinalLinkProfile {
     }
     pub fn input_paths(&self) -> impl Iterator<Item = &Path> {
         self.inputs.iter().map(|input| input.path.as_path())
+    }
+
+    pub(super) fn update_input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
+        let mut paths = self.input_paths().map(PathBuf::from).collect::<Vec<_>>();
+        paths.extend(self.observed_paths.iter().cloned());
+        paths.push(self.runtime.driver(&self.startup).to_owned());
+        if let RuntimeLibraries::Cxx(cxx) = &self.runtime {
+            paths.extend(cxx.input_paths()?);
+        }
+        Ok(paths)
     }
 
     pub fn command(&self, scratch: &Path, output: &Path) -> Result<Command, ToolchainError> {

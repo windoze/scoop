@@ -35,11 +35,10 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             reporter.built(&result).map_err(config)?;
             match result {
                 BuildOutcome::Executable {
-                    build,
-                    execution_copy: Some(copy),
-                    ..
-                } => super::run::program(&build.output, copy, &args.program_args, &cwd).map(Some),
-                _ => Err(config("run did not produce a private executable copy")),
+                    build, executable, ..
+                } => super::run::program(&executable, &build.output, &args.program_args, &cwd)
+                    .map(Some),
+                _ => Err(config("run did not produce an executable")),
             }
         }
         Command::Test(args) => {
@@ -73,19 +72,17 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             let target = summary.cone().coordinate().name().to_owned();
             match result {
                 BuildOutcome::Executable {
-                    build,
-                    execution_copy: Some(copy),
-                    ..
+                    build, executable, ..
                 } => super::test_run::program(
+                    &executable,
                     &build.output,
-                    copy,
                     &selected,
                     args.nocapture,
                     &cwd,
                     reporter,
                     &target,
                 ),
-                _ => Err(config("test did not produce a private executable copy")),
+                _ => Err(config("test did not produce an executable")),
             }
         }
         Command::Link(args) => {
@@ -115,7 +112,7 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
 fn build_request(
     args: BuildOptions,
     output: Option<PathBuf>,
-    keep_for_run: bool,
+    require_executable: bool,
 ) -> BuildResult<BuildRequest> {
     let cwd = std::env::current_dir().map_err(config)?;
     let input = absolute(
@@ -188,7 +185,7 @@ fn build_request(
         library_paths: paths(&cwd, args.library_path)?,
         cwd,
         dumps: None,
-        keep_for_run,
+        require_executable,
     })
 }
 

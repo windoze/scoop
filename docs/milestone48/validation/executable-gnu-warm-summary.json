@@ -1,0 +1,111 @@
+[
+  {
+    "mode": "build",
+    "argv": [
+      "/home/chenxu/repos/scoop/target/release/scoop",
+      "build",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/program-source",
+      "--target",
+      "x86_64-unknown-linux-gnu",
+      "--cc",
+      "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "--unwind-prefix",
+      "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+      "--sysroot",
+      "/tmp/scoop-m48-executable-gnu-run-final/sysroot",
+      "--scoopc",
+      "/home/chenxu/repos/scoop/target/release/scoopc",
+      "--cache-dir",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/cache",
+      "--runtime-root",
+      "/home/chenxu/repos/scoop/runtime",
+      "--target-dir",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/target",
+      "--message-format",
+      "json"
+    ],
+    "exit": 0,
+    "scoopc_children": 0,
+    "execve": [
+      "831938 execve(\"/home/chenxu/repos/scoop/target/release/scoop\", [\"/home/chenxu/repos/scoop/target/release/scoop\", \"build\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/program-source\", \"--target\", \"x86_64-unknown-linux-gnu\", \"--cc\", \"/usr/bin/x86_64-linux-gnu-gcc-15\", \"--unwind-prefix\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind\", \"--sysroot\", \"/tmp/scoop-m48-executable-gnu-run-final/sysroot\", \"--scoopc\", \"/home/chenxu/repos/scoop/target/release/scoopc\", \"--cache-dir\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/cache\", \"--runtime-root\", \"/home/chenxu/repos/scoop/runtime\", \"--target-dir\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/target\", \"--message-format\", \"json\"], 0x7ffcc8462cc8 /* 21 vars */) = 0"
+    ],
+    "input_content_opens": 0,
+    "executable_content_opens": 0,
+    "renames": 0,
+    "outputs_unchanged": true
+  },
+  {
+    "mode": "run",
+    "argv": [
+      "/home/chenxu/repos/scoop/target/release/scoop",
+      "run",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/program-source",
+      "--target",
+      "x86_64-unknown-linux-gnu",
+      "--cc",
+      "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "--unwind-prefix",
+      "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+      "--sysroot",
+      "/tmp/scoop-m48-executable-gnu-run-final/sysroot",
+      "--scoopc",
+      "/home/chenxu/repos/scoop/target/release/scoopc",
+      "--cache-dir",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/cache",
+      "--runtime-root",
+      "/home/chenxu/repos/scoop/runtime",
+      "--target-dir",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/target",
+      "--message-format",
+      "json",
+      "--",
+      "unused argument"
+    ],
+    "exit": 44,
+    "scoopc_children": 0,
+    "execve": [
+      "831942 execve(\"/home/chenxu/repos/scoop/target/release/scoop\", [\"/home/chenxu/repos/scoop/target/release/scoop\", \"run\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/program-source\", \"--target\", \"x86_64-unknown-linux-gnu\", \"--cc\", \"/usr/bin/x86_64-linux-gnu-gcc-15\", \"--unwind-prefix\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind\", \"--sysroot\", \"/tmp/scoop-m48-executable-gnu-run-final/sysroot\", \"--scoopc\", \"/home/chenxu/repos/scoop/target/release/scoopc\", \"--cache-dir\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/cache\", \"--runtime-root\", \"/home/chenxu/repos/scoop/runtime\", \"--target-dir\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/target\", \"--message-format\", \"json\", \"--\", \"unused argument\"], 0x7ffca221d088 /* 21 vars */) = 0",
+      "831944 execve(\"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/cache/executables-v1/program-6uOOkP/program\", [\"/tmp/scoop-m48-executable-gnu-run-final/cases/2/normal/target/x86_64-unknown-linux-gnu/debug/executable-program\", \"unused argument\"], 0x7ffc0d672258 /* 21 vars */ <unfinished ...>"
+    ],
+    "input_content_opens": 0,
+    "executable_content_opens": 0,
+    "renames": 0,
+    "outputs_unchanged": true
+  },
+  {
+    "mode": "test",
+    "argv": [
+      "/home/chenxu/repos/scoop/target/release/scoop",
+      "test",
+      "--target",
+      "x86_64-unknown-linux-gnu",
+      "--cc",
+      "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "--unwind-prefix",
+      "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+      "/home/chenxu/repos/scoop/tests/fixtures/m43-test-selection/program",
+      "--profile",
+      "debug",
+      "--sysroot",
+      "/tmp/scoop-m48-executable-gnu-run-final/sysroot",
+      "--cache-dir",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/1/debug/cache",
+      "--target-dir",
+      "/tmp/scoop-m48-executable-gnu-run-final/cases/1/debug/outputs",
+      "--message-format",
+      "json",
+      "--filter",
+      "Cases::first \u96ea"
+    ],
+    "exit": 0,
+    "scoopc_children": 0,
+    "execve": [
+      "831988 execve(\"/home/chenxu/repos/scoop/target/release/scoop\", [\"/home/chenxu/repos/scoop/target/release/scoop\", \"test\", \"--target\", \"x86_64-unknown-linux-gnu\", \"--cc\", \"/usr/bin/x86_64-linux-gnu-gcc-15\", \"--unwind-prefix\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind\", \"/home/chenxu/repos/scoop/tests/fixtures/m43-test-selection/program\", \"--profile\", \"debug\", \"--sysroot\", \"/tmp/scoop-m48-executable-gnu-run-final/sysroot\", \"--cache-dir\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/1/debug/cache\", \"--target-dir\", \"/tmp/scoop-m48-executable-gnu-run-final/cases/1/debug/outputs\", \"--message-format\", \"json\", \"--filter\", \"Cases::first \\351\\233\\252\"], 0x7ffdb5164428 /* 21 vars */) = 0",
+      "831990 execve(\"/tmp/scoop-m48-executable-gnu-run-final/cases/1/debug/cache/executables-v1/program-IUN2hy/program\", [\"/tmp/scoop-m48-executable-gnu-run-final/cases/1/debug/outputs/x86_64-unknown-linux-gnu/debug/tests/selection-tests\", \"--scoop-test-cases\", \"0\"], 0x5900df447a50 /* 22 vars */ <unfinished ...>"
+    ],
+    "input_content_opens": 0,
+    "executable_content_opens": 0,
+    "renames": 0,
+    "outputs_unchanged": true
+  }
+]

@@ -1,0 +1,4 @@
+@Extern(lib = "value", name = "native_value")
+fun value(): Int
+
+fun main(): Int { @Unsafe { return value() } }

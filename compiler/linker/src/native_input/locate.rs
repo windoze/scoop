@@ -14,14 +14,15 @@ pub(super) fn library(
     key: &NativeLinkRequirementKey,
     roots: &[PathBuf],
     profile: &ValidatedFinalLinkProfile,
+    observed: &mut Vec<PathBuf>,
 ) -> Result<LibraryResolution, LinkError> {
-    match explicit::find(key, roots, profile)? {
+    match explicit::find(key, roots, profile, observed)? {
         Some(file) => Ok(LibraryResolution {
             files: vec![file],
             scripts: Vec::new(),
             system_alias: false,
         }),
-        None => system::find(key, profile),
+        None => system::find(key, profile, observed),
     }
 }
 

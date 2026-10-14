@@ -66,7 +66,13 @@ impl DynamicInputs {
                 let target = if let Some(target) = names.get(&edge.name) {
                     *target
                 } else {
-                    let file = locate::dependency(&provider, &edge.name, roots, profile)?;
+                    let file = locate::dependency(
+                        &provider,
+                        &edge.name,
+                        roots,
+                        profile,
+                        &mut native.observed_paths,
+                    )?;
                     let NativeContent::Dynamic(records) = &file.content else {
                         return Err(error("dynamic dependency resolved to a static input"));
                     };

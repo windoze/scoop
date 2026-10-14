@@ -5,7 +5,7 @@ use std::process::Command;
 
 use crate::ValidatedCBridgeToolchainInvocation;
 use scoop_lir::{LirTargetProfile, TargetProfileId};
-use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
+use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
 
 use crate::{SystemProvider, ToolchainError, c_bridge};
 
@@ -34,6 +34,7 @@ const OPTIONS: &[&str] = &[
 pub struct DarwinFinalLinkProfile {
     startup: ValidatedCBridgeToolchainInvocation,
     linker: PathBuf,
+    linker_locator: PathBuf,
     linker_version: String,
     linker_digest: Digest256,
     compiler_digest: Digest256,
@@ -49,15 +50,14 @@ impl DarwinFinalLinkProfile {
         let path =
             c_bridge::command_text_from_path(Path::new("/usr/bin/xcrun"), &["--find", "ld"])?;
         let linker = std::fs::canonicalize(path.trim()).map_err(error)?;
+        let linker_locator = PathBuf::from(path.trim());
         let linker_version = linker_version(&linker)?;
-        let linker_digest = sha256(&std::fs::read(&linker).map_err(error)?);
-        let compiler_digest = sha256(
-            &std::fs::read(
-                cxx.as_ref()
-                    .map_or(startup.compiler_driver(), |cxx| cxx.driver()),
-            )
-            .map_err(error)?,
-        );
+        let linker_digest =
+            crate::build_record::fingerprint(&crate::build_record::Input::read(&linker)?)?;
+        let compiler_digest = crate::build_record::fingerprint(&crate::build_record::Input::read(
+            cxx.as_ref()
+                .map_or(startup.compiler_driver(), |cxx| cxx.driver()),
+        )?)?;
         let system = SystemProvider::read(
             startup.sdk_root().map_err(error)?,
             startup
@@ -70,6 +70,7 @@ impl DarwinFinalLinkProfile {
         let profile = Self {
             startup,
             linker,
+            linker_locator,
             linker_version,
             linker_digest,
             compiler_digest,
@@ -103,6 +104,24 @@ impl DarwinFinalLinkProfile {
     }
     pub fn system_provider(&self) -> &SystemProvider {
         &self.system
+    }
+
+    pub(super) fn input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
+        let sdk = self.startup.sdk_root().map_err(error)?;
+        let mut paths = vec![
+            self.linker_locator.clone(),
+            self.startup.compiler_driver().to_owned(),
+        ];
+        paths.extend(
+            self.system
+                .files()
+                .iter()
+                .map(|file| sdk.join(file.relative_path())),
+        );
+        if let Some(cxx) = &self.cxx {
+            paths.extend(cxx.input_paths()?);
+        }
+        Ok(paths)
     }
 
     pub fn cxx(&self) -> bool {

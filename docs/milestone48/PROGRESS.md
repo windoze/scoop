@@ -123,3 +123,27 @@ Linux [workspace clippy](validation/runtime-record-linux-clippy.log.gz)、[toolc
 对 GNU runtime 用例保留源码、工具与输出执行同配置[暖构建 trace](validation/runtime-record-gnu-warm.trace.gz)：[child 数为 0](validation/runtime-record-gnu-warm.stderr.gz)，未打开 runtime 源码／头文件，没有 runtime 编译；父进程未打开 runtime 对象，实际 ld 直接读取已有 `runtime-v2/objects-*` 下的 94 份对象，详见[采样摘要](validation/runtime-record-gnu-warm-summary.json)。最终工具发现、Scoop 对象消费及 native 链接仍有调用，本证据只证明本批 runtime 复用。首次采样的 PATH 与 runner 不同，触发编译输入更新，保留[该次结果](validation/runtime-record-gnu-request-change.stderr.gz)；暖构建证据采用 runner 实际生效的 PATH 和全部原配置。
 
 musl [16 个适用用例、26 variants、133 processes](validation/runtime-record-musl-fixtures.log.gz)全部通过，覆盖静态／PIE、动态库版本绑定、深调用栈、runtime 真实更新、独立链接和 moving GC；4 个不适用项不计为通过。本批在 Darwin、GNU、musl 的验收均保持实际输入存在，已完成 runtime 结果复用与最终输出复核退役；其余 M48 交付范围仍按上文继续。
+
+## 14. M48-4：最终 executable 记录与直接运行
+
+新增 `executables-v1` 普通记录，使用已有 Code／runtime 摘要、target／profile、最终选项、library roots 与实际工具输入定位结果。命中发生在 Link 闭包读取、final 工具发现、startup／response file 与链接之前，只读取更新记录并查询实际输入 metadata 和所需输出是否存在。记录保存稳定 executable 路径与生产时的 link plan 摘要；输入变化后通过普通锁生成新结果，成功才发布记录。显式库与动态依赖记录实际文件、脚本及候选路径，包含缺失候选；symlink 改选与新增候选触发正常解析，不扫描无关目录内容。
+
+库与程序共用结果发布记录；已有输出不再复制，首次另选输出或输出缺失时只发布已有结果。删除 OutputLocation 的 inode／路径来源检查、强制同步与 execution copy；run／test 直接执行本次构建结果的稳定缓存路径，argv[0] 保留用户输出位置；保留 cwd、stdio、exit／signal、测试事件及并发输出替换行为。用户输出的结果标识包含本次实际输入 metadata，与语义 link plan 指纹分开，避免真实链接输入更新后错误保留旧用户输出。final 工具身份采用 metadata，取消整个 compiler／linker 二进制读取。
+
+本机 [workspace clippy](validation/executable-darwin-clippy.log.gz)、[toolchain 31 项](validation/executable-darwin-toolchain.log.gz)、[scoop 86 项](validation/executable-darwin-scoop.log.gz)、[链接器 1 项](validation/executable-darwin-linker.log.gz)及 [release 构建](validation/executable-darwin-release.log.gz)通过。正式 CLI [组合首轮](validation/executable-darwin-combined.log.gz)通过 8 项；两个新 fixture 的 Unsafe 语法及 run 不接受 `-o` 的请求写法修正后，[native 复验](validation/executable-darwin-native.log.gz)和 [executable 复验](validation/executable-darwin-record.log.gz)通过。最终成功覆盖共 10 个用例、12 variants、137 processes，包含生产／测试、过滤／列表、不同输出、debug／release、所需输出补产、依赖／native／runtime 更新与正在运行时替换输出。缺失真实 native 输入的[补充 CLI 诊断](validation/executable-darwin-missing-input.stderr.gz)同时确认缓存记录和已有 executable 的 metadata 均未改变。
+
+本批尚未完成输入变化后的 final 工具发现结果复用、Scoop 对象的稳定缓存路径、artifact 消费 replay 清理、dump 最小阶段补产和全量历史测试迁移。M48 继续实施，未推进 M38。
+
+Linux [workspace clippy](validation/executable-linux-clippy.log.gz)、[scoop 89 项／toolchain 34 项](validation/executable-linux-rust.log.gz)、[链接器 2 项](validation/executable-linux-linker.log.gz)和 [release 构建](validation/executable-linux-release.log.gz)通过。初次 CLI 预检发现传输归档附带的 macOS `._` 文件，清除这些传输副本后重新运行；保留[预检日志](validation/executable-linux-preflight.log.gz)，未将该次算作通过。GNU [10 个用例、12 variants、137 processes](validation/executable-gnu-fixtures.log.gz)与 musl [9 个适用用例、11 variants、125 processes](validation/executable-musl-fixtures.log.gz)通过。
+
+按实际 GNU 工具输出补齐 GCC `-L` 目录之外的 ld `SEARCH_DIR`，以及 ld／collect2 的实际查找候选；Darwin 保留 xcrun 返回的工具 locator，以便正常 symlink 改选使记录更新。补齐后的本机 [clippy](validation/executable-darwin-clippy-followup.log.gz)、[toolchain 31 项](validation/executable-darwin-tools-followup.log.gz)和 [native CLI](validation/executable-darwin-native-final.log.gz)，以及 Linux [clippy](validation/executable-linux-clippy-followup.log.gz)、[toolchain 34 项](validation/executable-linux-tools-followup.log.gz)、[GNU native](validation/executable-gnu-native-final.log.gz)／[musl native](validation/executable-musl-native-final.log.gz)复验全部通过。直接运行稳定缓存路径后，本机[最后 3 个用例、4 variants、58 processes](validation/executable-darwin-run-final.log.gz)通过，覆盖完整 process 行为、测试过滤与 executable 更新；对应 [clippy](validation/executable-darwin-clippy-run.log.gz)通过。
+
+无本机 cargo／rustc 进程时清理 `target/debug/incremental` 810.7 MiB。文件保持职责划分：executable 编排、key、record 分别为 88／46／56 行，统一输出发布为 91 行。
+
+最终键复用已解析的 C 调用记录，包含实际 driver、SDK／sysroot 和生效环境，避免仅有文件 metadata 时遗漏调用配置；不重新发现工具。本机最后一次 [clippy](validation/executable-darwin-clippy-key.log.gz)及 [executable CLI](validation/executable-darwin-key-final.log.gz)通过；Linux 对应 [clippy](validation/executable-linux-clippy-key.log.gz)通过。稳定缓存执行路径的 [GNU](validation/executable-gnu-run-final.log.gz)和 [musl](validation/executable-musl-run-final.log.gz)各 3 个用例、4 variants、58 processes 通过。
+
+保留源码、工具及所有产物，以同一实际配置采集最终 [GNU 摘要](validation/executable-gnu-warm-summary.json)和 [musl 摘要](validation/executable-musl-warm-summary.json)：build 仅有 scoop 的 1 次 exec；run／test 各为 scoop 加缓存程序的 2 次 exec，程序 argv[0] 仍为用户输出位置。所有请求的 scoopc child 数为 0，生成物 metadata 不变，rename 数为 0；[内容打开检查](validation/executable-content-opens.json)确认没有源码、头文件、Cone.toml、`.slib`、对象、系统 stub 或 executable 的用户态内容打开。原始 trace 为 [GNU build](validation/executable-gnu-build-warm.trace.gz)、[run](validation/executable-gnu-run-warm.trace.gz)、[test](validation/executable-gnu-test-warm.trace.gz)，以及 [musl build](validation/executable-musl-build-warm.trace.gz)、[run](validation/executable-musl-run-warm.trace.gz)、[test](validation/executable-musl-test-warm.trace.gz)。采样前正常构建一次，记录工具重建后的更新；采样脚本及 argv 随证据保存，不把工具配置变化计为暖命中。
+
+新增 GNU 正式 [工具改选 fixture](validation/executable-gnu-tools-final.log.gz)，1 个用例、18 processes 通过：通过真实 GCC 的 `-B` 选择真实 ld 的调用包装器，改选后只新增一个 executable、Scoop child 数为 0；两次暖构建的工具调用日志与生成物 metadata 均不变。[补充调用计数](validation/executable-gnu-ld-summary.json)为 4／4／8／8，实际运行均返回 44。补充脚本最初只改 PATH，但该 GCC 直接返回带 target 前缀的 ld 绝对路径，未选中包装器；[首次记录](validation/executable-gnu-trace-first.log.gz)保留，改用真实 `-B` 选择后通过，没有更改生产工具来制造命中。
+
+本批 executable 结果复用与直接运行已完成。本节前述 final 工具发现持久化、Scoop 对象路径、artifact 消费重放、dump 和历史测试清理仍是 M48 未完成的交付项；本批的定向验证不替代最终全量回归与五轮性能复测。

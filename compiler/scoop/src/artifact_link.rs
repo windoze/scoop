@@ -79,13 +79,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         &directory.path().join("program"),
     )
     .map_err(failure)?;
-    let mut inputs = vec![root.path.clone()];
-    inputs.extend(dependencies.iter().map(|artifact| artifact.path.clone()));
-    inputs.extend(runtime.input_paths().iter().cloned());
-    inputs.extend(linked.input_paths);
-    output
-        .publish_program(&linked.path, &inputs, None, false)
-        .map_err(failure)?;
+    output.publish(&linked.path, None).map_err(failure)?;
     Ok(LinkOutcome {
         output: output.path().to_owned(),
         root,

@@ -76,7 +76,7 @@ diagnostics = []
 [[steps]]
 name = "ready"
 await_file = "${work}/ready"
-checks = [{glob = "${work}/target/${target}/debug/.scoop-run-*", not_equals = []}]
+checks = [{glob = "${work}/target/${target}/debug/.scoop-run-*", equals = []}]
 
 [[steps]]
 name = "cancel"

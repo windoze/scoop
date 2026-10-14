@@ -152,6 +152,14 @@ impl ValidatedFinalLinkProfile {
         }
     }
 
+    /// Inputs observed by executable update records, including system search directories.
+    pub fn input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
+        match self {
+            Self::Darwin(profile) => profile.input_paths(),
+            Self::Linux(profile) => profile.update_input_paths(),
+        }
+    }
+
     pub fn fingerprint(&self) -> Result<Digest256, ToolchainError> {
         domain_separated_cbor_hash("scoop-final-link-profile-v2", self).map_err(error)
     }
