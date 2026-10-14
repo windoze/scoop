@@ -6,7 +6,7 @@
 
 | 批次 | 状态 |
 | --- | --- |
-| M44-1 基线、计时观测与 spec | 三个发布边界观测已通过握手回归；release 工具已固定，图基线正在准备 |
+| M44-1 基线、计时观测与 spec | 发布边界与三类图的当前基线完成；其余场景继续随批次补齐同条件对照 |
 | M44-2 零搬迁更新分支 | 待实施 |
 | M44-3 引用定位、写回和无引用对象 | 待实施 |
 | M44-4 编译器 GC 代码生成边界 | 待实施 |
@@ -33,3 +33,9 @@
 - 图基准可选记录 STOPPING／COLLECTING／RUNNING 原始单调时间及三个差值，并直接记录本轮 moved_objects。观测仅用于专用测试 runtime；不能据此宣称测得 mutator 实际恢复时间。
 - 格式化、workspace clippy 和 C 的两种宏配置语法检查通过。NativeSafe 握手回归在 full／minor × O0／O2 四种组合各执行 60 次受控交错，验证发布顺序、phase 和移动后的真实根，见[验证日志](validation/observation-test.log.gz)与[lint 日志](validation/observation-lint.log.gz)。
 - M43 完成后的 release 工具构建成功并固定于 target/m44/tools-baseline。尚未执行基线计时，不报告优化收益。
+
+## 2026-10-14：当前版本图基线
+
+- 新增两个小型基准脚本，复用现有图程序及普通 CLI；构建与测量分开，固定 runtime／sysroot 副本、工具摘要和源码版本。测量支持同机交替执行，保存逐进程、逐 collection 原始记录并检查输出、三个时间差及 GC histogram。
+- Ruff 0.16.10 格式化／检查通过。正式 release CLI 构建成功，wide／array／chain 各预热一次、正式运行七次，每次五轮主动 full；105 轮有效 full 的实际搬迁数全部为零。当前仍执行 update，其中位数分别为 3.442、6.607、3.289 ms；这只是基线，不是已实现收益。环境、限制和原始数据见 [性能记录](PERFORMANCE.md)。
+- 保留基线可执行文件、LLVM/object dump 和 runtime 副本，供零搬迁优化后交替对照。年轻图、选择性搬迁、多线程推进与代码生成快路场景尚未完成，不据此关闭 M44-1 或 M44。
