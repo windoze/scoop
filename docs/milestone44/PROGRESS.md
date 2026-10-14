@@ -158,3 +158,9 @@
 - [Darwin](validation/forward-validation-darwin.json.gz) 31 项 collector 测试通过，[Linux](validation/forward-codegen-gnu.json.gz) 387 项 codegen/runtime 测试通过。现有测试驱动及断言不变，临时 cc wrapper 只重定向 runtime 源/include 路径；完整编译命令和源码摘要已核对归档。三个正式 M44 fixture 在 Darwin、GNU、musl 各通过六个变体、24 个执行步骤；后两者见[隔离 fixture 记录](validation/isolated-fixtures-linux.json.gz)。
 - Darwin 候选图／进度／四程序已构建，尚未计时；本机完整 CLI 仍使用未修改的生产 runtime。本批不合入候选、不把隔离验证当作最终平台覆盖，待全量进程结束后进行本机同条件对照。
 - 归档未采用的对齐实验在本机的[构建及三项 fixture 记录](validation/alignment-preparation-darwin.json.gz)，其 GNU／musl 结果也保留于隔离 fixture 记录。确认相关进程结束并核对归档后，清理本机约 104 MB、Linux 约 134 MB 的对齐／分流 binary 与已结束 cases，保留基线、当前候选及可复用缓存。
+
+## 2026-10-14：产物损坏用例的固定偏移修复
+
+- Darwin 全量 CLI 中，program-link-artifact-corruption 首轮预期 member 摘要不匹配，实际先报 manifest 编码损坏。核对原始产物后确认：manifest 已增长至 53982 bytes，旧的绝对偏移 20734 落在 manifest 内；HIR payload 的 magic 位于 78833。reader 正确拒绝了实际损坏的输入。
+- 改用已有文件 replace 操作，唯一匹配 HIR payload 的 `SCOOPHIR` magic 并等长替换为 `BROKENIR`，消除对 manifest 长度的依赖；不增加用例脚本、runner 框架或生产实现改动。摘要错误的完整 JSON／human 期望、成员身份、截断及其他错误断言保持。
+- 文档／TOML 格式与配置检查通过，复用六份已发布缓存，仅复验该项：1 个 fixture、1 个变体、13 个进程步骤通过，包含失败后旧程序的普通与 moving GC 执行。原始失败、字节位置分析、缓存来源及复验报告保留于[记录](validation/artifact-corruption-repair-darwin.json.gz)。完整 CLI 仍在运行，最终应合并该项成功复验，不能将原始失败报告改写为成功。
