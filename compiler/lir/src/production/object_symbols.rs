@@ -118,6 +118,7 @@ impl WireEncode for DefinitionSymbolPlanV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectSymbolSurfaceV1 {
     plans: Vec<DefinitionSymbolPlanV1>,
+    atom_boundary_indices: BTreeMap<ObjectDefinitionAtomId, (usize, usize)>,
 }
 
 impl ObjectSymbolSurfaceV1 {
@@ -132,6 +133,7 @@ impl ObjectSymbolSurfaceV1 {
             plan.atom_boundaries
                 .retain(|boundary| !atoms.contains(&boundary.atom));
         }
+        self.atom_boundary_indices = atom_boundary_indices(&self.plans);
     }
 
     pub fn from_foundation(
@@ -213,11 +215,21 @@ impl ObjectSymbolSurfaceV1 {
                 atom_boundaries,
             });
         }
-        Ok(Self { plans })
+        let atom_boundary_indices = atom_boundary_indices(&plans);
+        Ok(Self {
+            plans,
+            atom_boundary_indices,
+        })
     }
 
     pub fn plans(&self) -> &[DefinitionSymbolPlanV1] {
         &self.plans
+    }
+
+    pub fn atom_boundary(&self, atom: ObjectDefinitionAtomId) -> Option<AtomBoundarySymbolsV1> {
+        self.atom_boundary_indices
+            .get(&atom)
+            .map(|&(plan, boundary)| self.plans[plan].atom_boundaries[boundary])
     }
 
     pub fn plan(&self, definition_plan: ObjectDefinitionPlanId) -> Option<&DefinitionSymbolPlanV1> {
@@ -226,6 +238,23 @@ impl ObjectSymbolSurfaceV1 {
             .ok()
             .map(|index| &self.plans[index])
     }
+}
+
+fn atom_boundary_indices(
+    plans: &[DefinitionSymbolPlanV1],
+) -> BTreeMap<ObjectDefinitionAtomId, (usize, usize)> {
+    plans
+        .iter()
+        .enumerate()
+        .flat_map(|(plan_index, plan)| {
+            plan.atom_boundaries
+                .iter()
+                .enumerate()
+                .map(move |(boundary_index, boundary)| {
+                    (boundary.atom, (plan_index, boundary_index))
+                })
+        })
+        .collect()
 }
 
 impl WireEncode for ObjectSymbolSurfaceV1 {

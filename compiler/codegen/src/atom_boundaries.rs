@@ -35,12 +35,6 @@ pub(crate) fn emit_global_atom_boundaries_v1<'ctx>(
     surface: &ObjectSymbolSurfaceV1,
     materializations: impl IntoIterator<Item = GlobalAtomMaterializationV1<'ctx>>,
 ) -> Result<(), CodegenError> {
-    let boundaries = surface
-        .plans()
-        .iter()
-        .flat_map(|plan| plan.atom_boundaries().iter().copied())
-        .map(|boundary| (boundary.atom(), boundary))
-        .collect::<BTreeMap<_, _>>();
     let mut atoms = BTreeMap::new();
     for materialization in materializations {
         match atoms.entry(materialization.atom) {
@@ -59,7 +53,7 @@ pub(crate) fn emit_global_atom_boundaries_v1<'ctx>(
     }
 
     for (atom, owner) in atoms {
-        let boundary = boundaries.get(&atom).copied().ok_or_else(|| {
+        let boundary = surface.atom_boundary(atom).ok_or_else(|| {
             CodegenError(format!(
                 "LLVM global materializes unplanned strong atom {atom}"
             ))

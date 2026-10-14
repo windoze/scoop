@@ -57,6 +57,12 @@
 
 - Linux 慢编译的[实际调用栈](validation/chat-backtrace.log.gz)定位到 image safepoint 注册表验证：每个表项线性扫描整个 relocation、Strong binding 及符号集合。实现规范先明确复用查询索引；实现对本 atom 的 relocation 按 offset 查询，复用既有 `bindings_at`，并为 member 的符号表序号建立一次索引。保持原有数量、唯一 offset、target、role、宽度及编码值检查，不改变产物格式、ABI 或语言语义。
 - 本机 fmt、[全 workspace clippy](validation/registration-clippy-darwin.log.gz)、[571 项 slib 测试](validation/registration-tests-darwin.log.gz)通过；补充注册数量与错误 target owner 负例、符号序号查询断言。新 CLI 的 [Chat／Serialize 产物／JsonValue 产物 fixture](validation/registration-fixtures-darwin.json.gz)均通过，包含普通运行和 moving GC。Chat 在新工作区约 163 秒，其余两项约 17／18 秒；此值不与旧暖缓存用例直接作性能比。Linux 将使用修复后的工具继续验收。
+- 修复提交 `247a4d16` 后，Linux [clippy](validation/registration-clippy-linux.log.gz)、[CLI 构建](validation/registration-build-linux.log.gz)及 [572 项 slib 测试](validation/registration-slib-linux.log.gz)通过。musl 使用原 300 秒时限，Chat 约 236 秒、Cone 约 48 秒通过；Messages 构建超时，其余未完成项保留在[原始报告](validation/musl-registration-initial.json.gz)。GNU 在切换修复前的[续跑报告](validation/gnu-pre-registration.json.gz)有 762 项通过，与前两轮合计 816 项；剩余 3245 项在新工具上继续运行。旧 release driver 在切换工具时中止，保留[日志](validation/driver-initial-linux.log.gz)，最终 driver 验收仍待完成。
+
+### Callable 元数据发射复用 atom boundary 索引
+
+- 修复后的 Chat [采样](validation/chat-indexed-backtrace.log.gz)已进入 LLVM 输出；Messages 的[慢路径采样](validation/messages-indexed-backtrace.log.gz)进一步发现每次 callable 元数据发射都重新建立全 Cone 的 boundary BTreeMap。按已有一次建立／复用原则先补实现规范，再让 ObjectSymbolSurface 保存按 atom identity 查询的位置索引；删除未发射定义／atom 后同步更新，wire 只编码原有 plans。codegen 只查询本次实际发射的 atom，保持 owner 冲突、缺失 atom、别名及范围检查。
+- 本机 fmt、[clippy](validation/boundary-clippy-darwin.log.gz)、[6 项 LIR 查询／wire 测试](validation/boundary-lir-darwin.log.gz)、[36 项元数据 ABI 测试](validation/boundary-codegen-darwin.log.gz)、[9 项对象分区测试](validation/boundary-partition-darwin.log.gz)、[3 项 shape 测试](validation/boundary-shapes-darwin.log.gz)通过。[Messages／Responses／JsonValue 无源码产物 fixture](validation/boundary-fixtures-darwin.json.gz)均通过，含普通及 moving GC，分别约 107／107／19 秒；没有增加测试时限、wire 字段或 runtime ABI。
 
 ## 后续
 
