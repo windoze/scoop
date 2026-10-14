@@ -44,9 +44,9 @@
 - Messages 基线完成 A1～A8：15 块混合内容、7 类工具、5 类引用、14 个完整事件、递归工具结果、双层 discriminator、signature／opaque 数据与 15 个错误路径。官方 schema 复核发现 nullable diagnostics 实为 tagged object，补齐 CacheMiss 六分支及 null 后复验；没有把已知结构当作开放 JSON。22 个源码文件共 1107 行，最大 103 行。本机 fmt／全工作区 clippy、普通／代表 moving GC 通过，约 139 秒。[首轮](validation/messages-initial-darwin.json.gz)、[完成验证](validation/messages-verified-darwin.json.gz)。
 - 四组基线及 B1～B16 组合证据已关联到 [COVERAGE.md](COVERAGE.md)。2026-10-15 的 [49 项 fixture 公共规则测试](validation/runner-darwin.log.gz)通过；`--all --list` 验证 4091 项声明与全部源码归属。此项不冒充 4091 项执行通过。
 
-## M46-6：跨 target 验收（执行中）
+## M46-6：跨 target 验收（已完成）
 
-- 本机各新增功能和必要既有回归已分批闭合。Linux 计划运行 Rust workspace、公共 fixture 规则及 GNU 完整文件 fixture；musl 运行 M46 全部与序列化、浮点数、stdlib codec 等必要回归，保留原始报告。
+- 本机各新增功能和必要既有回归已分批闭合。Linux Rust workspace、公共 fixture 规则、GNU 完整文件 fixture，以及 musl 的 M46 全部与必要回归均已闭合。以下保留分批执行过程，最终结果见本节末尾。
 - 2026-10-15 初次连接 nuc12 超时；用户恢复环境后连接成功。远端从同一基线切到 `codex/m46-m38`，同步至 `e3348cbc`；显式选择已有 Cargo 1.99.0／Rust 1.99.0 和 LLVM 22.1.2，不使用默认 PATH 中的 LLVM 21。见[环境记录](validation/environment-linux.log.gz)。
 - Linux [fmt／全 workspace clippy](validation/clippy-linux.log.gz)、[release 三个 CLI 构建](validation/build-linux.log.gz)、[49 项公共规则测试](validation/runner-linux.log.gz)均通过；复用已安装的私有 LLVM libunwind，GNU PIE、musl static／PIE 的[实际 cleanup／catch／delete 检查](validation/unwind-linux.log.gz)通过。
 - GNU 完整发现 4091 项，30 项 target 不适用。初轮 4 路并行完成 37 项后改为 12 路继续剩余项；恢复时发现用例序号目录与旧只读产物冲突，保存报告后隔离旧 cases，仅复用编译缓存。权限失败项已在干净用例目录通过。保留[初轮中断](validation/gnu-initial.json.gz)及[恢复目录冲突](validation/gnu-resume-initial.json.gz)，中断和失败不计作通过。GNU 剩余项仍在运行。
@@ -73,11 +73,16 @@
 - 实现规范先明确一次建立符号／定义组索引。codegen 在 callable 批次开始时建立索引，逐 module 只查询实际 global、function 与 alias，并按原计划顺序应用可见性和 COMDAT。保留同名多请求、alias owner、private owner、weak linkage 及定义组冲突检查；metadata 的最终裁剪使用裁剪后的新计划。没有新增 IR、wire、runtime ABI 或工具授权机制。
 - 本机 fmt／[clippy](validation/elf-clippy-darwin.log.gz)、[2 项索引复用与冲突测试](validation/elf-tests-darwin.log.gz)、[5 项实际 Linux ELF 交叉发射测试](validation/elf-cross-darwin.log.gz)及 [9 项对象分区测试](validation/elf-partition-darwin.log.gz)通过。实现按职责拆为 64／105 行模块，新增测试 86 行。Linux 将在停止旧 fixture 后统一构建三个 CLI，再运行定向回归和剩余全量用例，期间不再运行会重写 CLI 的 Cargo 命令。
 
-## 后续
+### 最终验收
 
-GNU 全量续跑发现 `m34-containers-builder` 仍断言 Option 的旧外层 enum JSON；按已更新的 nullable 合同将期望改为 `[null,7]`。全仓检索未发现其他遗漏的旧 None／Some JSON 正向期望。本机 fmt／[clippy](validation/builder-clippy-darwin.log.gz)及该用例的 debug／release、普通／moving／minor GC [全部通过](validation/builder-darwin.json.gz)；Linux 留待最终失败项定向复验，不重跑已通过的完整选集。
+GNU 全量续跑发现 `m34-containers-builder` 仍断言 Option 的旧外层 enum JSON；按已更新的 nullable 合同将期望改为 `[null,7]`。全仓检索未发现其他遗漏的旧 None／Some JSON 正向期望。本机 fmt／[clippy](validation/builder-clippy-darwin.log.gz)及该用例的 debug／release、普通／moving／minor GC [全部通过](validation/builder-darwin.json.gz)；Linux [定向复验](validation/gnu-pre-elf.json.gz)也通过，没有重跑已通过的完整选集。
 
-完成 M46-6 并提交验收记录后才开始 M38。
+- 最终生产代码 `1b53d060` 在 Linux 的 fmt／[clippy](validation/elf-clippy-linux.log.gz)、[389 项 codegen／runtime 测试](validation/elf-tests-linux.log.gz)及[统一 release CLI 构建](validation/elf-build-linux.log.gz)通过。之后保持工具文件稳定，完成所有剩余 fixture。
+- GNU 在 [ELF 修复前续跑](validation/gnu-pre-elf.json.gz)新增 460 项通过；[最后 551 项](validation/gnu-elf.json.gz)中 550 项通过，仅 Responses 构建在并行负载下超时。[独立性能核复验](validation/gnu-responses-final.json.gz)通过，复用了本轮生成的缓存，约 35 秒包含产物消费、链接及普通／moving GC；该值不是冷编译性能。按用例名合并全部报告，4061 项适用用例全部通过，另有 30 项 target 不适用。
+- musl [最终定向验证](validation/musl-elf.json.gz)的 Chat／Messages／Responses 及 Serialize／JsonValue 无源码产物组合全部通过，包含普通／moving GC，分别约 345／320／437／26／26 秒。与此前 M46 和必要回归报告合并，224 项全部通过。三个大型 API 基线仅 build 使用 600 秒时限，未调整其他步骤。
+- [验收汇总](validation/linux-summary.json)逐用例合并保留的报告，中断不覆盖已完成结果，后续失败必须由通过复验关闭；不是声称同一次运行在最终提交上重跑全部套件。Rust 用最新 LIR／slib／codegen 结果替换对应旧组后，共 5665 项单元／集成测试及 2 项文档测试通过；公共 runner 的 49 项规则测试与 GNU PIE／musl static／musl PIE unwind 检查通过。所有原始失败和中断均已保留。
+
+M46-1～6 已完成。本记录提交后开始 M38。
 
 ## 构建目录
 
@@ -86,3 +91,5 @@ GNU 全量续跑发现 `m34-containers-builder` 仍断言 Option 的旧外层 en
 Linux 验收前远端 target 实占 68 GB；恢复旧 fixture 只读目录的 owner 写权限后完成 cargo clean，保留 sysroot/native 中的私有 unwind。重新构建禁用 incremental 和 dev／test debuginfo，release 三工具及 clippy 完成时 target 约 880 MB。
 
 验收期间 target 增至约 33 GB 后，按 runner 已报告 passed 的用例名与固定选集序号对应关系，清理 326 个已完成的隔离 cases 目录，降至约 14 GB。保留共享 cache、失败现场、活跃用例目录及原始报告，不改 runner 或缓存合同。
+
+后续多轮继续清理完成用例和已归档旧轮次，约 31 GB 降至 20 GB。最终报告全部归档并核对后，删除 Linux 的 `target/m46` 测试工作区，target 降至约 3.5 GB，保留 Rust 构建缓存和私有 unwind；本机已归档的 M46 临时 fixture 目录也已删除，target 约 10 GB。
