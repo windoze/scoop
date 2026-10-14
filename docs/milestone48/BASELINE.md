@@ -23,3 +23,5 @@ compiler build 次数来自正式 CLI 的实际 child invocation 记录，全部
 证据：[统计与工具摘要](validation/darwin-baseline-summary.json)、[逐轮命令、构建结果与进程样本](validation/darwin-baseline-report.json.gz)、[原始 stdout/stderr](validation/darwin-baseline-logs.tar.gz)。测量脚本见 [tests/benchmarks/m48](../../tests/benchmarks/m48/README.md)。
 
 M48-1 验证：Rust 格式化／workspace clippy、固定版本 Ruff format/check、fixture runner 公共规则测试 49 项及现有正式用例发现 4,091 项通过；本批未重复运行 M46 已完成的全量语言测试。此处数量是新增 M48 用例前的基线。
+
+GNU 补充结构基线：`nuc12` 在原 `6571bb4a8` 工具上，以真实空 main 执行一组冷／暖构建，`strace` 捕获全部成功 `execve`，源码与工具保持存在。暖构建虽然 Scoop build child 为 0，仍运行 1 次 scoopc 能力查询、C 工具配置／能力探测、startup 编译和最终链接；`ld` 总计运行 2 次（含链接能力探测）。[精确调用统计](validation/gnu-baseline-empty-exec.json)，[冷构建 trace](validation/gnu-baseline-empty-cold.exec.gz)，[暖构建 trace](validation/gnu-baseline-empty-warm.exec.gz)。这是一组结构证据，不计作五轮性能测量或最终 M48 验收。

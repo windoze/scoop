@@ -26,6 +26,8 @@
 
 首次使用按实际路径、mtime、大小及配套配置查询能力并保存普通 `tools-v1` 记录；连续构建直接复用记录，不再捕获整个 scoopc、读取程序内容计算摘要或在 child 执行前后重捕获。实际工具启动与协议错误仍传播；并发首次使用经普通文件锁共享一次探测，记录写后普通 rename，不读回或同步落盘。路径在记录中保存原始字节，语言身份与 runtime ABI 不变；compile key domain 更新为 v4。
 
-本机 workspace fmt/clippy 通过，[scoop 单元测试 106 项](validation/compiler-cache-darwin-rust.log.gz)通过，fixture runner 公共规则 49 项通过，正式用例发现 4,093 项通过。新增[独立库用例](../../tests/fixtures/m48-compiler-cache/library/fixture.toml)与[native 组合](../../tests/fixtures/m48-compiler-cache/native/fixture.toml)均通过：冷编译 2 次、暖编译 0 次、仅更新实际工具 mtime 后 2 次、再次暖编译 0 次；native 每轮执行均输出 `native-c-ok`。工具与源码全程保留。[CLI 原始结果](validation/compiler-cache-darwin-fixtures.log.gz)，[lint 结果](validation/compiler-cache-darwin-clippy.log.gz)。Linux 验证接续本批执行；非 UTF-8 文件名的实际工具运行用例只适用于 Linux 文件系统。
+本机 workspace fmt/clippy 通过，[scoop 单元测试 106 项](validation/compiler-cache-darwin-rust.log.gz)通过，fixture runner 公共规则 49 项通过，正式用例发现 4,093 项通过。新增[独立库用例](../../tests/fixtures/m48-compiler-cache/library/fixture.toml)与[native 组合](../../tests/fixtures/m48-compiler-cache/native/fixture.toml)均通过：冷编译 2 次、暖编译 0 次、仅更新实际工具 mtime 后 2 次、再次暖编译 0 次；native 每轮执行均输出 `native-c-ok`。工具与源码全程保留。[CLI 原始结果](validation/compiler-cache-darwin-fixtures.log.gz)，[lint 结果](validation/compiler-cache-darwin-clippy.log.gz)。Linux fmt/clippy 和 [scoop 单元测试 109 项](validation/compiler-cache-linux-rust.log.gz)通过（含非 UTF-8 工具路径）；[GNU](validation/compiler-cache-gnu-fixtures.log.gz)、[musl](validation/compiler-cache-musl-fixtures.log.gz)各 2 个正式 CLI 用例通过。非 UTF-8 文件名的实际工具运行用例只适用于 Linux 文件系统。
 
 此子批只完成配套 scoopc 复用，当前仍存在源码镜像、缓存产物复核、native 预处理和最终重新链接，不能据此判定 M48-2 或 M48 已完成。已清理本机 `target/debug/incremental` 约 15 GiB，保留后续构建所需依赖与工具。
+
+GNU 的空程序暖构建另经 `strace -f -e trace=execve,openat` 核对：没有启动 scoopc 能力查询或编译 child，也没有打开 scoopc 文件内容。对照原基线的 1 次能力查询，本批该调用已消失；native／最终链接调用仍存在，留在后续批次处理。[原始 trace](validation/compiler-cache-gnu-warm.trace.gz)。

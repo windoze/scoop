@@ -1,0 +1,39 @@
+{
+  "revision": "6571bb4a8",
+  "host": "nuc12",
+  "target": "x86_64-unknown-linux-gnu",
+  "scenario": "empty main, fresh cache then unchanged build",
+  "measurement": "one cold/warm pair; strace -f -qq -s 8192 -e trace=execve; counts include tool probes",
+  "phases": {
+    "cold": {
+      "successful_execve": 325,
+      "executables": {
+        "/home/chenxu/repos/scoop/target/release/scoopc": 3,
+        "/usr/bin/ld": 2,
+        "/usr/bin/x86_64-linux-gnu-as": 99,
+        "/usr/bin/x86_64-linux-gnu-gcc-15": 115,
+        "/usr/bin/x86_64-linux-gnu-ld.bfd": 1,
+        "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1": 102,
+        "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2": 2,
+        "target/release/scoop": 1
+      },
+      "scoopc_capability": 1,
+      "compiler_build_calls": 2
+    },
+    "warm": {
+      "successful_execve": 25,
+      "executables": {
+        "/home/chenxu/repos/scoop/target/release/scoopc": 1,
+        "/usr/bin/ld": 2,
+        "/usr/bin/x86_64-linux-gnu-as": 3,
+        "/usr/bin/x86_64-linux-gnu-gcc-15": 11,
+        "/usr/bin/x86_64-linux-gnu-ld.bfd": 1,
+        "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1": 4,
+        "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2": 2,
+        "target/release/scoop": 1
+      },
+      "scoopc_capability": 1,
+      "compiler_build_calls": 0
+    }
+  }
+}
