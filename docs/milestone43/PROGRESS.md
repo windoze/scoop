@@ -215,3 +215,11 @@
 - 新增源码选择正例，在 debug/release 下通过自定义 test.sources 选择 Darwin／GNU／musl 文件，排除默认目录和条件不匹配路径；验证测试 import alias、同名普通 Test 注解、普通泛型 helper，以及生产正文／默认实参／泛型正文不会被测试重载改变。随后将测试源码清单设为空，确认报告 0 个用例。
 - 格式化、workspace clippy 与本机全部新增验收通过：11 个 fixture、12 个变体、16 个进程步骤，含缓存复用与 moving GC，见 [报告](validation/boundaries-darwin.json.gz)、[日志](validation/boundaries-darwin.log.gz) 和 [lint](validation/boundaries-clippy.log.gz)。报告 complete=false 表示本次为定向选择而非全仓 --all；所选项均已结束并通过。
 - Linux 测试环境复查通过：远端工作区干净，LLVM 22.1.2、Rust 1.99.0 和 musl-gcc 可用。平台验收尚未执行，M43 仍在实施中。
+
+## 2026-10-14：panic 进程边界与 Linux 验收启动
+
+- 扩展真实进程 fixture：native companion 调用现有 scoop_rt_trap，由 assertFailsWith<Throwable> 包围调用。验证 panic 不变成可捕获异常，保留退出码 1、trap stderr 和用例已产生的 stdout；当前用例失败，下一用例未运行，AfterTest 与 catch 后代码均未执行。
+- 首轮因 lambda 正文未独立声明 Unsafe 被普通安全检查拒绝，见 [初轮报告](validation/panic-initial-darwin.json.gz)；补上该调用所需的 Unsafe 后，格式化、workspace clippy 及整个进程 fixture 的 Darwin debug/release 复验通过，共 2 个变体、10 个进程步骤，见 [报告](validation/panic-darwin.json.gz)、[日志](validation/panic-darwin.log.gz) 和 [lint](validation/panic-clippy.log.gz)。未修改语言或 runtime 契约。
+- 核对现有报告与当前 fixture 选择，M43 共 105 项在 Darwin 均有通过证据；以本批替换此前进程报告后共 127 个变体、288 个进程步骤。另有 62 个受影响的既有回归通过，共 71 个变体、293 个进程步骤，来源为 source-roles、dependency-roles、entry 和 discovery 报告的去重集合。
+- 对不具备目标工具链的宿主执行真实 scoop test 请求：Darwin 选择 GNU、Linux 选择 Darwin 均在目标工具链解析处明确失败，没有回退到宿主，见 [Darwin 记录](validation/foreign-target-darwin.json.gz) 和 [Linux 记录](validation/foreign-target-linux.json.gz)。这些记录只证明当前环境的工具链拒绝路径，不声称已运行外来架构程序。
+- Linux 已同步至 8c9b952b；格式检查、workspace clippy、配套工具构建和 49 项 fixture runner 测试通过。GNU／musl 各 166 项正式 CLI 验收及受影响 Rust 测试组正在执行，进程 fixture 待本批同步后单独复用缓存补跑。平台结果尚未完成，不宣称 M43 已交付。
