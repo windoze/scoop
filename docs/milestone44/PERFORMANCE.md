@@ -1,7 +1,8 @@
 # M44 性能记录
 
-本文件只记录实际完成的测量；其余设计场景和三目标验证继续见 [PROGRESS](PROGRESS.md)。
-Linux 同机对照及尚未关闭的边界回退见 [Linux 性能记录](PERFORMANCE-LINUX.md)。
+本文件记录已完成的 Darwin 同机测量、回退定位及最终平台调用策略。
+Linux 对照与 minor 回退修复见 [Linux 性能记录](PERFORMANCE-LINUX.md)，
+三目标最终覆盖见 [验收核对](ACCEPTANCE.md)；M44 性能与功能验收均已完成。
 
 ## 当前图基线
 
@@ -248,7 +249,7 @@ remembered scan 中位为 102→100、101→101 微秒；没有通过减少实�
 每轮 mapped bytes 两侧均为 16842752。4 worker 的峰值 RSS 中位为
 9306112→9273344 bytes，最大均为 9371648 bytes；其余 RSS、CPU、吞吐、阶段和
 worker 工作量随原始报告保留。该组证明这一实际移动场景的 update 成本减少，不是
-所有程序的固定加速比，也不以小样本 p95 证明稳定尾延迟。Linux 与最终集成验收仍待完成。
+所有程序的固定加速比，也不以小样本 p95 证明稳定尾延迟。
 
 ## 内联 forwarding 的 Darwin 对照与数组回退
 

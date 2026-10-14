@@ -1,6 +1,6 @@
 # M44 Linux 性能记录
 
-状态：整体优化对照完成；runtime 边界的 minor 更新回退尚未关闭，不能据此宣称 M44 完成。
+状态：整体优化和最终 runtime 边界对照完成，minor 更新回退已修复；GNU／musl 适用功能验收通过。
 Darwin 结果见 [PERFORMANCE](PERFORMANCE.md)，最终验收见 [ACCEPTANCE](ACCEPTANCE.md)。
 
 ## 来源与口径
@@ -106,7 +106,7 @@ full／minor、零搬迁、分配和实际进度，不能只挑 minor 的有利�
 第三份隔离副本只将 `scoop_heap_forward_object` 的原函数体从 evacuation.c 移入
 GC 私有 heap_internal.h，声明为普通 `static inline`；没有强制内联或对齐属性。
 源位置解析、mark／pin／source 判断、自指／缺失 forwarding 及 collection 状态检查
-全部保留，ABI 和收集策略不变。当前生产文件尚未采用该改动。
+全部保留，ABI 和收集策略不变。该批隔离测量时生产文件尚未采用该改动，最终采用方式见本节末。
 
 [候选原始记录](validation/performance-forward-gnu.json.gz)包含两处源码、构建来源、
 实际机器码和全部六组对照。[逐轮核对](validation/forward-audit-gnu.json.gz)确认各侧
@@ -143,4 +143,4 @@ full 的配对 update 差值中位为 −752 µs，35 对中 31 对未增加；m
 这些结果不替代 GNU／musl 最终全部适用组合。统一内联在 Darwin 引入的数组 mark 回退
 已通过平台层选择调用方式解决，见 [最终平台策略](PERFORMANCE.md#最终平台调用策略)。
 生产代码共用一份函数体，x86-64 仍使用本节已验证的普通内联；重新构建后，GNU 全部
-94 个 runtime 对象及完整图程序与本节候选逐字节相同，证据见[产物核对](validation/forward-platform-validation.json.gz)。因此保留并复用本节六组原始测量；最终功能覆盖仍待完成。
+94 个 runtime 对象及完整图程序与本节候选逐字节相同，证据见[产物核对](validation/forward-platform-validation.json.gz)。因此保留并复用本节六组原始测量；GNU／musl 最终功能覆盖分别通过 1163／1167 项，完整结果见[验收核对](ACCEPTANCE.md)。
