@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../thread.h"
-#include "../thread/testing.h"
+#include "mutator_internal.h"
 #include "../value_shape.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
@@ -51,7 +50,7 @@ typedef enum RefillResult {
     REFILL_FULL,
 } RefillResult;
 
-static RefillResult refill_nursery(ScoopThreadState *thread, bool after_full) {
+static RefillResult refill_nursery(ScoopGcMutator *mutator, bool after_full) {
     lock_heap();
     size_t capacity = scoop_gc_heap_state.stress_minor ? GC_BLOCK_SIZE : GC_NURSERY_CAPACITY;
     if (!after_full && committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
@@ -69,31 +68,29 @@ static RefillResult refill_nursery(ScoopThreadState *thread, bool after_full) {
     }
     block->generation = SCOOP_GC_YOUNG;
     scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
-    thread->allocation_block = block;
-    thread->allocation.cursor = (char *)block_base(block) + GC_LINE_SIZE;
-    thread->allocation.limit = (char *)block_base(block) + GC_BLOCK_SIZE;
+    mutator->allocation_block = block;
+    mutator->allocation.cursor = (char *)block_base(block) + GC_LINE_SIZE;
+    mutator->allocation.limit = (char *)block_base(block) + GC_BLOCK_SIZE;
     unlock_heap();
     return REFILL_READY;
 }
 
-static void *allocate_small(ScoopThreadState *thread, size_t size, size_t alignment) {
+static void *allocate_small(ScoopGcMutator *mutator, size_t size, size_t alignment) {
     bool full_attempted = false;
     for (;;) {
-        void *object =
-            scoop_heap_bump(&thread->allocation.cursor, thread->allocation.limit, size, alignment);
+        void *object = scoop_heap_bump(&mutator->allocation.cursor, mutator->allocation.limit, size,
+                                       alignment);
         if (object != NULL) {
             return object;
         }
-        thread->allocation.cursor = NULL;
-        thread->allocation.limit = NULL;
-        thread->allocation_block = NULL;
-        RefillResult refill = refill_nursery(thread, full_attempted);
+        scoop_gc_reset_allocation(mutator);
+        RefillResult refill = refill_nursery(mutator, full_attempted);
         if (refill == REFILL_READY) {
             continue;
         }
         if (refill == REFILL_MINOR) {
             /* Another mutator can claim the newly emptied nursery before
-             * this thread resumes. Capacity contention is not heap OOM. */
+             * this mutator resumes. Capacity contention is not heap OOM. */
             scoop_gc_collect_minor_internal();
             full_attempted = false;
         } else if (!full_attempted) {
@@ -101,7 +98,7 @@ static void *allocate_small(ScoopThreadState *thread, size_t size, size_t alignm
         } else {
             heap_fatal("GC heap exhausted allocating a regular object");
         }
-        SCOOP_THREAD_TEST_POINT(SCOOP_TEST_NURSERY_RETRY);
+        scoop_gc_nursery_retry_test_point();
     }
 }
 
@@ -187,8 +184,8 @@ static void *allocate_large_stress(size_t size, ScoopGcBlockMeta **allocated_blo
     return (char *)block_base(block) + GC_LINE_SIZE;
 }
 
-static void record_allocation(ScoopThreadState *thread, size_t size, bool nursery) {
-    ScoopAllocationCounters *counters = &thread->allocation_counters;
+static void record_allocation(ScoopGcMutator *mutator, size_t size, bool nursery) {
+    ScoopGcAllocationCounters *counters = &mutator->counters;
     atomic_store_explicit(&counters->objects,
                           atomic_load_explicit(&counters->objects, memory_order_relaxed) + 1,
                           memory_order_relaxed);
@@ -203,9 +200,9 @@ static void record_allocation(ScoopThreadState *thread, size_t size, bool nurser
     }
 }
 
-static void finish_small_allocation(ScoopThreadState *thread, void *object,
+static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
                                     const ScoopTypeDescriptor *td, size_t size) {
-    ScoopGcBlockMeta *block = thread->allocation_block;
+    ScoopGcBlockMeta *block = mutator->allocation_block;
     if (block == NULL || (uintptr_t)object < (uintptr_t)block_base(block) ||
         (uintptr_t)object - (uintptr_t)block_base(block) >= GC_BLOCK_SIZE) {
         block = pointer_block(object);
@@ -219,14 +216,14 @@ static void finish_small_allocation(ScoopThreadState *thread, void *object,
     header->td = td;
     header->gc_word = 0;
     record_small_object(block, object, size, false);
-    record_allocation(thread, size, block->generation == SCOOP_GC_YOUNG);
+    record_allocation(mutator, size, block->generation == SCOOP_GC_YOUNG);
 }
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {
     if (scoop_gc_stress_move_enabled() || td->release_hook != NULL) {
         heap_fatal("inline TLAB allocation violates its nursery contract");
     }
-    finish_small_allocation(scoop_thread_current_required(), object, td,
+    finish_small_allocation(scoop_gc_current_mutator(), object, td,
                             scoop_shape_normalize_allocation(td, size));
 }
 
@@ -234,15 +231,13 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     if (td == NULL) {
         heap_fatal("allocation has no TypeDescriptor");
     }
-    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopGcMutator *mutator = scoop_gc_current_mutator();
     size = scoop_shape_normalize_allocation(td, size);
     bool stress = scoop_gc_stress_move_enabled();
     if (stress) {
-        thread->allocation.cursor = NULL;
-        thread->allocation.limit = NULL;
-        thread->allocation_block = NULL;
+        scoop_gc_reset_allocation(mutator);
         scoop_gc_collect_internal();
-        if (thread->allocation.cursor != NULL || thread->allocation.limit != NULL) {
+        if (mutator->allocation.cursor != NULL || mutator->allocation.limit != NULL) {
             heap_fatal("stress collection published a mutator TLAB");
         }
     }
@@ -251,8 +246,8 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
             stress ? allocate_small_stress(size, td->release_hook != NULL)
             : td->release_hook != NULL
                 ? allocate_old(size, (size_t)td->instance_shape.instance_alignment)
-                : allocate_small(thread, size, (size_t)td->instance_shape.instance_alignment);
-        finish_small_allocation(thread, object, td, size);
+                : allocate_small(mutator, size, (size_t)td->instance_shape.instance_alignment);
+        finish_small_allocation(mutator, object, td, size);
         return object;
     }
     ScoopGcBlockMeta *block;
@@ -262,6 +257,6 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     header->td = td;
     header->gc_word = 0;
     publish_large_object(block, false);
-    record_allocation(thread, size, false);
+    record_allocation(mutator, size, false);
     return object;
 }

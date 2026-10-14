@@ -1,4 +1,5 @@
 #include "nursery_fixture.h"
+#include "../src/gc/mutator.h"
 
 static unsigned released;
 
@@ -25,8 +26,7 @@ static void collect_without_movement(bool minor) {
     assert(after.full_collections == before.full_collections + !minor);
     assert(scoop_gc_heap_state.nursery_bytes == 0);
     ScoopThreadState *thread = scoop_thread_current_required();
-    assert(thread->allocation.cursor == NULL && thread->allocation.limit == NULL);
-    assert(thread->allocation_block == NULL);
+    assert(scoop_gc_mutator_is_retired(thread->mutator));
 }
 
 int main(void) {

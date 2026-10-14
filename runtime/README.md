@@ -13,6 +13,8 @@ runtime-owned exception ABI:
   mappings; `page_map.c` publishes their sparse address index, and `cards.c`
   implements the native range barrier;
 - `src/gc/allocation.c` owns nursery TLABs and pretenured allocation;
+- `src/gc/mutator.c` owns per-thread allocation state and detached accounting;
+  its private state embeds the existing generated-code TLAB context as a prefix;
 - `src/gc/evacuation_sources.c` selects sparse unpinned regions for ordinary full
   collection; `evacuation_plan.c` reserves target space and checks concentration
   benefit before copying or publishing forwarding; `evacuation.c` owns forwarding
@@ -34,6 +36,8 @@ runtime-owned exception ABI:
   `stack_roots.c` consume LLVM stack maps. `scan.c` interprets exact object/range
   scans; inline views in `object.h` expose array ranges to parallel marking.
   `entries.c` joins the collector to the exported managed/native entry ABI;
+  `threads.c` adapts world coordination, frozen mutator iteration and statistics
+  to the existing thread registry without maintaining a second directory;
 - `src/gc/handles.c` owns handle roots and pin counts, with scoped thread pin
   slots enumerated by the binding;
 - `src/thread.c` owns thread attachment and registry lifecycle; `src/thread/`

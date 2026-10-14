@@ -2,7 +2,6 @@
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
-#include "../thread.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -106,7 +105,7 @@ static void record_pause(uint64_t elapsed, bool minor) {
 
 static bool collect(bool minor) {
     uint64_t requested = scoop_gc_monotonic_ns();
-    if (!scoop_thread_begin_collection()) {
+    if (!scoop_gc_stop_world()) {
         return false;
     }
     uint64_t started = scoop_gc_monotonic_ns();
@@ -115,12 +114,7 @@ static bool collect(bool minor) {
     ScoopGcMetrics *metrics = &scoop_gc_heap_state.metrics;
     metrics->stop_wait_ns += started - requested;
     scoop_gc_set_pin_frames_locked(true);
-    for (ScoopThreadState *thread = scoop_thread_collection_registry_head(); thread != NULL;
-         thread = thread->registry_next) {
-        thread->allocation.cursor = NULL;
-        thread->allocation.limit = NULL;
-        thread->allocation_block = NULL;
-    }
+    scoop_gc_retire_allocations();
     uint64_t marked_count;
     for (;;) {
         size_t block_count = scoop_gc_heap_begin_collection_locked(minor);
@@ -184,7 +178,7 @@ static bool collect(bool minor) {
     record_pause(scoop_gc_monotonic_ns() - started, minor);
     scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();
-    scoop_thread_end_collection();
+    scoop_gc_resume_world();
     return true;
 }
 

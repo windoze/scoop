@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "gc/mutator.h"
+
 /* Scoop representation adapter. All visits address real slots in the existing
  * frozen view; workers do not acquire locks or copy root/metadata directories. */
 typedef void (*ScoopGcSlotVisitor)(void **slot, void *context);
@@ -34,5 +36,20 @@ void scoop_gc_scan_descriptor(void *base, const uint64_t *scan, ScoopGcSlotVisit
                               void *context, uintptr_t begin, uintptr_t end);
 
 void scoop_gc_visit_pin_frames(ScoopGcSlotVisitor visitor, void *context);
+
+/* Preserve world -> heap -> roots ordering; collection returns a frozen view. */
+bool scoop_gc_stop_world(void);
+void scoop_gc_resume_world(void);
+void scoop_gc_retire_allocations(void);
+void scoop_gc_lock_mutators(void);
+void scoop_gc_unlock_mutators(void);
+ScoopGcAllocationTotals scoop_gc_allocation_totals_locked(void);
+void scoop_gc_resident_memory(uint64_t *current, uint64_t *peak);
+
+#ifdef SCOOP_THREAD_TESTING
+void scoop_gc_nursery_retry_test_point(void);
+#else
+#define scoop_gc_nursery_retry_test_point() ((void)0)
+#endif
 
 #endif

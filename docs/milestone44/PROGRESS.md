@@ -10,7 +10,7 @@
 | M44-2 零搬迁更新分支 | 实现与本机定向验收、图对照完成；Linux 组合待后续统一验证 |
 | M44-3 引用定位、写回和无引用对象 | 实现、本机定向验收及普通搬迁／零搬迁对照完成；minor 性能与 Linux 组合继续补齐 |
 | M44-4 编译器 GC 代码生成边界 | 实现与本机定向验收完成；四类程序的独立编译产物和机器码一致，Linux 组合待最终验收 |
-| M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan 适配已分离并通过本机定向验收；mutator 状态与普通 runtime 堆操作继续实施 |
+| M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan 适配与 GC mutator 状态已分离并通过本机定向验收；普通 runtime 堆操作与对象信息边界继续实施 |
 | M44-6 组合、平台与性能验收 | 待实施 |
 
 ## 工作约定
@@ -85,3 +85,11 @@
 - 首轮 [372 项测试](validation/binding-scans-rust-initial.log.gz)中 341 项通过，失败均来自拆除间接 include 后的声明或测试链接源缺失；[头文件修正记录](validation/binding-scans-rust-headers.log.gz)保留后续失败与精确栈根成功结果。为初始化／普通 runtime 显式包含实际使用的 image 声明，为测试包含 binding 声明和入口源后，[31 项 collector 定向复验](validation/binding-scans-rust-final.log.gz)全部通过。按名称核对初轮要求集合，372 项均取得通过证据，见 [覆盖索引](validation/binding-scans-rust-coverage.json.gz)，不把首轮失败报告当作整组通过。
 - C 格式化、Rust 格式化与 [workspace clippy](validation/binding-scans-clippy.log.gz)通过，固定 [release 工具](validation/binding-scans-tools.log.gz)后执行真实 runtime 构建与 CLI。八项 fixture、17 个变体、93 个步骤全部通过，见 [报告](validation/binding-scans-darwin.json.gz)与 [日志](validation/binding-scans-darwin.log.gz)：M34 parallel threads／values、MaybeUninit GC、M31 nursery/Context/copy、native Scoop ABI moving roots，以及三个 M44 独立回归。
 - 压缩证据已逐字节核对，清理本批 cases 输出并保留当前工具／缓存。此批完成根与扫描适配；allocation／collector 的 mutator 字段访问、统计与普通 runtime 的私有堆查询组合尚待迁移。完整边界的性能与 Linux／全量组合在后续完成，不以目录迁移单独宣称 M44-5 或 M44 完成。
+
+## 2026-10-14：GC mutator 状态与线程协调
+
+- 先修订运行时规范 3.1。TLAB cursor／limit、block 所有权和独立对齐的分配计数迁入 GC 私有 mutator；ThreadState 只持有 opaque 引用。沿用现有 allocation-context TLS，以首字段取得同一状态，没有增加 TLS、线程目录或逐分配全局 RMW。线程 attach／managed exit／callback exit／detach 通过具体生命周期操作接入。
+- `gc_binding/threads.c` 适配原 world／registry 握手、停稳后的分配区失效、统计汇总和 resident-memory 查询。GC 核心不再包含线程私有头或访问 ThreadState。detach 仍在 world 锁内归并计数后移除目录；collection 沿用 world → heap → roots 锁序，直接遍历冻结目录，不复制快照。
+- C／Rust 格式化与 [workspace clippy](validation/mutator-clippy.log.gz)通过，[31 项 collector 回归](validation/mutator-runtime.log.gz)全部通过，包含并发统计与反复 attach/detach、nursery refill 竞争、初始化协调、NativeSafe 返回、精确根、pin／release 和移动。测试的手写 TLAB 分配使用与 generated code 相同的 TLS 数据合同；独立线程测试源清单也加入实际 mutator 实现。
+- 固定 [release 工具](validation/mutator-tools.log.gz)后，七项正式 CLI fixture、15 个变体、79 个进程步骤全部通过，见 [报告](validation/mutator-darwin.json.gz)和 [日志](validation/mutator-darwin.log.gz)。覆盖三个 M44 专项、M34 parallel threads／values、M31 nursery/native/Context/copy 和 native Scoop ABI moving roots。
+- 证据压缩归档后逐字节核对；本批没有改变公开／generated-code ABI 或正常分配策略。对象信息适配、普通 runtime 完整堆操作及完整边界的性能／Linux 验收继续推进，不以本批定向组代替最终全量验收。
