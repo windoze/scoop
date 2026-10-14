@@ -1,0 +1,7 @@
+import scoop.test.*
+
+@Test
+private class ExternalTests {
+    @Test
+    fun followsSourceLinks() { assertEquals(48, answer()) }
+}

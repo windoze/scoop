@@ -31,3 +31,9 @@
 此子批只完成配套 scoopc 复用，当前仍存在源码镜像、缓存产物复核、native 预处理和最终重新链接，不能据此判定 M48-2 或 M48 已完成。已清理本机 `target/debug/incremental` 约 15 GiB，保留后续构建所需依赖与工具。
 
 GNU 的空程序暖构建另经 `strace -f -e trace=execve,openat` 核对：没有启动 scoopc 能力查询或编译 child，也没有打开 scoopc 文件内容。对照原基线的 1 次能力查询，本批该调用已消失；native／最终链接调用仍存在，留在后续批次处理。[原始 trace](validation/compiler-cache-gnu-warm.trace.gz)。
+
+## 5. M48-2：Scoop 源码读取
+
+manifest／single-file 的实际 Scoop 源码只读取一次供 UTF-8 解码与 parser 输入使用，不再在读取前后比较 inode、ctime、mtime、长度与重新解析后的路径。删除无剩余调用的 `StableFileObservation`。源码发现允许普通 symlink 指向 Cone 外的文件／目录；选中路径类型、缺失输入、重复选择、逻辑路径、目录遍历循环及 UTF-8 错误仍正常报告。此处不代表 Preparer 已改为提前命中，也不代表其他 native／产物路径审计已清除。
+
+本机 workspace fmt/clippy、[manifest 测试 56 项](validation/source-inputs-darwin-rust.log.gz)通过；[2 个新 CLI 用例](validation/source-inputs-darwin-fixtures.log.gz)验证显式外部文件、默认目录内 symlink、外部测试目录、冷／暖构建与真实源码变化；[M33 源码选择 33 个用例](validation/source-inputs-darwin-regression.log.gz)通过（34 variants、44 processes），保留缺失、循环、重复与语法／编码诊断。当前用例总数 4,094，较前一批减少 1 个退役的逃逸拒绝 case、增加 2 个实际编译用例。Linux 验证接续本批执行。

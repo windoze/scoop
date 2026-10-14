@@ -12,7 +12,6 @@ mod root;
 mod selection;
 mod semantic;
 mod single_file;
-mod stable_file;
 
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,

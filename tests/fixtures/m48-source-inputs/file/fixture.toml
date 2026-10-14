@@ -1,0 +1,69 @@
+schema = 1
+name = "m48-external-source-file"
+inputs = ["cone", "main.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "sources", "cache"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+  {copy = {from = "${fixture}/main.scoop", to = "${work}/main.scoop"}},
+  {symlink = {from = "${work}/main.scoop", to = "${work}/cone/linked.scoop"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 0
+stdout = "48\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "run_warm"
+argv = ["${warm.result.output}"]
+exit = 0
+stdout = "48\n"
+stderr = ""
+
+[[steps]]
+name = "change_input"
+files = [{replace = {path = "${work}/main.scoop", old = "48", new = "49"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 0
+stdout = "49\n"
+stderr = ""

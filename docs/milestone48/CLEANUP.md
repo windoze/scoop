@@ -113,3 +113,7 @@
 ### 已执行批次：配套编译器
 
 `compiler/scoop/src/child/tests.rs::production_runner_rejects_signal_and_compiler_mutation` 已去掉执行中改写工具并要求复核失败的分支，保留为 `production_runner_reports_signal`。普通工具首次运行失败、能力不匹配和协议错误仍验证。新增工具真实输入变化、重复探测复用和并发首查测试，不使用损坏工具来证明缓存命中。SOURCE-ISOLATION 清单尚未迁移，不因本批通过减少其待办范围。
+
+### 已执行批次：Scoop 源码路径与读取
+
+`m33-sources/negative/symlink-escape` 的唯一拒绝依据是目标位于 Cone 根外，已删除该描述、诊断与专用无效输入。正常能力改由 `m48-source-inputs/file`（外部文件、暖构建、实际源码更新）和 `m48-source-inputs/testing`（目录内 alias、外部测试目录和执行结果）验证。Rust 的两处 escape 拒绝分支改为实际读取及 logical source identity／role 断言；重复选择、缺失目标和遍历循环测试保留。此项属于路径来源审计退役，不减少 SOURCE-ISOLATION 的 1,628 个产物隔离迁移候选。

@@ -1,8 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fmt;
-use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{
@@ -17,7 +15,6 @@ mod error;
 mod read;
 mod select;
 mod walk;
-use crate::stable_file::StableFileObservation;
 pub use error::{DiscoveryIoOperation, SourceDiscoveryError, SourceDiscoveryErrorKind};
 use read::read_discovered_source;
 use select::selected_roots;

@@ -105,18 +105,19 @@ fn mutually_exclusive_entries_can_select_the_same_path() {
 
 #[cfg(unix)]
 #[test]
-fn rejects_selected_symlinks_outside_the_cone_and_duplicate_aliases() {
+fn accepts_external_source_symlinks_and_rejects_duplicate_selections() {
     let cone = TempCone::new();
     let outside = TempCone::new();
     outside.write("api.scoop", "fun api() {}\n");
     std::os::unix::fs::symlink(outside.0.join("api.scoop"), cone.0.join("src/escape.scoop"))
         .unwrap();
-    assert!(matches!(
-        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID)
-            .unwrap_err()
-            .kind(),
-        SourceDiscoveryErrorKind::EscapesConeRoot
-    ));
+    let discovered =
+        discover_manifest_sources(&cone.load(), scoop_target_data::DARWIN_AARCH64_ID).unwrap();
+    assert_eq!(
+        discovered.first().identity().logical_path().as_str(),
+        "src/escape.scoop"
+    );
+    assert_eq!(discovered.first().source_text(), "fun api() {}\n");
     std::fs::remove_file(cone.0.join("src/escape.scoop")).unwrap();
     cone.write("api.scoop", "fun api() {}\n");
     std::os::unix::fs::symlink("../api.scoop", cone.0.join("src/alias.scoop")).unwrap();

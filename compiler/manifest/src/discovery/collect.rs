@@ -13,7 +13,6 @@ pub(super) fn discover(
             walk_directory(
                 &root.resolved.path,
                 root.path.as_path(),
-                manifest.real_root(),
                 &root.selection,
                 &mut BTreeSet::new(),
                 &mut selected,

@@ -1,12 +1,9 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::SourceIdentity;
 
-use crate::stable_file::StableFileObservation;
 use crate::{DiscoveredSource, SourceDisplayLocator};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -105,12 +102,7 @@ pub enum SingleFileInputErrorKind {
     InvalidExtension,
     NotRegularFile,
     InvalidUtf8,
-    SourceChangedDuringRead,
 
-    LengthOverflow,
-    Allocation {
-        requested_bytes: u64,
-    },
     Io {
         operation: SingleFileInputIoOperation,
         source: std::io::Error,
@@ -134,17 +126,6 @@ impl fmt::Display for SingleFileInputError {
             SingleFileInputErrorKind::InvalidUtf8 => {
                 formatter.write_str("source file is not valid UTF-8")
             }
-            SingleFileInputErrorKind::SourceChangedDuringRead => {
-                formatter.write_str("source target changed while it was read")
-            }
-
-            SingleFileInputErrorKind::LengthOverflow => {
-                formatter.write_str("source length does not fit the bounded reader")
-            }
-            SingleFileInputErrorKind::Allocation { requested_bytes } => write!(
-                formatter,
-                "cannot allocate {requested_bytes} bytes for single-file source"
-            ),
             SingleFileInputErrorKind::Io { operation, source } => {
                 write!(formatter, "cannot {operation}: {source}")
             }
@@ -164,93 +145,13 @@ impl std::error::Error for SingleFileInputError {
 pub fn load_single_file_source(
     locator: &SingleFileLocator,
 ) -> Result<DiscoveredSource, SingleFileInputError> {
-    let mut file = File::open(locator.resolved_path()).map_err(|error| {
+    let bytes = std::fs::read(locator.resolved_path()).map_err(|error| {
         SingleFileInputError::io(
             SingleFileInputIoOperation::Read,
             locator.display_path.clone(),
             error,
         )
     })?;
-    let before = file.metadata().map_err(|error| {
-        SingleFileInputError::io(
-            SingleFileInputIoOperation::Inspect,
-            locator.display_path.clone(),
-            error,
-        )
-    })?;
-    if !before.is_file() {
-        return Err(SingleFileInputError::new(
-            locator.display_path.clone(),
-            SingleFileInputErrorKind::SourceChangedDuringRead,
-        ));
-    }
-    let before = StableFileObservation::new(&before);
-    let expected_length = before.length();
-
-    let capacity = usize::try_from(expected_length).map_err(|_| {
-        SingleFileInputError::new(
-            locator.display_path.clone(),
-            SingleFileInputErrorKind::LengthOverflow,
-        )
-    })?;
-    let mut bytes = Vec::new();
-    bytes.try_reserve_exact(capacity).map_err(|_| {
-        SingleFileInputError::new(
-            locator.display_path.clone(),
-            SingleFileInputErrorKind::Allocation {
-                requested_bytes: expected_length,
-            },
-        )
-    })?;
-    let read_limit = expected_length.checked_add(1).ok_or_else(|| {
-        SingleFileInputError::new(
-            locator.display_path.clone(),
-            SingleFileInputErrorKind::LengthOverflow,
-        )
-    })?;
-    file.by_ref()
-        .take(read_limit)
-        .read_to_end(&mut bytes)
-        .map_err(|error| {
-            SingleFileInputError::io(
-                SingleFileInputIoOperation::Read,
-                locator.display_path.clone(),
-                error,
-            )
-        })?;
-    let after_file = file.metadata().map_err(|error| {
-        SingleFileInputError::io(
-            SingleFileInputIoOperation::Inspect,
-            locator.display_path.clone(),
-            error,
-        )
-    })?;
-    let after_read = std::fs::canonicalize(locator.display_path()).map_err(|error| {
-        SingleFileInputError::io(
-            SingleFileInputIoOperation::Canonicalize,
-            locator.display_path.clone(),
-            error,
-        )
-    })?;
-    let after_read_metadata = std::fs::metadata(&after_read).map_err(|error| {
-        SingleFileInputError::io(
-            SingleFileInputIoOperation::Inspect,
-            locator.display_path.clone(),
-            error,
-        )
-    })?;
-    if locator.resolved_path != after_read
-        || !after_read_metadata.is_file()
-        || !after_file.is_file()
-        || StableFileObservation::new(&after_file) != before
-        || StableFileObservation::new(&after_read_metadata) != before
-        || u64::try_from(bytes.len()).ok() != Some(expected_length)
-    {
-        return Err(SingleFileInputError::new(
-            locator.display_path.clone(),
-            SingleFileInputErrorKind::SourceChangedDuringRead,
-        ));
-    }
     let source_text = String::from_utf8(bytes).map_err(|_| {
         SingleFileInputError::new(
             locator.display_path.clone(),
