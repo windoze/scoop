@@ -123,3 +123,7 @@
 `PreparedStaging` 的 symlink namespace 拒绝、输出目录额外文件拒绝两个 Rust case 随审计代码删除。prepared 的源码／prebuilt／single-file／core 用例改为实际路径、逻辑身份及真实源码更新断言，不再检查只读私有副本或改写输入后保留旧字节。`scoop/tests/retained_artifacts.rs` 的唯一隔离 case 删除；`scoop/src/artifact/tests.rs` 保留 CompletedNode 与 closure 共享数据的断言，删除文件移除步骤。
 
 `m23-cli-program-link/diamond-ready-order` 已从 SOURCE-ISOLATION 清单迁移：保留菱形依赖的 6 个 image、10/20/30/40/50 初始化顺序、moving GC 和显式链接时重复依赖去重；源码、工具和原产物始终保留。改为真实多 Cone 构建、暖构建零 compiler child、使用已有产物路径链接及执行；删除复制独立工具、空 sysroot、隐藏工具环境、删除源码和移动产物后再次链接的隔离步骤。该清单目前 1 项已迁移，余下 1,627 项仍待逐项处理。
+
+### 已执行批次：文件读取与 native 变更时序
+
+`manifest/src/file_snapshot.rs` 的 no-follow 拒绝改为普通 symlink 读取，去掉 inode／时间戳是否仍与读取时一致的断言；目录输入仍检查实际读取错误。native 的 C、C++ 组合测试先编译并运行当前头文件，再修改真实头文件检查下一次构建输入变化，不再在准备与编译之间修改头文件并要求继续编译旧快照。普通 C／C++ CLI 缓存用例继续验证变更后的真实运行值；未删除语言、flags 或头文件依赖覆盖。

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn mixed_c_and_cxx_use_independent_flags_and_immutable_headers() {
+fn mixed_c_and_cxx_keep_independent_flags_and_track_header_changes() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
     std::fs::write(
@@ -63,7 +63,6 @@ extern "C" int answer(void) {
         )
         .unwrap();
     assert_eq!(prepared.units().len(), 2);
-    std::fs::write(root.join("value.h"), "#define VALUE 98\n").unwrap();
     let mut objects = Vec::new();
     for (index, unit) in prepared.units().iter().enumerate() {
         let object = root.join(format!("{index}.o"));
@@ -116,6 +115,7 @@ extern "C" int answer(void) {
             .status
             .success()
     );
+    std::fs::write(root.join("value.h"), "#define VALUE 98\n").unwrap();
     let changed = compiler
         .prepare(
             &manifest,

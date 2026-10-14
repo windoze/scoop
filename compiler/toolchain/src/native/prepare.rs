@@ -75,98 +75,90 @@ pub(super) fn prepare(
         .tempdir()
         .map_err(error)?;
     let target_facts = crate::manifest::source_target(target)?;
-    for _ in 0..3 {
-        let mut result = PreparedNativeInputs {
-            libraries: libraries.clone(),
-            cxx,
-            ..PreparedNativeInputs::default()
-        };
-        let mut captured = BTreeMap::new();
-        for (source, language) in &sources {
-            let input = roots.cone.join(source.path().as_path());
-            let depfile = directory.path().join("unit.d");
-            let mut command = command::base(compiler, *language, optimization)?;
-            command.args([
-                format!(
-                    "-DSCOOP_TARGET_OS_{}=1",
-                    target_facts.os.to_ascii_uppercase()
-                ),
-                format!(
-                    "-DSCOOP_TARGET_ARCH_{}=1",
-                    target_facts.arch.to_ascii_uppercase()
-                ),
-                format!(
-                    "-DSCOOP_TARGET_ENV_{}=1",
-                    target_facts.env.to_ascii_uppercase()
-                ),
-            ]);
-            command::configure_preprocessor(&mut command, config, *language, &roots.cone);
-            command
-                .current_dir(&roots.cone)
-                .arg("-I")
-                .arg(&roots.public);
-            for (root, logical) in roots.mappings() {
-                command.arg(format!("-ffile-prefix-map={}={logical}", root.display()));
-            }
-            command
-                .arg("-fPIC")
-                .args([
-                    "-E",
-                    "-x",
-                    language.input_name(),
-                    "-MD",
-                    "-MT",
-                    "native-unit",
-                    "-MF",
-                ])
-                .arg(&depfile)
-                .arg(&input);
-            let output = command::run(&mut command, source.path().as_str())?;
-            let dependencies = std::fs::read_to_string(&depfile).map_err(error)?;
-            let dependencies = parse_make_dependencies(&dependencies, "native-unit")
-                .ok_or_else(|| error("C compiler returned an invalid dependency file"))?;
-            let mut path_map = BTreeMap::new();
-            for path in dependencies {
-                let path = if path.is_absolute() {
-                    path
-                } else {
-                    roots.cone.join(path)
-                };
-                let logical = roots.logical(&path)?;
-                let snapshot = if let Some(snapshot) = captured.get(&path) {
-                    snapshot
-                } else {
-                    captured
-                        .entry(path.clone())
-                        .or_insert(ImmutableInputSnapshot::capture(&path).map_err(error)?)
-                };
-                result
-                    .dependencies
-                    .insert(logical.clone(), snapshot.digest());
-                path_map.insert(snapshot.resolved_path().to_path_buf(), logical.clone());
-                path_map.insert(path, logical);
-            }
-            let preprocessed = normalize_line_markers(&output.stdout, &path_map, &roots)?;
-            result.units.push(NativeSourceInput::new(
-                source.path().clone(),
-                *language,
-                preprocessed.into(),
-            ));
+    let mut result = PreparedNativeInputs {
+        libraries: libraries.clone(),
+        cxx,
+        ..PreparedNativeInputs::default()
+    };
+    let mut captured = BTreeMap::new();
+    for (source, language) in &sources {
+        let input = roots.cone.join(source.path().as_path());
+        let depfile = directory.path().join("unit.d");
+        let mut command = command::base(compiler, *language, optimization)?;
+        command.args([
+            format!(
+                "-DSCOOP_TARGET_OS_{}=1",
+                target_facts.os.to_ascii_uppercase()
+            ),
+            format!(
+                "-DSCOOP_TARGET_ARCH_{}=1",
+                target_facts.arch.to_ascii_uppercase()
+            ),
+            format!(
+                "-DSCOOP_TARGET_ENV_{}=1",
+                target_facts.env.to_ascii_uppercase()
+            ),
+        ]);
+        command::configure_preprocessor(&mut command, config, *language, &roots.cone);
+        command
+            .current_dir(&roots.cone)
+            .arg("-I")
+            .arg(&roots.public);
+        for (root, logical) in roots.mappings() {
+            command.arg(format!("-ffile-prefix-map={}={logical}", root.display()));
         }
-        if captured.values().all(ImmutableInputSnapshot::is_current) {
-            if languages.contains(&NativeSourceLanguage::C) {
-                result.flags = flags(config, NativeSourceLanguage::C);
-            }
-            if languages.contains(&NativeSourceLanguage::Cxx) {
-                result.cxx_flags = flags(config, NativeSourceLanguage::Cxx);
-            }
-            return Ok(result);
+        command
+            .arg("-fPIC")
+            .args([
+                "-E",
+                "-x",
+                language.input_name(),
+                "-MD",
+                "-MT",
+                "native-unit",
+                "-MF",
+            ])
+            .arg(&depfile)
+            .arg(&input);
+        let output = command::run(&mut command, source.path().as_str())?;
+        let dependencies = std::fs::read_to_string(&depfile).map_err(error)?;
+        let dependencies = parse_make_dependencies(&dependencies, "native-unit")
+            .ok_or_else(|| error("C compiler returned an invalid dependency file"))?;
+        let mut path_map = BTreeMap::new();
+        for path in dependencies {
+            let path = if path.is_absolute() {
+                path
+            } else {
+                roots.cone.join(path)
+            };
+            let logical = roots.logical(&path)?;
+            let snapshot = if let Some(snapshot) = captured.get(&path) {
+                snapshot
+            } else {
+                captured
+                    .entry(path.clone())
+                    .or_insert(ImmutableInputSnapshot::capture(&path).map_err(error)?)
+            };
+            result
+                .dependencies
+                .insert(logical.clone(), snapshot.digest());
+            path_map.insert(snapshot.resolved_path().to_path_buf(), logical.clone());
+            path_map.insert(path, logical);
         }
+        let preprocessed = normalize_line_markers(&output.stdout, &path_map, &roots)?;
+        result.units.push(NativeSourceInput::new(
+            source.path().clone(),
+            *language,
+            preprocessed.into(),
+        ));
     }
-    Err(error(format!(
-        "inputs for {} kept changing during preprocessing",
-        Path::new(manifest.manifest_path()).display()
-    )))
+    if languages.contains(&NativeSourceLanguage::C) {
+        result.flags = flags(config, NativeSourceLanguage::C);
+    }
+    if languages.contains(&NativeSourceLanguage::Cxx) {
+        result.cxx_flags = flags(config, NativeSourceLanguage::Cxx);
+    }
+    Ok(result)
 }
 
 fn flags(config: &NativeConfig, language: NativeSourceLanguage) -> Vec<String> {

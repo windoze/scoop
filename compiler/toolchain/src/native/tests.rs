@@ -50,7 +50,7 @@ fn prepare(manifest: &LoadedConeManifest) -> PreparedNativeInputs {
 }
 
 #[test]
-fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
+fn nested_headers_and_flags_track_real_input_changes() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("cone");
     let manifest = manifest(
@@ -66,7 +66,6 @@ fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
         original_key,
         scoop_wire::encode(&prepare(&manifest)).unwrap()
     );
-    std::fs::write(root.join("include/second.h"), "#define VALUE 9\n").unwrap();
     let object = directory.path().join("answer.o");
     compile_native_source(
         &prepared.units()[0],
@@ -103,6 +102,7 @@ fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
             .unwrap()
             .success()
     );
+    std::fs::write(root.join("include/second.h"), "#define VALUE 9\n").unwrap();
     assert_ne!(
         original_key,
         scoop_wire::encode(&prepare(&manifest)).unwrap()

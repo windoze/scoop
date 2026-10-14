@@ -103,7 +103,7 @@ impl PreparedBuildGraph {
         success: &scoop_protocol::ScoopcSuccessV1,
     ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        let output = ImmutableInputSnapshot::capture_no_follow(invocation.output_path())
+        let output = ImmutableInputSnapshot::capture(invocation.output_path())
             .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
         let snapshot = Arc::new(ArtifactSnapshot::from_shared(output.shared_bytes()));
         let plan = self.artifact_closure_plan();

@@ -125,7 +125,7 @@ fn capture_dumps(
                     expected.display()
                 )));
             }
-            let snapshot = ImmutableInputSnapshot::capture_no_follow(&path).map_err(invalid)?;
+            let snapshot = ImmutableInputSnapshot::capture(&path).map_err(invalid)?;
             if snapshot.digest().as_array() != descriptor.content_digest().as_array() {
                 return Err(invalid(format!(
                     "compiler dump digest differs for {}",

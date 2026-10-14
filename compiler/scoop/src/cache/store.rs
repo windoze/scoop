@@ -304,13 +304,12 @@ fn lookup_entry(
     validate_entry_directory(entry_path)?;
     let artifact_path = entry_path.join(ARTIFACT_FILE_NAME);
     let receipt_path = entry_path.join(RECEIPT_FILE_NAME);
-    let receipt_snapshot =
-        ImmutableInputSnapshot::capture_no_follow(&receipt_path).map_err(|source| {
-            CompileCacheStoreError::Snapshot {
-                role: CachePathRole::ReceiptFile,
-                source,
-            }
-        })?;
+    let receipt_snapshot = ImmutableInputSnapshot::capture(&receipt_path).map_err(|source| {
+        CompileCacheStoreError::Snapshot {
+            role: CachePathRole::ReceiptFile,
+            source,
+        }
+    })?;
     let receipt = decode_cache_receipt_v1(receipt_snapshot.as_bytes())
         .map_err(|source| CompileCacheStoreError::ReceiptDecode(Box::new(source)))?;
     if receipt.body().cache_key() != key {
@@ -319,7 +318,7 @@ fn lookup_entry(
             actual: receipt.body().cache_key(),
         });
     }
-    let artifact = ImmutableInputSnapshot::capture_no_follow(&artifact_path).map_err(|source| {
+    let artifact = ImmutableInputSnapshot::capture(&artifact_path).map_err(|source| {
         CompileCacheStoreError::Snapshot {
             role: CachePathRole::ArtifactFile,
             source,
