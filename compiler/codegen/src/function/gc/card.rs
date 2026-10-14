@@ -2,10 +2,7 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    pub(in crate::function) fn card_mark(
-        &self,
-        addr: PointerValue<'ctx>,
-    ) -> Result<(), CodegenError> {
+    pub(super) fn card_mark(&self, addr: PointerValue<'ctx>) -> Result<(), CodegenError> {
         let context = self.context;
         let builder = self.builder;
         let ptr = ptr_ty(context);

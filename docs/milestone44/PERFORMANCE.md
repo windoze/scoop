@@ -86,3 +86,31 @@ RUNNING 中位分别为 1.931→1.923、2.355→2.339、4.128→4.089 ms，未�
 [最终 binary 的反汇编](validation/relocation-machine-code.txt.gz)结合真实 fixture
 验证定位复用、条件 store 和 GC-free 提前返回。此结果仍限 Darwin／AArch64；年轻图、
 线程恢复延迟和 Linux 对照待后续批次，不能用当前结果替代。
+
+## 编译器 GC 边界整理：生成代码与正常路径
+
+本批只整理 codegen 职责。两侧使用同一当前 runtime（含前两批 update 优化）与
+sysroot 副本，固定整理前和整理后的 release CLI，宿主、LLVM 和 4 worker 配置沿用
+上文。复用 allocation、arrays、old-graph、primitive，覆盖分配、数组引用写入、字段
+写入及纯计算循环 poll。编译／测试结束后，各预热一次，再按程序交替七次进程。
+[原始对照](validation/codegen-comparison-darwin.json.gz)保存全部命令、源码／工具
+摘要、checksum、墙钟／CPU、GC 统计、映射量／RSS、吞吐和运行顺序。
+
+| 程序 | 基线进程中位／p95／最大（ms） | 整理后进程中位／p95／最大（ms） | 根 Cone 机器指令字节数（两侧相同） |
+| --- | --- | --- | --- |
+| allocation | 9.519／14.777／14.777 | 9.755／13.126／13.126 | 1408 |
+| arrays | 15.006／20.699／20.699 | 15.236／18.476／18.476 | 8636 |
+| old-graph | 14.317／19.962／19.962 | 14.019／17.732／17.732 | 6392 |
+| primitive | 15.823／22.405／22.405 | 15.828／19.199／19.199 | 624 |
+
+七次进程范围分别为：allocation 基线 8.921–14.777、整理后 9.179–13.126 ms；
+arrays 14.659–20.699、14.360–18.476 ms；old-graph 13.871–19.962、13.723–17.732 ms；
+primitive 15.720–22.405、15.515–19.199 ms。小程序含进程启动，单个 outlier 对 p95
+影响很大；这些差异不构成加速或回退的证据，也不解释为单条 store／poll 成本。
+
+[结构记录](validation/codegen-machine-darwin.json.gz)确认两侧分别以不同 scoopc
+摘要和编译缓存键实际编译根程序，未误用同一缓存产物。四组 LIR、根产物、完整 binary
+及全部根 Cone 函数机器指令均逐字节一致；包含生成代码的 core 也分别重新编译。
+因此这些程序没有因边界整理增加热路调用、TLS 查询或机器指令。LLVM 条件 poll、
+屏障及原子内存序的精确约束由本批 codegen 测试覆盖；正式 CLI 另验证构造／copy／
+clone／原子引用与 GC 的组合。本节限 Darwin／AArch64，不替代后续 Linux 结果。

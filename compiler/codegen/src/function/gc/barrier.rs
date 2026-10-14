@@ -1,7 +1,7 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    pub(in crate::function) fn heap_value_barrier(
+    pub(super) fn heap_value_barrier(
         &self,
         address: PointerValue<'ctx>,
         ty: &LirType,
@@ -20,7 +20,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.heap_range_barrier(address, self.context.i64_type().const_int(bytes, false))
     }
 
-    pub(in crate::function) fn heap_array_barrier(
+    pub(super) fn heap_array_barrier(
         &self,
         array: PointerValue<'ctx>,
         layout: &scoop_lir::ArrayLayoutV1,

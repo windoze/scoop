@@ -9,7 +9,7 @@
 | M44-1 基线、计时观测与 spec | 发布边界与三类图的当前基线完成；其余场景继续随批次补齐同条件对照 |
 | M44-2 零搬迁更新分支 | 实现与本机定向验收、图对照完成；Linux 组合待后续统一验证 |
 | M44-3 引用定位、写回和无引用对象 | 实现、本机定向验收及普通搬迁／零搬迁对照完成；minor 性能与 Linux 组合继续补齐 |
-| M44-4 编译器 GC 代码生成边界 | 待实施 |
+| M44-4 编译器 GC 代码生成边界 | 实现与本机定向验收完成；四类程序的独立编译产物和机器码一致，Linux 组合待最终验收 |
 | M44-5 runtime GC 操作与 Scoop 适配 | 待实施 |
 | M44-6 组合、平台与性能验收 | 待实施 |
 
@@ -65,3 +65,14 @@
 - 正式 CLI 初组 10 项 fixture、21 个变体、121 个步骤通过，涵盖零／有搬迁、固定的含引用 aggregate 数组、GC-free leaf／大数组、MaybeUninit、原子引用、Context、region、并行标记及 release，见[初组报告](validation/relocation-fixtures-initial-darwin.json.gz)。补上 self-forwarding 检查后，对最终 runtime 再执行两个 M44 专项，4 个 debug／release 变体、12 个步骤通过，见[最终专项报告](validation/relocation-final-fixtures-darwin.json.gz)。
 - [最终 AArch64 反汇编](validation/relocation-machine-code.txt.gz)确认 slot visitor 只有一次 object_meta，forward helper 不重新定位；地址比较后的相等分支绕过 str，GC-free retained object 在 claim 前返回；目标副本定位只位于地址改变的分支。未增加逐引用生产计数器。
 - 最终同机交替普通搬迁对照保持每对进程的 moved／source／target／live／traced 数一致，update 中位 14.082→11.388 ms，请求到 RUNNING 56.155→53.894 ms；七次进程耗时范围也分离。三类零搬迁图各 35 轮仍每次 update 为零，未观察到整体回退。完整数据与限制见[性能记录](PERFORMANCE.md)。本批不替代 Linux、minor 性能或后续边界整理验收。
+
+## 2026-10-14：编译器 GC 代码生成边界
+
+- 先补充实现规范 2.4／2.5 与运行时规范 3.1：通用 LIR 保存完整语义，Immix 分配策略和完整托管写操作归 codegen GC 模块，保持共享 ABI 与快路径成本。普通对象上限从 LIR runtime ABI 文件移至 GC allocation；实际 ABI 符号、布局与摘要目录不变。
+- 新增 `function/gc/`，收拢 TLAB 分配、card/page-map、poll、release-ready，以及数组分配／构造／拼接／clone。字段与数组值写入调用完整 heap_store，原子 store／exchange／CAS 调用完整操作；屏障 helper 仅在 GC 模块内部可见。保留批量构造的单次范围屏障与失败 CAS 的无写入分支，没有增加每元素屏障、外部热路调用或第二套接口目录。通用地址／数组布局辅助、根与 statepoint、调用 ABI 继续复用原模块。
+- Rust 格式化与 [workspace clippy](validation/codegen-clippy.log.gz)通过，[372 项 codegen／相关 runtime 测试](validation/codegen-rust.log.gz)通过；包括三个 target 的原子内存序、条件 poll 的慢边根物化与 TLS 查询次数、单槽 card、GC-free 无屏障、分配、数组与原有 collector／握手回归。固定 [release 配套工具](validation/codegen-tools.log.gz)后再运行正式 CLI。
+- 新增 [m44-gc-writes](../../tests/fixtures/m44-gc-writes/)：旧对象字段、大数组中的含引用 struct／interface、AtomicRef store／exchange／成功与失败 CAS、实际 minor、构造中 GC、数组 literal／vararg 拼接／clone、boxing 与 moving 组合。首轮使用了不合法的数组 literal 展开，保留 [首轮报告](validation/codegen-fixtures-initial-darwin.json.gz)及 [日志](validation/codegen-fixtures-initial-darwin.log.gz)；改为普通 vararg 展开后，debug／release 各自的普通、moving stress、minor stress 全部通过，见 [复验报告](validation/codegen-writes-darwin.json.gz)与 [日志](validation/codegen-writes-darwin.log.gz)。没有改变语言规则迁就测试。
+- 首轮另外五项已有 fixture 均通过：M31 nursery/native/Context/copy、M33 atomics GC、M34 region values、M44 no-move 和 moving-references。与新增用例的成功复验合计六项、13 个变体、57 个进程步骤；首轮失败步骤不计入成功集合，不把定向组称为全量验收。
+- 在相同当前 runtime 下用整理前／后的固定编译器分别编译 allocation、arrays、old-graph、primitive。已核实每个根实际触发编译且两侧编译缓存键不同；LIR、根产物、完整 executable 与全部根 Cone 函数的机器指令均相同。原始反汇编和 section 大小见 [结构记录](validation/codegen-machine-darwin.json.gz)。完成构建／测试后各预热一次，再交替七次，checksum 与 GC 统计通过；见 [性能记录](PERFORMANCE.md)和 [原始对照](validation/codegen-comparison-darwin.json.gz)。本批不宣称性能提升。
+- 新增基准构建、交替测量与机器码核对脚本均通过固定 Ruff 格式化／lint，并以本批真实构建和测量验证。代码按完整操作划分，最长迁移文件为既有 346 行数组拼接；新原子操作模块 109 行，没有额外 GC crate 或策略插件。
+- 已核对压缩归档再清理本批 fixture cases 约 99 MB，保留工具、缓存、基线与对照 binary；上一批 final 证据归档后清理的失败／过期构建及 cases 约 206 MB 也已完成。runtime 适配／mutator 边界、线程实际恢复与其余性能场景、Linux 及最终全量验收继续推进，不宣称 M44 完成。

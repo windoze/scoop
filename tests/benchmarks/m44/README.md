@@ -57,3 +57,31 @@ CPU 与阶段墙钟分开，阶段可能重叠，不把阶段之和称为总暂�
 各轮 source／target 数和真实 moved_objects 保存在报告中；生命周期内还存在未单列
 阶段的自动 minor 和初始 full，其总计仍保留在进程 GC 统计，不能把阶段样本当成
 进程全部收集。
+
+## 编译器 GC 边界整理
+
+`build-codegen.py` 复用现有 allocation、arrays、old-graph 和 primitive 四个程序，
+分别覆盖分配、引用数组写入、字段写入与纯计算循环 poll。两个固定工具集使用同一份
+runtime／sysroot 副本，保留源码、工具摘要、构建输出和 IR dump；该步骤不进行计时。
+
+```sh
+python3 tests/benchmarks/m44/build-codegen.py \
+  --tools baseline=target/m44/tools-baseline --tools boundary=target/m44/tools-codegen \
+  --work target/m44/codegen-darwin --cache target/m44/codegen-benchmark-cache \
+  --target aarch64-apple-darwin
+python3 tests/benchmarks/m44/measure-codegen.py \
+  --build target/m44/codegen-darwin/build.json \
+  --output target/m44/codegen-comparison-darwin.json --runs 7 --workers 4
+python3 tests/benchmarks/m44/inspect-codegen.py \
+  --build target/m44/codegen-darwin/build.json \
+  --output target/m44/codegen-machine-darwin.json
+```
+
+先结束同机的全部构建／测试，再运行第二步。测量器核对 binary 摘要和独立计算的
+checksum，预热一次后交替执行至少七次，保存每个进程的墙钟、CPU、完整 GC 统计与
+中位数／p95／范围。iterations_per_second 是整个程序的工作负载吞吐，包含启动和
+收集，不能解释为单条 store 或 poll 的成本；小程序的进程计时只作回归观察。
+正常 GC 配置和 worker 数固定，原始统计保留收集数、映射量、RSS 与分配量。
+结构检查确认两侧根节点由不同编译缓存键实际编译，核对 LIR、产物、完整 binary 和
+所有根 Cone 函数的机器码，并保存反汇编与 section 大小。任何差异都需先审阅，不能
+通过更新固定摘要隐藏变化；本检查专门用于保持生成代码不变的边界整理。

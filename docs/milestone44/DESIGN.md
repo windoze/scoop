@@ -28,7 +28,7 @@ M44 依赖已经存在的精确根、分代收集、多 region、并行标记、
 | 普通 full 可以不搬迁，但收集尾部无条件执行引用更新 | 在完成规划/复制后，按实际搬迁结果选择 update 路径 | [collector.c](../../runtime/src/gc/collector.c)、[evacuation_plan.c](../../runtime/src/gc/evacuation_plan.c) |
 | 同一个引用分别经过对象起点、代际与 forwarding 查询 | 复用一次对象定位得到的 block、word index 和相关状态 | [heap_objects.c](../../runtime/src/gc/heap_objects.c)、[evacuation.c](../../runtime/src/gc/evacuation.c) |
 | 首次标记的存活集合已经保存全部存活对象，含无引用对象 | 继续复用此集合；区别存活/搬迁处理与出站引用扫描 | [mark.c](../../runtime/src/gc/mark.c)、[mark_objects.c](../../runtime/src/gc/mark_objects.c) |
-| Immix 普通对象上限位于 LIR runtime ABI 文件；codegen 多处分散生成 GC 细节 | 移动策略实现与快路径生成职责，复用现有 ABI 数据目录 | [runtime_abi.rs](../../compiler/lir/src/runtime_abi.rs)、[memory](../../compiler/codegen/src/function/memory)、[heap.rs](../../compiler/codegen/src/function/instruction/heap.rs) |
+| 调研基线的 Immix 普通对象上限位于 LIR runtime ABI 文件；codegen 多处分散生成 GC 细节 | 移动策略实现与完整快路径生成职责至 GC 模块，复用现有 ABI 数据目录 | [runtime_abi.rs](../../compiler/lir/src/runtime_abi.rs)、[GC 代码生成](../../compiler/codegen/src/function/gc/)、[heap.rs](../../compiler/codegen/src/function/instruction/heap.rs) |
 | GC 直接理解线程状态、stackmap、image registry；普通 runtime 直接调用 GC 私有锁/查询 | 提取当前实际使用的适配和操作接口 | [gc_internal.h](../../runtime/src/gc/gc_internal.h)、[collector_roots.c](../../runtime/src/gc/collector_roots.c)、[boxing.c](../../runtime/src/boxing.c) |
 | 分配快路已有每线程 TLAB，nursery 容量仍全局共享，refill 每次领取一个 block | 记录当前分配行为作为回归基线；容量与批量 refill 后续单独决定 | [allocation.c](../../runtime/src/gc/allocation.c)、[thread.h](../../runtime/src/thread.h) |
 

@@ -116,15 +116,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     return Ok(());
                 }
                 let element_ptr = self.element_ptr(array, &layout, index, "element_ptr")?;
-                builder
-                    .build_store(element_ptr, self.value(*value)?)
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "array_set @{symbol}: {e}",
-                            symbol = function.symbol()
-                        ))
-                    })?;
-                self.heap_value_barrier(element_ptr, &value_ty)?;
+                self.heap_store(element_ptr, self.value(*value)?, &value_ty)?;
             }
             _ => unreachable!("array instruction dispatch is exhaustive"),
         }

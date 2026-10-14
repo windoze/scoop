@@ -1,10 +1,6 @@
 use super::*;
 
-mod allocation;
 mod arrays;
-mod barrier;
-mod card;
-mod poll;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Get or declare a runtime function with the given signature.

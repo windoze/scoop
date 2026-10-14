@@ -3,7 +3,7 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    pub(super) fn emit_dynamic_array_allocation(
+    pub(in crate::function) fn emit_dynamic_array_allocation(
         &mut self,
         instruction: &Instruction,
     ) -> Result<(), CodegenError> {

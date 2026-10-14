@@ -2,6 +2,7 @@ use super::*;
 
 mod abi_parts;
 mod call;
+mod gc;
 mod instruction;
 mod local_storage;
 mod memory;

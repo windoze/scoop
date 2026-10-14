@@ -295,6 +295,8 @@ GC 支持多个 mutator，collection 在 stop-the-world 协调下执行，使用
 
 managed 分配返回直接对象指针，普通小对象分配摊还 O(1)，不要求经 handle 间接访问。快速与慢速分配都必须在返回前完成清零、对象头、精确大小与对象起点登记；可能触发 GC 的入口遵守完整 safepoint 和 root 契约。
 
+generated code 所需的 TLAB cursor／limit、对象头状态位和 poll／card 数据布局是明确的共享快路径合同。Immix 的普通对象阈值与 TLAB 资格判断归 GC 分配实现及对应 codegen GC 模块，不能向通用 LIR 泄漏算法策略；当前阈值保持一个 32 KiB block 扣除首个 128-byte line。模块整理不改变布局、位值、登记顺序或快路径调用成本。
+
 进入 collection 时，所有线程的分配状态必须停止使用并与 collector 一致。对象不得在仅部分登记时被扫描；分配失败使用明确的失败出口，不能返回无效对象。
 
 nursery 容量和 collection threshold 是收集触发条件，不是堆空间耗尽的证明。收集后被其他 mutator 抢先取得分配区时，分配方重新尝试补充自己的分配区；不能按固定次数的 nursery 竞争报告 OOM。需要 full collection 才能确认的分配失败，不能把加入另一轮 minor collection 等同于已完成自己的 full collection。

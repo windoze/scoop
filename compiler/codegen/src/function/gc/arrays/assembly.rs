@@ -1,7 +1,7 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    pub(super) fn emit_array_assembly(
+    pub(in crate::function) fn emit_array_assembly(
         &mut self,
         instruction: &Instruction,
     ) -> Result<(), CodegenError> {

@@ -1,0 +1,63 @@
+@Extern(lib = "m44_writes", name = "m44_minor_count") fun minorCount(): Long
+@Extern(lib = "m44_writes", name = "m44_moving") fun moving(): Boolean
+
+interface Reading { fun read(): Long }
+class Node(val value: Long) : Reading {
+    public override fun read(): Long = value
+}
+struct Pair(val node: Node, val view: Reading)
+class Holder(var pair: Pair)
+class Constructed {
+    val first = Node(5L)
+    init { gcCollect() }
+    val second = Node(6L)
+}
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun pair(value: Long): Pair = Pair(Node(value), Node(value + 1L))
+fun assemble(vararg elements: Pair): Array<Pair> = elements
+fun populate(holder: Holder, values: MutableArray<Pair>, cell: AtomicRef<Reading>) {
+    holder.pair = pair(10L)
+    values[0L] = pair(20L)
+    values[values.size - 1L] = pair(30L)
+    cell.store(Node(40L))
+    check(cell.exchange(Node(41L)).read() == 40L)
+    check(cell.compareAndSet(cell.load(), Node(42L)))
+    check(!cell.compareAndSet(Node(42L), Node(99L)))
+}
+
+@Unsafe fun collectYoung() {
+    if (moving()) { gcCollect(); return }
+    val before = minorCount()
+    while (minorCount() == before) {
+        var index = 0L
+        while (index < 256L) {
+            val node = Node(index)
+            index = node.value + 1L
+        }
+    }
+}
+
+fun main() {
+    val holder = Holder(pair(0L))
+    val values = MutableArray<Pair>(4096L) { index -> pair(index) }
+    val cell = AtomicRef<Reading>(Node(0L))
+    gcCollect()
+    populate(holder, values, cell)
+    @Unsafe { collectYoung() }
+    check(holder.pair.node.value == 10L && holder.pair.view.read() == 11L)
+    check(values[0L].node.value == 20L && values[4095L].view.read() == 31L)
+    check(cell.load().read() == 42L)
+    val constructed = Constructed()
+    val literal: Array<Pair> = [holder.pair, values[0L]]
+    val assembled = assemble(pair(50L), *literal, values[4095L])
+    val cloned = assembled.toMutableArray().toArray()
+    val boxed: Any = cloned[1L]
+    gcCollect()
+    check(constructed.first.value + constructed.second.value == 11L)
+    check(cloned.size == 4L && cloned[0L].node.value == 50L)
+    check(cloned[1L].view === holder.pair.view && cloned[2L].node === values[0L].node)
+    check(cloned[3L].view.read() == 31L)
+    check((boxed as Pair).node === holder.pair.node)
+    println("managed writes and copies preserved")
+}

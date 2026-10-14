@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// One Immix block minus its reserved first line (runtime spec 3.1).
+const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Managed allocation fast path. Block-sized objects are bumped directly
     /// from the current thread's public two-pointer allocation context. A
@@ -151,7 +154,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_int_compare(
                 IntPredicate::ULE,
                 aligned_size,
-                i64_ty.const_int(scoop_lir::REGULAR_MANAGED_OBJECT_MAX_SIZE, false),
+                i64_ty.const_int(REGULAR_MANAGED_OBJECT_MAX_SIZE, false),
                 "alloc_is_regular",
             )
             .map_err(|error| CodegenError(format!("check regular allocation: {error}")))?;
