@@ -175,6 +175,18 @@ fn function_context_key(
                 unit: inputs.initialization_unit_identities[*unit].id(),
             })
         }
+        HirFunctionIdentity::TestEntry(record) => {
+            if !matches!(record.key(), scoop_identity::GeneratedCallableKey::TestEntry { cone } if *cone == source.cone())
+            {
+                return Err(HirSourceContextIdentityError::SourceMismatch {
+                    context: raw_index(context),
+                });
+            }
+            Ok(SourceContextKey::Callable {
+                source: source.clone(),
+                owner: CallableOwner::Generated(record.id()),
+            })
+        }
         HirFunctionIdentity::DerivedEquality(_) => {
             Err(HirSourceContextIdentityError::InvalidFunctionSubject {
                 context: raw_index(context),

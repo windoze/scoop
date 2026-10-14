@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "../thread.h"
 #include "gc_internal.h"
 #include "scoop_rt.h"
 
@@ -228,17 +227,18 @@ void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor) {
     }
 }
 
-void scoop_gc_set_pin_frames_locked(bool pinned_now) {
-    for (ScoopThreadState *thread = scoop_thread_collection_registry_head(); thread != NULL;
-         thread = thread->registry_next) {
-        for (ScoopPinFrame *frame = thread->pin_frames; frame != NULL; frame = frame->previous) {
-            if (scoop_gc_is_object_start_locked(frame->object)) {
-                if (pinned_now || pin_index(frame->object) == 0) {
-                    (void)scoop_gc_update_pin_locked(frame->object, pinned_now);
-                }
-            } else if (pinned_now && !scoop_gc_is_immortal_object_locked(frame->object)) {
-                scoop_gc_roots_fatal("pin frame does not reference a managed object");
-            }
+static void set_pin_frame(void **slot, void *context) {
+    bool pinned_now = *(const bool *)context;
+    void *object = *slot;
+    if (scoop_gc_is_object_start_locked(object)) {
+        if (pinned_now || pin_index(object) == 0) {
+            (void)scoop_gc_update_pin_locked(object, pinned_now);
         }
+    } else if (pinned_now && !scoop_gc_is_immortal_object_locked(object)) {
+        scoop_gc_roots_fatal("pin frame does not reference a managed object");
     }
+}
+
+void scoop_gc_set_pin_frames_locked(bool pinned_now) {
+    scoop_gc_visit_pin_frames(set_pin_frame, &pinned_now);
 }

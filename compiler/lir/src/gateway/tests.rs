@@ -21,7 +21,13 @@ fn rejects(module: &Module, reason: &str) {
 
 #[test]
 fn accepts_managed_nogc_and_eager_gateways() {
-    for module in [root(true), root(false), eager()] {
+    for module in [
+        root(true),
+        root(false),
+        support::test_root(true),
+        support::test_root(false),
+        eager(),
+    ] {
         validate_startup_gateways(&module).unwrap();
     }
 }

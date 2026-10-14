@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "gc/gc_internal.h"
+#include "gc.h"
 #include "generated_entries.h"
 #include "managed_entries.h"
 #include "thread.h"

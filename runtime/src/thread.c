@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "floating.h"
+#include "gc/mutator.h"
 #include "thread/internal.h"
 #include <errno.h>
 #include <string.h>
@@ -15,27 +16,7 @@ _Atomic(uint64_t) scoop_thread_gc_epoch;
 _Atomic(uint64_t) scoop_thread_last_gc_parked_count;
 _Atomic(uint64_t) scoop_thread_last_gc_native_safe_count;
 _Thread_local ScoopThreadState *scoop_thread_tls;
-_Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 _Thread_local ScoopPollState *scoop_rt_poll_state;
-static ScoopAllocationTotals detached_allocations;
-
-static void add_allocation_counters(ScoopAllocationTotals *total,
-                                    const ScoopAllocationCounters *counters) {
-    total->objects += atomic_load_explicit(&counters->objects, memory_order_relaxed);
-    total->nursery_objects += atomic_load_explicit(&counters->nursery_objects, memory_order_relaxed);
-    total->bytes += atomic_load_explicit(&counters->bytes, memory_order_relaxed);
-    total->nursery_bytes += atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
-}
-
-ScoopAllocationTotals scoop_thread_allocation_totals_locked(void) {
-    ScoopAllocationTotals total = detached_allocations;
-    for (ScoopThreadState *state = scoop_thread_registry; state != NULL;
-         state = state->registry_next) {
-        add_allocation_counters(&total, &state->allocation_counters);
-    }
-    return total;
-}
-
 _Noreturn void scoop_thread_fatal(const char *message) {
     fprintf(stderr, "scoop runtime: %s\n", message);
     abort();
@@ -127,10 +108,7 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind, ScoopT
     state->parked_from = mode;
     state->managed_depth = managed_depth;
     state->attachment_kind = kind;
-    atomic_init(&state->allocation_counters.objects, 0);
-    atomic_init(&state->allocation_counters.nursery_objects, 0);
-    atomic_init(&state->allocation_counters.bytes, 0);
-    atomic_init(&state->allocation_counters.nursery_bytes, 0);
+    state->mutator = scoop_gc_mutator_create();
     return state;
 }
 
@@ -177,8 +155,7 @@ static void require_detachable(const ScoopThreadState *state,
         state->compiler_roots != NULL || state->pin_frames != NULL ||
         state->initialization_stack_len != 0 || state->initialization_wait != NULL ||
         state->current_transition != NULL || state->caught_exception_top != NULL ||
-        state->managed_anchor != NULL || state->allocation.cursor != NULL ||
-        state->allocation.limit != NULL) {
+        state->managed_anchor != NULL || !scoop_gc_mutator_is_retired(state->mutator)) {
         scoop_thread_fatal("thread detach with active managed frames, callbacks, "
                            "roots, exceptions, or transitions");
     }
@@ -195,10 +172,9 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     require_detachable(state, expected_kind);
     state->current_task_context = NULL;
     atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_DETACHING, memory_order_release);
-    add_allocation_counters(&detached_allocations, &state->allocation_counters);
+    scoop_gc_mutator_detach(state->mutator);
     registry_remove(state);
     scoop_thread_tls = NULL;
-    scoop_rt_allocation_context = NULL;
     scoop_rt_poll_state = NULL;
     scoop_thread_registry_unlock();
     free(state->initialization_stack);
@@ -237,7 +213,7 @@ void scoop_thread_attach_main(void) {
     }
     registry_insert(state);
     scoop_thread_tls = state;
-    scoop_rt_allocation_context = &state->allocation;
+    scoop_gc_mutator_bind(state->mutator);
     scoop_rt_poll_state = &state->poll;
     scoop_thread_registry_unlock();
 }
@@ -257,7 +233,7 @@ bool scoop_rt_attach_foreign_thread(void) {
     }
     registry_insert(state);
     scoop_thread_tls = state;
-    scoop_rt_allocation_context = &state->allocation;
+    scoop_gc_mutator_bind(state->mutator);
     scoop_rt_poll_state = &state->poll;
     scoop_thread_registry_unlock();
     return true;
@@ -285,8 +261,7 @@ uint64_t scoop_thread_prepare_shutdown(void) {
     uint64_t attached = scoop_thread_registry_count - 1;
     /* Managed exit already retired the TLAB. Shutdown itself stays native-safe.
      */
-    state->allocation.cursor = NULL;
-    state->allocation.limit = NULL;
+    scoop_gc_mutator_invalidate(state->mutator);
     scoop_thread_registry_unlock();
     return attached;
 }

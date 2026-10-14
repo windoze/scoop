@@ -2,7 +2,7 @@ use std::fmt;
 
 use scoop_identity::{
     CallableBodyKey, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExecutableSourceEntryIdentity, LinkageClass,
+    DigestPatchIntentKey, DigestSemanticFieldRole, ExecutableEntryIdentity, LinkageClass,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentCallableBodyId,
     PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
@@ -14,7 +14,7 @@ use super::ExecutableEntryPlanV1;
 use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 
 pub(super) fn build_executable(
-    source: ExecutableSourceEntryIdentity,
+    source: ExecutableEntryIdentity,
     foundation: &ConeLirFoundation,
     registrations: &RegistrationIdentitySurfaceV1,
     digests: &DigestFinalizationPlanV1,

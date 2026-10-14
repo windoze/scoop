@@ -59,14 +59,14 @@ fn lower_callable_roles(
 }
 
 /// Projects the sealed HIR output branch without dropping any part of the
-/// executable source-entry proof.
+/// executable entry identity and signature.
 fn lower_entry_bridge(
     output: &scoop_hir::HirOutputContractV1,
 ) -> Result<scoop_mir::EntryMirBridgeBranchV1, scoop_mir::MirProductionBuildError> {
     match output {
         scoop_hir::HirOutputContractV1::Library => Ok(scoop_mir::EntryMirBridgeBranchV1::Library),
         scoop_hir::HirOutputContractV1::Executable(source) => {
-            let implementation = scoop_mir::CallableOwner::Function(source.declaration());
+            let implementation = source.declaration().owner();
             scoop_mir::EntryMirBridgeV1::new(source.as_ref().clone(), implementation)
                 .map(Box::new)
                 .map(scoop_mir::EntryMirBridgeBranchV1::Executable)
@@ -103,35 +103,42 @@ impl std::error::Error for MirProductionLoweringError {
 mod tests {
     use scoop_hir::HirOutputContractV1;
     use scoop_identity::{
-        CallableOwner, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
+        CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
         DeclarationScope, DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey,
-        ExecutableSourceEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
+        ExecutableEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
 
     use super::lower_entry_bridge;
 
     #[test]
-    fn lowering_preserves_the_complete_executable_source_proof() {
+    fn lowering_preserves_the_selected_executable_entry() {
         let source = source();
-        let output = HirOutputContractV1::Executable(Box::new(source.clone()));
-        let bridge = lower_entry_bridge(&output).unwrap();
-        let scoop_mir::EntryMirBridgeBranchV1::Executable(bridge) = bridge else {
-            panic!("the executable HIR branch has an executable MIR branch")
-        };
+        let generated =
+            CborIdentityRecord::from_key(scoop_identity::GeneratedCallableKey::TestEntry {
+                cone: source.root_cone(),
+            })
+            .unwrap();
+        let generated =
+            ExecutableEntryIdentity::for_test(&generated, source.source_signature().clone())
+                .unwrap();
+        for source in [source, generated] {
+            let output = HirOutputContractV1::Executable(Box::new(source.clone()));
+            let bridge = lower_entry_bridge(&output).unwrap();
+            let scoop_mir::EntryMirBridgeBranchV1::Executable(bridge) = bridge else {
+                panic!("the executable HIR branch has an executable MIR branch")
+            };
 
-        assert_eq!(bridge.source(), &source);
-        assert_eq!(
-            bridge.implementation(),
-            CallableOwner::Function(source.declaration())
-        );
-        assert_eq!(
-            lower_entry_bridge(&HirOutputContractV1::Library).unwrap(),
-            scoop_mir::EntryMirBridgeBranchV1::Library
-        );
+            assert_eq!(bridge.source(), &source);
+            assert_eq!(bridge.implementation(), source.declaration().owner());
+            assert_eq!(
+                lower_entry_bridge(&HirOutputContractV1::Library).unwrap(),
+                scoop_mir::EntryMirBridgeBranchV1::Library
+            );
+        }
     }
 
-    fn source() -> ExecutableSourceEntryIdentity {
+    fn source() -> ExecutableEntryIdentity {
         let declaration = CborIdentityRecord::from_key(SourceDeclarationKey::function(
             SourceDeclarationSite::new(
                 ConeIdentity::SINGLE_FILE,
@@ -150,7 +157,7 @@ mod tests {
             CoreBuiltinNominal::Unit.identity_record().id(),
         ))
         .unwrap();
-        ExecutableSourceEntryIdentity::try_new(
+        ExecutableEntryIdentity::try_new(
             &declaration,
             ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
         )

@@ -117,6 +117,7 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
         .map(|path| SourceProvider {
             provider: hir::IntrinsicProviderId::from_raw(1),
             kind: SourceKind::CurrentUnit,
+            role: scoop_identity::SourceRole::Production,
             identity: test_source_identity(path),
             name: "same.scoop".to_string(),
             source: String::new(),
@@ -125,15 +126,17 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
         IntrinsicDeclarationPolicy::CoreOnly,
     );
     let cone = lowerer.current_cone();
-    lowerer
-        .top_level_namespaces
-        .initialize_sources([cone; 4], cone, &files);
+    lowerer.top_level_namespaces.initialize_sources(
+        [(cone, scoop_identity::SourceRole::Production); 4],
+        cone,
+        &files,
+    );
     let (api, _) = lowerer
         .top_level_namespaces
-        .longest_package_prefix(&[ident("api")]);
+        .longest_package_prefix(0, &[ident("api")]);
     let (child, _) = lowerer
         .top_level_namespaces
-        .longest_package_prefix(&[ident("api"), ident("child")]);
+        .longest_package_prefix(0, &[ident("api"), ident("child")]);
     (lowerer, api, child)
 }
 

@@ -4,8 +4,15 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use scoop::BuildProfile;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Parser)]
-#[command(name = "scoop", version, about = "Build, run, and link Scoop programs")]
+#[command(
+    name = "scoop",
+    version,
+    about = "Build, test, run, and link Scoop programs"
+)]
 pub(super) struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -17,6 +24,8 @@ pub(super) enum Command {
     Build(BuildArgs),
     /// Build an executable and run it with the caller's environment and stdio.
     Run(RunArgs),
+    /// Build and run the current manifest Cone’s tests.
+    Test(TestArgs),
     /// Link existing artifacts without compiling sources.
     Link(LinkArgs),
 }
@@ -111,6 +120,27 @@ pub(super) struct RunArgs {
 }
 
 #[derive(Args)]
+pub(super) struct TestArgs {
+    #[command(flatten)]
+    pub options: BuildOptions,
+    /// Build and link without running the test executable.
+    #[arg(long, conflicts_with = "list")]
+    pub no_run: bool,
+    /// List compiled test containers and cases without running them.
+    #[arg(long)]
+    pub list: bool,
+    /// Match a substring of the complete test name, including its container.
+    #[arg(long)]
+    pub filter: Option<String>,
+    /// Select only tests marked Ignore.
+    #[arg(long)]
+    pub ignored: bool,
+    /// Show test stdout/stderr as it is produced instead of capturing it.
+    #[arg(long, conflicts_with_all = ["list", "no_run"])]
+    pub nocapture: bool,
+}
+
+#[derive(Args)]
 pub(super) struct LinkArgs {
     #[arg(long)]
     pub root_slib: PathBuf,
@@ -172,6 +202,7 @@ impl Command {
         match self {
             Self::Build(args) => args.options.message_format,
             Self::Run(args) => args.options.message_format,
+            Self::Test(args) => args.options.message_format,
             Self::Link(args) => args.message_format,
         }
     }

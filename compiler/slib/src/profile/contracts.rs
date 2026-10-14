@@ -126,12 +126,17 @@ impl CapabilityContractRegistry {
             capability.name(),
             capability.major_version(),
         ) {
-            ("org.scoop-lang.hir", "identity-foundation", 8) => (
+            ("org.scoop-lang.manifest", "test-directory", 1) => (
+                SectionLocation::Manifest,
+                MemberPurposeSet::NONE,
+                FingerprintSinkSet::ENVELOPE_ONLY,
+            ),
+            ("org.scoop-lang.hir", "identity-foundation", 9) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "identity-foundation", 6) => (
+            ("org.scoop-lang.mir", "identity-foundation", 7) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
@@ -148,7 +153,7 @@ impl CapabilityContractRegistry {
                     .union(FingerprintSinkSet::RUNTIME_IMAGE)
                     .union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.hir", "core-bootstrap-interface", 14) => (
+            ("org.scoop-lang.hir", "core-bootstrap-interface", 15) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
@@ -178,7 +183,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.mir", "core-bootstrap-bridge", 1) => (
+            ("org.scoop-lang.mir", "core-bootstrap-bridge", 2) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
@@ -198,8 +203,8 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.lir", "strong-production", 21)
-            | ("org.scoop-lang.lir", "cone-production", 11) => (
+            ("org.scoop-lang.lir", "strong-production", 22)
+            | ("org.scoop-lang.lir", "cone-production", 12) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE),

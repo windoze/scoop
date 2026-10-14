@@ -302,6 +302,7 @@ fn dispatch_key(
         }
         HirFunctionIdentity::Source(HirSourceFunctionIdentity::Generic(_))
         | HirFunctionIdentity::LexicalGenerated(_)
+        | HirFunctionIdentity::TestEntry(_)
         | HirFunctionIdentity::Initialization { .. }
         | HirFunctionIdentity::DerivedEquality(_) => {
             Err(HirDispatchSlotIdentityError::InvalidDeclarationIdentity {
@@ -327,6 +328,7 @@ fn function_slot_role(
         }
         HirFunctionIdentity::Source(HirSourceFunctionIdentity::Generic(_))
         | HirFunctionIdentity::LexicalGenerated(_)
+        | HirFunctionIdentity::TestEntry(_)
         | HirFunctionIdentity::Initialization { .. }
         | HirFunctionIdentity::DerivedEquality(_) => {
             Err(HirDispatchSlotIdentityError::InvalidDeclarationIdentity {

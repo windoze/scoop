@@ -32,8 +32,8 @@ M23-9 负责正式 `compiler/linker`、runtime-build 与启动对象生产；M23
 | [`runtime_metadata_v1/`](../../../compiler/codegen/src/runtime_metadata_v1.rs) | 实际 image/record 发射、typed relocation 与摘要 patch | 只保留统一 initialization registration，删除 coordinator 副本 |
 | [`lir-lower/production.rs`](../../../compiler/lir-lower/src/production.rs) 与 [`safepoints/`](../../../compiler/lir-lower/src/safepoints/mod.rs) | root/eager gateway、入口 poll、invoke/catch、身份与 root plan | 验证入口合同，修正 root catch 的异常生命周期 |
 | [`initialization.c`](../../../runtime/src/initialization.c) | cell 状态机、同线程/跨线程 cycle、可参与 GC 的等待 | 直接消费登记的 unit record；移除单表 eager loop 和每次 ensure 的静态重验 |
-| [`gc.c`](../../../runtime/src/gc.c)、[`gc/roots.c`](../../../runtime/src/gc/roots.c) | 单表 roots/immortals、动态 roots、真实 moving collector | 使用完整 registry 的去重结果；heap 初始化不再读取固定单表 |
-| [`gc/stackmap.c`](../../../runtime/src/gc/stackmap.c) | 连续 LLVM v3 blob、精确 PC、当前无条件拒绝重复 site | 保留规范化字段，结合 registration 判定合法 ODR 重复 |
+| [`gc.c`](../../../runtime/src/gc_binding/entries.c)、[`gc_binding/roots.c`](../../../runtime/src/gc_binding/roots.c) | 单表 roots/immortals、动态 roots、真实 moving collector | 使用完整 registry 的去重结果；heap 初始化不再读取固定单表 |
+| [`gc_binding/stackmap.c`](../../../runtime/src/gc_binding/stackmap.c) | 连续 LLVM v3 blob、精确 PC、当前无条件拒绝重复 site | 保留规范化字段，结合 registration 判定合法 ODR 重复 |
 | [`thread/`](../../../runtime/src/thread/transitions.c) | mutex/epoch 握手、native-safe/borrowed 与 callback 栈段 | 主线程 native-safe attach；明确 EntryPending；每次 gateway 独立边界 |
 | [`platform/image/macho.c`](../../../runtime/src/platform/image/macho.c) | 主 Mach-O 的 stackmap/text section | 提供加载后 metadata 范围与权限，供通用登记代码使用 |
 | [`rt.c`](../../../runtime/src/rt.c) | 固定 `scoop_main` 与 `scoop_image_*` 的历史启动 | 通用 runtime 不再拥有这个 `main`；新增生产 startup 函数 |

@@ -19,7 +19,9 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
     ) -> Result<SingleConeProductionSuccess, CurrentConeProductionError> {
         let protocols = self.request.protocols();
         let cone = match self.request.current() {
-            ValidatedCurrentConeInput::Manifest { manifest } => manifest_record(manifest),
+            ValidatedCurrentConeInput::Manifest { manifest } => {
+                manifest_record(manifest, self.request.purpose())
+            }
             ValidatedCurrentConeInput::SingleFile { .. } => scoop_slib::ConeRecord::new(
                 ConeCoordinate::reserved_single_file(),
                 scoop_slib::ConeKind::Executable,
@@ -114,6 +116,29 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             }
         };
         source_names.insert(self.sources.cone(), current_coordinate);
+        if self.request.purpose() == CompilationPurpose::Test {
+            let ValidatedCurrentConeInput::Manifest { manifest } = self.request.current() else {
+                unreachable!("test request normalization requires a manifest")
+            };
+            let test_dependencies = manifest
+                .parsed()
+                .tests()
+                .dependency_iter()
+                .map(|(_, dependency)| {
+                    dependency
+                        .coordinate()
+                        .identity()
+                        .expect("dependency validation resolved this exact coordinate")
+                })
+                .collect();
+            return current_hir::CurrentConeHirArtifacts::lower_tests(
+                &self.sources,
+                protocols.hir_input(),
+                world,
+                source_names,
+                test_dependencies,
+            );
+        }
         current_hir::CurrentConeHirArtifacts::lower(
             requested,
             &self.sources,
@@ -126,11 +151,13 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
 
 fn manifest_record(
     manifest: &LoadedConeManifest,
+    purpose: CompilationPurpose,
 ) -> Result<scoop_slib::ConeRecord, scoop_slib::ConeRecordError> {
     let semantic = manifest.parsed().semantic();
-    let kind = match semantic.requested_kind() {
-        scoop_identity::RequestedConeKind::Library => scoop_slib::ConeKind::Library,
-        scoop_identity::RequestedConeKind::Executable => scoop_slib::ConeKind::Executable,
+    let kind = match (purpose, semantic.requested_kind()) {
+        (CompilationPurpose::Test, _) => scoop_slib::ConeKind::Executable,
+        (_, scoop_identity::RequestedConeKind::Library) => scoop_slib::ConeKind::Library,
+        (_, scoop_identity::RequestedConeKind::Executable) => scoop_slib::ConeKind::Executable,
     };
     scoop_slib::ConeRecord::new(
         semantic.coordinate().clone(),

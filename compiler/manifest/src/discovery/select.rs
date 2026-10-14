@@ -4,17 +4,36 @@ pub(super) struct SelectedRoot {
     pub path: ConeRelativePath,
     pub selection: String,
     pub resolved: ResolvedEntry,
+    pub role: SourceRole,
 }
 
 pub(super) fn selected_roots(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
+    include_tests: bool,
 ) -> Result<Vec<SelectedRoot>, SourceDiscoveryError> {
-    let selection = manifest.parsed().semantic().sources();
+    let mut roots = Vec::new();
+    append_roots(manifest, target, SourceRole::Production, &mut roots)?;
+    if include_tests {
+        append_roots(manifest, target, SourceRole::Test, &mut roots)?;
+    }
+    Ok(roots)
+}
+
+fn append_roots(
+    manifest: &LoadedConeManifest,
+    target: TargetProfileId,
+    role: SourceRole,
+    roots: &mut Vec<SelectedRoot>,
+) -> Result<(), SourceDiscoveryError> {
+    let (selection, default_path, field) = match role {
+        SourceRole::Production => (manifest.parsed().semantic().sources(), "src", "sources"),
+        SourceRole::Test => (manifest.parsed().tests().sources(), "tests", "test.sources"),
+    };
     let paths: Vec<_> = match selection {
         SourceSelection::Default => vec![(
-            ConeRelativePath::new("src").expect("the default source path is relative"),
-            "default src/".to_owned(),
+            ConeRelativePath::new(default_path).expect("the default source path is relative"),
+            format!("default {default_path}/"),
         )],
         SourceSelection::Explicit(paths) => paths
             .iter()
@@ -23,14 +42,19 @@ pub(super) fn selected_roots(
             .map(|(index, path)| {
                 (
                     path.path().clone(),
-                    format!("sources[{}] ({:?})", index + 1, path.path().as_str()),
+                    format!("{field}[{}] ({:?})", index + 1, path.path().as_str()),
                 )
             })
             .collect(),
     };
-    let mut roots: Vec<SelectedRoot> = Vec::new();
     for (path, label) in paths {
         let display_path = manifest.real_root().join(path.as_path());
+        if role == SourceRole::Test
+            && matches!(selection, SourceSelection::Default)
+            && matches!(std::fs::symlink_metadata(&display_path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        {
+            continue;
+        }
         let resolved = resolve_entry(&display_path)?;
         if !resolved.path.starts_with(manifest.real_root()) {
             return Err(SourceDiscoveryError::new(
@@ -41,7 +65,10 @@ pub(super) fn selected_roots(
         if matches!(selection, SourceSelection::Default) && !resolved.metadata.is_dir() {
             return Err(SourceDiscoveryError::new(
                 display_path,
-                SourceDiscoveryErrorKind::SourceRootNotDirectory,
+                match role {
+                    SourceRole::Production => SourceDiscoveryErrorKind::SourceRootNotDirectory,
+                    SourceRole::Test => SourceDiscoveryErrorKind::TestRootNotDirectory,
+                },
             ));
         }
         if !resolved.metadata.is_dir()
@@ -57,8 +84,9 @@ pub(super) fn selected_roots(
             path,
             selection: label,
             resolved,
+            role,
         };
-        for prior in &roots {
+        for prior in roots.iter() {
             if overlaps(
                 prior.path.as_path(),
                 &prior.resolved.metadata,
@@ -81,7 +109,7 @@ pub(super) fn selected_roots(
         }
         roots.push(root);
     }
-    Ok(roots)
+    Ok(())
 }
 
 fn overlaps(

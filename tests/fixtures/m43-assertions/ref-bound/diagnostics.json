@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `assertSame`: type argument `Int` for `T` must satisfy `ref`",
+    "notes": [],
+    "origin": {
+      "cone": "2746e496738210d478d6638bf2735bcd05b9b5c43a3d91456b358503a3d0be76",
+      "end": 63,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 47
+    },
+    "severity": "error"
+  }
+]

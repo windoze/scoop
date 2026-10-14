@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, RequestedConeKind, SourceContentDigest, SourceIdentity,
+    SourceRole,
 };
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{
@@ -34,17 +35,23 @@ pub struct SourceSnapshot {
     display_locator: SourceDisplayLocator,
     content_digest: SourceContentDigest,
     bytes: Arc<[u8]>,
+    role: SourceRole,
 }
 
 impl SourceSnapshot {
     pub(super) fn from_discovered(source: DiscoveredSource) -> Self {
-        let (identity, display_locator, source_text, content_digest) = source.into_parts();
+        let (identity, display_locator, source_text, content_digest, role) = source.into_parts();
         Self {
             identity,
             display_locator,
             content_digest,
             bytes: Arc::from(source_text.into_bytes()),
+            role,
         }
+    }
+
+    pub const fn role(&self) -> SourceRole {
+        self.role
     }
 
     pub fn identity(&self) -> &SourceIdentity {
@@ -82,6 +89,7 @@ pub struct ManifestSourceSnapshot {
     pub(super) coordinate: ConeCoordinate,
     pub(super) requested_kind: RequestedConeKind,
     pub(super) manifest_semantic: ConeManifestSemantic,
+    pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
     pub(super) manifest_bytes: Arc<[u8]>,
     pub(super) manifest_digest: Digest256,
@@ -236,6 +244,17 @@ pub struct PreparedBuildGraph {
 }
 
 impl PreparedBuildGraph {
+    pub fn compilation_purpose(
+        &self,
+        identity: ConeIdentity,
+    ) -> scoop_protocol::CompilationPurpose {
+        if identity == self.root {
+            self.context.purpose
+        } else {
+            scoop_protocol::CompilationPurpose::Production
+        }
+    }
+
     pub const fn root_identity(&self) -> ConeIdentity {
         self.root
     }

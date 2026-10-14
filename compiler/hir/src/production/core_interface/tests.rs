@@ -3,7 +3,7 @@ use scoop_identity::{
     BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
     DeclarationName, DeclarationScope, DefinitionOwnerChain, EnumVariantFieldKey,
     EnumVariantFieldSelector, EnumVariantIdentityKey, ExactCallableSignature, ExactTypeKey,
-    ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath, PendingIdentityValidation,
+    ExecutableEntryIdentity, ExportBindingKey, PackagePath, PendingIdentityValidation,
     PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
     PersistentExportBindingId, PersistentFunctionId, PersistentGenericTypeId, PersistentTypeId,
     SemanticIdentitySession, SemanticOriginFingerprint, SignatureTypeKey, SourceDeclarationKey,
@@ -14,6 +14,7 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 use crate::{DecodedHirFoundation, ImportedHirFoundation, PublicNominalShapeRequirementsV1};
 
+mod entry;
 mod wire;
 
 #[test]
@@ -75,7 +76,7 @@ fn protocol_definitions_do_not_replace_the_executable_output_contract() {
     let mut functions = fixture.foundation.type_source_function_records().to_vec();
     functions.push(entry.clone());
     fixture.foundation.set_functions(functions).unwrap();
-    let proof = ExecutableSourceEntryIdentity::try_new(
+    let proof = ExecutableEntryIdentity::try_new(
         &entry,
         ExactCallableSignature::new(
             scoop_identity::Effect::Ordinary,

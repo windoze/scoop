@@ -20,9 +20,6 @@ const RUNTIME_SYMBOL_CONTRACT_DOMAIN: &str = "scoop-runtime-symbol-contract-v1";
 const TARGET_EH_REQUIREMENT_DOMAIN: &str = "scoop-target-eh-requirement-v1";
 const INITIAL_SCHEMA: u64 = 1;
 
-/// One Immix block minus its reserved first line; shared by generated TLAB code.
-pub const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
-
 /// Runtime-private poll words; the C layout is asserted in generated_entries.h.
 pub const POLL_WORLD_RUNNING: u64 = 0;
 pub const POLL_THREAD_MANAGED: u64 = 1;

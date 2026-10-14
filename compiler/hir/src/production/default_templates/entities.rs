@@ -121,6 +121,7 @@ impl<'a> DefaultEntityProjector<'a> {
                     Ok(LexicalCallableParent::accessor(id))
                 }
                 HirFunctionIdentity::LexicalGenerated(record)
+                | HirFunctionIdentity::TestEntry(record)
                 | HirFunctionIdentity::Initialization { record, .. } => {
                     LexicalCallableParent::from_generated_key(record.key()).map_err(|_| {
                         DefaultEntityProjectionError::UnsupportedFunctionIdentity {
@@ -160,6 +161,7 @@ impl<'a> DefaultEntityProjector<'a> {
             }
             HirFunctionIdentity::PropertyAccessor(_)
             | HirFunctionIdentity::LexicalGenerated(_)
+            | HirFunctionIdentity::TestEntry(_)
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => {
                 Err(DefaultEntityProjectionError::ExpectedSourceDeclaration {
@@ -200,6 +202,7 @@ impl<'a> DefaultEntityProjector<'a> {
                 Ok(DefaultCallableDeclarationV1::PropertyAccessor(id))
             }
             HirFunctionIdentity::LexicalGenerated(record)
+            | HirFunctionIdentity::TestEntry(record)
             | HirFunctionIdentity::Initialization { record, .. } => {
                 Ok(DefaultCallableDeclarationV1::Generated(record.id()))
             }
@@ -217,6 +220,7 @@ impl<'a> DefaultEntityProjector<'a> {
     ) -> Result<PersistentGeneratedCallableId, DefaultEntityProjectionError> {
         match self.function_identity(function)? {
             HirFunctionIdentity::LexicalGenerated(record)
+            | HirFunctionIdentity::TestEntry(record)
             | HirFunctionIdentity::Initialization { record, .. } => Ok(record.id()),
             HirFunctionIdentity::Source(_)
             | HirFunctionIdentity::PropertyAccessor(_)

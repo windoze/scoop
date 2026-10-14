@@ -37,6 +37,7 @@ typedef struct Probe {
     ScoopThreadState *target;
     _Atomic(unsigned) target_stage, target_gate, collector_stage, collector_gate;
     _Atomic(bool) collected;
+    unsigned collection_boundary;
     bool passed;
 } Probe;
 
@@ -80,6 +81,19 @@ void scoop_thread_test_point(ScoopThreadTestPoint point) {
             await(&probe->target_gate, 2);
         }
         return;
+    }
+    if (point == SCOOP_TEST_COLLECTOR_STOPPING) {
+        assert(probe->collection_boundary++ == 0);
+        assert(atomic_load(&scoop_thread_world_phase) == SCOOP_WORLD_STOPPING);
+    } else if (point == SCOOP_TEST_COLLECTOR_STOPPED) {
+        assert(probe->collection_boundary++ == 1);
+        assert(atomic_load(&scoop_thread_world_phase) == SCOOP_WORLD_COLLECTING);
+    } else if (point == SCOOP_TEST_COLLECTOR_RESUMING) {
+        assert(probe->collection_boundary++ == 2);
+        assert(atomic_load(&scoop_thread_world_phase) == SCOOP_WORLD_COLLECTING);
+    } else if (point == SCOOP_TEST_COLLECTOR_RUNNING) {
+        assert(probe->collection_boundary++ == 3);
+        assert(atomic_load(&scoop_thread_world_phase) == SCOOP_WORLD_RUNNING);
     }
     if (probe->scenario == RETURN_DURING_SCAN) {
         if (point == SCOOP_TEST_COLLECTOR_STOPPED) {
@@ -203,6 +217,7 @@ static void run_scenario(Scenario scenario) {
     scoop_gc_heap_state.stress_move = false;
 #endif
     assert(probe.passed);
+    assert(probe.collection_boundary == 4);
     active = NULL;
 }
 

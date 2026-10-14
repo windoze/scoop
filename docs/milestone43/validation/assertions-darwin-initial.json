@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 9,
+  "selected": 9,
+  "unselected": 0,
+  "counts": {
+    "passed": 6,
+    "failed": 3
+  },
+  "variants": 9,
+  "processes": 21,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "m43-assertions-boolean",
+      "status": "passed",
+      "seconds": 163.18681929213926,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-equality",
+      "status": "failed",
+      "seconds": 18.857075958047062,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "build exit/signal (stderr: b'{\"code\":\"SCOOPC_HIR_ERROR\",\"display\":{\"column\":27,\"end\":165,\"line\":5,\"path\":\"/Users/chenxu/repos/scoop/tests/fixtures/m43-assertions/equality/program/src/main.scoop\",\"start\":159},\"kind\":\"diagnostic\",\"message\":\"visibility of `equals` does not cover inherited slot `Equals<Key>.equals`\",\"notes\":[],\"origin\":{\"cone\":\"cd23da58f2d85b2fe5ac1f3f3b0958726a42f7eb8f9cd1e379e10c1b5524217a\",\"end\":165,\"kind\":\"source\",\"path\":\"src/main.scoop\",\"start\":159},\"schema\":1,\"severity\":\"error\"}\\n') differs:\n--- expected\n+++ actual\n@@ -1 +1 @@\n-0+1"
+    },
+    {
+      "name": "m43-assertions-equals-bound",
+      "status": "passed",
+      "seconds": 18.750450334046036,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-exceptions",
+      "status": "failed",
+      "seconds": 39.77410429203883,
+      "variants": 0,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "run exit/signal (stderr: b'scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)\\n') differs:\n--- expected\n+++ actual\n@@ -1 +1 @@\n-0+1"
+    },
+    {
+      "name": "m43-assertions-identity",
+      "status": "passed",
+      "seconds": 144.18277133302763,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-location",
+      "status": "passed",
+      "seconds": 144.43245270801708,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-ref-bound",
+      "status": "passed",
+      "seconds": 18.354842457920313,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-rendering",
+      "status": "failed",
+      "seconds": 18.051093499874696,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "build exit/signal (stderr: b'{\"code\":\"SCOOPC_HIR_ERROR\",\"display\":{\"column\":27,\"end\":252,\"line\":7,\"path\":\"/Users/chenxu/repos/scoop/tests/fixtures/m43-assertions/rendering/program/src/main.scoop\",\"start\":246},\"kind\":\"diagnostic\",\"message\":\"visibility of `equals` does not cover inherited slot `Equals<Value>.equals`\",\"notes\":[],\"origin\":{\"cone\":\"2e66fddb61ccef3b0760f333817a311a6f2c6827b4260003f268fc69d6708297\",\"end\":252,\"kind\":\"source\",\"path\":\"src/main.scoop\",\"start\":246},\"schema\":1,\"severity\":\"error\"}\\n{\"code\":\"SCOOPC_HIR_ERROR\",\"display\":{\"column\":18,\"end\":318,\"line\":8,\"path\":\"/Users/chenxu/repos/scoop/tests/fixtures/m43-assertions/rendering/program/src/main.scoop\",\"start\":310},\"kind\":\"diagnostic\",\"message\":\"visibility of `toString` does not cover inherited slot `ToString.toString`\",\"notes\":[],\"origin\":{\"cone\":\"2e66fddb61ccef3b0760f333817a311a6f2c6827b4260003f268fc69d6708297\",\"end\":318,\"kind\":\"source\",\"path\":\"src/main.scoop\",\"start\":310},\"schema\":1,\"severity\":\"error\"}\\n{\"code\":\"SCOOPC_HIR_ERROR\",\"display\":{\"column\":27,\"end\":522,\"line\":15,\"path\":\"/Users/chenxu/repos/scoop/tests/fixtures/m43-assertions/rendering/program/src/main.scoop\",\"start\":516},\"kind\":\"diagnostic\",\"message\":\"visibility of `equals` does not cover inherited slot `Equals<BrokenComparison>.equals`\",\"notes\":[],\"origin\":{\"cone\":\"2e66fddb61ccef3b0760f333817a311a6f2c6827b4260003f268fc69d6708297\",\"end\":522,\"kind\":\"source\",\"path\":\"src/main.scoop\",\"start\":516},\"schema\":1,\"severity\":\"error\"}\\n') differs:\n--- expected\n+++ actual\n@@ -1 +1 @@\n-0+1"
+    },
+    {
+      "name": "m43-assertions-throwable-bound",
+      "status": "passed",
+      "seconds": 17.95602587494068,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

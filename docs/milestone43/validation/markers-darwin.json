@@ -1,0 +1,150 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3972,
+  "selected": 15,
+  "unselected": 3957,
+  "counts": {
+    "passed": 15
+  },
+  "variants": 21,
+  "processes": 39,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "m43-assertions-boolean",
+      "status": "passed",
+      "seconds": 160.665330958087,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-equality",
+      "status": "passed",
+      "seconds": 161.5313675419893,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-equals-bound",
+      "status": "passed",
+      "seconds": 18.802703249966726,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-exceptions",
+      "status": "passed",
+      "seconds": 160.69799524988048,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-identity",
+      "status": "passed",
+      "seconds": 141.47478475002572,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-location",
+      "status": "passed",
+      "seconds": 72.53310641692951,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-ref-bound",
+      "status": "passed",
+      "seconds": 19.070008124923334,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-rendering",
+      "status": "passed",
+      "seconds": 75.65503904107027,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-throwable-bound",
+      "status": "passed",
+      "seconds": 18.870497040916234,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-throwable-class-bound",
+      "status": "passed",
+      "seconds": 19.193910625064746,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-markers-production-after",
+      "status": "passed",
+      "seconds": 19.21134708309546,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-markers-production-before",
+      "status": "passed",
+      "seconds": 19.12786312494427,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-markers-production-ignore",
+      "status": "passed",
+      "seconds": 19.07920879102312,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-markers-production-reexport",
+      "status": "passed",
+      "seconds": 19.941702791024,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-markers-production-test",
+      "status": "passed",
+      "seconds": 19.134717875160277,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m43"
+name = "selection-invalid"
+version = "0.1.0"
+kind = "library"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

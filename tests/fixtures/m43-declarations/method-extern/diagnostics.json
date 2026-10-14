@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Extern` is only allowed on a top-level function",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 105,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 45
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `check` must have a body",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 103,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `Cases.check` has non-GC-free parameter `this` of type Cases",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 105,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 45
+    },
+    "severity": "error"
+  }
+]

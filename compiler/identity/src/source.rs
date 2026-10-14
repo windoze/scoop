@@ -9,6 +9,13 @@ use crate::{
 
 const SINGLE_FILE_LOGICAL_PATH: &str = "main.scoop";
 
+/// A source's role in the current compilation, independent of its identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceRole {
+    Production,
+    Test,
+}
+
 /// SHA-256 of the raw UTF-8 bytes of one source file.
 ///
 /// This remains a distinct type from semantic identities and other digests so

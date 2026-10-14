@@ -53,15 +53,28 @@ impl DirectPackageIndex {
         &'index self,
         segments: &[CanonicalIdentifier],
     ) -> Option<DirectPackageMatch<'index>> {
+        self.longest_prefix_filtered(segments, |_| true)
+    }
+
+    pub fn longest_prefix_filtered<'index>(
+        &'index self,
+        segments: &[CanonicalIdentifier],
+        include: impl Fn(ConeIdentity) -> bool,
+    ) -> Option<DirectPackageMatch<'index>> {
         (0..=segments.len()).rev().find_map(|consumed| {
             let path = PackagePath::from_segments(segments[..consumed].to_vec());
-            self.entries
-                .get_key_value(&path)
-                .map(|(path, entry)| DirectPackageMatch {
+            self.entries.get_key_value(&path).and_then(|(path, entry)| {
+                let provider_count = entry
+                    .contributions
+                    .iter()
+                    .filter(|entry| include(entry.provider))
+                    .count();
+                (provider_count != 0).then_some(DirectPackageMatch {
                     path,
                     consumed,
-                    provider_count: entry.contributions.len(),
+                    provider_count,
                 })
+            })
         })
     }
 }
@@ -161,10 +174,20 @@ impl<'world, 'input> DirectPackageView<'world, 'input> {
         namespace: BindingNamespace,
         name: &str,
     ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
+        self.binding_group_filtered(namespace, name, |_| true)
+    }
+
+    pub fn binding_group_filtered(
+        &self,
+        namespace: BindingNamespace,
+        name: &str,
+        include: impl Fn(ConeIdentity) -> bool,
+    ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
         non_empty_group(
             self.entry
                 .contributions
                 .iter()
+                .filter(|contribution| include(contribution.provider))
                 .flat_map(|contribution| contribution.bindings.iter())
                 .filter_map(|locator| self.world.binding(*locator))
                 .filter(|binding| {

@@ -141,14 +141,19 @@ static void parallel_check_full(size_t workers, uint64_t expected_objects, uint6
     assert(marked == expected_objects);
     assert(after.traced_objects - before.traced_objects == expected_objects);
     assert(after.array_tasks - before.array_tasks == array_tasks);
-    assert(after.mark_ns > before.mark_ns && after.update_ns > before.update_ns);
+    assert(after.mark_ns > before.mark_ns);
+    if (scoop_rt_gc_debug_last_moved_count() == 0) {
+        assert(after.update_ns == before.update_ns);
+    } else {
+        assert(after.update_ns > before.update_ns);
+    }
 }
 
 static void parallel_finish(ParallelFixture *fixture) {
     scoop_rt_pop_native_roots(&fixture->roots);
     nursery_collect(false);
     assert(scoop_rt_gc_stats() == 0 && parallel_released == 8);
-    scoop_gc_mark_shutdown();
+    scoop_gc_shutdown();
     scoop_thread_leave_managed();
     scoop_thread_detach_main();
 }

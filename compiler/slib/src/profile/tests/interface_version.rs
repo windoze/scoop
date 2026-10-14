@@ -34,10 +34,10 @@ fn mir_type_bridge_v19_preserves_maybe_uninit_representation() {
 }
 
 #[test]
-fn mir_foundation_v6_keeps_implementation_identities_out_of_semantic_fingerprints() {
+fn mir_foundation_v7_keeps_implementation_identities_out_of_semantic_fingerprints() {
     assert_retired_version(
         mir_identity_foundation_capability(),
-        6,
+        7,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
@@ -78,10 +78,10 @@ fn lir_layout_link_v8_preserves_maybe_uninit_values() {
 }
 
 #[test]
-fn compiler_protocol_v14_omits_equality_protocol() {
+fn compiler_protocol_v15_preserves_generated_entries() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        14,
+        15,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
@@ -135,10 +135,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v8_retires_structural_encoding_callables() {
+fn hir_foundation_v9_preserves_test_entry_keys() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        8,
+        9,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

@@ -12,6 +12,7 @@ mod packages;
 mod reexports;
 mod resolve;
 mod selector;
+mod source_scope;
 #[cfg(test)]
 mod tests;
 
@@ -198,6 +199,18 @@ impl CurrentUnitImports {
 
     pub(crate) fn binding(&self, id: CurrentUnitBindingId) -> &CurrentUnitBinding {
         &self.bindings[id.0]
+    }
+
+    pub(crate) fn package_bindings(
+        &self,
+        package: PackageId,
+        name: &str,
+    ) -> Vec<CurrentUnitBindingId> {
+        self.namespaces
+            .get(&ResolvedNamespace::Package(package))
+            .and_then(|namespace| namespace.get(name))
+            .cloned()
+            .unwrap_or_default()
     }
 
     fn insert(

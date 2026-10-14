@@ -33,7 +33,7 @@ struct GcHandle<T>(val raw: UInt)
 - 四个函数 M9 走 `@Intrinsic`（spec 的 `@Unsafe` 形态等 M12 的 FFI 注解族，见 5.2）；T 实际只接受引用类型（spec 14.1 的 `T : ref` kind bound 在 M12 落地前按“引用类型才合法”诊断实现）；
 - 测试钩子：`scoop_rt_gc_collect()`（强制回收）与 `scoop_rt_gc_stats()`（分配/存活计数），经 `@Intrinsic("rt_gc_collect")`/`@Intrinsic("rt_gc_stats")` 暴露给 core，供 fixture 断言回收行为（见 5.3）。
 
-## 2. runtime（C，新增 `runtime/src/gc.c`）
+## 2. runtime（C，新增 `runtime/src/gc_binding/entries.c`）
 
 ### 2.1 堆组织（Immix 核心）
 

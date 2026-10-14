@@ -11,6 +11,7 @@ pub(super) fn lowerer() -> Lowerer {
         vec![SourceProvider {
             provider: hir::IntrinsicProviderId::from_raw(1),
             kind: SourceKind::CurrentUnit,
+            role: scoop_identity::SourceRole::Production,
             identity: crate::tests::test_source_identity("src/solver.scoop"),
             name: "solver.scoop".to_owned(),
             source: String::new(),
@@ -18,9 +19,11 @@ pub(super) fn lowerer() -> Lowerer {
         IntrinsicDeclarationPolicy::CoreOnly,
     );
     let cone = lowerer.current_cone();
-    lowerer
-        .top_level_namespaces
-        .initialize_sources([cone], cone, &files);
+    lowerer.top_level_namespaces.initialize_sources(
+        [(cone, scoop_identity::SourceRole::Production)],
+        cone,
+        &files,
+    );
     lowerer
 }
 

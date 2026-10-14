@@ -24,6 +24,7 @@ pub use scoop_manifest::{
 use scoop_manifest::{
     ManifestRootError, ManifestRootLocator, SingleFileInputError, SingleFileLocator,
 };
+pub use scoop_protocol::CompilationPurpose;
 use scoop_protocol::HostPathError;
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
@@ -99,6 +100,7 @@ pub struct SingleConeBuildRequest {
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
+    purpose: CompilationPurpose,
     native_inputs: NativeInputOrigin,
 }
 
@@ -130,6 +132,7 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
             optimization: scoop_lir::OptimizationMode::Debug,
+            purpose: CompilationPurpose::Production,
             native_inputs: NativeInputOrigin::Source,
         })
     }
@@ -137,6 +140,19 @@ impl SingleConeBuildRequest {
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
         self
+    }
+
+    pub fn with_purpose(
+        mut self,
+        purpose: CompilationPurpose,
+    ) -> Result<Self, SingleConeBuildRequestError> {
+        if purpose == CompilationPurpose::Test
+            && matches!(self.current, CurrentConeInput::SingleFile { .. })
+        {
+            return Err(SingleConeBuildRequestError::TestRequiresManifest);
+        }
+        self.purpose = purpose;
+        Ok(self)
     }
 
     fn with_native_inputs(mut self, inputs: Vec<PathBuf>) -> Self {
@@ -155,6 +171,7 @@ pub enum SingleConeBuildRequestError {
     CurrentDirectory(std::io::Error),
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
+    TestRequiresManifest,
     OutputIsolation {
         path: PathBuf,
         kind: OutputIsolationErrorKind,
@@ -180,6 +197,9 @@ impl fmt::Display for SingleConeBuildRequestError {
                 .write_str("current Cone input and trusted core input are not a permitted pair"),
             Self::SingleFileHasDependencies => {
                 formatter.write_str("single-file input cannot carry direct or support artifacts")
+            }
+            Self::TestRequiresManifest => {
+                formatter.write_str("test compilation requires a manifest Cone")
             }
             Self::OutputIsolation { path, kind } => {
                 write!(formatter, "invalid .slib output {}: {kind}", path.display())

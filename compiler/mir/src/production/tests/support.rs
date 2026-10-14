@@ -29,8 +29,8 @@ pub(super) fn source_function_in(cone: ConeIdentity, name: &str) -> SourceDeclar
 pub(super) fn entry_source(
     declaration: &CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
     exact_unit: PersistentExactTypeId,
-) -> ExecutableSourceEntryIdentity {
-    ExecutableSourceEntryIdentity::try_new(
+) -> ExecutableEntryIdentity {
+    ExecutableEntryIdentity::try_new(
         declaration,
         ExactCallableSignature::new(
             scoop_identity::Effect::Ordinary,

@@ -1,0 +1,3 @@
+import scoop.test.*
+
+fun outer() { @Test class Cases }

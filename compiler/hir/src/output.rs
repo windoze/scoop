@@ -3,10 +3,7 @@
 use std::fmt;
 use std::ops::Deref;
 
-use scoop_identity::{
-    CallableMaterializationContext, CallableTemplateOwner, ExecutableSourceEntryIdentity,
-    PersistentFunctionId,
-};
+use scoop_identity::{CallableMaterializationContext, ExecutableEntryIdentity};
 
 use crate::{
     ConeOutputKind, CoreProtocols, ExportHir, HirExportBindingSurfaceValidationError,
@@ -109,7 +106,7 @@ impl CurrentConcreteFunctionId {
 /// Local-concrete projection of the validated executable entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConcreteExecutableEntry {
-    identity: ExecutableSourceEntryIdentity,
+    identity: ExecutableEntryIdentity,
     local_function: CurrentConcreteFunctionId,
 }
 
@@ -136,11 +133,11 @@ impl ConcreteExecutableEntry {
         validate_concrete_entry(module, &self.identity, self.local_function.function())
     }
 
-    pub const fn identity(&self) -> &ExecutableSourceEntryIdentity {
+    pub const fn identity(&self) -> &ExecutableEntryIdentity {
         &self.identity
     }
 
-    pub const fn declaration(&self) -> PersistentFunctionId {
+    pub const fn declaration(&self) -> scoop_identity::ExecutableEntryDeclaration {
         self.identity.declaration()
     }
 
@@ -267,7 +264,7 @@ impl crate::Output {
 
 fn validate_concrete_entry(
     module: &LocalConcreteHir,
-    source: &ExecutableSourceEntryIdentity,
+    source: &ExecutableEntryIdentity,
     function_id: concrete::FunctionId,
 ) -> Result<(), ConcreteExecutableEntryError> {
     let function = module
@@ -278,14 +275,17 @@ fn validate_concrete_entry(
     if !module.top_level.contains(&function_id) {
         return Err(ConcreteExecutableEntryError::NotTopLevel);
     }
-    if function.name != "main" {
+    if matches!(
+        source.declaration(),
+        scoop_identity::ExecutableEntryDeclaration::Source(_)
+    ) && function.name != "main"
+    {
         return Err(ConcreteExecutableEntryError::NotMain);
     }
     if function.receiver.value_type().is_some() {
         return Err(ConcreteExecutableEntryError::HasReceiver);
     }
-    if function.materialization.template() != CallableTemplateOwner::Function(source.declaration())
-    {
+    if function.materialization.template() != source.declaration().template() {
         return Err(ConcreteExecutableEntryError::DeclarationMismatch);
     }
     if function.materialization.context() != CallableMaterializationContext::NoSubstitution {

@@ -1,7 +1,7 @@
 #ifndef SCOOP_TEST_IMAGE_STACKMAP_FIXTURE_H
 #define SCOOP_TEST_IMAGE_STACKMAP_FIXTURE_H
 
-#include "../src/gc/stackmap/fingerprint.h"
+#include "../src/gc_binding/stackmap/fingerprint.h"
 #include "image_storage_fixture.h"
 
 typedef struct BlobOffsets {

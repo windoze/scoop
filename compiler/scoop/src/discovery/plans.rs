@@ -13,16 +13,14 @@ pub(super) enum ManifestDependencyPlanLocator {
 
 pub(super) fn manifest_dependency_plans(
     manifest: &LoadedConeManifest,
+    include_tests: bool,
 ) -> Result<Vec<ManifestDependencyPlan>, BuildGraphDiscoveryError> {
     let dependent = manifest.identity();
-    manifest
+    let mut declarations = manifest
         .parsed()
         .semantic()
         .dependency_iter()
         .map(|(key, coordinate)| {
-            let dependency = coordinate
-                .identity()
-                .map_err(BuildGraphDiscoveryError::Identity)?;
             let locator =
                 manifest.parsed().locators().get(key).ok_or_else(|| {
                     BuildGraphDiscoveryError::MissingLocatorProjection(key.clone())
@@ -34,6 +32,27 @@ pub(super) fn manifest_dependency_plans(
                 .ok_or_else(|| BuildGraphDiscoveryError::MissingDependencySpan(key.clone()))?
                 .declaration()
                 .range();
+            Ok((key, coordinate, locator, span))
+        })
+        .collect::<Result<Vec<_>, BuildGraphDiscoveryError>>()?;
+    if include_tests {
+        declarations.extend(manifest.parsed().tests().dependency_iter().map(
+            |(key, declaration)| {
+                (
+                    key,
+                    declaration.coordinate(),
+                    declaration.locator(),
+                    declaration.spans().declaration().range(),
+                )
+            },
+        ));
+    }
+    declarations
+        .into_iter()
+        .map(|(key, coordinate, locator, span)| {
+            let dependency = coordinate
+                .identity()
+                .map_err(BuildGraphDiscoveryError::Identity)?;
             let (locator_kind, plan_locator) = match locator {
                 DependencyLocator::SourcePath(_) => (
                     ManifestLocatorKind::SourcePath,

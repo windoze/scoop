@@ -1,0 +1,44 @@
+import scoop.test.*
+
+class Calls { var count: Int = 0 }
+
+fun verify(condition: Boolean) {
+    if (!condition) throw Exception(Some("boolean assertion contract"))
+}
+
+fun capture(block: () -> Unit): AssertionFailure {
+    try { block() } catch (error: AssertionFailure) { return error }
+    throw Exception(Some("expected assertion failure"))
+}
+
+fun value(calls: Calls, result: Boolean): Boolean {
+    calls.count += 1
+    return result
+}
+
+fun main() {
+    val calls = Calls()
+    assertTrue(value(calls, true))
+    assertFalse(value(calls, false))
+    val yes = capture { assertTrue(value(calls, false), Some("custom message")) }
+    val no = capture { assertFalse(value(calls, true)) }
+    verify(calls.count == 4)
+    verify(yes.kind == "assertTrue" && yes.message == Some("custom message"))
+    verify(no.kind == "assertFalse" && no.message == None)
+    verify(when (yes.expected) { case AssertionValue.Text(text) -> text == "true"; else -> false })
+    verify(when (yes.actual) { case AssertionValue.Text(text) -> text == "false"; else -> false })
+    verify(when (no.expected) { case AssertionValue.Text(text) -> text == "false"; else -> false })
+    val explicit = capture { fail(Some("explicit")) }
+    verify(explicit.kind == "fail" && explicit.message == Some("explicit"))
+    verify(when (explicit.expected) { case AssertionValue.Unavailable -> true; else -> false })
+    verify(when (explicit.actual) { case AssertionValue.Unavailable -> true; else -> false })
+    verify(when (explicit.cause) { case None -> true; else -> false })
+    var caught: Boolean = false
+    try {
+        try { fail() } catch (error: Exception) { throw Exception(Some("wrong hierarchy")) }
+    } catch (error: Throwable) {
+        caught = error is AssertionFailure
+    }
+    verify(caught)
+    println("boolean assertions passed")
+}

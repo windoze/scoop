@@ -2,11 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../gc_binding/object.h"
 #include "heap_internal.h"
 
 static void release_dead_object(void *object) {
     ScoopObjectHeader *header = object;
-    ScoopReleaseHookV1 hook = header->td->release_hook;
+    ScoopReleaseHookV1 hook = scoop_gc_object_release_hook(object);
     if (hook == NULL) {
         if (__atomic_load_n(&header->gc_word, __ATOMIC_ACQUIRE) & GC_RELEASE_READY_BIT) {
             heap_fatal("release-ready object has no release hook");

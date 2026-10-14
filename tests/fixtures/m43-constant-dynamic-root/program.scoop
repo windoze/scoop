@@ -1,0 +1,16 @@
+fun verify(value: String?, expected: String) {
+    // Both branches produce complete String objects; one is immortal.
+    val selected = when (value) {
+        case None -> "constant"
+        case Some(text) -> text
+    }
+    val result = "prefix:" + selected
+    gcCollect()
+    if (result != "prefix:" + expected) { throw IllegalStateException() }
+    println(result)
+}
+
+fun main() {
+    verify(None, "constant")
+    verify(Some("dy" + "namic"), "dynamic")
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "cannot snapshot manifest sources: source discovery failed at ${fixture}/program/tests: resolved tests root is not a directory",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${fixture}/program/tests",
+      "start": null
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

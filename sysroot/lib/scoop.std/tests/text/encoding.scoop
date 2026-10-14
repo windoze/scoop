@@ -1,0 +1,33 @@
+package scoop.text
+
+import scoop.io.encoding.Base64
+import scoop.io.encoding.Base64.PaddingOption
+import scoop.test.*
+
+@Test
+private class EncodingTests {
+    @Test
+    fun `text bytes round trip through base64 and hex`() {
+        val bytes = "foobar".toByteArray()
+        assertEquals("Zm9vYmFy", Base64.Default.encode(bytes))
+        assertEquals(bytes.toHexString(), Base64.Default.decode("Zm9vYmFy").toHexString())
+        assertEquals("ff00fe00", "FF00FE00".hexToByteArray().toHexString())
+    }
+
+    @Test
+    fun `url alphabet and absent padding compose`() {
+        val codec = Base64.UrlSafe.withPadding(PaddingOption.ABSENT)
+        val bytes = "ff00fe00".hexToByteArray()
+        assertEquals("_wD-AA", codec.encode(bytes))
+        assertEquals("ff00fe00", codec.decode("_wD-AA").toHexString())
+        assertEquals("", codec.encode(Array<Byte>(0L) { _ -> 0 }))
+    }
+
+    @Test
+    fun `invalid text has both throwing and optional paths`() {
+        assertFailsWith<IllegalArgumentException> { "fg".hexToByteArray() }
+        assertFailsWith<IllegalArgumentException> { "f".hexToByteArray() }
+        assertTrue(when ("fg".hexToByteArrayOrNull()) { case None -> true; else -> false })
+        assertFailsWith<IllegalArgumentException> { Base64.Default.decode("Zg=") }
+    }
+}

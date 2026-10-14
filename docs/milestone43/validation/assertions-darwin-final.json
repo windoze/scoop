@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 10,
+  "selected": 2,
+  "unselected": 8,
+  "counts": {
+    "passed": 2
+  },
+  "variants": 3,
+  "processes": 7,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "m43-assertions-rendering",
+      "status": "passed",
+      "seconds": 70.63610195787624,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m43-assertions-throwable-class-bound",
+      "status": "passed",
+      "seconds": 18.064927832921967,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

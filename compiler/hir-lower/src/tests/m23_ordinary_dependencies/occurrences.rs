@@ -8,6 +8,7 @@ mod executed;
 mod metadata;
 mod rejection;
 mod support;
+mod test_roles;
 use support::{lower, root_name};
 
 fn fixture(name: &str) -> String {

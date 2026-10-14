@@ -104,6 +104,7 @@ impl Projection<'_> {
                 Err(invalid("generic callable cannot implement a dispatch slot"))
             }
             HirFunctionIdentity::LexicalGenerated(_)
+            | HirFunctionIdentity::TestEntry(_)
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => Err(invalid(
                 "generated callable cannot stand in for a source dispatch declaration",

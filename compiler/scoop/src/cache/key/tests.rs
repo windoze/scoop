@@ -24,6 +24,16 @@ fn optimization_changes_only_the_current_compile_key() {
     assert_eq!(debug.backend, release.backend);
 }
 
+#[test]
+fn test_purpose_and_source_roles_are_independent_key_inputs() {
+    let production = input("same bytes", "same compiler");
+    let test = production.clone().with_purpose(CompilationPurpose::Test);
+    assert_ne!(production.key().unwrap(), test.key().unwrap());
+    let mut changed_role = test.clone();
+    changed_role.sources[0].role = SourceRole::Test;
+    assert_ne!(test.key().unwrap(), changed_role.key().unwrap());
+}
+
 fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV1 {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = scoop_target_data::darwin_c_bridge_profile(
@@ -53,6 +63,7 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
             requested_kind: RequestedConeKind::Library,
             dependencies: Vec::new(),
             sources: SourceSelection::Default,
+            tests: None,
             native: Box::default(),
         },
         vec![SourceCacheInputV1::new(
@@ -151,6 +162,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             requested_kind: RequestedConeKind::Library,
             dependencies: vec![dependency.cone().coordinate().clone()],
             sources: SourceSelection::Default,
+            tests: None,
             native: Box::default(),
         },
         vec![SourceCacheInputV1::new(
@@ -194,9 +206,9 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "2469b531ae4b265102843a707161831550754edd6ffe155614300ef14622ac7e"
+        "df0441245f5cf3b2b4d23937a77881966168be59b4c8807ff9168d300cf1478c"
     );
-    assert_eq!(encode(&input).unwrap().first(), Some(&0xad));
+    assert_eq!(encode(&input).unwrap().first(), Some(&0xae));
 }
 
 #[test]

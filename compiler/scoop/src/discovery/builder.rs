@@ -106,13 +106,23 @@ impl DiscoveryBuilder {
                 }
                 continue;
             }
-            let claim = locate_build_dependency(
+            let claim = match locate_build_dependency(
                 &pending.coordinate,
                 &self.context.artifact_search_roots,
                 self.context.sysroot.as_path(),
                 self.context.target.lir_target_selection(),
-            )
-            .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
+            ) {
+                // A version-only core edge can use the graph's eventual core.
+                // Defer the default slot until other declarations are expanded.
+                Err(DependencyLocatorError::ArtifactNotFound { .. })
+                    if identity == ConeIdentity::CORE =>
+                {
+                    continue;
+                }
+                result => {
+                    result.map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
+                }
+            };
             self.intern_claim(claim)?;
         }
     }
@@ -266,7 +276,11 @@ impl DiscoveryBuilder {
             let Some(GraphNode::ManifestSource(manifest)) = self.nodes.get(&identity) else {
                 return Err(BuildGraphDiscoveryError::InternalSourceClaim(identity));
             };
-            manifest_dependency_plans(manifest)?
+            manifest_dependency_plans(
+                manifest,
+                identity == self.root
+                    && self.context.purpose == scoop_protocol::CompilationPurpose::Test,
+            )?
         };
         if identity != ConeIdentity::CORE
             && !plans

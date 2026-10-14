@@ -1,0 +1,15 @@
+schema = 1
+
+[cone]
+group = "dev.m43"
+name = "production-isolation"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.m43:production-provider" = { version = "0.1.0", path = "../provider" }
+
+[test-dependencies]
+"dev.m43:unavailable-test-source" = { version = "9.0.0", path = "../missing" }
+"dev.m43:unavailable-test-artifact" = { version = "9.0.0", artifact = "../missing.slib" }
+"dev.m43:unavailable-test-search" = "9.0.0"

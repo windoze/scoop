@@ -84,6 +84,10 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         self.request.optimization
     }
 
+    pub const fn purpose(&self) -> CompilationPurpose {
+        self.request.purpose
+    }
+
     pub const fn emit(&self) -> StageDumpPolicy {
         self.request.emit
     }
@@ -93,7 +97,7 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
     ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
         let sources = match &self.current {
             ValidatedCurrentConeInput::Manifest { manifest } => {
-                parse_manifest_current(manifest, self.target().id())?
+                parse_manifest_current(manifest, self.target().id(), self.purpose())?
             }
             ValidatedCurrentConeInput::SingleFile { source } => parse_single_file_current(source)?,
         };
@@ -116,7 +120,7 @@ impl LoadedSingleConeBuildRequest {
         };
         let dependencies = self
             .dependencies
-            .validate_inner(manifest, current_identity, &self.target)
+            .validate_inner(manifest, current_identity, &self.target, self.purpose)
             .map_err(SingleConeDependencyValidationError::ExplicitDependencies)?;
         let protocols = if current_identity == ConeIdentity::CORE {
             ValidatedCompilerProtocols::CurrentDeclarations

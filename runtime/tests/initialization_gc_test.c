@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "../src/initialization.c"
+#include "../src/gc_binding/internal.h"
 #include "platform/image_fixture.h"
 
 enum { WAITER_COUNT = 3, UNIT_COUNT = 2 };
@@ -71,8 +72,7 @@ static void publish_fixture(void) {
     registry.static_root_count = UNIT_COUNT * 2;
     registry.stackmaps = scoop_test_stackmaps();
     scoop_image_publish(&registry);
-    scoop_gc_stackmaps_init(&registry.stackmaps);
-    scoop_gc_heap_init();
+    scoop_rt_gc_init(&registry);
 }
 
 static void frame_init(uintptr_t frame[4]) {

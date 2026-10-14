@@ -1,0 +1,6 @@
+import scoop.test.*
+
+@Test class Cases {
+    @BeforeTest fun first() {}
+    @BeforeTest fun second() {}
+}

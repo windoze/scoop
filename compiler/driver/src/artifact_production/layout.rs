@@ -16,6 +16,7 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     native_objects: Vec<slib::SlibMember>,
     native_libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
     native_cxx: bool,
+    test_directory: Option<slib::TestDirectory>,
 }
 
 impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
@@ -33,7 +34,13 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             native_objects: Vec::new(),
             native_libraries: Vec::new(),
             native_cxx: false,
+            test_directory: None,
         }
+    }
+
+    pub fn with_test_directory(mut self, directory: Option<slib::TestDirectory>) -> Self {
+        self.test_directory = directory;
+        self
     }
 
     pub fn with_native_objects(mut self, objects: Vec<slib::SlibMember>) -> Self {
@@ -140,7 +147,8 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
                 self.lir_layout,
                 code,
                 finalized.members,
-            ),
+            )
+            .with_test_directory(self.test_directory),
         )
         .map_err(|error| Error::Assembly(Box::new(error)))?;
         if artifact.target_selection() != finalized.target_selection {

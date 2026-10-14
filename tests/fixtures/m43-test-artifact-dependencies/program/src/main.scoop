@@ -1,0 +1,10 @@
+import numbers.forty
+
+private var calls: Int = 0
+internal fun answer(): Int = forty()
+internal fun mainCalls(): Int = calls
+
+fun main() {
+    calls += 1
+    println("production-main")
+}

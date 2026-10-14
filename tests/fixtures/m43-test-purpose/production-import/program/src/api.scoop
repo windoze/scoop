@@ -1,0 +1,2 @@
+import scoop.test.Test
+fun answer(): Int = 42

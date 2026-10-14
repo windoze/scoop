@@ -4,8 +4,12 @@ use super::*;
 use crate::Lowerer;
 use scoop_identity::{BindingNamespace, CanonicalIdentifier, PackagePath};
 
-pub(super) type DirectPackageTypeIndex =
-    BTreeMap<PackagePath, BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>>;
+pub(super) type DirectPackageTypeIndex = BTreeMap<PackagePath, Vec<DirectPackageTypes>>;
+
+pub(super) struct DirectPackageTypes {
+    pub provider: scoop_identity::ConeIdentity,
+    pub types: BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
+}
 
 pub(crate) struct QualifiedPackagePrefix {
     pub(crate) current: Option<PackageId>,
@@ -38,14 +42,22 @@ impl CurrentUnitImports {
                 let package = world
                     .direct_package(path)
                     .expect("an indexed package belongs to the same semantic world");
-                let types = package
-                    .snapshot()
-                    .into_iter()
-                    .filter(|group| group.namespace() == BindingNamespace::Type)
-                    .map(|group| (group.name().as_str().to_owned(), group.targets().to_vec()))
+                let contributions = package
+                    .provider_ids()
+                    .map(|provider| DirectPackageTypes {
+                        provider,
+                        types: package
+                            .snapshot_filtered(|candidate| candidate == provider)
+                            .into_iter()
+                            .filter(|group| group.namespace() == BindingNamespace::Type)
+                            .map(|group| {
+                                (group.name().as_str().to_owned(), group.targets().to_vec())
+                            })
+                            .collect(),
+                    })
                     .collect();
                 // A package with only values still owns its prefix.
-                packages.insert(path.clone(), types);
+                packages.insert(path.clone(), contributions);
             }
         }
         self.direct_package_types = std::sync::Arc::new(packages);
@@ -57,7 +69,9 @@ impl Lowerer {
         &self,
         path: &[ast::Ident],
     ) -> Option<QualifiedPackagePrefix> {
-        let (current, current_length) = self.top_level_namespaces.longest_package_prefix(path);
+        let (current, current_length) = self
+            .top_level_namespaces
+            .longest_package_prefix(self.current_file, path);
         let segments = path
             .iter()
             .map(|segment| {
@@ -69,6 +83,11 @@ impl Lowerer {
             self.imports
                 .direct_package_types
                 .get_key_value(&prefix)
+                .filter(|(_, contributions)| {
+                    contributions
+                        .iter()
+                        .any(|contribution| self.dependency_in_source_scope(contribution.provider))
+                })
                 .map(|(path, _)| path)
         });
         if let Some(direct) = direct

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "method `hidden` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "9e820ce114eaed88c66c41f6db615fa11c152de8eab85b81e398eb2d1b7a46e0",
+      "end": 33,
+      "kind": "source",
+      "path": "tests/cases.scoop",
+      "start": 27
+    },
+    "severity": "error"
+  }
+]

@@ -148,6 +148,9 @@ impl WireEncode for LexicalCallableParent {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum GeneratedCallableKey {
+    TestEntry {
+        cone: crate::ConeIdentity,
+    },
     Lexical {
         parent: LexicalCallableParent,
         role: LexicalCallableRole,
@@ -272,6 +275,7 @@ impl GeneratedCallableKey {
                 | Self::Initialization { .. }
                 | Self::CallableReferenceInvoke { .. }
                 | Self::ZeroArgumentConstructorAdapter { .. }
+                | Self::TestEntry { .. }
         )
     }
 
@@ -298,6 +302,7 @@ impl GeneratedCallableKey {
 impl WireEncode for GeneratedCallableKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::TestEntry { cone } => encode_value_sum(encoder, 17, cone),
             Self::Lexical { parent, role, path } => {
                 encoder.map(4)?;
                 encode_tag(encoder, 1)?;

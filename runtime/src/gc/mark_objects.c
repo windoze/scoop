@@ -1,7 +1,7 @@
 /* STW-only readers and atomic first marking; workers own all counters and lists. */
 #include <stdlib.h>
 
-#include "../value_shape.h"
+#include "../gc_binding/object.h"
 #include "mark_internal.h"
 
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker) {
@@ -74,18 +74,18 @@ static void mark_lines(ScoopGcBlockMeta *block, size_t word, size_t size) {
 }
 
 static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_t *scan) {
-    uint64_t count = *(const uint64_t *)((char *)object + scan[1]);
-    uintptr_t elements = (uintptr_t)object + scan[2];
-    for (uint64_t first = 0; first < count;) {
-        uint64_t length = count - first;
+    ScoopGcArrayScan array = scoop_gc_array_scan(object, scan);
+    for (uint64_t first = 0; first < array.count;) {
+        uint64_t length = array.count - first;
         if (length > GC_MARK_ARRAY_RANGE) {
             length = GC_MARK_ARRAY_RANGE;
         }
+        uint64_t stride = scoop_gc_array_stride(scan);
         scoop_gc_mark_queue_push(worker,
                                  (ScoopGcMarkTask){
                                      .array = true,
-                                     .data.range = {object, scan, elements + first * scan[3],
-                                                    elements + (first + length) * scan[3]},
+                                     .data.range = {object, scan, array.elements + first * stride,
+                                                    array.elements + (first + length) * stride},
                                  });
         first += length;
     }
@@ -107,7 +107,7 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
                       : (size_t)block->size_units[word] * sizeof(uint64_t);
-    scoop_shape_validate_object(object, size);
+    scoop_gc_validate_object(object, size);
     if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
         mark_lines(block, word, size);
     }
@@ -118,8 +118,8 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     }
     worker->marked++;
     worker->traced++;
-    const uint64_t *scan = ((const ScoopObjectHeader *)object)->td->object_scan;
-    bool array = scan != NULL && scan[0] == SCOOP_REFS_ARRAY;
+    const uint64_t *scan = scoop_gc_object_scan(object);
+    bool array = scan != NULL && scoop_gc_scan_is_array(scan);
     append_live(worker, object, scan != NULL && !array);
     if (array) {
         enqueue_array(worker, object, scan);
@@ -154,7 +154,7 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
     while (scans != 0) {
         size_t index = (size_t)__builtin_ctzll(scans);
         void *object = task.data.batch.objects[index];
-        const uint64_t *scan = ((const ScoopObjectHeader *)object)->td->object_scan;
+        const uint64_t *scan = scoop_gc_object_scan(object);
         scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit, 0, UINTPTR_MAX);
         scans &= scans - 1;
         scanned++;
@@ -164,7 +164,7 @@ void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task) {
         size_t index = (size_t)__builtin_ctzll(worker->pending_scans);
         void *object = worker->pending_objects[index];
         worker->pending_scans &= worker->pending_scans - 1;
-        const uint64_t *scan = ((const ScoopObjectHeader *)object)->td->object_scan;
+        const uint64_t *scan = scoop_gc_object_scan(object);
         scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit, 0, UINTPTR_MAX);
         scanned++;
     }

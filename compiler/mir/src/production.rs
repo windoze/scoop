@@ -4,9 +4,9 @@ use std::fmt;
 
 use scoop_identity::{
     CallableOwner, CborIdentityRecord, CoreBuiltinNominal, DecodedCallableOwner,
-    DecodedExactCallableSignature, DecodedExecutableSourceEntryIdentity, ExactCallableSignature,
-    ExactCallableSignatureResolutionError, ExactTypeKey, ExecutableSourceEntryIdentity,
-    ExecutableSourceEntryIdentityError, IdentityReferenceError, PersistentExactTypeId,
+    DecodedExactCallableSignature, DecodedExecutableEntryIdentity, ExactCallableSignature,
+    ExactCallableSignatureResolutionError, ExactTypeKey, ExecutableEntryIdentity,
+    ExecutableEntryIdentityError, IdentityReferenceError, PersistentExactTypeId,
     PersistentFunctionId, PersistentKeyResolver, SourceDeclarationKey, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
@@ -28,17 +28,17 @@ pub use callables::{StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EntryMirBridgeV1 {
-    source: ExecutableSourceEntryIdentity,
+    source: ExecutableEntryIdentity,
     implementation: CallableOwner,
 }
 
 impl EntryMirBridgeV1 {
     pub fn new(
-        source: ExecutableSourceEntryIdentity,
+        source: ExecutableEntryIdentity,
         implementation: CallableOwner,
     ) -> Result<Self, MirProductionBuildError> {
         let source_entry = source.declaration();
-        if implementation != CallableOwner::Function(source_entry) {
+        if implementation != source_entry.owner() {
             return Err(MirProductionBuildError::EntryImplementationMismatch {
                 source_entry,
                 implementation,
@@ -50,7 +50,7 @@ impl EntryMirBridgeV1 {
         })
     }
 
-    pub const fn source(&self) -> &ExecutableSourceEntryIdentity {
+    pub const fn source(&self) -> &ExecutableEntryIdentity {
         &self.source
     }
 
@@ -71,7 +71,7 @@ impl WireEncode for EntryMirBridgeV1 {
 
 #[derive(Debug)]
 struct DecodedEntryMirBridgeV1 {
-    source: DecodedExecutableSourceEntryIdentity,
+    source: DecodedExecutableEntryIdentity,
     implementation: DecodedCallableOwner,
 }
 
@@ -89,7 +89,7 @@ impl WireDecode for DecodedEntryMirBridgeV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
-            source: decoder.field(1, DecodedExecutableSourceEntryIdentity::decode)?,
+            source: decoder.field(1, DecodedExecutableEntryIdentity::decode)?,
             implementation: decoder.field(2, DecodedCallableOwner::decode)?,
         })
     }
@@ -216,7 +216,7 @@ impl DecodedCoreBootstrapBridgeSectionV1 {
                     .implementation
                     .resolve(identities)
                     .map_err(MirProductionValidationError::Identity)?;
-                if implementation != CallableOwner::Function(source_entry) {
+                if implementation != source_entry.owner() {
                     return Err(MirProductionValidationError::EntryImplementationMismatch {
                         source_entry,
                         implementation,
@@ -259,22 +259,34 @@ impl WireDecode for DecodedCoreBootstrapBridgeSectionV1 {
 }
 
 fn resolve_entry_source(
-    decoded: DecodedExecutableSourceEntryIdentity,
+    decoded: DecodedExecutableEntryIdentity,
     artifact: scoop_identity::ConeIdentity,
     identities: &mut ValidatedIdentityGraph,
-) -> Result<ExecutableSourceEntryIdentity, MirProductionValidationError> {
-    let declaration_key: std::sync::Arc<SourceDeclarationKey> = identities
-        .resolve_key(decoded.declaration())
-        .map_err(MirProductionValidationError::Identity)?;
-    let declaration = CborIdentityRecord::from_key((*declaration_key).clone())
-        .map_err(MirProductionValidationError::EntrySourceRecord)?;
+) -> Result<ExecutableEntryIdentity, MirProductionValidationError> {
     let signature = decoded
         .source_signature()
         .clone()
         .resolve(identities)
         .map_err(MirProductionValidationError::Signature)?;
-    let expected = ExecutableSourceEntryIdentity::try_new(&declaration, signature)
-        .map_err(MirProductionValidationError::InvalidEntrySource)?;
+    let expected = match decoded.declaration() {
+        scoop_identity::DecodedExecutableEntryDeclaration::Source(id) => {
+            let key: std::sync::Arc<SourceDeclarationKey> = identities
+                .resolve_key(id)
+                .map_err(MirProductionValidationError::Identity)?;
+            let declaration = CborIdentityRecord::from_key((*key).clone())
+                .map_err(MirProductionValidationError::EntrySourceRecord)?;
+            ExecutableEntryIdentity::try_new(&declaration, signature)
+        }
+        scoop_identity::DecodedExecutableEntryDeclaration::Generated(id) => {
+            let id = scoop_identity::PersistentIdResolver::resolve(identities, id)
+                .map_err(MirProductionValidationError::Identity)?;
+            let declaration = identities
+                .canonical_record(id)
+                .map_err(MirProductionValidationError::Identity)?;
+            ExecutableEntryIdentity::for_test(&declaration, signature)
+        }
+    }
+    .map_err(MirProductionValidationError::InvalidEntrySource)?;
     if expected.root_cone() != artifact {
         return Err(MirProductionValidationError::ForeignEntrySource {
             artifact,
@@ -317,7 +329,7 @@ fn validate_section_relations(
 pub enum MirProductionBuildError {
     DuplicateStrongCallable(CallableOwner),
     EntryImplementationMismatch {
-        source_entry: PersistentFunctionId,
+        source_entry: scoop_identity::ExecutableEntryDeclaration,
         implementation: CallableOwner,
     },
     ForeignEntrySource {
@@ -344,7 +356,7 @@ pub enum MirProductionValidationError {
     Signature(ExactCallableSignatureResolutionError<IdentityReferenceError>),
     EntrySourceRecord(scoop_identity::SourceDeclarationIdentityError),
     EntryUnitRecord(scoop_wire::HashError),
-    InvalidEntrySource(ExecutableSourceEntryIdentityError),
+    InvalidEntrySource(ExecutableEntryIdentityError),
     ForeignEntrySource {
         artifact: scoop_identity::ConeIdentity,
         entry: scoop_identity::ConeIdentity,
@@ -363,7 +375,7 @@ pub enum MirProductionValidationError {
         index: usize,
     },
     EntryImplementationMismatch {
-        source_entry: PersistentFunctionId,
+        source_entry: scoop_identity::ExecutableEntryDeclaration,
         implementation: CallableOwner,
     },
     Relation(MirProductionBuildError),

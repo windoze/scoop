@@ -111,6 +111,7 @@ impl Module {
                         self.properties[property].name.clone()
                     }
                     HirFunctionIdentity::LexicalGenerated(_)
+                    | HirFunctionIdentity::TestEntry(_)
                     | HirFunctionIdentity::Initialization { .. }
                     | HirFunctionIdentity::DerivedEquality(_) => declaration.name.clone(),
                 };

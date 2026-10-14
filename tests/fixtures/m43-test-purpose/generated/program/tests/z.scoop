@@ -1,0 +1,7 @@
+import scoop.test.Test
+
+@Test
+private class Cases protected constructor(vararg values: Int) {
+    @Test
+    private fun check() { println("other") }
+}

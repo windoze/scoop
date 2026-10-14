@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../gc_binding/object.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -97,9 +98,8 @@ static void append_move(void *object, void *context) {
     size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
                       ? block->exact_size
                       : (size_t)block->size_units[word] * sizeof(uint64_t);
-    const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)object)->td;
     ScoopGcBlockMeta *target;
-    void *destination = reserve_target(size, (size_t)td->instance_shape.instance_alignment, &target,
+    void *destination = reserve_target(size, scoop_gc_object_alignment(object), &target,
                                        plan->reuse_runs, plan->allow_growth);
     if (destination == NULL) {
         plan->reserved = false;

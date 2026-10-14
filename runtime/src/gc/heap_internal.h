@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "scoop_rt.h"
+#include "../platform/platform.h"
 
 #define GC_BLOCK_SIZE ((size_t)32768)
 #define GC_LINE_SIZE ((size_t)128)
@@ -192,6 +193,8 @@ void scoop_heap_bit_clear(uint64_t *bits, size_t index);
 ScoopGcBlockMeta *scoop_heap_activate_small_block(ScoopGcBlockState state, bool allow_growth);
 ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBlockState state);
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
+void *scoop_heap_claim_relocated_object(void *object);
+bool scoop_gc_object_was_scanned_locked(const void *object);
 void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
                                     bool marked);
 void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
@@ -216,5 +219,12 @@ ScoopGcRegion *scoop_heap_region_for_address(uintptr_t address);
 void scoop_heap_page_map_publish(ScoopGcRegion *region);
 void scoop_heap_page_map_remove(const ScoopGcRegion *region);
 void scoop_heap_page_map_prune(void);
+
+#if SCOOP_PLATFORM_INLINE_GC_FORWARDING
+#include "forwarding_internal.h"
+#else
+/* Collector-only: the supplied position was resolved in this stable heap view. */
+void *scoop_heap_forward_object(void *object, const ScoopGcBlockMeta *block, size_t word);
+#endif
 
 #endif /* SCOOP_GC_HEAP_INTERNAL_H */

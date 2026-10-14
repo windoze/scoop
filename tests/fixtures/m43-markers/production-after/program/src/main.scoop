@@ -1,0 +1,4 @@
+import scoop.test.AfterTest
+
+@AfterTest
+fun cleanup() {}

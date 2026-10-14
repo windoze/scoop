@@ -135,6 +135,7 @@ pub(super) struct DecodedScoopcBuildRequestV1 {
     diagnostics: u64,
     emit: DecodedStageDumpPolicyV1,
     optimization: OptimizationMode,
+    purpose: crate::CompilationPurpose,
     native_inputs: Vec<DecodedHostPathCarrier>,
 }
 
@@ -162,17 +163,18 @@ impl DecodedScoopcBuildRequestV1 {
             diagnostics,
             emit,
         )
-        .map(|request| {
+        .and_then(|request| {
             request
                 .with_optimization(self.optimization)
                 .with_native_inputs(native_inputs)
+                .with_purpose(self.purpose)
         })
     }
 }
 
 impl WireEncode for DecodedScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -192,13 +194,15 @@ impl WireEncode for DecodedScoopcBuildRequestV1 {
         encoder.field(9)?;
         self.optimization.encode(encoder)?;
         encoder.field(10)?;
-        encode_decoded_paths(encoder, &self.native_inputs)
+        encode_decoded_paths(encoder, &self.native_inputs)?;
+        encoder.field(11)?;
+        self.purpose.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedScoopcBuildRequestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         let current = decoder.field(1, DecodedCurrentConeRequestV1::decode)?;
         let direct_slibs = decoder.field(2, |decoder| {
             decoder.decode_array(|decoder, _| DecodedHostPathCarrier::decode(decoder))
@@ -226,6 +230,7 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
             emit,
             optimization,
             native_inputs,
+            purpose: decoder.field(11, crate::CompilationPurpose::decode)?,
         })
     }
 }

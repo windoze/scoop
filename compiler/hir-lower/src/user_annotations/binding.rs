@@ -50,6 +50,7 @@ impl Lowerer {
                 continue;
             }
             if let Some(application) = self.bind_annotation_application(annotation, id) {
+                self.validate_test_annotation_source(&application);
                 self.validate_serialization_annotations(target, std::slice::from_ref(&application));
                 if let Some(entry) = self
                     .annotation_metadata

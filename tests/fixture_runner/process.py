@@ -22,12 +22,12 @@ def canonical(diagnostic):
 
 
 def decode_streams(stdout, stderr, mode):
-    records, diagnostics, result = [], [], None
+    records, diagnostics, result, test_result = [], [], None, None
     raw_stderr = stderr
     if mode == "stdout":
         records = [json.loads(line) for line in stdout.splitlines()]
         result = records[-1] if records else None
-    if mode == "stderr":
+    if mode in {"stderr", "test-stderr"}:
         lines = stderr.splitlines(keepends=True)
         count = 0
         for line in lines:
@@ -37,20 +37,28 @@ def decode_streams(stdout, stderr, mode):
                 break
             if not isinstance(record, dict) or record.get("schema") != 1:
                 break
-            if record.get("kind") not in {
+            kinds = {
                 "diagnostic",
                 "library",
                 "executable",
                 "link",
-            }:
+            }
+            if mode == "test-stderr":
+                kinds |= {"test-report", "test-list"}
+            if record.get("kind") not in kinds:
                 raise AssertionFailure(f"unknown Scoop JSON record: {record!r}")
             records.append(record)
             count += 1
             if record["kind"] == "diagnostic":
                 diagnostics.append(canonical(record))
+            elif record["kind"] in {"test-report", "test-list"}:
+                if test_result is not None:
+                    raise AssertionFailure("multiple test result records")
+                test_result = record
             else:
                 result = record
-                break
+                if mode == "stderr":
+                    break
         stderr = b"".join(lines[count:])
     return {
         "stdout": stdout,
@@ -59,6 +67,7 @@ def decode_streams(stdout, stderr, mode):
         "records": records,
         "diagnostics": diagnostics,
         "result": result,
+        "test_result": test_result,
     }
 
 

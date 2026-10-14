@@ -155,6 +155,7 @@ impl<'a> GenericBodyProducer<'a> {
             ),
             HirFunctionIdentity::LexicalGenerated(_) => true,
             HirFunctionIdentity::PropertyAccessor(_)
+            | HirFunctionIdentity::TestEntry(_)
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => false,
         };
@@ -229,6 +230,7 @@ fn is_shared_root(export: &ExportHir, function: FunctionId, roots: &SharedSource
             }
         }
         HirFunctionIdentity::LexicalGenerated(_)
+        | HirFunctionIdentity::TestEntry(_)
         | HirFunctionIdentity::Initialization { .. }
         | HirFunctionIdentity::DerivedEquality(_) => false,
     }

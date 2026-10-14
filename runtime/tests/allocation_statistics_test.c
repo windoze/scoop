@@ -47,9 +47,9 @@ static NurseryNode *check_collection_baselines(void) {
     nursery_collect(true);
     assert(scoop_rt_gc_stats() == 2);
     (void)nursery_node(3);
-    ScoopThreadState *thread = scoop_thread_current_required();
-    void *inline_node = scoop_heap_bump(&thread->allocation.cursor, thread->allocation.limit,
-                                         sizeof(NurseryNode), 8);
+    ScoopAllocationContext *allocation = scoop_rt_allocation_context;
+    void *inline_node =
+        scoop_heap_bump(&allocation->cursor, allocation->limit, sizeof(NurseryNode), 8);
     assert(inline_node != NULL);
     scoop_runtime_finish_tlab_alloc(inline_node, &nursery_node_td, sizeof(NurseryNode));
     assert(scoop_rt_gc_stats() == 4);

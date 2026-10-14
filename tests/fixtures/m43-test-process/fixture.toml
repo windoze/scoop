@@ -1,0 +1,109 @@
+schema = 1
+name = "m43-test-process"
+inputs = ["program"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m43", "test-command", "process"]
+variants = [
+    {name = "debug", vars = {profile = "debug"}},
+    {name = "release", vars = {profile = "release"}},
+]
+
+[vars]
+command = ["${scoop}", "test", "${fixture}/program", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+
+[[steps]]
+name = "build"
+argv = [{each = "${command}"}, {each = "${link_args}"}, "--profile", "${profile}", "--no-run"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "exit-zero"
+argv = [{each = "${command}"}, {each = "${link_args}"}, "--profile", "${profile}"]
+env = {M43_PROCESS_MODE = "0"}
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = [{code = "SCOOP_TEST_RUN", phase = "Run", severity = "error", message = "test run failed; see the test report", origin = {kind = "none"}, notes = []}]
+checks = [
+    {actual = "${exit-zero.test_result.process.code}", equals = 0},
+    {actual = "${exit-zero.test_result.status}", equals = "failed"},
+    {actual = "${exit-zero.test_result.complete}", equals = false},
+    {actual = "${exit-zero.test_result.counts.failed}", equals = 1},
+    {actual = "${exit-zero.test_result.counts.not_run}", equals = 1},
+    {actual = "${exit-zero.test_result.containers.0.cases.0.output.stdout.text}", equals = "before\nbody\n"},
+]
+
+[[steps]]
+name = "panic"
+argv = [{each = "${command}"}, {each = "${link_args}"}, "--profile", "${profile}"]
+env = {M43_PROCESS_MODE = "3"}
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${panic.test_result.process.code}", equals = 1},
+    {actual = "${panic.test_result.status}", equals = "failed"},
+    {actual = "${panic.test_result.complete}", equals = false},
+    {actual = "${panic.test_result.counts.failed}", equals = 1},
+    {actual = "${panic.test_result.counts.not_run}", equals = 1},
+    {actual = "${panic.test_result.containers.0.cases.0.output.stdout.text}", equals = "before\nbody\n"},
+    {actual = "${panic.test_result.containers.0.cases.0.output.stderr.text}", equals = "scoop: trap: m43 test panic\n"},
+]
+
+[[steps]]
+name = "native-crash"
+argv = [{each = "${command}"}, {each = "${link_args}"}, "--profile", "${profile}"]
+env = {M43_PROCESS_MODE = "2"}
+signal = "SIGSEGV"
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${native-crash.test_result.process.signal}", equals = 11},
+    {actual = "${native-crash.test_result.status}", equals = "failed"},
+    {actual = "${native-crash.test_result.complete}", equals = false},
+    {actual = "${native-crash.test_result.counts.failed}", equals = 1},
+    {actual = "${native-crash.test_result.counts.not_run}", equals = 1},
+]
+
+[[steps]]
+name = "interrupt"
+argv = [{each = "${command}"}, {each = "${link_args}"}, "--profile", "${profile}"]
+env = {M43_PROCESS_MODE = "1", M43_PROCESS_READY = "${work}/ready"}
+background = true
+signal = "SIGINT"
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+
+[[steps]]
+name = "ready"
+await_file = "${work}/ready"
+
+[[steps]]
+name = "send-interrupt"
+send_signal = {process = "interrupt", signal = "SIGINT"}
+
+[[steps]]
+name = "reap"
+wait = "interrupt"
+checks = [
+    {actual = "${interrupt.test_result.process.signal}", equals = 2},
+    {actual = "${interrupt.test_result.status}", equals = "failed"},
+    {actual = "${interrupt.test_result.complete}", equals = false},
+    {actual = "${interrupt.test_result.counts.failed}", equals = 1},
+    {actual = "${interrupt.test_result.counts.not_run}", equals = 1},
+    {actual = "${interrupt.result.observations.child_invocations.length}", equals = 0},
+    {glob = "${work}/outputs/${target}/${profile}/tests/.test-run-*", equals = []},
+]
+

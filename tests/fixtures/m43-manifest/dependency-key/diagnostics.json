@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: invalid dependency key \"helper\"; expected canonical group:name",
+    "notes": [],
+    "origin": {
+      "end": 144,
+      "kind": "host",
+      "path": "${fixture}/program/Cone.toml",
+      "start": 137
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

@@ -1,4 +1,5 @@
 #include "internal.h"
+#include "../gc/mutator.h"
 
 static void enter_managed(const void *managed_stack_boundary, ScoopThreadMode mode) {
     ScoopThreadState *state = scoop_thread_current_required();
@@ -35,8 +36,7 @@ void scoop_thread_leave_managed(void) {
     scoop_thread_registry_lock();
     state->managed_depth = 0;
     state->managed_stack_boundary = NULL;
-    state->allocation.cursor = NULL;
-    state->allocation.limit = NULL;
+    scoop_gc_mutator_invalidate(state->mutator);
     atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
@@ -91,8 +91,7 @@ void scoop_thread_leave_callback(ScoopCallbackThreadEntry *entry) {
     }
 
     scoop_thread_registry_lock();
-    state->allocation.cursor = NULL;
-    state->allocation.limit = NULL;
+    scoop_gc_mutator_invalidate(state->mutator);
     state->callback_depth--;
     state->managed_depth = entry->previous_managed_depth;
     state->managed_stack_boundary = entry->previous_managed_stack_boundary;

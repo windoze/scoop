@@ -301,7 +301,10 @@ fn executable_output_seals_private_current_main_and_exact_signature() {
     else {
         panic!("the selected source function is non-generic")
     };
-    assert_eq!(local_entry.declaration(), record.id());
+    assert_eq!(
+        local_entry.declaration(),
+        scoop_identity::ExecutableEntryDeclaration::Source(record.id())
+    );
     let exact_unit = output.export.type_identities[output.export.unit]
         .exact()
         .expect("Unit has an exact identity")
@@ -332,7 +335,7 @@ fn executable_output_seals_private_current_main_and_exact_signature() {
         output.local.functions[concrete_entry.local_function().function()]
             .materialization
             .template(),
-        scoop_identity::CallableTemplateOwner::Function(local_entry.declaration())
+        local_entry.declaration().template()
     );
 }
 

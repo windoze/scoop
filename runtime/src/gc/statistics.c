@@ -5,17 +5,15 @@
 
 #include "gc_internal.h"
 #include "heap_internal.h"
-#include "../platform/platform.h"
-#include "../thread/internal.h"
 
 uint64_t scoop_rt_gc_stats(void) {
-    scoop_thread_registry_lock();
+    scoop_gc_lock_mutators();
     lock_heap();
-    ScoopAllocationTotals allocations = scoop_thread_allocation_totals_locked();
+    ScoopGcAllocationTotals allocations = scoop_gc_allocation_totals_locked();
     uint64_t count = scoop_gc_heap_state.collected_live_objects + allocations.objects -
                      scoop_gc_heap_state.allocation_objects_at_collection;
     unlock_heap();
-    scoop_thread_registry_unlock();
+    scoop_gc_unlock_mutators();
     return count;
 }
 
@@ -45,7 +43,7 @@ uint64_t scoop_rt_gc_debug_allocation_size(const void *object) {
 }
 
 static void metrics_locked(ScoopGcMetrics *result) {
-    ScoopAllocationTotals allocations = scoop_thread_allocation_totals_locked();
+    ScoopGcAllocationTotals allocations = scoop_gc_allocation_totals_locked();
     *result = scoop_gc_heap_state.metrics;
     result->allocated_bytes = allocations.bytes;
     result->nursery_allocated_bytes = allocations.nursery_bytes;
@@ -57,16 +55,15 @@ static void metrics_locked(ScoopGcMetrics *result) {
         result->mapped_bytes += region->size;
         result->empty_region_count += !region->large && scoop_heap_region_empty(region);
     }
-    scoop_platform_bundle()->thread_vm->resident_memory(&result->current_rss_bytes,
-                                                        &result->peak_rss_bytes);
+    scoop_gc_resident_memory(&result->current_rss_bytes, &result->peak_rss_bytes);
 }
 
 void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result) {
-    scoop_thread_registry_lock();
+    scoop_gc_lock_mutators();
     lock_heap();
     metrics_locked(result);
     unlock_heap();
-    scoop_thread_registry_unlock();
+    scoop_gc_unlock_mutators();
 }
 
 void scoop_gc_report_metrics(void) {
@@ -75,7 +72,7 @@ void scoop_gc_report_metrics(void) {
     }
     ScoopGcMetrics result;
     uint64_t buckets[8];
-    scoop_thread_registry_lock();
+    scoop_gc_lock_mutators();
     lock_heap();
     metrics_locked(&result);
     uint64_t copied = scoop_gc_heap_state.copied_bytes;
@@ -83,7 +80,7 @@ void scoop_gc_report_metrics(void) {
     uint64_t full_pause = scoop_gc_heap_state.full_pause_ns;
     memcpy(buckets, scoop_gc_heap_state.pause_buckets, sizeof buckets);
     unlock_heap();
-    scoop_thread_registry_unlock();
+    scoop_gc_unlock_mutators();
     fprintf(
         stderr,
         "{\"scoop_gc\":1,\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64

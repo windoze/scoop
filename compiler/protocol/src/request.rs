@@ -108,6 +108,7 @@ pub struct ScoopcBuildRequestV1 {
     diagnostics: DiagnosticOutputPolicyV1,
     emit: StageDumpPolicyV1,
     optimization: OptimizationMode,
+    purpose: crate::CompilationPurpose,
     native_inputs: Vec<HostPathCarrier>,
 }
 
@@ -134,6 +135,7 @@ impl ScoopcBuildRequestV1 {
             diagnostics,
             emit,
             optimization: OptimizationMode::Debug,
+            purpose: crate::CompilationPurpose::Production,
             native_inputs: Vec::new(),
         })
     }
@@ -141,6 +143,23 @@ impl ScoopcBuildRequestV1 {
     pub fn with_optimization(mut self, optimization: OptimizationMode) -> Self {
         self.optimization = optimization;
         self
+    }
+
+    pub fn with_purpose(
+        mut self,
+        purpose: crate::CompilationPurpose,
+    ) -> Result<Self, ProtocolValidationError> {
+        if purpose == crate::CompilationPurpose::Test
+            && matches!(self.current, CurrentConeRequestV1::SingleFile { .. })
+        {
+            return Err(ProtocolValidationError::TestRequiresManifest);
+        }
+        self.purpose = purpose;
+        Ok(self)
+    }
+
+    pub const fn purpose(&self) -> crate::CompilationPurpose {
+        self.purpose
     }
 
     pub const fn optimization(&self) -> OptimizationMode {
@@ -192,7 +211,7 @@ impl ScoopcBuildRequestV1 {
 
 impl WireEncode for ScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -212,7 +231,9 @@ impl WireEncode for ScoopcBuildRequestV1 {
         encoder.field(9)?;
         self.optimization.encode(encoder)?;
         encoder.field(10)?;
-        encode_paths(encoder, &self.native_inputs)
+        encode_paths(encoder, &self.native_inputs)?;
+        encoder.field(11)?;
+        self.purpose.encode(encoder)
     }
 }
 

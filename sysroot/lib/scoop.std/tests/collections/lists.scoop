@@ -1,0 +1,50 @@
+package scoop.collections
+
+import scoop.test.*
+
+@Test
+private class ListTests {
+    private val values: MutableList<Int> = mutableListOf<Int>(3, 1, 2)
+
+    @BeforeTest
+    private fun checkFreshInstance() {
+        assertEquals("3, 1, 2", values.joinToString())
+    }
+
+    @AfterTest
+    private fun checkSize() {
+        assertEquals(3L, values.size)
+    }
+
+    @Test
+    fun `sorting preserves a previous snapshot`() {
+        val snapshot = values.toList()
+        values.sort()
+        assertEquals("1, 2, 3", values.joinToString())
+        assertEquals("3, 1, 2", snapshot.joinToString())
+        assertFalse(snapshot is MutableList<Int>)
+    }
+
+    @Test
+    fun `windows compose with collection transforms`() {
+        val windows = values.windowed(2L)
+        val rendered = windows.map<List<Int>, String> { window -> window.joinToString() }
+        assertEquals("3, 1;1, 2", rendered.joinToString(";"))
+        assertEquals("2", values.chunked(2L)[1L].joinToString())
+    }
+
+    @Test
+    fun `invalid window arguments throw`() {
+        assertFailsWith<IllegalArgumentException> { values.windowed(0L) }
+        assertFailsWith<IllegalArgumentException> { values.windowed(1L, 0L) }
+        assertFailsWith<IllegalArgumentException> { values.chunked(-1L) }
+    }
+
+    @Test
+    fun `internal snapshot follows the list contract`() {
+        val snapshot = ListSnapshot<Int>(Array<Int>(3L) { index -> index.toInt32() })
+        assertEquals(3L, snapshot.size)
+        assertEquals("0, 1, 2", snapshot.joinToString())
+        assertFailsWith<IndexOutOfBoundsException> { snapshot[3L] }
+    }
+}

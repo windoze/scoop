@@ -53,7 +53,7 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
     assert_eq!(decoded.build().optimization(), OptimizationMode::Release);
     assert_eq!(decoded.build().target(), request.build().target());
     let mut unknown = bytes;
-    let optimization = unknown.len() - 3;
+    let optimization = unknown.len() - 5;
     assert_eq!(unknown[optimization], 2);
     unknown[optimization] = 3;
     assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown).is_err());
@@ -68,15 +68,57 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
         .validate()
         .unwrap();
     assert_eq!(decoded.build().native_inputs(), &[path("unit.i")]);
+    let test = ScoopcRequestEnvelopeV1::new(
+        request.request_id(),
+        request
+            .build()
+            .clone()
+            .with_purpose(crate::CompilationPurpose::Test)
+            .unwrap(),
+    );
+    let bytes = encode(&test).unwrap();
+    assert_ne!(bytes, encode(&request).unwrap());
+    assert_eq!(
+        decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&bytes)
+            .unwrap()
+            .validate()
+            .unwrap(),
+        test
+    );
+    let mut unknown_purpose = bytes;
+    *unknown_purpose.last_mut().unwrap() = 3;
+    assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown_purpose).is_err());
     let mut missing = encode(request.build()).unwrap();
-    assert_eq!(missing.pop(), Some(0x80));
-    assert_eq!(missing.pop(), Some(10));
-    missing[0] = 0xa9;
+    assert_eq!(missing.pop(), Some(1));
+    assert_eq!(missing.pop(), Some(11));
+    missing[0] = 0xaa;
     assert!(decode_canonical::<super::decode::DecodedScoopcBuildRequestV1>(&missing).is_err());
 }
 
 #[test]
 fn request_constructor_closes_single_file_protocol_combinations() {
+    let single_file = ScoopcBuildRequestV1::new(
+        CurrentConeRequestV1::SingleFile {
+            source: path("main.scoop"),
+        },
+        Vec::new(),
+        Vec::new(),
+        TrustedCoreRequestV1::ArtifactSlot {
+            artifact: path("core.slib"),
+        },
+        target(),
+        path("main.slib"),
+        DiagnosticOutputPolicyV1::Human,
+        StageDumpPolicyV1::None,
+    )
+    .unwrap();
+    assert_eq!(single_file.purpose(), crate::CompilationPurpose::Production);
+    assert_eq!(
+        single_file
+            .with_purpose(crate::CompilationPurpose::Test)
+            .unwrap_err(),
+        ProtocolValidationError::TestRequiresManifest
+    );
     let error = ScoopcBuildRequestV1::new(
         CurrentConeRequestV1::SingleFile {
             source: path("main.scoop"),

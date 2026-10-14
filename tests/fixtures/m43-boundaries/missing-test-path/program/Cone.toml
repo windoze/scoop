@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m43"
+name = "missing-test-path"
+version = "0.1.0"
+kind = "library"
+
+[[test.sources]]
+path = "missing"

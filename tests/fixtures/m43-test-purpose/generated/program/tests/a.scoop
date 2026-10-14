@@ -1,0 +1,40 @@
+import scoop.test.*
+
+@Test
+private class Cases private constructor(val value: Int = answer()) {
+    var state: Int = 0
+    init { println("init") }
+
+    @BeforeTest
+    private fun prepare() {
+        assertEquals(0, state)
+        state = 1
+        println("before")
+    }
+
+    @Test
+    private fun first() {
+        assertEquals(42, value)
+        assertEquals(1, state)
+        state = 2
+        println("one")
+    }
+
+    @Test
+    private fun second() {
+        assertEquals(42, value)
+        assertEquals(1, state)
+        state = 2
+        println("two")
+    }
+
+    @AfterTest
+    private fun cleanup() {
+        assertEquals(2, state)
+        println("after")
+    }
+
+    @Ignore("not selected by default")
+    @Test
+    fun skipped() { println("ignored must not run") }
+}

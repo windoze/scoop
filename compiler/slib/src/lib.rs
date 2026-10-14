@@ -27,6 +27,9 @@ pub use graph::*;
 mod manifest_summary;
 pub use manifest_summary::*;
 
+mod test_directory;
+pub use test_directory::*;
+
 mod artifact_snapshot;
 pub use artifact_snapshot::*;
 

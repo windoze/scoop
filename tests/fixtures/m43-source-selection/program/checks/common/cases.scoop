@@ -1,0 +1,19 @@
+import scoop.test.Test as Check
+import scoop.test.assertEquals
+
+fun choose(value: Int): String = "test"
+private fun <T> identity(value: T): T = value
+
+@Check
+private class Cases {
+    @Check
+    fun `source roles and platform selection`() {
+        assertEquals(7, production())
+        assertEquals(7, defaulted())
+        assertEquals(7, generic(1))
+        assertEquals("test", choose(1))
+        assertEquals(42, identity(42))
+        println(platform())
+    }
+    fun ordinaryHelper(value: Int): Int = value
+}

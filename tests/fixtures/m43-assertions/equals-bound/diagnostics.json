@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `assertEquals`: Point is not a subtype of Equals<T>",
+    "notes": [],
+    "origin": {
+      "cone": "f996ab120d5fed7b78fa23886dc1ad4d045111882503352ea5542eb587d7f2a9",
+      "end": 107,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  }
+]

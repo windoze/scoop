@@ -139,6 +139,12 @@ impl FunctionIdentityBuilder<'_> {
         let accessor = self.accessor(function)?;
         let lexical = self.lexical_site(function)?;
         let initialization = self.initialization(function)?;
+        let test_entry = self
+            .lowerer
+            .test_compilation
+            .as_ref()
+            .and_then(|tests| tests.entry)
+            == Some(function);
         let derived = matches!(
             self.lowerer.functions[function].kind,
             hir::FunctionKind::DerivedEquality
@@ -147,6 +153,7 @@ impl FunctionIdentityBuilder<'_> {
             + usize::from(accessor.is_some())
             + usize::from(lexical.is_some())
             + usize::from(initialization.is_some())
+            + usize::from(test_entry)
             + usize::from(derived);
         if kinds != 1 {
             return Err(self.failure(function, Detail::InvalidFunctionOrigin));
@@ -169,6 +176,9 @@ impl FunctionIdentityBuilder<'_> {
                 role,
             )
             .map_err(|error| self.failure(function, Detail::InvalidIdentity(error)))?
+        } else if test_entry {
+            hir::HirFunctionIdentity::test_entry(self.lowerer.current_cone())
+                .map_err(|error| self.failure(function, Detail::InvalidIdentity(error)))?
         } else {
             self.derived_identity(function)?
         };

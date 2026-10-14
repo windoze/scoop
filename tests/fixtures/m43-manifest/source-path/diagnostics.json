@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${fixture}/program/Cone.toml: invalid source path \"../outside\": path must not escape the Cone root",
+    "notes": [],
+    "origin": {
+      "end": 139,
+      "kind": "host",
+      "path": "${fixture}/program/Cone.toml",
+      "start": 127
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

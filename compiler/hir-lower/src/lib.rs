@@ -155,6 +155,8 @@ mod shared;
 mod signatures;
 mod snapshot_arena;
 mod stmt;
+mod test_annotations;
+mod test_entry;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -162,7 +164,7 @@ mod user_annotations;
 mod visibility;
 
 pub use current_input::*;
-pub use current_lowering::lower_current_cone;
+pub use current_lowering::{lower_current_cone, lower_current_tests};
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -424,6 +426,7 @@ fn materialize_defined_test_sources(
         sources.push(SourceProvider {
             provider: source.provider,
             kind: SourceKind::Core,
+            role: scoop_identity::SourceRole::Production,
             identity: source.identity.clone(),
             name: source.name.to_string(),
             source: source.source_text.to_string(),
@@ -439,6 +442,7 @@ fn materialize_defined_test_sources(
         sources.push(SourceProvider {
             provider: input.user_provider,
             kind: SourceKind::CurrentUnit,
+            role: source.role(),
             identity: source.identity().clone(),
             name: details.display_locator.to_string(),
             source: details.source_text.to_string(),
@@ -461,6 +465,7 @@ fn materialize_current_sources(
             } else {
                 SourceKind::CurrentUnit
             },
+            role: source.source().role(),
             identity: source.source().identity().clone(),
             name: source.diagnostic().display_locator().display().to_string(),
             source: source.text().text().to_owned(),
@@ -479,6 +484,7 @@ pub(crate) enum SourceKind {
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
     kind: SourceKind,
+    role: scoop_identity::SourceRole,
     identity: scoop_identity::SourceIdentity,
     name: String,
     source: String,
@@ -679,6 +685,8 @@ pub(crate) struct Lowerer {
         user_annotations::SourceAnnotationInput,
     >,
     pub(crate) annotation_metadata: hir::SourceAnnotations,
+    pub(crate) test_containers: Vec<hir::TestContainer>,
+    pub(crate) test_compilation: Option<test_entry::TestCompilation>,
     pub(crate) type_annotations: user_annotations::type_uses::PendingTypeAnnotations,
     pub(crate) annotation_resolution:
         HashMap<scoop_identity::PersistentAnnotationId, user_annotations::AnnotationResolution>,
@@ -869,6 +877,7 @@ pub(crate) struct Lowerer {
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
+    test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
     /// Dependency sources referenced by instantiated defaults and bodies.
     /// They are appended only after a winning candidate is committed and are

@@ -2,58 +2,41 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../value_shape.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
-void *scoop_gc_forward_object_locked(void *object) {
-    if (!collection_active) {
-        heap_fatal("object forwarded outside collection");
-    }
-    ScoopGcBlockMeta *block;
-    size_t word_index;
-    if (!object_meta(object, &block, &word_index)) {
-        heap_fatal("forward requested for a non-object address");
-    }
-    ScoopGcBlockMeta *source = block;
-    if (!object_marked(source, word_index)) {
-        heap_fatal("unmarked object reached relocation");
-    }
-    if (source->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(source, word_index)) {
-        return object;
-    }
-    void *forwarded = source->kind == SCOOP_BLOCK_KIND_LARGE ? source->large_forwarding
-                                                             : source->forwarding[word_index];
-    if (forwarded != NULL) {
-        return forwarded;
-    }
-    heap_fatal("marked evacuation source has no planned forwarding address");
-}
+#if !SCOOP_PLATFORM_INLINE_GC_FORWARDING
+#include "forwarding_internal.h"
+#endif
 
-bool scoop_gc_claim_object_scan_locked(void *object) {
+void *scoop_heap_claim_relocated_object(void *object) {
     ScoopGcBlockMeta *block;
     size_t word_index;
     if (!object_meta(object, &block, &word_index)) {
         heap_fatal("scan claimed for a non-object address");
     }
-    bool current =
-        object_marked(block, word_index) &&
-        !(block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index));
-    if (!current) {
-        heap_fatal("scan claimed for a non-current object");
+    void *current = scoop_heap_forward_object(object, block, word_index);
+    if (current != object) {
+        if (!object_meta(current, &block, &word_index)) {
+            heap_fatal("scan claimed for a non-object address");
+        }
+        if (!object_marked(block, word_index) ||
+            (block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index))) {
+            heap_fatal("scan claimed for a non-current object");
+        }
     }
     if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
         if (block->large_scanned) {
-            return false;
+            heap_fatal("marked object appeared twice in the retained live set");
         }
         block->large_scanned = true;
-        return true;
+        return current;
     }
     if (bit_test(block->scanned, word_index)) {
-        return false;
+        heap_fatal("marked object appeared twice in the retained live set");
     }
     bit_set(block->scanned, word_index);
-    return true;
+    return current;
 }
 
 bool scoop_gc_object_was_scanned_locked(const void *object) {
@@ -64,29 +47,6 @@ bool scoop_gc_object_was_scanned_locked(const void *object) {
     }
     return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_scanned
                                                  : bit_test(block->scanned, word_index);
-}
-
-bool scoop_gc_is_forwarded_old_locked(const void *object) {
-    ScoopGcBlockMeta *block;
-    size_t word_index;
-    if (!object_meta(object, &block, &word_index)) {
-        return false;
-    }
-    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word_index)) {
-        return false;
-    }
-    return block->kind == SCOOP_BLOCK_KIND_LARGE ? block->large_forwarding != NULL
-                                                 : block->forwarding[word_index] != NULL;
-}
-
-bool scoop_gc_is_current_live_object_locked(const void *object) {
-    ScoopGcBlockMeta *block;
-    size_t word_index;
-    if (!object_meta(object, &block, &word_index)) {
-        return false;
-    }
-    return object_marked(block, word_index) &&
-           !(block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !object_pinned(block, word_index));
 }
 
 void scoop_gc_heap_verify_stress_moved_locked(void) {

@@ -4,13 +4,12 @@
 
 #include "gc_internal.h"
 #include "heap_internal.h"
-#include "../thread.h"
 
 void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     if (!collection_active) {
         heap_fatal("heap collection finished without begin");
     }
-    ScoopAllocationTotals allocations = scoop_thread_allocation_totals_locked();
+    ScoopGcAllocationTotals allocations = scoop_gc_allocation_totals_locked();
     if (minor) {
         uint64_t allocated =
             allocations.objects - scoop_gc_heap_state.allocation_objects_at_collection;

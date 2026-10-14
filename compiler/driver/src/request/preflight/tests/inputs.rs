@@ -69,7 +69,12 @@ fn empty_core_dependencies_run_the_shared_closure() {
             .unwrap();
 
     let validated = loaded
-        .validate_inner(None, ConeIdentity::CORE, &target)
+        .validate_inner(
+            None,
+            ConeIdentity::CORE,
+            &target,
+            CompilationPurpose::Production,
+        )
         .unwrap();
     assert!(validated.is_empty());
     assert!(validated.direct_dependencies().is_empty());
@@ -79,7 +84,7 @@ fn empty_core_dependencies_run_the_shared_closure() {
     assert_eq!(world.provider_count(), 0);
 
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, &target),
+        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, &target, CompilationPurpose::Production),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
             if declared == &[ConeCoordinate::reserved_core()] && actual.is_empty()),
     ));
@@ -97,7 +102,7 @@ fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
         LoadedExplicitDependencyInputs::load(&[HostArtifactLocator::new(&path).unwrap()], &[])
             .unwrap();
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::CORE, &target),
+        loaded.validate_inner(None, ConeIdentity::CORE, &target, CompilationPurpose::Production),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::Summary { input, .. }
             if input.path() == path),
     ));
@@ -116,7 +121,12 @@ fn manifest_sources_parse_in_canonical_identity_order() {
     let LoadedCurrentConeInput::Manifest { manifest } = &current else {
         panic!("test constructs a manifest input")
     };
-    let parsed = parse_manifest_current(manifest, scoop_target_data::DARWIN_AARCH64_ID).unwrap();
+    let parsed = parse_manifest_current(
+        manifest,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        CompilationPurpose::Production,
+    )
+    .unwrap();
 
     let paths = parsed
         .sources()
@@ -184,7 +194,12 @@ fn parser_failure_keeps_semantic_source_identity() {
     let LoadedCurrentConeInput::Manifest { manifest } = &current else {
         panic!("test constructs a manifest input")
     };
-    let error = parse_manifest_current(manifest, scoop_target_data::DARWIN_AARCH64_ID).unwrap_err();
+    let error = parse_manifest_current(
+        manifest,
+        scoop_target_data::DARWIN_AARCH64_ID,
+        CompilationPurpose::Production,
+    )
+    .unwrap_err();
 
     assert!(matches!(
         error,

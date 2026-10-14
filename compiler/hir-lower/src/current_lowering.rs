@@ -13,12 +13,27 @@ pub fn lower_current_cone(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+    lower_current_mode(requested, input, false)
+}
+
+/// Builds the current Cone's tests with a generated executable entry.
+pub fn lower_current_tests(
+    input: &CurrentConeSources<'_, '_>,
+) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+    lower_current_mode(scoop_identity::RequestedConeKind::Executable, input, true)
+}
+
+fn lower_current_mode(
+    requested: scoop_identity::RequestedConeKind,
+    input: &CurrentConeSources<'_, '_>,
+    tests: bool,
+) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     let current_sources = input
         .sources()
         .iter()
         .map(|source| source.text().identity().clone())
         .collect::<Vec<_>>();
-    lower_current_cone_inner(requested, input).map_err(|mut diagnostics| {
+    lower_current_cone_inner(requested, input, tests).map_err(|mut diagnostics| {
         for diagnostic in &mut diagnostics {
             diagnostic.resolve_sources(&current_sources);
         }
@@ -29,6 +44,7 @@ pub fn lower_current_cone(
 fn lower_current_cone_inner(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
+    tests: bool,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     let (files, mut sources) = materialize_current_sources(input.sources());
     for source in &mut sources {
@@ -47,12 +63,20 @@ fn lower_current_cone_inner(
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_dependencies(dependency_selection);
     lowerer.source_names = input.source_names().clone();
+    lowerer.test_dependencies = input.test_dependencies().clone();
+    if tests {
+        lowerer.test_compilation = Some(crate::test_entry::TestCompilation::new(world));
+    }
     let lowerer = match input.core() {
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
     let (module, mut warnings, completion) = lowerer.run_with_dependencies(&files, world)?;
-    let output_kind = select_cone_output_kind(&module, requested)?;
+    let output_kind = if tests {
+        crate::test_entry::output_kind(&module)?
+    } else {
+        select_cone_output_kind(&module, requested)?
+    };
     let selected = completion.dependencies.finish();
     let sources = module
         .source_files

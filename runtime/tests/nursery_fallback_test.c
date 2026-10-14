@@ -40,6 +40,8 @@ int main(void) {
     assert(after.promotion_fallbacks == before.promotion_fallbacks + 1);
     assert(after.full_collections == before.full_collections + 1);
     assert(after.minor_collections == before.minor_collections);
+    assert(scoop_rt_gc_debug_last_moved_count() == 0);
+    assert(after.update_ns == before.update_ns);
     assert(((NurseryNode *)roots[0])->value == 70);
     assert(((unsigned char *)roots[1])[29999] == 81);
     assert(((unsigned char *)roots[2])[29999] == 82);

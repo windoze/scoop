@@ -122,6 +122,7 @@ fn dispatch_key(
             .ok_or(PersistentDispatchSlotIdentityErrorDetail::InvalidOwner),
         hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Generic(_))
         | hir::HirFunctionIdentity::LexicalGenerated(_)
+        | hir::HirFunctionIdentity::TestEntry(_)
         | hir::HirFunctionIdentity::Initialization { .. }
         | hir::HirFunctionIdentity::DerivedEquality(_) => {
             Err(PersistentDispatchSlotIdentityErrorDetail::InvalidOwner)

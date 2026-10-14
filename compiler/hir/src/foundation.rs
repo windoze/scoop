@@ -275,6 +275,15 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn generated_callable_record_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<&CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>> {
+        self.generated_callables
+            .iter()
+            .find(|record| record.id().as_array() == bytes)
+    }
+
     pub(crate) fn generated_callable_by_bytes(
         &self,
         bytes: &[u8; 32],

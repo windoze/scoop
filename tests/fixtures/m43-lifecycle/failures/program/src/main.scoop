@@ -1,0 +1,68 @@
+import scoop.test.*
+import scoop.test.execution.*
+
+class PhaseFailure(val phase: Int) : Throwable()
+class Trace { var events: Int = 0; var finalized: Int = 0 }
+
+fun action(trace: Trace, phase: Int, failing: Int, cleanupFails: Boolean): TestAction {
+    return TestAction({
+        trace.events = trace.events * 10 + phase
+        try {
+            if (phase == failing || (phase == 4 && cleanupFails)) throw PhaseFailure(phase)
+            Unit
+        } finally { trace.finalized += 1 }
+    }, SourceLocation("phase.scoop", phase.toInt64(), 1, "action", ""))
+}
+
+fun checkFailure(failing: Int, cleanupFails: Boolean, expectedEvents: Int, expectedCalls: Int) {
+    val trace = Trace()
+    val result = runTestCase(SourceLocation("phase.scoop", 1, 1, "initialize", "")) {
+        action(trace, 1, failing, cleanupFails).call()
+        TestActions(action(trace, 3, failing, cleanupFails),
+            Some(action(trace, 2, failing, cleanupFails)),
+            Some(action(trace, 4, failing, cleanupFails)))
+    }
+    assertEquals(expectedEvents, trace.events)
+    assertEquals(expectedCalls, trace.finalized)
+    when (result) {
+        case TestResult.Passed -> fail(Some("expected a lifecycle failure"))
+        case TestResult.Failed(primary, None) -> {
+            checkPrimary(primary, failing)
+            assertTrue(!cleanupFails || failing == 1 || failing == 4)
+        }
+        case TestResult.Failed(primary, Some(second)) -> {
+            checkPrimary(primary, failing)
+            assertTrue(cleanupFails && failing > 1 && failing < 4)
+            assertTrue(second.phase == TestPhase.AfterTest)
+            assertEquals(4L, second.location.line)
+            val cause = second.cause
+            assertTrue(cause is PhaseFailure && cause.phase == 4)
+        }
+    }
+}
+
+fun checkPrimary(primary: TestFailure, failing: Int) {
+    val expectedPhase = when (failing) {
+        1 -> TestPhase.Initialization
+        2 -> TestPhase.BeforeTest
+        3 -> TestPhase.Body
+        else -> TestPhase.AfterTest
+    }
+    assertTrue(primary.phase == expectedPhase)
+    assertEquals("phase.scoop", primary.location.file)
+    assertEquals(failing.toInt64(), primary.location.line)
+    val cause = primary.cause
+    assertTrue(cause is PhaseFailure && cause.phase == failing)
+}
+
+fun main() {
+    checkFailure(1, false, 1, 1)
+    checkFailure(1, true, 1, 1)
+    checkFailure(2, false, 124, 3)
+    checkFailure(2, true, 124, 3)
+    checkFailure(3, false, 1234, 4)
+    checkFailure(3, true, 1234, 4)
+    checkFailure(4, false, 1234, 4)
+    checkFailure(4, true, 1234, 4)
+    println("lifecycle failures passed")
+}

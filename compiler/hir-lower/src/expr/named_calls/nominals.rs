@@ -35,7 +35,7 @@ pub(in crate::expr) enum PreparedNominalPlans {
 }
 
 impl Lowerer {
-    pub(in crate::expr) fn lower_named_function_partition(
+    pub(crate) fn lower_named_function_partition(
         &mut self,
         targets: &[NamedCallBinding],
         kind: ImportLookupLayer,

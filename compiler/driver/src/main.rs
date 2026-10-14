@@ -36,6 +36,9 @@ enum Command {
         /// Compiler optimization profile.
         #[arg(long, value_enum, default_value_t = Profile::Debug)]
         profile: Profile,
+        /// Compile this manifest Cone's tests with a generated entry.
+        #[arg(long)]
+        test: bool,
         /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
         #[arg(long)]
         sysroot: Option<PathBuf>,
@@ -99,6 +102,7 @@ fn main() -> ExitCode {
             cc,
             native_sysroot,
             profile,
+            test,
         } => build(
             input,
             direct_slibs,
@@ -107,6 +111,11 @@ fn main() -> ExitCode {
             emit,
             scoopc::DirectBuildOptions {
                 optimization: profile.optimization(),
+                purpose: if test {
+                    scoop_protocol::CompilationPurpose::Test
+                } else {
+                    scoop_protocol::CompilationPurpose::Production
+                },
                 target,
                 sysroot,
                 c_toolchain: scoop_toolchain::CToolchainOptions {

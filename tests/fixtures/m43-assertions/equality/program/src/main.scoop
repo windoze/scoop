@@ -1,0 +1,44 @@
+import scoop.test.*
+
+class Calls { var count: Int = 0; var order: Int = 0 }
+class Key(val id: Int, val calls: Calls) : Equals<Key> {
+    public override operator fun equals(other: Key): Boolean {
+        calls.count += 1
+        calls.order = id
+        return id == other.id
+    }
+}
+struct Point(val x: Int, val y: Int)
+
+fun verify(condition: Boolean) {
+    if (!condition) throw Exception(Some("equality assertion contract"))
+}
+
+fun capture(block: () -> Unit): AssertionFailure {
+    try { block() } catch (error: AssertionFailure) { return error }
+    throw Exception(Some("expected assertion failure"))
+}
+
+fun main() {
+    assertEquals(4, 4)
+    assertNotEquals("left", "right")
+    val mismatch = capture { assertEquals(4, 5) }
+    val same = capture { assertNotEquals("same", "same") }
+    verify(mismatch.kind == "assertEquals" && same.kind == "assertNotEquals")
+    verify(when (mismatch.expected) { case AssertionValue.Text(text) -> text == "4"; else -> false })
+    verify(when (mismatch.actual) { case AssertionValue.Text(text) -> text == "5"; else -> false })
+    val calls = Calls()
+    assertEquals(Key(1, calls), Key(1, calls))
+    assertNotEquals(Key(1, calls), Key(2, calls))
+    val hidden = capture { assertEquals(Key(2, calls), Key(3, calls)) }
+    verify(calls.count == 3 && calls.order == 2)
+    verify(when (hidden.expected) { case AssertionValue.Unavailable -> true; else -> false })
+    verify(when (hidden.actual) { case AssertionValue.Unavailable -> true; else -> false })
+    assertEquals(Double.NaN, Double.NaN)
+    assertEquals(0.0, -0.0)
+    assertEquals(Float.NaN, Float.NaN)
+    assertEquals(0.0f, -0.0f)
+    assertTrue(Point(1, 2) == Point(1, 2))
+    assertTrue((1, "x") == (1, "x"))
+    println("equality assertions passed")
+}

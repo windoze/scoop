@@ -114,6 +114,9 @@ impl WireDecode for DecodedLexicalCallableParent {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedGeneratedCallableKey {
+    TestEntry {
+        cone: DecodedPersistentId<crate::ConeIdentity>,
+    },
     Lexical {
         parent: DecodedLexicalCallableParent,
         role: LexicalCallableRole,
@@ -192,9 +195,13 @@ impl DecodedGeneratedCallableKey {
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
             + PersistentIdResolver<PersistentCallbackApplicationId, Error = E>
             + PersistentIdResolver<PersistentTypeId, Error = E>
-            + PersistentIdResolver<PersistentDispatchSlotId, Error = E>,
+            + PersistentIdResolver<PersistentDispatchSlotId, Error = E>
+            + PersistentIdResolver<crate::ConeIdentity, Error = E>,
     {
         let key = match self {
+            Self::TestEntry { cone } => GeneratedCallableKey::TestEntry {
+                cone: resolve_id(resolver, cone)?,
+            },
             Self::Lexical { parent, role, path } => GeneratedCallableKey::Lexical {
                 parent: parent.resolve(resolver)?,
                 role,
@@ -294,6 +301,7 @@ impl DecodedGeneratedCallableKey {
 impl WireEncode for DecodedGeneratedCallableKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::TestEntry { cone } => encode_value_sum(encoder, 17, cone),
             Self::Lexical { parent, role, path } => {
                 encoder.map(4)?;
                 encode_tag(encoder, 1)?;
@@ -353,6 +361,7 @@ impl WireDecode for DecodedGeneratedCallableKey {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
+            17 => decode_id_variant(decoder, fields, |cone| Self::TestEntry { cone }),
             1 => {
                 expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::Lexical {

@@ -46,6 +46,7 @@ pub(super) fn finalize(
                     if constant_roots::is_constant_root(value) {
                         constants.entry(id).or_default().push(root);
                     } else {
+                        constant_roots::mark_base_merge(value)?;
                         roots
                             .entry(id)
                             .or_default()

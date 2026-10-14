@@ -5,13 +5,52 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef SCOOP_BENCH_WORLD_TIMING
+#include <assert.h>
+#include <time.h>
+#define SCOOP_THREAD_TESTING
+#include "thread/testing.h"
+
+static uint64_t boundaries[3];
+static unsigned boundary_count;
+
+void scoop_thread_test_point(ScoopThreadTestPoint point) {
+    unsigned index;
+    switch (point) {
+    case SCOOP_TEST_COLLECTOR_STOPPING:
+        index = 0;
+        break;
+    case SCOOP_TEST_COLLECTOR_STOPPED:
+        index = 1;
+        break;
+    case SCOOP_TEST_COLLECTOR_RUNNING:
+        index = 2;
+        break;
+    default:
+        return;
+    }
+    struct timespec now;
+    assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+    boundaries[index] = (uint64_t)now.tv_sec * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
+    boundary_count++;
+}
+#endif
+
 static ScoopGcMetrics before;
 
 int32_t m34_mark_kind(void) {
     const char *kind = getenv("SCOOP_BENCH_GRAPH");
-    return kind != NULL && strcmp(kind, "array") == 0   ? 1
-           : kind != NULL && strcmp(kind, "chain") == 0 ? 2
-                                                        : 0;
+    return kind != NULL && strcmp(kind, "array") == 0     ? 1
+           : kind != NULL && strcmp(kind, "chain") == 0   ? 2
+           : kind != NULL && strcmp(kind, "compact") == 0 ? 3
+           : kind != NULL && strcmp(kind, "minor") == 0   ? 4
+                                                          : 0;
+}
+
+int64_t m34_minor_count(void) {
+    ScoopGcMetrics metrics;
+    scoop_rt_gc_debug_metrics(&metrics);
+    return (int64_t)metrics.minor_collections;
 }
 
 int64_t m34_mark_count(void) {
@@ -24,7 +63,12 @@ int32_t m34_mark_rounds(void) {
     return rounds == NULL ? 5 : (int32_t)strtol(rounds, NULL, 10);
 }
 
-void m34_mark_begin(void) { scoop_rt_gc_debug_metrics(&before); }
+void m34_mark_begin(void) {
+    scoop_rt_gc_debug_metrics(&before);
+#ifdef SCOOP_BENCH_WORLD_TIMING
+    boundary_count = 0;
+#endif
+}
 
 void m34_mark_end(int32_t round) {
     ScoopGcMetrics after;
@@ -61,6 +105,35 @@ void m34_mark_end(int32_t round) {
                 after.worker_marked_objects[index] - before.worker_marked_objects[index]);
     }
     fputc(']', stderr);
+#endif
+    fprintf(stderr, ",\"moved_objects\":%" PRIu64, scoop_rt_gc_debug_last_moved_count());
+    fprintf(stderr,
+            ",\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
+            ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
+            ",\"promoted_bytes\":%" PRIu64 ",\"dirty_cards\":%" PRIu64
+            ",\"old_reference_slots\":%" PRIu64,
+            after.minor_collections - before.minor_collections,
+            after.full_collections - before.full_collections,
+            after.promotion_fallbacks - before.promotion_fallbacks,
+            after.allocated_bytes - before.allocated_bytes,
+            after.promoted_bytes - before.promoted_bytes, after.dirty_cards - before.dirty_cards,
+            after.old_reference_slots - before.old_reference_slots);
+#ifdef SCOOP_BENCH_PARALLEL_METRICS
+    fprintf(stderr,
+            ",\"source_regions\":%" PRIu64 ",\"target_regions\":%" PRIu64
+            ",\"pin_blocked_regions\":%" PRIu64,
+            after.last_full_source_regions, after.last_full_target_regions,
+            after.last_full_pin_blocked_regions);
+#endif
+#ifdef SCOOP_BENCH_WORLD_TIMING
+    assert(boundary_count == 3);
+    assert(boundaries[0] <= boundaries[1] && boundaries[1] <= boundaries[2]);
+    fprintf(stderr,
+            ",\"stopping_ns\":%" PRIu64 ",\"collecting_ns\":%" PRIu64 ",\"running_ns\":%" PRIu64
+            ",\"quiescence_ns\":%" PRIu64 ",\"world_stopped_ns\":%" PRIu64
+            ",\"request_to_running_ns\":%" PRIu64,
+            boundaries[0], boundaries[1], boundaries[2], boundaries[1] - boundaries[0],
+            boundaries[2] - boundaries[1], boundaries[2] - boundaries[0]);
 #endif
     fputs("}\n", stderr);
 }

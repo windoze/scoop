@@ -1,0 +1,84 @@
+schema = 1
+name = "m43-std-selection"
+inputs = []
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m43", "stdlib", "test-command", "test-selection"]
+variants = [
+    {name = "debug", vars = {profile = "debug"}},
+    {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "list"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--list", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${list.test_result.target}", equals = "scoop.std"},
+    {actual = "${list.test_result.counts.containers}", equals = 3},
+    {actual = "${list.test_result.counts.cases}", equals = 10},
+    {actual = "${list.test_result.containers.0.name}", equals = "scoop.collections.ListTests"},
+    {actual = "${list.test_result.containers.1.name}", equals = "scoop.sequences.SequenceTests"},
+    {actual = "${list.test_result.containers.2.name}", equals = "scoop.text.EncodingTests"},
+]
+
+[[steps]]
+name = "container"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--filter", "ListTests::", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${container.test_result.status}", equals = "passed"},
+    {actual = "${container.test_result.complete}", equals = true},
+    {actual = "${container.test_result.counts.containers}", equals = 1},
+    {actual = "${container.test_result.counts.cases}", equals = 4},
+    {actual = "${container.test_result.counts.passed}", equals = 4},
+    {actual = "${container.test_result.containers.0.name}", equals = "${list.test_result.containers.0.name}"},
+    {actual = "${container.result.root.artifact_fingerprint}", equals = "${list.result.root.artifact_fingerprint}"},
+    {actual = "${container.result.observations.child_invocations.length}", equals = 0},
+]
+
+[[steps]]
+name = "method-list"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--list", "--filter", "SequenceTests::taking windows", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${method-list.test_result.counts.containers}", equals = 1},
+    {actual = "${method-list.test_result.counts.cases}", equals = 1},
+    {actual = "${method-list.test_result.containers.0.name}", equals = "${list.test_result.containers.1.name}"},
+    {actual = "${method-list.test_result.containers.0.cases.0.name}", equals = "taking windows consumes only needed elements"},
+    {actual = "${method-list.result.root.artifact_fingerprint}", equals = "${list.result.root.artifact_fingerprint}"},
+    {actual = "${method-list.result.observations.child_invocations.length}", equals = 0},
+]
+
+[[steps]]
+name = "method-run"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--filter", "SequenceTests::taking windows", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${method-run.test_result.status}", equals = "passed"},
+    {actual = "${method-run.test_result.complete}", equals = true},
+    {actual = "${method-run.test_result.counts.containers}", equals = 1},
+    {actual = "${method-run.test_result.counts.cases}", equals = 1},
+    {actual = "${method-run.test_result.counts.passed}", equals = 1},
+    {actual = "${method-run.test_result.containers.0.cases.0.display_name}", equals = "${method-list.test_result.containers.0.cases.0.display_name}"},
+    {actual = "${method-run.result.root.artifact_fingerprint}", equals = "${list.result.root.artifact_fingerprint}"},
+    {actual = "${method-run.result.observations.child_invocations.length}", equals = 0},
+]

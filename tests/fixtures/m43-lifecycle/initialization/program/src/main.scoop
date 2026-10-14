@@ -1,0 +1,44 @@
+import scoop.test.*
+import scoop.test.execution.*
+
+class Trace { var attempts: Int = 0; var unexpected: Int = 0 }
+class ConstructionFailure(val part: Int) : Throwable()
+
+fun broken(trace: Trace, part: Int): Int {
+    trace.attempts += 1
+    throw ConstructionFailure(part)
+}
+
+class DefaultFailure(trace: Trace, val value: Int = broken(trace, 1))
+class FieldFailure(trace: Trace) { val value: Int = broken(trace, 2) }
+class InitFailure(trace: Trace) { init { broken(trace, 3) } }
+
+fun checkConstruction(trace: Trace, part: Int, construct: () -> Unit) {
+    val location = SourceLocation("construction.scoop", part.toInt64(), 1, "Case", "Case")
+    val result = runTestCase(location) {
+        construct()
+        TestActions(TestAction({ trace.unexpected += 1 }),
+            Some(TestAction({ trace.unexpected += 1 })),
+            Some(TestAction({ trace.unexpected += 1 })))
+    }
+    when (result) {
+        case TestResult.Passed -> fail(Some("expected construction failure"))
+        case TestResult.Failed(error, None) -> {
+            assertTrue(error.phase == TestPhase.Initialization)
+            assertTrue(error.location == location)
+            val cause = error.cause
+            assertTrue(cause is ConstructionFailure && cause.part == part)
+        }
+        case TestResult.Failed(_, Some(_)) -> fail(Some("cleanup ran before construction completed"))
+    }
+}
+
+fun main() {
+    val trace = Trace()
+    checkConstruction(trace, 1) { DefaultFailure(trace) }
+    checkConstruction(trace, 2) { FieldFailure(trace) }
+    checkConstruction(trace, 3) { InitFailure(trace) }
+    assertEquals(3, trace.attempts)
+    assertEquals(0, trace.unexpected)
+    println("lifecycle initialization passed")
+}

@@ -131,9 +131,9 @@ fn linux_amd64_anchors_relocate_real_llvm_roots_and_preserve_sret() {
                 "runtime/src/strings.c",
                 "runtime/src/string_decode.c",
                 "runtime/src/utf8.c",
-                "runtime/src/gc/stackmap.c",
-                "runtime/src/gc/stackmap/parser.c",
-                "runtime/src/gc/stackmap/records.c",
+                "runtime/src/gc_binding/stackmap.c",
+                "runtime/src/gc_binding/stackmap/parser.c",
+                "runtime/src/gc_binding/stackmap/records.c",
             ] {
                 command.arg(workspace.join(source));
             }
@@ -184,6 +184,7 @@ fn linux_thread_publications_refresh_growing_main_stack_bounds() {
                 "runtime/src/platform/os/linux.c",
                 "runtime/src/platform/arch/x86_64_float_environment.c",
                 "runtime/src/thread.c",
+                "runtime/src/gc/mutator.c",
                 "runtime/src/thread/collection.c",
                 "runtime/src/thread/transitions.c",
                 "runtime/src/thread/roots.c",
@@ -218,9 +219,9 @@ fn shared_stackmap_decoder_keeps_darwin_frame_alignment_in_its_adapter() {
     for source in [
         "runtime/tests/stackmap_test.c",
         "runtime/src/platform/arch/aarch64.c",
-        "runtime/src/gc/stackmap.c",
-        "runtime/src/gc/stackmap/parser.c",
-        "runtime/src/gc/stackmap/records.c",
+        "runtime/src/gc_binding/stackmap.c",
+        "runtime/src/gc_binding/stackmap/parser.c",
+        "runtime/src/gc_binding/stackmap/records.c",
     ] {
         command.arg(workspace.join(source));
     }

@@ -1,23 +1,5 @@
 use super::*;
 
-impl TempCone {
-    fn select(&self, entries: &str) {
-        let manifest = self.0.join("Cone.toml");
-        let current = std::fs::read_to_string(&manifest).unwrap();
-        std::fs::write(
-            manifest,
-            current.replacen("[cone]", &format!("{entries}\n[cone]"), 1),
-        )
-        .unwrap();
-    }
-
-    fn write(&self, path: &str, text: &str) {
-        let path = self.0.join(path);
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, text).unwrap();
-    }
-}
-
 #[test]
 fn each_target_selects_only_its_complete_source_set() {
     let cone = TempCone::new();

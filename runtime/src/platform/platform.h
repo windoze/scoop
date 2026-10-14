@@ -5,10 +5,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../gc/stackmap.h"
+#include "../gc_binding/stackmap.h"
 
 /* Platform-neutral runtime capabilities. Generic runtime modules include
  * only this header; target-specific headers stay below platform/. */
+
+/* Measured forwarding call strategy; this changes no GC semantics or ABI.
+ * Preserve the AArch64 layout, where full inlining slows parallel marking. */
+#if defined(__x86_64__)
+#define SCOOP_PLATFORM_INLINE_GC_FORWARDING 1
+#else
+#define SCOOP_PLATFORM_INLINE_GC_FORWARDING 0
+#endif
 
 typedef struct ScoopPlatformStackBounds {
     const char *low;

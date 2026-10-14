@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "ambiguous constructor call `Cases`:\n  - class Cases(first: Int)\n  - class Cases(second: String)",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 26,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 21
+    },
+    "severity": "error"
+  }
+]

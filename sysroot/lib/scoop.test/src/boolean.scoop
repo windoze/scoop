@@ -1,0 +1,21 @@
+package scoop.test
+
+public fun assertTrue(
+    condition: Boolean,
+    message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()
+) {
+    if (!condition) {
+        comparisonFailure("assertTrue", true, condition, message, location)
+    }
+}
+
+public fun assertFalse(
+    condition: Boolean,
+    message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()
+) {
+    if (condition) {
+        comparisonFailure("assertFalse", false, condition, message, location)
+    }
+}

@@ -11,15 +11,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         match instruction {
             Instruction::PublishReleaseReady { object } => {
                 let object = self.value(*object)?.into_pointer_value();
-                let word = self.byte_gep(object, 8, "release_gc_word")?;
-                builder
-                    .build_atomicrmw(
-                        AtomicRMWBinOp::Or,
-                        word,
-                        context.i64_type().const_int(4, false),
-                        AtomicOrdering::Release,
-                    )
-                    .map_err(|error| CodegenError(format!("publish release ready: {error}")))?;
+                self.publish_release_ready(object)?;
             }
             Instruction::ReleaseFieldLoad { out, offset } => {
                 if function.callable_body.release_owner().is_none() {
@@ -197,15 +189,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 let object = self.value(*object)?.into_pointer_value();
                 let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
-                builder
-                    .build_store(field_ptr, self.value(*value)?)
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "heap_store @{symbol}: {e}",
-                            symbol = function.symbol()
-                        ))
-                    })?;
-                self.heap_value_barrier(field_ptr, &value_ty)?;
+                self.heap_store(field_ptr, self.value(*value)?, &value_ty)?;
             }
             Instruction::MachineHeapStore {
                 kind,

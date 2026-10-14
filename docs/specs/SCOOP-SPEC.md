@@ -2427,7 +2427,7 @@ kind = "library" # 或 "executable"
 - dependency key是exact `group:name`，value必须给出exact version；字符串短式只省略locator。table value至多给一个`path` source-Cone locator或`artifact` `.slib` locator；二者都省略时，`scoop`在每个显式artifact search root下检查`<group>/<name>/<version>/cone.slib`，三项都使用canonical文本且`.`不拆目录。所有存在的候选必须具有相同完整`ArtifactFingerprint`，否则是ambiguous artifact错误；search-root顺序不能决定选择不同内容；
 - 除 core 按 12.6 定位外，没有显式 locator 且全部显式 artifact search root 均无候选时，仅 `group = "scoop"` 的依赖继续检查 `<sysroot>/lib/<name>/Cone.toml`。其完整 coordinate 必须匹配所声明的 group/name/version，且为普通 library Cone；其他 group 不作此默认查找。已选择的显式来源损坏、歧义或不兼容时直接报错，不以 sysroot 覆盖。默认查找不注入新依赖、不改变名称可见性或实体身份；
 - locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
-- dependency声明没有version range、`latest`、optional/dev/build dependency、feature、platform条件或dependency alias。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
+- dependency声明没有version range、`latest`、optional/build dependency、feature、platform条件或dependency alias；测试专用依赖见 12.2.4。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
 - `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
 - `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency恰好为core的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；它不接受其他Cone dependency。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
 - manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file artifact/cache key另外包含source content digest、core semantic/code fingerprints、compiler/schema/target/toolchain，不因共用reserved identity而碰撞；
@@ -2491,6 +2491,33 @@ when = { os = "darwin" }
 库解析先检查全部显式 library roots；没有候选时允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。显式候选损坏、不兼容或歧义仍报错，不能静默改用系统库。
 
 平台默认查找只解析已经声明的逻辑库需求，不发现相邻 native 源码或任意库；空 lib 的默认 namespace 也不因此扫描系统目录。具体 target、link mode、候选格式、产物绑定和缓存规则见实现规范 2.8。
+
+#### 12.2.4 测试配置与生产构建隔离
+
+manifest 可声明 `[test]` 的 `sources` 与顶层 `[test-dependencies]`。测试源码清单使用 12.2.2 的 path/when 语法；`test.sources` 省略时选择 `tests/`，不存在的默认测试目录表示没有测试；显式空数组表示关闭测试源码选择，显式缺失路径仍是测试构建的输入错误。显式测试清单不追加默认目录。字段、路径形式和平台条件的格式与生产清单使用相同的检查及源码定位。
+
+```toml
+[[test.sources]]
+path = "tests/common"
+
+[[test.sources]]
+path = "tests/linux"
+when = { os = "linux" }
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"dev.example:test-helper" = { version = "0.1.0", path = "../test-helper" }
+```
+
+测试依赖沿用生产依赖的 exact coordinate、version、path/artifact locator 及错误定位规则。同一 group:name 已在 `[dependencies]` 声明时，测试使用该生产依赖，不得在 `[test-dependencies]` 再次声明；即使版本与 locator 相同也在测试声明处报错。未知字段、非法 coordinate、冲突 locator 和非法源码清单仍属于 manifest 错误，普通构建也检查这些格式规则。
+
+普通 `scoop build/run` 与生产用途的 `scoopc build` 只选择生产源码和生产依赖，不检查测试路径的存在性，不读取、解析或类型检查测试文件，也不定位测试依赖。测试源码内容、测试依赖、测试源码选择配置及其 locator 均不进入生产编译缓存键或生产 `.slib` 的依赖闭包；测试目录内即使有非法 Scoop 源码、无效 UTF-8 或不可用的测试依赖，生产构建仍可完成。生产源码选择及非空要求保持 12.2.2 的规则。
+
+测试用途在同一 Cone 中合并生产与测试源码，保留每个文件的生产／测试角色、原 ConeIdentity 和完整 Cone-relative source identity，合并后仍按完整路径排序。测试源码集合允许为空，但不能补足为空的生产源码集合。生产与测试选中的路径也执行 12.2.2 的重叠和重复检查，包括经 symlink 指向同一文件的情况；同一文件不能同时承担两种角色。默认 `tests/` 只有目录本身不存在时才视为空；已存在但类型错误、损坏或逃逸的 symlink 仍是输入错误。
+
+生产源码定义处的名称候选只包含生产声明，测试源码定义处可同时使用生产与测试声明。此规则作用于 import、package 限定名称、类型、值、函数及扩展候选的收集，先于重载选择；测试声明不能补齐生产代码中缺失的名称，也不能改变已有生产调用的选择。泛型正文和默认实参继续使用定义处的源码环境。生产与测试仍处于同一 Cone，9.1.5 的 internal、文件 private 和成员 private/protected 规则保持不变。
+
+依赖名称查找同样使用定义处的生产／测试角色：生产源码只收集生产 direct dependency 的公开 binding，测试源码收集生产与测试 direct dependency 的并集。筛选先于 package 前缀、同名冲突、重载及 re-export 路由合并；仅来自测试依赖的 package 不遮蔽生产源码中的类型或值。筛选依据当前 Cone 的直接依赖边，不按实体的原始声明 Cone 排除：同一实体经生产依赖 re-export 时仍可用；已经选中的生产 API 签名及其公开成员继续使用完整依赖闭包中的 typed 实体。core 始终沿生产依赖绑定，不能被分类为仅用于测试的依赖。
 
 ### 12.3 静态exact依赖图
 
@@ -2570,7 +2597,7 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 - Cone是独立的编译/静态链接单元，不默认按每个`.scoop`文件生成一个可依赖的语言模块。manifest Cone按12.2.2得到当前target的完整源码集合，`scoopc`消费该集合，不额外扫描`src/`；文件以normalized Cone-relative `/` path的UTF-8 byte order排序，空集合与路径冲突等构建错误在parse前报告。single-file mode是显式root-input例外：整个synthetic Cone恰好包含指定文件，它不会使每个普通source file获得可分发Cone identity；
 - 同一Cone的全部source file一起建立语义环境，文件之间没有编译顺序。声明能否用短名访问仍由package/import与visibility决定，“同一Cone编译”不等于忽略namespace；
 - `internal`精确表示origin Cone内可见；默认visibility及其他access domain见9.1.5；
-- library不需要entry；其中名为`main`的普通声明不会因此获得entry linkage。executable root必须恰有一个符合下表的top-level ordinary、non-generic、non-suspend `main`，具有普通Scoop函数体；只在root Cone中发现，dependency中的`main`不参与竞争，entry可以保持internal；
+- 普通生产用途的 library 不需要 entry；其中名为 `main` 的普通声明不会因此获得 entry linkage。生产用途的 executable root 必须恰有一个符合下表的 top-level ordinary、non-generic、non-suspend `main`，具有普通 Scoop 函数体；只在 root Cone 中发现，dependency 中的 `main` 不参与竞争，entry 可以保持 internal；
 - 最终程序从program metadata保存的typed root entry调用`main`；源码package或固定native符号名不决定entry。
 
 | 入口签名 | 正常结束时的退出码 |
@@ -2581,6 +2608,8 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 | `fun main(args: Array<String>): Int` | 实际返回的 `Int` 值 |
 
 表中的参数名 `args` 不作要求；有参数时恰有一个普通参数，其类型是实际 core `Array<String>` 的 exact application，透明 alias 按普通类型规则展开。其他参数／返回形态不能充当入口；缺少入口、入口不唯一或候选签名不合法均为编译错误，诊断给出实际签名和允许的形态。
+
+测试用途为当前 Cone 合成独立的 executable entry，生产 manifest 的 library／executable kind 均可作为被测对象。合成入口使用 generated callable 身份，参数与返回值遵守上述入口 ABI；已有源码 main 保持普通声明，不参与测试入口选择，也不由测试启动自动调用。测试入口沿用既有 eager 初始化、root gateway、异常和 shutdown 语义。
 
 `args` 包含完整原生 argv：`args[0]` 是可执行程序自身的启动路径，后续元素才是用户传入的参数。这一点与 Java/Kotlin 的 `main(args)` **不一致**：Java/Kotlin 不在 `args` 中包含程序路径。Scoop 保留启动者传入的原生 `argv[0]` 字符串，不将其解析为绝对路径或规范化真实路径；`scoop run` 使用稳定的可执行输出路径。没有用户参数时 `args` 仍有这一项。参数按原有顺序保留，包括空字符串，不重新按空格拆分。
 
@@ -3146,3 +3175,92 @@ core 提供普通安全函数 `write(message: String)`、`writeError(message: St
 | `Option<T>` 的智能转换 | `when` 解构（7.3） |
 | interface 方法自身泛型、任何泛型虚方法 | 泛型宿主的非泛型方法，或 final direct 泛型方法（3.2） |
 | 捕获外层词法局部 `var` | 显式 `val` 快照，或捕获普通引用对象并访问其 property（8.1.3） |
+
+## 16. 测试支持
+
+### 16.1 普通测试库
+
+`scoop:scoop.test:0.1.0` 是显式依赖的普通 library Cone，安装于 `sysroot/lib/scoop.test/`，按 12.2 的普通 `scoop` group 定位规则加载。标记与断言位于 `scoop.test` package，执行接口位于 `scoop.test.execution`，均没有默认导入，也不加入最小 core 或 single-file 模式的隐式依赖。断言可由普通程序调用，不依赖测试发现、专用入口或运行期反射。
+
+M43 只提供同 Cone 单元测试；独立 Cone 的 integration-test 留待 multi-cone workspace 定型后另行设计。
+
+### 16.2 断言与失败数据
+
+各断言在 debug/release 下都执行，实参按 8.5 的普通顺序求值一次。签名如下；`message` 是可选的用户消息，`location` 使用 11.12 的调用处默认参数来源，helper 转发时显式传递。
+
+```scoop
+public fun assertTrue(condition: Boolean, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun assertFalse(condition: Boolean, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : Equals<T>> assertEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : ref> assertSame(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <T : ref> assertNotSame(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation())
+public fun <E : Throwable> assertFailsWith(message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation(), block: () -> Unit): E
+public fun fail(message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()): Nothing
+```
+
+assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`，使用普通 `Equals<T>` 契约及 11.11 的浮点默认相等。结构可比较不隐含 Equals conformance；struct/enum/tuple 可用 `assertTrue(actual == expected)`，不增加结构型 bound 或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
+
+失败抛出普通 `AssertionFailure : Throwable`，不继承 Exception；显式 catch Throwable 仍可捕获。它公开只读字段 `kind: String`、`message: String?`、`location: SourceLocation`、`expected: AssertionValue`、`actual: AssertionValue` 和 `cause: Throwable?`。kind 是所调用断言的名称（例如 `assertEquals`）；构造器依次接受这些参数，expected/actual 默认 Unavailable，cause 默认 None。
+
+`AssertionValue` 为普通 enum，具有 `Unavailable`、`Text(String)`、`RenderingFailed(Throwable)` 三个变体。比较断言失败时才尝试渲染 expected/actual：实际值实现 ToString 时普通调用其 toString，否则记录 Unavailable；渲染抛出的 Throwable 保存在 RenderingFailed 中，仍抛出原来的 AssertionFailure 并保留消息、位置及另一个值的渲染结果。渲染不增加断言的 ToString 类型约束，不重新执行实参或比较。fail 和 assertFailsWith 不设置 expected/actual。
+
+assertFailsWith 同步调用 block 一次，捕获 Throwable 后按普通 `is E` 关系检查，包括子类；匹配时返回捕获到的 managed 异常对象，便于继续检查其字段。异常物化沿运行时规范 5.3～5.4，不额外保证与 throw 实参的引用身份相同。block 正常结束或类型不匹配时，在捕获区域之外抛出 AssertionFailure；类型不匹配时 cause 保存捕获到的异常，未抛出时为 None。此规则避免该断言自己生成的失败满足 E。用户 block 自己抛出的 AssertionFailure 仍按普通类型匹配。panic、native crash、abort 或进程退出不属于可捕获的预期异常。
+
+### 16.3 测试标记与声明
+
+测试库在 `scoop.test` package 声明四个公开、不可重复的普通注解：`Test` 的 Target 为 CLASS 与 FUNCTION，`BeforeTest`、`AfterTest`、`Ignore` 的 Target 为 FUNCTION。前三者无参数，Ignore 有一个必需的 `val reason: String` 参数。参数求值、Target、重复应用与 import 沿用 9.4；编译器按 `scoop:scoop.test:0.1.0` 中这些真实声明的 typed annotation identity 识别测试语义，alias 与 re-export 保留作用，同名用户注解不因此变成测试标记。
+
+四种标记的应用只允许出现在 12.2.4 的测试源码集合，普通生产源码上的应用是编译错误。声明这些 annotation class 的测试库源码仍属于普通生产输入。标记只产生编译期语义，不物化为运行期注解对象。
+
+类上的 Test 声明测试容器；容器必须为顶层、具名、非泛型、可实例化的普通 class，不接受 abstract/sealed、局部／嵌套／inner class、struct、enum、interface、object／companion 或 annotation class。容器按普通零实参调用规则唯一选择 safe 构造器，允许默认实参；生产可见性规则保持，生成调用适配位于容器的词法域。private/internal 容器及其构造器、方法和 hooks 均可使用。空容器合法，不因此构造实例。
+
+Test 用例、BeforeTest 和 AfterTest 必须是该容器直接声明、具有普通 Scoop 正文的具名实例方法：仅有普通 this，无 extension receiver、context 参数、值参数（包括有默认值的参数）或自身类型参数，非 suspend，返回 Unit，且可在 safe 上下文调用。每个方法只能承担三种角色中的一种；每类至多一个 BeforeTest 和一个 AfterTest，名称自由。Ignore 必须与同一用例方法的 Test 配对，不允许标记容器、hook 或普通 helper。非法形态、孤立 Ignore、角色冲突和重复 hook 均为编译错误，重复 hook 的诊断同时指出两处声明。
+
+类上的 Test 不自动发现全部方法；未标记 helper 遵守普通函数规则。只发现当前 Cone 测试源码中的直接声明，不扫描依赖或继承用例，不因导入、re-export 或泛型实例化复制用例。Ignore、运行过滤和空容器不跳过声明检查。
+
+### 16.4 静态测试目录
+
+前端为当前 Cone 生成按容器组织的目录，保留容器、已选构造器、可选 BeforeTest/AfterTest 与每个用例的 typed 声明引用、源码位置及 Ignore 原因。容器按规范化源码路径和声明位置排序，类内用例按声明位置排序；空容器仍接受构造与声明检查，但不产生用例或实例。显示名包含 Cone、package、类名与方法名，文件内 private 容器用源码路径消除重名歧义；显示名只用于列表、过滤和报告。
+
+构造选择使用普通重载解析，包含零实参适用性、默认参数、vararg、候选优先级、歧义、可见性与 safe 调用检查。检查环境为该容器自身的词法域；不因此扩大测试源码对其他声明的访问权限。目录保存最终选中的构造器；入口合成沿该选择生成实际调用并实例化默认实参，不重新搜索候选或提前执行构造、默认实参、字段初始化与 init。
+
+### 16.5 每用例执行与失败保留
+
+每个选中用例串行完成实例初始化、可选 BeforeTest、测试正文与可选 AfterTest，再开始下一个用例。初始化包括默认实参、字段初始化、构造和 init；成功取得实例后，后续三个阶段使用同一实例。初始化抛出 Throwable 时跳过其余阶段；BeforeTest 抛出时跳过正文但仍执行 AfterTest；正文抛出时仍执行 AfterTest。AfterTest 至多执行一次；若已有失败，清理失败单独保留，不覆盖原失败。忽略或未选中用例不进入这一流程。
+
+`scoop.test.execution` 提供入口适配使用的普通库接口，不增加编译器 intrinsic、反射或 fixture 工厂：
+
+```scoop
+public enum TestPhase { Initialization, BeforeTest, Body, AfterTest }
+public struct TestAction(val call: () -> Unit,
+    val location: SourceLocation = getCurrentSourceLocation())
+public struct TestActions(val body: TestAction,
+    val before: TestAction? = None, val after: TestAction? = None)
+public struct TestFailure(val phase: TestPhase, val cause: Throwable,
+    val location: SourceLocation)
+public enum TestResult { Passed, Failed(TestFailure, TestFailure?) }
+public fun runTestCase(location: SourceLocation = getCurrentSourceLocation(),
+    initialize: () -> TestActions): TestResult
+public fun isTestSelected(arguments: Array<String>, caseIndex: String,
+    ignored: Boolean): Boolean
+public fun runReportedTestCase(caseIndex: String, location: SourceLocation,
+    initialize: () -> TestActions): TestResult
+public fun completeTestRun(): Unit
+```
+
+调用适配在 initialize 回调实际执行时调用已解析的构造器，再将捕获该实例不可变引用的正文和可选 hooks 组成 TestActions 返回；不预建实例，也不捕获可变局部变量。TestAction 保存已解析方法的 typed 动作与声明位置。runTestCase 的 location 对应实例初始化位置；它和 TestAction 的默认位置供普通源码调用使用，合成适配显式传递对应的源码位置。runTestCase 同步调用初始化回调与后续动作，捕获普通 Throwable 并返回 Passed 或 Failed。Failed 的第一项保存首次失败，第二项仅保存该失败之后的 AfterTest 失败；只有清理失败时，第一项的阶段为 AfterTest，第二项为 None。
+
+TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规范 5.3～5.4 的异常物化规则。cause 为 AssertionFailure 时 location 使用断言自己的位置，否则使用当前动作的位置；原始异常数据不渲染、不丢弃。finally、Context 与 GC 沿普通调用和异常规则执行。panic、abort、native crash 和进程退出不在此捕获范围内，进程结果由测试命令另行报告。
+
+合成入口通过 runReportedTestCase 包围上述执行：先记录开始，再调用 runTestCase，在完整生命周期结束后记录单调耗时、结果及首次／清理失败；全部选中用例结束后调用 completeTestRun。没有父命令设置的结果通道时，这两个适配不捕获输出或渲染结果，直接运行仍保持普通 stdout/stderr。事件 I/O、计时和串行 stdio 重定向由 scoop.test 自身的普通 native 源码提供，不增加公共 runtime ABI。诊断保留断言 kind/message、expected/actual 的可用／渲染失败状态和 cause；普通 Exception 使用 message，其他 Throwable 可通过 ToString 提供说明，说明转换抛出时保留固定的渲染失败说明，不覆盖原测试失败。
+
+测试入口接受普通 `Array<String>` 参数并返回 Int，数组按 12.4.4 包含 `argv[0]` 的启动路径。`scoop` 按已编译目录的顺序选择用例，以 `--scoop-test-cases` 后跟扁平目录下零基序号的十进制字符串传给入口；该序号仅在当前测试程序内定位目录项，不代替 callable 的实体身份。`isTestSelected` 在没有用户参数时选择未忽略用例，在上述显式清单中跳过启动路径与标记，再按 caseIndex 是否出现选择；只有选中后才进入完整生命周期。过滤与忽略选择由 `scoop` 使用目录中的完整显示名及 Ignore 信息完成，列表复用同一选择结果。

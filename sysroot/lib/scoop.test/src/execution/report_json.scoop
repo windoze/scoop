@@ -1,0 +1,73 @@
+package scoop.test.execution
+
+import scoop.test.AssertionFailure
+import scoop.test.AssertionValue
+
+internal fun testJsonString(value: String): String {
+    val result = StringBuilder().add("\"")
+    for (character in value) {
+        val code = character.code
+        if (character == '"') { result.add("\\\"") }
+        else if (character == '\\') { result.add("\\\\") }
+        else if (code < 32) {
+            val digits = "0123456789abcdef"
+            result.add("\\u00").add(digits[(code / 16).toInt64()])
+                .add(digits[(code % 16).toInt64()])
+        } else { result.add(character) }
+    }
+    return result.add("\"").build()
+}
+
+private fun optionalText(value: String?): String = when (value) {
+    case None -> "null"
+    case Some(text) -> testJsonString(text)
+}
+
+private fun describeThrowable(error: Throwable): String {
+    if (error is Exception) {
+        return when (error.message) {
+            case Some(message) -> message
+            case None -> "Exception"
+        }
+    }
+    if (error is ToString) {
+        return try { error.toString() }
+        catch (rendering: Throwable) { "Throwable (description rendering failed)" }
+    }
+    return "Throwable"
+}
+
+private fun assertionValue(value: AssertionValue): String = when (value) {
+    case AssertionValue.Unavailable -> "{\"kind\":\"unavailable\"}"
+    case AssertionValue.Text(text) -> "{\"kind\":\"text\",\"text\":" + testJsonString(text) + "}"
+    case AssertionValue.RenderingFailed(error) ->
+        "{\"kind\":\"rendering-failed\",\"message\":" + testJsonString(describeThrowable(error)) + "}"
+}
+
+private fun locationJson(location: SourceLocation): String =
+    "{\"file\":" + testJsonString(location.file) +
+    ",\"line\":" + location.line.toString() + ",\"column\":" + location.column.toString() +
+    ",\"function\":" + testJsonString(location.functionName) +
+    ",\"type\":" + testJsonString(location.typeName) + "}"
+
+internal fun testFailureJson(failure: TestFailure): String {
+    val phase = when (failure.phase) {
+        case TestPhase.Initialization -> "initialization"
+        case TestPhase.BeforeTest -> "before-test"
+        case TestPhase.Body -> "body"
+        case TestPhase.AfterTest -> "after-test"
+    }
+    val start = "{\"phase\":" + testJsonString(phase) + ",\"location\":" + locationJson(failure.location)
+    val error = failure.cause
+    if (error is AssertionFailure) {
+        val cause: String = when (error.cause) {
+            case None -> "null"
+            case Some(value) -> testJsonString(describeThrowable(value))
+        }
+        return start + ",\"kind\":\"assertion\",\"assertion\":" + testJsonString(error.kind) +
+            ",\"message\":" + optionalText(error.message) +
+            ",\"expected\":" + assertionValue(error.expected) +
+            ",\"actual\":" + assertionValue(error.actual) + ",\"cause\":" + cause + "}"
+    }
+    return start + ",\"kind\":\"exception\",\"message\":" + testJsonString(describeThrowable(error)) + "}"
+}

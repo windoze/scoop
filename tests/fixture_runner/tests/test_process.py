@@ -94,3 +94,28 @@ class ProcessTests(unittest.TestCase):
             process = Process(step, {"work": directory}, Path(directory), dict(os.environ))
             process.cleanup()
             self.assertEqual(process.child.returncode, -signal.SIGKILL)
+
+    def test_test_report_preserves_build_result_and_captured_json_bytes(self):
+        build = {"schema": 1, "kind": "executable", "output": "program"}
+        report = {
+            "schema": 1,
+            "kind": "test-report",
+            "output": {"stderr": {"text": '{"schema":1,"kind":"diagnostic"}\n'}},
+        }
+        diagnostic = {"schema": 1, "kind": "diagnostic", "message": "incomplete test run"}
+        raw = b"\n".join(json.dumps(record).encode() for record in [build, report, diagnostic])
+        result = decode_streams(b"", raw, "test-stderr")
+        self.assertEqual(result["result"], build)
+        self.assertEqual(result["test_result"], report)
+        self.assertEqual(result["stderr"], b"")
+        self.assertEqual(result["diagnostics"], [{"message": "incomplete test run"}])
+        self.assertEqual(result["records"], [build, report, diagnostic])
+
+    def test_test_mode_handles_compile_errors_and_rejects_duplicate_reports(self):
+        diagnostic = b'{"schema":1,"kind":"diagnostic","message":"compile failed"}\n'
+        result = decode_streams(b"", diagnostic, "test-stderr")
+        self.assertIsNone(result["result"])
+        self.assertIsNone(result["test_result"])
+        report = b'{"schema":1,"kind":"test-report"}\n'
+        with self.assertRaisesRegex(AssertionFailure, "multiple test result"):
+            decode_streams(b"", report * 2, "test-stderr")

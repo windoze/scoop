@@ -1,0 +1,60 @@
+package scoop.test.execution
+
+@Extern(name = "scoop_test_begin", abi = "c")
+private fun nativeBegin(pointer: Ptr<UInt8>, length: Long): Int
+@Extern(name = "scoop_test_end", abi = "c")
+private fun nativeEnd(): Long
+@Extern(name = "scoop_test_event", abi = "c")
+private fun nativeEvent(pointer: Ptr<UInt8>, length: Long): Int
+@Extern(name = "scoop_test_complete", abi = "c")
+private fun nativeComplete(): Int
+
+private fun begin(caseIndex: String): Int {
+    @Unsafe {
+        return caseIndex.withUtf8Bytes<Int>(fun(pointer: Ptr<UInt8>, length: Long): Int {
+            @Unsafe { return nativeBegin(pointer, length) }
+        })
+    }
+}
+
+private fun event(record: String) {
+    @Unsafe {
+        val status = record.withUtf8Bytes<Int>(fun(pointer: Ptr<UInt8>, length: Long): Int {
+            @Unsafe { return nativeEvent(pointer, length) }
+        })
+        if (status < 0) { throw IllegalStateException(Some("cannot write test event")) }
+    }
+}
+
+private fun endCapture(): Long {
+    @Unsafe { return nativeEnd() }
+}
+
+public fun runReportedTestCase(
+    caseIndex: String, location: SourceLocation, initialize: () -> TestActions
+): TestResult {
+    val recording = begin(caseIndex)
+    if (recording < 0) { throw IllegalStateException(Some("cannot begin test capture")) }
+    val result = runTestCase(location, initialize)
+    if (recording > 0) {
+        val elapsed = endCapture()
+        if (elapsed < 0L) { throw IllegalStateException(Some("cannot finish test capture")) }
+        val failures: String = when (result) {
+            case TestResult.Passed -> "[]"
+            case TestResult.Failed(first, None) -> "[" + testFailureJson(first) + "]"
+            case TestResult.Failed(first, Some(last)) ->
+                "[" + testFailureJson(first) + "," + testFailureJson(last) + "]"
+        }
+        event("{\"event\":\"end\",\"case\":" + testJsonString(caseIndex) +
+            ",\"duration_ns\":" + elapsed.toString() + ",\"failures\":" + failures + "}")
+    }
+    return result
+}
+
+public fun completeTestRun() {
+    @Unsafe {
+        if (nativeComplete() < 0) {
+            throw IllegalStateException(Some("cannot write test completion"))
+        }
+    }
+}

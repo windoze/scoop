@@ -1,0 +1,23 @@
+package scoop.test
+
+public fun <T : ref> assertSame(
+    expected: T,
+    actual: T,
+    message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()
+) {
+    if (expected !== actual) {
+        comparisonFailure("assertSame", expected, actual, message, location)
+    }
+}
+
+public fun <T : ref> assertNotSame(
+    expected: T,
+    actual: T,
+    message: String? = None,
+    location: SourceLocation = getCurrentSourceLocation()
+) {
+    if (expected === actual) {
+        comparisonFailure("assertNotSame", expected, actual, message, location)
+    }
+}

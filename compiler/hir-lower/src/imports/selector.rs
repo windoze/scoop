@@ -121,9 +121,14 @@ impl CurrentUnitImports {
     ) -> (usize, NamespaceCursor<'world, 'input>) {
         let (current, current_len) = lowerer
             .top_level_namespaces
-            .longest_package_prefix(ast_segments);
-        let direct =
-            world.and_then(|world| world.direct_packages().longest_prefix(canonical_segments));
+            .longest_package_prefix(lowerer.current_file, ast_segments);
+        let direct = world.and_then(|world| {
+            world
+                .direct_packages()
+                .longest_prefix_filtered(canonical_segments, |provider| {
+                    lowerer.dependency_in_source_scope(provider)
+                })
+        });
         match direct {
             Some(direct) if direct.consumed_segments() > current_len => {
                 let namespace = world

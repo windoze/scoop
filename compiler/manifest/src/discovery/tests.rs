@@ -7,6 +7,7 @@ use super::walk::validated_entry_name;
 use super::*;
 
 mod selection;
+mod testing;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -30,6 +31,24 @@ impl TempCone {
 
     fn load(&self) -> LoadedConeManifest {
         load_cone_manifest(&ManifestRootLocator::cone_directory(&self.0)).unwrap()
+    }
+}
+
+impl TempCone {
+    fn select(&self, entries: &str) {
+        let manifest = self.0.join("Cone.toml");
+        let current = std::fs::read_to_string(&manifest).unwrap();
+        std::fs::write(
+            manifest,
+            current.replacen("[cone]", &format!("{entries}\n[cone]"), 1),
+        )
+        .unwrap();
+    }
+
+    fn write(&self, path: &str, text: &str) {
+        let path = self.0.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
     }
 }
 

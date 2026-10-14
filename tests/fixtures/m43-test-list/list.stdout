@@ -1,0 +1,6 @@
+list-tests
+  Cases (tests/a.scoop:3:1)
+    检查::名字 (tests/a.scoop:7:5)
+  Cases (tests/z.scoop:3:1)
+    other (tests/z.scoop:7:5)
+2 containers, 2 tests, 0 ignored

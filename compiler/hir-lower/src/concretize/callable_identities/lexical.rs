@@ -331,6 +331,7 @@ impl CallableIdentityBuilder<'_> {
             let identity = &self.concretizer.source.function_identities[function];
             match identity {
                 export::HirFunctionIdentity::LexicalGenerated(record)
+                | export::HirFunctionIdentity::TestEntry(record)
                 | export::HirFunctionIdentity::Initialization { record, .. }
                     if record.id() == id =>
                 {
@@ -352,6 +353,7 @@ impl CallableIdentityBuilder<'_> {
                 export::HirFunctionIdentity::Source(_)
                 | export::HirFunctionIdentity::PropertyAccessor(_)
                 | export::HirFunctionIdentity::LexicalGenerated(_)
+                | export::HirFunctionIdentity::TestEntry(_)
                 | export::HirFunctionIdentity::Initialization { .. } => {}
             }
         }

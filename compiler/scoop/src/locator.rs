@@ -140,18 +140,27 @@ pub(crate) fn locate_manifest_dependency(
     search_roots: &[ArtifactSearchRoot],
     target: scoop_lir::ValidatedLirTargetSelection,
 ) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
-    let coordinate = parent
+    let production = parent
         .parsed()
         .semantic()
         .dependency_iter()
-        .find(|(candidate, _)| *candidate == key)
-        .map(|(_, coordinate)| coordinate)
-        .ok_or_else(|| DependencyLocatorError::UndeclaredDependency(key.clone()))?;
-    let locator = parent
-        .parsed()
-        .locators()
-        .get(key)
-        .ok_or_else(|| DependencyLocatorError::MissingLocatorProjection(key.clone()))?;
+        .find(|(candidate, _)| *candidate == key);
+    let (coordinate, locator) = if let Some((_, coordinate)) = production {
+        let locator = parent
+            .parsed()
+            .locators()
+            .get(key)
+            .ok_or_else(|| DependencyLocatorError::MissingLocatorProjection(key.clone()))?;
+        (coordinate, locator)
+    } else {
+        let (_, declaration) = parent
+            .parsed()
+            .tests()
+            .dependency_iter()
+            .find(|(candidate, _)| *candidate == key)
+            .ok_or_else(|| DependencyLocatorError::UndeclaredDependency(key.clone()))?;
+        (declaration.coordinate(), declaration.locator())
+    };
 
     match locator {
         DependencyLocator::SourcePath(path) => locate_source_dependency(parent, coordinate, {

@@ -13,6 +13,7 @@ mod aliases;
 mod enclosing;
 mod named;
 mod safety;
+mod test_selection;
 
 pub(crate) use named::NamedNominalProbe;
 
@@ -48,6 +49,17 @@ impl Lowerer {
         call: NominalConstructorCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedNominalConstructor> {
+        let span = call.span;
+        let winner = self.select_nominal_constructor(name, candidates, call)?;
+        self.commit_nominal_candidate(winner, span, sink)
+    }
+
+    fn select_nominal_constructor(
+        &mut self,
+        name: &str,
+        candidates: &[NominalConstructorSource],
+        call: NominalConstructorCall<'_>,
+    ) -> Option<ApplicableConstructor> {
         let NominalConstructorCall {
             enclosing,
             explicit_type_args,
@@ -119,8 +131,7 @@ impl Lowerer {
             1 => 0,
             _ => self.most_specific_nominal_constructor(name, &applicable, span)?,
         };
-        let winner = applicable.swap_remove(winner);
-        self.commit_nominal_candidate(winner, span, sink)
+        Some(applicable.swap_remove(winner))
     }
 
     fn most_specific_nominal_constructor(

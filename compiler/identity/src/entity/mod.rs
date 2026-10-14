@@ -15,6 +15,7 @@ mod dispatch;
 mod enum_variant;
 mod exact_signature;
 mod exact_type;
+mod executable_entry;
 mod field;
 mod generated_callable;
 mod generated_nominal;
@@ -69,10 +70,14 @@ pub use callable::{
 };
 pub use callable_body::{
     CallableBodyKey, CallableBodyKeyKind, CallableBodyResolutionError, DecodedCallableBodyKey,
-    DecodedCallableBodyKeyKind, DecodedExecutableSourceEntryIdentity,
-    DecodedStrongCallableDefinitionOwner, ExecutableSourceEntryIdentity,
-    ExecutableSourceEntryIdentityError, MainCallableBodyId, StrongCallableDefinitionOwner,
+    DecodedCallableBodyKeyKind, DecodedStrongCallableDefinitionOwner, MainCallableBodyId,
+    StrongCallableDefinitionOwner,
 };
+pub use executable_entry::{
+    DecodedExecutableEntryDeclaration, DecodedExecutableEntryIdentity, ExecutableEntryDeclaration,
+    ExecutableEntryIdentity, ExecutableEntryIdentityError,
+};
+
 pub use callback::{
     CallbackApplicationIdentityError, CallbackApplicationKey, CallbackIdentityResolutionError,
     CallbackParameterIndex, CallbackRegistrationKey, DecodedCallbackApplicationKey,

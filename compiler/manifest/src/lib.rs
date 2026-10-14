@@ -17,6 +17,7 @@ mod stable_file;
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,
     SourceDiscoveryErrorKind, SourceDisplayLocator, discover_manifest_sources,
+    discover_manifest_sources_for_tests,
 };
 pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
@@ -33,9 +34,9 @@ pub use selection::{
 };
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
-    DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,
-    ManifestParseError, ManifestParseErrorKind, ManifestSpan, ParsedConeManifest,
-    parse_cone_manifest,
+    DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDependency,
+    ManifestDiagnosticSpans, ManifestParseError, ManifestParseErrorKind, ManifestSpan,
+    ParsedConeManifest, TestManifestConfig, parse_cone_manifest,
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,

@@ -19,6 +19,7 @@ pub enum CrossConeLayoutArtifactWriteError {
         actual: ConeIdentity,
     },
     TargetMismatch,
+    TestDirectory(crate::TestDirectoryError),
     CallableSemanticImports(CrossConeLinkSemanticImportBuildError),
     CallableSemanticImportMismatch,
     LayoutSemanticImportMismatch,
@@ -131,6 +132,7 @@ impl std::error::Error for CrossConeLayoutArtifactWriteError {
             Self::ManifestSection(source) => Some(source),
             Self::Manifest(source) => Some(source),
             Self::Archive(source) => Some(source),
+            Self::TestDirectory(source) => Some(source),
             Self::ComponentProducerMismatch { .. }
             | Self::TargetMismatch
             | Self::CallableSemanticImportMismatch

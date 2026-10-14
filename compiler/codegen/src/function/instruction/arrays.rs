@@ -1,10 +1,6 @@
 use super::*;
 
 mod access;
-mod allocation;
-mod assembly;
-mod clone;
-mod dynamic;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn emit_array_instruction(

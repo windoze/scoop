@@ -45,7 +45,7 @@ impl Lowerer {
         self.top_level_namespaces.initialize_sources(
             self.intrinsic_sources
                 .iter()
-                .map(|source| source.identity.cone()),
+                .map(|source| (source.identity.cone(), source.role)),
             current_cone,
             files,
         );
@@ -560,6 +560,12 @@ impl Lowerer {
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);
         self.finish_type_annotations();
+        if self.diagnostics.is_empty() {
+            self.discover_tests();
+        }
+        if self.diagnostics.is_empty() && self.test_compilation.is_some() {
+            self.generate_test_entry();
+        }
         if self.diagnostics.is_empty()
             && let Err(error) = self.prepare_coroutine_declarations()
         {

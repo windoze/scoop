@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../value_shape.h"
+#include "../gc_binding/object.h"
 #include "mark_internal.h"
 
 void scoop_gc_mark_begin(bool minor, size_t block_count) {
@@ -41,9 +41,8 @@ void scoop_gc_mark_begin(bool minor, size_t block_count) {
 static void scan_external(const void *object, void *context) {
     ScoopGcMarkVisit *visit = context;
     visit->worker->traced++;
-    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    scoop_gc_scan_descriptor((void *)object, td->object_scan, scoop_gc_mark_slot, context, 0,
-                             UINTPTR_MAX);
+    const uint64_t *scan = scoop_gc_object_scan(object);
+    scoop_gc_scan_descriptor((void *)object, scan, scoop_gc_mark_slot, context, 0, UINTPTR_MAX);
 }
 
 static void scan_region(void *base, const uint64_t *scan, void *context) {
@@ -68,12 +67,11 @@ typedef struct RememberedVisit {
 static void scan_dirty(void *object, uintptr_t begin, uintptr_t end, void *context) {
     RememberedVisit *visit = context;
     if (visit->last_object != object) {
-        scoop_shape_validate_object(object, scoop_gc_object_size_locked(object));
+        scoop_gc_validate_object(object, scoop_gc_object_size_locked(object));
         visit->last_object = object;
     }
-    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    scoop_gc_scan_descriptor(object, td->object_scan, scoop_gc_mark_slot, &visit->visit, begin,
-                             end);
+    const uint64_t *scan = scoop_gc_object_scan(object);
+    scoop_gc_scan_descriptor(object, scan, scoop_gc_mark_slot, &visit->visit, begin, end);
 }
 
 void scoop_gc_mark_remembered(void) {

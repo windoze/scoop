@@ -1,6 +1,25 @@
 use super::{compile_and_run, workspace_root};
 
 #[test]
+fn resolved_forwarding_rejects_invalid_collection_metadata() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "forwarding_validation_test",
+        "runtime/tests/forwarding_validation_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"resolved forwarding retains collection, mark and address validation\n"
+    );
+}
+
+#[test]
 fn region_growth_and_large_mapping_exceed_one_gibibyte() {
     let output = compile_and_run(
         &workspace_root(),

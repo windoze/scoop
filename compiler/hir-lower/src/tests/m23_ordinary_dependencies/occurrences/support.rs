@@ -15,6 +15,14 @@ pub(super) fn with_output<T>(
     source: &str,
     inspect: impl FnOnce(hir::DependencyHirOutput, &hir::ImportedSemanticWorld<'_>) -> T,
 ) -> T {
+    with_test_dependencies(source, &[], inspect)
+}
+
+pub(super) fn with_test_dependencies<T>(
+    source: &str,
+    test_dependencies: &[scoop_identity::ConeIdentity],
+    inspect: impl FnOnce(hir::DependencyHirOutput, &hir::ImportedSemanticWorld<'_>) -> T,
+) -> T {
     let mut core = trusted_core();
     let hir::ImportedTarget::Type(boolean) = core.type_binding("Boolean").target() else {
         panic!("Boolean is nominal")
@@ -54,7 +62,10 @@ pub(super) fn with_output<T>(
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world)
+        .unwrap()
+        .with_test_dependencies(test_dependencies.iter().copied())
+        .unwrap();
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .unwrap_or_else(|errors| panic!("{errors:?}"));
     inspect(output, &world)

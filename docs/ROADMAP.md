@@ -567,6 +567,22 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - math（含 BigInteger/Decimal）、regex、完整 Unicode、压缩、密码学、更多格式、持久化集合及系统库独立排期，不成为本里程碑的验收前置。
 - M42-1～12 全部交付，TreeMap／TreeSet 使用内联键值的 B-tree。三目标各通过本组 130 个 fixture、139 个变体；含必要既有回归后 Darwin／GNU 各覆盖 150 项、musl 149 项。五个实际底层缺陷均独立修复及回归，没有运行无关全量套件。
 
+### M43 测试库与 `scoop test`（已完成，[设计](milestone43/DESIGN.md)、[验收](milestone43/ACCEPTANCE.md)）
+
+- 交付普通 `scoop.test` Cone、断言、显式测试容器与方法、每用例实例及 BeforeTest/AfterTest 生命周期。
+- 增加同 Cone 测试源码、测试依赖与构建用途，由 `scoop test` 静态发现、构建、过滤、列出并串行运行，保留准确的生命周期失败与进程结果。
+- 以 `scoop.std` 作为首个实际落地应用，在 `sysroot/lib/scoop.std/tests/` 编写同 Cone 单元测试，通过 `scoop test sysroot/lib/scoop.std` 验收测试库与命令的完整流程。
+- 已按功能分批更新规范、实现、验证并提交；三个现有 target 各通过 167 项 fixture，包含 105 项 M43 与 62 项必要既有回归，覆盖正式 CLI、产物消费、进程边界与 GC 组合。
+- integration-test 等待 multi-cone workspace 定型后另行设计，不纳入本里程碑。
+
+### M44 GC 引用更新优化与实现边界隔离（已完成，[设计](milestone44/DESIGN.md)、[验收](milestone44/ACCEPTANCE.md)）
+
+- 根据本轮实际搬迁结果省去零搬迁时的 relocation，保留回收、晋升、pin/release 和验证职责。
+- 复用引用的单次对象定位结果，仅在地址改变时写回；无托管引用对象继续参与存活与回收，但省去出站引用扫描工作。
+- 收拢 codegen 的完整 GC 分配、写入、发布与 poll 操作，以及 runtime 的 GC 操作、Scoop 适配和 mutator 私有状态，保持现有静态快路径与必要 ABI／同步契约。
+- 先建立当前同机基线和完整停顿口径，再按功能分别提交优化与模块迁移；通过实际性能对照、共享路径集成回归、三目标和无源码产物消费验收。
+- M44-1～6 全部交付。Darwin 工作区通过 5629 项测试及 2 项 doctest，正式 CLI 全量通过 4037 项；Linux GNU／musl 适用组合分别通过 1163／1167 项。零搬迁、实际移动、minor、线程进度和四程序性能对照完成，回退修复、原始失败及测量限制均保留。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture、组合 fixture 和准确的 negative 诊断。普通功能用例验证编译与运行；各 stage 的结构由少量代表性的 golden 或 typed IR 精确断言覆盖，产物、ABI、GC、链接与优化专测保留对应合同（见 AGENTS.md 编码准则）。

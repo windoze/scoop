@@ -8,6 +8,7 @@
 #include "../src/gc/heap_internal.h"
 #include "../src/managed_entries.h"
 #include "../src/thread.h"
+#include "../src/gc/mutator.h"
 #include "platform/image_fixture.h"
 
 static const size_t sizes[] = {
@@ -132,8 +133,7 @@ int main(void) {
         payload[sizes[index] - 1] = (unsigned char)(index + 17);
     }
     // Consecutive 80-byte objects share a run and cross line boundaries.
-    scoop_thread_current_required()->allocation.cursor = NULL;
-    scoop_thread_current_required()->allocation.limit = NULL;
+    scoop_gc_mutator_invalidate(scoop_thread_current_required()->mutator);
     void *first = allocate(types[3]);
     void *second = allocate(types[3]);
     assert((uintptr_t)second - (uintptr_t)first == 80);

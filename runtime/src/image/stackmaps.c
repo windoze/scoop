@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../gc/stackmap/fingerprint.h"
+#include "../gc_binding/stackmap/fingerprint.h"
 #include "internal.h"
 
 static _Noreturn void parse_fatal(ScoopStackMapError error) {
