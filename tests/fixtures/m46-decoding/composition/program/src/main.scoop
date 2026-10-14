@@ -1,0 +1,53 @@
+import scoop.json.Json
+
+struct First(val id: Long, val text: Long) {
+    companion object : Decodable<First> {}
+}
+
+struct Second(val id: Long, val text: String) {
+    companion object : Decodable<Second> {}
+}
+
+class Count(var defaults: Long)
+val count = Count(0L)
+fun nextDefault(): Long { count.defaults += 1L; return 9L }
+
+struct Defaults(val id: Long, val limit: Long = nextDefault()) {
+    companion object : Decodable<Defaults> {}
+}
+
+object RetryRecord : Decodable<Second> {
+    public override fun decode(decoder: Decoder): Second {
+        reject("/0/text") { First.Companion.decode(decoder) }
+        val result = Second.Companion.decode(decoder)
+        check(result == Second.Companion.decode(decoder))
+        return result
+    }
+}
+
+object Pair : Decodable<(Long, String)> {}
+
+fun main() {
+    val codec = DecodeFunction<Second>({ decoder ->
+        val values = decoder.unkeyed()
+        val child = values.element()
+        val result = RetryRecord.decode(child)
+        check(Long.decode(values.element()) == 2L)
+        values.end()
+        result
+    })
+    check(Json.decode("[{\"id\":7,\"text\":\"ok\"},2]", codec) == Second(7L, "ok"))
+    val defaults = DecodeFunction<Long>({ decoder ->
+        val first = Defaults.Companion.decode(decoder)
+        val second = Defaults.Companion.decode(decoder)
+        first.limit + second.limit
+    })
+    check(Json.decode("{\"id\":1}", defaults) == 18L)
+    check(count.defaults == 2L)
+    reject("/limit") { Json.decode("{\"id\":1,\"limit\":null}", Defaults.Companion) }
+    check(count.defaults == 2L)
+    check(Json.decode("[1,\"pair\"]", Pair) == (1L, "pair"))
+    reject("/1") { Json.decode("[1]", Pair) }
+    reject("") { Json.decode("[1,\"pair\",3]", Pair) }
+    println("composition-ok")
+}

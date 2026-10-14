@@ -2244,6 +2244,7 @@ public interface SingleValueEncodingContainer {
 }
 
 public interface SingleValueDecodingContainer {
+    public fun isNull(): Boolean
     public fun readBoolean(): Boolean
     public fun readLong(): Long
     public fun readULong(): ULong
@@ -2254,11 +2255,15 @@ public interface SingleValueDecodingContainer {
 }
 ```
 
-一个Encoder/Decoder代表一个值；为该值选择一种container。每个field/element返回处理其值的子入口，按调用顺序完成子值，再继续下一个；单值container恰好读/写一个标量。容器end检查该层的完整性，根入口检查完整文档消费。数组下标及数量沿现有库使用Long。
+一个 Encoder 代表一个输出值，为该值选择一种 container；每个 field/element 返回子入口，按调用顺序完成子值后再继续下一个。单值 container 恰好写入一个标量；容器 end 检查该层的完整性，根入口检查输出完成。数组下标及数量沿现有库使用 Long。
+
+一个 Decoder 代表稳定的输入值及其 path。取得视图、成功读取、形状或数值错误、缺失字段和候选 codec 失败都不消耗或改变该值；保存的子入口仍可复读。keyed/unkeyed 在形状匹配时取得视图，不匹配时抛错且不阻止后续请求；singleValue 对任何合法值都可取得，实际读取再检查类型。isNull 对 null 返回 true，对其他合法值返回 false，不要求随后 readNull，也不改变后续读取；readNull 则要求值为 null。所有标量读取可重复，失败不污染后续读取。
+
+每次 unkeyed 请求建立从 0 开始的独立游标，同一个视图的引用共享游标。hasNext 只观察；element 成功取得当前子入口后恰好推进一位，耗尽时失败且不推进。子 codec 成败不再次推进父游标；重试同一元素使用保存的 child，重试整个序列重新取得视图。end 检查当前视图是否耗尽；失败不推进，之后仍可继续读取，成功可重复。keyed end 只承担本层必要检查，不关闭输入、不要求未知字段全部读取，成功可重复。复读不回滚 codec、default 或 constructor 已发生的副作用，也不自动选择或重试候选。
 
 path表示输入/输出数据位置，采用从空串根开始的JSON Pointer segment形式：字段名中的`~`、`/`分别转义为`~0`、`~1`，序列使用十进制索引。它是普通String，便于核心codec及合成分支构造带位置的错误，不包含运行期类型描述。核心库的EncodingException/DecodingException是Exception子类，构造参数为`path: String, message: String`，公开只读path；message沿既有Exception的`Option<String>`表示。
 
-`optional(name)`只在key不存在时返回None；格式中的显式null仍返回Some(Decoder)，之后按字段codec处理。`keys`是输入数据中的键列表，不是类型描述。keyed读取不要求输入字段顺序与请求顺序相同；未知key可跳过但仍需是合法格式，重复key必须失败。unkeyed的element在耗尽时失败，end拒绝剩余元素；tuple据此检查长度。
+`optional(name)` 只在 key 不存在时返回 None；显式 null 仍返回 Some(Decoder)，之后按字段 codec 处理。required/optional 每次定位同一字段值，缺失的 required 在字段 path 报错，不记录已读状态。`keys` 始终列出本层全部输入 key，与读取次数和顺序无关；返回只读视图或独立快照，不允许修改输入或后续查询。keyed 读取不要求输入字段顺序与请求顺序相同；未知 key 可跳过但仍须是合法格式，输入的重复 key 必须失败。tuple 仍通过固定次数的 element 和 end 检查精确长度。
 
 类型相关调用留在合成body及普通泛型helper中：`codec.encode(value, child)`与`codec.decode(child)`；codec分别是满足`Encodable<F>`或`Decodable<F>`的普通值，F是字段的完整静态类型。不要求interface方法级泛型、Any中间树、runtime SerialDescriptor或反射字段访问。JSON、二进制格式等由普通库实现这些interface；合成方法遵守同一容器协议。
 
@@ -2284,7 +2289,7 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 默认语义编码树形值：共享引用可展开为多份值，decode不保留原对象identity。循环图、跨对象引用及开放多态的discriminator由显式codec定义，不属于自动派生数据模型。
 
-普通 JSON 库提供 `Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`两个入口。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON实现负责语法、Unicode/转义、重复key、数值范围和完整输入消费；整数不经过Double转换，整数字段不接受带小数部分或指数部分的数字token。record已可覆盖对象形式，array覆盖序列，不增加Map协议。格式错误抛带数据路径的EncodingException/DecodingException；用户codec、default和constructor抛出的普通异常照常传播，不改写为default或空值。
+普通 JSON 库提供 `Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`两个入口。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
 
 Float/Double的companion分别以普通core body实现`Encodable<Float>`/`Decodable<Float>`与`Encodable<Double>`/`Decodable<Double>`，透明alias复用同一codec。single-value 使用上表的两种精度入口，不为所有格式统一禁止非有限值。JSON仅编码有限浮点数，使用11.2.2的十进制表示并保留负零；编码NaN或Infinity抛带path的EncodingException。解码接受合法JSON整数、小数或指数token，保留原始数字文本并直接按目标精度最近偶数舍入，Float不得经Double中转。舍入溢出到Infinity抛DecodingException，下溢到subnormal或带符号零合法；非数值token不进行字符串/布尔值强制转换。JSON语法不接收NaN/Infinity拼写。两个精度的有限值文本往返保持位型，整数解析仍须精确并满足对应范围规则。
 

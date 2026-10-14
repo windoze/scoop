@@ -9,9 +9,7 @@ public object Json {
 
     public fun <T> decode(text: String, codec: Decodable<T>): T {
         val decoder = JsonDecoder(JsonParser(text).parse(), "")
-        val result = codec.decode(decoder)
-        decoder.requireComplete()
-        return result
+        return codec.decode(decoder)
     }
 }
 
