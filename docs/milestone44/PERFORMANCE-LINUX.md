@@ -100,3 +100,46 @@ minor 的回退更稳定：
 但 minor 为 253→276 µs、compact 为 11.664→12.988 ms，同样拒绝合入。
 两种实验均未改变生产 runtime；原始不利结果完整保留。后续修复必须同时核对
 full／minor、零搬迁、分配和实际进度，不能只挑 minor 的有利样本。
+
+## 内联 forwarding 候选：GNU 已验证，尚未合入
+
+第三份隔离副本只将 `scoop_heap_forward_object` 的原函数体从 evacuation.c 移入
+GC 私有 heap_internal.h，声明为普通 `static inline`；没有强制内联或对齐属性。
+源位置解析、mark／pin／source 判断、自指／缺失 forwarding 及 collection 状态检查
+全部保留，ABI 和收集策略不变。当前生产文件尚未采用该改动。
+
+[候选原始记录](validation/performance-forward-gnu.json.gz)包含两处源码、构建来源、
+实际机器码和全部六组对照。[逐轮核对](validation/forward-audit-gnu.json.gz)确认各侧
+仍为七次进程、35 轮，15 个工作量字段相同；实际 O2／无 LTO 的槽访问和 claim 函数
+已消除对 forwarding helper 的外部调用，原有失败出口保留。
+
+| 场景 | 拆分前 → 候选 update 中位（ms） | 请求到 RUNNING 中位（ms） |
+| --- | --- | --- |
+| wide | 0 → 0 | 2.747 → 2.738 |
+| array | 0 → 0 | 3.251 → 3.227 |
+| chain | 0 → 0 | 5.496 → 5.517 |
+| compact full | 11.672 → 10.904 | 88.699 → 88.253 |
+| minor，1 marker | 0.251 → 0.251 | 1.163 → 1.172 |
+| minor，4 marker | 0.251 → 0.250 | 1.178 → 1.177 |
+
+full 的配对 update 差值中位为 −752 µs，35 对中 31 对未增加；minor 两组回到拆分前
+范围。但 full 请求 p95／最大由 93.133／97.253 变为 97.834／100.979 ms，
+单 marker minor 的最大 update 也由 0.297 变为 0.415 ms，不能宣称尾延迟改善。
+
+实际进度间隔中位按计算 1／4 线程、分配 1／4 线程依次为
+29.51→30.67、54.38→54.47、628.02→622.00、596.04→613.13 µs；
+四组进程吞吐范围均重叠。allocation／arrays／old-graph／primitive 进程耗时中位为
+14.065→12.033、19.167→18.847、18.992→17.950、16.460→17.952 ms，
+同样均在重叠范围内；例如 primitive 两侧为 13.967–18.857／15.353–18.245 ms。
+
+[Darwin 隔离验证](validation/forward-validation-darwin.json.gz)的 31 项 collector
+测试和三个正式 M44 fixture 通过，并已构建本机图／进度／四程序对照 binary。
+已有 Rust 测试驱动只通过临时 cc wrapper 将 runtime 源码和 include 路径转向副本，
+没有修改断言；逐命令记录与源码核对随报告保留。相同方式运行的
+[Linux codegen/runtime 全组](validation/forward-codegen-gnu.json.gz)387 项通过；
+[GNU／musl 正式 fixture](validation/isolated-fixtures-linux.json.gz)也各为三项、
+六个变体、24 个执行步骤通过。
+
+这些是候选验证，并非 GNU／musl 最终全部适用组合。本机完整 CLI 验收仍在读取生产
+runtime，故尚未改动生产文件或在本机并行计时；待其结束后完成 Darwin 同机对照，
+再决定合入并闭合最终覆盖。

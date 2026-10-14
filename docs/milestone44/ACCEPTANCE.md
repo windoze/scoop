@@ -46,6 +46,11 @@
 完整场景，未合入生产。该性能门尚未关闭，GNU／musl 的最终适用功能验收也仍缺失。
 不能由这些小样本推导所有程序的固定加速比或稳定尾延迟。
 
+内联 forwarding 的隔离候选已恢复 GNU minor 更新中位、完成六组同机对照，并通过
+Darwin 31 项 collector、Linux 387 项 codegen/runtime 及三 target 的三个 M44 fixture；
+见 [候选记录](PERFORMANCE-LINUX.md#内联-forwarding-候选gnu-已验证尚未合入)。候选尚未
+完成 Darwin 计时或合入生产，因此这些证据不能提前关闭生产版本的性能门和最终平台覆盖。
+
 ## 尚未闭合的完成条件
 
 1. 完成仍在运行的正式 CLI `--all`，按完整发现集合核对通过／不适用／失败，修复失败后保留准确的复验映射。工作区首轮的两项旧期望已修正，定向复验、遗漏目标与 doctest 均通过；[完整记录](validation/acceptance-rust-darwin.json.gz)保留首轮失败。

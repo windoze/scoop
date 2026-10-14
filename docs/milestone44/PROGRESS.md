@@ -151,3 +151,10 @@
 - 独立边界对照暴露 minor update 约 252→273 µs 的回退，重复及固定 P-core 后仍存在。八个更新热函数的指令字节相同，图与 native helper 也相同；代码布局改变，但没有把具体 CPU 原因当作已证实结论。
 - 隔离副本的 64-byte callback 对齐恢复 minor，却令 full update 11.672→12.858 ms；遍历前选 full/minor callback 的另一实验也未改善两类场景。两者均不合入生产，不利样本和机器码完整归档。三份完整矩阵共 18 组图对照的 15 个工作量字段逐对相同，归档后逐字节核对。
 - 当前生产 runtime 保持 `f300090b`。本机正式 CLI 全量仍在运行；Linux 性能修复和 GNU／musl 最终功能验收仍需完成，不以整体收益掩盖模块拆分的回退。
+
+## 2026-10-14：内联 forwarding 的隔离验证
+
+- 新候选仅将既有 forwarding 函数体移到 GC 私有头并使用普通 static inline，保留全部检查、原签名与唯一实现，不改变 metadata、ABI 或策略。GNU 实际机器码消除了槽访问／claim 到该 helper 的外部调用；minor update 恢复到约 251 µs，full 为 11.672→10.904 ms。零搬迁、4-marker minor、实际 mutator 进度与四程序对照均已完成，工作量逐轮相同；完整数据和尾部波动见 [Linux 性能记录](PERFORMANCE-LINUX.md)。
+- [Darwin](validation/forward-validation-darwin.json.gz) 31 项 collector 测试通过，[Linux](validation/forward-codegen-gnu.json.gz) 387 项 codegen/runtime 测试通过。现有测试驱动及断言不变，临时 cc wrapper 只重定向 runtime 源/include 路径；完整编译命令和源码摘要已核对归档。三个正式 M44 fixture 在 Darwin、GNU、musl 各通过六个变体、24 个执行步骤；后两者见[隔离 fixture 记录](validation/isolated-fixtures-linux.json.gz)。
+- Darwin 候选图／进度／四程序已构建，尚未计时；本机完整 CLI 仍使用未修改的生产 runtime。本批不合入候选、不把隔离验证当作最终平台覆盖，待全量进程结束后进行本机同条件对照。
+- 归档未采用的对齐实验在本机的[构建及三项 fixture 记录](validation/alignment-preparation-darwin.json.gz)，其 GNU／musl 结果也保留于隔离 fixture 记录。确认相关进程结束并核对归档后，清理本机约 104 MB、Linux 约 134 MB 的对齐／分流 binary 与已结束 cases，保留基线、当前候选及可复用缓存。
