@@ -80,12 +80,13 @@ static void enqueue_array(ScoopGcMarkWorker *worker, void *object, const uint64_
         if (length > GC_MARK_ARRAY_RANGE) {
             length = GC_MARK_ARRAY_RANGE;
         }
-        scoop_gc_mark_queue_push(
-            worker, (ScoopGcMarkTask){
-                        .array = true,
-                        .data.range = {object, scan, array.elements + first * array.stride,
-                                       array.elements + (first + length) * array.stride},
-                    });
+        uint64_t stride = scoop_gc_array_stride(scan);
+        scoop_gc_mark_queue_push(worker,
+                                 (ScoopGcMarkTask){
+                                     .array = true,
+                                     .data.range = {object, scan, array.elements + first * stride,
+                                                    array.elements + (first + length) * stride},
+                                 });
         first += length;
     }
 }
@@ -118,7 +119,7 @@ static void mark_target(ScoopGcMarkWorker *worker, void *object) {
     worker->marked++;
     worker->traced++;
     const uint64_t *scan = scoop_gc_object_scan(object);
-    bool array = scoop_gc_scan_is_array(scan);
+    bool array = scan != NULL && scoop_gc_scan_is_array(scan);
     append_live(worker, object, scan != NULL && !array);
     if (array) {
         enqueue_array(worker, object, scan);

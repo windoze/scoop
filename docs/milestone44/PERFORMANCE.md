@@ -114,3 +114,51 @@ primitive 15.720–22.405、15.515–19.199 ms。小程序含进程启动，单�
 因此这些程序没有因边界整理增加热路调用、TLS 查询或机器指令。LLVM 条件 poll、
 屏障及原子内存序的精确约束由本批 codegen 测试覆盖；正式 CLI 另验证构造／copy／
 clone／原子引用与 GC 的组合。本节限 Darwin／AArch64，不替代后续 Linux 结果。
+
+## 完整 runtime 边界整理
+
+本节对照已包含 P0 优化的固定基线与完成根、扫描、mutator 和普通 runtime 操作边界的
+版本，不把早先 relocation 优化的收益算入模块整理。宿主、4 worker、release profile
+及各程序输入保持一致；先完成构建／回归，再各预热一次并交替运行七次进程。
+四个小程序使用此前 codegen 整理后的固定 binary 作基线；图使用 compact-final-darwin
+的固定 binary。全部源码版本／差异、工具摘要、命令、binary 摘要和原始结果随报告保存。
+
+初轮引用数组暴露回退：mark 中位 1.422→1.646 ms，请求到 RUNNING 2.341→2.566 ms，
+见[首轮零搬迁报告](validation/boundary-zero-initial-darwin.json.gz)。这组差异在进程间
+持续存在，因此没有按噪声忽略。[实际 runtime object 反汇编](validation/boundary-marker-machine.json.gz)
+显示封装改变了 marker 的内联与指令布局。仅把 null 判断移回调用方的
+[中间对照](validation/boundary-guard-zero-darwin.json.gz)仍未消除回退；最终让数组视图
+只保存 count／elements，并在原有分段任务发布位置读取 stride，恢复原来的热路径结构。
+没有改变扫描内容、1024 元素分段、GC 参数或增加编译器专用的强制内联属性。
+[专项复验](validation/boundary-array-check-darwin.json.gz)后，再对最终版本执行完整的下列对照。
+
+| 程序 | 基线进程中位／p95／最大（ms） | 最终边界版进程中位／p95／最大（ms） |
+| --- | --- | --- |
+| allocation | 9.644／12.632／12.632 | 9.540／12.032／12.032 |
+| arrays | 14.919／17.440／17.440 | 15.336／17.549／17.549 |
+| old-graph | 14.168／17.564／17.564 | 14.146／15.621／15.621 |
+| primitive | 15.580／19.254／19.254 | 15.698／17.619／17.619 |
+
+[四程序原始记录](validation/boundary-programs-darwin.json.gz)包含 CPU、吞吐、GC 次数、
+映射量和 RSS；最小值分别为基线 9.078／14.601／13.832／15.442 ms、最终版
+8.995／14.647／13.798／15.520 ms。各组范围相交，这些含启动成本的短进程不支持
+边界整理带来加速的结论，也不能把小幅中位差异解释为单次分配或屏障成本。
+
+| 图 | 基线请求到 RUNNING 中位／p95／最大（ms） | 最终版中位／p95／最大（ms） | 基线／最终版 update 中位（ms） |
+| --- | --- | --- | --- |
+| wide | 1.916／1.971／1.985 | 1.931／2.015／2.063 | 0／0 |
+| array | 2.321／2.394／2.402 | 2.332／2.506／2.531 | 0／0 |
+| chain | 4.105／4.191／4.205 | 4.136／4.297／4.298 | 0／0 |
+| compact | 54.432／59.506／59.861 | 54.378／58.781／59.220 | 11.457／11.381 |
+
+[最终零搬迁记录](validation/boundary-zero-darwin.json.gz)的每图每侧 35 轮均为
+moved_objects=0、update_ns=0。array 的 mark 中位恢复为 1.401／1.408 ms，最小值
+1.360／1.353 ms；请求到 RUNNING 范围为 2.240–2.402／2.257–2.531 ms，没有首轮
+持续分离的分布。[最终普通搬迁记录](validation/boundary-compact-darwin.json.gz)每侧
+35 轮均实际搬迁，每对轮次的 moved／live／traced／source／target 计数相同，仍为
+6 个 source、1 个 target、225002 个 live 对象；update 中位及整体区间未见明显回退。
+阶段 p95 来自 35 次收集，进程 p95 来自七次运行；均为小样本描述，不证明稳定尾延迟。
+
+这些观测仍只覆盖 T0／T1／T2 与进程吞吐，没有测到各 mutator 实际恢复推进的时间。
+minor 年轻图／old→young／pin、多线程分配和实际恢复、Linux 对照及最终正式全量验收
+尚待完成，本节不能单独作为 M44 完成依据。

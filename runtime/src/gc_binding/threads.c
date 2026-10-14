@@ -1,6 +1,6 @@
 /* Adapt the existing world/registry lifetime without a second thread directory. */
-#include "../gc_binding.h"
 #include "../thread/internal.h"
+#include "../gc_binding.h"
 
 bool scoop_gc_stop_world(void) { return scoop_thread_begin_collection(); }
 void scoop_gc_resume_world(void) { scoop_thread_end_collection(); }

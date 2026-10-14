@@ -11,7 +11,7 @@
 | M44-3 引用定位、写回和无引用对象 | 实现、本机定向验收及普通搬迁／零搬迁对照完成；minor 性能与 Linux 组合继续补齐 |
 | M44-4 编译器 GC 代码生成边界 | 实现与本机定向验收完成；四类程序的独立编译产物和机器码一致，Linux 组合待最终验收 |
 | M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan、mutator、对象信息与普通 runtime 堆操作边界已实现并通过本机定向验收；完整边界性能及 Linux 组合待验收 |
-| M44-6 组合、平台与性能验收 | 待实施 |
+| M44-6 组合、平台与性能验收 | 本机完整边界的四程序、零搬迁与普通 full 搬迁对照完成；minor、多线程实际恢复、Linux 与最终全量继续推进 |
 
 ## 工作约定
 
@@ -102,3 +102,11 @@
 - [本机 O2／无 LTO 反汇编对照](validation/operations-machine.json.gz)以本批之前的 `6bd5d6ec` 为基线，allocation、evacuation_plan 与 block_sweep 的指令及 relocation 完全相同，确认对象适配没有新增逐分配／逐对象调用。boxing 与 array clone 的实际 memcpy／范围屏障仍在调用方内联展开；clone 源检查新增一次边界调用，不对数组元素逐个调用。该结果只证明这些路径的结构，不代替完整 runtime 边界计时。
 - 固定 [release 工具](validation/operations-tools.log.gz)后，七项正式 CLI fixture、15 个变体、79 个步骤全部通过，见[报告](validation/operations-darwin.json.gz)与[日志](validation/operations-darwin.log.gz)。范围与 mutator 批次相同，验证最终组合的真实 runtime 构建、生成代码、native roots、并行线程、对象复制和 moving／minor stress。
 - 本批和上一批各约 114 MB 的 fixture cases 在证据归档核对后清理；保留固定工具、缓存、基线及机器码证据。M44-5 的实现边界已接通，完整边界的分配／写入／收集性能、实际 mutator 恢复观测和 Linux／最终全量验收仍未完成。
+
+## 2026-10-14：完整 runtime 边界对照与数组 mark 回退修正
+
+- 对完整 runtime 边界重建四个既有程序及带边界观测的图程序。观测版 runtime 首次构建暴露 binding 的测试宏在定义函数前尚未启用，见[原始诊断](validation/boundary-build-initial.json.gz)；调整 threads.c 的 include 顺序，使适配层先读取既有测试配置。生产快路径不受影响，带全局测试宏的 nursery retry [专项复验](validation/boundary-retry.log.gz)也通过。
+- 首轮同机交替对照发现引用数组 mark 的稳定回退，不能用其他图正常来忽略：mark 中位 1.422→1.646 ms，请求到 RUNNING 2.341→2.566 ms，见[首轮零搬迁记录](validation/boundary-zero-initial-darwin.json.gz)；[普通搬迁记录](validation/boundary-compact-initial-darwin.json.gz)没有同样回退。检查实际 runtime cache 中的 object，确认视图封装改变 marker 的内联和指令布局，见[机器码证据](validation/boundary-marker-machine.json.gz)。
+- 最终把 null scan 分支保留在 GC 调用方；适配层只解释非空描述，数组视图保存 count／elements，stride 在原有分段任务发布处读取。保持扫描语义、分段大小和任务数，不用强制 noinline／always_inline 或新的队列策略调参。仅恢复 null 分支的[中间复验](validation/boundary-guard-zero-darwin.json.gz)仍有回退，随后恢复分段读取位置的[数组专项](validation/boundary-array-check-darwin.json.gz)才恢复到基线范围。
+- 最终 C／Rust 格式化与 [workspace clippy](validation/boundary-clippy.log.gz)通过，[31 项 collector 回归](validation/boundary-runtime.log.gz)全部通过；三个 M44 正式 CLI fixture、六个变体、24 个步骤全部通过，见[报告](validation/boundary-darwin.json.gz)和[日志](validation/boundary-darwin.log.gz)。
+- 最终四程序与三类零搬迁／普通搬迁图各执行预热及七次交替进程；同一输入的 moved／live／traced／source／target 计数逐轮相同。数组请求到 RUNNING 中位 2.321→2.332 ms，普通搬迁 update 11.457→11.381 ms；其余结果与适用限制见[性能记录](PERFORMANCE.md)。本批不宣称边界拆分带来加速，也不替代 minor、实际 mutator 恢复及平台验收。
