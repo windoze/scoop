@@ -1,0 +1,36 @@
+struct Native(val sources: Array<Selection> = [], val include: Array<String> = [],
+    @Serialize(rename = "c_flags") val cFlags: Array<String> = [],
+    @Serialize(rename = "cxx_flags") val cxxFlags: Array<String> = [],
+    val cxx: Boolean = false, val libraries: Array<Library> = []) {
+    companion object : Encodable<Native>, Decodable<Native> {
+        public override fun decode(decoder: Decoder): Native {
+            val fields = strict(decoder, ["sources", "include", "c_flags", "cxx_flags", "cxx", "libraries"])
+            val value = NativeFields.decode(decoder)
+            if (value.include.size != 0L) {
+                val sequence = fields.required("include").unkeyed()
+                for (path in value.include) { requireValid(relativePath(path), sequence.element(), "invalid include path") }
+            }
+            if (value.cFlags.size != 0L) { checkFlags(value.cFlags, fields.required("c_flags")) }
+            if (value.cxxFlags.size != 0L) { checkFlags(value.cxxFlags, fields.required("cxx_flags")) }
+            fields.end()
+            return value
+        }
+    }
+}
+object NativeFields : Decodable<Native> {}
+
+struct Library(val name: String, val kind: String = "default", @Serialize(rename = "when") val predicate: Predicate? = None) {
+    companion object : Encodable<Library>, Decodable<Library> {
+        public override fun decode(decoder: Decoder): Library {
+            val fields = strict(decoder, ["name", "kind", "when"])
+            val value = LibraryFields.decode(decoder)
+            requireValid(libraryName(value.name), fields.required("name"), "invalid library name")
+            if (!member(["default", "dynamic", "static", "framework"], value.kind)) {
+                throw DecodingException(fields.required("kind").path, "invalid library kind")
+            }
+            fields.end()
+            return value
+        }
+    }
+}
+object LibraryFields : Decodable<Library> {}

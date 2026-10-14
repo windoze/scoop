@@ -1,0 +1,13 @@
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("JsonValue assertion failed")) }
+}
+fun rejectDecode(path: String, body: () -> Unit) {
+    try { body() }
+    catch (error: DecodingException) { check(error.path == path); return }
+    throw IllegalStateException(Some("expected a decoding failure"))
+}
+fun rejectEncode(path: String, body: () -> Unit) {
+    try { body() }
+    catch (error: EncodingException) { check(error.path == path); return }
+    throw IllegalStateException(Some("expected an encoding failure"))
+}

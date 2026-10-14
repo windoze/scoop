@@ -41,37 +41,37 @@ internal class JsonParser(text: String) {
         }
     }
 
-    internal fun parse(): JsonValue {
+    internal fun parse(): JsonNode {
         val result = value("")
         whitespace()
         if (current != None) { throw error("", "unexpected input after the root value") }
         return result
     }
 
-    private fun keyword(word: String, result: JsonValue, path: String): JsonValue {
+    private fun keyword(word: String, result: JsonNode, path: String): JsonNode {
         for (character in word) { expect(character, path) }
         return result
     }
 
-    private fun value(path: String): JsonValue {
+    private fun value(path: String): JsonNode {
         whitespace()
         if (current == None) { throw error(path, "expected a JSON value") }
         return when (current!!) {
-            case 'n' -> keyword("null", JsonValue.Null, path)
-            case 't' -> keyword("true", JsonValue.BooleanValue(true), path)
-            case 'f' -> keyword("false", JsonValue.BooleanValue(false), path)
-            case '"' -> JsonValue.Text(readJsonString(this, path))
+            case 'n' -> keyword("null", JsonNode.Null, path)
+            case 't' -> keyword("true", JsonNode.BooleanValue(true), path)
+            case 'f' -> keyword("false", JsonNode.BooleanValue(false), path)
+            case '"' -> JsonNode.Text(readJsonString(this, path))
             case '{' -> record(path)
             case '[' -> sequence(path)
-            else -> JsonValue.Number(readJsonNumber(this, path))
+            else -> JsonNode.Number(readJsonNumber(this, path))
         }
     }
 
-    private fun record(path: String): JsonValue {
+    private fun record(path: String): JsonNode {
         expect('{', path)
         val members = ArrayList<JsonMember>()
         whitespace()
-        if (accept('}')) { return JsonValue.Record(members) }
+        if (accept('}')) { return JsonNode.Record(members) }
         var finished: Boolean = false
         while (!finished) {
             whitespace()
@@ -87,14 +87,14 @@ internal class JsonParser(text: String) {
             finished = accept('}')
             if (!finished) { expect(',', path) }
         }
-        return JsonValue.Record(members)
+        return JsonNode.Record(members)
     }
 
-    private fun sequence(path: String): JsonValue {
+    private fun sequence(path: String): JsonNode {
         expect('[', path)
-        val elements = ArrayList<JsonValue>()
+        val elements = ArrayList<JsonNode>()
         whitespace()
-        if (accept(']')) { return JsonValue.Sequence(elements) }
+        if (accept(']')) { return JsonNode.Sequence(elements) }
         var finished: Boolean = false
         while (!finished) {
             elements.add(value(childPath(path, elements.size.toString())))
@@ -102,6 +102,6 @@ internal class JsonParser(text: String) {
             finished = accept(']')
             if (!finished) { expect(',', path) }
         }
-        return JsonValue.Sequence(elements)
+        return JsonNode.Sequence(elements)
     }
 }

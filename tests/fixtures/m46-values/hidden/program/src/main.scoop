@@ -1,0 +1,5 @@
+import scoop.json.*
+fun main() {
+    val value = Json.decode("null", JsonValue.Companion)
+    val hidden = value.node
+}

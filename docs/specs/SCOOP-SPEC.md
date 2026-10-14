@@ -2164,8 +2164,13 @@ public interface Decodable<T> {
     public fun decode(decoder: Decoder): T
 }
 
-public annotation class SerialName(val name: String)
-public annotation class Transient
+@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.ENUM_VARIANT])
+public annotation class Serialize(
+    val rename: String = "",
+    val required: Boolean = false,
+    val emitNull: Boolean = false,
+    val ignore: Boolean = false
+)
 ```
 
 两者都是由companion或普通codec对象实现的普通实例interface，this始终是codec。请求默认实现的声明分别列出对应完整interface application；encode的数据参数和decode的结果由T确定。目标数据类型不会因codec存在获得接口，编译器不自动添加companion或向另一声明转移conformance。两个方向独立，也可由同一codec同时实现；不新增内建Codable标记，普通组合interface沿原规则使用。
@@ -2175,7 +2180,7 @@ public annotation class Transient
 - 先按普通override/default规则选择合法的用户实现或继承实现；缺少实现时，才为当前实现类型上的核心requirement合成普通方法。两个方向独立决定，手写一个不影响另一个。错误的显式override仍然报错；无关的合法overload不占用requirement。
 - 编译器只识别实际core协议声明的typed identity；用户同名interface或annotation没有特殊行为。用户subinterface可继承完整的`Encodable<T>`或`Decodable<T>`并增加其他requirement；编译器只补齐encode/decode，其他缺失方法仍是正常错误。
 - 两个方向的被描述类型都是interface application中的T，不是codec的receiver类型。struct按源码字段处理，enum按variant/payload处理，tuple按元素处理。按11.13.4在定义处为每个参与字段分别确定`Encodable<F>`或`Decodable<F>`值，encode读取value的字段，不读取codec自身的依赖字段作为数据。缺失能力、歧义或不可构造形状报错，不生成运行期失败stub。
-- 数据class的自动处理范围仍是普通final class且没有显式class基类。encode读取value所属目标owner的存储property；带自定义accessor或委托的property须显式处理。decode还要求目标有唯一primary constructor，所有参与状态来自其val/var参数；未参与的构造参数须有default，其他存储状态须明确Transient并能按既有规则初始化。字段读取和constructor调用都必须处于codec的正常访问域；合成不创建超出9.1.5的额外权限。
+- 数据class的自动处理范围仍是普通final class且没有显式class基类。encode读取value所属目标owner的存储property；带自定义accessor或委托的property须显式处理。decode还要求目标有唯一primary constructor，所有参与状态来自其val/var参数；未参与的普通构造参数须有 default；ignore 的存储参数可由 default 或声明处 Option 的 None 补值，其他存储状态须明确 Serialize(ignore = true) 并能按既有规则初始化。字段读取和constructor调用都必须处于codec的正常访问域；合成不创建超出9.1.5的额外权限。
 - computed/abstract property不作为存储字段参与派生。无参与字段的普通struct/class编码为record，不能把intrinsic类型当成空record。开放/抽象class、带class基类、singleton或其他不满足上述映射的目标使用手写codec；object可以实现任一方向，但自动构造不会尝试创建新的singleton。将编码移入codec不扩大class自动派生范围。
 - 泛型目标如`Box<E>`可包含普通参数E，两个方向分别由显式`Encodable<E>`、`Decodable<E>`依赖提供字段能力，不要求E自身实现接口。companion可使用宿主参数并按9.1.3具体化，但不能等E具体化后再发现其codec。裸T没有可展开目标形状，不能仅凭声明`Encodable<T>`或`Decodable<T>`自动得到body。
 - 合法递归类型先建立合成方法签名，再生成body；值布局和单态化终止性继续遵守3.2。已有接口实现选择在定义处完成，具体化不重新选重载、default或字段codec依赖。
@@ -2244,6 +2249,7 @@ public interface SingleValueEncodingContainer {
 }
 
 public interface SingleValueDecodingContainer {
+    public fun isNull(): Boolean
     public fun readBoolean(): Boolean
     public fun readLong(): Long
     public fun readULong(): ULong
@@ -2254,11 +2260,17 @@ public interface SingleValueDecodingContainer {
 }
 ```
 
-一个Encoder/Decoder代表一个值；为该值选择一种container。每个field/element返回处理其值的子入口，按调用顺序完成子值，再继续下一个；单值container恰好读/写一个标量。容器end检查该层的完整性，根入口检查完整文档消费。数组下标及数量沿现有库使用Long。
+一个 Encoder 代表一个输出值，首次取得 keyed/unkeyed/single-value container 决定类别。之后可重复取得同类视图，跨类别请求抛 EncodingException。同类视图共享字段集合、追加位置、pending 子值及重复 key 检查；single-value 共享恰好一次标量写入机会，不因重复取得视图而允许写两次。数组下标及数量沿现有库使用 Long。
+
+编码区分当前值完成与提交：keyed/unkeyed 的 end 检查并接收最后一个 pending 子值，使当前已写内容完整，但不永久关闭该值；提交前可重复 end，也可继续追加，追加后必须再次 end。父容器开始下一个 field/element 或 end 接收最后一个子值时检查并提交该子值；根入口在 codec 返回后检查并提交根值。未选择容器、未写标量、空容器未 end、pending 子值未完成，或 end 后追加却没有再次 end 均不能提交。所有视图必须观察同一 pending 子值，不能跳过或丢弃；重复 key 始终报错，不采用覆盖。提交后的值不得再写入或扩充，保存的子 writer 也受此约束，已经提交且不变的子树无需在根出口重复校验。编码失败不保证回滚；需要重试时丢弃根 encoder 后重新开始。
+
+一个 Decoder 代表稳定的输入值及其 path。取得视图、成功读取、形状或数值错误、缺失字段和候选 codec 失败都不消耗或改变该值；保存的子入口仍可复读。keyed/unkeyed 在形状匹配时取得视图，不匹配时抛错且不阻止后续请求；singleValue 对任何合法值都可取得，实际读取再检查类型。isNull 对 null 返回 true，对其他合法值返回 false，不要求随后 readNull，也不改变后续读取；readNull 则要求值为 null。所有标量读取可重复，失败不污染后续读取。
+
+每次 unkeyed 请求建立从 0 开始的独立游标，同一个视图的引用共享游标。hasNext 只观察；element 成功取得当前子入口后恰好推进一位，耗尽时失败且不推进。子 codec 成败不再次推进父游标；重试同一元素使用保存的 child，重试整个序列重新取得视图。end 检查当前视图是否耗尽；失败不推进，之后仍可继续读取，成功可重复。keyed end 只承担本层必要检查，不关闭输入、不要求未知字段全部读取，成功可重复。复读不回滚 codec、default 或 constructor 已发生的副作用，也不自动选择或重试候选。
 
 path表示输入/输出数据位置，采用从空串根开始的JSON Pointer segment形式：字段名中的`~`、`/`分别转义为`~0`、`~1`，序列使用十进制索引。它是普通String，便于核心codec及合成分支构造带位置的错误，不包含运行期类型描述。核心库的EncodingException/DecodingException是Exception子类，构造参数为`path: String, message: String`，公开只读path；message沿既有Exception的`Option<String>`表示。
 
-`optional(name)`只在key不存在时返回None；格式中的显式null仍返回Some(Decoder)，之后按字段codec处理。`keys`是输入数据中的键列表，不是类型描述。keyed读取不要求输入字段顺序与请求顺序相同；未知key可跳过但仍需是合法格式，重复key必须失败。unkeyed的element在耗尽时失败，end拒绝剩余元素；tuple据此检查长度。
+`optional(name)` 只在 key 不存在时返回 None；显式 null 仍返回 Some(Decoder)，之后按字段 codec 处理。required/optional 每次定位同一字段值，缺失的 required 在字段 path 报错，不记录已读状态。`keys` 始终列出本层全部输入 key，与读取次数和顺序无关；返回只读视图或独立快照，不允许修改输入或后续查询。keyed 读取不要求输入字段顺序与请求顺序相同；未知 key 可跳过但仍须是合法格式，输入的重复 key 必须失败。tuple 仍通过固定次数的 element 和 end 检查精确长度。
 
 类型相关调用留在合成body及普通泛型helper中：`codec.encode(value, child)`与`codec.decode(child)`；codec分别是满足`Encodable<F>`或`Decodable<F>`的普通值，F是字段的完整静态类型。不要求interface方法级泛型、Any中间树、runtime SerialDescriptor或反射字段访问。JSON、二进制格式等由普通库实现这些interface；合成方法遵守同一容器协议。
 
@@ -2270,21 +2282,36 @@ path表示输入/输出数据位置，采用从空串根开始的JSON Pointer se
 | Float / Double | 分别经writeFloat/readFloat或writeDouble/readDouble，不经整数或另一浮点精度中转 |
 | Char | 恰好一个Unicode scalar的String |
 | Unit | 单值null；不借用Scoop的Option表示 |
+| Option | None 为 null，Some(v) 使用元素 codec；只由父 keyed record 决定省略字段 |
 | struct / 合格class | 按声明序写入字段的keyed record |
 | tuple / Array / MutableArray / ArrayList | 按位置或索引写入的unkeyed sequence |
-| enum（包括Option） | 恰好一个key的外层record；key为variant名；命名payload为record、位置payload为sequence、unit variant的payload为record且编码时为空 |
+| enum（不含默认 Option codec） | 恰好一个key的外层record；key为variant名；命名payload为record、位置payload为sequence、unit variant的payload为record且编码时为空 |
 
-`SerialName`只更改record字段或enum variant的wire名称，不更改源码名称、类型identity或字段类型。它不能用于位置payload/tuple、type本身或computed property。`Transient`排除存储字段/property，不适用于type、variant或位置元素；合成decode时该字段必须能从已声明default或正常class初始化取得值。两者不能同时标在同一target。参与同一record的key、同一enum的variant wire名须唯一；检查仅使用该方向实际派生的成员。
+`Serialize` 是 9.4 的普通不可重复注解，只按实际 core 声明身份解释。参数使用补齐默认值后的静态值，不记录参数是否显式写出。rename 非空时指定字段或 enum variant 的 wire 名，空串保持源码名；required 为 true 时要求输入含 key，编码始终写出；emitNull 为 true 时将 None 也交给完整字段 codec；ignore 在两个方向排除字段且不要求其 codec。没有注解与 Serialize() 相同，required = false 不使普通无 default 字段变成可选。该注解不自动添加 companion／conformance，不包装手写 codec。
 
-编码总是写出参与字段，包括等于default的值；不为了省略字段而求值default或调用equals。解码按构造参数顺序读取并类型化已提供字段，字段没有default时必须存在，包括Option字段；有default时仅记录缺失。完成container检查后，按参数声明序对缺失项执行已在定义处绑定的default，允许引用前面的参数，并且每次构造至多执行一次。输入显式null、错误类型或越界值不能触发default。Transient参数也按该顺序取default，最后调用选定的正常primary/variant constructor。命名字段的输入顺序不改变这些规则。
+rename 适用于 record 存储字段／property、enum variant；其余三项仅适用于存储字段／property。enum 命名 payload 按 record 字段处理。type、computed property、tuple 和位置 payload 不接受 Serialize；variant 的 required／emitNull／ignore 必须为 false。ignore 为 true 时 rename 必须为空，required／emitNull 必须为 false。emitNull 只接受原声明绑定、透明 alias 展开后外层为实际 core Option 的字段；required 可与 emitNull 同用。重复应用遵守普通 annotation identity 与 use-site 规则。参与同一 record 的 key、同一 enum 的 variant wire 名须唯一，即使某个 Option 运行时可能省略；ignore 字段不参与。重命名不改变源码名称、类型身份或字段类型，空 key 使用手写 keyed codec。
 
-外层“字段是否存在”的Option与字段本身的Option值是两层独立值。缺省Option编码按普通enum保留None/Some区分；不自动展平为nullable单值。例如JSON中None为`{"None":{}}`，Some(None)为`{"Some":[{"None":{}}]}`。更紧凑的nullable协议由显式codec定义。
+合成解码先排除 ignore，再按 required、原声明类型和 default 决定字段存在性。required 为 true 始终调用 required(name)；其他字段有 default 或原声明外层为核心 Option 时调用 optional(name)，否则必须存在。存在的 child 始终交给按 11.13.4 选定的完整字段 codec；缺失时显式 default 优先，没有 default 的声明处 Option 补 None。ignore 的构造参数也必须有 default 或上述 None 补值，其他 class 状态按正常初始化；无补值方式的非 Option 参数仅在请求 decode 合成时报错。源码调用省略构造实参仍需声明 default，不因本规则改变。
+
+解码先按构造参数顺序读取全部已提供字段，再完成 container 检查，随后按参数顺序为缺失项执行定义处已绑定的 default，最后调用正常构造器。default 可引用前面参数，每次构造至多执行一次；直接补 None 不执行用户代码。显式 null 不触发 default，是否接受由字段 codec 决定；required 只要求 key 存在。缺失字段、ignore 字段及未选 variant 不求值字段 codec。
+
+编码按字段声明序，每个参与字段只读取一次，先决定是否省略，再创建 child、求值已选 codec 并调用。ignore 不读取、不创建 child、不求值 codec。None 仅在原声明外层是实际核心 Option、required／emitNull 均为 false，且没有 default 或 default 是直接绑定到核心 None variant 的表达式时省略。括号、限定名和透明 alias 不改变该直接表达式；变量读取、函数调用及其他表达式不推断等价性。其他字段总是写出，不执行 default、比较任意值或调用 equals。因此 default 为 Some("guest") 或函数调用的 Option 字段，其 None 仍须交给 codec，避免省略后解码恢复为不同值。显式注入的完整 Option codec 继续优先；emitNull 的含义是保留字段并交给该 codec，实际 wire 值由其决定。
+
+字段存在性由原成员绑定后的类型确定，在泛型具体化前保留：Box<T>(val value: T) 的无 default 字段始终必填，即使后来 T 为 Option；val value: T? 则在声明处已经是 Option，按上述可缺省规则处理。透明 alias 使用同一已展开类型事实，不能按短名、问号拼写或具体化后类型重新选择规则。针对具体化目标直接请求合成也遵守原成员事实。
+
+普通 Option.encoder／decoder 使用 nullable 值：None ↔ null，Some(v) ↔ 元素 codec 的值。decoder 用 singleValue().isNull() 查询；非 null 将同一稳定 decoder 交给元素 codec，不捕获任意错误来判断 null。规则适用于根、字段、序列、tuple 与 map 值；数组中的 None 占据一个 null 元素，只有父 record 可省略字段。None、Some(None) 或元素本身输出 null 的 Some(v) 可能合并为同一个 null，这是默认表示的有意取舍；需要区分时显式选择 codec，不自动回退旧带 tag 格式。Option 的语言身份、内存表示和模式匹配不变，普通 enum 仍使用外层单 key。
+
+optional／isNull 仍可区分缺失、null 和有值。普通两态 Option 不保存原输入 key 是否出现；需要完整三态时，应用可定义普通 enum，由父 record codec／字段 helper 分别省略字段、写 null 或调用元素 codec。不存在新的 core 字段协议、隐藏 presence 位或 JSON 特判。
 
 enum解码检查外层恰好一个key，未知variant失败；构造选中的variant，不使用内存tag、niche或ordinal作为wire tag。class解码先取得全部构造实参，再执行普通分配及完整初始化，不分配后逐字段反射填充、不调用setter修补半成品。失败沿普通异常/GC规则清理，不返回部分对象。
 
 默认语义编码树形值：共享引用可展开为多份值，decode不保留原对象identity。循环图、跨对象引用及开放多态的discriminator由显式codec定义，不属于自动派生数据模型。
 
-普通 JSON 库提供 `Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`两个入口。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON实现负责语法、Unicode/转义、重复key、数值范围和完整输入消费；整数不经过Double转换，整数字段不接受带小数部分或指数部分的数字token。record已可覆盖对象形式，array覆盖序列，不增加Map协议。格式错误抛带数据路径的EncodingException/DecodingException；用户codec、default和constructor抛出的普通异常照常传播，不改写为default或空值。
+普通 JSON 库提供 `Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`两个入口。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
+
+`scoop.json.JsonValue` 是公共不可变 class，只表示已合法解析或完整编码的 JSON 值。其构造器及内部节点不可由 Cone 外直接访问；不公开可变数组、未经检查的原始文本或节点修改入口。companion 以普通手写方法实现 Encodable<JsonValue>／Decodable<JsonValue>。Json 另提供普通泛型 encodeValue(value, codec): JsonValue 和 decodeValue(value, codec): T；前者遵守同一根提交规则，后者以空串路径建立新的根视图，均不经文本中转。
+
+JsonValue 可从任意 JSON child 捕获，保存后仍可从原 child 重复 typed 解码；保存值不持有 decoder 游标。捕获和复读共享不可变节点，精确保留 JSON 类型、对象字段及保存顺序、数组顺序、字符串内容和合法数字 token，包括超出 ULong／Double 范围的数字；不承诺原始空白或字符串转义拼写。按受限数值 codec 读取仍遵守原有范围／精度规则。编码按节点形状使用共享 keyed／unkeyed／single-value 容器，Number 使用 JSON Cone 内部的精确 token 写入，仍服从重复字段、完成和提交检查。该 companion 仅接受 JSON Cone 自身的 encoder／decoder，其他格式入口抛带当前 path 的 EncodingException／DecodingException。原始 token 和树能力不进入 core 协议、IR 或 runtime ABI；已验证且不可变的节点不在出口重新完整解析或校验。
 
 Float/Double的companion分别以普通core body实现`Encodable<Float>`/`Decodable<Float>`与`Encodable<Double>`/`Decodable<Double>`，透明alias复用同一codec。single-value 使用上表的两种精度入口，不为所有格式统一禁止非有限值。JSON仅编码有限浮点数，使用11.2.2的十进制表示并保留负零；编码NaN或Infinity抛带path的EncodingException。解码接受合法JSON整数、小数或指数token，保留原始数字文本并直接按目标精度最近偶数舍入，Float不得经Double中转。舍入溢出到Infinity抛DecodingException，下溢到subnormal或带符号零合法；非数值token不进行字符串/布尔值强制转换。JSON语法不接收NaN/Infinity拼写。两个精度的有限值文本往返保持位型，整数解析仍须精确并满足对应范围规则。
 
@@ -2316,7 +2343,7 @@ public class BoxDecoder<E>(private val element: Decodable<E>) : Decodable<Box<E>
 
 两个helper缺少的方法分别合成：BoxEncoder从数据实参读取value字段并调用this.element.encode；BoxDecoder调用this.element.decode后正常构造`Box<E>`。入口可写`Json.encode(box, Box<Long>.Companion.encoder(Long.Companion))`或`Json.decode(text, Box<Long>.Companion.decoder(Long.Companion))`，也可使用普通companion转发。方法中的T来自宿主，helper的E由构造实参推断；encoder/decoder方法没有另行声明的类型参数。元素codec属于本次返回的对象，不写入companion字段；同一个数据类型可使用多个编码或解码策略，数据本身无需编码bound，其他用户声明的泛型约束保持原义。
 
-Option/Array/MutableArray/ArrayList的encoder方法接收`Encodable<T>`并返回相应容器的编码器，decoder方法接收`Decodable<T>`并返回解码器。两个方向都由普通持有依赖的对象实现，数组只处理逻辑元素，Option保留enum形状。tuple没有companion，可由普通object/class/struct显式实现完整的tuple codec接口请求合成；自动组合tuple字段时，普通闭包分别由核心EncodeFunction或DecodeFunction适配，不增加tuple metatype或按arity命名的源码类型。
+Option/Array/MutableArray/ArrayList的encoder方法接收`Encodable<T>`并返回相应容器的编码器，decoder方法接收`Decodable<T>`并返回解码器。两个方向都由普通持有依赖的对象实现，数组只处理逻辑元素，Option 使用 11.13.3 的 nullable 表示。tuple没有companion，可由普通object/class/struct显式实现完整的tuple codec接口请求合成；自动组合tuple字段时，普通闭包分别由核心EncodeFunction或DecodeFunction适配，不增加tuple metatype或按arity命名的源码类型。
 
 ```scoop
 public class EncodeFunction<T>(private val body: (T, Encoder) -> Unit) : Encodable<T> {
@@ -2328,7 +2355,7 @@ public class DecodeFunction<T>(private val body: (Decoder) -> T) : Decodable<T> 
 }
 ```
 
-这些codec、闭包及依赖都是普通typed值，按现有调用、分派、初始化和GC规则执行。encode按声明/元素顺序读取数据、取得child，再求值已选codec并调用；每个数据读取与child取得只执行一次。decode先取得实际存在的字段child，再求值codec；缺失的可选字段、Transient字段及未选中的variant不求值字段codec。组合在相应方法执行时进行，不提前成新的singleton初始化链。调用方显式传入的codec仍按原实参求值规则处理。没有全局codec registry、隐式witness参数或对运行期类型描述的查询。
+这些codec、闭包及依赖都是普通typed值，按现有调用、分派、初始化和GC规则执行。encode 按声明/元素顺序读取数据，按 11.13.3 决定字段是否省略后取得 child，再求值已选 codec 并调用；每个数据读取与child取得只执行一次。decode先取得实际存在的字段child，再求值codec；缺失的可选字段、ignore 字段及未选中的 variant不求值字段codec。组合在相应方法执行时进行，不提前成新的singleton初始化链。调用方显式传入的codec仍按原实参求值规则处理。没有全局codec registry、隐式witness参数或对运行期类型描述的查询。
 
 ### 11.14 原子类型与内存序
 

@@ -1,4 +1,4 @@
-public struct Item(@SerialName("same") val first: Int, @SerialName("same") val second: Int)
+public struct Item(@Serialize(rename = "same") val first: Int, @Serialize(rename = "same") val second: Int)
 public object Reader : Decodable<Item>
 
 fun main() {}

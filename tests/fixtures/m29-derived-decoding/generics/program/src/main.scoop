@@ -44,7 +44,7 @@ fun main() {
         function
     })
     val codec = NestedDecoder<Int>(Offset(10), functions)
-    val nested = Json.decode("{\"pair\":[1,{\"Some\":[[2,3]]}],\"units\":[null],\"functions\":[4,5]}", codec)
+    val nested = Json.decode("{\"pair\":[1,[2,3]],\"units\":[null],\"functions\":[4,5]}", codec)
     check(nested.pair._1 == 11 && nested.pair._2!![0L] == 12 && nested.pair._2!![1L] == 13, 4)
     check(nested.units.size == 1L && nested.functions[0L]() == 5 && nested.functions[1L]() == 6, 5)
     val phantom = Json.decode("{\"item\":{\"value\":9}}", EnvelopeDecoder<Any>())

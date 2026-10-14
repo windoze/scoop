@@ -43,7 +43,7 @@ fun main() {
     reject("[1.0]", mutableCodec, "/0")
     reject("[\"ab\"]", listCodec, "/0")
     reject("[[1],[false]]", Array<Array<Int>>.decoder(integers), "/1/0")
-    val incomplete = Array<Int>.decoder(DecodeFunction<Int>({ _ -> 1 }))
-    reject("[7]", incomplete, "/0")
+    val constant = Array<Int>.decoder(DecodeFunction<Int>({ _ -> 1 }))
+    check(Json.decode("[7]", constant)[0L] == 1, 10)
     println("sequences-ok")
 }

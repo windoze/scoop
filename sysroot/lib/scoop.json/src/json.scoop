@@ -1,30 +1,32 @@
 package scoop.json
 
 public object Json {
-    public fun <T> encode(value: T, codec: Encodable<T>): String {
+    public fun <T> encode(value: T, codec: Encodable<T>): String =
+        renderJson(encodeValue(value, codec).node)
+
+    public fun <T> decode(text: String, codec: Decodable<T>): T =
+        decodeValue(JsonValue(JsonParser(text).parse()), codec)
+
+    public fun <T> encodeValue(value: T, codec: Encodable<T>): JsonValue {
         val encoder = JsonEncoder("")
         codec.encode(value, encoder)
-        return renderJson(encoder.result())
+        return JsonValue(encoder.result())
     }
 
-    public fun <T> decode(text: String, codec: Decodable<T>): T {
-        val decoder = JsonDecoder(JsonParser(text).parse(), "")
-        val result = codec.decode(decoder)
-        decoder.requireComplete()
-        return result
-    }
+    public fun <T> decodeValue(value: JsonValue, codec: Decodable<T>): T =
+        codec.decode(JsonDecoder(value.node, ""))
 }
 
-internal enum JsonValue {
+internal enum JsonNode {
     Null,
     BooleanValue(Boolean),
     Number(String),
     Text(String),
     Record(ArrayList<JsonMember>),
-    Sequence(ArrayList<JsonValue>)
+    Sequence(ArrayList<JsonNode>)
 }
 
-internal struct JsonMember(val name: String, val value: JsonValue)
+internal struct JsonMember(val name: String, val value: JsonNode)
 
 internal fun childPath(path: String, name: String): String {
     val result = StringBuilder().add(path).add("/")

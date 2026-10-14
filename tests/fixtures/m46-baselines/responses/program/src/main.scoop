@@ -1,0 +1,4 @@
+fun main(args: Array<String>) {
+    responsesBaseline(args.size != 0L)
+    println("responses-ok")
+}

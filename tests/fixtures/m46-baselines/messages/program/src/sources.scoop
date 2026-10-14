@@ -1,0 +1,49 @@
+enum Source {
+    Base64(Base64Source), URL(URLSource), Text(TextSource), Content(ContentSource)
+    companion object : Encodable<Source>, Decodable<Source> {
+        public override fun encode(value: Source, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case Source.Base64(payload) -> {
+                    String.encode("base64", fields.field("type"))
+                    Base64Source.Companion.encode(payload, encoder)
+                }
+                case Source.URL(payload) -> {
+                    String.encode("url", fields.field("type"))
+                    URLSource.Companion.encode(payload, encoder)
+                }
+                case Source.Text(payload) -> {
+                    String.encode("text", fields.field("type"))
+                    TextSource.Companion.encode(payload, encoder)
+                }
+                case Source.Content(payload) -> {
+                    String.encode("content", fields.field("type"))
+                    ContentSource.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Source {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "base64" -> Source.Base64(Base64Source.Companion.decode(decoder))
+                case "url" -> Source.URL(URLSource.Companion.decode(decoder))
+                case "text" -> Source.Text(TextSource.Companion.decode(decoder))
+                case "content" -> Source.Content(ContentSource.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown Source branch")
+            }
+        }
+    }
+}
+struct Base64Source(val media_type: String, val data: String) {
+    companion object : Encodable<Base64Source>, Decodable<Base64Source> {}
+}
+struct URLSource(val url: String) {
+    companion object : Encodable<URLSource>, Decodable<URLSource> {}
+}
+struct TextSource(val media_type: String, val data: String) {
+    companion object : Encodable<TextSource>, Decodable<TextSource> {}
+}
+struct ContentSource(val content: Array<Block>) {
+    companion object : Encodable<ContentSource>, Decodable<ContentSource> {}
+}

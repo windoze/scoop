@@ -1,0 +1,13 @@
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("decoding view assertion failed")) }
+}
+
+fun reject(path: String, action: () -> Unit) {
+    var rejected = false
+    try { action() }
+    catch (error: DecodingException) {
+        check(error.path == path)
+        rejected = true
+    }
+    check(rejected)
+}

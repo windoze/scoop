@@ -48,7 +48,7 @@ fun main() {
     check(when (empty) { case Event.Empty -> true; else -> false }, 8)
     val record = Json.decode("{\"Record\":{\"value\":2,\"count\":3}}", EventDecoder<Int>(Offset(10)))
     check(when (record) { case Event.Record { value, count } -> value == 12 && count == 3; else -> false }, 9)
-    val nested = Json.decode("{\"values\":[1,{\"Some\":[[2,3]]}]}", NestDecoder<Int>(Offset(10)))
+    val nested = Json.decode("{\"values\":[1,[2,3]]}", NestDecoder<Int>(Offset(10)))
     check(nested.values._1 == 11 && nested.values._2!![1L] == 13, 10)
     val combined = Json.decode("{\"foreign\":{\"remote\":4},\"local\":{\"local\":5},\"phantom\":{\"value\":6}}", CombinedDecoder)
     check(combined.foreign.value == 4 && combined.local.value == 5 && combined.phantom.value == 6, 11)

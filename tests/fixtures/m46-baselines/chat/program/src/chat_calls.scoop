@@ -1,0 +1,27 @@
+enum ChatCall {
+    Function(ChatFunctionCall), Custom(ChatCustomCall)
+    companion object : Encodable<ChatCall>, Decodable<ChatCall> {
+        public override fun encode(value: ChatCall, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case ChatCall.Function(payload) -> {
+                    String.encode("function", fields.field("type"))
+                    ChatFunctionCall.Companion.encode(payload, encoder)
+                }
+                case ChatCall.Custom(payload) -> {
+                    String.encode("custom", fields.field("type"))
+                    ChatCustomCall.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ChatCall {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "function" -> ChatCall.Function(ChatFunctionCall.Companion.decode(decoder))
+                case "custom" -> ChatCall.Custom(ChatCustomCall.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown ChatCall branch")
+            }
+        }
+    }
+}

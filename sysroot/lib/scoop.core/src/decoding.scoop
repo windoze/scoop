@@ -23,6 +23,7 @@ public interface UnkeyedDecodingContainer {
 }
 
 public interface SingleValueDecodingContainer {
+    public fun isNull(): Boolean
     public fun readBoolean(): Boolean
     public fun readLong(): Long
     public fun readULong(): ULong

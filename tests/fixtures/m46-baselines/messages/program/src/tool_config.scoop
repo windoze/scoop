@@ -1,0 +1,94 @@
+import scoop.json.*
+
+struct UserTool(val name: String, val input_schema: JsonValue, val description: String? = None) {
+    companion object : Encodable<UserTool>, Decodable<UserTool> {}
+}
+struct ComputerConfig(
+    val name: String,
+    val display_width_px: Long,
+    val display_height_px: Long,
+    val display_number: Long? = None
+) {
+    companion object : Encodable<ComputerConfig>, Decodable<ComputerConfig> {}
+}
+struct SearchConfig(val name: String, val max_uses: Long? = None, val allowed_domains: Array<String>? = None) {
+    companion object : Encodable<SearchConfig>, Decodable<SearchConfig> {}
+}
+struct BasicToolConfig(val name: String) {
+    companion object : Encodable<BasicToolConfig>, Decodable<BasicToolConfig> {}
+}
+struct ChoiceOptions(val disable_parallel_tool_use: Boolean = false) {
+    companion object : Encodable<ChoiceOptions>, Decodable<ChoiceOptions> {}
+}
+struct NamedChoice(val name: String, val disable_parallel_tool_use: Boolean = false) {
+    companion object : Encodable<NamedChoice>, Decodable<NamedChoice> {}
+}
+struct ThinkingBudget(val budget_tokens: Long) {
+    companion object : Encodable<ThinkingBudget>, Decodable<ThinkingBudget> {}
+}
+enum ToolChoice {
+    Auto(ChoiceOptions), Any(ChoiceOptions), None, Named(NamedChoice)
+    companion object : Encodable<ToolChoice>, Decodable<ToolChoice> {
+        public override fun encode(value: ToolChoice, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case ToolChoice.Auto(payload) -> {
+                    String.encode("auto", fields.field("type"))
+                    ChoiceOptions.Companion.encode(payload, encoder)
+                }
+                case ToolChoice.Any(payload) -> {
+                    String.encode("any", fields.field("type"))
+                    ChoiceOptions.Companion.encode(payload, encoder)
+                }
+                case ToolChoice.None -> {
+                    String.encode("none", fields.field("type"))
+                }
+                case ToolChoice.Named(payload) -> {
+                    String.encode("tool", fields.field("type"))
+                    NamedChoice.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ToolChoice {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "auto" -> ToolChoice.Auto(ChoiceOptions.Companion.decode(decoder))
+                case "any" -> ToolChoice.Any(ChoiceOptions.Companion.decode(decoder))
+                case "none" -> ToolChoice.None
+                case "tool" -> ToolChoice.Named(NamedChoice.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown ToolChoice branch")
+            }
+        }
+    }
+}
+enum Thinking {
+    Enabled(ThinkingBudget), Disabled, Adaptive
+    companion object : Encodable<Thinking>, Decodable<Thinking> {
+        public override fun encode(value: Thinking, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case Thinking.Enabled(payload) -> {
+                    String.encode("enabled", fields.field("type"))
+                    ThinkingBudget.Companion.encode(payload, encoder)
+                }
+                case Thinking.Disabled -> {
+                    String.encode("disabled", fields.field("type"))
+                }
+                case Thinking.Adaptive -> {
+                    String.encode("adaptive", fields.field("type"))
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Thinking {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "enabled" -> Thinking.Enabled(ThinkingBudget.Companion.decode(decoder))
+                case "disabled" -> Thinking.Disabled
+                case "adaptive" -> Thinking.Adaptive
+                else -> throw DecodingException(fields.required("type").path, "unknown Thinking branch")
+            }
+        }
+    }
+}

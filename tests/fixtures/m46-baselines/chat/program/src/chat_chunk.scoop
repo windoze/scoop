@@ -1,0 +1,37 @@
+struct ChatChunk(
+    val id: String,
+    @Serialize(rename = "object") val kind: String,
+    val created: Long,
+    val model: String,
+    val choices: Array<ChunkChoice>,
+    val usage: ChatUsage? = None
+) {
+    companion object : Encodable<ChatChunk>, Decodable<ChatChunk> {}
+}
+struct ChunkChoice(
+    val index: Long,
+    val delta: ChatDelta,
+    @Serialize(required = true) val finish_reason: String?,
+    val logprobs: ChatLogprobs? = None
+) {
+    companion object : Encodable<ChunkChoice>, Decodable<ChunkChoice> {}
+}
+struct ChatDelta(
+    val role: String? = None,
+    val content: String? = None,
+    val refusal: String? = None,
+    val tool_calls: Array<CallDelta>? = None
+) {
+    companion object : Encodable<ChatDelta>, Decodable<ChatDelta> {}
+}
+struct CallDelta(
+    val index: Long,
+    val id: String? = None,
+    val type: String? = None,
+    val function: FunctionDelta? = None
+) {
+    companion object : Encodable<CallDelta>, Decodable<CallDelta> {}
+}
+struct FunctionDelta(val name: String? = None, val arguments: String? = None) {
+    companion object : Encodable<FunctionDelta>, Decodable<FunctionDelta> {}
+}

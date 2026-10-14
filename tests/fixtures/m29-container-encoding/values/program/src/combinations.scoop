@@ -10,7 +10,7 @@ private struct Item(val number: Int) {
         }
     }
 }
-private struct Record(@SerialName("wire") val values: Array<Option<Item>>) {
+private struct Record(@Serialize(rename = "wire") val values: Array<Option<Item>>) {
     public companion object : Encodable<Record>
 }
 private class Captured<T>(private val write: (T, Encoder) -> Unit) : Encodable<T> {
@@ -24,14 +24,14 @@ private fun <T> coding(element: Encodable<T>): Encodable<Option<T>> = Option<T>.
 
 fun combinedCases() {
     val data = Array<Option<Item>>(2L) { index -> Some(Item(index.toInt32())) }
-    check(Json.encode(Record(data), Record.Companion) == "{\"wire\":[{\"Some\":[0]},{\"Some\":[1]}]}", 40)
+    check(Json.encode(Record(data), Record.Companion) == "{\"wire\":[0,1]}", 40)
     check(visits == 2, 41)
     val array = Array<Int>(2L) { index -> index.toInt32() + 3 }
     check(Json.encode(array, Captured(capture(Int.Companion))) == "[3,4]", 42)
-    check(Json.encode(Some(array), coding(Array<Int>.encoder(Int.Companion))) == "{\"Some\":[[3,4]]}", 43)
+    check(Json.encode(Some(array), coding(Array<Int>.encoder(Int.Companion))) == "[3,4]", 43)
     val maybe: Option<Int> = Some(6)
     val optionCodec = Option<Int>.encoder(Int.Companion)
-    check(Json.encode(maybe, Captured(optionCodec::encode)) == "{\"Some\":[6]}", 44)
+    check(Json.encode(maybe, Captured(optionCodec::encode)) == "6", 44)
     val mutable = MutableArray<Int>(1L) { _ -> 9 }
     val mutableCodec = MutableArray<Int>.encoder(Int.Companion)
     check(Json.encode(mutable, Captured(mutableCodec::encode)) == "[9]", 45)

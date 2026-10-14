@@ -30,6 +30,8 @@ use crate::link_object::{
 const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 
+mod registrations;
+
 #[derive(Clone, Copy)]
 enum Corruption {
     None,
@@ -38,6 +40,8 @@ enum Corruption {
     StaticSentinel,
     ArrayBoundsMessageByte,
     ArraySizeOverflowMessageByte,
+    RegistrationCount,
+    RegistrationTarget,
 }
 
 #[test]
@@ -542,7 +546,10 @@ fn image_object(
                 [usize::try_from(locations[&support.array_size_overflow_message()].0).unwrap()] ^=
                 1;
         }
-        Corruption::None | Corruption::CoordinateTarget => {}
+        Corruption::None
+        | Corruption::CoordinateTarget
+        | Corruption::RegistrationCount
+        | Corruption::RegistrationTarget => {}
     }
 
     let local_atoms = [
@@ -566,6 +573,11 @@ fn image_object(
     let mut relocation_offsets = vec![16_u32, 32, 48, 128, 144, 160, 176, 192, 208, 224];
     if let Some((definition, _)) = type_registration {
         relocation_offsets.push(u32::try_from(locations[&support.type_registrations()].0).unwrap());
+        let target = if matches!(corruption, Corruption::RegistrationTarget) {
+            plan.definition_plan()
+        } else {
+            definition
+        };
         let symbol_index = symbols
             .symbols()
             .iter()
@@ -575,12 +587,16 @@ fn image_object(
                     PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
                         definition: actual,
                         ..
-                    } if actual == definition
+                    } if actual == target
                 )
             })
             .unwrap();
         relocation_targets
             .push(u32::try_from(local_atoms.len()).unwrap() + u32::try_from(symbol_index).unwrap());
+        if matches!(corruption, Corruption::RegistrationCount) {
+            relocation_offsets.pop();
+            relocation_targets.pop();
+        }
     }
     build_macho(
         symbols,

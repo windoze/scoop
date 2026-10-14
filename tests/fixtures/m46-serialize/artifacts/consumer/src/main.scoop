@@ -1,0 +1,37 @@
+import api.*
+import scoop.json.Json
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("artifact Serialize assertion failed")) }
+}
+
+object Local : Encodable<Box<String?>>, Decodable<Box<String?>>
+struct Renamed(@Wire(rename = "name", emitNull = true) val value: String?) {
+    companion object : Encodable<Renamed>, Decodable<Renamed> {}
+}
+
+fun main() {
+    val value: Box<String?> = Box(None, None, label = None, ignored = Some(Some("local")))
+    val writer = encoder(Option<String>.encoder(String.Companion))
+    val reader = decoder(Option<String>.decoder(String.Companion))
+    val text = "{\"required\":null,\"label\":null}"
+    check(Json.encode(value, writer) == text)
+    check(Json.encode(value, Concrete) == text)
+    check(Json.encode(value, Local) == text)
+    val result = Json.decode(text, reader)
+    check(result.raw == None && result.maybe == None && result.label == None && result.ignored == None)
+    check(Json.decode(text, Concrete).empty == None)
+    check(Json.decode(text, Local).empty == None)
+    val defaulted = Json.decode("{\"required\":null}", Local)
+    check(defaulted.label == Some("guest"))
+    var rejected = false
+    try { Json.decode("{}", Local) }
+    catch (error: DecodingException) { check(error.path == "/required"); rejected = true }
+    check(rejected)
+    check(Json.encode(Row(1L), Row.Companion) == "{\"id\":1}")
+    check(Json.decode("{\"id\":1}", Row.Companion).text == None)
+    check(Json.encode(Choice.Named(), Choice.Companion) == "{\"item\":{}}")
+    check(Json.decode("{\"item\":{}}", Choice.Companion) == Choice.Named())
+    check(Json.encode(Renamed(None), Renamed.Companion) == "{\"name\":null}")
+    println("artifacts-ok")
+}

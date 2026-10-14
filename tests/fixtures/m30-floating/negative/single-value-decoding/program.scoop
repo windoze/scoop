@@ -4,5 +4,6 @@ class Incomplete: SingleValueDecodingContainer {
     public override fun readULong(): ULong { throw IllegalStateException(None) }
     public override fun readString(): String { throw IllegalStateException(None) }
     public override fun readNull() { throw IllegalStateException(None) }
+    public override fun isNull(): Boolean = false
 }
 fun main() {}

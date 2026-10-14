@@ -1,0 +1,25 @@
+import scoop.json.Json
+
+typealias Maybe<T> = Option<T>
+typealias Identity<T> = T
+struct Box<T>(val required: Identity<T>, val optional: Maybe<T>)
+class BoxEncoder<T>(val codec: Encodable<T>) : Encodable<Box<T>>
+class BoxDecoder<T>(val codec: Decodable<T>) : Decodable<Box<T>>
+object Concrete : Encodable<Box<String?>>, Decodable<Box<String?>>
+
+fun main() {
+    val encoder = BoxEncoder<String?>(Option<String>.encoder(String.Companion))
+    val decoder = BoxDecoder<String?>(Option<String>.decoder(String.Companion))
+    val value: Box<String?> = Box(None, None)
+    check(Json.encode(value, encoder) == "{\"required\":null}")
+    check(Json.encode(value, Concrete) == "{\"required\":null}")
+    reject("/required") { Json.decode("{}", decoder) }
+    reject("/required") { Json.decode("{}", Concrete) }
+    val decoded = Json.decode("{\"required\":null}", decoder)
+    check(decoded.required == None && decoded.optional == None)
+    val concrete = Json.decode("{\"required\":null}", Concrete)
+    check(concrete.required == None && concrete.optional == None)
+    val words = BoxEncoder<String>(String.Companion)
+    check(Json.encode(Box("yes", Some("maybe")), words) == "{\"required\":\"yes\",\"optional\":\"maybe\"}")
+    println("generics-ok")
+}

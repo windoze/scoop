@@ -12,9 +12,9 @@ fun main() {
     val second = Json.decode("[3]", arrayDecoder(Int.Companion))
     val third = Json.decode("[\"four\"]", arrayDecoder(String.Companion))
     check(first[1L] == 2 && second[0L] == 3 && third[0L] == "four")
-    val values = Json.decode("{\"Some\":[[[5,6],[]]]}", nested(Int.Companion))!!
+    val values = Json.decode("[[5,6],[]]", nested(Int.Companion))!!
     check(values.size == 2L && values[0L][1L] == 6 && values[1L].size == 0L)
-    val text = Json.decode("{\"Some\":[[[\"七\"]]]}", nested(String.Companion))!!
+    val text = Json.decode("[[\"七\"]]", nested(String.Companion))!!
     check(text[0L][0L] == "七")
     println("artifacts-ok")
 }

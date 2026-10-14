@@ -1,0 +1,65 @@
+import scoop.json.Json
+
+fun rejectCodec(path: String, message: String, body: (Unit, Encoder) -> Unit) {
+    reject(path, message) { Json.encode(Unit, EncodeFunction<Unit>(body)) }
+}
+
+fun main() {
+    rejectCodec("", "a value is incomplete") { value, encoder -> Unit }
+    rejectCodec("", "a value is incomplete") { value, encoder -> encoder.keyed() }
+    rejectCodec("", "a value is incomplete") { value, encoder -> encoder.unkeyed() }
+    rejectCodec("", "a value is incomplete") { value, encoder -> encoder.singleValue() }
+    rejectCodec("", "a different container is already selected") { value, encoder ->
+        val record = encoder.keyed()
+        encoder.unkeyed()
+    }
+    rejectCodec("", "a different container is already selected") { value, encoder ->
+        val sequence = encoder.unkeyed()
+        encoder.singleValue()
+    }
+    rejectCodec("", "a different container is already selected") { value, encoder ->
+        val scalar = encoder.singleValue()
+        encoder.keyed()
+    }
+    rejectCodec("", "a value was written twice") { value, encoder ->
+        encoder.singleValue().writeNull()
+        encoder.singleValue().writeLong(1L)
+    }
+    rejectCodec("/a~1~0", "duplicate object key") { value, encoder ->
+        Long.encode(1L, encoder.keyed().field("a/~"))
+        encoder.keyed().end()
+        Long.encode(2L, encoder.keyed().field("a/~"))
+    }
+    rejectCodec("/a", "a value is incomplete") { value, encoder ->
+        val child = encoder.keyed().field("a")
+        encoder.keyed().field("b")
+    }
+    rejectCodec("/0", "a value is incomplete") { value, encoder ->
+        val child = encoder.unkeyed().element()
+        encoder.unkeyed().element()
+    }
+    rejectCodec("/a", "a value is incomplete") { value, encoder ->
+        val child = encoder.keyed().field("a")
+        encoder.keyed().end()
+    }
+    rejectCodec("/0", "a value is incomplete") { value, encoder ->
+        val child = encoder.unkeyed().element()
+        encoder.unkeyed().end()
+    }
+    rejectCodec("", "a value is incomplete") { value, encoder ->
+        encoder.keyed().end()
+        Long.encode(1L, encoder.keyed().field("a"))
+    }
+    rejectCodec("", "a value is incomplete") { value, encoder ->
+        encoder.unkeyed().end()
+        Long.encode(1L, encoder.unkeyed().element())
+    }
+    rejectCodec("/child", "a value is incomplete") { value, encoder ->
+        val fields = encoder.keyed()
+        val child = fields.field("child")
+        child.keyed().end()
+        val pending = child.keyed().field("missing")
+        fields.end()
+    }
+    println("errors-ok")
+}

@@ -28,7 +28,7 @@ impl Lowerer {
                     );
                     return None;
                 }
-            } else if parameter.default.is_none() {
+            } else if parameter.missing_value().is_none() {
                 self.error(span, format!("automatic decode requires a declared default for omitted constructor parameter `{}`", parameter.name));
                 return None;
             }
@@ -46,7 +46,7 @@ impl Lowerer {
             let Some(name) = &parameter.wire else {
                 inputs.push(DecodedInput::Default(
                     parameter
-                        .default
+                        .missing_value()
                         .expect("an omitted parameter has a checked default"),
                 ));
                 continue;
@@ -56,7 +56,7 @@ impl Lowerer {
                 let name = self.coding_string(name, span);
                 self.coding_call(
                     container.clone(),
-                    if parameter.default.is_some() {
+                    if !parameter.required && parameter.missing_value().is_some() {
                         "optional"
                     } else {
                         "required"
@@ -69,7 +69,8 @@ impl Lowerer {
                 self.coding_call(container.clone(), "element", Vec::new(), span, sink)?
             };
             if record.keyed
-                && let Some(default) = parameter.default
+                && !parameter.required
+                && let Some(default) = parameter.missing_value()
             {
                 let child = self.coding_local(input, span, sink);
                 let decoder_type = self

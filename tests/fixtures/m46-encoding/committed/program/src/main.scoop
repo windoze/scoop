@@ -1,0 +1,45 @@
+import scoop.json.Json
+
+class Saved(var encoder: Option<Encoder>)
+
+object Children : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) {
+        val fields = encoder.keyed()
+        val child = fields.field("child")
+        val view = child.keyed()
+        Long.encode(1L, view.field("a"))
+        view.end()
+        val next = fields.field("next")
+        reject("/child", "a value is already committed") { view.field("late") }
+        reject("/child", "a value is already committed") { view.end() }
+        reject("/child", "a value is already committed") { child.keyed().field("late") }
+        val sequence = next.unkeyed()
+        val scalar = sequence.element()
+        scalar.singleValue().writeLong(2L)
+        val last = sequence.element()
+        reject("/next/0", "a value is already committed") { scalar.singleValue().writeLong(3L) }
+        last.unkeyed().end()
+        sequence.end()
+        reject("/next/1", "a value is already committed") { last.unkeyed().element() }
+        fields.end()
+        reject("/next", "a value is already committed") { sequence.element() }
+        gcCollect()
+        fields.end()
+    }
+}
+
+fun main() {
+    check(Json.encode(Unit, Children) == "{\"child\":{\"a\":1},\"next\":[2,[]]}")
+    val saved = Saved(None)
+    val codec = EncodeFunction<Unit>({ value, encoder ->
+        saved.encoder = Some(encoder)
+        Long.encode(7L, encoder.keyed().field("value"))
+        encoder.keyed().end()
+    })
+    val text = Json.encode(Unit, codec)
+    gcCollect()
+    reject("", "a value is already committed") { saved.encoder!!.keyed().field("late") }
+    reject("", "a value is already committed") { saved.encoder!!.keyed().end() }
+    check(text == "{\"value\":7}")
+    println("committed-ok")
+}

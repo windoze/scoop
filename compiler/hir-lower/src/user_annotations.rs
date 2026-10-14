@@ -11,6 +11,7 @@ mod properties;
 mod rules;
 mod schemas;
 mod serialization;
+pub(crate) use serialization::SerializeConfig;
 mod targets;
 pub(crate) mod type_uses;
 mod types;

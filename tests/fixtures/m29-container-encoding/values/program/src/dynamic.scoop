@@ -29,9 +29,9 @@ fun dynamicCases() {
     list.add(5)
     dynamic(list, ArrayList<Int>.encoder(Int.Companion), "[5]", 22)
     val empty: Option<Int> = None
-    dynamic(empty, Option<Int>.encoder(Int.Companion), "{\"None\":{}}", 23)
+    dynamic(empty, Option<Int>.encoder(Int.Companion), "null", 23)
     val nested = Option<Array<Int>>.encoder(Array<Int>.encoder(Int.Companion))
-    dynamic(Some(Array<Int>(1L) { _ -> 9 }), nested, "{\"Some\":[[9]]}", 24)
+    dynamic(Some(Array<Int>(1L) { _ -> 9 }), nested, "[9]", 24)
     check(!(erase(Array<Opaque>(0L) { _ -> Opaque() }) is Encodable<Array<Opaque>>), 25)
     check(!(erase(MutableArray<Opaque>(1L) { _ -> Opaque() }) is Encodable<MutableArray<Opaque>>), 26)
     check(!(erase(ArrayList<Opaque>()) is Encodable<ArrayList<Opaque>>), 27)

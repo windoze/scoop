@@ -39,7 +39,7 @@ fun main() {
     check(Json.encode(pair, pairEncoder) == "{\"first\":11,\"second\":22}")
     val packet = Packet<Int>((5, Some(6), Unit), Array<Int>(1L) { _ -> 7 })
     check(Json.encode(packet, PacketEncoder<Int>(Offset(10))) ==
-        "{\"parts\":[15,{\"Some\":[16]},null],\"values\":[17]}")
+        "{\"parts\":[15,16,null],\"values\":[17]}")
     check(Json.encode(Wrapper(Leaf(1)), WrapperEncoder(LeafOverride)) == "{\"value\":-100}")
     val node = Node(Array<Node>(1L) { _ -> Node(Array<Node>(0L) { _ -> throw IllegalStateException(None) }) })
     check(Json.encode(node, NodeEncoder(NodeOverride)) == "{\"children\":[-200]}")

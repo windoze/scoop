@@ -1,5 +1,5 @@
 package annotated
-import SerialName as WireName
+import Serialize as WireName
 import annotated.Label as Note
 
 const val TEXT: String = "constant"
@@ -21,10 +21,10 @@ public struct Box<T>(@Note("value") @WireName("item") val value: T) {
 
 public struct Names() {
     public annotation class Nested(val value: Int = 4)
-    public annotation class SerialName(val value: String)
+    public annotation class Serialize(val value: String)
 }
 
-@Names.SerialName("ordinary annotation on a type")
+@Names.Serialize("ordinary annotation on a type")
 public enum Choice {
     @WireName("empty") @Note("variant") Empty,
     Record(@Names.Nested @WireName("number") val value: Int),
@@ -43,7 +43,7 @@ public struct Probe<T>() {
 @Note(Probe<Long>.Companion.LABEL)
 public class Record(@Note("primary") @WireName("identifier") val id: Int) {
     @Note("computed") public val size: Int get() = id
-    @Transient public var cache: String = "initial"
+    @Serialize(ignore = true) public var cache: String = "initial"
 }
 
 fun main() {

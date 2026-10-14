@@ -1,0 +1,74 @@
+import scoop.json.*
+
+struct FunctionSpec(
+    val name: String,
+    val description: String? = None,
+    val parameters: JsonValue? = None,
+    val strict: Boolean? = None
+) {
+    companion object : Encodable<FunctionSpec>, Decodable<FunctionSpec> {}
+}
+struct NestedFunction(val function: FunctionSpec) {
+    companion object : Encodable<NestedFunction>, Decodable<NestedFunction> {}
+}
+struct CustomSpec(val name: String, val description: String? = None, val format: CustomFormat? = None) {
+    companion object : Encodable<CustomSpec>, Decodable<CustomSpec> {}
+}
+struct NestedCustom(val custom: CustomSpec) {
+    companion object : Encodable<NestedCustom>, Decodable<NestedCustom> {}
+}
+struct Grammar(val syntax: String, val definition: String) {
+    companion object : Encodable<Grammar>, Decodable<Grammar> {}
+}
+struct GrammarFormat(val grammar: Grammar) {
+    companion object : Encodable<GrammarFormat>, Decodable<GrammarFormat> {}
+}
+struct NamedFunction(val name: String) {
+    companion object : Encodable<NamedFunction>, Decodable<NamedFunction> {}
+}
+struct NestedNamedFunction(val function: NamedFunction) {
+    companion object : Encodable<NestedNamedFunction>, Decodable<NestedNamedFunction> {}
+}
+struct AllowedTools(val mode: String, val tools: Array<ChatNamedTool>) {
+    companion object : Encodable<AllowedTools>, Decodable<AllowedTools> {}
+}
+struct AllowedChoice(val allowed_tools: AllowedTools) {
+    companion object : Encodable<AllowedChoice>, Decodable<AllowedChoice> {}
+}
+struct JsonSchema(
+    val name: String,
+    val schema: JsonValue,
+    val strict: Boolean? = None,
+    val description: String? = None
+) {
+    companion object : Encodable<JsonSchema>, Decodable<JsonSchema> {}
+}
+struct SchemaFormat(val json_schema: JsonSchema) {
+    companion object : Encodable<SchemaFormat>, Decodable<SchemaFormat> {}
+}
+enum CustomFormat {
+    Text, Grammar(GrammarFormat)
+    companion object : Encodable<CustomFormat>, Decodable<CustomFormat> {
+        public override fun encode(value: CustomFormat, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case CustomFormat.Text -> {
+                    String.encode("text", fields.field("type"))
+                }
+                case CustomFormat.Grammar(payload) -> {
+                    String.encode("grammar", fields.field("type"))
+                    GrammarFormat.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): CustomFormat {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "text" -> CustomFormat.Text
+                case "grammar" -> CustomFormat.Grammar(GrammarFormat.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown CustomFormat branch")
+            }
+        }
+    }
+}

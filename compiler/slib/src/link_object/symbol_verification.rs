@@ -135,6 +135,7 @@ pub struct VerifiedMemberStrongObjectDefinitionIndexV1 {
     member: SlibMemberId,
     sections: ValidatedBuiltinObjectSectionInventoryV1,
     symbols: Vec<VerifiedStrongDefinitionSymbolV1>,
+    symbol_indices: BTreeMap<u32, usize>,
     definitions: Vec<VerifiedStrongObjectDefinitionV1>,
     literal_pools: LiteralPools,
 }
@@ -177,10 +178,9 @@ impl VerifiedMemberStrongObjectDefinitionIndexV1 {
         &self,
         table_index: u32,
     ) -> Option<VerifiedStrongDefinitionSymbolV1> {
-        self.symbols
-            .iter()
-            .find(|symbol| symbol.table_index == table_index)
-            .cloned()
+        self.symbol_indices
+            .get(&table_index)
+            .map(|&index| self.symbols[index].clone())
     }
 }
 
@@ -269,6 +269,11 @@ pub fn verify_member_strong_object_definitions_v1(
         });
     }
     symbols.sort_unstable_by_key(|symbol| symbol.role);
+    let symbol_indices = symbols
+        .iter()
+        .enumerate()
+        .map(|(index, symbol)| (symbol.table_index, index))
+        .collect();
 
     let mut definitions = definitions
         .into_iter()
@@ -283,6 +288,7 @@ pub fn verify_member_strong_object_definitions_v1(
         member: plan.member(),
         sections,
         symbols,
+        symbol_indices,
         definitions,
         literal_pools,
     })

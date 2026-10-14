@@ -1,2 +1,2 @@
-enum Value { Some(@SerialName("value") Int) }
+enum Value { Some(@Serialize(rename = "value") Int) }
 fun main() {}

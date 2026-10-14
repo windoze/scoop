@@ -1,6 +1,6 @@
 enum Item {
-    @SerialName("same") First,
-    @SerialName("same") Second
+    @Serialize(rename = "same") First,
+    @Serialize(rename = "same") Second
     companion object : Encodable<Item>
 }
 

@@ -5,6 +5,7 @@ use ast::Span;
 
 mod annotations;
 mod codecs;
+mod defaults;
 mod expressions;
 mod tuple;
 pub(super) use codecs::SelectedCodec;

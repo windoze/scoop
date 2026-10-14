@@ -11,6 +11,11 @@ mod fields;
 mod values;
 mod variants;
 
+struct EncodingMember {
+    wire: String,
+    omit_none: bool,
+}
+
 impl Lowerer {
     pub(crate) fn lower_derived_encoding_bodies(&mut self) {
         for (function, interface) in std::mem::take(&mut self.derived_encoding_methods) {

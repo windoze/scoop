@@ -19,7 +19,7 @@ private struct Opaque()
 fun main() {
     val integers = Array<Int>(3L) { index -> index.toInt32() + 1 }
     check(Json.encode(integers, coding(Int.Companion)) == "[1,2,3]", 1)
-    check(Json.encode(Some(Unit), Captured(capture(UnitEncoder))) == "{\"Some\":[null]}", 2)
+    check(Json.encode(Some(Unit), Captured(capture(UnitEncoder))) == "null", 2)
     val erased = erase(MutableArray<String>(2L) { _ -> "界" })
     check(!(erased is Encodable<MutableArray<String>>), 3)
     check(Json.encode(erased as MutableArray<String>, MutableArray<String>.encoder(String.Companion))
@@ -31,7 +31,7 @@ fun main() {
     check(Json.encode(erasedList as ArrayList<Int>, ArrayList<Int>.encoder(Int.Companion)) == "[7]", 6)
     check(!(erase(MutableArray<Opaque>(0L) { _ -> Opaque() }) is Encodable<MutableArray<Opaque>>), 7)
     check(!(eraseList(ArrayList<Opaque>()) is Encodable<ArrayList<Opaque>>), 8)
-    val expected = "[{\"None\":{}},{\"Some\":[1]}]"
+    val expected = "[null,1]"
     val codec = Array<Option<Int>>.encoder(Option<Int>.encoder(Int.Companion))
     check(Json.encode(shared(), codec) == expected, 9)
     check(Json.encode(nested(), codec) == expected, 10)
@@ -41,7 +41,7 @@ fun main() {
     val local = Array<Option<Int>>(2L) { index -> if (index == 0L) { None } else { Some(1) } }
     check(Json.encode(local, codec) == expected, 13)
     check(Json.encode(Envelope(integers, Some(4)), Envelope<Int>.encoder(Int.Companion))
-        == "{\"items\":[1,2,3],\"last\":{\"Some\":[4]}}", 14)
+        == "{\"items\":[1,2,3],\"last\":4}", 14)
     val restored = Json.decode(Json.encode(shared(), codec), Array<Option<Int>>.decoder(
         Option<Int>.decoder(Int.Companion)))
     check(Json.encode(restored, codec) == expected, 15)

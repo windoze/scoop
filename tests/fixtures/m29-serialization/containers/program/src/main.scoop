@@ -79,7 +79,7 @@ object WrongEncoderContainer : Encodable<Unit> {
     }
 }
 
-object WrongDecoderContainer : Decodable<Long> {
+object ScalarView : Decodable<Long> {
     public override fun decode(decoder: Decoder): Long =
         (decoder as SingleValueDecodingContainer).readLong()
 }
@@ -114,14 +114,14 @@ fun main() {
     reject("[1,null]", Numbers.Companion, "/1")
     reject("[]", ExtraElement, "/0")
     reject("[1,2]", ExtraElement, "")
-    reject("42", Unread, "")
-    reject("42", WrongDecoderContainer, "")
+    check(Json.decode("42", Unread) == 42L)
+    check(Json.decode("42", ScalarView) == 42L)
     rejectEncoding(Unit, Incomplete)
     rejectEncoding(Unit, WrongEncoderContainer)
     val sequence: Array<Option<Long>> = [None, Some(8L)]
     val optionEncoder = Option<Long>.Companion.encoder(Long.Companion)
     val sequenceEncoder = Array<Option<Long>>.Companion.encoder(optionEncoder)
-    check(Json.encode(sequence, sequenceEncoder) == "[{\"None\":{}},{\"Some\":[8]}]")
+    check(Json.encode(sequence, sequenceEncoder) == "[null,8]")
     val mutable = MutableArray<Long>(2L) { index -> index + 1L }
     check(Json.encode(mutable, MutableArray<Long>.Companion.encoder(Long.Companion)) == "[1,2]")
     val list = ArrayList<Long>()

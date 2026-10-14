@@ -1,0 +1,32 @@
+enum SystemContent {
+    Text(String), Blocks(Array<TextOnly>)
+    companion object : Encodable<SystemContent>, Decodable<SystemContent> {
+        public override fun encode(value: SystemContent, encoder: Encoder) {
+            when (value) {
+                case SystemContent.Text(text) -> String.encode(text, encoder)
+                case SystemContent.Blocks(payload) -> Array<TextOnly>.encoder(TextOnly.Companion).encode(payload, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): SystemContent {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { text = None }
+            if (text != None) { return SystemContent.Text(text!!) }
+            return SystemContent.Blocks(Array<TextOnly>.decoder(TextOnly.Companion).decode(decoder))
+        }
+    }
+}
+struct TextOnly(val text: String, val cache_control: CacheControl? = None) {
+    companion object : Encodable<TextOnly>, Decodable<TextOnly> {
+        public override fun encode(value: TextOnly, encoder: Encoder) {
+            String.encode("text", encoder.keyed().field("type"))
+            TextFields.encode(value, encoder)
+        }
+        public override fun decode(decoder: Decoder): TextOnly {
+            val tag = decoder.keyed().required("type")
+            if (String.decode(tag) != "text") { throw DecodingException(tag.path, "expected text") }
+            return TextFields.decode(decoder)
+        }
+    }
+}
+object TextFields : Encodable<TextOnly>, Decodable<TextOnly> {}

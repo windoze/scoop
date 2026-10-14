@@ -1,0 +1,7 @@
+package api
+public import models.*
+public import Serialize as Wire
+
+public fun <T> encoder(element: Encodable<T>): Encodable<Box<T>> = BoxEncoder<T>(element)
+public fun <T> decoder(element: Decodable<T>): Decodable<Box<T>> = BoxDecoder<T>(element)
+public object Concrete : Encodable<Box<String?>>, Decodable<Box<String?>>

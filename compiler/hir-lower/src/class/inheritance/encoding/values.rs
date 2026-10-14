@@ -23,19 +23,40 @@ impl Lowerer {
         context: CodingContext,
         value: hir::Expr,
         container: hir::Expr,
-        wire: Option<&str>,
+        member: Option<&EncodingMember>,
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<()> {
         let codec = self.select_field_codec(context, value.ty, span)?;
         // Read each data field once before obtaining its child encoder.
         let value = self.coding_local(value, span, sink);
-        let (method, arguments) = match wire {
-            Some(wire) => ("field", vec![self.coding_string(wire, span)]),
+        let condition = member.is_some_and(|field| field.omit_none).then(|| {
+            self.coding_expr(
+                hir::ExprKind::IsSome(Box::new(value.clone())),
+                self.boolean,
+                span,
+            )
+        });
+        let mut provided = Vec::new();
+        let (method, arguments) = match member {
+            Some(field) => ("field", vec![self.coding_string(&field.wire, span)]),
             None => ("element", Vec::new()),
         };
-        let child = self.coding_call(container, method, arguments, span, sink)?;
-        self.encode_selected_value(context, &codec, value, child, span, sink)
+        let child = self.coding_call(container, method, arguments, span, &mut provided)?;
+        self.encode_selected_value(context, &codec, value, child, span, &mut provided)?;
+        if let Some(cond) = condition {
+            sink.push(hir::Statement {
+                kind: hir::StatementKind::If {
+                    cond,
+                    then_body: provided,
+                    else_body: None,
+                },
+                span,
+            });
+        } else {
+            sink.extend(provided);
+        }
+        Some(())
     }
 
     fn encode_selected_value(

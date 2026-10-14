@@ -1,0 +1,67 @@
+struct EasyMessage(val role: String, val content: ResponseContent) {
+    companion object : Encodable<EasyMessage>, Decodable<EasyMessage> {}
+}
+struct InputMessage(val role: String, val content: Array<ResponsePart>) {
+    companion object : Encodable<InputMessage>, Decodable<InputMessage> {}
+}
+struct OutputMessage(val id: String, val role: String, val status: String, val content: Array<ResponsePart>) {
+    companion object : Encodable<OutputMessage>, Decodable<OutputMessage> {}
+}
+struct ReasoningItem(val id: String, val summary: Array<SummaryPart>, val encrypted_content: String? = None) {
+    companion object : Encodable<ReasoningItem>, Decodable<ReasoningItem> {}
+}
+struct SummaryPart(val type: String, val text: String) {
+    companion object : Encodable<SummaryPart>, Decodable<SummaryPart> {}
+}
+struct CompactionItem(val encrypted_content: String, val id: String? = None) {
+    companion object : Encodable<CompactionItem>, Decodable<CompactionItem> {}
+}
+struct FunctionItem(
+    val call_id: String,
+    val name: String,
+    val arguments: String,
+    val id: String? = None,
+    val status: String? = None
+) {
+    companion object : Encodable<FunctionItem>, Decodable<FunctionItem> {}
+}
+struct FunctionResult(val call_id: String, val output: ResponseContent, val id: String? = None) {
+    companion object : Encodable<FunctionResult>, Decodable<FunctionResult> {}
+}
+struct FileSearchItem(
+    val id: String,
+    val status: String,
+    val queries: Array<String>,
+    val results: Array<FileSearchResult>? = None
+) {
+    companion object : Encodable<FileSearchItem>, Decodable<FileSearchItem> {}
+}
+struct FileSearchResult(
+    val file_id: String? = None,
+    val filename: String? = None,
+    val score: Double? = None,
+    val text: String? = None
+) {
+    companion object : Encodable<FileSearchResult>, Decodable<FileSearchResult> {}
+}
+struct WebSearchItem(val id: String, val status: String, val action: SearchAction) {
+    companion object : Encodable<WebSearchItem>, Decodable<WebSearchItem> {}
+}
+struct ImageItem(val id: String, val status: String, @Serialize(required = true) val result: String?) {
+    companion object : Encodable<ImageItem>, Decodable<ImageItem> {}
+}
+struct CodeItem(
+    val id: String,
+    val status: String,
+    val container_id: String,
+    @Serialize(required = true) val code: String?,
+    @Serialize(required = true) val outputs: Array<CodeOutput>?
+) {
+    companion object : Encodable<CodeItem>, Decodable<CodeItem> {}
+}
+struct CodeLogs(val logs: String) {
+    companion object : Encodable<CodeLogs>, Decodable<CodeLogs> {}
+}
+struct CodeImage(val url: String) {
+    companion object : Encodable<CodeImage>, Decodable<CodeImage> {}
+}

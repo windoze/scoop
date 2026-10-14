@@ -16,7 +16,7 @@ public class Row public constructor(vararg val values: Int = [7]) {
 }
 public enum Batches {
     Items(vararg val values: Int = [9]),
-    Omitted(@Transient vararg val values: Int = [10])
+    Omitted(@Serialize(ignore = true) vararg val values: Int = [10])
     public companion object : Decodable<Batches>
 }
 

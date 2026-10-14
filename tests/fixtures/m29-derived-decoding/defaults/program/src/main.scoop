@@ -30,7 +30,7 @@ public fun defaultValue(value: Int, event: String): Logged {
 public struct Defaults(
     val first: Logged = defaultValue(10, "A"),
     val second: Logged = defaultValue(first.value + 1, "B"),
-    @Transient val ignored: Logged = defaultValue(second.value + 1, "T")
+    @Serialize(ignore = true) val ignored: Logged = defaultValue(second.value + 1, "T")
 ) {
     public companion object : Decodable<Defaults>
 }
@@ -84,12 +84,12 @@ fun main() {
     Trace.events = ""
     reject("{\"second\":null}", Defaults.Companion, "/second")
     check(Trace.events == "/second", 5)
-    val none = Json.decode("{\"value\":{\"None\":{}}}", OptionalField.Companion)
+    val none = Json.decode("{\"value\":null}", OptionalField.Companion)
     check(none.value == None && none.fallback!! == 8, 6)
-    val provided = Json.decode("{\"value\":{\"Some\":[3]},\"fallback\":{\"None\":{}}}", OptionalField.Companion)
+    val provided = Json.decode("{\"value\":3,\"fallback\":null}", OptionalField.Companion)
     check(provided.value!! == 3 && provided.fallback == None, 7)
-    reject("{}", OptionalField.Companion, "/value")
-    reject("{\"value\":{\"None\":{}},\"fallback\":null}", OptionalField.Companion, "/fallback")
+    check(Json.decode("{}", OptionalField.Companion).value == None, 91)
+    check(Json.decode("{\"value\":null,\"fallback\":null}", OptionalField.Companion).fallback == None, 92)
     check(Json.decode("{}", LazyDefault.Companion).value.value == 7 && Trace.initialized == 0, 8)
     check(Json.decode("{\"value\":9}", LazyDefault.Companion).value.value == 9 && Trace.initialized == 1, 9)
     check(Json.decode("{}", LazyDefault.Companion).value.value == 7 && Trace.initialized == 1, 10)

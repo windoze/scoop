@@ -23,16 +23,32 @@ impl Lowerer {
             .struct_fields(context.target)
             .expect("a struct has its fields")
             .fields;
+        let omissions = if let Some(structure) = self.source_struct_id(application.template) {
+            let constructor = self
+                .struct_primary_constructor(structure)
+                .expect("declared struct fields have a primary constructor");
+            self.current_coding_omissions(
+                crate::call_resolution::candidates::NominalConstructorSource::Struct(constructor),
+                span,
+            )?
+        } else {
+            let constructor = self.loaded_struct_definitions[&application.template]
+                .declaration
+                .interface
+                .declaration_details()
+                .primary_value_constructor()
+                .expect("declared struct fields have a primary constructor");
+            self.dependency_coding_omissions(scoop_identity::CallableTemplateOrigin::Constructor(
+                constructor,
+            ))
+        };
         let container = self.encoding_container(encoder, true, span, sink)?;
         let mut names = std::collections::HashSet::new();
         for (index, field) in fields.into_iter().enumerate() {
-            let wire = if let Some(structure) = self.source_struct_id(application.template) {
+            let config = if let Some(structure) = self.source_struct_id(application.template) {
                 let source = hir::StructFieldRef::checked(&self.structs, structure, index as u32)
                     .expect("the field belongs to this struct");
-                self.serialization_wire_name(
-                    hir::SourceAnnotationTarget::Field(source),
-                    &field.name,
-                )
+                self.serialization_config(hir::SourceAnnotationTarget::Field(source))
             } else {
                 let source = self.loaded_struct_definitions[&application.template]
                     .declaration
@@ -40,12 +56,12 @@ impl Lowerer {
                     .source_shape()
                     .declared_fields()[index]
                     .field();
-                self.dependency_coding_wire_name(
-                    hir::AnnotationTargetV1::Field(source),
-                    &field.name,
-                )
+                self.dependency_serialization_config(hir::AnnotationTargetV1::Field(source))
             };
-            let Some(wire) = wire else { continue };
+            let Some(wire) = config.wire_name(&field.name) else {
+                continue;
+            };
+            let omit_none = omissions[index] && !config.required && !config.emit_null;
             self.check_encoding_wire_name(&wire, "field", span, &mut names)?;
             let field = self.coding_expr(
                 hir::ExprKind::FieldAccess {
@@ -55,7 +71,14 @@ impl Lowerer {
                 field.ty,
                 span,
             );
-            self.encode_field(context, field, container.clone(), Some(&wire), span, sink)?;
+            self.encode_field(
+                context,
+                field,
+                container.clone(),
+                Some(&EncodingMember { wire, omit_none }),
+                span,
+                sink,
+            )?;
         }
         self.end_coding_container(container, span, sink)
     }

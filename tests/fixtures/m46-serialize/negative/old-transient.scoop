@@ -1,0 +1,2 @@
+struct Item(@Transient val value: Int)
+fun main() {}

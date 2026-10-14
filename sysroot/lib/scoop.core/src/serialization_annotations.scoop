@@ -1,5 +1,10 @@
-public annotation class SerialName(val name: String)
-public annotation class Transient
+@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.ENUM_VARIANT])
+public annotation class Serialize(
+    val rename: String = "",
+    val required: Boolean = false,
+    val emitNull: Boolean = false,
+    val ignore: Boolean = false
+)
 
 public enum AnnotationTarget: Int {
     CLASS = 1,

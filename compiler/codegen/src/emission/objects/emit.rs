@@ -38,6 +38,7 @@ pub(super) fn emit_object_set_with_production<
             ))
         })?;
     let mut callables = BTreeMap::new();
+    let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
     for function in module.callable_bodies() {
         let context = Context::create();
         let body = function.callable_body.id();
@@ -47,6 +48,7 @@ pub(super) fn emit_object_set_with_production<
             &context,
             module,
             &production,
+            &elf_symbols,
             &machine,
             profile,
             (&selected_safepoints, &selected_eh),

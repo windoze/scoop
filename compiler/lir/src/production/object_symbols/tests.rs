@@ -12,6 +12,8 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 use crate::CanonicalLirFoundation;
 
+mod lookup;
+
 #[test]
 fn derives_primary_and_every_atom_boundary_from_typed_plans() {
     let fixture = fixture(true);
@@ -35,6 +37,8 @@ fn derives_primary_and_every_atom_boundary_from_typed_plans() {
             .iter()
             .find(|boundary| boundary.atom() == atom)
             .unwrap();
+        assert_eq!(surface.atom_boundary(atom), Some(*boundary));
+        assert_eq!(surface.clone().atom_boundary(atom), Some(*boundary));
         assert_eq!(
             boundary.start().key(),
             PersistentSymbolKey::DefinitionBoundaryStart(atom)

@@ -23,6 +23,7 @@ class ScalarEncoder(val storage: Storage): Encoder, SingleValueEncodingContainer
 }
 
 class ScalarDecoder(val storage: Storage): Decoder, SingleValueDecodingContainer {
+    public override fun isNull(): Boolean = false
     public override val path: String get() = ""
     public override fun keyed(): KeyedDecodingContainer { throw IllegalStateException(None) }
     public override fun unkeyed(): UnkeyedDecodingContainer { throw IllegalStateException(None) }

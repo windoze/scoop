@@ -14,7 +14,7 @@ impl Lowerer {
         let mut arms = Vec::new();
         let mut names = std::collections::HashSet::new();
         for variant in self.enum_variants(application) {
-            let (wire, fields) = self.encoding_variant_names(&variant);
+            let (wire, fields) = self.encoding_variant_names(&variant, span)?;
             self.check_encoding_wire_name(&wire, "variant", span, &mut names)?;
             let mut body = Vec::new();
             let name = self.coding_string(&wire, span);
@@ -24,10 +24,10 @@ impl Lowerer {
             let payload = self.encoding_container(child, keyed, span, &mut body)?;
             let mut patterns = Vec::new();
             let mut field_names = std::collections::HashSet::new();
-            for (index, ((_, ty), wire)) in variant.fields.iter().zip(fields).enumerate() {
-                let Some(wire) = wire else { continue };
+            for (index, ((_, ty), member)) in variant.fields.iter().zip(fields).enumerate() {
+                let Some(member) = member else { continue };
                 if keyed {
-                    self.check_encoding_wire_name(&wire, "field", span, &mut field_names)?;
+                    self.check_encoding_wire_name(&member.wire, "field", span, &mut field_names)?;
                 }
                 let local = self.alloc_hidden("encoded_payload", *ty);
                 patterns.push((index as u32, hir::Pattern::Binding { local }));
@@ -36,7 +36,7 @@ impl Lowerer {
                     context,
                     field,
                     payload.clone(),
-                    keyed.then_some(wire.as_str()),
+                    keyed.then_some(&member),
                     span,
                     &mut body,
                 )?;
@@ -66,9 +66,10 @@ impl Lowerer {
     }
 
     fn encoding_variant_names(
-        &self,
+        &mut self,
         variant: &crate::types::EnumVariant,
-    ) -> (String, Vec<Option<String>>) {
+        span: Span,
+    ) -> Option<(String, Vec<Option<EncodingMember>>)> {
         let application = self.enum_applications[variant.application.owner].clone();
         let index = self.enum_variant_index(variant.application);
         if let Some(enumeration) = self.source_enum_id(application.template) {
@@ -79,43 +80,59 @@ impl Lowerer {
                     hir::SourceAnnotationTarget::Variant(source),
                     &variant.name,
                 )
-                .expect("variants cannot be Transient");
+                .expect("variants cannot use Serialize(ignore = true)");
+            let omissions = self.current_coding_omissions(
+                crate::call_resolution::candidates::NominalConstructorSource::Variant(source),
+                span,
+            )?;
             let fields = variant
                 .fields
                 .iter()
                 .enumerate()
-                .map(|(index, (name, _))| {
+                .zip(omissions)
+                .map(|((index, (name, _)), omit_none)| {
                     let field =
                         hir::EnumVariantFieldRef::checked(&self.enums, source, index as u32)
                             .expect("the field belongs to its variant");
-                    self.serialization_wire_name(
-                        hir::SourceAnnotationTarget::VariantField(field),
-                        name,
-                    )
+                    let config =
+                        self.serialization_config(hir::SourceAnnotationTarget::VariantField(field));
+                    config.wire_name(name).map(|wire| EncodingMember {
+                        wire,
+                        omit_none: omit_none && !config.required && !config.emit_null,
+                    })
                 })
                 .collect();
-            (wire, fields)
+            Some((wire, fields))
         } else {
             let wire = self
                 .dependency_coding_wire_name(
                     hir::AnnotationTargetV1::Variant(variant.application.variant),
                     &variant.name,
                 )
-                .expect("variants cannot be Transient");
+                .expect("variants cannot use Serialize(ignore = true)");
+            let omissions = self.dependency_coding_omissions(
+                scoop_identity::CallableTemplateOrigin::VariantConstructor(
+                    variant.application.variant,
+                ),
+            );
             let fields = variant
                 .fields
                 .iter()
                 .enumerate()
-                .map(|(field_index, (name, _))| {
+                .zip(omissions)
+                .map(|((field_index, (name, _)), omit_none)| {
                     let field = self.loaded_enum_definitions[&application.template]
                         .field_identity(index as usize, field_index);
-                    self.dependency_coding_wire_name(
+                    let config = self.dependency_serialization_config(
                         hir::AnnotationTargetV1::VariantField(field),
-                        name,
-                    )
+                    );
+                    config.wire_name(name).map(|wire| EncodingMember {
+                        wire,
+                        omit_none: omit_none && !config.required && !config.emit_null,
+                    })
                 })
                 .collect();
-            (wire, fields)
+            Some((wire, fields))
         }
     }
 }

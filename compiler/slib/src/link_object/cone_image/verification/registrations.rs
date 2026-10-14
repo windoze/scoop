@@ -17,20 +17,29 @@ pub(super) fn verify_registration_table(
     let targets = targets.into_iter().collect::<Vec<_>>();
     let expected_bytes = vec![0; targets.len().max(1) * 8];
     let verified = require_table_bytes(member, atoms, object, atom, role, &expected_bytes, 8)?;
-    require_relocation_count(member, atom, targets.len(), role)?;
+    let mut relocations = member
+        .relocations()
+        .iter()
+        .filter(|relocation| relocation.containing_atom() == atom)
+        .collect::<Vec<_>>();
+    if relocations.len() != targets.len() {
+        return relocation_error(role, relocations.len(), ConeImageRelocationFailureV1::Count);
+    }
+    relocations.sort_unstable_by_key(|relocation| relocation.offset_within_atom());
     for (index, target) in targets.into_iter().enumerate() {
         let offset = u64::try_from(index).expect("table index fits u64") * 8;
-        let relocation = require_relocation(member, atom, offset, role, index)?;
+        let start =
+            relocations.partition_point(|relocation| relocation.offset_within_atom() < offset);
+        let rest = &relocations[start..];
+        let count = rest.partition_point(|relocation| relocation.offset_within_atom() == offset);
+        let [relocation] = &rest[..count] else {
+            return relocation_error(role, index, ConeImageRelocationFailureV1::MissingOffset);
+        };
         let binding = patch_sites
             .builtins()
             .strong_relocations()
-            .bindings()
-            .iter()
-            .find(|binding| {
-                binding.source_member() == member.member()
-                    && binding.containing_atom() == atom
-                    && binding.offset_within_atom() == offset
-            })
+            .bindings_at(member.member(), atom, offset)
+            .first()
             .ok_or(ConeImageValidationError::RelocationMismatch {
                 role,
                 index,

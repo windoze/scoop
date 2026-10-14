@@ -1,0 +1,60 @@
+import scoop.json.*
+
+struct FunctionSpec(
+    val name: String,
+    val parameters: JsonValue,
+    val strict: Boolean? = None,
+    val description: String? = None
+) {
+    companion object : Encodable<FunctionSpec>, Decodable<FunctionSpec> {}
+}
+struct FileSearchTool(val vector_store_ids: Array<String>, val max_num_results: Long? = None) {
+    companion object : Encodable<FileSearchTool>, Decodable<FileSearchTool> {}
+}
+struct WebSearchTool(val search_context_size: String? = None, val user_location: UserLocation? = None) {
+    companion object : Encodable<WebSearchTool>, Decodable<WebSearchTool> {}
+}
+struct UserLocation(
+    val type: String,
+    val city: String? = None,
+    val country: String? = None,
+    val timezone: String? = None
+) {
+    companion object : Encodable<UserLocation>, Decodable<UserLocation> {}
+}
+struct ComputerTool(val display_width: Long, val display_height: Long, val environment: String) {
+    companion object : Encodable<ComputerTool>, Decodable<ComputerTool> {}
+}
+struct CodeTool(val container: ContainerChoice) {
+    companion object : Encodable<CodeTool>, Decodable<CodeTool> {}
+}
+struct MCPConfig(val server_label: String, val server_url: String, val allowed_tools: Array<String>? = None) {
+    companion object : Encodable<MCPConfig>, Decodable<MCPConfig> {}
+}
+struct ContainerObject(val type: String, val file_ids: Array<String> = []) {
+    companion object : Encodable<ContainerObject>, Decodable<ContainerObject> {}
+}
+struct ImageTool(val size: String? = None, val quality: String? = None) {
+    companion object : Encodable<ImageTool>, Decodable<ImageTool> {}
+}
+struct NamedFunction(val name: String) {
+    companion object : Encodable<NamedFunction>, Decodable<NamedFunction> {}
+}
+enum ContainerChoice {
+    Text(String), Config(ContainerObject)
+    companion object : Encodable<ContainerChoice>, Decodable<ContainerChoice> {
+        public override fun encode(value: ContainerChoice, encoder: Encoder) {
+            when (value) {
+                case ContainerChoice.Text(text) -> String.encode(text, encoder)
+                case ContainerChoice.Config(payload) -> ContainerObject.Companion.encode(payload, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): ContainerChoice {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { text = None }
+            if (text != None) { return ContainerChoice.Text(text!!) }
+            return ContainerChoice.Config(ContainerObject.Companion.decode(decoder))
+        }
+    }
+}

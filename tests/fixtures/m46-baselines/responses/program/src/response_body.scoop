@@ -1,0 +1,33 @@
+struct ResponseBody(
+    val id: String,
+    val created_at: Long,
+    val status: String,
+    val model: String,
+    val output: Array<ResponseItem>,
+    @Serialize(required = true) val error: ResponseError?,
+    @Serialize(required = true) val incomplete_details: Incomplete?,
+    @Serialize(required = true) val usage: ResponseUsage?
+) {
+    companion object : Encodable<ResponseBody>, Decodable<ResponseBody> {}
+}
+struct ResponseError(val code: String, val message: String) {
+    companion object : Encodable<ResponseError>, Decodable<ResponseError> {}
+}
+struct Incomplete(val reason: String) {
+    companion object : Encodable<Incomplete>, Decodable<Incomplete> {}
+}
+struct ResponseUsage(
+    val input_tokens: Long,
+    val output_tokens: Long,
+    val total_tokens: Long,
+    val input_tokens_details: InputTokens,
+    val output_tokens_details: OutputTokens
+) {
+    companion object : Encodable<ResponseUsage>, Decodable<ResponseUsage> {}
+}
+struct InputTokens(val cached_tokens: Long) {
+    companion object : Encodable<InputTokens>, Decodable<InputTokens> {}
+}
+struct OutputTokens(val reasoning_tokens: Long) {
+    companion object : Encodable<OutputTokens>, Decodable<OutputTokens> {}
+}
