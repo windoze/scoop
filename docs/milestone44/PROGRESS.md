@@ -11,7 +11,7 @@
 | M44-3 引用定位、写回和无引用对象 | 实现、本机定向验收及普通 full／minor 搬迁和零搬迁对照完成；Linux 组合待最终验收 |
 | M44-4 编译器 GC 代码生成边界 | 实现与本机定向验收完成；四类程序的独立编译产物和机器码一致，Linux 组合待最终验收 |
 | M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan、mutator、对象信息与普通 runtime 堆操作边界已实现，通过本机定向验收与完整边界性能对照；Linux 组合待验收 |
-| M44-6 组合、平台与性能验收 | 本机四程序、零搬迁、普通 full／minor 搬迁及多线程分配／实际进度对照完成；工作区全量验收进行中，正式 CLI 全量与 Linux 待后续执行 |
+| M44-6 组合、平台与性能验收 | 本机各场景性能对照、工作区测试与 49 项 fixture runner 公共规则通过；正式 CLI 全量运行中，Linux 功能与性能验收待执行 |
 
 ## 工作约定
 
@@ -132,3 +132,10 @@
 - 为 Linux 的旧／新版本整体对照，四程序构建脚本增加可选 runtime／sysroot 来源，保存实际路径与 runtime 逐文件摘要。每次构建使用与源码目录匹配的固定工具，避免旧工具的源目录清单与已拆分的新 runtime 混用；原有同 runtime 的双工具对照保持。
 - Python Ruff 0.16.10 [格式与检查](validation/codegen-source-selection-lint.log.gz)通过。以 `44a3c0bf` 的 220 个 runtime 文件和当前的 231 个文件分别构建、运行 allocation／arrays／old-graph／primitive，八个进程的预期输出与 GC 统计均核对，源码摘要与各自输入逐项一致，见[构建及功能记录](validation/codegen-source-selection-darwin.json.gz)。准备命令首轮误向 Darwin 传入仅供 Linux 的 unwind prefix，改用 SDK 默认来源后通过；原始拒绝诊断保留。
 - 本批只验证构建来源与程序功能，不在其他本机测试运行期间计量性能。证据归档核对后清理本批构建副本约 74 MB，保留共享缓存。工作区测试和正式 CLI 全量仍在运行；49 项 fixture runner 公共规则已通过，最终覆盖与 Linux 结果仍待闭合。
+
+## 2026-10-14：工作区验收与既有测试期望修正
+
+- 首轮 `cargo test --workspace` 执行 25 个目标，5619 项通过、2 项失败。最长的 core 产物测试包含多组实际发布与损坏产物拒绝检查，最终通过；未因观察等待到期而重启或跳过。原始失败、定向诊断与修复日志均保留在[完整记录](validation/acceptance-rust-darwin.json.gz)。
+- 两个失败均为旧测试期望：诊断路径仍写 cone-production/11，更新为 M43 既定的 12；bootstrap 类型集合漏掉 M42 的五个 Collection 实例，以及 Float／Double 位转换经 Ptr 引入的四个 Equals 实例。逐项对照现有 lists.scoop、floating.scoop 和 ffi.scoop 后补齐，未改变编译器行为或放宽产物检查。
+- 格式化与 workspace clippy 通过，两个失败项用独立 release 测试程序复验通过。根据 Cargo 编译目标清单，补跑首轮因失败未执行的 driver CLI 7 项和 machine-capability 1 项；另执行完整 workspace doctest，21 个目标中 2 项测试通过。按目标及测试名称核对，27 个测试目标共 5629 项均有成功证据，另有 2 项 doctest，见[覆盖索引](validation/acceptance-rust-coverage-darwin.json.gz)；没有再次执行已通过的完整工作区套件。
+- [49 项 fixture runner 公共规则](validation/acceptance-fixture-rules-darwin.log.gz)通过。正式 CLI `--all` 仍在运行，Linux GNU／musl 的适用功能组合与同机性能尚待验证；本批不宣称 M44 完成。

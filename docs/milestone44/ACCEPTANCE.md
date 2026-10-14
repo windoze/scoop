@@ -15,7 +15,7 @@
 | M44-3 减少实际更新工作 | [slot visitor](../../runtime/src/gc/collector.c)复用本次 object_meta 结果并条件写回；[forwarding／claim](../../runtime/src/gc/evacuation.c)只为新地址重新定位，GC-free 对象跳过出站扫描；[损坏 forwarding 专测](../../runtime/tests/forwarding_validation_test.c)与[反汇编](validation/relocation-machine-code.txt.gz)保留必要失败出口和一次定位证据；full／minor 实际搬迁对照已完成 | 最终集成与 Linux 组合 |
 | M44-4 完整 GC 代码生成 | [function/gc](../../compiler/codegen/src/function/gc/)持有分配、字段／数组／aggregate 写入、原子操作、发布和 poll；失败 CAS 只在成功分支执行屏障；[372 项测试](validation/codegen-rust.log.gz)、[真实写入 fixture](validation/codegen-writes-darwin.json.gz)与[机器码对照](validation/codegen-machine-darwin.json.gz)通过 | Linux 生成代码与运行组合 |
 | M44-5 runtime 边界 | [gc_binding](../../runtime/src/gc_binding/)解释根、stackmap、对象 scan 与线程字段；[mutator](../../runtime/src/gc/mutator_internal.h)拥有分配状态并保留原 TLAB 前缀；[普通 runtime 操作](../../runtime/src/gc.h)收拢实际分配／复制／对象检查，[操作回归](validation/operations-darwin.json.gz)通过；完整边界的本机性能与机器码已核对 | 最终集成与 Linux 生命周期组合 |
-| M44-6 组合与平台 | 本机定向正式 CLI、collector 组、各性能场景已有记录；正在执行最终工作区测试 | 工作区全范围成功证据、fixture runner 公共规则、正式 CLI 全量、Linux GNU／musl 适用组合、最终覆盖核对 |
+| M44-6 组合与平台 | 本机定向正式 CLI、collector 组、各性能场景已有记录；[工作区覆盖](validation/acceptance-rust-coverage-darwin.json.gz)包含 27 个目标的 5629 项成功测试及 2 项 doctest，[49 项公共规则](validation/acceptance-fixture-rules-darwin.log.gz)通过 | 正式 CLI 全量、Linux GNU／musl 适用组合、最终覆盖核对 |
 
 ## 正确性矩阵
 
@@ -30,7 +30,7 @@
 | pin／handle／release | collector 的 pins、moving、reclamation、no-move、fallback 组；[回收与 pin 的 CLI 组](validation/no-move-fixtures-darwin.json.gz)；实际 minor 基准核对 pinned 节点到移动节点的引用 |
 | 托管写入与发布 | gc-writes 在 debug／release 下运行普通、moving stress、minor stress；字段、数组、含引用值复制、构造、clone、AtomicRef store／exchange／成功与失败 CAS；codegen 专测检查内存序、屏障与 poll |
 | 显式验证及错误出口 | collector 驱动的 verify_metadata 配置、moving stress，损坏 forwarding 的真实对象注入／失败消息，初始化与对象表示专测；[操作测试覆盖索引](validation/operations-coverage.json.gz)保留首轮失败与成功复验对应关系 |
-| 产物消费与平台 | 最终工作区中的 retained-artifacts／provider-consumer 测试、正式 CLI 的无源码消费和 artifact-only 链接仍需合并最终结果；GNU／musl 尚未执行本期验收，不能使用 M43 的平台结果代替 |
+| 产物消费与平台 | 最终工作区测试已完成并逐项核对，见[覆盖索引](validation/acceptance-rust-coverage-darwin.json.gz)；正式 CLI 的无源码消费和 artifact-only 链接仍需合并最终结果。GNU／musl 尚未执行本期验收，不能使用 M43 的平台结果代替 |
 
 ## 性能与边界核对
 
@@ -45,7 +45,6 @@
 
 ## 尚未闭合的完成条件
 
-1. 完成本机工作区测试；已发现依赖诊断测试仍期望 cone-production/11，而现行 M43 格式为 12，需修正期望并成功复验，保留首轮失败证据。
-2. 执行 fixture runner 公共规则与正式 CLI `--all`，按完整发现集合核对通过／不适用／失败，修复失败后保留准确的复验映射。
-3. 在 nuc12 运行 Linux GNU／musl 的 GC／ABI／根／写入／生命周期、真实库与产物消费适用组合，并完成同机性能与机器码对照；不跨主机计算加速比。
-4. 合并最终平台覆盖、原始失败与修复记录，逐项核对本文件和设计后，同步设计、实施记录及路线图的完成状态。
+1. 完成仍在运行的正式 CLI `--all`，按完整发现集合核对通过／不适用／失败，修复失败后保留准确的复验映射。工作区首轮的两项旧期望已修正，定向复验、遗漏目标与 doctest 均通过；[完整记录](validation/acceptance-rust-darwin.json.gz)保留首轮失败。
+2. 在 nuc12 运行 Linux GNU／musl 的 GC／ABI／根／写入／生命周期、真实库与产物消费适用组合，并完成同机性能与机器码对照；不跨主机计算加速比。
+3. 合并最终平台覆盖、原始失败与修复记录，逐项核对本文件和设计后，同步设计、实施记录及路线图的完成状态。
