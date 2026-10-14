@@ -34,6 +34,18 @@
 
 ## 性能与边界核对
 
+以下源码审阅对应生产 runtime `f300090b` 和当前 codegen；forwarding 候选仍单独验证，
+不改变此处已经收拢的职责。源码审阅证明实现边界，不替代下文的运行和机器码证据。
+
+| 设计边界 | 实际调用与审阅结果 |
+| --- | --- |
+| 零搬迁及回退 | collector 的 moved_objects 分支位于完整 planning／copy／minor→full 循环之后；统计、验证、mark 清理、finish_collection、临时 pin 解除、锁释放与 resume_world 均在该分支之外；heap_begin_collection 每轮清零 moved_objects，计划执行只在复制和 forwarding 发布后递增 |
+| 完整托管写入 | [heap_store](../../compiler/codegen/src/function/gc/writes.rs) 同时执行实际 store 与值屏障，字段和数组元素发射器委托它；[数组构造／复制](../../compiler/codegen/src/function/gc/arrays/)在 GC 模块内完成写入与最终范围屏障，递归值布局保留 interface、struct、enum、MaybeUninit 和 aggregate 的引用范围 |
+| 原子与 GC-free 状态 | [atomics](../../compiler/codegen/src/function/gc/atomics.rs)持有实际 store／RMW／CAS 和屏障；CAS success 条件控制屏障，内存序沿调用参数传递。[普通 heap 指令](../../compiler/codegen/src/function/instruction/heap.rs)保留 GC-free 机器状态操作，符合设计允许 GC-free 值继续使用普通操作的边界 |
+| 快路径与共享 ABI | TLAB 普通对象上限在 GC allocation 发射器；四级查表和 card 操作在 card 模块，page-map 为 acquire load、置脏为 monotonic atomic OR；ready 在 writes 中为 release，poll 的 acquire 读取在 poll 模块。没有把策略常量重新放回通用 LIR，实际 runtime 符号仍沿现有 ABI 目录共享 |
+| 根与线程状态 | GC 核心通过 [gc_binding](../../runtime/src/gc_binding.h)访问真实槽位、冻结 registry 和握手；[threads 适配](../../runtime/src/gc_binding/threads.c)解释 ThreadState。[mutator 私有结构](../../runtime/src/gc/mutator_internal.h)保存 TLAB／block／计数，线程侧只持 opaque mutator，未引入第二份线程目录 |
+| 普通 runtime 与堆 | [gc.h](../../runtime/src/gc.h)提供实际分配、检查和含 memcpy／范围屏障的完整复制；boxing／array clone 使用这些操作。[values 适配](../../runtime/src/gc_binding/values.c)持有堆锁、起点／exact type／大小检查；普通 runtime 不再包含 GC 私有头或自行组合私有锁／对象查询，拆箱到外部目的地的普通 memcpy 保留在调用方 |
+
 - 无搬迁 wide／array／chain：[最终边界对照](validation/boundary-zero-darwin.json.gz)每图每侧 35 轮实际 moved_objects=0、update_ns=0；collector 后续必要工作仍执行，独立正确性测试不以计时为分支依据。
 - 普通 full 选择性搬迁：[引用优化对照](validation/relocation-compact-darwin.json.gz)与[最终边界对照](validation/boundary-compact-darwin.json.gz)保持逐对图和工作量计数。引用数组 mark 的初轮回退、机器码定位与修复后的完整对照均保留，未删除不利样本。
 - minor／old→young／pin：[1 worker](validation/minor-1-darwin.json.gz)、[4 worker](validation/minor-4-darwin.json.gz)各每侧 35 轮，实际移动、晋升和 remembered 工作量逐对相同，见[核对](validation/minor-audit.json.gz)。
