@@ -52,3 +52,37 @@ chain 基线 59.537–61.024 ms、candidate 41.730–42.391 ms。本批差异超
 这只证明当前主机三类无搬迁 full 图的收益，不代表有搬迁、线程实际恢复、Linux 或
 代码生成模块整理的结果。minor／回退／pin／release 的正确性由本批独立 runtime
 测试及正式 CLI 组合验证，性能尚须按设计补齐。
+
+## 引用位置复用、条件写回与 GC-free 扫描省略
+
+使用新增 compact 场景，先分配 180 万对含引用 node／GC-free leaf，再保留 1/16 并
+连接为环。两侧都包含上一批零搬迁优化、相同观测代码和源码输入；candidate 增加
+位置复用、条件写回、GC-free 扫描省略及无效自指 forwarding 的直接检查。工具、
+宿主和 4 worker 配置沿用上文。全部构建／测试结束后交替运行，预热各一次、正式
+各七次进程，每进程五次增长／收缩，共每侧 35 个有效收缩 full。
+
+[最终原始对照](validation/relocation-compact-darwin.json.gz)保存源码版本／差异、
+binary／工具摘要、命令和全部样本。逐对逐轮核对 moved、source、target、live、traced
+数完全一致：每次从 6 个 source region 集中到 1 个 target，225002 个存活对象，
+实际搬迁 187720–187815 个对象。没有开启 moving stress。
+
+| 指标 | 基线中位／p95／最大 | candidate 中位／p95／最大 |
+| --- | --- | --- |
+| update（ms） | 14.082／15.065／15.344 | 11.388／11.585／11.787 |
+| 请求到 RUNNING（ms） | 56.155／62.952／64.424 | 53.894／57.936／58.629 |
+| 进程耗时（s） | 2.901／2.958／2.958 | 2.659／2.693／2.693 |
+
+update 中位约减少 19.1%，请求到 RUNNING 中位约减少 4.0%；七次进程耗时范围分别为
+2.859–2.958 s 与 2.628–2.693 s。这是该具体工作负载的整体对照，不把三项代码改动的
+收益分别归因；进程还包含构图、自动 minor、初始 full 和校验，不能把总时间变化全归
+到已单列的五次 full。worker CPU、映射量、RSS 和吞吐均保留在原始报告中，阶段墙钟
+可能重叠，p95 仍仅描述小样本。
+
+另用完全相同的两个 binary 对 wide／array／chain 各交替七次进程，每次五轮 full，
+恢复 131071 个节点的原输入。两侧各 105 轮实际搬迁和 update 均为零，三个请求到
+RUNNING 中位分别为 1.931→1.923、2.355→2.339、4.128→4.089 ms，未见整体回退；
+这些微小差异不作为零搬迁分支的新增收益。见[完整复测](validation/relocation-no-move-darwin.json.gz)。
+
+[最终 binary 的反汇编](validation/relocation-machine-code.txt.gz)结合真实 fixture
+验证定位复用、条件 store 和 GC-free 提前返回。此结果仍限 Darwin／AArch64；年轻图、
+线程恢复延迟和 Linux 对照待后续批次，不能用当前结果替代。

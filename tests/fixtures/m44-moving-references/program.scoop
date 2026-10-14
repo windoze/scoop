@@ -1,0 +1,37 @@
+@Extern(lib = "moving_refs", name = "moved_count") fun movedCount(): Long
+
+class Leaf(val value: Long)
+class Holder(var child: Leaf?, var next: Holder?)
+struct Pair(val owner: Holder, val leaf: Leaf)
+
+@Unsafe fun main() {
+    val leaf = Leaf(77L)
+    val owner = Holder(Some(leaf), None)
+    owner.next = Some(owner)
+    val refs = MutableArray<Pair>(4096L) { _ -> Pair(owner, leaf) }
+    val pinned = pin(refs)
+    val numbers = MutableArray<Long>(8192L) { index -> index * 3L }
+    var round = 0
+    while (round < 3) {
+        gcCollect()
+        if (movedCount() < 3L) { throw IllegalStateException() }
+        if (owner.child!! !== leaf || owner.next!! !== owner || leaf.value != 77L) {
+            throw IllegalStateException()
+        }
+        var index = 0L
+        while (index < refs.size) {
+            if (refs[index].owner !== owner || refs[index].leaf !== leaf) {
+                throw IllegalStateException()
+            }
+            index += 1L
+        }
+        index = 0L
+        while (index < numbers.size) {
+            if (numbers[index] != index * 3L) { throw IllegalStateException() }
+            index += 1L
+        }
+        round += 1
+    }
+    if (unpin(pinned) !== refs) { throw IllegalStateException() }
+    println("moving roots, pinned aggregate slots and GC-free payloads preserved")
+}

@@ -192,6 +192,10 @@ void scoop_heap_bit_clear(uint64_t *bits, size_t index);
 ScoopGcBlockMeta *scoop_heap_activate_small_block(ScoopGcBlockState state, bool allow_growth);
 ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBlockState state);
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
+/* Collector-only: the supplied position was resolved in this stable heap view. */
+void *scoop_heap_forward_object(void *object, const ScoopGcBlockMeta *block, size_t word);
+void *scoop_heap_claim_relocated_object(void *object);
+bool scoop_gc_object_was_scanned_locked(const void *object);
 void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
                                     bool marked);
 void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
