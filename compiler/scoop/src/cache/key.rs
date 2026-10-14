@@ -305,8 +305,7 @@ impl ConeCompileCacheInputV1 {
     }
 
     pub fn key(&self) -> Result<ConeCompileCacheKeyV1, HashError> {
-        domain_separated_cbor_hash(CACHE_KEY_DOMAIN, self)
-            .map(|digest| ConeCompileCacheKeyV1(*digest.as_array()))
+        domain_separated_cbor_hash(CACHE_KEY_DOMAIN, self).map(ConeCompileCacheKeyV1::from_digest)
     }
 
     pub const fn cone(&self) -> &ConeRecord {

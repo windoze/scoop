@@ -72,14 +72,8 @@ macro_rules! protocol_digest {
     };
 }
 
-protocol_digest!(ProtocolArtifactFingerprint, "artifact fingerprint");
 protocol_digest!(ProtocolConeIdentity, "Cone identity");
-protocol_digest!(ProtocolHirFingerprint, "HIR fingerprint");
-protocol_digest!(ProtocolMirFingerprint, "MIR fingerprint");
-protocol_digest!(ProtocolLirFingerprint, "LIR fingerprint");
-protocol_digest!(ProtocolCodeFingerprint, "Code fingerprint");
 protocol_digest!(ProtocolDumpContentDigest, "dump content digest");
-protocol_digest!(ProtocolRuntimeImageFingerprint, "runtime image fingerprint");
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmittedDumpDestinationV1 {
@@ -153,27 +147,14 @@ impl WireEncode for EmittedDumpDescriptorV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScoopcSuccessV1 {
-    artifact_fingerprint: ProtocolArtifactFingerprint,
-    cone_identity: ProtocolConeIdentity,
-    hir_fingerprint: ProtocolHirFingerprint,
-    mir_fingerprint: ProtocolMirFingerprint,
-    lir_fingerprint: ProtocolLirFingerprint,
-    code_fingerprint: ProtocolCodeFingerprint,
-    runtime_image_fingerprint: ProtocolRuntimeImageFingerprint,
+    summary: scoop_slib::ArtifactManifestSummaryV1,
     warnings: Vec<StructuredDiagnosticV1>,
     emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
 }
 
 impl ScoopcSuccessV1 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        artifact_fingerprint: ProtocolArtifactFingerprint,
-        cone_identity: ProtocolConeIdentity,
-        hir_fingerprint: ProtocolHirFingerprint,
-        mir_fingerprint: ProtocolMirFingerprint,
-        lir_fingerprint: ProtocolLirFingerprint,
-        code_fingerprint: ProtocolCodeFingerprint,
-        runtime_image_fingerprint: ProtocolRuntimeImageFingerprint,
+        summary: scoop_slib::ArtifactManifestSummaryV1,
         warnings: Vec<StructuredDiagnosticV1>,
         emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
     ) -> Result<Self, ProtocolValidationError> {
@@ -195,44 +176,14 @@ impl ScoopcSuccessV1 {
             return Err(ProtocolValidationError::InvalidDumpDescriptors);
         }
         Ok(Self {
-            artifact_fingerprint,
-            cone_identity,
-            hir_fingerprint,
-            mir_fingerprint,
-            lir_fingerprint,
-            code_fingerprint,
-            runtime_image_fingerprint,
+            summary,
             warnings,
             emitted_dump_descriptors,
         })
     }
 
-    pub const fn artifact_fingerprint(&self) -> ProtocolArtifactFingerprint {
-        self.artifact_fingerprint
-    }
-
-    pub const fn cone_identity(&self) -> ProtocolConeIdentity {
-        self.cone_identity
-    }
-
-    pub const fn hir_fingerprint(&self) -> ProtocolHirFingerprint {
-        self.hir_fingerprint
-    }
-
-    pub const fn mir_fingerprint(&self) -> ProtocolMirFingerprint {
-        self.mir_fingerprint
-    }
-
-    pub const fn lir_fingerprint(&self) -> ProtocolLirFingerprint {
-        self.lir_fingerprint
-    }
-
-    pub const fn code_fingerprint(&self) -> ProtocolCodeFingerprint {
-        self.code_fingerprint
-    }
-
-    pub const fn runtime_image_fingerprint(&self) -> ProtocolRuntimeImageFingerprint {
-        self.runtime_image_fingerprint
+    pub const fn summary(&self) -> &scoop_slib::ArtifactManifestSummaryV1 {
+        &self.summary
     }
 
     pub fn warnings(&self) -> &[StructuredDiagnosticV1] {
@@ -305,28 +256,16 @@ fn encode_success(
     request_id: RequestCorrelationId,
     result: &ScoopcSuccessV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(11)?;
+    encoder.map(5)?;
     encoder.field(0)?;
     encoder.unsigned(1)?;
     encoder.field(1)?;
     request_id.encode(encoder)?;
     encoder.field(2)?;
-    result.artifact_fingerprint.encode(encoder)?;
+    result.summary.encode(encoder)?;
     encoder.field(3)?;
-    result.cone_identity.encode(encoder)?;
-    encoder.field(4)?;
-    result.hir_fingerprint.encode(encoder)?;
-    encoder.field(5)?;
-    result.mir_fingerprint.encode(encoder)?;
-    encoder.field(6)?;
-    result.lir_fingerprint.encode(encoder)?;
-    encoder.field(7)?;
-    result.code_fingerprint.encode(encoder)?;
-    encoder.field(8)?;
-    result.runtime_image_fingerprint.encode(encoder)?;
-    encoder.field(9)?;
     encode_diagnostics(encoder, &result.warnings)?;
-    encoder.field(10)?;
+    encoder.field(4)?;
     encoder.array(result.emitted_dump_descriptors.len() as u64)?;
     for dump in &result.emitted_dump_descriptors {
         dump.encode(encoder)?;

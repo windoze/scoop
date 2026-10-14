@@ -49,7 +49,9 @@ fn location(
             }
             Layout::Semantic { source } => semantic::location(source),
             Layout::Physical { source } => Some((source.provider, "objects".to_owned())),
-            Layout::Resource { .. } | Layout::MissingCurrentArtifact => None,
+            Layout::Resource { .. } | Layout::MissingCurrentArtifact | Layout::TestDirectory(_) => {
+                None
+            }
         },
         Closure::Commit(error) => match error.as_ref() {
             slib::CrossConeSemanticCommitError::IdentityPreparation { identity, source } => {
@@ -93,7 +95,6 @@ impl Error {
                     slib::ArtifactManifestSummaryError::TestDirectory(_) => {
                         "manifest:test-directory".to_owned()
                     }
-                    slib::ArtifactManifestSummaryError::LengthOverflow => "container".to_owned(),
                 },
             ),
             Self::CurrentConeArtifact { input, .. }

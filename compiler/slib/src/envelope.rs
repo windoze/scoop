@@ -109,14 +109,6 @@ impl<'input> DecodedSlibEnvelope<'input> {
         })
     }
 
-    pub(crate) fn manifest_length(&self) -> usize {
-        self.archive.manifest_length()
-    }
-
-    pub(crate) fn archive_length(&self) -> usize {
-        self.archive.archive_length()
-    }
-
     pub(crate) fn into_manifest(self) -> BootstrapManifest {
         self.manifest
     }

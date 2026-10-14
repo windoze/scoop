@@ -1,19 +1,14 @@
-use std::fmt;
-use std::sync::Arc;
-
+use super::model::{PreparedBuildGraph, PreparedGraphNode};
+use crate::{
+    ArtifactClosureValidationError, BuildArtifact, ChildRequestPlanError, ChildTransportError,
+    CompileBuildRecordV1, CompileCacheEntryV1, CompileCacheKeyError, CompileCacheLookupV1,
+    CompileCacheStoreError, CompileCacheStoreV1, CompletedNode, CompletedNodeOrigin,
+    SingleConeCompilerRunner,
+};
 use scoop_identity::ConeIdentity;
 use scoop_protocol::{RequestCorrelationId, ScoopcResponseEnvelopeV1, StructuredDiagnosticV1};
-use scoop_slib::ArtifactSnapshot;
-use scoop_wire::HashError;
-
-use super::model::{PreparedBuildGraph, PreparedGraphNode};
-use crate::artifact::{CompiledCompletionError, CompletedNode, complete_compiled_candidate};
-use crate::{
-    CacheCompletionError, CacheReceiptBodyV1, CacheReceiptV1, CacheReceiptValidationError,
-    ChildRequestPlanError, ChildSuccessArtifactMismatch, ChildTransportError, CompileCacheKeyError,
-    CompileCacheLookupV1, CompileCacheStoreError, CompileCacheStoreV1, ImmutableInputSnapshot,
-    SingleConeCompilerRunner, SnapshotFileError, validate_child_success_artifact,
-};
+use std::collections::BTreeMap;
+use std::fmt;
 
 impl PreparedBuildGraph {
     /// Observed sources compile independently; ordinary misses keep their key
@@ -47,8 +42,8 @@ impl PreparedBuildGraph {
                     .map_err(OrdinarySourceExecutionError::CacheStore)?
                 {
                     return self
-                        .complete_cache_hit(identity, *entry, completed)
-                        .map_err(OrdinarySourceExecutionError::CacheCompletion);
+                        .complete_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
+                        .map_err(OrdinarySourceExecutionError::Completion);
                 }
             }
 
@@ -60,8 +55,8 @@ impl PreparedBuildGraph {
                 .map_err(OrdinarySourceExecutionError::CacheStore)?
             {
                 return self
-                    .complete_cache_hit(identity, *entry, completed)
-                    .map_err(OrdinarySourceExecutionError::CacheCompletion);
+                    .complete_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
+                    .map_err(OrdinarySourceExecutionError::Completion);
             }
             Some(lock)
         };
@@ -103,54 +98,61 @@ impl PreparedBuildGraph {
         success: &scoop_protocol::ScoopcSuccessV1,
     ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        let output = ImmutableInputSnapshot::capture(invocation.output_path())
-            .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
-        let snapshot = Arc::new(ArtifactSnapshot::from_shared(output.shared_bytes()));
-        let plan = self.artifact_closure_plan();
-        let mut completed_node = complete_compiled_candidate(
-            &plan,
-            identity,
-            snapshot,
-            invocation.output_path().to_path_buf(),
-            completed,
-            success.warnings().to_vec(),
-        )
-        .map_err(OrdinarySourceExecutionError::Completion)?;
-        validate_child_success_artifact(success, completed_node.artifact())
-            .map_err(OrdinarySourceExecutionError::ChildResult)?;
-
         self.publish_dumps(identity, success.emitted_dump_descriptors())
             .map_err(OrdinarySourceExecutionError::Observation)?;
-        let summary = completed_node.artifact().summary();
-        let receipt = CacheReceiptV1::new(
-            CacheReceiptBodyV1::new(
-                key,
-                summary.artifact_fingerprint(),
-                summary.cone().clone(),
-                summary.target_selection(),
-                summary.direct_dependencies().to_vec(),
-                self.compiler.fingerprint(),
-                summary.profile().clone(),
-                success.warnings().to_vec(),
-            )
-            .map_err(OrdinarySourceExecutionError::ReceiptValidation)?,
-        )
-        .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
-        completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
         let lock = match held_lock {
             Some(lock) => lock,
-            None => store
-                .acquire_exclusive(key)
-                .map_err(OrdinarySourceExecutionError::CacheStore)?,
+            None => {
+                let lock = store
+                    .acquire_exclusive(key)
+                    .map_err(OrdinarySourceExecutionError::CacheStore)?;
+                if let CompileCacheLookupV1::Hit(entry) = store
+                    .lookup(&lock)
+                    .map_err(OrdinarySourceExecutionError::CacheStore)?
+                {
+                    return self
+                        .complete_result(identity, *entry, completed, CompletedNodeOrigin::Compiled)
+                        .map_err(OrdinarySourceExecutionError::Completion);
+                }
+                lock
+            }
         };
-        let published = store
-            .publish(&lock, &output, &receipt)
+        let entry = store
+            .publish(
+                &lock,
+                invocation.output_path(),
+                CompileBuildRecordV1 {
+                    summary: success.summary().clone(),
+                    warnings: success.warnings().to_vec(),
+                },
+            )
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
-        let (crate::CompileCachePublishV1::Published(entry)
-        | crate::CompileCachePublishV1::ExistingEquivalent(entry)) = published;
-        completed_node.replace_artifact_locator(entry.artifact().source_locator().to_path_buf());
+        self.complete_result(identity, entry, completed, CompletedNodeOrigin::Compiled)
+            .map_err(OrdinarySourceExecutionError::Completion)
+    }
 
-        Ok(completed_node)
+    fn complete_result(
+        &self,
+        identity: ConeIdentity,
+        entry: CompileCacheEntryV1,
+        completed: &[&CompletedNode],
+        origin: CompletedNodeOrigin,
+    ) -> Result<CompletedNode, ArtifactClosureValidationError> {
+        let artifact = BuildArtifact::from_result(entry.artifact.clone(), entry.record.summary);
+        let mut artifacts: BTreeMap<_, _> = completed
+            .iter()
+            .map(|node| (node.cone(), node.shared_artifact()))
+            .collect();
+        artifacts.insert(identity, std::rc::Rc::clone(&artifact));
+        let closure = self.artifact_closure_plan().collect(identity, &artifacts)?;
+        Ok(CompletedNode::from_result(
+            identity,
+            origin,
+            artifact,
+            closure,
+            entry.artifact,
+            entry.record.warnings,
+        ))
     }
 }
 
@@ -164,16 +166,11 @@ pub enum OrdinarySourceExecutionError {
     NotOrdinarySource(ConeIdentity),
     CacheKey(Box<CompileCacheKeyError>),
     CacheStore(CompileCacheStoreError),
-    CacheCompletion(CacheCompletionError),
     RequestPlan(ChildRequestPlanError),
 
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
-    OutputSnapshot(SnapshotFileError),
-    Completion(CompiledCompletionError),
-    ChildResult(ChildSuccessArtifactMismatch),
-    ReceiptValidation(CacheReceiptValidationError),
-    ReceiptHash(HashError),
+    Completion(ArtifactClosureValidationError),
 }
 
 impl fmt::Display for OrdinarySourceExecutionError {
@@ -188,7 +185,6 @@ impl fmt::Display for OrdinarySourceExecutionError {
             }
             Self::CacheKey(source) => write!(formatter, "cannot derive cache key: {source}"),
             Self::CacheStore(source) => source.fmt(formatter),
-            Self::CacheCompletion(source) => source.fmt(formatter),
             Self::RequestPlan(source) => write!(formatter, "cannot plan compiler child: {source}"),
 
             Self::ChildTransport(source) => write!(formatter, "child transport failed: {source}"),
@@ -197,17 +193,7 @@ impl fmt::Display for OrdinarySourceExecutionError {
                 "compiler child reported {} diagnostic(s)",
                 diagnostics.len()
             ),
-            Self::OutputSnapshot(source) => {
-                write!(formatter, "cannot snapshot compiler child output: {source}")
-            }
             Self::Completion(source) => source.fmt(formatter),
-            Self::ChildResult(source) => source.fmt(formatter),
-            Self::ReceiptValidation(source) => {
-                write!(formatter, "cannot construct cache receipt: {source}")
-            }
-            Self::ReceiptHash(source) => {
-                write!(formatter, "cannot fingerprint cache receipt: {source}")
-            }
         }
     }
 }
@@ -219,15 +205,10 @@ impl std::error::Error for OrdinarySourceExecutionError {
             Self::Observation(source) => Some(source),
             Self::CacheKey(source) => Some(source.as_ref()),
             Self::CacheStore(source) => Some(source),
-            Self::CacheCompletion(source) => Some(source),
             Self::RequestPlan(source) => Some(source),
 
             Self::ChildTransport(source) => Some(source),
-            Self::OutputSnapshot(source) => Some(source),
             Self::Completion(source) => Some(source),
-            Self::ChildResult(source) => Some(source),
-            Self::ReceiptValidation(source) => Some(source),
-            Self::ReceiptHash(source) => Some(source),
             Self::NotOrdinarySource(_) | Self::ChildFailure(_) => None,
         }
     }

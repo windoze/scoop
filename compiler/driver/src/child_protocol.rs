@@ -5,14 +5,10 @@ use std::io::{self, Read, Write};
 use std::process::ExitCode;
 
 use scoop_protocol::{
-    DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
-    ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-    ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
-    ProtocolRuntimeImageFingerprint, ProtocolValidationError, RequestCorrelationId,
-    ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpPolicyV1,
-    StructuredDiagnosticV1,
+    DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1, ProtocolValidationError,
+    RequestCorrelationId, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
+    StageDumpPolicyV1, StructuredDiagnosticV1,
 };
-use scoop_slib::FingerprintAvailability;
 
 const CHILD_COMPILER_FAILURE_EXIT: u8 = 1;
 const CHILD_TRANSPORT_FAILURE_EXIT: u8 = 2;
@@ -146,31 +142,12 @@ fn success_response(
     let dumps = dumps::write_dumps(policy, success.emitted_dumps())
         .map_err(ChildProtocolError::DumpOutput)?;
     let artifact = success.artifact().summary();
-    let semantic = artifact.compile_summary().semantic_fingerprints();
-    let FingerprintAvailability::Available(code) = semantic.code() else {
-        return Err(ChildProtocolError::MissingStrongFingerprint("code"));
-    };
-    let FingerprintAvailability::Available(runtime_image) = semantic.runtime_image() else {
-        return Err(ChildProtocolError::MissingStrongFingerprint(
-            "runtime image",
-        ));
-    };
     let warnings = success
         .warnings()
         .structured()
         .map_err(ChildProtocolError::DiagnosticMapping)?;
-    let result = ScoopcSuccessV1::new(
-        ProtocolArtifactFingerprint::from_array(*artifact.artifact_fingerprint().as_array()),
-        ProtocolConeIdentity::from_array(*artifact.identity().as_array()),
-        ProtocolHirFingerprint::from_array(*semantic.hir().as_array()),
-        ProtocolMirFingerprint::from_array(*semantic.mir().as_array()),
-        ProtocolLirFingerprint::from_array(*semantic.lir().as_array()),
-        ProtocolCodeFingerprint::from_array(*code.as_array()),
-        ProtocolRuntimeImageFingerprint::from_array(*runtime_image.as_array()),
-        warnings,
-        dumps,
-    )
-    .map_err(ChildProtocolError::ConstructResponse)?;
+    let result = ScoopcSuccessV1::new(artifact.manifest_summary().clone(), warnings, dumps)
+        .map_err(ChildProtocolError::ConstructResponse)?;
     Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
 }
 
@@ -186,7 +163,6 @@ enum ChildProtocolError {
     ReadRequest(io::Error),
     DecodeRequest(scoop_protocol::ProtocolReadError),
     ConstructResponse(ProtocolValidationError),
-    MissingStrongFingerprint(&'static str),
     DumpOutput(io::Error),
     DiagnosticMapping(scoopc::DiagnosticMappingError),
     EncodeResponse(scoop_protocol::ProtocolWriteError),
@@ -204,12 +180,6 @@ impl fmt::Display for ChildProtocolError {
             Self::ConstructResponse(source) => {
                 write!(formatter, "cannot construct response: {source}")
             }
-            Self::MissingStrongFingerprint(kind) => {
-                write!(
-                    formatter,
-                    "successful strong artifact has no {kind} fingerprint"
-                )
-            }
             Self::DiagnosticMapping(error) => error.fmt(formatter),
             Self::DumpOutput(error) => write!(formatter, "cannot write stage dumps: {error}"),
             Self::EncodeResponse(source) => write!(formatter, "cannot encode response: {source}"),
@@ -225,7 +195,7 @@ impl std::error::Error for ChildProtocolError {
             Self::DecodeRequest(source) => Some(source),
             Self::ConstructResponse(source) => Some(source),
             Self::EncodeResponse(source) => Some(source),
-            Self::UnsupportedVersion(_) | Self::MissingStrongFingerprint(_) => None,
+            Self::UnsupportedVersion(_) => None,
             Self::DumpOutput(error) => Some(error),
             Self::DiagnosticMapping(error) => Some(error),
         }
@@ -277,7 +247,7 @@ mod tests {
             "SCOOPC_COMPILER_WARNING".to_owned(),
             "retained catch-all warning".to_owned(),
             DiagnosticOriginV1::SemanticSourceSpan {
-                cone: ProtocolConeIdentity::from_array([17; 32]),
+                cone: scoop_protocol::ProtocolConeIdentity::from_array([17; 32]),
                 logical_path: scoop_identity::NormalizedSourcePath::new("src/Warning.scoop")
                     .unwrap(),
                 span: scoop_protocol::ProtocolByteSpan::new(4, 9).unwrap(),

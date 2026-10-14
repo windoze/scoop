@@ -153,7 +153,6 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
                 ArtifactManifestSummaryError::TestDirectory(_) => {
                     "manifest:test-directory".to_owned()
                 }
-                ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
             },
         },
         Error::InvalidArtifactSourceForm { path, .. } => BuildFailureLocation::Artifact {

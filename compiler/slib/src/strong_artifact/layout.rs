@@ -219,7 +219,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
         members.push(metadata.lir.into_member(identity)?);
         members.extend(link_objects);
         let mut manifest_sections = vec![manifest_section];
-        if let Some(directory) = test_directory {
+        if let Some(directory) = &test_directory {
             manifest_sections.push(
                 directory
                     .section()
@@ -241,6 +241,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             production_manifest.code_proof().production().projection(),
             link_object_count,
             target_selection,
+            test_directory,
         );
         let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members)
             .map_err(CrossConeLayoutArtifactWriteError::Archive)?;

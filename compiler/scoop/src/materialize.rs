@@ -70,20 +70,32 @@ impl OutputLocation {
         Ok(())
     }
 
-    pub(crate) fn publish_bytes(
+    pub(crate) fn publish_library(
         &self,
-        bytes: &[u8],
+        artifact: &Path,
+        fingerprint: scoop_slib::ArtifactFingerprint,
         inputs: &[PathBuf],
-        cache: Option<&Path>,
+        cache: &Path,
     ) -> io::Result<()> {
         scoop_process::check_interrupted()?;
         let _lock = self.lock()?;
-        self.check_inputs(inputs, cache)?;
-        let mut candidate = tempfile::NamedTempFile::new_in(&self.parent)?;
-        candidate.write_all(bytes)?;
-        candidate.as_file().sync_all()?;
+        let record = self.record_path();
+        let previous = match std::fs::read(&record) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error),
+        };
+        if previous.as_deref() == Some(fingerprint.as_array()) && self.path.try_exists()? {
+            return Ok(());
+        }
+        self.check_inputs(inputs, Some(cache))?;
+        let candidate = tempfile::NamedTempFile::new_in(&self.parent)?;
+        std::fs::copy(artifact, candidate.path())?;
         candidate.persist(&self.path).map_err(|error| error.error)?;
-        File::open(&self.parent)?.sync_all()
+        let mut candidate = tempfile::NamedTempFile::new_in(&self.parent)?;
+        candidate.write_all(fingerprint.as_array())?;
+        candidate.persist(&record).map_err(|error| error.error)?;
+        Ok(())
     }
 
     pub(crate) fn publish_program(
@@ -103,8 +115,18 @@ impl OutputLocation {
         };
         let published = self.copy_program(candidate, ".scoop-publish-")?;
         published.persist(&self.path).map_err(|error| error.error)?;
+        match std::fs::remove_file(self.record_path()) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
         File::open(&self.parent)?.sync_all()?;
         Ok(execution)
+    }
+
+    fn record_path(&self) -> PathBuf {
+        let key = scoop_wire::sha256(self.path.as_os_str().as_encoded_bytes());
+        self.parent.join(format!(".scoop-output-{key}.record"))
     }
 
     fn copy_program(&self, source: &Path, prefix: &str) -> io::Result<TempPath> {

@@ -122,20 +122,33 @@ fn completed_nodes_share_artifact_data_with_their_closure() {
     let snapshot = Arc::new(ArtifactSnapshot::from_bytes(
         std::fs::read(&candidate).unwrap(),
     ));
-    let completed = complete_compiled_candidate(
-        &plan,
-        core,
-        Arc::clone(&snapshot),
+    let artifact = BuildArtifact::from_snapshot(
         candidate.clone(),
-        &[],
-        Vec::new(),
-    )
-    .unwrap();
-    assert!(Arc::ptr_eq(completed.artifact().snapshot(), &snapshot));
-    let cached = CompletedNode::from_cache_hit(
+        Arc::clone(&snapshot),
+        snapshot
+            .manifest_summary(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap(),
+    );
+    let closure = plan
+        .collect(core, &BTreeMap::from([(core, Rc::clone(&artifact))]))
+        .unwrap();
+    let completed = CompletedNode::from_result(
         core,
-        completed.shared_artifact(),
-        completed.closure().clone(),
+        CompletedNodeOrigin::Compiled,
+        Rc::clone(&artifact),
+        closure.clone(),
+        candidate,
+        Vec::new(),
+    );
+    assert!(Arc::ptr_eq(
+        completed.artifact().snapshot().unwrap(),
+        &snapshot
+    ));
+    let cached = CompletedNode::from_result(
+        core,
+        CompletedNodeOrigin::CacheHit,
+        artifact,
+        closure,
         cached_path,
         Vec::new(),
     );
@@ -145,6 +158,6 @@ fn completed_nodes_share_artifact_data_with_their_closure() {
         let artifact = node.closure().artifact(core).unwrap();
         assert!(std::ptr::eq(artifact, node.artifact()));
         assert_eq!(artifact.summary().cone().identity(), core);
-        assert_eq!(artifact.snapshot().as_bytes(), archive.as_bytes());
+        assert_eq!(artifact.snapshot().unwrap().as_bytes(), archive.as_bytes());
     }
 }

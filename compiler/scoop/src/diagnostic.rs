@@ -96,18 +96,13 @@ impl BuildDiagnosticCode {
     pub const PREBUILT_CHANGED: Self = Self("SCOOP_PREBUILT_CHANGED");
 
     pub const CACHE_IO: Self = Self("SCOOP_CACHE_IO");
-    pub const CACHE_ENTRY_CORRUPT: Self = Self("SCOOP_CACHE_ENTRY_CORRUPT");
     pub const CACHE_LOCK: Self = Self("SCOOP_CACHE_LOCK");
-    pub const CACHE_NONDETERMINISTIC_PRODUCTION: Self =
-        Self("SCOOP_CACHE_NONDETERMINISTIC_PRODUCTION");
     pub const CACHE_PUBLISH: Self = Self("SCOOP_CACHE_PUBLISH");
 
     pub const CHILD_TOOL_MISMATCH: Self = Self("SCOOP_CHILD_TOOL_MISMATCH");
     pub const CHILD_TRANSPORT: Self = Self("SCOOP_CHILD_TRANSPORT");
     pub const CHILD_PROTOCOL: Self = Self("SCOOP_CHILD_PROTOCOL");
     pub const CHILD_EXIT: Self = Self("SCOOP_CHILD_EXIT");
-    pub const CHILD_OUTPUT_MISSING: Self = Self("SCOOP_CHILD_OUTPUT_MISSING");
-    pub const CHILD_OUTPUT_PLAN_MISMATCH: Self = Self("SCOOP_CHILD_OUTPUT_PLAN_MISMATCH");
     pub const CHILD_RESPONSE_MISMATCH: Self = Self("SCOOP_CHILD_RESPONSE_MISMATCH");
 
     pub const fn as_str(self) -> &'static str {
@@ -381,25 +376,9 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
             ),
             Self::CacheStore(source) => source.classification(),
 
-            Self::CacheCompletion(_) => classified(
-                BuildFailurePhase::Cache,
-                BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
-            ),
-
             Self::ChildTransport(source) => source.classification(),
             Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
-            Self::OutputSnapshot(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_OUTPUT_MISSING,
-            ),
-            Self::ChildResult(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
-            ),
-            Self::Completion(_) | Self::ReceiptValidation(_) | Self::ReceiptHash(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_OUTPUT_PLAN_MISMATCH,
-            ),
+            Self::Completion(_) => phase_only(BuildFailurePhase::ChildOutput),
             Self::NotOrdinarySource(_) | Self::RequestPlan(_) => {
                 phase_only(BuildFailurePhase::ChildTransport)
             }
@@ -442,36 +421,16 @@ impl ClassifyBuildFailure for CompileCacheStoreError {
                 classified(BuildFailurePhase::Cache, BuildDiagnosticCode::CACHE_LOCK)
             }
             Self::Io {
-                operation: CacheIoOperation::Publish,
+                operation: CacheIoOperation::Publish | CacheIoOperation::Write,
                 ..
             }
-            | Self::Io {
-                operation:
-                    CacheIoOperation::Write | CacheIoOperation::Sync | CacheIoOperation::SetPermissions,
-                ..
-            }
-            | Self::CandidateVerificationMissing
-            | Self::CandidateVerificationMismatch
-            | Self::PublishedEntryDisappeared(_)
-            | Self::AtomicNoReplaceUnavailable(_) => classified(
+            | Self::Encode(_) => classified(
                 BuildFailurePhase::CachePublish,
                 BuildDiagnosticCode::CACHE_PUBLISH,
             ),
-            Self::NondeterministicProduction(_) => classified(
-                BuildFailurePhase::CachePublish,
-                BuildDiagnosticCode::CACHE_NONDETERMINISTIC_PRODUCTION,
-            ),
-            Self::Io { .. } | Self::Snapshot { .. } | Self::ReceiptEncode(_) => {
+            Self::Io { .. } | Self::Decode(_) => {
                 classified(BuildFailurePhase::Cache, BuildDiagnosticCode::CACHE_IO)
             }
-            Self::InvalidNamespace(_)
-            | Self::InvalidPathType { .. }
-            | Self::UnexpectedEntryContents { .. }
-            | Self::ReceiptDecode(_)
-            | Self::ReceiptKeyMismatch { .. } => classified(
-                BuildFailurePhase::Cache,
-                BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
-            ),
         }
     }
 }

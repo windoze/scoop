@@ -50,16 +50,12 @@ fn stable_orchestrator_codes_are_unique() {
         BuildDiagnosticCode::PREBUILT_STALE_DEPENDENCY,
         BuildDiagnosticCode::PREBUILT_CHANGED,
         BuildDiagnosticCode::CACHE_IO,
-        BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
         BuildDiagnosticCode::CACHE_LOCK,
-        BuildDiagnosticCode::CACHE_NONDETERMINISTIC_PRODUCTION,
         BuildDiagnosticCode::CACHE_PUBLISH,
         BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
         BuildDiagnosticCode::CHILD_TRANSPORT,
         BuildDiagnosticCode::CHILD_PROTOCOL,
         BuildDiagnosticCode::CHILD_EXIT,
-        BuildDiagnosticCode::CHILD_OUTPUT_MISSING,
-        BuildDiagnosticCode::CHILD_OUTPUT_PLAN_MISMATCH,
         BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
     ];
     assert_eq!(

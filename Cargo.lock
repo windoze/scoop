@@ -706,6 +706,8 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-manifest",
+ "scoop-slib",
+ "scoop-target-data",
  "scoop-wire",
 ]
 

@@ -119,12 +119,10 @@ pub fn build_runtime(
         encode(&dependencies).map_err(error)?,
     )
     .map_err(error)?;
-    crate::cache::sync_cache_directory(&output).map_err(error)?;
     if entry.exists() {
         std::fs::remove_dir_all(&entry).map_err(error)?;
     }
     std::fs::rename(&output, &entry).map_err(error)?;
-    crate::cache::sync_cache_directory(&namespace).map_err(error)?;
     Ok(RuntimeBuildOutput {
         objects,
         index: entry.join("index.cbor"),

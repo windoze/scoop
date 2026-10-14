@@ -16,7 +16,6 @@ use crate::artifact::{CompletedNode, PrebuiltCompletionError, complete_prebuilt_
 use crate::discovery::BuildContext;
 use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
-mod cache_completion;
 mod cache_key;
 pub(super) mod child_request;
 

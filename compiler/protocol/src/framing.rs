@@ -187,12 +187,10 @@ mod tests {
     use crate::{
         CurrentConeRequestV1, DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1,
         DiagnosticSeverityV1, EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
-        ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-        ProtocolDumpContentDigest, ProtocolHirFingerprint, ProtocolLirFingerprint,
-        ProtocolMirFingerprint, ProtocolRuntimeImageFingerprint, ProtocolValidationError,
-        RequestCorrelationId, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
-        ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpKindV1, StageDumpPolicyV1,
-        StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+        ProtocolDumpContentDigest, ProtocolValidationError, RequestCorrelationId,
+        ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
+        StageDumpKindV1, StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1,
+        TrustedCoreRequestV1,
     };
 
     use super::*;
@@ -258,13 +256,7 @@ mod tests {
     fn success_and_failure_response_frames_round_trip() {
         let request_id = RequestCorrelationId::from_array([9; 16]);
         let success = ScoopcSuccessV1::new(
-            ProtocolArtifactFingerprint::from_array([1; 32]),
-            ProtocolConeIdentity::from_array([2; 32]),
-            ProtocolHirFingerprint::from_array([3; 32]),
-            ProtocolMirFingerprint::from_array([4; 32]),
-            ProtocolLirFingerprint::from_array([5; 32]),
-            ProtocolCodeFingerprint::from_array([6; 32]),
-            ProtocolRuntimeImageFingerprint::from_array([7; 32]),
+            crate::test_summary(),
             vec![warning()],
             vec![EmittedDumpDescriptorV1::new(
                 StageDumpKindV1::Lir,

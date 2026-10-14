@@ -559,7 +559,11 @@ native 与 runtime 的真实编译保存源码、depfile 中实际使用的头�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 7，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的预处理输入 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）。target request 保存 canonical triple、可选 C driver 与 native sysroot，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 8，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的预处理输入 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）。target request 保存 canonical triple、可选 C driver 与 native sysroot，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
+
+成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
+
+本机编译结果保存在 `compile-v2`：按输入键保存 `artifact.slib` 和普通 `record.cbor`（生产摘要与 warning），不保留 v1 收据、收据指纹或产物交叉验证。命中只读记录并检查所需输出是否存在；输出数据在真正的编译／链接消费者需要时才读取。编译成功后的输出经 rename 发布，记录普通原子替换，不读回、同步落盘或比较并发产物。取得构建锁后已有结果即采用，不建立等价性证明。库的用户输出在目标位置旁保存所对应结果的普通记录；未变化且文件存在时不读回或重新复制。相同位置改为可执行文件时废止此前库输出记录，不使下一次库构建误用其他构建结果。
 
 显式观察使用 `--emit ast|hir|mir|lir|all --dump-dir dir [--dump-scope root|sources]`，默认 root；sources 覆盖源码节点，不从 prebuilt 反造 AST 或 LocalConcreteHir。HIR dump 同时包含 Export、LocalConcrete 与共有跨 Cone 接口。当前输入已有相应 dump 时直接复用；缺失时只执行产生该观察所需的前置阶段，不重做仍有效的机器对象、归档或最终链接。源码变化使观察记录失效，诊断使用当前定位；观察失败不能报告成功。
 

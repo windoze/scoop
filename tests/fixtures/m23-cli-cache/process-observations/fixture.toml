@@ -28,7 +28,7 @@ checks = [
   {"actual" = "${cold.result.kind}", "equals" = "library"},
   {"actual" = "${cold.result.dependencies.length}", "equals" = 2},
   {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
-  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
   {"file" = "${work}/library.slib", "same_as" = "${cold.result.root.path}"},
   {"actual" = "${cold.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
   {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
@@ -50,7 +50,7 @@ checks = [
   {"actual" = "${warm.result.kind}", "equals" = "library"},
   {"actual" = "${warm.result.dependencies.length}", "equals" = 2},
   {"actual" = "${warm.result.observations.child_invocations}", "equals" = []},
-  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
   {"file" = "${work}/library.slib", "same_as" = "${warm.result.root.path}"},
   {"actual" = "${warm.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
   {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
@@ -78,7 +78,7 @@ checks = [
   {"actual" = "${observed.result.kind}", "equals" = "library"},
   {"actual" = "${observed.result.dependencies.length}", "equals" = 2},
   {"actual" = "${observed.result.observations.child_invocations}", "equals" = ["${observed.result.root.identity}"]},
-  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
   {"file" = "${work}/library.slib", "same_as" = "${observed.result.root.path}"},
   {"actual" = "${observed.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
   {"actual" = "${observed.result.observations.nodes.0.origin}", "equals" = "cache"},
@@ -156,7 +156,7 @@ checks = [
   {"actual" = "${failed.diagnostics.length}", "equals" = 2},
   {"actual" = "${failed.records.length}", "equals" = 2},
   {"file" = "${work}/library.slib", "same_as" = "${work}/artifacts/test/root/1.0.0/cone.slib"},
-  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
 ]
 
 [[steps]]
@@ -171,6 +171,6 @@ checks = [
   {"actual" = "${failed_warm.diagnostics.length}", "equals" = 2},
   {"actual" = "${failed_warm.records.length}", "equals" = 2},
   {"file" = "${work}/library.slib", "same_as" = "${work}/artifacts/test/root/1.0.0/cone.slib"},
-  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
   {"actual" = "${failed_warm.diagnostics}", "equals" = "${failed.diagnostics}"},
 ]

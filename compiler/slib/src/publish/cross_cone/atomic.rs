@@ -1,4 +1,4 @@
-//! Write, byte readback, and atomic replacement of a completed archive.
+//! Write and atomically publish the completed archive.
 
 use std::io::Write;
 use std::path::Path;
@@ -37,34 +37,7 @@ pub(super) fn publish(
             source,
         )
     })?;
-    temporary.flush().map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::FlushTemporary,
-            temporary.path().to_path_buf(),
-            source,
-        )
-    })?;
-    temporary.as_file().sync_all().map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::SyncTemporary,
-            temporary.path().to_path_buf(),
-            source,
-        )
-    })?;
-
     let temporary = temporary.into_temp_path();
-    let round_trip_bytes = std::fs::read(&temporary).map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::ReadTemporary,
-            temporary.to_path_buf(),
-            source,
-        )
-    })?;
-    if round_trip_bytes != final_bytes {
-        return Err(CrossConeArtifactPublishError::ReadbackMismatch {
-            path: temporary.to_path_buf(),
-        });
-    }
     temporary.persist(destination).map_err(|error| {
         CrossConeArtifactPublishError::io(
             CrossConePublishIoOperation::RenameTemporary,

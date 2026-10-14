@@ -11,13 +11,14 @@ pub(crate) fn capture_layout_publication(
     artifact: &crate::PhysicalImportsReplayedCrossConeLayoutSections,
     symbols: &crate::ReplayedLayoutLinkSymbolUsesV1,
     target: ValidatedLirTargetSelection,
-) -> CrossConeArtifactSummary {
-    CrossConeArtifactSummary::from_layout(
+) -> Result<CrossConeArtifactSummary, Error> {
+    Ok(CrossConeArtifactSummary::from_layout(
         artifact.manifest(),
         symbols.production_projection(),
         symbols.link_objects().members().len(),
         target,
-    )
+        crate::TestDirectory::from_manifest(artifact.manifest()).map_err(Error::TestDirectory)?,
+    ))
 }
 pub use errors::CrossConeLayoutArtifactValidationError;
 
@@ -46,5 +47,5 @@ pub fn read_cross_cone_layout_artifact_summary(
     let (artifact, symbols) = complete
         .artifact(current)
         .ok_or(Error::MissingCurrentArtifact)?;
-    Ok(capture_layout_publication(artifact, symbols, target))
+    capture_layout_publication(artifact, symbols, target)
 }

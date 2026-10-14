@@ -5,11 +5,9 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
-    ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-    ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
-    ProtocolRuntimeImageFingerprint, RequestCorrelationId, ScoopcRequestEnvelopeV1,
-    ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpPolicyV1, StructuredDiagnosticV1,
-    TargetSelectionRequestV1, TrustedCoreRequestV1, encode_machine_capability_frame,
+    RequestCorrelationId, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, StageDumpPolicyV1,
+    StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+    encode_machine_capability_frame,
 };
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, read_artifact_manifest_summary,
@@ -18,8 +16,8 @@ use scoop_slib::{
 use super::*;
 use crate::{
     ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphRequest, BuildRootInput, ChildIoPlan,
-    ChildTransportError, CompileCacheStoreV1, CompiledCompletionError, DiagnosticsPolicy,
-    PairedScoopcLocator, ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedSysrootRoot,
+    ChildTransportError, CompileCacheStoreV1, DiagnosticsPolicy, PairedScoopcLocator,
+    ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedSysrootRoot,
 };
 
 mod core;
@@ -62,42 +60,6 @@ impl SingleConeCompilerRunner for RecordingFailureRunner {
         self.current.push(request.build().current().clone());
         FailureRunner.invoke(_tool, request, io)
     }
-}
-
-struct IncompatibleProfileSuccessRunner;
-
-impl SingleConeCompilerRunner for IncompatibleProfileSuccessRunner {
-    fn invoke(
-        &mut self,
-        _tool: &ResolvedPairedScoopc,
-        request: &ScoopcRequestEnvelopeV1,
-        _io: &ChildIoPlan,
-    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
-        std::fs::write(
-            request.build().out_slib().to_path_buf().unwrap(),
-            core_manifest_artifact(),
-        )
-        .unwrap();
-        Ok(test_success(request.request_id()))
-    }
-}
-
-fn test_success(request_id: RequestCorrelationId) -> ScoopcResponseEnvelopeV1 {
-    ScoopcResponseEnvelopeV1::success(
-        request_id,
-        ScoopcSuccessV1::new(
-            ProtocolArtifactFingerprint::from_array([1; 32]),
-            ProtocolConeIdentity::from_array(*ConeIdentity::CORE.as_array()),
-            ProtocolHirFingerprint::from_array([2; 32]),
-            ProtocolMirFingerprint::from_array([3; 32]),
-            ProtocolLirFingerprint::from_array([4; 32]),
-            ProtocolCodeFingerprint::from_array([5; 32]),
-            ProtocolRuntimeImageFingerprint::from_array([6; 32]),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap(),
-    )
 }
 
 fn write_manifest(root: &Path, name: &str, dependencies: &str) {
@@ -218,22 +180,6 @@ fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
         "prepare-test",
         vec![core],
-    )
-    .into_bytes()
-}
-
-fn core_manifest_artifact() -> Vec<u8> {
-    crate::test_artifacts::manifest_archive(
-        crate::test_artifacts::host_target(),
-        scoop_slib::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-        ConeRecord::new(
-            ConeCoordinate::reserved_core(),
-            ConeKind::Library,
-            ConeSourceForm::Manifest,
-        )
-        .unwrap(),
-        "prepare-core-test",
-        Vec::new(),
     )
     .into_bytes()
 }

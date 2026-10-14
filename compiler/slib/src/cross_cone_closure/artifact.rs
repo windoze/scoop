@@ -141,9 +141,11 @@ pub fn validate_cross_cone_artifact_closure<'input>(
     for (artifact, symbols) in records {
         let artifact = std::rc::Rc::new(artifact);
         positions.insert(artifact.identity(), artifacts.len());
-        publications.push(crate::publish::capture_layout_publication(
-            &artifact, &symbols, target,
-        ));
+        publications.push(
+            crate::publish::capture_layout_publication(&artifact, &symbols, target).map_err(
+                |source| CrossConeArtifactClosureValidationError::Layout(Box::new(source)),
+            )?,
+        );
         links.push(ValidatedCrossConeStrongLinkArtifact::new(
             std::rc::Rc::clone(&artifact),
             symbols,

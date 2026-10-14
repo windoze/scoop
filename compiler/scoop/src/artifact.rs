@@ -11,10 +11,8 @@ use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_slib::{ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord};
 
-pub use completion::{
-    CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
-};
-pub(crate) use completion::{complete_compiled_candidate, complete_prebuilt_candidates};
+pub(crate) use completion::complete_prebuilt_candidates;
+pub use completion::{CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError};
 pub use data::BuildArtifact;
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
 
@@ -136,6 +134,31 @@ impl ArtifactClosurePlan {
             .iter()
             .map(|identity| (*identity, Rc::clone(&artifacts[identity])))
             .collect();
+        Ok(ValidatedArtifactClosure {
+            root,
+            order,
+            artifacts: retained,
+            edges: self.validated_edges(&reachable),
+        })
+    }
+
+    /// Project already-produced results onto the resolved graph's dependency order.
+    pub(crate) fn collect(
+        &self,
+        root: ConeIdentity,
+        artifacts: &BTreeMap<ConeIdentity, Rc<BuildArtifact>>,
+    ) -> Result<ValidatedArtifactClosure, ArtifactClosureValidationError> {
+        let reachable = self.reachable_from(root);
+        let order = self.closure_order(&reachable);
+        let retained = order
+            .iter()
+            .map(|identity| {
+                artifacts
+                    .get(identity)
+                    .map(|artifact| (*identity, Rc::clone(artifact)))
+                    .ok_or(ArtifactClosureValidationError::MissingArtifact(*identity))
+            })
+            .collect::<Result<_, _>>()?;
         Ok(ValidatedArtifactClosure {
             root,
             order,

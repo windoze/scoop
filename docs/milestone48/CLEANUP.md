@@ -90,7 +90,7 @@
 删除只验证下列行为的测试及其专用 helper／快照：
 
 - 修改、截断或伪造缓存 `.slib`、member、收据，要求报完整性／合法性错误；包括 [artifact-corruption](../../tests/fixtures/m23-cli-program-link/artifact-corruption/fixture.toml) 及 [cache/store/tests.rs](../../compiler/scoop/src/cache/store/tests.rs) 中 `exact_key_corruption_is_not_a_miss` 等旧约束。
-- 命中后重新验证 warning origin、收据与整个依赖闭包；[cache/validation/tests.rs](../../compiler/scoop/src/cache/validation/tests.rs) 中真正属于输入变化的部分改为普通更新判定，其余 proof 约束删除。
+- 命中后重新验证 warning origin、收据与整个依赖闭包；`cache/validation/tests.rs`（已删除） 中真正属于输入变化的部分改为普通更新判定，其余 proof 约束删除。
 - 缓存 payload／锁路径为 symlink、读取中替换 inode、非私有目录、不同 owner／权限、源路径逃逸等。源码正好通过普通 symlink 或路径带空格访问成功的正常 I/O 覆盖可保留，不以路径所属区域决定是否允许编译。
 - 编译过程中改写 scoopc 后要求 `CompilerChanged`；[child/tests.rs](../../compiler/scoop/src/child/tests.rs) 的 `production_runner_rejects_signal_and_compiler_mutation` 拆掉 mutation 分支，保留实际子进程 signal／失败传播。
 - 写入后修改缓存、候选目录或已发布 executable，再要求 reader 发现、修复、重试或返回特定防篡改错误。
@@ -127,3 +127,11 @@
 ### 已执行批次：文件读取与 native 变更时序
 
 `manifest/src/file_snapshot.rs` 的 no-follow 拒绝改为普通 symlink 读取，去掉 inode／时间戳是否仍与读取时一致的断言；目录输入仍检查实际读取错误。native 的 C、C++ 组合测试先编译并运行当前头文件，再修改真实头文件检查下一次构建输入变化，不再在准备与编译之间修改头文件并要求继续编译旧快照。普通 C／C++ CLI 缓存用例继续验证变更后的真实运行值；未删除语言、flags 或头文件依赖覆盖。
+
+### 已执行批次：普通构建结果记录
+
+删除 `cache/receipt`、`cache/validation` 及其专用测试，共 12 个收据／绑定／warning 来源与资格断言；删除 child 成功指纹逐字段复核的 2 项测试和 parent 拒绝已成功 child 产物 profile 的 1 项测试。生产时的正常语言、类型、ABI 与产物生成测试保持，parent 不再通过改写 child 结果测试另一套生产验证。
+
+原 cache/store 的 8 项测试随收据、损坏／截断、目录 key 绑定、symlink 审计和并发产物等价性比较退役；正常发布、所需输出缺失更新、失败不发布和构建锁协调改由 3 项普通记录测试覆盖。cache-key 的真实输入／target／配置变化测试仍在，protocol round-trip 覆盖实际生产摘要；GNU／musl 正式 CLI 继续验证目标选择。scoop 单元测试从 104 项变为 84 项（删除 23 项、增加 3 项），没有以删除语言或运行断言换取通过。
+
+新增 `m48-build-record/library` 独立 fixture：冷／暖、同一结果发布到另一输出、用户输出缺失后正常补产，以及同一位置先后发布库／程序／库。其输出缺失步骤要求正常重新发布该输出，源码、工具和原始 cache artifact 始终保留。现有 single-file、warning、dump、测试目录、native 与菱形依赖组合保留真实调用和运行断言；SOURCE-ISOLATION 的 1,627 项待迁移范围不因本批减少。

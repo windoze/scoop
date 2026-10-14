@@ -16,17 +16,7 @@ fn success(
     warnings: Vec<StructuredDiagnosticV1>,
     dumps: Vec<EmittedDumpDescriptorV1>,
 ) -> Result<ScoopcSuccessV1, ProtocolValidationError> {
-    ScoopcSuccessV1::new(
-        ProtocolArtifactFingerprint::from_array([1; 32]),
-        ProtocolConeIdentity::from_array([2; 32]),
-        ProtocolHirFingerprint::from_array([3; 32]),
-        ProtocolMirFingerprint::from_array([4; 32]),
-        ProtocolLirFingerprint::from_array([5; 32]),
-        ProtocolCodeFingerprint::from_array([6; 32]),
-        ProtocolRuntimeImageFingerprint::from_array([7; 32]),
-        warnings,
-        dumps,
-    )
+    ScoopcSuccessV1::new(crate::test_summary(), warnings, dumps)
 }
 
 fn dump() -> EmittedDumpDescriptorV1 {

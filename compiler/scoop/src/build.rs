@@ -71,10 +71,11 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     let mut finish = || -> BuildResult<_> {
         if matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
             output
-                .publish_bytes(
-                    graph.root().artifact().snapshot().as_bytes(),
+                .publish_library(
+                    graph.root().artifact_locator(),
+                    graph.root().artifact().summary().artifact_fingerprint(),
                     &inputs,
-                    Some(&cache),
+                    &cache,
                 )
                 .map_err(output_error)?;
             return Ok(None);
