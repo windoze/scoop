@@ -30,12 +30,12 @@ internal class JsonKeyedEncoder(private val owner: JsonEncoder) : KeyedEncodingC
     public override fun end() {
         owner.checkWritable()
         flush()
-        owner.finish(JsonValue.Record(members))
+        owner.finish(JsonNode.Record(members))
     }
 }
 
 internal class JsonUnkeyedEncoder(private val owner: JsonEncoder) : UnkeyedEncodingContainer {
-    private val elements: ArrayList<JsonValue> = ArrayList<JsonValue>()
+    private val elements: ArrayList<JsonNode> = ArrayList<JsonNode>()
     private var pending: Option<JsonEncoder> = None
 
     private fun flush() {
@@ -59,6 +59,6 @@ internal class JsonUnkeyedEncoder(private val owner: JsonEncoder) : UnkeyedEncod
     public override fun end() {
         owner.checkWritable()
         flush()
-        owner.finish(JsonValue.Sequence(elements))
+        owner.finish(JsonNode.Sequence(elements))
     }
 }

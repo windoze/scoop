@@ -25,13 +25,13 @@ internal fun writeJsonString(text: String, output: StringBuilder) {
     output.add('"')
 }
 
-internal fun writeJson(value: JsonValue, output: StringBuilder) {
+internal fun writeJson(value: JsonNode, output: StringBuilder) {
     when (value) {
-        case JsonValue.Null -> { output.add("null") }
-        case JsonValue.BooleanValue(result) -> { output.add(result) }
-        case JsonValue.Number(text) -> { output.add(text) }
-        case JsonValue.Text(text) -> { writeJsonString(text, output) }
-        case JsonValue.Record(members) -> {
+        case JsonNode.Null -> { output.add("null") }
+        case JsonNode.BooleanValue(result) -> { output.add(result) }
+        case JsonNode.Number(text) -> { output.add(text) }
+        case JsonNode.Text(text) -> { writeJsonString(text, output) }
+        case JsonNode.Record(members) -> {
             output.add('{')
             var first: Boolean = true
             for (member in members) {
@@ -43,7 +43,7 @@ internal fun writeJson(value: JsonValue, output: StringBuilder) {
             }
             output.add('}')
         }
-        case JsonValue.Sequence(elements) -> {
+        case JsonNode.Sequence(elements) -> {
             output.add('[')
             var first: Boolean = true
             for (element in elements) {
@@ -56,7 +56,7 @@ internal fun writeJson(value: JsonValue, output: StringBuilder) {
     }
 }
 
-internal fun renderJson(value: JsonValue): String {
+internal fun renderJson(value: JsonNode): String {
     val output = StringBuilder()
     writeJson(value, output)
     return output.build()

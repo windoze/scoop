@@ -1,0 +1,45 @@
+package scoop.json
+
+public class JsonValue internal constructor(internal val node: JsonNode) {
+    public companion object : Encodable<JsonValue>, Decodable<JsonValue> {
+        public override fun encode(value: JsonValue, encoder: Encoder) {
+            if (encoder !is JsonEncoder) {
+                throw EncodingException(encoder.path, "JsonValue requires a JSON encoder")
+            }
+            encodeJsonNode(value.node, encoder)
+        }
+
+        public override fun decode(decoder: Decoder): JsonValue {
+            if (decoder !is JsonDecoder) {
+                throw DecodingException(decoder.path, "JsonValue requires a JSON decoder")
+            }
+            return JsonValue(decoder.value)
+        }
+    }
+}
+
+internal fun encodeJsonNode(node: JsonNode, encoder: JsonEncoder) {
+    when (node) {
+        case JsonNode.Null -> encoder.singleValue().writeNull()
+        case JsonNode.BooleanValue(value) -> encoder.singleValue().writeBoolean(value)
+        case JsonNode.Text(text) -> encoder.singleValue().writeString(text)
+        case JsonNode.Number(text) -> {
+            encoder.singleValue()
+            encoder.writeNumberToken(text)
+        }
+        case JsonNode.Record(members) -> {
+            val fields = encoder.keyed()
+            for (member in members) {
+                encodeJsonNode(member.value, fields.field(member.name) as JsonEncoder)
+            }
+            fields.end()
+        }
+        case JsonNode.Sequence(elements) -> {
+            val sequence = encoder.unkeyed()
+            for (element in elements) {
+                encodeJsonNode(element, sequence.element() as JsonEncoder)
+            }
+            sequence.end()
+        }
+    }
+}

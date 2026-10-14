@@ -31,7 +31,7 @@ internal fun memberNames(members: ArrayList<JsonMember>): List<String> {
     return result
 }
 
-internal class JsonUnkeyedDecoder(private val owner: JsonDecoder, private val elements: ArrayList<JsonValue>)
+internal class JsonUnkeyedDecoder(private val owner: JsonDecoder, private val elements: ArrayList<JsonNode>)
     : UnkeyedDecodingContainer {
     private var cursor: Long = 0L
     public override val hasNext: Boolean get() = cursor < elements.size

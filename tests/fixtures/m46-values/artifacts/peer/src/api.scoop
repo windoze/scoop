@@ -1,0 +1,6 @@
+package api
+public import models.*
+public import scoop.json.Json as WireJson
+
+public fun <T> tree(value: T, codec: Encodable<T>): JsonValue = WireJson.encodeValue(value, codec)
+public fun <T> interpret(value: JsonValue, codec: Decodable<T>): T = WireJson.decodeValue(value, codec)

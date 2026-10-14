@@ -2309,6 +2309,10 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 普通 JSON 库提供 `Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`两个入口。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
 
+`scoop.json.JsonValue` 是公共不可变 class，只表示已合法解析或完整编码的 JSON 值。其构造器及内部节点不可由 Cone 外直接访问；不公开可变数组、未经检查的原始文本或节点修改入口。companion 以普通手写方法实现 Encodable<JsonValue>／Decodable<JsonValue>。Json 另提供普通泛型 encodeValue(value, codec): JsonValue 和 decodeValue(value, codec): T；前者遵守同一根提交规则，后者以空串路径建立新的根视图，均不经文本中转。
+
+JsonValue 可从任意 JSON child 捕获，保存后仍可从原 child 重复 typed 解码；保存值不持有 decoder 游标。捕获和复读共享不可变节点，精确保留 JSON 类型、对象字段及保存顺序、数组顺序、字符串内容和合法数字 token，包括超出 ULong／Double 范围的数字；不承诺原始空白或字符串转义拼写。按受限数值 codec 读取仍遵守原有范围／精度规则。编码按节点形状使用共享 keyed／unkeyed／single-value 容器，Number 使用 JSON Cone 内部的精确 token 写入，仍服从重复字段、完成和提交检查。该 companion 仅接受 JSON Cone 自身的 encoder／decoder，其他格式入口抛带当前 path 的 EncodingException／DecodingException。原始 token 和树能力不进入 core 协议、IR 或 runtime ABI；已验证且不可变的节点不在出口重新完整解析或校验。
+
 Float/Double的companion分别以普通core body实现`Encodable<Float>`/`Decodable<Float>`与`Encodable<Double>`/`Decodable<Double>`，透明alias复用同一codec。single-value 使用上表的两种精度入口，不为所有格式统一禁止非有限值。JSON仅编码有限浮点数，使用11.2.2的十进制表示并保留负零；编码NaN或Infinity抛带path的EncodingException。解码接受合法JSON整数、小数或指数token，保留原始数字文本并直接按目标精度最近偶数舍入，Float不得经Double中转。舍入溢出到Infinity抛DecodingException，下溢到subnormal或带符号零合法；非数值token不进行字符串/布尔值强制转换。JSON语法不接收NaN/Infinity拼写。两个精度的有限值文本往返保持位型，整数解析仍须精确并满足对应范围规则。
 
 #### 11.13.4 编码、解码依赖与泛型组合

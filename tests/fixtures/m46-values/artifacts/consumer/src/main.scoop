@@ -1,0 +1,21 @@
+import api.*
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("artifact JsonValue assertion failed")) }
+}
+object Local : Encodable<Document>, Decodable<Document>
+
+fun main() {
+    val text = "{\"id\":7,\"payload\":{\"n\":1e400,\"a\":[null,18446744073709551616]}}"
+    val record = WireJson.decode(text, Local)
+    gcCollect()
+    check(WireJson.encode(record, Local) == text)
+    check(WireJson.encode(wrap(record.payload), Document.Companion) == text)
+    check(WireJson.encode(tree(record, Local), JsonValue.Companion) == text)
+    val decoder = DecodeFunction<JsonValue>({ decoder -> capture(decoder.keyed().required("payload")) })
+    val payload = WireJson.decode(text, decoder)
+    check(WireJson.encode(payload, JsonValue.Companion) == "{\"n\":1e400,\"a\":[null,18446744073709551616]}")
+    check(interpret(tree(9L, Long.Companion), Long.Companion) == 9L)
+    check(when (interpret(tree(record, Local), Local).extension) { case None -> true; else -> false })
+    println("artifacts-ok")
+}

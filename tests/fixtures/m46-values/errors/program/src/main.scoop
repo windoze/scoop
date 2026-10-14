@@ -1,0 +1,49 @@
+import scoop.json.*
+
+class WrappedEncoder(val target: Encoder) : Encoder {
+    public override val path: String get() = target.path
+    public override fun keyed(): KeyedEncodingContainer = target.keyed()
+    public override fun unkeyed(): UnkeyedEncodingContainer = target.unkeyed()
+    public override fun singleValue(): SingleValueEncodingContainer = target.singleValue()
+}
+class WrappedDecoder(val target: Decoder) : Decoder {
+    public override val path: String get() = target.path
+    public override fun keyed(): KeyedDecodingContainer = target.keyed()
+    public override fun unkeyed(): UnkeyedDecodingContainer = target.unkeyed()
+    public override fun singleValue(): SingleValueDecodingContainer = target.singleValue()
+}
+
+fun main() {
+    val value = Json.decode("{\"x\":1}", JsonValue.Companion)
+    val mismatchWriter = EncodeFunction<JsonValue>({ value, encoder ->
+        JsonValue.Companion.encode(value, WrappedEncoder(encoder.keyed().field("child")))
+    })
+    rejectEncode("/child") { Json.encode(value, mismatchWriter) }
+    val mismatchReader = DecodeFunction<JsonValue>({ decoder ->
+        JsonValue.Companion.decode(WrappedDecoder(decoder.keyed().required("child")))
+    })
+    rejectDecode("/child") { Json.decode("{\"child\":null}", mismatchReader) }
+    val mixed = EncodeFunction<JsonValue>({ value, encoder ->
+        encoder.unkeyed()
+        JsonValue.Companion.encode(value, encoder)
+    })
+    rejectEncode("") { Json.encodeValue(value, mixed) }
+    val unfinished = EncodeFunction<JsonValue>({ value, encoder ->
+        JsonValue.Companion.encode(value, encoder)
+        encoder.keyed().field("unfinished")
+    })
+    rejectEncode("") { Json.encodeValue(value, unfinished) }
+    val twice = EncodeFunction<JsonValue>({ value, encoder ->
+        JsonValue.Companion.encode(value, encoder)
+        JsonValue.Companion.encode(value, encoder)
+    })
+    rejectEncode("/x") { Json.encode(value, twice) }
+    rejectEncode("") { Json.encode(Json.decode("null", JsonValue.Companion), twice) }
+    val ignore = DecodeFunction<Long>({ _ -> 1L })
+    rejectDecode("/unused/1") { Json.decode("{\"unused\":[0,]}", ignore) }
+    rejectDecode("/unused/x") { Json.decode("{\"unused\":{\"x\":1,\"x\":2}}", ignore) }
+    rejectDecode("/unused") { Json.decode("{\"unused\":\"\\uD800\"}", ignore) }
+    rejectDecode("") { Json.decode("null null", JsonValue.Companion) }
+    rejectDecode("") { Json.decode("01", JsonValue.Companion) }
+    println("errors-ok")
+}

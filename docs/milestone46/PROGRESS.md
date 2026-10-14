@@ -26,9 +26,16 @@
 - 本机 fmt／全工作区 clippy、release 三个 CLI 工具构建及 [47 项相关 HIR 测试](validation/serialize-hir-darwin.log.gz) 通过。18 项新 fixture、156 项相关旧 fixture、6 项 std codec fixture 全部闭合，共 180 项：旧回归首轮 136 项通过，19 项诊断期望随改名／位置更新，1 项旧序列消费约束断言按 M46-1 修正，20 项复验全通过。新用例修正一次 lambda statement 和测试库构造器可见性；negative 初轮用于取得并逐项审查准确诊断，10 项复验全通过。
 - 原始报告：[新功能首轮](validation/serialize-initial-darwin.json.gz)、[三态／产物首轮](validation/serialize-artifacts-initial-darwin.json.gz)、[产物通过与 negative 初轮](validation/serialize-negative-initial-darwin.json.gz)、[negative 复验](validation/serialize-negative-verified-darwin.json.gz)、[旧回归首轮](validation/serialize-regression-initial-darwin.json.gz)、[20 项复验](validation/serialize-regression-verified-darwin.json.gz)、[std codec](validation/serialize-stdlib-darwin.json.gz)。原始失败保留，不计作通过。
 
+## M46-4：不可变 JsonValue 与树值入口
+
+- 语言规范 11.13 增加公共不可变 JsonValue class、普通 companion codec 和 Json.encodeValue／decodeValue。现有树重命名为 internal JsonNode，公开 wrapper 只有 internal 构造器及节点，不公开可变集合；文本与树值入口共用根编码／提交和 decoder。
+- 捕获直接共享既有合法节点；编码逐层使用普通容器，数字沿 Cone 内部精确 token 写入。没有新增 core operation、runtime ABI、反射、平行树或出口重新解析。新 codec 文件 45 行，JSON 实现子文件均不超过 112 行。
+- 5 个新运行型 fixture 含普通／moving GC，覆盖全部 JSON 节点、超出 ULong／Double 的数字、负零与长小数、字符串与对象区别、子树错误后复读、延迟 typed 解码、未知字段 LinkedHashMap、allow／deny／collect、flatten 冲突、过期 writer、格式入口不匹配、非法未知子树，以及三 Cone 无源码生产／消费。1 个 negative fixture 精确断言节点不能被外部访问。
+- 本机 fmt／全工作区 clippy 通过；6 项新增用例和 13 项必要既有回归全部通过。首轮 3 项通过，1 个新用例错误地要求 JsonValue 具有 Equals，改用普通 Option 模式检查后通过；没有为测试增添公开相等性能力。跨产物通过，访问负例取得并审查诊断后复验通过。报告：[首轮](validation/values-initial-darwin.json.gz)、[产物与修正用例](validation/values-artifacts-darwin.json.gz)、[访问负例复验](validation/values-hidden-darwin.json.gz)、[既有回归](validation/values-regression-darwin.json.gz)。本批没有 Rust／runtime 实现改动，不重复相关 Rust 测试。
+
 ## 后续
 
-M46-4～6 尚未实施。M38 尚未开始。
+M46-5～6 尚未实施。M38 尚未开始。
 
 ## 构建目录
 

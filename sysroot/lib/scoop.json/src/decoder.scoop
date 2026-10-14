@@ -1,17 +1,17 @@
 package scoop.json
 
-internal class JsonDecoder(private val value: JsonValue, public override val path: String)
+internal class JsonDecoder(internal val value: JsonNode, public override val path: String)
     : Decoder, SingleValueDecodingContainer {
     public override fun keyed(): KeyedDecodingContainer {
         return when (value) {
-            case JsonValue.Record(members) -> JsonKeyedDecoder(this, members)
+            case JsonNode.Record(members) -> JsonKeyedDecoder(this, members)
             else -> { throw DecodingException(path, "expected an object") }
         }
     }
 
     public override fun unkeyed(): UnkeyedDecodingContainer {
         return when (value) {
-            case JsonValue.Sequence(elements) -> JsonUnkeyedDecoder(this, elements)
+            case JsonNode.Sequence(elements) -> JsonUnkeyedDecoder(this, elements)
             else -> { throw DecodingException(path, "expected an array") }
         }
     }
@@ -20,35 +20,35 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
 
     public override fun isNull(): Boolean {
         return when (value) {
-            case JsonValue.Null -> true
+            case JsonNode.Null -> true
             else -> false
         }
     }
 
     public override fun readBoolean(): Boolean {
         return when (value) {
-            case JsonValue.BooleanValue(result) -> result
+            case JsonNode.BooleanValue(result) -> result
             else -> { throw DecodingException(path, "expected a Boolean") }
         }
     }
 
     public override fun readString(): String {
         return when (value) {
-            case JsonValue.Text(result) -> result
+            case JsonNode.Text(result) -> result
             else -> { throw DecodingException(path, "expected a String") }
         }
     }
 
     public override fun readNull() {
         when (value) {
-            case JsonValue.Null -> { return }
+            case JsonNode.Null -> { return }
             else -> { throw DecodingException(path, "expected null") }
         }
     }
 
     private fun number(expected: String): String {
         return when (value) {
-            case JsonValue.Number(text) -> text
+            case JsonNode.Number(text) -> text
             else -> { throw DecodingException(path, expected) }
         }
     }

@@ -1,0 +1,53 @@
+import scoop.json.*
+import scoop.collections.*
+
+struct Identity(val id: Long) {
+    companion object : Encodable<Identity>, Decodable<Identity> {}
+}
+struct Details(@Serialize(rename = "display_name") val name: String? = None) {
+    companion object : Encodable<Details>, Decodable<Details> {}
+}
+struct Record(val identity: Identity, val details: Details, val extra: LinkedHashMap<String, JsonValue>)
+
+class Reader(val collect: Boolean, val strict: Boolean) : Decodable<Record> {
+    public override fun decode(decoder: Decoder): Record {
+        val identity = Identity.Companion.decode(decoder)
+        val details = Details.Companion.decode(decoder)
+        val extra = LinkedHashMap<String, JsonValue>()
+        val fields = decoder.keyed()
+        for (name in fields.keys) {
+            if (name != "id" && name != "display_name") {
+                val child = fields.required(name)
+                if (strict) { throw DecodingException(child.path, "unknown field") }
+                if (collect) { extra.put(name, JsonValue.Companion.decode(child)) }
+            }
+        }
+        fields.end()
+        return Record(identity, details, extra)
+    }
+}
+object Writer : Encodable<Record> {
+    public override fun encode(value: Record, encoder: Encoder) {
+        Identity.Companion.encode(value.identity, encoder)
+        Details.Companion.encode(value.details, encoder)
+        val fields = encoder.keyed()
+        for (entry in value.extra) { JsonValue.Companion.encode(entry.value, fields.field(entry.key)) }
+        fields.end()
+    }
+}
+
+fun main() {
+    val text = "{\"id\":7,\"display_name\":\"Ada\",\"a/~\":{\"n\":1e400,\"children\":[null,true]},\"string\":\"{\\\"x\\\":1}\"}"
+    val value = Json.decode(text, Reader(true, false))
+    gcCollect()
+    check(Json.encode(value, Writer) == text)
+    val raw = value.extra["a/~"]!!
+    check(Json.encode(raw, JsonValue.Companion) == "{\"n\":1e400,\"children\":[null,true]}")
+    check(Json.decodeValue(value.extra["string"]!!, String.Companion) == "{\"x\":1}")
+    check(Json.decode(text, Reader(false, false)).extra.size == 0L)
+    rejectDecode("/a~1~0") { Json.decode(text, Reader(false, true)) }
+    rejectDecode("/id") { Json.decode("{\"id\":\"bad\"}", Reader(true, false)) }
+    value.extra.put("id", Json.encodeValue(9L, Long.Companion))
+    rejectEncode("/id") { Json.encode(value, Writer) }
+    println("composition-ok")
+}

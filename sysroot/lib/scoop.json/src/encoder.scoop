@@ -10,7 +10,7 @@ internal enum JsonEncodingContainer {
 internal class JsonEncoder(public override val path: String)
     : Encoder, SingleValueEncodingContainer {
     private var container: JsonEncodingContainer = JsonEncodingContainer.Unselected
-    private var output: Option<JsonValue> = None
+    private var output: Option<JsonNode> = None
     private var committed: Boolean = false
 
     internal fun checkWritable() {
@@ -22,12 +22,12 @@ internal class JsonEncoder(public override val path: String)
         output = None
     }
 
-    internal fun finish(value: JsonValue) {
+    internal fun finish(value: JsonNode) {
         checkWritable()
         output = Some(value)
     }
 
-    internal fun result(): JsonValue {
+    internal fun result(): JsonNode {
         return when (output) {
             case Some(_) -> {
                 committed = true
@@ -70,7 +70,7 @@ internal class JsonEncoder(public override val path: String)
         return this
     }
 
-    private fun write(value: JsonValue) {
+    private fun write(value: JsonNode) {
         checkWritable()
         when (container) {
             case JsonEncodingContainer.Single -> {
@@ -83,17 +83,19 @@ internal class JsonEncoder(public override val path: String)
         }
     }
 
-    public override fun writeBoolean(value: Boolean): Unit = write(JsonValue.BooleanValue(value))
-    public override fun writeLong(value: Long): Unit = write(JsonValue.Number(value.toString()))
-    public override fun writeULong(value: ULong): Unit = write(JsonValue.Number(value.toString()))
+    internal fun writeNumberToken(text: String): Unit = write(JsonNode.Number(text))
+
+    public override fun writeBoolean(value: Boolean): Unit = write(JsonNode.BooleanValue(value))
+    public override fun writeLong(value: Long): Unit = write(JsonNode.Number(value.toString()))
+    public override fun writeULong(value: ULong): Unit = write(JsonNode.Number(value.toString()))
     public override fun writeFloat(value: Float) {
         if (!value.isFinite()) { throw EncodingException(path, "expected a finite Float") }
-        write(JsonValue.Number(value.toString()))
+        write(JsonNode.Number(value.toString()))
     }
     public override fun writeDouble(value: Double) {
         if (!value.isFinite()) { throw EncodingException(path, "expected a finite Double") }
-        write(JsonValue.Number(value.toString()))
+        write(JsonNode.Number(value.toString()))
     }
-    public override fun writeString(value: String): Unit = write(JsonValue.Text(value))
-    public override fun writeNull(): Unit = write(JsonValue.Null)
+    public override fun writeString(value: String): Unit = write(JsonNode.Text(value))
+    public override fun writeNull(): Unit = write(JsonNode.Null)
 }
