@@ -11,9 +11,11 @@ use crate::ToolchainError;
 
 mod discovery;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ValidatedCxxToolchain {
+    #[serde(with = "crate::build_record::values::path")]
     driver: PathBuf,
+    #[serde(with = "crate::build_record::values::digest")]
     fingerprint: Digest256,
     inputs: Vec<crate::build_record::Input>,
 }

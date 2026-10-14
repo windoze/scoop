@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PreviousExport {
     pub install_name: String,
     pub compatibility_version: u32,

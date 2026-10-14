@@ -67,12 +67,21 @@ pub(super) fn check(
     let source = directory.path().join("probe.c");
     let object = directory.path().join("probe.o");
     std::fs::write(&source, SOURCE).map_err(error)?;
+    let dependencies = directory.path().join("probe.d");
     let mut compile = profile.startup.object_compilation_command(&source, &object);
+    compile
+        .args(["-v", "-MD", "-MT", "link-probe", "-MF"])
+        .arg(&dependencies);
     compile.args(["-funwind-tables", "-fno-omit-frame-pointer"]);
     if let Some(prefix) = profile.unwind_prefix() {
         compile.arg("-I").arg(prefix.join("include"));
     }
-    run(&mut compile)?;
+    let compiled = run(&mut compile)?;
+    observed.extend(super::super::dependencies::read(
+        &dependencies,
+        &source,
+        &compiled.stderr,
+    )?);
     let binary = directory.path().join("probe");
     let map = directory.path().join("probe.map");
     let mut command = profile.command(directory.path(), &binary)?;
@@ -89,7 +98,7 @@ pub(super) fn check(
     let map = std::fs::read_to_string(map).map_err(error)?;
     profile.check_unwind_map(&map)?;
     let mut paths = BTreeSet::from([
-        profile.linker.clone(),
+        profile.data.linker.clone(),
         driver_program(&profile.startup, "collect2", observed)?,
     ]);
     if let Some(prefix) = profile.unwind_prefix() {
@@ -118,12 +127,13 @@ pub(super) fn check(
     paths
         .into_iter()
         .map(|path| {
-            let digest =
-                if path == profile.linker || path.file_name() == Some(OsStr::new("collect2")) {
-                    crate::build_record::fingerprint(&crate::build_record::Input::read(&path)?)?
-                } else {
-                    sha256(&std::fs::read(&path).map_err(error)?)
-                };
+            let digest = if path == profile.data.linker
+                || path.file_name() == Some(OsStr::new("collect2"))
+            {
+                crate::build_record::fingerprint(&crate::build_record::Input::read(&path)?)?
+            } else {
+                sha256(&std::fs::read(&path).map_err(error)?)
+            };
             Ok(SystemInput { path, digest })
         })
         .collect()

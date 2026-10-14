@@ -10,6 +10,7 @@ use crate::{LinkError, ProgramLinkOutput, RuntimeObjectSet, error, link_program}
 mod tests;
 
 pub struct ArtifactLinkRequest {
+    pub cache_dir: PathBuf,
     pub root_slib: PathBuf,
     pub dependency_slibs: Vec<PathBuf>,
     pub runtime_index: PathBuf,
@@ -22,15 +23,24 @@ pub struct ArtifactLinkRequest {
 
 impl ArtifactLinkRequest {
     pub fn link(&self) -> Result<ProgramLinkOutput, LinkError> {
-        let target =
-            ResolvedTargetProfile::resolve_with(&self.target, &self.c_toolchain).map_err(error)?;
+        let target = ResolvedTargetProfile::resolve_with_cached(
+            &self.target,
+            &self.c_toolchain,
+            &self.cache_dir,
+        )
+        .map_err(error)?;
         let closure = read_program_artifacts(
             &self.root_slib,
             &self.dependency_slibs,
             target.lir_target_selection(),
             target.c_bridge_toolchain().profile(),
         )?;
-        let profile = resolve_program_link_profile(&closure, &target, &self.final_link, None)?;
+        let profile = resolve_program_link_profile(
+            &closure,
+            &target,
+            &self.final_link,
+            Some(&self.cache_dir),
+        )?;
         let runtime = RuntimeObjectSet::read_index(
             &self.runtime_index,
             profile.target(),

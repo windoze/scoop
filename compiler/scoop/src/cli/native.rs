@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use scoop::{BuildFailure, BuildFailurePhase, BuildResult};
-use scoop_protocol::{HostPathCarrier, TargetSelectionRequestV1};
+use scoop_protocol::TargetSelectionRequestV1;
 use scoop_toolchain::{CToolchainOptions, FinalLinkOptions};
 
 use super::args::NativeOptions;
@@ -37,31 +37,7 @@ pub(super) fn target_request(
     triple: String,
     tools: &CToolchainOptions,
 ) -> BuildResult<TargetSelectionRequestV1> {
-    let path = |value: &Option<PathBuf>| {
-        value
-            .as_deref()
-            .map(HostPathCarrier::from_path)
-            .transpose()
-            .map_err(|error| {
-                BuildFailure::tool("SCOOP_CLI_CONFIG", BuildFailurePhase::Request, error)
-            })
-    };
-    Ok(TargetSelectionRequestV1::new(triple)
-        .map_err(|error| BuildFailure::tool("SCOOP_CLI_CONFIG", BuildFailurePhase::Request, error))?
-        .with_c_toolchain(path(&tools.compiler)?, path(&tools.native_sysroot)?))
-}
-
-pub(super) fn default_cache() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute());
-    if cfg!(target_os = "linux") {
-        std::env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
-            .map(|path| path.join("scoop"))
-            .or_else(|| home.map(|path| path.join(".cache/scoop")))
-    } else {
-        home.map(|path| path.join("Library/Caches/Scoop"))
-    }
+    tools
+        .request(triple)
+        .map_err(|error| BuildFailure::tool("SCOOP_CLI_CONFIG", BuildFailurePhase::Request, error))
 }

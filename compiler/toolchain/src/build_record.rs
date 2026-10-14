@@ -1,4 +1,4 @@
-//! Ordinary metadata update records for C++ discovery and native objects.
+//! Ordinary metadata update records for native tools and objects.
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::ToolchainError;
 pub(crate) use crate::native_record::inputs::Input;
+pub(crate) mod values;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Record<T> {

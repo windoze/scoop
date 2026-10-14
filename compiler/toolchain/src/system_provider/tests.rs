@@ -90,12 +90,6 @@ exports:
         SystemExportKind::ThreadLocal
     );
     assert!(provider.exports().contains_key("_unused_system_export"));
-    let destination = tempfile::tempdir().unwrap();
-    let snapshot = provider.write_to(destination.path()).unwrap();
-    assert_eq!(
-        std::fs::read(root).unwrap(),
-        std::fs::read(snapshot).unwrap()
-    );
 }
 
 #[test]

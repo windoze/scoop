@@ -18,9 +18,11 @@ const OPTIONS: &[&str] = &[
     "-Wl,--no-undefined",
 ];
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 struct SystemInput {
+    #[serde(with = "crate::build_record::values::path")]
     path: PathBuf,
+    #[serde(with = "crate::build_record::values::digest")]
     digest: Digest256,
 }
 
@@ -28,16 +30,40 @@ struct SystemInput {
 pub struct LinuxFinalLinkProfile {
     startup: ValidatedCBridgeToolchainInvocation,
     target: LinuxTarget,
+    data: Discovery,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(super) struct Discovery {
     mode: LinkMode,
+    #[serde(with = "crate::build_record::values::path")]
     linker: PathBuf,
     linker_version: String,
+    #[serde(with = "crate::build_record::values::digest")]
     compiler_digest: Digest256,
     runtime: RuntimeLibraries,
     inputs: Vec<SystemInput>,
+    #[serde(with = "crate::build_record::values::paths")]
     observed_paths: Vec<PathBuf>,
 }
 
 impl LinuxFinalLinkProfile {
+    pub(super) fn into_discovery(self) -> Discovery {
+        self.data
+    }
+
+    pub(super) fn from_discovery(
+        startup: ValidatedCBridgeToolchainInvocation,
+        data: Discovery,
+    ) -> Result<Self, ToolchainError> {
+        let target = LinuxTarget::select(startup.target().id())?;
+        Ok(Self {
+            startup,
+            target,
+            data,
+        })
+    }
+
     pub(super) fn resolve(
         startup: ValidatedCBridgeToolchainInvocation,
         options: &FinalLinkOptions,
@@ -68,50 +94,52 @@ impl LinuxFinalLinkProfile {
         let mut profile = Self {
             startup,
             target: selected,
-            mode,
-            linker,
-            linker_version,
-            compiler_digest,
-            runtime,
-            inputs: Vec::new(),
-            observed_paths: Vec::new(),
+            data: Discovery {
+                mode,
+                linker,
+                linker_version,
+                compiler_digest,
+                runtime,
+                inputs: Vec::new(),
+                observed_paths: Vec::new(),
+            },
         };
-        observed_paths.extend(probe::search_paths(&profile.startup, &profile.linker)?);
-        profile.inputs = probe::check(&profile, &mut observed_paths)?;
-        profile.observed_paths = observed_paths;
+        observed_paths.extend(probe::search_paths(&profile.startup, &profile.data.linker)?);
+        profile.data.inputs = probe::check(&profile, &mut observed_paths)?;
+        profile.data.observed_paths = observed_paths;
         Ok(profile)
     }
 
     pub fn mode(&self) -> LinkMode {
-        self.mode
+        self.data.mode
     }
     pub fn startup_toolchain(&self) -> &ValidatedCBridgeToolchainInvocation {
         &self.startup
     }
     pub fn compiler_digest(&self) -> Digest256 {
-        self.compiler_digest
+        self.data.compiler_digest
     }
     pub fn linker_driver(&self) -> &Path {
-        &self.linker
+        &self.data.linker
     }
     pub fn linker_args(&self) -> &'static [&'static str] {
         OPTIONS
     }
     pub fn unwind_prefix(&self) -> Option<&Path> {
-        self.runtime.unwind_prefix()
+        self.data.runtime.unwind_prefix()
     }
     pub fn cxx(&self) -> bool {
-        self.runtime.cxx()
+        self.data.runtime.cxx()
     }
     pub fn input_paths(&self) -> impl Iterator<Item = &Path> {
-        self.inputs.iter().map(|input| input.path.as_path())
+        self.data.inputs.iter().map(|input| input.path.as_path())
     }
 
     pub(super) fn update_input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
         let mut paths = self.input_paths().map(PathBuf::from).collect::<Vec<_>>();
-        paths.extend(self.observed_paths.iter().cloned());
-        paths.push(self.runtime.driver(&self.startup).to_owned());
-        if let RuntimeLibraries::Cxx(cxx) = &self.runtime {
+        paths.extend(self.data.observed_paths.iter().cloned());
+        paths.push(self.data.runtime.driver(&self.startup).to_owned());
+        if let RuntimeLibraries::Cxx(cxx) = &self.data.runtime {
             paths.extend(cxx.input_paths()?);
         }
         Ok(paths)
@@ -121,7 +149,7 @@ impl LinuxFinalLinkProfile {
         std::fs::create_dir_all(scratch).map_err(error)?;
         let script = scratch.join("scoop-metadata.ld");
         std::fs::write(&script, self.metadata_script()).map_err(error)?;
-        let mut command = self.runtime.command(&self.startup);
+        let mut command = self.data.runtime.command(&self.startup);
         if !self.cxx() {
             command.arg("-nodefaultlibs");
         }
@@ -151,14 +179,14 @@ impl LinuxFinalLinkProfile {
     }
 
     fn metadata_script(&self) -> &'static str {
-        match self.mode {
+        match self.data.mode {
             LinkMode::Static => include_str!("../elf/static.ld"),
             LinkMode::Dynamic => include_str!("../elf/dynamic.ld"),
         }
     }
 
     fn mode_flags(&self) -> &'static [&'static str] {
-        match self.mode {
+        match self.data.mode {
             LinkMode::Static => &["-static", "-no-pie"],
             LinkMode::Dynamic => &["-pie"],
         }

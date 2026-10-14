@@ -8,12 +8,14 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
 
 use crate::{CToolchainOptions, ResolvedTargetProfile, SystemProvider, ToolchainError};
 
+mod cache;
 mod darwin;
+mod dependencies;
 mod linux;
 pub use darwin::DarwinFinalLinkProfile;
 pub use linux::LinuxFinalLinkProfile;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LinkMode {
     Static,
     Dynamic,
@@ -33,6 +35,15 @@ pub enum ValidatedFinalLinkProfile {
 }
 
 impl ValidatedFinalLinkProfile {
+    pub(crate) fn resolve_cached(
+        target: &ResolvedTargetProfile,
+        options: &FinalLinkOptions,
+        cxx: bool,
+        directory: &Path,
+    ) -> Result<Self, ToolchainError> {
+        cache::resolve(target, options, cxx, directory)
+    }
+
     pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
         Self::resolve_with(
             triple,

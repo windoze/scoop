@@ -1,0 +1,58 @@
+{
+  "argv": [
+    "/home/chenxu/repos/scoop/target/release/scoop",
+    "build",
+    "/tmp/scoop-m48-final-tools-musl/cases/7/normal/main.scoop",
+    "--target",
+    "x86_64-unknown-linux-musl",
+    "--sysroot",
+    "/tmp/scoop-m48-final-tools-musl/sysroot",
+    "--scoopc",
+    "/home/chenxu/repos/scoop/target/release/scoopc",
+    "--cache-dir",
+    "/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache",
+    "--runtime-root",
+    "/home/chenxu/repos/scoop/runtime",
+    "--target-dir",
+    "/tmp/scoop-m48-final-tools-musl/cases/7/normal/target",
+    "--message-format",
+    "json",
+    "--unwind-prefix",
+    "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind"
+  ],
+  "source_update": [
+    48,
+    49
+  ],
+  "requests": [
+    {
+      "name": "changed",
+      "compiler_children": 1,
+      "execve_calls": [
+        "875047 execve(\"/home/chenxu/repos/scoop/target/release/scoop\", [\"/home/chenxu/repos/scoop/target/release/scoop\", \"build\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/main.scoop\", \"--target\", \"x86_64-unknown-linux-musl\", \"--sysroot\", \"/tmp/scoop-m48-final-tools-musl/sysroot\", \"--scoopc\", \"/home/chenxu/repos/scoop/target/release/scoopc\", \"--cache-dir\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache\", \"--runtime-root\", \"/home/chenxu/repos/scoop/runtime\", \"--target-dir\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/target\", \"--message-format\", \"json\", \"--unwind-prefix\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind\"], 0x7ffcfc009350 /* 18 vars */) = 0",
+        "875049 execve(\"/home/chenxu/repos/scoop/target/release/scoopc\", [\"/home/chenxu/repos/scoop/target/release/scoopc\", \"__child-protocol\", \"10\"], 0x5fd5a7117310 /* 4 vars */) = 0",
+        "875053 execve(\"/usr/bin/x86_64-linux-musl-gcc\", [\"/usr/bin/x86_64-linux-musl-gcc\", \"-std=c11\", \"-c\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/startup.c\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/startup-compiled.o\", \"-O0\", \"-g0\", \"-fno-common\", \"-fno-ident\", \"-fno-stack-protector\", \"-fno-unwind-tables\", \"-fno-asynchronous-unwind-tables\", \"-fno-builtin\", \"-fPIC\"], 0x5fd5aa780b50 /* 6 vars */) = 0",
+        "875053 execve(\"/usr/bin/x86_64-linux-gnu-gcc-15\", [\"/usr/bin/x86_64-linux-gnu-gcc-15\", \"-std=c11\", \"-c\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/startup.c\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/startup-compiled.o\", \"-O0\", \"-g0\", \"-fno-common\", \"-fno-ident\", \"-fno-stack-protector\", \"-fno-unwind-tables\", \"-fno-asynchronous-unwind-tables\", \"-fno-builtin\", \"-fPIC\", \"-specs\", \"/usr/lib/x86_64-linux-musl/musl-gcc.specs\"], 0x577cadf745a8 /* 7 vars */) = 0",
+        "875056 execve(\"/usr/libexec/gcc/x86_64-linux-gnu/15/cc1\", [\"/usr/libexec/gcc/x86_64-linux-gnu/15/cc1\", \"-quiet\", \"-imultiarch\", \"x86_64-linux-gnu\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/startup.c\", \"-nostdinc\", \"-isystem\", \"/usr/include/x86_64-linux-musl\", \"-isystem\", \"/usr/lib/gcc/x86_64-linux-gnu/15/include\", \"-quiet\", \"-dumpdir\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/\", \"-dumpbase\", \"startup-compiled.c\", \"-dumpbase-ext\", \".c\", \"-mtune=generic\", \"-march=x86-64\", \"-g0\", \"-O0\", \"-std=c11\", \"-fno-common\", \"-fno-ident\", \"-fno-stack-protector\", \"-fno-unwind-tables\", \"-fno-asynchronous-unwind-tables\", \"-fno-builtin\", \"-fPIC\", \"-Wformat\", \"-Wformat-security\", \"-fstack-clash-protection\", \"-fcf-protection\", \"-fzero-init-padding-bits=all\", \"-Wbidi-chars=any\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/cccbW3TZ.s\"], 0x1b282f10 /* 11 vars */) = 0",
+        "875057 execve(\"/usr/bin/x86_64-linux-gnu-as\", [\"/usr/bin/x86_64-linux-gnu-as\", \"--64\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/startup-compiled.o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/cccbW3TZ.s\"], 0x1b282f10 /* 11 vars */) = 0",
+        "875058 execve(\"/usr/bin/x86_64-linux-musl-gcc\", [\"/usr/bin/x86_64-linux-musl-gcc\", \"-nodefaultlibs\", \"-pthread\", \"-Wl,--eh-frame-hdr\", \"-Wl,--enable-new-dtags\", \"-Wl,--build-id=none\", \"-Wl,-z,relro,-z,now,-z,noexecstack,-z,text\", \"-Wl,--no-undefined\", \"-static\", \"-no-pie\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/program\", \"-Xlinker\", \"-T\", \"-Xlinker\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/scoop-metadata.ld\", \"-Wl,@objects.rsp\", \"-Xlinker\", \"--defsym=scoop_td_String=scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868\", \"-Wl,--push-state,--no-as-needed\", \"-Wl,--pop-state\", \"-Wl,--start-group\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind/lib/libunwind.a\", \"-lc\", \"-lm\", \"-lpthread\", \"-lgcc\", \"-Wl,--end-group\"], 0x5fd5aa7aa0a0 /* 6 vars */) = 0",
+        "875058 execve(\"/usr/bin/x86_64-linux-gnu-gcc-15\", [\"/usr/bin/x86_64-linux-gnu-gcc-15\", \"-nodefaultlibs\", \"-pthread\", \"-Wl,--eh-frame-hdr\", \"-Wl,--enable-new-dtags\", \"-Wl,--build-id=none\", \"-Wl,-z,relro,-z,now,-z,noexecstack,-z,text\", \"-Wl,--no-undefined\", \"-static\", \"-no-pie\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/program\", \"-Xlinker\", \"-T\", \"-Xlinker\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/scoop-metadata.ld\", \"-Wl,@objects.rsp\", \"-Xlinker\", \"--defsym=scoop_td_String=scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868\", \"-Wl,--push-state,--no-as-needed\", \"-Wl,--pop-state\", \"-Wl,--start-group\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind/lib/libunwind.a\", \"-lc\", \"-lm\", \"-lpthread\", \"-lgcc\", \"-Wl,--end-group\", \"-specs\", \"/usr/lib/x86_64-linux-musl/musl-gcc.specs\"], 0x5e216bf659a0 /* 7 vars */) = 0",
+        "875061 execve(\"/usr/libexec/gcc/x86_64-linux-gnu/15/collect2\", [\"/usr/libexec/gcc/x86_64-linux-gnu/15/collect2\", \"-plugin\", \"/usr/libexec/gcc/x86_64-linux-gnu/15/liblto_plugin.so\", \"-plugin-opt=/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper\", \"-plugin-opt=-fresolution=/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/ccMvSrsY.res\", \"-dynamic-linker\", \"/lib/ld-musl-x86_64.so.1\", \"-nostdlib\", \"-static\", \"-z\", \"relro\", \"-o\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/program\", \"/usr/lib/x86_64-linux-musl/Scrt1.o\", \"/usr/lib/x86_64-linux-musl/crti.o\", \"/usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o\", \"-L/usr/lib/x86_64-linux-musl\", \"-L\", \"/usr/lib/gcc/x86_64-linux-gnu/15/.\", \"--eh-frame-hdr\", \"--enable-new-dtags\", \"--build-id=none\", \"-z\", \"relro\", \"-z\", \"now\", \"-z\", \"noexecstack\", \"-z\", \"text\", \"--no-undefined\", \"-T\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/scoop-metadata.ld\", \"@objects.rsp\", \"--defsym=scoop_td_String=scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868\", \"--push-state\", \"--no-as-needed\", \"--pop-state\", \"--start-group\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind/lib/libunwind.a\", \"-lc\", \"-lm\", \"-lpthread\", \"-lgcc\", \"--end-group\", \"/usr/lib/gcc/x86_64-linux-gnu/15/crtendS.o\", \"/usr/lib/x86_64-linux-musl/crtn.o\"], 0x206d45d0 /* 14 vars */) = 0",
+        "875062 execve(\"/usr/bin/ld\", [\"/usr/bin/ld\", \"@/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache/executables-v1/program-Ts4eKA/.scoop-link-W49ix4/ccijkfII\"], 0x7ffd7fc14bd8 /* 14 vars */) = 0"
+      ],
+      "tool_records_unchanged": true,
+      "generated_metadata_unchanged": false,
+      "exit": 49
+    },
+    {
+      "name": "warm",
+      "compiler_children": 0,
+      "execve_calls": [
+        "875067 execve(\"/home/chenxu/repos/scoop/target/release/scoop\", [\"/home/chenxu/repos/scoop/target/release/scoop\", \"build\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/main.scoop\", \"--target\", \"x86_64-unknown-linux-musl\", \"--sysroot\", \"/tmp/scoop-m48-final-tools-musl/sysroot\", \"--scoopc\", \"/home/chenxu/repos/scoop/target/release/scoopc\", \"--cache-dir\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/cache\", \"--runtime-root\", \"/home/chenxu/repos/scoop/runtime\", \"--target-dir\", \"/tmp/scoop-m48-final-tools-musl/cases/7/normal/target\", \"--message-format\", \"json\", \"--unwind-prefix\", \"/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind\"], 0x7ffd5fb1ac00 /* 18 vars */) = 0"
+      ],
+      "tool_records_unchanged": true,
+      "generated_metadata_unchanged": true,
+      "exit": 49
+    }
+  ]
+}

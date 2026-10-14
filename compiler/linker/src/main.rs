@@ -11,6 +11,8 @@ use scoop_linker::ArtifactLinkRequest;
 )]
 struct Cli {
     #[arg(long)]
+    cache_dir: Option<PathBuf>,
+    #[arg(long)]
     root_slib: PathBuf,
     #[arg(long = "dep-slib")]
     dependencies: Vec<PathBuf>,
@@ -52,7 +54,15 @@ fn main() -> ExitCode {
         eprintln!("cannot initialize process signal handling: {error}");
         return ExitCode::FAILURE;
     }
+    let cache_dir = match scoop_toolchain::configured_cache_root(cli.cache_dir) {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("scoop-link: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
     let request = ArtifactLinkRequest {
+        cache_dir,
         root_slib: cli.root_slib,
         dependency_slibs: cli.dependencies,
         runtime_index: cli.runtime_index,

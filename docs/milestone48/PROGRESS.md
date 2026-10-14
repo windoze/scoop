@@ -147,3 +147,19 @@ Linux [workspace clippy](validation/executable-linux-clippy.log.gz)、[scoop 89 
 新增 GNU 正式 [工具改选 fixture](validation/executable-gnu-tools-final.log.gz)，1 个用例、18 processes 通过：通过真实 GCC 的 `-B` 选择真实 ld 的调用包装器，改选后只新增一个 executable、Scoop child 数为 0；两次暖构建的工具调用日志与生成物 metadata 均不变。[补充调用计数](validation/executable-gnu-ld-summary.json)为 4／4／8／8，实际运行均返回 44。补充脚本最初只改 PATH，但该 GCC 直接返回带 target 前缀的 ld 绝对路径，未选中包装器；[首次记录](validation/executable-gnu-trace-first.log.gz)保留，改用真实 `-B` 选择后通过，没有更改生产工具来制造命中。
 
 本批 executable 结果复用与直接运行已完成。本节前述 final 工具发现持久化、Scoop 对象路径、artifact 消费重放、dump 和历史测试清理仍是 M48 未完成的交付项；本批的定向验证不替代最终全量回归与五轮性能复测。
+
+## 15. M48-4：最终链接工具发现记录
+
+新增 `final-tools-v1`，复用实际 linker、版本、运行库选择、系统输入摘要、探测头文件／搜索候选及 Darwin 已解析的 SDK 导出。普通构建与两种显式链接入口共用同一记录；源码或构建 profile 改变时只执行必要的程序编译和链接。实际工具、头文件、搜索候选、模式或有效 unwind 配置变化才重新发现，失败不发布。缓存键包含绝对选项路径和默认配置实际选中的 unwind prefix，避免默认 sysroot 变化后复用旧结果。记录直接保存原有 profile 所需数据，不添加另一套资格、内容复核或缓存损坏恢复路径。
+
+Darwin 不再长期持有 SDK stub 原始字节或复制探测 stub 树；首次读取保存摘要和长度，NativeInputId 直接复用，身份编码保持。首次探测使用真实 SDK 文件，程序链接仍生成其所需导出的投影 stub。清理范围见 [记录](CLEANUP.md)。缓存编排为 82 行，Darwin／Linux profile 为 288／197 行；本机无 Rust 构建进程时清理 `target/debug/incremental` 963.4 MiB。
+
+本机 [workspace clippy](validation/final-tools-darwin-clippy.log.gz)、[scoop 86 项与 toolchain 31 项](validation/final-tools-darwin-rust.log.gz)、[链接器 4 项](validation/final-tools-darwin-linker.log.gz)通过。正式 CLI [新增独立用例](validation/final-tools-darwin-fixtures.log.gz)、[五项组合回归](validation/final-tools-darwin-regression.log.gz)、[native artifact 两种 profile](validation/final-tools-darwin-artifacts.log.gz)共覆盖 7 个用例、9 variants、121 processes，验证源码更新、C／C++ native、native 库改选、测试过滤、debug／release、两种显式链接及真实运行。实际 unwind 键修正后的 [release 构建](validation/final-tools-darwin-release-final.log.gz)和 [新增用例复验](validation/final-tools-darwin-fixtures-final.log.gz)通过。
+
+Linux [首轮 Rust 测试](validation/final-tools-linux-rust-first.log.gz)通过 scoop 89 项、linker 17 项和 toolchain 34 项；新增测试首次因测试目录未提供 LLVM unwind 配套头文件失败。补齐实际头文件后，[定向复验](validation/final-tools-linux-record-tests-final.log.gz)通过，覆盖实际 header 更新、失败不发布及恢复正常输入后的复用。最终 [workspace clippy](validation/final-tools-linux-clippy-final.log.gz)和 [release 构建](validation/final-tools-linux-release-final.log.gz)通过。[GNU 组合](validation/final-tools-gnu-fixtures.log.gz)通过 9 个用例、12 variants、147 processes；有效 unwind 键修正后的 [独立用例复验](validation/final-tools-gnu-fixtures-final.log.gz)通过。
+
+源码、工具和产物始终保留。[GNU trace 摘要](validation/final-tools-gnu-trace-summary.json)记录实际源码从 48 改为 49：一次 Scoop child，加实际 startup C 编译与最终链接，共 8 次 exec；没有工具查询或探测编译／链接，发现记录 metadata 不变。随后暖构建仅 1 次 scoop exec，child 为 0，产物 metadata 不变，没有源码／header／manifest／slib／object 内容打开。保留[源码更新 trace](validation/final-tools-gnu-changed.trace.gz)、[暖构建 trace](validation/final-tools-gnu-warm.trace.gz)与[采样脚本](validation/final-tools-trace.py.gz)。另以独立 `scoop-link` 改变 `SCOOP_SYSROOT`，选中新配置中的实际错误 header 时失败且不发布，修正 header 后链接并运行返回 49；[记录数为 1／1／2](validation/final-tools-config-summary.json)，[脚本](validation/final-tools-config.py.gz)与错误输出一并保留。
+
+[musl 组合](validation/final-tools-musl-fixtures.log.gz)通过 8 个适用用例、11 variants、121 processes，包含 static 和 PIE、显式链接、GC／EH、test 选择和 native 输入更新；C++ 与 GNU 专用工具改选两项按原目标声明不适用。[musl trace 摘要](validation/final-tools-musl-trace-summary.json)得到相同复用结果：源码更新后一次 child，共 10 次真实编译／链接 exec（包含 musl driver wrapper），发现记录不变且无工具探测；随后暖构建仅一次 scoop exec、无 child、无相关内容读取且产物 metadata 不变。原始[更新 trace](validation/final-tools-musl-changed.trace.gz)和[暖 trace](validation/final-tools-musl-warm.trace.gz)保留。
+
+本批最终链接工具发现复用已实现并完成定向验收。M48 尚需稳定 Scoop 对象路径、普通 artifact 消费及 replay／双份数据／验证链清理、dump 最小阶段复用、1,618 项源码隔离测试迁移，以及最终全量回归与五轮性能复测；这些要求没有缩减，M38 保持未启动。

@@ -143,6 +143,8 @@ pub(super) struct TestArgs {
 #[derive(Args)]
 pub(super) struct LinkArgs {
     #[arg(long)]
+    pub cache_dir: Option<PathBuf>,
+    #[arg(long)]
     pub root_slib: PathBuf,
     #[arg(long)]
     pub dependency_slib: Vec<PathBuf>,

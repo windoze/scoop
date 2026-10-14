@@ -2,9 +2,9 @@ use super::*;
 use object::{Architecture, Object, ObjectKind, macho, read::macho::MachOFile64};
 use scoop_process::CommandExt;
 
-pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<(), ToolchainError> {
+pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<Vec<PathBuf>, ToolchainError> {
     for symbol in profile.linker_system_requirements() {
-        if !profile.system.exports().contains_key(*symbol) {
+        if !profile.data.system.exports().contains_key(*symbol) {
             return Err(error(format!(
                 "SDK is missing linker support symbol {symbol}"
             )));
@@ -21,9 +21,12 @@ pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<(), ToolchainErr
         b"#include <stdio.h>\nint main(void) { return puts(\"scoop\") < 0; }\n",
     )
     .map_err(error)?;
+    let dependencies = directory.path().join("probe.d");
     let output = profile
         .startup
         .object_compilation_command(&source, &object)
+        .args(["-v", "-MD", "-MT", "link-probe", "-MF"])
+        .arg(&dependencies)
         .scoop_output()
         .map_err(error)?;
     if !output.status.success() {
@@ -32,11 +35,12 @@ pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<(), ToolchainErr
             String::from_utf8_lossy(&output.stderr)
         )));
     }
-    let sdk = directory.path().join("sdk");
-    let stub = profile.system.write_to(&sdk)?;
+    let headers = super::super::dependencies::read(&dependencies, &source, &output.stderr)?;
+    let sdk = profile.startup.sdk_root().map_err(error)?;
+    let stub = sdk.join(profile.data.system.root_stub());
     let executable = directory.path().join("program");
     let output = profile
-        .command(&sdk, &executable)?
+        .command(sdk, &executable)?
         .arg(&object)
         .arg(stub)
         .scoop_output()
@@ -72,5 +76,5 @@ pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<(), ToolchainErr
     {
         return Err(error("ld probe has unexpected fixups or dynamic providers"));
     }
-    Ok(())
+    Ok(headers)
 }

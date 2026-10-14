@@ -90,6 +90,10 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
             let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
             let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
             let request = scoop::LinkRequest {
+                cache_dir: absolute(
+                    &cwd,
+                    scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?,
+                )?,
                 root_slib: absolute(&cwd, args.root_slib)?,
                 dependency_slibs: paths(&cwd, args.dependency_slib)?,
                 cone_paths: paths(&cwd, args.cone_path)?,
@@ -139,11 +143,7 @@ fn build_request(
             .ok_or_else(|| config("scoop executable has no parent"))?
             .join("scoopc"),
     };
-    let cache = args
-        .cache_dir
-        .or_else(|| std::env::var_os("SCOOP_CACHE_DIR").map(PathBuf::from))
-        .or_else(super::native::default_cache)
-        .ok_or_else(|| config("no usable HOME; provide --cache-dir or SCOOP_CACHE_DIR"))?;
+    let cache = scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?;
     let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
     let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
     let graph = scoop::BuildGraphRequest::new(

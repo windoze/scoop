@@ -1,0 +1,129 @@
+schema = 1
+name = "m48-final-tools"
+inputs = ["main.scoop", "state.py"]
+tools = ["scoop", "scoopc", "scoop-link", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "cache", "tool-inputs", "artifact-link"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/main.scoop", to = "${work}/main.scoop"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 46
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_tools"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/tools.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_source"
+files = [{replace = {path = "${work}/main.scoop", old = "Int = 46", new = "Int = 48"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 48
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "same_after_recompile"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/tools.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "release"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--release"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_release"
+argv = ["${release.result.output}"]
+exit = 48
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "same_after_release"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/tools.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "artifact_link"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--cache-dir", "${work}/cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/linked", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_linked"
+argv = ["${work}/linked"]
+exit = 48
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "same_after_artifact_link"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/tools.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "standalone_link"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--cache-dir", "${work}/cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/standalone"]
+exit = 0
+stdout = "link-plan ${artifact_link.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run_standalone"
+argv = ["${work}/standalone"]
+exit = 48
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "same_after_standalone_link"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/tools.json"]
+exit = 0
+stdout = ""
+stderr = ""

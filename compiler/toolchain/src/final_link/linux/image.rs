@@ -4,7 +4,7 @@ use object::{Object, ObjectKind, ObjectSymbol, elf};
 
 pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(), ToolchainError> {
     let file: ElfFile64<'_> = ElfFile64::parse(bytes).map_err(error)?;
-    let expected = match profile.mode {
+    let expected = match profile.data.mode {
         LinkMode::Static => ObjectKind::Executable,
         LinkMode::Dynamic => ObjectKind::Dynamic,
     };
@@ -47,7 +47,7 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(),
                 {
                     return Err(error("ELF executable contains text relocations"));
                 }
-                if profile.mode == LinkMode::Static && tag == u64::from(elf::DT_NEEDED) {
+                if profile.data.mode == LinkMode::Static && tag == u64::from(elf::DT_NEEDED) {
                     return Err(error("static ELF executable has dynamic dependencies"));
                 }
             }
@@ -56,7 +56,7 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(),
     if !eh_frame_header {
         return Err(error("ELF executable is missing PT_GNU_EH_FRAME"));
     }
-    match (profile.mode, interpreter) {
+    match (profile.data.mode, interpreter) {
         (LinkMode::Static, None) => {}
         (LinkMode::Dynamic, Some(interpreter)) => {
             let interpreter = std::str::from_utf8(interpreter).map_err(error)?;

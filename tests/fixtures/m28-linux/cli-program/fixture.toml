@@ -4,7 +4,7 @@ root = "program"
 inputs = ["program"]
 tools = ["scoop", "scoopc", "scoop-link", "cc"]
 targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m28", "cli", "gc", "eh", "artifact-only"]
+tags = ["m28", "cli", "gc", "eh", "artifact-link"]
 variants = [
   { name = "debug", vars = { profile = "debug" } },
   { name = "release", vars = { profile = "release" } },
@@ -31,8 +31,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
-env = { LLVM_SYS_221_PREFIX = "/absent-llvm", PATH = "/usr/bin:/bin" }
+argv = ["${scoop-link}", "--cache-dir", "${cache}", "--sysroot", "${sysroot}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
 timeout = 300
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"

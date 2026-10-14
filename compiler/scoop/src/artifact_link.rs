@@ -12,6 +12,7 @@ use crate::{BuildFailure, BuildFailurePhase, BuildResult};
 mod resolve;
 
 pub struct LinkRequest {
+    pub cache_dir: PathBuf,
     pub root_slib: PathBuf,
     pub dependency_slibs: Vec<PathBuf>,
     pub cone_paths: Vec<PathBuf>,
@@ -42,8 +43,12 @@ pub struct LinkOutcome {
 }
 
 pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
-    let target = ResolvedTargetProfile::resolve_with(&request.target, &request.c_toolchain)
-        .map_err(failure)?;
+    let target = ResolvedTargetProfile::resolve_with_cached(
+        &request.target,
+        &request.c_toolchain,
+        &request.cache_dir,
+    )
+    .map_err(failure)?;
     let selection = target.lir_target_selection();
     let (root, dependencies) = resolve::artifacts(&request, selection)?;
     let bytes = dependencies
@@ -57,9 +62,13 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         target.c_bridge_toolchain().profile(),
     )
     .map_err(|error| read_failure(error, &root, &dependencies))?;
-    let profile =
-        scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link, None)
-            .map_err(failure)?;
+    let profile = scoop_linker::resolve_program_link_profile(
+        &closure,
+        &target,
+        &request.final_link,
+        Some(&request.cache_dir),
+    )
+    .map_err(failure)?;
     let runtime = RuntimeObjectSet::read_index(
         &request.runtime_index,
         profile.target(),

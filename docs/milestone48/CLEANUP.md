@@ -173,3 +173,9 @@ Linux native archive 测试移除“覆盖归档后继续解析保留副本”�
 新增 executable 独立与 native 组合 fixture，以真实输入始终存在的暖构建、同一输出 metadata 不变、另选输出、所需结果补产、真实依赖／native 更新和库候选变化验证缓存。M43 selection fixture 继续检查过滤、忽略项、构造失败和运行结果，并观察这些请求不改写 executable 或缓存记录；测试事件不缓存。缺失 native 输入仅用于普通失败不发布验收，不要求移除输入后仍成功。SOURCE-ISOLATION 尚待迁移的 1,618 行不因本批减少。
 
 GNU `m48-executable-tools` 继续保留真实 compiler／linker，以标准 `-B` 选择和 symlink 正常改选检验实际工具输入更新；暖构建比较调用日志和生成物 metadata。该用例不删除工具、不提供伪造版本或失败替身。
+
+## 最终链接工具发现复用
+
+删除 SystemProvider 为身份重算和探测输入复制持有的完整 SDK stub 字节，以及仅用于复制该字节树的 `write_to`。保留首次解析出的导出、版本、TLS、重导出选择与文件摘要／长度；NativeInputId 直接使用已有摘要，编码规则保持。首次探测使用选中的真实 SDK 文件，实际程序仍生成本次需要的投影 stub。原 system_provider 测试只删除字节镜像复制断言，保留全部导出语义断言。
+
+`scoop link` 与独立 `scoop-link` 复用相同的 C／C++／final 发现记录；默认缓存位置和配置解析移到实际共享的 toolchain helper。两个 `m28-cli-program` 用例删除不存在的 LLVM 路径和截断 PATH，保留原工具、源码、真实 cache、GNU／musl static／musl PIE 的 GC 与异常运行断言。它们不在 SOURCE-ISOLATION 源码操作清单中，该清单仍有 1,618 项待迁移。

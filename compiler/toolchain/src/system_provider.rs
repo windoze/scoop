@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_lir::DarwinPackedVersionV1;
 use scoop_wire::{Digest256, sha256};
+use serde::{Deserialize, Serialize};
 
 use crate::ToolchainError;
 
@@ -15,23 +16,25 @@ mod tests;
 pub const LIBSYSTEM_INSTALL_NAME: &str = "/usr/lib/libSystem.B.dylib";
 const LIBSYSTEM_STUB: &str = "usr/lib/libSystem.tbd";
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SystemExportKind {
     /// Text stubs do not distinguish C functions from ordinary data.
     Symbol,
     ThreadLocal,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct NativeExport {
     pub kind: SystemExportKind,
     pub weak: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemStubFile {
+    #[serde(with = "crate::build_record::values::path")]
     relative_path: PathBuf,
-    bytes: Vec<u8>,
+    byte_len: u64,
+    #[serde(with = "crate::build_record::values::digest")]
     digest: Digest256,
 }
 
@@ -39,15 +42,15 @@ impl SystemStubFile {
     pub fn relative_path(&self) -> &Path {
         &self.relative_path
     }
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+    pub fn byte_len(&self) -> u64 {
+        self.byte_len
     }
     pub fn digest(&self) -> Digest256 {
         self.digest
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemProvider {
     install_name: String,
     files: Vec<SystemStubFile>,
@@ -158,24 +161,6 @@ impl SystemProvider {
     pub fn compatibility_version(&self) -> u32 {
         self.compatibility_version
     }
-
-    /// Materialize precisely the bytes used to construct the export directory.
-    pub fn write_to(&self, directory: &Path) -> Result<PathBuf, ToolchainError> {
-        use std::io::Write;
-        for file in &self.files {
-            let path = directory.join(&file.relative_path);
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent).map_err(io_error)?;
-            }
-            let mut output = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&path)
-                .map_err(io_error)?;
-            output.write_all(&file.bytes).map_err(io_error)?;
-        }
-        Ok(directory.join(LIBSYSTEM_STUB))
-    }
 }
 
 fn read_file(
@@ -209,12 +194,8 @@ fn read_file(
         SystemStubFile {
             relative_path: relative.to_owned(),
             digest: sha256(&bytes),
-            bytes,
+            byte_len: bytes.len() as u64,
         },
     );
     Ok(())
-}
-
-fn io_error(error: impl std::fmt::Display) -> ToolchainError {
-    ToolchainError(format!("cannot materialize system provider: {error}"))
 }

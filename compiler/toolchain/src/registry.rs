@@ -101,10 +101,7 @@ impl ResolvedTargetProfile {
         cxx: bool,
         cache: &std::path::Path,
     ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
-        let cxx = cxx
-            .then(|| crate::ValidatedCxxToolchain::resolve_cached(self, cache))
-            .transpose()?;
-        ValidatedFinalLinkProfile::from_tools(self.c_bridge_toolchain.clone(), options, cxx)
+        ValidatedFinalLinkProfile::resolve_cached(self, options, cxx, cache)
     }
 
     pub fn final_link_with_cxx(

@@ -39,7 +39,10 @@ pub use native::{
     compile_native_source, prepare_native_inputs, prepare_native_objects,
     strip_native_include_observations,
 };
-pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
+pub use paths::{
+    configured_cache_root, configured_sysroot_root, development_runtime_root,
+    development_workspace_root,
+};
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};
 pub use runtime::ValidatedRuntimeBuildProfile;

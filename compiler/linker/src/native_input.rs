@@ -67,11 +67,21 @@ impl NativeInputId {
         kind: NativeFileKind,
         profile: &ValidatedFinalLinkProfile,
     ) -> Result<Self, LinkError> {
+        Self::from_digest(sha256(bytes), bytes.len() as u64, kind, profile)
+    }
+
+    pub fn from_digest(
+        digest: Digest256,
+        byte_len: u64,
+        kind: NativeFileKind,
+        profile: &ValidatedFinalLinkProfile,
+    ) -> Result<Self, LinkError> {
         Ok(Self(
             domain_separated_cbor_hash(
                 "scoop-native-input-v1",
                 &FileKey {
-                    bytes,
+                    digest,
+                    byte_len,
                     kind: kind as u64,
                     profile,
                 },
@@ -181,7 +191,8 @@ impl NativeInputs {
 
 struct FileKey<'a> {
     profile: &'a ValidatedFinalLinkProfile,
-    bytes: &'a [u8],
+    digest: Digest256,
+    byte_len: u64,
     kind: u64,
 }
 impl WireEncode for FileKey<'_> {
@@ -189,7 +200,7 @@ impl WireEncode for FileKey<'_> {
         e.array(4)?;
         self.profile.target().wire_id().encode(e)?;
         e.unsigned(self.kind)?;
-        e.unsigned(self.bytes.len() as u64)?;
-        sha256(self.bytes).encode(e)
+        e.unsigned(self.byte_len)?;
+        self.digest.encode(e)
     }
 }
