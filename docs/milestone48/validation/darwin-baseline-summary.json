@@ -1,0 +1,201 @@
+{
+  "revision": "6571bb4a82290b30a01d62411709a5e46e38e256",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "scoop_profile": "debug",
+  "tool_profile": "release",
+  "tools_sha256": {
+    "/Users/chenxu/repos/scoop/target/release/scoop": "0467467cfadd8f413b54eb07d0795239a6406654ca04f7f1f4a1a7671607c17f",
+    "/Users/chenxu/repos/scoop/target/release/scoopc": "4c55eec8b9ac0117a453688405c7257ad425ba125ea15c345717ffc029a36297"
+  },
+  "sampling": "ps descendant RSS sum; 20 ms sleep between polls; short-lived processes may be missed",
+  "cold": "fresh Scoop build cache per pair; OS file cache is not flushed",
+  "summary": {
+    "application/cold": {
+      "seconds": {
+        "median": 63.61950079188682,
+        "min": 63.40492699993774,
+        "max": 64.90259704203345
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 4676112,
+        "min": 4655552,
+        "max": 4694416
+      },
+      "compiler_build_calls": {
+        "median": 6,
+        "min": 6,
+        "max": 6
+      }
+    },
+    "application/warm": {
+      "seconds": {
+        "median": 10.499002041993663,
+        "min": 10.358393874950707,
+        "max": 10.560051457956433
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 4585888,
+        "min": 4571520,
+        "max": 4636512
+      },
+      "compiler_build_calls": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "core/cold": {
+      "seconds": {
+        "median": 7.595080291852355,
+        "min": 7.46401200001128,
+        "max": 7.854143708012998
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 1350352,
+        "min": 1323152,
+        "max": 1378720
+      },
+      "compiler_build_calls": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+      }
+    },
+    "core/warm": {
+      "seconds": {
+        "median": 0.49241237505339086,
+        "min": 0.44764599995687604,
+        "max": 0.4981756671331823
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 180416,
+        "min": 157376,
+        "max": 194752
+      },
+      "compiler_build_calls": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "empty/cold": {
+      "seconds": {
+        "median": 15.341324541950598,
+        "min": 15.214727042010054,
+        "max": 15.385692083043978
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 1508896,
+        "min": 1504256,
+        "max": 1553776
+      },
+      "compiler_build_calls": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      }
+    },
+    "empty/warm": {
+      "seconds": {
+        "median": 3.0694506249856204,
+        "min": 3.0231697920244187,
+        "max": 3.09445795789361
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 1462400,
+        "min": 1415120,
+        "max": 1462752
+      },
+      "compiler_build_calls": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "native/cold": {
+      "seconds": {
+        "median": 15.681507416069508,
+        "min": 15.580091124866158,
+        "max": 15.761540667153895
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 1574848,
+        "min": 1543520,
+        "max": 1600192
+      },
+      "compiler_build_calls": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      }
+    },
+    "native/header-change": {
+      "seconds": {
+        "median": 5.208972041029483,
+        "min": 5.150618332903832,
+        "max": 5.295124958036467
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 1531232,
+        "min": 1526160,
+        "max": 1538096
+      },
+      "compiler_build_calls": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+      }
+    },
+    "native/warm": {
+      "seconds": {
+        "median": 3.1989212092012167,
+        "min": 3.1670335419476032,
+        "max": 3.2231350420042872
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 1472816,
+        "min": 1453344,
+        "max": 1491968
+      },
+      "compiler_build_calls": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "std/cold": {
+      "seconds": {
+        "median": 25.270909290993586,
+        "min": 24.7750075829681,
+        "max": 25.536580958170816
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 2854768,
+        "min": 2850768,
+        "max": 2869968
+      },
+      "compiler_build_calls": {
+        "median": 2,
+        "min": 2,
+        "max": 2
+      }
+    },
+    "std/warm": {
+      "seconds": {
+        "median": 1.170651791850105,
+        "min": 1.1591256251558661,
+        "max": 1.1773327919654548
+      },
+      "sampled_tree_peak_rss_kib": {
+        "median": 363472,
+        "min": 363344,
+        "max": 363488
+      },
+      "compiler_build_calls": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    }
+  }
+}
