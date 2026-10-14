@@ -1,0 +1,58 @@
+import scoop.json.*
+
+enum Tool {
+    User(UserTool), Computer(ComputerConfig), Search(SearchConfig), Fetch(SearchConfig), Code(BasicToolConfig), Bash(BasicToolConfig), Editor(BasicToolConfig), Unknown(JsonValue)
+    companion object : Encodable<Tool>, Decodable<Tool> {
+        public override fun encode(value: Tool, encoder: Encoder) {
+            when (value) {
+                case Tool.User(payload) -> { UserTool.Companion.encode(payload, encoder); return }
+                else -> {}
+            }
+            val fields = encoder.keyed()
+            when (value) {
+                case Tool.User(payload) -> UserTool.Companion.encode(payload, encoder)
+                case Tool.Computer(payload) -> {
+                    String.encode("computer_20250124", fields.field("type"))
+                    ComputerConfig.Companion.encode(payload, encoder)
+                }
+                case Tool.Search(payload) -> {
+                    String.encode("web_search_20250305", fields.field("type"))
+                    SearchConfig.Companion.encode(payload, encoder)
+                }
+                case Tool.Fetch(payload) -> {
+                    String.encode("web_fetch_20250910", fields.field("type"))
+                    SearchConfig.Companion.encode(payload, encoder)
+                }
+                case Tool.Code(payload) -> {
+                    String.encode("code_execution_20250522", fields.field("type"))
+                    BasicToolConfig.Companion.encode(payload, encoder)
+                }
+                case Tool.Bash(payload) -> {
+                    String.encode("bash_20250124", fields.field("type"))
+                    BasicToolConfig.Companion.encode(payload, encoder)
+                }
+                case Tool.Editor(payload) -> {
+                    String.encode("text_editor_20250124", fields.field("type"))
+                    BasicToolConfig.Companion.encode(payload, encoder)
+                }
+                case Tool.Unknown(raw) -> JsonValue.Companion.encode(raw, encoder)
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Tool {
+            val fields = decoder.keyed()
+            if (when (fields.optional("type")) { case None -> true; else -> false }) {
+                return Tool.User(UserTool.Companion.decode(decoder))
+            }
+            return when (String.decode(fields.required("type"))) {
+                case "computer_20250124" -> Tool.Computer(ComputerConfig.Companion.decode(decoder))
+                case "web_search_20250305" -> Tool.Search(SearchConfig.Companion.decode(decoder))
+                case "web_fetch_20250910" -> Tool.Fetch(SearchConfig.Companion.decode(decoder))
+                case "code_execution_20250522" -> Tool.Code(BasicToolConfig.Companion.decode(decoder))
+                case "bash_20250124" -> Tool.Bash(BasicToolConfig.Companion.decode(decoder))
+                case "text_editor_20250124" -> Tool.Editor(BasicToolConfig.Companion.decode(decoder))
+                else -> Tool.Unknown(JsonValue.Companion.decode(decoder))
+            }
+        }
+    }
+}

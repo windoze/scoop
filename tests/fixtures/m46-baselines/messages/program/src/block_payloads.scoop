@@ -1,0 +1,54 @@
+import scoop.json.*
+
+struct TextBlock(val text: String, val cache_control: CacheControl? = None, val citations: Array<Citation>? = None) {
+    companion object : Encodable<TextBlock>, Decodable<TextBlock> {}
+}
+struct ImageBlock(val source: Source) {
+    companion object : Encodable<ImageBlock>, Decodable<ImageBlock> {}
+}
+struct DocumentBlock(
+    val source: Source,
+    val title: String? = None,
+    val context: String? = None,
+    val citations: CitationConfig? = None
+) {
+    companion object : Encodable<DocumentBlock>, Decodable<DocumentBlock> {}
+}
+struct ThinkingBlock(val thinking: String, val signature: String) {
+    companion object : Encodable<ThinkingBlock>, Decodable<ThinkingBlock> {}
+}
+struct RedactedBlock(val data: String) {
+    companion object : Encodable<RedactedBlock>, Decodable<RedactedBlock> {}
+}
+struct ToolUse(val id: String, val name: String, val input: JsonValue) {
+    companion object : Encodable<ToolUse>, Decodable<ToolUse> {}
+}
+struct ToolResult(val tool_use_id: String, val content: Content? = None, val is_error: Boolean = false) {
+    companion object : Encodable<ToolResult>, Decodable<ToolResult> {}
+}
+struct SearchResultBlock(val tool_use_id: String, val content: SearchResults) {
+    companion object : Encodable<SearchResultBlock>, Decodable<SearchResultBlock> {}
+}
+struct FetchResultBlock(val tool_use_id: String, val content: FetchResult) {
+    companion object : Encodable<FetchResultBlock>, Decodable<FetchResultBlock> {}
+}
+struct CodeResultBlock(val tool_use_id: String, val content: CodeResult) {
+    companion object : Encodable<CodeResultBlock>, Decodable<CodeResultBlock> {}
+}
+struct SearchBlock(
+    val source: String,
+    val title: String,
+    val content: Array<TextOnly>,
+    val citations: CitationConfig? = None
+) {
+    companion object : Encodable<SearchBlock>, Decodable<SearchBlock> {}
+}
+struct UploadBlock(val file_id: String) {
+    companion object : Encodable<UploadBlock>, Decodable<UploadBlock> {}
+}
+struct CitationConfig(val enabled: Boolean) {
+    companion object : Encodable<CitationConfig>, Decodable<CitationConfig> {}
+}
+struct CacheControl(val type: String, val ttl: String? = None) {
+    companion object : Encodable<CacheControl>, Decodable<CacheControl> {}
+}

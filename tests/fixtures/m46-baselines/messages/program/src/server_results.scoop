@@ -1,0 +1,34 @@
+struct SearchHit(
+    val type: String,
+    val title: String,
+    val url: String,
+    val encrypted_content: String,
+    val page_age: String? = None
+) {
+    companion object : Encodable<SearchHit>, Decodable<SearchHit> {}
+}
+struct SearchError(val type: String, val error_code: String) {
+    companion object : Encodable<SearchError>, Decodable<SearchError> {}
+}
+struct CodeFile(val type: String, val file_id: String) {
+    companion object : Encodable<CodeFile>, Decodable<CodeFile> {}
+}
+enum SearchResults {
+    Hits(Array<SearchHit>), Error(SearchError)
+    companion object : Encodable<SearchResults>, Decodable<SearchResults> {
+        public override fun encode(value: SearchResults, encoder: Encoder) {
+            when (value) {
+                case SearchResults.Hits(hits) -> Array<SearchHit>.encoder(SearchHit.Companion).encode(hits, encoder)
+                case SearchResults.Error(error) -> SearchError.Companion.encode(error, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): SearchResults {
+            var sequence: UnkeyedDecodingContainer? = None
+            try { sequence = Some(decoder.unkeyed()) } catch (error: DecodingException) { sequence = None }
+            if (when (sequence) { case None -> false; else -> true }) {
+                return SearchResults.Hits(Array<SearchHit>.decoder(SearchHit.Companion).decode(decoder))
+            }
+            return SearchResults.Error(SearchError.Companion.decode(decoder))
+        }
+    }
+}

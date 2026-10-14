@@ -1,0 +1,87 @@
+enum Citation {
+    Char(CharCitation), Page(PageCitation), Block(BlockCitation), Web(WebCitation), Search(SearchCitation)
+    companion object : Encodable<Citation>, Decodable<Citation> {
+        public override fun encode(value: Citation, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case Citation.Char(payload) -> {
+                    String.encode("char_location", fields.field("type"))
+                    CharCitation.Companion.encode(payload, encoder)
+                }
+                case Citation.Page(payload) -> {
+                    String.encode("page_location", fields.field("type"))
+                    PageCitation.Companion.encode(payload, encoder)
+                }
+                case Citation.Block(payload) -> {
+                    String.encode("content_block_location", fields.field("type"))
+                    BlockCitation.Companion.encode(payload, encoder)
+                }
+                case Citation.Web(payload) -> {
+                    String.encode("web_search_result_location", fields.field("type"))
+                    WebCitation.Companion.encode(payload, encoder)
+                }
+                case Citation.Search(payload) -> {
+                    String.encode("search_result_location", fields.field("type"))
+                    SearchCitation.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Citation {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "char_location" -> Citation.Char(CharCitation.Companion.decode(decoder))
+                case "page_location" -> Citation.Page(PageCitation.Companion.decode(decoder))
+                case "content_block_location" -> Citation.Block(BlockCitation.Companion.decode(decoder))
+                case "web_search_result_location" -> Citation.Web(WebCitation.Companion.decode(decoder))
+                case "search_result_location" -> Citation.Search(SearchCitation.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown Citation branch")
+            }
+        }
+    }
+}
+struct CharCitation(
+    val cited_text: String,
+    val document_index: Long,
+    @Serialize(required = true) val document_title: String?,
+    val start_char_index: Long,
+    val end_char_index: Long
+) {
+    companion object : Encodable<CharCitation>, Decodable<CharCitation> {}
+}
+struct PageCitation(
+    val cited_text: String,
+    val document_index: Long,
+    @Serialize(required = true) val document_title: String?,
+    val start_page_number: Long,
+    val end_page_number: Long
+) {
+    companion object : Encodable<PageCitation>, Decodable<PageCitation> {}
+}
+struct BlockCitation(
+    val cited_text: String,
+    val document_index: Long,
+    @Serialize(required = true) val document_title: String?,
+    val start_block_index: Long,
+    val end_block_index: Long
+) {
+    companion object : Encodable<BlockCitation>, Decodable<BlockCitation> {}
+}
+struct WebCitation(
+    val cited_text: String,
+    val encrypted_index: String,
+    @Serialize(required = true) val title: String?,
+    val url: String
+) {
+    companion object : Encodable<WebCitation>, Decodable<WebCitation> {}
+}
+struct SearchCitation(
+    val cited_text: String,
+    val search_result_index: Long,
+    @Serialize(required = true) val title: String?,
+    val source: String,
+    val start_block_index: Long,
+    val end_block_index: Long
+) {
+    companion object : Encodable<SearchCitation>, Decodable<SearchCitation> {}
+}

@@ -1,0 +1,72 @@
+import scoop.json.*
+import scoop.text.*
+
+struct Location(val location: String) {
+    companion object : Encodable<Location>, Decodable<Location> {}
+}
+fun messagesBaseline(moving: Boolean) {
+    if (moving) {
+        val request = Json.decode(movingMessagesText(), MessagesRequest.Companion)
+        gcCollect()
+        check(Json.encode(request, MessagesRequest.Companion).contains("18446744073709551616"))
+        return
+    }
+    val request = Json.decode(messagesRequestText(), MessagesRequest.Companion)
+    check(request.messages.size == 2L && request.tools!!.size == 7L)
+    check(when (request.messages[1L].content) { case Content.Blocks(blocks) -> blocks.size == 15L; else -> false })
+    val encoded = Json.encode(request, MessagesRequest.Companion)
+    check(Json.encode(Json.decode(encoded, MessagesRequest.Companion), MessagesRequest.Companion) == encoded)
+    for (text in extraBlocks()) {
+        val block = Json.decode(text, Block.Companion)
+        val canonical = Json.encode(block, Block.Companion)
+        check(Json.encode(Json.decode(canonical, Block.Companion), Block.Companion) == canonical)
+    }
+    for (text in ["""{"model":"m","max_tokens":10,"messages":[],"system":"Short","container":"container-1"}""", """{"model":"m","max_tokens":10,"messages":[],"container":null}"""]) {
+        val value = Json.decode(text, MessagesRequest.Companion)
+        val canonical = Json.encode(value, MessagesRequest.Companion)
+        check(Json.encode(Json.decode(canonical, MessagesRequest.Companion), MessagesRequest.Companion) == canonical)
+    }
+    for (text in ["""{"type":"any","disable_parallel_tool_use":false}""", """{"type":"none"}""", """{"type":"tool","name":"weather","disable_parallel_tool_use":false}"""]) {
+        check(Json.encode(Json.decode(text, ToolChoice.Companion), ToolChoice.Companion) == text)
+    }
+    for (text in ["""{"type":"adaptive"}""", """{"type":"disabled"}"""]) {
+        check(Json.encode(Json.decode(text, Thinking.Companion), Thinking.Companion) == text)
+    }
+    val response = Json.decode(messageBodyText(), ExtendedCodec)
+    check(response.message.content.size == 4L && response.message.usage.cache_read_input_tokens == Some(3L))
+    check(response.message.stop_reason == Some("tool_use") && response.message.stop_sequence == None)
+    check(when (response.message.content[0L]) { case Block.Text(value) -> value.citations!!.size == 5L; else -> false })
+    check(when (response.message.content[1L]) { case Block.Thinking(value) -> value.signature == "signed+/==\n"; else -> false })
+    check(Json.encode(response.extra["future/~"]!!, JsonValue.Companion).contains("[18446744073709551616,0.12345678901234567890123456789,1e400,-0]"))
+    val saved = Json.encode(response, ExtendedCodec)
+    check(Json.encode(Json.decode(saved, ExtendedCodec), ExtendedCodec) == saved)
+    var arguments = ""
+    var signature = ""
+    var unknown = 0L
+    for (text in messageEvents()) {
+        val event = Json.decode(text, MessageEvent.Companion)
+        when (event) {
+            case MessageEvent.BlockDelta(value) -> {
+                when (value.delta) {
+                    case Delta.JSON(part) -> { arguments += part.partial_json }
+                    case Delta.Signature(part) -> { signature += part.signature }
+                    else -> {}
+                }
+            }
+            case MessageEvent.Unknown(raw) -> { check(Json.encode(raw, JsonValue.Companion) == text); unknown += 1L }
+            case MessageEvent.Error(value) -> { check(value.error.type == "overloaded_error") }
+            else -> {}
+        }
+        val canonical = Json.encode(event, MessageEvent.Companion)
+        check(Json.encode(Json.decode(canonical, MessageEvent.Companion), MessageEvent.Companion) == canonical)
+    }
+    check(Json.decode(arguments, Location.Companion).location == "Paris" && signature == "signed+/==" && unknown == 1L)
+    for (tag in ["model_changed", "system_changed", "tools_changed", "messages_changed"]) {
+        val text = "{\"cache_miss_reason\":{\"type\":\"" + tag + "\",\"cache_missed_input_tokens\":42}}"
+        check(Json.encode(Json.decode(text, Diagnostics.Companion), Diagnostics.Companion) == text)
+    }
+    for (text in ["""{"cache_miss_reason":null}""", """{"cache_miss_reason":{"type":"previous_message_not_found"}}""", """{"cache_miss_reason":{"type":"unavailable"}}"""]) {
+        check(Json.encode(Json.decode(text, Diagnostics.Companion), Diagnostics.Companion) == text)
+    }
+    messagesFailures()
+}

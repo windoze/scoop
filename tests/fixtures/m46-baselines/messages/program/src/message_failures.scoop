@@ -1,0 +1,19 @@
+import scoop.json.*
+
+fun messagesFailures() {
+    reject("/cache_miss_reason/cache_missed_input_tokens") { Json.decode("""{"cache_miss_reason":{"type":"system_changed","cache_missed_input_tokens":"bad"}}""", Diagnostics.Companion) }
+    reject("/cache_miss_reason") { Json.decode("""{"cache_miss_reason":"system_changed"}""", Diagnostics.Companion) }
+    reject("/messages/0/content/0/source/data") { Json.decode("""{"model":"m","max_tokens":1,"messages":[{"role":"user","content":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":7}}]}]}""", MessagesRequest.Companion) }
+    reject("/system/0/type") { Json.decode("""{"model":"m","max_tokens":1,"messages":[],"system":[{"type":"image","text":"bad"}]}""", MessagesRequest.Companion) }
+    reject("/source/url") { Json.decode("""{"type":"document","source":{"type":"url","url":false}}""", Block.Companion) }
+    reject("/signature") { Json.decode("""{"type":"thinking","thinking":"x","signature":{}}""", Block.Companion) }
+    reject("/input/query") { Json.decode("""{"type":"server_tool_use","name":"web_search","id":"s","input":{"query":7}}""", Block.Companion) }
+    reject("/content/0/url") { Json.decode("""{"type":"web_search_tool_result","tool_use_id":"s","content":[{"type":"web_search_result","title":"x","encrypted_content":"x","url":7}]}""", Block.Companion) }
+    reject("/content/return_code") { Json.decode("""{"type":"code_execution_tool_result","tool_use_id":"s","content":{"type":"code_execution_result","stdout":"","stderr":"","return_code":"bad","content":[]}}""", Block.Companion) }
+    reject("/display_width_px") { Json.decode("""{"type":"computer_20250124","name":"computer","display_width_px":"bad","display_height_px":1}""", Tool.Companion) }
+    reject("/budget_tokens") { Json.decode("""{"type":"enabled","budget_tokens":null}""", Thinking.Companion) }
+    reject("/stop_sequence") { Json.decode("""{"id":"m","type":"message","role":"assistant","model":"m","content":[],"stop_reason":null,"usage":{"input_tokens":0,"output_tokens":0}}""", ExtendedCodec) }
+    reject("/delta/partial_json") { Json.decode("""{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":{}}}""", MessageEvent.Companion) }
+    reject("/delta/citation/url") { Json.decode("""{"type":"content_block_delta","index":0,"delta":{"type":"citations_delta","citation":{"type":"web_search_result_location","cited_text":"x","encrypted_index":"x","title":null,"url":7}}}""", MessageEvent.Companion) }
+    reject("/error/message") { Json.decode("""{"type":"error","error":{"type":"overloaded_error","message":null}}""", MessageEvent.Companion) }
+}

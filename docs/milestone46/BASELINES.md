@@ -1,6 +1,6 @@
 # M46 基线与验收：API wire format 与 Cone.toml
 
-状态：Cone 等价 JSON、Chat 和 Responses 已完成本机验收；Messages 待实施，Linux 完整验收待 M46-6。日期：2026-10-14。协议与范围以[主设计](DESIGN.md)及[统一 Serialize](SERIALIZE.md)为准；本文列的是实施验收要求，不是已经通过的测试记录。
+状态：四组离线基线已完成本机验收，Linux 完整验收待 M46-6；实际形状映射见 [COVERAGE.md](COVERAGE.md)。日期：2026-10-14。协议与范围以[主设计](DESIGN.md)及[统一 Serialize](SERIALIZE.md)为准；本文列的是实施验收要求，不是已经通过的测试记录。
 
 ## 1. “完整支持”的含义
 
@@ -228,7 +228,7 @@ T9 不采用普通 API DTO 的 missing／null 归并。非可空且带 default �
 
 ## 8. 调研来源
 
-以下官方页面已于 2026-10-14 实际读取，用于本次形状分析；不根据模型可用性或 SDK 便利属性推断 wire schema。OpenAI `output_text` 等 SDK 聚合属性不作为 JSON 根字段要求。
+以下官方入口用于本次形状分析；2026-10-14～15 的实施复核与可访问的同 API schema 入口记录在 [COVERAGE.md](COVERAGE.md)。不根据模型可用性或 SDK 便利属性推断 wire schema。OpenAI `output_text` 等 SDK 聚合属性不作为 JSON 根字段要求。
 
 - [OpenAI Create chat completion](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)
 - [OpenAI Create a model response](https://developers.openai.com/api/reference/resources/responses/methods/create)

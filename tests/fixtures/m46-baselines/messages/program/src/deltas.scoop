@@ -1,0 +1,57 @@
+enum Delta {
+    Text(TextDelta), JSON(JSONDelta), Thinking(ThinkingDelta), Signature(SignatureDelta), Citation(CitationDelta)
+    companion object : Encodable<Delta>, Decodable<Delta> {
+        public override fun encode(value: Delta, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case Delta.Text(payload) -> {
+                    String.encode("text_delta", fields.field("type"))
+                    TextDelta.Companion.encode(payload, encoder)
+                }
+                case Delta.JSON(payload) -> {
+                    String.encode("input_json_delta", fields.field("type"))
+                    JSONDelta.Companion.encode(payload, encoder)
+                }
+                case Delta.Thinking(payload) -> {
+                    String.encode("thinking_delta", fields.field("type"))
+                    ThinkingDelta.Companion.encode(payload, encoder)
+                }
+                case Delta.Signature(payload) -> {
+                    String.encode("signature_delta", fields.field("type"))
+                    SignatureDelta.Companion.encode(payload, encoder)
+                }
+                case Delta.Citation(payload) -> {
+                    String.encode("citations_delta", fields.field("type"))
+                    CitationDelta.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Delta {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "text_delta" -> Delta.Text(TextDelta.Companion.decode(decoder))
+                case "input_json_delta" -> Delta.JSON(JSONDelta.Companion.decode(decoder))
+                case "thinking_delta" -> Delta.Thinking(ThinkingDelta.Companion.decode(decoder))
+                case "signature_delta" -> Delta.Signature(SignatureDelta.Companion.decode(decoder))
+                case "citations_delta" -> Delta.Citation(CitationDelta.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown Delta branch")
+            }
+        }
+    }
+}
+struct TextDelta(val text: String) {
+    companion object : Encodable<TextDelta>, Decodable<TextDelta> {}
+}
+struct JSONDelta(val partial_json: String) {
+    companion object : Encodable<JSONDelta>, Decodable<JSONDelta> {}
+}
+struct ThinkingDelta(val thinking: String) {
+    companion object : Encodable<ThinkingDelta>, Decodable<ThinkingDelta> {}
+}
+struct SignatureDelta(val signature: String) {
+    companion object : Encodable<SignatureDelta>, Decodable<SignatureDelta> {}
+}
+struct CitationDelta(val citation: Citation) {
+    companion object : Encodable<CitationDelta>, Decodable<CitationDelta> {}
+}
