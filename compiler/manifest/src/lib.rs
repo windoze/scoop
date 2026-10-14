@@ -11,6 +11,7 @@ mod native;
 mod root;
 mod selection;
 mod semantic;
+mod serde_record;
 mod single_file;
 
 pub use discovery::{
@@ -25,8 +26,8 @@ pub use input::{
 };
 pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
 pub use root::{
-    LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
-    ManifestRootLocator, load_cone_manifest,
+    LoadedConeManifest, LocatedConeManifest, ManifestRootError, ManifestRootErrorKind,
+    ManifestRootIoOperation, ManifestRootLocator, load_cone_manifest,
 };
 pub use scoop_identity::RequestedConeKind;
 pub use selection::{

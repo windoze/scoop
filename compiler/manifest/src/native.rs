@@ -12,7 +12,7 @@ pub use language::NativeSourceLanguage;
 pub use libraries::NativeLibrary;
 pub(crate) use parse::RawNativeConfig;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NativeConfig {
     sources: Vec<ConditionalSourcePath>,
     include: Vec<ConeRelativePath>,

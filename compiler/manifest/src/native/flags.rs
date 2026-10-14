@@ -1,6 +1,6 @@
 use crate::ConeRelativePath;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum NativeCompileFlag {
     Argument(String),
     Include {
@@ -9,7 +9,7 @@ pub enum NativeCompileFlag {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum NativeIncludeFlag {
     Search,
     Quote,

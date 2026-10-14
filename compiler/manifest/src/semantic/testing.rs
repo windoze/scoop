@@ -1,8 +1,9 @@
 use super::*;
 
 /// A dependency declaration keeps its locator and diagnostic spans together.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestDependency {
+    #[serde(with = "crate::serde_record::coordinate")]
     pub(super) coordinate: ConeCoordinate,
     pub(super) locator: DependencyLocator,
     pub(super) spans: DependencyManifestSpans,
@@ -23,7 +24,7 @@ impl ManifestDependency {
 }
 
 /// Test-only inputs are excluded from the production semantic projection.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TestManifestConfig {
     pub(super) sources: SourceSelection,
     pub(super) dependencies: BTreeMap<DependencyCoordinateKey, ManifestDependency>,

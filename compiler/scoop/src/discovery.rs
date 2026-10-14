@@ -10,7 +10,6 @@ use scoop_manifest::{
     SingleFileLocator,
 };
 use scoop_slib::DependencyRecord;
-use scoop_toolchain::load_cone_manifest;
 use scoop_wire::HashError;
 
 use crate::locator::{

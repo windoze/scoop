@@ -135,3 +135,7 @@
 原 cache/store 的 8 项测试随收据、损坏／截断、目录 key 绑定、symlink 审计和并发产物等价性比较退役；正常发布、所需输出缺失更新、失败不发布和构建锁协调改由 3 项普通记录测试覆盖。cache-key 的真实输入／target／配置变化测试仍在，protocol round-trip 覆盖实际生产摘要；GNU／musl 正式 CLI 继续验证目标选择。scoop 单元测试从 104 项变为 84 项（删除 23 项、增加 3 项），没有以删除语言或运行断言换取通过。
 
 新增 `m48-build-record/library` 独立 fixture：冷／暖、同一结果发布到另一输出、用户输出缺失后正常补产，以及同一位置先后发布库／程序／库。其输出缺失步骤要求正常重新发布该输出，源码、工具和原始 cache artifact 始终保留。现有 single-file、warning、dump、测试目录、native 与菱形依赖组合保留真实调用和运行断言；SOURCE-ISOLATION 的 1,627 项待迁移范围不因本批减少。
+
+### 已执行批次：manifest 解析记录
+
+新增 `m48-manifest-record` 保留原始源码与工具，检查实际 manifest 更新后的生产缓存选择及运行结果；M43 的测试配置／测试依赖／target 条件组合继续保留。discovery／graph 的测试 helper 将缓存从 sysroot 内移到独立目录，保持已有图结构、循环、显式 core 来源和诊断区间断言。`m23-cli-inputs/manifest-source-encoding` 同步此前源码内容读取移到 scoopc 后的 `SCOOPC_BUILD_FAILED` 文件级诊断，保留非法 UTF-8、原始路径、独立 producer 和失败不覆盖用户输出。没有删除语言测试，SOURCE-ISOLATION 的 1,627 项待迁移范围不变。

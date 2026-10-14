@@ -7,7 +7,7 @@
 | 批次 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | M48-1 合同、清理范围、release 基线 | 完成 | 已同步三份规范、AGENTS 与 runner 说明；复扫 1,628 份迁移候选并核对活动设计。Darwin 五组各五轮、native 另五轮头文件变化共 55 次测量完成，原始证据见 [基线](BASELINE.md)。精确 native／linker 调用计数作为最终结构验收补齐。 |
-| M48-2 提前更新判定与普通构建记录 | 进行中 | 配套编译器、源码 metadata、普通编译结果记录和库输出复用已落地（见下）；manifest 解析复用、native 更新判定及其余路径审计仍待处理。 |
+| M48-2 提前更新判定与普通构建记录 | 进行中 | 配套编译器、源码 metadata、manifest 解析记录、普通编译结果记录和库输出复用已落地（见下）；native 更新判定及其余路径审计仍待处理。 |
 | M48-3 按需读取与删除消费重放 | 未开始 | parent 的编译结果／缓存产物复核已删除；各消费 stage 的验证资格、对象 replay 和重复闭包仍待移除。 |
 | M48-4 对象／native／runtime／最终链接复用 | 未开始 | 现有暖程序构建仍重新链接、发布和制作运行副本。 |
 | M48-5 全量测试迁移与最终验收 | 进行中 | 随实际输入路径迁移 1 个混合 fixture，删除或迁移相关 Rust 隔离断言；扫描清单余下 1,627 项，最终全量与性能验收未执行。 |
@@ -69,3 +69,13 @@ protocol 8 直接返回生产时已有的 `ArtifactManifestSummaryV1`（含测�
 本机 [workspace clippy](validation/build-record-darwin-clippy.log.gz)、[protocol 25 项](validation/build-record-darwin-protocol.log.gz)、[summary 3 项](validation/build-record-darwin-summary.log.gz)、[driver 协议 4 项](validation/build-record-darwin-driver-protocol.log.gz)和 [4 项诊断分类复验](validation/build-record-darwin-diagnostics.log.gz)通过。scoop 原有 [84 项中的 83 项](validation/build-record-darwin-rust-first.log.gz)通过；protocol 8 的固定缓存键向量更新后，[9 项 cache-key／store 复验](validation/build-record-darwin-cache-tests.log.gz)通过。CLI 的 [6 个组合用例](validation/build-record-darwin-fixtures-first.log.gz)、[新库输出用例](validation/build-record-darwin-library-fixtures.log.gz)与[菱形依赖／moving GC](validation/build-record-darwin-diamond-fixtures.log.gz)通过，成功用例共 8 个、9 variants、54 processes；新 fixture 首轮遗漏默认 src 目录已修正，另保留含 1 次失败进程的首次日志。测试退役与替换详见 [清理记录](CLEANUP.md)。另在无 cargo/rustc 进程时清理 `target/debug/incremental` 728.5 MiB。
 
 本批尚未完成 manifest 解析复用；显式 artifact 发现及 Compile／Link 消费仍有整包校验和 replay，native／runtime 暖构建及程序最终链接也仍在执行。Linux [workspace clippy](validation/build-record-linux-clippy.log.gz)、[scoop 87 项与 protocol 25 项](validation/build-record-linux-rust.log.gz)、[summary 3 项](validation/build-record-linux-summary.log.gz)和 [driver 协议 4 项](validation/build-record-linux-driver-protocol.log.gz)通过；[GNU](validation/build-record-gnu-fixtures.log.gz)与 [musl](validation/build-record-musl-fixtures.log.gz)各 8 个正式 CLI 用例、9 variants、54 processes 通过。源码、工具和原缓存产物始终存在，复用 GNU 库用例的已有输出追加[暖构建系统调用记录](validation/build-record-gnu-warm.trace.gz)：没有打开 `.scoop` 或 `.slib` 内容，没有 scoopc exec，也没有 rename 发布；[构建记录](validation/build-record-gnu-warm.stderr.gz)中 child 数为 0。trace 仍显示 C 工具链版本、预处理和探测编译调用，留待后续提前更新判定；不能据此标记 M48 完成。
+
+## 10. M48-2：manifest 解析记录
+
+父进程的根、显式源码依赖、默认 core 和默认标准库入口共用 `manifests-v1`。按实际路径、mtime、大小及解析器 target catalog 定位解析结果；命中不读取 Cone.toml、不重新执行 TOML parser。记录直接保存解析后的生产／测试／native 配置、locator、诊断区间及对应文本，不维护另一份语言规则或校验链。普通构建锁协调首次解析，成功后 rename 发布；无效 manifest 不发布，缺失输入仍先报告定位错误。有效编译键继续使用用途投影，仅测试配置变化不使生产结果失效。源码保持存在，实际执行的 scoopc 仍正常读取自己的 manifest。
+
+本机 [workspace clippy](validation/manifest-record-darwin-clippy.log.gz)、[manifest 57 项](validation/manifest-record-darwin-manifest-tests.log.gz)、[解析记录 3 项复验](validation/manifest-record-darwin-record-tests.log.gz)通过。scoop 首轮 [87 项中的 82 项](validation/manifest-record-darwin-rust-first.log.gz)通过；5 项失败均源于旧测试 helper 将缓存配置在其断言不存在的 sysroot 下，改为独立缓存目录后 [17 项 core 相关复验](validation/manifest-record-darwin-core-tests.log.gz)通过。解析记录测试覆盖完整配置／span、真实更新、无效与缺失输入、失败不发布，并保持负 Unix 时间戳可用。
+
+[CLI 首轮](validation/manifest-record-darwin-fixtures-first.log.gz)通过 24 项；manifest 源码 UTF-8 负例同步已落地的 child 文件级诊断后，[2 项定向复验](validation/manifest-record-darwin-fixtures.log.gz)通过。成功用例合计 25 个、27 variants、85 processes，覆盖新用例的冷／暖、仅测试配置更新、实际源码选择更新与 48／49 退出值，以及测试依赖、target 条件、native、manifest 错误、菱形依赖和 moving GC。保留首轮失败日志；退役范围没有扩大，说明见 [清理记录](CLEANUP.md)。无 cargo/rustc 进程时清理本机 `target/debug/incremental` 1,544.3 MiB。
+
+Linux GNU／musl 验证及原 manifest 零内容读取的系统调用证据待本批后续记录。native 工具探测、预处理、消费 stage 的重复验证和最终链接复用仍待处理，M48 尚未完成。

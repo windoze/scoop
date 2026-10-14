@@ -39,7 +39,7 @@ fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
     BuildGraphRequest::new(
         BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         vec![],
-        ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
+        ArtifactCacheRoot::new(sysroot.with_extension("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
         TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
             .unwrap(),
@@ -318,7 +318,7 @@ fn executable_root_and_single_file_are_valid_roots_only() {
     let single_file = BuildGraphRequest::new(
         BuildRootInput::single_file(SingleFileLocator::from_path(&source).unwrap()),
         vec![],
-        ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
+        ArtifactCacheRoot::new(sysroot.with_extension("cache")).unwrap(),
         TrustedSysrootRoot::new(&sysroot).unwrap(),
         TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
             .unwrap(),

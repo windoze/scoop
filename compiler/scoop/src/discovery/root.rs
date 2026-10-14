@@ -30,7 +30,9 @@ impl BuildGraphRequest {
 
         let root = match root.into_kind() {
             BuildRootInputKind::ManifestCone(locator) => LoadedRootInput::Manifest(Box::new(
-                load_cone_manifest(&locator).map_err(LoadBuildRootError::RootManifest)?,
+                cache_root
+                    .load_manifest(&locator)
+                    .map_err(LoadBuildRootError::RootManifest)?,
             )),
             BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
         };

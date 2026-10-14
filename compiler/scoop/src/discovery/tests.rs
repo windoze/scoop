@@ -32,7 +32,7 @@ fn request(
     BuildGraphRequest::new(
         crate::BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         search_roots,
-        ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
+        ArtifactCacheRoot::new(sysroot.with_extension("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
         TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
             .unwrap(),

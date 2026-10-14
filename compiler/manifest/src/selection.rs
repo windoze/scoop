@@ -12,13 +12,13 @@ mod path;
 pub(crate) use parse::{RawConditionalPath, parse_path, parse_predicate, parse_sources};
 pub use path::ConeRelativePath;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SourceSelection {
     Default,
     Explicit(Vec<ConditionalSourcePath>),
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct ConditionalSourcePath {
     path: ConeRelativePath,
     predicate: TargetPredicate,
@@ -35,7 +35,7 @@ impl ConditionalSourcePath {
 }
 
 /// The selected caller-provided target set is the canonical predicate form.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct TargetPredicate {
     targets: Vec<SelectedSourceTarget>,
 }
