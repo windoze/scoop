@@ -2255,7 +2255,9 @@ public interface SingleValueDecodingContainer {
 }
 ```
 
-一个 Encoder 代表一个输出值，为该值选择一种 container；每个 field/element 返回子入口，按调用顺序完成子值后再继续下一个。单值 container 恰好写入一个标量；容器 end 检查该层的完整性，根入口检查输出完成。数组下标及数量沿现有库使用 Long。
+一个 Encoder 代表一个输出值，首次取得 keyed/unkeyed/single-value container 决定类别。之后可重复取得同类视图，跨类别请求抛 EncodingException。同类视图共享字段集合、追加位置、pending 子值及重复 key 检查；single-value 共享恰好一次标量写入机会，不因重复取得视图而允许写两次。数组下标及数量沿现有库使用 Long。
+
+编码区分当前值完成与提交：keyed/unkeyed 的 end 检查并接收最后一个 pending 子值，使当前已写内容完整，但不永久关闭该值；提交前可重复 end，也可继续追加，追加后必须再次 end。父容器开始下一个 field/element 或 end 接收最后一个子值时检查并提交该子值；根入口在 codec 返回后检查并提交根值。未选择容器、未写标量、空容器未 end、pending 子值未完成，或 end 后追加却没有再次 end 均不能提交。所有视图必须观察同一 pending 子值，不能跳过或丢弃；重复 key 始终报错，不采用覆盖。提交后的值不得再写入或扩充，保存的子 writer 也受此约束，已经提交且不变的子树无需在根出口重复校验。编码失败不保证回滚；需要重试时丢弃根 encoder 后重新开始。
 
 一个 Decoder 代表稳定的输入值及其 path。取得视图、成功读取、形状或数值错误、缺失字段和候选 codec 失败都不消耗或改变该值；保存的子入口仍可复读。keyed/unkeyed 在形状匹配时取得视图，不匹配时抛错且不阻止后续请求；singleValue 对任何合法值都可取得，实际读取再检查类型。isNull 对 null 返回 true，对其他合法值返回 false，不要求随后 readNull，也不改变后续读取；readNull 则要求值为 null。所有标量读取可重复，失败不污染后续读取。
 

@@ -1,0 +1,36 @@
+import scoop.json.Json
+
+object SharedRecord : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) {
+        val first = encoder.keyed()
+        first.end()
+        first.end()
+        val second = encoder.keyed()
+        Long.encode(1L, first.field("first"))
+        String.encode("second", second.field("second"))
+        first.end()
+        val third = encoder.keyed()
+        gcCollect()
+        Boolean.encode(true, third.field("third"))
+        second.end()
+        first.end()
+        val view = encoder.keyed()
+    }
+}
+
+fun main() {
+    check(Json.encode(Unit, SharedRecord) == "{\"first\":1,\"second\":\"second\",\"third\":true}")
+    val empty = EncodeFunction<Unit>({ value, encoder ->
+        encoder.keyed().end()
+        encoder.keyed().end()
+    })
+    check(Json.encode(Unit, empty) == "{}")
+    val scalar = EncodeFunction<Long>({ value, encoder ->
+        val first = encoder.singleValue()
+        val second = encoder.singleValue()
+        first.writeLong(value)
+        val third = encoder.singleValue()
+    })
+    check(Json.encode(7L, scalar) == "7")
+    println("keyed-ok")
+}

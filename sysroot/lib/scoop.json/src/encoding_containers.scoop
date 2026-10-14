@@ -1,0 +1,64 @@
+package scoop.json
+
+internal class JsonKeyedEncoder(private val owner: JsonEncoder) : KeyedEncodingContainer {
+    private val members: ArrayList<JsonMember> = ArrayList<JsonMember>()
+    private var pending: Option<(String, JsonEncoder)> = None
+
+    private fun flush() {
+        when (pending) {
+            case Some((name, child)) -> {
+                members.add(JsonMember(name, child.result()))
+                pending = None
+            }
+            case None -> { return }
+        }
+    }
+
+    public override fun field(name: String): Encoder {
+        owner.begin()
+        flush()
+        for (member in members) {
+            if (member.name == name) {
+                throw EncodingException(childPath(owner.path, name), "duplicate object key")
+            }
+        }
+        val child = JsonEncoder(childPath(owner.path, name))
+        pending = Some((name, child))
+        return child
+    }
+
+    public override fun end() {
+        owner.checkWritable()
+        flush()
+        owner.finish(JsonValue.Record(members))
+    }
+}
+
+internal class JsonUnkeyedEncoder(private val owner: JsonEncoder) : UnkeyedEncodingContainer {
+    private val elements: ArrayList<JsonValue> = ArrayList<JsonValue>()
+    private var pending: Option<JsonEncoder> = None
+
+    private fun flush() {
+        when (pending) {
+            case Some(child) -> {
+                elements.add(child.result())
+                pending = None
+            }
+            case None -> { return }
+        }
+    }
+
+    public override fun element(): Encoder {
+        owner.begin()
+        flush()
+        val child = JsonEncoder(childPath(owner.path, elements.size.toString()))
+        pending = Some(child)
+        return child
+    }
+
+    public override fun end() {
+        owner.checkWritable()
+        flush()
+        owner.finish(JsonValue.Sequence(elements))
+    }
+}
