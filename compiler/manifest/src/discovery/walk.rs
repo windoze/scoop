@@ -109,6 +109,7 @@ fn walk_active_directory(
             candidates.push(SourceCandidate {
                 logical_path: normalized,
                 physical_path: resolved.path,
+                metadata: resolved.metadata,
                 display_path: entry.path(),
                 selection: selection.to_owned(),
             });

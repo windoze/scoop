@@ -8,7 +8,7 @@ use scoop_slib::{ArtifactManifestSummaryError, SlibDiagnostic};
 
 use crate::{
     BuildFailurePhase, BuildGraphDiscoveryError, BuildGraphExecutionFailure, ClassifyBuildFailure,
-    DependencyLocatorError, LoadBuildRootError, PrepareBuildGraphError, SourceSnapshot,
+    DependencyLocatorError, LoadBuildRootError, PrepareBuildGraphError, SelectedSource,
 };
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct BuildFailure {
     pub location: BuildFailureLocation,
     pub diagnostics: Vec<StructuredDiagnosticV1>,
     pub warnings: Vec<StructuredDiagnosticV1>,
-    pub sources: Vec<SourceSnapshot>,
+    pub sources: Vec<SelectedSource>,
 }
 
 #[derive(Debug)]
@@ -109,7 +109,7 @@ impl BuildFailure {
 
     pub(super) fn execution(
         error: BuildGraphExecutionFailure,
-        sources: &[SourceSnapshot],
+        sources: &[SelectedSource],
     ) -> Box<Self> {
         let diagnostics = error.child_diagnostics().unwrap_or_default().to_vec();
         let warnings = error.warnings().to_vec();
@@ -123,7 +123,7 @@ impl BuildFailure {
     pub fn with_context(
         mut self: Box<Self>,
         warnings: &[StructuredDiagnosticV1],
-        sources: &[SourceSnapshot],
+        sources: &[SelectedSource],
     ) -> Box<Self> {
         self.warnings = warnings.to_vec();
         self.sources = sources.to_vec();

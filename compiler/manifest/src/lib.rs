@@ -14,9 +14,10 @@ mod semantic;
 mod single_file;
 
 pub use discovery::{
-    DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,
-    SourceDiscoveryErrorKind, SourceDisplayLocator, discover_manifest_sources,
-    discover_manifest_sources_for_tests,
+    DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SelectedManifestSources,
+    SelectedSource, SourceDiscoveryError, SourceDiscoveryErrorKind, SourceDisplayLocator,
+    discover_manifest_sources, discover_manifest_sources_for_tests, select_manifest_sources,
+    select_manifest_sources_for_tests,
 };
 pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
@@ -39,7 +40,7 @@ pub use semantic::{
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,
-    load_single_file_source,
+    load_single_file_source, select_single_file_source,
 };
 
 pub use file_snapshot::{ImmutableInputSnapshot, SnapshotFileError, SnapshotIoOperation};

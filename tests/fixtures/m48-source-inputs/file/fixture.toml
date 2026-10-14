@@ -48,6 +48,30 @@ stdout = "48\n"
 stderr = ""
 
 [[steps]]
+name = "update_source_timestamp"
+files = [{touch = {path = "${work}/main.scoop"}}]
+
+[[steps]]
+name = "timestamp_changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${timestamp_changed.result.observations.child_invocations.length}", equals = 1},
+  {actual = "${timestamp_changed.result.root.artifact_fingerprint}", equals = "${cold.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_timestamp_changed"
+argv = ["${timestamp_changed.result.output}"]
+exit = 0
+stdout = "48\n"
+stderr = ""
+
+[[steps]]
 name = "change_input"
 files = [{replace = {path = "${work}/main.scoop", old = "48", new = "49"}}]
 

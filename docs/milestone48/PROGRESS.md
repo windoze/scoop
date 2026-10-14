@@ -51,3 +51,11 @@ GNU 使用上述 single-file 用例的现有源码、工具及缓存追加一次
 `ImmutableInputSnapshot` 只共享本次已读取的字节和摘要；删除稳定文件观察、读前／读后 metadata／inode／ctime 比较、重新解析路径对比、no-follow reader 及只为复核读取长度的分配／限长路径。实际路径定位与普通 `fs::read` 错误照常传播，symlink 按正常 I/O 跟随。native 预处理不再重查已读取输入并循环重试三次；源码、头文件和预处理结果的完整读取／持有仍待 M48-4 替换为更新判断和实际编译记录。
 
 本机 [workspace clippy](validation/file-io-darwin-clippy.log.gz)、[manifest 56 项与 toolchain 26 项测试](validation/file-io-darwin-rust.log.gz)通过；调整两项 native 测试的输入变更时序后针对性复验 6 项通过。[5 个正式 CLI 用例、44 processes](validation/file-io-darwin-fixtures.log.gz)通过，覆盖 C／C++ 实际头文件、flags、源码和模式变化，以及 dump 和已有产物路径。删除 344 行稳定 reader，文件内容实现及错误定义集中为 153 行。Linux [workspace clippy](validation/file-io-linux-clippy.log.gz)、[manifest 56 项和 toolchain 29 项](validation/file-io-linux-rust.log.gz)通过；[GNU 5 个用例、44 processes](validation/file-io-gnu-fixtures.log.gz)通过，[musl 3 个用例、27 processes](validation/file-io-musl-fixtures.log.gz)通过，另 2 个 C++ 用例按既有目标声明不适用。
+
+## 8. M48-2：源码元数据先于内容读取
+
+Preparer 只保存实际选中的源码逻辑名、路径、mtime、大小和用途，删除父进程的源码字节／摘要副本。manifest 与 single-file 的内容读取留给实际执行的 scoopc；源码发现使用已有 metadata，不另外为更新判定读取内容。compile key domain 升为 v5，本机实际路径参与缓存定位但不改变语言身份。诊断显示仅按需读取涉及的源文件并在本轮共享；无效 UTF-8 由实际读取源码的 scoopc 报告，protocol 7 新增只有 host path 的文件级 origin，保留文件路径且不伪造字节区间。
+
+本机 [workspace clippy](validation/source-metadata-darwin-clippy.log.gz)、[manifest 57 项和 protocol 25 项](validation/source-metadata-darwin-protocol-manifest.log.gz)、[诊断显示](validation/source-metadata-darwin-diagnostics.log.gz)通过。scoop 原有 104 项中 103 项通过，协议版本升级后固定缓存键向量按新编码更新，[6 项 cache-key 复验](validation/source-metadata-darwin-key.log.gz)通过，保留[首次结果](validation/source-metadata-darwin-rust-first.log.gz)。[37 个源码／CLI 回归](validation/source-metadata-darwin-regression-first.log.gz)中的 36 项通过；UTF-8 文件级诊断修复后，[5 个相关 CLI、24 processes](validation/source-metadata-darwin-fixtures.log.gz)全部通过，覆盖 single-file、外部源码／测试目录、真实输入变化、缓存 warning 与 dump。新增只 touch 源码的断言：编译 child 为 1，但 artifact fingerprint 不变；内容变化仍得到新运行结果。
+
+本批尚未删除缓存产物收据和整包读取，也未完成 manifest 解析复用、native 及最终链接提前命中。Linux 验证与暖构建内容读取观察待本批后续记录。

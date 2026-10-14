@@ -563,7 +563,9 @@ fn validate_warning(warning: &StructuredDiagnosticV1) -> Result<(), CacheReceipt
 fn validate_cached_origin(origin: &DiagnosticOriginV1) -> Result<(), CacheReceiptValidationError> {
     match origin {
         DiagnosticOriginV1::None | DiagnosticOriginV1::SemanticSourceSpan { .. } => Ok(()),
-        DiagnosticOriginV1::HostPathSpan { .. } | DiagnosticOriginV1::ArtifactPath { .. } => {
+        DiagnosticOriginV1::HostPath { .. }
+        | DiagnosticOriginV1::HostPathSpan { .. }
+        | DiagnosticOriginV1::ArtifactPath { .. } => {
             Err(CacheReceiptValidationError::HostPathDiagnosticOrigin)
         }
     }

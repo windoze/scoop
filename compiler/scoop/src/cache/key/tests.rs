@@ -14,7 +14,7 @@ use super::*;
 
 #[test]
 fn optimization_changes_only_the_current_compile_key() {
-    let debug = input("source", "compiler");
+    let debug = input(1, "compiler");
     let release = debug
         .clone()
         .with_optimization(scoop_lir::OptimizationMode::Release);
@@ -26,7 +26,7 @@ fn optimization_changes_only_the_current_compile_key() {
 
 #[test]
 fn test_purpose_and_source_roles_are_independent_key_inputs() {
-    let production = input("same bytes", "same compiler");
+    let production = input(1, "same compiler");
     let test = production.clone().with_purpose(CompilationPurpose::Test);
     assert_ne!(production.key().unwrap(), test.key().unwrap());
     let mut changed_role = test.clone();
@@ -34,7 +34,7 @@ fn test_purpose_and_source_roles_are_independent_key_inputs() {
     assert_ne!(test.key().unwrap(), changed_role.key().unwrap());
 }
 
-fn input(source_text: &str, compiler_input: &str) -> ConeCompileCacheInputV1 {
+fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
@@ -66,10 +66,13 @@ fn input(source_text: &str, compiler_input: &str) -> ConeCompileCacheInputV1 {
             tests: None,
             native: Box::default(),
         },
-        vec![SourceCacheInputV1::new(
+        vec![SourceCacheInputV1 {
             source,
-            SourceContentDigest::from_utf8(source_text),
-        )],
+            path: PathBuf::from("/workspace/core/src/core.scoop"),
+            byte_length: 10,
+            modified: UNIX_EPOCH + std::time::Duration::from_secs(source_modified),
+            role: SourceRole::Production,
+        }],
         Vec::new(),
         PairedCompilerFingerprintV1::from_parts(
             sha256(compiler_input.as_bytes()),
@@ -165,10 +168,13 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             tests: None,
             native: Box::default(),
         },
-        vec![SourceCacheInputV1::new(
+        vec![SourceCacheInputV1 {
             source,
-            SourceContentDigest::from_utf8("fun answer(): Long = 42\n"),
-        )],
+            path: PathBuf::from("/workspace/current/src/main.scoop"),
+            byte_length: 23,
+            modified: UNIX_EPOCH,
+            role: SourceRole::Production,
+        }],
         vec![CompileDependencyInputV1::new(
             core.cone().clone(),
             semantic.hir(),
@@ -202,20 +208,20 @@ fn assert_mutation_misses(
 
 #[test]
 fn compile_cache_key_has_a_fixed_canonical_vector() {
-    let input = input("class Any\n", "paired-scoopc-v1");
+    let input = input(1, "paired-scoopc-v1");
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "da811270e646de5ee86a84a0fa4fb857e6c7f86bbb8338271d96b95444d0ab41"
+        "09ae93562f95f47376eac2893cd9fc3df0a05649c804280d8e375e80730598a1"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xae));
 }
 
 #[test]
-fn source_content_and_compiler_inputs_are_independent_key_dimensions() {
-    let baseline = input("class Any\n", "paired-scoopc-v1").key().unwrap();
-    let source_changed = input("class Any { }\n", "paired-scoopc-v1").key().unwrap();
-    let compiler_changed = input("class Any\n", "paired-scoopc-v2").key().unwrap();
+fn source_metadata_and_compiler_inputs_are_independent_key_dimensions() {
+    let baseline = input(1, "paired-scoopc-v1").key().unwrap();
+    let source_changed = input(2, "paired-scoopc-v1").key().unwrap();
+    let compiler_changed = input(1, "paired-scoopc-v2").key().unwrap();
 
     assert_ne!(baseline, source_changed);
     assert_ne!(baseline, compiler_changed);
@@ -289,7 +295,13 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         .unwrap();
     });
     assert_mutation_misses(&baseline, |input| {
-        input.sources[0].content = SourceContentDigest::from_utf8("fun answer(): Long = 43\n");
+        input.sources[0].modified += std::time::Duration::from_nanos(1);
+    });
+    assert_mutation_misses(&baseline, |input| {
+        input.sources[0].byte_length += 1;
+    });
+    assert_mutation_misses(&baseline, |input| {
+        input.sources[0].path = PathBuf::from("/other/current/src/main.scoop");
     });
     assert_mutation_misses(&baseline, |input| {
         input.dependencies[0].cone = alternate_dependency.cone().clone();

@@ -14,10 +14,11 @@ mod collect;
 mod error;
 mod read;
 mod select;
+mod selected;
 mod walk;
 pub use error::{DiscoveryIoOperation, SourceDiscoveryError, SourceDiscoveryErrorKind};
-use read::read_discovered_source;
 use select::selected_roots;
+pub use selected::{SelectedManifestSources, SelectedSource};
 use walk::{resolve_entry, walk_directory};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -125,6 +126,7 @@ impl DiscoveredManifestSources {
 struct SourceCandidate {
     logical_path: NormalizedSourcePath,
     physical_path: PathBuf,
+    metadata: std::fs::Metadata,
     display_path: PathBuf,
     selection: String,
 }
@@ -139,7 +141,7 @@ pub fn discover_manifest_sources(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
 ) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
-    collect::discover(manifest, selected_roots(manifest, target, false)?)
+    select_manifest_sources(manifest, target)?.read()
 }
 
 /// Select production and test inputs without changing their Cone identity.
@@ -147,7 +149,21 @@ pub fn discover_manifest_sources_for_tests(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
 ) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
-    collect::discover(manifest, selected_roots(manifest, target, true)?)
+    select_manifest_sources_for_tests(manifest, target)?.read()
+}
+
+pub fn select_manifest_sources(
+    manifest: &LoadedConeManifest,
+    target: TargetProfileId,
+) -> Result<SelectedManifestSources, SourceDiscoveryError> {
+    collect::select(manifest, selected_roots(manifest, target, false)?)
+}
+
+pub fn select_manifest_sources_for_tests(
+    manifest: &LoadedConeManifest,
+    target: TargetProfileId,
+) -> Result<SelectedManifestSources, SourceDiscoveryError> {
+    collect::select(manifest, selected_roots(manifest, target, true)?)
 }
 
 #[cfg(test)]

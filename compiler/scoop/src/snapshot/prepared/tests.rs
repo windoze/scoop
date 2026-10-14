@@ -367,7 +367,7 @@ fn single_file_uses_actual_path_and_fixed_semantic_name() {
     assert_eq!(std::fs::read(input).unwrap(), b"fun main() {}\n");
     assert_eq!(
         prepared
-            .single_file_snapshot(ConeIdentity::SINGLE_FILE)
+            .single_file_input(ConeIdentity::SINGLE_FILE)
             .unwrap()
             .source()
             .identity()
@@ -378,42 +378,35 @@ fn single_file_uses_actual_path_and_fixed_semantic_name() {
 }
 
 #[test]
-fn compile_cache_key_excludes_source_locator_and_manifest_presentation() {
+fn compile_cache_key_excludes_manifest_presentation() {
     let temp = tempfile::tempdir().unwrap();
-    let first_workspace = temp.path().join("first");
-    let second_workspace = temp.path().join("second");
-    let changed_workspace = temp.path().join("changed");
-
-    let compiler = temp.path().join("bin/scoopc");
-    write_fake_compiler(&compiler);
-    for workspace in [&first_workspace, &second_workspace, &changed_workspace] {
-        let sysroot = workspace.join("sysroot");
-        let root = workspace.join("root");
-        write_core(&sysroot);
-        write_manifest(&root, "root", "");
-        std::fs::create_dir_all(workspace.join("bin")).unwrap();
-        std::os::unix::fs::symlink(&compiler, workspace.join("bin/scoopc")).unwrap();
-    }
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let first = prepare(&root, workspace).unwrap();
+    let first_key = first.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     std::fs::write(
-        second_workspace.join("sysroot/lib/scoop.core/Cone.toml"),
+        sysroot.join("lib/scoop.core/Cone.toml"),
         "# presentation-only comment\nschema=1\n[cone]\ngroup=\"scoop\"\nname=\"scoop.core\"\nversion=\"0.1.0\"\nkind=\"library\"\n",
-    )
-    .unwrap();
+    ).unwrap();
+    let second = prepare(&root, workspace).unwrap();
+    assert_eq!(
+        first_key,
+        second.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
+    );
     std::fs::write(
-        changed_workspace.join("sysroot/lib/scoop.core/src/core.scoop"),
+        sysroot.join("lib/scoop.core/src/core.scoop"),
         "class Any { }\n",
     )
     .unwrap();
-
-    let first = prepare(&first_workspace.join("root"), &first_workspace).unwrap();
-    let second = prepare(&second_workspace.join("root"), &second_workspace).unwrap();
-    let changed = prepare(&changed_workspace.join("root"), &changed_workspace).unwrap();
-
-    let first_key = first.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    let second_key = second.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    let changed_key = changed.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    assert_eq!(first_key, second_key);
-    assert_ne!(first_key, changed_key);
+    let changed = prepare(&root, workspace).unwrap();
+    assert_ne!(
+        first_key,
+        changed.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
+    );
 }
 
 #[test]

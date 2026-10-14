@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use scoop_manifest::{LoadedConeManifest, discover_manifest_sources, load_single_file_source};
+use scoop_manifest::{LoadedConeManifest, select_manifest_sources, select_single_file_source};
 use scoop_slib::ArtifactSnapshot;
 
 use super::staging::PreparedStaging;
@@ -20,13 +20,13 @@ pub use observation::{BuildDumpRequest, DumpScope};
 pub use ordinary_execution::OrdinarySourceExecutionError;
 
 pub use model::{
-    ChildRequestPlanError, CompileCacheKeyError, ManifestSourceSnapshot, PreparedArtifactCandidate,
-    PreparedBuildGraph, PreparedNodeRepresentation, SingleFileSourceSnapshot, SourceSnapshot,
+    ChildRequestPlanError, CompileCacheKeyError, ManifestSourceInput, PreparedArtifactCandidate,
+    PreparedBuildGraph, PreparedNodeRepresentation, SelectedSource, SingleFileSourceInput,
 };
 
 use model::{
-    NonEmptyPreparedArtifactCandidates, NonEmptySourceSnapshots, PreparedGraphNode,
-    PreparedManifestSourceNode, PreparedPrebuiltArtifactNode, PreparedSingleFileNode,
+    NonEmptyPreparedArtifactCandidates, PreparedGraphNode, PreparedManifestSourceNode,
+    PreparedPrebuiltArtifactNode, PreparedSingleFileNode,
 };
 
 impl ResolvedBuildGraph {
@@ -76,8 +76,7 @@ impl Preparer {
                         scoop_protocol::CompilationPurpose::Production
                     };
                     let input_root = manifest.real_root().to_path_buf();
-                    let snapshot =
-                        capture_manifest_source(*manifest, &self.parts.context, purpose)?;
+                    let snapshot = select_manifest_input(*manifest, &self.parts.context, purpose)?;
                     let native_inputs = snapshot
                         .native
                         .units()
@@ -112,11 +111,9 @@ impl Preparer {
                     }))
                 }
                 GraphNode::SingleFile(locator) => {
-                    let discovered = load_single_file_source(&locator)
+                    let discovered = select_single_file_source(&locator)
                         .map_err(PrepareBuildGraphError::SingleFile)?;
-                    let snapshot = SingleFileSourceSnapshot {
-                        source: SourceSnapshot::from_discovered(discovered),
-                    };
+                    let snapshot = SingleFileSourceInput { source: discovered };
                     let input_path = locator.resolved_path().to_path_buf();
                     let output_path = self
                         .staging
@@ -148,21 +145,20 @@ impl Preparer {
     }
 }
 
-fn capture_manifest_source(
+fn select_manifest_input(
     manifest: LoadedConeManifest,
     context: &BuildContext,
     purpose: scoop_protocol::CompilationPurpose,
-) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
+) -> Result<ManifestSourceInput, PrepareBuildGraphError> {
     let discovered = match purpose {
         scoop_protocol::CompilationPurpose::Production => {
-            discover_manifest_sources(&manifest, context.target.id())
+            select_manifest_sources(&manifest, context.target.id())
         }
         scoop_protocol::CompilationPurpose::Test => {
-            scoop_manifest::discover_manifest_sources_for_tests(&manifest, context.target.id())
+            scoop_manifest::select_manifest_sources_for_tests(&manifest, context.target.id())
         }
     }
     .map_err(PrepareBuildGraphError::SourceDiscovery)?;
-    let (first, rest) = discovered.into_parts();
 
     let coordinate = manifest.coordinate().clone();
     let identity = manifest.identity();
@@ -183,7 +179,7 @@ fn capture_manifest_source(
         &scoop_toolchain::development_runtime_root().join("include"),
     )
     .map_err(PrepareBuildGraphError::Native)?;
-    Ok(ManifestSourceSnapshot {
+    Ok(ManifestSourceInput {
         identity,
         coordinate,
         requested_kind,
@@ -191,13 +187,7 @@ fn capture_manifest_source(
         test_config,
         native,
         manifest_locator: manifest.manifest_path().to_path_buf(),
-        sources: NonEmptySourceSnapshots {
-            first: SourceSnapshot::from_discovered(first),
-            rest: rest
-                .into_iter()
-                .map(SourceSnapshot::from_discovered)
-                .collect(),
-        },
+        sources: discovered,
     })
 }
 

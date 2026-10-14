@@ -147,7 +147,9 @@ fn validate_warning_origin(
                 cone: *cone,
             })
         }
-        DiagnosticOriginV1::HostPathSpan { .. } | DiagnosticOriginV1::ArtifactPath { .. } => Err(
+        DiagnosticOriginV1::HostPath { .. }
+        | DiagnosticOriginV1::HostPathSpan { .. }
+        | DiagnosticOriginV1::ArtifactPath { .. } => Err(
             CacheCompletionError::PersistedHostPathWarning(code.to_owned()),
         ),
     }

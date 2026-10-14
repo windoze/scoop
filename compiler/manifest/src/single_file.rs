@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::SourceIdentity;
 
-use crate::{DiscoveredSource, SourceDisplayLocator};
+use crate::{DiscoveredSource, SelectedSource, SourceDisplayLocator};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SingleFileLocator {
@@ -140,6 +140,32 @@ impl std::error::Error for SingleFileInputError {
             _ => None,
         }
     }
+}
+
+pub fn select_single_file_source(
+    locator: &SingleFileLocator,
+) -> Result<SelectedSource, SingleFileInputError> {
+    let metadata = std::fs::metadata(locator.resolved_path()).map_err(|error| {
+        SingleFileInputError::io(
+            SingleFileInputIoOperation::Inspect,
+            locator.display_path.clone(),
+            error,
+        )
+    })?;
+    SelectedSource::new(
+        SourceIdentity::single_file(),
+        SourceDisplayLocator::new(locator.display_path.clone()),
+        locator.resolved_path.clone(),
+        &metadata,
+        scoop_identity::SourceRole::Production,
+    )
+    .map_err(|error| {
+        SingleFileInputError::io(
+            SingleFileInputIoOperation::Inspect,
+            locator.display_path.clone(),
+            error,
+        )
+    })
 }
 
 pub fn load_single_file_source(

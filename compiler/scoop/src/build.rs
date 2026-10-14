@@ -7,7 +7,7 @@ use scoop_toolchain::ResolvedTargetProfile;
 
 use crate::materialize::OutputLocation;
 use crate::{
-    BuildFailurePhase, PreparedBuildGraph, RuntimeBuildRequest, SourceSnapshot, build_runtime,
+    BuildFailurePhase, PreparedBuildGraph, RuntimeBuildRequest, SelectedSource, build_runtime,
     read_built_program,
 };
 
@@ -177,15 +177,15 @@ fn runtime_input(
     }
 }
 
-fn source_context(prepared: &PreparedBuildGraph) -> (Vec<SourceSnapshot>, Vec<PathBuf>) {
+fn source_context(prepared: &PreparedBuildGraph) -> (Vec<SelectedSource>, Vec<PathBuf>) {
     let mut sources = Vec::new();
     let mut paths = Vec::new();
     for identity in prepared.dependency_first() {
-        if let Some(manifest) = prepared.source_snapshot(*identity) {
+        if let Some(manifest) = prepared.source_input(*identity) {
             paths.push(manifest.manifest_locator().to_owned());
             sources.extend(manifest.sources().cloned());
         }
-        if let Some(single) = prepared.single_file_snapshot(*identity) {
+        if let Some(single) = prepared.single_file_input(*identity) {
             sources.push(single.source().clone());
         }
         if let Some(candidates) = prepared.prebuilt_candidates(*identity) {
@@ -215,15 +215,13 @@ fn output_path(
     let (root, name) = if graph.root_identity() == ConeIdentity::SINGLE_FILE {
         (cwd.to_owned(), stem.unwrap_or("program").to_owned())
     } else {
-        let manifest = graph
-            .source_snapshot(graph.root_identity())
-            .ok_or_else(|| {
-                BuildFailure::tool(
-                    "SCOOP_OUTPUT_LAYOUT",
-                    BuildFailurePhase::Publication,
-                    "manifest root has no captured manifest",
-                )
-            })?;
+        let manifest = graph.source_input(graph.root_identity()).ok_or_else(|| {
+            BuildFailure::tool(
+                "SCOOP_OUTPUT_LAYOUT",
+                BuildFailurePhase::Publication,
+                "manifest root has no captured manifest",
+            )
+        })?;
         let root = manifest
             .manifest_locator()
             .parent()

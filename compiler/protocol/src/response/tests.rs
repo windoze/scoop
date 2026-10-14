@@ -70,3 +70,21 @@ fn response_frames_preserve_complete_diagnostic_text() {
     let frame = crate::encode_response_frame(&response).unwrap();
     assert_eq!(crate::decode_response_frame(&frame).unwrap(), response);
 }
+
+#[test]
+fn file_level_diagnostic_keeps_its_path_without_a_byte_span() {
+    let origin = DiagnosticOriginV1::HostPath {
+        path: HostPathCarrier::from_path(std::path::Path::new("/workspace/bad.scoop")).unwrap(),
+    };
+    let diagnostic = StructuredDiagnosticV1::new(
+        DiagnosticSeverityV1::Error,
+        "SCOOPC_BUILD_FAILED".to_owned(),
+        "source file is not valid UTF-8".to_owned(),
+        origin,
+        Vec::new(),
+    )
+    .unwrap();
+    let bytes = scoop_wire::encode(&diagnostic).unwrap();
+    let decoded: StructuredDiagnosticV1 = scoop_wire::decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded, diagnostic);
+}
