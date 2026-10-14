@@ -26,8 +26,7 @@ static inline bool fail(ScoopStackMapCursor *cursor, ScoopStackMapErrorCode code
     return false;
 }
 
-static inline bool take(ScoopStackMapCursor *cursor, size_t count,
-                        const uint8_t **bytes) {
+static inline bool take(ScoopStackMapCursor *cursor, size_t count, const uint8_t **bytes) {
     size_t remaining = (size_t)(cursor->end - cursor->current);
     if (count > remaining) {
         return fail(cursor, SCOOP_STACKMAP_TRUNCATED);
@@ -60,8 +59,8 @@ static inline bool read_u32(ScoopStackMapCursor *cursor, uint32_t *value) {
     if (!take(cursor, 4, &bytes)) {
         return false;
     }
-    *value = (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) |
-             ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
+    *value = (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) |
+             ((uint32_t)bytes[3] << 24);
     return true;
 }
 
@@ -70,9 +69,8 @@ static inline bool read_u64(ScoopStackMapCursor *cursor, uint64_t *value) {
     if (!take(cursor, 8, &bytes)) {
         return false;
     }
-    *value = (uint64_t)bytes[0] | ((uint64_t)bytes[1] << 8) |
-             ((uint64_t)bytes[2] << 16) | ((uint64_t)bytes[3] << 24) |
-             ((uint64_t)bytes[4] << 32) | ((uint64_t)bytes[5] << 40) |
+    *value = (uint64_t)bytes[0] | ((uint64_t)bytes[1] << 8) | ((uint64_t)bytes[2] << 16) |
+             ((uint64_t)bytes[3] << 24) | ((uint64_t)bytes[4] << 32) | ((uint64_t)bytes[5] << 40) |
              ((uint64_t)bytes[6] << 48) | ((uint64_t)bytes[7] << 56);
     return true;
 }
@@ -122,11 +120,9 @@ static inline bool checked_mul_size(size_t left, size_t right, size_t *result) {
     return true;
 }
 
-bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor,
-                                const ScoopStackMapImage *image,
-                                const ScoopStackMapFunction *function,
-                                const uint64_t *constants, uint32_t constant_count,
-                                ScoopStackMapRecord *record);
+bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor, const ScoopStackMapImage *image,
+                                const ScoopStackMapFunction *function, const uint64_t *constants,
+                                uint32_t constant_count, ScoopStackMapRecord *record);
 bool scoop_stackmap_read_image(const ScoopStackMapImage *image, size_t image_index,
                                ScoopStackMapIndex *index, ScoopStackMapError *error);
 

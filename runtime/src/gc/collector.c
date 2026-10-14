@@ -1,7 +1,7 @@
 /* STW phases: parallel mark, serial plan/copy, retained-set update and reclaim. */
 #include <stdint.h>
 
-#include "../managed_entries.h"
+#include "../gc_binding/object.h"
 #include "../thread.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
@@ -39,8 +39,8 @@ static void visit_managed_slot(void **slot, void *raw_context) {
 }
 
 static void visit_object(void *object, void *context) {
-    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    scoop_gc_scan_descriptor(object, td->object_scan, visit_managed_slot, context, 0, UINTPTR_MAX);
+    const uint64_t *scan = scoop_gc_object_scan(object);
+    scoop_gc_scan_descriptor(object, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
 }
 
 static void visit_external_root(const void *object, void *context) {
@@ -61,12 +61,12 @@ static void scan_roots(ScoopGcVisitContext *context) {
 }
 
 static void visit_dirty_object(void *object, uintptr_t begin, uintptr_t end, void *context) {
-    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    scoop_gc_scan_descriptor(object, td->object_scan, visit_managed_slot, context, begin, end);
+    const uint64_t *scan = scoop_gc_object_scan(object);
+    scoop_gc_scan_descriptor(object, scan, visit_managed_slot, context, begin, end);
 }
 
 static void relocate_live_object(void *object, void *context) {
-    const uint64_t *scan = ((const ScoopObjectHeader *)object)->td->object_scan;
+    const uint64_t *scan = scoop_gc_object_scan(object);
     if (scan == NULL) {
         return;
     }
@@ -75,7 +75,7 @@ static void relocate_live_object(void *object, void *context) {
 }
 
 static void verify_heap_object(void *object, void *context) {
-    const uint64_t *scan = ((const ScoopObjectHeader *)object)->td->object_scan;
+    const uint64_t *scan = scoop_gc_object_scan(object);
     if (scan == NULL) {
         return;
     }
@@ -192,25 +192,4 @@ bool scoop_gc_collect_internal(void) { return collect(false); }
 
 void scoop_gc_collect_minor_internal(void) {
     collect(!scoop_gc_stress_move_enabled() && !scoop_gc_heap_state.full_only);
-}
-
-void scoop_rt_gc_collect_impl(uintptr_t return_pc, uintptr_t stack_pointer,
-                              uintptr_t frame_pointer) {
-    ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
-    scoop_gc_collect_internal();
-    scoop_thread_pop_managed_anchor(&anchor);
-}
-
-void scoop_runtime_gc_collect(void) {
-    scoop_thread_native_borrowed_entry();
-    scoop_gc_collect_internal();
-}
-
-void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,
-                             uintptr_t frame_pointer) {
-    ScoopManagedAnchor anchor;
-    scoop_thread_push_safepoint_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
-    scoop_thread_poll();
-    scoop_thread_pop_managed_anchor(&anchor);
 }

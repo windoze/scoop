@@ -7,8 +7,7 @@ static bool read_location(ScoopStackMapCursor *cursor, const uint64_t *constants
     uint8_t reserved8;
     uint16_t reserved16;
     if (!read_u8(cursor, &kind) || !read_u8(cursor, &reserved8) ||
-        !read_u16(cursor, &location->size) ||
-        !read_u16(cursor, &location->dwarf_register) ||
+        !read_u16(cursor, &location->size) || !read_u16(cursor, &location->dwarf_register) ||
         !read_u16(cursor, &reserved16) || !read_i32(cursor, &location->offset)) {
         return false;
     }
@@ -55,11 +54,9 @@ static bool read_statepoint_header(ScoopStackMapCursor *cursor,
     return true;
 }
 
-bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor,
-                                const ScoopStackMapImage *image,
-                                const ScoopStackMapFunction *function,
-                                const uint64_t *constants, uint32_t constant_count,
-                                ScoopStackMapRecord *record) {
+bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor, const ScoopStackMapImage *image,
+                                const ScoopStackMapFunction *function, const uint64_t *constants,
+                                uint32_t constant_count, ScoopStackMapRecord *record) {
     record->image_index = cursor->image_index;
     record->section_offset = (size_t)(cursor->current - cursor->start);
     uint16_t flags;
@@ -77,12 +74,11 @@ bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor,
         return fail(cursor, SCOOP_STACKMAP_INTEGER_OVERFLOW);
     }
     record->function_address = (uintptr_t)function->address;
-    record->return_pc =
-        (uintptr_t)function->address + (uintptr_t)record->instruction_offset;
+    record->return_pc = (uintptr_t)function->address + (uintptr_t)record->instruction_offset;
     record->stack_size = function->stack_size;
     if (record->function_address < image->text_start ||
-        record->function_address >= image->text_end ||
-        record->return_pc < image->text_start || record->return_pc >= image->text_end) {
+        record->function_address >= image->text_end || record->return_pc < image->text_start ||
+        record->return_pc >= image->text_end) {
         return fail(cursor, SCOOP_STACKMAP_INVALID_FUNCTION_ADDRESS);
     }
 
@@ -107,10 +103,8 @@ bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor,
         }
     }
     for (uint16_t index = 0; index < record->root_count; index++) {
-        if (!read_location(cursor, constants, constant_count,
-                           &record->roots[index].base) ||
-            !read_location(cursor, constants, constant_count,
-                           &record->roots[index].derived)) {
+        if (!read_location(cursor, constants, constant_count, &record->roots[index].base) ||
+            !read_location(cursor, constants, constant_count, &record->roots[index].derived)) {
             return false;
         }
     }
@@ -136,8 +130,7 @@ bool scoop_stackmap_read_record(ScoopStackMapCursor *cursor,
     for (uint16_t index = 0; index < live_out_count; index++) {
         uint8_t reserved;
         if (!read_u16(cursor, &record->live_outs[index].dwarf_register) ||
-            !read_u8(cursor, &reserved) ||
-            !read_u8(cursor, &record->live_outs[index].size)) {
+            !read_u8(cursor, &reserved) || !read_u8(cursor, &record->live_outs[index].size)) {
             return false;
         }
         if (reserved != 0) {

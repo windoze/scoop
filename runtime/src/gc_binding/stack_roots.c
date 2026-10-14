@@ -4,7 +4,7 @@
 
 #include "../platform/platform.h"
 #include "../thread.h"
-#include "gc_internal.h"
+#include "internal.h"
 
 static const ScoopStackMapIndex *stackmaps;
 static const ScoopPlatformBundle *platform_bundle;
@@ -30,21 +30,19 @@ const ScoopStackMapRecord *scoop_gc_stackmap_lookup(uintptr_t return_pc) {
 }
 
 static _Noreturn void managed_frame_fatal(ScoopPlatformError error) {
-    fprintf(stderr, "scoop stackmap: SafepointId %" PRIu64 " root %u: %s\n",
-            error.safepoint_id, (unsigned)error.root_index,
-            scoop_platform_error_message(error.code));
+    fprintf(stderr, "scoop stackmap: SafepointId %" PRIu64 " root %u: %s\n", error.safepoint_id,
+            (unsigned)error.root_index, scoop_platform_error_message(error.code));
     abort();
 }
 
-static void visit_managed_segment(const ScoopThreadState *thread,
-                                  ScoopManagedAnchor cursor, uintptr_t boundary,
-                                  ScoopGcRootVisitor visitor) {
+static void visit_managed_segment(const ScoopThreadState *thread, ScoopManagedAnchor cursor,
+                                  uintptr_t boundary, ScoopGcRootVisitor visitor) {
     if (stackmaps == NULL || platform_bundle == NULL) {
         stack_roots_fatal("managed stack visit before platform initialization");
     }
     if (thread == NULL || visitor.visit_slot == NULL || cursor.return_pc == 0 ||
-        cursor.stack_pointer == 0 || cursor.frame_pointer == 0 ||
-        cursor.previous != NULL || boundary == 0) {
+        cursor.stack_pointer == 0 || cursor.frame_pointer == 0 || cursor.previous != NULL ||
+        boundary == 0) {
         stack_roots_fatal("managed segment has no exact anchor publication");
     }
 
@@ -65,15 +63,14 @@ static void visit_managed_segment(const ScoopThreadState *thread,
 
         ScoopManagedFrame frame;
         ScoopPlatformError error = {0};
-        if (!platform_bundle->managed_frames->frame_from_anchor(&cursor, record, bounds,
-                                                                &frame, &error)) {
+        if (!platform_bundle->managed_frames->frame_from_anchor(&cursor, record, bounds, &frame,
+                                                                &error)) {
             managed_frame_fatal(error);
         }
         for (uint16_t index = 0; index < record->root_count; index++) {
             void **slot = NULL;
             error = (ScoopPlatformError){0};
-            if (!platform_bundle->managed_frames->resolve_root(&frame, index, &slot,
-                                                               &error) ||
+            if (!platform_bundle->managed_frames->resolve_root(&frame, index, &slot, &error) ||
                 slot == NULL) {
                 managed_frame_fatal(error);
             }
@@ -85,9 +82,9 @@ static void visit_managed_segment(const ScoopThreadState *thread,
         uintptr_t frame_pointer = 0;
         bool has_next = false;
         error = (ScoopPlatformError){0};
-        if (!platform_bundle->managed_frames->next_frame(
-                &frame, boundary, bounds, &return_pc, &stack_pointer, &frame_pointer,
-                &has_next, &error)) {
+        if (!platform_bundle->managed_frames->next_frame(&frame, boundary, bounds, &return_pc,
+                                                         &stack_pointer, &frame_pointer, &has_next,
+                                                         &error)) {
             managed_frame_fatal(error);
         }
         if (!has_next) {
@@ -102,23 +99,19 @@ static void visit_managed_segment(const ScoopThreadState *thread,
     }
 }
 
-void scoop_gc_visit_managed_stack(const ScoopThreadState *thread,
-                                  ScoopGcRootVisitor visitor) {
+void scoop_gc_visit_managed_stack(const ScoopThreadState *thread, ScoopGcRootVisitor visitor) {
     if (thread == NULL || thread->managed_anchor == NULL ||
-        thread->managed_anchor->previous != NULL ||
-        thread->managed_stack_boundary == NULL) {
+        thread->managed_anchor->previous != NULL || thread->managed_stack_boundary == NULL) {
         stack_roots_fatal("managed thread has no exact top-frame publication");
     }
     ScoopManagedAnchor cursor = *thread->managed_anchor;
     cursor.previous = NULL;
-    visit_managed_segment(thread, cursor, (uintptr_t)thread->managed_stack_boundary,
-                          visitor);
+    visit_managed_segment(thread, cursor, (uintptr_t)thread->managed_stack_boundary, visitor);
 }
 
 void scoop_gc_visit_managed_segment(const ScoopThreadState *thread, uintptr_t return_pc,
                                     uintptr_t stack_pointer, uintptr_t frame_pointer,
-                                    uintptr_t managed_boundary,
-                                    ScoopGcRootVisitor visitor) {
+                                    uintptr_t managed_boundary, ScoopGcRootVisitor visitor) {
     ScoopManagedAnchor cursor = {
         .return_pc = return_pc,
         .stack_pointer = stack_pointer,

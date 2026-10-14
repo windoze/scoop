@@ -2,18 +2,16 @@
 #include <stdint.h>
 
 #include "../thread.h"
-#include "gc_internal.h"
+#include "internal.h"
 #include "scoop_rt.h"
 
-void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
-                                uint64_t count) {
+void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots, uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
     ScoopThreadMode mode = atomic_load_explicit(&thread->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_MANAGED)
         scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
-        scoop_gc_roots_fatal(
-            "native roots may only change in managed or native-borrowed mode");
+        scoop_gc_roots_fatal("native roots may only change in managed or native-borrowed mode");
     }
     if (frame == NULL || (count != 0 && slots == NULL)) {
         scoop_gc_roots_fatal("invalid native root frame");
@@ -41,8 +39,7 @@ void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
     if (mode == SCOOP_THREAD_MANAGED)
         scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
-        scoop_gc_roots_fatal(
-            "native roots may only change in managed or native-borrowed mode");
+        scoop_gc_roots_fatal("native roots may only change in managed or native-borrowed mode");
     }
     if (frame == NULL || thread->native_roots != frame) {
         scoop_gc_roots_fatal("native root frames must be popped in LIFO order");
@@ -54,8 +51,7 @@ void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
 }
 
 void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
-                                       ScoopNativeRegionRootEntry *entries,
-                                       uint64_t count) {
+                                       ScoopNativeRegionRootEntry *entries, uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
     ScoopThreadMode mode = atomic_load_explicit(&thread->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_MANAGED)
@@ -72,8 +68,8 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
             scoop_gc_roots_fatal("invalid native region root entry");
         }
     }
-    for (ScoopNativeRegionRootFrame *active = thread->native_region_roots;
-         active != NULL; active = active->previous) {
+    for (ScoopNativeRegionRootFrame *active = thread->native_region_roots; active != NULL;
+         active = active->previous) {
         if (active == frame) {
             scoop_gc_roots_fatal("native region root frame is already active");
         }

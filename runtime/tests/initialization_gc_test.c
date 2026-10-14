@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "../src/initialization.c"
+#include "../src/gc_binding/internal.h"
 #include "platform/image_fixture.h"
 
 enum { WAITER_COUNT = 3, UNIT_COUNT = 2 };

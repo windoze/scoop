@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "../../src/gc/gc_internal.h"
+#include "../../src/gc_binding/internal.h"
 #include "../../src/image/internal.h"
 #include "../../src/value_shape.h"
 #include "image_fixture.h"

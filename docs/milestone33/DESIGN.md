@@ -65,7 +65,7 @@ M33 不做以下内容（另见第 14 节）：平台库的公开 API（File、P
 | 普通 managed C ABI 调用的进入和返回各获取一次全局 `scoop_thread_world_lock`，并各广播一次；`registry_lock` 使用的就是这把锁 | 高频短调用在两个状态切换点争用全局锁；实际 C 函数执行期间已释放锁，可以并行 | [transitions.c](../../runtime/src/thread/transitions.c) 的 `enter_native` / `leave_native`；[thread.c](../../runtime/src/thread.c) |
 | 普通 managed caller 尚无显式的无切换 C FFI 模式；release hook 的 raw leaf 是独立入口 | 小型 C helper 也要建立 transition 和 caller roots | [call/protocol.rs](../../compiler/lir-lower/src/function/call/protocol.rs) |
 | C extern 一律经过独立编译的 storage bridge；标量实参与返回值也通过地址传递 | 即使省去 GC 协议，仍有桥接调用和临时内存读写；现有 O2 不能跨对象消除该接口 | [c_bridge.rs](../../compiler/codegen/src/c_bridge.rs)、[call/emission.rs](../../compiler/lir-lower/src/function/call/emission.rs)、[c_bridge_invocation.rs](../../compiler/lir/src/c_bridge_invocation.rs) |
-| collector 读取 MANAGED 线程的非原子字段 `managed_segment` 来判断 PENDING | 状态切换去锁后会形成数据竞争 | [collection.c](../../runtime/src/thread/collection.c)、[collector_roots.c](../../runtime/src/gc/collector_roots.c) |
+| collector 读取 MANAGED 线程的非原子字段 `managed_segment` 来判断 PENDING | 状态切换去锁后会形成数据竞争 | [collection.c](../../runtime/src/thread/collection.c)、[collector_roots.c](../../runtime/src/gc_binding/collector_roots.c) |
 | collector 的停稳等待使用无超时的 condvar；等待操作会释放 world lock，返回前重新取锁 | NativeSafe 去掉广播后须增加超时复查；替换等待时必须保持目标线程能取得 world lock 来 park | [collection.c](../../runtime/src/thread/collection.c)、[thread.c](../../runtime/src/thread.c) |
 | `pin` 返回对象头地址，元素地址只能按 runtime 布局手算（UByte 数组为 +24） | 库代码依赖未承诺的布局 | 语言规范 14.1；[scoop_rt.h](../../runtime/include/scoop_rt.h) |
 | `pin` 不计数，一次 `unpin` 就解除；`unpin` 线性扫描 pinned 列表；pin/unpin 都要拿 heap 锁和 roots 锁 | 两个线程同时借用同一个 buffer 会出错；每次 IO 借用都是全局加锁 | [handles.c](../../runtime/src/gc/handles.c) |

@@ -26,11 +26,9 @@ static void encode_bytes(StackmapEncoding *encoding, const void *bytes, size_t s
     encoding->length += size;
 }
 
-static bool encode_location(StackmapEncoding *encoding,
-                            const ScoopStackMapLocation *location) {
-    uint32_t tag = location->kind == SCOOP_STACKMAP_CONSTANT_INDEX
-                       ? SCOOP_STACKMAP_CONSTANT
-                       : (uint32_t)location->kind;
+static bool encode_location(StackmapEncoding *encoding, const ScoopStackMapLocation *location) {
+    uint32_t tag = location->kind == SCOOP_STACKMAP_CONSTANT_INDEX ? SCOOP_STACKMAP_CONSTANT
+                                                                   : (uint32_t)location->kind;
     encode_u32(encoding, tag);
     encode_u32(encoding, location->size);
     switch (tag) {
@@ -57,8 +55,8 @@ bool scoop_stackmap_fingerprint(const ScoopStackMapRecord *record,
     size_t locations = 3 + (size_t)record->root_count * 2;
     /* The raw counts are u16. Each location needs at most 20 encoded bytes,
      * each live-out 8; this bound follows the wire shape, not a resource limit. */
-    size_t capacity = 8 + sizeof domain - 1 + 4 + 32 + 8 + 32 + 4 + 4 + 4 + 8 + 8 +
-                      locations * 20 + 8 + (size_t)record->live_out_count * 8;
+    size_t capacity = 8 + sizeof domain - 1 + 4 + 32 + 8 + 32 + 4 + 4 + 4 + 8 + 8 + locations * 20 +
+                      8 + (size_t)record->live_out_count * 8;
     StackmapEncoding encoding = {.bytes = malloc(capacity)};
     if (encoding.bytes == NULL)
         return false;
@@ -86,31 +84,27 @@ bool scoop_stackmap_fingerprint(const ScoopStackMapRecord *record,
         encode_u32(&encoding, record->live_outs[index].dwarf_register);
         encode_u32(&encoding, record->live_outs[index].size);
     }
-    valid = valid &&
-            scoop_platform_sha256(encoding.bytes, encoding.length, fingerprint->bytes);
+    valid = valid && scoop_platform_sha256(encoding.bytes, encoding.length, fingerprint->bytes);
     free(encoding.bytes);
     return valid;
 }
 
-static bool same_location(const ScoopStackMapLocation *left,
-                          const ScoopStackMapLocation *right) {
-    bool left_constant = left->kind == SCOOP_STACKMAP_CONSTANT ||
-                         left->kind == SCOOP_STACKMAP_CONSTANT_INDEX;
-    bool right_constant = right->kind == SCOOP_STACKMAP_CONSTANT ||
-                          right->kind == SCOOP_STACKMAP_CONSTANT_INDEX;
+static bool same_location(const ScoopStackMapLocation *left, const ScoopStackMapLocation *right) {
+    bool left_constant =
+        left->kind == SCOOP_STACKMAP_CONSTANT || left->kind == SCOOP_STACKMAP_CONSTANT_INDEX;
+    bool right_constant =
+        right->kind == SCOOP_STACKMAP_CONSTANT || right->kind == SCOOP_STACKMAP_CONSTANT_INDEX;
     if (left_constant && right_constant) {
         return left->size == right->size && left->constant == right->constant;
     }
     return left->kind == right->kind && left->size == right->size &&
-           left->dwarf_register == right->dwarf_register &&
-           left->offset == right->offset;
+           left->dwarf_register == right->dwarf_register && left->offset == right->offset;
 }
 
 bool scoop_stackmap_same_payload(const ScoopStackMapRecord *left,
                                  const ScoopStackMapRecord *right) {
     if (left->instruction_offset != right->instruction_offset ||
-        left->stack_size != right->stack_size ||
-        left->root_count != right->root_count ||
+        left->stack_size != right->stack_size || left->root_count != right->root_count ||
         left->live_out_count != right->live_out_count)
         return false;
     for (size_t index = 0; index < 3; index++) {
@@ -123,8 +117,7 @@ bool scoop_stackmap_same_payload(const ScoopStackMapRecord *left,
             return false;
     }
     for (size_t index = 0; index < left->live_out_count; index++) {
-        if (left->live_outs[index].dwarf_register !=
-                right->live_outs[index].dwarf_register ||
+        if (left->live_outs[index].dwarf_register != right->live_outs[index].dwarf_register ||
             left->live_outs[index].size != right->live_outs[index].size)
             return false;
     }

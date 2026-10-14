@@ -50,11 +50,9 @@ bool scoop_stackmap_build_index(const ScoopStackMapImage *images, size_t image_c
     if (!scoop_stackmap_read_records(images, image_count, index, error)) {
         return false;
     }
-    qsort(index->records, index->record_count, sizeof *index->records,
-          compare_record_id);
+    qsort(index->records, index->record_count, sizeof *index->records, compare_record_id);
     for (size_t record = 1; record < index->record_count; record++) {
-        if (index->records[record - 1].safepoint_id ==
-            index->records[record].safepoint_id) {
+        if (index->records[record - 1].safepoint_id == index->records[record].safepoint_id) {
             error->code = SCOOP_STACKMAP_DUPLICATE_SAFEPOINT_ID;
             scoop_stackmap_dispose_index(index);
             return false;
@@ -68,8 +66,7 @@ bool scoop_stackmap_build_index(const ScoopStackMapImage *images, size_t image_c
 }
 
 bool scoop_stackmap_finish_index(ScoopStackMapIndex *index, ScoopStackMapError *error) {
-    qsort(index->records, index->record_count, sizeof *index->records,
-          compare_record_pc);
+    qsort(index->records, index->record_count, sizeof *index->records, compare_record_pc);
     for (size_t record = 1; record < index->record_count; record++) {
         if (index->records[record - 1].return_pc == index->records[record].return_pc) {
             error->code = SCOOP_STACKMAP_DUPLICATE_RETURN_PC;

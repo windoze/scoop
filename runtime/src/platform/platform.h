@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../gc/stackmap.h"
+#include "../gc_binding/stackmap.h"
 
 /* Platform-neutral runtime capabilities. Generic runtime modules include
  * only this header; target-specific headers stay below platform/. */

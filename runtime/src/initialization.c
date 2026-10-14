@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "gc/gc_internal.h"
+#include "image/registry.h"
 #include "managed_entries.h"
 #include "thread/internal.h"
 

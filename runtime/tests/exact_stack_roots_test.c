@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/gc/gc_internal.h"
+#include "../src/gc_binding/internal.h"
 #include "../src/thread.h"
 #include "platform/image_fixture.h"
 

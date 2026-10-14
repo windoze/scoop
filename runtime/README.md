@@ -22,17 +22,20 @@ runtime-owned exception ABI:
   retires block metadata and protects stress quarantine; `memory_return.c`
   discards empty pages and removes empty mappings after reference updates;
 - `src/gc/collector.c` coordinates minor/full tracing and relocation;
-  `collector_roots.c` visits their shared root sources, `scan.c` restricts exact
-  descriptor scans to full objects or card ranges, and `remembered.c` finds
-  old objects intersecting dirty cards;
+  `remembered.c` finds old objects intersecting dirty cards;
 - `src/gc/mark.c` retains the first-marked live set for relocation; `mark_objects.c`
   owns atomic marking and batched scans, `mark_queue.c` owns task publication and
   stealing, and `mark_pool.c` coordinates persistent internal marker threads;
 - `src/gc/statistics.c` exposes allocation, promotion, scanning, collector phase
   times and per-worker CPU counters;
-- `src/gc/roots.c` owns process/image roots, `root_frames.c` owns native
-  root frames, `handles.c` owns handles and pins, while `stackmap.c` and
-  `stack_roots.c` own LLVM stack-map consumption;
+- `src/gc_binding/` adapts Scoop representation to collector visitors:
+  `roots.c` owns process/image roots, `root_frames.c` owns native root frames,
+  `collector_roots.c` visits frozen thread slots, and `stackmap.c` and
+  `stack_roots.c` consume LLVM stack maps. `scan.c` interprets exact object/range
+  scans; inline views in `object.h` expose array ranges to parallel marking.
+  `entries.c` joins the collector to the exported managed/native entry ABI;
+- `src/gc/handles.c` owns handle roots and pin counts, with scoped thread pin
+  slots enumerated by the binding;
 - `src/thread.c` owns thread attachment and registry lifecycle; `src/thread/`
   separates STW collection, managed/native transitions, root frames, and
   debug queries;

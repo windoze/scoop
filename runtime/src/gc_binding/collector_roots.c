@@ -2,8 +2,7 @@
 #include <stdatomic.h>
 
 #include "../thread.h"
-#include "gc_internal.h"
-#include "heap_internal.h"
+#include "internal.h"
 
 static void scan_thread(const ScoopThreadState *thread, ScoopGcRootVisitor visitor) {
     visitor.visit_slot((void **)&thread->current_task_context, visitor.context);
@@ -17,14 +16,14 @@ static void scan_thread(const ScoopThreadState *thread, ScoopGcRootVisitor visit
         if (thread->parked_from == SCOOP_THREAD_MANAGED) {
             scoop_gc_visit_managed_stack(thread, visitor);
         } else if (!pending && thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
-            heap_fatal("parked thread has an invalid source mode");
+            scoop_gc_roots_fatal("parked thread has an invalid source mode");
         }
     } else if (mode != SCOOP_THREAD_NATIVE_SAFE && mode != SCOOP_THREAD_NATIVE_SAFE_RETURNING &&
                !pending) {
-        heap_fatal("collector observed a non-quiescent thread");
+        scoop_gc_roots_fatal("collector observed a non-quiescent thread");
     }
     if (pending && (thread->managed_anchor != NULL || thread->managed_stack_boundary == NULL)) {
-        heap_fatal("pending gateway has an invalid empty segment");
+        scoop_gc_roots_fatal("pending gateway has an invalid empty segment");
     }
     for (ScoopCallerRootFrame *frame = thread->caller_roots; frame != NULL;
          frame = frame->previous) {
@@ -58,7 +57,7 @@ static void scan_thread(const ScoopThreadState *thread, ScoopGcRootVisitor visit
         if (transition->caller_roots == NULL || transition->managed_return_pc == 0 ||
             transition->managed_stack_pointer == 0 || transition->managed_frame_pointer == 0 ||
             transition->managed_stack_high == 0) {
-            heap_fatal("native transition has no exact frozen-segment publication");
+            scoop_gc_roots_fatal("native transition has no exact frozen-segment publication");
         }
         scoop_gc_visit_managed_segment(
             thread, transition->managed_return_pc, transition->managed_stack_pointer,
@@ -71,5 +70,14 @@ void scoop_gc_scan_roots(ScoopGcRootVisitor visitor) {
     for (ScoopThreadState *thread = scoop_thread_collection_registry_head(); thread != NULL;
          thread = thread->registry_next) {
         scan_thread(thread, visitor);
+    }
+}
+
+void scoop_gc_visit_pin_frames(ScoopGcSlotVisitor visitor, void *context) {
+    for (ScoopThreadState *thread = scoop_thread_collection_registry_head(); thread != NULL;
+         thread = thread->registry_next) {
+        for (ScoopPinFrame *frame = thread->pin_frames; frame != NULL; frame = frame->previous) {
+            visitor(&frame->object, context);
+        }
     }
 }

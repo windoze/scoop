@@ -1,6 +1,6 @@
 /* Exact descriptor scans, optionally restricted to one dirty card. */
-#include "gc_internal.h"
-#include "heap_internal.h"
+#include "../gc_binding.h"
+#include "scoop_rt.h"
 
 void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisitor visitor,
                               void *context, uintptr_t begin, uintptr_t end) {
@@ -11,7 +11,7 @@ void scoop_gc_scan_descriptor(void *base, const uint64_t *table, ScoopGcSlotVisi
         uint64_t stride = table[3];
         const uint64_t *element_scan = (const uint64_t *)(uintptr_t)table[4];
         if (stride == 0 || element_scan == NULL) {
-            heap_fatal("array scan has an invalid element program");
+            scoop_gc_roots_fatal("array scan has an invalid element program");
         }
         uint64_t count = *(const uint64_t *)((char *)base + table[1]);
         char *elements = (char *)base + table[2];

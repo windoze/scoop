@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../src/gc/stackmap.h"
+#include "../src/gc_binding/stackmap.h"
 #include "../src/platform/platform.h"
 
 extern const ScoopManagedFrameOps scoop_darwin_aarch64_managed_frame_ops;

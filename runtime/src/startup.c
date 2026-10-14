@@ -5,6 +5,7 @@
 #include "callback.h"
 #include "eh_internal.h"
 #include "gc/gc_internal.h"
+#include "gc_binding/internal.h"
 #include "startup/internal.h"
 #include "thread.h"
 

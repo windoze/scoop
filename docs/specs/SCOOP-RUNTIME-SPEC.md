@@ -329,6 +329,10 @@ Darwin/AArch64 的 SP/FP DWARF register 分别为 31/29，stack size 为 16 的�
 
 ### 3.3 精确根集合
 
+Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed segment、各类 root frame、Context 与 external payload，并向 collector 访问器交付真实可更新的槽位。collector 不解析这些根的语言表示或遍历线程根链；适配层复用当前 collection 的冻结 registry，不另行复制根目录。显式 pin／handle 的保活及 pin 计数仍由 GC 管理，线程 pin frame 的枚举由适配层完成。
+
+对象扫描描述的解释也归适配层。GC 请求整对象或半开地址范围扫描；并行 marker 通过适配层提供的元素起点、数量与步长视图划分既有大数组任务，不读取 scan 程序编码。描述、对象大小／对齐等未变化的标量事实可静态内联访问，保持原有检查边界与每对象调用成本；不得建立第二套类型／扫描元数据。
+
 完整根集合包括：
 
 - 活动 managed 栈段的 stackmap roots 与 compiler root frames；

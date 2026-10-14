@@ -3,7 +3,7 @@
  * See docs/specs/SCOOP-RUNTIME-SPEC.md section 2 (object model) and
  * docs/milestone2/DESIGN.md section 3 (M2 runtime additions). M9
  * (docs/milestone9/DESIGN.md section 2) replaces the always-leak
- * allocator with the Immix-core GC in runtime/src/gc.c and widens the
+ * allocator with the Immix-core GC in runtime/src/gc/ and widens the
  * object header to 16 bytes.
  */
 #ifndef SCOOP_RT_H
@@ -147,7 +147,7 @@ const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
                                           const ScoopTypeDescriptor *iface_td);
 
 /* M9 additions (milestone9 DESIGN section 2): GC interface. See
- * runtime/src/gc.c for the implementation and docs/specs/
+ * runtime/src/gc/ for the implementation and docs/specs/
  * SCOOP-RUNTIME-SPEC.md sections 3-4 for the contract. */
 
 /* M13 thread registration baseline (runtime spec 3.5 / 7). A foreign

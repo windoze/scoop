@@ -10,7 +10,7 @@
 | M44-2 零搬迁更新分支 | 实现与本机定向验收、图对照完成；Linux 组合待后续统一验证 |
 | M44-3 引用定位、写回和无引用对象 | 实现、本机定向验收及普通搬迁／零搬迁对照完成；minor 性能与 Linux 组合继续补齐 |
 | M44-4 编译器 GC 代码生成边界 | 实现与本机定向验收完成；四类程序的独立编译产物和机器码一致，Linux 组合待最终验收 |
-| M44-5 runtime GC 操作与 Scoop 适配 | 待实施 |
+| M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan 适配已分离并通过本机定向验收；mutator 状态与普通 runtime 堆操作继续实施 |
 | M44-6 组合、平台与性能验收 | 待实施 |
 
 ## 工作约定
@@ -76,3 +76,12 @@
 - 在相同当前 runtime 下用整理前／后的固定编译器分别编译 allocation、arrays、old-graph、primitive。已核实每个根实际触发编译且两侧编译缓存键不同；LIR、根产物、完整 executable 与全部根 Cone 函数的机器指令均相同。原始反汇编和 section 大小见 [结构记录](validation/codegen-machine-darwin.json.gz)。完成构建／测试后各预热一次，再交替七次，checksum 与 GC 统计通过；见 [性能记录](PERFORMANCE.md)和 [原始对照](validation/codegen-comparison-darwin.json.gz)。本批不宣称性能提升。
 - 新增基准构建、交替测量与机器码核对脚本均通过固定 Ruff 格式化／lint，并以本批真实构建和测量验证。代码按完整操作划分，最长迁移文件为既有 346 行数组拼接；新原子操作模块 109 行，没有额外 GC crate 或策略插件。
 - 已核对压缩归档再清理本批 fixture cases 约 99 MB，保留工具、缓存、基线与对照 binary；上一批 final 证据归档后清理的失败／过期构建及 cases 约 206 MB 也已完成。runtime 适配／mutator 边界、线程实际恢复与其余性能场景、Linux 及最终全量验收继续推进，不宣称 M44 完成。
+
+## 2026-10-14：Scoop 根与扫描适配
+
+- 先在运行时规范 3.3 明确根表示与扫描解释归 Scoop 适配层，复用冻结目录并访问真实槽位。新增 `gc_binding/` 承接 image/process 根、native root frames、线程根链、LLVM stackmap／精确栈根、扫描程序和 managed/native 入口适配；GC 私有头不再导出 stackmap 或 image registry。
+- `gc_binding.h` 保留实际使用的访问器与锁合同，扫描解释器支持原有整对象及 card 半开范围。marker 从内联对象／数组视图取得 scan、元素起点、数量与步长，不再读取 scan 编码；保留原有数组分段、任务批次与首次标记检查。pin frame 由适配层枚举真实槽位，GC 的显式 pin 计数和解除临时固定规则保持。
+- 普通对象是否已发布的完整分类操作移回 GC 对象实现；锁顺序仍为 heap → roots。构建源目录、平台测试的显式源清单及现有文档链接同步迁移，runtime ABI、metadata 编码和生成代码布局不变。
+- 首轮 [372 项测试](validation/binding-scans-rust-initial.log.gz)中 341 项通过，失败均来自拆除间接 include 后的声明或测试链接源缺失；[头文件修正记录](validation/binding-scans-rust-headers.log.gz)保留后续失败与精确栈根成功结果。为初始化／普通 runtime 显式包含实际使用的 image 声明，为测试包含 binding 声明和入口源后，[31 项 collector 定向复验](validation/binding-scans-rust-final.log.gz)全部通过。按名称核对初轮要求集合，372 项均取得通过证据，见 [覆盖索引](validation/binding-scans-rust-coverage.json.gz)，不把首轮失败报告当作整组通过。
+- C 格式化、Rust 格式化与 [workspace clippy](validation/binding-scans-clippy.log.gz)通过，固定 [release 工具](validation/binding-scans-tools.log.gz)后执行真实 runtime 构建与 CLI。八项 fixture、17 个变体、93 个步骤全部通过，见 [报告](validation/binding-scans-darwin.json.gz)与 [日志](validation/binding-scans-darwin.log.gz)：M34 parallel threads／values、MaybeUninit GC、M31 nursery/Context/copy、native Scoop ABI moving roots，以及三个 M44 独立回归。
+- 压缩证据已逐字节核对，清理本批 cases 输出并保留当前工具／缓存。此批完成根与扫描适配；allocation／collector 的 mutator 字段访问、统计与普通 runtime 的私有堆查询组合尚待迁移。完整边界的性能与 Linux／全量组合在后续完成，不以目录迁移单独宣称 M44-5 或 M44 完成。

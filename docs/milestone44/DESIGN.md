@@ -29,7 +29,7 @@ M44 依赖已经存在的精确根、分代收集、多 region、并行标记、
 | 同一个引用分别经过对象起点、代际与 forwarding 查询 | 复用一次对象定位得到的 block、word index 和相关状态 | [heap_objects.c](../../runtime/src/gc/heap_objects.c)、[evacuation.c](../../runtime/src/gc/evacuation.c) |
 | 首次标记的存活集合已经保存全部存活对象，含无引用对象 | 继续复用此集合；区别存活/搬迁处理与出站引用扫描 | [mark.c](../../runtime/src/gc/mark.c)、[mark_objects.c](../../runtime/src/gc/mark_objects.c) |
 | 调研基线的 Immix 普通对象上限位于 LIR runtime ABI 文件；codegen 多处分散生成 GC 细节 | 移动策略实现与完整快路径生成职责至 GC 模块，复用现有 ABI 数据目录 | [runtime_abi.rs](../../compiler/lir/src/runtime_abi.rs)、[GC 代码生成](../../compiler/codegen/src/function/gc/)、[heap.rs](../../compiler/codegen/src/function/instruction/heap.rs) |
-| GC 直接理解线程状态、stackmap、image registry；普通 runtime 直接调用 GC 私有锁/查询 | 提取当前实际使用的适配和操作接口 | [gc_internal.h](../../runtime/src/gc/gc_internal.h)、[collector_roots.c](../../runtime/src/gc/collector_roots.c)、[boxing.c](../../runtime/src/boxing.c) |
+| GC 直接理解线程状态、stackmap、image registry；普通 runtime 直接调用 GC 私有锁/查询 | 提取当前实际使用的适配和操作接口 | [gc_internal.h](../../runtime/src/gc/gc_internal.h)、[collector_roots.c](../../runtime/src/gc_binding/collector_roots.c)、[boxing.c](../../runtime/src/boxing.c) |
 | 分配快路已有每线程 TLAB，nursery 容量仍全局共享，refill 每次领取一个 block | 记录当前分配行为作为回归基线；容量与批量 refill 后续单独决定 | [allocation.c](../../runtime/src/gc/allocation.c)、[thread.h](../../runtime/src/thread.h) |
 
 四级页表是 GC 自己的稀疏地址索引，不是操作系统页表。当前 64-bit 地址按位移 52/40/28/16 分成四级 12-bit 索引，末级覆盖 64 KiB chunk 并指向 region/large mapping；再由地址计算 block 和对象位置。M44 保持此结构，先消除同一次引用访问中的重复查找。region 仅按 chunk 对齐，不能直接用 16 MiB 掩码推导 region metadata。
