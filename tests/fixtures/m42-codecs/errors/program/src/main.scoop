@@ -27,7 +27,7 @@ fun main() {
     bad("[[1,2,3]]", HashMap<Int, Int>.decoder(Int.Companion, Int.Companion), "/0")
     bad("[[1]]", HashMap<Int, Int>.decoder(Int.Companion, Int.Companion), "/0/1")
     bad("[[]]", HashMap<Int, Int>.decoder(Int.Companion, Int.Companion), "/0/0")
-    bad("[[1,{\"None\":{}}],[1,{\"Some\":[2]}]]", HashMap<Int, Int?>.decoder(Int.Companion, Option<Int>.decoder(Int.Companion)), "/1/0")
+    bad("[[1,null],[1,2]]", HashMap<Int, Int?>.decoder(Int.Companion, Option<Int>.decoder(Int.Companion)), "/1/0")
     bad("[1,1]", HashSet<Int>.decoder(Int.Companion), "/1")
     bad("[1,1]", LinkedHashSet<Int>.decoder(Int.Companion), "/1")
     val magnitude = comparatorOf<Int> { a, b -> (if (a < 0) -a else a).compareTo(if (b < 0) -b else b) }

@@ -1,5 +1,5 @@
-struct Item(@SerialName("same") val first: Int,
-            @SerialName("same") val second: String) {
+struct Item(@Serialize(rename = "same") val first: Int,
+            @Serialize(rename = "same") val second: String) {
     companion object : Encodable<Item>
 }
 

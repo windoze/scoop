@@ -7,68 +7,74 @@ impl Lowerer {
         target: hir::SourceAnnotationTarget,
         annotations: &[hir::SourceAnnotationApplication],
     ) {
-        let serial_name = self.core_source_annotation("SerialName");
-        let transient = self.core_source_annotation("Transient");
-        let mut previous = self
-            .annotation_metadata
-            .targets
-            .iter()
-            .find(|entry| entry.target == target)
-            .and_then(|entry| {
-                entry.annotations.iter().find_map(|a| {
-                    if Some(a.annotation) == serial_name {
-                        Some("SerialName")
-                    } else if Some(a.annotation) == transient {
-                        Some("Transient")
-                    } else {
-                        None
-                    }
-                })
-            });
+        let serialize = self.core_source_annotation("Serialize");
         for annotation in annotations {
-            let name = if Some(annotation.annotation) == serial_name {
-                "SerialName"
-            } else if Some(annotation.annotation) == transient {
-                "Transient"
-            } else {
+            if Some(annotation.annotation) != serialize {
                 continue;
-            };
-            if previous.is_some_and(|name_before| name_before != name) {
-                self.error(
-                    annotation.definition_origin.span,
-                    "SerialName and Transient cannot be used on the same target".into(),
-                );
             }
-            previous = Some(name);
+            let config = SerializeConfig::from_arguments(&annotation.arguments);
+            let span = annotation.definition_origin.span;
             let permitted = match target {
-                hir::SourceAnnotationTarget::Nominal(_)
-                | hir::SourceAnnotationTarget::Annotation(_)
-                | hir::SourceAnnotationTarget::Callable(_)
-                | hir::SourceAnnotationTarget::Parameter { .. }
-                | hir::SourceAnnotationTarget::Receiver(_)
-                | hir::SourceAnnotationTarget::TypeAlias(_)
-                | hir::SourceAnnotationTarget::ClassField(_)
-                | hir::SourceAnnotationTarget::PropertyStorage { .. } => false,
-                hir::SourceAnnotationTarget::Variant(_) => name == "SerialName",
+                hir::SourceAnnotationTarget::Variant(_) => true,
                 hir::SourceAnnotationTarget::Field(_) => true,
                 hir::SourceAnnotationTarget::VariantField(field) => {
                     let variant = field.variant();
                     self.enums[variant.enumeration()].variants[variant.local_index() as usize].style
                         != hir::VariantStyle::Positional
                 }
-                hir::SourceAnnotationTarget::Property(id) => {
-                    matches!(
-                        self.properties[id].representation,
-                        hir::PropertyRepresentation::Stored(_)
-                    )
-                }
+                hir::SourceAnnotationTarget::Property(id) => matches!(
+                    self.properties[id].representation,
+                    hir::PropertyRepresentation::Stored(_)
+                ),
+                _ => false,
             };
             if !permitted {
+                self.error(span, "`@Serialize` is not allowed on this target".into());
+            }
+            if config.ignore && (!config.rename.is_empty() || config.required || config.emit_null) {
                 self.error(
-                    annotation.definition_origin.span,
-                    format!("`@{name}` is not allowed on this target"),
+                    span,
+                    "Serialize ignore cannot be combined with rename, required, or emitNull".into(),
                 );
             }
+            if matches!(target, hir::SourceAnnotationTarget::Variant(_)) {
+                if config.required || config.emit_null || config.ignore {
+                    self.error(
+                        span,
+                        "Serialize on an enum variant only supports rename".into(),
+                    );
+                }
+            } else if config.emit_null
+                && !self
+                    .serialization_target_type(target)
+                    .is_some_and(|ty| self.as_option(ty).is_some())
+            {
+                self.error(
+                    span,
+                    "Serialize emitNull requires a field declared as core Option".into(),
+                );
+            }
+        }
+    }
+
+    pub(crate) fn serialization_target_type(
+        &self,
+        target: hir::SourceAnnotationTarget,
+    ) -> Option<hir::TypeId> {
+        match target {
+            hir::SourceAnnotationTarget::Field(field) => Some(
+                self.structs[field.structure()].semantic_fields()[field.local_index() as usize].ty,
+            ),
+            hir::SourceAnnotationTarget::VariantField(field) => {
+                let variant = field.variant();
+                Some(
+                    self.enums[variant.enumeration()].variants[variant.local_index() as usize]
+                        .fields[field.local_index() as usize]
+                        .ty,
+                )
+            }
+            hir::SourceAnnotationTarget::Property(property) => Some(self.properties[property].ty),
+            _ => None,
         }
     }
 
@@ -95,5 +101,44 @@ impl Lowerer {
                 },
                 _ => None,
             })
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct SerializeConfig {
+    pub(crate) rename: String,
+    pub(crate) required: bool,
+    pub(crate) emit_null: bool,
+    pub(crate) ignore: bool,
+}
+
+impl SerializeConfig {
+    pub(crate) fn from_arguments(arguments: &[hir::CanonicalAnnotationValueV1]) -> Self {
+        use hir::{CanonicalAnnotationValueV1::Scalar, CanonicalConstValueV1 as Value};
+        let [
+            Scalar(Value::String(rename)),
+            Scalar(Value::Boolean(required)),
+            Scalar(Value::Boolean(emit_null)),
+            Scalar(Value::Boolean(ignore)),
+        ] = arguments
+        else {
+            unreachable!("Serialize has its declared String and Boolean parameters")
+        };
+        Self {
+            rename: rename.clone(),
+            required: (*required).into(),
+            emit_null: (*emit_null).into(),
+            ignore: (*ignore).into(),
+        }
+    }
+
+    pub(crate) fn wire_name(&self, name: &str) -> Option<String> {
+        (!self.ignore).then(|| {
+            if self.rename.is_empty() {
+                name.into()
+            } else {
+                self.rename.clone()
+            }
+        })
     }
 }

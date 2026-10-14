@@ -117,7 +117,7 @@ impl Lowerer {
                     hir::SourceAnnotationTarget::Variant(source),
                     &variant.name,
                 )
-                .expect("variants cannot be Transient");
+                .expect("variants cannot use Serialize(ignore = true)");
             let mut record = self.current_decoding_record(
                 application.canonical_type,
                 NominalConstructorSource::Variant(source),
@@ -127,9 +127,8 @@ impl Lowerer {
             for (index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = hir::EnumVariantFieldRef::checked(&self.enums, source, index as u32)
                     .expect("a variant parameter maps to its field");
-                parameter.wire = self.serialization_wire_name(
-                    hir::SourceAnnotationTarget::VariantField(field),
-                    &parameter.name,
+                parameter.configure(
+                    self.serialization_config(hir::SourceAnnotationTarget::VariantField(field)),
                 );
             }
             Some((wire, record))
@@ -139,7 +138,7 @@ impl Lowerer {
                     hir::AnnotationTargetV1::Variant(variant.application.variant),
                     &variant.name,
                 )
-                .expect("variants cannot be Transient");
+                .expect("variants cannot use Serialize(ignore = true)");
             let mut record = self.dependency_decoding_record(
                 application.canonical_type,
                 scoop_identity::CallableTemplateOrigin::VariantConstructor(
@@ -151,9 +150,10 @@ impl Lowerer {
             for (field_index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = self.loaded_enum_definitions[&application.template]
                     .field_identity(index as usize, field_index);
-                parameter.wire = self.dependency_coding_wire_name(
-                    hir::AnnotationTargetV1::VariantField(field),
-                    &parameter.name,
+                parameter.configure(
+                    self.dependency_serialization_config(hir::AnnotationTargetV1::VariantField(
+                        field,
+                    )),
                 );
             }
             Some((wire, record))

@@ -136,7 +136,7 @@ fn encoding_requires_a_codec_for_the_declared_field_type() {
 fn encoding_annotations_only_affect_participating_fields() {
     compile(
         r#"
-        public struct Item(@SerialName("wire") val value: Leaf, @Transient val opaque: Any) {
+        public struct Item(@Serialize(rename = "wire") val value: Leaf, @Serialize(ignore = true) val opaque: Any) {
             public companion object : Encodable<Item>
         }
     "#,
@@ -144,7 +144,7 @@ fn encoding_annotations_only_affect_participating_fields() {
     .unwrap();
     rejects(
         r#"
-        public struct Item(@SerialName("same") val first: Leaf, @SerialName("same") val second: Leaf) {
+        public struct Item(@Serialize(rename = "same") val first: Leaf, @Serialize(rename = "same") val second: Leaf) {
             public companion object : Encodable<Item>
         }
     "#,

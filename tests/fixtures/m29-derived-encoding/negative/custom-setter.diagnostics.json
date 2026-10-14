@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "stored property `value` has a custom accessor; provide an explicit encode implementation or mark it Transient",
+    "message": "stored property `value` has a custom accessor; provide an explicit encode implementation or mark it Serialize(ignore = true)",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",

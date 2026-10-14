@@ -5,10 +5,10 @@ fun check(value: Boolean) {
 }
 
 public enum Choice<T> {
-    @SerialName("nothing") Empty,
+    @Serialize(rename = "nothing") Empty,
     Pair(T, Int),
     Record { value: T, count: Int },
-    Named(@SerialName("item") val value: T, @Transient val ignored: Any, val count: Int = 2)
+    Named(@Serialize(rename = "item") val value: T, @Serialize(ignore = true) val ignored: Any, val count: Int = 2)
     public companion object {
         public fun encoder(element: Encodable<T>): Encodable<Choice<T>> = ChoiceEncoder<T>(element)
     }

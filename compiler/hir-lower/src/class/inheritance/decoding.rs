@@ -32,6 +32,7 @@ enum DecodeConstructor {
 
 #[derive(Clone, Copy)]
 enum DecodeDefault {
+    None(hir::TypeId),
     Current(crate::defaults::DefaultArgumentSource),
     Dependency(hir::ExportDefaultTemplateKeyV1),
 }
@@ -41,6 +42,22 @@ struct DecodeParameter {
     ty: TypeId,
     wire: Option<String>,
     default: Option<DecodeDefault>,
+    is_option_at_declaration: bool,
+    required: bool,
+}
+
+impl DecodeParameter {
+    fn missing_value(&self) -> Option<DecodeDefault> {
+        self.default.or_else(|| {
+            self.is_option_at_declaration
+                .then_some(DecodeDefault::None(self.ty))
+        })
+    }
+
+    fn configure(&mut self, config: crate::user_annotations::SerializeConfig) {
+        self.wire = config.wire_name(&self.name);
+        self.required = config.required;
+    }
 }
 
 pub(super) struct DecodeRecord {

@@ -27,14 +27,14 @@ fun main() {
     val none: Option<Int> = None
     val some: Option<Int> = Some(7)
     val options = Option<Int>.encoder(Int.Companion)
-    check(Json.encode(none, options) == "{\"None\":{}}", 8)
-    check(Json.encode(some, options) == "{\"Some\":[7]}", 9)
-    check(Json.encode(Some(Unit), Option<Unit>.encoder(UnitEncoder)) == "{\"Some\":[null]}", 10)
+    check(Json.encode(none, options) == "null", 8)
+    check(Json.encode(some, options) == "7", 9)
+    check(Json.encode(Some(Unit), Option<Unit>.encoder(UnitEncoder)) == "null", 10)
     val nested = Array<Option<Array<Int>>>(2L) { index ->
         if (index == 0L) { None } else { Some(array) }
     }
     val nestedCodec = Array<Option<Array<Int>>>.encoder(Option<Array<Int>>.encoder(integers))
-    check(Json.encode(nested, nestedCodec) == "[{\"None\":{}},{\"Some\":[[-1,0,1]]}]", 11)
+    check(Json.encode(nested, nestedCodec) == "[null,[-1,0,1]]", 11)
     val roundTrip = Json.decode(Json.encode(nested, nestedCodec), Array<Option<Array<Int>>>.decoder(
         Option<Array<Int>>.decoder(Array<Int>.decoder(Int.Companion))))
     check(Json.encode(roundTrip, nestedCodec) == Json.encode(nested, nestedCodec), 12)

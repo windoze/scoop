@@ -28,18 +28,16 @@ impl Lowerer {
             for (index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = hir::StructFieldRef::checked(&self.structs, structure, index as u32)
                     .expect("a primary parameter maps to its field");
-                parameter.wire = self.serialization_wire_name(
-                    hir::SourceAnnotationTarget::Field(field),
-                    &parameter.name,
+                parameter.configure(
+                    self.serialization_config(hir::SourceAnnotationTarget::Field(field)),
                 );
             }
         } else {
             let declaration = &self.loaded_struct_definitions[&application.template].declaration;
             for (index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = declaration.interface.source_shape().declared_fields()[index].field();
-                parameter.wire = self.dependency_coding_wire_name(
-                    hir::AnnotationTargetV1::Field(field),
-                    &parameter.name,
+                parameter.configure(
+                    self.dependency_serialization_config(hir::AnnotationTargetV1::Field(field)),
                 );
             }
         }
@@ -80,6 +78,8 @@ impl Lowerer {
                     } => None,
                 };
                 DecodeParameter {
+                    is_option_at_declaration: self.as_option(parameter.ty).is_some(),
+                    required: false,
                     wire: Some(parameter.name.clone()),
                     name: parameter.name,
                     ty: self.instantiate_ty(parameter.ty, &application.arguments),
@@ -144,7 +144,8 @@ impl Lowerer {
         let parameters = self
             .imported_parameter_views(&declaration, types)
             .into_iter()
-            .map(|parameter| {
+            .zip(declaration.interface().parameters().parameters())
+            .map(|(parameter, original)| {
                 let default = match parameter.calling {
                     ValueParameterCalling::Default(source)
                     | ValueParameterCalling::Vararg {
@@ -158,6 +159,8 @@ impl Lowerer {
                     } => None,
                 };
                 DecodeParameter {
+                    is_option_at_declaration: self.signature_is_core_option(original.value_type()),
+                    required: false,
                     wire: Some(parameter.name.clone()),
                     name: parameter.name,
                     ty: parameter.ty,

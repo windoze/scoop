@@ -1,5 +1,5 @@
 enum Item {
-    Named(@SerialName("same") val first: Int, @SerialName("same") val second: Int)
+    Named(@Serialize(rename = "same") val first: Int, @Serialize(rename = "same") val second: Int)
     companion object : Encodable<Item>
 }
 

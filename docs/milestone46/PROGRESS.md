@@ -18,10 +18,18 @@
 - 五个独立／组合 fixture 覆盖 keyed／unkeyed、多视图交替、空容器、end 后追加、合成 flatten／tagged、根与子 writer 过期引用、错误边界及 moving GC。
 - 本机 fmt／全工作区 clippy 通过；18 项 CLI fixture 全部通过（5 项新编码、5 项解码协议回归、8 项既有编码／JSON／产物组合）。首轮被 JSON enum 的裸绑定 warning 阻断，改用已有明确匹配及取值形式后全部通过。报告：[初轮](validation/encoder-initial-darwin.json.gz)、[完成验证](validation/encoder-verified-darwin.json.gz)。
 
+## M46-3：Serialize、nullable Option 与字段缺省
+
+- 语言规范 11.13 和实现规范 2.17 先定义统一 Serialize、缺失／null、required／emitNull／ignore、直接 None default 的保守省略及泛型声明处规则；core 移除 SerialName／Transient，Option 的普通 codec 改为 nullable 值。
+- HIR 合成复用现有 annotation 静态值、原声明类型和已绑定 default body；没有新增 IR／产物 section。编码只读字段一次，省略分支包住 child 创建及 codec 求值；解码保留先读取、end、依次 default、正常构造的顺序。原 T 与 T? 的区别在具体目标和依赖产物消费时均保留。
+- 新增 8 个运行型 fixture（每项含普通及 moving GC）和 10 个准确 negative fixture，覆盖字段配置、default 副作用、完整 Option codec 注入、泛型／alias、class／enum／tuple、三态用户 enum，以及三 Cone 无源码消费与重导出。既有功能用例迁移注解和 Option wire 表示，不保存普通功能 IR 全量快照。新增默认值辅助模块 117 行，修改的合成子模块最大 208 行。
+- 本机 fmt／全工作区 clippy、release 三个 CLI 工具构建及 [47 项相关 HIR 测试](validation/serialize-hir-darwin.log.gz) 通过。18 项新 fixture、156 项相关旧 fixture、6 项 std codec fixture 全部闭合，共 180 项：旧回归首轮 136 项通过，19 项诊断期望随改名／位置更新，1 项旧序列消费约束断言按 M46-1 修正，20 项复验全通过。新用例修正一次 lambda statement 和测试库构造器可见性；negative 初轮用于取得并逐项审查准确诊断，10 项复验全通过。
+- 原始报告：[新功能首轮](validation/serialize-initial-darwin.json.gz)、[三态／产物首轮](validation/serialize-artifacts-initial-darwin.json.gz)、[产物通过与 negative 初轮](validation/serialize-negative-initial-darwin.json.gz)、[negative 复验](validation/serialize-negative-verified-darwin.json.gz)、[旧回归首轮](validation/serialize-regression-initial-darwin.json.gz)、[20 项复验](validation/serialize-regression-verified-darwin.json.gz)、[std codec](validation/serialize-stdlib-darwin.json.gz)。原始失败保留，不计作通过。
+
 ## 后续
 
-M46-3～6 尚未实施。M38 尚未开始。
+M46-4～6 尚未实施。M38 尚未开始。
 
 ## 构建目录
 
-开始时 target 占用约 111 GB；使用 cargo clean 清理全部可重建产物，Cargo 报告移除 241,742 个文件、154.8 GiB 逻辑字节。重新构建时禁用 incremental，首次重建后目录约 3.8 GB。
+开始时 target 占用约 111 GB；使用 cargo clean 清理全部可重建产物，Cargo 报告移除 241,742 个文件、154.8 GiB 逻辑字节。重新构建时禁用 incremental，首次重建后目录约 3.8 GB；M46-3 完成本机构建及相关 Rust 测试后约 7.3 GB，继续禁用 incremental。

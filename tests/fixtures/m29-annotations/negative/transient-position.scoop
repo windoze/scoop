@@ -1,2 +1,2 @@
-enum Value { Some(@Transient Int) }
+enum Value { Some(@Serialize(ignore = true) Int) }
 fun main() {}

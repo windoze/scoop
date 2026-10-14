@@ -13,8 +13,8 @@ public struct Empty() {
 
 public struct Person(
     val name: String,
-    @SerialName("n/~") val count: Int,
-    @Transient val ignored: Int = 7
+    @Serialize(rename = "n/~") val count: Int,
+    @Serialize(ignore = true) val ignored: Int = 7
 ) {
     public companion object : Encodable<Person>, Decodable<Person>
 }
@@ -25,7 +25,7 @@ public class Row public constructor(
     public var count: Long,
     plain: Int = 3
 ) {
-    @Transient private val cached: Int = id + plain
+    @Serialize(ignore = true) private val cached: Int = id + plain
     public val computed: Int get() = cached
     public companion object : Encodable<Row>, Decodable<Row>
 }

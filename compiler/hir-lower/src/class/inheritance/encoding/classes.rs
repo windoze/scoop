@@ -44,7 +44,7 @@ impl Lowerer {
         };
         let container = self.encoding_container(encoder, true, span, sink)?;
         let mut names = std::collections::HashSet::new();
-        for (name, wire) in fields {
+        for (name, wire, omit_none) in fields {
             self.check_encoding_wire_name(&wire, "field", span, &mut names)?;
             let Some(field) = self.coding_property(value.clone(), &name, span) else {
                 self.error(
@@ -53,7 +53,14 @@ impl Lowerer {
                 );
                 return None;
             };
-            self.encode_field(context, field, container.clone(), Some(&wire), span, sink)?;
+            self.encode_field(
+                context,
+                field,
+                container.clone(),
+                Some(&EncodingMember { wire, omit_none }),
+                span,
+                sink,
+            )?;
         }
         self.end_coding_container(container, span, sink)
     }
@@ -62,7 +69,27 @@ impl Lowerer {
         &mut self,
         class: ClassId,
         span: Span,
-    ) -> Option<Vec<(String, String)>> {
+    ) -> Option<Vec<(String, String, bool)>> {
+        let primary = self.classes[class].constructors.iter().copied().find(|id| {
+            matches!(
+                self.class_constructors[*id].kind,
+                hir::ClassConstructorKind::Primary { .. }
+            )
+        });
+        let mut omissions = std::collections::HashMap::new();
+        if let Some(primary) = primary {
+            let flags = self.current_coding_omissions(
+                crate::call_resolution::candidates::NominalConstructorSource::Class(primary),
+                span,
+            )?;
+            for (parameter, flag) in self.class_constructors[primary]
+                .parameters
+                .iter()
+                .zip(flags)
+            {
+                omissions.insert(parameter.id, flag);
+            }
+        }
         let mut selected = Vec::new();
         for field in self.classes[class].fields.clone() {
             let Some(id) = self.class_fields[field].source.property() else {
@@ -70,9 +97,8 @@ impl Lowerer {
             };
             let property = &self.properties[id];
             let name = property.name.clone();
-            let Some(wire) =
-                self.serialization_wire_name(hir::SourceAnnotationTarget::Property(id), &name)
-            else {
+            let config = self.serialization_config(hir::SourceAnnotationTarget::Property(id));
+            let Some(wire) = config.wire_name(&name) else {
                 continue;
             };
             if !matches!(
@@ -82,7 +108,7 @@ impl Lowerer {
                 self.error(
                     span,
                     format!(
-                        "property `{name}` requires an explicit encode implementation or Transient"
+                        "property `{name}` requires an explicit encode implementation or Serialize(ignore = true)"
                     ),
                 );
                 return None;
@@ -95,10 +121,18 @@ impl Lowerer {
                     !self.property_setters[setter].implementation.is_storage()
                 })
             {
-                self.error(span, format!("stored property `{name}` has a custom accessor; provide an explicit encode implementation or mark it Transient"));
+                self.error(span, format!("stored property `{name}` has a custom accessor; provide an explicit encode implementation or mark it Serialize(ignore = true)"));
                 return None;
             }
-            selected.push((name, wire));
+            let omit_none = !config.required
+                && !config.emit_null
+                && match self.class_fields[field].source {
+                    hir::ClassFieldSource::PrimaryParameter { parameter, .. } => {
+                        omissions[&parameter]
+                    }
+                    _ => self.as_option(property.ty).is_some(),
+                };
+            selected.push((name, wire, omit_none));
         }
         Some(selected)
     }
@@ -107,8 +141,23 @@ impl Lowerer {
         &mut self,
         owner: hir::SourceNominalId,
         span: Span,
-    ) -> Option<Vec<(String, String)>> {
+    ) -> Option<Vec<(String, String, bool)>> {
         let declaration = self.loaded_class_definitions[&owner].declaration.clone();
+        let mut omissions = std::collections::HashMap::new();
+        if let Some(primary) = declaration
+            .interface
+            .declaration_details()
+            .class_primary_constructor()
+        {
+            let flags = self.dependency_coding_omissions(
+                scoop_identity::CallableTemplateOrigin::Constructor(primary.constructor()),
+            );
+            for (property, flag) in primary.properties().iter().zip(flags) {
+                if let Some(property) = property {
+                    omissions.insert(*property, flag);
+                }
+            }
+        }
         let mut selected = Vec::new();
         for field in &declaration.field_sources {
             let property = match field.storage {
@@ -123,19 +172,18 @@ impl Lowerer {
                     return None;
                 }
             };
-            let Some(wire) = self.dependency_coding_wire_name(
-                hir::AnnotationTargetV1::Property(property),
-                &field.name,
-            ) else {
+            let config =
+                self.dependency_serialization_config(hir::AnnotationTargetV1::Property(property));
+            let Some(wire) = config.wire_name(&field.name) else {
                 continue;
             };
-            let accessors = self
+            let source = self
                 .dependencies
                 .as_ref()
                 .expect("an imported property has a catalog")
                 .property_declaration(hir::PropertyDeclarationId::Property(property))
-                .expect("the stored property is declared")
-                .accessors();
+                .expect("the stored property is declared");
+            let accessors = source.accessors();
             let ordinary =
                 |source: hir::PropertyAccessorSourceV1| source.implementation().is_storage();
             if !matches!(field.storage, hir::NominalFieldStorage::PropertyBacking(_))
@@ -144,10 +192,16 @@ impl Lowerer {
                     .setter_source()
                     .is_some_and(|source| !ordinary(source))
             {
-                self.error(span, format!("stored property `{}` has a custom accessor or delegate; provide an explicit encode implementation or mark it Transient", field.name));
+                self.error(span, format!("stored property `{}` has a custom accessor or delegate; provide an explicit encode implementation or mark it Serialize(ignore = true)", field.name));
                 return None;
             }
-            selected.push((field.name.clone(), wire));
+            let omit_none = !config.required
+                && !config.emit_null
+                && omissions
+                    .get(&property)
+                    .copied()
+                    .unwrap_or_else(|| self.signature_is_core_option(source.value_type()));
+            selected.push((field.name.clone(), wire, omit_none));
         }
         Some(selected)
     }

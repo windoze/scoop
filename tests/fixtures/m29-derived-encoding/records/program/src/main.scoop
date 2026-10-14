@@ -15,8 +15,8 @@ public struct Box<T>(val value: T) {
 }
 public class BoxEncoder<T>(private val element: Encodable<T>) : Encodable<Box<T>>
 public struct Record<T>(
-    @SerialName("v/~") val value: T,
-    @Transient val ignored: (Int) -> Int
+    @Serialize(rename = "v/~") val value: T,
+    @Serialize(ignore = true) val ignored: (Int) -> Int
 ) {
     public companion object {
         public fun encoder(element: Encodable<T>): Encodable<Record<T>> = RecordEncoder<T>(element)
@@ -29,8 +29,8 @@ public struct WithDefaults(val first: Int = nextValue(), val second: Int = first
 
 public class Row public constructor(private val id: Int, public val name: String) {
     public val computed: String get() = name
-    @SerialName("counter") public var count: Long = 2L
-    @Transient private val cache: (Int) -> Int = { value -> value + 1 }
+    @Serialize(rename = "counter") public var count: Long = 2L
+    @Serialize(ignore = true) private val cache: (Int) -> Int = { value -> value + 1 }
     public companion object : Encodable<Row>
 }
 

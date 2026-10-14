@@ -112,6 +112,9 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         match (constructor, default) {
+            (_, DecodeDefault::None(ty)) => {
+                Some(self.coding_expr(hir::ExprKind::NoneLiteral, ty, span))
+            }
             (DecodeConstructor::Current { bindings, .. }, DecodeDefault::Current(source)) => {
                 self.instantiate_default(source, bindings, None, previous, span, sink)
             }

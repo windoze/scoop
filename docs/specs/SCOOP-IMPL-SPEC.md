@@ -831,7 +831,7 @@ companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 prim
 
 Encodable<R>.encode 与 Decodable<R>.decode 是实际 companion/codec 的普通方法，receiver 与数据参数/结果独立。手写、继承与 default 先按语言规则选定，仅为缺失的 requirement 合成方法；字段 codec、variant、constructor 和默认值在定义处完成选择。
 
-合成结果为普通 typed 字段访问、调用、控制流、闭包与构造；encode/decode 分别保留语言规范 11.13 的求值顺序、缺失字段处理和可见性。Export HIR 保存完整正文及支持声明，下游只实例化，不重新解释 annotation 或搜索 codec。
+Serialize 的 rename／required／emitNull／ignore 来自同一已绑定 annotation 配置，当前源码与依赖使用已有静态值，不扩展 wire 参数值域。字段的声明处 Option 事实从原成员已绑定、展开 alias 的类型取得；具体化后不重新推断。None 省略只检查 default 的直接 typed None 表达式，不执行 default 或通用常量等价性分析。合成结果为普通 typed 字段访问、Option presence 分支、None 值、调用、控制流、闭包与构造；encode/decode 分别保留语言规范 11.13 的求值顺序、缺失字段处理和可见性。Export HIR 保存完整正文及支持声明，下游只实例化，不重新解释 annotation 或搜索 codec。
 
 codec 不因数据继承关系自动传递，不能按 value 的动态类型改选 companion。不同 codec 声明即使处理同一 R 也保持独立身份；数据类型本身不因此获得编码接口。tuple、Unit 和容器组合使用普通 helper，JSON 是普通库，不增加专用 MIR、runtime type table 或 C 入口。
 

@@ -46,7 +46,7 @@ private struct Unvisited() {
         init { throw IllegalStateException(Some("an unused codec was initialized")) }
     }
 }
-private struct Skip(@Transient val ignored: Unvisited, val value: Int) {
+private struct Skip(@Serialize(ignore = true) val ignored: Unvisited, val value: Int) {
     public companion object : Encodable<Skip>
 }
 private enum Choice {

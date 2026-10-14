@@ -67,12 +67,14 @@ impl Lowerer {
                     _ => None,
                 }
             });
-            parameter.wire = property.and_then(|property| {
-                self.serialization_wire_name(
-                    hir::SourceAnnotationTarget::Property(property),
-                    &parameter.name,
-                )
-            });
+            if let Some(property) = property {
+                parameter.configure(
+                    self.serialization_config(hir::SourceAnnotationTarget::Property(property)),
+                );
+            } else {
+                parameter.wire = None;
+                parameter.is_option_at_declaration = false;
+            }
         }
         for field in fields {
             let declaration = &self.class_fields[field];
@@ -82,7 +84,7 @@ impl Lowerer {
                     .serialization_wire_name(hir::SourceAnnotationTarget::Property(property), &name)
                     .is_some()
                 {
-                    self.error(span, format!("automatic decode requires stored property `{name}` to be a primary constructor parameter or Transient"));
+                    self.error(span, format!("automatic decode requires stored property `{name}` to be a primary constructor parameter or Serialize(ignore = true)"));
                     return None;
                 }
             }
@@ -103,19 +105,23 @@ impl Lowerer {
             .class_primary_constructor()
             .expect("the selected class has its primary mapping");
         for (parameter, property) in record.parameters.iter_mut().zip(primary.properties()) {
-            parameter.wire = property.and_then(|property| {
-                self.dependency_coding_wire_name(
-                    hir::AnnotationTargetV1::Property(property),
-                    &parameter.name,
-                )
-            });
+            if let Some(property) = property {
+                parameter.configure(
+                    self.dependency_serialization_config(hir::AnnotationTargetV1::Property(
+                        *property,
+                    )),
+                );
+            } else {
+                parameter.wire = None;
+                parameter.is_option_at_declaration = false;
+            }
         }
         for field in &declaration.field_sources {
             let property = match field.storage {
                 hir::NominalFieldStorage::PropertyBacking(property)
                 | hir::NominalFieldStorage::PropertyDelegate(property) => property,
                 _ => {
-                    self.error(span, "automatic decode requires class storage to map to a primary property or Transient property".into());
+                    self.error(span, "automatic decode requires class storage to map to a primary property or Serialize(ignore = true) property".into());
                     return None;
                 }
             };
@@ -129,7 +135,7 @@ impl Lowerer {
             {
                 self.error(
                     span,
-                    "automatic decode requires non-primary stored properties to be Transient"
+                    "automatic decode requires non-primary stored properties to use Serialize(ignore = true)"
                         .into(),
                 );
                 return None;

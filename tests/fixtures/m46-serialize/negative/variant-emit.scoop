@@ -1,0 +1,2 @@
+enum Item { @Serialize(emitNull = true) Value }
+fun main() {}

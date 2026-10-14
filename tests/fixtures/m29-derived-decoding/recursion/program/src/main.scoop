@@ -23,7 +23,7 @@ public class TreeNode public constructor(public val child: Tree) {
 }
 
 fun main() {
-    val text = "{\"value\":1,\"next\":{\"Some\":[{\"value\":2,\"next\":{\"Some\":[{\"value\":3,\"next\":{\"None\":{}}}]}}]}}"
+    val text = "{\"value\":1,\"next\":{\"value\":2,\"next\":{\"value\":3,\"next\":null}}}"
     val codec = NodeDecoder(Offset(10))
     val root = Json.decode(text, codec)
     check(root.value == 11 && root.next!!.value == 12 && root.next!!.next!!.value == 13, 1)

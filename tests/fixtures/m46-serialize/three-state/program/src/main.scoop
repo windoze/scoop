@@ -1,0 +1,51 @@
+import scoop.json.Json
+
+enum FieldState<T> { Missing, Null, Value(T) }
+struct Name(val text: String) {
+    companion object : Encodable<Name>, Decodable<Name> {}
+}
+
+fun <T> writeField(value: FieldState<T>, fields: KeyedEncodingContainer, name: String, codec: Encodable<T>) {
+    when (value) {
+        case FieldState.Missing -> { return }
+        case FieldState.Null -> fields.field(name).singleValue().writeNull()
+        case FieldState.Value(item) -> codec.encode(item, fields.field(name))
+    }
+}
+
+fun <T> readField(fields: KeyedDecodingContainer, name: String, codec: Decodable<T>): FieldState<T> {
+    return when (fields.optional(name)) {
+        case None -> FieldState.Missing
+        case Some(child) -> if (child.singleValue().isNull()) FieldState.Null else FieldState.Value(codec.decode(child))
+    }
+}
+
+struct Patch(val name: FieldState<Name>) {
+    companion object : Encodable<Patch>, Decodable<Patch> {
+        public override fun encode(value: Patch, encoder: Encoder) {
+            val fields = encoder.keyed()
+            writeField(value.name, fields, "name", Name.Companion)
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Patch {
+            val fields = decoder.keyed()
+            val name = readField(fields, "name", Name.Companion)
+            fields.end()
+            return Patch(name)
+        }
+    }
+}
+
+fun main() {
+    val missing = Patch(FieldState.Missing)
+    val nullValue = Patch(FieldState.Null)
+    val value = Patch(FieldState.Value(Name("Ada")))
+    check(Json.encode(missing, Patch.Companion) == "{}")
+    check(Json.encode(nullValue, Patch.Companion) == "{\"name\":null}")
+    check(Json.encode(value, Patch.Companion) == "{\"name\":{\"text\":\"Ada\"}}")
+    check(Json.decode("{}", Patch.Companion) == missing)
+    check(Json.decode("{\"name\":null}", Patch.Companion) == nullValue)
+    check(Json.decode("{\"name\":{\"text\":\"Ada\"}}", Patch.Companion) == value)
+    reject("/name/text") { Json.decode("{\"name\":{\"text\":7}}", Patch.Companion) }
+    println("three-state-ok")
+}

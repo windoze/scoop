@@ -42,11 +42,11 @@ fn rejects(source: &str, message: &str) {
 #[test]
 fn nominal_and_tuple_decoding_have_complete_ordinary_bodies() {
     let output = compile(r#"
-        public struct Record(@SerialName("item") val value: Leaf, @Transient val ignored: Leaf = Leaf()) {
+        public struct Record(@Serialize(rename = "item") val value: Leaf, @Serialize(ignore = true) val ignored: Leaf = Leaf()) {
             public companion object : Decodable<Record>
         }
         public class Row public constructor(public val value: Leaf, plain: Leaf = Leaf()) {
-            @Transient private val ignored: Leaf = plain
+            @Serialize(ignore = true) private val ignored: Leaf = plain
         }
         public object RowDecoder : Decodable<Row>
         public enum Choice {
@@ -168,21 +168,21 @@ fn missing_and_ambiguous_field_dependencies_are_definition_errors() {
 fn transient_and_duplicate_wire_names_use_actual_participating_fields() {
     rejects(
         r#"
-        public struct Record(@Transient val value: Leaf)
+        public struct Record(@Serialize(ignore = true) val value: Leaf)
         public object Reader : Decodable<Record>
     "#,
         "declared default for omitted constructor parameter `value`",
     );
     rejects(
         r#"
-        public struct Record(@SerialName("same") val first: Leaf, @SerialName("same") val second: Leaf)
+        public struct Record(@Serialize(rename = "same") val first: Leaf, @Serialize(rename = "same") val second: Leaf)
         public object Reader : Decodable<Record>
     "#,
         "duplicate field name `same`",
     );
     rejects(
         r#"
-        public enum Choice { @SerialName("same") A, @SerialName("same") B }
+        public enum Choice { @Serialize(rename = "same") A, @Serialize(rename = "same") B }
         public object Reader : Decodable<Choice>
     "#,
         "duplicate variant name `same`",
@@ -210,7 +210,7 @@ fn automatic_class_decoding_requires_primary_storage_mapping() {
         public class Record public constructor() { public val value: Leaf = Leaf() }
         public object Reader : Decodable<Record>
     "#,
-        "primary constructor parameter or Transient",
+        "primary constructor parameter or Serialize(ignore = true)",
     );
 }
 

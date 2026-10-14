@@ -37,12 +37,12 @@ fun main() {
     val inner = Option<Int>.decoder(Int.Companion)
     val list = ArrayList<Option<Int>>.decoder(inner)
     val outer = Option<ArrayList<Option<Int>>>.decoder(list)
-    val nested = Json.decode("{\"Some\":[[{\"None\":{}},{\"Some\":[7]}]]}", outer)!!
+    val nested = Json.decode("[null,7]", outer)!!
     check(nested.size == 2L && nested[0L] == None && nested[1L]!! == 7, 5)
     val units = Json.decode("[null,null]", MutableArray<Unit>.decoder(UnitDecoder))
     check(units.size == 2L, 6)
-    val optionalUnit = Json.decode("{\"Some\":[null]}", Option<Unit>.decoder(UnitDecoder))
-    check(when (optionalUnit) { case Some(value) -> true; case None -> false }, 7)
+    val optionalUnit = Json.decode("null", Option<Unit>.decoder(UnitDecoder))
+    check(when (optionalUnit) { case Some(value) -> false; case None -> true }, 7)
     val functions = DecodeFunction<() -> Int>({ decoder ->
         val number = Int.Companion.decode(decoder)
         val function: () -> Int = { -> number }
@@ -50,7 +50,7 @@ fun main() {
     })
     val thunks = Json.decode("[8,9]", ArrayList<() -> Int>.decoder(functions))
     check(thunks[0L]() == 8 && thunks[1L]() == 9, 8)
-    check(Json.decode("{\"None\":{}}", Option<Int>.decoder(Failing)) == None, 9)
+    check(Json.decode("null", Option<Int>.decoder(Failing)) == None, 9)
     try { Json.decode("[1]", Array<Int>.decoder(Failing)) }
     catch (error: ElementFailure) {
         check(error.message == Some("element failure") && error.marker === marker, 10)

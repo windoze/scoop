@@ -3,7 +3,7 @@ import scoop.json.Json
 fun check(value: Boolean, code: Int) {
     if (!value) { throw IllegalStateException(Some("tuple case " + code.toString())) }
 }
-public struct Record(@SerialName("point") val value: (Int, String)) {
+public struct Record(@Serialize(rename = "point") val value: (Int, String)) {
     public companion object : Encodable<Record>, Decodable<Record>
 }
 class PairEncoder<A, B>(private val first: Encodable<A>, private val second: Encodable<B>)
@@ -31,7 +31,7 @@ fun main() {
     check(Json.encode(data, arrayCodec) == "[[0,\"array\"],[1,\"array\"]]", 8)
     val optionCodec = Option<(Int, Unit)>.encoder(PairEncoder(Int.Companion, UnitEncoder))
     check(Json.encode((Some((4, Unit)), data), PairEncoder(optionCodec, arrayCodec))
-        == "[{\"Some\":[[4,null]]},[[0,\"array\"],[1,\"array\"]]]", 9)
+        == "[[4,null],[[0,\"array\"],[1,\"array\"]]]", 9)
     dynamicCases()
     combinedCases()
     println("tuple-encoding-ok")

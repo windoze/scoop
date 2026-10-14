@@ -1,4 +1,4 @@
-public enum Item { @SerialName("same") A, @SerialName("same") B }
+public enum Item { @Serialize(rename = "same") A, @Serialize(rename = "same") B }
 public object Reader : Decodable<Item>
 
 fun main() {}

@@ -1,6 +1,6 @@
 import scoop.json.Json
 
-struct Measurement(@SerialName("small/~") val small: Float, val wide: Double = -0.0) {
+struct Measurement(@Serialize(rename = "small/~") val small: Float, val wide: Double = -0.0) {
     public companion object : Encodable<Measurement>, Decodable<Measurement>
 }
 enum Event {
@@ -32,8 +32,8 @@ class BoxDecoder<T>(val element: Decodable<T>): Decodable<Box<T>> {
     val restored = Json.decode(Json.encode(values, arrayEncoder), arrayDecoder)
     check(restored[0L] == None && floatBits(restored[1L]!!) == 0x80000000U && restored[2L] == Some(Float.MIN_VALUE))
     val bad: Array<Option<Float>> = [None, Some(Float.NaN)]
-    rejectEncoding(bad, arrayEncoder, "/1/Some/0")
-    rejectDecoding("[{\"Some\":[1e100]}]", arrayDecoder, "/0/Some/0")
+    rejectEncoding(bad, arrayEncoder, "/1")
+    rejectDecoding("[1e+100]", arrayDecoder, "/0")
     val text = Json.encode(Box(-0.0), BoxEncoder(Double.Companion))
     check(doubleBits(Json.decode(text, BoxDecoder(Double.Companion)).value) == 0x8000000000000000UL)
     val list = ArrayList<Double>()
