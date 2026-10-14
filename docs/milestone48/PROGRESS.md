@@ -78,4 +78,4 @@ protocol 8 直接返回生产时已有的 `ArtifactManifestSummaryV1`（含测�
 
 [CLI 首轮](validation/manifest-record-darwin-fixtures-first.log.gz)通过 24 项；manifest 源码 UTF-8 负例同步已落地的 child 文件级诊断后，[2 项定向复验](validation/manifest-record-darwin-fixtures.log.gz)通过。成功用例合计 25 个、27 variants、85 processes，覆盖新用例的冷／暖、仅测试配置更新、实际源码选择更新与 48／49 退出值，以及测试依赖、target 条件、native、manifest 错误、菱形依赖和 moving GC。保留首轮失败日志；退役范围没有扩大，说明见 [清理记录](CLEANUP.md)。无 cargo/rustc 进程时清理本机 `target/debug/incremental` 1,544.3 MiB。
 
-Linux GNU／musl 验证及原 manifest 零内容读取的系统调用证据待本批后续记录。native 工具探测、预处理、消费 stage 的重复验证和最终链接复用仍待处理，M48 尚未完成。
+Linux [workspace clippy](validation/manifest-record-linux-clippy.log.gz)、[scoop 90 项与 manifest 57 项](validation/manifest-record-linux-rust.log.gz)通过；[GNU](validation/manifest-record-gnu-fixtures.log.gz)与 [musl](validation/manifest-record-musl-fixtures.log.gz)各 25 个正式 CLI 用例、27 variants、85 processes 通过。对 GNU 库的已有输出追加[暖构建 trace](validation/manifest-record-gnu-warm.trace.gz)：只打开根与 core 的两份解析记录，没有打开原 Cone.toml、`.scoop` 或 `.slib` 内容，没有 scoopc exec 或 rename 发布；[构建记录](validation/manifest-record-gnu-warm.stderr.gz)中 child 数为 0。源文件、工具和原始产物全程保留。native 工具探测、预处理、消费 stage 的重复验证和最终链接复用仍待处理，M48 尚未完成。
