@@ -1,0 +1,52 @@
+struct StateEvent(val sequence_number: Long, val response: ResponseBody) {
+    companion object : Encodable<StateEvent>, Decodable<StateEvent> {}
+}
+struct ItemEvent(val sequence_number: Long, val output_index: Long, val item: ResponseItem) {
+    companion object : Encodable<ItemEvent>, Decodable<ItemEvent> {}
+}
+struct PartEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val content_index: Long,
+    val part: ResponsePart
+) {
+    companion object : Encodable<PartEvent>, Decodable<PartEvent> {}
+}
+struct TextDeltaEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val content_index: Long,
+    val delta: String
+) {
+    companion object : Encodable<TextDeltaEvent>, Decodable<TextDeltaEvent> {}
+}
+struct TextDoneEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val content_index: Long,
+    val text: String
+) {
+    companion object : Encodable<TextDoneEvent>, Decodable<TextDoneEvent> {}
+}
+struct ArgumentsDeltaEvent(val sequence_number: Long, val item_id: String, val output_index: Long, val delta: String) {
+    companion object : Encodable<ArgumentsDeltaEvent>, Decodable<ArgumentsDeltaEvent> {}
+}
+struct ArgumentsDoneEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val arguments: String
+) {
+    companion object : Encodable<ArgumentsDoneEvent>, Decodable<ArgumentsDoneEvent> {}
+}
+struct ResponseErrorEvent(
+    val sequence_number: Long,
+    val message: String,
+    val code: String? = None,
+    val param: String? = None
+) {
+    companion object : Encodable<ResponseErrorEvent>, Decodable<ResponseErrorEvent> {}
+}

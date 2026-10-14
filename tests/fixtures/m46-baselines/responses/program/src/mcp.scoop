@@ -1,0 +1,62 @@
+import scoop.json.*
+
+struct MCPItem(
+    val id: String,
+    val server_label: String,
+    val name: String,
+    val arguments: String,
+    val output: String? = None,
+    val error: MCPError? = None
+) {
+    companion object : Encodable<MCPItem>, Decodable<MCPItem> {}
+}
+struct MCPToolsItem(val id: String, val server_label: String, val tools: Array<MCPTool>) {
+    companion object : Encodable<MCPToolsItem>, Decodable<MCPToolsItem> {}
+}
+struct MCPTool(val name: String, val input_schema: JsonValue, val description: String? = None) {
+    companion object : Encodable<MCPTool>, Decodable<MCPTool> {}
+}
+struct MCPApprovalItem(val id: String, val server_label: String, val name: String, val arguments: String) {
+    companion object : Encodable<MCPApprovalItem>, Decodable<MCPApprovalItem> {}
+}
+struct MCPDecisionItem(val approval_request_id: String, val approve: Boolean, val reason: String? = None) {
+    companion object : Encodable<MCPDecisionItem>, Decodable<MCPDecisionItem> {}
+}
+struct MCPStatusError(val code: Double, val message: String) {
+    companion object : Encodable<MCPStatusError>, Decodable<MCPStatusError> {}
+}
+struct MCPExecutionError(val content: JsonValue) {
+    companion object : Encodable<MCPExecutionError>, Decodable<MCPExecutionError> {}
+}
+enum MCPError {
+    Protocol(MCPStatusError), Execution(MCPExecutionError), HTTP(MCPStatusError)
+    companion object : Encodable<MCPError>, Decodable<MCPError> {
+        public override fun encode(value: MCPError, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case MCPError.Protocol(payload) -> {
+                    String.encode("mcp_protocol_error", fields.field("type"))
+                    MCPStatusError.Companion.encode(payload, encoder)
+                }
+                case MCPError.Execution(payload) -> {
+                    String.encode("mcp_tool_execution_error", fields.field("type"))
+                    MCPExecutionError.Companion.encode(payload, encoder)
+                }
+                case MCPError.HTTP(payload) -> {
+                    String.encode("http_error", fields.field("type"))
+                    MCPStatusError.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): MCPError {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "mcp_protocol_error" -> MCPError.Protocol(MCPStatusError.Companion.decode(decoder))
+                case "mcp_tool_execution_error" -> MCPError.Execution(MCPExecutionError.Companion.decode(decoder))
+                case "http_error" -> MCPError.HTTP(MCPStatusError.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown MCPError branch")
+            }
+        }
+    }
+}

@@ -40,7 +40,8 @@
 - 报告：[编译首轮](validation/cone-initial-darwin.json.gz)、[运行首轮](validation/cone-runtime-initial-darwin.json.gz)、[路径诊断](validation/cone-path-darwin.json.gz)、[搬迁测试中断](validation/cone-moving-interrupted-darwin.json.gz)、[完成验证](validation/cone-verified-darwin.json.gz)。失败和中断不计为通过。
 - Chat 基线完成 C1～C8：普通模式执行全部 typed 往返和 12 个准确错误路径，moving GC 执行完整多模态请求组合；本机 fmt／全工作区 clippy 和 fixture 通过，约 121 秒。源码按职责拆分，各不超过 114 行。没有生产库改动。
 - Chat 首轮修正测试的泛型函数声明、Array 完整类型实参、Option<Array> 无相等性及 enum 裸绑定 warning。完整正向矩阵在普通模式通过后，中断成本过高的重复搬迁矩阵，改为代表组合后复验通过。[语法首轮](validation/chat-initial-darwin.json.gz)、[类型首轮](validation/chat-typed-initial-darwin.json.gz)、[搬迁中断](validation/chat-moving-interrupted-darwin.json.gz)、[完成验证](validation/chat-verified-darwin.json.gz)均保留。
-- Responses 和 Messages 尚待完成，M46-5 尚未完成。
+- Responses 基线完成 R1～R7：15 类 mixed item、7 类工具、16 个完整事件、动态 typed prompt variables、缺失 type 的简式消息与 12 个错误路径。本机 fmt／全工作区 clippy 和普通／代表 moving GC 首轮通过，约 184 秒；1137 行源码按职责分为 21 个文件，最大 111 行。[原始报告](validation/responses-verified-darwin.json.gz)。本批没有生产库修改。
+- Messages 尚待完成，M46-5 尚未完成。
 
 ## 后续
 

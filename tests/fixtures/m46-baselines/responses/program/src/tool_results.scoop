@@ -1,0 +1,75 @@
+enum CodeOutput {
+    Logs(CodeLogs), Image(CodeImage)
+    companion object : Encodable<CodeOutput>, Decodable<CodeOutput> {
+        public override fun encode(value: CodeOutput, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case CodeOutput.Logs(payload) -> {
+                    String.encode("logs", fields.field("type"))
+                    CodeLogs.Companion.encode(payload, encoder)
+                }
+                case CodeOutput.Image(payload) -> {
+                    String.encode("image", fields.field("type"))
+                    CodeImage.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): CodeOutput {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "logs" -> CodeOutput.Logs(CodeLogs.Companion.decode(decoder))
+                case "image" -> CodeOutput.Image(CodeImage.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown CodeOutput branch")
+            }
+        }
+    }
+}
+struct SearchQuery(
+    val query: String? = None,
+    val queries: Array<String>? = None,
+    val sources: Array<SearchSource>? = None
+) {
+    companion object : Encodable<SearchQuery>, Decodable<SearchQuery> {}
+}
+struct SearchSource(val type: String, val url: String) {
+    companion object : Encodable<SearchSource>, Decodable<SearchSource> {}
+}
+struct SearchPage(val url: String? = None) {
+    companion object : Encodable<SearchPage>, Decodable<SearchPage> {}
+}
+struct SearchFind(val url: String, val pattern: String) {
+    companion object : Encodable<SearchFind>, Decodable<SearchFind> {}
+}
+enum SearchAction {
+    Search(SearchQuery), Open(SearchPage), Find(SearchFind)
+    companion object : Encodable<SearchAction>, Decodable<SearchAction> {
+        public override fun encode(value: SearchAction, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case SearchAction.Search(payload) -> {
+                    String.encode("search", fields.field("type"))
+                    SearchQuery.Companion.encode(payload, encoder)
+                }
+                case SearchAction.Open(payload) -> {
+                    String.encode("open_page", fields.field("type"))
+                    SearchPage.Companion.encode(payload, encoder)
+                }
+                case SearchAction.Find(payload) -> {
+                    String.encode("find_in_page", fields.field("type"))
+                    SearchFind.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): SearchAction {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "search" -> SearchAction.Search(SearchQuery.Companion.decode(decoder))
+                case "open_page" -> SearchAction.Open(SearchPage.Companion.decode(decoder))
+                case "find_in_page" -> SearchAction.Find(SearchFind.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown SearchAction branch")
+            }
+        }
+    }
+}

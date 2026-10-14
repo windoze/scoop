@@ -1,6 +1,6 @@
 # M46 离线基线覆盖记录
 
-本记录按 [BASELINES.md](BASELINES.md) 的形状矩阵关联普通 Scoop 用例。它不是完整 API client 或新 manifest 入口。生产库只提供协议、Serialize 合成和 JsonValue；基线 DTO 与业务检查留在测试中。Cone 与 Chat 已完成本机验收；Responses 和 Messages 尚待实施，不能计为已验收。
+本记录按 [BASELINES.md](BASELINES.md) 的形状矩阵关联普通 Scoop 用例。它不是完整 API client 或新 manifest 入口。生产库只提供协议、Serialize 合成和 JsonValue；基线 DTO 与业务检查留在测试中。Cone、Chat 与 Responses 已完成本机验收；Messages 尚待实施，不能计为已验收。
 
 ## Cone 等价 JSON
 
@@ -36,3 +36,19 @@
 | C8 | ErrorEnvelope 是正常 typed 数据；CompletionReader 的 allow／deny／collect 均运行，错误 id 不因 collect 而放宽。未知 key 路径包含 JSON Pointer 转义；未知 role、已知坏 payload、缺失 required nullable 均失败 |
 
 字段形状核对依据 [官方 Create 定义](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)（2026-10-14）。sampling／token limit／penalty 等数值、开关布尔值、模型及标识字符串、modalities 等标量数组归入 C5 的普通字段族；audio／prediction／stream options／缓存配置归入 C1～C4 的固定 record 与字符串／块数组族；旧 functions／function_call 归入函数定义及字符串／具名对象族。它们不增加新的 codec 机制，不为相同形状逐个复制 DTO 字段。请求、响应和 delta 保持独立 required 集合，未用一个全可选 record 合并所有分支。
+
+## Responses
+
+用例：[m46-baseline-responses](../../tests/fixtures/m46-baselines/responses/fixture.toml)。[请求／响应／事件输入](../../tests/fixtures/m46-baselines/responses/program/src/response_data.scoop)、[其他 item 形状](../../tests/fixtures/m46-baselines/responses/program/src/response_extra_data.scoop)、[typed 断言](../../tests/fixtures/m46-baselines/responses/program/src/response_test.scoop)和[12 个错误路径](../../tests/fixtures/m46-baselines/responses/program/src/response_failures.scoop)共同验证；moving GC 使用带函数 schema、简式消息、function call 和 metadata 的代表请求。
+
+| 基线 | 实现及观察 |
+| --- | --- |
+| R1 | ResponseInput 保存字符串或数组；ResponseContent 保存字符串或块数组。ResponseItem 分无 type 的 Easy、显式 message 输入及带 id 的完整输出，同一 tag 再按可观察字段选择，输出 status 缺失不被当作未知扩展 |
+| R2 | 混合序列的 15 个 item 覆盖 message、reasoning、function call／result、file／web search、computer call／screenshot、image generation、code interpreter、MCP call／list／approval／decision、compaction。output 数组重新作为同一 typed item 序列读取；opaque／encrypted 字符串和顺序保持 |
+| R3 | FunctionSpec 的 type、name、parameters 直接同层输出；7 类工具分别读取专用 payload。Choice 保留模式字符串或具名对象；computer action、search action、code output、MCP error 还有独立的内部 discriminator |
+| R4 | text.format 和 function parameters 的开放 schema 使用 JsonValue；PromptVariables 是动态 key 的 PromptValue 字符串／image／file union，已知 image_url 类型错误按完整路径拒绝 |
+| R5 | conversation 的字符串／id 对象／null，input 短式与显式空数组，metadata 字符串 map 均运行。应用 DTO 的 instructions 带非 None default，显式 null 仍为 None 并写 null，错误数字不能回退为 default |
+| R6 | ResponseBody 的 status／error／incomplete_details／usage／output 为 typed 字段；created／failed／incomplete／completed 状态作为正常数据读取。required nullable error／usage 保留 null；MCP protocol／HTTP 错误按 code／message 读取，只有 execution error 的开放 content 使用 JsonValue |
+| R7 | 16 个完整事件覆盖 created／in_progress／completed／failed／incomplete、item／content 添加和结束、文本 delta／done、两段函数参数 delta／done、error 及未知扩展。已知坏 delta 或 error 失败，不进入 Unknown；未知事件原树保留；片段拼接后才读取 Location |
+
+实施核对使用可访问的[官方 Responses Create CLI schema](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)、[Responses 类型目录及展开 schema](https://developers.openai.com/api/reference/cli/resources/responses)和[流事件指南](https://developers.openai.com/api/docs/guides/streaming-responses)（2026-10-14）；HTTP Create 页面本次抓取失败，CLI reference 描述同一 `/responses` wire schema。其余工具版本／action／annotation／音频及进度事件映射到已经运行的 tag＋固定 payload、嵌套 tag、标量数组和可空 record 族；namespace、shell／apply_patch、tool permissions、container policy 等组合亦不引入不同 JSON 形状。没有把已知结构整体存为 JsonValue，也没有扩成 Responses SDK。

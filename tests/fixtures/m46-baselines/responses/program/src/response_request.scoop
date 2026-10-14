@@ -1,0 +1,94 @@
+import scoop.json.*
+
+struct ResponseRequest(
+    val model: String,
+    val input: ResponseInput,
+    val tools: Array<ResponseTool> = [],
+    val tool_choice: ResponseChoice? = None,
+    val text: TextConfig? = None,
+    val prompt: PromptConfig? = None,
+    val conversation: Conversation? = None,
+    val instructions: String? = Some("Use concise answers"),
+    val previous_response_id: String? = None,
+    val metadata: Strings? = None
+) {
+    companion object : Encodable<ResponseRequest>, Decodable<ResponseRequest> {}
+}
+struct TextConfig(val format: ResponseFormat) {
+    companion object : Encodable<TextConfig>, Decodable<TextConfig> {}
+}
+struct SchemaFormat(val name: String, val schema: JsonValue, val strict: Boolean? = None) {
+    companion object : Encodable<SchemaFormat>, Decodable<SchemaFormat> {}
+}
+struct PromptConfig(val id: String, val variables: PromptVariables) {
+    companion object : Encodable<PromptConfig>, Decodable<PromptConfig> {}
+}
+struct ConversationID(val id: String) {
+    companion object : Encodable<ConversationID>, Decodable<ConversationID> {}
+}
+enum ResponseInput {
+    Text(String), Items(Array<ResponseItem>)
+    companion object : Encodable<ResponseInput>, Decodable<ResponseInput> {
+        public override fun encode(value: ResponseInput, encoder: Encoder) {
+            when (value) {
+                case ResponseInput.Text(text) -> String.encode(text, encoder)
+                case ResponseInput.Items(payload) -> Array<ResponseItem>.encoder(ResponseItem.Companion).encode(payload, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): ResponseInput {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { text = None }
+            if (text != None) { return ResponseInput.Text(text!!) }
+            return ResponseInput.Items(Array<ResponseItem>.decoder(ResponseItem.Companion).decode(decoder))
+        }
+    }
+}
+enum Conversation {
+    Text(String), ID(ConversationID)
+    companion object : Encodable<Conversation>, Decodable<Conversation> {
+        public override fun encode(value: Conversation, encoder: Encoder) {
+            when (value) {
+                case Conversation.Text(text) -> String.encode(text, encoder)
+                case Conversation.ID(payload) -> ConversationID.Companion.encode(payload, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): Conversation {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { text = None }
+            if (text != None) { return Conversation.Text(text!!) }
+            return Conversation.ID(ConversationID.Companion.decode(decoder))
+        }
+    }
+}
+enum ResponseFormat {
+    Text, Object, Schema(SchemaFormat)
+    companion object : Encodable<ResponseFormat>, Decodable<ResponseFormat> {
+        public override fun encode(value: ResponseFormat, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case ResponseFormat.Text -> {
+                    String.encode("text", fields.field("type"))
+                }
+                case ResponseFormat.Object -> {
+                    String.encode("json_object", fields.field("type"))
+                }
+                case ResponseFormat.Schema(payload) -> {
+                    String.encode("json_schema", fields.field("type"))
+                    SchemaFormat.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ResponseFormat {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "text" -> ResponseFormat.Text
+                case "json_object" -> ResponseFormat.Object
+                case "json_schema" -> ResponseFormat.Schema(SchemaFormat.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown ResponseFormat branch")
+            }
+        }
+    }
+}
