@@ -1,0 +1,72 @@
+import scoop.json.*
+import scoop.text.*
+
+struct Location(val location: String) {
+    companion object : Encodable<Location>, Decodable<Location> {}
+}
+fun chatBaseline(moving: Boolean) {
+    val request = Json.decode(chatRequestText(), ChatRequest.Companion)
+    check(request.messages.size == 7L && request.tools!!.size == 2L)
+    check(request.metadata!!.values["escaped/~"]!! == "value" && request.logit_bias!!.values["42"]!! == -2.5)
+    check(request.temperature == None)
+    check(when (request.messages[3L]) {
+        case ChatMessage.Assistant(value) -> value.tool_calls!!.size == 2L
+        else -> false
+    })
+    val encoded = Json.encode(request, ChatRequest.Companion)
+    gcCollect()
+    if (moving) {
+        check(encoded.contains("18446744073709551616"))
+        return
+    }
+    check(Json.encode(Json.decode(encoded, ChatRequest.Companion), ChatRequest.Companion) == encoded)
+    check(encoded.contains("18446744073709551616"))
+    for (text in ["\"auto\"", "\"none\"", "\"required\"", """{"type":"allowed_tools","allowed_tools":{"mode":"auto","tools":[{"type":"function","function":{"name":"weather"}}]}}"""]) {
+        val choice = Json.decode(text, ChatChoice.Companion)
+        check(Json.encode(choice, ChatChoice.Companion) == text)
+    }
+    for (text in ["""{"type":"text"}""", """{"type":"json_object"}"""]) {
+        check(Json.encode(Json.decode(text, ChatFormat.Companion), ChatFormat.Companion) == text)
+    }
+    val response = Json.decode(chatResponseText(), CompletionReader(true, false))
+    check(response.completion.usage!!.total_tokens == 10L)
+    check(response.completion.choices[0L].logprobs!!.content!![0L].bytes!!.size == 5L)
+    val raw = response.extra.values["extension/~"]!!
+    val rawText = Json.encode(raw, JsonValue.Companion)
+    check(rawText.contains("[18446744073709551616,0.12345678901234567890123456789,1e400,-0]"))
+    gcCollect()
+    val written = Json.encode(response, CompletionWriter)
+    check(Json.encode(Json.decode(written, CompletionReader(true, false)), CompletionWriter) == written)
+    check(Json.decode(chatResponseText(), CompletionReader(false, false)).extra.values.size == 0L)
+    reject("/extension~1~0") { Json.decode(chatResponseText(), CompletionReader(false, true)) }
+    var arguments = ""
+    var count = 0L
+    for (text in chatChunks()) {
+        val chunk = Json.decode(text, ChatChunk.Companion)
+        val canonical = Json.encode(chunk, ChatChunk.Companion)
+        check(Json.encode(Json.decode(canonical, ChatChunk.Companion), ChatChunk.Companion) == canonical)
+        if (chunk.choices.size != 0L && when (chunk.choices[0L].delta.tool_calls) { case None -> false; else -> true }) {
+            arguments += chunk.choices[0L].delta.tool_calls!![0L].function!!.arguments!!
+        }
+        if (chunk.choices.size == 0L) { check(chunk.usage!!.completion_tokens == 2L) }
+        count += 1L
+    }
+    check(count == 5L && Json.decode(arguments, Location.Companion).location == "Paris")
+    val error = Json.decode("""{"error":{"message":"rate limit","type":"rate_limit_error","param":null,"code":"rate_limit_exceeded"}}""", ErrorEnvelope.Companion)
+    check(error.error.code == Some("rate_limit_exceeded"))
+    chatFailures()
+}
+fun chatFailures() {
+    reject("/role") { Json.decode("""{"role":"alien","content":"x"}""", ChatMessage.Companion) }
+    reject("/content/0") { Json.decode("""{"role":"system","content":[{"type":"image_url","image_url":{"url":"https://example.test"}}]}""", ChatMessage.Companion) }
+    reject("/content/0/image_url/url") { Json.decode("""{"role":"user","content":[{"type":"image_url","image_url":{"url":7}}]}""", ChatMessage.Companion) }
+    reject("/tool_call_id") { Json.decode("""{"role":"tool","content":"result"}""", ChatMessage.Companion) }
+    reject("/content") { Json.decode("""{"role":"function","name":"old"}""", ChatMessage.Companion) }
+    reject("/metadata/key") { Json.decode("""{"model":"m","messages":[],"metadata":{"key":7}}""", ChatRequest.Companion) }
+    reject("/logit_bias/key") { Json.decode("""{"model":"m","messages":[],"logit_bias":{"key":"bad"}}""", ChatRequest.Companion) }
+    reject("/function/name") { Json.decode("""{"type":"function","function":{"name":7}}""", ChatTool.Companion) }
+    reject("/function/arguments") { Json.decode("""{"type":"function","id":"c","function":{"name":"f","arguments":{}}}""", ChatCall.Companion) }
+    reject("/id") { Json.decode("""{"id":7,"object":"chat.completion","created":0,"model":"m","choices":[],"usage":null,"future":true}""", CompletionReader(true, false)) }
+    reject("/choices/0/finish_reason") { Json.decode("""{"id":"c","object":"chat.completion.chunk","created":0,"model":"m","choices":[{"index":0,"delta":{}}]}""", ChatChunk.Companion) }
+    reject("/error/message") { Json.decode("""{"error":{"message":7,"type":"bad"}}""", ErrorEnvelope.Companion) }
+}

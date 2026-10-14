@@ -1,0 +1,57 @@
+struct TextPart(val text: String) {
+    companion object : Encodable<TextPart>, Decodable<TextPart> {}
+}
+struct RefusalPart(val refusal: String) {
+    companion object : Encodable<RefusalPart>, Decodable<RefusalPart> {}
+}
+struct ChatImage(val image_url: ImageURL) {
+    companion object : Encodable<ChatImage>, Decodable<ChatImage> {}
+}
+struct ImageURL(val url: String, val detail: String? = None) {
+    companion object : Encodable<ImageURL>, Decodable<ImageURL> {}
+}
+struct ChatAudio(val input_audio: InputAudio) {
+    companion object : Encodable<ChatAudio>, Decodable<ChatAudio> {}
+}
+struct InputAudio(val data: String, val format: String) {
+    companion object : Encodable<InputAudio>, Decodable<InputAudio> {}
+}
+struct ChatFile(val file: FileData) {
+    companion object : Encodable<ChatFile>, Decodable<ChatFile> {}
+}
+struct FileData(val file_id: String? = None, val file_data: String? = None, val filename: String? = None) {
+    companion object : Encodable<FileData>, Decodable<FileData> {}
+}
+struct ChatTextMessage(val content: ChatContent, val name: String? = None) {
+    companion object : Encodable<ChatTextMessage>, Decodable<ChatTextMessage> {}
+}
+struct ChatAssistant(
+    val content: ChatContent? = None,
+    val refusal: String? = None,
+    val tool_calls: Array<ChatCall>? = None,
+    val function_call: FunctionCall? = None,
+    val audio: AudioOutput? = None
+) {
+    companion object : Encodable<ChatAssistant>, Decodable<ChatAssistant> {}
+}
+struct AudioOutput(val id: String, val data: String, val expires_at: Long, val transcript: String) {
+    companion object : Encodable<AudioOutput>, Decodable<AudioOutput> {}
+}
+struct ChatToolMessage(val tool_call_id: String, val content: ChatContent) {
+    companion object : Encodable<ChatToolMessage>, Decodable<ChatToolMessage> {}
+}
+struct ChatFunctionMessage(val name: String, @Serialize(required = true) val content: String?) {
+    companion object : Encodable<ChatFunctionMessage>, Decodable<ChatFunctionMessage> {}
+}
+struct FunctionCall(val name: String, val arguments: String) {
+    companion object : Encodable<FunctionCall>, Decodable<FunctionCall> {}
+}
+struct ChatFunctionCall(val id: String, val function: FunctionCall) {
+    companion object : Encodable<ChatFunctionCall>, Decodable<ChatFunctionCall> {}
+}
+struct ChatCustomCall(val id: String, val custom: CustomCall) {
+    companion object : Encodable<ChatCustomCall>, Decodable<ChatCustomCall> {}
+}
+struct CustomCall(val name: String, val input: String) {
+    companion object : Encodable<CustomCall>, Decodable<CustomCall> {}
+}

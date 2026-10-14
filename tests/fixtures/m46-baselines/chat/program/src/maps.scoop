@@ -1,0 +1,21 @@
+import scoop.json.*
+import scoop.collections.*
+
+class Strings(val values: LinkedHashMap<String, String>) {
+    companion object : Encodable<Strings>, Decodable<Strings> {
+        public override fun encode(value: Strings, encoder: Encoder) { writeObject(value.values, encoder, String.Companion) }
+        public override fun decode(decoder: Decoder): Strings = Strings(readObject(decoder, String.Companion))
+    }
+}
+class Numbers(val values: LinkedHashMap<String, Double>) {
+    companion object : Encodable<Numbers>, Decodable<Numbers> {
+        public override fun encode(value: Numbers, encoder: Encoder) { writeObject(value.values, encoder, Double.Companion) }
+        public override fun decode(decoder: Decoder): Numbers = Numbers(readObject(decoder, Double.Companion))
+    }
+}
+class Extensions(val values: LinkedHashMap<String, JsonValue>) {
+    companion object : Encodable<Extensions>, Decodable<Extensions> {
+        public override fun encode(value: Extensions, encoder: Encoder) { writeObject(value.values, encoder, JsonValue.Companion) }
+        public override fun decode(decoder: Decoder): Extensions = Extensions(readObject(decoder, JsonValue.Companion))
+    }
+}

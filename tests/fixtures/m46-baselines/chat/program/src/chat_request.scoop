@@ -1,0 +1,17 @@
+struct ChatRequest(
+    val model: String,
+    val messages: Array<ChatMessage>,
+    val tools: Array<ChatTool>? = None,
+    val tool_choice: ChatChoice? = None,
+    val response_format: ChatFormat? = None,
+    val metadata: Strings? = None,
+    val logit_bias: Numbers? = None,
+    val temperature: Double? = None,
+    val stream: Boolean = false,
+    val stream_options: StreamOptions? = None
+) {
+    companion object : Encodable<ChatRequest>, Decodable<ChatRequest> {}
+}
+struct StreamOptions(val include_usage: Boolean = false) {
+    companion object : Encodable<StreamOptions>, Decodable<StreamOptions> {}
+}

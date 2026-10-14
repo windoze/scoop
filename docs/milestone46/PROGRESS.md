@@ -38,7 +38,9 @@
 - Cone 等价 JSON 已完成普通 Scoop DTO、稳定视图包装校验、动态依赖 object、短长式依赖和 target 条件。完整配置、默认配置、显式空数组、全部 library kind、条件 AND／OR、typed 往返及 67 个准确错误路径覆盖 T1～T9；没有新增 Cone.json 构建入口或移植构建器。源码按职责分为 10 个文件，各不超过 91 行。映射见 [COVERAGE.md](COVERAGE.md)。
 - 本机 fmt／全工作区 clippy 通过；Cone fixture 普通模式执行全部输入，moving GC 执行完整正向组合和首末两个代表性失败，合计约 37 秒通过。初轮修正 enum payload 的 warning 和测试中 null 字段路径误写；全错误矩阵的 moving 重复成本过高，主动中断后缩减到代表组合，普通错误矩阵保持完整。
 - 报告：[编译首轮](validation/cone-initial-darwin.json.gz)、[运行首轮](validation/cone-runtime-initial-darwin.json.gz)、[路径诊断](validation/cone-path-darwin.json.gz)、[搬迁测试中断](validation/cone-moving-interrupted-darwin.json.gz)、[完成验证](validation/cone-verified-darwin.json.gz)。失败和中断不计为通过。
-- 三组 API 尚待实施，M46-5 尚未完成。
+- Chat 基线完成 C1～C8：普通模式执行全部 typed 往返和 12 个准确错误路径，moving GC 执行完整多模态请求组合；本机 fmt／全工作区 clippy 和 fixture 通过，约 121 秒。源码按职责拆分，各不超过 114 行。没有生产库改动。
+- Chat 首轮修正测试的泛型函数声明、Array 完整类型实参、Option<Array> 无相等性及 enum 裸绑定 warning。完整正向矩阵在普通模式通过后，中断成本过高的重复搬迁矩阵，改为代表组合后复验通过。[语法首轮](validation/chat-initial-darwin.json.gz)、[类型首轮](validation/chat-typed-initial-darwin.json.gz)、[搬迁中断](validation/chat-moving-interrupted-darwin.json.gz)、[完成验证](validation/chat-verified-darwin.json.gz)均保留。
+- Responses 和 Messages 尚待完成，M46-5 尚未完成。
 
 ## 后续
 
