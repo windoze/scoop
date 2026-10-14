@@ -5,6 +5,37 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef SCOOP_BENCH_WORLD_TIMING
+#include <assert.h>
+#include <time.h>
+#define SCOOP_THREAD_TESTING
+#include "../../../runtime/src/thread/testing.h"
+
+static uint64_t boundaries[3];
+static unsigned boundary_count;
+
+void scoop_thread_test_point(ScoopThreadTestPoint point) {
+    unsigned index;
+    switch (point) {
+    case SCOOP_TEST_COLLECTOR_STOPPING:
+        index = 0;
+        break;
+    case SCOOP_TEST_COLLECTOR_STOPPED:
+        index = 1;
+        break;
+    case SCOOP_TEST_COLLECTOR_RUNNING:
+        index = 2;
+        break;
+    default:
+        return;
+    }
+    struct timespec now;
+    assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+    boundaries[index] = (uint64_t)now.tv_sec * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
+    boundary_count++;
+}
+#endif
+
 static ScoopGcMetrics before;
 
 int32_t m34_mark_kind(void) {
@@ -24,7 +55,12 @@ int32_t m34_mark_rounds(void) {
     return rounds == NULL ? 5 : (int32_t)strtol(rounds, NULL, 10);
 }
 
-void m34_mark_begin(void) { scoop_rt_gc_debug_metrics(&before); }
+void m34_mark_begin(void) {
+    scoop_rt_gc_debug_metrics(&before);
+#ifdef SCOOP_BENCH_WORLD_TIMING
+    boundary_count = 0;
+#endif
+}
 
 void m34_mark_end(int32_t round) {
     ScoopGcMetrics after;
@@ -61,6 +97,17 @@ void m34_mark_end(int32_t round) {
                 after.worker_marked_objects[index] - before.worker_marked_objects[index]);
     }
     fputc(']', stderr);
+#endif
+    fprintf(stderr, ",\"moved_objects\":%" PRIu64, scoop_rt_gc_debug_last_moved_count());
+#ifdef SCOOP_BENCH_WORLD_TIMING
+    assert(boundary_count == 3);
+    assert(boundaries[0] <= boundaries[1] && boundaries[1] <= boundaries[2]);
+    fprintf(stderr,
+            ",\"stopping_ns\":%" PRIu64 ",\"collecting_ns\":%" PRIu64 ",\"running_ns\":%" PRIu64
+            ",\"quiescence_ns\":%" PRIu64 ",\"world_stopped_ns\":%" PRIu64
+            ",\"request_to_running_ns\":%" PRIu64,
+            boundaries[0], boundaries[1], boundaries[2], boundaries[1] - boundaries[0],
+            boundaries[2] - boundaries[1], boundaries[2] - boundaries[0]);
 #endif
     fputs("}\n", stderr);
 }

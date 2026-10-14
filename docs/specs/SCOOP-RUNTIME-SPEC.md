@@ -387,6 +387,8 @@ collector 在 world lock 内检查停稳谓词；条件不满足时，使用带�
 
 全部目标停稳后，在 world lock 内发布 `COLLECTING`，释放 world lock，再执行既有 STW 扫描与移动流程。此后目标线程的可扫描数据必须持续冻结到恢复 `RUNNING`。完成所有根、引用和分配状态更新并释放 heap/roots 锁后，在 world lock 内恢复 collector 自身状态、释放 collector 独占权，再以 release 或更强的内存序发布 `RUNNING` 并广播；线程的 acquire 观察负责接收 GC 的回写。
 
+测试／基准可通过现有线程测试观测通道，在同一轮发布 `STOPPING`、`COLLECTING`、`RUNNING` 后分别记录 T0、T1、T2。三处观测均紧随 phase 发布、仍持 world lock；已有发布前的 RESUMING 观测点保留原义，不能作为 T2。T1−T0 表示停稳等待，T2−T1 表示 world 停止阶段，T2−T0 表示请求到允许恢复区间；末者不包含随后广播、world 解锁及 OS 调度，也不等于某个 mutator 的实际停顿。线程停止推进到恢复推进的间隔由专用多线程基准另测。观测含回调和时钟读取成本，仅在测试构建启用，不在普通分配、card 标记或无请求 poll 上计时，不增加公共 runtime ABI。
+
 保留 GC 开始、park 确认、GC 结束以及初始化完成/失败的必要通知。初始化等待者可能在 world 为 `RUNNING` 时已处于 `PARKED`，必须在新 GC 开始时被唤醒并确认新 epoch。上一轮的 parker 尚未恢复而下一轮 GC 已开始时，也必须确认新 epoch。`parked_from` 及冻结栈段、根链在一次 park 区间开始时发布，来源状态保留 `MANAGED_PENDING` 的区别；确认新 epoch 或虚假唤醒不得重写这些可扫描记录。
 
 NativeBorrowed 仍可能访问 direct ref，必须在有效 safepoint park 并确认本轮 epoch 后才算停稳。gateway、callback 等低频 managed 入口可继续在 world lock 内完成 `RUNNING` 检查与状态转换；使用完整有锁入口时，不要求再叠加 RETURNING 握手。
@@ -462,6 +464,8 @@ roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同
 mark 结束后复用首次标记的存活对象集合规划搬迁并更新每个存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图；roots 与稳定外部 payload 仍全部更新。minor 只处理年轻集合及 remembered set。首版复制、引用回写、release hook、reclaim 和 VM 归还均由 coordinator 执行，worker 全部结束前不移动或释放 metadata；shutdown 停止并 join worker。
 
 诊断分别记录停稳等待、roots、remembered、mark、plan、copy、reference update、reclaim 与 VM 归还的墙钟时间，以及各 marker 的线程 CPU／标记对象数、数组任务和窃取次数。mark 阶段加速与总停顿分开报告；root producer 的工作计入 roots／remembered 阶段，不把重叠时间相加成停顿。所有阶段计数在 worker 完成后由 coordinator 归并，release hook 不在 marker 上执行。
+
+既有 `stop_wait_ns` 从调用 `scoop_thread_begin_collection` 前计到成功返回，包含取得 collector 权限的开销；`pause_ns` 从返回后计到 `record_pause`，不包含此前等待和随后解锁／RUNNING 发布。保留这两个字段的含义，与 3.5 的三个发布边界分别报告。阶段累计值的前后差分保持 plan 扣除 copy、reclaim 扣除 VM 归还的口径；阶段之和不能替代整体停顿计时。实际搬迁数使用本轮完成的对象搬迁计数，不能从 `copy_ns == 0` 推断。
 
 region 诊断补充 managed region 映射成功的累计次数、当前可复用的空 ordinary region 数，以及上次普通 full 成功搬迁的 source／target region 数和因 pin 被排除的稀疏候选数。无搬迁或预留回滚的 source／target 数为零；minor／显式 moving stress 不覆盖上次普通 full 的策略记录。统计复用选择和预留阶段已有事实，不能为了诊断重放标记或搬迁。
 

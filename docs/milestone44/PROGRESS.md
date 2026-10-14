@@ -6,7 +6,7 @@
 
 | 批次 | 状态 |
 | --- | --- |
-| M44-1 基线、计时观测与 spec | 已检查现有 collector、线程边界与 benchmark；准备固定工具和基线，尚未测量 |
+| M44-1 基线、计时观测与 spec | 三个发布边界观测已通过握手回归；release 工具已固定，图基线正在准备 |
 | M44-2 零搬迁更新分支 | 待实施 |
 | M44-3 引用定位、写回和无引用对象 | 待实施 |
 | M44-4 编译器 GC 代码生成边界 | 待实施 |
@@ -26,3 +26,10 @@
 - 已有线程测试观测点覆盖 STOPPING、COLLECTING 后以及 RUNNING 发布前的 RESUMING。后者尚不等于设计要求的 T2；计时观测需明确发布边界，保留旧 stop_wait_ns/pause_ns 的定义。
 - ScoopGcMetrics 的快照按 world／heap 顺序加锁，后续计时实现须保持同步与锁序。现有 benchmark 已有 parallel 图、region、allocation、poll 与 FFI 工作负载，优先复用真实输入及原始输出检查。
 - 当前只登记实施和建立基线准备，不宣称任何 GC 优化或性能收益已完成。
+
+## 2026-10-14：collection 发布边界观测
+
+- 运行时规范 3.5／3.9 明确三个发布边界及既有 stop_wait_ns／pause_ns 的不同口径。新增 RUNNING 发布后的线程测试观测点，原 RESUMING 点继续位于发布前；生产构建仍完全移除测试回调，不变更公共 ABI 或快路径。
+- 图基准可选记录 STOPPING／COLLECTING／RUNNING 原始单调时间及三个差值，并直接记录本轮 moved_objects。观测仅用于专用测试 runtime；不能据此宣称测得 mutator 实际恢复时间。
+- 格式化、workspace clippy 和 C 的两种宏配置语法检查通过。NativeSafe 握手回归在 full／minor × O0／O2 四种组合各执行 60 次受控交错，验证发布顺序、phase 和移动后的真实根，见[验证日志](validation/observation-test.log.gz)与[lint 日志](validation/observation-lint.log.gz)。
+- M43 完成后的 release 工具构建成功并固定于 target/m44/tools-baseline。尚未执行基线计时，不报告优化收益。

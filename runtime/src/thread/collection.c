@@ -112,7 +112,8 @@ void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t retu
 void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
                                         uintptr_t stack_pointer, uintptr_t frame_pointer) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_MANAGED_PENDING) {
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) !=
+        SCOOP_THREAD_MANAGED_PENDING) {
         scoop_thread_push_managed_anchor(anchor, return_pc, stack_pointer, frame_pointer);
         return;
     }
@@ -238,6 +239,7 @@ void scoop_thread_end_collection(void) {
     atomic_store_explicit(&state->poll.mode, requester_mode, memory_order_release);
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_RESUMING);
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_RUNNING, memory_order_release);
+    SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_RUNNING);
     scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();
 }
