@@ -20,6 +20,7 @@ pub fn render_llvm_ir_members(
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
     let mut callables = BTreeMap::new();
+    let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
     for function in module.callable_bodies() {
         let context = Context::create();
         let body = function.callable_body.id();
@@ -29,6 +30,7 @@ pub fn render_llvm_ir_members(
             &context,
             module,
             &production,
+            &elf_symbols,
             &machine,
             profile,
             (&selected_safepoints, &selected_eh),

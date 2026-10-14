@@ -63,6 +63,15 @@
 
 - 修复后的 Chat [采样](validation/chat-indexed-backtrace.log.gz)已进入 LLVM 输出；Messages 的[慢路径采样](validation/messages-indexed-backtrace.log.gz)进一步发现每次 callable 元数据发射都重新建立全 Cone 的 boundary BTreeMap。按已有一次建立／复用原则先补实现规范，再让 ObjectSymbolSurface 保存按 atom identity 查询的位置索引；删除未发射定义／atom 后同步更新，wire 只编码原有 plans。codegen 只查询本次实际发射的 atom，保持 owner 冲突、缺失 atom、别名及范围检查。
 - 本机 fmt、[clippy](validation/boundary-clippy-darwin.log.gz)、[6 项 LIR 查询／wire 测试](validation/boundary-lir-darwin.log.gz)、[36 项元数据 ABI 测试](validation/boundary-codegen-darwin.log.gz)、[9 项对象分区测试](validation/boundary-partition-darwin.log.gz)、[3 项 shape 测试](validation/boundary-shapes-darwin.log.gz)通过。[Messages／Responses／JsonValue 无源码产物 fixture](validation/boundary-fixtures-darwin.json.gz)均通过，含普通及 moving GC，分别约 107／107／19 秒；没有增加测试时限、wire 字段或 runtime ABI。
+- `7d578bdf` 在 Linux 的 fmt／[clippy](validation/boundary-clippy-linux.log.gz)、[release CLI 构建](validation/boundary-build-linux.log.gz)、[475 项 LIR 测试](validation/boundary-lir-linux.log.gz)和 [387 项 codegen／runtime 测试](validation/boundary-codegen-linux.log.gz)通过。Rust 剩余覆盖已闭合：[83 项 release driver library 测试](validation/boundary-driver-linux.log.gz)、[7 项 CLI 单元测试与 1 项 capability 集成测试](validation/boundary-driver-cli-linux.log.gz)、[workspace 的 2 项文档测试](validation/boundary-doc-linux.log.gz)全部通过。
+- GNU 切换 boundary 修复前的[报告](validation/gnu-pre-boundary.json.gz)新增 893 项通过；修复后的[续跑报告](validation/gnu-boundary.json.gz)新增 1341 项通过、1 项旧 Option 期望失败，与此前累计 3050 项通过。为让未执行的三个大型基线使用更新时限，保存中断报告后继续剩余 1011 项；已通过项不重跑。
+- musl 在原 300 秒配置下的[本轮报告](validation/musl-boundary.json.gz)有 36 项通过，仅三个大型 API 基线在构建步骤超时；其中 Chat 的[采样](validation/chat-boundary-backtrace.log.gz)位于 LLVM 模块验证。两处具体重复扫描修复后，最终将三个大型基线的 build 单独设为 600 秒，其他步骤和普通用例保持默认值；[本机 clippy](validation/baseline-timeout-clippy-darwin.log.gz)及全部 4091 项声明／源码归属检查通过。大型基线在独立目录复验；首次通过缓存软链接复用被构建器拒绝，保留[报告](validation/musl-baseline-cache-link.json.gz)，改用缓存实际副本继续。
+
+### ELF 符号准备复用定义组索引
+
+- 三个大型基线在新时限下的[报告](validation/musl-baseline-before-elf.json.gz)中，Chat 约 377 秒通过；Messages 构建过程中，CLI 集成测试重新链接了 `scoopc`，触发配套工具变更检查，需要在工具稳定后复验。Responses 构建仍超过 600 秒，其[采样](validation/responses-final-backtrace.log.gz)定位到每个 callable 都遍历全 Cone 符号计划、重新生成符号名并查找未发射 alias 的 ELF 准备路径。
+- 实现规范先明确一次建立符号／定义组索引。codegen 在 callable 批次开始时建立索引，逐 module 只查询实际 global、function 与 alias，并按原计划顺序应用可见性和 COMDAT。保留同名多请求、alias owner、private owner、weak linkage 及定义组冲突检查；metadata 的最终裁剪使用裁剪后的新计划。没有新增 IR、wire、runtime ABI 或工具授权机制。
+- 本机 fmt／[clippy](validation/elf-clippy-darwin.log.gz)、[2 项索引复用与冲突测试](validation/elf-tests-darwin.log.gz)、[5 项实际 Linux ELF 交叉发射测试](validation/elf-cross-darwin.log.gz)及 [9 项对象分区测试](validation/elf-partition-darwin.log.gz)通过。实现按职责拆为 64／105 行模块，新增测试 86 行。Linux 将在停止旧 fixture 后统一构建三个 CLI，再运行定向回归和剩余全量用例，期间不再运行会重写 CLI 的 Cargo 命令。
 
 ## 后续
 

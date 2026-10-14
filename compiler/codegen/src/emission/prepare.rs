@@ -52,10 +52,12 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
     Ok((llvm, runtime_metadata))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     context: &'ctx Context,
     module: &Module,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
+    elf_symbols: &crate::elf_llvm::SymbolPlanIndex,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected: (&statepoint::ExpectedSafepoints, &artifact::ExpectedEh),
@@ -97,7 +99,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         &mut runtime_metadata,
     )?;
     if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        crate::elf_llvm::prepare(&llvm, production.canonical_definitions())?;
+        elf_symbols.prepare(&llvm)?;
     }
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
     lower_and_verify(&llvm, machine, profile, &safepoints)?;
