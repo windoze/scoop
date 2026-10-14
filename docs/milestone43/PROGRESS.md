@@ -7,10 +7,10 @@
 | 批次 | 状态 | 证据 |
 | --- | --- | --- |
 | M43-1 断言与测试库 | 断言、四种测试标记与每用例执行库已完成 | 普通 scoop.test Cone、8 个断言函数、Test/BeforeTest/AfterTest/Ignore、分阶段失败数据与 runTestCase；语言规范第 16 章 |
-| M43-2 测试输入与依赖 | manifest、源码选择、定义处候选隔离、测试构建图／缓存与输出已接入 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
-| M43-3 静态发现与生命周期入口 | 发现、构造选择、入口与全部用例适配、目录持久化和运行时选择已接入 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
-| M43-4 CLI 与运行报告 | 命令选择、独立结果通道、输出捕获与分层报告已接入；完整验收待完成 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存、moving GC、生命周期失败与进程异常结束 |
-| M43-5 scoop.std 应用、产物与平台验收 | scoop.std 首批同 Cone 测试已接入；完整 CLI 组合与 Linux 验收待完成 | 3 个容器、10 个用例；Darwin debug/release、生产隔离、缓存与 moving GC |
+| M43-2 测试输入与依赖 | 已完成 | test.sources/test-dependencies；scoopc build --test 与 protocol 6；生产名称查找排除测试输入，生产构建与缓存不受测试配置影响 |
+| M43-3 静态发现与生命周期入口 | 已完成 | TestEntry 与 typed 目录；library/executable 测试产物、生成闭包及 runTestCase 的实际构造／hooks／正文执行、失败继续与 moving GC |
+| M43-4 CLI 与运行报告 | 已完成，三目标验收通过 | 正式 CLI 覆盖 library/executable 根、debug/release、缓存、moving GC、生命周期失败与进程异常结束 |
+| M43-5 scoop.std 应用、产物与平台验收 | 已完成，三目标验收通过 | 3 个容器、10 个用例；Darwin／GNU／musl 的 debug/release、生产隔离、缓存与 moving GC；完整证据见验收核对 |
 
 ## 工作约定
 
@@ -244,3 +244,10 @@
 - 固定 release 工具的 GNU 剩余组全部通过：153 项 fixture、180 个变体、491 个进程步骤，见 [报告](validation/remaining-gnu.json.gz) 和 [日志](validation/remaining-gnu.log.gz)。逐项核对结果名称与剩余选择清单一致，没有遗漏或替换。
 - 合并首轮 11 项完整通过记录与四项 release 验证，其中一项重叠，得到 GNU 全部 167 项通过，覆盖完整的 105 项 M43 与 62 项共享回归。此前工具重建导致失败的构造回归已经复验通过；没有把提前结束的初轮当作整组成功报告。
 - musl 剩余组仍在运行；M43 要等该平台结束并完成集合核对后收尾，M44 尚未开始。
+
+## 2026-10-14：三目标验收完成，M43 收尾
+
+- musl 剩余组全部通过，共 156 项 fixture、185 个变体、512 个进程步骤，见 [报告](validation/remaining-musl.json.gz) 和 [日志](validation/remaining-musl.log.gz)。此前受配套工具重建影响的构造回归已复验通过，panic／信号、scoop.std、无源码产物与全部 M43 CLI 组合均在完成组中。
+- 根据当前 fixture 发现结果重新核对，M43 恰为 105 项；共享回归为 62 项。将各平台实际完成报告与首轮已完整通过的日志按名称合并，三平台均恰好覆盖相同的 167 项，全部通过，没有缺项、额外替代项或把未完成项当成通过。[覆盖索引](validation/coverage.json.gz)为每一项保存实际报告／日志来源。
+- 已按 [验收核对](ACCEPTANCE.md)逐项检查设计的五个批次及完整验收矩阵，并同步设计、实施状态和路线图为完成。integration-test 仍不在 M43 范围内；scoop.std 是首个实际测试应用。M44 继续按原目标推进。
+- 归档后清理 Linux 两组剩余验收的 cases，约 2.7 GB，保留固定工具、sysroot 和缓存供后续工作复用。全过程没有运行无关的全仓 4050 项 fixture。

@@ -1,18 +1,18 @@
 # M43 验收核对
 
-状态：Darwin 与 Linux GNU 验收完成，Linux musl 验收进行中；尚未判定 M43 完成。日期：2026-10-14。
+状态：M43 已完成，Darwin、Linux GNU 与 Linux musl 验收均通过。日期：2026-10-14。
 
 范围依据 [设计第 9～10 章](DESIGN.md#9-实施批次)，实施与失败修复历史见 [PROGRESS](PROGRESS.md)。M43 仅交付同 Cone 单元测试；integration-test 等待 multi-cone workspace 定型。首个实际应用为 scoop.std。
 
 ## 1. 实施批次与实际实现
 
-| 批次 | 已有实现与直接证据 | 剩余验收 |
+| 批次 | 已有实现与直接证据 | 验收结论 |
 | --- | --- | --- |
-| M43-1 测试库与断言 | [普通 scoop.test Cone](../../sysroot/lib/scoop.test/)、语言规范第 16 章；8 个公开断言函数及 AssertionFailure，10 个 assertions fixture 覆盖真实库消费、错误约束与失败位置 | Linux 对应 fixture |
-| M43-2 测试输入与依赖 | 语言规范 12.2.4、实现规范 2.7；manifest test.sources/test-dependencies、前端源码与直接依赖角色、测试构建键和独立输出；manifest、boundaries、source-selection fixture | Linux 对应 fixture |
-| M43-3 发现与生成入口 | [声明检查](../../compiler/hir-lower/src/test_annotations.rs)、[typed 目录](../../compiler/hir/src/test_suite.rs)、[入口合成](../../compiler/hir-lower/src/test_entry.rs)；21 项发现／入口 Rust 测试，生成入口的正式 CLI fixture | Linux 生成程序的执行与产物组合 |
-| M43-4 CLI 与报告 | [选择](../../compiler/scoop/src/cli/test_selection.rs)、[进程运行](../../compiler/scoop/src/cli/test_run.rs)、[事件读取](../../compiler/scoop/src/cli/test_run/events.rs)、[报告](../../compiler/scoop/src/cli/presentation/test_report.rs)；list、selection、report、process、shutdown fixture | Linux 对应 fixture；GNU process 已通过，musl process 待完成 |
-| M43-5 实际库、产物与平台 | [scoop.std 同 Cone 测试](../../sysroot/lib/scoop.std/tests/)、std-application/std-selection、无源码依赖与 artifact-only 链接 fixture | GNU／musl 整组结果与失败项复验 |
+| M43-1 测试库与断言 | [普通 scoop.test Cone](../../sysroot/lib/scoop.test/)、语言规范第 16 章；8 个公开断言函数及 AssertionFailure，10 个 assertions fixture 覆盖真实库消费、错误约束与失败位置 | 三目标通过 |
+| M43-2 测试输入与依赖 | 语言规范 12.2.4、实现规范 2.7；manifest test.sources/test-dependencies、前端源码与直接依赖角色、测试构建键和独立输出；manifest、boundaries、source-selection fixture | 三目标通过 |
+| M43-3 发现与生成入口 | [声明检查](../../compiler/hir-lower/src/test_annotations.rs)、[typed 目录](../../compiler/hir/src/test_suite.rs)、[入口合成](../../compiler/hir-lower/src/test_entry.rs)；21 项发现／入口 Rust 测试，生成入口的正式 CLI fixture | 三目标执行与产物组合通过 |
+| M43-4 CLI 与报告 | [选择](../../compiler/scoop/src/cli/test_selection.rs)、[进程运行](../../compiler/scoop/src/cli/test_run.rs)、[事件读取](../../compiler/scoop/src/cli/test_run/events.rs)、[报告](../../compiler/scoop/src/cli/presentation/test_report.rs)；list、selection、report、process、shutdown fixture | 三目标通过，失败项均有成功复验 |
+| M43-5 实际库、产物与平台 | [scoop.std 同 Cone 测试](../../sysroot/lib/scoop.std/tests/)、std-application/std-selection、无源码依赖与 artifact-only 链接 fixture | 三目标完整范围通过 |
 
 普通生产构建不包含测试源码或测试依赖；测试构建复用普通编译、链接、ABI、异常与 GC 路径。测试目录中的显示名称只用于展示和过滤，实际调用使用 typed class/callable。生成入口具有独立 generated identity，未改写用户 main。未新增 runtime 公共 ABI 或通用测试引擎。
 
@@ -56,7 +56,7 @@
 
 报告中的 complete=false 表示使用定向选择而非全仓 --all，不表示所选 fixture 尚未结束；每项是否通过以 results 的状态及进程结果为准。本轮没有重跑与改动无关的全仓 4050 项 fixture。
 
-## 4. Linux 状态与收尾条件
+## 4. Linux 完成结果
 
 环境为 nuc12，LLVM 22.1.2、Rust 1.99.0，GNU 与 musl 原生工具链。所有工具临时目录使用仓库 tmp/m43，验收输出使用 target/m43。
 
@@ -67,5 +67,5 @@
 - 首轮提前结束，没有生成整组 report.json；[GNU 原始日志](validation/debug-initial-gnu.log.gz)、[musl 原始日志](validation/debug-initial-musl.log.gz)分别保存 11 个完整 fixture 的 passed 记录。[GNU 摘录](validation/debug-observed-gnu.json.gz)和 [musl 摘录](validation/debug-observed-musl.json.gz)只提取这些已完成状态，不补写未完成项的通过结果。
 - [剩余选择清单](validation/linux-remaining-selection.json.gz)已核对集合：GNU 的 14 项已完成证据与 153 项续验没有交集，并集为完整的 167 项；musl 的 11 项已完成证据与 156 项续验同样覆盖完整范围。
 - GNU 153 项续验全部通过，共 180 个变体、491 个进程步骤，见 [报告](validation/remaining-gnu.json.gz) 和 [日志](validation/remaining-gnu.log.gz)。与首轮已完成日志和四项 release 验证按名称合并后，GNU 的全部 167 项均已验证，包括 105 项 M43 及 62 项共享回归；首轮受工具重建影响的构造回归已成功复验。
-- musl 的 156 项续验仍在运行，待整组完成后再作平台结论。
-- 必须取得两种 libc 剩余组的完成报告和所有失败项的成功复验，再与已完成日志／报告逐项合并，核对完整选择集合，才能把本文件、设计状态及路线图更新为完成。M43 完成后再推进 M44。
+- musl 156 项续验全部通过，共 185 个变体、512 个进程步骤，见 [报告](validation/remaining-musl.json.gz) 和 [日志](validation/remaining-musl.log.gz)。与首轮 11 项完整通过记录合并，覆盖全部 167 项；首轮构造回归的失败已成功复验。
+- [三目标覆盖索引](validation/coverage.json.gz)逐项保存当前 105 项 M43 与 62 项共享回归的实际证据来源。各目标完成集合均与要求集合完全一致，全部状态为 passed；原始失败和提前结束的日志保持，不被覆盖或当成整组通过。三目标验收完成后，M43 的设计、实施状态与路线图同步收尾；继续推进 M44。

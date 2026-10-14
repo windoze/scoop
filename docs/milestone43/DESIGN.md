@@ -1,6 +1,6 @@
 # M43 设计：测试库与 `scoop test`
 
-状态：实施中。日期：2026-10-14。实际进度见[实施记录](PROGRESS.md)。
+状态：已完成。日期：2026-10-14。实际实施与验证见[实施记录](PROGRESS.md)和[验收核对](ACCEPTANCE.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)与[路线图](../ROADMAP.md)。本文记录 M43 的目标行为、实现边界与验收要求；测试 API、manifest 字段和命令的已完成范围以实施记录为准。实施每批功能前，先按第 8 章更新对应 spec。
 

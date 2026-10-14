@@ -567,12 +567,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - math（含 BigInteger/Decimal）、regex、完整 Unicode、压缩、密码学、更多格式、持久化集合及系统库独立排期，不成为本里程碑的验收前置。
 - M42-1～12 全部交付，TreeMap／TreeSet 使用内联键值的 B-tree。三目标各通过本组 130 个 fixture、139 个变体；含必要既有回归后 Darwin／GNU 各覆盖 150 项、musl 149 项。五个实际底层缺陷均独立修复及回归，没有运行无关全量套件。
 
-### M43 测试库与 `scoop test`（实施中，[设计](milestone43/DESIGN.md)）
+### M43 测试库与 `scoop test`（已完成，[设计](milestone43/DESIGN.md)、[验收](milestone43/ACCEPTANCE.md)）
 
 - 交付普通 `scoop.test` Cone、断言、显式测试容器与方法、每用例实例及 BeforeTest/AfterTest 生命周期。
 - 增加同 Cone 测试源码、测试依赖与构建用途，由 `scoop test` 静态发现、构建、过滤、列出并串行运行，保留准确的生命周期失败与进程结果。
 - 以 `scoop.std` 作为首个实际落地应用，在 `sysroot/lib/scoop.std/tests/` 编写同 Cone 单元测试，通过 `scoop test sysroot/lib/scoop.std` 验收测试库与命令的完整流程。
-- 按功能分批更新规范、实现、验证并提交；定向验证后完成三个现有 target 的 CLI、产物与必要回归验收。
+- 已按功能分批更新规范、实现、验证并提交；三个现有 target 各通过 167 项 fixture，包含 105 项 M43 与 62 项必要既有回归，覆盖正式 CLI、产物消费、进程边界与 GC 组合。
 - integration-test 等待 multi-cone workspace 定型后另行设计，不纳入本里程碑。
 
 ## 3. 备注
