@@ -34,7 +34,7 @@ fun main() {
     val encoder = ArrayList<Int?>.encoder(Option<Int>.encoder(Int.Companion))
     val decoder = ArrayList<Int?>.decoder(Option<Int>.decoder(Int.Companion))
     val json = Json.encode(list, encoder)
-    check(json == "[{\"None\":{}},{\"Some\":[7]}]", 5)
+    check(json == "[null,7]", 5)
     val decoded = Json.decode(json, decoder)
     decoded.removeAt(0L)
     decoded.add(None)

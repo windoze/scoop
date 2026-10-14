@@ -66,6 +66,8 @@
 
 ## 后续
 
+GNU 全量续跑发现 `m34-containers-builder` 仍断言 Option 的旧外层 enum JSON；按已更新的 nullable 合同将期望改为 `[null,7]`。全仓检索未发现其他遗漏的旧 None／Some JSON 正向期望。本机 fmt／[clippy](validation/builder-clippy-darwin.log.gz)及该用例的 debug／release、普通／moving／minor GC [全部通过](validation/builder-darwin.json.gz)；Linux 留待最终失败项定向复验，不重跑已通过的完整选集。
+
 完成 M46-6 并提交验收记录后才开始 M38。
 
 ## 构建目录
