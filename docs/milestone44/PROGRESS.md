@@ -164,3 +164,9 @@
 - Darwin 全量 CLI 中，program-link-artifact-corruption 首轮预期 member 摘要不匹配，实际先报 manifest 编码损坏。核对原始产物后确认：manifest 已增长至 53982 bytes，旧的绝对偏移 20734 落在 manifest 内；HIR payload 的 magic 位于 78833。reader 正确拒绝了实际损坏的输入。
 - 改用已有文件 replace 操作，唯一匹配 HIR payload 的 `SCOOPHIR` magic 并等长替换为 `BROKENIR`，消除对 manifest 长度的依赖；不增加用例脚本、runner 框架或生产实现改动。摘要错误的完整 JSON／human 期望、成员身份、截断及其他错误断言保持。
 - 文档／TOML 格式与配置检查通过，复用六份已发布缓存，仅复验该项：1 个 fixture、1 个变体、13 个进程步骤通过，包含失败后旧程序的普通与 moving GC 执行。原始失败、字节位置分析、缓存来源及复验报告保留于[记录](validation/artifact-corruption-repair-darwin.json.gz)。完整 CLI 仍在运行，最终应合并该项成功复验，不能将原始失败报告改写为成功。
+
+## 2026-10-14：本机全量闭合与候选性能复核
+
+- 正式 CLI `--all` 完成，首轮 4036 项通过、16 项不适用、1 项失败。以已完成的产物损坏复验替换该项后，4037 项适用用例全部通过，共 4561 个变体、17020 个进程步骤；按当前发现的全部 4053 个名称和适用性逐项核对，无缺项或额外替代。保留[首轮完整记录](validation/acceptance-cli-darwin.json.gz)和[覆盖索引](validation/acceptance-cli-coverage-darwin.json.gz)，未重跑整套。
+- 全量进程结束后，Darwin forwarding 候选完成六组交替性能对照，六个图组的 15 项工作量计数逐对一致。full／minor update 改善，实际进度与四程序没有稳定退化，但数组 mark 出现持续回退；加入当前生产版的专项复测确认该差异，见[性能记录](PERFORMANCE.md#内联-forwarding-的-darwin-对照与数组回退)。
+- 准备采用时的 C 格式检查与 workspace clippy 通过，但性能复核后恢复生产 runtime，候选未提交。继续在隔离副本定位数组 mark 回退；GNU／musl 最终组合验收等待修复确定，M44 尚未完成。

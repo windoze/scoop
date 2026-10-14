@@ -140,6 +140,5 @@ full 的配对 update 差值中位为 −752 µs，35 对中 31 对未增加；m
 [GNU／musl 正式 fixture](validation/isolated-fixtures-linux.json.gz)也各为三项、
 六个变体、24 个执行步骤通过。
 
-这些是候选验证，并非 GNU／musl 最终全部适用组合。本机完整 CLI 验收仍在读取生产
-runtime，故尚未改动生产文件或在本机并行计时；待其结束后完成 Darwin 同机对照，
-再决定合入并闭合最终覆盖。
+这些是候选验证，并非 GNU／musl 最终全部适用组合。本机完整 CLI 随后闭合，Darwin
+六组同机对照也已完成；其中数组 mark 回退经专项复测确认，见 [Darwin 记录](PERFORMANCE.md#内联-forwarding-的-darwin-对照与数组回退)。候选仍未合入生产，须先解决该回退，再决定采用并闭合最终覆盖。
