@@ -1,0 +1,45 @@
+@GCLeaf @Extern(lib = "m44_progress", name = "m44_progress_mode") fun mode(): Int
+@GCLeaf @Extern(lib = "m44_progress", name = "m44_progress_done") fun done(): Boolean
+@Extern(lib = "m44_progress", name = "m44_progress_pause") fun pause()
+@GCLeaf @Extern(lib = "m44_progress", name = "m44_progress_point")
+fun progress(completed: Long, checksum: Long, finished: Boolean)
+@Extern(lib = "m44_progress", name = "m44_progress_run")
+fun run(worker: FunPtr<(Int, Ptr<Unit>) -> Long>, context: Ptr<Unit>,
+        collector: FunPtr<(Int, Ptr<Unit>) -> Long>, collectorContext: Ptr<Unit>)
+
+class Item(val value: Long)
+
+fun compute(count: Int, allocate: Boolean): Long {
+    var sum = 0L
+    var index = 0
+    @Unsafe { progress(0L, sum, false) }
+    while (index < count) {
+        val end = if (count - index < 1024) count else index + 1024
+        while (index < end) {
+            val value = index.toInt64() + 1L
+            sum += if (allocate) Item(value).value else value
+            index += 1
+        }
+        @Unsafe { progress(index.toInt64(), sum, index == count) }
+    }
+    return sum
+}
+
+@Unsafe fun main() {
+    val allocate = mode() == 1
+    val worker = foreignCallback<(Int, Ptr<Unit>) -> Long>(
+        { count: Int -> compute(count, allocate) }, 1, ForeignCallbackMode.Reusable
+    )
+    val collector = foreignCallback<(Int, Ptr<Unit>) -> Long>(
+        { unused: Int ->
+            @Unsafe { while (!done()) { gcCollect(); pause() } }
+            0L
+        }, 1, ForeignCallbackMode.Reusable
+    )
+    run(worker.function, worker.context, collector.function, collector.context)
+    val workerFailed = when (foreignCallbackFailure(worker)) { case Some(_) -> true; case None -> false }
+    val collectorFailed = when (foreignCallbackFailure(collector)) { case Some(_) -> true; case None -> false }
+    releaseForeignCallback(worker)
+    releaseForeignCallback(collector)
+    if (workerFailed || collectorFailed) { throw IllegalStateException() }
+}

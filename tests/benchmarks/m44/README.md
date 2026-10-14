@@ -85,3 +85,10 @@ checksum，预热一次后交替执行至少七次，保存每个进程的墙钟
 结构检查确认两侧根节点由不同编译缓存键实际编译，核对 LIR、产物、完整 binary 和
 所有根 Cone 函数的机器码，并保存反汇编与 section 大小。任何差异都需先审阅，不能
 通过更新固定摘要隐藏变化；本检查专门用于保持生成代码不变的边界整理。
+
+## 多线程实际进度与分配
+
+见 [progress](progress/README.md)。`build-progress.py` 接受明确的工具、runtime 与
+sysroot，生成带测试观测的固定 binary；`measure-progress.py` 对计算／分配两种模式、
+1／4 个 mutator 分别预热并交替执行至少七次进程。记录每个线程确实推进后的时间，
+不把 RUNNING 发布替代为已经恢复执行。

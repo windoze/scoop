@@ -110,3 +110,11 @@
 - 最终把 null scan 分支保留在 GC 调用方；适配层只解释非空描述，数组视图保存 count／elements，stride 在原有分段任务发布处读取。保持扫描语义、分段大小和任务数，不用强制 noinline／always_inline 或新的队列策略调参。仅恢复 null 分支的[中间复验](validation/boundary-guard-zero-darwin.json.gz)仍有回退，随后恢复分段读取位置的[数组专项](validation/boundary-array-check-darwin.json.gz)才恢复到基线范围。
 - 最终 C／Rust 格式化与 [workspace clippy](validation/boundary-clippy.log.gz)通过，[31 项 collector 回归](validation/boundary-runtime.log.gz)全部通过；三个 M44 正式 CLI fixture、六个变体、24 个步骤全部通过，见[报告](validation/boundary-darwin.json.gz)和[日志](validation/boundary-darwin.log.gz)。
 - 最终四程序与三类零搬迁／普通搬迁图各执行预热及七次交替进程；同一输入的 moved／live／traced／source／target 计数逐轮相同。数组请求到 RUNNING 中位 2.321→2.332 ms，普通搬迁 update 11.457→11.381 ms；其余结果与适用限制见[性能记录](PERFORMANCE.md)。本批不宣称边界拆分带来加速，也不替代 minor、实际 mutator 恢复及平台验收。
+
+## 2026-10-14：实际 mutator 进度与多线程分配
+
+- 新增真实 Scoop callback／pthread 基准，覆盖 1／4 个 mutator 的计算与分配。每 1024 次实际迭代发布进度，以 T1 前最后进度与 T2 后更大迭代数对应的时钟记录恢复；明确包含采样批次、解锁／广播和 OS 调度，不将 RUNNING 发布替代为已执行。旧／新 runtime 均启用 nursery retry 观测，生产快路未加入时钟或逐对象统计。
+- 六项[记录校验测试](validation/progress-tests.log.gz)通过，拒绝缺失、顺序错误或没有实际迭代增长的恢复记录，允许连续 GC 共享后续进度点。C 格式化、Python Ruff 0.16.10 与 [workspace clippy](validation/progress-clippy.log.gz)通过。构建初次遇到 Unsafe 块返回 Unit、之后遇到 Apple C common symbol；分别修正基准 lambda 的返回表达式与 helper 编译的 `-fno-common`，保留[失败构建记录](validation/progress-build-failures.json.gz)，未改变编译器规则。
+- 两版四配置的[功能核对](validation/progress-smoke.json.gz)通过；正式分配量增为每线程两百万次。随后串行交替完成八次预热与 56 次正式进程，checksum、实际分配字节、进度次序、GC histogram 全部核对，见[原始对照](validation/progress-darwin.json.gz)。逐文件[源码核对](validation/progress-source-audit.json.gz)确认基线 `44a3c0bf` 和当前 `f300090b` 的 runtime 副本匹配对应提交。
+- 两侧四线程分配字节完全相同，minor／retry 数量和吞吐存在调度波动；实际进度间隔中位 400→397 微秒，T2 到下一进度中位 27→28 微秒。完整中位、p95、最大值和进程范围见[性能记录](PERFORMANCE.md)，不声称稳定吞吐改善，也不把 retry 数量解释成锁等待时间。
+- 完成进程和证据归档核对后，清理失败／中间 binary 的构建目录约 28 MB，保留正式两版 binary、工具与缓存。年轻存活图／old→young／pin 的 minor 测量、Linux 与最终全量验收继续推进，本批不宣称 M44 完成。
