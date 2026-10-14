@@ -139,3 +139,8 @@
 - 两个失败均为旧测试期望：诊断路径仍写 cone-production/11，更新为 M43 既定的 12；bootstrap 类型集合漏掉 M42 的五个 Collection 实例，以及 Float／Double 位转换经 Ptr 引入的四个 Equals 实例。逐项对照现有 lists.scoop、floating.scoop 和 ffi.scoop 后补齐，未改变编译器行为或放宽产物检查。
 - 格式化与 workspace clippy 通过，两个失败项用独立 release 测试程序复验通过。根据 Cargo 编译目标清单，补跑首轮因失败未执行的 driver CLI 7 项和 machine-capability 1 项；另执行完整 workspace doctest，21 个目标中 2 项测试通过。按目标及测试名称核对，27 个测试目标共 5629 项均有成功证据，另有 2 项 doctest，见[覆盖索引](validation/acceptance-rust-coverage-darwin.json.gz)；没有再次执行已通过的完整工作区套件。
 - [49 项 fixture runner 公共规则](validation/acceptance-fixture-rules-darwin.log.gz)通过。正式 CLI `--all` 仍在运行，Linux GNU／musl 的适用功能组合与同机性能尚待验证；本批不宣称 M44 完成。
+
+## 2026-10-14：Linux 固定工具与对照程序准备
+
+- nuc12 同步至 `af49910f`，格式检查、workspace clippy 与 release 配套工具构建通过；复制到独立 tools-final 后固定摘要。GNU 的旧／新版 graphs、progress 和四程序构建共六组均成功，尚未进行性能计时或平台功能验收，见[准备记录](validation/linux-preparation.json.gz)。
+- 对六份 runtime 副本逐文件核对 Git 来源：基线 `44a3c0bf` 为 220 个文件，当前为 231 个文件；仅允许对应观测头增加既定测试宏。四个微基准均由两套工具分别实际编译，根 `.slib` 逐字节相同，LIR、函数集合、最终函数指令数与长度也相同。最终 binary 和已链接指令字节不同，保留完整反汇编及产物摘要；本期 runtime 已变化，因此不以最终 binary 相同作为整体对照条件，也不据构建结果宣称 runtime 性能保持。

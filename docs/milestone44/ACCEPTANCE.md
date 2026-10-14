@@ -13,7 +13,7 @@
 | M44-1 基线与时间口径 | 运行时规范 3.5／3.9 保留既有 pause／stop_wait 含义，增加 STOPPING／COLLECTING／RUNNING 观测；[握手测试](validation/observation-test.log.gz)覆盖发布顺序，本机各场景已有同条件基线与对照 | Linux 同机基线与对照 |
 | M44-2 无搬迁跳过更新 | [collector](../../runtime/src/gc/collector.c)在规划／复制及 fallback 完成后检查本轮 moved_objects；只跳过 relocation，回收／晋升／release／分配状态失效／线程恢复共用后续路径；[独立专测](../../runtime/tests/no_move_update_test.c)覆盖零搬迁及移动后下一轮，见[最终 collector 组](validation/boundary-runtime.log.gz) | 最终集成与 Linux 组合 |
 | M44-3 减少实际更新工作 | [slot visitor](../../runtime/src/gc/collector.c)复用本次 object_meta 结果并条件写回；[forwarding／claim](../../runtime/src/gc/evacuation.c)只为新地址重新定位，GC-free 对象跳过出站扫描；[损坏 forwarding 专测](../../runtime/tests/forwarding_validation_test.c)与[反汇编](validation/relocation-machine-code.txt.gz)保留必要失败出口和一次定位证据；full／minor 实际搬迁对照已完成 | 最终集成与 Linux 组合 |
-| M44-4 完整 GC 代码生成 | [function/gc](../../compiler/codegen/src/function/gc/)持有分配、字段／数组／aggregate 写入、原子操作、发布和 poll；失败 CAS 只在成功分支执行屏障；[372 项测试](validation/codegen-rust.log.gz)、[真实写入 fixture](validation/codegen-writes-darwin.json.gz)与[机器码对照](validation/codegen-machine-darwin.json.gz)通过 | Linux 生成代码与运行组合 |
+| M44-4 完整 GC 代码生成 | [function/gc](../../compiler/codegen/src/function/gc/)持有分配、字段／数组／aggregate 写入、原子操作、发布和 poll；失败 CAS 只在成功分支执行屏障；[372 项测试](validation/codegen-rust.log.gz)、[真实写入 fixture](validation/codegen-writes-darwin.json.gz)与[机器码对照](validation/codegen-machine-darwin.json.gz)通过；[Linux 四程序独立根产物](validation/linux-preparation.json.gz)逐字节相同 | Linux 运行组合与性能 |
 | M44-5 runtime 边界 | [gc_binding](../../runtime/src/gc_binding/)解释根、stackmap、对象 scan 与线程字段；[mutator](../../runtime/src/gc/mutator_internal.h)拥有分配状态并保留原 TLAB 前缀；[普通 runtime 操作](../../runtime/src/gc.h)收拢实际分配／复制／对象检查，[操作回归](validation/operations-darwin.json.gz)通过；完整边界的本机性能与机器码已核对 | 最终集成与 Linux 生命周期组合 |
 | M44-6 组合与平台 | 本机定向正式 CLI、collector 组、各性能场景已有记录；[工作区覆盖](validation/acceptance-rust-coverage-darwin.json.gz)包含 27 个目标的 5629 项成功测试及 2 项 doctest，[49 项公共规则](validation/acceptance-fixture-rules-darwin.log.gz)通过 | 正式 CLI 全量、Linux GNU／musl 适用组合、最终覆盖核对 |
 
@@ -40,8 +40,9 @@
 - 多线程分配与实际进度：[56 个正式进程](validation/progress-darwin.json.gz)覆盖计算／分配及 1／4 mutator。记录 T2 后实际增长的迭代数，明确 1024 次采样粒度、调度影响与重试计数的限制，不把 RUNNING 发布当作已经恢复。
 - 编译器／runtime 边界：[生成代码](validation/codegen-machine-darwin.json.gz)和[普通 runtime 操作](validation/operations-machine.json.gz)反汇编与四程序对照证明对应已测路径没有额外热路成本；GC 核心不直接解释 thread 私有字段或 scan 编码，普通 runtime 不组合 GC 私有锁／对象查询。
 
-这些证据均为 Darwin／AArch64 同机结果。GNU／musl 的适用功能与 Linux 的同机性能
-对照仍缺失；也不能由上述小样本推导所有程序的固定加速比或稳定尾延迟。
+上述已完成计时均为 Darwin／AArch64 同机结果。[Linux 准备记录](validation/linux-preparation.json.gz)
+仅证明固定工具、对照程序的构建来源及四个微基准根产物一致；GNU／musl 的适用功能与
+Linux 同机性能对照仍缺失，也不能由本机小样本推导所有程序的固定加速比或稳定尾延迟。
 
 ## 尚未闭合的完成条件
 
