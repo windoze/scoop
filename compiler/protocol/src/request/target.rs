@@ -3,12 +3,20 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use crate::path::DecodedHostPathCarrier;
 use crate::{HostPathCarrier, ProtocolValidationError};
 
-/// Same-host tool locators are transported separately from artifact identity.
+/// A request either selects tools or carries the parent's completed discovery.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TargetSelectionRequestV1 {
     canonical_triple: String,
-    compiler: Option<HostPathCarrier>,
-    native_sysroot: Option<HostPathCarrier>,
+    toolchain: ToolchainSelection<HostPathCarrier>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ToolchainSelection<P> {
+    Discover {
+        compiler: Option<P>,
+        native_sysroot: Option<P>,
+    },
+    Resolved(Vec<u8>),
 }
 
 impl TargetSelectionRequestV1 {
@@ -23,8 +31,10 @@ impl TargetSelectionRequestV1 {
         }
         Ok(Self {
             canonical_triple,
-            compiler: None,
-            native_sysroot: None,
+            toolchain: ToolchainSelection::Discover {
+                compiler: None,
+                native_sysroot: None,
+            },
         })
     }
 
@@ -33,8 +43,15 @@ impl TargetSelectionRequestV1 {
         compiler: Option<HostPathCarrier>,
         native_sysroot: Option<HostPathCarrier>,
     ) -> Self {
-        self.compiler = compiler;
-        self.native_sysroot = native_sysroot;
+        self.toolchain = ToolchainSelection::Discover {
+            compiler,
+            native_sysroot,
+        };
+        self
+    }
+
+    pub fn with_resolved_toolchain(mut self, record: Vec<u8>) -> Self {
+        self.toolchain = ToolchainSelection::Resolved(record);
         self
     }
 
@@ -42,69 +59,93 @@ impl TargetSelectionRequestV1 {
         &self.canonical_triple
     }
 
-    pub const fn compiler(&self) -> Option<&HostPathCarrier> {
-        self.compiler.as_ref()
+    pub fn compiler(&self) -> Option<&HostPathCarrier> {
+        match &self.toolchain {
+            ToolchainSelection::Discover { compiler, .. } => compiler.as_ref(),
+            ToolchainSelection::Resolved(_) => None,
+        }
     }
 
-    pub const fn native_sysroot(&self) -> Option<&HostPathCarrier> {
-        self.native_sysroot.as_ref()
+    pub fn native_sysroot(&self) -> Option<&HostPathCarrier> {
+        match &self.toolchain {
+            ToolchainSelection::Discover { native_sysroot, .. } => native_sysroot.as_ref(),
+            ToolchainSelection::Resolved(_) => None,
+        }
+    }
+
+    pub fn resolved_toolchain(&self) -> Option<&[u8]> {
+        match &self.toolchain {
+            ToolchainSelection::Resolved(record) => Some(record),
+            ToolchainSelection::Discover { .. } => None,
+        }
     }
 }
 
 impl WireEncode for TargetSelectionRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encode(
-            encoder,
-            &self.canonical_triple,
-            &self.compiler,
-            &self.native_sysroot,
-        )
+        encode(encoder, &self.canonical_triple, &self.toolchain)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecodedTargetSelectionRequestV1 {
     triple: String,
-    compiler: Option<DecodedHostPathCarrier>,
-    native_sysroot: Option<DecodedHostPathCarrier>,
+    toolchain: ToolchainSelection<DecodedHostPathCarrier>,
 }
 
 impl DecodedTargetSelectionRequestV1 {
     pub(super) fn validate(self) -> Result<TargetSelectionRequestV1, ProtocolValidationError> {
-        Ok(
-            TargetSelectionRequestV1::new(self.triple)?.with_c_toolchain(
-                self.compiler
+        let request = TargetSelectionRequestV1::new(self.triple)?;
+        Ok(match self.toolchain {
+            ToolchainSelection::Resolved(record) => request.with_resolved_toolchain(record),
+            ToolchainSelection::Discover {
+                compiler,
+                native_sysroot,
+            } => request.with_c_toolchain(
+                compiler
                     .map(DecodedHostPathCarrier::validate)
                     .transpose()
                     .map_err(ProtocolValidationError::HostPath)?,
-                self.native_sysroot
+                native_sysroot
                     .map(DecodedHostPathCarrier::validate)
                     .transpose()
                     .map_err(ProtocolValidationError::HostPath)?,
             ),
-        )
+        })
     }
 }
 
 impl WireEncode for DecodedTargetSelectionRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encode(encoder, &self.triple, &self.compiler, &self.native_sysroot)
+        encode(encoder, &self.triple, &self.toolchain)
     }
 }
 
 fn encode(
     encoder: &mut Encoder,
     triple: &str,
-    compiler: &Option<impl WireEncode>,
-    native_sysroot: &Option<impl WireEncode>,
+    toolchain: &ToolchainSelection<impl WireEncode>,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(3)?;
+    encoder.map(2)?;
     encoder.field(1)?;
     encoder.text(triple)?;
     encoder.field(2)?;
-    encode_path(encoder, compiler)?;
-    encoder.field(3)?;
-    encode_path(encoder, native_sysroot)
+    match toolchain {
+        ToolchainSelection::Discover {
+            compiler,
+            native_sysroot,
+        } => {
+            encoder.array(3)?;
+            encoder.unsigned(0)?;
+            encode_path(encoder, compiler)?;
+            encode_path(encoder, native_sysroot)
+        }
+        ToolchainSelection::Resolved(record) => {
+            encoder.array(2)?;
+            encoder.unsigned(1)?;
+            encoder.bytes(record)
+        }
+    }
 }
 
 fn encode_path(
@@ -120,11 +161,28 @@ fn encode_path(
 
 impl WireDecode for DecodedTargetSelectionRequestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             triple: decoder.field(1, Decoder::owned_text)?,
-            compiler: decoder.field(2, decode_path)?,
-            native_sysroot: decoder.field(3, decode_path)?,
+            toolchain: decoder.field(2, |d| {
+                let count = d.array()?;
+                match d.index(0, Decoder::unsigned)? {
+                    0 => {
+                        crate::framing::expect_sum_length(d, count, 3)?;
+                        Ok(ToolchainSelection::Discover {
+                            compiler: d.index(1, decode_path)?,
+                            native_sysroot: d.index(2, decode_path)?,
+                        })
+                    }
+                    1 => {
+                        crate::framing::expect_sum_length(d, count, 2)?;
+                        Ok(ToolchainSelection::Resolved(
+                            d.index(1, Decoder::owned_bytes)?,
+                        ))
+                    }
+                    tag => Err(crate::framing::unknown_tag(d, tag)),
+                }
+            })?,
         })
     }
 }

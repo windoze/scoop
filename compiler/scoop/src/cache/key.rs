@@ -19,7 +19,7 @@ use crate::PairedCompilerFingerprintV1;
 mod testing;
 pub use testing::TestCompileConfiguration;
 
-const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v5";
+const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v6";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConeCompileCacheKeyV1([u8; 32]);
@@ -258,6 +258,7 @@ pub struct ConeCompileCacheInputV1 {
     lir_target: TargetProfileFingerprint,
     backend: BackendProfileFingerprint,
     c_bridge_toolchain: CBridgeToolchainFingerprint,
+    native_tool_inputs: scoop_wire::Digest256,
     optimization: scoop_lir::OptimizationMode,
     purpose: CompilationPurpose,
 }
@@ -276,6 +277,7 @@ impl ConeCompileCacheInputV1 {
         lir_target: TargetProfileFingerprint,
         backend: BackendProfileFingerprint,
         c_bridge_toolchain: CBridgeToolchainFingerprint,
+        native_tool_inputs: scoop_wire::Digest256,
     ) -> Self {
         Self {
             cone,
@@ -289,6 +291,7 @@ impl ConeCompileCacheInputV1 {
             lir_target,
             backend,
             c_bridge_toolchain,
+            native_tool_inputs,
             optimization: scoop_lir::OptimizationMode::Debug,
             purpose: CompilationPurpose::Production,
         }
@@ -335,7 +338,7 @@ impl ConeCompileCacheInputV1 {
 
 impl WireEncode for ConeCompileCacheInputV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(14)?;
+        encoder.map(15)?;
         encoder.field(1)?;
         encoder.unsigned(1)?;
         encoder.field(2)?;
@@ -363,7 +366,9 @@ impl WireEncode for ConeCompileCacheInputV1 {
         encoder.field(13)?;
         self.optimization.encode(encoder)?;
         encoder.field(14)?;
-        self.purpose.encode(encoder)
+        self.purpose.encode(encoder)?;
+        encoder.field(15)?;
+        self.native_tool_inputs.encode(encoder)
     }
 }
 

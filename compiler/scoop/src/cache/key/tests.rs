@@ -85,6 +85,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
         selection.target().fingerprint().unwrap(),
         selection.backend().fingerprint().unwrap(),
         c_bridge.fingerprint(),
+        sha256(b"native-tool-inputs"),
     )
 }
 
@@ -193,6 +194,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
         selection.target().fingerprint().unwrap(),
         selection.backend().fingerprint().unwrap(),
         c_bridge_fingerprint(0x000d_0100, 0x000e_0200, "clang-2100.1.1.101"),
+        sha256(b"native-tool-inputs"),
     )
 }
 
@@ -212,9 +214,9 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "8dd6cdfa7d1fdefff6c94848bbbb4f5e97f7cd32d6f61d5b375d29ca1dfe3326"
+        "8558576880ac85e5bd59e2ba7d535215189a22041630f3c70f38eeb1e677f4f4"
     );
-    assert_eq!(encode(&input).unwrap().first(), Some(&0xae));
+    assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }
 
 #[test]
@@ -226,6 +228,9 @@ fn source_metadata_and_compiler_inputs_are_independent_key_dimensions() {
     assert_ne!(baseline, source_changed);
     assert_ne!(baseline, compiler_changed);
     assert_ne!(source_changed, compiler_changed);
+    assert_mutation_misses(&input(1, "paired-scoopc-v1"), |input| {
+        input.native_tool_inputs = sha256(b"changed-native-tool")
+    });
 }
 
 #[test]

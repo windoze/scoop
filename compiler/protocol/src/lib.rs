@@ -34,7 +34,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 8;
+pub const PROTOCOL_VERSION: u32 = 9;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 

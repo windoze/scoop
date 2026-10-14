@@ -223,11 +223,11 @@ fn target_request_retains_native_tool_paths_and_rejects_the_old_shape() {
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
-            expected: 3,
+            expected: 2,
             actual: 1
         }
     ));
-    let multiple_drivers = [0xa3, 0x01, 0x61, b'x', 0x02, 0x82, 0, 0, 0x03, 0x80];
+    let multiple_drivers = [0xa2, 0x01, 0x61, b'x', 0x02, 0x83, 0, 0x82, 0, 0, 0x80];
     let error = decode_canonical::<DecodedTargetSelectionRequestV1>(&multiple_drivers).unwrap_err();
     assert!(matches!(
         error.kind(),
@@ -236,4 +236,18 @@ fn target_request_retains_native_tool_paths_and_rejects_the_old_shape() {
             actual: 2
         }
     ));
+}
+
+#[test]
+fn target_request_transports_completed_tool_discovery() {
+    let record = b"resolved tool invocation".to_vec();
+    let request = target().with_resolved_toolchain(record.clone());
+    let decoded = decode_canonical::<DecodedTargetSelectionRequestV1>(&encode(&request).unwrap())
+        .unwrap()
+        .validate()
+        .unwrap();
+    assert_eq!(decoded, request);
+    assert_eq!(decoded.resolved_toolchain(), Some(record.as_slice()));
+    assert!(decoded.compiler().is_none());
+    assert!(decoded.native_sysroot().is_none());
 }

@@ -19,6 +19,7 @@ mod linux_target;
 mod manifest;
 pub use manifest::{SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
 mod native;
+mod native_record;
 mod paths;
 mod registry;
 mod request;

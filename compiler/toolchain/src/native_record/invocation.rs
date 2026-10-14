@@ -1,0 +1,157 @@
+use super::*;
+use scoop_lir::{
+    AppleClangCompilerIdentityV1, CBridgePlatformContractV1, DarwinBuildToolIdV1,
+    DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
+    GccCompilerIdentityV1,
+};
+
+#[derive(Serialize, Deserialize)]
+pub(super) struct InvocationRecord {
+    driver: HostPathCarrier,
+    platform: PlatformRecord,
+}
+
+#[derive(Serialize, Deserialize)]
+enum PlatformRecord {
+    Darwin {
+        sdk_root: HostPathCarrier,
+        minimum_os: u32,
+        sdk: u32,
+        compiler: (u32, u32, u32, String),
+        tools: Vec<(u32, u32)>,
+    },
+    Linux {
+        native_sysroot: Option<HostPathCarrier>,
+        real_gcc: Option<HostPathCarrier>,
+        search_path: Option<HostPathCarrier>,
+        version: String,
+        configuration: [u8; 32],
+    },
+}
+
+impl InvocationRecord {
+    pub(super) fn from_invocation(
+        c: &ValidatedCBridgeToolchainInvocation,
+    ) -> Result<Self, ToolchainError> {
+        let platform = match c.profile().contract().platform() {
+            CBridgePlatformContractV1::Darwin {
+                deployment,
+                compiler,
+            } => PlatformRecord::Darwin {
+                sdk_root: path(c.sdk_root().map_err(error)?)?,
+                minimum_os: deployment.minimum_os().packed(),
+                sdk: deployment.sdk().packed(),
+                compiler: (
+                    compiler.version_major(),
+                    compiler.version_minor(),
+                    compiler.version_patch(),
+                    compiler.build().to_owned(),
+                ),
+                tools: deployment
+                    .tools()
+                    .iter()
+                    .map(|t| (t.tool().macho_value(), t.version().packed()))
+                    .collect(),
+            },
+            CBridgePlatformContractV1::Linux { compiler } => {
+                let command = c.driver_command();
+                let env_path = |key| {
+                    command
+                        .get_envs()
+                        .find(|(k, _)| *k == key)
+                        .and_then(|(_, v)| v)
+                        .filter(|v| !v.is_empty())
+                        .map(|v| path(Path::new(v)))
+                        .transpose()
+                };
+                PlatformRecord::Linux {
+                    native_sysroot: c.native_sysroot().map(path).transpose()?,
+                    real_gcc: env_path("REALGCC")?,
+                    search_path: env_path("PATH")?,
+                    version: compiler.version().to_owned(),
+                    configuration: *compiler.inputs().as_array(),
+                }
+            }
+        };
+        Ok(Self {
+            driver: path(c.compiler_driver())?,
+            platform,
+        })
+    }
+
+    pub(super) fn into_invocation(
+        self,
+        target: scoop_lir::LirTargetProfile,
+    ) -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
+        let driver = self.driver.to_path_buf().map_err(error)?;
+        match self.platform {
+            PlatformRecord::Darwin {
+                sdk_root,
+                minimum_os,
+                sdk,
+                compiler: (major, minor, patch, build),
+                tools,
+            } => {
+                let tools = tools
+                    .into_iter()
+                    .map(|(tool, version)| {
+                        let tool = match tool {
+                            1 => DarwinBuildToolIdV1::Clang,
+                            3 => DarwinBuildToolIdV1::Ld,
+                            4 => DarwinBuildToolIdV1::Lld,
+                            _ => return Err(error("unknown Darwin build tool")),
+                        };
+                        Ok(DarwinBuildToolVersionContractV1::new(
+                            tool,
+                            DarwinPackedVersionV1::new(version).map_err(error)?,
+                        ))
+                    })
+                    .collect::<Result<_, ToolchainError>>()?;
+                let deployment = DarwinCBridgeDeploymentContractV1::new(
+                    DarwinPackedVersionV1::new(minimum_os).map_err(error)?,
+                    DarwinPackedVersionV1::new(sdk).map_err(error)?,
+                    tools,
+                )
+                .map_err(error)?;
+                let compiler = AppleClangCompilerIdentityV1::new(major, minor, patch, &build)
+                    .map_err(error)?;
+                let profile = scoop_target_data::darwin_c_bridge_profile(deployment, compiler)
+                    .map_err(error)?;
+                ValidatedCBridgeToolchainInvocation::new(
+                    target,
+                    profile,
+                    driver,
+                    sdk_root.to_path_buf().map_err(error)?,
+                )
+                .map_err(error)
+            }
+            PlatformRecord::Linux {
+                native_sysroot,
+                real_gcc,
+                search_path,
+                version,
+                configuration,
+            } => {
+                let compiler =
+                    GccCompilerIdentityV1::new(&version, Digest256::from_array(configuration))
+                        .map_err(error)?;
+                let profile =
+                    scoop_target_data::linux_c_bridge_profile(target, compiler).map_err(error)?;
+                let decode = |value: HostPathCarrier| value.to_path_buf().map_err(error);
+                ValidatedCBridgeToolchainInvocation::new_linux(
+                    target,
+                    profile,
+                    driver,
+                    native_sysroot.map(decode).transpose()?,
+                    real_gcc.map(decode).transpose()?,
+                    search_path
+                        .map(decode)
+                        .transpose()?
+                        .unwrap_or_default()
+                        .into_os_string(),
+                )
+                .map_err(error)
+            }
+        }
+    }
+}

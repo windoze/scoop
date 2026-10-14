@@ -139,3 +139,7 @@
 ### 已执行批次：manifest 解析记录
 
 新增 `m48-manifest-record` 保留原始源码与工具，检查实际 manifest 更新后的生产缓存选择及运行结果；M43 的测试配置／测试依赖／target 条件组合继续保留。discovery／graph 的测试 helper 将缓存从 sysroot 内移到独立目录，保持已有图结构、循环、显式 core 来源和诊断区间断言。`m23-cli-inputs/manifest-source-encoding` 同步此前源码内容读取移到 scoopc 后的 `SCOOPC_BUILD_FAILED` 文件级诊断，保留非法 UTF-8、原始路径、独立 producer 和失败不覆盖用户输出。没有删除语言测试，SOURCE-ISOLATION 的 1,627 项待迁移范围不变。
+
+### 已执行批次：C 工具发现
+
+删除父进程暖构建的 C 工具重复探测、child 的同次发现重放，以及 Linux discovery 对整个 GCC／cc1／assembler 的内容读取与摘要。首次发现保留实际目标／libc 编译检查，独立 scoopc 继续正常发现；更新记录只观察正常输入 metadata。协议固定帧长度与 compile key 固定向量随版本同步，不删除格式负例。新增 Linux 真实工具调用记录用例保留工具、源码与已有产物，通过工具修改触发更新；源码隔离扫描清单和其他历史测试尚待后续清理。

@@ -115,6 +115,7 @@ impl PreparedBuildGraph {
             lir_target,
             backend,
             c_bridge_toolchain,
+            self.context.target.native_tool_inputs(),
         )
         .with_optimization(self.context.optimization)
         .with_purpose(self.compilation_purpose(identity)))

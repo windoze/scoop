@@ -79,3 +79,11 @@ protocol 8 直接返回生产时已有的 `ArtifactManifestSummaryV1`（含测�
 [CLI 首轮](validation/manifest-record-darwin-fixtures-first.log.gz)通过 24 项；manifest 源码 UTF-8 负例同步已落地的 child 文件级诊断后，[2 项定向复验](validation/manifest-record-darwin-fixtures.log.gz)通过。成功用例合计 25 个、27 variants、85 processes，覆盖新用例的冷／暖、仅测试配置更新、实际源码选择更新与 48／49 退出值，以及测试依赖、target 条件、native、manifest 错误、菱形依赖和 moving GC。保留首轮失败日志；退役范围没有扩大，说明见 [清理记录](CLEANUP.md)。无 cargo/rustc 进程时清理本机 `target/debug/incremental` 1,544.3 MiB。
 
 Linux [workspace clippy](validation/manifest-record-linux-clippy.log.gz)、[scoop 90 项与 manifest 57 项](validation/manifest-record-linux-rust.log.gz)通过；[GNU](validation/manifest-record-gnu-fixtures.log.gz)与 [musl](validation/manifest-record-musl-fixtures.log.gz)各 25 个正式 CLI 用例、27 variants、85 processes 通过。对 GNU 库的已有输出追加[暖构建 trace](validation/manifest-record-gnu-warm.trace.gz)：只打开根与 core 的两份解析记录，没有打开原 Cone.toml、`.scoop` 或 `.slib` 内容，没有 scoopc exec 或 rename 发布；[构建记录](validation/manifest-record-gnu-warm.stderr.gz)中 child 数为 0。源文件、工具和原始产物全程保留。native 工具探测、预处理、消费 stage 的重复验证和最终链接复用仍待处理，M48 尚未完成。
+
+## 11. M48-2：C 工具发现记录与 child 复用
+
+父进程通过 `native-tools-v1` 保存普通 C 工具发现结果，按请求、实际生效的 PATH／REALGCC、工具和探测头文件／specs／搜索目录的 metadata 判断更新。Darwin 同时观察选中的 developer、SDK 和系统 deployment 输入；Linux 不再整读 GCC、cc1 或 assembler 来构造 compiler identity，产物使用版本与实际预处理宏配置，本机构建键单独携带工具输入 metadata。协议升为 9、compile key domain 升为 v6；parent 把完整调用记录交给 child，child 解码后直接用于编译，不重复探测。没有引入收据、内容复核、权限检查或工具移除验收。
+
+本机 [workspace clippy](validation/native-tools-darwin-clippy.log.gz)、[protocol 26 项和 toolchain 28 项](validation/native-tools-darwin-tool-protocol.log.gz)、[driver 协议 4 项](validation/native-tools-darwin-driver.log.gz)通过。scoop [首轮 87 项中的 86 项](validation/native-tools-darwin-rust-first.log.gz)通过，新增键维度使旧固定向量失效；同步向量后 [6 项缓存键复验](validation/native-tools-darwin-key-tests.log.gz)通过。另保留协议首轮因帧长度增加一字节而失败的[旧期望日志](validation/native-tools-darwin-tool-protocol-first.log.gz)，更新后通过。成功 [release 构建](validation/native-tools-darwin-release.log.gz)及 [12 个正式 CLI 用例、13 variants、85 processes](validation/native-tools-darwin-fixtures.log.gz)覆盖库与程序、源码／manifest／编译器更新、C 和 C++ native、独立 scoopc 和 moving GC。新增 Linux 用例 `m48-native-tool-record` 保留真实工具，用调用日志检查首次仅探测一次、暖构建无调用、工具 metadata 变化后重新探测和再次复用；待 Linux 执行。无 cargo/rustc 进程时清理本机 `target/debug/incremental` 3,753.1 MiB。
+
+本批仅完成 C 发现与 child 传递；C++ 发现、native 预处理、runtime 对象和最终 executable 更新判定仍待处理，M48 尚未完成。

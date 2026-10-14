@@ -709,6 +709,7 @@ dependencies = [
  "scoop-slib",
  "scoop-target-data",
  "scoop-wire",
+ "serde",
 ]
 
 [[package]]
@@ -741,6 +742,7 @@ dependencies = [
 name = "scoop-toolchain"
 version = "0.0.0"
 dependencies = [
+ "fs4",
  "object",
  "scoop-identity",
  "scoop-lir",
@@ -751,6 +753,7 @@ dependencies = [
  "scoop-target-data",
  "scoop-wire",
  "serde",
+ "serde_json",
  "serde_yaml_ng",
  "tempfile",
 ]

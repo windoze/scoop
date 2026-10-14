@@ -4,10 +4,7 @@ use std::path::PathBuf;
 use crate::ValidatedCBridgeToolchainInvocation;
 use scoop_lir::{BackendProfile, LirTargetProfile, TargetProfileId, ValidatedLirTargetSelection};
 
-use crate::{
-    FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile,
-    c_bridge::resolve_system_c_bridge_toolchain,
-};
+use crate::{FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile};
 
 #[derive(Clone, Debug, Default)]
 pub struct CToolchainOptions {
@@ -22,6 +19,7 @@ pub struct ResolvedTargetProfile {
     backend: BackendProfile,
     c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
     runtime_build: ValidatedRuntimeBuildProfile,
+    native_tool_inputs: scoop_wire::Digest256,
 }
 
 impl ResolvedTargetProfile {
@@ -31,34 +29,25 @@ impl ResolvedTargetProfile {
     }
 
     pub fn resolve_with(triple: &str, options: &CToolchainOptions) -> Result<Self, ToolchainError> {
-        let lir_target = validate_target(triple)?;
-        let target = lir_target.target();
-        let c_bridge_toolchain = match target.id() {
-            scoop_target_data::DARWIN_AARCH64_ID => {
-                if options.compiler.is_some() || options.native_sysroot.is_some() {
-                    return Err(ToolchainError("--cc and --native-sysroot apply to Linux targets; Darwin uses the selected Xcode toolchain".into()));
-                }
-                resolve_system_c_bridge_toolchain()?
-            }
-            scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-                crate::resolve_linux_c_toolchain(
-                    target,
-                    options.compiler.as_deref(),
-                    options.native_sysroot.as_deref(),
-                )?
-            }
-            _ => {
-                return Err(ToolchainError(
-                    "unsupported target for C toolchain selection".into(),
-                ));
-            }
-        };
+        crate::native_record::probe(triple, options)
+    }
+
+    pub(crate) fn from_c_toolchain(
+        lir_target: ValidatedLirTargetSelection,
+        c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
+        native_tool_inputs: scoop_wire::Digest256,
+    ) -> Result<Self, ToolchainError> {
         Ok(Self {
             lir_target,
             backend: lir_target.backend(),
             c_bridge_toolchain,
-            runtime_build: ValidatedRuntimeBuildProfile::for_target(target)?,
+            runtime_build: ValidatedRuntimeBuildProfile::for_target(lir_target.target())?,
+            native_tool_inputs,
         })
+    }
+
+    pub const fn native_tool_inputs(&self) -> scoop_wire::Digest256 {
+        self.native_tool_inputs
     }
 
     /// Resolves the current host through the same closed registry.

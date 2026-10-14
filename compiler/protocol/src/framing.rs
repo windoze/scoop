@@ -249,7 +249,7 @@ mod tests {
         let request = request();
         let frame = encode_request_frame(&request).unwrap();
         assert_eq!(decode_request_frame(&frame).unwrap(), request);
-        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 196);
+        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 197);
     }
 
     #[test]
