@@ -204,7 +204,7 @@ fn manifest_cache_inputs(
                 .map(crate::cache::TestCompileConfiguration::new),
             dependencies,
             sources: snapshot.manifest_semantic.sources().clone(),
-            native: Box::new(snapshot.native.clone()),
+            native: Box::new(snapshot.native.key()),
         },
         source_inputs(snapshot.sources()),
     ))

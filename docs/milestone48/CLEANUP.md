@@ -143,3 +143,11 @@
 ### 已执行批次：C 工具发现
 
 删除父进程暖构建的 C 工具重复探测、child 的同次发现重放，以及 Linux discovery 对整个 GCC／cc1／assembler 的内容读取与摘要。首次发现保留实际目标／libc 编译检查，独立 scoopc 继续正常发现；更新记录只观察正常输入 metadata。协议固定帧长度与 compile key 固定向量随版本同步，不删除格式负例。新增 Linux 真实工具调用记录用例保留工具、源码与已有产物，通过工具修改触发更新；源码隔离扫描清单和其他历史测试尚待后续清理。
+
+### 已执行批次：用户 native 对象与 C++ 发现
+
+`m33-native-c/artifacts` 和 `m33-native-cxx/artifacts` 删除 provider／middle／consumer 源码移除及隐藏 LLVM 工具环境的步骤，保留 debug／release、传递泛型、独立链接、实际符号选择和 GC 运行断言。对应两行已从 SOURCE-ISOLATION 清单移出；按当前 TSV 实际数据行统计，剩余 1,626 项待迁移（此前文字计数偏差不作为闭合证据）。
+
+native 外部头文件与指向外部源码的 symlink 负例改为实际编译／运行成功用例。不同声明路径即使是 hardlink／symlink 也作为两个翻译单元；原 inode 去重负例改为真实重复强符号的链接错误。相同规范化声明路径重复、缺失输入、文件／目录类型、目标配置等正常错误仍保留。native 语法错误由实际执行预处理／编译的 parent 报告，三个 target 的诊断期望同步为 `SourceSnapshot`，错误位置与消息保持。
+
+新增 `m48-native-objects-c`／`m48-native-objects-cxx` 以源码与真实工具始终存在的冷／暖和实际输入变更检验复用。Rust 缺失对象用例只要求正常补产所需输出；没有增加缓存内容损坏、权限／来源审计或删除源码后继续成功的验收。

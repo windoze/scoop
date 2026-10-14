@@ -58,7 +58,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     )
     .map_err(|error| read_failure(error, &root, &dependencies))?;
     let profile =
-        scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link)
+        scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link, None)
             .map_err(failure)?;
     let runtime = RuntimeObjectSet::read_index(
         &request.runtime_index,

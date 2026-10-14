@@ -91,11 +91,15 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         let closure = read_built_program(graph.closure(), &target).map_err(|error| {
             BuildFailure::tool("SCOOP_LINK_FAILED", BuildFailurePhase::FinalLink, error)
         })?;
-        let final_link =
-            scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link)
-                .map_err(|error| {
-                    BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
-                })?;
+        let final_link = scoop_linker::resolve_program_link_profile(
+            &closure,
+            &target,
+            &request.final_link,
+            Some(cache.as_path()),
+        )
+        .map_err(|error| {
+            BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
+        })?;
         let linked = scoop_linker::link_program(
             &closure,
             &runtime,

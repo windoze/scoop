@@ -18,6 +18,7 @@ mod linux_c;
 mod linux_target;
 mod manifest;
 pub use manifest::{SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
+mod build_record;
 mod native;
 mod native_record;
 mod paths;
@@ -34,8 +35,8 @@ pub use final_link::{
 };
 pub use linux_c::resolve_linux_c_toolchain;
 pub use native::{
-    NativeSourceInput, NativeToolchain, PreparedNativeInputs, compile_native_source,
-    prepare_native_inputs,
+    NativeSourceInput, NativeToolchain, PreparedNativeInputs, PreparedNativeObjects,
+    compile_native_source, prepare_native_inputs, prepare_native_objects,
 };
 pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
 pub use registry::host_target_triple;

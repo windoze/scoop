@@ -77,21 +77,6 @@ impl Preparer {
                     };
                     let input_root = manifest.real_root().to_path_buf();
                     let snapshot = select_manifest_input(*manifest, &self.parts.context, purpose)?;
-                    let native_inputs = snapshot
-                        .native
-                        .units()
-                        .iter()
-                        .enumerate()
-                        .map(|(index, unit)| {
-                            self.staging
-                                .write_native_input(
-                                    &identity.to_string(),
-                                    index,
-                                    unit.preprocessed(),
-                                )
-                                .map_err(PrepareBuildGraphError::Staging)
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
                     let output_path = self
                         .staging
                         .plan_output(topological_indices[&identity], &identity.to_string())
@@ -100,7 +85,6 @@ impl Preparer {
                         snapshot,
                         input_root,
                         output_path,
-                        native_inputs,
                     }))
                 }
                 GraphNode::Prebuilt(prebuilt) => {
@@ -171,12 +155,12 @@ fn select_manifest_input(
     let test_config = (purpose == scoop_protocol::CompilationPurpose::Test)
         .then(|| manifest.parsed().tests().clone());
     let manifest_semantic = manifest.parsed().semantic().clone();
-    let native = scoop_toolchain::prepare_native_inputs(
+    let native = scoop_toolchain::prepare_native_objects(
         &manifest,
-        context.target.id(),
-        context.target.c_bridge_toolchain(),
+        &context.target,
         context.optimization,
         &scoop_toolchain::development_runtime_root().join("include"),
+        context.cache_root.as_path(),
     )
     .map_err(PrepareBuildGraphError::Native)?;
     Ok(ManifestSourceInput {

@@ -1549,8 +1549,6 @@ tests/fixtures/m33-main/args-int/fixture.toml	m33-main-args-int	1	remove_source	
 tests/fixtures/m33-main/args-unit/fixture.toml	m33-main-args-unit	1	remove_source	remove:${work}/source	
 tests/fixtures/m33-main/no-args-int/fixture.toml	m33-main-no-args-int	1	remove_source	remove:${work}/source	
 tests/fixtures/m33-main/no-args-unit/fixture.toml	m33-main-no-args-unit	1	remove_source	remove:${work}/source	
-tests/fixtures/m33-native-c/artifacts/fixture.toml	m33-native-c-artifacts	2	remove_provider | remove_consumer	remove:${work}/sources/provider | remove:${work}/sources/consumer	
-tests/fixtures/m33-native-cxx/artifacts/fixture.toml	m33-native-cxx-artifacts	3	remove_provider | remove_middle | remove_consumer	remove:${work}/sources/provider | remove:${work}/sources/middle | remove:${work}/sources/consumer	
 tests/fixtures/m33-native-libraries/artifacts/fixture.toml	m33-native-libraries-artifacts	2	remove_provider | remove_consumer	remove:${work}/sources/provider | remove:${work}/sources/consumer	
 tests/fixtures/m33-output/basic/fixture.toml	m33-output-basic	1	remove_source	remove:${work}/source	
 tests/fixtures/m33-platform/fixture.toml	m33-platform-cone	2	remove_provider | remove_consumer	remove:${work}/sources/provider | remove:${work}/sources/consumer	

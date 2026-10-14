@@ -2,10 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use scoop_lir::{OptimizationMode, TargetProfileId};
-use scoop_manifest::{
-    ImmutableInputSnapshot, LoadedConeManifest, NativeCompileFlag, NativeConfig,
-    NativeSourceLanguage,
-};
+use scoop_manifest::{LoadedConeManifest, NativeCompileFlag, NativeConfig, NativeSourceLanguage};
 use scoop_process::parse_make_dependencies;
 
 use super::paths::{InputRoots, normalize_line_markers};
@@ -29,6 +26,15 @@ pub(super) fn prepare(
         .filter(|source| source.predicate().matches(target))
         .collect();
     sources.sort_by_key(|source| source.path());
+    if let Some(pair) = sources
+        .windows(2)
+        .find(|pair| pair[0].path() == pair[1].path())
+    {
+        return Err(error(format!(
+            "duplicate native source {}",
+            pair[0].path().as_str()
+        )));
+    }
     if sources.is_empty() {
         return Ok(PreparedNativeInputs {
             libraries,
@@ -60,15 +66,8 @@ pub(super) fn prepare(
         system,
     };
     roots.validate_includes(config, &languages)?;
-    let mut selected = BTreeSet::new();
     for (source, _) in &sources {
-        let resolved = roots.checked_path(source.path(), false)?;
-        if !selected.insert(super::paths::physical_identity(&resolved)?) {
-            return Err(error(format!(
-                "duplicate native source {}",
-                source.path().as_str()
-            )));
-        }
+        roots.checked_path(source.path(), false)?;
     }
     let directory = tempfile::Builder::new()
         .prefix("scoop-preprocess-")
@@ -80,7 +79,30 @@ pub(super) fn prepare(
         cxx,
         ..PreparedNativeInputs::default()
     };
-    let mut captured = BTreeMap::new();
+    let mut search = vec![roots.cone.clone(), roots.public.clone()];
+    search.extend(roots.system.clone());
+    search.extend(
+        config
+            .include()
+            .iter()
+            .map(|p| roots.cone.join(p.as_path())),
+    );
+    for language in &languages {
+        for flag in config.flags(*language) {
+            if let NativeCompileFlag::Include { kind, path } = flag {
+                let path = roots.cone.join(path.as_path());
+                if matches!(
+                    kind,
+                    scoop_manifest::NativeIncludeFlag::ForcedHeader
+                        | scoop_manifest::NativeIncludeFlag::Macros
+                ) {
+                    result.observed_paths.insert(path);
+                } else {
+                    search.push(path);
+                }
+            }
+        }
+    }
     for (source, language) in &sources {
         let input = roots.cone.join(source.path().as_path());
         let depfile = directory.path().join("unit.d");
@@ -111,6 +133,7 @@ pub(super) fn prepare(
             .arg("-fPIC")
             .args([
                 "-E",
+                "-dI",
                 "-x",
                 language.input_name(),
                 "-MD",
@@ -132,20 +155,17 @@ pub(super) fn prepare(
                 roots.cone.join(path)
             };
             let logical = roots.logical(&path)?;
-            let snapshot = if let Some(snapshot) = captured.get(&path) {
-                snapshot
-            } else {
-                captured
-                    .entry(path.clone())
-                    .or_insert(ImmutableInputSnapshot::capture(&path).map_err(error)?)
-            };
-            result
-                .dependencies
-                .insert(logical.clone(), snapshot.digest());
-            path_map.insert(snapshot.resolved_path().to_path_buf(), logical.clone());
+            result.observed_paths.insert(path.clone());
+            path_map.insert(path.canonicalize().map_err(error)?, logical.clone());
             path_map.insert(path, logical);
         }
-        let preprocessed = normalize_line_markers(&output.stdout, &path_map, &roots)?;
+        let preprocessed = normalize_line_markers(
+            &output.stdout,
+            &path_map,
+            &roots,
+            &search,
+            &mut result.observed_paths,
+        )?;
         result.units.push(NativeSourceInput::new(
             source.path().clone(),
             *language,

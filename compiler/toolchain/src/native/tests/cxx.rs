@@ -44,6 +44,10 @@ int from_c(void) { return _Generic(0, int: 1, default: 0); }
 #error incorrect C++ configuration
 #endif
 static_assert(sizeof(ScoopObjectHeader) == 16);
+constexpr auto literal = R"tag(
+#include <not-a-header>
+)tag";
+static_assert(literal[1] == '#');
 extern "C" int from_c(void);
 extern "C" int answer(void) {
     try { throw std::runtime_error("native"); }

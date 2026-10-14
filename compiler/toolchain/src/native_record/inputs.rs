@@ -1,13 +1,13 @@
 use super::*;
 use std::collections::BTreeSet;
 
-#[derive(Serialize, Deserialize)]
-pub(super) struct Input {
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub(crate) struct Input {
     path: HostPathCarrier,
     state: Option<State>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Eq, Serialize, Deserialize, PartialEq)]
 struct State {
     resolved: HostPathCarrier,
     length: u64,
@@ -15,14 +15,14 @@ struct State {
 }
 
 impl Input {
-    pub(super) fn read(input: &Path) -> Result<Self, ToolchainError> {
+    pub(crate) fn read(input: &Path) -> Result<Self, ToolchainError> {
         Ok(Self {
             path: path(input)?,
             state: state(input)?,
         })
     }
 
-    pub(super) fn is_current(&self) -> Result<bool, ToolchainError> {
+    pub(crate) fn is_current(&self) -> Result<bool, ToolchainError> {
         Ok(state(&self.path.to_path_buf().map_err(error)?)? == self.state)
     }
 }
@@ -94,7 +94,9 @@ pub(crate) fn header_candidates(stderr: &[u8], inputs: &mut BTreeSet<PathBuf>) {
             search = false;
         }
         if search && line.starts_with(' ') {
-            roots.push(PathBuf::from(line.trim()));
+            roots.push(PathBuf::from(
+                line.trim().trim_end_matches(" (framework directory)"),
+            ));
         } else if let Some(path) = line
             .strip_prefix("ignoring nonexistent directory \"")
             .and_then(|v| v.strip_suffix('"'))

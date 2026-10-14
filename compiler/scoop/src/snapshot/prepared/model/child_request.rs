@@ -99,7 +99,9 @@ impl PreparedBuildGraph {
         };
         let native_inputs = match self.nodes.get(&identity) {
             Some(PreparedGraphNode::ManifestSource(node)) => node
-                .native_inputs
+                .snapshot
+                .native
+                .objects()
                 .iter()
                 .map(|path| path_carrier(path))
                 .collect::<Result<Vec<_>, _>>()?,

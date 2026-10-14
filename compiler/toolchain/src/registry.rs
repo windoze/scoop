@@ -95,6 +95,18 @@ impl ResolvedTargetProfile {
         self.final_link_with_cxx(options, false)
     }
 
+    pub fn final_link_with_cxx_cached(
+        &self,
+        options: &FinalLinkOptions,
+        cxx: bool,
+        cache: &std::path::Path,
+    ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
+        let cxx = cxx
+            .then(|| crate::ValidatedCxxToolchain::resolve_cached(self, cache))
+            .transpose()?;
+        ValidatedFinalLinkProfile::from_tools(self.c_bridge_toolchain.clone(), options, cxx)
+    }
+
     pub fn final_link_with_cxx(
         &self,
         options: &FinalLinkOptions,

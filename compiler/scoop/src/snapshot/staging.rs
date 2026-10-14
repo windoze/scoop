@@ -49,23 +49,6 @@ impl PreparedStaging {
         create_directory(&root)?;
         Ok(root.join("candidate.slib"))
     }
-
-    pub(super) fn write_native_input(
-        &self,
-        cone_directory: &str,
-        index: usize,
-        bytes: &[u8],
-    ) -> Result<PathBuf, StagingError> {
-        let root = self.root.path().join("native").join(cone_directory);
-        create_directory(&root)?;
-        let path = root.join(format!("{index:08}.i"));
-        std::fs::write(&path, bytes).map_err(|source| StagingError {
-            operation: StagingIoOperation::Write,
-            path: path.clone(),
-            source,
-        })?;
-        Ok(path)
-    }
 }
 
 fn create_directory(path: &Path) -> Result<(), StagingError> {

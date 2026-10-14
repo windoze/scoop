@@ -527,9 +527,15 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 其他已声明的 `scoop` group 依赖在没有显式 locator、且全部显式 artifact search root 均无候选时，最后检查 `<sysroot>/lib/<name>/Cone.toml`。匹配完整 coordinate 和 library kind 后，按普通 source Cone 递归构建并使用普通缓存；不要求额外的 cone-path。新发现的默认源码 Cone 的显式依赖继续优先展开，直至普通依赖工作队列为空；缺失或损坏的默认源码按普通 source locator 报错。其他 group 不查该默认位置；显式来源失败、候选歧义或已选 artifact 不兼容时不回退。它只补充源码依赖定位，不注入依赖或扩大可见性；artifact-only link 仍不读取 sysroot 源码或补建缺失 artifact。
 
-配套 scoopc 默认来自 scoop executable 同目录，允许显式指定。首次使用或工具路径、修改时间、大小及配置改变时取得其能力／协议；未变化时复用记录，不启动探测、不完整读取程序计算指纹，不在执行前后重捕获工具。本机工具记录保存在 `tools-v1`，保存路径、mtime、长度、生效的配套协议配置和实际能力响应；工具输入摘要由这组普通输入生成。compile key domain 接续为 `scoop-cone-compile-cache-v6`，加入独立的 C 工具输入 metadata 摘要，不改变语言实体或 runtime ABI。每个 source cache miss 启动一次 single-Cone 编译，传入实际 direct/support artifact 路径；direct 对应 manifest edge，support 为其余传递依赖，两组互斥。工具启动、协议读写和实际编译失败正常报告，缓存复用不重放 child 成功产物及依赖闭包的完整验证。
+配套 scoopc 默认来自 scoop executable 同目录，允许显式指定。首次使用或工具路径、修改时间、大小及配置改变时取得其能力／协议；未变化时复用记录，不启动探测、不完整读取程序计算指纹，不在执行前后重捕获工具。本机工具记录保存在 `tools-v1`，保存路径、mtime、长度、生效的配套协议配置和实际能力响应；工具输入摘要由这组普通输入生成。compile key domain 接续为 `scoop-cone-compile-cache-v7`，使用独立的 C 工具输入与 native 对象构建输入摘要，不改变语言实体或 runtime ABI。每个 source cache miss 启动一次 single-Cone 编译，传入实际 direct/support artifact 路径；direct 对应 manifest edge，support 为其余传递依赖，两组互斥。工具启动、协议读写和实际编译失败正常报告，缓存复用不重放 child 成功产物及依赖闭包的完整验证。
 
 C 工具链的版本、SDK／libc 配置和实际调用参数保存在 `native-tools-v1` 普通记录。更新依据为请求、影响工具选择的配置以及实际程序、探测所用头文件、specs 和相关搜索目录的路径／mtime／大小；命中不启动 xcrun、版本查询、预处理或探测编译。Darwin 记录选中的 developer／SDK 路径、SDK 版本和 deployment；Linux 记录 GCC 版本及实际预处理宏配置，不读取整个 GCC、cc1 或 assembler 内容来构造身份。Linux CBridge 合同中的 compiler inputs 摘要表示探测得到的编译配置；本机路径和文件 metadata 只进入构建更新键，不进入产物语义指纹。首次探测仍检查实际目标／libc 能力；失败不发布记录，普通输入缺失和工具执行失败正常报告。
+
+C++ 配套 driver、标准库配置、宏及搜索输入保存在 `cxx-tools-v1`；只在实际 C++ 请求和相关输入变化时发现，不完整读取工具或标准库二进制来计算更新键。C++ 与 native 的本机输入 metadata 仅用于本机构建更新，不进入语言身份或 runtime ABI。
+
+native 预处理同时取得实际 include 名称及其所在文件，按该次 include 的名称、引号查找目录和配置搜索根记录候选；不把所有头文件的父目录互相交叉展开。预处理器输出的 include 观察指令不进入后续预处理单元编译，原有行号与诊断映射保持。
+
+用户 native 源码的普通对象结果保存在 `native-objects-v1`，记录实际选中的源码、上次预处理得到的头文件、include 搜索配置与相关候选路径、编译参数和 C／C++ 工具输入。记录命中且对象存在时直接返回对象路径，不预处理、不读头文件、不复制预处理结果或对象。更新时由构建编排调用 native 工具预处理并编译一次，全部成功后发布对象和记录；不同输入的对象使用不同位置。仅 Scoop 源码变化时复用 native 对象。更新判断观察实际头文件及可改变其选择的候选路径；不因同目录新增无关文件而重新预处理。parent 将这些对象交给 scoopc 打包，child 不再次发现 C++ 工具或编译同一 native 源码；独立 scoopc 仍从实际源码完成正常 native 编译。native 路径只用于输入选择与诊断，不比较 inode、审计符号链接来源或限制头文件的物理归属。
 
 完成节点保存实际生成物位置和后续需要的摘要，不强制持有整份归档或多份验证结构。后续需要编译或链接时按需读取 section，命中库输出或最终 executable 时不读取产物。不同子进程各自首次读取所需依赖数据是正常工作，不增加驻留服务或共享内存协议来消除进程边界。
 
@@ -561,7 +567,7 @@ native 与 runtime 的真实编译保存源码、depfile 中实际使用的头�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 9，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的预处理输入 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 10，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 

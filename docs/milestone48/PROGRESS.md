@@ -89,3 +89,15 @@ Linux [workspace clippy](validation/manifest-record-linux-clippy.log.gz)、[scoo
 本批仅完成 C 发现与 child 传递；C++ 发现、native 预处理、runtime 对象和最终 executable 更新判定仍待处理，M48 尚未完成。
 
 Linux [workspace clippy](validation/native-tools-linux-clippy.log.gz)、[scoop 90 项／protocol 26 项／toolchain 31 项](validation/native-tools-linux-rust.log.gz)、[driver 协议 4 项](validation/native-tools-linux-driver.log.gz)和 [release 构建](validation/native-tools-linux-release.log.gz)通过。[GNU](validation/native-tools-gnu-fixtures.log.gz)通过 17 个正式 CLI 用例、18 variants、94 processes；[musl](validation/native-tools-musl-fixtures.log.gz)通过 13 个用例、15 variants、76 processes。新增用例的 [GNU 调用记录](validation/native-tools-gnu-calls.log.gz)与 [musl 调用记录](validation/native-tools-musl-calls.log.gz)各只有冷构建和真实工具修改后的两组探测，两次暖构建没有新增调用，child 也没有重复发现。保持所有源码、工具和原产物存在，对 GNU 同一库与同一输出再执行一次[暖构建 trace](validation/native-tools-gnu-warm.trace.gz)：只有 scoop 自身的 1 次 execve，没有 native 工具／scoopc exec，没有 Cone.toml／`.scoop`／`.slib` 内容打开，也没有 rename 发布；[结果](validation/native-tools-gnu-warm.stderr.gz)中的 child 数为 0。
+
+## 12. M48-2／4：C++ 发现与用户 native 对象复用
+
+新增普通 `cxx-tools-v1` 与 `native-objects-v1` 记录。C++ 发现只观察实际配套 driver、前端、标准库、宏和头文件输入，父进程的 native 编译及最终链接共享该结果；不整读工具／标准库二进制。native 记录保存实际源码／头文件 metadata、include 选择、有效 flags、工具配置和稳定对象路径，命中不调用预处理器、不读头文件或对象、不复制预处理单元。仅 Scoop 源码变化时复用原 native 对象；真实头文件变化、增加优先候选或所需对象缺失时更新。全部 native 编译成功后发布记录，旧对象仍供已有构建使用。协议升为 10、compile key domain 升为 v7；parent 将对象位置交给 child 打包，child 不再发现 C++ 工具或重新编译同一 native 源码。独立 scoopc 保留正常源码编译。
+
+候选观察来自编译器 `-dI` 展开的实际 include 名称及所在文件，覆盖宏、嵌套引号查找、forced header 和 imacros；移除观察指令时保留行号和 C++ 原始字符串。首次 CLI 采样发现头文件父目录交叉展开产生约 20 万项／116 MB 记录，且 JSON 未缓冲写入；现按实际 include 查找生成候选并缓冲写入，同一 C++ 用例降为约 9700 项／5.6 MB。保留[异常采样](validation/native-objects-darwin-slow-record.sample.gz)，不把被中断的运行计为验收通过。
+
+本机 [workspace clippy](validation/native-objects-darwin-clippy.log.gz)、[scoop 87 项／protocol 26 项／toolchain 31 项](validation/native-objects-darwin-rust.log.gz)、[driver 协议 4 项](validation/native-objects-darwin-driver.log.gz)和 [release 构建](validation/native-objects-darwin-release.log.gz)通过。对象测试覆盖暖复用、Scoop 文件更新不重编 native、实际头文件更新、嵌套目录新增优先头文件、无关文件不失效、所需输出缺失和失败不发布。先前的[首次 Rust 结果](validation/native-objects-darwin-rust-first.log.gz)中旧键向量和外部路径比较期望已同步，最终相关 crate 全部通过。
+
+CLI [定向复验](validation/native-objects-darwin-retest.log.gz)通过 17 个用例，含 C++ debug／release、传递依赖、真实 native 冲突、外部实际输入、两个新对象复用用例；2 个 imacros 用例暴露 Clang 的额外观察指令，修复后[最后 5 个用例、54 processes](validation/native-objects-darwin-final.log.gz)全部通过，覆盖 C／C++ flags、头文件、源码更新及新对象复用。新用例按冷／暖、仅 Scoop 更新、头文件更新、增加优先头文件运行，consumer 退出值为 43／44／102。另保留[首次中断](validation/native-objects-darwin-fixtures-first.log.gz)及[修正诊断前的中断结果](validation/native-objects-darwin-fixtures.log.gz)。历史隔离和路径审计迁移见 [清理记录](CLEANUP.md)。本机无 cargo/rustc 进程时清理 `target/debug/incremental` 1,287.2 MiB。
+
+本批尚未完成 runtime 对象、最终 executable 复用、artifact 消费重放清理与全量历史测试迁移，M48 仍未完成。Linux GNU／musl 验证待本批同步后追加。

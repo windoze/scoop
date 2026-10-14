@@ -11,7 +11,7 @@ use crate::{
     CToolchainOptions, ResolvedTargetProfile, ToolchainError, ValidatedCBridgeToolchainInvocation,
 };
 
-mod inputs;
+pub(crate) mod inputs;
 mod invocation;
 use inputs::Input;
 pub(crate) use inputs::{header_candidates, program_candidates};

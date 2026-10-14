@@ -30,7 +30,7 @@ impl ArtifactLinkRequest {
             target.lir_target_selection(),
             target.c_bridge_toolchain().profile(),
         )?;
-        let profile = resolve_program_link_profile(&closure, &target, &self.final_link)?;
+        let profile = resolve_program_link_profile(&closure, &target, &self.final_link, None)?;
         let runtime = RuntimeObjectSet::read_index(
             &self.runtime_index,
             profile.target(),
@@ -69,6 +69,7 @@ pub fn resolve_program_link_profile(
     closure: &ProgramLinkClosure,
     target: &ResolvedTargetProfile,
     options: &FinalLinkOptions,
+    cache: Option<&Path>,
 ) -> Result<ValidatedFinalLinkProfile, LinkError> {
     let origins = closure
         .artifacts()
@@ -81,13 +82,15 @@ pub fn resolve_program_link_profile(
             origins.join(", ")
         )));
     }
-    target
-        .final_link_with_cxx(options, !origins.is_empty())
-        .map_err(|err| {
-            if origins.is_empty() {
-                error(err)
-            } else {
-                error(format!("{err}; C++ required by {}", origins.join(", ")))
-            }
-        })
+    let profile = match cache {
+        Some(cache) => target.final_link_with_cxx_cached(options, !origins.is_empty(), cache),
+        None => target.final_link_with_cxx(options, !origins.is_empty()),
+    };
+    profile.map_err(|err| {
+        if origins.is_empty() {
+            error(err)
+        } else {
+            error(format!("{err}; C++ required by {}", origins.join(", ")))
+        }
+    })
 }

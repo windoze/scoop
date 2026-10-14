@@ -33,7 +33,7 @@ pub struct ManifestSourceInput {
     pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
     pub(super) sources: SelectedManifestSources,
-    pub(super) native: scoop_toolchain::PreparedNativeInputs,
+    pub(super) native: scoop_toolchain::PreparedNativeObjects,
 }
 
 impl ManifestSourceInput {
@@ -125,7 +125,6 @@ pub(super) struct PreparedManifestSourceNode {
     pub(super) snapshot: ManifestSourceInput,
     pub(super) input_root: PathBuf,
     pub(super) output_path: PathBuf,
-    pub(super) native_inputs: Vec<PathBuf>,
 }
 
 #[derive(Debug)]

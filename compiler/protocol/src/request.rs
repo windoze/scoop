@@ -166,7 +166,7 @@ impl ScoopcBuildRequestV1 {
         self.optimization
     }
 
-    /// Preprocessed units in normalized, target-selected native source order.
+    /// Compiled objects in normalized, target-selected native source order.
     pub fn with_native_inputs(mut self, inputs: Vec<HostPathCarrier>) -> Self {
         self.native_inputs = inputs;
         self

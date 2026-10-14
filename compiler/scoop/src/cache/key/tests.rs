@@ -64,7 +64,7 @@ fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 
             dependencies: Vec::new(),
             sources: SourceSelection::Default,
             tests: None,
-            native: Box::default(),
+            native: Box::new(sha256(b"native-objects")),
         },
         vec![SourceCacheInputV1 {
             source,
@@ -167,7 +167,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             dependencies: vec![dependency.cone().coordinate().clone()],
             sources: SourceSelection::Default,
             tests: None,
-            native: Box::default(),
+            native: Box::new(sha256(b"native-objects")),
         },
         vec![SourceCacheInputV1 {
             source,
@@ -214,7 +214,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "8558576880ac85e5bd59e2ba7d535215189a22041630f3c70f38eeb1e677f4f4"
+        "44d7b56a5690f10069098f9eff161528f018576c8a2ca3b3076542994e9e69ab"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }

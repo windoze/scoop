@@ -1,12 +1,12 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "native compilation: duplicate native source native.c",
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (dev.m33:native-negative:0.1.0:alias.c) conflicts with dev.m33:native-negative:0.1.0:native.c at ${symbol_prefix}m33_unused",
     "notes": [],
     "origin": {
       "kind": "none"
     },
-    "phase": "SourceSnapshot",
+    "phase": "FinalLink",
     "severity": "error"
   }
 ]

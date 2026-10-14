@@ -58,6 +58,14 @@ impl ValidatedFinalLinkProfile {
         let cxx = cxx
             .then(|| crate::ValidatedCxxToolchain::resolve(&startup))
             .transpose()?;
+        Self::from_tools(startup, options, cxx)
+    }
+
+    pub(crate) fn from_tools(
+        startup: ValidatedCBridgeToolchainInvocation,
+        options: &FinalLinkOptions,
+        cxx: Option<crate::ValidatedCxxToolchain>,
+    ) -> Result<Self, ToolchainError> {
         match startup.profile().contract().target().id() {
             scoop_target_data::DARWIN_AARCH64_ID => {
                 if options.mode == Some(LinkMode::Static) || options.unwind_prefix.is_some() {
