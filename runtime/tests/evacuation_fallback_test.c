@@ -61,7 +61,9 @@ int main(void) {
     uintptr_t first = (uintptr_t)objects[GC_REGION_BLOCKS];
     uintptr_t second = (uintptr_t)objects[GC_REGION_BLOCKS + 1];
     scoop_test_vm_fail_mappings = true;
+    uint64_t updated = nursery_metrics().update_ns;
     nursery_collect(false);
+    assert(nursery_metrics().update_ns == updated);
     assert(released == 1 && scoop_rt_gc_stats() == GC_REGION_BLOCKS + 1);
     assert(scoop_rt_gc_debug_last_moved_count() == 0);
     assert(nursery_metrics().last_full_source_regions == 0);
@@ -81,7 +83,9 @@ int main(void) {
     // Moving a single sparse source into the empty cache has no concentration benefit.
     first = (uintptr_t)objects[GC_REGION_BLOCKS];
     second = (uintptr_t)objects[GC_REGION_BLOCKS + 1];
+    updated = nursery_metrics().update_ns;
     nursery_collect(false);
+    assert(nursery_metrics().update_ns == updated);
     assert(scoop_rt_gc_debug_last_moved_count() == 0 && released == 1);
     assert((uintptr_t)objects[GC_REGION_BLOCKS] == first);
     assert((uintptr_t)objects[GC_REGION_BLOCKS + 1] == second);

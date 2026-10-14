@@ -75,7 +75,7 @@ static void relocate_live_object(void *object, void *context) {
 }
 
 static void verify_heap_object(void *object, void *context) {
-    if (!scoop_gc_object_was_scanned_locked(object)) {
+    if (moved_objects != 0 && !scoop_gc_object_was_scanned_locked(object)) {
         heap_fatal("live object was not visited by retained-set relocation");
     }
     visit_object(object, context);
@@ -146,14 +146,16 @@ static bool collect(bool minor) {
         minor = false;
     }
 
-    uint64_t phase = scoop_gc_monotonic_ns();
-    ScoopGcVisitContext relocate = {.minor = minor};
-    scan_roots(&relocate);
-    if (minor) {
-        scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
+    if (moved_objects != 0) {
+        uint64_t phase = scoop_gc_monotonic_ns();
+        ScoopGcVisitContext relocate = {.minor = minor};
+        scan_roots(&relocate);
+        if (minor) {
+            scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
+        }
+        scoop_gc_mark_visit_live(relocate_live_object, &relocate);
+        metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     }
-    scoop_gc_mark_visit_live(relocate_live_object, &relocate);
-    metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     metrics->minor_collections += minor;
     metrics->full_collections += !minor;
 
@@ -170,7 +172,7 @@ static bool collect(bool minor) {
         scoop_gc_heap_verify_stress_moved_locked();
     }
     scoop_gc_mark_dispose();
-    phase = scoop_gc_monotonic_ns();
+    uint64_t phase = scoop_gc_monotonic_ns();
     uint64_t returned = metrics->vm_return_ns;
     scoop_gc_heap_finish_collection_locked(marked_count, minor);
     metrics->reclaim_ns += scoop_gc_monotonic_ns() - phase - (metrics->vm_return_ns - returned);

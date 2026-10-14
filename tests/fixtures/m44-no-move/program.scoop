@@ -1,0 +1,33 @@
+@Extern(lib = "no_move", name = "no_move_begin") fun beginCollection()
+@Extern(lib = "no_move", name = "no_move_check") fun checkCollection(): Boolean
+
+class Node(val value: Long, var next: Node?)
+struct Pair(val first: Node, val second: Node)
+
+@Unsafe fun main() {
+    val values = MutableArray<Pair>(32L) { index ->
+        val first = Node(index, None)
+        val second = Node(index + 1L, Some(first))
+        first.next = Some(second)
+        Pair(first, second)
+    }
+    var round = 0
+    while (round < 3) {
+        beginCollection()
+        gcCollect()
+        if (!checkCollection()) { throw IllegalStateException() }
+        var index = 0L
+        while (index < values.size) {
+            val pair = values[index]
+            if (pair.first.next!! !== pair.second || pair.second.next!! !== pair.first) {
+                throw IllegalStateException()
+            }
+            if (pair.first.value != index || pair.second.value != index + 1L) {
+                throw IllegalStateException()
+            }
+            index += 1L
+        }
+        round += 1
+    }
+    println("zero-move roots and aggregate array cycles preserved")
+}
