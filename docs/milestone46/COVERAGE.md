@@ -1,6 +1,6 @@
 # M46 离线基线覆盖记录
 
-本记录按 [BASELINES.md](BASELINES.md) 的形状矩阵关联普通 Scoop 用例。它不是完整 API client 或新 manifest 入口。生产库只提供协议、Serialize 合成和 JsonValue；基线 DTO 与业务检查留在测试中。四组基线均已完成本机验收；Linux 验收仍待 M46-6。
+本记录按 [BASELINES.md](BASELINES.md) 的形状矩阵关联普通 Scoop 用例。它不是完整 API client 或新 manifest 入口。生产库只提供协议、Serialize 合成和 JsonValue；基线 DTO 与业务检查留在测试中。四组基线均已完成本机验收；M46-6 Linux 验收进行中。
 
 ## Cone 等价 JSON
 

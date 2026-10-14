@@ -587,7 +587,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 按 M46-1～6 完成稳定解码视图、null 查询、编码共享容器、统一 Serialize 与 Option 默认值、不可变 JsonValue，以及 API／Cone 离线数据形状验收。
 - core 与格式库保持普通 Scoop 实现；字段规则在 HIR 生成普通 typed body，不增加专用 runtime ABI、JSON IR 或运行期反射。
-- M46-1～5 已分批实现、提交并通过本机针对性验证；四组离线基线及组合映射见 [覆盖记录](milestone46/COVERAGE.md)。M46-6 的 Linux 完整验证待执行。
+- M46-1～5 已分批实现、提交并通过本机针对性验证；四组离线基线及组合映射见 [覆盖记录](milestone46/COVERAGE.md)。M46-6 的 Linux 完整验证进行中。
 - 每项功能先同步规范、实现和针对性验证，再提交；先本机测试，最终在 Linux 完整验证。M46 完全实现并验收后才开始 M38。
 - 进度与实际验证见[实施记录](milestone46/PROGRESS.md)；未实施部分不能计作完成。
 

@@ -23,7 +23,7 @@ use crate::link_object::{
 mod atoms;
 mod relocations;
 use atoms::{require_atom, require_support_bytes, require_table_bytes, validate_atom_bytes};
-use relocations::{require_relocation, require_relocation_count, verify_primary_relocations};
+use relocations::{require_relocation_count, verify_primary_relocations};
 mod registrations;
 use registrations::verify_registration_table;
 

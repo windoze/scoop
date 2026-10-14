@@ -48,6 +48,13 @@ fn verifies_exact_external_symbols_and_primary_atom_range() {
             .strong_symbol_by_table_index(definition.primary_symbol_table_index())
             .is_some()
     );
+    for symbol in verified.symbols() {
+        assert_eq!(
+            verified.strong_symbol_by_table_index(symbol.table_index()),
+            Some(symbol.clone())
+        );
+    }
+    assert!(verified.strong_symbol_by_table_index(u32::MAX).is_none());
 }
 
 #[test]

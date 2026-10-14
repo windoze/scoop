@@ -44,15 +44,28 @@
 - Messages 基线完成 A1～A8：15 块混合内容、7 类工具、5 类引用、14 个完整事件、递归工具结果、双层 discriminator、signature／opaque 数据与 15 个错误路径。官方 schema 复核发现 nullable diagnostics 实为 tagged object，补齐 CacheMiss 六分支及 null 后复验；没有把已知结构当作开放 JSON。22 个源码文件共 1107 行，最大 103 行。本机 fmt／全工作区 clippy、普通／代表 moving GC 通过，约 139 秒。[首轮](validation/messages-initial-darwin.json.gz)、[完成验证](validation/messages-verified-darwin.json.gz)。
 - 四组基线及 B1～B16 组合证据已关联到 [COVERAGE.md](COVERAGE.md)。2026-10-15 的 [49 项 fixture 公共规则测试](validation/runner-darwin.log.gz)通过；`--all --list` 验证 4091 项声明与全部源码归属。此项不冒充 4091 项执行通过。
 
-## M46-6：跨 target 验收（待执行）
+## M46-6：跨 target 验收（执行中）
 
 - 本机各新增功能和必要既有回归已分批闭合。Linux 计划运行 Rust workspace、公共 fixture 规则及 GNU 完整文件 fixture；musl 运行 M46 全部与序列化、浮点数、stdlib codec 等必要回归，保留原始报告。
-- 2026-10-15 重新连接 nuc12 时，SSH 到 `nuc12w.0d0a.com:22`（解析为 `192.168.2.158`）连续连接超时，显式 IPv4 也相同。已请求确认远端或可用地址。远端没有发生任何修改；M46 尚未完成跨 target 验收，不能开始 M38。
+- 2026-10-15 初次连接 nuc12 超时；用户恢复环境后连接成功。远端从同一基线切到 `codex/m46-m38`，同步至 `e3348cbc`；显式选择已有 Cargo 1.99.0／Rust 1.99.0 和 LLVM 22.1.2，不使用默认 PATH 中的 LLVM 21。见[环境记录](validation/environment-linux.log.gz)。
+- Linux [fmt／全 workspace clippy](validation/clippy-linux.log.gz)、[release 三个 CLI 构建](validation/build-linux.log.gz)、[49 项公共规则测试](validation/runner-linux.log.gz)均通过；复用已安装的私有 LLVM libunwind，GNU PIE、musl static／PIE 的[实际 cleanup／catch／delete 检查](validation/unwind-linux.log.gz)通过。
+- GNU 完整发现 4091 项，30 项 target 不适用。初轮 4 路并行完成 37 项后改为 12 路继续剩余项；恢复时发现用例序号目录与旧只读产物冲突，保存报告后隔离旧 cases，仅复用编译缓存。权限失败项已在干净用例目录通过。保留[初轮中断](validation/gnu-initial.json.gz)及[恢复目录冲突](validation/gnu-resume-initial.json.gz)，中断和失败不计作通过。GNU 剩余项仍在运行。
+- Rust workspace 的前 24 组共 5570 项通过，最后的 driver debug 端到端测试运行约 10 分钟后中止，保留[原始日志](validation/rust-initial-linux.log.gz)。只将 driver library 改为 release、4 路测试线程继续验收，之后补 driver binary 与 workspace 文档测试，不重复已通过的其他 crate。
+- musl [224 项首轮](validation/musl-initial.json.gz)中 220 项通过，std codec 错误矩阵与三个 API 基线在 build 步骤触发 300 秒时限。隔离旧 cases 后串行复验，std codec 约 38 秒通过，Chat 仍超过 300 秒；[复验原始报告](validation/musl-retry-initial.json.gz)保留失败与中断。临时给三个大型 DTO 的 build 设置 600 秒，并将该串行 runner 限定到 nuc12 的性能核 0～11，Chat 仍[超时](validation/musl-timeout600.json.gz)。停止其余两项复验，检查实际热点；临时时限已撤回，保留原 300 秒默认时限。[临时配置的本机 clippy](validation/final-clippy-darwin.log.gz)也归档。
+
+### 大型 DTO 暴露的 image 注册表查询开销
+
+- Linux 慢编译的[实际调用栈](validation/chat-backtrace.log.gz)定位到 image safepoint 注册表验证：每个表项线性扫描整个 relocation、Strong binding 及符号集合。实现规范先明确复用查询索引；实现对本 atom 的 relocation 按 offset 查询，复用既有 `bindings_at`，并为 member 的符号表序号建立一次索引。保持原有数量、唯一 offset、target、role、宽度及编码值检查，不改变产物格式、ABI 或语言语义。
+- 本机 fmt、[全 workspace clippy](validation/registration-clippy-darwin.log.gz)、[571 项 slib 测试](validation/registration-tests-darwin.log.gz)通过；补充注册数量与错误 target owner 负例、符号序号查询断言。新 CLI 的 [Chat／Serialize 产物／JsonValue 产物 fixture](validation/registration-fixtures-darwin.json.gz)均通过，包含普通运行和 moving GC。Chat 在新工作区约 163 秒，其余两项约 17／18 秒；此值不与旧暖缓存用例直接作性能比。Linux 将使用修复后的工具继续验收。
 
 ## 后续
 
-恢复 Linux 连接后执行 M46-6，完整验收并提交完成记录后才开始 M38。
+完成 M46-6 并提交验收记录后才开始 M38。
 
 ## 构建目录
 
 开始时 target 占用约 111 GB；使用 cargo clean 清理全部可重建产物，Cargo 报告移除 241,742 个文件、154.8 GiB 逻辑字节。重新构建时禁用 incremental，首次重建后目录约 3.8 GB；M46-3 完成本机构建及相关 Rust 测试后约 7.3 GB，继续禁用 incremental。
+
+Linux 验收前远端 target 实占 68 GB；恢复旧 fixture 只读目录的 owner 写权限后完成 cargo clean，保留 sysroot/native 中的私有 unwind。重新构建禁用 incremental 和 dev／test debuginfo，release 三工具及 clippy 完成时 target 约 880 MB。
+
+验收期间 target 增至约 33 GB 后，按 runner 已报告 passed 的用例名与固定选集序号对应关系，清理 326 个已完成的隔离 cases 目录，降至约 14 GB。保留共享 cache、失败现场、活跃用例目录及原始报告，不改 runner 或缓存合同。

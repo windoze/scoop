@@ -718,6 +718,8 @@ symbol 只表示已存在的 typed entity，不能反向补声明或决定 ABI�
 
 边界责任分别为源码语义、当前转换生成的 IR、外部字节格式/引用、实际链接绑定及加载后的 GC/地址契约。同一不可变事实在明确边界验证后复用，不以重复完整重放作为发布条件。
 
+对象定义的符号表序号查询复用一次建立的 member 内索引。image 注册表校验按当前 atom 收集并按 offset 查询实际 relocation，Strong binding 复用已排序的 `(member, atom, offset)` 查询；不得为每个 safepoint／type／callable 表项重新扫描整个对象或 Cone 的 relocation／symbol 集合。数量、唯一 offset、实际 target、role、宽度与编码值检查保持不变；这些查询数据不进入产物格式或实体身份。
+
 ### 2.12 Core 与普通依赖
 
 core 是普通 library Cone，可修改和重建，使用相同声明、可见性、泛型、产物、ABI 与链接规则。sysroot 只提供默认 locator，不改变实体归属或来源资格。
