@@ -11,7 +11,7 @@
 | M43-1 测试库与断言 | [普通 scoop.test Cone](../../sysroot/lib/scoop.test/)、语言规范第 16 章；8 个公开断言函数及 AssertionFailure，10 个 assertions fixture 覆盖真实库消费、错误约束与失败位置 | Linux 对应 fixture |
 | M43-2 测试输入与依赖 | 语言规范 12.2.4、实现规范 2.7；manifest test.sources/test-dependencies、前端源码与直接依赖角色、测试构建键和独立输出；manifest、boundaries、source-selection fixture | Linux 对应 fixture |
 | M43-3 发现与生成入口 | [声明检查](../../compiler/hir-lower/src/test_annotations.rs)、[typed 目录](../../compiler/hir/src/test_suite.rs)、[入口合成](../../compiler/hir-lower/src/test_entry.rs)；21 项发现／入口 Rust 测试，生成入口的正式 CLI fixture | Linux 生成程序的执行与产物组合 |
-| M43-4 CLI 与报告 | [选择](../../compiler/scoop/src/cli/test_selection.rs)、[进程运行](../../compiler/scoop/src/cli/test_run.rs)、[事件读取](../../compiler/scoop/src/cli/test_run/events.rs)、[报告](../../compiler/scoop/src/cli/presentation/test_report.rs)；list、selection、report、process、shutdown fixture | Linux 对应 fixture，含独立补跑的 process |
+| M43-4 CLI 与报告 | [选择](../../compiler/scoop/src/cli/test_selection.rs)、[进程运行](../../compiler/scoop/src/cli/test_run.rs)、[事件读取](../../compiler/scoop/src/cli/test_run/events.rs)、[报告](../../compiler/scoop/src/cli/presentation/test_report.rs)；list、selection、report、process、shutdown fixture | Linux 对应 fixture；GNU process 已通过，musl process 待完成 |
 | M43-5 实际库、产物与平台 | [scoop.std 同 Cone 测试](../../sysroot/lib/scoop.std/tests/)、std-application/std-selection、无源码依赖与 artifact-only 链接 fixture | GNU／musl 整组结果与失败项复验 |
 
 普通生产构建不包含测试源码或测试依赖；测试构建复用普通编译、链接、ABI、异常与 GC 路径。测试目录中的显示名称只用于展示和过滤，实际调用使用 typed class/callable。生成入口具有独立 generated identity，未改写用户 main。未新增 runtime 公共 ABI 或通用测试引擎。
@@ -62,6 +62,8 @@
 
 - 格式检查、workspace clippy、配套工具构建与 49 项 runner 测试已通过，日志见 PROGRESS 的 Linux 验证记录。
 - 受影响 Rust 组共 1193 项通过，包含 385 项 Linux codegen、571 项 slib、21 项测试发现／入口，以及源码／依赖角色和 driver 输入检查。
-- [CLI 选择清单](validation/linux-selection.json) 中的首批 166 项正在 GNU／musl 上运行，另 1 项 process 在本机补充 panic 验证后单独运行。平台验收总范围为每目标 167 项，即 105 项 M43 加 62 项共享回归。
-- 两个平台首轮各有 imported-constructor-private-constructor 因并行 Cargo 重建正在使用的 scoopc 而失败。Rust 构建已结束，已保存固定的配套工具；保留首轮结果并在其结束后复验受影响项，不能按通过计算。
-- 必须取得两种 libc 的整组完成报告、process 补验及所有失败项的成功复验，核对实际选择集合与计数，才能把本文件、设计状态及路线图更新为完成。M43 完成后再推进 M44。
+- [初始 CLI 选择清单](validation/linux-selection.json)定义每目标 167 项范围，即 105 项 M43 加 62 项共享回归；166 项首批和 process 分开启动。两个平台首轮各有 imported-constructor-private-constructor 因并行 Cargo 重建正在使用的 scoopc 而失败。
+- 固定 release 工具的 [GNU 验证报告](validation/release-check-gnu.json.gz)共 4 项、6 个变体、22 个步骤通过，包括该构造回归、scoop.std 选择与 process。同一冷缓存构造负例由 debug 工具的 259.62 秒降至 33.07 秒；据此结束较慢的首轮工具进程，保留已完成结果，将剩余项切换到独立的固定 release 工具。
+- 首轮提前结束，没有生成整组 report.json；[GNU 原始日志](validation/debug-initial-gnu.log.gz)、[musl 原始日志](validation/debug-initial-musl.log.gz)分别保存 11 个完整 fixture 的 passed 记录。[GNU 摘录](validation/debug-observed-gnu.json.gz)和 [musl 摘录](validation/debug-observed-musl.json.gz)只提取这些已完成状态，不补写未完成项的通过结果。
+- [剩余选择清单](validation/linux-remaining-selection.json.gz)已核对集合：GNU 已验证 14 项、正在验证 153 项；musl 已验证 11 项、正在验证 156 项。两部分没有交集，并集各为完整的 167 项。首轮未通过的构造回归在 GNU 已复验成功，在 musl 仍属待验项。
+- 必须取得两种 libc 剩余组的完成报告和所有失败项的成功复验，再与已完成日志／报告逐项合并，核对完整选择集合，才能把本文件、设计状态及路线图更新为完成。M43 完成后再推进 M44。

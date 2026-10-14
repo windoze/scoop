@@ -230,3 +230,11 @@
 - Linux Rust 定向验证共 1193 项通过。scoop、manifest、protocol、slib 与 codegen 的完整受影响组共 1157 项，包括实际移除原文件后消费保留产物的测试和 Linux 后端专测，见 [共享组](validation/linux-rust-shared.log.gz)。另通过 21 项测试声明／入口、7 项生产与测试源码查找、6 项依赖查找、1 项跨 Cone 角色、1 项 driver 源码输入，见 [发现](validation/linux-rust-discovery.log.gz)、[源码查找](validation/linux-rust-source-lookup.log.gz)、[依赖查找](validation/linux-rust-dependency-lookup.log.gz)、[跨 Cone 角色](validation/linux-rust-source-roles.log.gz)、[driver](validation/linux-rust-driver-sources.log.gz)。
 - 两个平台的正式 CLI 组继续运行，当前仅首批回归完成；[选择清单](validation/linux-selection.json)记录 166 个首批项与待单独运行的进程 fixture，不把进行中的组记为通过。全部 167 项完成后再汇总平台结论。
 - 本机已归档结果对应的 warm-cache cases、panic cases 与边界 authoring probe 已清理，释放约 182 MB；保留配套工具与已发布缓存条目。
+
+## 2026-10-14：固定 Linux 工具与剩余验收切换
+
+- 初轮 GNU／musl 的 imported-constructor-private-constructor 各失败一次：并行的 cargo test -p scoopc 重建了 target/debug/scoopc，配套编译器在能力握手期间检测到自身变化并拒绝调用。属于验证编排错误，不修改编译器或放宽检查；原始错误保留在 [GNU 日志](validation/debug-initial-gnu.log.gz) 和 [musl 日志](validation/debug-initial-musl.log.gz)。后续工具复制到独立目录，Cargo 不再写入正在使用的命令文件。
+- 使用相同实现构建并固定 release 工具，见 [构建日志](validation/linux-release-build.log.gz) 和 [工具摘要](validation/linux-release-tools.sha256.gz)。GNU 的 4 项验证全部通过，共 6 个变体、22 个进程步骤，包含上述构造复验、scoop.std 列表／过滤与 panic／信号进程测试，见 [报告](validation/release-check-gnu.json.gz) 和 [日志](validation/release-check-gnu.log.gz)。同一冷缓存构造负例从 259.62 秒降至 33.07 秒，约快 7.9 倍。
+- 根据实际计时结果结束 debug 工具的两棵已核实测试进程树，转用固定 release 工具继续。首轮后台进程忽略 SIGINT，因此定向终止后保留原始日志，没有伪造整组 runner 报告；仅提取已经完整打印 passed 的 11 项／平台，见 [GNU 摘录](validation/debug-observed-gnu.json.gz)、[musl 摘录](validation/debug-observed-musl.json.gz) 与 [终止范围](validation/debug-run-stop.json.gz)。运行中及尚未开始的 fixture 全部回到待验集合。
+- 合并 GNU 四项验证后，GNU 已验证 14 项、剩余 153 项；musl 已验证 11 项、剩余 156 项。已验证与剩余集合不相交，并集各为原定 167 项；[剩余清单](validation/linux-remaining-selection.json.gz)保存准确名称。两组已用固定工具、每目标 4 个 worker 启动，平台结论仍待完成。
+- 归档后清理初轮 GNU／musl 以及 release 四项验证的 cases，共约 215 MB。GNU 继续复用 release 验证的缓存；musl 仅复制已发布的 runtime 缓存目录到新工作区，不复制 staging、锁或使用软链接。
