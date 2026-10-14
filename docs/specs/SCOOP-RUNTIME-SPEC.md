@@ -335,6 +335,8 @@ Scoop GC 适配层解释已登记的 image／stackmap、线程发布的 managed 
 
 对象扫描描述的解释也归适配层。GC 请求整对象或半开地址范围扫描；并行 marker 通过适配层提供的元素起点、数量与步长视图划分既有大数组任务，不读取 scan 程序编码。描述、对象大小／对齐等未变化的标量事实可静态内联访问，保持原有检查边界与每对象调用成本；不得建立第二套类型／扫描元数据。
 
+分配大小归一化、实例对齐、对象类型初始化和 release hook 的读取同样通过对象适配操作完成；GC 继续决定代际、存储登记与 ready／pin 状态。普通 runtime 使用分配、已发布对象分类、数组克隆源检查与拆箱检查等实际操作，不自行组合堆锁、对象起点和精确大小查询。克隆／拆箱的类型与大小检查保持原有 heap 锁保护及失败语义；检查之后到实际读取之间没有 safepoint，不能据此省去既有检查或宣称无锁拆箱。
+
 完整根集合包括：
 
 - 活动 managed 栈段的 stackmap roots 与 compiler root frames；
@@ -420,6 +422,8 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 当前 64-bit targets 以 64 KiB 为索引 chunk，使用四级、每级 12-bit 的 radix（地址位移依次为 52／40／28／16）。根 `scoop_gc_page_map` 为 4096 个原子指针，其余节点按实际地址分配；末级指向所属 region／large mapping。metadata 的 generated-code prefix 为 `{ uintptr_t base; size_t size; unsigned char *cards; }`，偏移分别为 0／8／16。索引 load 为 acquire，metadata prefix 发布后不变，card index 为 `(address - base) >> 9`，置脏为 relaxed atomic OR。映射起点及长度按 chunk 对齐，额外映射的首尾页立即解除映射；large mapping 只向 chunk 大小取整，不向普通 region 大小取整。撤销后的空 radix 节点在同一 STW 阶段回收。
 
 该要求适用于字段、数组、含引用 aggregate copy、构造、clone、Context 和 Scoop ABI native 写入。发生过可能 GC 的操作后，不能仅凭“刚分配”省略屏障；native root 或 pin 不替代 old→young 引用记录。
+
+runtime 内的装箱与数组克隆使用包含实际 memcpy 和必要范围屏障的完整复制操作。该操作保持静态内联，不为 GC-free 复制增加外部调用，也不在复制和屏障之间引入 safepoint；native 调用者继续遵守上述公开写屏障合同。
 
 `AtomicRef` 的初始化、store、exchange 及成功 CAS 同样写入 managed reference，必须覆盖相应引用槽的卡表；失败 CAS 没有写入，不需要写屏障。计算对象字段地址到原子访问完成，以及引用写入到写屏障完成之间不能插入 safepoint。AtomicRef 对象、expected/new 引用和读取结果跨 safepoint 时遵守普通 root/relocation 契约；collector 在 mutator 停稳后按普通引用槽扫描和回写，移动不改变 CAS 所比较的对象身份。语言内存序由原子指令实现，GC 屏障不能代替 Acquire/Release。
 

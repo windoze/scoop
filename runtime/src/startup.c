@@ -4,7 +4,7 @@
 
 #include "callback.h"
 #include "eh_internal.h"
-#include "gc/gc_internal.h"
+#include "gc.h"
 #include "gc_binding/internal.h"
 #include "startup/internal.h"
 #include "thread.h"
@@ -84,7 +84,7 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t i
         scoop_rt_exit(1);
     }
     scoop_eh_prepare_shutdown();
-    scoop_gc_mark_shutdown();
+    scoop_gc_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();
     scoop_gc_report_metrics();

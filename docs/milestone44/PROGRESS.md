@@ -10,7 +10,7 @@
 | M44-2 零搬迁更新分支 | 实现与本机定向验收、图对照完成；Linux 组合待后续统一验证 |
 | M44-3 引用定位、写回和无引用对象 | 实现、本机定向验收及普通搬迁／零搬迁对照完成；minor 性能与 Linux 组合继续补齐 |
 | M44-4 编译器 GC 代码生成边界 | 实现与本机定向验收完成；四类程序的独立编译产物和机器码一致，Linux 组合待最终验收 |
-| M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan 适配与 GC mutator 状态已分离并通过本机定向验收；普通 runtime 堆操作与对象信息边界继续实施 |
+| M44-5 runtime GC 操作与 Scoop 适配 | 根／stackmap／scan、mutator、对象信息与普通 runtime 堆操作边界已实现并通过本机定向验收；完整边界性能及 Linux 组合待验收 |
 | M44-6 组合、平台与性能验收 | 待实施 |
 
 ## 工作约定
@@ -93,3 +93,12 @@
 - C／Rust 格式化与 [workspace clippy](validation/mutator-clippy.log.gz)通过，[31 项 collector 回归](validation/mutator-runtime.log.gz)全部通过，包含并发统计与反复 attach/detach、nursery refill 竞争、初始化协调、NativeSafe 返回、精确根、pin／release 和移动。测试的手写 TLAB 分配使用与 generated code 相同的 TLS 数据合同；独立线程测试源清单也加入实际 mutator 实现。
 - 固定 [release 工具](validation/mutator-tools.log.gz)后，七项正式 CLI fixture、15 个变体、79 个进程步骤全部通过，见 [报告](validation/mutator-darwin.json.gz)和 [日志](validation/mutator-darwin.log.gz)。覆盖三个 M44 专项、M34 parallel threads／values、M31 nursery/native/Context/copy 和 native Scoop ABI moving roots。
 - 证据压缩归档后逐字节核对；本批没有改变公开／generated-code ABI 或正常分配策略。对象信息适配、普通 runtime 完整堆操作及完整边界的性能／Linux 验收继续推进，不以本批定向组代替最终全量验收。
+
+## 2026-10-14：对象信息与普通 runtime 堆操作
+
+- 先修订运行时规范 3.3／3.6。分配归一化、类型对齐与初始化、release hook 读取由 `gc_binding/object.h` 的内联访问器适配；GC 保留 shared header 的私有状态位、分配登记、代际与回收策略。GC 核心不再读取 TypeDescriptor 字段或直接调用 shape 操作，也没有另一份类型数据。
+- 普通 boxing／数组克隆的 heap lock、对象起点、exact type 和精确大小检查收进 `gc_binding/values.c` 的两个实际操作。新 `gc.h` 只向普通 runtime 暴露其使用的分配、检查、已发布对象分类、shutdown／统计，以及包含 memcpy 和既有单次范围屏障的内联复制操作；异常、Context、初始化、字符串和启动不再包含 GC 私有堆接口。没有放宽错误条件、去掉拆箱锁或改变 ready／release 语义。
+- C／Rust 格式化与 [workspace clippy](validation/operations-clippy.log.gz)通过。[首轮 372 项 codegen/runtime 测试](validation/operations-codegen-initial.log.gz)中 371 项通过；初始化专测依赖被移除的间接私有声明，改用完整 `scoop_rt_gc_init` 后[专项复验](validation/operations-initialization.log.gz)通过。按名称核对的[覆盖索引](validation/operations-coverage.json.gz)包含全部 372 项成功证据。既有 representation 专测覆盖错误 exact type、interior pointer、非法 count／side size、ZST、boxed subtype 和移动后的读取。
+- [本机 O2／无 LTO 反汇编对照](validation/operations-machine.json.gz)以本批之前的 `6bd5d6ec` 为基线，allocation、evacuation_plan 与 block_sweep 的指令及 relocation 完全相同，确认对象适配没有新增逐分配／逐对象调用。boxing 与 array clone 的实际 memcpy／范围屏障仍在调用方内联展开；clone 源检查新增一次边界调用，不对数组元素逐个调用。该结果只证明这些路径的结构，不代替完整 runtime 边界计时。
+- 固定 [release 工具](validation/operations-tools.log.gz)后，七项正式 CLI fixture、15 个变体、79 个步骤全部通过，见[报告](validation/operations-darwin.json.gz)与[日志](validation/operations-darwin.log.gz)。范围与 mutator 批次相同，验证最终组合的真实 runtime 构建、生成代码、native roots、并行线程、对象复制和 moving／minor stress。
+- 本批和上一批各约 114 MB 的 fixture cases 在证据归档核对后清理；保留固定工具、缓存、基线及机器码证据。M44-5 的实现边界已接通，完整边界的分配／写入／收集性能、实际 mutator 恢复观测和 Linux／最终全量验收仍未完成。

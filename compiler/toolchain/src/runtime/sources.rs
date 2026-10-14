@@ -44,6 +44,7 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/gc/allocation.c",
     "runtime/src/gc/mutator.c",
     "runtime/src/gc_binding/threads.c",
+    "runtime/src/gc_binding/values.c",
     "runtime/src/gc/collector.c",
     "runtime/src/gc/mark.c",
     "runtime/src/gc/mark_objects.c",

@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "mutator_internal.h"
-#include "../value_shape.h"
+#include "../gc_binding/object.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -17,7 +17,7 @@ void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment)
     if (*cursor == NULL) {
         return NULL;
     }
-    char *object = (char *)scoop_shape_align((uintptr_t)*cursor, alignment);
+    char *object = (char *)scoop_gc_align_address((uintptr_t)*cursor, alignment);
     if (object > limit || size > (size_t)(limit - object)) {
         return NULL;
     }
@@ -208,23 +208,23 @@ static void finish_small_allocation(ScoopGcMutator *mutator, void *object,
         block = pointer_block(object);
     }
     if (object == NULL || td == NULL || size > GC_REGULAR_MAX ||
-        (uintptr_t)object % td->instance_shape.instance_alignment != 0 || block == NULL) {
+        (uintptr_t)object % scoop_gc_type_alignment(td) != 0 || block == NULL) {
         heap_fatal("invalid inline TLAB allocation");
     }
     memset(object, 0, size);
     ScoopObjectHeader *header = object;
-    header->td = td;
+    scoop_gc_set_object_type(object, td);
     header->gc_word = 0;
     record_small_object(block, object, size, false);
     record_allocation(mutator, size, block->generation == SCOOP_GC_YOUNG);
 }
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {
-    if (scoop_gc_stress_move_enabled() || td->release_hook != NULL) {
+    if (scoop_gc_stress_move_enabled() || scoop_gc_type_has_release(td)) {
         heap_fatal("inline TLAB allocation violates its nursery contract");
     }
     finish_small_allocation(scoop_gc_current_mutator(), object, td,
-                            scoop_shape_normalize_allocation(td, size));
+                            scoop_gc_allocation_size(td, size));
 }
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
@@ -232,7 +232,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
         heap_fatal("allocation has no TypeDescriptor");
     }
     ScoopGcMutator *mutator = scoop_gc_current_mutator();
-    size = scoop_shape_normalize_allocation(td, size);
+    size = scoop_gc_allocation_size(td, size);
     bool stress = scoop_gc_stress_move_enabled();
     if (stress) {
         scoop_gc_reset_allocation(mutator);
@@ -242,11 +242,10 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
         }
     }
     if (size <= GC_REGULAR_MAX) {
-        void *object =
-            stress ? allocate_small_stress(size, td->release_hook != NULL)
-            : td->release_hook != NULL
-                ? allocate_old(size, (size_t)td->instance_shape.instance_alignment)
-                : allocate_small(mutator, size, (size_t)td->instance_shape.instance_alignment);
+        void *object = stress ? allocate_small_stress(size, scoop_gc_type_has_release(td))
+                       : scoop_gc_type_has_release(td)
+                           ? allocate_old(size, scoop_gc_type_alignment(td))
+                           : allocate_small(mutator, size, scoop_gc_type_alignment(td));
         finish_small_allocation(mutator, object, td, size);
         return object;
     }
@@ -254,7 +253,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     void *object = stress ? allocate_large_stress(size, &block) : allocate_large(size, &block);
     memset(object, 0, size);
     ScoopObjectHeader *header = object;
-    header->td = td;
+    scoop_gc_set_object_type(object, td);
     header->gc_word = 0;
     publish_large_object(block, false);
     record_allocation(mutator, size, false);

@@ -72,8 +72,7 @@ static void publish_fixture(void) {
     registry.static_root_count = UNIT_COUNT * 2;
     registry.stackmaps = scoop_test_stackmaps();
     scoop_image_publish(&registry);
-    scoop_gc_stackmaps_init(&registry.stackmaps);
-    scoop_gc_heap_init();
+    scoop_rt_gc_init(&registry);
 }
 
 static void frame_init(uintptr_t frame[4]) {

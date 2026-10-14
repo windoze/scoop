@@ -5,6 +5,8 @@ runtime-owned exception ABI:
 
 - `src/boxing.c` and `src/arrays.c` execute descriptor-checked boxing,
   unboxing and array cloning, including zero-sized payloads;
+- `src/gc.h` exposes complete allocation, checked-value and lifecycle operations
+  to ordinary runtime code, including an inline copy with its range barrier;
 - `src/value_shape.c` and `src/value_scan.c` check managed shape arithmetic,
   scan translation and storage bounds, with an iterative traversal that reuses
   shared subgraphs and detects cycles without expansion or byte quotas;
@@ -34,7 +36,9 @@ runtime-owned exception ABI:
   `roots.c` owns process/image roots, `root_frames.c` owns native root frames,
   `collector_roots.c` visits frozen thread slots, and `stackmap.c` and
   `stack_roots.c` consume LLVM stack maps. `scan.c` interprets exact object/range
-  scans; inline views in `object.h` expose array ranges to parallel marking.
+  scans; inline views in `object.h` expose allocation layout, object identity,
+  release hooks and array ranges to the GC. `values.c` owns the heap-lock/query
+  sequences for checked unboxing and clone sources.
   `entries.c` joins the collector to the exported managed/native entry ABI;
   `threads.c` adapts world coordination, frozen mutator iteration and statistics
   to the existing thread registry without maintaining a second directory;

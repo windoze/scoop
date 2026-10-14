@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../value_shape.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 

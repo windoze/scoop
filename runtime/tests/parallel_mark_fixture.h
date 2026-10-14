@@ -153,7 +153,7 @@ static void parallel_finish(ParallelFixture *fixture) {
     scoop_rt_pop_native_roots(&fixture->roots);
     nursery_collect(false);
     assert(scoop_rt_gc_stats() == 0 && parallel_released == 8);
-    scoop_gc_mark_shutdown();
+    scoop_gc_shutdown();
     scoop_thread_leave_managed();
     scoop_thread_detach_main();
 }

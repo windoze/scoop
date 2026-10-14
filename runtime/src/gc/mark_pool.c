@@ -150,7 +150,7 @@ void scoop_gc_mark_pool_run(void) {
     pthread_mutex_unlock(&scoop_gc_marker.lock);
 }
 
-void scoop_gc_mark_shutdown(void) {
+void scoop_gc_shutdown(void) {
     if (!scoop_gc_marker.initialized) {
         return;
     }
