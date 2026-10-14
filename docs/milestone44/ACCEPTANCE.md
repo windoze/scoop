@@ -10,7 +10,7 @@
 
 | 项目 | 当前实现与证据 | 剩余验收 |
 | --- | --- | --- |
-| M44-1 基线与时间口径 | 运行时规范 3.5／3.9 保留既有 pause／stop_wait 含义，增加 STOPPING／COLLECTING／RUNNING 观测；[握手测试](validation/observation-test.log.gz)覆盖发布顺序，本机各场景已有同条件基线与对照 | Linux 同机基线与对照 |
+| M44-1 基线与时间口径 | 运行时规范 3.5／3.9 保留既有 pause／stop_wait 含义，增加 STOPPING／COLLECTING／RUNNING 观测；[握手测试](validation/observation-test.log.gz)覆盖发布顺序，Darwin 与 [Linux](PERFORMANCE-LINUX.md) 各场景已有同条件基线与对照 | 后续性能修复沿用同一口径复验 |
 | M44-2 无搬迁跳过更新 | [collector](../../runtime/src/gc/collector.c)在规划／复制及 fallback 完成后检查本轮 moved_objects；只跳过 relocation，回收／晋升／release／分配状态失效／线程恢复共用后续路径；[独立专测](../../runtime/tests/no_move_update_test.c)覆盖零搬迁及移动后下一轮，见[最终 collector 组](validation/boundary-runtime.log.gz) | 最终集成与 Linux 组合 |
 | M44-3 减少实际更新工作 | [slot visitor](../../runtime/src/gc/collector.c)复用本次 object_meta 结果并条件写回；[forwarding／claim](../../runtime/src/gc/evacuation.c)只为新地址重新定位，GC-free 对象跳过出站扫描；[损坏 forwarding 专测](../../runtime/tests/forwarding_validation_test.c)与[反汇编](validation/relocation-machine-code.txt.gz)保留必要失败出口和一次定位证据；full／minor 实际搬迁对照已完成 | 最终集成与 Linux 组合 |
 | M44-4 完整 GC 代码生成 | [function/gc](../../compiler/codegen/src/function/gc/)持有分配、字段／数组／aggregate 写入、原子操作、发布和 poll；失败 CAS 只在成功分支执行屏障；[372 项测试](validation/codegen-rust.log.gz)、[真实写入 fixture](validation/codegen-writes-darwin.json.gz)与[机器码对照](validation/codegen-machine-darwin.json.gz)通过；[Linux 四程序独立根产物](validation/linux-preparation.json.gz)逐字节相同 | Linux 运行组合与性能 |
@@ -40,12 +40,14 @@
 - 多线程分配与实际进度：[56 个正式进程](validation/progress-darwin.json.gz)覆盖计算／分配及 1／4 mutator。记录 T2 后实际增长的迭代数，明确 1024 次采样粒度、调度影响与重试计数的限制，不把 RUNNING 发布当作已经恢复。
 - 编译器／runtime 边界：[生成代码](validation/codegen-machine-darwin.json.gz)和[普通 runtime 操作](validation/operations-machine.json.gz)反汇编与四程序对照证明对应已测路径没有额外热路成本；GC 核心不直接解释 thread 私有字段或 scan 编码，普通 runtime 不组合 GC 私有锁／对象查询。
 
-上述已完成计时均为 Darwin／AArch64 同机结果。[Linux 准备记录](validation/linux-preparation.json.gz)
-仅证明固定工具、对照程序的构建来源及四个微基准根产物一致；GNU／musl 的适用功能与
-Linux 同机性能对照仍缺失，也不能由本机小样本推导所有程序的固定加速比或稳定尾延迟。
+上述列表链接为 Darwin／AArch64 同机结果。[Linux 性能记录](PERFORMANCE-LINUX.md)
+已覆盖整体优化、独立 runtime 边界、实际进度及四程序对照。Linux 的整体 update 收益
+成立，但边界拆分后的 minor 更新存在可重复回退；对齐和 full/minor 分流实验均未解决
+完整场景，未合入生产。该性能门尚未关闭，GNU／musl 的最终适用功能验收也仍缺失。
+不能由这些小样本推导所有程序的固定加速比或稳定尾延迟。
 
 ## 尚未闭合的完成条件
 
 1. 完成仍在运行的正式 CLI `--all`，按完整发现集合核对通过／不适用／失败，修复失败后保留准确的复验映射。工作区首轮的两项旧期望已修正，定向复验、遗漏目标与 doctest 均通过；[完整记录](validation/acceptance-rust-darwin.json.gz)保留首轮失败。
-2. 在 nuc12 运行 Linux GNU／musl 的 GC／ABI／根／写入／生命周期、真实库与产物消费适用组合，并完成同机性能与机器码对照；不跨主机计算加速比。
+2. 修正 Linux runtime 边界的更新回退并完成同条件复验；在 nuc12 运行 GNU／musl 的 GC／ABI／根／写入／生命周期、真实库与产物消费适用组合。不跨主机计算加速比。
 3. 合并最终平台覆盖、原始失败与修复记录，逐项核对本文件和设计后，同步设计、实施记录及路线图的完成状态。

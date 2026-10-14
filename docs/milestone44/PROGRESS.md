@@ -144,3 +144,10 @@
 
 - nuc12 同步至 `af49910f`，格式检查、workspace clippy 与 release 配套工具构建通过；复制到独立 tools-final 后固定摘要。GNU 的旧／新版 graphs、progress 和四程序构建共六组均成功，尚未进行性能计时或平台功能验收，见[准备记录](validation/linux-preparation.json.gz)。
 - 对六份 runtime 副本逐文件核对 Git 来源：基线 `44a3c0bf` 为 220 个文件，当前为 231 个文件；仅允许对应观测头增加既定测试宏。四个微基准均由两套工具分别实际编译，根 `.slib` 逐字节相同，LIR、函数集合、最终函数指令数与长度也相同。最终 binary 和已链接指令字节不同，保留完整反汇编及产物摘要；本期 runtime 已变化，因此不以最终 binary 相同作为整体对照条件，也不据构建结果宣称 runtime 性能保持。
+
+## 2026-10-14：Linux 整体性能与边界回退定位
+
+- nuc12 完成整体优化和独立 runtime 边界的同机交替对照，每场景各七次正式进程，图每进程五轮。零搬迁 update 为 0；整体 compact update 16.596→12.021 ms，minor 约 550→274 µs。实际 mutator 进度、分配／重试、CPU／RSS 与四程序结果均保留，见 [Linux 性能记录](PERFORMANCE-LINUX.md)及其原始归档。
+- 独立边界对照暴露 minor update 约 252→273 µs 的回退，重复及固定 P-core 后仍存在。八个更新热函数的指令字节相同，图与 native helper 也相同；代码布局改变，但没有把具体 CPU 原因当作已证实结论。
+- 隔离副本的 64-byte callback 对齐恢复 minor，却令 full update 11.672→12.858 ms；遍历前选 full/minor callback 的另一实验也未改善两类场景。两者均不合入生产，不利样本和机器码完整归档。三份完整矩阵共 18 组图对照的 15 个工作量字段逐对相同，归档后逐字节核对。
+- 当前生产 runtime 保持 `f300090b`。本机正式 CLI 全量仍在运行；Linux 性能修复和 GNU／musl 最终功能验收仍需完成，不以整体收益掩盖模块拆分的回退。

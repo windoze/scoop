@@ -1,6 +1,7 @@
 # M44 性能记录
 
 本文件只记录实际完成的测量；其余设计场景和三目标验证继续见 [PROGRESS](PROGRESS.md)。
+Linux 同机对照及尚未关闭的边界回退见 [Linux 性能记录](PERFORMANCE-LINUX.md)。
 
 ## 当前图基线
 
