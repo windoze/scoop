@@ -6,6 +6,13 @@
 性能原始记录与测量限制见 [PERFORMANCE](PERFORMANCE.md)。本文件区分已有的本机定向
 证据和仍缺少的最终集成／平台证据，不把开发期定向通过当作三目标验收完成。
 
+[最终源码与选择核对](validation/final-source-audit.json.gz)基于 `29f7f1da`：当前
+4053 项发现结果与 Darwin 全量覆盖逐项一致；GNU／musl 最终各选择 1189 项，分别
+有 1163／1167 项适用，名称与平台适用性均与准备清单一致。两组正在 nuc12 使用固定
+release 工具执行。固定工具构建后的 Rust 变更仅为两个 `cfg(test)` 模块中的期望修正；
+当前 runtime 改动与最终性能归档的四份源码一致。该核对证明来源和选择，不能替代
+尚未结束的 Linux 执行结果。
+
 ## 交付项
 
 | 项目 | 当前实现与证据 | 剩余验收 |
@@ -30,7 +37,7 @@
 | pin／handle／release | collector 的 pins、moving、reclamation、no-move、fallback 组；[回收与 pin 的 CLI 组](validation/no-move-fixtures-darwin.json.gz)；实际 minor 基准核对 pinned 节点到移动节点的引用 |
 | 托管写入与发布 | gc-writes 在 debug／release 下运行普通、moving stress、minor stress；字段、数组、含引用值复制、构造、clone、AtomicRef store／exchange／成功与失败 CAS；codegen 专测检查内存序、屏障与 poll |
 | 显式验证及错误出口 | collector 驱动的 verify_metadata 配置、moving stress，损坏 forwarding 的真实对象注入／失败消息，初始化与对象表示专测；[操作测试覆盖索引](validation/operations-coverage.json.gz)保留首轮失败与成功复验对应关系 |
-| 产物消费与平台 | 工作区及正式 CLI 全量已完成并逐项核对；CLI 共 4561 个变体、17020 个进程步骤，包含无源码消费和 artifact-only 链接。首轮产物损坏用例的过期偏移已修复并复验，保留[全量原始记录](validation/acceptance-cli-darwin.json.gz)和[完整覆盖](validation/acceptance-cli-coverage-darwin.json.gz)。GNU／musl 尚未执行最终验收，不能使用 M43 的平台结果代替 |
+| 产物消费与平台 | 工作区及正式 CLI 全量已完成并逐项核对；CLI 共 4561 个变体、17020 个进程步骤，包含无源码消费和 artifact-only 链接。首轮产物损坏用例的过期偏移已修复并复验，保留[全量原始记录](validation/acceptance-cli-darwin.json.gz)和[完整覆盖](validation/acceptance-cli-coverage-darwin.json.gz)。GNU／musl 最终适用组合正在执行，不能使用 M43 的平台结果代替 |
 
 ## 性能与边界核对
 
@@ -55,7 +62,7 @@
 上述列表链接为 Darwin／AArch64 同机结果。[Linux 性能记录](PERFORMANCE-LINUX.md)
 已覆盖整体优化、独立 runtime 边界、实际进度及四程序对照。Linux 的整体 update 收益
 成立，边界拆分后的 minor 回退已通过 x86-64 普通内联解决；对齐和 full/minor 分流等
-失败实验均保留，未合入生产。GNU／musl 的最终适用功能验收仍缺失。
+失败实验均保留，未合入生产。GNU／musl 的最终适用功能验收仍在执行。
 不能由这些小样本推导所有程序的固定加速比或稳定尾延迟。
 
 内联 forwarding 的隔离候选已恢复 GNU minor 更新中位、完成六组同机对照，并通过
