@@ -1,6 +1,6 @@
 # M46 基线与验收：API wire format 与 Cone.toml
 
-状态：设计完成，待实施。日期：2026-10-14。协议与范围以[主设计](DESIGN.md)及[统一 Serialize](SERIALIZE.md)为准；本文列的是实施验收要求，不是已经通过的测试记录。
+状态：Cone 等价 JSON 已完成本机验收；三组 API 待实施，Linux 完整验收待 M46-6。日期：2026-10-14。协议与范围以[主设计](DESIGN.md)及[统一 Serialize](SERIALIZE.md)为准；本文列的是实施验收要求，不是已经通过的测试记录。
 
 ## 1. “完整支持”的含义
 

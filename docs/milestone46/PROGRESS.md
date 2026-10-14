@@ -33,9 +33,16 @@
 - 5 个新运行型 fixture 含普通／moving GC，覆盖全部 JSON 节点、超出 ULong／Double 的数字、负零与长小数、字符串与对象区别、子树错误后复读、延迟 typed 解码、未知字段 LinkedHashMap、allow／deny／collect、flatten 冲突、过期 writer、格式入口不匹配、非法未知子树，以及三 Cone 无源码生产／消费。1 个 negative fixture 精确断言节点不能被外部访问。
 - 本机 fmt／全工作区 clippy 通过；6 项新增用例和 13 项必要既有回归全部通过。首轮 3 项通过，1 个新用例错误地要求 JsonValue 具有 Equals，改用普通 Option 模式检查后通过；没有为测试增添公开相等性能力。跨产物通过，访问负例取得并审查诊断后复验通过。报告：[首轮](validation/values-initial-darwin.json.gz)、[产物与修正用例](validation/values-artifacts-darwin.json.gz)、[访问负例复验](validation/values-hidden-darwin.json.gz)、[既有回归](validation/values-regression-darwin.json.gz)。本批没有 Rust／runtime 实现改动，不重复相关 Rust 测试。
 
+## M46-5：离线形状基线（实施中）
+
+- Cone 等价 JSON 已完成普通 Scoop DTO、稳定视图包装校验、动态依赖 object、短长式依赖和 target 条件。完整配置、默认配置、显式空数组、全部 library kind、条件 AND／OR、typed 往返及 67 个准确错误路径覆盖 T1～T9；没有新增 Cone.json 构建入口或移植构建器。源码按职责分为 10 个文件，各不超过 91 行。映射见 [COVERAGE.md](COVERAGE.md)。
+- 本机 fmt／全工作区 clippy 通过；Cone fixture 普通模式执行全部输入，moving GC 执行完整正向组合和首末两个代表性失败，合计约 37 秒通过。初轮修正 enum payload 的 warning 和测试中 null 字段路径误写；全错误矩阵的 moving 重复成本过高，主动中断后缩减到代表组合，普通错误矩阵保持完整。
+- 报告：[编译首轮](validation/cone-initial-darwin.json.gz)、[运行首轮](validation/cone-runtime-initial-darwin.json.gz)、[路径诊断](validation/cone-path-darwin.json.gz)、[搬迁测试中断](validation/cone-moving-interrupted-darwin.json.gz)、[完成验证](validation/cone-verified-darwin.json.gz)。失败和中断不计为通过。
+- 三组 API 尚待实施，M46-5 尚未完成。
+
 ## 后续
 
-M46-5～6 尚未实施。M38 尚未开始。
+继续 M46-5 三组 API，然后进行 M46-6 Linux 完整验收。M38 尚未开始。
 
 ## 构建目录
 

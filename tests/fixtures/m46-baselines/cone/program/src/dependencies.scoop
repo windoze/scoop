@@ -1,0 +1,62 @@
+import scoop.collections.*
+import scoop.text.*
+
+enum Dependency {
+    Short(String), Detailed(DependencyDetail)
+    companion object : Encodable<Dependency>, Decodable<Dependency> {
+        public override fun encode(value: Dependency, encoder: Encoder) {
+            when (value) {
+                case Dependency.Short(text) -> String.encode(text, encoder)
+                case Dependency.Detailed(details) -> DependencyDetail.Companion.encode(details, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): Dependency {
+            var short: String? = None
+            try { short = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { short = None }
+            if (short != None) {
+                requireValid(version(short!!), decoder, "invalid version")
+                return Dependency.Short(short!!)
+            }
+            return Dependency.Detailed(DependencyDetail.Companion.decode(decoder))
+        }
+    }
+}
+
+class Dependencies public constructor(val values: LinkedHashMap<String, Dependency> = LinkedHashMap<String, Dependency>()) {
+    companion object : Encodable<Dependencies>, Decodable<Dependencies> {
+        public override fun encode(value: Dependencies, encoder: Encoder) {
+            val fields = encoder.keyed()
+            for (entry in value.values) { Dependency.Companion.encode(entry.value, fields.field(entry.key)) }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): Dependencies {
+            val fields = decoder.keyed()
+            val values = LinkedHashMap<String, Dependency>()
+            for (name in fields.keys) {
+                val child = fields.required(name)
+                val parts = name.split(':')
+                requireValid(parts.size == 2L && coordinatePart(parts[0L]) && coordinatePart(parts[1L]), child, "invalid dependency key")
+                values.put(name, Dependency.Companion.decode(child))
+            }
+            fields.end()
+            return Dependencies(values)
+        }
+    }
+}
+
+struct DependencyDetail(val version: String, val path: String? = None, val artifact: String? = None) {
+    companion object : Encodable<DependencyDetail>, Decodable<DependencyDetail> {
+        public override fun decode(decoder: Decoder): DependencyDetail {
+            val fields = strict(decoder, ["version", "path", "artifact"])
+            val value = DependencyDetailFields.decode(decoder)
+            requireValid(version(value.version), fields.required("version"), "invalid version")
+            requireValid(value.path == None || value.artifact == None, decoder, "conflicting locators")
+            if (value.path != None) { requireValid(value.path!!.length != 0L, fields.required("path"), "empty locator") }
+            if (value.artifact != None) { requireValid(value.artifact!!.length != 0L, fields.required("artifact"), "empty locator") }
+            fields.end()
+            return value
+        }
+    }
+}
+object DependencyDetailFields : Decodable<DependencyDetail> {}

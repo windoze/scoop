@@ -1,0 +1,66 @@
+import scoop.text.*
+
+fun digit(value: Char): Boolean = value >= '0' && value <= '9'
+fun letter(value: Char): Boolean = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z')
+fun coordinatePart(value: String): Boolean {
+    for (part in value.split('.')) {
+        if (part.length == 0L || part[0L] < 'a' || part[0L] > 'z') { return false }
+        for (character in part) {
+            if (!(character >= 'a' && character <= 'z') && !digit(character) && character != '-') { return false }
+        }
+    }
+    return true
+}
+fun version(value: String): Boolean {
+    val build = value.split('+')
+    if (build.size > 2L) { return false }
+    if (build.size == 2L && !versionIdentifiers(build[1L], false)) { return false }
+    val release = build[0L].split('-', 2L)
+    if (release.size == 2L && !versionIdentifiers(release[1L], true)) { return false }
+    val numbers = release[0L].split('.')
+    if (numbers.size != 3L) { return false }
+    for (number in numbers) {
+        if (number.length == 0L || (number.length > 1L && number[0L] == '0')) { return false }
+        for (character in number) { if (!digit(character)) { return false } }
+        if (number.toULongOrNull() == None) { return false }
+    }
+    return true
+}
+fun versionIdentifiers(value: String, prerelease: Boolean): Boolean {
+    for (part in value.split('.')) {
+        if (part.length == 0L) { return false }
+        var numeric = true
+        for (character in part) {
+            if (!letter(character) && !digit(character) && character != '-') { return false }
+            if (!digit(character)) { numeric = false }
+        }
+        if (prerelease && numeric && part.length > 1L && part[0L] == '0') { return false }
+    }
+    return true
+}
+fun relativePath(value: String): Boolean {
+    if (value.length == 0L || value.startsWith('/')) { return false }
+    var depth = 0L
+    for (part in value.split('/')) {
+        if (part == "" || part == ".") { continue }
+        if (part == "..") {
+            depth -= 1L
+            if (depth < 0L) { return false }
+        } else {
+            if (depth == 0L && part.length >= 2L && letter(part[0L]) && part[1L] == ':') { return false }
+            depth += 1L
+        }
+    }
+    for (character in value) {
+        if (character == '\\' || character == '\u0000' || character == '*' || character == '?' || character == '[' || character == ']') { return false }
+    }
+    return true
+}
+fun libraryName(value: String): Boolean {
+    if (value.length == 0L || value.byteLength > 255L || value == "." || value == "..") { return false }
+    if (value[0L] == ' ' || value[value.length - 1L] == ' ') { return false }
+    for (character in value) {
+        if (character.code < 32 || character.code == 127 || character == '/' || character == '\\') { return false }
+    }
+    return true
+}
