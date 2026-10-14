@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) enum ExportTarget {
     Image { offset: u64, thread_local: bool },
-    Absolute(u64),
+    Absolute,
     Reexport { ordinal: usize, imported: String },
 }
 pub(crate) struct Export {
@@ -47,7 +47,7 @@ pub(crate) fn read(bytes: &[u8]) -> Result<BTreeMap<String, Export>, LinkError> 
                     },
                 }
             } else if flags & 3 == 2 {
-                ExportTarget::Absolute(value)
+                ExportTarget::Absolute
             } else {
                 ExportTarget::Image {
                     offset: value,

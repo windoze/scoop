@@ -1,6 +1,6 @@
 # M48：历史隔离与防御性测试清理
 
-状态：实施清单，尚未执行删除或迁移。日期：2026-10-15。原基线：`e548b9ebe`，已在 M46 完成后的 `6571bb4a` 工作区复扫。本文件配套 [M48 主设计](DESIGN.md)，范围覆盖整个仓库，不限于 M23 或名称包含 `artifact-only` 的测试。
+状态：实施中，分批删除与迁移记录见下文。日期：2026-10-15。原基线：`e548b9ebe`，已在 M46 完成后的 `6571bb4a` 工作区复扫。本文件配套 [M48 主设计](DESIGN.md)，范围覆盖整个仓库，不限于 M23 或名称包含 `artifact-only` 的测试。
 
 ## 1. 清理规则
 
@@ -153,3 +153,15 @@ native 外部头文件与指向外部源码的 symlink 负例改为实际编译�
 新增 `m48-native-objects-c`／`m48-native-objects-cxx` 以源码与真实工具始终存在的冷／暖和实际输入变更检验复用。Rust 缺失对象用例只要求正常补产所需输出；没有增加缓存内容损坏、权限／来源审计或删除源码后继续成功的验收。
 
 同批 Linux 回归 `linker/src/artifacts/tests.rs::artifact_cxx_requirement_rejects_both_musl_final_link_modes` 保留源目录，继续验证 GNU 产物的 C++ 需求在 musl static／dynamic 两种最终链接模式下报错及来源信息，不再以源码移除作为验收前提。
+
+## Runtime 结果与最终链接复核退役
+
+runtime index 改为保存实际对象路径与生产时的符号摘要，删除 reader 对对象长度／digest／ID／符号／ABI 的重复复核及 index 写出时的对象复制。对应测试改为输入保留时的暖复用、真实源码／头文件／include 候选更新、所需输出缺失和失败不发布；不再截断缓存对象要求 reader 拒绝。普通 runtime 生产时的对象格式、ABI 导出、重复定义检查仍保留。
+
+删除 `linker/final_image` 全部实现、`link/map` 与 ELF 最终 image 重读入口，以及仅服务其重放的 native relocation 证明数据、Mach-O sleb 解码和未使用字段。退役最终 executable 被修改后的对象／地址／stackmap／EH／动态绑定／code signature 检测、map／trace 来源证明等专测；真实对象的 relocation／EH 输入规则仍在实际读取边界检查。最终链接不再请求无人消费的 map／trace；Linux 工具首次发现仍使用探测程序的 map／trace 选择实际系统库。`link/tests` 的两项输入替换后仍使用旧字节测试改为正常 native alias／DSO 版本更新、实际运行及缺失输入不覆盖既有输出。
+
+`m23-cli-native-link` 的 `runtime-gc`、`runtime-handles`、`callback-exception`、`callback-reentry`、`dynamic-default`、`dynamic-reexport`、`dynamic-overlap`，以及 `m23-cli-native/tls-threads` 共八项删除整套 isolate 步骤、工具副本、空 sysroot 和无效 LLVM 环境，直接通过原工具与原构建结果做独立链接，保留全部语言、native plan、运行、异常、TLS 与 moving GC 断言。`m28-linux/native-dso` 同步删除无效 LLVM 环境和 artifact-only 标签，保留版本绑定、依赖查找及失败不发布断言。SOURCE-ISOLATION 待办清单从 1,626 降为 **1,618** 行；未迁移的其余项仍属于 M48 完成条件。
+
+Linux native archive 测试移除“覆盖归档后继续解析保留副本”的分支，继续覆盖实际 archive member 选择、未选中 initializer 的延迟处理和 thin archive 诊断。
+
+共享 `linker/test_support` 取消编译后删除 Scoop Cone 与 native C 文件；相关链接器测试全程保留源码、工具和原产物。

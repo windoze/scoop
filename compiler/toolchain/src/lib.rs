@@ -37,6 +37,7 @@ pub use linux_c::resolve_linux_c_toolchain;
 pub use native::{
     NativeSourceInput, NativeToolchain, PreparedNativeInputs, PreparedNativeObjects,
     compile_native_source, prepare_native_inputs, prepare_native_objects,
+    strip_native_include_observations,
 };
 pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
 pub use registry::host_target_triple;
@@ -60,3 +61,4 @@ impl fmt::Display for ToolchainError {
 
 impl std::error::Error for ToolchainError {}
 pub use compiler::paired_compiler_machine_capability;
+pub use native_record::inputs::{Input as NativeInputMetadata, native_include_search_paths};

@@ -1,9 +1,8 @@
 use super::*;
 
 impl NativeObjectIndex {
-    /// ELF indexing already checked its relocations; only Mach-O final-image
-    /// inspection needs the reconstructed instruction references returned here.
-    pub fn check_selected(&self, bytes: &[u8]) -> Result<Option<NativeReferences>, LinkError> {
+    /// Check the selected native object, without retaining a final-image replay.
+    pub fn check_selected(&self, bytes: &[u8]) -> Result<(), LinkError> {
         let (common, implicit_inputs, cxx) = match &self.selection {
             NativeSelectionChecks::Darwin {
                 common,
@@ -13,7 +12,7 @@ impl NativeObjectIndex {
             NativeSelectionChecks::Elf { rejection } => {
                 return match rejection {
                     Some(message) => Err(error(message)),
-                    None => Ok(None),
+                    None => Ok(()),
                 };
             }
         };
@@ -64,6 +63,6 @@ impl NativeObjectIndex {
                 )));
             }
         }
-        NativeReferences::read(&file).map(Some)
+        references::check(&file)
     }
 }

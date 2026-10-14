@@ -13,6 +13,7 @@ use crate::ToolchainError;
 
 mod command;
 mod includes;
+pub use includes::strip_native_include_observations;
 mod objects;
 pub use objects::{PreparedNativeObjects, prepare_native_objects};
 mod paths;

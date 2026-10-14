@@ -36,7 +36,7 @@ pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<(), ToolchainErr
     let stub = profile.system.write_to(&sdk)?;
     let executable = directory.path().join("program");
     let output = profile
-        .command(&sdk, &executable, &directory.path().join("program.map"))?
+        .command(&sdk, &executable)?
         .arg(&object)
         .arg(stub)
         .scoop_output()

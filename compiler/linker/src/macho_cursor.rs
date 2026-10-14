@@ -46,23 +46,6 @@ impl<'a> Cursor<'a> {
         }
         Err(error("dyld ULEB128 overflow"))
     }
-    pub(crate) fn sleb(&mut self) -> Result<i64, LinkError> {
-        let mut value = 0u64;
-        for shift in (0..=63).step_by(7) {
-            let byte = self.byte()?;
-            if shift == 63 && !matches!(byte, 0 | 0x7f) {
-                return Err(error("dyld SLEB128 overflow"));
-            }
-            value |= u64::from(byte & 0x7f) << shift;
-            if byte & 0x80 == 0 {
-                if byte & 0x40 != 0 && shift < 57 {
-                    value |= u64::MAX << (shift + 7);
-                }
-                return Ok(value as i64);
-            }
-        }
-        Err(error("dyld SLEB128 overflow"))
-    }
     pub(crate) fn name(&mut self) -> Result<String, LinkError> {
         let end = self.bytes[self.index..]
             .iter()

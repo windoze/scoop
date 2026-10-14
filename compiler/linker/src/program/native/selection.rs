@@ -76,7 +76,7 @@ pub(super) fn include(
     let (index, range) = inputs.native.object(id)?;
     let origin = format!("native object {id} selected by {reason}");
     let diagnostic = format!("{origin} ({})", file.locator.display());
-    let references = index
+    index
         .check_selected(&file.bytes[range])
         .map_err(|err| error(format!("{diagnostic}: {err}")))?;
     for symbol in index.info.definitions.keys() {
@@ -123,9 +123,7 @@ pub(super) fn include(
             .push(origin.clone());
     }
     inputs.native.selected.insert(id, reason.into());
-    if let Some(references) = references {
-        inputs.native.references.insert(id, references);
-    }
+
     Ok(())
 }
 

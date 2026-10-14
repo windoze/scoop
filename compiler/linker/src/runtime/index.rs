@@ -1,6 +1,5 @@
 use super::*;
-use std::io::Write;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, decode_canonical};
 
@@ -12,28 +11,25 @@ struct Index {
     abi: Digest256,
     fingerprint: Digest256,
     objects: Vec<IndexObject>,
+    merged: NativeObjectInfo,
 }
 
 struct IndexObject {
-    id: Digest256,
-    length: u64,
+    id: RuntimeObjectId,
     digest: Digest256,
     info: NativeObjectInfo,
-    locator: String,
+    locator: scoop_protocol::DecodedHostPathCarrier,
 }
 
 impl RuntimeObjectSet {
-    /// Read external objects once; subsequent linking consumes these same bytes.
+    /// Read the saved link data; native tools consume the original object files.
     pub fn read_index(
         path: &Path,
         target: LirTargetProfile,
         toolchain: &CBridgeToolchainProfileV1,
     ) -> Result<Self, LinkError> {
-        let bytes = std::fs::read(path)
-            .map_err(|err| error(format!("runtime index {}: {err}", path.display())))?;
-        let index: Index = decode_canonical(&bytes)
-            .map_err(|err| error(format!("runtime index {}: {err}", path.display())))?;
-        if index.schema != 1
+        let index: Index = decode_canonical(&std::fs::read(path).map_err(error)?).map_err(error)?;
+        if index.schema != 2
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
             || index.toolchain != encode(toolchain.contract()).map_err(error)?
@@ -43,86 +39,55 @@ impl RuntimeObjectSet {
                 "runtime index schema, target, ABI or C toolchain is incompatible; rebuild runtime",
             ));
         }
-        let parent = path.parent().unwrap_or_else(|| Path::new("."));
-        if index
+        let objects: Vec<_> = index
             .objects
-            .windows(2)
-            .any(|pair| pair[0].id >= pair[1].id)
-        {
-            return Err(error("runtime index object IDs are not unique and sorted"));
-        }
-        let mut objects = Vec::with_capacity(index.objects.len());
-        let mut input_paths = vec![path.to_owned()];
-        for record in index.objects {
-            let relative = Path::new(&record.locator);
-            if relative.as_os_str().is_empty()
-                || relative
-                    .components()
-                    .any(|part| !matches!(part, Component::Normal(_)))
-            {
-                return Err(error(format!(
-                    "invalid runtime object locator {:?}",
-                    record.locator
-                )));
-            }
-            let path = parent.join(relative);
-            input_paths.push(path.clone());
-            let bytes = std::fs::read(&path)
-                .map_err(|err| error(format!("runtime object {}: {err}", path.display())))?;
-            let digest = sha256(&bytes);
-            if bytes.len() as u64 != record.length || digest != record.digest {
-                return Err(error(format!(
-                    "runtime object {} length or digest mismatch",
-                    record.id
-                )));
-            }
-            let info = NativeObjectInfo::read_with_toolchain(&bytes, toolchain)
-                .map_err(|err| error(format!("runtime object {}: {err}", record.id)))?;
-            let id = domain_separated_cbor_hash(
-                "scoop-runtime-object-v1",
-                &fingerprint::ObjectKey {
-                    digest,
-                    info: &info,
-                },
-            )
-            .map_err(error)?;
-            if id != record.id || info != record.info {
-                return Err(error(format!(
-                    "runtime object {} ID or symbol records mismatch",
-                    record.id
-                )));
-            }
-            objects.push(RuntimeObject {
-                id: RuntimeObjectId(id),
-                bytes,
-                digest,
-                info,
-            });
-        }
-        let mut set = Self::assemble(target, index.toolchain, index.configuration, objects)?;
-        if set.fingerprint.0 != index.fingerprint {
-            return Err(error("runtime artifact fingerprint mismatch"));
-        }
-        set.input_paths = input_paths;
-        Ok(set)
+            .into_iter()
+            .map(|record| {
+                Ok(RuntimeObject {
+                    id: record.id,
+                    digest: record.digest,
+                    info: record.info,
+                    path: record
+                        .locator
+                        .validate()
+                        .map_err(error)?
+                        .to_path_buf()
+                        .map_err(error)?,
+                })
+            })
+            .collect::<Result<_, LinkError>>()?;
+        let input_paths = std::iter::once(path.to_owned())
+            .chain(objects.iter().map(|object| object.path.clone()))
+            .collect();
+        Ok(Self {
+            target,
+            toolchain: index.toolchain,
+            configuration: index.configuration,
+            objects,
+            merged: index.merged,
+            fingerprint: RuntimeArtifactFingerprint(index.fingerprint),
+            input_paths,
+        })
     }
 
     pub fn write_index(&self, directory: &Path) -> Result<PathBuf, LinkError> {
         std::fs::create_dir_all(directory).map_err(error)?;
-        let mut objects = Vec::with_capacity(self.objects.len());
-        for object in &self.objects {
-            let locator = format!("{}.o", object.id);
-            write_new(&directory.join(&locator), &object.bytes)?;
-            objects.push(IndexObject {
-                id: object.id.0,
-                length: object.bytes.len() as u64,
-                digest: object.digest,
-                info: object.info.clone(),
-                locator,
-            });
-        }
+        let objects = self
+            .objects
+            .iter()
+            .map(|object| {
+                let path = std::path::absolute(&object.path).map_err(error)?;
+                let locator = scoop_protocol::HostPathCarrier::from_path(&path).map_err(error)?;
+                Ok(IndexObject {
+                    id: object.id,
+                    digest: object.digest,
+                    info: object.info.clone(),
+                    locator: locator.into(),
+                })
+            })
+            .collect::<Result<_, LinkError>>()?;
         let index = Index {
-            schema: 1,
+            schema: 2,
             target: encode(&self.target.wire_id()).map_err(error)?,
             toolchain: self.toolchain.clone(),
             configuration: self.configuration.clone(),
@@ -131,26 +96,17 @@ impl RuntimeObjectSet {
             ),
             fingerprint: self.fingerprint.0,
             objects,
+            merged: self.merged.clone(),
         };
         let path = directory.join("index.cbor");
-        write_new(&path, &encode(&index).map_err(error)?)?;
+        std::fs::write(&path, encode(&index).map_err(error)?).map_err(error)?;
         Ok(path)
     }
 }
 
-fn write_new(path: &Path, bytes: &[u8]) -> Result<(), LinkError> {
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(error)?;
-    file.write_all(bytes).map_err(error)?;
-    file.sync_all().map_err(error)
-}
-
 impl WireEncode for Index {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(7)?;
+        e.map(9)?;
         e.field(1)?;
         e.unsigned(self.schema)?;
         e.field(2)?;
@@ -168,12 +124,12 @@ impl WireEncode for Index {
         for object in &self.objects {
             object.encode(e)?;
         }
-        Ok(())
+        self.merged.encode_fields(e, 8)
     }
 }
 impl WireDecode for Index {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(7)?;
+        d.expect_map(9)?;
         Ok(Self {
             schema: d.field(1, Decoder::unsigned)?,
             target: d.field(2, |d| Ok(d.bytes()?.to_vec()))?,
@@ -182,6 +138,7 @@ impl WireDecode for Index {
             abi: d.field(5, Digest256::decode)?,
             fingerprint: d.field(6, Digest256::decode)?,
             objects: d.field(7, |d| d.decode_array(|d, _| IndexObject::decode(d)))?,
+            merged: NativeObjectInfo::decode_fields(d, 8)?,
         })
     }
 }
@@ -189,34 +146,30 @@ impl WireEncode for IndexObject {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         e.map(2)?;
         e.field(1)?;
-        e.map(5)?;
+        e.map(4)?;
         e.field(1)?;
-        self.id.encode(e)?;
+        self.id.0.encode(e)?;
         e.field(2)?;
-        e.unsigned(self.length)?;
-        e.field(3)?;
         self.digest.encode(e)?;
-        self.info.encode_fields(e, 4)?;
+        self.info.encode_fields(e, 3)?;
         e.field(2)?;
-        e.text(&self.locator)
+        self.locator.encode(e)
     }
 }
 impl WireDecode for IndexObject {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(2)?;
-        let (id, length, digest, info) = d.field(1, |d| {
-            d.expect_map(5)?;
+        let (id, digest, info) = d.field(1, |d| {
+            d.expect_map(4)?;
             Ok((
-                d.field(1, Digest256::decode)?,
-                d.field(2, Decoder::unsigned)?,
-                d.field(3, Digest256::decode)?,
-                NativeObjectInfo::decode_fields(d, 4)?,
+                RuntimeObjectId(d.field(1, Digest256::decode)?),
+                d.field(2, Digest256::decode)?,
+                NativeObjectInfo::decode_fields(d, 3)?,
             ))
         })?;
-        let locator = d.field(2, |d| Ok(d.text()?.to_owned()))?;
+        let locator = d.field(2, scoop_protocol::DecodedHostPathCarrier::decode)?;
         Ok(Self {
             id,
-            length,
             digest,
             info,
             locator,

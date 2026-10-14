@@ -2,7 +2,7 @@ use super::*;
 use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub(crate) struct Input {
+pub struct Input {
     path: HostPathCarrier,
     state: Option<State>,
 }
@@ -15,15 +15,19 @@ struct State {
 }
 
 impl Input {
-    pub(crate) fn read(input: &Path) -> Result<Self, ToolchainError> {
+    pub fn read(input: &Path) -> Result<Self, ToolchainError> {
         Ok(Self {
             path: path(input)?,
             state: state(input)?,
         })
     }
 
-    pub(crate) fn is_current(&self) -> Result<bool, ToolchainError> {
+    pub fn is_current(&self) -> Result<bool, ToolchainError> {
         Ok(state(&self.path.to_path_buf().map_err(error)?)? == self.state)
+    }
+
+    pub fn path(&self) -> Result<PathBuf, ToolchainError> {
+        self.path.to_path_buf().map_err(error)
     }
 }
 
@@ -82,7 +86,7 @@ pub(crate) fn program_candidates(
 }
 
 /// Observe include search choices and the parents of headers used by the probe.
-pub(crate) fn header_candidates(stderr: &[u8], inputs: &mut BTreeSet<PathBuf>) {
+pub fn native_include_search_paths(stderr: &[u8]) -> Vec<PathBuf> {
     let mut search = false;
     let mut roots = Vec::new();
     for line in String::from_utf8_lossy(stderr).lines() {
@@ -104,6 +108,11 @@ pub(crate) fn header_candidates(stderr: &[u8], inputs: &mut BTreeSet<PathBuf>) {
             roots.push(PathBuf::from(path));
         }
     }
+    roots
+}
+
+pub(crate) fn header_candidates(stderr: &[u8], inputs: &mut BTreeSet<PathBuf>) {
+    let roots = native_include_search_paths(stderr);
     for header in inputs.clone() {
         if let Some(parent) = header.parent().filter(|p| !p.as_os_str().is_empty()) {
             inputs.insert(parent.to_path_buf());

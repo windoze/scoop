@@ -23,7 +23,7 @@ pub use framing::{
     ProtocolFrameError, ProtocolReadError, ProtocolWriteError, decode_request_frame,
     decode_response_frame, encode_request_frame, encode_response_frame,
 };
-pub use path::{HostPathCarrier, HostPathEncoding, HostPathError};
+pub use path::{DecodedHostPathCarrier, HostPathCarrier, HostPathEncoding, HostPathError};
 pub use request::{
     CurrentConeRequestV1, DiagnosticOutputPolicyV1, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
     TargetSelectionRequestV1, TrustedCoreRequestV1,

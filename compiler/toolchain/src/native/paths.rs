@@ -101,58 +101,7 @@ pub(super) fn normalize_line_markers(
     search: &[PathBuf],
     observed: &mut BTreeSet<PathBuf>,
 ) -> Result<Vec<u8>, ToolchainError> {
-    let mut result = Vec::with_capacity(bytes.len());
-    let mut source = PathBuf::new();
-    let mut raw = super::includes::RawString::default();
-    for line in bytes.split_inclusive(|byte| *byte == b'\n') {
-        if raw.contains_start_of_line(line) {
-            result.extend_from_slice(line);
-            continue;
-        }
-        if super::includes::observe(line, &source, search, observed) {
-            result.push(b'\n');
-            continue;
-        }
-        if line.starts_with(b"# ") {
-            if let Some(start) = line.iter().position(|byte| *byte == b'"') {
-                let mut end = start + 1;
-                let mut name = Vec::new();
-                while end < line.len() && line[end] != b'"' {
-                    if line[end] == b'\\' {
-                        end += 1;
-                    }
-                    if end < line.len() {
-                        name.push(line[end]);
-                        end += 1;
-                    }
-                }
-                let name = std::str::from_utf8(&name).map_err(error)?;
-                source = if Path::new(name).is_absolute() {
-                    PathBuf::from(name)
-                } else {
-                    roots.cone.join(name)
-                };
-                if let Some(mut logical) = paths
-                    .get(Path::new(name))
-                    .cloned()
-                    .or_else(|| roots.remap(Path::new(name)))
-                {
-                    if name.ends_with("//") {
-                        logical.push('/');
-                    }
-                    result.extend_from_slice(&line[..start + 1]);
-                    result.extend_from_slice(
-                        logical
-                            .replace('\\', "\\\\")
-                            .replace('"', "\\\"")
-                            .as_bytes(),
-                    );
-                    result.extend_from_slice(&line[end..]);
-                    continue;
-                }
-            }
-        }
-        result.extend_from_slice(line);
-    }
-    Ok(result)
+    super::includes::transform(bytes, &roots.cone, search, observed, |path| {
+        paths.get(path).cloned().or_else(|| roots.remap(path))
+    })
 }

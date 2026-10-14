@@ -145,15 +145,10 @@ impl ValidatedFinalLinkProfile {
         }
     }
 
-    pub fn command(
-        &self,
-        scratch: &Path,
-        output: &Path,
-        map: &Path,
-    ) -> Result<Command, ToolchainError> {
+    pub fn command(&self, scratch: &Path, output: &Path) -> Result<Command, ToolchainError> {
         match self {
-            Self::Darwin(profile) => profile.command(scratch, output, map),
-            Self::Linux(profile) => profile.command(scratch, output, map),
+            Self::Darwin(profile) => profile.command(scratch, output),
+            Self::Linux(profile) => profile.command(scratch, output),
         }
     }
 

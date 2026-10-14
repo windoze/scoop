@@ -35,8 +35,12 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>,
     run(&mut compile)?;
     let binary = directory.path().join("probe");
     let map = directory.path().join("probe.map");
-    let mut command = profile.command(directory.path(), &binary, &map)?;
-    command.arg(object);
+    let mut command = profile.command(directory.path(), &binary)?;
+    command
+        .args(["-Xlinker", "-Map", "-Xlinker"])
+        .arg(&map)
+        .arg("-Wl,-t")
+        .arg(object);
     profile.append_system_libraries(&mut command);
     let result = run(&mut command)?;
     let bytes = std::fs::read(&binary).map_err(error)?;

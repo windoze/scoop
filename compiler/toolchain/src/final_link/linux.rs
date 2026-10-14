@@ -100,12 +100,7 @@ impl LinuxFinalLinkProfile {
         self.inputs.iter().map(|input| input.path.as_path())
     }
 
-    pub fn command(
-        &self,
-        scratch: &Path,
-        output: &Path,
-        map: &Path,
-    ) -> Result<Command, ToolchainError> {
+    pub fn command(&self, scratch: &Path, output: &Path) -> Result<Command, ToolchainError> {
         std::fs::create_dir_all(scratch).map_err(error)?;
         let script = scratch.join("scoop-metadata.ld");
         std::fs::write(&script, self.metadata_script()).map_err(error)?;
@@ -119,11 +114,8 @@ impl LinuxFinalLinkProfile {
             .args(self.mode_flags())
             .arg("-o")
             .arg(output)
-            .args(["-Xlinker", "-Map", "-Xlinker"])
-            .arg(map)
             .args(["-Xlinker", "-T", "-Xlinker"])
-            .arg(script)
-            .arg("-Wl,-t");
+            .arg(script);
         Ok(command)
     }
 

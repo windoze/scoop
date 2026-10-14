@@ -94,7 +94,6 @@ pub(crate) struct NativeInputs {
     pub files: BTreeMap<NativeInputId, NativeFile>,
     pub libraries: BTreeMap<NativeLinkRequirementId, LibraryInput>,
     pub selected: BTreeMap<NativeObjectId, String>,
-    pub references: BTreeMap<NativeObjectId, crate::native_object::NativeReferences>,
     embedded: BTreeMap<(scoop_identity::ConeIdentity, scoop_slib::SlibMemberId), NativeInputId>,
 }
 

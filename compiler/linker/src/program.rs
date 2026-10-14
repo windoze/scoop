@@ -53,7 +53,6 @@ pub(crate) struct ProgramInputs<'a> {
     pub selected: SelectedMembers,
     pub root: String,
     pub string_target: String,
-    pub strong_relocations: Vec<&'a scoop_slib::VerifiedCurrentConeStrongRelocationClosureV1>,
     pub native: NativeInputs,
 }
 
@@ -76,16 +75,8 @@ impl<'a> ProgramInputs<'a> {
         let mut images = Vec::new();
         let mut root = None;
         let mut string_target = None;
-        let mut strong_relocations = Vec::new();
         for (artifact, symbols) in closure.artifacts() {
             let cone = artifact.identity();
-            strong_relocations.push(
-                symbols
-                    .object_contents()
-                    .patch_sites()
-                    .builtins()
-                    .strong_relocations(),
-            );
             let image =
                 image::SelectedImage::new(artifact, symbols, selected.definitions(cone), profile)?;
             images.push(image.name.clone());
@@ -188,7 +179,10 @@ impl<'a> ProgramInputs<'a> {
             }
             objects.push(InputObject {
                 origin: ObjectOrigin::Runtime(object.id()),
-                bytes: ObjectBytes::Borrowed(object.bytes()),
+                bytes: ObjectBytes::File {
+                    path: object.path(),
+                    digest: object.digest(),
+                },
             });
         }
         let root = root.ok_or_else(|| error("executable closure has no root entry"))?;
@@ -225,7 +219,6 @@ impl<'a> ProgramInputs<'a> {
             selected,
             root,
             string_target,
-            strong_relocations,
             native,
         };
         native::resolve(

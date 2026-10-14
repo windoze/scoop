@@ -1259,8 +1259,6 @@ tests/fixtures/m23-cli-native-link/cabi-archive/fixture.toml	native-link-cabi-ar
 tests/fixtures/m23-cli-native-link/cabi-dynamic/fixture.toml	native-link-cabi-dynamic	1	isolate	remove:${work}/sources	remove_objects
 tests/fixtures/m23-cli-native-link/cabi-object/fixture.toml	native-link-cabi-object	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/cabi-packed/fixture.toml	native-link-cabi-packed	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native-link/callback-exception/fixture.toml	native-link-callback-exception	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native-link/callback-reentry/fixture.toml	native-link-callback-reentry	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/callback-tls-archive/fixture.toml	native-link-callback-tls-archive	1	isolate	remove:${work}/sources	remove_objects
 tests/fixtures/m23-cli-native-link/callback-tls-dynamic/fixture.toml	native-link-callback-tls-dynamic	1	isolate	remove:${work}/sources	remove_objects
 tests/fixtures/m23-cli-native-link/callback-tls-object/fixture.toml	native-link-callback-tls-object	1	isolate	remove:${work}/sources	
@@ -1277,13 +1275,10 @@ tests/fixtures/m23-cli-native-link/direct-contracts/fixture.toml	native-link-dir
 tests/fixtures/m23-cli-native-link/direct-reexport/fixture.toml	native-link-direct-reexport	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/direct/fixture.toml	native-link-direct	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/dynamic-absolute/fixture.toml	native-link-dynamic-absolute	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native-link/dynamic-default/fixture.toml	native-link-dynamic-default	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/dynamic-framework/fixture.toml	native-link-dynamic-framework	1	isolate	remove:${work}/sources	framework_layout
 tests/fixtures/m23-cli-native-link/dynamic-install-errors/fixture.toml	native-link-dynamic-install-errors	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/dynamic-loader/fixture.toml	native-link-dynamic-loader	1	isolate	remove:${work}/sources	private_provider
 tests/fixtures/m23-cli-native-link/dynamic-ordinary/fixture.toml	native-link-dynamic-ordinary	1	isolate	remove:${work}/sources	remove_dependency
-tests/fixtures/m23-cli-native-link/dynamic-overlap/fixture.toml	native-link-dynamic-overlap	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native-link/dynamic-reexport/fixture.toml	native-link-dynamic-reexport	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/dynamic-renamed/fixture.toml	native-link-dynamic-renamed	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/formats-pointers/fixture.toml	native-link-formats-pointers	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/formats-relocations/fixture.toml	native-link-formats-relocations	1	isolate	remove:${work}/sources	
@@ -1292,8 +1287,6 @@ tests/fixtures/m23-cli-native-link/mixed/fixture.toml	native-link-mixed	1	isolat
 tests/fixtures/m23-cli-native-link/resolution-default/fixture.toml	native-link-resolution-default	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/resolution-late-archive/fixture.toml	native-link-resolution-late-archive	1	isolate	remove:${work}/sources	replace_archive
 tests/fixtures/m23-cli-native-link/resolution-runtime-location/fixture.toml	native-link-resolution-runtime-location	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native-link/runtime-gc/fixture.toml	native-link-runtime-gc	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native-link/runtime-handles/fixture.toml	native-link-runtime-handles	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/scoopabi-archive/fixture.toml	native-link-scoopabi-archive	1	isolate	remove:${work}/sources	remove_objects
 tests/fixtures/m23-cli-native-link/scoopabi-dynamic/fixture.toml	native-link-scoopabi-dynamic	1	isolate	remove:${work}/sources	remove_objects
 tests/fixtures/m23-cli-native-link/scoopabi-object/fixture.toml	native-link-scoopabi-object	1	isolate	remove:${work}/sources	
@@ -1302,7 +1295,6 @@ tests/fixtures/m23-cli-native-link/storage-archive/fixture.toml	native-link-stor
 tests/fixtures/m23-cli-native-link/storage-dynamic/fixture.toml	native-link-storage-dynamic	1	isolate	remove:${work}/sources	remove_objects
 tests/fixtures/m23-cli-native-link/storage-object/fixture.toml	native-link-storage-object	1	isolate	remove:${work}/sources	
 tests/fixtures/m23-cli-native-link/storage/fixture.toml	native-link-storage	1	isolate	remove:${work}/sources	
-tests/fixtures/m23-cli-native/tls-threads/fixture.toml	native-tls-cross-cone-callback-threads	1	isolate	remove:${work}/source	
 tests/fixtures/m23-cli-nominal-requirements/combined/fixture.toml	nominal-requirements-combined	4	remove_core_source | prepare_program | isolate	remove:${work}/core-source | remove:${work}/sources/provider | remove:${work}/sources/program/main.scoop | remove:${work}/sources	
 tests/fixtures/m23-cli-nominal-requirements/standalone/fixture.toml	nominal-requirements-standalone	4	remove_core_source | prepare_program | isolate	remove:${work}/core-source | remove:${work}/sources/provider | remove:${work}/sources/program/main.scoop | remove:${work}/sources	
 tests/fixtures/m23-cli-nominal-signature-scope/combined/fixture.toml	nominal-signature-scope-combined	4	remove_core_source | prepare_program | isolate	remove:${work}/core-source | remove:${work}/sources/provider | remove:${work}/sources/program/main.scoop | remove:${work}/sources	

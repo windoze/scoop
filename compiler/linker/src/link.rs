@@ -10,7 +10,6 @@ use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup:
 
 mod darwin;
 mod elf;
-pub(crate) mod map;
 mod response;
 
 #[cfg(test)]
@@ -66,30 +65,16 @@ fn link_inputs(
     write_new(&first, &startup.bytes)?;
     paths.push(first);
     for input in &inputs.objects {
-        let path = directory.path().join(format!("{}.o", input.origin));
-        write_new(&path, input.bytes())?;
-        paths.push(path);
+        paths.push(input.materialize(directory.path())?);
     }
     let candidate = directory.path().join("program");
-    let link_map = directory.path().join("program.map");
     match profile {
-        ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
-            profile,
-            inputs,
-            &startup,
-            directory.path(),
-            &paths,
-            &candidate,
-            &link_map,
-        )?,
-        ValidatedFinalLinkProfile::Linux(linux) => elf::link(
-            linux,
-            inputs,
-            directory.path(),
-            &paths,
-            &candidate,
-            &link_map,
-        )?,
+        ValidatedFinalLinkProfile::Darwin(_) => {
+            darwin::link(profile, inputs, directory.path(), &paths, &candidate)?
+        }
+        ValidatedFinalLinkProfile::Linux(linux) => {
+            elf::link(linux, inputs, directory.path(), &paths, &candidate)?
+        }
     }
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
@@ -106,9 +91,6 @@ fn link_inputs(
         .map_err(error)?,
     );
     let plan_dump = dump(closure, runtime, inputs, &startup);
-    std::fs::File::open(&candidate)
-        .and_then(|file| file.sync_all())
-        .map_err(error)?;
     std::fs::rename(candidate, &output).map_err(|err| {
         error(format!(
             "cannot publish executable {}: {err}",
@@ -170,7 +152,7 @@ impl WireEncode for Plan<'_> {
         for input in &self.inputs.objects {
             e.array(2)?;
             e.text(&input.origin.to_string())?;
-            sha256(input.bytes()).encode(e)?;
+            input.digest().encode(e)?;
         }
         e.field(7)?;
         e.array(2)?;

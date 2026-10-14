@@ -4,11 +4,11 @@ root = "program"
 inputs = ["program", "leaf.c", "leaf.map", "versions.c", "versions.map", "plain.c", "host.c", "marker.c"]
 tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
 targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m28", "ffi", "tls", "elf", "artifact-only"]
+tags = ["m28", "ffi", "tls", "elf"]
 
 [[steps]]
 name = "prepare"
-files = [{ mkdir = { path = "${work}/libs" } }, { remove = { path = "${work}/libs" } }, { mkdir = { path = "${work}/libs/deps" } }]
+files = [{ mkdir = { path = "${work}/libs/deps" } }]
 
 [[steps]]
 name = "leaf"
@@ -77,7 +77,6 @@ stderr = ""
 [[steps]]
 name = "link"
 argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
-env = { LLVM_SYS_221_PREFIX = "/absent-llvm", PATH = "/usr/bin:/bin" }
 timeout = 300
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"

@@ -1,51 +1,81 @@
 use super::*;
 use scoop_process::CommandExt;
+use std::collections::BTreeSet;
+use std::process::Command;
 
 pub(super) fn compile(
     request: &RuntimeBuildRequest<'_>,
     inputs: &inputs::Inputs,
     staging: &Path,
-) -> Result<(Vec<Vec<u8>>, dependencies::Dependencies), RuntimeBuildError> {
-    let root = staging.join("runtime");
-    inputs.materialize(&root)?;
-    let root = std::fs::canonicalize(root).map_err(error)?;
+) -> Result<(Vec<PathBuf>, dependencies::Dependencies), RuntimeBuildError> {
     let mut objects = Vec::with_capacity(inputs.sources.len());
-    let mut files = Vec::new();
+    let mut observed = BTreeSet::new();
+    let temporary = tempfile::tempdir_in(staging).map_err(error)?;
     for (index, source) in inputs.sources.iter().enumerate() {
         let object = staging.join(format!("runtime-{index}.o"));
-        let depfile = staging.join(format!("runtime-{index}.d"));
-        let mut command = request
+        let depfile = temporary.path().join("unit.d");
+        let assembly = source.ends_with(".S");
+        let preprocessed = temporary
+            .path()
+            .join(if assembly { "unit.s" } else { "unit.i" });
+        let mut preprocess = request
             .target
             .c_bridge_toolchain()
-            .object_compilation_command(&root.join(source), &object);
-        command
-            .args(request.target.runtime_build().runtime_c_flags())
-            .args(request.optimization.c_flags())
-            .args([
-                "-funwind-tables",
-                "-fasynchronous-unwind-tables",
-                "-fno-lto",
-            ])
-            .arg(format!("-ffile-prefix-map={}=runtime", root.display()))
-            .arg(format!("-fmacro-prefix-map={}=runtime", root.display()))
-            .args(["-MD", "-MT", "runtime.o", "-MF"])
+            .object_compilation_command(&inputs.root.join(source), &preprocessed);
+        configure(&mut preprocess, inputs);
+        preprocess
+            .args(["-E", "-dI", "-v", "-MD", "-MT", "runtime.o", "-MF"])
             .arg(&depfile);
-        for include in request.target.runtime_build().include_directories() {
-            command.arg("-I").arg(root.join(include));
+        for include in &inputs.includes {
+            preprocess.arg("-I").arg(include);
         }
-        if let Some(include) = inputs.unwind_include {
-            command.arg("-I").arg(root.join(include));
-        }
-        let output = command.scoop_output().map_err(error)?;
-        if !output.status.success() {
-            return Err(error(format!(
-                "{source}: C compiler failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )));
-        }
-        objects.push(std::fs::read(object).map_err(error)?);
-        files.push(std::fs::read_to_string(depfile).ok());
+        let output = run(&mut preprocess, source)?;
+        let mut search = inputs.includes.clone();
+        search.extend(scoop_toolchain::native_include_search_paths(&output.stderr));
+        let bytes = scoop_toolchain::strip_native_include_observations(
+            &std::fs::read(&preprocessed).map_err(error)?,
+            &inputs.root,
+            &search,
+            &mut observed,
+        )
+        .map_err(error)?;
+        std::fs::write(&preprocessed, bytes).map_err(error)?;
+        let dependencies = std::fs::read_to_string(&depfile).map_err(error)?;
+        let paths = scoop_process::parse_make_dependencies(&dependencies, "runtime.o")
+            .ok_or_else(|| error("C compiler returned an invalid runtime dependency file"))?;
+        observed.extend(paths.into_iter().map(|p| inputs.root.join(p)));
+        let mut compile = request
+            .target
+            .c_bridge_toolchain()
+            .object_compilation_command(&preprocessed, &object);
+        configure(&mut compile, inputs);
+        run(&mut compile, source)?;
+        objects.push(object);
     }
-    let dependencies = dependencies::Dependencies::collect(&root, files);
-    Ok((objects, dependencies))
+    Ok((objects, dependencies::Dependencies::collect(observed)?))
+}
+
+fn configure(command: &mut Command, inputs: &inputs::Inputs) {
+    command
+        .current_dir(&inputs.root)
+        .args(&inputs.flags)
+        .arg(format!(
+            "-ffile-prefix-map={}=runtime",
+            inputs.root.display()
+        ))
+        .arg(format!(
+            "-fmacro-prefix-map={}=runtime",
+            inputs.root.display()
+        ));
+}
+
+fn run(command: &mut Command, source: &str) -> Result<std::process::Output, RuntimeBuildError> {
+    let output = command.scoop_output().map_err(error)?;
+    if !output.status.success() {
+        return Err(error(format!(
+            "{source}: C compiler failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+    Ok(output)
 }

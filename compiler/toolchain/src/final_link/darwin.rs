@@ -125,12 +125,7 @@ impl DarwinFinalLinkProfile {
     }
 
     /// Callers append the ordered objects, aliases and snapshotted system stub.
-    pub fn command(
-        &self,
-        sdk_snapshot: &Path,
-        output: &Path,
-        map: &Path,
-    ) -> Result<Command, ToolchainError> {
+    pub fn command(&self, sdk_snapshot: &Path, output: &Path) -> Result<Command, ToolchainError> {
         let deployment = self
             .startup
             .profile()
@@ -166,9 +161,6 @@ impl DarwinFinalLinkProfile {
             sdk_snapshot.as_os_str().to_owned(),
             "-o".into(),
             output.as_os_str().to_owned(),
-            "-map".into(),
-            map.as_os_str().to_owned(),
-            "-t".into(),
         ] {
             self.linker_argument(&mut command, argument);
         }

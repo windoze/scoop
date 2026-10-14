@@ -1,12 +1,10 @@
 use super::*;
-pub(crate) use crate::native_input::elf_dynamic::dynamic_strings;
 use crate::native_input::elf_dynamic::{ElfDynamic, ElfExport, ElfImport, ElfSymbols};
 use object::read::elf::ElfFile64;
 use object::{Object, elf};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-mod final_image;
 mod graph;
 mod plan;
 mod system;

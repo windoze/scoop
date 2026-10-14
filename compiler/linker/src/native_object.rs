@@ -13,7 +13,6 @@ mod elf;
 mod references;
 mod sections;
 mod selected;
-pub(crate) use references::{NativeReferenceSection, NativeReferences};
 mod wire;
 
 #[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]

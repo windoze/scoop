@@ -2,6 +2,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+mod output;
+pub use output::strip_native_include_observations;
+pub(super) use output::transform;
+
 /// Only raw strings can span lines in the compiler's preprocessed token stream.
 #[derive(Default)]
 pub(super) struct RawString(Option<Vec<u8>>);

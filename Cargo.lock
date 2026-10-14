@@ -616,6 +616,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-process",
+ "scoop-protocol",
  "scoop-slib",
  "scoop-target-data",
  "scoop-toolchain",

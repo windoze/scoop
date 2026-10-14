@@ -6,6 +6,7 @@ rust-version.workspace = true
 [dependencies]
 scoop-target-data.workspace = true
 scoop-process.workspace = true
+scoop-protocol.workspace = true
 object.workspace = true
 scoop-identity.workspace = true
 scoop-lir.workspace = true

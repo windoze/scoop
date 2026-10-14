@@ -601,7 +601,11 @@ SourceExtern 按实际 target/native symbol 合并完整 library、kind、TLS、
 
 参数自由 source extern 的普通 managed 调用经原 provider 的 Scoop 薄入口，包含 native transition 与 caller-root publication，入口的 Scoop GC effect 为 Managed；native callee 自身的 effect 仍是其声明合同。泛型正文在定义方与消费方使用同一入口；NoGc 和 release 的直接 native 调用遵守各自规则。
 
-runtime object index 保存普通对象路径及本次链接需要的定义／引用摘要和 target/runtime ABI。runtime-build 的源码、头文件、compiler、SDK、flags 与规则变化使相应结果更新；命中时不重读对象核对内容，也不重新预处理源码。
+runtime object index schema 2 保存普通对象路径、生产时已有的对象摘要、合并后的定义／引用及 target/runtime ABI。读取 index 直接采用这些结果，不重读对象、核对 digest、重建符号摘要或重放 runtime ABI 导出检查；首次生成对象时完成实际对象格式和 ABI 检查。链接器把 index 中的对象路径直接交给 native linker，不重新物化对象。
+
+runtime 构建使用 `runtime-v2` 普通记录，按实际源码根、选中源码、include／unwind 配置、flags、C 工具输入和规则版本定位。命中前只查询上次实际源码、depfile 头文件及 include 候选的路径／mtime／大小；不读取源码、扫描并复制整棵头文件树或重读 compiler 内容。更新时直接从原始源码预处理并编译，观察实际 include 名称；全部成功后保存对象、index 与记录。对象采用稳定且不同批次不覆盖的位置；所需 index／对象缺失时补产，真实输入缺失照常报错，失败不发布新记录或替换已有结果。本机 metadata 不改变 runtime ABI。
+
+native linker 成功后直接发布其输出，不重新读取整份 Mach-O／ELF，重放输入对象、重定位、stackmap、EH、动态绑定或代码签名的正确性检查；不通过链接 map／trace 审计实际读取文件。必要的符号选择、对象格式、ABI／GC 数据及工具参数在产生输入与实际链接时完成，工具退出失败正常传播。生成程序的正常运行和专门 ABI／GC 回归承担输出行为验收，不保留修改刚生成的可执行文件后要求发布复核拒绝的测试。
 
 逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。driver 将选中 manifest 要求合并到既有 LIR foundation native library 表；相同 key 去重，产物不要求每个库都有 Scoop extern 使用者。Code 与 production manifest 继续覆盖完整逻辑要求，Link reader 复用该表，不从机器符号反推库名。先在全部显式 library roots 中按既有规则收集候选；该层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。显式候选损坏、target/ABI 不匹配或歧义直接报错，不能用系统库掩盖。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、用户脚本或任意 linker 参数。
 
