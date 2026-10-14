@@ -94,7 +94,7 @@ fn dependency_first_invariant_is_rechecked_by_the_closure_gate() {
 }
 
 #[test]
-fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
+fn completed_nodes_share_artifact_data_with_their_closure() {
     use scoop_slib::{ArtifactCapabilityProfile, ArtifactSnapshot, ConeRecord};
     use std::sync::Arc;
 
@@ -111,7 +111,7 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
-        "retained-snapshot",
+        "shared-artifact",
         Vec::new(),
     );
     let directory = tempfile::tempdir().unwrap();
@@ -136,18 +136,12 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
         core,
         completed.shared_artifact(),
         completed.closure().clone(),
-        cached_path.clone(),
-        cached_path.clone(),
+        cached_path,
         Vec::new(),
     );
     let retained = [completed.clone(), cached];
-    std::fs::remove_file(candidate).unwrap();
-    std::fs::remove_file(cached_path).unwrap();
-    drop(completed);
-    drop(snapshot);
-    drop(plan);
-
     for node in retained {
+        assert!(node.artifact_locator().is_file());
         let artifact = node.closure().artifact(core).unwrap();
         assert!(std::ptr::eq(artifact, node.artifact()));
         assert_eq!(artifact.summary().cone().identity(), core);

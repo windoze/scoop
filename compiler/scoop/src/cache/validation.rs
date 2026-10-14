@@ -17,7 +17,7 @@ use crate::artifact::{
     ArtifactClosurePlan, ArtifactClosureValidationError, BuildArtifact, CompletedNode,
     ValidatedArtifactClosure,
 };
-use crate::{CompileCacheKeyError, PairedCompilerFingerprintV1, StagingError};
+use crate::{CompileCacheKeyError, PairedCompilerFingerprintV1};
 
 pub(crate) struct ValidatedCacheHitV1 {
     identity: ConeIdentity,
@@ -28,16 +28,11 @@ pub(crate) struct ValidatedCacheHitV1 {
 }
 
 impl ValidatedCacheHitV1 {
-    pub(crate) const fn artifact(&self) -> &Rc<BuildArtifact> {
-        &self.artifact
-    }
-
-    pub(crate) fn into_completed(self, materialized_path: PathBuf) -> CompletedNode {
+    pub(crate) fn into_completed(self) -> CompletedNode {
         CompletedNode::from_cache_hit(
             self.identity,
             self.artifact,
             self.closures,
-            materialized_path,
             self.artifact_locator,
             self.warnings,
         )
@@ -236,7 +231,6 @@ pub enum CacheCompletionError {
         cone: ProtocolConeIdentity,
     },
     PersistedHostPathWarning(String),
-    Staging(StagingError),
 }
 
 impl fmt::Display for CacheCompletionError {
@@ -289,7 +283,6 @@ impl fmt::Display for CacheCompletionError {
                     "cached warning {code} retains a host-path origin"
                 )
             }
-            Self::Staging(source) => write!(formatter, "cannot materialize cache hit: {source}"),
         }
     }
 }
@@ -311,7 +304,6 @@ impl std::error::Error for CacheCompletionError {
             Self::Artifact(source) => Some(source),
             Self::Plan(source) => Some(source),
             Self::ReceiptBinding(source) => Some(source),
-            Self::Staging(source) => Some(source),
             _ => None,
         }
     }

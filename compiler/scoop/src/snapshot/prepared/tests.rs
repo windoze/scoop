@@ -239,7 +239,7 @@ fn core_manifest_artifact() -> Vec<u8> {
 }
 
 #[test]
-fn prepare_materializes_only_immutable_private_source_inputs() {
+fn prepare_uses_the_actual_source_root() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -261,36 +261,16 @@ fn prepare_materializes_only_immutable_private_source_inputs() {
         Some(PreparedNodeRepresentation::ManifestSource)
     );
 
-    let private_root = prepared.source_input_path(root_identity).unwrap();
-    assert!(private_root.starts_with(prepared.staging_root()));
+    let input_root = prepared.source_input_path(root_identity).unwrap();
+    assert_eq!(input_root, root.canonicalize().unwrap());
     assert_eq!(
-        std::fs::read(private_root.join("src/main.scoop")).unwrap(),
-        b"fun value(): Int = 1\n"
-    );
-    assert_eq!(
-        std::fs::metadata(private_root.join("src/main.scoop"))
-            .unwrap()
-            .permissions()
-            .mode()
-            & 0o777,
-        0o400
-    );
-
-    std::fs::write(root.join("src/main.scoop"), "fun value(): Int = 2\n").unwrap();
-    assert_eq!(
-        prepared
-            .source_snapshot(root_identity)
-            .unwrap()
-            .sources()
-            .next()
-            .unwrap()
-            .as_bytes(),
+        std::fs::read(input_root.join("src/main.scoop")).unwrap(),
         b"fun value(): Int = 1\n"
     );
 }
 
 #[test]
-fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
+fn prepare_uses_the_actual_prebuilt_artifact_path() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -315,14 +295,9 @@ fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
         .unwrap();
 
     assert_eq!(candidate.snapshot().as_bytes(), artifact);
-    assert!(
-        candidate
-            .materialized_path()
-            .starts_with(prepared.staging_root())
-    );
     assert_eq!(
-        std::fs::read(candidate.materialized_path()).unwrap(),
-        candidate.snapshot().as_bytes()
+        candidate.source_locator(),
+        workspace.join("prebuilt.slib").canonicalize().unwrap()
     );
     assert_eq!(prepared.prebuilt_coordinate(identity), Some(&coordinate));
     assert_eq!(
@@ -366,7 +341,7 @@ fn prepare_rejects_artifact_changed_after_discovery() {
 }
 
 #[test]
-fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
+fn single_file_uses_actual_path_and_fixed_semantic_name() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -388,7 +363,7 @@ fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
     let input = prepared
         .source_input_path(ConeIdentity::SINGLE_FILE)
         .unwrap();
-    assert_eq!(input.file_name().unwrap(), "main.scoop");
+    assert_eq!(input, source.canonicalize().unwrap());
     assert_eq!(std::fs::read(input).unwrap(), b"fun main() {}\n");
     assert_eq!(
         prepared

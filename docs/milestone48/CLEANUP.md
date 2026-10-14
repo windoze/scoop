@@ -76,7 +76,7 @@
 
 | 位置 | 当前历史动作 | M48 处理 |
 | --- | --- | --- |
-| [scoop/tests/retained_artifacts.rs](../../compiler/scoop/tests/retained_artifacts.rs) | `completed_graph_links_retained_artifacts_after_original_files_are_removed` 删除源码和全部原始产物后链接内存副本 | 删除这个隔离 case；普通图结果复用在输入仍存在时验证 |
+| `scoop/tests/retained_artifacts.rs`（已删除） | `completed_graph_links_retained_artifacts_after_original_files_are_removed` 删除源码和全部原始产物后链接内存副本 | 删除这个隔离 case；普通图结果复用在输入仍存在时验证 |
 | [scoop/src/artifact/tests.rs](../../compiler/scoop/src/artifact/tests.rs) | 删除 candidate 与 cached 文件后，要求 CompletedNode 持有完整归档 | 删除“文件消失后仍拥有字节”的要求；仅保留实际模型需要的数据共享测试 |
 | [linker/src/test_support.rs](../../compiler/linker/src/test_support.rs) | `compile` 编译每个 Cone 后立即删除 source；native fixture 编译后删除 native.c | 删除 helper 中的隔离动作，所有调用方不再隐式继承无源码前提 |
 | [linker/src/artifacts/tests.rs](../../compiler/linker/src/artifacts/tests.rs) | C++／musl 目标用例在读取闭包前删除源目录 | 保留目标工具链能力诊断，保留源目录 |
@@ -117,3 +117,9 @@
 ### 已执行批次：Scoop 源码路径与读取
 
 `m33-sources/negative/symlink-escape` 的唯一拒绝依据是目标位于 Cone 根外，已删除该描述、诊断与专用无效输入。正常能力改由 `m48-source-inputs/file`（外部文件、暖构建、实际源码更新）和 `m48-source-inputs/testing`（目录内 alias、外部测试目录和执行结果）验证。Rust 的两处 escape 拒绝分支改为实际读取及 logical source identity／role 断言；重复选择、缺失目标和遍历循环测试保留。此项属于路径来源审计退役，不减少 SOURCE-ISOLATION 的 1,628 个产物隔离迁移候选。
+
+### 已执行批次：实际输入路径
+
+`PreparedStaging` 的 symlink namespace 拒绝、输出目录额外文件拒绝两个 Rust case 随审计代码删除。prepared 的源码／prebuilt／single-file／core 用例改为实际路径、逻辑身份及真实源码更新断言，不再检查只读私有副本或改写输入后保留旧字节。`scoop/tests/retained_artifacts.rs` 的唯一隔离 case 删除；`scoop/src/artifact/tests.rs` 保留 CompletedNode 与 closure 共享数据的断言，删除文件移除步骤。
+
+`m23-cli-program-link/diamond-ready-order` 已从 SOURCE-ISOLATION 清单迁移：保留菱形依赖的 6 个 image、10/20/30/40/50 初始化顺序、moving GC 和显式链接时重复依赖去重；源码、工具和原产物始终保留。改为真实多 Cone 构建、暖构建零 compiler child、使用已有产物路径链接及执行；删除复制独立工具、空 sysroot、隐藏工具环境、删除源码和移动产物后再次链接的隔离步骤。该清单目前 1 项已迁移，余下 1,627 项仍待逐项处理。

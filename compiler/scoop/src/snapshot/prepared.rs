@@ -1,11 +1,8 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
-use scoop_identity::{ConeIdentity, SourceContentDigest};
 use scoop_manifest::{LoadedConeManifest, discover_manifest_sources, load_single_file_source};
 use scoop_slib::ArtifactSnapshot;
-use scoop_wire::Digest256;
 
 use super::staging::PreparedStaging;
 use crate::discovery::{BuildContext, GraphNode};
@@ -33,7 +30,7 @@ use model::{
 };
 
 impl ResolvedBuildGraph {
-    /// Captures graph inputs before cache lookup or compiler child execution.
+    /// Prepares the graph and actual input paths for compiler child execution.
     pub fn prepare(self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
         Preparer::new(self.into_parts())?.run()
     }
@@ -59,7 +56,7 @@ impl Preparer {
         })
     }
 
-    fn run(mut self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
+    fn run(self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
         let topological_indices = self
             .parts
             .dependency_first
@@ -78,10 +75,9 @@ impl Preparer {
                     } else {
                         scoop_protocol::CompilationPurpose::Production
                     };
+                    let input_root = manifest.real_root().to_path_buf();
                     let snapshot =
                         capture_manifest_source(*manifest, &self.parts.context, purpose)?;
-                    let input_root =
-                        materialize_manifest_snapshot(&self.staging, identity, &snapshot)?;
                     let native_inputs = snapshot
                         .native
                         .units()
@@ -89,11 +85,10 @@ impl Preparer {
                         .enumerate()
                         .map(|(index, unit)| {
                             self.staging
-                                .materialize_source(
-                                    &format!("native-{identity}"),
-                                    &format!("{index:08}.i"),
+                                .write_native_input(
+                                    &identity.to_string(),
+                                    index,
                                     unit.preprocessed(),
-                                    unit.digest(),
                                 )
                                 .map_err(PrepareBuildGraphError::Staging)
                         })
@@ -113,12 +108,7 @@ impl Preparer {
                     PreparedGraphNode::PrebuiltArtifact(Box::new(PreparedPrebuiltArtifactNode {
                         coordinate: prebuilt.coordinate().clone(),
                         artifact_fingerprint: prebuilt.artifact_fingerprint(),
-                        candidates: prepare_prebuilt_candidates(
-                            identity,
-                            *prebuilt,
-                            &self.parts.context,
-                            &self.staging,
-                        )?,
+                        candidates: prepare_prebuilt_candidates(*prebuilt, &self.parts.context)?,
                     }))
                 }
                 GraphNode::SingleFile(locator) => {
@@ -127,14 +117,7 @@ impl Preparer {
                     let snapshot = SingleFileSourceSnapshot {
                         source: SourceSnapshot::from_discovered(discovered),
                     };
-                    let input_path = self
-                        .staging
-                        .materialize_single_file(
-                            &identity.to_string(),
-                            snapshot.source.as_bytes(),
-                            digest_from_source(snapshot.source.content_digest()),
-                        )
-                        .map_err(PrepareBuildGraphError::Staging)?;
+                    let input_path = locator.resolved_path().to_path_buf();
                     let output_path = self
                         .staging
                         .plan_output(topological_indices[&identity], &identity.to_string())
@@ -148,9 +131,6 @@ impl Preparer {
             };
             nodes.insert(identity, prepared);
         }
-        self.staging
-            .seal_inputs()
-            .map_err(PrepareBuildGraphError::Staging)?;
         Ok(PreparedBuildGraph {
             root: self.parts.root,
             nodes,
@@ -173,13 +153,6 @@ fn capture_manifest_source(
     context: &BuildContext,
     purpose: scoop_protocol::CompilationPurpose,
 ) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
-    let manifest_input = ImmutableInputSnapshot::capture(manifest.manifest_path())
-        .map_err(PrepareBuildGraphError::ManifestSnapshot)?;
-    if manifest_input.as_bytes() != manifest.source_bytes() {
-        return Err(PrepareBuildGraphError::ManifestChanged(
-            manifest.manifest_path().to_path_buf(),
-        ));
-    }
     let discovered = match purpose {
         scoop_protocol::CompilationPurpose::Production => {
             discover_manifest_sources(&manifest, context.target.id())
@@ -189,7 +162,6 @@ fn capture_manifest_source(
         }
     }
     .map_err(PrepareBuildGraphError::SourceDiscovery)?;
-    let source_directories = discovered.selected_directories().to_vec();
     let (first, rest) = discovered.into_parts();
 
     let coordinate = manifest.coordinate().clone();
@@ -218,10 +190,7 @@ fn capture_manifest_source(
         manifest_semantic,
         test_config,
         native,
-        source_directories,
         manifest_locator: manifest.manifest_path().to_path_buf(),
-        manifest_bytes: manifest_input.shared_bytes(),
-        manifest_digest: manifest_input.digest(),
         sources: NonEmptySourceSnapshots {
             first: SourceSnapshot::from_discovered(first),
             rest: rest
@@ -232,52 +201,15 @@ fn capture_manifest_source(
     })
 }
 
-fn materialize_manifest_snapshot(
-    staging: &PreparedStaging,
-    identity: ConeIdentity,
-    snapshot: &ManifestSourceSnapshot,
-) -> Result<PathBuf, PrepareBuildGraphError> {
-    let cone_directory = identity.to_string();
-    let root = staging
-        .materialize_manifest(
-            &cone_directory,
-            snapshot.manifest_bytes(),
-            snapshot.manifest_digest(),
-        )
-        .map_err(PrepareBuildGraphError::Staging)?;
-    for directory in &snapshot.source_directories {
-        staging
-            .materialize_source_directory(&cone_directory, directory)
-            .map_err(PrepareBuildGraphError::Staging)?;
-    }
-    for source in snapshot.sources() {
-        staging
-            .materialize_source(
-                &cone_directory,
-                source.identity().logical_path().as_str(),
-                source.as_bytes(),
-                digest_from_source(source.content_digest()),
-            )
-            .map_err(PrepareBuildGraphError::Staging)?;
-    }
-    Ok(root)
-}
-
 fn prepare_prebuilt_candidates(
-    identity: ConeIdentity,
     prebuilt: PrebuiltArtifactProjection,
-
     context: &BuildContext,
-    staging: &PreparedStaging,
 ) -> Result<NonEmptyPreparedArtifactCandidates, PrepareBuildGraphError> {
     let (coordinate, artifact_fingerprint, first, rest) = prebuilt.into_parts();
-    let first = prepare_artifact_candidate(identity, 0, first, context, staging)?;
+    let first = prepare_artifact_candidate(first, context)?;
     let rest = rest
         .into_iter()
-        .enumerate()
-        .map(|(index, candidate)| {
-            prepare_artifact_candidate(identity, index + 1, candidate, context, staging)
-        })
+        .map(|candidate| prepare_artifact_candidate(candidate, context))
         .collect::<Result<Vec<_>, _>>()?;
     if first.summary.cone().coordinate() != &coordinate
         || first.summary.artifact_fingerprint() != artifact_fingerprint
@@ -294,12 +226,8 @@ fn prepare_prebuilt_candidates(
 }
 
 fn prepare_artifact_candidate(
-    identity: ConeIdentity,
-    index: usize,
     candidate: PrebuiltArtifactCandidate,
-
     context: &BuildContext,
-    staging: &PreparedStaging,
 ) -> Result<PreparedArtifactCandidate, PrepareBuildGraphError> {
     let (source_locator, expected_summary) = candidate.into_parts();
     let input = ImmutableInputSnapshot::capture(&source_locator).map_err(|source| {
@@ -322,24 +250,11 @@ fn prepare_artifact_candidate(
         ));
     }
 
-    let materialized_path = staging
-        .materialize_artifact(
-            &identity.to_string(),
-            index,
-            snapshot.as_bytes(),
-            snapshot.digest(),
-        )
-        .map_err(PrepareBuildGraphError::Staging)?;
     Ok(PreparedArtifactCandidate {
         source_locator,
-        materialized_path,
         snapshot,
         summary,
     })
-}
-
-fn digest_from_source(digest: SourceContentDigest) -> Digest256 {
-    Digest256::from_array(*digest.as_array())
 }
 
 #[cfg(test)]

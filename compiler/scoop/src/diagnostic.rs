@@ -338,12 +338,9 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
             ),
             Self::ArtifactSnapshot { .. } => phase_only(BuildFailurePhase::PrebuiltArtifact),
 
-            Self::Staging(_)
-            | Self::ManifestSnapshot(_)
-            | Self::ManifestChanged(_)
-            | Self::SourceDiscovery(_)
-            | Self::Native(_)
-            | Self::SingleFile(_) => phase_only(BuildFailurePhase::SourceSnapshot),
+            Self::Staging(_) | Self::SourceDiscovery(_) | Self::Native(_) | Self::SingleFile(_) => {
+                phase_only(BuildFailurePhase::SourceSnapshot)
+            }
         }
     }
 }
@@ -391,11 +388,11 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
 
             Self::ChildTransport(source) => source.classification(),
             Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
-            Self::OutputLayout(_) | Self::OutputSnapshot(_) => classified(
+            Self::OutputSnapshot(_) => classified(
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_OUTPUT_MISSING,
             ),
-            Self::ChildResult(_) | Self::DiagnosticPath(_) => classified(
+            Self::ChildResult(_) => classified(
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
             ),

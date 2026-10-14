@@ -15,8 +15,6 @@ use crate::{
     SingleConeCompilerRunner, SnapshotFileError, validate_child_success_artifact,
 };
 
-mod diagnostics;
-
 impl PreparedBuildGraph {
     /// Observed sources compile independently; ordinary misses keep their key
     /// lock through compilation. Both publish under the same exclusive key lock.
@@ -71,9 +69,6 @@ impl PreparedBuildGraph {
         let invocation = self
             .child_invocation_plan(identity, request_id, completed)
             .map_err(OrdinarySourceExecutionError::RequestPlan)?;
-        self.staging
-            .require_empty_output(invocation.output_path())
-            .map_err(OrdinarySourceExecutionError::OutputLayout)?;
 
         let response = runner
             .invoke(&self.compiler, invocation.request(), invocation.io())
@@ -81,11 +76,7 @@ impl PreparedBuildGraph {
 
         let success = match response {
             ScoopcResponseEnvelopeV1::Success { result, .. } => result,
-            ScoopcResponseEnvelopeV1::Failure {
-                mut diagnostics, ..
-            } => {
-                diagnostics::restore_artifact_locations(&mut diagnostics, completed)
-                    .map_err(OrdinarySourceExecutionError::DiagnosticPath)?;
+            ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
                 return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
             }
         };
@@ -112,9 +103,6 @@ impl PreparedBuildGraph {
         success: &scoop_protocol::ScoopcSuccessV1,
     ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        self.staging
-            .validate_completed_output(invocation.output_path())
-            .map_err(OrdinarySourceExecutionError::OutputLayout)?;
         let output = ImmutableInputSnapshot::capture_no_follow(invocation.output_path())
             .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
         let snapshot = Arc::new(ArtifactSnapshot::from_shared(output.shared_bytes()));
@@ -181,8 +169,6 @@ pub enum OrdinarySourceExecutionError {
 
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
-    DiagnosticPath(scoop_protocol::HostPathError),
-    OutputLayout(crate::StagingError),
     OutputSnapshot(SnapshotFileError),
     Completion(CompiledCompletionError),
     ChildResult(ChildSuccessArtifactMismatch),
@@ -211,13 +197,6 @@ impl fmt::Display for OrdinarySourceExecutionError {
                 "compiler child reported {} diagnostic(s)",
                 diagnostics.len()
             ),
-            Self::DiagnosticPath(source) => write!(
-                formatter,
-                "cannot retain artifact diagnostic locator: {source}"
-            ),
-            Self::OutputLayout(source) => {
-                write!(formatter, "invalid private child output layout: {source}")
-            }
             Self::OutputSnapshot(source) => {
                 write!(formatter, "cannot snapshot compiler child output: {source}")
             }
@@ -244,8 +223,6 @@ impl std::error::Error for OrdinarySourceExecutionError {
             Self::RequestPlan(source) => Some(source),
 
             Self::ChildTransport(source) => Some(source),
-            Self::DiagnosticPath(source) => Some(source),
-            Self::OutputLayout(source) => Some(source),
             Self::OutputSnapshot(source) => Some(source),
             Self::Completion(source) => Some(source),
             Self::ChildResult(source) => Some(source),

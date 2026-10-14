@@ -13,7 +13,6 @@ use scoop_slib::{ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord
 
 pub use completion::{
     CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
-    PrivateArtifactPath,
 };
 pub(crate) use completion::{complete_compiled_candidate, complete_prebuilt_candidates};
 pub use data::BuildArtifact;

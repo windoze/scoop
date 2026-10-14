@@ -82,7 +82,7 @@ fn core_incompatible_profile_never_publishes_a_cache_entry() {
 }
 
 #[test]
-fn core_uses_the_common_immutable_snapshot_and_cache_key() {
+fn core_source_changes_update_the_compile_key() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -93,21 +93,16 @@ fn core_uses_the_common_immutable_snapshot_and_cache_key() {
 
     let prepared = prepare(&root, workspace).unwrap();
     let initial = prepared.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    let private_root = prepared.source_input_path(ConeIdentity::CORE).unwrap();
+    assert_eq!(
+        prepared.source_input_path(ConeIdentity::CORE).unwrap(),
+        sysroot.join("lib/scoop.core").canonicalize().unwrap()
+    );
     std::fs::write(
         sysroot.join("lib/scoop.core/src/core.scoop"),
         "class Any\nclass Unit\n",
     )
     .unwrap();
 
-    assert_eq!(
-        std::fs::read(private_root.join("src/core.scoop")).unwrap(),
-        b"class Any\n"
-    );
-    assert_eq!(
-        prepared.compile_cache_key(ConeIdentity::CORE, &[]).unwrap(),
-        initial
-    );
     let next = prepare(&root, workspace).unwrap();
     assert_ne!(
         next.compile_cache_key(ConeIdentity::CORE, &[]).unwrap(),
@@ -116,7 +111,7 @@ fn core_uses_the_common_immutable_snapshot_and_cache_key() {
 }
 
 #[test]
-fn core_child_plan_uses_the_common_manifest_snapshot_request() {
+fn core_child_plan_uses_the_actual_manifest_root() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");

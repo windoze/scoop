@@ -12,8 +12,6 @@ use crate::{PairedCompilerError, SnapshotFileError};
 pub enum PrepareBuildGraphError {
     PairedCompiler(PairedCompilerError),
     Staging(StagingError),
-    ManifestSnapshot(SnapshotFileError),
-    ManifestChanged(PathBuf),
     SourceDiscovery(SourceDiscoveryError),
     Native(scoop_toolchain::ToolchainError),
     SingleFile(SingleFileInputError),
@@ -37,14 +35,6 @@ impl fmt::Display for PrepareBuildGraphError {
             Self::Native(error) => error.fmt(formatter),
             Self::PairedCompiler(error) => error.fmt(formatter),
             Self::Staging(error) => error.fmt(formatter),
-            Self::ManifestSnapshot(error) => {
-                write!(formatter, "cannot snapshot source manifest: {error}")
-            }
-            Self::ManifestChanged(path) => write!(
-                formatter,
-                "source manifest {} changed after graph discovery",
-                path.display()
-            ),
             Self::SourceDiscovery(error) => {
                 write!(formatter, "cannot snapshot manifest sources: {error}")
             }
@@ -82,7 +72,6 @@ impl std::error::Error for PrepareBuildGraphError {
             Self::Native(error) => Some(error),
             Self::PairedCompiler(error) => Some(error),
             Self::Staging(error) => Some(error),
-            Self::ManifestSnapshot(error) => Some(error),
             Self::SourceDiscovery(error) => Some(error),
             Self::SingleFile(error) => Some(error),
             Self::ArtifactSnapshot { source, .. } => Some(source),

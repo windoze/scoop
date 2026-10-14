@@ -20,21 +20,6 @@ pub enum CompletedNodeOrigin {
     Compiled,
 }
 
-/// A transport path under the current build's private staging area. The path
-/// is never used as semantic identity or artifact authority.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PrivateArtifactPath(PathBuf);
-
-impl PrivateArtifactPath {
-    pub fn as_path(&self) -> &Path {
-        &self.0
-    }
-
-    pub(crate) const fn new(path: PathBuf) -> Self {
-        Self(path)
-    }
-}
-
 /// A completed node retains its artifact data and exact dependency closure.
 #[derive(Clone, Debug)]
 pub struct CompletedNode {
@@ -42,7 +27,6 @@ pub struct CompletedNode {
     origin: CompletedNodeOrigin,
     artifact: Rc<BuildArtifact>,
     closure: Rc<ValidatedArtifactClosure>,
-    materialized_child_path: PrivateArtifactPath,
     artifact_locator: PathBuf,
     warnings: Vec<StructuredDiagnosticV1>,
 }
@@ -64,11 +48,7 @@ impl CompletedNode {
         &self.closure
     }
 
-    pub const fn materialized_child_path(&self) -> &PrivateArtifactPath {
-        &self.materialized_child_path
-    }
-
-    /// The original prebuilt file or published cache file, retained after staging is dropped.
+    /// The original prebuilt file or the published cache output.
     pub fn artifact_locator(&self) -> &Path {
         &self.artifact_locator
     }
@@ -93,7 +73,6 @@ impl CompletedNode {
         cone: ConeIdentity,
         artifact: Rc<BuildArtifact>,
         closures: ValidatedArtifactClosure,
-        materialized_child_path: PathBuf,
         artifact_locator: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
     ) -> Self {
@@ -102,7 +81,6 @@ impl CompletedNode {
             origin: CompletedNodeOrigin::CacheHit,
             artifact,
             closure: Rc::new(closures),
-            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
             artifact_locator,
             warnings,
         }
@@ -112,7 +90,7 @@ impl CompletedNode {
         cone: ConeIdentity,
         artifact: Rc<BuildArtifact>,
         closures: ValidatedArtifactClosure,
-        materialized_child_path: PathBuf,
+        artifact_locator: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
     ) -> Self {
         Self {
@@ -120,8 +98,7 @@ impl CompletedNode {
             origin: CompletedNodeOrigin::Compiled,
             artifact,
             closure: Rc::new(closures),
-            artifact_locator: materialized_child_path.clone(),
-            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
+            artifact_locator,
             warnings,
         }
     }
@@ -179,7 +156,7 @@ pub(crate) fn complete_compiled_candidate(
     plan: &ArtifactClosurePlan,
     identity: ConeIdentity,
     snapshot: Arc<scoop_slib::ArtifactSnapshot>,
-    materialized_path: PathBuf,
+    artifact_locator: PathBuf,
     completed: &[&CompletedNode],
     warnings: Vec<StructuredDiagnosticV1>,
 ) -> Result<CompletedNode, CompiledCompletionError> {
@@ -209,7 +186,7 @@ pub(crate) fn complete_compiled_candidate(
         identity,
         artifact,
         closures,
-        materialized_path,
+        artifact_locator,
         warnings,
     ))
 }
@@ -292,7 +269,6 @@ impl std::error::Error for PrebuiltCompletionError {
 
 struct ValidatedCandidate {
     source_locator: PathBuf,
-    materialized_path: PathBuf,
     artifact: Rc<BuildArtifact>,
     closures: ValidatedArtifactClosure,
     agreement: ArtifactFingerprint,
@@ -349,7 +325,6 @@ pub(crate) fn complete_prebuilt_candidates(
         let summary = artifact.summary();
         validated.push(ValidatedCandidate {
             source_locator: candidate.source_locator().to_path_buf(),
-            materialized_path: candidate.materialized_path().to_path_buf(),
             agreement: summary.artifact_fingerprint(),
             artifact,
             closures,
@@ -378,7 +353,6 @@ pub(crate) fn complete_prebuilt_candidates(
         origin: CompletedNodeOrigin::Prebuilt,
         artifact: selected.artifact,
         closure: Rc::new(selected.closures),
-        materialized_child_path: PrivateArtifactPath::new(selected.materialized_path),
         artifact_locator: selected.source_locator,
         warnings: Vec::new(),
     })

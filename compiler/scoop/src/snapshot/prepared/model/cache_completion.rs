@@ -32,15 +32,6 @@ impl PreparedBuildGraph {
             self.compiler.fingerprint(),
             self.target_selection,
         )?;
-        let snapshot = validated.artifact().snapshot();
-        let materialized = self
-            .staging
-            .materialize_cache_artifact(
-                &identity.to_string(),
-                snapshot.as_bytes(),
-                snapshot.digest(),
-            )
-            .map_err(CacheCompletionError::Staging)?;
-        Ok(validated.into_completed(materialized))
+        Ok(validated.into_completed())
     }
 }

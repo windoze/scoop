@@ -7,10 +7,10 @@
 | 批次 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | M48-1 合同、清理范围、release 基线 | 完成 | 已同步三份规范、AGENTS 与 runner 说明；复扫 1,628 份迁移候选并核对活动设计。Darwin 五组各五轮、native 另五轮头文件变化共 55 次测量完成，原始证据见 [基线](BASELINE.md)。精确 native／linker 调用计数作为最终结构验收补齐。 |
-| M48-2 提前更新判定与普通构建记录 | 进行中 | 配套编译器的 metadata／能力记录已落地，本机验证通过（见下）；Preparer 输入镜像、产物收据与路径审计尚待删除。 |
+| M48-2 提前更新判定与普通构建记录 | 进行中 | 配套编译器 metadata／能力记录、普通源码读取、实际输入路径已落地（见下）；更新判定仍须前移，产物收据与其余路径审计待删除。 |
 | M48-3 按需读取与删除消费重放 | 未开始 | 尚未移除验证资格、对象 replay 和重复闭包。 |
 | M48-4 对象／native／runtime／最终链接复用 | 未开始 | 现有暖程序构建仍重新链接、发布和制作运行副本。 |
-| M48-5 全量测试迁移与最终验收 | 未开始 | 扫描清单须逐项记录迁移或删除，保留实际语言与运行覆盖。 |
+| M48-5 全量测试迁移与最终验收 | 进行中 | 随实际输入路径迁移 1 个混合 fixture，删除或迁移相关 Rust 隔离断言；扫描清单余下 1,627 项，最终全量与性能验收未执行。 |
 
 ## 2. 测量口径
 
@@ -37,3 +37,9 @@ GNU 的空程序暖构建另经 `strace -f -e trace=execve,openat` 核对：没�
 manifest／single-file 的实际 Scoop 源码只读取一次供 UTF-8 解码与 parser 输入使用，不再在读取前后比较 inode、ctime、mtime、长度与重新解析后的路径。删除无剩余调用的 `StableFileObservation`。源码发现允许普通 symlink 指向 Cone 外的文件／目录；选中路径类型、缺失输入、重复选择、逻辑路径、目录遍历循环及 UTF-8 错误仍正常报告。此处不代表 Preparer 已改为提前命中，也不代表其他 native／产物路径审计已清除。
 
 本机 workspace fmt/clippy、[manifest 测试 56 项](validation/source-inputs-darwin-rust.log.gz)通过；[2 个新 CLI 用例](validation/source-inputs-darwin-fixtures.log.gz)验证显式外部文件、默认目录内 symlink、外部测试目录、冷／暖构建与真实源码变化；[M33 源码选择 33 个用例](validation/source-inputs-darwin-regression.log.gz)通过（34 variants、44 processes），保留缺失、循环、重复与语法／编码诊断。当前用例总数 4,094，较前一批减少 1 个退役的逃逸拒绝 case、增加 2 个实际编译用例。Linux fmt/clippy、[manifest 测试 56 项](validation/source-inputs-linux-rust.log.gz)通过；GNU 与 musl 各通过 [2 个新用例](validation/source-inputs-gnu-fixtures.log.gz)和 [33 个 M33 回归用例](validation/source-inputs-gnu-regression.log.gz)（[musl 新用例](validation/source-inputs-musl-fixtures.log.gz)、[musl 回归](validation/source-inputs-musl-regression.log.gz)）。
+
+## 6. M48-2：实际输入路径
+
+Preparer 将实际 manifest 根、single-file 源码及 prebuilt／cache 产物路径交给 scoopc。删除源码／manifest／依赖产物镜像、缓存命中后复制 `.slib`、输入树只读封存、写后读回、同步落盘和子输出目录审计；CompletedNode 只保存一份实际产物路径，删除 PrivateArtifactPath 及原路径映射。native 预处理结果目前仍作为普通临时输入写出，等 M48-4 的 depfile 更新判定与实际编译调整；本批没有宣称缓存判定已经先于源码读取、预处理和产物复核。
+
+`staging.rs` 从 596 行缩至 117 行，`prepared.rs` 从 346 行缩至 261 行。本机 [workspace clippy](validation/input-paths-darwin-clippy.log.gz)、[scoop 单元测试 104 项](validation/input-paths-darwin-rust.log.gz)通过（减少 2 项纯 staging 审计测试）。[正式 CLI 8 个用例、9 variants、50 processes](validation/input-paths-darwin-fixtures.log.gz)通过，覆盖单文件、实际 prebuilt 路径、cold／warm／输入变化、dump、native、外部源码与测试目录、菱形依赖及 moving GC。隔离 case 的迁移与删除见 [清理记录](CLEANUP.md)。另清理无构建进程使用的 `target/debug/incremental` 约 1.9 GiB。Linux 验证接续执行。

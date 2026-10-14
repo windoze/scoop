@@ -172,7 +172,7 @@ fn completed_core_input(
         .get(&ConeIdentity::CORE)
         .ok_or(ChildRequestPlanError::MissingTrustedCore)?;
     Ok(TrustedCoreRequestV1::ArtifactSlot {
-        artifact: path_carrier(core.materialized_child_path().as_path())?,
+        artifact: path_carrier(core.artifact_locator())?,
     })
 }
 
@@ -203,7 +203,7 @@ fn artifact_paths(
                         dependency: *dependency,
                         role,
                     })?;
-            path_carrier(node.materialized_child_path().as_path())
+            path_carrier(node.artifact_locator())
         })
         .collect()
 }

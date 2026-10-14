@@ -97,7 +97,6 @@ impl BuildFailure {
         let path: Option<&Path> = match &error {
             PrepareBuildGraphError::SourceDiscovery(error) => Some(error.path()),
             PrepareBuildGraphError::SingleFile(error) => Some(error.path()),
-            PrepareBuildGraphError::ManifestChanged(path) => Some(path),
             _ => None,
         };
         let path = path.map(Path::to_owned);

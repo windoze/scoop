@@ -7,13 +7,10 @@ use scoop_identity::{
     SourceRole,
 };
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_manifest::{
-    ConeManifestSemantic, ConeRelativePath, DiscoveredSource, SourceDisplayLocator,
-};
+use scoop_manifest::{ConeManifestSemantic, DiscoveredSource, SourceDisplayLocator};
 use scoop_slib::{
     ArtifactFingerprint, ArtifactManifestSummaryV1, ArtifactSnapshot, ConeKind, ConeSourceForm,
 };
-use scoop_wire::Digest256;
 
 use super::super::staging::PreparedStaging;
 use crate::ResolvedPairedScoopc;
@@ -91,10 +88,7 @@ pub struct ManifestSourceSnapshot {
     pub(super) manifest_semantic: ConeManifestSemantic,
     pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
-    pub(super) manifest_bytes: Arc<[u8]>,
-    pub(super) manifest_digest: Digest256,
     pub(super) sources: NonEmptySourceSnapshots,
-    pub(super) source_directories: Vec<ConeRelativePath>,
     pub(super) native: scoop_toolchain::PreparedNativeInputs,
 }
 
@@ -119,14 +113,6 @@ impl ManifestSourceSnapshot {
         &self.manifest_locator
     }
 
-    pub fn manifest_bytes(&self) -> &[u8] {
-        &self.manifest_bytes
-    }
-
-    pub const fn manifest_digest(&self) -> Digest256 {
-        self.manifest_digest
-    }
-
     pub fn sources(&self) -> impl Iterator<Item = &SourceSnapshot> {
         self.sources.iter()
     }
@@ -146,7 +132,6 @@ impl SingleFileSourceSnapshot {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedArtifactCandidate {
     pub(super) source_locator: PathBuf,
-    pub(super) materialized_path: PathBuf,
     pub(super) snapshot: Arc<ArtifactSnapshot>,
     pub(super) summary: ArtifactManifestSummaryV1,
 }
@@ -154,10 +139,6 @@ pub struct PreparedArtifactCandidate {
 impl PreparedArtifactCandidate {
     pub fn source_locator(&self) -> &Path {
         &self.source_locator
-    }
-
-    pub fn materialized_path(&self) -> &Path {
-        &self.materialized_path
     }
 
     pub fn snapshot(&self) -> &Arc<ArtifactSnapshot> {
