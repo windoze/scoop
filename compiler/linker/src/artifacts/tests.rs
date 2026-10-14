@@ -49,7 +49,6 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    std::fs::remove_dir_all(source).unwrap();
     let gnu = ResolvedTargetProfile::resolve("x86_64-unknown-linux-gnu").unwrap();
     let closure = read_program_artifacts(
         &root,
@@ -67,7 +66,7 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
             mode: Some(mode),
             ..Default::default()
         };
-        let message = resolve_program_link_profile(&closure, &musl, &options)
+        let message = resolve_program_link_profile(&closure, &musl, &options, None)
             .unwrap_err()
             .to_string();
         assert!(message.contains("C++ native runtime is not supported for Linux musl"));
