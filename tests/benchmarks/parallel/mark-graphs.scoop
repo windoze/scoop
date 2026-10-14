@@ -6,6 +6,52 @@
 
 class Node(val value: Long, var left: Node?, var right: Node?)
 
+class SparseLeaf(val value: Long)
+class SparseNode(val leaf: SparseLeaf, var next: SparseNode?)
+
+@Unsafe fun sparseGraph(count: Long): MutableArray<SparseNode> {
+    val all = MutableArray<SparseNode>(count) { index ->
+        SparseNode(SparseLeaf(index), None)
+    }
+    gcCollect()
+    val kept = MutableArray<SparseNode>(count / 16L) { index -> all[index * 16L] }
+    var index = 0L
+    while (index < kept.size) {
+        kept[index].next = Some(kept[(index + 1L) % kept.size])
+        index += 1L
+    }
+    return kept
+}
+
+@Unsafe fun compactRound(count: Long, round: Int): Long {
+    val kept = sparseGraph(count)
+    beginMark()
+    gcCollect()
+    endMark(round)
+    var result = 0L
+    var index = 0L
+    while (index < kept.size) {
+        val current = kept[index]
+        if (current.next!! !== kept[(index + 1L) % kept.size]) {
+            throw IllegalStateException()
+        }
+        if (current.leaf.value != index * 16L) { throw IllegalStateException() }
+        result += current.leaf.value
+        index += 1L
+    }
+    return result
+}
+
+@Unsafe fun compact(count: Long): Long {
+    var result = 0L
+    var round = 0
+    while (round < graphRounds()) {
+        result += compactRound(count, round)
+        round += 1
+    }
+    return result
+}
+
 @Unsafe fun collectRounds() {
     val count = graphRounds()
     var round = 0
@@ -74,8 +120,13 @@ fun sumTree(node: Node?): Long = when (node) {
     val count = graphCount()
     val kind = graphKind()
     val checksum = if (kind == 0) { wide(count) } else {
-        if (kind == 1) { array(count) } else { chain(count) }
+        if (kind == 1) { array(count) } else {
+            if (kind == 2) { chain(count) } else { compact(count) }
+        }
     }
-    if (checksum != count * (count - 1L) / 2L) { throw IllegalStateException() }
+    val expected = if (kind == 3) {
+        (count / 16L) * (count / 16L - 1L) / 2L * 16L * graphRounds().toInt64()
+    } else { count * (count - 1L) / 2L }
+    if (checksum != expected) { throw IllegalStateException() }
     println(checksum)
 }

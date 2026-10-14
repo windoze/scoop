@@ -40,9 +40,10 @@ static ScoopGcMetrics before;
 
 int32_t m34_mark_kind(void) {
     const char *kind = getenv("SCOOP_BENCH_GRAPH");
-    return kind != NULL && strcmp(kind, "array") == 0   ? 1
-           : kind != NULL && strcmp(kind, "chain") == 0 ? 2
-                                                        : 0;
+    return kind != NULL && strcmp(kind, "array") == 0     ? 1
+           : kind != NULL && strcmp(kind, "chain") == 0   ? 2
+           : kind != NULL && strcmp(kind, "compact") == 0 ? 3
+                                                          : 0;
 }
 
 int64_t m34_mark_count(void) {
@@ -99,6 +100,13 @@ void m34_mark_end(int32_t round) {
     fputc(']', stderr);
 #endif
     fprintf(stderr, ",\"moved_objects\":%" PRIu64, scoop_rt_gc_debug_last_moved_count());
+#ifdef SCOOP_BENCH_PARALLEL_METRICS
+    fprintf(stderr,
+            ",\"source_regions\":%" PRIu64 ",\"target_regions\":%" PRIu64
+            ",\"pin_blocked_regions\":%" PRIu64,
+            after.last_full_source_regions, after.last_full_target_regions,
+            after.last_full_pin_blocked_regions);
+#endif
 #ifdef SCOOP_BENCH_WORLD_TIMING
     assert(boundary_count == 3);
     assert(boundaries[0] <= boundaries[1] && boundaries[1] <= boundaries[2]);

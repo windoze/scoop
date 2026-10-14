@@ -8,7 +8,7 @@
 | --- | --- |
 | M44-1 基线、计时观测与 spec | 发布边界与三类图的当前基线完成；其余场景继续随批次补齐同条件对照 |
 | M44-2 零搬迁更新分支 | 实现与本机定向验收、图对照完成；Linux 组合待后续统一验证 |
-| M44-3 引用定位、写回和无引用对象 | 待实施 |
+| M44-3 引用定位、写回和无引用对象 | 普通 full 搬迁基线完成；正在实现位置复用与扫描省略 |
 | M44-4 编译器 GC 代码生成边界 | 待实施 |
 | M44-5 runtime GC 操作与 Scoop 适配 | 待实施 |
 | M44-6 组合、平台与性能验收 | 待实施 |
@@ -48,3 +48,10 @@
 - 格式化／workspace clippy 后，30 项 runtime GC 测试通过，覆盖移动、精确根、并行 worker／启动失败回退、nursery、region、release、Context、pin 和 NativeSafe 交错，见[完成日志](validation/no-move-runtime.log.gz)。随后新增全 pin stress 断言的独立两配置复验也通过，见[日志](validation/no-move-stress.log.gz)。
 - 正式 CLI 的 7 项 fixture、15 个 debug／release／minor 变体、89 个步骤通过，包含新增 m44-no-move（真实机器根及含引用 aggregate 数组环）和 m31 nursery／Context、m34 parallel／regions／reclamation 的组合，见[报告](validation/no-move-fixtures-darwin.json.gz)及[日志](validation/no-move-fixtures-darwin.log.gz)。配套工具固定，未在测试中重建。
 - 同机交替对照各 105 轮零搬迁 full，candidate update 每次为零；请求到 RUNNING 中位从 wide 5.605→1.878 ms、array 9.431→2.504 ms、chain 7.547→3.903 ms。详见[性能记录](PERFORMANCE.md)及其适用限制。Linux、移动路径优化与模块隔离仍待后续批次。
+
+## 2026-10-14：普通 full 搬迁基线
+
+- 复用现有图基准增加 compact 场景：180 万对 node／GC-free leaf，保留 1/16 并连接成环，五次独立增长／收缩。现有 region-churn 每轮只保留 64 个对象，不足以反映引用更新工作量；新增场景保持普通选择性搬迁策略，不使用 stress 计时替代实际策略。
+- 先完成 Ruff 0.16.10、C 格式化及 workspace clippy，再通过正式 release CLI 构建。初次使用不存在的 Int.toLong 导致基准源码诊断，修正为已有 toInt64 后构建成功；原始失败保留在[构建记录](validation/compact-build-initial.json.gz)。没有修改数值转换语义。
+- 当前优化前版本各预热一次、正式七次进程，每次五轮；全部 35 个有效阶段均检查到普通 full 的实际集中搬迁并通过引用环／值校验。update 中位 14.122 ms，请求到 RUNNING 中位 55.683 ms，见[原始基线](validation/compact-baseline-darwin.json.gz)。candidate 尚待验证和同机交替对照，不能据此推定收益。
+- 前批已核对归档并清理 target/m44/no-move-fixtures/cases，释放约 114 MB，保留工具、cache、sysroot 和基线 binary。

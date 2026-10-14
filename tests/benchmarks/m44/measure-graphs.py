@@ -44,7 +44,12 @@ def measure(binary, graph, workers, nodes, rounds):
     )
     elapsed = time.perf_counter() - start
     after = resource.getrusage(resource.RUSAGE_CHILDREN)
-    if result.stdout != f"{nodes * (nodes - 1) // 2}\n":
+    expected = (
+        (nodes // 16) * (nodes // 16 - 1) // 2 * 16 * rounds
+        if graph == "compact"
+        else nodes * (nodes - 1) // 2
+    )
+    if result.stdout != f"{expected}\n":
         raise RuntimeError(f"{binary}: incorrect graph checksum: {result.stdout!r}")
     records = [json.loads(line) for line in result.stderr.splitlines()]
     phases = [item for item in records if item.get("scoop_mark_phase") == 1]
@@ -61,6 +66,10 @@ def measure(binary, graph, workers, nodes, rounds):
             t2 - t0,
         ):
             raise RuntimeError(f"{binary}: inconsistent collection timing: {phase}")
+        if graph == "compact" and not (
+            phase["moved_objects"] > 0 and phase["source_regions"] > phase["target_regions"] > 0
+        ):
+            raise RuntimeError(f"{binary}: compact graph did not exercise selective evacuation")
     gc = stats[0]
     if sum(gc["pause_buckets"]) != gc["minor_collections"] + gc["full_collections"]:
         raise RuntimeError(f"{binary}: inconsistent GC histogram")
@@ -83,7 +92,7 @@ def main():
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--nodes", type=int, default=131071)
     parser.add_argument("--workers", type=int, default=4, choices=range(1, 9))
-    parser.add_argument("--graph", action="append", choices=("wide", "array", "chain"))
+    parser.add_argument("--graph", action="append", choices=("wide", "array", "chain", "compact"))
     args = parser.parse_args()
     if min(args.runs, args.rounds, args.nodes) < 1:
         parser.error("runs, rounds and nodes must be positive")

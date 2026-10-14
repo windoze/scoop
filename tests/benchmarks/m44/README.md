@@ -42,3 +42,18 @@ STOPPING／COLLECTING／RUNNING 发布的 T0／T1／T2。三个差值分别表�
 35 次主动收集的 p95 仅作样本描述，不代表稳定尾延迟。process_seconds 包含构图、
 收集及校验，nodes_per_second 只是整个工作负载吞吐；不能当成纯分配速率。worker
 CPU 与阶段墙钟分开，阶段可能重叠，不把阶段之和称为总暂停。
+
+## 普通 full 的选择性搬迁
+
+`--graph compact --nodes 1800000 --rounds 5` 使用同一图程序的稀疏保留场景：先分配
+180 万个 node／GC-free leaf 对，再从全部存活降为每 16 个保留一个；保留节点形成
+引用环，并由 aggregate 外部的真实数组根持有。每进程执行五次独立增长／收缩周期，
+只围绕收缩后的主动 full 记录逐轮阶段，普通策略决定 source 和 destination。
+测量器检查每轮发生实际搬迁且 source region 数多于 target，输入太小或没有集中
+收益时失败；不得将这样的运行当作移动路径性能样本。checksum 验证保留的值和完整
+引用环，输出为五轮保留值之和。此场景未开启 moving stress。
+
+构建方式相同，使用独立 `--work` 固定两个版本，再给测量命令传上述参数。
+各轮 source／target 数和真实 moved_objects 保存在报告中；生命周期内还存在未单列
+阶段的自动 minor 和初始 full，其总计仍保留在进程 GC 统计，不能把阶段样本当成
+进程全部收集。
