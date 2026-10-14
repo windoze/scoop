@@ -7,8 +7,8 @@ const COMPILER_BUILD_IDENTITY_V1: &[u8] =
     concat!("scoopc-build-v1:", env!("CARGO_PKG_VERSION")).as_bytes();
 
 /// Returns the closed identity expected from the paired `scoopc` binary.
-/// Executable content is intentionally separate and is added by orchestration
-/// after a stable byte snapshot of the selected binary.
+/// Orchestration separately records the selected tool path, modification time
+/// and length to decide when this capability must be queried again.
 pub fn paired_compiler_machine_capability() -> Result<ScoopcMachineCapabilityV1, HashError> {
     let identity_abi = IdentityAbiDescriptor::current()?.fingerprint()?;
     Ok(ScoopcMachineCapabilityV1::new(

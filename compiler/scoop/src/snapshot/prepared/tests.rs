@@ -403,18 +403,21 @@ fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
 }
 
 #[test]
-fn compile_cache_key_excludes_locator_and_manifest_presentation() {
+fn compile_cache_key_excludes_source_locator_and_manifest_presentation() {
     let temp = tempfile::tempdir().unwrap();
     let first_workspace = temp.path().join("first");
     let second_workspace = temp.path().join("second");
     let changed_workspace = temp.path().join("changed");
 
+    let compiler = temp.path().join("bin/scoopc");
+    write_fake_compiler(&compiler);
     for workspace in [&first_workspace, &second_workspace, &changed_workspace] {
         let sysroot = workspace.join("sysroot");
         let root = workspace.join("root");
         write_core(&sysroot);
         write_manifest(&root, "root", "");
-        write_fake_compiler(&workspace.join("bin/scoopc"));
+        std::fs::create_dir_all(workspace.join("bin")).unwrap();
+        std::os::unix::fs::symlink(&compiler, workspace.join("bin/scoopc")).unwrap();
     }
     std::fs::write(
         second_workspace.join("sysroot/lib/scoop.core/Cone.toml"),

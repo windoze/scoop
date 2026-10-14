@@ -482,10 +482,6 @@ impl ClassifyBuildFailure for CompileCacheStoreError {
 impl ClassifyBuildFailure for ChildTransportError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::CompilerChanged(_) => classified(
-                BuildFailurePhase::Toolchain,
-                BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
-            ),
             Self::Request(_)
             | Self::Response { .. }
             | Self::RequestIdMismatch { .. }

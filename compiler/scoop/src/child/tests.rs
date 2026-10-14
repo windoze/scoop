@@ -148,7 +148,11 @@ fn fake_compiler_body(path: &Path, body: &str) {
 }
 
 fn resolve_fake(path: &Path) -> ResolvedPairedScoopc {
-    ResolvedPairedScoopc::resolve(&PairedScoopcLocator::new(path).unwrap()).unwrap()
+    ResolvedPairedScoopc::resolve(
+        &PairedScoopcLocator::new(path).unwrap(),
+        &crate::ArtifactCacheRoot::new(path.parent().unwrap().join("cache")).unwrap(),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -371,7 +375,7 @@ fn production_runner_rejects_failure_with_zero_exit_and_human_stdout() {
 }
 
 #[test]
-fn production_runner_rejects_signal_and_compiler_mutation() {
+fn production_runner_reports_signal() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
@@ -385,18 +389,5 @@ fn production_runner_rejects_signal_and_compiler_mutation() {
     assert!(matches!(
         ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
         Err(ChildTransportError::Signal)
-    ));
-
-    let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
-    fake_compiler_body(
-        &compiler,
-        &format!(
-            "/bin/cat >/dev/null\nprintf '\n# changed during invocation\n' >> \"$0\"\nprintf '{response}'\nexit 0"
-        ),
-    );
-    let tool = resolve_fake(&compiler);
-    assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
-        Err(ChildTransportError::CompilerChanged(_))
     ));
 }

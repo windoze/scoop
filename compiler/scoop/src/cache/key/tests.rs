@@ -34,7 +34,7 @@ fn test_purpose_and_source_roles_are_independent_key_inputs() {
     assert_ne!(test.key().unwrap(), changed_role.key().unwrap());
 }
 
-fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV1 {
+fn input(source_text: &str, compiler_input: &str) -> ConeCompileCacheInputV1 {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
@@ -72,7 +72,7 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
         )],
         Vec::new(),
         PairedCompilerFingerprintV1::from_parts(
-            sha256(compiler_executable.as_bytes()),
+            sha256(compiler_input.as_bytes()),
             sha256(b"distribution"),
             sha256(b"build"),
         ),
@@ -206,13 +206,13 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "df0441245f5cf3b2b4d23937a77881966168be59b4c8807ff9168d300cf1478c"
+        "da811270e646de5ee86a84a0fa4fb857e6c7f86bbb8338271d96b95444d0ab41"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xae));
 }
 
 #[test]
-fn source_and_compiler_content_are_independent_key_dimensions() {
+fn source_content_and_compiler_inputs_are_independent_key_dimensions() {
     let baseline = input("class Any\n", "paired-scoopc-v1").key().unwrap();
     let source_changed = input("class Any { }\n", "paired-scoopc-v1").key().unwrap();
     let compiler_changed = input("class Any\n", "paired-scoopc-v2").key().unwrap();

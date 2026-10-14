@@ -47,8 +47,9 @@ struct Preparer {
 
 impl Preparer {
     fn new(parts: ResolvedGraphParts) -> Result<Self, PrepareBuildGraphError> {
-        let compiler = ResolvedPairedScoopc::resolve(&parts.context.compiler)
-            .map_err(PrepareBuildGraphError::PairedCompiler)?;
+        let compiler =
+            ResolvedPairedScoopc::resolve(&parts.context.compiler, &parts.context.cache_root)
+                .map_err(PrepareBuildGraphError::PairedCompiler)?;
         let staging = PreparedStaging::create(&parts.context.cache_root)
             .map_err(PrepareBuildGraphError::Staging)?;
         Ok(Self {

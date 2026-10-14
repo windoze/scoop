@@ -12,7 +12,7 @@ use scoop_protocol::{
 };
 use scoop_slib::FingerprintAvailability;
 
-use crate::{BuildArtifact, PairedCompilerError, ResolvedPairedScoopc};
+use crate::{BuildArtifact, ResolvedPairedScoopc};
 
 const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 
@@ -67,8 +67,6 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         request: &ScoopcRequestEnvelopeV1,
         io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
-        tool.revalidate_executable()
-            .map_err(ChildTransportError::CompilerChanged)?;
         let request_frame = encode_request_frame(request).map_err(ChildTransportError::Request)?;
         let working_directory = tool.executable_path().parent().ok_or_else(|| {
             ChildTransportError::MissingExecutableParent {
@@ -123,8 +121,6 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         let stdout = join_reader(stdout_thread, "stdout")?;
         let stderr = join_reader(stderr_thread, "stderr")?;
         write_result?;
-        tool.revalidate_executable()
-            .map_err(ChildTransportError::CompilerChanged)?;
         if status.code().is_none() {
             return Err(ChildTransportError::Signal);
         }
@@ -334,7 +330,6 @@ pub enum ChildResponseKind {
 
 #[derive(Debug)]
 pub enum ChildTransportError {
-    CompilerChanged(PairedCompilerError),
     Request(ProtocolWriteError),
     TemporaryDirectory(std::io::Error),
     MissingExecutableParent {
@@ -372,12 +367,6 @@ pub enum ChildTransportError {
 impl fmt::Display for ChildTransportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CompilerChanged(source) => {
-                write!(
-                    formatter,
-                    "paired compiler changed around child invocation: {source}"
-                )
-            }
             Self::Request(source) => write!(formatter, "cannot encode child request: {source}"),
             Self::TemporaryDirectory(source) => write!(
                 formatter,
@@ -432,7 +421,6 @@ impl fmt::Display for ChildTransportError {
 impl std::error::Error for ChildTransportError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CompilerChanged(source) => Some(source),
             Self::Request(source) => Some(source),
             Self::Spawn { source, .. }
             | Self::TemporaryDirectory(source)
