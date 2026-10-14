@@ -281,5 +281,36 @@ full 的配对 update 差值中位为 −218 µs，35 对中 33 对未增加；�
 marker 热路径指令相同，冷错误字符串重定位和链接地址不同；不能据此宣称具体 CPU
 机制已经确定。原始复测、源码核对和反汇编见[数组回退记录](validation/forward-array-regression-darwin.json.gz)。
 
-该候选尚未合入生产，Darwin 性能门仍开放。解决此回退后才能结合 GNU 对照决定采用，
-并闭合最终 Linux 功能验收；不把已通过的隔离功能测试当作性能验收通过。
+统一内联的候选未采用。后续保留该失败证据，按下一节的目标选择解决回退。
+
+## 最终平台调用策略
+
+hot 标记、64-byte marker 入口对齐、仅内联稳定对象判断、把 forwarding 函数移到
+collector 的实验均未稳定恢复数组 mark，原始构建与对照见[实验记录](validation/forward-layout-experiments-darwin.json.gz)。最终平台层提供私有的编译期调用选择：x86-64 使用普通
+static inline，AArch64 保留外部函数。函数体只在 `forwarding_internal.h` 保存一份，
+原有 collection／mark／pin／source／forwarding 检查完整保留，没有强制内联或对齐属性。
+
+[产物核对](validation/forward-platform-validation.json.gz)确认 Darwin 全部 92 个 runtime
+对象和完整图程序与原生产版逐字节相同，GNU 的 94 个对象和完整图程序与已验证的内联
+候选逐字节相同。平台宏留在平台层；首次直接使用架构宏被既有边界测试拒绝，修正后的
+31 项 collector 测试和三个正式 M44 fixture（六个变体、24 步）通过，原始失败仍保留。
+
+最终 Darwin 再完成六组交替对照，命令、原始样本及全部 p95／最大值见[完整记录](validation/performance-forward-platform-darwin.json.gz)，六个图组各侧 35 轮的 15 项工作量计数
+逐对相同，见[核对](validation/forward-platform-audit-darwin.json.gz)。基线仍为 `ed5624b4`。
+
+| 图 | 基线／最终 update 中位（ms） | 基线／最终请求到 RUNNING 中位（ms） |
+| --- | ---: | ---: |
+| wide | 0／0 | 2.131／2.119 |
+| array | 0／0 | 2.651／2.567 |
+| chain | 0／0 | 4.591／4.519 |
+| compact full | 11.551／11.637 | 55.382／55.258 |
+| minor，1 marker | 0.204／0.187 | 0.861／0.838 |
+| minor，4 marker | 0.200／0.181 | 0.812／0.800 |
+
+array mark 中位为 1.612／1.547 ms，先前的持续回退消失。full update 范围为
+11.029–12.053／11.233–12.126 ms，请求最大为 60.111／60.576 ms；不声称 full 加速
+或尾延迟改善。四程序进程中位为 9.597／9.795、15.509／15.670、14.978／14.623、
+16.690／16.915 ms，各组范围重叠。计算 1／4 线程、分配 1／4 线程的实际进度间隔
+中位为 39／39、89／90、285／284、420／390 µs；四线程分配进程中位为
+205.312／155.748 ms，仍包含实际 GC 次数、调度和采样影响，不归因于 Darwin 上未改变
+的 forwarding 代码，也不推导固定吞吐收益。GNU 沿用逐字节相同候选的完整六组对照。

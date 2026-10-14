@@ -170,3 +170,10 @@
 - 正式 CLI `--all` 完成，首轮 4036 项通过、16 项不适用、1 项失败。以已完成的产物损坏复验替换该项后，4037 项适用用例全部通过，共 4561 个变体、17020 个进程步骤；按当前发现的全部 4053 个名称和适用性逐项核对，无缺项或额外替代。保留[首轮完整记录](validation/acceptance-cli-darwin.json.gz)和[覆盖索引](validation/acceptance-cli-coverage-darwin.json.gz)，未重跑整套。
 - 全量进程结束后，Darwin forwarding 候选完成六组交替性能对照，六个图组的 15 项工作量计数逐对一致。full／minor update 改善，实际进度与四程序没有稳定退化，但数组 mark 出现持续回退；加入当前生产版的专项复测确认该差异，见[性能记录](PERFORMANCE.md#内联-forwarding-的-darwin-对照与数组回退)。
 - 准备采用时的 C 格式检查与 workspace clippy 通过，但性能复核后恢复生产 runtime，候选未提交。继续在隔离副本定位数组 mark 回退；GNU／musl 最终组合验收等待修复确定，M44 尚未完成。
+
+## 2026-10-14：保留单一实现的目标调用方式
+
+- hot 标记、marker 对齐、部分内联及移入 collector 的实验均未稳定消除 Darwin 数组回退，原始结果保留于[实验记录](validation/forward-layout-experiments-darwin.json.gz)。最终将原函数体放入 30 行私有头，由平台层提供编译期选择：x86-64 普通内联，AArch64 保留外部调用；没有两套算法、强制内联／对齐属性或公开配置。
+- 首次直接在 GC 使用架构宏被既有平台边界测试拒绝，30 项 collector 测试通过、该项失败。先明确运行时规范的平台职责，再把选择移到平台头；保持边界断言不变，格式化、workspace clippy、31 项 collector 测试及三个 M44 正式 fixture 全部通过。完整失败和复验见[验证记录](validation/forward-platform-validation.json.gz)。
+- Darwin 全部 92 个 runtime 对象及图程序与原生产版逐字节相同，GNU 的 94 个对象及图程序与已完成六组测量的内联候选逐字节相同。GNU 保留原始对照；Darwin 最终六组交替测量再次通过工作量核对，数组 mark 回退消失，full／minor／零搬迁、实际进度与四程序结果及限制见[最终性能记录](PERFORMANCE.md#最终平台调用策略)。
+- 本机全量证据归档并逐项核对后，清理 4036 个已结束 case 目录，回收约 115 GiB；保留首轮失败的 case 3492、全部报告与可复用缓存，清理清单随验证记录保存。GNU／musl 最终适用功能组合继续推进，M44 尚未完成。

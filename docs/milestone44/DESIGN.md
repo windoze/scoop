@@ -87,6 +87,8 @@ mark 产生的存活集合保留至规划、必要的更新和验证结束；继
 
 这种复用限于已经成立且数据未变化的事实。对象起点、合法稳定对象、有效 forwarding、source/target 生命周期等必要检查保留；无需在后续 helper 重新完整验证同一份位置。
 
+forwarding helper 共用一个私有函数体，内联方式由平台层的编译期选择提供。实际对照后，x86-64 使用普通内联以消除逐引用调用，AArch64 保留原外部调用以保持已验证的 marking 布局；通用 GC 不直接判断架构。两种方式保留相同检查、算法与 ABI，依据见 [Darwin](PERFORMANCE.md#最终平台调用策略)和 [Linux](PERFORMANCE-LINUX.md#内联-forwarding-的-gnu-验证)记录。
+
 ### 3.2 区分存活对象与需要扫描的对象
 
 无托管引用对象继续进入 mark 存活清单、统计、搬迁计划和回收处理。其扫描描述为空时，在 update 路径省去为扫描出站引用所做的定位/claim/descriptor 解释工作。

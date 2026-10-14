@@ -101,7 +101,7 @@ minor 的回退更稳定：
 两种实验均未改变生产 runtime；原始不利结果完整保留。后续修复必须同时核对
 full／minor、零搬迁、分配和实际进度，不能只挑 minor 的有利样本。
 
-## 内联 forwarding 候选：GNU 已验证，尚未合入
+## 内联 forwarding 的 GNU 验证
 
 第三份隔离副本只将 `scoop_heap_forward_object` 的原函数体从 evacuation.c 移入
 GC 私有 heap_internal.h，声明为普通 `static inline`；没有强制内联或对齐属性。
@@ -140,5 +140,7 @@ full 的配对 update 差值中位为 −752 µs，35 对中 31 对未增加；m
 [GNU／musl 正式 fixture](validation/isolated-fixtures-linux.json.gz)也各为三项、
 六个变体、24 个执行步骤通过。
 
-这些是候选验证，并非 GNU／musl 最终全部适用组合。本机完整 CLI 随后闭合，Darwin
-六组同机对照也已完成；其中数组 mark 回退经专项复测确认，见 [Darwin 记录](PERFORMANCE.md#内联-forwarding-的-darwin-对照与数组回退)。候选仍未合入生产，须先解决该回退，再决定采用并闭合最终覆盖。
+这些结果不替代 GNU／musl 最终全部适用组合。统一内联在 Darwin 引入的数组 mark 回退
+已通过平台层选择调用方式解决，见 [最终平台策略](PERFORMANCE.md#最终平台调用策略)。
+生产代码共用一份函数体，x86-64 仍使用本节已验证的普通内联；重新构建后，GNU 全部
+94 个 runtime 对象及完整图程序与本节候选逐字节相同，证据见[产物核对](validation/forward-platform-validation.json.gz)。因此保留并复用本节六组原始测量；最终功能覆盖仍待完成。

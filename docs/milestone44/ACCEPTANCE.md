@@ -10,12 +10,12 @@
 
 | 项目 | 当前实现与证据 | 剩余验收 |
 | --- | --- | --- |
-| M44-1 基线与时间口径 | 运行时规范 3.5／3.9 保留既有 pause／stop_wait 含义，增加 STOPPING／COLLECTING／RUNNING 观测；[握手测试](validation/observation-test.log.gz)覆盖发布顺序，Darwin 与 [Linux](PERFORMANCE-LINUX.md) 各场景已有同条件基线与对照 | 后续性能修复沿用同一口径复验 |
-| M44-2 无搬迁跳过更新 | [collector](../../runtime/src/gc/collector.c)在规划／复制及 fallback 完成后检查本轮 moved_objects；只跳过 relocation，回收／晋升／release／分配状态失效／线程恢复共用后续路径；[独立专测](../../runtime/tests/no_move_update_test.c)覆盖零搬迁及移动后下一轮，见[最终 collector 组](validation/boundary-runtime.log.gz) | 最终集成与 Linux 组合 |
-| M44-3 减少实际更新工作 | [slot visitor](../../runtime/src/gc/collector.c)复用本次 object_meta 结果并条件写回；[forwarding／claim](../../runtime/src/gc/evacuation.c)只为新地址重新定位，GC-free 对象跳过出站扫描；[损坏 forwarding 专测](../../runtime/tests/forwarding_validation_test.c)与[反汇编](validation/relocation-machine-code.txt.gz)保留必要失败出口和一次定位证据；full／minor 实际搬迁对照已完成 | 最终集成与 Linux 组合 |
-| M44-4 完整 GC 代码生成 | [function/gc](../../compiler/codegen/src/function/gc/)持有分配、字段／数组／aggregate 写入、原子操作、发布和 poll；失败 CAS 只在成功分支执行屏障；[372 项测试](validation/codegen-rust.log.gz)、[真实写入 fixture](validation/codegen-writes-darwin.json.gz)与[机器码对照](validation/codegen-machine-darwin.json.gz)通过；[Linux 四程序独立根产物](validation/linux-preparation.json.gz)逐字节相同 | Linux 运行组合与性能 |
-| M44-5 runtime 边界 | [gc_binding](../../runtime/src/gc_binding/)解释根、stackmap、对象 scan 与线程字段；[mutator](../../runtime/src/gc/mutator_internal.h)拥有分配状态并保留原 TLAB 前缀；[普通 runtime 操作](../../runtime/src/gc.h)收拢实际分配／复制／对象检查，[操作回归](validation/operations-darwin.json.gz)通过；完整边界的本机性能与机器码已核对 | 最终集成与 Linux 生命周期组合 |
-| M44-6 组合与平台 | [工作区覆盖](validation/acceptance-rust-coverage-darwin.json.gz)包含 27 个目标的 5629 项成功测试及 2 项 doctest，[49 项公共规则](validation/acceptance-fixture-rules-darwin.log.gz)通过；[正式 CLI 全量覆盖](validation/acceptance-cli-coverage-darwin.json.gz)包含 4037 项通过、16 项平台不适用，按名称和适用性核对全部 4053 项 | 性能修复后的受影响回归、Linux GNU／musl 适用组合、最终覆盖核对 |
+| M44-1 基线与时间口径 | 运行时规范 3.5／3.9 保留既有 pause／stop_wait 含义，增加 STOPPING／COLLECTING／RUNNING 观测；[握手测试](validation/observation-test.log.gz)覆盖发布顺序，Darwin 与 [Linux](PERFORMANCE-LINUX.md) 各场景的最终同条件对照已闭合 | 最终平台记录汇总 |
+| M44-2 无搬迁跳过更新 | [collector](../../runtime/src/gc/collector.c)在规划／复制及 fallback 完成后检查本轮 moved_objects；只跳过 relocation，回收／晋升／release／分配状态失效／线程恢复共用后续路径；[独立专测](../../runtime/tests/no_move_update_test.c)覆盖零搬迁及移动后下一轮，见[最终 collector 组](validation/boundary-runtime.log.gz) | Linux 最终组合 |
+| M44-3 减少实际更新工作 | [slot visitor](../../runtime/src/gc/collector.c)复用本次 object_meta 结果并条件写回；[forwarding](../../runtime/src/gc/forwarding_internal.h)与[claim](../../runtime/src/gc/evacuation.c)只为新地址重新定位，GC-free 对象跳过出站扫描；[损坏 forwarding 专测](../../runtime/tests/forwarding_validation_test.c)与[反汇编](validation/relocation-machine-code.txt.gz)保留必要失败出口和一次定位证据；最终平台调用方式和本机回归见[记录](validation/forward-platform-validation.json.gz) | Linux 最终组合 |
+| M44-4 完整 GC 代码生成 | [function/gc](../../compiler/codegen/src/function/gc/)持有分配、字段／数组／aggregate 写入、原子操作、发布和 poll；失败 CAS 只在成功分支执行屏障；[372 项测试](validation/codegen-rust.log.gz)、[真实写入 fixture](validation/codegen-writes-darwin.json.gz)与[机器码对照](validation/codegen-machine-darwin.json.gz)通过；[Linux 四程序独立根产物](validation/linux-preparation.json.gz)逐字节相同 | Linux 运行组合 |
+| M44-5 runtime 边界 | [gc_binding](../../runtime/src/gc_binding/)解释根、stackmap、对象 scan 与线程字段；[mutator](../../runtime/src/gc/mutator_internal.h)拥有分配状态并保留原 TLAB 前缀；[普通 runtime 操作](../../runtime/src/gc.h)收拢实际分配／复制／对象检查，[操作回归](validation/operations-darwin.json.gz)通过；完整边界的本机性能与机器码已核对 | Linux 生命周期组合 |
+| M44-6 组合与平台 | [工作区覆盖](validation/acceptance-rust-coverage-darwin.json.gz)包含 27 个目标的 5629 项成功测试及 2 项 doctest，[49 项公共规则](validation/acceptance-fixture-rules-darwin.log.gz)通过；[正式 CLI 全量覆盖](validation/acceptance-cli-coverage-darwin.json.gz)包含 4037 项通过、16 项平台不适用，按名称和适用性核对全部 4053 项 | Linux GNU／musl 适用组合、最终覆盖核对 |
 
 ## 正确性矩阵
 
@@ -34,7 +34,7 @@
 
 ## 性能与边界核对
 
-以下源码审阅对应生产 runtime `f300090b` 和当前 codegen；forwarding 候选仍单独验证，
+以下源码审阅基于 runtime `f300090b` 和当前 codegen；最终 forwarding 调用方式仅由平台层选择，
 不改变此处已经收拢的职责。源码审阅证明实现边界，不替代下文的运行和机器码证据。
 
 | 设计边界 | 实际调用与审阅结果 |
@@ -54,17 +54,18 @@
 
 上述列表链接为 Darwin／AArch64 同机结果。[Linux 性能记录](PERFORMANCE-LINUX.md)
 已覆盖整体优化、独立 runtime 边界、实际进度及四程序对照。Linux 的整体 update 收益
-成立，但边界拆分后的 minor 更新存在可重复回退；对齐和 full/minor 分流实验均未解决
-完整场景，未合入生产。该性能门尚未关闭，GNU／musl 的最终适用功能验收也仍缺失。
+成立，边界拆分后的 minor 回退已通过 x86-64 普通内联解决；对齐和 full/minor 分流等
+失败实验均保留，未合入生产。GNU／musl 的最终适用功能验收仍缺失。
 不能由这些小样本推导所有程序的固定加速比或稳定尾延迟。
 
 内联 forwarding 的隔离候选已恢复 GNU minor 更新中位、完成六组同机对照，并通过
 Darwin 31 项 collector、Linux 387 项 codegen/runtime 及三 target 的三个 M44 fixture；
-见 [候选记录](PERFORMANCE-LINUX.md#内联-forwarding-候选gnu-已验证尚未合入)。Darwin 六组
-对照随后完成，但数组 mark 回退在专项复测中持续存在，见 [Darwin 记录](PERFORMANCE.md#内联-forwarding-的-darwin-对照与数组回退)。候选未合入生产，性能门和最终平台覆盖仍未关闭。
+见 [GNU 记录](PERFORMANCE-LINUX.md#内联-forwarding-的-gnu-验证)。最终平台策略让 AArch64
+保持外部调用，消除统一内联带来的数组 mark 回退；Darwin 六组最终对照已完成，见
+[最终记录](PERFORMANCE.md#最终平台调用策略)。全部 runtime 对象逐字节核对与本机
+31 项 collector／三个正式 fixture 通过，性能门闭合，最终平台覆盖仍需完成。
 
 ## 尚未闭合的完成条件
 
-1. 修正 Linux runtime 边界的更新回退，同时消除 forwarding 候选在 Darwin 的数组 mark 回退，完成同条件对照及受影响正确性回归。本机工作区、公共规则和正式 CLI 全量已闭合，原始失败及准确复验映射保留。
-2. 在 nuc12 运行 GNU／musl 的 GC／ABI／根／写入／生命周期、真实库与产物消费适用组合。不跨主机计算加速比。
-3. 合并最终平台覆盖、原始失败与修复记录，逐项核对本文件和设计后，同步设计、实施记录及路线图的完成状态。
+1. 在 nuc12 运行 GNU／musl 的 GC／ABI／根／写入／生命周期、真实库与产物消费适用组合。本机工作区、公共规则、正式 CLI 全量、最终 forwarding 回归及同条件性能已闭合，原始失败及准确复验映射保留。
+2. 合并最终平台覆盖、原始失败与修复记录，逐项核对本文件和设计后，同步设计、实施记录及路线图的完成状态。
