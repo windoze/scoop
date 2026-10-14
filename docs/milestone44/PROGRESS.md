@@ -118,3 +118,11 @@
 - 两版四配置的[功能核对](validation/progress-smoke.json.gz)通过；正式分配量增为每线程两百万次。随后串行交替完成八次预热与 56 次正式进程，checksum、实际分配字节、进度次序、GC histogram 全部核对，见[原始对照](validation/progress-darwin.json.gz)。逐文件[源码核对](validation/progress-source-audit.json.gz)确认基线 `44a3c0bf` 和当前 `f300090b` 的 runtime 副本匹配对应提交。
 - 两侧四线程分配字节完全相同，minor／retry 数量和吞吐存在调度波动；实际进度间隔中位 400→397 微秒，T2 到下一进度中位 27→28 微秒。完整中位、p95、最大值和进程范围见[性能记录](PERFORMANCE.md)，不声称稳定吞吐改善，也不把 retry 数量解释成锁等待时间。
 - 完成进程和证据归档核对后，清理失败／中间 binary 的构建目录约 28 MB，保留正式两版 binary、工具与缓存。年轻存活图／old→young／pin 的 minor 测量、Linux 与最终全量验收继续推进，本批不宣称 M44 完成。
+
+## 2026-10-14：年轻存活图与实际 minor 搬迁对照
+
+- 扩展已有 graph 基准，旧代数组持有 4096 个年轻节点和同数 GC-free leaf，构成反向引用环；pin 首节点，使其出站引用指向另一个可移动 block 中的尾节点。普通分配压力触发 minor，测试同一轮的旧代槽、年轻根与环更新、固定对象出站引用和原地／移动晋升；无新增生产 API 或 stress。构图提前触发 minor、额外 full 或 fallback 均失败，不混入不同场景的样本。
+- C 格式化、Python Ruff 0.16.10 和两版 helper 的 Werror 构建通过。初版测量断言错误地把 pin 当作只阻止单个对象移动；按既有 block source 选择规则修正后，原有 wide／compact 与 minor 功能核对通过。最终反向环在两版、1／4 worker 下均通过，见[功能及初始诊断](validation/minor-functional.json.gz)。没有修改 collector 以满足基准。
+- 基线 `44a3c0bf` 与当前 runtime 在两种 worker 配置下各完成预热和七次交替进程，每进程五轮。全部 140 个正式 minor 样本均处理相同的 8192 个年轻对象，实际搬迁 7027 个、晋升 229376 bytes，65 张脏卡与 4096 个旧代引用槽；每对样本的完整工作量计数一致，见[源码／计数核对](validation/minor-audit.json.gz)。
+- 1／4 worker 的 update 中位分别为 343→172、334→178 微秒；同组更新时间范围分离，实际移动与引用工作量保持。整体暂停、进程波动、内存与限制见[性能记录](PERFORMANCE.md)，原始数据为 [1 worker](validation/minor-1-darwin.json.gz)和 [4 worker](validation/minor-4-darwin.json.gz)。
+- 证据核对后清理约 28 MB 初版构建，保留正式 binary、固定工具和缓存。本机共享路径工作区测试、fixture runner 公共规则与正式 CLI 全量验收随后执行，再推进 Linux GNU／musl；M44 仍未完成。

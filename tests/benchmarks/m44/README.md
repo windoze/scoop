@@ -58,6 +58,22 @@ CPU 与阶段墙钟分开，阶段可能重叠，不把阶段之和称为总暂�
 阶段的自动 minor 和初始 full，其总计仍保留在进程 GC 统计，不能把阶段样本当成
 进程全部收集。
 
+## 年轻引用图与 minor
+
+`--graph minor --nodes 4096 --rounds 5` 先把可空引用数组放入旧代，再构造 4096 个
+年轻节点和同数 GC-free leaf，组成反向引用环；固定第一个节点，让它引用最后一个
+可搬迁节点。普通分配压力触发一次 minor，未增加主动 minor 的生产 API，也不启用
+stress。核对整环、leaf 值和 unpin 结果，记录晋升字节、脏卡与旧代槽访问。
+
+每轮必须恰好一次 minor、无 full／fallback、确有移动与 remembered 工作。pin 所在
+block 按既有策略原地晋升，因此不要求除单个 pinned 对象外全部移动。构图不得提前
+触发 minor；该默认节点数留出 nursery 余量，任意调大输入可能使这一前提不成立。
+
+构建脚本可传 `--runtime`／`--sysroot`，用同一份基准源码配合两套固定工具和对应
+runtime。分别用 `--workers 1` 与 `--workers 4` 完成七次交替进程，每进程五轮；
+逐对核对实际 traced／moved／promoted／dirty-card／old-slot 和分配计数再比较时间。
+阶段时间只计 collector；进程吞吐还包含准备 full、构图、压力分配与校验。
+
 ## 编译器 GC 边界整理
 
 `build-codegen.py` 复用现有 allocation、arrays、old-graph 和 primitive 四个程序，

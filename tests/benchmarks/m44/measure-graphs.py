@@ -47,7 +47,7 @@ def measure(binary, graph, workers, nodes, rounds):
     expected = (
         (nodes // 16) * (nodes // 16 - 1) // 2 * 16 * rounds
         if graph == "compact"
-        else nodes * (nodes - 1) // 2
+        else nodes * (nodes - 1) // 2 * (rounds if graph == "minor" else 1)
     )
     if result.stdout != f"{expected}\n":
         raise RuntimeError(f"{binary}: incorrect graph checksum: {result.stdout!r}")
@@ -70,6 +70,16 @@ def measure(binary, graph, workers, nodes, rounds):
             phase["moved_objects"] > 0 and phase["source_regions"] > phase["target_regions"] > 0
         ):
             raise RuntimeError(f"{binary}: compact graph did not exercise selective evacuation")
+        if graph == "minor" and not (
+            phase["minor_collections"] == 1
+            and phase["full_collections"] == phase["promotion_fallbacks"] == 0
+            and 0 < phase["moved_objects"] < 2 * nodes
+            and phase["traced_objects"] >= 2 * nodes
+            and phase["promoted_bytes"] >= (2 * nodes - 1) * 24
+            and phase["old_reference_slots"] >= nodes
+            and phase["dirty_cards"] > 0
+        ):
+            raise RuntimeError(f"{binary}: minor graph missed promotion or remembered slots")
     gc = stats[0]
     if sum(gc["pause_buckets"]) != gc["minor_collections"] + gc["full_collections"]:
         raise RuntimeError(f"{binary}: inconsistent GC histogram")
@@ -92,7 +102,9 @@ def main():
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--nodes", type=int, default=131071)
     parser.add_argument("--workers", type=int, default=4, choices=range(1, 9))
-    parser.add_argument("--graph", action="append", choices=("wide", "array", "chain", "compact"))
+    parser.add_argument(
+        "--graph", action="append", choices=("wide", "array", "chain", "compact", "minor")
+    )
     args = parser.parse_args()
     if min(args.runs, args.rounds, args.nodes) < 1:
         parser.error("runs, rounds and nodes must be positive")

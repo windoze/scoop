@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <time.h>
 #define SCOOP_THREAD_TESTING
-#include "../../../runtime/src/thread/testing.h"
+#include "thread/testing.h"
 
 static uint64_t boundaries[3];
 static unsigned boundary_count;
@@ -43,7 +43,14 @@ int32_t m34_mark_kind(void) {
     return kind != NULL && strcmp(kind, "array") == 0     ? 1
            : kind != NULL && strcmp(kind, "chain") == 0   ? 2
            : kind != NULL && strcmp(kind, "compact") == 0 ? 3
+           : kind != NULL && strcmp(kind, "minor") == 0   ? 4
                                                           : 0;
+}
+
+int64_t m34_minor_count(void) {
+    ScoopGcMetrics metrics;
+    scoop_rt_gc_debug_metrics(&metrics);
+    return (int64_t)metrics.minor_collections;
 }
 
 int64_t m34_mark_count(void) {
@@ -100,6 +107,17 @@ void m34_mark_end(int32_t round) {
     fputc(']', stderr);
 #endif
     fprintf(stderr, ",\"moved_objects\":%" PRIu64, scoop_rt_gc_debug_last_moved_count());
+    fprintf(stderr,
+            ",\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
+            ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
+            ",\"promoted_bytes\":%" PRIu64 ",\"dirty_cards\":%" PRIu64
+            ",\"old_reference_slots\":%" PRIu64,
+            after.minor_collections - before.minor_collections,
+            after.full_collections - before.full_collections,
+            after.promotion_fallbacks - before.promotion_fallbacks,
+            after.allocated_bytes - before.allocated_bytes,
+            after.promoted_bytes - before.promoted_bytes, after.dirty_cards - before.dirty_cards,
+            after.old_reference_slots - before.old_reference_slots);
 #ifdef SCOOP_BENCH_PARALLEL_METRICS
     fprintf(stderr,
             ",\"source_regions\":%" PRIu64 ",\"target_regions\":%" PRIu64

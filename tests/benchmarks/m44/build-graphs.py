@@ -18,6 +18,8 @@ def main():
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--unwind-prefix", type=Path)
+    parser.add_argument("--runtime", type=Path)
+    parser.add_argument("--sysroot", type=Path)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[3]
     work, tools = args.work.resolve(), args.tools.resolve()
@@ -61,16 +63,31 @@ def main():
         result.check_returncode()
 
     runtime = work / "runtime"
-    shutil.copytree(repo / "runtime", runtime)
-    shutil.copytree(repo / "sysroot", work / "sysroot")
+    source_runtime = (args.runtime or repo / "runtime").resolve()
+    source_sysroot = (args.sysroot or repo / "sysroot").resolve()
+    report["source_runtime"] = str(source_runtime)
+    report["source_sysroot"] = str(source_sysroot)
+    shutil.copytree(source_runtime, runtime)
+    shutil.copytree(source_sysroot, work / "sysroot")
     header = runtime / "src/thread/testing.h"
-    header.write_text("#define SCOOP_THREAD_TESTING\n" + header.read_text())
+    if not header.read_text().startswith("#define SCOOP_THREAD_TESTING\n"):
+        header.write_text("#define SCOOP_THREAD_TESTING\n" + header.read_text())
+    report["runtime_files"] = {
+        str(path.relative_to(runtime)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(runtime.rglob("*"))
+        if path.is_file()
+    }
+    report["benchmark_sources"] = {
+        name: (repo / "tests/benchmarks/parallel" / name).read_text()
+        for name in ("mark-phase.c", "mark-graphs.scoop")
+    }
     run(
         [
             "cc",
             "-std=c11",
             "-D_POSIX_C_SOURCE=200809L",
             "-O2",
+            "-fno-common",
             "-Wall",
             "-Wextra",
             "-Werror",
@@ -78,6 +95,8 @@ def main():
             "-DSCOOP_BENCH_WORLD_TIMING",
             "-I",
             runtime / "include",
+            "-I",
+            runtime / "src",
             "-c",
             repo / "tests/benchmarks/parallel/mark-phase.c",
             "-o",

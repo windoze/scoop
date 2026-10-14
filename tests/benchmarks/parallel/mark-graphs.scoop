@@ -3,6 +3,7 @@
 @Extern(lib = "m34_mark", name = "m34_mark_rounds") fun graphRounds(): Int
 @Extern(lib = "m34_mark", name = "m34_mark_begin") fun beginMark(): Unit
 @Extern(lib = "m34_mark", name = "m34_mark_end") fun endMark(round: Int): Unit
+@GCLeaf @Extern(lib = "m34_mark", name = "m34_minor_count") fun minorCount(): Long
 
 class Node(val value: Long, var left: Node?, var right: Node?)
 
@@ -47,6 +48,64 @@ class SparseNode(val leaf: SparseLeaf, var next: SparseNode?)
     var round = 0
     while (round < graphRounds()) {
         result += compactRound(count, round)
+        round += 1
+    }
+    return result
+}
+
+@Unsafe fun churnUntilMinor(previous: Long) {
+    var index = 0L
+    var checksum = 0L
+    while (minorCount() == previous) {
+        val end = index + 1024L
+        while (index < end) {
+            checksum += SparseLeaf(index).value
+            index += 1L
+        }
+    }
+    if (checksum != index * (index - 1L) / 2L) { throw IllegalStateException() }
+}
+
+@Unsafe fun minorRound(count: Long, round: Int): Long {
+    val old = MutableArray<SparseNode?>(count) { _ -> None }
+    gcCollect()
+    val previous = minorCount()
+    var index = 0L
+    while (index < count) {
+        old[index] = Some(SparseNode(SparseLeaf(index), None))
+        index += 1L
+    }
+    index = 0L
+    while (index < count) {
+        old[index]!!.next = old[(index + count - 1L) % count]
+        index += 1L
+    }
+    val pinned = pin(old[0L]!!)
+    if (minorCount() != previous) { throw IllegalStateException() }
+    beginMark()
+    churnUntilMinor(previous)
+    endMark(round)
+    if (minorCount() != previous + 1L || unpin(pinned) !== old[0L]!!) {
+        throw IllegalStateException()
+    }
+    var result = 0L
+    index = 0L
+    while (index < count) {
+        val current = old[index]!!
+        if (current.next!! !== old[(index + count - 1L) % count]!! || current.leaf.value != index) {
+            throw IllegalStateException()
+        }
+        result += current.leaf.value
+        index += 1L
+    }
+    return result
+}
+
+@Unsafe fun minor(count: Long): Long {
+    var result = 0L
+    var round = 0
+    while (round < graphRounds()) {
+        result += minorRound(count, round)
         round += 1
     }
     return result
@@ -121,12 +180,14 @@ fun sumTree(node: Node?): Long = when (node) {
     val kind = graphKind()
     val checksum = if (kind == 0) { wide(count) } else {
         if (kind == 1) { array(count) } else {
-            if (kind == 2) { chain(count) } else { compact(count) }
+            if (kind == 2) { chain(count) } else {
+                if (kind == 3) { compact(count) } else { minor(count) }
+            }
         }
     }
     val expected = if (kind == 3) {
         (count / 16L) * (count / 16L - 1L) / 2L * 16L * graphRounds().toInt64()
-    } else { count * (count - 1L) / 2L }
+    } else { count * (count - 1L) / 2L * (if (kind == 4) graphRounds().toInt64() else 1L) }
     if (checksum != expected) { throw IllegalStateException() }
     println(checksum)
 }
