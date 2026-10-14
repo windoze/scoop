@@ -223,3 +223,10 @@
 - 核对现有报告与当前 fixture 选择，M43 共 105 项在 Darwin 均有通过证据；以本批替换此前进程报告后共 127 个变体、288 个进程步骤。另有 62 个受影响的既有回归通过，共 71 个变体、293 个进程步骤，来源为 source-roles、dependency-roles、entry 和 discovery 报告的去重集合。
 - 对不具备目标工具链的宿主执行真实 scoop test 请求：Darwin 选择 GNU、Linux 选择 Darwin 均在目标工具链解析处明确失败，没有回退到宿主，见 [Darwin 记录](validation/foreign-target-darwin.json.gz) 和 [Linux 记录](validation/foreign-target-linux.json.gz)。这些记录只证明当前环境的工具链拒绝路径，不声称已运行外来架构程序。
 - Linux 已同步至 8c9b952b；格式检查、workspace clippy、配套工具构建和 49 项 fixture runner 测试通过。GNU／musl 各 166 项正式 CLI 验收及受影响 Rust 测试组正在执行，进程 fixture 待本批同步后单独复用缓存补跑。平台结果尚未完成，不宣称 M43 已交付。
+
+## 2026-10-14：Linux 工具与 Rust 定向验证
+
+- nuc12 已同步本批 panic fixture 提交 6f92f910；编译器、runtime 与 sysroot 实现相对构建工具时的 8c9b952b 均未变化，继续使用该配套工具。格式检查、workspace clippy、三个命令构建及 49 项 runner 测试的完成日志已归档：[格式](validation/linux-fmt.log.gz)、[lint](validation/linux-clippy.log.gz)、[构建](validation/linux-build.log.gz)、[runner](validation/linux-runner-tests.log.gz)。
+- Linux Rust 定向验证共 1193 项通过。scoop、manifest、protocol、slib 与 codegen 的完整受影响组共 1157 项，包括实际移除原文件后消费保留产物的测试和 Linux 后端专测，见 [共享组](validation/linux-rust-shared.log.gz)。另通过 21 项测试声明／入口、7 项生产与测试源码查找、6 项依赖查找、1 项跨 Cone 角色、1 项 driver 源码输入，见 [发现](validation/linux-rust-discovery.log.gz)、[源码查找](validation/linux-rust-source-lookup.log.gz)、[依赖查找](validation/linux-rust-dependency-lookup.log.gz)、[跨 Cone 角色](validation/linux-rust-source-roles.log.gz)、[driver](validation/linux-rust-driver-sources.log.gz)。
+- 两个平台的正式 CLI 组继续运行，当前仅首批回归完成；[选择清单](validation/linux-selection.json)记录 166 个首批项与待单独运行的进程 fixture，不把进行中的组记为通过。全部 167 项完成后再汇总平台结论。
+- 本机已归档结果对应的 warm-cache cases、panic cases 与边界 authoring probe 已清理，释放约 182 MB；保留配套工具与已发布缓存条目。
