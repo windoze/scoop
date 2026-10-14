@@ -238,3 +238,9 @@
 - 根据实际计时结果结束 debug 工具的两棵已核实测试进程树，转用固定 release 工具继续。首轮后台进程忽略 SIGINT，因此定向终止后保留原始日志，没有伪造整组 runner 报告；仅提取已经完整打印 passed 的 11 项／平台，见 [GNU 摘录](validation/debug-observed-gnu.json.gz)、[musl 摘录](validation/debug-observed-musl.json.gz) 与 [终止范围](validation/debug-run-stop.json.gz)。运行中及尚未开始的 fixture 全部回到待验集合。
 - 合并 GNU 四项验证后，GNU 已验证 14 项、剩余 153 项；musl 已验证 11 项、剩余 156 项。已验证与剩余集合不相交，并集各为原定 167 项；[剩余清单](validation/linux-remaining-selection.json.gz)保存准确名称。两组已用固定工具、每目标 4 个 worker 启动，平台结论仍待完成。
 - 归档后清理初轮 GNU／musl 以及 release 四项验证的 cases，共约 215 MB。GNU 继续复用 release 验证的缓存；musl 仅复制已发布的 runtime 缓存目录到新工作区，不复制 staging、锁或使用软链接。
+
+## 2026-10-14：Linux GNU 完整范围通过
+
+- 固定 release 工具的 GNU 剩余组全部通过：153 项 fixture、180 个变体、491 个进程步骤，见 [报告](validation/remaining-gnu.json.gz) 和 [日志](validation/remaining-gnu.log.gz)。逐项核对结果名称与剩余选择清单一致，没有遗漏或替换。
+- 合并首轮 11 项完整通过记录与四项 release 验证，其中一项重叠，得到 GNU 全部 167 项通过，覆盖完整的 105 项 M43 与 62 项共享回归。此前工具重建导致失败的构造回归已经复验通过；没有把提前结束的初轮当作整组成功报告。
+- musl 剩余组仍在运行；M43 要等该平台结束并完成集合核对后收尾，M44 尚未开始。
