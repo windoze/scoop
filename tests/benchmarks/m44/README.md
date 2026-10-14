@@ -80,6 +80,11 @@ runtime。分别用 `--workers 1` 与 `--workers 4` 完成七次交替进程，�
 分别覆盖分配、引用数组写入、字段写入与纯计算循环 poll。两个固定工具集使用同一份
 runtime／sysroot 副本，保留源码、工具摘要、构建输出和 IR dump；该步骤不进行计时。
 
+跨 runtime 版本的整体对照可分别传 `--runtime`／`--sysroot`，每次只构建与该源码
+匹配的工具集，使用不同的 `--work`。报告保存实际来源与 runtime 逐文件摘要；合并
+两份报告时保留各自完整构建记录。整体对照不能使用下述要求完整 binary 相同的
+`inspect-codegen.py` 作为通过条件，应分别检查生成函数与 runtime 的实际机器码差异。
+
 ```sh
 python3 tests/benchmarks/m44/build-codegen.py \
   --tools baseline=target/m44/tools-baseline --tools boundary=target/m44/tools-codegen \

@@ -126,3 +126,9 @@
 - 基线 `44a3c0bf` 与当前 runtime 在两种 worker 配置下各完成预热和七次交替进程，每进程五轮。全部 140 个正式 minor 样本均处理相同的 8192 个年轻对象，实际搬迁 7027 个、晋升 229376 bytes，65 张脏卡与 4096 个旧代引用槽；每对样本的完整工作量计数一致，见[源码／计数核对](validation/minor-audit.json.gz)。
 - 1／4 worker 的 update 中位分别为 343→172、334→178 微秒；同组更新时间范围分离，实际移动与引用工作量保持。整体暂停、进程波动、内存与限制见[性能记录](PERFORMANCE.md)，原始数据为 [1 worker](validation/minor-1-darwin.json.gz)和 [4 worker](validation/minor-4-darwin.json.gz)。
 - 证据核对后清理约 28 MB 初版构建，保留正式 binary、固定工具和缓存。本机共享路径工作区测试、fixture runner 公共规则与正式 CLI 全量验收随后执行，再推进 Linux GNU／musl；M44 仍未完成。
+
+## 2026-10-14：跨 runtime 版本的基准构建来源
+
+- 为 Linux 的旧／新版本整体对照，四程序构建脚本增加可选 runtime／sysroot 来源，保存实际路径与 runtime 逐文件摘要。每次构建使用与源码目录匹配的固定工具，避免旧工具的源目录清单与已拆分的新 runtime 混用；原有同 runtime 的双工具对照保持。
+- Python Ruff 0.16.10 [格式与检查](validation/codegen-source-selection-lint.log.gz)通过。以 `44a3c0bf` 的 220 个 runtime 文件和当前的 231 个文件分别构建、运行 allocation／arrays／old-graph／primitive，八个进程的预期输出与 GC 统计均核对，源码摘要与各自输入逐项一致，见[构建及功能记录](validation/codegen-source-selection-darwin.json.gz)。准备命令首轮误向 Darwin 传入仅供 Linux 的 unwind prefix，改用 SDK 默认来源后通过；原始拒绝诊断保留。
+- 本批只验证构建来源与程序功能，不在其他本机测试运行期间计量性能。证据归档核对后清理本批构建副本约 74 MB，保留共享缓存。工作区测试和正式 CLI 全量仍在运行；49 项 fixture runner 公共规则已通过，最终覆盖与 Linux 结果仍待闭合。

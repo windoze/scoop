@@ -29,6 +29,8 @@ def main():
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--unwind-prefix", type=Path)
+    parser.add_argument("--runtime", type=Path)
+    parser.add_argument("--sysroot", type=Path)
     args = parser.parse_args()
     toolsets = {}
     for item in args.tools:
@@ -39,12 +41,21 @@ def main():
     repo = Path(__file__).resolve().parents[3]
     work = args.work.resolve()
     work.mkdir(parents=True, exist_ok=False)
-    shutil.copytree(repo / "runtime", work / "runtime")
-    shutil.copytree(repo / "sysroot", work / "sysroot")
+    source_runtime = (args.runtime or repo / "runtime").resolve()
+    source_sysroot = (args.sysroot or repo / "sysroot").resolve()
+    shutil.copytree(source_runtime, work / "runtime")
+    shutil.copytree(source_sysroot, work / "sysroot")
     report = {
         "host": platform.platform(),
         "target": args.target,
         "profile": "release",
+        "source_runtime": str(source_runtime),
+        "source_sysroot": str(source_sysroot),
+        "runtime_files": {
+            str(path.relative_to(work / "runtime")): digest(path)
+            for path in sorted((work / "runtime").rglob("*"))
+            if path.is_file()
+        },
         "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "diff": subprocess.check_output(["git", "diff", "HEAD"], text=True),
         "gc_codegen_sources": {
