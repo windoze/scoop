@@ -4,10 +4,7 @@ use scoop_wire::WireError;
 
 #[derive(Debug)]
 pub enum SharedLirShapeSupportValidationError {
-    MirProvider,
-    Identity(scoop_identity::IdentityReferenceError),
-    Replay(lir::ParamFreeShapeSupportTableError),
-    Section(lir::LayoutAbiSectionError),
+    Read(lir::LinkDataError),
     Resource(WireError),
 }
 macro_rules! from_error {
@@ -19,14 +16,12 @@ macro_rules! from_error {
         }
     };
 }
-from_error!(scoop_identity::IdentityReferenceError, Identity);
-from_error!(lir::ParamFreeShapeSupportTableError, Replay);
-from_error!(lir::LayoutAbiSectionError, Section);
+from_error!(lir::LinkDataError, Read);
 from_error!(WireError, Resource);
 
 impl std::fmt::Display for SharedLirShapeSupportValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid shared MIR/LIR shape-support relation: {self:?}")
+        write!(f, "invalid saved shape-support records: {self:?}")
     }
 }
 impl std::error::Error for SharedLirShapeSupportValidationError {}

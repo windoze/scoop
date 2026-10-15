@@ -24,26 +24,14 @@ fn core_value_and_reference_shapes_use_common_replay_and_wire() {
         let decoded: DecodedCanonicalParamFreeShapeSupportExportsV1 =
             decode_canonical(&bytes).unwrap();
         let replayed = decoded
-            .validate(
-                std::slice::from_ref(fixture.source()),
-                fixture.layouts(),
-                fixture.descriptors(),
-                fixture.foundation(),
+            .read(
+                fixture.layouts().target(),
+                fixture.foundation().producer(),
+                &mut fixture.identities(),
             )
             .unwrap();
         assert_eq!(replayed, table);
         assert_eq!(encode(&replayed).unwrap(), bytes);
-        let omitted: DecodedCanonicalParamFreeShapeSupportExportsV1 =
-            decode_canonical(b"\x80").unwrap();
-        assert!(matches!(
-            omitted.validate(
-                std::slice::from_ref(fixture.source()),
-                fixture.layouts(),
-                fixture.descriptors(),
-                fixture.foundation(),
-            ),
-            Err(ParamFreeShapeSupportTableError::Coverage)
-        ));
     }
 }
 

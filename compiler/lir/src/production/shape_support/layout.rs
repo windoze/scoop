@@ -59,6 +59,27 @@ impl<I: PersistentId> DecodedStrongShapeDefinitionV1<I> {
 }
 
 impl<I: PersistentId> DecodedStrongShapeRegistrationV1<I> {
+    pub(crate) fn read(
+        self,
+        identities: &mut ValidatedIdentityGraph,
+    ) -> Result<StrongShapeRegistrationV1<I>, crate::LinkDataError>
+    where
+        ValidatedIdentityGraph:
+            scoop_identity::PersistentIdResolver<I, Error = scoop_identity::IdentityReferenceError>,
+    {
+        let definition = DecodedStrongShapeDefinitionV1 {
+            semantic_id: self.semantic_id,
+            definition_plan: self.definition_plan,
+            symbol: self.symbol,
+        }
+        .read(identities)?;
+        Ok(StrongShapeRegistrationV1::from_artifact(
+            definition.semantic_id(),
+            definition.definition_plan(),
+            definition.symbol(),
+        ))
+    }
+
     pub(crate) fn matches_registration(
         self,
         expected: StrongShapeRegistrationV1<I>,

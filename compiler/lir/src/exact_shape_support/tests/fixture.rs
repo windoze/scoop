@@ -6,6 +6,7 @@ use super::super::*;
 use crate::*;
 
 mod layouts;
+mod read;
 
 const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 

@@ -481,6 +481,8 @@ callable ABI 的底层 reader 直接解析保存的 signature／protocol、body 
 
 Compile 的 dispatch 导出同样直接读取保存的 table、owner、role、slot signature、implementation 和 ABI body 引用，不从 MIR schema 重新生成表和 ABI 绑定，不把解码后的表重编码成另一份期望。reference-dispatch 的 receiver layout 从已读取的本地／依赖 layout 导出中按 typed exact 引用取得，不重算布局。表顺序、entry position、typed 引用和 definition 关系保留；生产端 slot／receiver／ABI 检查继续执行。
 
+Compile 的 param-free shape-support 从保存的八种 role 读取 source、exact、layout／scan／descriptor／registration 与 box／coroutine helper 引用。它不从 MIR root 清单或源码 nominal 重新生成相同闭包，不为同一 role 重编码比较。source 与 descriptor 的必要角色、typed 引用及 canonical source 顺序在读取边界确定；实际布局、helper 生产和物理导入仍使用各自的数据与规则。专供重建期望的 shape-support reader API、候选修改工厂及重复表构造器一并删除。
+
 旧 single-cone Link 的逐级验证资格 API、从 final 对象清零摘要再重建 provisional 的路径及其独占测试一并删除，不保留为备用 reader。仍被正常 Compile／ProgramLink 使用的 section 读取和真正生产对象的编码、重定位、摘要填充继续存在；归档格式测试使用正常产物，不能通过改坏最终对象来延续退役的消费复核合同。
 
 persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。

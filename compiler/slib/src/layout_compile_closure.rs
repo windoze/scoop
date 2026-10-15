@@ -77,7 +77,6 @@ pub use lir_physical::{
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,
     LirExportsValidatedCrossConeLayoutSections, SharedLirShapeSupportValidationError,
-    replay_shared_mir_shape_support,
 };
 pub use lir_strong::{
     CrossConeLayoutLirProductionDataError, LirProductionDataCrossConeLayoutClosure,

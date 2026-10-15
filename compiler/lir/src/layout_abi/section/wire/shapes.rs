@@ -1,6 +1,6 @@
 use super::*;
 
-/// All local exports have been replayed. Dependency uses and physical imports
+/// All local exports are available. Dependency uses and physical imports
 /// retain their original transport until the complete selection is checked.
 #[derive(Debug)]
 pub struct ExportsResolvedCrossConeLayoutAbiSectionV1 {
@@ -13,18 +13,14 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
         &self.descriptors
     }
 
-    pub fn validate_shape_support(
+    pub fn read_shape_support(
         self,
-        expected: &crate::CanonicalParamFreeShapeSupportExportsV1,
         ordinary: &crate::CrossConeLirBridgeSectionV1,
-    ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
-        if self.layouts.provider() != expected.provider() {
-            return Err(LayoutAbiExportConstituentsError::Provider.into());
-        }
-        if self.layouts.target() != expected.target() {
-            return Err(LayoutAbiExportConstituentsError::Target.into());
-        }
-        let shapes = self.shape_support.validate_against(expected)?;
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, crate::LinkDataError> {
+        let shapes =
+            self.shape_support
+                .read(self.layouts.target(), self.layouts.provider(), identities)?;
         let exports = LayoutAbiExportConstituentsV1::try_new(
             self.layouts,
             self.descriptors,
@@ -32,7 +28,8 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
             self.callables,
             shapes,
             ordinary.clone(),
-        )?;
+        )
+        .map_err(crate::link_data::link_error)?;
         Ok(ExportsResolvedCrossConeLayoutAbiSectionV1 {
             exports,
             selected: self.selected,

@@ -151,13 +151,17 @@ fn staged_shape_replay_retains_all_exports_and_checks_provider_before_selection(
     };
     let changed = empty_exports(cone("different-shapes-stage"));
     assert!(matches!(
-        decode().validate_shape_support(changed.shape_support(), changed.direct_callables()),
-        Err(LayoutAbiSectionError::Exports(
-            LayoutAbiExportConstituentsError::Provider
-        ))
+        decode().read_shape_support(
+            changed.direct_callables(),
+            &mut PendingIdentityValidation::new().finish().unwrap()
+        ),
+        Err(crate::LinkDataError(_))
     ));
     let checked = decode()
-        .validate_shape_support(expected.shape_support(), expected.direct_callables())
+        .read_shape_support(
+            expected.direct_callables(),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap();
     assert_eq!(checked.exports(), &expected);
     assert_eq!(encode(&checked).unwrap(), bytes);

@@ -25,7 +25,7 @@ pub(super) fn resolve(
         .unwrap()
         .validate_descriptors(exports.descriptors())
         .unwrap()
-        .validate_shape_support(exports.shape_support(), exports.direct_callables())
+        .read_shape_support(exports.direct_callables(), identities)
         .unwrap()
         .resolve_dependencies(identities)
         .unwrap()

@@ -10,6 +10,7 @@ use crate::{ConeLirFoundation, RegistrationIdentitySurfaceV1};
 
 mod callable;
 mod layout;
+mod read;
 mod validation;
 use validation::build_closure;
 pub use validation::{ParamFreeShapeSupportBuildError, ParamFreeShapeSupportValidationError};

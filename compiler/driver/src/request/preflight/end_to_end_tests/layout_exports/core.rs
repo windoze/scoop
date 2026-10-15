@@ -83,7 +83,7 @@ fn shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituen
 }
 
 #[test]
-fn shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots() {
+fn shared_lir_shape_support_preserves_finite_boxing_and_coroutine_helpers() {
     check_core_layout_exports(&["shared-shapes-standalone", "shared-shapes-combined"]);
 }
 
@@ -243,9 +243,6 @@ fn check_core_layout_exports(names: &[&str]) {
             shared_descriptors::probe(input, &result);
         }
         shared_shapes::check(input, &result);
-        if name.starts_with("shared-shapes-") {
-            shared_shapes::probe(input, &result);
-        }
         contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);
         let layout_section = layout_section::check(mir_input, input, result);

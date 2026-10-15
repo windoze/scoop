@@ -1,17 +1,11 @@
 use super::*;
 use scoop_lir_lower::LayoutAbiExportInputV1;
-use scoop_slib::SharedLirShapeSupportValidationError as Error;
-
-mod corruption;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
-    let shapes = replay(input, expected.layouts(), expected.descriptors()).unwrap();
-    assert_eq!(&shapes, expected.shape_support());
-    let wire: lir::DecodedCanonicalParamFreeShapeSupportExportsV1 = decoded(&shapes);
-    assert_eq!(wire.validate_against(&shapes).unwrap(), shapes);
+    let shapes = expected.shape_support();
     assert_eq!(
         shapes.records().len(),
         input.bridge.shapes().records().len()
@@ -40,25 +34,4 @@ pub(super) fn check(
             }
         }
     }
-}
-
-pub(super) fn probe(
-    input: LayoutAbiExportInputV1<'_>,
-    expected: &lir::LayoutAbiExportConstituentsV1,
-) {
-    corruption::check(input, expected);
-}
-
-fn replay(
-    input: LayoutAbiExportInputV1<'_>,
-    layouts: &lir::CanonicalExactLayoutExportsV1,
-    descriptors: &lir::CanonicalExactDescriptorExportsV1,
-) -> Result<lir::CanonicalParamFreeShapeSupportExportsV1, Error> {
-    scoop_slib::replay_shared_mir_shape_support(
-        input.bridge.shapes(),
-        layouts,
-        descriptors,
-        input.identities,
-        input.lir.foundation(),
-    )
 }

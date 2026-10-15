@@ -370,3 +370,12 @@ callable ABI reader 不再调用生产构造器派生 body／definition 或重�
 本机最终 fmt／workspace clippy、452 项 LIR、527 项 slib、真实分派 standalone／combined 和泛型 ODR 产物通过；前半批另有 ZST／间接返回／装箱 ABI 组合通过。[范围、退役清单与验证日志](validation/callable-dispatch.md)。target 没有新增已结束 fixture 目录，保留近期增量缓存。
 
 继续先完成本机全部修改及清理，再本机完整复验，通过后统一 Linux 验收。本批未运行 Linux 或全量，M48 仍在实施，M38 未推进。
+
+
+## 36. param-free shape-support 导出直接读取
+
+读取保存的八种 role 与 typed 引用，退役 MIR／源码 root 闭包重建、单条／整表重编码对照、测试专用重复表构造器和候选修改工厂。保留实际 source、box、coroutine helper 生产规则与组合用例；25 个代码／规范文件净删 223 行。
+
+本机 fmt／workspace clippy、452 项 LIR、527 项 slib 和真实 shape-support standalone／combined 产物通过。最后清理无调用适配函数后仅补跑 6 项直接受影响测试，未重复整套组合。[范围、退役清单与日志](validation/shape-reader.md)。target 无新增已结束 fixture 目录，增量缓存保留。
+
+本轮未到 Linux。剩余 layout／descriptor／physical、HIR／strong-profile、writer、ProgramLink 边界和 dump 工作仍先在本机完成，再本机完整复验及统一 Linux 验收；M38 未推进。

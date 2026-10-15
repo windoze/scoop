@@ -20,7 +20,16 @@ fn value_source_replays_all_roles_and_canonical_wire() {
     assert_eq!(bytes[0], 0xa8);
     let decoded = decode_canonical::<DecodedParamFreeShapeSupportExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.validate_against(&record).unwrap(), record);
+    assert_eq!(
+        decoded
+            .read(
+                fixture.layouts().target(),
+                fixture.foundation().producer(),
+                &mut fixture.identities()
+            )
+            .unwrap(),
+        record
+    );
 }
 
 #[test]
@@ -55,15 +64,14 @@ fn replay_rejects_helper_with_a_different_payload_layout() {
 }
 
 #[test]
-fn table_enforces_independent_coverage_and_round_trips() {
+fn table_preserves_saved_roles_and_round_trips() {
     let fixture = Fixture::new(SourceNominalKind::Struct, false);
     let record = fixture.replay().unwrap();
-    let table = CanonicalParamFreeShapeSupportExportsV1::try_new(
+    let table = CanonicalParamFreeShapeSupportExportsV1::from_sources(
         std::slice::from_ref(fixture.source()),
         fixture.layouts(),
         fixture.descriptors(),
         fixture.foundation(),
-        vec![record.clone()],
     )
     .unwrap();
     assert_eq!(table.get(record.source_nominal()), Some(&record));
@@ -72,27 +80,14 @@ fn table_enforces_independent_coverage_and_round_trips() {
         decode_canonical::<DecodedCanonicalParamFreeShapeSupportExportsV1>(&bytes).unwrap();
     assert_eq!(
         decoded
-            .validate(
-                std::slice::from_ref(fixture.source()),
-                fixture.layouts(),
-                fixture.descriptors(),
-                fixture.foundation(),
+            .read(
+                fixture.layouts().target(),
+                fixture.foundation().producer(),
+                &mut fixture.identities()
             )
             .unwrap(),
         table
     );
-
-    let omitted =
-        decode_canonical::<DecodedCanonicalParamFreeShapeSupportExportsV1>(b"\x80").unwrap();
-    assert!(matches!(
-        omitted.validate(
-            std::slice::from_ref(fixture.source()),
-            fixture.layouts(),
-            fixture.descriptors(),
-            fixture.foundation(),
-        ),
-        Err(ParamFreeShapeSupportTableError::Coverage)
-    ));
 }
 
 mod core;
