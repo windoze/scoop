@@ -18,6 +18,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.profile,
         std::slice::from_ref(&alias_directory),
         &quoted_directory.join("program"),
+        &quoted_directory.join("cache"),
     )
     .unwrap();
     assert_eq!(output.fingerprint, fixture.output.fingerprint);
@@ -38,6 +39,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.profile,
         &fixture.library_paths,
         &directory.join("changed"),
+        &quoted_directory.join("cache"),
     )
     .unwrap();
     assert_ne!(changed.fingerprint, output.fingerprint);
@@ -51,6 +53,7 @@ fn native_alias_link_tracks_real_input_updates_and_missing_input() {
         &fixture.profile,
         &[alias_directory],
         &output.path,
+        &quoted_directory.join("cache"),
     )
     .err()
     .unwrap()
@@ -114,6 +117,7 @@ fn elf_shared_library_link_tracks_real_symbol_version_updates() {
             &fixture.profile,
             std::slice::from_ref(&libraries),
             &directory.join("dso-program"),
+            &directory.join("cache"),
         )
         .unwrap()
     };

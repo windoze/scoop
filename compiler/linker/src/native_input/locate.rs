@@ -56,7 +56,13 @@ fn read_bytes(
     } else {
         slice::select(&bytes)?
     };
-    let id = NativeInputId::from_bytes(&bytes, kind, profile)?;
+    let digest = sha256(&bytes);
+    let id = NativeInputId::from_digest(digest, bytes.len() as u64, kind, profile)?;
+    let object_digest = if slice == (0..bytes.len()) {
+        digest
+    } else {
+        sha256(&bytes[slice.clone()])
+    };
     let fixed_system = matches!(kind, NativeFileKind::Archive | NativeFileKind::SharedObject)
         && matches!(profile, ValidatedFinalLinkProfile::Linux(linux) if linux
             .input_paths()
@@ -92,8 +98,12 @@ fn read_bytes(
             NativeContent::Dynamic(records)
         }
     };
+    let object_path =
+        (kind == NativeFileKind::Object && slice == (0..bytes.len())).then(|| locator.clone());
     Ok(NativeFile {
         id,
+        object_digest,
+        object_path,
         bytes: bytes.into(),
         slice,
         content,

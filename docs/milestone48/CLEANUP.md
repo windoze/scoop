@@ -179,3 +179,12 @@ GNU `m48-executable-tools` 继续保留真实 compiler／linker，以标准 `-B`
 删除 SystemProvider 为身份重算和探测输入复制持有的完整 SDK stub 字节，以及仅用于复制该字节树的 `write_to`。保留首次解析出的导出、版本、TLS、重导出选择与文件摘要／长度；NativeInputId 直接使用已有摘要，编码规则保持。首次探测使用选中的真实 SDK 文件，实际程序仍生成本次需要的投影 stub。原 system_provider 测试只删除字节镜像复制断言，保留全部导出语义断言。
 
 `scoop link` 与独立 `scoop-link` 复用相同的 C／C++／final 发现记录；默认缓存位置和配置解析移到实际共享的 toolchain helper。两个 `m28-cli-program` 用例删除不存在的 LLVM 路径和截断 PATH，保留原工具、源码、真实 cache、GNU／musl static／musl PIE 的 GC 与异常运行断言。它们不在 SOURCE-ISOLATION 源码操作清单中，该清单仍有 1,618 项待迁移。
+
+
+## 稳定对象文件与摘要复用
+
+删除链接时为每个 Scoop／native 成员写入临时 `cone-*.o`／`native-*.o` 的步骤，改为首次生产保存稳定 `objects-v1` 文件，后续直接传递已有路径；普通 native 独立 `.o` 直接使用原输入路径。归档 writer 记录已有内容摘要和 payload 范围，发布时借用归档缓冲区，未增加另一份常驻对象字节。链接计划和 embedded native 身份复用生产时已有的摘要，不重新哈希同一对象。
+
+新增 `m48-object-files` 覆盖多 Cone 首次对象生产、真实源码更新、显式链接、相对缓存目录、首次导入和重复导入、所需对象输出缺失后的补产；源码、工具、原归档和其他对象始终保留。普通并发发布单元测试验证同一结果只发布一次和旧输入结果不被新结果覆盖；没有加入内容损坏、权限、来源或读取后复核测试。原归档的排序与编码、native alias／DSO 变更、归档成员选择、GC 和错误诊断测试继续运行。
+
+本批只退役临时对象重写和重复摘要计算，尚未移除 `program_link` 的完整 `.slib` 解码、`layout_link_objects`／`layout_link_symbols` replay 及其双份字节和验证链。它们仍属于 M48-3；SOURCE-ISOLATION 清单仍有 1,618 行，不因稳定路径可复用而减少。

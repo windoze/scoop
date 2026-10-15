@@ -20,6 +20,40 @@ fn open_archive(input: &[u8]) -> Result<ManifestArchive<'_>, ArchiveReadError> {
     ManifestArchive::open(input)
 }
 
+#[test]
+fn object_outputs_borrow_the_written_payloads_after_archive_padding() {
+    let capability = CapabilityId::new("org.scoop-lang.test", "object", 1).unwrap();
+    let mut members = vec![diagnostic_member(b"log", b"diagnostic").unwrap()];
+    let mut expected = std::collections::BTreeMap::new();
+    for bytes in [b"odd".as_slice(), b"even".as_slice()] {
+        let member = SlibMember::new(
+            ConeIdentity::CORE,
+            MemberStableKey::LinkObject {
+                verifier_capability: capability.clone(),
+                logical_key: crate::LogicalMemberKey::new(bytes.to_vec()).unwrap(),
+            },
+            SlibMemberRole::LinkObject {
+                target_profile: scoop_identity::TargetProfileWireId::new(
+                    scoop_target_data::DARWIN_AARCH64_ID,
+                ),
+                object_format: scoop_identity::ObjectFormatId::macho_relocatable(),
+                verifier_capability: capability.clone(),
+            },
+            bytes.to_vec(),
+        )
+        .unwrap();
+        expected.insert(member.record().sha256(), bytes);
+        members.push(member);
+    }
+    let archive = CanonicalSlibArchive::write(b"m", members).unwrap();
+    assert_eq!(
+        archive
+            .object_payloads()
+            .collect::<std::collections::BTreeMap<_, _>>(),
+        expected
+    );
+}
+
 fn validate_archive<'input>(
     input: &'input [u8],
     records: &[SlibMemberRecord],

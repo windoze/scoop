@@ -75,6 +75,12 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         let artifact = (|| {
             let artifact =
                 protocols::lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
+            let cache = scoop_toolchain::configured_cache_root(None)
+                .map_err(CurrentConeProductionFailure::ObjectOutput)?;
+            for (digest, bytes) in artifact.object_payloads() {
+                scoop_toolchain::store_object(&cache, digest, bytes)
+                    .map_err(CurrentConeProductionFailure::ObjectOutput)?;
+            }
             artifact
                 .publish(self.request.output().as_path())
                 .map_err(CurrentConeProductionFailure::Publication)

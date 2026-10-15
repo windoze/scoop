@@ -36,6 +36,8 @@ impl WireEncode for NativeInputId {
 
 pub(crate) struct NativeFile {
     pub id: NativeInputId,
+    pub object_digest: Digest256,
+    pub object_path: Option<PathBuf>,
     pub bytes: Arc<[u8]>,
     pub slice: Range<usize>,
     pub locator: PathBuf,

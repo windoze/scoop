@@ -59,6 +59,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         &profile,
         request.libraries,
         &directory.path().join("program"),
+        request.cache,
     )
     .map_err(failure)?;
     let mut paths: BTreeSet<_> = linked.input_paths.into_iter().collect();

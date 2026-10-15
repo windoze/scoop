@@ -120,6 +120,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &profile,
         &library_paths,
         &path.join("program"),
+        &path.join("cache"),
     )
     .unwrap();
     Fixture {

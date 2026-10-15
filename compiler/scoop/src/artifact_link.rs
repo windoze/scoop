@@ -86,6 +86,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         &profile,
         &request.library_paths,
         &directory.path().join("program"),
+        &request.cache_dir,
     )
     .map_err(failure)?;
     output.publish(&linked.path, None).map_err(failure)?;

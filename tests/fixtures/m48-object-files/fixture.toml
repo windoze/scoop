@@ -1,0 +1,162 @@
+schema = 1
+name = "m48-object-files"
+inputs = ["../m48-executable-record/program", "../m48-executable-record/provider", "state.py"]
+tools = ["scoop", "scoopc", "scoop-link", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "cache", "objects", "multi-cone", "artifact-link"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/../m48-executable-record/program", to = "${work}/program-source"}}, {copy = {from = "${fixture}/../m48-executable-record/provider", to = "${work}/provider"}}]
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "build", "${work}/provider", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "produced_before_link"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reused_library_objects"
+argv = ["${python}", "${fixture}/state.py", "subset", "${work}/cache", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_program"
+argv = ["${program.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_program_objects"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_root"
+files = [{replace = {path = "${work}/program-source/src/main.scoop", old = "value() + 2", new = "value() + 3"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/program-source", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "retained_old_objects"
+argv = ["${python}", "${fixture}/state.py", "subset", "${work}/cache", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_current_objects"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "relink"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--cache-dir", "cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
+exit = 0
+stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "no_object_rewrites"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "import_objects"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--cache-dir", "import-cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
+exit = 0
+stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "save_imported"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/import-cache", "${work}/imported.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "reuse_imported"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--cache-dir", "${work}/import-cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
+exit = 0
+stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "unchanged_imported"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/import-cache", "${work}/imported.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "missing_output"
+argv = ["${python}", "${fixture}/state.py", "remove_one", "${work}/import-cache", "${work}/imported.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "restore_object"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--cache-dir", "${work}/import-cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
+exit = 0
+stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "other_objects_unchanged"
+argv = ["${python}", "${fixture}/state.py", "restored", "${work}/import-cache", "${work}/imported.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_relinked"
+argv = ["${work}/relinked"]
+exit = 43
+stdout = ""
+stderr = ""

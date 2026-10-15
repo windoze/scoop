@@ -108,10 +108,18 @@ impl<'a> ProgramInputs<'a> {
             for object in symbols.object_contents().generated_objects() {
                 members.insert(object.member(), object.bytes());
             }
-            objects.extend(members.into_iter().map(|(member, bytes)| InputObject {
-                origin: ObjectOrigin::Cone { cone, member },
-                bytes: ObjectBytes::Borrowed(bytes),
-            }));
+            for (member, bytes) in members {
+                let directory = artifact.manifest().members();
+                let position = directory
+                    .binary_search_by_key(&member, |record| record.id())
+                    .map_err(|_| error(format!("missing object member {member} in Cone {cone}")))?;
+                let record = &directory[position];
+                objects.push(InputObject {
+                    origin: ObjectOrigin::Cone { cone, member },
+                    bytes: ObjectBytes::Borrowed(bytes),
+                    digest: record.sha256(),
+                });
+            }
             for definition in symbols.defined_symbols().owners() {
                 if !selected.contains(cone, definition.member()) {
                     continue;
@@ -180,9 +188,9 @@ impl<'a> ProgramInputs<'a> {
             objects.push(InputObject {
                 origin: ObjectOrigin::Runtime(object.id()),
                 bytes: ObjectBytes::File {
-                    path: object.path(),
-                    digest: object.digest(),
+                    path: object.path().to_owned(),
                 },
+                digest: object.digest(),
             });
         }
         let root = root.ok_or_else(|| error("executable closure has no root entry"))?;

@@ -74,13 +74,18 @@ impl NativeFile {
         }
     }
 
-    pub fn objects(&self) -> Vec<(NativeObjectId, &NativeObjectIndex, Range<usize>)> {
+    pub fn objects(&self) -> Vec<(NativeObjectId, &NativeObjectIndex, Range<usize>, Digest256)> {
         match &self.content {
             NativeContent::System | NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => {
                 Vec::new()
             }
             NativeContent::Object(index) => {
-                vec![(NativeObjectId::Direct(self.id), index, self.slice.clone())]
+                vec![(
+                    NativeObjectId::Direct(self.id),
+                    index,
+                    self.slice.clone(),
+                    self.object_digest,
+                )]
             }
             NativeContent::Archive(members) => members
                 .iter()
@@ -89,6 +94,7 @@ impl NativeFile {
                         NativeObjectId::ArchiveMember(member.id),
                         &member.index,
                         member.range.clone(),
+                        member.digest,
                     )
                 })
                 .collect(),
@@ -104,8 +110,8 @@ impl NativeInputs {
         self.files[&id.input()]
             .objects()
             .into_iter()
-            .find(|(candidate, _, _)| *candidate == id)
-            .map(|(_, index, range)| (index, range))
+            .find(|(candidate, _, _, _)| *candidate == id)
+            .map(|(_, index, range, _)| (index, range))
             .ok_or_else(|| error(format!("missing native object {id}")))
     }
 }

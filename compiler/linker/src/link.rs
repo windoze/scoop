@@ -46,9 +46,10 @@ pub fn link_program(
     profile: &ValidatedFinalLinkProfile,
     library_paths: &[PathBuf],
     output: &Path,
+    cache: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
-    link_inputs(closure, runtime, profile, &inputs, output)
+    link_inputs(closure, runtime, profile, &inputs, output, cache)
 }
 
 fn link_inputs(
@@ -57,6 +58,7 @@ fn link_inputs(
     profile: &ValidatedFinalLinkProfile,
     inputs: &ProgramInputs<'_>,
     output: &Path,
+    cache: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let output = std::path::absolute(output).map_err(error)?;
     let parent = output
@@ -73,7 +75,7 @@ fn link_inputs(
     write_new(&first, &startup.bytes)?;
     paths.push(first);
     for input in &inputs.objects {
-        paths.push(input.materialize(directory.path())?);
+        paths.push(input.path(cache)?);
     }
     let candidate = directory.path().join("program");
     match profile {

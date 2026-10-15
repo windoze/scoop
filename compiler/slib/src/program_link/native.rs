@@ -25,6 +25,6 @@ pub(super) fn read(
         let source = scoop_identity::NormalizedSourcePath::new(source).map_err(error)?;
         let bytes = graph.envelope.member(record.id())
             .ok_or_else(|| error(format!("missing native object {}", record.id())))?;
-        Ok(NativeLinkObject { member: record.id(), source, bytes: bytes.into() })
+        Ok(NativeLinkObject { member: record.id(), source, bytes: bytes.into(), digest: record.sha256() })
     }).collect()
 }

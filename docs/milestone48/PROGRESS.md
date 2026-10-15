@@ -163,3 +163,18 @@ Linux [首轮 Rust 测试](validation/final-tools-linux-rust-first.log.gz)通过
 [musl 组合](validation/final-tools-musl-fixtures.log.gz)通过 8 个适用用例、11 variants、121 processes，包含 static 和 PIE、显式链接、GC／EH、test 选择和 native 输入更新；C++ 与 GNU 专用工具改选两项按原目标声明不适用。[musl trace 摘要](validation/final-tools-musl-trace-summary.json)得到相同复用结果：源码更新后一次 child，共 10 次真实编译／链接 exec（包含 musl driver wrapper），发现记录不变且无工具探测；随后暖构建仅一次 scoop exec、无 child、无相关内容读取且产物 metadata 不变。原始[更新 trace](validation/final-tools-musl-changed.trace.gz)和[暖 trace](validation/final-tools-musl-warm.trace.gz)保留。
 
 本批最终链接工具发现复用已实现并完成定向验收。M48 尚需稳定 Scoop 对象路径、普通 artifact 消费及 replay／双份数据／验证链清理、dump 最小阶段复用、1,618 项源码隔离测试迁移，以及最终全量回归与五轮性能复测；这些要求没有缩减，M38 保持未启动。
+
+
+## 16. M48-4：首次生产稳定对象文件
+
+归档 writer 在生成成员时保存已有内容摘要和 payload 范围，scoopc 在发布归档前借用同一缓冲区写出 `objects-v1/<digest>.o`；parent 将实际缓存目录传给 child。链接复用已有对象路径，首次显式导入或所需对象缺失时才补产；相对缓存目录转换为绝对对象路径，避免 native 工具切换工作目录改变路径含义。普通 native 独立 `.o` 使用原文件路径，选中的归档成员才需要稳定独立文件。发布使用临时文件与原子 noclobber，并发已有结果直接使用，没有内容读取、重复哈希、sync 或资格校验。链接计划及 embedded native 身份复用已有摘要。
+
+本机 [workspace clippy](validation/object-files-darwin-clippy.log.gz)、[归档 8 项](validation/object-files-darwin-archive-tests.log.gz)、[并发对象发布 1 项](validation/object-files-darwin-store-tests.log.gz)、[scoop 86 项](validation/object-files-darwin-scoop.log.gz)和[链接器 4 项](validation/object-files-darwin-linker-latest.log.gz)通过。[9 个 CLI 组合用例](validation/object-files-darwin-combined.log.gz)共 13 variants、133 processes 通过，覆盖对象生产、多 Cone、C／C++ native、显式链接、源码与 native 输入更新、测试选择和 moving GC；普通 native 原路径调整后的 [22 次进程定向复验](validation/object-files-darwin-native-latest.log.gz)通过。相对缓存路径修正后，[clippy](validation/object-files-darwin-clippy-relative.log.gz)、[release 构建](validation/object-files-darwin-release-relative.log.gz)与 [m48-object-files 的 20 次进程复验](validation/object-files-darwin-relative.log.gz)通过。
+
+Linux [workspace clippy](validation/object-files-linux-clippy.log.gz)、[release 构建](validation/object-files-linux-release.log.gz)、[归档 8 项](validation/object-files-linux-archive-tests.log.gz)、[并发发布 1 项](validation/object-files-linux-store-tests.log.gz)、[scoop 89 项](validation/object-files-linux-scoop-tests.log.gz)和[链接器 17 项](validation/object-files-linux-linker-tests.log.gz)通过。[GNU](validation/object-files-gnu-fixtures.log.gz)通过 9 个用例、13 variants、133 processes；[musl](validation/object-files-musl-fixtures.log.gz)通过 8 个用例、12 variants、121 processes，C++ 用例按原目标声明不适用。
+
+相对目录补充的 Linux [clippy](validation/object-files-linux-clippy-relative.log.gz)、[release 构建](validation/object-files-linux-release-relative.log.gz)，以及 [GNU](validation/object-files-gnu-relative.log.gz)／[musl](validation/object-files-musl-relative.log.gz)各 20 次进程复验通过。保留全部源码、工具和原产物，先正常更新重建后的工具输入，再对未变化输入取构建结果并显式重新链接；[GNU](validation/object-files-gnu-trace-summary.json)和 [musl](validation/object-files-musl-trace-summary.json)均确认 compiler child 为 0，native linker 实际打开 `objects-v1` 与原始 native `.o`，没有临时 `cone-*.o`／`native-*.o`，对象 metadata 全部不变，程序分别返回 43／42。保留 [GNU 普通链接](validation/object-files-gnu-relink.trace.gz)／[native 链接](validation/object-files-gnu-native.trace.gz)、[musl 普通链接](validation/object-files-musl-relink.trace.gz)／[native 链接](validation/object-files-musl-native.trace.gz)及[采样脚本](validation/object-files-trace.py.gz)。这些是显式 relink 的对象复用证据，不表示 `.slib` 已停止重读或 replay 已移除。
+
+归档 reader／writer 分为 354／158 行，对象文件 helper 连同并发测试为 71 行；未作机械切割。无本机 Rust 构建进程时[清理 `target/debug/incremental` 3,411.5 MiB](validation/object-files-darwin-cleanup.log.gz)。测试及退役范围见[清理记录](CLEANUP.md)。
+
+本批解决稳定对象路径和重复摘要计算；当前 Link 消费仍读入完整 `.slib` 并执行旧 replay，不能声称已实现按需读取或移除验证链。普通 artifact reader、双份数据与 replay 清理、dump 最小阶段复用、1,618 项源码隔离迁移、最终全量回归和五轮性能复测仍待完成；M38 未启动。

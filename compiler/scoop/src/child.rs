@@ -81,6 +81,7 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
             .arg(tool.protocol().protocol_version().to_string())
             .env_clear()
             .env("SCOOP_SYSROOT", io.trusted_sysroot())
+            .env("SCOOP_CACHE_DIR", &io.temporary_root)
             .env("TMPDIR", temporary.path())
             .envs(
                 io.compiler_environment

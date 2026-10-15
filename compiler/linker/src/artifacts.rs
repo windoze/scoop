@@ -52,6 +52,7 @@ impl ArtifactLinkRequest {
             &profile,
             &self.library_paths,
             &self.output,
+            &self.cache_dir,
         )
     }
 }
