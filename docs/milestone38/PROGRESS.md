@@ -76,4 +76,6 @@ fmt、workspace Clippy、release 构建及 47 项 codec／注解／类型描述 
 
 core 组合的 16 项在 debug 补验通过，剩余基础产物、初始化单元和 singleton 三项使用优化测试构建通过；较重的属性初始化组合在两种构建中均通过。格式化、workspace Clippy 及后续受影响 crate 的 lint 均通过。正式 CLI 的旧 builtin-binding 用例改为直接复用当前 Int 源码，删除 154 行重复声明，新增 inspector 所需导入；该项单独补验通过，1 variant、2 processes，并清理结束的 case 目录约 71 MiB。
 
+CLI 完整首轮另发现 6 项 core 根类型负例的旧诊断期望：新增 inspector 改变 ArrayList 的源码范围，并在故意缺失或破坏 Any 时产生额外的连带错误。首条被测根类型诊断不变；同步全部诊断后只补验这 6 项，6 variants、6 processes 全部通过。没有修改编译器、runtime 或 sysroot，也没有放宽诊断匹配。
+
 正式 CLI 完整验收仍在进行；完成本机闭合后再到 Linux 做 GNU／musl 统一验收。三目标完成前不宣称 M38 完成。原始日志和逐用例报告均保存在仓库外，本文只记录范围、结果概要及失败闭合情况。
