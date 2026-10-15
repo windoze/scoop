@@ -134,6 +134,12 @@ impl Lowerer {
     }
 
     pub(crate) fn complete_imported_constructor(&mut self, index: usize) {
+        if self.imported_constructor_templates.templates[index]
+            .kind
+            .is_some()
+        {
+            return;
+        }
         let template = self.imported_constructor_templates.templates[index].clone();
         let id = Idx::from_raw(RawIdx::from(index as u32));
         let result = self

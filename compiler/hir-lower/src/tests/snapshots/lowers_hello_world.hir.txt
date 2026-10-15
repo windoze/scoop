@@ -4,6 +4,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  class TypeRef()
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
@@ -41,6 +42,17 @@ Module
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopTypeReference<T>(): TypeRef
+    val local0
+      StringLiteral "illegal state" : String
+    val local1
+      Local $argument.0 : String
+    val local2
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
   fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
   fun __scoopProgramArguments(): Array<String>

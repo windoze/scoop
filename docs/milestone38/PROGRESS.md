@@ -64,6 +64,12 @@ fmt、workspace Clippy、release 构建及 47 项 codec／注解／类型描述 
 
 初轮只修正用例中的 Array 相等比较与遗漏的 enum inspector；跨库普通 getter 的公开描述修复后，集中复验 CLI 全组和相关 TypeInfo／debug 用例。3 个相关 fixture 通过，3 variants、16 processes；fmt、workspace Clippy 与 release 构建通过。原始日志／逐次报告在仓库外，本文只保存范围与结论；清理本批已结束的 fixture case 目录约 497 MiB，继续复用缓存。
 
+## 完整复验发现的导入构造器复用问题
+
+本机完整 Rust 首轮发现 27 项失败：23 份既有 HIR 快照缺少新增的 TypeRef 与内部工厂，另 4 项共享构造初始化暴露了重复展开问题。元数据依赖补齐后再次推进正文队列时，函数已跳过完成项，构造器却重新分配局部绑定，导致既有闭包的捕获身份悬空。现在构造器同样复用已完成的正文；实现规范明确这一既有绑定保持要求，没有增加重放或验证机制。
+
+修复后 fmt、workspace Clippy、release 构建及全部 1,465 项 HIR lowering 测试通过，包含四项共享构造器／跨库闭包回归。首轮 CLI 在 155 通过、18 不适用、零失败时中断，未完成的 3,986 项不计通过；修复后使用 10 并发重新执行完整 CLI。已清理中断后结束的 case 工作目录约 9.3 GiB，保留共享缓存。原始日志和报告均保存在仓库外。
+
 ## 剩余验收
 
 M38 功能均已完成本机针对性验证。接下来统一执行本机完整 Rust／runner／正式 CLI 验收，闭合问题后再到 Linux 做 GNU／musl 组合验收；最终三目标验收完成前不宣称 M38 完成。
