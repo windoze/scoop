@@ -76,11 +76,11 @@ pub use lir_ordinary::{
     SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
 };
 pub use lir_physical::{
-    CrossConeLayoutLirPhysicalError, LinkObjectsReplayedCrossConeLayoutClosure,
-    LinkSymbolsReplayedCrossConeLayoutClosure, MergedOdrDefinitions, MergedOdrMemberDefinition,
-    OdrDefinitionCandidate, OdrDefinitionDifference, OdrDefinitionMergeError, OdrMemberConflict,
-    PhysicalImportsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutSections,
-    SharedLirPhysicalError, merge_cross_cone_odr_definitions,
+    CrossConeLayoutArtifactData, CrossConeLayoutLirPhysicalError, MergedOdrDefinitions,
+    MergedOdrMemberDefinition, OdrDefinitionCandidate, OdrDefinitionDifference,
+    OdrDefinitionMergeError, OdrMemberConflict, PhysicalImportsReplayedCrossConeLayoutClosure,
+    PhysicalImportsReplayedCrossConeLayoutSections, SharedLirPhysicalError,
+    merge_cross_cone_odr_definitions,
 };
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,

@@ -1,17 +1,17 @@
 //! Link data shares the complete semantic records read from the same archive.
 
-use crate::{PhysicalImportsReplayedCrossConeLayoutSections, ReplayedLayoutLinkSymbolUsesV1};
+use crate::{ArtifactDefinitionData, PhysicalImportsReplayedCrossConeLayoutSections};
 use std::rc::Rc;
 
 pub struct ValidatedCrossConeStrongLinkArtifact {
     artifact: Rc<PhysicalImportsReplayedCrossConeLayoutSections>,
-    symbols: ReplayedLayoutLinkSymbolUsesV1,
+    symbols: ArtifactDefinitionData,
 }
 
 impl ValidatedCrossConeStrongLinkArtifact {
     pub(crate) fn new(
         artifact: Rc<PhysicalImportsReplayedCrossConeLayoutSections>,
-        symbols: ReplayedLayoutLinkSymbolUsesV1,
+        symbols: ArtifactDefinitionData,
     ) -> Self {
         Self { artifact, symbols }
     }
@@ -60,7 +60,7 @@ impl ValidatedCrossConeStrongLinkArtifact {
     pub fn defined_symbols(&self) -> &crate::CanonicalDefinedLinkSymbolOwnerSetV1 {
         self.symbols.defined_symbols()
     }
-    pub fn symbol_uses(&self) -> &ReplayedLayoutLinkSymbolUsesV1 {
+    pub fn definition_data(&self) -> &ArtifactDefinitionData {
         &self.symbols
     }
 }

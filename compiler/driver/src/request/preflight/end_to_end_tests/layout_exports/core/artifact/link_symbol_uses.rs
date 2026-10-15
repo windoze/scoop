@@ -1,118 +1,33 @@
-//! Actual defined owners and disjoint undefined uses survive independent reads.
+//! Saved symbol ownership and publication data survive ordinary dependency reads.
 
 use super::lir_dependencies::reader;
-use super::*;
 use scoop_slib as slib;
-
-mod code;
-mod coverage;
-mod mutations;
-mod partitions;
-mod rejection;
-mod runtime;
-mod wire;
-
-#[derive(Clone, Copy, Debug)]
-enum Failure {
-    DefinedMissing,
-    DefinedDuplicate,
-    DefinedMember,
-    LegacyMissing,
-    LegacyWidth,
-    OrdinaryMissing,
-    OrdinaryDuplicate,
-    OrdinaryIndex,
-    ShapeMissing,
-    ShapeDuplicate,
-    ShapeIndex,
-    UnknownRuntime,
-    WrongNativeSymbol,
-}
-
-enum Mutation {
-    Projection(Failure),
-    Object {
-        member: slib::SlibMemberId,
-        offset: usize,
-    },
-}
 
 pub(super) fn check(
     core: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
-    profile: &lir::CBridgeToolchainProfileV1,
 ) {
-    let current = reader::open_link(artifact).identity();
-    let mut cases = Vec::new();
-    let complete = {
-        let archives = [core.as_bytes().to_vec(), artifact.as_bytes().to_vec()];
-        let mut sections = archives.iter().map(|bytes| {
-            slib::DecodedSlibEnvelope::open(bytes, artifact.target_selection())
-                .unwrap()
-                .validate_graph()
-                .unwrap()
-                .decode_cross_cone_layout_link_sections()
-                .unwrap()
-                .into_shared_sections()
-                .unwrap()
-        });
-        let core = sections.next().unwrap();
-        let current = sections.next().unwrap();
-        reader::read_sections(core, current).replay_link_symbol_uses(profile)
-    };
-    // The complete result remains usable after both raw archive buffers are dropped.
-    complete
-        .map(|closure| {
-            assert_eq!(closure.dependency_first().len(), 2);
-            for (physical, proof) in closure.dependency_first() {
-                assert_eq!(physical.identity(), proof.provider());
-                assert_eq!(physical.manifest().cone().identity(), physical.identity());
-                assert_eq!(physical.lir_foundation().producer(), physical.identity());
-                assert_eq!(
-                    closure.artifact(proof.provider()).unwrap().1.provider(),
-                    proof.provider()
-                );
-                let partitions = proof.undefined_partitions();
-                partitions::check(proof);
-                runtime::inspect(
-                    if proof.provider() == current {
-                        artifact
-                    } else {
-                        core
-                    },
-                    proof,
-                );
-                coverage::inspect(proof);
-                code::inspect(
-                    if proof.provider() == current {
-                        artifact
-                    } else {
-                        core
-                    },
-                    proof,
-                );
-                let owners = partitions.cross_cone().dependency_owners();
-                if proof.provider() == current {
-                    assert_eq!(owners.len(), 1);
-                    assert_eq!(
-                        owners[0],
-                        *closure
-                            .artifact(owners[0].producer())
-                            .unwrap()
-                            .1
-                            .defined_symbols()
-                    );
-                    cases = mutations::cases(proof);
-                } else {
-                    assert!(owners.is_empty());
-                }
-            }
-        })
+    let complete = reader::read_link(core, artifact)
+        .read_definition_data()
         .unwrap();
-    for (failure, mutation) in cases {
-        rejection::mutation(core, artifact, profile, &mutation, failure);
+    assert_eq!(complete.dependency_first().len(), 2);
+    for (physical, definitions) in complete.dependency_first() {
+        let source = if physical.identity() == core.summary().identity() {
+            core
+        } else {
+            artifact
+        };
+        assert_eq!(physical.identity(), definitions.provider());
+        assert_eq!(definitions.summary(), source.summary());
+        assert!(!definitions.defined_symbols().owners().is_empty());
+        for owner in definitions.defined_symbols().owners() {
+            assert!(
+                physical
+                    .manifest()
+                    .members()
+                    .iter()
+                    .any(|record| record.id() == owner.member())
+            );
+        }
     }
-    rejection::dependency_owner(core, artifact, profile);
-
-    rejection::views(core, artifact, profile);
 }

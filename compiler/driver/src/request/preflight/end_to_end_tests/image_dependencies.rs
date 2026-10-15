@@ -71,7 +71,6 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
         dependencies.clone(),
         provider_bytes.iter().map(Vec::as_slice).collect(),
         &bytes,
-        target.c_bridge_toolchain().profile(),
         &mut scoop_identity::SemanticIdentitySession::new(),
     )
     .unwrap();

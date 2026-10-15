@@ -1,59 +1,38 @@
 use super::*;
-use crate::{ReplayedLayoutLinkSymbolUsesV1, layout_link_symbols};
+use crate::ArtifactDefinitionData;
 
-/// Symbol uses and provider owners from the same owned physical replay.
-pub struct LinkSymbolsReplayedCrossConeLayoutClosure {
+/// Shared semantic sections with saved definition metadata.
+pub struct CrossConeLayoutArtifactData {
     physical: PhysicalImportsReplayedCrossConeLayoutClosure,
-    symbols: Vec<ReplayedLayoutLinkSymbolUsesV1>,
+    symbols: Vec<ArtifactDefinitionData>,
     odr_definitions: MergedOdrDefinitions,
 }
 
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
-    pub fn replay_link_symbol_uses(
+    pub fn read_definition_data(
         self,
-        profile: &lir::CBridgeToolchainProfileV1,
-    ) -> Result<LinkSymbolsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError> {
+    ) -> Result<CrossConeLayoutArtifactData, CrossConeLayoutLirPhysicalError> {
         let selection = self.target;
-        let (physical, symbols) =
-            self.replay_physical(|artifact, reachable, previous, physical| {
-                let objects = artifact
-                    .prepared
-                    .replay_link_object_contents(&artifact.strong, profile)?;
-                let code_strong = artifact.prepared.code_strong_input()?;
-                let parts = artifact.prepared.semantic_parts();
-                let link = parts
-                    .link_sections
-                    .ok_or(crate::LayoutLinkObjectContentsError::CompileView)?;
-                let symbols = layout_link_symbols::replay(
-                    objects,
-                    layout_link_symbols::ReplayInputs {
-                        link,
-                        foundation: parts.lir_foundation,
-                        strong: &artifact.strong,
-                        ordinary: &artifact.ordinary,
-                        layout: &artifact.layout,
-                        selection,
-                        profile,
-                        manifest: parts.manifest,
-                        code_strong: &code_strong,
-                    },
-                    previous,
-                    physical.iter().map(|artifact| &artifact.layout),
-                    reachable,
-                )?;
-                Ok(symbols)
+        let (physical, symbols) = self.replay_physical(|artifact, _, _, _| {
+            let parts = artifact.prepared.semantic_parts();
+            let link = parts.link_sections.ok_or_else(|| {
+                SharedLirPhysicalError::DefinitionData("missing definition metadata".to_owned())
             })?;
+            ArtifactDefinitionData::read(link, parts.manifest, parts.identities, selection)
+                .map_err(SharedLirPhysicalError::DefinitionData)
+        })?;
         let odr_definitions = merge_cross_cone_odr_definitions(
             physical
                 .dependency_first()
                 .map(|artifact| artifact.identity_graph())
-                .zip(&symbols),
+                .zip(&symbols)
+                .map(|(identities, data)| (identities, data.defined_symbols(), data.odr_members())),
         )
         .map_err(|source| CrossConeLayoutLirPhysicalError {
             provider: source.provider(),
             source: Box::new(SharedLirPhysicalError::OdrDefinitions(Box::new(source))),
         })?;
-        Ok(LinkSymbolsReplayedCrossConeLayoutClosure {
+        Ok(CrossConeLayoutArtifactData {
             physical,
             symbols,
             odr_definitions,
@@ -61,7 +40,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
     }
 }
 
-impl LinkSymbolsReplayedCrossConeLayoutClosure {
+impl CrossConeLayoutArtifactData {
     pub(crate) fn into_parts(
         self,
     ) -> (
@@ -70,7 +49,7 @@ impl LinkSymbolsReplayedCrossConeLayoutClosure {
         Vec<ConeIdentity>,
         Vec<(
             PhysicalImportsReplayedCrossConeLayoutSections,
-            ReplayedLayoutLinkSymbolUsesV1,
+            ArtifactDefinitionData,
         )>,
         MergedOdrDefinitions,
     ) {
@@ -102,7 +81,7 @@ impl LinkSymbolsReplayedCrossConeLayoutClosure {
     ) -> impl ExactSizeIterator<
         Item = (
             &PhysicalImportsReplayedCrossConeLayoutSections,
-            &ReplayedLayoutLinkSymbolUsesV1,
+            &ArtifactDefinitionData,
         ),
     > {
         self.physical.dependency_first().zip(&self.symbols)
@@ -113,7 +92,7 @@ impl LinkSymbolsReplayedCrossConeLayoutClosure {
         provider: ConeIdentity,
     ) -> Option<(
         &PhysicalImportsReplayedCrossConeLayoutSections,
-        &ReplayedLayoutLinkSymbolUsesV1,
+        &ArtifactDefinitionData,
     )> {
         self.physical
             .positions

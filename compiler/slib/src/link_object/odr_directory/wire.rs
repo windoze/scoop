@@ -1,4 +1,4 @@
-//! Decode directory structure and compare it with existing member contents.
+//! Decode saved ODR member identities and ABI entries.
 
 use std::collections::BTreeSet;
 
@@ -123,6 +123,34 @@ impl WireEncode for DecodedCanonicalOdrMemberDirectoryV1 {
 }
 
 impl DecodedCanonicalOdrMemberDirectoryV1 {
+    pub(crate) fn read(
+        &self,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<CanonicalOdrMemberDirectoryV1, scoop_identity::IdentityReferenceError> {
+        use scoop_identity::PersistentIdResolver;
+        let groups = self
+            .groups
+            .iter()
+            .map(|group| {
+                Ok(OdrMemberDirectoryGroupV1 {
+                    group: PersistentIdResolver::resolve(identities, group.group)?,
+                    members: group
+                        .members
+                        .iter()
+                        .map(|entry| {
+                            Ok(OdrMemberDirectoryEntryV1 {
+                                member: PersistentIdResolver::resolve(identities, entry.member)?,
+                                role: entry.role,
+                                abi: OdrAbiFingerprintV1::from_array(*entry.abi.bytes()),
+                            })
+                        })
+                        .collect::<Result<_, scoop_identity::IdentityReferenceError>>()?,
+                })
+            })
+            .collect::<Result<_, scoop_identity::IdentityReferenceError>>()?;
+        Ok(CanonicalOdrMemberDirectoryV1 { groups })
+    }
+
     pub fn validate_against(
         &self,
         expected: &CanonicalOdrMemberDirectoryV1,

@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum SharedLirPhysicalError {
+    DefinitionData(String),
     Resource(scoop_wire::WireError),
     Layout(Box<lir::LayoutAbiSectionError>),
     Contract(Box<lir::ShapeLinkError>),

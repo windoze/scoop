@@ -1,12 +1,10 @@
-//! Shared untrusted fixed-width wire carriers for Link projections.
+//! Fixed-width wire fields shared by Link metadata readers.
 
 use std::marker::PhantomData;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-/// A typed 32-byte wire carrier which deliberately provides no promotion to
-/// its marker type. Semantic readers may only re-encode it for comparison
-/// with a projection rebuilt from trusted proofs.
+/// A typed 32-byte field whose width is checked during decoding.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DecodedFixedBytesV1<I> {
     bytes: [u8; 32],
@@ -14,6 +12,10 @@ pub(crate) struct DecodedFixedBytesV1<I> {
 }
 
 impl<I> DecodedFixedBytesV1<I> {
+    pub(crate) const fn bytes(&self) -> &[u8; 32] {
+        &self.bytes
+    }
+
     pub(crate) fn matches(&self, expected: &[u8; 32]) -> bool {
         self.bytes == *expected
     }

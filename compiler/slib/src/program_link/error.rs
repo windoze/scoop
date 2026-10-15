@@ -78,9 +78,7 @@ pub(super) fn graph(
 
 pub(super) fn symbols(source: LayoutLinkSymbolUseError) -> ProgramLinkReadError {
     let mut result = error(&source);
-    if let LayoutLinkSymbolUseError::CodeInput(source) = &source {
-        result.semantic_path = section::path(source);
-    } else if let LayoutLinkSymbolUseError::Resource(source) = &source {
+    if let LayoutLinkSymbolUseError::Resource(source) = &source {
         result.semantic_path = source.diagnostic().semantic_path();
     }
     if let LayoutLinkSymbolUseError::FinalMembers(source) = &source {

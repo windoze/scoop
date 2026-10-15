@@ -1,16 +1,18 @@
 use std::collections::{BTreeSet, btree_map::Entry};
 
 use super::*;
-use crate::{LinkDefinitionOwnerV1, ReplayedLayoutLinkSymbolUsesV1};
+use crate::{
+    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalOdrMemberDirectoryV1, LinkDefinitionOwnerV1,
+};
 use scoop_identity::ValidatedIdentityGraph;
 
-/// Compare shared keys and ABIs from artifacts whose own semantics, objects,
-/// and imports have already been checked. This does not read or rehash them.
+/// Merge saved definition owners and compare shared keys and ABIs across artifacts.
 pub fn merge_cross_cone_odr_definitions<'a>(
     artifacts: impl IntoIterator<
         Item = (
             &'a ValidatedIdentityGraph,
-            &'a ReplayedLayoutLinkSymbolUsesV1,
+            &'a CanonicalDefinedLinkSymbolOwnerSetV1,
+            &'a CanonicalOdrMemberDirectoryV1,
         ),
     >,
 ) -> Result<MergedOdrDefinitions, OdrDefinitionMergeError> {
@@ -20,13 +22,13 @@ pub fn merge_cross_cone_odr_definitions<'a>(
     let mut symbol_owners = BTreeMap::new();
     let mut providers = BTreeSet::new();
 
-    for (identities, artifact) in artifacts {
-        let provider = artifact.provider();
+    for (identities, defined, odr) in artifacts {
+        let provider = defined.producer();
         if !providers.insert(provider) {
             return Err(OdrDefinitionMergeError::DuplicateArtifact(provider));
         }
         let mut primary = BTreeMap::new();
-        for definition in artifact.defined_symbols().owners() {
+        for definition in defined.owners() {
             match symbol_owners.entry(definition.symbol()) {
                 Entry::Vacant(slot) => {
                     slot.insert((provider, definition.owner()));
@@ -46,7 +48,7 @@ pub fn merge_cross_cone_odr_definitions<'a>(
                 primary.insert(member, definition);
             }
         }
-        for group in artifact.production_projection().odr_members().groups() {
+        for group in odr.groups() {
             let group_key = identities
                 .canonical_key::<_, SpecializationKey>(group.group())
                 .map_err(|source| OdrDefinitionMergeError::Identity { provider, source })?;

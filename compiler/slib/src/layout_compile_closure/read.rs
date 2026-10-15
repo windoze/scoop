@@ -8,8 +8,7 @@ use crate::{
 
 pub fn read_cross_cone_layout_artifact_closure(
     input: CrossConeArtifactClosureInput<'_>,
-    c_bridge_profile: &scoop_lir::CBridgeToolchainProfileV1,
-) -> Result<LinkSymbolsReplayedCrossConeLayoutClosure, Error> {
+) -> Result<CrossConeLayoutArtifactData, Error> {
     let mut dependencies = Vec::new();
     for (index, bytes) in input.dependency_first.iter().enumerate() {
         dependencies.push(decode(
@@ -40,7 +39,7 @@ pub fn read_cross_cone_layout_artifact_closure(
         .map_err(|source| Error::Semantic {
             source: Box::new(source),
         })?
-        .replay_link_symbol_uses(c_bridge_profile)
+        .read_definition_data()
         .map_err(|source| Error::Physical {
             source: Box::new(source),
         })
@@ -48,7 +47,6 @@ pub fn read_cross_cone_layout_artifact_closure(
 
 fn decode<'input>(
     bytes: &'input [u8],
-
     target: ValidatedLirTargetSelection,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, Error> {

@@ -14,7 +14,6 @@ fn ordinary_reader_consumes_default_type_references_from_published_bytes() {
         vec![],
         vec![],
         &core_bytes,
-        target.c_bridge_toolchain().profile(),
         &mut session,
     )
     .unwrap();
@@ -53,7 +52,6 @@ fn ordinary_reader_consumes_default_type_references_from_published_bytes() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            target.c_bridge_toolchain().profile(),
             &mut session,
         )
         .unwrap();

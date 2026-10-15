@@ -6,7 +6,6 @@ pub(super) fn check(
     public: &hir::CrossConeHirInterfaceSectionV1,
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
-    profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let current = reader::open(artifact).identity();
     let direct = [reader::open(provider).identity()];
@@ -18,7 +17,6 @@ pub(super) fn check(
             &direct,
             providers,
             artifact.target_selection(),
-            profile,
         );
         result.unwrap_err()
     };
@@ -50,37 +48,6 @@ pub(super) fn check(
             if identity == direct[0]))
     );
 
-    for (owner, source_artifact) in [(current, artifact), (direct[0], provider)] {
-        let bytes = corrupt_code(source_artifact);
-        let error = if owner == current {
-            reject(&bytes, &dependencies)
-        } else {
-            reject(artifact.as_bytes(), &[&bytes])
-        };
-        let Error::Physical { source } = error else {
-            panic!("expected final Link Code projection rejection: {error:?}")
-        };
-        assert_eq!(source.provider, owner);
-        assert!(
-            matches!(*source.source, slib::SharedLirPhysicalError::LinkSymbolUses(error)
-            if matches!(*error, slib::LayoutLinkSymbolUseError::CodeProjection(
-                slib::CodeProductionProjectionError::FieldMismatch { field: 7 })))
-        );
-    }
-    let mut removed = false;
-    let bytes = link_archive::rewrite(artifact, |record, _| {
-        if !removed && matches!(record.role(), slib::SlibMemberRole::LinkObject { .. }) {
-            removed = true;
-            link_archive::Rewrite::Remove
-        } else {
-            link_archive::Rewrite::Keep
-        }
-    });
-    let Error::Physical { source } = reject(&bytes, &dependencies) else {
-        panic!("expected actual Link object rejection")
-    };
-    assert_eq!(source.provider, current);
-
     let blocked = destination.parent().unwrap().join("blocked.slib");
     std::fs::create_dir(&blocked).unwrap();
     let result = artifact.publish(&blocked);
@@ -95,23 +62,4 @@ pub(super) fn check(
     std::fs::remove_dir(&blocked).unwrap();
     assert_eq!(std::fs::read(destination).unwrap(), artifact.as_bytes());
     assert_no_temporary(destination.parent().unwrap(), destination);
-}
-
-fn corrupt_code(artifact: &slib::AssembledCrossConeLayoutArtifactV1) -> Vec<u8> {
-    let slib::FingerprintAvailability::Available(code) =
-        reader::open(artifact).semantic_fingerprints().code()
-    else {
-        panic!("real layout artifact contains Code")
-    };
-    link_archive::rewrite_production(artifact, |bytes| {
-        let positions = bytes
-            .windows(32)
-            .enumerate()
-            .filter_map(|(index, value)| (value == code.as_array()).then_some(index))
-            .collect::<Vec<_>>();
-        assert_eq!(positions.len(), 1);
-        let mut changed = bytes.to_vec();
-        changed[positions[0] + 31] ^= 1;
-        changed
-    })
 }

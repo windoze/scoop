@@ -125,7 +125,6 @@ public fun invoke(value: Number): Int {
         direct,
         vec![&core_bytes, &provider_bytes, &facade_bytes],
         &consumer_bytes,
-        target.c_bridge_toolchain().profile(),
         &mut session,
     )
     .unwrap();
@@ -169,18 +168,5 @@ public fun invoke(value: Number): Int {
         selected
             .iter()
             .all(|selection| selection.provider() == provider_identity)
-    );
-    let link_imports = closure
-        .current_link()
-        .symbol_uses()
-        .undefined_partitions()
-        .cross_cone()
-        .semantic_imports()
-        .imports();
-    assert_eq!(link_imports.len(), selected.len());
-    assert!(
-        link_imports
-            .iter()
-            .all(|import| import.provider() == provider_identity)
     );
 }

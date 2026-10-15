@@ -21,7 +21,6 @@ pub(super) fn check(
             vec![],
             artifact.as_bytes(),
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (semantic, link) = read.artifact(core_lir.provider()).unwrap();

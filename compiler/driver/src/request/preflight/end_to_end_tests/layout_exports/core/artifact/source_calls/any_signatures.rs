@@ -6,7 +6,6 @@ use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId};
 pub(in super::super) fn check_link(
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
-    profile: &lir::CBridgeToolchainProfileV1,
 ) {
     use super::super::lir_dependencies::reader as artifact_reader;
     let source = artifact_reader::open_link(artifact)
@@ -15,14 +14,18 @@ pub(in super::super) fn check_link(
     let current = source.identity();
     let expected = source.semantic_fingerprints().code();
     artifact_reader::read_link(provider, artifact)
-        .replay_link_symbol_uses(profile)
+        .read_definition_data()
         .map(|closure| {
             assert_eq!(closure.dependency_first().len(), 2);
             let (physical, proof) = closure.artifact(current).unwrap();
             assert_eq!(physical.identity(), proof.provider());
             assert_eq!(
                 expected,
-                slib::FingerprintAvailability::Available(proof.code_fingerprint())
+                proof
+                    .summary()
+                    .manifest_summary()
+                    .semantic_fingerprints()
+                    .code()
             );
         })
         .unwrap()

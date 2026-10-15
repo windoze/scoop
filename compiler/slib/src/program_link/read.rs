@@ -29,7 +29,14 @@ pub fn read_program_link_closure(
         artifacts
             .iter()
             .map(|artifact| &artifact.identities)
-            .zip(&symbols),
+            .zip(&symbols)
+            .map(|(identities, symbols)| {
+                (
+                    identities,
+                    symbols.defined_symbols(),
+                    symbols.production_projection().odr_members(),
+                )
+            }),
     )
     .map_err(error)?;
     Ok(ProgramLinkClosure {

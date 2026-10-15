@@ -33,7 +33,6 @@ fn ordinary_reader_consumes_default_value_references_from_published_bytes() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            target.c_bridge_toolchain().profile(),
             &mut session,
         )
         .unwrap();

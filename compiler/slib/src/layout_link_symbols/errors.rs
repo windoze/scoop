@@ -26,7 +26,6 @@ pub enum LayoutLinkSymbolUseError {
     FinalMembers(CodeLinkObjectMemberValidationError),
     FinalProjection(LinkFinalObjectProjectionError),
     OrdinaryCoverage(CrossConeLinkClosureBuildError),
-    CodeInput(Box<crate::SingleConeLinkSectionDecodeError>),
     ProductionProjection(crate::ProductionCodeProjectionError),
     CodeProjection(crate::CodeProductionProjectionError),
     CodeFingerprint(LayoutCodeFingerprintError),

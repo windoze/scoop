@@ -476,6 +476,14 @@ impl SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
 }
 
 impl DecodedLinkIdentityClosureSectionV1 {
+    pub(crate) fn read_defined_symbols(
+        &self,
+        producer: scoop_identity::ConeIdentity,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<CanonicalDefinedLinkSymbolOwnerSetV1, String> {
+        self.defined_symbols.read(producer, identities)
+    }
+
     pub fn validate_materializations(
         self,
         target: scoop_lir::LirTargetProfile,

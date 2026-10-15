@@ -16,6 +16,8 @@ use super::{
 };
 use crate::SlibMemberId;
 
+mod read;
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StrongDefinitionOwnerV1 {
     entity: StrongDefinitionEntity,

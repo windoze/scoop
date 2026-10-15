@@ -2,7 +2,6 @@ use super::*;
 
 #[derive(Debug)]
 pub enum LayoutLinkObjectContentsError {
-    CompileView,
     Resource(scoop_wire::WireError),
     CBridgeProduction(lir::CBridgeProductionValidationError),
     CBridgeEnvelopes(CBridgeProductionEnvelopeValidationError),

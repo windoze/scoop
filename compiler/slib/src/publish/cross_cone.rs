@@ -6,19 +6,16 @@ use std::path::{Path, PathBuf};
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 
-use super::{CompileViewSummaryV1, LinkViewSummaryV1};
 use crate::{ArtifactFingerprint, CanonicalSlibArchive, DependencyRecord};
 
 mod atomic;
 mod layout;
 pub use layout::*;
 
-/// Manifest, dependency, and object information retained for normal consumers.
+/// Manifest and dependency information retained for normal consumers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeArtifactSummary {
     manifest: crate::ArtifactManifestSummaryV1,
-    compile_summary: CompileViewSummaryV1,
-    link_summary: LinkViewSummaryV1,
 }
 
 impl CrossConeArtifactSummary {
@@ -60,14 +57,6 @@ impl CrossConeArtifactSummary {
 
     pub fn dependency_record(&self) -> DependencyRecord {
         self.manifest.dependency_record()
-    }
-
-    pub const fn compile_summary(&self) -> CompileViewSummaryV1 {
-        self.compile_summary
-    }
-
-    pub const fn link_summary(&self) -> &LinkViewSummaryV1 {
-        &self.link_summary
     }
 }
 

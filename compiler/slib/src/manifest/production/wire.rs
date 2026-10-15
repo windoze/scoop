@@ -202,6 +202,13 @@ impl CBridgeCheckedSingleConeProductionManifestV1 {
 }
 
 impl DecodedSingleConeProductionManifestV1 {
+    pub(crate) fn read_odr_members(
+        &self,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<crate::CanonicalOdrMemberDirectoryV1, scoop_identity::IdentityReferenceError> {
+        self.odr_members.read(identities)
+    }
+
     pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
         self.optimization
     }

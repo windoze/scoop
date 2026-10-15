@@ -25,7 +25,6 @@ pub(super) fn check(
             vec![],
             core_artifact.as_bytes(),
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (semantic, link) = read.artifact(core_lir.provider()).unwrap();
@@ -35,7 +34,7 @@ pub(super) fn check(
     let mir_exports = mir_dependency.exports();
     let provider_exports = semantic.lir_exports();
     assert_eq!(provider_exports, core_lir.exports());
-    super::publication::check_provider(core_artifact, target.c_bridge_toolchain().profile());
+    super::publication::check_provider(core_artifact);
     let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: semantic.lir_foundation(),
@@ -162,39 +161,18 @@ pub(super) fn check(
                     production,
                 );
                 super::source_calls::check(input, core_input, core_artifact, &artifact);
-                super::link_materializations::check(core_artifact, &artifact);
                 if family != "m23-property-initialization" {
                     if family == "m23-extension-call-receivers" {
                         super::source_calls::check_receivers(input, core_artifact, &artifact);
                     } else if family == "m23-any-call-signatures" {
-                        super::publication::check(
-                            name,
-                            input.public,
-                            core_artifact,
-                            &artifact,
-                            target.c_bridge_toolchain().profile(),
-                        );
+                        super::publication::check(name, input.public, core_artifact, &artifact);
                         super::source_calls::check_any(input, core_artifact, &artifact);
-                    } else if family == "m23-link-object-contents" {
-                        super::link_object_contents::check(
-                            core_artifact,
-                            &artifact,
-                            target.c_bridge_toolchain().profile(),
-                        );
                     } else if family == "m23-link-symbol-uses" {
-                        super::link_symbol_uses::check(
-                            core_artifact,
-                            &artifact,
-                            target.c_bridge_toolchain().profile(),
-                        );
+                        super::link_symbol_uses::check(core_artifact, &artifact);
                     }
                 }
                 if family == "m23-any-call-signatures" {
-                    super::source_calls::check_any_link(
-                        core_artifact,
-                        &artifact,
-                        target.c_bridge_toolchain().profile(),
-                    );
+                    super::source_calls::check_any_link(core_artifact, &artifact);
                 }
                 for (view, closure) in [
                     ("compile", reader::read(core_artifact, &artifact)),

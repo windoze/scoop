@@ -109,7 +109,6 @@ pub(super) fn with_pair(
             vec![],
             core_bytes,
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (front, _) = core_read.artifact(ConeIdentity::CORE).unwrap();

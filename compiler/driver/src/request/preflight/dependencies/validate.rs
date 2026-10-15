@@ -111,7 +111,6 @@ impl LoadedExplicitDependencyInputs {
                 direct.clone(),
                 dependency_first,
             ),
-            target.c_bridge_toolchain().profile(),
             &mut semantic_session,
         )
         .map_err(|source| super::diagnostic::closure_error(source, &nodes, &dependency_order))?;

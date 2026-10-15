@@ -14,20 +14,18 @@ use super::{
 use crate::dependency_reachability::transitive_positions;
 
 mod accessors;
+mod definitions;
 mod driver;
 mod errors;
-mod objects;
 mod odr;
 mod replay;
-mod symbols;
+pub use definitions::CrossConeLayoutArtifactData;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
-pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
 pub use odr::{
     MergedOdrDefinitions, MergedOdrMemberDefinition, OdrDefinitionCandidate,
     OdrDefinitionDifference, OdrDefinitionMergeError, OdrMemberConflict,
     merge_cross_cone_odr_definitions,
 };
-pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
 pub struct PhysicalImportsReplayedCrossConeLayoutSections {
     semantic: crate::layout_compile_decode::LayoutSemanticSections,
@@ -52,13 +50,8 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
         self,
     ) -> Result<PhysicalImportsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError>
     {
-        self.replay_physical(|artifact, _, _, _| {
-            artifact
-                .prepared
-                .validate_link_materializations()
-                .map_err(SharedLirPhysicalError::from)
-        })
-        .map(|(physical, _)| physical)
+        self.replay_physical(|_, _, _, _| Ok(()))
+            .map(|(physical, _)| physical)
     }
 }
 

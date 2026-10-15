@@ -131,7 +131,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             test_directory,
         } = input;
         let identity = cone.identity();
-        let link_object_count = link_objects.len();
         let (code, callable_link_closure, layout_link_closure, link_support) =
             layout_code.into_parts();
 
@@ -238,8 +237,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
         .map_err(CrossConeLayoutArtifactWriteError::Manifest)?;
         let summary = crate::CrossConeArtifactSummary::from_layout(
             &manifest,
-            production_manifest.code_proof().production().projection(),
-            link_object_count,
             target_selection,
             test_directory,
         );

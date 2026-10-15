@@ -34,7 +34,6 @@ fn ordinary_public_nominals_materialize_and_publish_the_shared_shape_plan() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            target.c_bridge_toolchain().profile(),
             &mut session,
         )
         .unwrap();

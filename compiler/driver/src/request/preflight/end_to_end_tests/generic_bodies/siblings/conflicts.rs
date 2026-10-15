@@ -23,7 +23,6 @@ fn actual_duplicate_generic_members_accept_different_optimization() {
         &sysroot.path().join("output/provider.slib"),
     );
     let provider_bytes = std::fs::read(provider.artifact().path()).unwrap();
-    std::fs::remove_dir_all(provider_root).unwrap();
     let mut closures = Vec::new();
     let mut identities = Vec::new();
     for (name, optimization) in [
@@ -68,7 +67,6 @@ fn actual_duplicate_generic_members_accept_different_optimization() {
                     vec![&core_bytes, &provider_bytes],
                     &consumer_bytes,
                 ),
-                target.c_bridge_toolchain().profile(),
             )
             .unwrap(),
         );
@@ -76,31 +74,16 @@ fn actual_duplicate_generic_members_accept_different_optimization() {
     }
     let first = closures[0].artifact(identities[0]).unwrap();
     let second = closures[1].artifact(identities[1]).unwrap();
-    let first_bodies = first
-        .1
-        .final_objects()
-        .runtime_images()
-        .fingerprint()
-        .registrations()
-        .callables()
-        .fingerprints();
-    let second_bodies = second
-        .1
-        .final_objects()
-        .runtime_images()
-        .fingerprint()
-        .registrations()
-        .callables()
-        .fingerprints();
-    assert!(
-        first_bodies.iter().any(|left| second_bodies
-            .iter()
-            .any(|right| left.body() == right.body()
-                && left.body_definition() != right.body_definition())),
-        "machine optimization must change a shared body's actual object"
+    let first = (
+        first.0.identity_graph(),
+        first.1.defined_symbols(),
+        first.1.odr_members(),
     );
-    let first = (first.0.identity_graph(), first.1);
-    let second = (second.0.identity_graph(), second.1);
+    let second = (
+        second.0.identity_graph(),
+        second.1.defined_symbols(),
+        second.1.odr_members(),
+    );
     let merged = scoop_slib::merge_cross_cone_odr_definitions([first, second]).unwrap();
     assert!(
         merged

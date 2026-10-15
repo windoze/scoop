@@ -721,8 +721,3 @@ pub(crate) fn complete_strong_artifact_for_test(corrupt_final_image_digest: bool
 pub(crate) fn complete_strong_artifact_identity_for_test() -> ConeIdentity {
     tests::cone().identity()
 }
-
-#[cfg(test)]
-pub(crate) fn c_bridge_profile_for_test() -> CBridgeToolchainProfileV1 {
-    tests::c_bridge_profile()
-}

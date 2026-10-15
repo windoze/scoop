@@ -13,7 +13,6 @@ use scoop_mir::{
     DecodedCrossConeMirTypeBridgeSectionV1, MirProductionValidationError,
 };
 
-mod materializations;
 mod owned;
 pub(crate) use owned::LayoutSemanticSections;
 
