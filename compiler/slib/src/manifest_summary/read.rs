@@ -11,33 +11,45 @@ pub fn read_artifact_manifest_summary_from_reader(
     reader: &mut impl Read,
     selection: ValidatedLirTargetSelection,
 ) -> Result<ArtifactManifestSummaryV1, Error> {
-    let container = |error| Error::Envelope(SlibReadError::Container(error));
+    let (manifest, _) = read_manifest(reader, selection).map_err(Error::Envelope)?;
+    ArtifactManifestSummaryV1::from_manifest(&manifest, selection).map_err(Error::TestDirectory)
+}
+
+pub(crate) fn read_manifest(
+    reader: &mut impl Read,
+    selection: ValidatedLirTargetSelection,
+) -> Result<(crate::BootstrapManifest, u64), SlibReadError> {
     let mut magic = [0; GLOBAL_MAGIC.len()];
-    reader.read_exact(&mut magic).map_err(Error::Io)?;
+    reader.read_exact(&mut magic).map_err(SlibReadError::Io)?;
     if &magic != GLOBAL_MAGIC {
-        return Err(container(ArchiveReadError::BadMagic));
+        return Err(SlibReadError::Container(ArchiveReadError::BadMagic));
     }
     let mut header = [0; HEADER_LENGTH as usize];
-    reader.read_exact(&mut header).map_err(Error::Io)?;
+    reader.read_exact(&mut header).map_err(SlibReadError::Io)?;
     let length = read_member_header(&header, b"manifest.cbor", ArchiveMemberOrdinal::Manifest)
-        .map_err(container)?;
+        .map_err(SlibReadError::Container)?;
     let mut bytes = Vec::new();
     reader
         .take(length as u64)
         .read_to_end(&mut bytes)
-        .map_err(Error::Io)?;
+        .map_err(SlibReadError::Io)?;
     if bytes.len() != length {
-        return Err(Error::Io(io::Error::new(
+        return Err(SlibReadError::Io(io::Error::new(
             io::ErrorKind::UnexpectedEof,
             "incomplete slib manifest",
         )));
     }
-    let decoded: DecodedBootstrapManifest = scoop_wire::decode_canonical(&bytes)
-        .map_err(|error| Error::Envelope(SlibReadError::CanonicalWire(error)))?;
+    let decoded: DecodedBootstrapManifest =
+        scoop_wire::decode_canonical(&bytes).map_err(SlibReadError::CanonicalWire)?;
     let manifest = decoded
         .validate(selection)
-        .map_err(|error| Error::Envelope(SlibReadError::Manifest(Box::new(error))))?;
-    ArtifactManifestSummaryV1::from_manifest(&manifest, selection).map_err(Error::TestDirectory)
+        .map_err(|error| SlibReadError::Manifest(Box::new(error)))?;
+    let next = (GLOBAL_MAGIC.len() as u64)
+        .checked_add(HEADER_LENGTH)
+        .and_then(|start| start.checked_add(length as u64))
+        .and_then(|end| end.checked_add((length & 1) as u64))
+        .ok_or(SlibReadError::Container(ArchiveReadError::LengthOverflow))?;
+    Ok((manifest, next))
 }
 
 #[cfg(test)]

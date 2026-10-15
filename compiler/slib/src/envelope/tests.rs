@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     CompatibilityRecord, ConeKind, ConeRecord, ConeSourceForm, HirFingerprint, LirFingerprint,
     MemberStableKey, MirFingerprint, ProducerRecord, SemanticFingerprintRecord, SlibDiagnostic,
-    SlibErrorCode, SlibMemberRecord, SlibMemberRole, SlibPrimaryOrigin,
+    SlibErrorCode, SlibMemberRole, SlibPrimaryOrigin,
 };
 
 fn selection() -> ValidatedLirTargetSelection {
@@ -72,16 +72,10 @@ fn bootstrap_writer_and_envelope_reader_round_trip() {
     let archive = CanonicalSlibArchive::write_bootstrap(&expected_manifest, members).unwrap();
     let envelope = DecodedSlibEnvelope::open(archive.as_bytes(), selection()).unwrap();
 
-    assert_eq!(envelope.manifest, expected_manifest);
-    assert_eq!(
-        envelope.archive.member_ids().collect::<Vec<_>>(),
-        envelope
-            .manifest
-            .members()
-            .iter()
-            .map(SlibMemberRecord::id)
-            .collect::<Vec<_>>()
-    );
+    assert_eq!(envelope.manifest(), &expected_manifest);
+    for record in envelope.manifest().members() {
+        assert!(envelope.member(record.id()).unwrap().is_some());
+    }
 }
 
 #[test]

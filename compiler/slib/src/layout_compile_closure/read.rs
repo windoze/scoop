@@ -12,13 +12,17 @@ pub fn read_cross_cone_layout_artifact_closure(
     let mut dependencies = Vec::new();
     for (index, bytes) in input.dependency_first.iter().enumerate() {
         dependencies.push(decode(
-            bytes,
+            *bytes,
             input.target,
             CrossConeClosureArtifactSlotV1::Dependency(index),
         )?);
     }
     let decoded = if let Some(bytes) = input.current_artifact {
-        let current = decode(bytes, input.target, CrossConeClosureArtifactSlotV1::Current)?;
+        let current = decode(
+            crate::ArtifactInput::Bytes(bytes),
+            input.target,
+            CrossConeClosureArtifactSlotV1::Current,
+        )?;
         DecodedCrossConeLayoutCompileClosure::with_current_artifact(
             input.current,
             input.target,
@@ -46,25 +50,28 @@ pub fn read_cross_cone_layout_artifact_closure(
 }
 
 fn decode<'input>(
-    bytes: &'input [u8],
+    input: crate::ArtifactInput<'input>,
     target: ValidatedLirTargetSelection,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, Error> {
-    DecodedSlibEnvelope::open(bytes, target)
-        .map_err(|source| Error::Envelope {
-            slot,
-            source: Box::new(source),
-        })?
-        .validate_graph()
-        .map_err(|source| Error::Graph {
-            slot,
-            source: Box::new(source),
-        })?
-        .decode_cross_cone_layout_link_sections()
-        .map_err(|source| Error::LinkSections {
-            slot,
-            source: Box::new(source),
-        })?
-        .into_shared_sections()
-        .map_err(|source| Error::Resource { source })
+    match input {
+        crate::ArtifactInput::Bytes(bytes) => DecodedSlibEnvelope::open(bytes, target),
+        crate::ArtifactInput::File(file) => DecodedSlibEnvelope::from_file(file),
+    }
+    .map_err(|source| Error::Envelope {
+        slot,
+        source: Box::new(source),
+    })?
+    .validate_graph()
+    .map_err(|source| Error::Graph {
+        slot,
+        source: Box::new(source),
+    })?
+    .decode_cross_cone_layout_link_sections()
+    .map_err(|source| Error::LinkSections {
+        slot,
+        source: Box::new(source),
+    })?
+    .into_shared_sections()
+    .map_err(|source| Error::Resource { source })
 }

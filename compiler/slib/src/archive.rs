@@ -1,12 +1,16 @@
 use std::fmt;
 use std::ops::Range;
 
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
+use std::cell::OnceCell;
 
 use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
 pub(crate) const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
 pub(crate) const HEADER_LENGTH: u64 = 60;
+
+mod index;
+pub(crate) use index::{MemberPosition, member_positions};
 
 mod write;
 pub use write::{ArchiveWriteError, CanonicalSlibArchive};
@@ -50,10 +54,6 @@ pub enum ArchiveReadError {
         first_index: usize,
         second_index: usize,
     },
-    PredictedLengthMismatch {
-        predicted: u64,
-        actual: u64,
-    },
     MemberLengthMismatch {
         member: ArchiveMemberOrdinal,
         declared: u64,
@@ -91,10 +91,6 @@ impl fmt::Display for ArchiveReadError {
                 formatter,
                 "directory member ids {first_index} and {second_index} are not strictly increasing"
             ),
-            Self::PredictedLengthMismatch { predicted, actual } => write!(
-                formatter,
-                "directory predicts archive length {predicted}, found {actual}"
-            ),
             Self::MemberLengthMismatch {
                 member,
                 declared,
@@ -111,8 +107,7 @@ impl fmt::Display for ArchiveReadError {
 
 impl std::error::Error for ArchiveReadError {}
 
-/// Canonical physical archive whose first member has been proven to be the
-/// unique `manifest.cbor` member. No manifest semantics are trusted yet.
+/// The first manifest member and the start of the saved directory.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ManifestArchive<'input> {
     input: &'input [u8],
@@ -145,66 +140,14 @@ impl<'input> ManifestArchive<'input> {
         self,
         records: &[SlibMemberRecord],
     ) -> Result<DecodedArchive<'input>, ArchiveReadError> {
-        let path = WirePath::default();
-        let record_count =
-            u64::try_from(records.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
-
-        for (index, pair) in records.windows(2).enumerate() {
-            if pair[0].id() >= pair[1].id() {
-                return Err(ArchiveReadError::NonIncreasingDirectory {
-                    first_index: index,
-                    second_index: index + 1,
-                });
-            }
-        }
-
-        let mut predicted_length =
-            u64::try_from(self.next_header).map_err(|_| ArchiveReadError::LengthOverflow)?;
-        for record in records {
-            predicted_length = predicted_length
-                .checked_add(
-                    encoded_member_length(record.byte_length())
-                        .ok_or(ArchiveReadError::LengthOverflow)?,
-                )
-                .ok_or(ArchiveReadError::LengthOverflow)?;
-        }
-        let actual_length =
-            u64::try_from(self.input.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
-        if predicted_length != actual_length {
-            return Err(ArchiveReadError::PredictedLengthMismatch {
-                predicted: predicted_length,
-                actual: actual_length,
-            });
-        }
-
-        let mut ranges = Vec::new();
-
-        scoop_wire::allocation::try_reserve_count(&mut ranges, record_count, &path)
-            .map_err(ArchiveReadError::Allocation)?;
-        let mut cursor = self.next_header;
-        for (index, record) in records.iter().enumerate() {
-            let ordinal = u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?;
-            let member = ArchiveMemberOrdinal::Directory(ordinal);
-            let name = member_name(index).ok_or(ArchiveReadError::LengthOverflow)?;
-            let (range, next_header) = read_member(self.input, cursor, &name, member)?;
-            let actual =
-                u64::try_from(range.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
-            if actual != record.byte_length() {
-                return Err(ArchiveReadError::MemberLengthMismatch {
-                    member,
-                    declared: record.byte_length(),
-                    actual,
-                });
-            }
-
-            ranges.push((record.id(), range));
-            cursor = next_header;
-        }
-        debug_assert_eq!(cursor, self.input.len());
+        let positions = member_positions(records, self.next_header as u64)?;
         Ok(DecodedArchive {
             input: self.input,
             manifest: self.manifest,
-            members: ranges,
+            members: positions
+                .into_iter()
+                .map(|(id, position)| (id, position, OnceCell::new()))
+                .collect(),
         })
     }
 }
@@ -214,7 +157,7 @@ impl<'input> ManifestArchive<'input> {
 pub struct DecodedArchive<'input> {
     input: &'input [u8],
     manifest: Range<usize>,
-    members: Vec<(SlibMemberId, Range<usize>)>,
+    members: Vec<(SlibMemberId, MemberPosition, OnceCell<Range<usize>>)>,
 }
 
 impl<'input> DecodedArchive<'input> {
@@ -223,15 +166,28 @@ impl<'input> DecodedArchive<'input> {
     }
 
     pub fn member_ids(&self) -> impl ExactSizeIterator<Item = SlibMemberId> + '_ {
-        self.members.iter().map(|(id, _)| *id)
+        self.members.iter().map(|(id, _, _)| *id)
     }
 
-    pub(crate) fn member(&self, id: SlibMemberId) -> Option<&'input [u8]> {
-        let index = self
+    pub(crate) fn member(
+        &self,
+        id: SlibMemberId,
+    ) -> Result<Option<&'input [u8]>, ArchiveReadError> {
+        let Ok(index) = self
             .members
-            .binary_search_by_key(&id, |(member, _)| *member)
-            .ok()?;
-        Some(&self.input[self.members[index].1.clone()])
+            .binary_search_by_key(&id, |(member, _, _)| *member)
+        else {
+            return Ok(None);
+        };
+        let (_, position, cached) = &self.members[index];
+        if let Some(range) = cached.get() {
+            return Ok(Some(&self.input[range.clone()]));
+        }
+        let header =
+            usize::try_from(position.header).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        let (range, _) = read_member(self.input, header, &position.name()?, position.ordinal())?;
+        position.check_length(range.len())?;
+        Ok(Some(&self.input[cached.get_or_init(|| range).clone()]))
     }
 }
 

@@ -134,11 +134,13 @@ fn member_payload<'input>(
     graph
         .envelope
         .member(member)
+        .map_err(CompileSectionDecodeError::MemberRead)?
         .ok_or(CompileSectionDecodeError::MissingMetadataMemberPayload { location, member })
 }
 
 #[derive(Debug)]
 pub enum CompileSectionDecodeError {
+    MemberRead(crate::SlibReadError),
     WrongProfile {
         expected: ArtifactCapabilityProfileId,
         actual: ArtifactCapabilityProfileId,
@@ -175,6 +177,7 @@ impl fmt::Display for CompileSectionDecodeError {
 impl std::error::Error for CompileSectionDecodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::MemberRead(error) => Some(error),
             Self::Inventory(error) => Some(error),
             Self::OuterEnvelope { source, .. } => Some(source),
             Self::InnerSection { source, .. } => Some(source),

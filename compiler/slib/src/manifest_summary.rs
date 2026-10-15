@@ -27,6 +27,7 @@ pub struct ArtifactManifestSummaryV1 {
 mod read;
 mod wire;
 pub use read::read_artifact_manifest_summary_from_reader;
+pub(crate) use read::read_manifest;
 
 impl ArtifactManifestSummaryV1 {
     pub fn new(

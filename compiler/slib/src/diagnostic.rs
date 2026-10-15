@@ -15,6 +15,7 @@ use crate::{
 /// Closed stable diagnostic codes for the M23-2 `.slib` reader and validators.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SlibErrorCode {
+    InputIo,
     ContainerBadMagic,
     ContainerTruncated,
     ContainerNonCanonical,
@@ -54,6 +55,7 @@ pub enum SlibErrorCode {
 impl SlibErrorCode {
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::InputIo => "SLIB_INPUT_IO",
             Self::ContainerBadMagic => "SLIB_CONTAINER_BAD_MAGIC",
             Self::ContainerTruncated => "SLIB_CONTAINER_TRUNCATED",
             Self::ContainerNonCanonical => "SLIB_CONTAINER_NON_CANONICAL",
@@ -240,7 +242,7 @@ impl SlibDiagnostic for ArchiveReadError {
             Self::InvalidSize { member } | Self::MemberLengthMismatch { member, .. } => {
                 archive_member_diagnostic(SlibErrorCode::ContainerInvalidLength, *member)
             }
-            Self::PredictedLengthMismatch { .. } | Self::LengthOverflow => root_diagnostic(
+            Self::LengthOverflow => root_diagnostic(
                 SlibErrorCode::ContainerInvalidLength,
                 SlibPrimaryOrigin::Container,
             ),
@@ -259,6 +261,12 @@ impl SlibDiagnostic for ArchiveReadError {
 impl SlibDiagnostic for SlibReadError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
         match self {
+            Self::Io(_) => SlibDiagnosticRecord::new(SlibErrorCode::InputIo, WirePath::root())
+                .with_origin(SlibPrimaryOrigin::Container),
+            Self::TestDirectory(_) => {
+                SlibDiagnosticRecord::new(SlibErrorCode::ReferenceInvalid, WirePath::root())
+                    .with_origin(SlibPrimaryOrigin::Manifest)
+            }
             Self::Container(error) | Self::Directory(error) => error.diagnostic(),
             Self::CanonicalWire(error) => {
                 error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest)

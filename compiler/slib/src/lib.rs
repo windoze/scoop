@@ -62,6 +62,10 @@ pub use layout_compile_closure::*;
 
 mod layout_link_objects;
 pub use layout_link_objects::{LayoutLinkObjectContentsError, ReplayedLayoutLinkObjectContentsV1};
+mod artifact_file;
+pub use artifact_file::ArtifactFile;
+pub(crate) use artifact_file::ArtifactInput;
+
 mod artifact_definitions;
 pub use artifact_definitions::ArtifactDefinitionData;
 

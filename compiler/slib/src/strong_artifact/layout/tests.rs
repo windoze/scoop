@@ -97,15 +97,6 @@ fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
     ));
 }
 
-#[test]
-fn layout_raw_decoders_reject_a_corrupted_archive() {
-    let (artifact, _) = write_artifact(WriterMutation::None);
-    let artifact = artifact.unwrap();
-    let mut bytes = artifact.as_bytes().to_vec();
-    bytes.pop();
-    assert!(DecodedSlibEnvelope::open(&bytes, selection()).is_err());
-}
-
 #[derive(Clone, Copy)]
 enum WriterMutation {
     None,

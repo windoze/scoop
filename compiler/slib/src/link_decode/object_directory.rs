@@ -96,6 +96,7 @@ fn required_payload<'input>(
     graph
         .envelope
         .member(member)
+        .map_err(StrongLinkMaterializationError::MemberRead)?
         .ok_or(StrongLinkMaterializationError::MissingObjectPayload(member))
 }
 

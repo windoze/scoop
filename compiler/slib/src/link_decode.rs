@@ -216,6 +216,7 @@ fn member_payload<'input>(
     graph
         .envelope
         .member(member)
+        .map_err(SingleConeLinkSectionDecodeError::MemberRead)?
         .ok_or(SingleConeLinkSectionDecodeError::MissingMetadataMemberPayload { location, member })
 }
 
@@ -269,6 +270,7 @@ fn decode_inner<T: WireDecode>(
 
 #[derive(Debug)]
 pub enum StrongLinkMaterializationError {
+    MemberRead(crate::SlibReadError),
     Resource(WireError),
     ProducerUnits(ProducerUnitPartitionError),
     Closure(LinkObjectMaterializationValidationError),
@@ -293,6 +295,7 @@ impl fmt::Display for StrongLinkMaterializationError {
 impl std::error::Error for StrongLinkMaterializationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::MemberRead(error) => Some(error),
             Self::Resource(error) => Some(error),
             Self::ProducerUnits(error) => Some(error),
             Self::Closure(error) => Some(error),
@@ -651,6 +654,7 @@ impl std::error::Error for StrongLinkDigestPatchError {
 
 #[derive(Debug)]
 pub enum SingleConeLinkSectionDecodeError {
+    MemberRead(crate::SlibReadError),
     WrongProfile {
         actual: ArtifactCapabilityProfileId,
     },
@@ -687,6 +691,7 @@ impl fmt::Display for SingleConeLinkSectionDecodeError {
 impl std::error::Error for SingleConeLinkSectionDecodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::MemberRead(error) => Some(error),
             Self::Inventory(error) => Some(error),
             Self::OuterEnvelope { source, .. } => Some(source),
             Self::InnerSection { source, .. } | Self::Resource(source) => Some(source),

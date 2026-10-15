@@ -13,6 +13,7 @@ pub(in crate::program_link) fn section(
 pub(super) fn path(source: &SingleConeLinkSectionDecodeError) -> String {
     use SingleConeLinkSectionDecodeError::*;
     match source {
+        MemberRead(error) => error.diagnostic().semantic_path(),
         WrongProfile { .. } => "manifest:compatibility.artifact_profile".to_owned(),
         MissingMetadataMember { location } => format!("{location}:$"),
         MissingMetadataMemberPayload { member, .. } => format!("member/{member}:$"),

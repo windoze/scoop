@@ -84,7 +84,7 @@ fn extend(baseline: &DecodedSlibEnvelope<'_>, requirement: ExtensionRequirement)
                 original.cone().identity(),
                 record.stable_key().clone(),
                 record.role().clone(),
-                baseline.member(record.id()).unwrap().to_vec(),
+                baseline.member(record.id()).unwrap().unwrap().to_vec(),
             )
             .unwrap()
         })

@@ -14,18 +14,17 @@ use crate::{
 mod errors;
 pub use errors::*;
 
-/// Borrowed final bytes for one dependency closure and, optionally, its
-/// completed current artifact.
+/// Borrowed artifact inputs for a dependency closure and its optional current result.
 pub struct CrossConeArtifactClosureInput<'input> {
     pub(crate) current: ConeIdentity,
     pub(crate) target: ValidatedLirTargetSelection,
     pub(crate) direct: Vec<ConeIdentity>,
-    pub(crate) dependency_first: Vec<&'input [u8]>,
+    pub(crate) dependency_first: Vec<crate::ArtifactInput<'input>>,
     pub(crate) current_artifact: Option<&'input [u8]>,
 }
 
 impl<'input> CrossConeArtifactClosureInput<'input> {
-    pub const fn dependencies(
+    pub fn dependencies(
         current: ConeIdentity,
         target: ValidatedLirTargetSelection,
         direct: Vec<ConeIdentity>,
@@ -35,12 +34,33 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
             current,
             target,
             direct,
-            dependency_first,
+            dependency_first: dependency_first
+                .into_iter()
+                .map(crate::ArtifactInput::Bytes)
+                .collect(),
             current_artifact: None,
         }
     }
 
-    pub const fn completed(
+    pub fn file_dependencies(
+        current: ConeIdentity,
+        target: ValidatedLirTargetSelection,
+        direct: Vec<ConeIdentity>,
+        dependency_first: Vec<&'input crate::ArtifactFile>,
+    ) -> Self {
+        Self {
+            current,
+            target,
+            direct,
+            dependency_first: dependency_first
+                .into_iter()
+                .map(crate::ArtifactInput::File)
+                .collect(),
+            current_artifact: None,
+        }
+    }
+
+    pub fn completed(
         current: ConeIdentity,
         target: ValidatedLirTargetSelection,
         direct: Vec<ConeIdentity>,
@@ -51,7 +71,10 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
             current,
             target,
             direct,
-            dependency_first,
+            dependency_first: dependency_first
+                .into_iter()
+                .map(crate::ArtifactInput::Bytes)
+                .collect(),
             current_artifact: Some(current_artifact),
         }
     }
