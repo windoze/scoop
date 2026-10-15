@@ -178,11 +178,6 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-link-closure", 8) => (
-                SectionLocation::Lir,
-                MemberPurposeSet::LINK,
-                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
-            ),
             ("org.scoop-lang.mir", "core-bootstrap-bridge", 2) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
@@ -197,11 +192,6 @@ impl CapabilityContractRegistry {
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
-            ),
-            ("org.scoop-lang.lir", "cross-cone-link-closure", 1) => (
-                SectionLocation::Lir,
-                MemberPurposeSet::LINK,
-                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
             ("org.scoop-lang.lir", "strong-production", 22)
             | ("org.scoop-lang.lir", "cone-production", 12) => (

@@ -60,7 +60,7 @@ fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint(
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "87665edb812e92c5d3b6cfb159abd3450f41a0c7b9290d8b9bdbdb756d6e314c"
+        "14d993ef12f4ade5d0f00d8fb380c5db8240f3ab1bd29966694afc4179f94cb5"
     );
 
     assert_eq!(
@@ -90,7 +90,6 @@ fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint(
     assert_eq!(
         descriptor.required_lir(),
         &[
-            lir_cross_cone_link_closure_capability(),
             lir_cross_cone_param_free_bridge_capability(),
             lir_identity_foundation_capability(),
             lir_link_identity_closure_capability(),
@@ -160,12 +159,6 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
             SectionLocation::Lir,
             MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::LIR,
-        ),
-        (
-            lir_cross_cone_link_closure_capability(),
-            SectionLocation::Lir,
-            MemberPurposeSet::LINK,
-            code_link,
         ),
         (
             lir_strong_production_capability(),
@@ -306,7 +299,7 @@ fn cross_cone_metadata_inventory_requires_each_new_capability_in_its_view() {
         (
             ArtifactProfileView::Link,
             crate::MetadataLocation::Lir,
-            lir_cross_cone_link_closure_capability(),
+            lir_link_identity_closure_capability(),
             descriptor.required_lir(),
         ),
     ] {

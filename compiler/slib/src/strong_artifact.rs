@@ -23,8 +23,6 @@ pub enum StrongArtifactSectionV1 {
     MirCrossConeTypeBridge,
     LirCrossConeBridge,
     LirCrossConeLayoutAbi,
-    CrossConeLinkClosure,
-    CrossConeLayoutLinkClosure,
     LinkSupport,
     ProductionManifest,
 }

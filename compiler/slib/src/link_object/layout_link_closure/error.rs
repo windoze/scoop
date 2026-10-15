@@ -25,30 +25,12 @@ pub enum LayoutLinkClosureError {
         offset: u64,
         target_slot: RelocationTargetSlotV1,
     },
-    ObjectProofMismatch,
-    UseOutsideObjectSet {
-        member: SlibMemberId,
-    },
-    RequirementsMismatch,
-    ObjectCoverageMismatch,
     Resource(scoop_wire::WireError),
-    SemanticImports(scoop_lir::ShapeLinkError),
-    Hash(scoop_wire::HashError),
 }
 
 impl From<scoop_wire::WireError> for LayoutLinkClosureError {
     fn from(value: scoop_wire::WireError) -> Self {
         Self::Resource(value)
-    }
-}
-impl From<scoop_lir::ShapeLinkError> for LayoutLinkClosureError {
-    fn from(value: scoop_lir::ShapeLinkError) -> Self {
-        Self::SemanticImports(value)
-    }
-}
-impl From<scoop_wire::HashError> for LayoutLinkClosureError {
-    fn from(value: scoop_wire::HashError) -> Self {
-        Self::Hash(value)
     }
 }
 impl fmt::Display for LayoutLinkClosureError {

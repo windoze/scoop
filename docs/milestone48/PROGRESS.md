@@ -179,7 +179,7 @@ Linux [workspace clippy](validation/object-files-linux-clippy.log.gz)、[release
 
 本批解决稳定对象路径和重复摘要计算；当前 Link 消费仍读入完整 `.slib` 并执行旧 replay，不能声称已实现按需读取或移除验证链。普通 artifact reader、双份数据与 replay 清理、dump 最小阶段复用、1,618 项源码隔离迁移、最终全量回归和五轮性能复测仍待完成；M38 未启动。
 
-## 17. M48-5：历史源码隔离迁移（本批验收完成）
+## 17. M48-5：历史源码隔离迁移（fa2d9faf）
 
 剩余 1,618 行扫描清单已逐项记录当前落点，覆盖 core、provider、consumer、native 输入和公共 Rust helper；清单之外的空环境包装一并处理，合计修改 1,646 份 fixture 描述。删除 304 个普通语言用例中的 306 次重复链接，原运行与诊断断言保留；真正的 native／ABI／ODR／runtime／链接专测继续使用真实工具和存在的源码。损坏产物的防御分支及其独占期望退役，缺失输入、失败不覆盖已有程序、正常输入更新和所需输出补产继续覆盖。详细映射、保留文件操作及例外见[清理记录](CLEANUP.md)。本批没有修改生产代码，CLI 使用 `cffba262` 的 release 工具。
 
@@ -318,3 +318,7 @@ Compile 从共享 identity 数据解析已有 defined owners 与 ODR member ABI�
 `single-cone-production/8` 只保存 ODR 目录和 runtime image records；`link-identity-closure/16` 保存实际物理 member、Scoop typed definition 分配、defined／undefined symbols，删除 atom／patch／对象副本／image 与 entry owner 投影，以及未消费的 generated-C unit 列表。重复优化、native、Code／RuntimeImage、C bridge 投影和其比对 API 同步退役；生产 Code 输入与 runtime ABI 不变。
 
 本机 542 项 slib、26 项 protocol、实际泛型产物和 17 项 CLI（22 variants、245 processes）通过；Linux fmt／clippy／release、543 项 slib、26 项 protocol 与实际泛型产物通过。GNU 17 项 CLI、22 variants、245 processes；musl 16 项通过、1 项 C++ 不适用、20 variants、231 processes。GNU I/O 采样确认三个产物各打开一次、无重叠读取，4,458 个 ELF 成员读取量为零；最大归档与读取量各减少 2,399,204 字节，实际程序输出 42。本机两次清理 incremental 共 5,959.4 MiB。完整记录见[验收文件](validation/link-fields.md)。其他两个重复 Link closure section、语义／布局重放、dump、历史迁移与最终全量／五轮性能验收仍待完成，M38 未启动。
+
+## 29. 重复跨 Cone Link closure section 退役（本批验收完成）
+
+两个重复 section、coverage／对象副本、decoder 与发布重放接口已删除，Code 直接使用既有 ordinary／physical imports；47 个代码／规范文件净删 1,962 行。本机 fmt／clippy、528 项 slib、26 项 protocol、实际泛型／core 产物和 17 项 CLI（22 variants、245 processes）通过；Linux fmt／clippy／release、529 项 slib、26 项 protocol 与实际泛型／core 产物通过。GNU 17 项 CLI 通过（22 variants、245 processes）；musl 16 项通过、1 项 C++ 不适用（20 variants、231 processes）。GNU I/O 采样中三个产物各打开一次，manifest／metadata 无重叠读取，4,458 个 ELF 成员未读，实际程序输出 42；最大归档与读取量各减少 286,292 字节。清理本机旧 fixture 与 incremental 共 5,873,430,432 字节。[记录与证据](validation/closures.md)。其他语义／布局重放、writer 复核、冷 locator、dump 和最终全量／五轮性能验收继续，M38 未启动。

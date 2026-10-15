@@ -6,9 +6,9 @@ use scoop_wire::HashError;
 
 use super::super::{StrongArtifactAssemblyError, StrongArtifactSectionV1};
 use crate::{
-    BootstrapManifestError, CrossConeLinkSemanticImportBuildError, ManifestSectionError,
-    MetadataEnvelopeError, MetadataLocation, MetadataSectionError, SemanticFingerprintError,
-    SlibMemberId, SlibMemberRecordError, SlibWriteError,
+    BootstrapManifestError, ManifestSectionError, MetadataEnvelopeError, MetadataLocation,
+    MetadataSectionError, SemanticFingerprintError, SlibMemberId, SlibMemberRecordError,
+    SlibWriteError,
 };
 
 #[derive(Debug)]
@@ -20,10 +20,6 @@ pub enum CrossConeLayoutArtifactWriteError {
     },
     TargetMismatch,
     TestDirectory(crate::TestDirectoryError),
-    CallableSemanticImports(CrossConeLinkSemanticImportBuildError),
-    CallableSemanticImportMismatch,
-    LayoutSemanticImportMismatch,
-    LinkObjectProjectionMismatch,
     LinkObjectCount {
         expected: usize,
         actual: usize,
@@ -118,7 +114,6 @@ impl fmt::Display for CrossConeLayoutArtifactWriteError {
 impl std::error::Error for CrossConeLayoutArtifactWriteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CallableSemanticImports(source) => Some(source),
             Self::LinkObjectFingerprint(source) | Self::Compatibility(source) => Some(source),
             Self::HirInterfaceIndex(source) => Some(source),
             Self::Encoding { source, .. } => Some(source),
@@ -133,9 +128,6 @@ impl std::error::Error for CrossConeLayoutArtifactWriteError {
             Self::TestDirectory(source) => Some(source),
             Self::ComponentProducerMismatch { .. }
             | Self::TargetMismatch
-            | Self::CallableSemanticImportMismatch
-            | Self::LayoutSemanticImportMismatch
-            | Self::LinkObjectProjectionMismatch
             | Self::LinkObjectCount { .. }
             | Self::InvalidLinkObjectRole { .. }
             | Self::LinkObjectMismatch { .. } => None,

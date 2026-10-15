@@ -57,24 +57,6 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
 }
 
 #[test]
-fn layout_writer_rejects_mismatched_layout_imports() {
-    let (result, _) = write_artifact(WriterMutation::LayoutImports);
-    assert!(matches!(
-        result,
-        Err(CrossConeLayoutArtifactWriteError::LayoutSemanticImportMismatch)
-    ));
-}
-
-#[test]
-fn layout_writer_rejects_mismatched_callable_imports() {
-    let (result, _) = write_artifact(WriterMutation::CallableImports);
-    assert!(matches!(
-        result,
-        Err(CrossConeLayoutArtifactWriteError::CallableSemanticImportMismatch)
-    ));
-}
-
-#[test]
 fn layout_writer_rejects_mismatched_object_bytes() {
     let (result, _) = write_artifact(WriterMutation::ObjectBytes);
     assert!(matches!(
@@ -100,8 +82,6 @@ fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
 #[derive(Clone, Copy)]
 enum WriterMutation {
     None,
-    CallableImports,
-    LayoutImports,
     ObjectBytes,
     ManifestIdentity,
 }
@@ -153,16 +133,6 @@ fn write_artifact_from_fixture(
         .unwrap();
     }
 
-    let layout = if matches!(mutation, WriterMutation::LayoutImports) {
-        lir.mismatched_layout
-    } else {
-        lir.layout
-    };
-    let ordinary = if matches!(mutation, WriterMutation::CallableImports) {
-        lir.mismatched_ordinary
-    } else {
-        lir.ordinary
-    };
     AssembledCrossConeLayoutArtifactV1::write(CrossConeLayoutArtifactInputV1::new(
         crate::ProducerRecord::new("layout-writer-test").unwrap(),
         lir.cone,
@@ -176,8 +146,8 @@ fn write_artifact_from_fixture(
         &mir_ordinary,
         &mir_type_bridge,
         lir.foundation,
-        ordinary,
-        layout,
+        lir.ordinary,
+        lir.layout,
         lir.code,
         lir.link_objects,
     ))

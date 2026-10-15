@@ -14,7 +14,6 @@ use scoop_mir::{
 };
 
 use crate::{
-    DecodedCrossConeLayoutLinkClosureSectionV1, DecodedCrossConeLinkClosureSectionV1,
     DecodedLinkIdentityClosureSectionV1, DecodedSingleConeProductionManifestV1,
     ValidatedGraphArtifact,
 };
@@ -52,8 +51,7 @@ pub struct DecodedCrossConeLayoutLinkSections<'input> {
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
-    cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
-    layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
+
     link_support: crate::DecodedLirLinkSupportSectionV1,
 }
 

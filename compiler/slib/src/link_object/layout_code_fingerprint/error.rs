@@ -11,8 +11,6 @@ pub enum LayoutCodeFingerprintError {
     DefinedSymbolSetMismatch,
     UndefinedSymbolPartitionMismatch,
     ExternalShapeClosureMismatch,
-    CrossConeLinkClosure(CrossConeLinkClosureBuildError),
-    LayoutLinkClosure(LayoutLinkClosureError),
     LinkContributionEncoding(scoop_wire::cbor::EncodeError),
     NativeContracts(NativeExternalContractCodeSetBuildError),
     Hash(HashError),
@@ -32,8 +30,6 @@ impl std::error::Error for LayoutCodeFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::DefinedSymbols(source) => Some(source),
-            Self::CrossConeLinkClosure(source) => Some(source),
-            Self::LayoutLinkClosure(source) => Some(source),
             Self::LinkContributionEncoding(source) => Some(source),
             Self::NativeContracts(source) => Some(source),
             Self::Hash(source) => Some(source),

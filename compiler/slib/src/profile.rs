@@ -78,7 +78,6 @@ impl ArtifactCapabilityProfile {
                     .retain(|capability| capability != &lir_strong_production_capability());
                 descriptor.required_lir.extend([
                     lir_cross_cone_layout_abi_capability(),
-                    lir_cross_cone_layout_link_closure_capability(),
                     lir_cone_production_capability(),
                     lir_link_support_capability(),
                 ]);
@@ -119,7 +118,6 @@ impl ArtifactCapabilityProfile {
                         mir_identity_foundation_capability(),
                     ],
                     required_lir: vec![
-                        lir_cross_cone_link_closure_capability(),
                         lir_cross_cone_param_free_bridge_capability(),
                         lir_identity_foundation_capability(),
                         lir_link_identity_closure_capability(),

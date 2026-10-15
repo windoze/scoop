@@ -82,16 +82,6 @@ impl<'a> ValidatedGraphArtifact<'a> {
                 MetadataLocation::Lir,
                 lir_link_identity_closure_capability(),
             )?,
-            cross_cone_link_closure: decode_required(
-                &lir,
-                MetadataLocation::Lir,
-                lir_cross_cone_link_closure_capability(),
-            )?,
-            layout_link_closure: decode_required(
-                &lir,
-                MetadataLocation::Lir,
-                lir_cross_cone_layout_link_closure_capability(),
-            )?,
         };
         Ok(DecodedMachineLinkSections {
             graph: self,

@@ -54,6 +54,7 @@ impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn from_cross_cone_semantic_imports(
         semantic_imports: &CrossConeLinkSemanticImportSetV1,
     ) -> Result<Self, scoop_wire::cbor::EncodeError> {

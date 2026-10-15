@@ -8,7 +8,6 @@ use scoop_lir::{
     CallingConvention, CanonicalLirFoundation, ConeLirFoundation, CrossConeLirBridgeSectionV1,
     ExternalCallableRootPlan, SelectedDependencyLirCallableV1,
 };
-use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::link_object::native_requirements::tests::dependency_closure;
@@ -19,7 +18,6 @@ use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::link_object::{
     CanonicalObjectDefinitionRequirementV1, VerifiedObjectDefinitionRequirementSetV1,
-    empty_code_link_object_member_set_for_test,
     finalize_partitioned_undefined_symbol_requirements_v1,
     finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
@@ -300,52 +298,6 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
         partitions.cross_cone().requirements()[0].use_site(),
         &CanonicalUndefinedRelocationUseV1::from(&strong.bindings()[0])
     );
-}
-
-#[test]
-fn link_closure_wire_round_trips_only_against_the_rebuilt_projection() {
-    let semantic = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&bridge(
-        ConeIdentity::SINGLE_FILE,
-        vec![],
-    ))
-    .unwrap();
-    let expected = CrossConeLinkClosureSectionV1::from_parts(
-        semantic.clone(),
-        Vec::new(),
-        empty_code_link_object_member_set_for_test(),
-    )
-    .unwrap();
-    let bytes = encode(&expected).unwrap();
-    assert_eq!(
-        bytes,
-        vec![
-            0xa3, 0x01, 0x80, 0x02, 0x80, 0x03, 0xa2, 0x01, 0x80, 0x02, 0x58, 0x20, 0x95, 0x9c,
-            0xe3, 0x93, 0x6d, 0x4d, 0x3f, 0xa0, 0x4e, 0xaf, 0xd3, 0x98, 0x6b, 0x9d, 0x89, 0x06,
-            0xe7, 0xe0, 0x4b, 0x62, 0xb6, 0x4b, 0x59, 0x8c, 0x4b, 0xa4, 0x4d, 0x64, 0x0a, 0x1f,
-            0x29, 0x7b,
-        ]
-    );
-
-    let decoded = decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).unwrap();
-    decoded
-        .validate_semantic_imports_against(&semantic)
-        .unwrap();
-    assert_eq!(decoded.validate_against(&expected).unwrap(), expected);
-
-    let mut changed = expected.clone();
-    changed.object_coverage.relocation_use_set_digest.0[0] ^= 0xff;
-    let decoded = decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).unwrap();
-    assert!(matches!(
-        decoded.validate_against(&changed),
-        Err(CrossConeLinkClosureSectionValidationError::ProjectionMismatch)
-    ));
-}
-
-#[test]
-fn link_closure_reader_rejects_non_v1_product_shapes() {
-    for bytes in [vec![0xa2], vec![0xa4]] {
-        assert!(decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).is_err());
-    }
 }
 
 #[test]

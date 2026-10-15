@@ -189,7 +189,7 @@ GNU `m48-executable-tools` 继续保留真实 compiler／linker，以标准 `-B`
 
 本批只退役临时对象重写和重复摘要计算，尚未移除 `program_link` 的完整 `.slib` 解码、`layout_link_objects`／`layout_link_symbols` replay 及其双份字节和验证链。它们仍属于 M48-3；SOURCE-ISOLATION 清单仍有 1,618 行，不因稳定路径可复用而减少。
 
-## 历史源码隔离包装迁移
+## 历史源码隔离包装迁移（fa2d9faf）
 
 扫描清单剩余的 1,618 项已逐项给出保留源码后的落点；另清理未出现在旧清单中的 `m23-cli/basic`、core 默认选择、M32 core negative 与残留环境包装，共修改 1,646 份 fixture 描述。批量转换删除 6,421 个隔离删除操作、3 个隐藏源码的 move、1,575 个空目录准备、1,294 个工具／来源副本和 3,109 份隐藏工具环境；手工拆分 core 默认来源和 program-link 输入错误。普通多 Cone 语言用例保留 provider／consumer／core 源码，修改过的 core 使用实际有源码的私有 sysroot；独立 scoopc 同时准备其需要的默认 core 产物。
 
@@ -247,3 +247,7 @@ Compile 对象内容、materialization、Code／RuntimeImage 重建和 symbol-us
 ## production 与 Link identity 持久字段精简（43ee11a4）
 
 production/8 删除 distribution／output／image owner／registration、优化模式、重复摘要与 native／C bridge 复核投影，只保留 ODR 与 runtime records。Link identity/16 删除 atom／patch／对象副本／image 与 entry owner 投影及 generated-C unit 列表；相关生产构造、decoded 类型、C bridge 资格包装和投影比对 API 一并删除。3 项专用测试随退役字段删除，3 项迁移或更名保留，真实 Code、ODR、native 与 GC 覆盖继续。格式变更、完整测试名称清单与三平台验收见[记录](validation/link-fields.md)。其余两个 Link closure section、语义／布局与 dump 清理继续。
+
+## 重复跨 Cone Link closure section 退役
+
+删除 callable／layout 两个重复 metadata section、coverage 和对象目录／relocation use 副本、旧 decoder、发布比对与已无调用方的 native Code projection reader。14 项只服务退役路径的测试删除，2 项转为实际 LinkSupport 的 inventory／读取检查；Code 输入、真实符号分类、非空 imports、共享布局、ODR、native 和 GC 覆盖保留。两类已无消费方的 use 编码实现也已移除。三平台验收及逐项名称见[记录](validation/closures.md)；其余语义／布局重放与 writer 复核仍待清理。

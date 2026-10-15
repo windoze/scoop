@@ -76,11 +76,6 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
             &[1, 2, 3, 4, 5, 6, 7, 8, 9][..],
         ),
-        (
-            lir_cross_cone_layout_link_closure_capability(),
-            &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4][..],
-        ),
     ] {
         for &version in rejected {
             let old = CapabilityId::new(current.namespace(), current.name(), version).unwrap();

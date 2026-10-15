@@ -36,9 +36,9 @@ use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView, ConeRecord,
     CrossConeHirNominalAuthorityError, DependencyRecord, MemberPurposeSet, MetadataLocation,
     SectionLocation, hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
-    hir_identity_foundation_capability, lir_cross_cone_link_closure_capability,
-    lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
-    lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
+    hir_identity_foundation_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_identity_foundation_capability, lir_strong_production_capability,
+    mir_cross_cone_param_free_bridge_capability,
     strong_compile_decode::tests::{
         build_artifact_for_profile, build_artifact_for_profile_with_dependencies, cone, open_graph,
         required_sections, section,
@@ -695,12 +695,6 @@ fn add_cross_cone_bridge_sections(
         lir_cross_cone_param_free_bridge_capability(),
         MemberPurposeSet::COMPILE_AND_LINK,
         vec![0xa2, 0x01, 0x80, 0x02, 0x80],
-    ));
-    lir.push(section(
-        MetadataLocation::Lir,
-        lir_cross_cone_link_closure_capability(),
-        MemberPurposeSet::LINK,
-        vec![0x80],
     ));
 }
 

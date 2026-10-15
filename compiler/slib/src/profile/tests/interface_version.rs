@@ -68,16 +68,6 @@ fn lir_param_free_v3_retains_target_coercions() {
 }
 
 #[test]
-fn lir_layout_link_v8_preserves_maybe_uninit_values() {
-    assert_retired_version(
-        lir_cross_cone_layout_link_closure_capability(),
-        8,
-        MemberPurposeSet::LINK,
-        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
-    );
-}
-
-#[test]
 fn compiler_protocol_v15_preserves_generated_entries() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),

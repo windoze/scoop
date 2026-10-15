@@ -413,7 +413,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/8` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/9`、`core-bootstrap-interface/15`、`cross-cone-interface/76`、`cross-cone-type-semantics/29` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/7`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/15`、`cross-cone-layout-link-closure/8`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/15`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -460,6 +460,8 @@ operator equals 的成员签名、operator 标记、已绑定调用及必要的�
 `link-identity-closure/16` 只保存三个字段：field 1 为物理成员目录（Scoop member 保留 typed definition 分配，generated-C member 只保存 member id，不复制已无消费者的 unit 列表），field 4 为 defined symbol owners，field 5 为 undefined symbol uses。不再写入只服务消费者重放的 definition atom ranges、patch sites、对象目录副本及 image／entry owner 投影（原 field 2、3、6、7、8）。实际机器对象的生成、重定位和摘要填充仍使用生产端数据，不为生成此 section 再构造上述索引或对象投影。两个 section 的旧格式按版本规则重建；runtime ABI 不变。
 
 `single-cone-production/8` 的 field 14 保存最终链接实际使用的 runtime image records，编码为 `{1=prefix bytes, 2=six record arrays}`。prefix 是运行时规范 2.8 所定义的 RuntimeAbiFingerprint、TargetProfileFingerprint、canonical Cone record 与 direct dependencies 的连续 runtime 编码；六组记录依次为 static storage、immortal object、initialization、type、safepoint、callable，每项为 `[ObjectDefinitionPlanId, canonical runtime record bytes]`。记录在生产时按运行时规范的表顺序编码一次。最终链接按实际选择的 definition 筛选记录，写入所选条数与保存的记录字节，计算最终 image fingerprint；不为此反向解析对象、重建注册证明或重算各记录的 definition／layout／stackmap 指纹。该字段直接参与最终输出，不是缓存复核材料；读取时解析 typed definition 引用，不与对象或另行重建的记录逐项比较。runtime ABI 与 fingerprint 编码保持不变；缺少该字段的旧 production section 按版本规则重建。
+
+`cross-cone-link-closure` 与 `cross-cone-layout-link-closure` 不再作为 metadata section 生成、保存或消费。已保存的 ordinary／layout ABI imports、member、symbol 与 ODR 数据用于实际编译和链接，不另存语义 imports 副本、relocation use 副本、完整对象目录及 coverage digest，也不在读取或发布时重建并比较它们。生产端 Code contribution 直接使用既有的 ordinary 与 physical import 数据，沿用原 capability id 作为该指纹输入的字段名称，保持 Code 指纹公式；这些名称不再注册为 section contract。移除 section 同步改变 cross-Cone profile descriptor／fingerprint，旧 profile 按格式规则重建，不保留旧 reader。runtime ABI 不变。前批取消 native contract Code 副本后失去消费方的 projection reader 与全量比对 API 也一并退役；实际 native contract 编码与指纹输入保留。
 
 `link-support/1` 为单字段 map `{1=runtime_data_aliases}`，把必要的 runtime 数据符号关联到实际定义；String alias 不创建额外 TD 或存储。
 

@@ -45,10 +45,6 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 dependencies.extend(reachable.iter().map(|&index| &complete[index]));
                 let layout = replay::physical(layout, &dependencies, parts.identities)?;
                 strong.validate_layout_selection(&layout)?;
-                if let Some(link) = parts.link_sections {
-                    link.layout_link_closure_wire()
-                        .validate_physical_imports_against(layout.physical_imports())?;
-                }
 
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 scoop_wire::allocation::try_reserve_count(&mut objects, 1, &WirePath::root())?;

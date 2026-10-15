@@ -1,9 +1,7 @@
 //! Replay nonempty helper imports from the assembled consumer's bytes.
 
 pub(super) use super::super::super::super::lir_dependencies::reader::open;
-use super::super::super::super::lir_dependencies::reader::{
-    open_link, read, read_link, read_sections,
-};
+use super::super::super::super::lir_dependencies::reader::{open_link, read, read_link};
 use super::*;
 
 mod link;

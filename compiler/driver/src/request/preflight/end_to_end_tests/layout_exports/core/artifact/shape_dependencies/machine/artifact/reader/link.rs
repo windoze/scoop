@@ -1,8 +1,6 @@
-//! Independently replay the Link view and retain its unresolved object inputs.
+//! Read the Link view and its shared semantic inputs.
 
 use super::*;
-
-mod corruption;
 
 pub(super) fn check(
     provider: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
@@ -23,14 +21,10 @@ pub(super) fn check(
                     [
                         encode(link.production_manifest_wire()).unwrap(),
                         encode(link.link_identity_closure_wire()).unwrap(),
-                        encode(link.cross_cone_link_closure_wire()).unwrap(),
-                        encode(link.layout_link_closure_wire()).unwrap(),
                     ],
                     [
                         encode(original.production_manifest_wire()).unwrap(),
                         encode(original.link_identity_closure_wire()).unwrap(),
-                        encode(original.cross_cone_link_closure_wire()).unwrap(),
-                        encode(original.layout_link_closure_wire()).unwrap(),
                     ]
                 );
             }
@@ -43,5 +37,4 @@ pub(super) fn check(
             );
         })
         .unwrap();
-    corruption::check(provider, artifact, layout);
 }
