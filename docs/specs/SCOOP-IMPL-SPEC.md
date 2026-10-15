@@ -247,6 +247,8 @@ LIR 保存目标上完整的类型布局、值表示、字段 offset、alignment
 
 对象 symbol surface 同样为 atom boundary 建立一次查询索引，按 atom 的 typed identity 返回既有边界符号；逐 callable／safepoint 发射只查询实际需要的 atom，不重复建立整个 Cone 的 boundary 表。codegen 删除未发射的定义或 atom 后同步更新索引，不能返回已删除记录；索引不写入 wire，也不改变既有 symbol 或定义顺序。
 
+callable 对象发射直接借用 production 中已有的 runtime scan 计划，按 body identity 取得本函数的扫描树与 Context key；不在每个 LLVM module 中重新扫描全部函数来构造相同计划。Context cell 与扫描 atom 的边界也通过上述索引取得；无 callable 输出的 metadata module 不另建扫描计划。实际扫描内容、发射顺序和 GC 契约保持。
+
 ELF 可见性与 COMDAT 准备将固定 symbol surface 的实际符号名和所属定义组索引一次，在各 callable LLVM module 中只查询该 module 实际包含的 global、function 和 alias；不逐 module 重建全部符号名或探查未发射的 atom。保持原有计划顺序、可见性、weak linkage、alias owner 与定义组冲突检查。定义计划完成最终裁剪后，metadata module 使用裁剪后的计划；该 codegen 局部查询索引不进入 IR、wire 或 runtime ABI。
 
 每个 pointer（包括 null）具有 Managed、Raw、Code 或 Metadata provenance；LLVM opaque pointer 不抹去这种区别。managed 使用 address space 1，其余使用 0，转换必须为明确合法的 typed operation。
