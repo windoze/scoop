@@ -7,10 +7,10 @@
 | 批次 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | M48-1 合同、清理范围、release 基线 | 完成 | 已同步三份规范、AGENTS 与 runner 说明；复扫 1,628 份迁移候选并核对活动设计。Darwin 五组各五轮、native 另五轮头文件变化共 55 次测量完成，原始证据见 [基线](BASELINE.md)。精确 native／linker 调用计数作为最终结构验收补齐。 |
-| M48-2 提前更新判定与普通构建记录 | 进行中 | 配套编译器、源码 metadata、manifest 解析记录、普通编译结果记录和库输出复用已落地（见下）；native 更新判定及其余路径审计仍待处理。 |
-| M48-3 按需读取与删除消费重放 | 未开始 | parent 的编译结果／缓存产物复核已删除；各消费 stage 的验证资格、对象 replay 和重复闭包仍待移除。 |
-| M48-4 对象／native／runtime／最终链接复用 | 未开始 | 现有暖程序构建仍重新链接、发布和制作运行副本。 |
-| M48-5 全量测试迁移与最终验收 | 进行中 | 随实际输入路径迁移 1 个混合 fixture，删除或迁移相关 Rust 隔离断言；扫描清单余下 1,627 项，最终全量与性能验收未执行。 |
+| M48-2 提前更新判定与普通构建记录 | 进行中 | 配套编译器、源码 metadata、manifest 解析记录、普通编译结果记录、native 更新判断和库输出复用已落地；显式 artifact 摘要的跨次复用及剩余路径审计待处理。 |
+| M48-3 按需读取与删除消费重放 | 进行中 | reader 的成员／语义／Artifact 摘要重算已删除；manifest 最小读取和 prebuilt 准备复用已定向验收，各消费 stage 的验证资格、对象 replay 和重复闭包仍待移除。 |
+| M48-4 对象／native／runtime／最终链接复用 | 已落地，待最终审计 | native／runtime、最终工具发现、稳定对象及 executable 记录已完成分批验收，run／test 直接使用缓存程序；最终全量与性能复测待执行。 |
+| M48-5 全量测试迁移与最终验收 | 进行中 | 扫描清单剩余 1,618 项已有迁移落点，共修改 1,646 份 fixture 描述；本机代表验收通过，Linux 正在分批验证，最终全量与性能验收未执行。 |
 
 ## 2. 测量口径
 
@@ -178,3 +178,143 @@ Linux [workspace clippy](validation/object-files-linux-clippy.log.gz)、[release
 归档 reader／writer 分为 354／158 行，对象文件 helper 连同并发测试为 71 行；未作机械切割。无本机 Rust 构建进程时[清理 `target/debug/incremental` 3,411.5 MiB](validation/object-files-darwin-cleanup.log.gz)。测试及退役范围见[清理记录](CLEANUP.md)。
 
 本批解决稳定对象路径和重复摘要计算；当前 Link 消费仍读入完整 `.slib` 并执行旧 replay，不能声称已实现按需读取或移除验证链。普通 artifact reader、双份数据与 replay 清理、dump 最小阶段复用、1,618 项源码隔离迁移、最终全量回归和五轮性能复测仍待完成；M38 未启动。
+
+## 17. M48-5：历史源码隔离迁移（本批验收完成）
+
+剩余 1,618 行扫描清单已逐项记录当前落点，覆盖 core、provider、consumer、native 输入和公共 Rust helper；清单之外的空环境包装一并处理，合计修改 1,646 份 fixture 描述。删除 304 个普通语言用例中的 306 次重复链接，原运行与诊断断言保留；真正的 native／ABI／ODR／runtime／链接专测继续使用真实工具和存在的源码。损坏产物的防御分支及其独占期望退役，缺失输入、失败不覆盖已有程序、正常输入更新和所需输出补产继续覆盖。详细映射、保留文件操作及例外见[清理记录](CLEANUP.md)。本批没有修改生产代码，CLI 使用 `cffba262` 的 release 工具。
+
+本机 [workspace clippy](validation/source-isolation-darwin-clippy-final.log.gz)、[Ruff 格式](validation/source-isolation-ruff-format.log.gz)与[lint](validation/source-isolation-ruff-check.log.gz)、[49 项 runner 测试](validation/source-isolation-runner-tests.log.gz)和 [4,105 项完整预检](validation/source-isolation-preflight.log.gz)通过。Rust [17 项 core 发现](validation/source-isolation-darwin-core-discovery.log.gz)、[类型位置](validation/source-isolation-darwin-type-sites.log.gz)、[ODR／优化](validation/source-isolation-darwin-odr.log.gz)、[泛型对象](validation/source-isolation-darwin-generic.log.gz)与[独立 core 输入](validation/source-isolation-darwin-direct-core.log.gz)通过。
+
+本机最新通过结果覆盖 [75 个不同用例、90 variants、557 processes](validation/source-isolation-darwin-results.json.gz)，包括 [17 个 Darwin 专属用例](validation/source-isolation-darwin-only.log.gz)。保留[首次代表组](validation/source-isolation-darwin-representative.log.gz)、[追加组](validation/source-isolation-darwin-followup.log.gz)、[定向修正](validation/source-isolation-darwin-retest.log.gz)和[最终发布诊断复验](validation/source-isolation-darwin-publication.log.gz)的原始结果：修正了正常源码 core 的 warning 期望、独立 scoopc 所需默认产物、metadata 变化后的重新编译断言，以及旧路径审计退役后实际 I/O 错误的消息。没有通过放宽 stdout／诊断比较来忽略差异。
+
+Linux [workspace clippy](validation/source-isolation-linux-clippy.log.gz)、[17 项 core 发现](validation/source-isolation-linux-core-discovery.log.gz)、[类型位置](validation/source-isolation-linux-type-sites.log.gz)、[ODR／优化](validation/source-isolation-linux-odr.log.gz)、[泛型对象](validation/source-isolation-linux-generic.log.gz)、[独立 core 输入](validation/source-isolation-linux-direct-core.log.gz)及 [49 项 runner 测试](validation/source-isolation-linux-runner-tests.log.gz)通过。GNU [首轮](validation/source-isolation-gnu-first.log.gz)通过 98 项后遇到 `/tmp` 配额／空间错误，musl 首轮未能开始有效验收；两次退出码均为 120，不能计为通过。确认进程已结束后保留日志并清理临时用例目录；续跑工作、日志及 `TMPDIR` 移到仓库所在 NVMe 磁盘，每批 200 项，完成后保留报告并清理临时用例目录。续跑使用第 18 节已验证的 reader 工具，跳过 GNU 已通过的 98 项及同目标 reader 组合中已通过的迁移项；[续跑脚本](validation/source-isolation-linux-resume.py.gz)保存选择与顺序。不适用 target 单列，不计为通过。
+
+无本机 cargo／rustc 进程时[清理 incremental 193.7 MiB](validation/source-isolation-target-cleanup.log.gz)。首次记录时 Linux CLI 结果尚未全部取得；core-default 与 program-link 输入错误两组已随第 18 节提交，续跑与完成结果见下文。M48-5 的 dump 与最终回归仍待完成。reader／replay 清理、dump 最小阶段复用及最终全量和性能复测仍待完成，M38 未启动。
+
+GNU 续跑[第 1 批](validation/source-isolation-gnu-resume-01.log.gz)通过 200 项、202 variants、944 processes；[第 2 批](validation/source-isolation-gnu-resume-02.log.gz)通过 199 项、199 variants、1,656 processes，另 1 项按目标不适用。前三批报告已保留，其中[第 3 批](validation/source-isolation-gnu-resume-03.log.gz)通过 200 项、200 variants、1,588 processes。临时用例目录由续跑脚本在全部子进程结束后清理；后续批次继续执行，未重复运行先前成功项。
+
+第 4 批出现 `imported-class-value-interface-core` 依赖定位失败：续跑脚本重复使用数字用例路径，复制的两个不同 manifest 恰好大小与保留 mtime 相同，命中上一批同一路径的解析记录。这属于测试目录复用问题；不为此添加内容 hash 或缓存恢复。独立工作路径下 [Darwin](validation/source-isolation-darwin-unique-recheck.log.gz) 与 [GNU](validation/source-isolation-gnu-unique-recheck.log.gz) 均通过 1 项、11 processes。后续[续跑脚本](validation/source-isolation-linux-resume-unique.py.gz)为每批保留独立源路径，共享已有 cache／sysroot，按报告跳过已通过及不适用项。原[第 4 批](validation/source-isolation-gnu-resume-04.log.gz)已结束：199 项通过、上述 1 项失败，199 variants、1,291 processes；失败项以独立路径复验通过。报告已保存，独立批次续跑已启动，未重跑已通过项。
+
+独立路径续跑[第 1 批](validation/source-isolation-gnu-unique-01.log.gz)通过 198 项、248 variants、1,428 processes、15 goldens，另 2 项按 target 不适用；报告保存后已清理用例临时目录，第 2 批继续执行。
+
+独立路径[第 2 批](validation/source-isolation-gnu-unique-02.log.gz)通过 183 项、217 variants、1,329 processes、31 goldens，另 17 项按 target 不适用；报告保存后清理本批临时目录，第 3 批继续执行。
+
+独立路径[第 3 批](validation/source-isolation-gnu-unique-03.log.gz)通过 200 项、200 variants、1,149 processes；报告保存后继续剩余 GNU 用例及 musl 验收。
+
+独立路径 GNU [第 4 批](validation/source-isolation-gnu-unique-04.log.gz)通过 141 项、142 variants、739 processes、1 golden；GNU 剩余项执行结束，续跑进程转入 musl。 按原选择清单与全部成功／不适用报告做集合核对，[1,646 个名称均有结果](validation/source-isolation-gnu-coverage.json.gz)，没有遗漏；这不替代最终当前编译器的全量回归。
+
+musl 独立路径[第 1 批](validation/source-isolation-musl-unique-01.log.gz)通过 200 项、200 variants、864 processes；报告保存后继续第 2 批。
+
+musl 独立路径[第 2 批](validation/source-isolation-musl-unique-02.log.gz)通过 199 项、201 variants、1,387 processes、6 goldens，另 1 项按 target 不适用；报告保存后继续第 3 批。
+
+musl 独立路径[第 3 批](validation/source-isolation-musl-unique-03.log.gz)通过 200 项、200 variants、1,602 processes、5 goldens；报告已保存，续跑进程继续后续批次。
+
+musl 独立目录第 4 批已完成：200 项通过、200 variants、1,524 processes，无失败；[日志](validation/source-isolation-musl-unique-04.log.gz)与[报告](validation/source-isolation-musl-unique-04.json.gz)已归档。其余批次继续使用原冻结工具运行，不能算作最终实现的全量结果。
+
+musl 独立目录第 5 批已完成：200 项通过、230 variants、1,289 processes、3 goldens，无失败；[日志](validation/source-isolation-musl-unique-05.log.gz)与[报告](validation/source-isolation-musl-unique-05.json.gz)已归档。原冻结工具继续第 6 批，当前实现的最终全量验收仍待执行。
+
+musl 独立目录第 6 批已完成：183 项通过、17 项按目标不适用，236 variants、1,433 processes、43 goldens，无失败；[日志](validation/source-isolation-musl-unique-06.log.gz)与[报告](validation/source-isolation-musl-unique-06.json.gz)已归档。冻结工具继续后续批次。
+
+musl 独立目录第 7 批已完成：200 项通过，202 variants、1,200 processes、0 goldens，无失败；[日志](validation/source-isolation-musl-unique-07.log.gz)与[报告](validation/source-isolation-musl-unique-07.json.gz)已归档。冻结工具继续后续批次。
+
+
+musl 独立目录第 8 批完成：200 项通过、201 variants、1,150 processes；第 9 批完成：36 项通过、36 variants、123 processes、1 golden。后台进程已结束，[GNU](validation/source-isolation-gnu-coverage.json.gz)与 [musl](validation/source-isolation-musl-coverage.json.gz)分别覆盖原选择清单的全部 1,646 个名称，无遗漏。现有 1,644 份待提交描述、4 份期望和 6 个 helper／说明文件与 Linux 被测文件一致；另两份描述已在前批提交。最终复扫仍为 25 份已审阅的正常 remove／move 用例，Ruff 与 49 项 runner 测试通过。[迁移验收记录](validation/source-isolation.md)区分冻结工具证据与尚未执行的最终当前代码全量回归。本批迁移完成，M48 整体仍未完成。
+
+## 18. M48-3：消费已有内容摘要
+
+提交：`c8ec11f9`。
+
+`ArtifactSnapshot` 删除无人使用的整包摘要；归档 reader 不再逐成员计算 SHA，manifest 解码直接采用保存的 Artifact 指纹，Compile／Link 解码不重算 HIR／MIR／LIR 摘要。生产端仍按原公式生成摘要，wire 字段和版本不变；删除消费端摘要比较的错误类型、测试分支及失去用途的语义哈希适配层。真实格式、区间、typed 引用和目标配置检查保留；没有另加严格 reader。
+
+本机 [workspace clippy](validation/reader-hashes-clippy.log.gz)、[567 项 slib 测试](validation/reader-hashes-darwin-slib.log.gz)、[release 构建](validation/reader-hashes-darwin-release.log.gz)及 [12 个 CLI 用例、16 variants、137 processes](validation/reader-hashes-darwin-cli.log.gz)通过。Linux [fmt](validation/reader-hashes-linux-fmt.log.gz)、[workspace clippy](validation/reader-hashes-linux-clippy.log.gz)、[568 项 slib 测试](validation/reader-hashes-linux-slib.log.gz)、[release 构建](validation/reader-hashes-linux-release.log.gz)通过；[GNU](validation/reader-hashes-gnu-cli.log.gz)通过同一组 12 项、16 variants、137 processes，[musl](validation/reader-hashes-musl-cli.log.gz)通过 11 个适用项、14 variants、123 processes，C++ 项按原声明不适用。覆盖普通 core／prebuilt、跨 Cone 泛型／接口、C／C++、测试依赖、M46 序列化、稳定对象及 executable 缓存，以及真实输入错误。
+
+本批仅完成内容摘要重算退役。显式输入的旧 `ImmutableInputSnapshot` 捕获仍可能计算整包 hash，消费 stage 仍保留对象重放、语义／布局证明闭包和重复对象字节；manifest 最小读取与这些路径正在后续批次处理。M48-3 尚未完成。
+
+## 19. M48-3：manifest 最小读取与 prebuilt 准备
+
+提交：`aebc0fee`。
+
+字节输入与文件输入共用 manifest 摘要读取逻辑，只消费归档 magic、首个成员头与 manifest payload；后续对象及 section 不参与依赖发现。归档头字段解析与原成员 reader 共享。prebuilt 准备直接传递路径及已取得的摘要，删除第二次整包捕获、hash、摘要比较和发现前后状态检查；其 `BuildArtifact` 与普通编译结果一样只在实际需要时读取内容。删除只服务改写已发现产物的测试及相关错误变体，目录／缺失输入仍报告实际 I/O 错误。
+
+本机 [workspace clippy](validation/summary-reader-darwin-clippy-final.log.gz)、[85 项 scoop 测试](validation/summary-reader-darwin-scoop.log.gz)、[8 项归档测试](validation/summary-reader-darwin-archive.log.gz)、[3 项摘要测试](validation/summary-reader-darwin-summary.log.gz)通过；摘要专测在完整真实归档上断言实际读取位置停在 manifest 末尾。I/O 分类调整后另做 [6 项 locator 复验](validation/summary-reader-darwin-locator.log.gz)。[release 构建](validation/summary-reader-darwin-release.log.gz)及 [7 个 CLI 用例、47 processes](validation/summary-reader-darwin-cli.log.gz)通过，覆盖真实 core artifact、源码与 prebuilt 选择、依赖错误、发布复用、独立 scoopc、moving GC 和 M46 序列化。无 cargo／rustc 进程时[清理 incremental 2,221.3 MiB](validation/summary-reader-darwin-cleanup.log.gz)。
+
+Linux 使用独立 `target/m48-summary-reader/release`，保留正在运行第 17 节回归的原 release 工具。[fmt](validation/summary-reader-linux-fmt.log.gz)、[workspace clippy](validation/summary-reader-linux-clippy.log.gz)、[88 项 scoop](validation/summary-reader-linux-scoop.log.gz)、[8 项归档](validation/summary-reader-linux-archive.log.gz)、[3 项摘要](validation/summary-reader-linux-summary.log.gz)及 [release 构建](validation/summary-reader-linux-release.log.gz)通过；[GNU](validation/summary-reader-gnu-cli.log.gz)和 [musl](validation/summary-reader-musl-cli.log.gz)各通过 7 个 CLI 用例、47 processes。输入边界追加 [Darwin](validation/summary-reader-darwin-inputs.log.gz)、[GNU](validation/summary-reader-gnu-inputs.log.gz)和 [musl](validation/summary-reader-musl-inputs.log.gz)各 13 个 sysroot 负例、15 processes，全部通过。
+
+保留源码、工具及所有产物，对已有 prebuilt core 做 [GNU 系统调用采样](validation/summary-reader-gnu-discovery.trace.gz)：41,595,590 字节的产物只打开一次，实际读取 1,964,277 字节，恰好停在 manifest 末尾；compiler child 为 0。保留[摘要与命令](validation/summary-reader-gnu-discovery.json.gz)、[构建结果](validation/summary-reader-gnu-discovery.stderr.gz)及[采样脚本](validation/summary-reader-trace.py.gz)。
+
+本批尚未引入显式 artifact 的摘要更新记录，连续发现仍读取必要 manifest；完整 Compile／Link 的按需 section 共享与 replay 清理也未完成。其余隔离迁移继续使用第 18 节原 release 工具验收；本批的定向结果不替代最终全量回归和性能复测。
+
+## 20. M48-3：依赖摘要更新记录
+
+提交：`0240929b`。
+
+显式 artifact、搜索目录与默认 core 产物共用 `artifact-summaries-v1`，按实际路径、mtime、大小和 target／backend 选择摘要记录。命中不打开归档；输入变化后只读取 manifest，并通过普通锁与原子发布保存结果。真实输入缺失和目标错误仍失败，记录解码不增加恢复分支。实现与单测分别为 112／83 行。
+
+本机 clippy、87 项 scoop 测试、49 项 runner、4,106 项预检通过；Darwin、GNU、musl 最终各通过 21 个 CLI 用例、21 variants、78 processes。新增用例保持所有实际输入存在，覆盖冷／暖、touch、依赖公开常量从 48 改为 49 和运行结果。首轮 fixture 文本替换误匹配包名，修正后只重跑该项，未把失败结果计为通过。Linux 摘要／locator／core 测试及 clippy、release 通过，详见[完整证据](validation/artifact-record.md)。
+
+GNU 暖构建采样确认 41,595,590 字节的 core 产物打开 0 次、读取 0 字节，compiler child 为 0；摘要记录 metadata 不变。生产源码、工具、原产物始终存在。完整 Compile／Link 按需读取、重放与证明链退役、最小 dump 阶段及最终全量／性能验收仍在 M48 范围内，M38 未启动。
+
+## 21. M48-3：codegen 复用扫描计划与 atom 索引
+
+提交：`5f27c057`。
+
+函数对象发射借用 production 中的 runtime scan 计划，按 callable body 查询，不再为每个 LLVM module 重扫全部函数；Context cell 和 runtime scan atom 使用已有边界索引，删除逐 atom 的整 Cone 查找。初始化映射按职责拆为 100 行模块，主发射文件降为 544 行；未增加 wire 或 ABI。
+
+Darwin 374 项、Linux 389 项 codegen 测试通过；Darwin、GNU、musl 各 7 项 CLI 组合、10 variants、58 processes 通过，覆盖 Context、协程、根、借用、M46 序列化及 moving／minor GC。初始化 helper 拆分后，两平台 clippy 和 8 项初始化复验通过；本机清理 incremental 756.4 MiB。证据见[验收记录](validation/scan-reuse.md)。完整 reader／replay、dump、历史清理与最终全量／性能验收继续，M38 未启动。
+
+## 22. M48-3：Compile 直接读取已保存的定义数据
+
+提交：`176b50e5`。
+
+Compile 从共享 identity 数据解析已有 defined owners 与 ODR member ABI，实际跨产物符号归属及 key／ABI 合并继续保留。移除 Compile 的机器对象解析、materialization 重放、final／provisional 对象副本和 Code／RuntimeImage 重建；读取 API 不再要求 C bridge profile。删除无生产消费者的 Compile／Link 重复摘要及对象数量，统一采用 manifest 摘要。相关对象破坏测试及专用 helper 同步退役，类型位置和 ODR 两个 Rust 用例保留源码的迁移随本批提交。
+
+本机 568 项、Linux 569 项 slib 测试及两端 clippy、release、正式发布、ODR 验证通过；本机属性初始化、机器 callable／默认值、re-export 组合通过。Darwin、GNU、musl 各覆盖 9 个不同 CLI 用例、11 variants、106 processes；最后的摘要简化另做本机 5 项定向复验。Linux 首次同步遗漏重叠测试文件，补齐后通过，失败记录保留。本机清理 incremental 4,233.4 MiB，详情见[验收记录](validation/compile-definitions.md)。
+
+本批不代表按需文件读取已经完成：加载层仍读完整归档，Compile 的语义／布局重放和 ProgramLink 的对象证明仍待退役；dump 最小阶段、历史迁移、最终全量和五轮性能复测继续，M38 未启动。历史迁移独立目录续跑进程仍使用原 `target/release`；新 Compile 验证使用 `target/m48-summary-reader/release`，两套工具没有覆盖。
+
+## 23. M48-3：Compile 依赖文件按需读取
+
+提交：`862262a1`。
+
+依赖加载层保留文件句柄、一次解析的 manifest 和按需复用的成员缓冲区。文件与内存输入共用偏移及成员头规则；删除整包读取、读取前后 metadata 比较和未使用成员扫描。Darwin 569 项、Linux 570 项 slib 以及各端 preflight、clippy、release 通过；Darwin／GNU／musl 各通过 20 个 CLI 用例、22 variants、91 processes。本机清理 incremental 2,842.3 MiB。GNU `scoopc build` 采样中，41,595,590 字节 core 只打开一次，读取 29,476,197 字节，恰好覆盖 manifest 和三个 metadata；4,208 个 ELF 对象未读。详细结果见[验收记录](validation/file-reader.md)。
+
+本批不包含 ProgramLink／parent／dump 的旧整包路径与剩余重放；这些入口正继续迁移。历史源码隔离迁移与最终全量／性能验收尚未完成，M38 未启动。
+
+## 24. M48-3：ProgramLink 共用文件输入
+
+提交：`e393aad7`。
+
+普通 build 后链接、显式 `scoop link` 和独立链接器均使用 `ArtifactInput` 文件入口；显式链接发现与消费共用 manifest 和成员缓冲区。构建结果仍先保存路径／摘要，需要链接时才打开文件。移除最后的 `ArtifactSnapshot` 调用及其模块，重复 Cone 候选采用已有 Artifact 指纹，不比较整包字节。修复公共 manifest 读取的 I/O 错误分类，显式链接输入错误保持 artifact origin 并报告实际 I/O；测试入口夹具统一 production／test 的实际源目录，保留零编译与产物路径断言。
+
+本机 87 项 scoop、4 项 linker 和正式 ProgramLink 通过；Linux 90 项 scoop、17 项 linker（13 项首轮通过，缺配套 compiler 的 4 项指定当前 release 后补跑通过）及正式 ProgramLink 通过。Darwin／GNU／musl 各覆盖 9 个成功 CLI 用例、12 variants、125 processes。GNU 显式链接的三个 `.slib` 各打开一次，manifest 一次读取，成员范围无重叠；程序输出 `42`。本机另清理 incremental 4,020.7 MiB。失败环境记录、夹具修正和完整证据见[验收记录](validation/link-file.md)。
+
+实际采样也表明，旧 Link replay 仍请求所有机器对象；本批不代表对象零读取或证明链已删除。后续仍需从已生成数据取得最终选中镜像的六类注册记录及摘要，退役对象／注册重放和 final／provisional 副本，并完成 Compile 语义／布局清理、dump 复用、历史迁移与最终全量／性能验收。M38 未启动。
+
+
+## 25. 最终 image 使用已保存的运行时记录（8e31caf9）
+
+`single-cone-production/7` 保存六组 canonical runtime records 与 typed definition 引用；最终 image 指纹直接按实际所选 definition 筛选这些记录，不再从完整对象证明结构取得输入。运行时 ABI 和指纹公式保持不变。新数据已接入实际链接消费，但其他 ProgramLink 消费方仍触发对象／注册／Code 重放，整条旧路径尚未退役。
+
+本机 570 项、Linux 571 项 slib 测试、两端 clippy／release／实际 ProgramLink 读取通过。Darwin、GNU、musl 各通过 10 个 CLI 用例、11 variants、142 processes，包含 ODR 合并与冲突、初始化、GC、argv、对象复用和 M46 序列化。本机清理 inactive incremental 2,992.0 MiB。实现范围、固定格式期望更新及完整证据见[验收记录](validation/image-records.md)。
+
+## 26. 正常 ProgramLink 直接消费成员与符号数据（61feb20c）
+
+删除正常链接的对象、注册表、Code 与 coverage 重放链，直接读取保存的成员／typed definition、符号、ODR ABI 和 native requirements。`ArtifactFile` 的克隆共享同一文件入口；稳定对象存在时传路径，缺少输出时才读取对应归档成员。删除无生产用途的 terminal proof 分支，未改变格式与 runtime ABI。
+
+本机 564 项、Linux 565 项 slib，两端对象存储、scoop、linker、真实 ProgramLink／泛型机器对象及 clippy／release 通过。Darwin／GNU 各 17 项 CLI、22 variants、245 processes；musl 16 项通过、1 项 C++ 声明不适用、20 variants、231 processes。GNU strace 证明三个产物各打开一次，manifest／metadata 无重复读取，4,458 个 ELF 成员读取量为零，真实程序输出 42；此结论不代表语义／布局重放已退役。本机清理 incremental 3,178.9 MiB。证据见[验收记录](validation/link-data.md)。
+
+旧 single-cone API、Compile／ProgramLink 语义／布局链、dump、历史迁移和最终全量／五轮性能验收继续，M38 未启动。
+
+## 27. 旧 single-cone Link 重放 API 退役（5e81e275）
+
+删除无生产调用的 single-cone Link 逐级状态、对象／注册／Code 重建，以及 Link identity wire 的 materialization、digest、object、symbol 和 final object 重放比较。final 对象清零生成 provisional 副本的代码、错误类型及私有 helper 同步删除。19 项专用测试退役，1 项迁移为普通 wire 往返，归档和对象生产测试继续保留；manifest summary 使用正常产物，不再改写最终 image digest。
+
+本机 545 项、Linux 546 项 slib 及两端 fmt／workspace clippy／release 通过；Darwin、GNU、musl 各 6 项 CLI、8 variants、93 processes 全部通过。本机另清理 incremental 1,316.7 MiB；最后的注释修正又通过 fmt／workspace clippy。证据及逐项退役清单见[验收记录](validation/old-link.md)。
+
+其他遗留生产投影比对 API、只服务验证的持久字段、Compile／ProgramLink 的语义与布局重放、dump 复用、历史迁移和最终全量／五轮性能验收仍未完成。M48 保持实施中，M38 未启动。
+
+## 28. production 与 Link identity 持久字段精简（43ee11a4）
+
+`single-cone-production/8` 只保存 ODR 目录和 runtime image records；`link-identity-closure/16` 保存实际物理 member、Scoop typed definition 分配、defined／undefined symbols，删除 atom／patch／对象副本／image 与 entry owner 投影，以及未消费的 generated-C unit 列表。重复优化、native、Code／RuntimeImage、C bridge 投影和其比对 API 同步退役；生产 Code 输入与 runtime ABI 不变。
+
+本机 542 项 slib、26 项 protocol、实际泛型产物和 17 项 CLI（22 variants、245 processes）通过；Linux fmt／clippy／release、543 项 slib、26 项 protocol 与实际泛型产物通过。GNU 17 项 CLI、22 variants、245 processes；musl 16 项通过、1 项 C++ 不适用、20 variants、231 processes。GNU I/O 采样确认三个产物各打开一次、无重叠读取，4,458 个 ELF 成员读取量为零；最大归档与读取量各减少 2,399,204 字节，实际程序输出 42。本机两次清理 incremental 共 5,959.4 MiB。完整记录见[验收文件](validation/link-fields.md)。其他两个重复 Link closure section、语义／布局重放、dump、历史迁移与最终全量／五轮性能验收仍待完成，M38 未启动。

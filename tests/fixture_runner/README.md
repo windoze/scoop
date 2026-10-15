@@ -125,6 +125,7 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
 不新增缓存损坏、收据伪造或文件来源／权限防御用例，也不通过删除、移走或隐藏源码、工具、原始产物来验收消费能力。混合用例保留真实语言、ABI、GC、运行与诊断断言，迁为输入保持存在的多 Cone 构建。缓存通过正常输入变化、工具实际调用及输出复用验证；真实缺失输入、失败不发布和测试结束清理继续覆盖。受控编码／指纹规则的固定向量由对应 Rust 单元测试覆盖。
+普通语言用例运行正常 build 的 executable，不再为同一运行结果重复复制工具和产物后独立链接。显式链接、ODR、native 选择和失败不发布专测继续使用实际工具、sysroot 和已有产物，显式指定本次 fixture 的缓存目录。源码目录正常搬迁后以新位置重新构建属于输入位置变化，相关源码须保留到用例结束。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
 边界，完整比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。

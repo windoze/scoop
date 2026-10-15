@@ -10,24 +10,17 @@ name = "prepare_core"
 files = [
   {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_core_source"
-files = [
-  {"remove" = {"path" = "${work}/core-source"}},
-]
 
 [[steps]]
 name = "prepare_generic-nominal-provider"
@@ -38,19 +31,13 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/generic-nominal-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/generic-nominal-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_provider_source"
-files = [
-  {"remove" = {"path" = "${work}/sources/generic-nominal-provider"}},
-]
 
 [[steps]]
 name = "prepare_generic-nominal-bad-ref"
@@ -61,7 +48,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/generic-nominal-bad-ref", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-bad-ref/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/generic-nominal-bad-ref", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-bad-ref/0.1.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""

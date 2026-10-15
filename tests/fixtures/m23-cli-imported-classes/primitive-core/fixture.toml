@@ -7,11 +7,15 @@ tags = ["imported-classes", "core-rebuild", "moving-gc"]
 
 [[steps]]
 name = "prepare_core"
-files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}}, {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"mkdir" = {"path" = "${work}/artifacts"}}]
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/artifacts"}},
+]
 
 [[steps]]
 name = "original_core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -36,17 +40,13 @@ files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data"
 
 [[steps]]
 name = "rebuilt_core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [{"actual" = "${rebuilt_core.result.root.artifact_fingerprint}", "not_equals" = "${original_core.result.root.artifact_fingerprint}"}]
-
-[[steps]]
-name = "remove_core_source"
-files = [{"remove" = {"path" = "${work}/core-source"}}, {"remove" = {"path" = "${work}/original-core.slib"}}]
 
 [[steps]]
 name = "read_provider"
@@ -58,7 +58,7 @@ files = [{"copy" = {"from" = "${fixture}/class-provider", "to" = "${work}/source
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -66,16 +66,12 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
-name = "remove_provider_source"
-files = [{"remove" = {"path" = "${work}/sources/class-provider"}}]
-
-[[steps]]
 name = "prepare_classes-primitive-core"
 files = [{"copy" = {"from" = "${fixture}/classes-primitive-core", "to" = "${work}/sources/classes-primitive-core"}}, {"copy" = {"from" = "${fixture}/../../m23-imported-classes/primitive-core.scoop", "to" = "${work}/sources/classes-primitive-core/src/main.scoop"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/classes-primitive-core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/classes-primitive-core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/classes-primitive-core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/classes-primitive-core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -84,25 +80,17 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_consumer_source"
-files = [{"remove" = {"path" = "${work}/sources/classes-primitive-core"}}]
-
-[[steps]]
 name = "prepare_class-downstream-primitive-core"
 files = [{"copy" = {"from" = "${fixture}/class-downstream-primitive-core", "to" = "${work}/sources/class-downstream-primitive-core"}}, {"copy" = {"from" = "${fixture}/../../m23-imported-classes/downstream.scoop", "to" = "${work}/sources/class-downstream-primitive-core/src/main.scoop"}}]
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-downstream-primitive-core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-downstream-primitive-core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-downstream-primitive-core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-downstream-primitive-core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "remove_downstream_source"
-files = [{"remove" = {"path" = "${work}/sources/class-downstream-primitive-core"}}]
 
 [[steps]]
 name = "read_main"
@@ -133,7 +121,7 @@ env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -141,18 +129,17 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}}]
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"}, {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
   {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
   {actual = "${link.result.link_plan}", contains = "cone dev.example:class-provider:0.1.0 kind=Library objects="},

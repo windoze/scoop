@@ -6,7 +6,7 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["cli", "core", "cache"]
 
 [vars]
-options = ["--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
 
 [[steps]]
 name = "prepare"
@@ -21,7 +21,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,7 +31,6 @@ checks = [
   {"actual" = "${cold.result.kind}", "equals" = "library"},
   {"actual" = "${cold.result.dependencies.length}", "equals" = 2},
   {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
-  {"file" = "${work}/missing-sysroot", "exists" = false},
   {"file" = "${work}/library.slib", "same_as" = "${cold.result.root.path}"},
   {"actual" = "${cold.result.observations.nodes.0.identity}", "equals" = "${cold.result.dependencies.0.identity}"},
   {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
@@ -43,7 +42,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -53,7 +52,6 @@ checks = [
   {"actual" = "${warm.result.kind}", "equals" = "library"},
   {"actual" = "${warm.result.dependencies.length}", "equals" = 2},
   {"actual" = "${warm.result.observations.child_invocations}", "equals" = []},
-  {"file" = "${work}/missing-sysroot", "exists" = false},
   {"file" = "${work}/library.slib", "same_as" = "${warm.result.root.path}"},
   {"actual" = "${warm.result.observations.nodes.0.identity}", "equals" = "${warm.result.dependencies.0.identity}"},
   {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
@@ -104,7 +102,7 @@ files = [
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -114,7 +112,6 @@ checks = [
   {"actual" = "${changed.result.kind}", "equals" = "library"},
   {"actual" = "${changed.result.dependencies.length}", "equals" = 2},
   {"actual" = "${changed.result.observations.child_invocations}", "equals" = ["${changed.result.dependencies.0.identity}", "${changed.result.dependencies.1.identity}", "${changed.result.root.identity}"]},
-  {"file" = "${work}/missing-sysroot", "exists" = false},
   {"file" = "${work}/library.slib", "same_as" = "${changed.result.root.path}"},
   {"actual" = "${changed.result.observations.nodes.0.identity}", "equals" = "${changed.result.dependencies.0.identity}"},
   {"actual" = "${changed.result.observations.nodes.0.origin}", "equals" = "compiled"},
@@ -132,7 +129,7 @@ checks = [
 
 [[steps]]
 name = "changed_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -142,7 +139,6 @@ checks = [
   {"actual" = "${changed_warm.result.kind}", "equals" = "library"},
   {"actual" = "${changed_warm.result.dependencies.length}", "equals" = 2},
   {"actual" = "${changed_warm.result.observations.child_invocations}", "equals" = []},
-  {"file" = "${work}/missing-sysroot", "exists" = false},
   {"file" = "${work}/library.slib", "same_as" = "${changed_warm.result.root.path}"},
   {"actual" = "${changed_warm.result.observations.nodes.0.identity}", "equals" = "${changed_warm.result.dependencies.0.identity}"},
   {"actual" = "${changed_warm.result.observations.nodes.0.origin}", "equals" = "cache"},
@@ -190,12 +186,11 @@ name = "publish_core"
 files = [
   {"copy" = {"from" = "${changed.result.dependencies.0.path}", "to" = "${work}/core.slib"}},
   {"replace" = {"path" = "${work}/sources/root/Cone.toml", "old" = "path = \"../core\"", "new" = "artifact = \"../../core.slib\""}},
-  {"remove" = {"path" = "${work}/sources/core"}},
 ]
 
 [[steps]]
 name = "prebuilt"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -205,7 +200,6 @@ checks = [
   {"actual" = "${prebuilt.result.kind}", "equals" = "library"},
   {"actual" = "${prebuilt.result.dependencies.length}", "equals" = 2},
   {"actual" = "${prebuilt.result.observations.child_invocations}", "equals" = []},
-  {"file" = "${work}/missing-sysroot", "exists" = false},
   {"file" = "${work}/library.slib", "same_as" = "${prebuilt.result.root.path}"},
   {"actual" = "${prebuilt.result.observations.nodes.0.identity}", "equals" = "${prebuilt.result.dependencies.0.identity}"},
   {"actual" = "${prebuilt.result.observations.nodes.0.origin}", "equals" = "prebuilt"},

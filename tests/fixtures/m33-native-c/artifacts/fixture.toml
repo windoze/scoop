@@ -3,7 +3,7 @@ name = "m33-native-c-artifacts"
 inputs = ["provider", "consumer"]
 tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m33", "ffi", "native", "artifact-only", "generics"]
+tags = ["m33", "ffi", "native", "generics"]
 variants = [
   {name = "debug", vars = {profile = "debug"}},
   {name = "release", vars = {profile = "release"}},
@@ -40,7 +40,7 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked"]
+argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
 stderr = ""

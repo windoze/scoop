@@ -38,7 +38,8 @@ pub(super) fn check(
     core: &Path,
 ) {
     let root = workspace.join("direct-library");
-    let absent = workspace.join("absent-direct-sysroot");
+    let sysroot = workspace.join("direct-sysroot");
+    bootstrap::copy_trusted_core_sources(&sysroot);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
@@ -55,12 +56,10 @@ pub(super) fn check(
     )
     .unwrap();
     let explicit = workspace.join("direct-explicit.slib");
-    request(target, &root, &explicit, &absent, &[core], &[])
+    request(target, &root, &explicit, &sysroot, &[core], &[])
         .build_and_publish()
         .unwrap();
-    assert!(!absent.exists());
 
-    let sysroot = workspace.join("artifact-only-sysroot");
     let slot =
         scoop_toolchain::TrustedCoreSlotLayoutV1::new(&sysroot, target.lir_target_selection());
     std::fs::create_dir_all(slot.artifact().parent().unwrap()).unwrap();
@@ -73,6 +72,5 @@ pub(super) fn check(
         std::fs::read(&explicit).unwrap(),
         std::fs::read(&implicit).unwrap()
     );
-    assert!(!sysroot.join("lib/scoop.core/src").exists());
     rejection::check(target, &root, workspace, &sysroot, core, slot.artifact());
 }

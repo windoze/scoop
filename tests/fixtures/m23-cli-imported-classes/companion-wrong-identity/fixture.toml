@@ -7,11 +7,15 @@ tags = ["imported-classes", "core-rebuild", "negative"]
 
 [[steps]]
 name = "prepare_core"
-files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}}, {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"mkdir" = {"path" = "${work}/artifacts"}}]
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/artifacts"}},
+]
 
 [[steps]]
 name = "original_core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -36,17 +40,13 @@ files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data"
 
 [[steps]]
 name = "rebuilt_core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [{"actual" = "${rebuilt_core.result.root.artifact_fingerprint}", "not_equals" = "${original_core.result.root.artifact_fingerprint}"}]
-
-[[steps]]
-name = "remove_core_source"
-files = [{"remove" = {"path" = "${work}/core-source"}}, {"remove" = {"path" = "${work}/original-core.slib"}}]
 
 [[steps]]
 name = "read_provider"
@@ -62,7 +62,7 @@ files = [{"copy" = {"from" = "${fixture}/class-provider", "to" = "${work}/source
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -70,16 +70,12 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
-name = "remove_provider_source"
-files = [{"remove" = {"path" = "${work}/sources/class-provider"}}]
-
-[[steps]]
 name = "prepare_companion-wrong-identity"
 files = [{"copy" = {"from" = "${fixture}/companion-wrong-identity", "to" = "${work}/sources/companion-wrong-identity"}}, {"copy" = {"from" = "${fixture}/../../m23-imported-classes/companion-wrong-identity.scoop", "to" = "${work}/sources/companion-wrong-identity/src/main.scoop"}}]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/companion-wrong-identity", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/companion-wrong-identity/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/companion-wrong-identity", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/companion-wrong-identity/0.1.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""

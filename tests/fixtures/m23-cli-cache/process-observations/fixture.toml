@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -40,7 +40,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -68,7 +68,7 @@ checks = [
 
 [[steps]]
 name = "observed"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -146,7 +146,7 @@ files = [
 
 [[steps]]
 name = "failed"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -161,7 +161,7 @@ checks = [
 
 [[steps]]
 name = "failed_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""

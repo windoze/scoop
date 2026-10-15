@@ -8,16 +8,14 @@ tags = ["m24", "release-effects", "generics"]
 [[steps]]
 name = "prepare"
 files = [
-  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
-  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
-  {mkdir = {path = "${work}/artifacts/test/release-effects-provider/0.1.0"}},
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/provider"}},
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/consumer"}},
+  {"mkdir" = {"path" = "${work}/artifacts/test/release-effects-provider/0.1.0"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -25,12 +23,8 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
-name = "remove_core_source"
-files = [{remove = {path = "${work}/core-source"}}]
-
-[[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-effects-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-effects-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -39,12 +33,8 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_provider_source"
-files = [{remove = {path = "${work}/provider"}}]
-
-[[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json", "--cone-path", "${work}/artifacts"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json", "--cone-path", "${work}/artifacts"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -60,13 +50,8 @@ stdout = "42\n"
 stderr = ""
 
 [[steps]]
-name = "remove_consumer_source"
-files = [{remove = {path = "${work}/consumer"}}, {mkdir = {path = "${work}/empty-sysroot"}}]
-
-[[steps]]
 name = "link"
-argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/relinked", "--message-format", "json", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""

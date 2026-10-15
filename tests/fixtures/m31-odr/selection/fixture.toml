@@ -3,7 +3,7 @@ name = "m31-odr-selection"
 inputs = ["template", "left", "right", "root"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m31", "odr", "artifact-only", "context", "moving-gc"]
+tags = ["m31", "odr", "context", "moving-gc"]
 variants = [
   {name = "debug", vars = {profile = "debug", other_profile = "release"}},
   {name = "release", vars = {profile = "release", other_profile = "debug"}},
@@ -41,17 +41,15 @@ stderr = ""
 [[steps]]
 name = "prepare_mixed"
 files = [
-  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/prebuilt-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
-  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/artifacts/${build.result.dependencies.0.coordinate.group}/${build.result.dependencies.0.coordinate.name}/${build.result.dependencies.0.coordinate.version}/cone.slib"}},
-  {copy = {from = "${build.result.dependencies.1.path}", to = "${work}/artifacts/${build.result.dependencies.1.coordinate.group}/${build.result.dependencies.1.coordinate.name}/${build.result.dependencies.1.coordinate.version}/cone.slib"}},
-  {copy = {from = "${build.result.dependencies.2.path}", to = "${work}/artifacts/${build.result.dependencies.2.coordinate.group}/${build.result.dependencies.2.coordinate.name}/${build.result.dependencies.2.coordinate.version}/cone.slib"}},
-  {copy = {from = "${build.result.dependencies.3.path}", to = "${work}/artifacts/${build.result.dependencies.3.coordinate.group}/${build.result.dependencies.3.coordinate.name}/${build.result.dependencies.3.coordinate.version}/cone.slib"}},
-  {replace = {path = "${work}/source/root/Cone.toml", old = ", path = \"../template\"", new = ""}},
-  {replace = {path = "${work}/source/root/Cone.toml", old = ", path = \"../left\"", new = ""}},
-  {replace = {path = "${work}/source/root/Cone.toml", old = ", path = \"../right\"", new = ""}},
-  {replace = {path = "${work}/source/right/Cone.toml", old = ", path = \"../template\"", new = ""}},
-  {remove = {path = "${work}/source/template"}},
-  {remove = {path = "${work}/source/left"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/prebuilt-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/${build.result.dependencies.0.coordinate.group}/${build.result.dependencies.0.coordinate.name}/${build.result.dependencies.0.coordinate.version}/cone.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/${build.result.dependencies.1.coordinate.group}/${build.result.dependencies.1.coordinate.name}/${build.result.dependencies.1.coordinate.version}/cone.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/${build.result.dependencies.2.coordinate.group}/${build.result.dependencies.2.coordinate.name}/${build.result.dependencies.2.coordinate.version}/cone.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/${build.result.dependencies.3.coordinate.group}/${build.result.dependencies.3.coordinate.name}/${build.result.dependencies.3.coordinate.version}/cone.slib"}},
+  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = ", path = \"../template\"", "new" = ""}},
+  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = ", path = \"../left\"", "new" = ""}},
+  {"replace" = {"path" = "${work}/source/root/Cone.toml", "old" = ", path = \"../right\"", "new" = ""}},
+  {"replace" = {"path" = "${work}/source/right/Cone.toml", "old" = ", path = \"../template\"", "new" = ""}},
 ]
 
 [[steps]]
@@ -97,17 +95,8 @@ checks = [
 ]
 
 [[steps]]
-name = "isolate"
-files = [
-  {remove = {path = "${work}/source"}},
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-]
-
-[[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--dependency-slib", "${mixed.result.dependencies.3.path}", "--dependency-slib", "${mixed.result.dependencies.2.path}", "--dependency-slib", "${mixed.result.dependencies.1.path}", "--dependency-slib", "${mixed.result.dependencies.0.path}", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--dependency-slib", "${mixed.result.dependencies.3.path}", "--dependency-slib", "${mixed.result.dependencies.2.path}", "--dependency-slib", "${mixed.result.dependencies.1.path}", "--dependency-slib", "${mixed.result.dependencies.0.path}", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/relinked", "--message-format", "json", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -152,12 +141,11 @@ checks = [
 
 [[steps]]
 name = "stale"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "-o", "${work}/stale-program"]
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "-o", "${work}/stale-program", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "stale.diagnostics.json"}
 diagnostics_normalize = ["dependency-digests"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 checks = [{file = "${work}/stale-program", exists = false}]

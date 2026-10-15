@@ -1,7 +1,7 @@
 schema = 1
 name = "native-link-direct-contracts"
 inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/input_data.c", "native-sources/input_missing.c", "native-sources/input_constructor.c", "native-sources/input_common.c", "native-sources/input_target.c"]
-tools = ["scoop", "scoopc", "cc", "ar"]
+tools = ["scoop", "scoopc", "cc"]
 # The wrong-architecture case compiles x86_64 Mach-O and checks Darwin object diagnostics.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link"]
@@ -22,8 +22,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_m23_math"
 files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
@@ -40,8 +38,11 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
@@ -55,8 +56,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_input_data"
 files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
@@ -69,13 +68,12 @@ checks = []
 
 [[steps]]
 name = "reject_data"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_data.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -89,8 +87,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_input_missing"
 files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
@@ -104,13 +100,12 @@ checks = []
 [[steps]]
 name = "reject_missing"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_missing.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -124,8 +119,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_input_constructor"
 files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
@@ -139,13 +132,12 @@ checks = []
 [[steps]]
 name = "reject_constructor"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_constructor.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -159,8 +151,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_input_common"
 files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
@@ -174,13 +164,12 @@ checks = []
 [[steps]]
 name = "reject_common"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_common.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -194,8 +183,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_input_target"
 files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
@@ -208,11 +195,10 @@ checks = []
 
 [[steps]]
 name = "reject_target"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_target.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

@@ -8,24 +8,18 @@ tags = ["m24", "release-blocks", "negative", "canonical-diagnostics"]
 [[steps]]
 name = "prepare"
 files = [
-  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-  {copy = {from = "${fixture}/../../cross-cone/provider", to = "${work}/provider"}},
-  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../cross-cone/provider", "to" = "${work}/provider"}},
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/consumer"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "remove_core_source"
-files = [{remove = {path = "${work}/core-source"}}]
 
 [[steps]]
 name = "provider"
@@ -35,10 +29,6 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "remove_provider_source"
-files = [{remove = {path = "${work}/provider"}}]
 
 [[steps]]
 name = "reject"

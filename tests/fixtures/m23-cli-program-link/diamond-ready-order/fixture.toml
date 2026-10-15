@@ -57,7 +57,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "link", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.4.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {each = "${link_args}"}, "-o", "${work}/linked", "--message-format", "json", "--dump-plan"]
+argv = ["${scoop}", "link", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.4.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/linked", "--message-format", "json", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""

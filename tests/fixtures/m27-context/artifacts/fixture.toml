@@ -3,7 +3,7 @@ name = "m27-context-artifacts"
 inputs = ["a", "b", "c", "bad", "../../m13-callback/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m27", "context", "generics", "artifact-only"]
+tags = ["m27", "context", "generics"]
 
 [[steps]]
 name = "prepare_native"
@@ -24,26 +24,13 @@ stdout = ""
 stderr = ""
 
 [[steps]]
-name = "prepare_core"
-files = [
-  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/sources/core"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-]
-
-[[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "remove_core"
-files = [
-  {remove = {path = "${work}/sources/core"}},
-]
 
 [[steps]]
 name = "prepare_a"
@@ -53,19 +40,13 @@ files = [
 
 [[steps]]
 name = "a"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/a", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-a", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-a/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/a", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-a", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-a/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_a"
-files = [
-  {remove = {path = "${work}/sources/a"}},
-]
 
 [[steps]]
 name = "prepare_b"
@@ -75,19 +56,13 @@ files = [
 
 [[steps]]
 name = "b"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/b", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-b", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-b/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/b", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-b", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-b/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_b"
-files = [
-  {remove = {path = "${work}/sources/b"}},
-]
 
 [[steps]]
 name = "prepare_c"
@@ -97,7 +72,7 @@ files = [
 
 [[steps]]
 name = "c"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/c", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/c", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -106,28 +81,17 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_c"
-files = [
-  {remove = {path = "${work}/sources/c"}},
-]
-
-[[steps]]
-name = "isolate"
-files = [
-  {copy = {from = "${c.result.root.path}", to = "${work}/artifacts/root.slib"}},
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {remove = {path = "${work}/sources"}},
-]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${c.result.root.path}", "to" = "${work}/artifacts/root.slib"}}]
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--library-path", "${work}/native", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${c.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--library-path", "${work}/native", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${c.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {PATH = "/usr/bin:/bin", LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${c.result.link_plan_fingerprint}"}]
 
 [[steps]]
@@ -153,7 +117,7 @@ files = [
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/bad", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-reject", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/bad", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-reject", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

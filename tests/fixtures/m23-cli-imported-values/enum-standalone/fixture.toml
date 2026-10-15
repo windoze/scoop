@@ -10,24 +10,17 @@ name = "prepare_core"
 files = [
   {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_core_source"
-files = [
-  {"remove" = {"path" = "${work}/core-source"}},
-]
 
 [[steps]]
 name = "prepare_enum-provider"
@@ -38,19 +31,13 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/enum-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/enum-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/enum-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/enum-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_provider_source"
-files = [
-  {"remove" = {"path" = "${work}/sources/enum-provider"}},
-]
 
 [[steps]]
 name = "prepare_enums-standalone"
@@ -61,19 +48,13 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/enums-standalone", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/enums-standalone/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/enums-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/enums-standalone/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_consumer_source"
-files = [
-  {"remove" = {"path" = "${work}/sources/enums-standalone"}},
-]
 
 [[steps]]
 name = "prepare_downstream-standalone"
@@ -84,19 +65,13 @@ files = [
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream-standalone", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-standalone/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-standalone/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_downstream_source"
-files = [
-  {"remove" = {"path" = "${work}/sources/downstream-standalone"}},
-]
 
 [[steps]]
 name = "prepare_value-runtime-enum-standalone"
@@ -107,53 +82,24 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/value-runtime-enum-standalone", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/value-runtime-enum-standalone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = []
-
-[[steps]]
-name = "isolate"
-files = [
-  {"remove" = {"path" = "${work}/sources"}},
-  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
-]
-
-[[steps]]
-name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${program.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json"]
-exit = 0
-stdout = ""
-stderr = ""
-env = {"LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-json = "stderr"
-diagnostics = []
-checks = [
-  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
-  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:enum-provider:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:enums-standalone:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:downstream-standalone:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:value-runtime-enum-standalone:0.1.0 kind=Executable objects="},
-  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$f0c3cd7d04f2a8c0ce25699bedc72d689809140d1083b8a0197343d0ae40a8ce"},
-  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
-  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-]
+checks = [{"actual" = "${program.result.dependencies.length}", "equals" = 4}]
 
 [[steps]]
 name = "run"
-argv = ["${link.result.output}"]
+argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "run_moving"
-argv = ["${link.result.output}"]
+argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""

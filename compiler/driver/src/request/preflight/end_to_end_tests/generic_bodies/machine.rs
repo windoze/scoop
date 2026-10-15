@@ -37,12 +37,6 @@ fn actual_generic_library_emits_shared_odr_objects() {
         &provider_root,
         &sysroot.path().join("output/provider.slib"),
     );
-    std::fs::rename(
-        provider_root.join("src"),
-        provider_root.join("unused-source"),
-    )
-    .unwrap();
-
     let mut outputs = Vec::new();
     for (case, name, expected_bodies) in [
         ("standalone", "generic-machine-standalone", 1),

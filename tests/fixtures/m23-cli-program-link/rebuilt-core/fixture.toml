@@ -21,19 +21,21 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
 
 [[steps]]
@@ -43,15 +45,10 @@ checks = []
 
 [[steps]]
 name = "compile_core"
-argv = ["${scoopc}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", {each = "${compile_args}"}, "--out-slib", "${work}/rebuilt-core.slib"]
+argv = ["${scoopc}", "build", "${work}/core-source", "--sysroot", "${sysroot}", {each = "${compile_args}"}, "--out-slib", "${work}/rebuilt-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
-
-[[steps]]
-name = "remove_core_sources"
-files = [{"remove" = {"path" = "${work}/core-source"}}]
-checks = []
 
 [[steps]]
 name = "prepare_ordinary-string"
@@ -74,10 +71,6 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "rebuilt_dependencies"
-checks = []
-
-[[steps]]
 name = "run_rebuilt"
 argv = ["${rebuilt.result.output}"]
 exit = 0
@@ -93,19 +86,22 @@ stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 
 [[steps]]
-name = "isolate_rebuilt"
-files = [{"copy" = {"from" = "${rebuilt.result.root.path}", "to" = "${work}/rebuilt-artifacts/root.slib"}}, {"copy" = {"from" = "${rebuilt.result.dependencies.0.path}", "to" = "${work}/rebuilt-artifacts/0.slib"}}, {"copy" = {"from" = "${rebuilt.result.dependencies.1.path}", "to" = "${work}/rebuilt-artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${work}/rebuilt-core.slib"}}, {"remove" = {"path" = "${work}/artifacts"}}]
+name = "prepare_link_inputs_isolate_rebuilt"
+files = [
+  {"copy" = {"from" = "${rebuilt.result.root.path}", "to" = "${work}/rebuilt-artifacts/root.slib"}},
+  {"copy" = {"from" = "${rebuilt.result.dependencies.0.path}", "to" = "${work}/rebuilt-artifacts/0.slib"}},
+  {"copy" = {"from" = "${rebuilt.result.dependencies.1.path}", "to" = "${work}/rebuilt-artifacts/1.slib"}},
+]
 checks = []
 
 [[steps]]
 name = "rebuilt_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/rebuilt-artifacts/root.slib", "--dependency-slib", "${work}/rebuilt-artifacts/1.slib", "--dependency-slib", "${work}/rebuilt-artifacts/0.slib", "--runtime-objects", "${rebuilt.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/rebuilt-artifacts/root.slib", "--dependency-slib", "${work}/rebuilt-artifacts/1.slib", "--dependency-slib", "${work}/rebuilt-artifacts/0.slib", "--runtime-objects", "${rebuilt.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${rebuilt_link.result.link_plan_fingerprint}", "equals" = "${rebuilt.result.link_plan_fingerprint}"}, {"actual" = "${rebuilt_link.result.link_plan}", "not_contains" = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"}]
 
 [[steps]]

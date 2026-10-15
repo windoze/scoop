@@ -1,39 +1,32 @@
 schema = 1
 name = "m30-floating-artifacts"
 inputs = ["provider", "facade", "consumer", "native.c", "../../../../sysroot/lib/scoop.json"]
-tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
+tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m30", "floating", "annotation", "reexport", "artifact-only", "gc"]
+tags = ["m30", "floating", "annotation", "reexport", "gc"]
 
 [[steps]]
 name = "prepare"
 files = [
-  {mkdir = {path = "${work}/standalone"}},
-  {remove = {path = "${work}/standalone"}},
-  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/sources/core"}},
-  {copy = {from = "${fixture}/facade", to = "${work}/sources/facade"}},
-  {copy = {from = "${fixture}/provider", to = "${work}/sources/provider"}},
-  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
-  {copy = {from = "${repo}/sysroot/lib/scoop.json", to = "${work}/sources/json"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
+  {"mkdir" = {"path" = "${work}/standalone"}},
+  {"copy" = {"from" = "${fixture}/facade", "to" = "${work}/sources/facade"}},
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${repo}/sysroot/lib/scoop.json", "to" = "${work}/sources/json"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "remove_core"
-files = [{remove = {path = "${work}/sources/core"}}]
 
 [[steps]]
 name = "json"
-argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/json", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-json", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.json/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/json", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-json", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.json/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -41,12 +34,8 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
-name = "remove_json"
-files = [{remove = {path = "${work}/sources/json"}}]
-
-[[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "--profile", "release", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m30/floating-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m30/floating-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -55,21 +44,13 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_provider"
-files = [{remove = {path = "${work}/sources/provider"}}]
-
-[[steps]]
 name = "facade"
-argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/facade", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-facade", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m30/floating-facade/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/facade", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-facade", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m30/floating-facade/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "remove_facade"
-files = [{remove = {path = "${work}/sources/facade"}}]
 
 [[steps]]
 name = "prepare_native"
@@ -91,7 +72,7 @@ stderr = ""
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "--profile", "release", {"each" = "${link_args}"}, "${work}/sources/consumer", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "build", "--profile", "release", {"each" = "${link_args}"}, "${work}/sources/consumer", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -100,26 +81,17 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_consumer"
-files = [{remove = {path = "${work}/sources/consumer"}}]
-
-[[steps]]
-name = "isolate"
-files = [
-  {copy = {from = "${consumer.result.root.path}", to = "${work}/standalone/root.slib"}},
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {remove = {path = "${work}/sources"}},
-]
+name = "prepare_link_inputs_isolate"
+files = [{"copy" = {"from" = "${consumer.result.root.path}", "to" = "${work}/standalone/root.slib"}}]
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/standalone/root.slib", "--library-path", "${work}/native/lib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${consumer.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/standalone/root.slib", "--library-path", "${work}/native/lib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${consumer.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {PATH = "/usr/bin:/bin", LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${consumer.result.link_plan_fingerprint}"}]
 
 [[steps]]

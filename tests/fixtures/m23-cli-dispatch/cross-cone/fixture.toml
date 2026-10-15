@@ -50,27 +50,8 @@ json = "stderr"
 diagnostics = {file = "bad-application.diagnostics.json"}
 
 [[steps]]
-name = "isolate"
-files = [
-  {remove = {path = "${work}/source"}},
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-]
-
-[[steps]]
-name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"}]
-
-[[steps]]
 name = "run_link"
-argv = ["${link.result.output}"]
+argv = ["${build.result.output}"]
 exit = 0
 stdout = {file = "expected.stdout"}
 stderr = ""

@@ -3,7 +3,7 @@ name = "m41-access-artifacts"
 inputs = ["provider", "relay", "consumer"]
 tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m41", "operators", "capabilities", "artifact-only", "generics"]
+tags = ["m41", "operators", "capabilities", "generics"]
 variants = [
   {name = "debug", vars = {profile = "debug"}},
   {name = "release", vars = {profile = "release"}},
@@ -29,10 +29,6 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_provider"
-files = [{remove = {path = "${work}/sources/provider"}}]
-
-[[steps]]
 name = "relay"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/relay", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-relay", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m41/access-relay/0.1.0/cone.slib"]
 timeout = 300
@@ -42,10 +38,6 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_relay"
-files = [{remove = {path = "${work}/sources/relay"}}]
 
 [[steps]]
 name = "consumer"
@@ -59,13 +51,8 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_consumer"
-files = [{remove = {path = "${work}/sources/consumer"}}]
-
-[[steps]]
 name = "link"
-argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {"each" = "${consumer.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
 stderr = ""

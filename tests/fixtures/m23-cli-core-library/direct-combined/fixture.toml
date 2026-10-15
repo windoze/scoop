@@ -9,7 +9,7 @@ tags = ["core-direct-inputs", "core-library", "moving-gc"]
 name = "prepare_core"
 files = [
   {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/lib/scoop.core"}},
   {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/core-source/src/user_extension.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/core-source/src/user_metadata.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/abi.scoop", "to" = "${work}/core-source/src/user_abi.scoop"}},
@@ -22,22 +22,13 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [
-
-]
-
-[[steps]]
-name = "install_core"
-files = [
-  {"copy" = {"from" = "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "to" = "${work}/empty-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
-  {"remove" = {"path" = "${work}/core-source"}},
-]
+checks = []
 
 [[steps]]
 name = "prepare_helper"
@@ -48,7 +39,7 @@ files = [
 
 [[steps]]
 name = "helper"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/helper", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-helper", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/helper/1.0.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/helper", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-helper", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/helper/1.0.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -59,13 +50,14 @@ checks = []
 [[steps]]
 name = "prepare_consumer"
 files = [
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/sysroot/artifacts/${target_profile}/scoop.core.slib"}},
   {"copy" = {"from" = "${fixture}/../../core-library/direct-build/combined.toml", "to" = "${work}/sources/consumer/Cone.toml"}},
   {"copy" = {"from" = "${fixture}/../../core-library/direct-build/combined.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
 ]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/direct-combined/1.0.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/direct-combined/1.0.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -79,22 +71,20 @@ argv = ["${scoopc}", "build", "${work}/sources/consumer", "--out-slib", "${work}
 exit = 0
 stdout = ""
 stderr = ""
-env = {"SCOOP_SYSROOT" = "${work}/absent-default-sysroot"}
+env = {"SCOOP_SYSROOT" = "${sysroot}"}
 checks = [
   {"file" = "${work}/explicit.slib", "same_as" = "${work}/artifacts/test/direct-combined/1.0.0/cone.slib"},
-  {"file" = "${work}/absent-default-sysroot", "exists" = false},
 ]
 
 [[steps]]
 name = "implicit"
-argv = ["${scoopc}", "build", "${work}/sources/consumer", "--out-slib", "${work}/implicit.slib", {each = "${compile_args}"}, "--direct-slib", "${work}/artifacts/test/helper/1.0.0/cone.slib", "--sysroot", "${work}/empty-sysroot"]
+argv = ["${scoopc}", "build", "${work}/sources/consumer", "--out-slib", "${work}/implicit.slib", {each = "${compile_args}"}, "--direct-slib", "${work}/artifacts/test/helper/1.0.0/cone.slib", "--sysroot", "${work}/sysroot"]
 exit = 0
 stdout = ""
 stderr = ""
-env = {"SCOOP_SYSROOT" = "${work}/absent-default-sysroot"}
+env = {"SCOOP_SYSROOT" = "${sysroot}"}
 checks = [
   {"file" = "${work}/implicit.slib", "same_as" = "${work}/artifacts/test/direct-combined/1.0.0/cone.slib"},
-  {"file" = "${work}/absent-default-sysroot", "exists" = false},
 ]
 
 [[steps]]
@@ -103,69 +93,38 @@ argv = ["${scoopc}", "build", "${work}/sources/consumer", "--out-slib", "${work}
 exit = 0
 stdout = ""
 stderr = ""
-env = {"SCOOP_SYSROOT" = "${work}/absent-default-sysroot"}
+env = {"SCOOP_SYSROOT" = "${sysroot}"}
 checks = [
   {"file" = "${work}/reordered.slib", "same_as" = "${work}/artifacts/test/direct-combined/1.0.0/cone.slib"},
-  {"file" = "${work}/absent-default-sysroot", "exists" = false},
 ]
 
 [[steps]]
 name = "prepare_program"
 files = [
   {"copy" = {"from" = "${work}/explicit.slib", "to" = "${work}/artifacts/test/direct-combined/1.0.0/cone.slib"}},
-  {"remove" = {"path" = "${work}/sources"}},
   {"copy" = {"from" = "${fixture}/program", "to" = "${work}/sources/program"}},
 ]
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = []
-
-[[steps]]
-name = "isolate"
-files = [
-  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
-  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
-  {"remove" = {"path" = "${work}/sources"}},
-]
-
-[[steps]]
-name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [
-  {"actual" = "${link.result.dependencies.length}", "equals" = 3},
-  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
-  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone test:helper:1.0.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone test:direct-combined:1.0.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:core-direct-reader:0.1.0 kind=Executable objects="},
-  {actual = "${link.result.link_plan}", contains = "images=4 root=${symbol_prefix}scoop$$1$$re$$98c5d407d7580b01fd0670bd8ffc9b0f97b0bf2cca3f33970c350f97f97de30f"},
-  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
-]
+checks = [{"actual" = "${program.result.dependencies.length}", "equals" = 3}]
 
 [[steps]]
 name = "run"
-argv = ["${work}/program"]
+argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "run_moving"
-argv = ["${work}/program"]
+argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""

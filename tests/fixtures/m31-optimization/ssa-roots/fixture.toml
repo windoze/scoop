@@ -35,16 +35,8 @@ stdout = "42\n42\n21\n22\n"
 stderr = ""
 
 [[steps]]
-name = "isolate"
-files = [
-  {remove = {path = "${work}/source"}},
-  {copy = {from = "${scoop-link}", to = "${work}/standalone/scoop-link"}},
-]
-
-[[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop-link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
 stderr = ""

@@ -1,7 +1,7 @@
 schema = 1
 name = "m33-sysroot-combination"
 inputs = ["cone", "platform", "helper"]
-tools = ["scoop", "scoopc", "scoop-link"]
+tools = ["scoop", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m33", "sysroot", "resolver"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
@@ -96,7 +96,7 @@ stderr = ""
 
 [[steps]]
 name = "missing_artifact"
-argv = ["${scoop}", "link", {each = "${link_args}"}, "--sysroot", "${work}/sysroot", "--root-slib", "${changed.result.root.path}", {each = "${platform.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/missing", "--message-format", "json"]
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--sysroot", "${work}/sysroot", "--root-slib", "${changed.result.root.path}", {"each" = "${platform.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/missing", "--message-format", "json", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -104,13 +104,8 @@ json = "stderr"
 diagnostics = {file = "missing-link.diagnostics.json"}
 
 [[steps]]
-name = "remove_sources"
-files = [{remove = {path = "${work}/cone"}}, {remove = {path = "${work}/sysroot/lib/scoop.platform"}}, {remove = {path = "${work}/sysroot/lib/scoop.helper"}}]
-
-[[steps]]
 name = "link"
-argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--root-slib", "${changed.result.root.path}", {"each" = "${changed.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
 stderr = ""

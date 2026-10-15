@@ -509,14 +509,14 @@ fn unreachable_nodes_are_rejected_in_coordinate_order() {
 }
 
 #[test]
-fn core_manifest_is_an_ordinary_build_root_without_a_default_sysroot() {
+fn core_manifest_is_an_ordinary_build_root() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");
     write_core(&source);
     let root = temp.path().join("edited-core");
     std::fs::rename(source.join("lib/scoop.core"), &root).unwrap();
-    let missing_sysroot = temp.path().join("missing-sysroot");
-    let discovered = request(&root, &missing_sysroot)
+    write_core(&source);
+    let discovered = request(&root, &source)
         .load_root()
         .unwrap()
         .discover()
@@ -534,5 +534,4 @@ fn core_manifest_is_an_ordinary_build_root_without_a_default_sysroot() {
         resolved.node_representation(ConeIdentity::CORE),
         Some(ResolvedNodeRepresentation::ManifestSource)
     );
-    assert!(!missing_sysroot.exists());
 }

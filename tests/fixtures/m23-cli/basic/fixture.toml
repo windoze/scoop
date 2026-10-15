@@ -2,7 +2,7 @@ schema = 1
 name = "cli-build-warm-observation-link"
 root = "hello.scoop"
 inputs = ["hello.scoop"]
-tools = ["scoop", "scoopc"]
+tools = ["scoop"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "cache"]
 
@@ -65,16 +65,8 @@ diagnostics = []
 checks = [{actual = "${run.result.observations.child_invocations}", equals = []}]
 
 [[steps]]
-name = "isolate_link"
-files = [
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-]
-
-[[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""

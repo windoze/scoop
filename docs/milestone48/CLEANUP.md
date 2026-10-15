@@ -27,7 +27,7 @@
 
 基线共有 **1,632 份 fixture 描述包含 6,460 个 remove／move 操作**。按 source／sources、core-source、provider、consumer、edited-library 等实际操作路径，并补充 `m33-sysroot/combination` 的明确源码删除步骤，得到 **1,626 份源码隔离迁移候选**。内联 fixture 扫描未发现额外的 remove／move 操作。
 
-这是需要逐项处理的描述文件数，不是应整体删除的测试数，也不是 target／variant 展开后的执行数。一个描述中可以同时有多次源码删除、正常功能断言和失效测试。完整文件名、fixture 名、命中步骤和操作见 [SOURCE-ISOLATION.tsv](SOURCE-ISOLATION.tsv)。
+这是需要逐项处理的描述文件数，不是应整体删除的测试数，也不是 target／variant 展开后的执行数。一个描述中可以同时有多次源码删除、正常功能断言和失效测试。完整文件名、fixture 名、历史命中步骤和操作见 [SOURCE-ISOLATION.tsv](SOURCE-ISOLATION.tsv)。清单新增的 `current_fixture_path` 与 `migration` 记录剩余 1,618 项的迁移落点；历史操作列不再表示当前文件仍有这些动作。迁移记录不替代下面的功能验收状态。
 
 2026-10-15 开始实施时复扫：原 1,626 个路径全部存在，另有 M46 的 `m46-serialize/artifacts` 与 `m46-values/artifacts` 两份混合语言／隔离用例，已补入清单。因此当前候选为 **1,628 份**；包含 remove／move 的全部描述为 **1,634 份、6,474 个操作**，其他六份仍按下表逐项判断。当前正式 fixture 库共 4,091 项；M46 历史验收数量不回写。
 
@@ -89,7 +89,7 @@
 
 删除只验证下列行为的测试及其专用 helper／快照：
 
-- 修改、截断或伪造缓存 `.slib`、member、收据，要求报完整性／合法性错误；包括 [artifact-corruption](../../tests/fixtures/m23-cli-program-link/artifact-corruption/fixture.toml) 及 [cache/store/tests.rs](../../compiler/scoop/src/cache/store/tests.rs) 中 `exact_key_corruption_is_not_a_miss` 等旧约束。
+- 修改、截断或伪造缓存 `.slib`、member、收据，要求报完整性／合法性错误；包括 原 `artifact-corruption`（现为 [input-errors](../../tests/fixtures/m23-cli-program-link/input-errors/fixture.toml)） 及 [cache/store/tests.rs](../../compiler/scoop/src/cache/store/tests.rs) 中 `exact_key_corruption_is_not_a_miss` 等旧约束。
 - 命中后重新验证 warning origin、收据与整个依赖闭包；`cache/validation/tests.rs`（已删除） 中真正属于输入变化的部分改为普通更新判定，其余 proof 约束删除。
 - 缓存 payload／锁路径为 symlink、读取中替换 inode、非私有目录、不同 owner／权限、源路径逃逸等。源码正好通过普通 symlink 或路径带空格访问成功的正常 I/O 覆盖可保留，不以路径所属区域决定是否允许编译。
 - 编译过程中改写 scoopc 后要求 `CompilerChanged`；[child/tests.rs](../../compiler/scoop/src/child/tests.rs) 的 `production_runner_rejects_signal_and_compiler_mutation` 拆掉 mutation 分支，保留实际子进程 signal／失败传播。
@@ -188,3 +188,62 @@ GNU `m48-executable-tools` 继续保留真实 compiler／linker，以标准 `-B`
 新增 `m48-object-files` 覆盖多 Cone 首次对象生产、真实源码更新、显式链接、相对缓存目录、首次导入和重复导入、所需对象输出缺失后的补产；源码、工具、原归档和其他对象始终保留。普通并发发布单元测试验证同一结果只发布一次和旧输入结果不被新结果覆盖；没有加入内容损坏、权限、来源或读取后复核测试。原归档的排序与编码、native alias／DSO 变更、归档成员选择、GC 和错误诊断测试继续运行。
 
 本批只退役临时对象重写和重复摘要计算，尚未移除 `program_link` 的完整 `.slib` 解码、`layout_link_objects`／`layout_link_symbols` replay 及其双份字节和验证链。它们仍属于 M48-3；SOURCE-ISOLATION 清单仍有 1,618 行，不因稳定路径可复用而减少。
+
+## 历史源码隔离包装迁移
+
+扫描清单剩余的 1,618 项已逐项给出保留源码后的落点；另清理未出现在旧清单中的 `m23-cli/basic`、core 默认选择、M32 core negative 与残留环境包装，共修改 1,646 份 fixture 描述。批量转换删除 6,421 个隔离删除操作、3 个隐藏源码的 move、1,575 个空目录准备、1,294 个工具／来源副本和 3,109 份隐藏工具环境；手工拆分 core 默认来源和 program-link 输入错误。普通多 Cone 语言用例保留 provider／consumer／core 源码，修改过的 core 使用实际有源码的私有 sysroot；独立 scoopc 同时准备其需要的默认 core 产物。
+
+304 个普通语言用例删除 306 次重复显式链接，运行步骤指向原 build 的 executable，保留原 exit／signal／stdout／stderr／stdin／moving GC 期望。native、ODR、ABI、runtime、进程和真正的链接专测继续调用真实工具，保留其计划与运行断言。移除只服务重复链接的一致性检查和产物副本；107 份描述删除不再调用的工具声明。逐项转换记录见 [源码包装迁移](validation/source-isolation-migrations.json.gz)、[重复链接落点](validation/source-isolation-link-removals.json.gz)和[多余工具声明](validation/source-isolation-unused-tools.json.gz)。
+
+`program-link/artifact-corruption` 改为 [input-errors](../../tests/fixtures/m23-cli-program-link/input-errors/fixture.toml)：删除修改成员 digest、截断、破坏 magic 与其五个命令步骤、四份诊断文件，保留真实输入不存在／目录代替文件的错误，以及失败后原程序仍可正常和 moving GC 运行；补齐 GNU／musl target。`core-default` 删除损坏默认产物与删除源码后的产物防御分支，改为源码与有效默认产物共存的普通选择，保留非法 manifest、缺失 manifest、dangling 目标的实际 I/O 错误和失败不发布。错误 core 坐标仍由 driver 的 `assert_non_core_artifact_is_rejected` 覆盖，文件类型与缺失产物由 `input-errors` 覆盖。删除四份失去调用的 JSON 期望。
+
+Rust 的类型位置、泛型 ODR／优化用例不再删除或移走 provider 源码；直接 core 输入 helper 使用有源码的 sysroot。core 图发现的显式来源测试改为默认源码实际存在时仍正确选中显式路径。测试结束清理、必要输出缺失后的补产、真正输入更新／缺失仍保留。完整 fixture 复扫只剩 25 份描述的正常文件操作，详见[保留操作](validation/source-isolation-retained-file-operations.json.gz)：源码 relocation 在新位置重新构建，native archive／DSO 更新或布局迁移、缺失输入、冷缓存与缺失结果均有实际功能目的。
+
+本机代表验收与修正后的定向复验通过；GNU／musl 冻结工具分别完成原清单全部 1,646 个用例的成功或目标不适用结果，集合核对无遗漏。本次提交剩余 1,644 份描述、4 份诊断期望与公共 helper；core-default 与 program-link 输入错误已在前批提交。最终复扫的 25 份正常文件操作与审阅记录一致，详见[迁移验收](validation/source-isolation.md)。这完成历史隔离包装迁移，不代表 M48-5 的 dump、最终当前代码全量和五轮性能验收完成；语义／布局重放也仍需清理。
+
+## reader 内容摘要重算退役
+
+删除 `ArtifactSnapshot` 的整包 digest 字段及计算、归档成员 payload hash 比较、manifest Artifact 指纹重新编码比较，以及 Compile／Link 的三层语义摘要重算。生产端固定向量和正常产物测试保留；原 wire 字段与生成公式未改变。移除只用于消费重算的 decoded-section 适配器和 canonical-dependency 分支。
+
+删除 summary 成员损坏、Compile 语义摘要、layout Compile／Link 语义摘要以及 digest 诊断的独占测试；混合 archive／envelope／manifest／Link 测试只移除内容摘要变造分支，保留格式与实际 ABI 断言。对应 helper 不再提供 stale-HIR-fingerprint 开关。本文不把其余对象重放、防御测试和验证链算作已清理，后续仍需逐条处理。
+
+## manifest 读取与 prebuilt 准备
+
+发现依赖改为只读首个 manifest；移除 locator 的整包分配、限定长度读入及读前／读后 metadata 比较。准备阶段不再重复捕获和重新解码产物，删除 `PreparedArtifactCandidate` 的整包字节字段及 `BuildArtifact::from_snapshot`；普通结果路径共用已有的按需字节读取。
+
+退役 `prepare_rejects_artifact_changed_after_discovery`，它只测试改写已发现产物的检测。保留真实 prebuilt 路径／摘要断言及共享读取结果测试，目录输入错误改为实际 `read` 错误；移除相关旧错误变体及无消费方的诊断代码。新增完整真实归档上的摘要读取位置断言；普通输入、缺失依赖、源码／prebuilt 选择及运行行为由同批 CLI 组合与 sysroot 负例覆盖。
+
+发现入口进一步改为读取 `artifact-summaries-v1` 更新记录，未变化时连 manifest 也不重读。新增记录直接保存原摘要，不增加身份／内容复核或损坏恢复；首次读取与实际输入更新共用前述最小 reader。对应源码、工具与原产物持续存在的冷／暖和依赖更新用例见[验收记录](validation/artifact-record.md)。
+
+## Codegen 扫描计划与 atom 查询复用
+
+删除每个 LLVM module 中的 `StrongCallableRuntimeScanPlanSetV1::from_module` 重建，普通生产入口直接借用已有 registration production 计划。测试专用完整 module helper 仍正常构造自身所需计划；没有为测试新增生产工厂。Context cell 和扫描 atom 删除整 surface 的 `flat_map/find`，共用已有 typed atom 索引。仍服务实际 codegen 的边界保留，消费 reader 中仅服务验证的边界与证明链仍待后续退役。本批[三平台验证](validation/scan-reuse.md)保持真实源码、工具、GC 与运行断言。
+
+## Compile 定义数据读取（176b50e5）
+
+Compile 对象内容、materialization、Code／RuntimeImage 重建和 symbol-use 重放退役；相应破坏归档测试与独占 helper 删除。真实源码生成的 owners／ODR ABI 合并、发布失败、初始化和跨 Cone 运行覆盖保留。无生产消费者的 Compile／Link 摘要与对象计数字段删除，摘要不再为这些测试扫描对象目录。类型位置与不同优化 ODR 两个 Rust 用例的源码保留改动随本批提交，其余四个 Rust helper 及大批 fixture 迁移仍待 Linux 批次完成。证据见[验收记录](validation/compile-definitions.md)，这不替代 ProgramLink 和其他历史防御分支的后续清理。
+
+## Compile 文件读取入口（862262a1）
+
+显式依赖不再捕获完整字节，不作 regular-file／读取前后长度检查；删除对应操作和错误分支。目录读取只建立偏移，不扫描未使用成员，不比较整包预测长度。旧的 `layout_raw_decoders_reject_a_corrupted_archive` 整包末尾截断验收退役；新文件入口测试使用完整真实归档，检查只读所需 metadata、同一缓冲区复用、对象未读及实际目录输入 I/O 错误。详见[文件读取验收](validation/file-reader.md)。
+
+## ProgramLink 文件输入（e393aad7）
+
+三个实际链接调用方移除完整输入快照；`ArtifactSnapshot` 的最后调用消失后删除该模块及唯一的字节保留测试。显式链接不再 `ImmutableInputSnapshot::capture`，不重算整包摘要或比较重复候选的原始字节；错误传播保持实际 I/O，路径仍由 artifact origin 表达。原 completed-node 测试验证同一文件入口与摘要共享。测试入口夹具在同一工作目录验证 production／test 缓存关系，不放宽原来的产物路径与零编译断言。详见[链接文件输入验收](validation/link-file.md)。
+
+
+## 最终 image 的运行时记录（8e31caf9）
+
+移除 `VerifiedRuntimeImageFingerprint::fingerprint_for_definitions` 消费入口，最终链接改用产物保存的普通 runtime record 数据。生产端保留实际编码与指纹计算，新增字段直接用于最终输出，不建立内容重建比较。旧 ProgramLink 对象／注册／Code replay 仍有其他调用方，不能计作本批已清理；后续需连同独占 helper 与测试整体删除。详见[验收记录](validation/image-records.md)。
+
+## 正常 ProgramLink 对象重放退役（61feb20c）
+
+删除 `layout_link_objects`、`layout_link_symbols`、production Code 二次读取与无生产调用的 terminal proof 分支，6 项 terminal 专测随之退役。泛型目录测试保留 ODR 目录和 wire 往返，删除 runtime／Code 重建及对象改写后的拒绝断言。正常链接改用保存数据，稳定对象文件复用经实际 GNU I/O 采样验证；旧 single-cone API 以及语义／布局重放仍继续清理。详见[验收记录](validation/link-data.md)。
+
+## 旧 single-cone Link API 退役（5e81e275）
+
+无生产调用的单 Cone Link 资格链与其 materialization／digest／object／symbol／final object 重放、final/provisional 双份对象归一化整体删除。19 项专用测试删除，1 项改为普通 wire 往返；生产对象、归档可复现性、实际扩展成员和格式断言保留。正常归档 helper 不再提供 corruption 开关。逐项名单与两平台 Rust、三目标 CLI 结果见[验收记录](validation/old-link.md)。其他生产投影和语义／布局清理继续。
+
+## production 与 Link identity 持久字段精简（43ee11a4）
+
+production/8 删除 distribution／output／image owner／registration、优化模式、重复摘要与 native／C bridge 复核投影，只保留 ODR 与 runtime records。Link identity/16 删除 atom／patch／对象副本／image 与 entry owner 投影及 generated-C unit 列表；相关生产构造、decoded 类型、C bridge 资格包装和投影比对 API 一并删除。3 项专用测试随退役字段删除，3 项迁移或更名保留，真实 Code、ODR、native 与 GC 覆盖继续。格式变更、完整测试名称清单与三平台验收见[记录](validation/link-fields.md)。其余两个 Link closure section、语义／布局与 dump 清理继续。
