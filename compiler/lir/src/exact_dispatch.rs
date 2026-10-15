@@ -25,7 +25,6 @@ mod wire;
 pub use wire::{
     DecodedCanonicalExactDispatchExportsV1, DecodedExactDispatchExportV1,
     DecodedExactDispatchSemanticProjectionV1, ExactDispatchSemanticProjectionV1,
-    ExactDispatchWireError,
 };
 
 #[cfg(test)]

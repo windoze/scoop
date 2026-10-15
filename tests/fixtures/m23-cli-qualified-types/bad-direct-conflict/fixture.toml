@@ -6,28 +6,14 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["qualified-types", "negative"]
 
 [[steps]]
-name = "prepare_core"
-files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
-]
-
-[[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_core_source"
-files = [
-  {"remove" = {"path" = "${work}/core-source"}},
-]
 
 [[steps]]
 name = "prepare_origin"
@@ -38,19 +24,13 @@ files = [
 
 [[steps]]
 name = "origin"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/origin", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/qualified-origin/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/origin", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/qualified-origin/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_origin"
-files = [
-  {"remove" = {"path" = "${work}/sources/origin"}},
-]
 
 [[steps]]
 name = "prepare_first"
@@ -61,19 +41,13 @@ files = [
 
 [[steps]]
 name = "first"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/first", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/qualified-first/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/first", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/qualified-first/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_first"
-files = [
-  {"remove" = {"path" = "${work}/sources/first"}},
-]
 
 [[steps]]
 name = "prepare_second"
@@ -84,19 +58,13 @@ files = [
 
 [[steps]]
 name = "second"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/second", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/qualified-second/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/second", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/qualified-second/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_second"
-files = [
-  {"remove" = {"path" = "${work}/sources/second"}},
-]
 
 [[steps]]
 name = "prepare_extra"
@@ -107,19 +75,13 @@ files = [
 
 [[steps]]
 name = "extra"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/extra", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/conflict-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/extra", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/conflict-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_extra"
-files = [
-  {"remove" = {"path" = "${work}/sources/extra"}},
-]
 
 [[steps]]
 name = "prepare_consumer"
@@ -130,7 +92,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-direct-conflict/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-direct-conflict/0.1.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""

@@ -6,6 +6,7 @@ use std::process::Output;
 pub(super) fn driver_program(
     startup: &ValidatedCBridgeToolchainInvocation,
     name: &str,
+    observed: &mut Vec<PathBuf>,
 ) -> Result<PathBuf, ToolchainError> {
     let mut command = startup.driver_command();
     let path = command
@@ -16,10 +17,49 @@ pub(super) fn driver_program(
         .to_owned();
     let output = run(command.arg(format!("-print-prog-name={name}")))?;
     let program = String::from_utf8(output.stdout).map_err(error)?;
+    let mut candidates = BTreeSet::new();
+    crate::native_record::program_candidates(OsStr::new(program.trim()), &path, &mut candidates);
+    observed.extend(candidates);
     crate::linux_c::find_program(OsStr::new(program.trim()), &path)
 }
 
-pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>, ToolchainError> {
+pub(super) fn search_paths(
+    startup: &ValidatedCBridgeToolchainInvocation,
+    linker: &Path,
+) -> Result<Vec<PathBuf>, ToolchainError> {
+    let output = run(startup.driver_command().arg("-print-search-dirs"))?;
+    let text = String::from_utf8(output.stdout).map_err(error)?;
+    let paths = text
+        .lines()
+        .find_map(|line| line.strip_prefix("libraries: ="))
+        .ok_or_else(|| error("C driver did not report library search directories"))?;
+    let mut paths: Vec<_> = std::env::split_paths(paths).collect();
+    let sysroot = run(startup.driver_command().arg("-print-sysroot"))?;
+    let sysroot = String::from_utf8(sysroot.stdout).map_err(error)?;
+    let sysroot = Path::new(if sysroot.trim().is_empty() {
+        "/"
+    } else {
+        sysroot.trim()
+    });
+    // GCC's -L directories precede the selected linker's default SEARCH_DIRs.
+    let script = run(Command::new(linker).arg("--verbose"))?;
+    let script = String::from_utf8(script.stdout).map_err(error)?;
+    for item in script.split("SEARCH_DIR(\"").skip(1) {
+        let (directory, _) = item
+            .split_once("\")")
+            .ok_or_else(|| error("GNU ld reported an invalid SEARCH_DIR"))?;
+        paths.push(match directory.strip_prefix('=') {
+            Some(relative) => sysroot.join(relative.trim_start_matches('/')),
+            None => PathBuf::from(directory),
+        });
+    }
+    Ok(paths)
+}
+
+pub(super) fn check(
+    profile: &LinuxFinalLinkProfile,
+    observed: &mut Vec<PathBuf>,
+) -> Result<Vec<SystemInput>, ToolchainError> {
     let directory = tempfile::Builder::new()
         .prefix("scoop-elf-link-")
         .tempdir()
@@ -27,16 +67,29 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>,
     let source = directory.path().join("probe.c");
     let object = directory.path().join("probe.o");
     std::fs::write(&source, SOURCE).map_err(error)?;
+    let dependencies = directory.path().join("probe.d");
     let mut compile = profile.startup.object_compilation_command(&source, &object);
+    compile
+        .args(["-v", "-MD", "-MT", "link-probe", "-MF"])
+        .arg(&dependencies);
     compile.args(["-funwind-tables", "-fno-omit-frame-pointer"]);
     if let Some(prefix) = profile.unwind_prefix() {
         compile.arg("-I").arg(prefix.join("include"));
     }
-    run(&mut compile)?;
+    let compiled = run(&mut compile)?;
+    observed.extend(super::super::dependencies::read(
+        &dependencies,
+        &source,
+        &compiled.stderr,
+    )?);
     let binary = directory.path().join("probe");
     let map = directory.path().join("probe.map");
-    let mut command = profile.command(directory.path(), &binary, &map)?;
-    command.arg(object);
+    let mut command = profile.command(directory.path(), &binary)?;
+    command
+        .args(["-Xlinker", "-Map", "-Xlinker"])
+        .arg(&map)
+        .arg("-Wl,-t")
+        .arg(object);
     profile.append_system_libraries(&mut command);
     let result = run(&mut command)?;
     let bytes = std::fs::read(&binary).map_err(error)?;
@@ -45,8 +98,8 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>,
     let map = std::fs::read_to_string(map).map_err(error)?;
     profile.check_unwind_map(&map)?;
     let mut paths = BTreeSet::from([
-        profile.linker.clone(),
-        driver_program(&profile.startup, "collect2")?,
+        profile.data.linker.clone(),
+        driver_program(&profile.startup, "collect2", observed)?,
     ]);
     if let Some(prefix) = profile.unwind_prefix() {
         paths.insert(prefix.join("lib/libunwind.a"));
@@ -74,7 +127,13 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>,
     paths
         .into_iter()
         .map(|path| {
-            let digest = sha256(&std::fs::read(&path).map_err(error)?);
+            let digest = if path == profile.data.linker
+                || path.file_name() == Some(OsStr::new("collect2"))
+            {
+                crate::build_record::fingerprint(&crate::build_record::Input::read(&path)?)?
+            } else {
+                sha256(&std::fs::read(&path).map_err(error)?)
+            };
             Ok(SystemInput { path, digest })
         })
         .collect()

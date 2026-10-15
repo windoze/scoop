@@ -1,3 +1,5 @@
+mod link;
+
 use std::fmt;
 
 use scoop_identity::{
@@ -317,47 +319,6 @@ pub struct DecodedRegistrationIdentitySurfaceV1 {
     callables: Vec<DecodedRegistrationIdentityV1<PersistentCallableBodyId>>,
 }
 
-impl DecodedRegistrationIdentitySurfaceV1 {
-    pub fn validate(
-        self,
-        foundation: &ConeLirFoundation,
-    ) -> Result<RegistrationIdentitySurfaceV1, RegistrationIdentityValidationError> {
-        let expected = RegistrationIdentitySurfaceV1::from_foundation(foundation)
-            .map_err(RegistrationIdentityValidationError::Foundation)?;
-        validate_table(
-            RegistrationTableV1::StaticStorage,
-            self.static_storages,
-            &expected.static_storages,
-        )?;
-        validate_table(
-            RegistrationTableV1::ImmortalObject,
-            self.immortal_objects,
-            &expected.immortal_objects,
-        )?;
-        validate_table(
-            RegistrationTableV1::InitializationUnit,
-            self.initialization_units,
-            &expected.initialization_units,
-        )?;
-        validate_table(
-            RegistrationTableV1::Type,
-            self.type_registrations,
-            &expected.type_registrations,
-        )?;
-        validate_table(
-            RegistrationTableV1::Safepoint,
-            self.safepoints,
-            &expected.safepoints,
-        )?;
-        validate_table(
-            RegistrationTableV1::Callable,
-            self.callables,
-            &expected.callables,
-        )?;
-        Ok(expected)
-    }
-}
-
 impl WireEncode for DecodedRegistrationIdentitySurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
@@ -425,45 +386,6 @@ impl fmt::Display for RegistrationIdentityBuildError {
 
 impl std::error::Error for RegistrationIdentityBuildError {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RegistrationIdentityValidationError {
-    Foundation(RegistrationIdentityBuildError),
-    TableLength {
-        table: RegistrationTableV1,
-        expected: usize,
-        actual: usize,
-    },
-    EntryMismatch {
-        table: RegistrationTableV1,
-        index: usize,
-    },
-}
-
-impl fmt::Display for RegistrationIdentityValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid decoded strong registration identity surface: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for RegistrationIdentityValidationError {}
-
-fn registration_table(role: StrongDefinitionRole) -> Option<RegistrationTableV1> {
-    match role {
-        StrongDefinitionRole::RootRegistration => Some(RegistrationTableV1::StaticStorage),
-        StrongDefinitionRole::ImmortalRegistration => Some(RegistrationTableV1::ImmortalObject),
-        StrongDefinitionRole::InitializationRegistration => {
-            Some(RegistrationTableV1::InitializationUnit)
-        }
-        StrongDefinitionRole::TypeRegistration => Some(RegistrationTableV1::Type),
-        StrongDefinitionRole::SafepointRegistration => Some(RegistrationTableV1::Safepoint),
-        StrongDefinitionRole::CallableRegistration => Some(RegistrationTableV1::Callable),
-        _ => None,
-    }
-}
-
 fn registration_symbol(
     key: PersistentSymbolKey,
     owner: RegistrationDefinitionOwner,
@@ -500,31 +422,6 @@ fn sort_unique<I: PersistentId>(
     Ok(())
 }
 
-fn validate_table<I: PersistentId>(
-    table: RegistrationTableV1,
-    decoded: Vec<DecodedRegistrationIdentityV1<I>>,
-    expected: &[RegistrationIdentityV1<I>],
-) -> Result<(), RegistrationIdentityValidationError> {
-    if decoded.len() != expected.len() {
-        return Err(RegistrationIdentityValidationError::TableLength {
-            table,
-            expected: expected.len(),
-            actual: decoded.len(),
-        });
-    }
-    for (index, (decoded, expected)) in decoded.into_iter().zip(expected).enumerate() {
-        if decoded.semantic_id.verify(expected.semantic_id).is_err()
-            || decoded
-                .definition_plan
-                .verify(expected.definition_plan)
-                .is_err()
-        {
-            return Err(RegistrationIdentityValidationError::EntryMismatch { table, index });
-        }
-    }
-    Ok(())
-}
-
 fn encode_array<T: WireEncode>(
     encoder: &mut Encoder,
     values: &[T],
@@ -543,6 +440,20 @@ fn decode_table<I: PersistentId>(
     decoder.field(field, |decoder| {
         decoder.decode_array(|decoder, _| DecodedRegistrationIdentityV1::decode(decoder))
     })
+}
+
+fn registration_table(role: StrongDefinitionRole) -> Option<RegistrationTableV1> {
+    match role {
+        StrongDefinitionRole::RootRegistration => Some(RegistrationTableV1::StaticStorage),
+        StrongDefinitionRole::ImmortalRegistration => Some(RegistrationTableV1::ImmortalObject),
+        StrongDefinitionRole::InitializationRegistration => {
+            Some(RegistrationTableV1::InitializationUnit)
+        }
+        StrongDefinitionRole::TypeRegistration => Some(RegistrationTableV1::Type),
+        StrongDefinitionRole::SafepointRegistration => Some(RegistrationTableV1::Safepoint),
+        StrongDefinitionRole::CallableRegistration => Some(RegistrationTableV1::Callable),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

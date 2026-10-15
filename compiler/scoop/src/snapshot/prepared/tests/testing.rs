@@ -49,21 +49,18 @@ fn only_the_root_merges_test_sources_and_dependencies() {
     assert_eq!(test.node_count(), 3);
     assert_eq!(test.root_kind(), RequestedConeKind::Executable);
     assert_eq!(
-        test.source_snapshot(helper_id).unwrap().requested_kind(),
+        test.source_input(helper_id).unwrap().requested_kind(),
         RequestedConeKind::Library
     );
     assert_eq!(
-        test.source_snapshot(root_id)
+        test.source_input(root_id)
             .unwrap()
             .sources()
             .map(|source| source.role())
             .collect::<Vec<_>>(),
         [SourceRole::Production, SourceRole::Test]
     );
-    assert_eq!(
-        test.source_snapshot(helper_id).unwrap().sources().count(),
-        1
-    );
+    assert_eq!(test.source_input(helper_id).unwrap().sources().count(), 1);
     assert_eq!(
         test.compilation_purpose(helper_id),
         CompilationPurpose::Production

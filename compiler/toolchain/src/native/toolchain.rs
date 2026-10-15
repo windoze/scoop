@@ -42,6 +42,26 @@ impl NativeToolchain {
         })
     }
 
+    pub(super) fn resolve_cached(
+        target: &crate::ResolvedTargetProfile,
+        manifest: &LoadedConeManifest,
+        cache: &Path,
+    ) -> Result<Self, ToolchainError> {
+        Ok(Self {
+            c: target.c_bridge_toolchain().clone(),
+            cxx: manifest
+                .parsed()
+                .semantic()
+                .native()
+                .cxx()
+                .then(|| ValidatedCxxToolchain::resolve_cached(target, cache))
+                .transpose()
+                .map_err(|err| {
+                    ToolchainError(format!("{err}; C++ required by {}", manifest.coordinate()))
+                })?,
+        })
+    }
+
     pub(super) fn cxx_fingerprint(&self) -> Option<Digest256> {
         self.cxx.as_ref().map(ValidatedCxxToolchain::fingerprint)
     }

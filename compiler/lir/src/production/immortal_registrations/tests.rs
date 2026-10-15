@@ -301,30 +301,14 @@ impl Fixture {
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
         let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
-        let mut objects = artifacts
-            .iter()
-            .map(|artifacts| {
-                StrongImmortalObjectSemanticPlanV1::from_artifact(
-                    artifacts.object.id(),
-                    symbol(PersistentSymbolKey::ImmortalObject(artifacts.object.id())),
-                    32,
-                    8,
-                    if options.claim_local_string_type {
-                        ImmortalObjectTypeRegistrationRefV1::Local(string_type)
-                    } else {
-                        ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
-                            provider: ConeIdentity::CORE,
-                            exact: string_type,
-                        }
-                    },
-                )
-            })
-            .collect::<Vec<_>>();
-        objects.sort_unstable_by_key(|object| object.object());
-        let semantics = StrongImmortalObjectSemanticPlanSetV1::from_artifact(
-            ConeIdentity::SINGLE_FILE,
-            objects,
-        );
+        let semantics = semantic_fixture(if options.claim_local_string_type {
+            ImmortalObjectTypeRegistrationRefV1::Local(string_type)
+        } else {
+            ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                provider: ConeIdentity::CORE,
+                exact: string_type,
+            }
+        });
         Self {
             foundation,
             identities,
@@ -468,27 +452,11 @@ fn external_type_registrations_accept_ordinary_providers_and_reject_self_imports
         .unwrap();
     for provider in [ordinary, ConeIdentity::SINGLE_FILE] {
         let mut fixture = Fixture::new(Options::default());
-        let objects = fixture
-            .semantics
-            .objects()
-            .iter()
-            .map(|object| {
-                StrongImmortalObjectSemanticPlanV1::from_artifact(
-                    object.object(),
-                    object.symbol(),
-                    object.object_size(),
-                    object.required_alignment(),
-                    ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
-                        provider,
-                        exact: object.type_registration(),
-                    },
-                )
-            })
-            .collect();
-        fixture.semantics = StrongImmortalObjectSemanticPlanSetV1::from_artifact(
-            ConeIdentity::SINGLE_FILE,
-            objects,
-        );
+        fixture.semantics =
+            semantic_fixture(ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                provider,
+                exact: exact_type("String"),
+            });
         if provider == ConeIdentity::SINGLE_FILE {
             assert!(
                 matches!(fixture.build(), Err(StrongImmortalObjectRegistrationPlanBuildError::SelfImport { provider: actual, .. }) if actual == provider)
@@ -498,4 +466,19 @@ fn external_type_registrations_accept_ordinary_providers_and_reject_self_imports
             assert!(plan.registrations().iter().all(|object| matches!(object.semantic().type_registration_ref(), ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider: actual, .. } if actual == provider)));
         }
     }
+}
+
+fn semantic_fixture(
+    string_type: ImmortalObjectTypeRegistrationRefV1,
+) -> StrongImmortalObjectSemanticPlanSetV1 {
+    let mut globals = Arena::new();
+    globals.alloc(string_global(1, "first"));
+    globals.alloc(string_global(2, "second"));
+    StrongImmortalObjectSemanticPlanSetV1::from_globals(
+        ConeIdentity::SINGLE_FILE,
+        crate::target_fixtures::DARWIN_AARCH64,
+        &globals,
+        string_type,
+    )
+    .unwrap()
 }

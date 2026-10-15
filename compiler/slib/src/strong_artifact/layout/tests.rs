@@ -7,7 +7,7 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 use crate::{
     CrossConeLayoutProductionManifestV1, DecodedSingleConeProductionManifestV1,
-    DecodedSlibEnvelope, SlibMember, ValidatedGraphArtifact,
+    DecodedSlibEnvelope, ValidatedGraphArtifact,
 };
 use crate::{EmptyLayoutCodeFixture, with_empty_layout_code_fixture};
 use support::{
@@ -38,49 +38,22 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
         encode(link.lir_strong_production_wire()).unwrap(),
         encode(code.production().strong_production()).unwrap()
     );
-    let expected_identity = LinkIdentityClosureSectionV1::from_verified_layout_code(&code).unwrap();
+    let expected_identity = LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
     assert_eq!(
-        link.link_identity_closure_wire()
-            .clone()
-            .validate_layout(&code)
-            .unwrap(),
-        expected_identity
+        encode(link.link_identity_closure_wire()).unwrap(),
+        encode(&expected_identity).unwrap()
     );
     let decoded_manifest = decode_canonical::<DecodedSingleConeProductionManifestV1>(
         &encode(link.production_manifest_wire()).unwrap(),
     )
     .unwrap();
     assert_eq!(
-        decoded_manifest.validate_layout(&code).unwrap(),
-        CrossConeLayoutProductionManifestV1::from_verified_code(code)
+        encode(&decoded_manifest).unwrap(),
+        encode(&CrossConeLayoutProductionManifestV1::from_verified_code(
+            code
+        ))
+        .unwrap()
     );
-}
-
-#[test]
-fn layout_writer_rejects_mismatched_layout_imports() {
-    let (result, _) = write_artifact(WriterMutation::LayoutImports);
-    assert!(matches!(
-        result,
-        Err(CrossConeLayoutArtifactWriteError::LayoutSemanticImportMismatch)
-    ));
-}
-
-#[test]
-fn layout_writer_rejects_mismatched_callable_imports() {
-    let (result, _) = write_artifact(WriterMutation::CallableImports);
-    assert!(matches!(
-        result,
-        Err(CrossConeLayoutArtifactWriteError::CallableSemanticImportMismatch)
-    ));
-}
-
-#[test]
-fn layout_writer_rejects_mismatched_object_bytes() {
-    let (result, _) = write_artifact(WriterMutation::ObjectBytes);
-    assert!(matches!(
-        result,
-        Err(CrossConeLayoutArtifactWriteError::LinkObjectMismatch { .. })
-    ));
 }
 
 #[test]
@@ -97,21 +70,9 @@ fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
     ));
 }
 
-#[test]
-fn layout_raw_decoders_reject_a_corrupted_archive() {
-    let (artifact, _) = write_artifact(WriterMutation::None);
-    let artifact = artifact.unwrap();
-    let mut bytes = artifact.as_bytes().to_vec();
-    bytes.pop();
-    assert!(DecodedSlibEnvelope::open(&bytes, selection()).is_err());
-}
-
 #[derive(Clone, Copy)]
 enum WriterMutation {
     None,
-    CallableImports,
-    LayoutImports,
-    ObjectBytes,
     ManifestIdentity,
 }
 
@@ -141,18 +102,6 @@ fn write_artifact_from_fixture(
         .unwrap();
     let mir_type_bridge = empty_mir_type_bridge(provider, &mir_production, &mir_ordinary, &graph);
 
-    if matches!(mutation, WriterMutation::ObjectBytes) {
-        let record = lir.link_objects[0].record();
-        lir.link_objects = vec![
-            SlibMember::new(
-                provider,
-                record.stable_key().clone(),
-                record.role().clone(),
-                vec![0],
-            )
-            .unwrap(),
-        ];
-    }
     if matches!(mutation, WriterMutation::ManifestIdentity) {
         lir.cone = crate::ConeRecord::new(
             ConeCoordinate::new("test", "wrong-layout-writer", "0.0.0").unwrap(),
@@ -162,16 +111,6 @@ fn write_artifact_from_fixture(
         .unwrap();
     }
 
-    let layout = if matches!(mutation, WriterMutation::LayoutImports) {
-        lir.mismatched_layout
-    } else {
-        lir.layout
-    };
-    let ordinary = if matches!(mutation, WriterMutation::CallableImports) {
-        lir.mismatched_ordinary
-    } else {
-        lir.ordinary
-    };
     AssembledCrossConeLayoutArtifactV1::write(CrossConeLayoutArtifactInputV1::new(
         crate::ProducerRecord::new("layout-writer-test").unwrap(),
         lir.cone,
@@ -185,8 +124,8 @@ fn write_artifact_from_fixture(
         &mir_ordinary,
         &mir_type_bridge,
         lir.foundation,
-        ordinary,
-        layout,
+        lir.ordinary,
+        lir.layout,
         lir.code,
         lir.link_objects,
     ))

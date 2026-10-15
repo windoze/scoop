@@ -1,4 +1,4 @@
-//! Ordinary callable replay from the shared HIR/MIR and layout constituents.
+//! Saved ordinary callable bridges and their typed references.
 
 use scoop_lir as lir;
 use scoop_wire::WirePath;
@@ -10,12 +10,9 @@ use super::{
         LirConstituentsValidatedCrossConeLayoutSections,
     },
 };
-use crate::dependency_reachability::transitive_positions;
 
 mod errors;
-mod replay;
 pub use errors::{CrossConeLayoutOrdinaryLirBridgeError, SharedOrdinaryLirBridgeValidationError};
-pub use replay::{SharedOrdinaryLirBridgeDependenciesV1, replay_shared_ordinary_lir_bridge};
 
 pub type OrdinaryLirBridgeValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
@@ -47,7 +44,7 @@ impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
         } = self;
         let mut complete: Vec<OrdinaryLirBridgeValidatedCrossConeLayoutSections<'input>> =
             Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        for artifact in dependency_first {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedOrdinaryLirBridgeValidationError> {
                 let LirLayoutsValidatedCrossConeLayoutSections {
@@ -59,43 +56,8 @@ impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions)?;
-                let mut layouts = Vec::new();
-                let mut callables = Vec::new();
-                let mut metadata = Vec::new();
-                let path = WirePath::root();
-                scoop_wire::allocation::try_reserve(&mut layouts, reachable.len(), &path)?;
-                scoop_wire::allocation::try_reserve(&mut callables, reachable.len(), &path)?;
-                scoop_wire::allocation::try_reserve(&mut metadata, reachable.len(), &path)?;
-                for position in reachable {
-                    let dependency = &complete[position];
-                    layouts.push(dependency.layout.layouts());
-                    callables.push(dependency.lir_cross_cone_bridge());
-                    metadata.push(dependency.prepared.shared_metadata());
-                }
                 let ordinary = ordinary.validate(parts.identities, parts.lir_foundation)?;
-                let expected = replay_shared_ordinary_lir_bridge(
-                    target.target(),
-                    scoop_hir::SharedTypeMetadataV1 {
-                        provider,
-                        identities: parts.identities,
-                        foundation: parts.hir_foundation,
-                        public: parts.hir_interface,
-                    },
-                    parts.mir_ordinary,
-                    layout.layouts(),
-                    SharedOrdinaryLirBridgeDependenciesV1 {
-                        metadata: &metadata,
-                        layouts: &layouts,
-                        callables: &callables,
-                    },
-                    parts.lir_foundation,
-                    &ordinary,
-                )?;
-                if ordinary != expected {
-                    return Err(lir::CrossConeLirBridgeValidationError::SectionMismatch.into());
-                }
-                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(OrdinaryLirBridgeValidatedCrossConeLayoutSections {
                     prepared,
                     mir,

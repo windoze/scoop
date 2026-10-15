@@ -1,4 +1,4 @@
-"""Ordinary file preparation for relocation, corruption, and output tests."""
+"""Ordinary file preparation for input changes, relocation, and output tests."""
 
 import os
 import shutil

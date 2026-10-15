@@ -7,11 +7,12 @@ use scoop_toolchain::ResolvedTargetProfile;
 
 use crate::materialize::OutputLocation;
 use crate::{
-    BuildFailurePhase, PreparedBuildGraph, RuntimeBuildRequest, SourceSnapshot, build_runtime,
+    BuildFailurePhase, PreparedBuildGraph, RuntimeBuildRequest, SelectedSource, build_runtime,
     read_built_program,
 };
 
 mod error;
+mod executable;
 mod outcome;
 mod request;
 pub use error::*;
@@ -35,7 +36,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         .map_err(BuildFailure::discovery)?
         .resolve()
         .map_err(BuildFailure::classified)?;
-    if request.keep_for_run && graph.root_kind() == RequestedConeKind::Library {
+    if request.require_executable && graph.root_kind() == RequestedConeKind::Library {
         return Err(BuildFailure::tool(
             "SCOOP_RUN_LIBRARY",
             BuildFailurePhase::Request,
@@ -44,7 +45,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     }
     let mut prepared = graph.prepare().map_err(BuildFailure::preparation)?;
     let cache = std::fs::canonicalize(cache).map_err(output_error)?;
-    let (sources, mut inputs) = source_context(&prepared);
+    let sources = source_context(&prepared);
     let output = output_path(
         &prepared,
         &request.cwd,
@@ -62,54 +63,39 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         .execute()
         .map_err(|error| BuildFailure::execution(error, &sources))?
         .into_outcome();
-    inputs.extend(
-        graph
-            .artifacts()
-            .iter()
-            .map(|node| node.artifact_locator().to_owned()),
-    );
-    let mut finish = || -> BuildResult<_> {
+    let finish = || -> BuildResult<_> {
         if matches!(graph, crate::BuildGraphOutcome::Library { .. }) {
             output
-                .publish_bytes(
-                    graph.root().artifact().snapshot().as_bytes(),
-                    &inputs,
-                    Some(&cache),
+                .publish(
+                    graph.root().artifact_locator(),
+                    Some(
+                        graph
+                            .root()
+                            .artifact()
+                            .summary()
+                            .artifact_fingerprint()
+                            .as_array(),
+                    ),
                 )
                 .map_err(output_error)?;
             return Ok(None);
         }
-        let (runtime, index, runtime_inputs) =
+        let (runtime, index) =
             runtime_input(&request.runtime, &target, &cache, &request.final_link)?;
-        inputs.extend(runtime_inputs);
-        inputs.extend(runtime.input_paths().iter().cloned());
-        let directory = tempfile::Builder::new()
-            .prefix(".scoop-build-")
-            .tempdir_in(output.parent())
-            .map_err(output_error)?;
-        let closure = read_built_program(graph.closure(), &target).map_err(|error| {
-            BuildFailure::tool("SCOOP_LINK_FAILED", BuildFailurePhase::FinalLink, error)
+        let linked = executable::get(executable::Request {
+            graph: &graph,
+            runtime: &runtime,
+            target: &target,
+            cache: &cache,
+            profile: request.profile,
+            options: &request.final_link,
+            libraries: &request.library_paths,
+            explicit_runtime: matches!(&request.runtime, RuntimeInput::ObjectIndex(_)),
         })?;
-        let final_link =
-            scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link)
-                .map_err(|error| {
-                    BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
-                })?;
-        let linked = scoop_linker::link_program(
-            &closure,
-            &runtime,
-            &final_link,
-            &request.library_paths,
-            &directory.path().join("program"),
-        )
-        .map_err(|error| {
-            BuildFailure::tool("SCOOP_LINK_FAILED", BuildFailurePhase::FinalLink, error)
-        })?;
-        inputs.extend(linked.input_paths);
-        let execution_copy = output
-            .publish_program(&linked.path, &inputs, Some(&cache), request.keep_for_run)
+        output
+            .publish(&linked.path, Some(&linked.result_key))
             .map_err(output_error)?;
-        Ok(Some((index, linked.fingerprint, execution_copy)))
+        Ok(Some((index, linked.fingerprint, linked.path)))
     };
     let executable = finish().map_err(|error| error.with_context(graph.warnings(), &sources))?;
     let build = BuiltArtifacts {
@@ -120,11 +106,11 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     };
     Ok(match executable {
         None => BuildOutcome::Library(build),
-        Some((runtime_index, link_plan_fingerprint, execution_copy)) => BuildOutcome::Executable {
+        Some((runtime_index, link_plan_fingerprint, executable)) => BuildOutcome::Executable {
             build,
+            executable,
             runtime_index,
             link_plan_fingerprint,
-            execution_copy,
         },
     })
 }
@@ -134,7 +120,7 @@ fn runtime_input(
     target: &ResolvedTargetProfile,
     cache: &Path,
     final_link: &scoop_toolchain::FinalLinkOptions,
-) -> BuildResult<(RuntimeObjectSet, PathBuf, Vec<PathBuf>)> {
+) -> BuildResult<(RuntimeObjectSet, PathBuf)> {
     let failure = |error| {
         BuildFailure::tool(
             "SCOOP_RUNTIME_BUILD",
@@ -150,7 +136,7 @@ fn runtime_input(
                 target.c_bridge_toolchain().profile(),
             )
             .map_err(|error| failure(error.to_string()))?;
-            Ok((objects, index.clone(), Vec::new()))
+            Ok((objects, index.clone()))
         }
         RuntimeInput::SourceRoot(root) => {
             let unwind = if target.id() == scoop_target_data::DARWIN_AARCH64_ID {
@@ -171,33 +157,22 @@ fn runtime_input(
             })
             .map_err(|error| failure(error.to_string()))?;
             let index = runtime.index().to_owned();
-            let inputs = runtime.input_paths().to_vec();
-            Ok((runtime.into_objects(), index, inputs))
+            Ok((runtime.into_objects(), index))
         }
     }
 }
 
-fn source_context(prepared: &PreparedBuildGraph) -> (Vec<SourceSnapshot>, Vec<PathBuf>) {
+fn source_context(prepared: &PreparedBuildGraph) -> Vec<SelectedSource> {
     let mut sources = Vec::new();
-    let mut paths = Vec::new();
     for identity in prepared.dependency_first() {
-        if let Some(manifest) = prepared.source_snapshot(*identity) {
-            paths.push(manifest.manifest_locator().to_owned());
+        if let Some(manifest) = prepared.source_input(*identity) {
             sources.extend(manifest.sources().cloned());
         }
-        if let Some(single) = prepared.single_file_snapshot(*identity) {
+        if let Some(single) = prepared.single_file_input(*identity) {
             sources.push(single.source().clone());
         }
-        if let Some(candidates) = prepared.prebuilt_candidates(*identity) {
-            paths.extend(candidates.map(|candidate| candidate.source_locator().to_owned()));
-        }
     }
-    paths.extend(
-        sources
-            .iter()
-            .map(|source| source.display_locator().as_path().to_owned()),
-    );
-    (sources, paths)
+    sources
 }
 
 fn output_path(
@@ -215,15 +190,13 @@ fn output_path(
     let (root, name) = if graph.root_identity() == ConeIdentity::SINGLE_FILE {
         (cwd.to_owned(), stem.unwrap_or("program").to_owned())
     } else {
-        let manifest = graph
-            .source_snapshot(graph.root_identity())
-            .ok_or_else(|| {
-                BuildFailure::tool(
-                    "SCOOP_OUTPUT_LAYOUT",
-                    BuildFailurePhase::Publication,
-                    "manifest root has no captured manifest",
-                )
-            })?;
+        let manifest = graph.source_input(graph.root_identity()).ok_or_else(|| {
+            BuildFailure::tool(
+                "SCOOP_OUTPUT_LAYOUT",
+                BuildFailurePhase::Publication,
+                "manifest root has no captured manifest",
+            )
+        })?;
         let root = manifest
             .manifest_locator()
             .parent()

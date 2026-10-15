@@ -24,22 +24,21 @@ impl SelectedMembers {
         for (artifact, symbols) in artifacts {
             let cone = artifact.identity();
             let selected = result.definitions.entry(cone).or_default();
-            let surface = artifact.production().canonical_definitions();
-            let builtins = symbols.object_contents().patch_sites().builtins();
-            for member in builtins.strong_relocations().members() {
-                let plans = member
-                    .definitions()
-                    .definitions()
-                    .iter()
-                    .map(|definition| {
-                        surface
-                            .plan(definition.definition())
-                            .expect("verified physical definition")
-                    })
-                    .collect::<Vec<_>>();
+            let surface = &artifact.production().definitions;
+            for member in symbols.members() {
+                let scoop_slib::ProgramLinkMember::Scoop { definitions, .. } = member else {
+                    // Generated-C objects have ordinary provider ownership.
+                    result.members.insert((cone, member.member()));
+                    continue;
+                };
+                let plans = definitions.iter().map(|definition| {
+                    surface.get(definition).map(|plan| (*definition, plan)).ok_or_else(|| error(format!(
+                        "Cone {cone}: object member {} refers to missing definition {definition}", member.member()
+                    )))
+                }).collect::<Result<Vec<_>, _>>()?;
                 let image = plans
                     .iter()
-                    .any(|plan| plan.definition_role() == StrongDefinitionRole::ImageDescriptor);
+                    .any(|plan| plan.1.role == StrongDefinitionRole::ImageDescriptor);
                 if image {
                     if plans.len() != 1 {
                         return Err(error(format!(
@@ -50,16 +49,13 @@ impl SelectedMembers {
                 }
                 let body = plans
                     .iter()
-                    .find(|plan| plan.definition_role() == StrongDefinitionRole::CallableBody);
+                    .find(|plan| plan.1.role == StrongDefinitionRole::CallableBody);
                 let owner = match body {
-                    Some(plan) => Some(plan.definition_owner()),
-                    None if plans.len() == 1 => Some(plans[0].definition_owner()),
+                    Some(plan) => Some(plan.1.owner),
+                    None if plans.len() == 1 => Some(plans[0].1.owner),
                     None => {
                         if plans.iter().any(|plan| {
-                            matches!(
-                                plan.definition_owner(),
-                                ObjectDefinitionPlanOwner::Odr { .. }
-                            )
+                            matches!(plan.1.owner, ObjectDefinitionPlanOwner::Odr { .. })
                         }) {
                             return Err(error(format!(
                                 "Cone {cone}: independent ODR definitions share a physical member"
@@ -74,11 +70,7 @@ impl SelectedMembers {
                     continue;
                 }
                 result.members.insert((cone, member.member()));
-                selected.extend(plans.iter().map(|plan| plan.definition_plan()));
-            }
-            // Generated-C units have ordinary provider ownership and no ODR candidates.
-            for object in symbols.object_contents().generated_objects() {
-                result.members.insert((cone, object.member()));
+                selected.extend(plans.iter().map(|plan| plan.0));
             }
         }
         Ok(result)

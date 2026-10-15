@@ -115,6 +115,7 @@ impl PreparedBuildGraph {
             lir_target,
             backend,
             c_bridge_toolchain,
+            self.context.target.native_tool_inputs(),
         )
         .with_optimization(self.context.optimization)
         .with_purpose(self.compilation_purpose(identity)))
@@ -155,10 +156,7 @@ impl PreparedBuildGraph {
                 Ok((
                     cone,
                     CurrentConeSemanticProjectionV1::SingleFile,
-                    vec![SourceCacheInputV1::new(
-                        node.snapshot.source.identity().clone(),
-                        node.snapshot.source.content_digest(),
-                    )],
+                    vec![SourceCacheInputV1::new(&node.snapshot.source)],
                 ))
             }
             Some(PreparedGraphNode::PrebuiltArtifact(_)) => {
@@ -170,7 +168,7 @@ impl PreparedBuildGraph {
 }
 
 fn manifest_cache_inputs(
-    snapshot: &super::ManifestSourceSnapshot,
+    snapshot: &super::ManifestSourceInput,
     requested_kind: RequestedConeKind,
 ) -> Result<
     (
@@ -206,21 +204,16 @@ fn manifest_cache_inputs(
                 .map(crate::cache::TestCompileConfiguration::new),
             dependencies,
             sources: snapshot.manifest_semantic.sources().clone(),
-            native: Box::new(snapshot.native.clone()),
+            native: Box::new(snapshot.native.key()),
         },
         source_inputs(snapshot.sources()),
     ))
 }
 
 fn source_inputs<'a>(
-    sources: impl Iterator<Item = &'a super::SourceSnapshot>,
+    sources: impl Iterator<Item = &'a super::SelectedSource>,
 ) -> Vec<SourceCacheInputV1> {
-    sources
-        .map(|source| {
-            SourceCacheInputV1::new(source.identity().clone(), source.content_digest())
-                .with_role(source.role())
-        })
-        .collect()
+    sources.map(SourceCacheInputV1::new).collect()
 }
 
 fn completed_map<'a>(

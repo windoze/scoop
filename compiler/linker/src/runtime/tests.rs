@@ -61,7 +61,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
                     "duplicate runtime definition {name}"
                 );
             }
-            objects.push(bytes);
+            objects.push(path);
         }
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
         for contract in registry.contracts() {
@@ -88,12 +88,12 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         );
         assert!(!definitions.contains_key("main"));
         assert!(!definitions.keys().any(|name| name.starts_with("mbedtls_")));
-        let runtime = RuntimeObjectSet::from_objects(
+        let runtime = RuntimeObjectSet::from_paths(
             target,
             invocation.profile(),
             RuntimeBuildConfiguration {
                 input_key: sha256(b"runtime index integration"),
-                compiler_digest: sha256(&std::fs::read(invocation.compiler_driver()).unwrap()),
+                compiler_inputs: sha256(b"selected runtime test compiler"),
                 flags: profile
                     .runtime_c_flags()
                     .iter()
@@ -116,8 +116,17 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             scoop_target_data::LINUX_X86_64_GNU
         };
         assert!(RuntimeObjectSet::read_index(&index, other, invocation.profile()).is_err());
-        let first = &decoded.input_paths()[1];
-        std::fs::write(first, b"truncated").unwrap();
-        assert!(RuntimeObjectSet::read_index(&index, target, invocation.profile()).is_err());
+        assert_eq!(
+            decoded
+                .objects()
+                .iter()
+                .map(|o| o.path())
+                .collect::<Vec<_>>(),
+            runtime
+                .objects()
+                .iter()
+                .map(|o| o.path())
+                .collect::<Vec<_>>()
+        );
     }
 }

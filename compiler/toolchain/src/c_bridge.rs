@@ -18,24 +18,43 @@ const XCRUN: &str = "/usr/bin/xcrun";
 const SW_VERS: &str = "/usr/bin/sw_vers";
 const MACHO_TOOL_LLD: u32 = 4;
 
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
 pub(super) fn resolve_system_c_bridge_toolchain()
 -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
-    let compiler_driver = canonical_existing_path(
-        &command_text(XCRUN, &["--find", "clang"])?,
-        "Apple Clang compiler",
-        true,
-    )?;
-    let sdk_root = canonical_existing_path(
-        &command_text(XCRUN, &["--sdk", "macosx", "--show-sdk-path"])?,
-        "macOS SDK root",
-        false,
-    )?;
+    probe_system_c_bridge_toolchain().map(|(invocation, _)| invocation)
+}
+
+pub(super) fn probe_system_c_bridge_toolchain()
+-> Result<(ValidatedCBridgeToolchainInvocation, Vec<PathBuf>), ToolchainError> {
+    let compiler_path = command_text(XCRUN, &["--find", "clang"])?;
+    let sdk_path = command_text(XCRUN, &["--sdk", "macosx", "--show-sdk-path"])?;
+    let compiler_driver = canonical_existing_path(&compiler_path, "Apple Clang compiler", true)?;
+    let sdk_root = canonical_existing_path(&sdk_path, "macOS SDK root", false)?;
     let compiler_version = command_text_from_path(&compiler_driver, &["--version"])?;
     let sdk_version = command_text(XCRUN, &["--sdk", "macosx", "--show-sdk-version"])?;
     let deployment_version = command_text(SW_VERS, &["-productVersion"])?;
     let sdk = parse_darwin_version(&sdk_version, "macOS SDK version")?;
     let minimum_os = parse_darwin_version(&deployment_version, "macOS deployment version")?;
-    let tools = probe_build_tools(&compiler_driver, &sdk_root, minimum_os, sdk)?;
+    let tools = probe_build_tools(
+        &compiler_driver,
+        &sdk_root,
+        minimum_os,
+        sdk,
+        parse_apple_clang_identity(&compiler_version)?,
+    )?;
+    let inputs = vec![
+        PathBuf::from(compiler_path),
+        PathBuf::from(sdk_path),
+        compiler_driver.clone(),
+        sdk_root.join("SDKSettings.json"),
+        sdk_root.join("SDKSettings.plist"),
+        PathBuf::from(XCRUN),
+        PathBuf::from(SW_VERS),
+        PathBuf::from("/var/db/xcode_select_link"),
+        PathBuf::from("/Applications/Xcode.app"),
+        PathBuf::from("/Library/Developer/CommandLineTools"),
+        PathBuf::from("/System/Library/CoreServices/SystemVersion.plist"),
+    ];
     let facts = CBridgeToolchainFacts {
         compiler_driver,
         sdk_root,
@@ -44,7 +63,7 @@ pub(super) fn resolve_system_c_bridge_toolchain()
         compiler_version,
         tools,
     };
-    resolve_c_bridge_toolchain(facts)
+    Ok((resolve_c_bridge_toolchain(facts)?, inputs))
 }
 
 struct CBridgeToolchainFacts {
@@ -86,6 +105,7 @@ fn probe_build_tools(
     sdk_root: &Path,
     minimum_os: DarwinPackedVersionV1,
     sdk: DarwinPackedVersionV1,
+    compiler_identity: AppleClangCompilerIdentityV1,
 ) -> Result<Vec<DarwinBuildToolVersionContractV1>, ToolchainError> {
     let directory = tempfile::Builder::new()
         .prefix("scoop-c-bridge-probe-")
@@ -99,8 +119,6 @@ fn probe_build_tools(
         .map_err(|error| ToolchainError(format!("cannot write C bridge probe source: {error}")))?;
     let deployment = DarwinCBridgeDeploymentContractV1::new(minimum_os, sdk, Vec::new())
         .map_err(|error| ToolchainError(format!("invalid C bridge probe deployment: {error}")))?;
-    let compiler_identity =
-        parse_apple_clang_identity(&command_text_from_path(compiler, &["--version"])?)?;
     let profile = scoop_target_data::darwin_c_bridge_profile(deployment, compiler_identity)
         .map_err(|error| ToolchainError(format!("cannot fingerprint C bridge probe: {error}")))?;
     let invocation = ValidatedCBridgeToolchainInvocation::new(

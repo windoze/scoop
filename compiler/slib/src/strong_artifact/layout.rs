@@ -14,14 +14,13 @@ use scoop_mir::{
 };
 use scoop_wire::encode;
 
-use super::{StrongArtifactSectionV1, verify_layout_link_objects};
+use super::StrongArtifactSectionV1;
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
-    CompatibilityRecord, ConeRecord, CrossConeLayoutProductionManifestV1,
-    CrossConeLinkSemanticImportSetV1, DependencyRecord, LinkIdentityClosureSectionV1,
-    ManifestSection, MemberPurposeSet, ProducerRecord, SemanticFingerprintRecord, SlibMember,
-    VerifiedCodeFingerprintV2, VerifiedCrossConeLayoutCodeFingerprintV1,
-    manifest_single_cone_production_capability,
+    CompatibilityRecord, ConeRecord, CrossConeLayoutProductionManifestV1, DependencyRecord,
+    LinkIdentityClosureSectionV1, ManifestSection, MemberPurposeSet, ProducerRecord,
+    SemanticFingerprintRecord, SlibMember, VerifiedCodeFingerprintV2,
+    VerifiedCrossConeLayoutCodeFingerprintV1, manifest_single_cone_production_capability,
 };
 
 mod error;
@@ -48,7 +47,7 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     lir_foundation: &'ir ConeLirFoundation,
     lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
     lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
-    layout_code: VerifiedCrossConeLayoutCodeFingerprintV1<'ir>,
+    layout_code: VerifiedCrossConeLayoutCodeFingerprintV1,
     link_objects: Vec<SlibMember>,
     test_directory: Option<crate::TestDirectory>,
 }
@@ -75,7 +74,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
         lir_foundation: &'ir ConeLirFoundation,
         lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
         lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
-        layout_code: VerifiedCrossConeLayoutCodeFingerprintV1<'ir>,
+        layout_code: VerifiedCrossConeLayoutCodeFingerprintV1,
         link_objects: Vec<SlibMember>,
     ) -> Self {
         Self {
@@ -131,9 +130,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             test_directory,
         } = input;
         let identity = cone.identity();
-        let link_object_count = link_objects.len();
-        let (code, callable_link_closure, layout_link_closure, link_support) =
-            layout_code.into_parts();
+        let (code, link_support) = layout_code.into_parts();
 
         validate_producers(
             identity,
@@ -143,16 +140,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             lir_foundation,
             lir_cross_cone,
             lir_layout_abi,
-            &callable_link_closure,
-            &layout_link_closure,
-        )?;
-        verify_layout_link_objects(&code, &link_objects)?;
-        validate_link_projections(
-            &code,
-            lir_cross_cone,
-            lir_layout_abi,
-            &callable_link_closure,
-            &layout_link_closure,
         )?;
 
         let target_selection = code.undefined_symbols().selection();
@@ -164,8 +151,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .map_err(CrossConeLayoutArtifactWriteError::Compatibility)?;
-        let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code)
-            .map_err(CrossConeLayoutArtifactWriteError::LinkIdentityClosure)?;
+        let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
 
         let metadata = assemble_metadata(LayoutMetadataInput {
             hir_foundation,
@@ -181,8 +167,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             lir_layout_abi,
             code: &code,
             link_identity_closure: &link_identity_closure,
-            callable_link_closure: &callable_link_closure,
-            layout_link_closure: &layout_link_closure,
             link_support: &link_support,
         })?;
 
@@ -219,7 +203,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
         members.push(metadata.lir.into_member(identity)?);
         members.extend(link_objects);
         let mut manifest_sections = vec![manifest_section];
-        if let Some(directory) = test_directory {
+        if let Some(directory) = &test_directory {
             manifest_sections.push(
                 directory
                     .section()
@@ -238,9 +222,8 @@ impl AssembledCrossConeLayoutArtifactV1 {
         .map_err(CrossConeLayoutArtifactWriteError::Manifest)?;
         let summary = crate::CrossConeArtifactSummary::from_layout(
             &manifest,
-            production_manifest.code_proof().production().projection(),
-            link_object_count,
             target_selection,
+            test_directory,
         );
         let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members)
             .map_err(CrossConeLayoutArtifactWriteError::Archive)?;
@@ -269,6 +252,10 @@ impl AssembledCrossConeLayoutArtifactV1 {
     pub fn as_bytes(&self) -> &[u8] {
         self.archive.as_bytes()
     }
+
+    pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
+        self.archive.object_payloads()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -280,8 +267,6 @@ fn validate_producers(
     lir_foundation: &ConeLirFoundation,
     lir_cross_cone: &CrossConeLirBridgeSectionV1,
     lir_layout_abi: &CrossConeLayoutAbiSectionV1<'_>,
-    callable_link_closure: &crate::CrossConeLinkClosureSectionV1,
-    layout_link_closure: &crate::CrossConeLayoutLinkClosureSectionV1<'_>,
 ) -> Result<(), CrossConeLayoutArtifactWriteError> {
     for (component, actual) in [
         ("Code", code.producer()),
@@ -290,8 +275,6 @@ fn validate_producers(
         ("LIR foundation", lir_foundation.producer()),
         ("LIR bridge", lir_cross_cone.artifact()),
         ("LIR layout ABI", lir_layout_abi.provider()),
-        ("callable Link closure", callable_link_closure.consumer()),
-        ("layout Link closure", layout_link_closure.consumer()),
     ] {
         if actual != expected {
             return Err(
@@ -302,49 +285,6 @@ fn validate_producers(
                 },
             );
         }
-    }
-    Ok(())
-}
-
-fn validate_link_projections(
-    code: &VerifiedCodeFingerprintV2,
-    lir_cross_cone: &CrossConeLirBridgeSectionV1,
-    lir_layout_abi: &CrossConeLayoutAbiSectionV1<'_>,
-    callable_link_closure: &crate::CrossConeLinkClosureSectionV1,
-    layout_link_closure: &crate::CrossConeLayoutLinkClosureSectionV1<'_>,
-) -> Result<(), CrossConeLayoutArtifactWriteError> {
-    let callable_imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(lir_cross_cone)
-        .map_err(CrossConeLayoutArtifactWriteError::CallableSemanticImports)?;
-    if &callable_imports != callable_link_closure.semantic_imports() {
-        return Err(CrossConeLayoutArtifactWriteError::CallableSemanticImportMismatch);
-    }
-    let layout_imports =
-        encode(lir_layout_abi.selected().physical_imports()).map_err(|source| {
-            CrossConeLayoutArtifactWriteError::Encoding {
-                section: StrongArtifactSectionV1::LirCrossConeLayoutAbi,
-                source,
-            }
-        })?;
-    let closure_imports = encode(layout_link_closure.semantic_imports()).map_err(|source| {
-        CrossConeLayoutArtifactWriteError::Encoding {
-            section: StrongArtifactSectionV1::CrossConeLayoutLinkClosure,
-            source,
-        }
-    })?;
-    if layout_imports != closure_imports {
-        return Err(CrossConeLayoutArtifactWriteError::LayoutSemanticImportMismatch);
-    }
-    let expected_objects = code.production().link_objects().projection();
-    if callable_link_closure
-        .object_coverage()
-        .verified_link_objects()
-        != expected_objects
-        || layout_link_closure
-            .object_coverage()
-            .verified_link_objects()
-            != expected_objects
-    {
-        return Err(CrossConeLayoutArtifactWriteError::LinkObjectProjectionMismatch);
     }
     Ok(())
 }

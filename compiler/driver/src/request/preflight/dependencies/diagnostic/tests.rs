@@ -1,9 +1,4 @@
 use super::*;
-use scoop_lir::{
-    ConeProductionSectionValidationError, RegistrationProductionTableV1,
-    StrongRegistrationProductionValidationError,
-};
-
 #[test]
 fn reader_slots_follow_dependency_order_and_semantics_keep_the_provider() {
     let order = [ConeIdentity::SINGLE_FILE, ConeIdentity::CORE];
@@ -23,17 +18,11 @@ fn reader_slots_follow_dependency_order_and_semantics_keep_the_provider() {
         slib::CrossConeLayoutArtifactValidationError::Semantic {
             source: Box::new(
                 slib::CrossConeLayoutSemanticClosureError::LirStrongProduction(Box::new(
-                    slib::CrossConeLayoutLirStrongProductionError {
+                    slib::CrossConeLayoutLirProductionDataError {
                         provider: ConeIdentity::SINGLE_FILE,
-                        source: Box::new(slib::SharedLirStrongProductionError::Replay(
-                            ConeProductionSectionValidationError::Registrations(
-                                StrongRegistrationProductionValidationError::TableLength {
-                                    table: RegistrationProductionTableV1::InitializationUnit,
-                                    expected: 3,
-                                    actual: 2,
-                                },
-                            ),
-                        )),
+                        source: scoop_lir::LinkDataError(
+                            "missing initialization definition".to_owned(),
+                        ),
                     },
                 )),
             ),
@@ -41,10 +30,7 @@ fn reader_slots_follow_dependency_order_and_semantics_keep_the_provider() {
     ));
     assert_eq!(
         location(&error, &order),
-        Some((
-            ConeIdentity::SINGLE_FILE,
-            "lir/cone-production/12/registrations/InitializationUnit".to_owned()
-        ))
+        Some((ConeIdentity::SINGLE_FILE, "lir/production-data".to_owned()))
     );
     assert_eq!(location(&error, &[]), location(&error, &order));
 }

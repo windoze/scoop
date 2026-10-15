@@ -35,7 +35,7 @@ impl LoadedExplicitDependencyInputs {
         }
 
         for loaded in &self.artifacts {
-            let summary = loaded.summary(target.lir_target_selection())?;
+            let summary = loaded.summary()?;
 
             let identity = summary.cone().identity();
             if identity == current_identity {
@@ -45,7 +45,7 @@ impl LoadedExplicitDependencyInputs {
                 }
                 .into());
             }
-            validate_artifact_shape(&loaded.input, &summary, current_identity)?;
+            validate_artifact_shape(&loaded.input, summary, current_identity)?;
 
             if let Some(previous) = nodes.get(&identity) {
                 return Err(ExplicitDependencyValidationError::DuplicateIdentity {
@@ -81,7 +81,7 @@ impl LoadedExplicitDependencyInputs {
                 identity,
                 ValidatedDependencyNode {
                     input: loaded.input.clone(),
-                    bytes: &loaded.bytes,
+                    artifact: &loaded.artifact,
                     summary,
                 },
             );
@@ -100,18 +100,17 @@ impl LoadedExplicitDependencyInputs {
             .collect::<Vec<_>>();
         let dependency_first = dependency_order
             .iter()
-            .map(|identity| nodes[identity].bytes)
+            .map(|identity| nodes[identity].artifact)
             .collect::<Vec<_>>();
 
         let mut semantic_session = SemanticIdentitySession::new();
         let closure = validate_cross_cone_artifact_closure(
-            CrossConeArtifactClosureInput::dependencies(
+            CrossConeArtifactClosureInput::file_dependencies(
                 current_identity,
                 target.lir_target_selection(),
                 direct.clone(),
                 dependency_first,
             ),
-            target.c_bridge_toolchain().profile(),
             &mut semantic_session,
         )
         .map_err(|source| super::diagnostic::closure_error(source, &nodes, &dependency_order))?;

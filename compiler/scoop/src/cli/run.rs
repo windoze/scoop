@@ -6,12 +6,12 @@ use scoop::{BuildFailure, BuildFailurePhase, BuildResult};
 use scoop_process::CommandExt;
 
 pub(super) fn program(
-    stable: &Path,
-    copy: tempfile::TempPath,
+    executable: &Path,
+    output: &Path,
     args: &[OsString],
     cwd: &Path,
 ) -> BuildResult<ExitStatus> {
-    let mut command = Command::new(&copy);
+    let mut command = Command::new(executable);
     command
         .args(args)
         .current_dir(cwd)
@@ -21,12 +21,11 @@ pub(super) fn program(
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
-        command.arg0(stable);
+        command.arg0(output);
     }
     let mut child = command.scoop_spawn().map_err(failure)?;
     let status = child.wait().map_err(failure)?;
     drop(child);
-    drop(copy);
     Ok(status)
 }
 

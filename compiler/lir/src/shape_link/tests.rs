@@ -1,9 +1,6 @@
-use super::*;
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::{decode_canonical, encode};
 
-mod layout;
 mod v2_producer;
 
 #[test]
@@ -67,18 +64,4 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
         S::InitializationCell(unit),
         S::InitializationRegistration(unit),
     ]
-}
-
-#[test]
-fn shape_link_contract_reader_rejects_unknown_tags_and_wrong_product_arity() {
-    for bytes in [
-        vec![0xa2, 0, 0, 1, 0],
-        vec![0xa2, 0, 8, 1, 0],
-        vec![0xa1, 0, 2],
-        vec![0xa2, 0, 1, 1, 0],
-        vec![0xa2, 0, 3, 1, 0],
-        vec![0xa4, 0, 4],
-    ] {
-        assert!(decode_canonical::<DecodedShapeLinkContractV1>(&bytes).is_err());
-    }
 }

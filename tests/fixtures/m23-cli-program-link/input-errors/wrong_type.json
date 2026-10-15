@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "Is a directory (os error 21)",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "container:$",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

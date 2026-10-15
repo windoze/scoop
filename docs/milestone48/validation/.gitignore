@@ -1,0 +1,4 @@
+# Keep only human-readable validation summaries in this directory.
+*
+!*.md
+!.gitignore

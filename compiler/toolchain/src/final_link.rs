@@ -8,12 +8,14 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
 
 use crate::{CToolchainOptions, ResolvedTargetProfile, SystemProvider, ToolchainError};
 
+mod cache;
 mod darwin;
+mod dependencies;
 mod linux;
 pub use darwin::DarwinFinalLinkProfile;
 pub use linux::LinuxFinalLinkProfile;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LinkMode {
     Static,
     Dynamic,
@@ -33,6 +35,15 @@ pub enum ValidatedFinalLinkProfile {
 }
 
 impl ValidatedFinalLinkProfile {
+    pub(crate) fn resolve_cached(
+        target: &ResolvedTargetProfile,
+        options: &FinalLinkOptions,
+        cxx: bool,
+        directory: &Path,
+    ) -> Result<Self, ToolchainError> {
+        cache::resolve(target, options, cxx, directory)
+    }
+
     pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
         Self::resolve_with(
             triple,
@@ -58,6 +69,14 @@ impl ValidatedFinalLinkProfile {
         let cxx = cxx
             .then(|| crate::ValidatedCxxToolchain::resolve(&startup))
             .transpose()?;
+        Self::from_tools(startup, options, cxx)
+    }
+
+    pub(crate) fn from_tools(
+        startup: ValidatedCBridgeToolchainInvocation,
+        options: &FinalLinkOptions,
+        cxx: Option<crate::ValidatedCxxToolchain>,
+    ) -> Result<Self, ToolchainError> {
         match startup.profile().contract().target().id() {
             scoop_target_data::DARWIN_AARCH64_ID => {
                 if options.mode == Some(LinkMode::Static) || options.unwind_prefix.is_some() {
@@ -137,15 +156,18 @@ impl ValidatedFinalLinkProfile {
         }
     }
 
-    pub fn command(
-        &self,
-        scratch: &Path,
-        output: &Path,
-        map: &Path,
-    ) -> Result<Command, ToolchainError> {
+    pub fn command(&self, scratch: &Path, output: &Path) -> Result<Command, ToolchainError> {
         match self {
-            Self::Darwin(profile) => profile.command(scratch, output, map),
-            Self::Linux(profile) => profile.command(scratch, output, map),
+            Self::Darwin(profile) => profile.command(scratch, output),
+            Self::Linux(profile) => profile.command(scratch, output),
+        }
+    }
+
+    /// Inputs observed by executable update records, including system search directories.
+    pub fn input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
+        match self {
+            Self::Darwin(profile) => profile.input_paths(),
+            Self::Linux(profile) => profile.update_input_paths(),
         }
     }
 

@@ -154,7 +154,19 @@ fn tool_error(
             member,
         )
         .map_err(mapping)?,
-        None => DiagnosticOriginV1::None,
+        None => match error {
+            SingleConeProductionError::Sources(crate::CurrentConeSourceStageError::Discovery(
+                error,
+            )) => DiagnosticOriginV1::HostPath {
+                path: scoop_protocol::HostPathCarrier::from_path(error.path()).map_err(mapping)?,
+            },
+            SingleConeProductionError::Sources(crate::CurrentConeSourceStageError::SingleFile(
+                error,
+            )) => DiagnosticOriginV1::HostPath {
+                path: scoop_protocol::HostPathCarrier::from_path(error.path()).map_err(mapping)?,
+            },
+            _ => DiagnosticOriginV1::None,
+        },
     };
     StructuredDiagnosticV1::new(
         DiagnosticSeverityV1::Error,

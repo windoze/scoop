@@ -85,13 +85,17 @@ pub(super) fn resolve(
         .namespace
         .project(&inputs.definitions, library_paths, profile)?;
     for file in inputs.native.ordered_files() {
-        for (id, _, range) in file.objects() {
+        for (id, _, range, digest) in file.objects() {
             if inputs.native.selected.contains_key(&id) {
                 inputs.objects.push(InputObject {
                     origin: ObjectOrigin::Native(id),
-                    bytes: ObjectBytes::Native {
-                        file: file.bytes.clone(),
-                        range,
+                    digest,
+                    bytes: match &file.object_path {
+                        Some(path) => ObjectBytes::File { path: path.clone() },
+                        None => ObjectBytes::Native {
+                            file: file.bytes.clone(),
+                            range,
+                        },
                     },
                 });
             }

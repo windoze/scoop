@@ -73,7 +73,7 @@ fn layout_profile_graph_uses_actual_declared_providers() {
 
 #[test]
 fn layout_profile_graph_rejects_current_artifact_in_provider_storage() {
-    let bytes = layout_artifact(false, None);
+    let bytes = layout_artifact(None);
     let artifact = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap();

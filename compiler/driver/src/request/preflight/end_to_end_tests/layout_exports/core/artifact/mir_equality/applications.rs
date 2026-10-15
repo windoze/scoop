@@ -4,8 +4,8 @@ use scoop_identity::{
     SignatureTypeKey,
 };
 
-pub(super) fn check(replay: &Replay<'_>, name: &str) {
-    let metadata = replay.source.metadata();
+pub(super) fn check(replay: &Fixture<'_>, name: &str) {
+    let metadata = replay.source;
     let coordinates = [ConeCoordinate::reserved_core()];
     let names = ExactTypeDiagnosticCatalog::try_new(metadata.identities, &coordinates).unwrap();
     let exact = |id| {

@@ -3,8 +3,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use super::*;
 
-/// Raw field references cannot produce storage independently. A reader must
-/// first replay the declaring aggregate against its checked layout inputs.
+/// Saved field offsets and typed references into already read value storage.
 #[derive(Debug)]
 pub struct DecodedFieldStorageV1(RawField);
 
@@ -18,61 +17,56 @@ enum RawField {
     Stored {
         exact: DecodedPersistentId<PersistentExactTypeId>,
         offset: u64,
-        layout: DecodedPersistentId<PersistentLayoutId>,
+        layout: DecodedValueLayoutConstituentV1,
     },
 }
 
 impl DecodedFieldStorageV1 {
-    pub(crate) fn link_exact(&self) -> DecodedPersistentId<PersistentExactTypeId> {
-        match self.0 {
-            RawField::ElidedZst { exact, .. } | RawField::Stored { exact, .. } => exact,
-        }
-    }
-
-    pub fn validate_against(
+    pub(crate) fn read(
         self,
-        expected: &FieldStorageV1,
-    ) -> Result<FieldStorageV1, StorageReplayError> {
-        let equal = match (self.0, expected.kind()) {
-            (
-                RawField::ElidedZst {
-                    exact,
-                    offset,
-                    alignment,
-                },
-                FieldStorageKindV1::ElidedZst {
-                    exact: expected_exact,
-                    offset: expected_offset,
-                    alignment: expected_alignment,
-                },
-            ) => {
-                exact.verify(expected_exact).is_ok()
-                    && offset == expected_offset.get()
-                    && alignment == expected_alignment.get()
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+        target: LirTargetProfile,
+        extent: u64,
+    ) -> Result<FieldStorageV1, crate::LinkDataError> {
+        use crate::link_data::link_error;
+        use scoop_identity::PersistentIdResolver;
+        Ok(FieldStorageV1(match self.0 {
+            RawField::ElidedZst {
+                exact,
+                offset,
+                alignment,
+            } => {
+                if offset != 0 {
+                    return Err(link_error("nonzero ZST field offset"));
+                }
+                FieldBody::ElidedZst {
+                    exact: identities.resolve(exact).map_err(link_error)?,
+                    alignment: NonZeroPow2::new(alignment).map_err(link_error)?,
+                }
             }
-            (
-                RawField::Stored {
-                    exact,
-                    offset,
+            RawField::Stored {
+                exact,
+                offset,
+                layout,
+            } => {
+                let exact = identities.resolve(exact).map_err(link_error)?;
+                let layout = layout
+                    .read(target, identities)?
+                    .nonzero_ref()
+                    .ok_or_else(|| link_error("missing nonzero field value layout"))?;
+                if exact != layout.exact()
+                    || offset
+                        .checked_add(layout.storage().size().get())
+                        .is_none_or(|end| end > extent)
+                {
+                    return Err(link_error("field reference or extent mismatch"));
+                }
+                FieldBody::Stored {
+                    offset: ByteOffsetV1(offset),
                     layout,
-                },
-                FieldStorageKindV1::Stored {
-                    exact: expected_exact,
-                    offset: expected_offset,
-                    layout: expected_layout,
-                },
-            ) => {
-                exact.verify(expected_exact).is_ok()
-                    && offset == expected_offset.get()
-                    && layout.verify(expected_layout.layout()).is_ok()
+                }
             }
-            _ => false,
-        };
-        if equal {
-            Ok(expected.clone())
-        } else {
-            Err(StorageReplayError::FieldWireMismatch)
-        }
+        }))
     }
 }
 
@@ -89,7 +83,7 @@ impl WireDecode for DecodedFieldStorageV1 {
             2 => RawField::Stored {
                 exact: decoder.field(1, DecodedPersistentId::decode)?,
                 offset: decoder.field(2, Decoder::unsigned)?,
-                layout: decoder.field(3, DecodedPersistentId::decode)?,
+                layout: decoder.field(3, DecodedValueLayoutConstituentV1::decode)?,
             },
             _ => {
                 return Err(WireError::new(
@@ -120,7 +114,7 @@ impl WireEncode for FieldStorageV1 {
                 layout,
             } => {
                 prefix(encoder, 2, &exact, offset.get())?;
-                layout.layout().encode(encoder)
+                layout.encode(encoder)
             }
         }
     }

@@ -31,10 +31,6 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "build_dependencies"
-checks = []
-
-[[steps]]
 name = "run_built"
 argv = ["${build.result.output}"]
 exit = 0
@@ -50,19 +46,22 @@ stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+]
 checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "contains" = "images=3 "}]
 
 [[steps]]
@@ -82,12 +81,10 @@ env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 
 [[steps]]
 name = "low_level_link"
-argv = ["${scoop-link}", "--root-slib", "${work}/artifacts/root.slib", "--dep-slib", "${work}/artifacts/1.slib", "--dep-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--dump-plan", "-o", "${work}/low-level-program"]
+argv = ["${scoop-link}", "--root-slib", "${work}/artifacts/root.slib", "--dep-slib", "${work}/artifacts/1.slib", "--dep-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--dump-plan", "-o", "${work}/low-level-program", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "${link.result.link_plan}link-plan ${link.result.link_plan_fingerprint}\n"
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-
 [[steps]]
 name = "run_low_level"
 argv = ["${work}/low-level-program"]

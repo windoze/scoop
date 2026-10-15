@@ -1,9 +1,8 @@
 //! Resolve an exact artifact closure without source discovery or compiler probes.
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use scoop_linker::{ResolvedLinkPlanFingerprint, RuntimeObjectSet, link_program};
-use scoop_slib::{ArtifactManifestSummaryV1, ArtifactSnapshot};
+use scoop_slib::{ArtifactFile, ArtifactManifestSummaryV1};
 use scoop_toolchain::ResolvedTargetProfile;
 
 use crate::materialize::OutputLocation;
@@ -12,6 +11,7 @@ use crate::{BuildFailure, BuildFailurePhase, BuildResult};
 mod resolve;
 
 pub struct LinkRequest {
+    pub cache_dir: PathBuf,
     pub root_slib: PathBuf,
     pub dependency_slibs: Vec<PathBuf>,
     pub cone_paths: Vec<PathBuf>,
@@ -27,7 +27,7 @@ pub struct LinkRequest {
 #[derive(Debug)]
 pub struct LocatedLinkArtifact {
     pub path: PathBuf,
-    pub snapshot: Arc<ArtifactSnapshot>,
+    pub file: ArtifactFile,
     pub summary: ArtifactManifestSummaryV1,
 }
 
@@ -42,24 +42,27 @@ pub struct LinkOutcome {
 }
 
 pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
-    let target = ResolvedTargetProfile::resolve_with(&request.target, &request.c_toolchain)
-        .map_err(failure)?;
+    let target = ResolvedTargetProfile::resolve_with_cached(
+        &request.target,
+        &request.c_toolchain,
+        &request.cache_dir,
+    )
+    .map_err(failure)?;
     let selection = target.lir_target_selection();
     let (root, dependencies) = resolve::artifacts(&request, selection)?;
-    let bytes = dependencies
+    let inputs = dependencies
         .iter()
-        .map(|artifact| artifact.snapshot.as_bytes())
+        .map(|artifact| &artifact.file)
         .collect::<Vec<_>>();
-    let closure = scoop_slib::read_program_link_closure(
-        root.snapshot.as_bytes(),
-        &bytes,
-        selection,
-        target.c_bridge_toolchain().profile(),
+    let closure = scoop_slib::read_program_link_closure(&root.file, &inputs, selection)
+        .map_err(|error| read_failure(error, &root, &dependencies))?;
+    let profile = scoop_linker::resolve_program_link_profile(
+        &closure,
+        &target,
+        &request.final_link,
+        Some(&request.cache_dir),
     )
-    .map_err(|error| read_failure(error, &root, &dependencies))?;
-    let profile =
-        scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link)
-            .map_err(failure)?;
+    .map_err(failure)?;
     let runtime = RuntimeObjectSet::read_index(
         &request.runtime_index,
         profile.target(),
@@ -77,15 +80,10 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         &profile,
         &request.library_paths,
         &directory.path().join("program"),
+        &request.cache_dir,
     )
     .map_err(failure)?;
-    let mut inputs = vec![root.path.clone()];
-    inputs.extend(dependencies.iter().map(|artifact| artifact.path.clone()));
-    inputs.extend(runtime.input_paths().iter().cloned());
-    inputs.extend(linked.input_paths);
-    output
-        .publish_program(&linked.path, &inputs, None, false)
-        .map_err(failure)?;
+    output.publish(&linked.path, None).map_err(failure)?;
     Ok(LinkOutcome {
         output: output.path().to_owned(),
         root,

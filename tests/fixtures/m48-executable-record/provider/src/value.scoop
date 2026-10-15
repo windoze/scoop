@@ -1,0 +1,2 @@
+package m48.executable
+public fun value(): Int = 40

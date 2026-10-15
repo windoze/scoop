@@ -14,7 +14,7 @@ pub(in super::super) fn open(
 pub(in super::super) fn read<'a>(
     core: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
-) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+) -> scoop_slib::LirDependenciesResolvedCrossConeLayoutClosure<'a> {
     read_sections(open(core), open(artifact))
 }
 
@@ -32,7 +32,7 @@ pub(in super::super) fn open_link(
 pub(in super::super) fn read_link<'a>(
     core: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
-) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+) -> scoop_slib::LirDependenciesResolvedCrossConeLayoutClosure<'a> {
     read_sections(
         open_link(core).into_shared_sections().unwrap(),
         open_link(artifact).into_shared_sections().unwrap(),
@@ -42,7 +42,7 @@ pub(in super::super) fn read_link<'a>(
 pub(in super::super) fn read_sections<'a>(
     core: scoop_slib::DecodedCrossConeLayoutCompileSections<'a>,
     artifact: scoop_slib::DecodedCrossConeLayoutCompileSections<'a>,
-) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+) -> scoop_slib::LirDependenciesResolvedCrossConeLayoutClosure<'a> {
     let closure = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
         artifact.identity(),
         artifact.target_selection(),
@@ -63,7 +63,7 @@ pub(in super::super) fn read_sections<'a>(
     .validate_hir_declarations()
     .unwrap();
     closure
-        .validate_mir_sources()
+        .read_mir_records()
         .unwrap()
         .validate_lir_layouts()
         .unwrap()
@@ -77,11 +77,11 @@ pub(in super::super) fn read_sections<'a>(
         .unwrap()
         .validate_lir_shape_support()
         .unwrap()
-        .replay_lir_strong_production()
+        .read_lir_production_data()
         .unwrap()
-        .replay_mir_dependency_graph()
+        .resolve_mir_dependencies()
         .unwrap()
-        .replay_lir_dependency_graph()
+        .resolve_lir_dependencies()
         .unwrap()
 }
 
@@ -111,7 +111,7 @@ pub(super) fn check(
         encode(layout).unwrap()
     );
     closure
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             let current = physical.artifact(layout.provider()).unwrap();
@@ -128,7 +128,7 @@ pub(super) fn check(
         })
         .unwrap();
     read_link(core, artifact)
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             for current in physical.dependency_first() {

@@ -13,8 +13,8 @@ mod events;
 pub(super) mod model;
 
 pub(super) fn program(
-    stable: &Path,
-    copy: tempfile::TempPath,
+    executable: &Path,
+    output: &Path,
     selected: &SelectedTests,
     nocapture: bool,
     cwd: &Path,
@@ -31,9 +31,9 @@ pub(super) fn program(
     }
     let run = tempfile::Builder::new()
         .prefix(".test-run-")
-        .tempdir_in(copy.parent().expect("an execution copy has a parent"))
+        .tempdir_in(output.parent().expect("an executable has a parent"))
         .map_err(failure)?;
-    let mut command = Command::new(&copy);
+    let mut command = Command::new(executable);
     command
         .args(&selected.arguments)
         .current_dir(cwd)
@@ -53,7 +53,7 @@ pub(super) fn program(
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
-        command.arg0(stable);
+        command.arg0(output);
     }
     let mut child = command.scoop_spawn().map_err(failure)?;
     let status = child.wait().map_err(failure)?;

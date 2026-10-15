@@ -9,8 +9,8 @@ pub use wire::DecodedTupleElementStorageV1;
 /// An ordinal scoped to one exact tuple, never a nominal declaration field.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TupleElementIndexV1 {
-    tuple: PersistentExactTypeId,
-    ordinal: u64,
+    pub(crate) tuple: PersistentExactTypeId,
+    pub(crate) ordinal: u64,
 }
 
 impl TupleElementIndexV1 {
@@ -24,9 +24,9 @@ impl TupleElementIndexV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TupleElementStorageV1 {
-    index: TupleElementIndexV1,
-    storage: FieldStorageV1,
-    access_alignment: NonZeroPow2,
+    pub(crate) index: TupleElementIndexV1,
+    pub(crate) storage: FieldStorageV1,
+    pub(crate) access_alignment: NonZeroPow2,
 }
 
 impl TupleElementStorageV1 {
@@ -45,9 +45,9 @@ impl TupleElementStorageV1 {
 /// Export availability and source production gates are not established here.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TupleStorageLayoutV1 {
-    exact: PersistentExactTypeId,
-    storage: ValueStorageLayoutV1,
-    elements: Vec<TupleElementStorageV1>,
+    pub(crate) exact: PersistentExactTypeId,
+    pub(crate) storage: ValueStorageLayoutV1,
+    pub(crate) elements: Vec<TupleElementStorageV1>,
 }
 
 impl TupleStorageLayoutV1 {
@@ -145,7 +145,6 @@ pub enum TupleStorageReplayError {
     ExpectedTuple,
     ArityMismatch,
     ElementTypeMismatch,
-    ElementWireMismatch,
     Storage(StorageReplayError),
     Resource(WireError),
 }

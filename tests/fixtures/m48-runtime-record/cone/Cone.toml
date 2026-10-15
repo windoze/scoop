@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test.m48"
+name = "runtime-record"
+version = "1.0.0"
+kind = "executable"

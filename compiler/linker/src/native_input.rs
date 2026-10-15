@@ -36,6 +36,8 @@ impl WireEncode for NativeInputId {
 
 pub(crate) struct NativeFile {
     pub id: NativeInputId,
+    pub object_digest: Digest256,
+    pub object_path: Option<PathBuf>,
     pub bytes: Arc<[u8]>,
     pub slice: Range<usize>,
     pub locator: PathBuf,
@@ -67,11 +69,21 @@ impl NativeInputId {
         kind: NativeFileKind,
         profile: &ValidatedFinalLinkProfile,
     ) -> Result<Self, LinkError> {
+        Self::from_digest(sha256(bytes), bytes.len() as u64, kind, profile)
+    }
+
+    pub fn from_digest(
+        digest: Digest256,
+        byte_len: u64,
+        kind: NativeFileKind,
+        profile: &ValidatedFinalLinkProfile,
+    ) -> Result<Self, LinkError> {
         Ok(Self(
             domain_separated_cbor_hash(
                 "scoop-native-input-v1",
                 &FileKey {
-                    bytes,
+                    digest,
+                    byte_len,
                     kind: kind as u64,
                     profile,
                 },
@@ -91,10 +103,10 @@ pub(crate) struct LibraryInput {
 
 #[derive(Default)]
 pub(crate) struct NativeInputs {
+    pub observed_paths: Vec<PathBuf>,
     pub files: BTreeMap<NativeInputId, NativeFile>,
     pub libraries: BTreeMap<NativeLinkRequirementId, LibraryInput>,
     pub selected: BTreeMap<NativeObjectId, String>,
-    pub references: BTreeMap<NativeObjectId, crate::native_object::NativeReferences>,
     embedded: BTreeMap<(scoop_identity::ConeIdentity, scoop_slib::SlibMemberId), NativeInputId>,
 }
 
@@ -117,12 +129,13 @@ impl NativeInputs {
                     origins.join(", ")
                 )));
             }
-            let resolution = locate::library(&key, roots, profile).map_err(|err| {
-                error(format!(
-                    "{err}; requirement {id}; origins: {}",
-                    origins.join(", ")
-                ))
-            })?;
+            let resolution = locate::library(&key, roots, profile, &mut result.observed_paths)
+                .map_err(|err| {
+                    error(format!(
+                        "{err}; requirement {id}; origins: {}",
+                        origins.join(", ")
+                    ))
+                })?;
             result.libraries.insert(
                 id,
                 LibraryInput {
@@ -138,6 +151,21 @@ impl NativeInputs {
             }
         }
         Ok(result)
+    }
+
+    pub fn input_paths(&self) -> Vec<PathBuf> {
+        let embedded: std::collections::BTreeSet<_> = self.embedded.values().copied().collect();
+        self.files
+            .iter()
+            .filter(|(id, _)| !embedded.contains(id))
+            .map(|(_, file)| file.locator.clone())
+            .chain(self.observed_paths.iter().cloned())
+            .chain(
+                self.libraries
+                    .values()
+                    .flat_map(|library| library.scripts.iter().map(|(path, _)| path.clone())),
+            )
+            .collect()
     }
 
     pub fn ordered_files(&self) -> Vec<&NativeFile> {
@@ -165,7 +193,8 @@ impl NativeInputs {
 
 struct FileKey<'a> {
     profile: &'a ValidatedFinalLinkProfile,
-    bytes: &'a [u8],
+    digest: Digest256,
+    byte_len: u64,
     kind: u64,
 }
 impl WireEncode for FileKey<'_> {
@@ -173,7 +202,7 @@ impl WireEncode for FileKey<'_> {
         e.array(4)?;
         self.profile.target().wire_id().encode(e)?;
         e.unsigned(self.kind)?;
-        e.unsigned(self.bytes.len() as u64)?;
-        sha256(self.bytes).encode(e)
+        e.unsigned(self.byte_len)?;
+        self.digest.encode(e)
     }
 }

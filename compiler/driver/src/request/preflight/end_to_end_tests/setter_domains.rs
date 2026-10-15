@@ -33,7 +33,6 @@ fn ordinary_artifact_reader_checks_setter_domains_in_restricted_and_generic_owne
         vec![ConeIdentity::CORE],
         vec![&core_bytes],
         &bytes,
-        target.c_bridge_toolchain().profile(),
         &mut session,
     )
     .unwrap();

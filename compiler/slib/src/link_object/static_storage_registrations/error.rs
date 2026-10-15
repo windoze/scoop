@@ -77,7 +77,6 @@ pub enum StrongStaticStorageRegistrationValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     MissingDefinitionAssignment {
         storage: PersistentStaticStorageId,
         definition: ObjectDefinitionPlanId,

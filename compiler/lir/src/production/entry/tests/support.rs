@@ -1,11 +1,6 @@
 use super::*;
 
 pub(super) struct ExecutableFixture {
-    pub(super) source: EntryProductionSourceV1,
-    pub(super) declaration: scoop_identity::ExecutableEntryDeclaration,
-    pub(super) main: MainCallableBodyId,
-    pub(super) gateway: PersistentCallableBodyId,
-    pub(super) failure_root: PersistentStaticStorageId,
     pub(super) foundation: ConeLirFoundation,
     pub(super) digests: DigestFinalizationPlanV1,
     pub(super) registrations: RegistrationIdentitySurfaceV1,
@@ -158,13 +153,7 @@ pub(super) fn fixture_for_entry(entry: ExecutableEntryIdentity) -> ExecutableFix
     );
     let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
-    let source = EntryProductionSourceV1::executable(entry);
     ExecutableFixture {
-        source,
-        declaration,
-        main,
-        gateway,
-        failure_root,
         foundation,
         digests,
         registrations,
@@ -247,8 +236,4 @@ fn unit_exact_type() -> PersistentExactTypeId {
             .id(),
     ))
     .unwrap()
-}
-
-pub(super) fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

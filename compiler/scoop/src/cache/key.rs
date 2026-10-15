@@ -1,8 +1,9 @@
 use std::fmt;
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use scoop_identity::{
-    ArtifactCapabilityProfileId, ConeCoordinate, RequestedConeKind, SourceContentDigest,
-    SourceIdentity, SourceRole,
+    ArtifactCapabilityProfileId, ConeCoordinate, RequestedConeKind, SourceIdentity, SourceRole,
 };
 use scoop_lir::{BackendProfileFingerprint, CBridgeToolchainFingerprint, TargetProfileFingerprint};
 use scoop_manifest::SourceSelection;
@@ -18,7 +19,7 @@ use crate::PairedCompilerFingerprintV1;
 mod testing;
 pub use testing::TestCompileConfiguration;
 
-const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v3";
+const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v7";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConeCompileCacheKeyV1([u8; 32]);
@@ -51,41 +52,47 @@ impl fmt::Display for ConeCompileCacheKeyV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceCacheInputV1 {
     source: SourceIdentity,
-    content: SourceContentDigest,
+    path: PathBuf,
+    byte_length: u64,
+    modified: SystemTime,
     role: SourceRole,
 }
 
 impl SourceCacheInputV1 {
-    pub(crate) const fn new(source: SourceIdentity, content: SourceContentDigest) -> Self {
+    pub(crate) fn new(source: &scoop_manifest::SelectedSource) -> Self {
         Self {
-            source,
-            content,
-            role: SourceRole::Production,
+            source: source.identity().clone(),
+            path: source.physical_path().to_path_buf(),
+            byte_length: source.byte_length(),
+            modified: source.modified(),
+            role: source.role(),
         }
-    }
-
-    pub(crate) fn with_role(mut self, role: SourceRole) -> Self {
-        self.role = role;
-        self
     }
 
     pub const fn source(&self) -> &SourceIdentity {
         &self.source
     }
-
-    pub const fn content(&self) -> SourceContentDigest {
-        self.content
-    }
 }
 
 impl WireEncode for SourceCacheInputV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.source.encode(encoder)?;
         encoder.field(2)?;
-        self.content.encode(encoder)?;
+        encoder.bytes(self.path.as_os_str().as_encoded_bytes())?;
         encoder.field(3)?;
+        encoder.unsigned(self.byte_length)?;
+        encoder.field(4)?;
+        let (before_epoch, elapsed) = match self.modified.duration_since(UNIX_EPOCH) {
+            Ok(elapsed) => (0, elapsed),
+            Err(error) => (1, error.duration()),
+        };
+        encoder.array(3)?;
+        encoder.unsigned(before_epoch)?;
+        encoder.unsigned(elapsed.as_secs())?;
+        encoder.unsigned(u64::from(elapsed.subsec_nanos()))?;
+        encoder.field(5)?;
         encoder.unsigned(match self.role {
             SourceRole::Production => 1,
             SourceRole::Test => 2,
@@ -189,7 +196,7 @@ pub enum CurrentConeSemanticProjectionV1 {
         dependencies: Vec<ConeCoordinate>,
         sources: SourceSelection,
         tests: Option<TestCompileConfiguration>,
-        native: Box<scoop_toolchain::PreparedNativeInputs>,
+        native: Box<scoop_wire::Digest256>,
     },
     SingleFile,
 }
@@ -251,6 +258,7 @@ pub struct ConeCompileCacheInputV1 {
     lir_target: TargetProfileFingerprint,
     backend: BackendProfileFingerprint,
     c_bridge_toolchain: CBridgeToolchainFingerprint,
+    native_tool_inputs: scoop_wire::Digest256,
     optimization: scoop_lir::OptimizationMode,
     purpose: CompilationPurpose,
 }
@@ -269,6 +277,7 @@ impl ConeCompileCacheInputV1 {
         lir_target: TargetProfileFingerprint,
         backend: BackendProfileFingerprint,
         c_bridge_toolchain: CBridgeToolchainFingerprint,
+        native_tool_inputs: scoop_wire::Digest256,
     ) -> Self {
         Self {
             cone,
@@ -282,6 +291,7 @@ impl ConeCompileCacheInputV1 {
             lir_target,
             backend,
             c_bridge_toolchain,
+            native_tool_inputs,
             optimization: scoop_lir::OptimizationMode::Debug,
             purpose: CompilationPurpose::Production,
         }
@@ -298,8 +308,7 @@ impl ConeCompileCacheInputV1 {
     }
 
     pub fn key(&self) -> Result<ConeCompileCacheKeyV1, HashError> {
-        domain_separated_cbor_hash(CACHE_KEY_DOMAIN, self)
-            .map(|digest| ConeCompileCacheKeyV1(*digest.as_array()))
+        domain_separated_cbor_hash(CACHE_KEY_DOMAIN, self).map(ConeCompileCacheKeyV1::from_digest)
     }
 
     pub const fn cone(&self) -> &ConeRecord {
@@ -329,7 +338,7 @@ impl ConeCompileCacheInputV1 {
 
 impl WireEncode for ConeCompileCacheInputV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(14)?;
+        encoder.map(15)?;
         encoder.field(1)?;
         encoder.unsigned(1)?;
         encoder.field(2)?;
@@ -357,7 +366,9 @@ impl WireEncode for ConeCompileCacheInputV1 {
         encoder.field(13)?;
         self.optimization.encode(encoder)?;
         encoder.field(14)?;
-        self.purpose.encode(encoder)
+        self.purpose.encode(encoder)?;
+        encoder.field(15)?;
+        self.native_tool_inputs.encode(encoder)
     }
 }
 

@@ -17,6 +17,25 @@ pub struct DependencyCoordinateKey {
     name: String,
 }
 
+impl serde::Serialize for DependencyCoordinateKey {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for DependencyCoordinateKey {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        let (group, name) = value
+            .split_once(':')
+            .ok_or_else(|| serde::de::Error::custom("expected a dependency coordinate key"))?;
+        Ok(Self {
+            group: group.to_owned(),
+            name: name.to_owned(),
+        })
+    }
+}
+
 impl DependencyCoordinateKey {
     pub fn group(&self) -> &str {
         &self.group
@@ -33,10 +52,13 @@ impl fmt::Display for DependencyCoordinateKey {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConeManifestSemantic {
+    #[serde(with = "crate::serde_record::coordinate")]
     coordinate: ConeCoordinate,
+    #[serde(with = "crate::serde_record::RequestedKind")]
     requested_kind: RequestedConeKind,
+    #[serde(with = "crate::serde_record::dependencies")]
     dependencies: BTreeMap<DependencyCoordinateKey, ConeCoordinate>,
     sources: SourceSelection,
     native: crate::NativeConfig,
@@ -76,7 +98,7 @@ impl ConeManifestSemantic {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HostPathLocator(PathBuf);
 
 impl HostPathLocator {
@@ -92,7 +114,7 @@ impl HostPathLocator {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum DependencyLocator {
     SearchRoots,
     SourcePath(HostPathLocator),
@@ -119,7 +141,7 @@ impl DependencyLocator {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DependencyLocatorTable(BTreeMap<DependencyCoordinateKey, DependencyLocator>);
 
 impl DependencyLocatorTable {
@@ -140,7 +162,7 @@ impl DependencyLocatorTable {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestSpan(Range<usize>);
 
 impl ManifestSpan {
@@ -153,7 +175,7 @@ impl ManifestSpan {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConeManifestSpans {
     group: ManifestSpan,
     name: ManifestSpan,
@@ -179,7 +201,7 @@ impl ConeManifestSpans {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DependencyManifestSpans {
     declaration: ManifestSpan,
     version: ManifestSpan,
@@ -205,7 +227,7 @@ impl DependencyManifestSpans {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestDiagnosticSpans {
     schema: ManifestSpan,
     cone: ManifestSpan,
@@ -237,7 +259,7 @@ impl ManifestDiagnosticSpans {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ParsedConeManifest {
     semantic: ConeManifestSemantic,
     locators: DependencyLocatorTable,

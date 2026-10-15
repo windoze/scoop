@@ -8,9 +8,9 @@ impl WireEncode for LinuxFinalLinkProfile {
         e.field(2)?;
         self.startup.profile().contract().encode(e)?;
         e.field(3)?;
-        self.compiler_digest.encode(e)?;
+        self.data.compiler_digest.encode(e)?;
         e.field(4)?;
-        e.text(&self.linker_version)?;
+        e.text(&self.data.linker_version)?;
         e.field(5)?;
         e.array((OPTIONS.len() + self.mode_flags().len() + usize::from(!self.cxx())) as u64)?;
         if !self.cxx() {
@@ -25,6 +25,7 @@ impl WireEncode for LinuxFinalLinkProfile {
         // Locators serve local reads. Content and input role determine the
         // final-link identity, so moving a sysroot does not change its bytes.
         let mut inputs: Vec<_> = self
+            .data
             .inputs
             .iter()
             .map(|input| {
@@ -44,7 +45,7 @@ impl WireEncode for LinuxFinalLinkProfile {
         e.field(8)?;
         e.unsigned(1)?;
         e.field(9)?;
-        match &self.runtime {
+        match &self.data.runtime {
             RuntimeLibraries::C { .. } => e.array(0),
             RuntimeLibraries::Cxx(cxx) => {
                 e.array(1)?;

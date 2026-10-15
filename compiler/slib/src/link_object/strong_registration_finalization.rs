@@ -5,7 +5,6 @@ use scoop_identity::{
     PersistentCallableBodyId, PersistentExactTypeId, PersistentImmortalObjectId,
     PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
 };
-use scoop_wire::sha256;
 
 use super::initialization_registrations::record::expected_final_record as expected_final_initialization_record;
 use super::safepoint_registrations::physical::{validate_objects, verified_member};
@@ -14,25 +13,20 @@ use super::static_storage_registrations::record::expected_final_record as expect
 use super::{StrongSafepointRegistrationValidationError, VerifiedStrongSafepointFingerprintSetV1};
 use crate::SlibMemberId;
 use crate::link_object::{
-    ScoopLirObjectCandidateV1, ScoopLirObjectEnvelopeValidationError,
-    ValidatedBuiltinObjectSectionInventoryV1, ValidatedScoopLirObjectEnvelopeV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedStrongCallableFingerprintSetV1,
-    VerifiedStrongImmortalObjectFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
-    VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
+    ScoopLirObjectCandidateV1, ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1,
+    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
+    VerifiedStrongInitializationFingerprintSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
+    VerifiedStrongTypeFingerprintSetV1,
     callable_registrations::record::expected_final_record as expected_final_callable_record,
     immortal_registrations::record::expected_final_record as expected_final_immortal_object_record,
     type_registrations::record::expected_final_record as expected_final_type_record,
-    validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
 
 mod coverage;
-mod normalization;
 mod patching;
 mod records;
 
 use coverage::validate_proof_coverage;
-pub(in crate::link_object) use normalization::same_object_shape;
-use normalization::verify_normalized_content;
 #[cfg(test)]
 pub(in crate::link_object) use patching::patch_initializations_for_test;
 use patching::*;
@@ -40,8 +34,7 @@ use records::*;
 
 const DIGEST_WIDTH: usize = 32;
 
-/// One copied Scoop LIR object whose verified strong-registration digest slots
-/// have been patched and whose final Mach-O envelope has been revalidated.
+/// A Scoop LIR object with final registration digests and its reused parsed structure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongRegistrationPatchedScoopLirObjectV1 {
     member: SlibMemberId,
@@ -122,8 +115,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
     }
 }
 
-/// Copy the exact verified provisional objects, write every declared strong
-/// registration slot, and revalidate normalized content and shape.
+/// Write the declared registration digest slots and update the content fingerprint.
 pub fn patch_strong_registration_fingerprints_v1(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
@@ -226,27 +218,12 @@ where
 
     let mut finalized = Vec::with_capacity(objects.len());
     for (member, bytes) in objects {
-        verify_normalized_content(
-            member,
-            &bytes,
-            &safepoints,
-            &callables,
-            &types,
-            &static_storages,
-            &initializations,
-        )?;
-        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-            builtins.member_plan().target(),
-            &bytes,
-        )
-        .map_err(|source| StrongRegistrationPatchError::FinalEnvelope { member, source })?;
         let original = verified_member(builtins, member)
             .map_err(StrongRegistrationPatchError::ObjectValidation)?
             .definitions()
             .sections();
-        if !same_object_shape(original, envelope.sections()) {
-            return Err(StrongRegistrationPatchError::MachOShapeChanged(member));
-        }
+        let envelope =
+            ValidatedScoopLirObjectEnvelopeV1::after_digest_patch(original.clone(), &bytes);
         finalized.push(VerifiedStrongRegistrationPatchedScoopLirObjectV1 {
             member,
             bytes,
@@ -310,13 +287,6 @@ pub enum StrongRegistrationPatchError {
         expected: u8,
         actual: u8,
     },
-    NormalizedObjectRange(SlibMemberId),
-    NormalizedObjectMismatch(SlibMemberId),
-    FinalEnvelope {
-        member: SlibMemberId,
-        source: ScoopLirObjectEnvelopeValidationError,
-    },
-    MachOShapeChanged(SlibMemberId),
 }
 
 impl fmt::Display for StrongRegistrationPatchError {
@@ -332,7 +302,6 @@ impl std::error::Error for StrongRegistrationPatchError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ObjectValidation(source) => Some(source),
-            Self::FinalEnvelope { source, .. } => Some(source),
             _ => None,
         }
     }

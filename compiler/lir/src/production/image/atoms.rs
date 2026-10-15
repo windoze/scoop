@@ -104,6 +104,24 @@ pub(super) struct DecodedConeImageSupportAtomsV1 {
     array_size_overflow_message: DecodedPersistentId<ObjectDefinitionAtomId>,
 }
 
+impl DecodedConeImageSupportAtomsV1 {
+    pub(super) fn link_trap_atoms(
+        &self,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<[ObjectDefinitionAtomId; 2], crate::LinkDataError> {
+        use crate::link_data::link_error;
+        use scoop_identity::PersistentIdResolver;
+        Ok([
+            identities
+                .resolve(self.array_bounds_message)
+                .map_err(link_error)?,
+            identities
+                .resolve(self.array_size_overflow_message)
+                .map_err(link_error)?,
+        ])
+    }
+}
+
 impl WireEncode for DecodedConeImageSupportAtomsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_image_support_atoms(

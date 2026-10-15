@@ -14,7 +14,7 @@ use super::*;
 
 #[test]
 fn optimization_changes_only_the_current_compile_key() {
-    let debug = input("source", "compiler");
+    let debug = input(1, "compiler");
     let release = debug
         .clone()
         .with_optimization(scoop_lir::OptimizationMode::Release);
@@ -26,7 +26,7 @@ fn optimization_changes_only_the_current_compile_key() {
 
 #[test]
 fn test_purpose_and_source_roles_are_independent_key_inputs() {
-    let production = input("same bytes", "same compiler");
+    let production = input(1, "same compiler");
     let test = production.clone().with_purpose(CompilationPurpose::Test);
     assert_ne!(production.key().unwrap(), test.key().unwrap());
     let mut changed_role = test.clone();
@@ -34,7 +34,7 @@ fn test_purpose_and_source_roles_are_independent_key_inputs() {
     assert_ne!(test.key().unwrap(), changed_role.key().unwrap());
 }
 
-fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV1 {
+fn input(source_modified: u64, compiler_input: &str) -> ConeCompileCacheInputV1 {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = scoop_target_data::darwin_c_bridge_profile(
         DarwinCBridgeDeploymentContractV1::new(
@@ -64,15 +64,18 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
             dependencies: Vec::new(),
             sources: SourceSelection::Default,
             tests: None,
-            native: Box::default(),
+            native: Box::new(sha256(b"native-objects")),
         },
-        vec![SourceCacheInputV1::new(
+        vec![SourceCacheInputV1 {
             source,
-            SourceContentDigest::from_utf8(source_text),
-        )],
+            path: PathBuf::from("/workspace/core/src/core.scoop"),
+            byte_length: 10,
+            modified: UNIX_EPOCH + std::time::Duration::from_secs(source_modified),
+            role: SourceRole::Production,
+        }],
         Vec::new(),
         PairedCompilerFingerprintV1::from_parts(
-            sha256(compiler_executable.as_bytes()),
+            sha256(compiler_input.as_bytes()),
             sha256(b"distribution"),
             sha256(b"build"),
         ),
@@ -82,6 +85,7 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
         selection.target().fingerprint().unwrap(),
         selection.backend().fingerprint().unwrap(),
         c_bridge.fingerprint(),
+        sha256(b"native-tool-inputs"),
     )
 }
 
@@ -163,12 +167,15 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             dependencies: vec![dependency.cone().coordinate().clone()],
             sources: SourceSelection::Default,
             tests: None,
-            native: Box::default(),
+            native: Box::new(sha256(b"native-objects")),
         },
-        vec![SourceCacheInputV1::new(
+        vec![SourceCacheInputV1 {
             source,
-            SourceContentDigest::from_utf8("fun answer(): Long = 42\n"),
-        )],
+            path: PathBuf::from("/workspace/current/src/main.scoop"),
+            byte_length: 23,
+            modified: UNIX_EPOCH,
+            role: SourceRole::Production,
+        }],
         vec![CompileDependencyInputV1::new(
             core.cone().clone(),
             semantic.hir(),
@@ -187,6 +194,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
         selection.target().fingerprint().unwrap(),
         selection.backend().fingerprint().unwrap(),
         c_bridge_fingerprint(0x000d_0100, 0x000e_0200, "clang-2100.1.1.101"),
+        sha256(b"native-tool-inputs"),
     )
 }
 
@@ -202,24 +210,27 @@ fn assert_mutation_misses(
 
 #[test]
 fn compile_cache_key_has_a_fixed_canonical_vector() {
-    let input = input("class Any\n", "paired-scoopc-v1");
+    let input = input(1, "paired-scoopc-v1");
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "df0441245f5cf3b2b4d23937a77881966168be59b4c8807ff9168d300cf1478c"
+        "4caa1e4d19597ac56c5c16db3e591c6977223b79c640071cc0cca4161d062c20"
     );
-    assert_eq!(encode(&input).unwrap().first(), Some(&0xae));
+    assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }
 
 #[test]
-fn source_and_compiler_content_are_independent_key_dimensions() {
-    let baseline = input("class Any\n", "paired-scoopc-v1").key().unwrap();
-    let source_changed = input("class Any { }\n", "paired-scoopc-v1").key().unwrap();
-    let compiler_changed = input("class Any\n", "paired-scoopc-v2").key().unwrap();
+fn source_metadata_and_compiler_inputs_are_independent_key_dimensions() {
+    let baseline = input(1, "paired-scoopc-v1").key().unwrap();
+    let source_changed = input(2, "paired-scoopc-v1").key().unwrap();
+    let compiler_changed = input(1, "paired-scoopc-v2").key().unwrap();
 
     assert_ne!(baseline, source_changed);
     assert_ne!(baseline, compiler_changed);
     assert_ne!(source_changed, compiler_changed);
+    assert_mutation_misses(&input(1, "paired-scoopc-v1"), |input| {
+        input.native_tool_inputs = sha256(b"changed-native-tool")
+    });
 }
 
 #[test]
@@ -289,7 +300,13 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         .unwrap();
     });
     assert_mutation_misses(&baseline, |input| {
-        input.sources[0].content = SourceContentDigest::from_utf8("fun answer(): Long = 43\n");
+        input.sources[0].modified += std::time::Duration::from_nanos(1);
+    });
+    assert_mutation_misses(&baseline, |input| {
+        input.sources[0].byte_length += 1;
+    });
+    assert_mutation_misses(&baseline, |input| {
+        input.sources[0].path = PathBuf::from("/other/current/src/main.scoop");
     });
     assert_mutation_misses(&baseline, |input| {
         input.dependencies[0].cone = alternate_dependency.cone().clone();
@@ -309,9 +326,6 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
             sha256(b"distribution-v1"),
             sha256(b"build-v1"),
         );
-    });
-    assert_mutation_misses(&baseline, |input| {
-        input.artifact_profile = ArtifactCapabilityProfileId::single_cone_strong();
     });
     assert_mutation_misses(&baseline, |input| {
         input.c_bridge_toolchain =

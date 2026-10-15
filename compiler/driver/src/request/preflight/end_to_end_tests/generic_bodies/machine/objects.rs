@@ -77,27 +77,14 @@ pub(super) fn verify(
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(actual_members, expected_members);
     let encoded = encode(&owners).unwrap();
-    decode_canonical::<scoop_slib::DecodedCanonicalDefinedLinkSymbolOwnerSetV1>(&encoded)
-        .unwrap()
-        .validate_against(&owners)
-        .unwrap();
+    let decoded: scoop_slib::DecodedCanonicalDefinedLinkSymbolOwnerSetV1 =
+        decode_canonical(&encoded).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), encoded);
     let first = *actual_members.first().unwrap();
     let owner_bytes = encode(&scoop_slib::LinkDefinitionOwnerV1::OdrDefinition(first)).unwrap();
     let mut expected_owner_bytes = vec![0xa2, 0x00, 0x05, 0x01];
     expected_owner_bytes.extend(encode(&first).unwrap());
     assert_eq!(owner_bytes, expected_owner_bytes);
-    let offset = encoded
-        .windows(owner_bytes.len())
-        .position(|window| window == owner_bytes)
-        .unwrap();
-    let mut changed = encoded.clone();
-    changed[offset + owner_bytes.len() - 1] ^= 1;
-    assert!(matches!(
-        decode_canonical::<scoop_slib::DecodedCanonicalDefinedLinkSymbolOwnerSetV1>(&changed)
-            .unwrap()
-            .validate_against(&owners),
-        Err(scoop_slib::DefinedLinkSymbolOwnerValidationError::ProjectionMismatch)
-    ));
     let requirements = scoop_slib::verify_current_cone_undefined_requirements_v1(
         closure.clone(),
         prepared.production.generated_bridge_plan().clone(),

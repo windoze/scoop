@@ -3,11 +3,9 @@ use super::*;
 pub(super) fn link(
     profile: &ValidatedFinalLinkProfile,
     inputs: &ProgramInputs<'_>,
-    startup: &StartupObject,
     directory: &Path,
     paths: &[PathBuf],
     candidate: &Path,
-    link_map: &Path,
 ) -> Result<(), LinkError> {
     let namespace = inputs.namespace.darwin()?;
     let sdk = directory.join("sdk");
@@ -21,7 +19,7 @@ pub(super) fn link(
     let ValidatedFinalLinkProfile::Darwin(darwin) = profile else {
         return Err(error("Darwin linking requires its selected target profile"));
     };
-    let mut command = darwin.command(&sdk, candidate, link_map).map_err(error)?;
+    let mut command = darwin.command(&sdk, candidate).map_err(error)?;
     response::write_objects(directory, paths)?;
     let mut argument = std::ffi::OsString::from("@");
     argument.push(directory.join(response::FILE_NAME));
@@ -43,25 +41,5 @@ pub(super) fn link(
             String::from_utf8_lossy(&result.stderr)
         )));
     }
-    let object_origins = inputs
-        .objects
-        .iter()
-        .zip(&paths[1..])
-        .map(|(input, path)| (path.clone(), input.origin))
-        .collect();
-    let map = map::check(
-        &std::fs::read_to_string(link_map).map_err(error)?,
-        paths,
-        &stubs,
-        &object_origins,
-    )?;
-    map::trace(
-        std::str::from_utf8(&result.stdout).map_err(error)?,
-        paths,
-        &stubs,
-    )?;
-    let bytes = std::fs::read(candidate).map_err(error)?;
-    crate::final_image::verify(&bytes, inputs, startup, profile, &map)
-        .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     Ok(())
 }

@@ -19,8 +19,6 @@ const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 const SLOT_IN_ATOM: u64 = 16;
 
-mod reader;
-
 #[test]
 fn verifies_complete_zero_patch_materialization() {
     let fixture = patch_fixture([0; 64], &[]);
@@ -155,28 +153,6 @@ fn rejects_nonzero_or_relocated_slot_bytes() {
             intent: relocated.intent,
             relocation_offset: SLOT_IN_ATOM,
         })
-    );
-}
-
-#[test]
-fn rechecks_the_exact_object_bytes_after_definition_verification() {
-    let fixture = patch_fixture([0; 64], &[]);
-    let site = patch_site(&fixture);
-    let mut changed = fixture.bytes.clone();
-    let last = changed.len() - 1;
-    changed[last] ^= 1;
-
-    assert_eq!(
-        verify_scoop_lir_digest_patch_sites_v1(
-            fixture.builtins,
-            &fixture.foundation,
-            fixture.digest_plan,
-            &[ScoopLirObjectCandidateV1::new(fixture.member, &changed)],
-            &[site],
-        ),
-        Err(DigestPatchSiteValidationError::ObjectBytesMismatch(
-            fixture.member
-        ))
     );
 }
 

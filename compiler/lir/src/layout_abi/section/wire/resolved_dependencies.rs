@@ -3,7 +3,6 @@
 use super::*;
 
 /// Identity-resolved semantic records and the original physical transport.
-/// Graph replay grants neither a selected machine reference nor publication.
 pub struct DependencyResolvedCrossConeLayoutAbiSectionV1 {
     pub(super) exports: LayoutAbiExportConstituentsV1,
     pub(super) semantic: Vec<LayoutAbiDependencyV1>,
@@ -36,21 +35,5 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
 
     pub fn selected_relations(&self) -> &[LayoutAbiDependencyV1] {
         &self.semantic
-    }
-
-    /// Uses all exports of exactly the caller's reachable dependency graph.
-    /// Roots include source layout uses and explicit typed descriptor references.
-    pub fn replay_dependency_closure(
-        &self,
-        dependencies: &[&LayoutAbiExportConstituentsV1],
-        committed: &[LayoutAbiDependencyV1],
-    ) -> Result<(), LayoutAbiSectionError> {
-        dependencies::validate_exports(
-            self.exports.provider(),
-            self.exports.target_profile(),
-            dependencies,
-        )?;
-        build::close_selection(&self.exports, dependencies, committed, Some(&self.semantic))?;
-        Ok(())
     }
 }

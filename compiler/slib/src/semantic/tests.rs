@@ -10,7 +10,7 @@ use crate::{
 fn compatibility() -> CompatibilityRecord {
     CompatibilityRecord::new(
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
-        crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        crate::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
     )
     .unwrap()
 }
@@ -80,7 +80,7 @@ fn semantic_layer_fingerprints_have_fixed_vectors() {
         [
             "2b4f7777121af083d4e0a9e255fa8a093afedff11b48bbf4611ade11ef51f790",
             "d69adda619e816a2601e0673d2889fd8a9eb7bfc60b950cbdaf3dedd8c1880fe",
-            "1eafe33de0c16322ed3f8cb87ded02ec00d3e0eb58a5f1bff81946250ffb49be",
+            "e17249c8207de3b7969dedc96d93329c36e4d41d945618d81922a0712f7daf08",
         ]
     );
 }

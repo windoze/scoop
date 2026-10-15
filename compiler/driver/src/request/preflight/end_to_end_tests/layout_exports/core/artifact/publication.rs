@@ -1,4 +1,4 @@
-//! Source-produced layout archives use common semantics and actual Link objects.
+//! Source-produced archives expose their saved publication metadata.
 
 use super::lir_dependencies::reader;
 use super::*;
@@ -6,10 +6,7 @@ use scoop_slib as slib;
 
 mod rejections;
 
-pub(super) fn check_provider(
-    provider: &slib::AssembledCrossConeLayoutArtifactV1,
-    profile: &lir::CBridgeToolchainProfileV1,
-) {
+pub(super) fn check_provider(provider: &slib::AssembledCrossConeLayoutArtifactV1) {
     let input = reader::open(provider);
     let publication = slib::read_cross_cone_layout_artifact_summary(
         provider.as_bytes(),
@@ -17,7 +14,6 @@ pub(super) fn check_provider(
         &[],
         &[],
         provider.target_selection(),
-        profile,
     )
     .unwrap();
     verify(&publication, provider);
@@ -26,10 +22,8 @@ pub(super) fn check_provider(
 
 pub(super) fn check(
     name: &str,
-    public: &hir::CrossConeHirInterfaceSectionV1,
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
-    profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let root = tempfile::tempdir().unwrap();
     let destination = root.path().join("published.slib");
@@ -55,25 +49,12 @@ pub(super) fn check(
         &direct,
         &dependencies,
         artifact.target_selection(),
-        profile,
     )
     .unwrap();
-    assert_eq!(
-        reread.artifact_fingerprint(),
-        published.summary().artifact_fingerprint()
-    );
-    assert_eq!(
-        reread.compile_summary(),
-        published.summary().compile_summary()
-    );
-    assert_eq!(reread.link_summary(), published.summary().link_summary());
+    assert_eq!(&reread, published.summary());
     assert_no_temporary(root.path(), &destination);
 
-    assert_eq!(
-        reread.link_summary().link_object_count(),
-        artifact.summary().link_summary().link_object_count()
-    );
-    rejections::check(&destination, public, provider, artifact, profile);
+    rejections::check(&destination, provider, artifact);
 }
 
 fn verify(
@@ -96,14 +77,9 @@ fn verify(
     );
     assert_eq!(publication.dependency_record(), source.dependency_record());
     assert_eq!(
-        publication.compile_summary().semantic_fingerprints(),
+        publication.manifest_summary().semantic_fingerprints(),
         source.semantic_fingerprints()
     );
-    assert_eq!(
-        publication.link_summary().semantic_fingerprints(),
-        source.semantic_fingerprints()
-    );
-    assert!(publication.link_summary().link_object_count() > 0);
 }
 
 fn assert_no_temporary(root: &Path, destination: &Path) {

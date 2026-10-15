@@ -410,14 +410,6 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         published.artifact().summary().profile(),
         &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC.id()
     );
-    assert!(
-        published
-            .artifact()
-            .summary()
-            .link_summary()
-            .link_object_count()
-            > 0
-    );
 
     let ordinary_source = sysroot.path().join("ordinary.scoop");
     std::fs::write(&ordinary_source, "fun main() {}\n").unwrap();

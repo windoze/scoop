@@ -42,5 +42,5 @@ pub struct BuildRequest {
     pub final_link: scoop_toolchain::FinalLinkOptions,
     pub library_paths: Vec<PathBuf>,
     pub dumps: Option<BuildDumpRequest>,
-    pub keep_for_run: bool,
+    pub require_executable: bool,
 }

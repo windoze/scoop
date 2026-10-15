@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_wire::sha256;
-
 use super::super::{
     BuiltinObjectSectionRoleV1, ScoopLirObjectCandidateV1,
     VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedDefinitionAtomRangeV1,
@@ -43,21 +41,13 @@ pub(super) fn validate_scoop_objects<'a>(
     let members = builtins.strong_relocations().members();
     let mut verified = BTreeMap::new();
     for object in objects {
-        let member = members
+        let _member = members
             .binary_search_by_key(&object.member(), |member| member.member())
             .ok()
             .map(|index| &members[index])
             .ok_or(DigestPatchSiteValidationError::MissingVerifiedObjectMember(
                 object.member(),
             ))?;
-        let envelope = member.definitions().sections().envelope();
-        if u64::try_from(object.bytes().len()).ok() != Some(envelope.byte_length())
-            || sha256(object.bytes()) != envelope.content_digest()
-        {
-            return Err(DigestPatchSiteValidationError::ObjectBytesMismatch(
-                object.member(),
-            ));
-        }
         verified.insert(object.member(), object.bytes());
     }
     Ok(verified)

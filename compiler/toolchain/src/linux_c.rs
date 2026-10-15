@@ -8,7 +8,7 @@ use crate::ValidatedCBridgeToolchainInvocation;
 use object::{BinaryFormat, Object, ObjectKind};
 use scoop_lir::{GccCompilerIdentityV1, LirTargetProfile};
 use scoop_process::{CommandExt, parse_make_dependencies};
-use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash, sha256};
+use scoop_wire::sha256;
 
 use crate::ToolchainError;
 use crate::linux_target::{LinuxLibc, LinuxTarget};
@@ -18,6 +18,14 @@ pub fn resolve_linux_c_toolchain(
     compiler: Option<&Path>,
     native_sysroot: Option<&Path>,
 ) -> Result<ValidatedCBridgeToolchainInvocation, ToolchainError> {
+    probe_linux_c_toolchain(target, compiler, native_sysroot).map(|(invocation, _)| invocation)
+}
+
+pub(crate) fn probe_linux_c_toolchain(
+    target: LirTargetProfile,
+    compiler: Option<&Path>,
+    native_sysroot: Option<&Path>,
+) -> Result<(ValidatedCBridgeToolchainInvocation, Vec<PathBuf>), ToolchainError> {
     let selected = LinuxTarget::select(target.id())?;
     let default_driver = selected.libc.default_c_driver();
     let search_path = std::env::var_os("PATH").ok_or_else(|| error("PATH is not set"))?;
@@ -68,28 +76,46 @@ pub fn resolve_linux_c_toolchain(
         .into_iter()
         .filter(|path| path != &source)
         .collect();
+    crate::native_record::header_candidates(&dependencies.stderr, &mut inputs);
+    crate::native_record::program_candidates(
+        compiler
+            .unwrap_or_else(|| Path::new(default_driver))
+            .as_os_str(),
+        &paths.search_path,
+        &mut inputs,
+    );
+    if selected.libc == LinuxLibc::Musl {
+        crate::native_record::program_candidates(
+            std::env::var_os("REALGCC")
+                .as_deref()
+                .unwrap_or_else(|| OsStr::new("gcc")),
+            &paths.search_path,
+            &mut inputs,
+        );
+    }
     inputs.insert(paths.driver.clone());
     for program in ["cc1", "as"] {
         let resolved = command_text(paths.command().arg(format!("-print-prog-name={program}")))?;
-        inputs.insert(find_program(OsStr::new(&resolved), &paths.search_path)?);
+        crate::native_record::program_candidates(
+            OsStr::new(&resolved),
+            &paths.search_path,
+            &mut inputs,
+        );
     }
     for line in String::from_utf8_lossy(&dependencies.stderr).lines() {
         if let Some(specs) = line.strip_prefix("Reading specs from ") {
             inputs.insert(PathBuf::from(specs));
         }
         if let Some(compiler) = line.strip_prefix("COLLECT_GCC=") {
-            inputs.insert(find_program(OsStr::new(compiler), &paths.search_path)?);
+            crate::native_record::program_candidates(
+                OsStr::new(compiler),
+                &paths.search_path,
+                &mut inputs,
+            );
         }
     }
-    let fingerprints = inputs
-        .iter()
-        .map(|path| std::fs::read(path).map(|bytes| sha256(&bytes)))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(error)?;
-    let compiler_inputs =
-        domain_separated_cbor_hash("scoop-linux-c-inputs-v1", &InputDigests(&fingerprints))
-            .map_err(error)?;
-    let compiler = GccCompilerIdentityV1::new(&version, compiler_inputs).map_err(error)?;
+    let macros = run(paths.command().args(["-dM", "-E"]).arg(&source))?;
+    let compiler = GccCompilerIdentityV1::new(&version, sha256(&macros.stdout)).map_err(error)?;
     let profile = scoop_target_data::linux_c_bridge_profile(target, compiler).map_err(error)?;
     let invocation = ValidatedCBridgeToolchainInvocation::new_linux(
         target,
@@ -112,7 +138,7 @@ pub fn resolve_linux_c_toolchain(
     {
         return Err(error("GCC did not emit the selected ELF64 C object"));
     }
-    Ok(invocation)
+    Ok((invocation, inputs.into_iter().collect()))
 }
 
 const PROBE_PREFIX: &str = "#include <features.h>\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <limits.h>\n\
@@ -199,17 +225,6 @@ fn command_text(command: &mut Command) -> Result<String, ToolchainError> {
     String::from_utf8(run(command)?.stdout)
         .map(|value| value.trim().to_owned())
         .map_err(error)
-}
-
-struct InputDigests<'a>(&'a [scoop_wire::Digest256]);
-impl WireEncode for InputDigests<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.0.len() as u64)?;
-        for digest in self.0 {
-            digest.encode(encoder)?;
-        }
-        Ok(())
-    }
 }
 
 fn error(value: impl std::fmt::Display) -> ToolchainError {

@@ -94,9 +94,8 @@ fn dependency_first_invariant_is_rechecked_by_the_closure_gate() {
 }
 
 #[test]
-fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
-    use scoop_slib::{ArtifactCapabilityProfile, ArtifactSnapshot, ConeRecord};
-    use std::sync::Arc;
+fn completed_nodes_share_artifact_data_with_their_closure() {
+    use scoop_slib::{ArtifactCapabilityProfile, ConeRecord, read_artifact_manifest_summary};
 
     let coordinate = ConeCoordinate::reserved_core();
     let core = coordinate.identity().unwrap();
@@ -111,7 +110,7 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
-        "retained-snapshot",
+        "shared-artifact",
         Vec::new(),
     );
     let directory = tempfile::tempdir().unwrap();
@@ -119,38 +118,42 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
     let cached_path = directory.path().join("cached.slib");
     std::fs::write(&candidate, archive.as_bytes()).unwrap();
     std::fs::copy(&candidate, &cached_path).unwrap();
-    let snapshot = Arc::new(ArtifactSnapshot::from_bytes(
-        std::fs::read(&candidate).unwrap(),
-    ));
-    let completed = complete_compiled_candidate(
-        &plan,
-        core,
-        Arc::clone(&snapshot),
-        candidate.clone(),
-        &[],
-        Vec::new(),
+    let summary = read_artifact_manifest_summary(
+        archive.as_bytes(),
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    assert!(Arc::ptr_eq(completed.artifact().snapshot(), &snapshot));
-    let cached = CompletedNode::from_cache_hit(
+    let artifact = BuildArtifact::from_result(candidate.clone(), summary);
+    let file = artifact.file().unwrap() as *const _;
+    let closure = plan
+        .collect(core, &BTreeMap::from([(core, Rc::clone(&artifact))]))
+        .unwrap();
+    let completed = CompletedNode::from_result(
         core,
-        completed.shared_artifact(),
-        completed.closure().clone(),
-        cached_path.clone(),
-        cached_path.clone(),
+        CompletedNodeOrigin::Compiled,
+        Rc::clone(&artifact),
+        closure.clone(),
+        candidate,
+        Vec::new(),
+    );
+    assert!(std::ptr::eq(completed.artifact().file().unwrap(), file));
+    let cached = CompletedNode::from_result(
+        core,
+        CompletedNodeOrigin::CacheHit,
+        artifact,
+        closure,
+        cached_path,
         Vec::new(),
     );
     let retained = [completed.clone(), cached];
-    std::fs::remove_file(candidate).unwrap();
-    std::fs::remove_file(cached_path).unwrap();
-    drop(completed);
-    drop(snapshot);
-    drop(plan);
-
     for node in retained {
+        assert!(node.artifact_locator().is_file());
         let artifact = node.closure().artifact(core).unwrap();
         assert!(std::ptr::eq(artifact, node.artifact()));
         assert_eq!(artifact.summary().cone().identity(), core);
-        assert_eq!(artifact.snapshot().as_bytes(), archive.as_bytes());
+        assert_eq!(
+            artifact.file().unwrap().summary().unwrap(),
+            artifact.summary()
+        );
     }
 }

@@ -1,38 +1,46 @@
+//! Only the saved production data used by the native program linker.
 use super::*;
-use crate::{LinkDataError, link_data::link_error};
+use crate::LinkDataError;
+use scoop_identity::{
+    ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, PersistentSymbolRequest,
+    StrongDefinitionRole,
+};
+use std::collections::BTreeMap;
+
+#[derive(Clone, Copy)]
+pub struct ProgramLinkDefinition {
+    pub owner: ObjectDefinitionPlanOwner,
+    pub role: StrongDefinitionRole,
+}
+
+pub struct ProgramLinkProduction {
+    pub definitions: BTreeMap<ObjectDefinitionPlanId, ProgramLinkDefinition>,
+    pub image_symbol: PersistentSymbolRequest,
+    pub trap_symbols: [PersistentSymbolRequest; 2],
+    pub entry_symbol: Option<PersistentSymbolRequest>,
+    pub registrations: [Vec<(ObjectDefinitionPlanId, PersistentSymbolRequest)>; 6],
+}
 
 impl DecodedConeProductionSectionV2 {
-    /// Resolves the recorded production surface without source discovery.
-    pub fn link_shape_sources(
-        &self,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<Vec<SourceDeclarationKey>, LinkDataError> {
-        self.shape_support_plan.link_sources(identities)
-    }
-
-    #[allow(clippy::too_many_arguments)]
     pub fn read_link(
         self,
-        coordinate: ConeCoordinate,
-        direct_dependencies: &[ConeIdentity],
-        target: crate::LirTargetProfile,
         foundation: &ConeLirFoundation,
         identities: &mut ValidatedIdentityGraph,
-        shape_sources: &[SourceDeclarationKey],
-        type_definitions: &crate::StrongTypeReferenceDefinitionsV2,
-        initialization_definitions: &crate::StrongInitializationDefinitionCatalogV2,
-    ) -> Result<ConeProductionSectionV2, LinkDataError> {
-        let entry_source = self.entry_plan.link_source(identities)?;
-        self.replay(
-            coordinate,
-            direct_dependencies,
-            target,
-            foundation,
-            entry_source,
-            shape_sources,
-            type_definitions,
-            initialization_definitions,
-        )
-        .map_err(link_error)
+    ) -> Result<ProgramLinkProduction, LinkDataError> {
+        let (image_symbol, trap_atoms) = self.image_plan.link_symbols(identities)?;
+        let trap_symbols = self
+            .canonical_definitions
+            .link_trap_symbols(trap_atoms, identities)?;
+        Ok(ProgramLinkProduction {
+            definitions: self
+                .canonical_definitions
+                .link_definitions(foundation, identities)?,
+            image_symbol,
+            trap_symbols,
+            entry_symbol: self.entry_plan.link_symbol(identities)?,
+            registrations: self
+                .registration_production
+                .link_registrations(foundation, identities)?,
+        })
     }
 }

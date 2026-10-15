@@ -39,7 +39,7 @@ fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
     BuildGraphRequest::new(
         BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         vec![],
-        ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
+        ArtifactCacheRoot::new(sysroot.with_extension("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
         TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
             .unwrap(),
@@ -318,7 +318,7 @@ fn executable_root_and_single_file_are_valid_roots_only() {
     let single_file = BuildGraphRequest::new(
         BuildRootInput::single_file(SingleFileLocator::from_path(&source).unwrap()),
         vec![],
-        ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
+        ArtifactCacheRoot::new(sysroot.with_extension("cache")).unwrap(),
         TrustedSysrootRoot::new(&sysroot).unwrap(),
         TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
             .unwrap(),
@@ -509,14 +509,14 @@ fn unreachable_nodes_are_rejected_in_coordinate_order() {
 }
 
 #[test]
-fn core_manifest_is_an_ordinary_build_root_without_a_default_sysroot() {
+fn core_manifest_is_an_ordinary_build_root() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");
     write_core(&source);
     let root = temp.path().join("edited-core");
     std::fs::rename(source.join("lib/scoop.core"), &root).unwrap();
-    let missing_sysroot = temp.path().join("missing-sysroot");
-    let discovered = request(&root, &missing_sysroot)
+    write_core(&source);
+    let discovered = request(&root, &source)
         .load_root()
         .unwrap()
         .discover()
@@ -534,5 +534,4 @@ fn core_manifest_is_an_ordinary_build_root_without_a_default_sysroot() {
         resolved.node_representation(ConeIdentity::CORE),
         Some(ResolvedNodeRepresentation::ManifestSource)
     );
-    assert!(!missing_sysroot.exists());
 }

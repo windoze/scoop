@@ -3,19 +3,18 @@
 use std::fmt;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, ValidatedIdentityGraph};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{
     ConeLirFoundation, DecodedConeImagePlanV1, DecodedDigestFinalizationPlanV1,
     DecodedEntryProductionPlanV1, DecodedGeneratedBridgePlanSetV1,
     DecodedObjectDefinitionPlanSurfaceV1, DecodedObjectSymbolSurfaceV1,
     DecodedParamFreeShapeSupportPlanSetV1, DecodedStrongRegistrationProductionSurfaceV1,
-    DigestFinalizationPlanV1, DigestPlanError, DigestPlanValidationError,
-    EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
-    GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, ObjectDefinitionPlanBuildError,
-    ObjectDefinitionPlanSurfaceV1, ObjectSymbolSurfaceBuildError, ObjectSymbolSurfaceV1,
-    ParamFreeShapeSupportBuildError, ParamFreeShapeSupportPlanSetV1,
-    StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError,
+    DigestFinalizationPlanV1, DigestPlanError, EntryProductionPlanBuildError,
+    EntryProductionPlanV1, EntryProductionSourceV1, GeneratedBridgePlanBuildError,
+    GeneratedBridgePlanSetV1, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1,
+    ObjectSymbolSurfaceBuildError, ObjectSymbolSurfaceV1, ParamFreeShapeSupportBuildError,
+    ParamFreeShapeSupportPlanSetV1, StrongRegistrationProductionSurfaceV1,
 };
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
@@ -229,64 +228,16 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
     }
 }
 
+mod compile;
+pub use compile::{CompileInitializationUnit, CompileProduction};
 mod decoded;
 mod link;
 pub use decoded::*;
+pub use link::{ProgramLinkDefinition, ProgramLinkProduction};
 
+mod layout_join;
 mod registrations;
-mod replay;
-pub use replay::StrongProductionLayoutJoinError;
-
-impl DecodedConeProductionSectionV1 {
-    #[allow(clippy::too_many_arguments)]
-    pub fn validate(
-        self,
-        coordinate: ConeCoordinate,
-        direct_dependencies: &[ConeIdentity],
-        target: crate::LirTargetProfile,
-        foundation: &ConeLirFoundation,
-
-        entry_source: EntryProductionSourceV1,
-        shape_sources: &[SourceDeclarationKey],
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<ConeProductionSectionV1, ConeProductionSectionValidationError> {
-        let actual = encode(&self).map_err(ConeProductionSectionValidationError::Encode)?;
-        let digest_finalization_plan = self
-            .digest_finalization_plan
-            .validate(identities, foundation)
-            .map_err(ConeProductionSectionValidationError::DigestPlan)?;
-        let registration_production = self
-            .registration_production
-            .validate(target, foundation, &digest_finalization_plan)
-            .map_err(ConeProductionSectionValidationError::Registrations)?;
-        let canonical_callables = self
-            .canonical_callables
-            .validate(foundation)
-            .map_err(ConeProductionSectionValidationError::CanonicalCallables)?;
-        let canonical_shapes = self
-            .canonical_shapes
-            .validate(foundation)
-            .map_err(ConeProductionSectionValidationError::CanonicalShapes)?;
-        let expected = ConeProductionSectionV1::new(
-            coordinate,
-            direct_dependencies,
-            foundation,
-            digest_finalization_plan,
-            registration_production,
-            entry_source,
-            shape_sources,
-            canonical_callables,
-            canonical_shapes,
-        )
-        .map_err(ConeProductionSectionValidationError::Expected)?;
-        let expected_bytes =
-            encode(&expected).map_err(ConeProductionSectionValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(ConeProductionSectionValidationError::SectionMismatch);
-        }
-        Ok(expected)
-    }
-}
+pub use layout_join::StrongProductionLayoutJoinError;
 
 #[derive(Debug)]
 pub enum ConeProductionSectionBuildError {
@@ -306,32 +257,6 @@ impl fmt::Display for ConeProductionSectionBuildError {
 }
 
 impl std::error::Error for ConeProductionSectionBuildError {}
-
-#[derive(Debug)]
-pub enum ConeProductionSectionValidationError {
-    CanonicalCallables(crate::CanonicalCallableAbiError),
-    CanonicalShapes(crate::CanonicalShapeAbiError),
-    DigestReplay(Box<crate::DigestPlanReplayError>),
-    DigestProjection(Box<crate::DigestProjectionError>),
-    DigestMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-    Resource(WireError),
-    DigestPlan(DigestPlanValidationError),
-    Registrations(StrongRegistrationProductionValidationError),
-    Expected(ConeProductionSectionBuildError),
-    SectionMismatch,
-}
-
-impl fmt::Display for ConeProductionSectionValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid decoded strong production section: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for ConeProductionSectionValidationError {}
 
 #[cfg(test)]
 pub(in crate::production) mod tests;

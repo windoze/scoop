@@ -10,9 +10,11 @@ use toml::Spanned;
 use super::NativeConfig;
 use crate::{ManifestParseError, ManifestParseErrorKind, TargetPredicate};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NativeLibrary {
+    #[serde(with = "crate::serde_record::library_name")]
     name: CanonicalNativeLibraryName,
+    #[serde(with = "crate::serde_record::LibraryKind")]
     kind: NativeLibraryKind,
     predicate: TargetPredicate,
 }

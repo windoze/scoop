@@ -1,4 +1,4 @@
-use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
+use scoop_identity::CapabilityId;
 use scoop_wire::encode;
 
 use super::*;
@@ -6,8 +6,7 @@ use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView,
     MemberPurposeSet, MetadataLocation, SectionLocation, hir_cross_cone_interface_capability,
     hir_cross_cone_type_semantics_capability, lir_cone_production_capability,
-    lir_cross_cone_layout_abi_capability, lir_cross_cone_layout_link_closure_capability,
-    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_cross_cone_layout_abi_capability, lir_cross_cone_param_free_bridge_capability,
     lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
     mir_cross_cone_type_bridge_capability,
     strong_compile_decode::tests::{
@@ -17,7 +16,7 @@ use crate::{
 
 #[test]
 fn layout_link_front_decodes_the_complete_profile_atomically() {
-    let bytes = layout_artifact(false, None, empty_link_closure(0x22), false);
+    let bytes = layout_artifact(None, empty_link_support(), false);
     let sections = open_graph(&bytes)
         .decode_cross_cone_layout_link_sections()
         .unwrap();
@@ -44,29 +43,13 @@ fn layout_link_front_decodes_the_complete_profile_atomically() {
     let _ = sections.lir_cross_cone_bridge_wire();
     let _ = sections.lir_layout_abi_wire();
     let _ = sections.link_identity_closure_wire();
-    let _ = sections.cross_cone_link_closure_wire();
-    let _ = sections.layout_link_closure_wire();
 }
 
 #[test]
-fn layout_link_front_rejects_the_m23_5_profile_before_payloads() {
-    let bytes = crate::cross_cone_compile_decode::tests::cross_cone_artifact(
-        crate::cross_cone_compile_decode::tests::empty_cross_cone_hir_interface(),
-    );
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_link_sections(),
-        Err(CrossConeLayoutLinkSectionDecodeError::WrongProfile { actual })
-            if actual == ArtifactCapabilityProfileId::cross_cone_semantics_strong()
-    ));
-}
-
-#[test]
-fn layout_link_front_requires_the_new_link_closure() {
+fn layout_link_front_requires_link_support() {
     let bytes = layout_artifact(
-        false,
-        Some(lir_cross_cone_layout_link_closure_capability()),
-        empty_link_closure(0x22),
+        Some(crate::lir_link_support_capability()),
+        empty_link_support(),
         false,
     );
 
@@ -74,17 +57,17 @@ fn layout_link_front_requires_the_new_link_closure() {
         open_graph(&bytes).decode_cross_cone_layout_link_sections(),
         Err(CrossConeLayoutLinkSectionDecodeError::Inventory(
             ArtifactProfileInventoryError::MissingRequiredCapability {
-                view: ArtifactProfileView::Link,
+                view: ArtifactProfileView::Compile,
                 location: SectionLocation::Lir,
                 capability,
             }
-        )) if capability == lir_cross_cone_layout_link_closure_capability()
+        )) if capability == crate::lir_link_support_capability()
     ));
 }
 
 #[test]
-fn layout_link_front_rejects_a_malformed_new_link_payload() {
-    let bytes = layout_artifact(false, None, vec![0xff], false);
+fn layout_link_front_rejects_malformed_link_support() {
+    let bytes = layout_artifact(None, vec![0xff], false);
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_link_sections(),
@@ -92,28 +75,13 @@ fn layout_link_front_rejects_a_malformed_new_link_payload() {
             location: Some(MetadataLocation::Lir),
             capability,
             ..
-        }) if capability == lir_cross_cone_layout_link_closure_capability()
-    ));
-}
-
-#[test]
-fn layout_link_front_rejects_a_semantic_fingerprint_mismatch() {
-    let bytes = layout_artifact(true, None, empty_link_closure(0x22), false);
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_link_sections(),
-        Err(
-            CrossConeLayoutLinkSectionDecodeError::SemanticFingerprintMismatch {
-                location: MetadataLocation::Hir,
-                ..
-            }
-        )
+        }) if capability == crate::lir_link_support_capability()
     ));
 }
 
 #[test]
 fn layout_link_front_rejects_mixed_strong_production_versions() {
-    let bytes = layout_artifact(false, None, empty_link_closure(0x22), true);
+    let bytes = layout_artifact(None, empty_link_support(), true);
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_link_sections(),
@@ -130,12 +98,11 @@ fn layout_link_front_rejects_mixed_strong_production_versions() {
 }
 
 fn layout_artifact(
-    stale_hir_fingerprint: bool,
     omitted: Option<CapabilityId>,
-    layout_link_payload: Vec<u8>,
+    link_support_payload: Vec<u8>,
     include_v1_production: bool,
 ) -> Vec<u8> {
-    let (mut hir, mut mir, mut lir) = layout_sections(layout_link_payload);
+    let (mut hir, mut mir, mut lir) = layout_sections(link_support_payload);
     if let Some(capability) = omitted {
         hir.retain(|item| item.capability() != &capability);
         mir.retain(|item| item.capability() != &capability);
@@ -159,12 +126,11 @@ fn layout_artifact(
         hir,
         mir,
         lir,
-        stale_hir_fingerprint,
     )
 }
 
 fn layout_sections(
-    layout_link_payload: Vec<u8>,
+    link_support_payload: Vec<u8>,
 ) -> (
     Vec<crate::MetadataSection>,
     Vec<crate::MetadataSection>,
@@ -208,7 +174,7 @@ fn layout_sections(
             MetadataLocation::Lir,
             crate::lir_link_support_capability(),
             MemberPurposeSet::COMPILE_AND_LINK,
-            encode(&crate::LirLinkSupportSectionV1::default()).unwrap(),
+            link_support_payload,
         ),
         section(
             MetadataLocation::Lir,
@@ -224,21 +190,9 @@ fn layout_sections(
         ),
         section(
             MetadataLocation::Lir,
-            lir_cross_cone_link_closure_capability(),
-            MemberPurposeSet::LINK,
-            empty_link_closure(0x11),
-        ),
-        section(
-            MetadataLocation::Lir,
             lir_cross_cone_layout_abi_capability(),
             MemberPurposeSet::COMPILE_AND_LINK,
             empty_layout_abi(),
-        ),
-        section(
-            MetadataLocation::Lir,
-            lir_cross_cone_layout_link_closure_capability(),
-            MemberPurposeSet::LINK,
-            layout_link_payload,
         ),
     ]);
     (hir, mir, lir)
@@ -260,10 +214,6 @@ fn empty_layout_abi() -> Vec<u8> {
     bytes
 }
 
-fn empty_link_closure(digest_byte: u8) -> Vec<u8> {
-    let mut bytes = vec![
-        0xa3, 0x01, 0x80, 0x02, 0x80, 0x03, 0xa2, 0x01, 0x80, 0x02, 0x58, 0x20,
-    ];
-    bytes.extend([digest_byte; 32]);
-    bytes
+fn empty_link_support() -> Vec<u8> {
+    encode(&crate::LirLinkSupportSectionV1::default()).unwrap()
 }

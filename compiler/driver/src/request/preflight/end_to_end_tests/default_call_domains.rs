@@ -34,7 +34,6 @@ fn ordinary_reader_preserves_inherited_default_contracts_from_published_bytes() 
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            target.c_bridge_toolchain().profile(),
             &mut session,
         )
         .unwrap();

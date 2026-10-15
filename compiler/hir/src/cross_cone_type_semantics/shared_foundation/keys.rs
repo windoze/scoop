@@ -1,119 +1,15 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
 
-use scoop_identity::{ExactTypeKey, NonEmptyVec, SignatureTypeKey, SourceDeclarationKey};
+use scoop_identity::{ExactTypeKey, NonEmptyVec, SignatureTypeKey};
 use scoop_wire::WirePath;
 
 use super::*;
-use crate::{CheckedExactTypeFactV1, NominalInterfaceRecordV1, SourceNominalId};
 
-impl<'a> MetadataTypes<'a, '_> {
-    pub(super) fn validate_dependencies(self) -> Result<(), Error> {
-        let mut providers = BTreeSet::new();
-        for dependency in self.dependencies {
-            let provider = dependency.provider();
-            if provider == self.current.provider {
-                return Err(Error::CurrentProviderDependency(provider));
-            }
-            if !providers.insert(provider) {
-                return Err(Error::DuplicateProvider(provider));
-            }
-        }
-        Ok(())
-    }
-
+impl<'a> SharedTypeMetadataV1<'a> {
     pub(crate) fn key(self, exact: PersistentExactTypeId) -> Result<Arc<ExactTypeKey>, Error> {
         Ok(self
-            .identity_graph(exact)
+            .identities
             .canonical_key::<PersistentExactTypeId, ExactTypeKey>(exact)?)
-    }
-
-    /// Dependency inheritance may mention applications absent from the root's
-    /// own uses. Read the original checked key from the same semantic world.
-    pub(super) fn identity_graph<I: scoop_identity::PersistentId>(
-        self,
-        id: I,
-    ) -> &'a ValidatedIdentityGraph {
-        std::iter::once(self.current.identities)
-            .chain(
-                self.dependencies
-                    .iter()
-                    .map(|source| source.metadata.identities),
-            )
-            .find(|graph| graph.contains_resolved_identity(id))
-            .unwrap_or(self.current.identities)
-    }
-
-    pub(crate) fn nominal_key(
-        self,
-        owner: PersistentTypeId,
-    ) -> Result<Arc<SourceDeclarationKey>, Error> {
-        Ok(self
-            .identity_graph(owner)
-            .canonical_key::<PersistentTypeId, SourceDeclarationKey>(owner)?)
-    }
-
-    pub(crate) fn nominal(
-        self,
-        owner: PersistentTypeId,
-    ) -> Result<&'a NominalInterfaceRecordV1, Error> {
-        self.nominal_declaration(SourceNominalId::Concrete(owner))
-    }
-
-    pub(crate) fn nominal_declaration(
-        self,
-        owner: SourceNominalId,
-    ) -> Result<&'a NominalInterfaceRecordV1, Error> {
-        let origin = match owner {
-            SourceNominalId::Concrete(owner) => self.nominal_key(owner)?.origin(),
-            SourceNominalId::GenericTemplate(owner) => self
-                .identity_graph(owner)
-                .canonical_key::<_, SourceDeclarationKey>(owner)?
-                .origin(),
-        };
-        let public = if origin == self.current.provider {
-            self.current.public
-        } else {
-            self.dependency(origin)?.metadata.public
-        };
-
-        public
-            .nominal_interfaces()
-            .declaration(owner)
-            .ok_or(match owner {
-                SourceNominalId::Concrete(owner) => Error::MissingNominal(owner),
-                SourceNominalId::GenericTemplate(owner) => Error::MissingGenericNominal(owner),
-            })
-    }
-
-    pub(super) fn dependency(
-        self,
-        provider: ConeIdentity,
-    ) -> Result<CheckedSharedTypeFoundationV1<'a>, Error> {
-        self.dependencies
-            .iter()
-            .find(|dependency| dependency.provider() == provider)
-            .copied()
-            .ok_or(Error::MissingProvider(provider))
-    }
-
-    pub(crate) fn dependency_fact(
-        self,
-        provider: ConeIdentity,
-        exact: PersistentExactTypeId,
-    ) -> Result<CheckedExactTypeFactV1<'a>, Error> {
-        let dependency = self.dependency(provider)?;
-
-        dependency
-            .facts
-            .get_checked(exact)
-            .ok_or(Error::MissingFact(exact))
-    }
-
-    pub(crate) fn nominal_exact(
-        self,
-        owner: PersistentTypeId,
-    ) -> Result<PersistentExactTypeId, Error> {
-        self.exact_key(ExactTypeKey::Nominal(owner))
     }
 
     pub(crate) fn exact(
@@ -195,13 +91,7 @@ impl<'a> MetadataTypes<'a, '_> {
         arguments: Vec<PersistentExactTypeId>,
     ) -> Result<ExactTypeKey, Error> {
         let owner = crate::SourceNominalId::GenericTemplate(origin);
-        let declaration = std::iter::once(self.current.public)
-            .chain(
-                self.dependencies
-                    .iter()
-                    .map(|source| source.metadata.public),
-            )
-            .find_map(|public| public.nominal_interfaces().declaration(owner));
+        let declaration = self.public.nominal_interfaces().declaration(owner);
         if declaration.is_some_and(|record| {
             matches!(record.source_shape(),
             crate::NominalSourceShapeV1::Intrinsic(representation)

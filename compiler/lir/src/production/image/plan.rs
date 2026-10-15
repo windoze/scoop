@@ -1,6 +1,7 @@
 //! Complete image plans with explicit artifact dependencies.
 
 use super::*;
+mod link;
 
 #[cfg(test)]
 #[path = "tests/dependencies.rs"]
@@ -170,47 +171,6 @@ pub struct DecodedConeImagePlanV1 {
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     support_atoms: DecodedConeImageSupportAtomsV1,
     fingerprint_patch: DecodedPersistentId<DigestPatchIntentId>,
-}
-
-impl DecodedConeImagePlanV1 {
-    pub fn validate(
-        self,
-        coordinate: &ConeCoordinate,
-        direct_dependencies: &[ConeIdentity],
-        foundation: &ConeLirFoundation,
-        registrations: &RegistrationIdentitySurfaceV1,
-        digest_plan: &DigestFinalizationPlanV1,
-    ) -> Result<ConeImagePlanV1, ConeImagePlanValidationError> {
-        let actual = encode(&self).map_err(ConeImagePlanValidationError::Encode)?;
-        let decoded_coordinate = self
-            .cone
-            .coordinate
-            .validate()
-            .map_err(ConeImagePlanValidationError::Coordinate)?;
-        if &decoded_coordinate != coordinate {
-            return Err(ConeImagePlanValidationError::CoordinateMismatch);
-        }
-        let expected_identity = coordinate
-            .identity()
-            .map_err(ConeImagePlanValidationError::Hash)?;
-        self.cone
-            .identity
-            .verify(expected_identity)
-            .map_err(ConeImagePlanValidationError::Identity)?;
-        let expected = ConeImagePlanV1::new(
-            coordinate.clone(),
-            direct_dependencies,
-            foundation,
-            registrations,
-            digest_plan,
-        )
-        .map_err(ConeImagePlanValidationError::Expected)?;
-        let expected_bytes = encode(&expected).map_err(ConeImagePlanValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(ConeImagePlanValidationError::PlanMismatch);
-        }
-        Ok(expected)
-    }
 }
 
 impl WireEncode for DecodedConeImagePlanV1 {

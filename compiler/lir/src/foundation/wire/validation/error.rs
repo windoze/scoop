@@ -361,7 +361,6 @@ pub enum LirFoundationValidationError {
     BridgeRelation(BridgeRelationError),
     Ownership(LirFoundationOwnershipError),
     Build(LirFoundationBuildError),
-    NonCanonicalFoundation,
 }
 
 impl From<SafepointRelationError> for LirFoundationValidationError {
@@ -434,9 +433,6 @@ impl fmt::Display for LirFoundationValidationError {
             Self::BridgeRelation(error) => error.fmt(formatter),
             Self::Ownership(error) => error.fmt(formatter),
             Self::Build(error) => error.fmt(formatter),
-            Self::NonCanonicalFoundation => {
-                formatter.write_str("LIR foundation tables are not in canonical structural order")
-            }
         }
     }
 }

@@ -1,0 +1,2 @@
+import m48.objects.value
+fun main(): Int = value()

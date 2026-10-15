@@ -1,0 +1,8 @@
+schema = 1
+[[sources]]
+path = "linked.scoop"
+[cone]
+group = "test.m48"
+name = "external-source"
+version = "1.0.0"
+kind = "executable"

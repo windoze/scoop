@@ -8,7 +8,7 @@ mod consumer;
 mod rejections;
 use super::machine_selection as selection;
 
-pub(super) fn check(
+pub(in super::super) fn check(
     name: &str,
     target: &scoop_toolchain::ResolvedTargetProfile,
     producer: &lir::ConeLirOutput,
@@ -38,7 +38,11 @@ pub(super) fn check(
     let foundation = lir::ConeLirFoundation::from_module(&module).unwrap();
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: producer.foundation(),
-        production,
+        definitions: production.canonical_definitions(),
+        support: lir::ShapeLinkSupportV1::Produced {
+            static_storages: production.static_storage_registrations(),
+            initialization: production.initialization_registrations(),
+        },
         ordinary,
         layouts: layout.layouts(),
         callables: layout.callables(),

@@ -2,14 +2,14 @@ use std::path::PathBuf;
 
 use scoop_linker::ResolvedLinkPlanFingerprint;
 
-use crate::{BuildGraphOutcome, BuildProfile, SourceSnapshot};
+use crate::{BuildGraphOutcome, BuildProfile, SelectedSource};
 
 #[derive(Debug)]
 pub struct BuiltArtifacts {
     pub output: PathBuf,
     pub profile: BuildProfile,
     pub graph: BuildGraphOutcome,
-    pub sources: Vec<SourceSnapshot>,
+    pub sources: Vec<SelectedSource>,
 }
 
 #[derive(Debug)]
@@ -17,9 +17,9 @@ pub enum BuildOutcome {
     Library(BuiltArtifacts),
     Executable {
         build: BuiltArtifacts,
+        executable: PathBuf,
         runtime_index: PathBuf,
         link_plan_fingerprint: ResolvedLinkPlanFingerprint,
-        execution_copy: Option<tempfile::TempPath>,
     },
 }
 

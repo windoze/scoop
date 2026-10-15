@@ -1,5 +1,10 @@
 use super::*;
 
+mod initialization;
+#[cfg(test)]
+pub(crate) use initialization::initialization_unit_globals_from_pairs;
+use initialization::{declare_initialization_unit_globals, initialization_unit_globals};
+
 mod metadata_partition;
 mod objects;
 mod storage;
@@ -46,10 +51,12 @@ impl StrongObjectEmissionSelection {
 }
 
 // Every caller has checked this immutable module at its emission entry.
+#[allow(clippy::too_many_arguments)]
 fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
     surface: &scoop_lir::ObjectSymbolSurfaceV1,
+    runtime_scan_plans: &scoop_lir::StrongCallableRuntimeScanPlanSetV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     selection: StrongObjectEmissionSelection,
@@ -370,13 +377,16 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         external_type_tds: &external_type_tds,
         target_data: &target_data,
     };
-    let runtime_scan_plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
-        .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;
     for function in module.callable_bodies() {
         if selection.defines_callable(function.callable_body.id()) {
             let runtime_scan_plan = runtime_scan_plans
                 .callable(function.callable_body.id())
-                .expect("runtime scan planning covers every function");
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "callable {} has no runtime scan plan",
+                        function.callable_body.id()
+                    ))
+                })?;
             emit_function(
                 context,
                 &llvm,
@@ -488,113 +498,19 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
     let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation)
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
+    let runtime_scans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
+        .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;
     emit_llvm_module_with_surface(
         context,
         module,
         &surface,
+        &runtime_scans,
         machine,
         profile,
         StrongObjectEmissionSelection::CompleteTestModule,
         |_, _, _, _, _| Ok(((), Vec::new())),
     )
     .map(|(llvm, ())| llvm)
-}
-
-fn initialization_unit_globals<'ctx>(
-    module: &Module,
-    emitted: &EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
-) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
-    initialization_unit_globals_from_pairs(
-        module,
-        emitted
-            .registrations()
-            .iter()
-            .map(|registration| (registration.unit(), registration.registration_descriptor())),
-    )
-}
-
-fn declare_initialization_unit_globals<'ctx, D, C, I>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    module: &Module,
-    production: &scoop_lir::ConeProductionSection<D, C, I>,
-) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
-    let plans = production
-        .registration_production()
-        .initialization_units()
-        .registrations()
-        .iter()
-        .map(|plan| (plan.semantic().unit(), plan))
-        .collect::<std::collections::BTreeMap<_, _>>();
-    let ty =
-        runtime_metadata_v1::RuntimeMetadataV1Types::new(context).initialization_unit_descriptor();
-    let globals = module
-        .initialization_units
-        .iter()
-        .map(|(_, unit)| {
-            let id = unit.identity.id();
-            let plan = plans.get(&id).ok_or_else(|| {
-                CodegenError(format!(
-                    "initialization unit {id} has no strong production plan"
-                ))
-            })?;
-            let request = plan.registration_symbol();
-            let symbol = request.symbol();
-            if llvm.get_global(symbol.as_str()).is_some()
-                || llvm.get_function(symbol.as_str()).is_some()
-            {
-                return Err(CodegenError(format!(
-                    "initialization registration declaration `{symbol}` collides with an LLVM value"
-                )));
-            }
-            let global = llvm.add_global(ty, None, symbol.as_str());
-            global.set_constant(true);
-            apply_persistent_linkage(&global, request, false)?;
-            Ok(global)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    if globals.len() != plans.len() {
-        return Err(CodegenError(format!(
-            "strong initialization declaration coverage mismatch: LIR {}, planned {}",
-            globals.len(),
-            plans.len()
-        )));
-    }
-    Ok(globals)
-}
-
-pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
-    module: &Module,
-    emitted: impl IntoIterator<Item = (scoop_lir::PersistentInitializationUnitId, GlobalValue<'ctx>)>,
-) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
-    let mut by_unit = std::collections::BTreeMap::new();
-    for (unit, descriptor) in emitted {
-        if by_unit.insert(unit, descriptor).is_some() {
-            return Err(CodegenError(
-                "strong initialization emission contains duplicate unit ids".to_string(),
-            ));
-        }
-    }
-    let globals = module
-        .initialization_units
-        .iter()
-        .map(|(_, unit)| {
-            by_unit.get(&unit.identity.id()).copied().ok_or_else(|| {
-                CodegenError(format!(
-                    "initialization unit {} has no emitted initialization registration",
-                    unit.identity.id()
-                ))
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    if globals.len() != by_unit.len() {
-        return Err(CodegenError(format!(
-            "strong initialization coverage mismatch: LIR {}, emitted {}",
-            globals.len(),
-            by_unit.len()
-        )));
-    }
-    Ok(globals)
 }
 
 pub(crate) fn apply_persistent_linkage(

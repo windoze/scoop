@@ -1,19 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use scoop_identity::{
-    ConeCoordinate, ConeIdentity, RequestedConeKind, SourceContentDigest, SourceIdentity,
-    SourceRole,
-};
+use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_manifest::{
-    ConeManifestSemantic, ConeRelativePath, DiscoveredSource, SourceDisplayLocator,
-};
-use scoop_slib::{
-    ArtifactFingerprint, ArtifactManifestSummaryV1, ArtifactSnapshot, ConeKind, ConeSourceForm,
-};
-use scoop_wire::Digest256;
+use scoop_manifest::{ConeManifestSemantic, SelectedManifestSources};
+use scoop_slib::{ArtifactFingerprint, ArtifactManifestSummaryV1, ConeKind, ConeSourceForm};
 
 use super::super::staging::PreparedStaging;
 use crate::ResolvedPairedScoopc;
@@ -22,83 +13,27 @@ use crate::artifact::{CompletedNode, PrebuiltCompletionError, complete_prebuilt_
 use crate::discovery::BuildContext;
 use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
-mod cache_completion;
 mod cache_key;
 pub(super) mod child_request;
 
 pub use cache_key::CompileCacheKeyError;
 pub use child_request::ChildRequestPlanError;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SourceSnapshot {
-    identity: SourceIdentity,
-    display_locator: SourceDisplayLocator,
-    content_digest: SourceContentDigest,
-    bytes: Arc<[u8]>,
-    role: SourceRole,
-}
-
-impl SourceSnapshot {
-    pub(super) fn from_discovered(source: DiscoveredSource) -> Self {
-        let (identity, display_locator, source_text, content_digest, role) = source.into_parts();
-        Self {
-            identity,
-            display_locator,
-            content_digest,
-            bytes: Arc::from(source_text.into_bytes()),
-            role,
-        }
-    }
-
-    pub const fn role(&self) -> SourceRole {
-        self.role
-    }
-
-    pub fn identity(&self) -> &SourceIdentity {
-        &self.identity
-    }
-
-    pub fn display_locator(&self) -> &SourceDisplayLocator {
-        &self.display_locator
-    }
-
-    pub const fn content_digest(&self) -> SourceContentDigest {
-        self.content_digest
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-}
+pub use scoop_manifest::SelectedSource;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct NonEmptySourceSnapshots {
-    pub(super) first: SourceSnapshot,
-    pub(super) rest: Vec<SourceSnapshot>,
-}
-
-impl NonEmptySourceSnapshots {
-    fn iter(&self) -> impl Iterator<Item = &SourceSnapshot> {
-        std::iter::once(&self.first).chain(&self.rest)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ManifestSourceSnapshot {
+pub struct ManifestSourceInput {
     pub(super) identity: ConeIdentity,
     pub(super) coordinate: ConeCoordinate,
     pub(super) requested_kind: RequestedConeKind,
     pub(super) manifest_semantic: ConeManifestSemantic,
     pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
-    pub(super) manifest_bytes: Arc<[u8]>,
-    pub(super) manifest_digest: Digest256,
-    pub(super) sources: NonEmptySourceSnapshots,
-    pub(super) source_directories: Vec<ConeRelativePath>,
-    pub(super) native: scoop_toolchain::PreparedNativeInputs,
+    pub(super) sources: SelectedManifestSources,
+    pub(super) native: scoop_toolchain::PreparedNativeObjects,
 }
 
-impl ManifestSourceSnapshot {
+impl ManifestSourceInput {
     pub const fn identity(&self) -> ConeIdentity {
         self.identity
     }
@@ -119,53 +54,38 @@ impl ManifestSourceSnapshot {
         &self.manifest_locator
     }
 
-    pub fn manifest_bytes(&self) -> &[u8] {
-        &self.manifest_bytes
-    }
-
-    pub const fn manifest_digest(&self) -> Digest256 {
-        self.manifest_digest
-    }
-
-    pub fn sources(&self) -> impl Iterator<Item = &SourceSnapshot> {
+    pub fn sources(&self) -> impl Iterator<Item = &SelectedSource> {
         self.sources.iter()
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SingleFileSourceSnapshot {
-    pub(super) source: SourceSnapshot,
+pub struct SingleFileSourceInput {
+    pub(super) source: SelectedSource,
 }
 
-impl SingleFileSourceSnapshot {
-    pub const fn source(&self) -> &SourceSnapshot {
+impl SingleFileSourceInput {
+    pub const fn source(&self) -> &SelectedSource {
         &self.source
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedArtifactCandidate {
-    pub(super) source_locator: PathBuf,
-    pub(super) materialized_path: PathBuf,
-    pub(super) snapshot: Arc<ArtifactSnapshot>,
-    pub(super) summary: ArtifactManifestSummaryV1,
+    pub(super) artifact: std::rc::Rc<crate::BuildArtifact>,
 }
 
 impl PreparedArtifactCandidate {
     pub fn source_locator(&self) -> &Path {
-        &self.source_locator
+        self.artifact.path()
     }
 
-    pub fn materialized_path(&self) -> &Path {
-        &self.materialized_path
+    pub fn summary(&self) -> &ArtifactManifestSummaryV1 {
+        self.artifact.summary()
     }
 
-    pub fn snapshot(&self) -> &Arc<ArtifactSnapshot> {
-        &self.snapshot
-    }
-
-    pub const fn summary(&self) -> &ArtifactManifestSummaryV1 {
-        &self.summary
+    pub(crate) fn shared_artifact(&self) -> std::rc::Rc<crate::BuildArtifact> {
+        std::rc::Rc::clone(&self.artifact)
     }
 }
 
@@ -197,10 +117,9 @@ pub(super) enum PreparedGraphNode {
 
 #[derive(Debug)]
 pub(super) struct PreparedManifestSourceNode {
-    pub(super) snapshot: ManifestSourceSnapshot,
+    pub(super) snapshot: ManifestSourceInput,
     pub(super) input_root: PathBuf,
     pub(super) output_path: PathBuf,
-    pub(super) native_inputs: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -212,7 +131,7 @@ pub(super) struct PreparedPrebuiltArtifactNode {
 
 #[derive(Debug)]
 pub(super) struct PreparedSingleFileNode {
-    pub(super) snapshot: SingleFileSourceSnapshot,
+    pub(super) snapshot: SingleFileSourceInput,
     pub(super) input_path: PathBuf,
     pub(super) output_path: PathBuf,
 }
@@ -303,7 +222,7 @@ impl PreparedBuildGraph {
         }
     }
 
-    pub fn source_snapshot(&self, identity: ConeIdentity) -> Option<&ManifestSourceSnapshot> {
+    pub fn source_input(&self, identity: ConeIdentity) -> Option<&ManifestSourceInput> {
         match self.nodes.get(&identity) {
             Some(PreparedGraphNode::ManifestSource(node)) => Some(&node.snapshot),
             _ => None,
@@ -318,10 +237,7 @@ impl PreparedBuildGraph {
         }
     }
 
-    pub fn single_file_snapshot(
-        &self,
-        identity: ConeIdentity,
-    ) -> Option<&SingleFileSourceSnapshot> {
+    pub fn single_file_input(&self, identity: ConeIdentity) -> Option<&SingleFileSourceInput> {
         match self.nodes.get(&identity) {
             Some(PreparedGraphNode::SingleFile(node)) => Some(&node.snapshot),
             _ => None,

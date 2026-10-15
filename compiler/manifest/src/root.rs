@@ -6,6 +6,9 @@ use scoop_wire::HashError;
 
 use crate::{ManifestParseError, ParsedConeManifest, parse_cone_manifest};
 
+mod location;
+pub use location::LocatedConeManifest;
+
 const MANIFEST_FILE_NAME: &str = "Cone.toml";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -107,6 +110,8 @@ pub enum ManifestRootIoOperation {
     Inspect,
     Canonicalize,
     Read,
+    Write,
+    Lock,
 }
 
 impl fmt::Display for ManifestRootIoOperation {
@@ -115,6 +120,8 @@ impl fmt::Display for ManifestRootIoOperation {
             Self::Inspect => "inspect",
             Self::Canonicalize => "canonicalize",
             Self::Read => "read",
+            Self::Write => "write",
+            Self::Lock => "lock",
         })
     }
 }
@@ -130,7 +137,7 @@ impl ManifestRootError {
         Self { path, kind }
     }
 
-    fn io(operation: ManifestRootIoOperation, path: PathBuf, source: std::io::Error) -> Self {
+    pub fn io(operation: ManifestRootIoOperation, path: PathBuf, source: std::io::Error) -> Self {
         Self::new(path, ManifestRootErrorKind::Io { operation, source })
     }
 
@@ -207,83 +214,7 @@ pub fn load_cone_manifest(
     locator: &ManifestRootLocator,
     catalog: &[crate::SourceTarget<'_>],
 ) -> Result<LoadedConeManifest, ManifestRootError> {
-    let (real_root, manifest_path) = match locator {
-        ManifestRootLocator::ConeDirectory(root) => {
-            let real_root = canonicalize(root)?;
-            if !std::fs::metadata(&real_root)
-                .map_err(|error| {
-                    ManifestRootError::io(
-                        ManifestRootIoOperation::Inspect,
-                        real_root.clone(),
-                        error,
-                    )
-                })?
-                .is_dir()
-            {
-                return Err(ManifestRootError::new(
-                    root.clone(),
-                    ManifestRootErrorKind::RootNotDirectory,
-                ));
-            }
-            let manifest_path = real_root.join(MANIFEST_FILE_NAME);
-            (real_root, manifest_path)
-        }
-        ManifestRootLocator::ExactConeManifestFile(manifest) => {
-            if !manifest
-                .file_name()
-                .is_some_and(|name| name == MANIFEST_FILE_NAME)
-            {
-                return Err(ManifestRootError::new(
-                    manifest.clone(),
-                    ManifestRootErrorKind::InvalidManifestFileName,
-                ));
-            }
-            let manifest_path = canonicalize(manifest)?;
-            let real_root = manifest_path.parent().ok_or_else(|| {
-                ManifestRootError::new(manifest.clone(), ManifestRootErrorKind::RootNotDirectory)
-            })?;
-            let real_root = canonicalize(real_root)?;
-            (real_root, manifest_path)
-        }
-    };
-
-    let metadata = std::fs::metadata(&manifest_path).map_err(|error| {
-        ManifestRootError::io(
-            ManifestRootIoOperation::Inspect,
-            manifest_path.clone(),
-            error,
-        )
-    })?;
-    if !metadata.is_file() {
-        return Err(ManifestRootError::new(
-            manifest_path,
-            ManifestRootErrorKind::ManifestNotRegularFile,
-        ));
-    }
-
-    let bytes = std::fs::read(&manifest_path).map_err(|error| {
-        ManifestRootError::io(ManifestRootIoOperation::Read, manifest_path.clone(), error)
-    })?;
-    let source = String::from_utf8(bytes).map_err(|_| {
-        ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::InvalidUtf8)
-    })?;
-    let parsed = parse_cone_manifest(&source, catalog).map_err(|error| {
-        ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::Parse(error))
-    })?;
-    let identity = parsed.semantic().coordinate().identity().map_err(|error| {
-        ManifestRootError::new(
-            manifest_path.clone(),
-            ManifestRootErrorKind::Identity(error),
-        )
-    })?;
-
-    Ok(LoadedConeManifest {
-        real_root,
-        manifest_path,
-        source,
-        identity,
-        parsed,
-    })
+    locator.resolve()?.load(catalog)
 }
 
 fn canonicalize(path: &Path) -> Result<PathBuf, ManifestRootError> {

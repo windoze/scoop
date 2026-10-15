@@ -1,13 +1,6 @@
 use super::*;
 
-pub(super) fn artifact(
-    manifest_sections: Vec<ManifestSection>,
-    lir_sections: Vec<MetadataSection>,
-) -> Vec<u8> {
-    build_artifact(manifest_sections, lir_sections, true, true, false, true)
-}
-
-pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
+pub(in super::super) fn complete_artifact() -> Vec<u8> {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -30,12 +23,6 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
     let lir_proof = ConeLirFoundation::try_new(cone().identity(), lir_foundation.clone()).unwrap();
     let (strong_production, final_objects, defined_symbols, undefined_symbols) =
         finalized_link_object_fixture();
-    let image_patch_offset = final_objects
-        .runtime_images()
-        .fingerprint()
-        .image()
-        .image_patch()
-        .checked_offset();
     let dependencies = vec![
         DependencyRecord::new(
             ConeCoordinate::reserved_core(),
@@ -77,22 +64,8 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
         undefined_symbols,
     )
     .unwrap();
-    let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code).unwrap();
+    let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code);
     let production_manifest = crate::SingleConeProductionManifestV1::from_verified_code(code);
-    let link_member = if corrupt_final_image_digest {
-        let mut bytes = link_member.payload().to_vec();
-        bytes[usize::try_from(image_patch_offset).unwrap()] ^= 1;
-        SlibMember::new(
-            cone().identity(),
-            member_plan.stable_key().clone(),
-            member_plan.role().clone(),
-            bytes,
-        )
-        .unwrap()
-    } else {
-        link_member
-    };
-
     let hir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Hir,
@@ -149,7 +122,7 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
         .unwrap(),
     ];
     let compatibility =
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
             .unwrap();
     let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,
@@ -206,170 +179,6 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
     )
     .unwrap();
     CanonicalSlibArchive::write_bootstrap(&manifest, std::mem::take(&mut members))
-        .unwrap()
-        .as_bytes()
-        .to_vec()
-}
-
-pub(super) fn build_artifact(
-    manifest_sections: Vec<ManifestSection>,
-    lir_sections: Vec<MetadataSection>,
-    include_hir_production: bool,
-    include_lir_foundation: bool,
-    stale_hir_fingerprint: bool,
-    include_link_object: bool,
-) -> Vec<u8> {
-    let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
-    hir_foundation
-        .set_types(vec![
-            scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
-        ])
-        .unwrap();
-    let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
-    mir_foundation
-        .set_exact_types(vec![
-            CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(
-                scoop_identity::CoreBuiltinNominal::Unit
-                    .identity_record()
-                    .id(),
-            ))
-            .unwrap(),
-        ])
-        .unwrap();
-    let mut hir_sections = vec![
-        MetadataSection::new(
-            MetadataLocation::Hir,
-            hir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE_AND_LINK,
-            encode(&hir_foundation).unwrap(),
-        )
-        .unwrap(),
-    ];
-    if include_hir_production {
-        hir_sections.push(
-            MetadataSection::new(
-                MetadataLocation::Hir,
-                hir_core_bootstrap_interface_capability(),
-                MemberPurposeSet::COMPILE,
-                empty_hir_library_section(),
-            )
-            .unwrap(),
-        );
-    }
-    let mir_sections = vec![
-        MetadataSection::new(
-            MetadataLocation::Mir,
-            mir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE_AND_LINK,
-            encode(&mir_foundation).unwrap(),
-        )
-        .unwrap(),
-        MetadataSection::new(
-            MetadataLocation::Mir,
-            mir_core_bootstrap_bridge_capability(),
-            MemberPurposeSet::COMPILE,
-            empty_mir_library_section(),
-        )
-        .unwrap(),
-    ];
-    let mut complete_lir_sections = Vec::new();
-    if include_lir_foundation {
-        let (foundation, _) =
-            strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-        complete_lir_sections.push(
-            MetadataSection::new(
-                MetadataLocation::Lir,
-                lir_identity_foundation_capability(),
-                MemberPurposeSet::COMPILE_AND_LINK,
-                encode(&foundation).unwrap(),
-            )
-            .unwrap(),
-        );
-    }
-    complete_lir_sections.extend(lir_sections);
-
-    let compatibility =
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
-            .unwrap();
-    let dependencies = vec![
-        DependencyRecord::new(
-            ConeCoordinate::reserved_core(),
-            HirFingerprint::from_array([1; 32]),
-            crate::MirFingerprint::from_array([2; 32]),
-            crate::LirFingerprint::from_array([3; 32]),
-        )
-        .unwrap(),
-    ];
-    let semantic = SemanticFingerprintRecord::from_metadata_sections(
-        &compatibility,
-        &dependencies,
-        &known_sections(&hir_sections),
-        &known_sections(&mir_sections),
-        &known_sections(&complete_lir_sections),
-    )
-    .unwrap();
-    let semantic = SemanticFingerprintRecord::from_digests(
-        if stale_hir_fingerprint {
-            HirFingerprint::from_array([9; 32])
-        } else {
-            semantic.hir()
-        },
-        semantic.mir(),
-        semantic.lir(),
-        FingerprintAvailability::Available(CodeFingerprint::from_array([4; 32])),
-        FingerprintAvailability::Available(RuntimeImageFingerprint::from_array([5; 32])),
-    );
-
-    let hir_envelope = MetadataEnvelope::new(MetadataLocation::Hir, hir_sections).unwrap();
-    let mir_envelope = MetadataEnvelope::new(MetadataLocation::Mir, mir_sections).unwrap();
-    let lir_envelope = MetadataEnvelope::new(MetadataLocation::Lir, complete_lir_sections).unwrap();
-    let mut members = vec![
-        SlibMember::new(
-            cone().identity(),
-            MemberStableKey::HirMetadata,
-            SlibMemberRole::HirMetadata,
-            encode(&hir_envelope).unwrap(),
-        )
-        .unwrap(),
-        SlibMember::new(
-            cone().identity(),
-            MemberStableKey::MirMetadata,
-            SlibMemberRole::MirMetadata,
-            encode(&mir_envelope).unwrap(),
-        )
-        .unwrap(),
-        SlibMember::new(
-            cone().identity(),
-            MemberStableKey::LirMetadata,
-            SlibMemberRole::LirMetadata,
-            encode(&lir_envelope).unwrap(),
-        )
-        .unwrap(),
-    ];
-    if include_link_object {
-        let plan = link_object_plan();
-        let member = &plan.scoop_lir_members()[0];
-        members.push(
-            SlibMember::new(
-                cone().identity(),
-                member.stable_key().clone(),
-                member.role().clone(),
-                link_object_bytes(),
-            )
-            .unwrap(),
-        );
-    }
-    let manifest = BootstrapManifest::new(
-        ProducerRecord::new("test").unwrap(),
-        compatibility,
-        cone(),
-        dependencies,
-        &members,
-        semantic,
-        manifest_sections,
-    )
-    .unwrap();
-    CanonicalSlibArchive::write_bootstrap(&manifest, members)
         .unwrap()
         .as_bytes()
         .to_vec()

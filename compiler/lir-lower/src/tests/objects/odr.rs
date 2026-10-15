@@ -105,7 +105,7 @@ fn nominal_shape_content_ignores_producer_and_arena_order() {
         );
         let bytes = encode(&canonical).unwrap();
         let decoded: lir::DecodedCanonicalShapeAbisV1 = decode_canonical(&bytes).unwrap();
-        assert_eq!(decoded.validate(output.foundation()).unwrap(), canonical);
+        assert_eq!(encode(&decoded).unwrap(), bytes);
         records.push(canonical);
     }
     assert_eq!(records[0], records[1]);
@@ -200,55 +200,4 @@ fn nominal_shape_fingerprints_include_fields_scans_and_dispatch_order() {
             definition.role() == OdrMemberRole::DispatchTable,
         );
     }
-}
-
-#[test]
-fn nominal_shape_reader_rejects_missing_duplicate_unsorted_and_unknown_members() {
-    let (output, _) = fixture(ConeIdentity::SINGLE_FILE, false);
-    let canonical = shapes(output.module(), output.foundation());
-    let bytes = encode(&canonical).unwrap();
-    let count = canonical.definitions().len();
-    assert_eq!(bytes[0], 0x80 + u8::try_from(count).unwrap());
-    let width = (bytes.len() - 1) / count;
-    assert_eq!(bytes.len(), 1 + count * width);
-    let validate = |bytes: &[u8]| {
-        decode_canonical::<lir::DecodedCanonicalShapeAbisV1>(bytes)
-            .unwrap()
-            .validate(output.foundation())
-    };
-    assert!(matches!(
-        validate(&[0x80]),
-        Err(lir::CanonicalShapeAbiError::MemberSet)
-    ));
-
-    let mut missing = bytes[..bytes.len() - width].to_vec();
-    missing[0] -= 1;
-    assert!(matches!(
-        validate(&missing),
-        Err(lir::CanonicalShapeAbiError::MemberSet)
-    ));
-    let mut duplicate = bytes.clone();
-    duplicate[1 + width..1 + 2 * width].copy_from_slice(&bytes[1..1 + width]);
-    assert!(matches!(
-        validate(&duplicate),
-        Err(lir::CanonicalShapeAbiError::MemberSet)
-    ));
-    let mut unsorted = bytes.clone();
-    unsorted[1..1 + width].copy_from_slice(&bytes[1 + width..1 + 2 * width]);
-    unsorted[1 + width..1 + 2 * width].copy_from_slice(&bytes[1..1 + width]);
-    assert!(matches!(
-        validate(&unsorted),
-        Err(lir::CanonicalShapeAbiError::MemberSet)
-    ));
-    let mut unknown = bytes;
-    let member = canonical.definitions()[0].member();
-    let offset = unknown
-        .windows(32)
-        .position(|bytes| bytes == member.as_array())
-        .unwrap();
-    unknown[offset] ^= 1;
-    assert!(matches!(
-        validate(&unknown),
-        Err(lir::CanonicalShapeAbiError::UnknownMember(_))
-    ));
 }

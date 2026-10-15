@@ -9,15 +9,10 @@ use scoop_wire::HashError;
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalKnownLinkExtensionCodeContributionSetV1,
     CanonicalNativeExternalContractCodeSetV1, CanonicalUndefinedSymbolRequirementSetV1,
-    CrossConeLinkClosureBuildError, CrossConeLinkClosureSectionV1,
     DefinedLinkSymbolOwnerBuildError, FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    LayoutLinkClosureError, NativeExternalContractCodeSetBuildError,
-    VerifiedExternalShapeRequirementClosureV1,
+    NativeExternalContractCodeSetBuildError, VerifiedExternalShapeRequirementClosureV1,
 };
-use crate::{
-    CodeFingerprint, CrossConeLayoutLinkClosureSectionV1,
-    VerifiedSingleConeProductionCodeProjectionV2,
-};
+use crate::{CodeFingerprint, VerifiedSingleConeProductionCodeProjectionV2};
 
 mod error;
 mod input;
@@ -83,57 +78,33 @@ impl VerifiedCodeFingerprintV2 {
     }
 }
 
-/// Complete Code proof plus the two Link-only sections whose semantic import
-/// projections are committed by that digest.
+/// The generated Code result and runtime aliases used by the artifact writer.
 #[derive(Clone, Debug)]
-pub struct VerifiedCrossConeLayoutCodeFingerprintV1<'a> {
+pub struct VerifiedCrossConeLayoutCodeFingerprintV1 {
     code: VerifiedCodeFingerprintV2,
-    callable_link_closure: CrossConeLinkClosureSectionV1,
-    layout_link_closure: CrossConeLayoutLinkClosureSectionV1<'a>,
     link_support: crate::LirLinkSupportSectionV1,
 }
 
-impl<'a> VerifiedCrossConeLayoutCodeFingerprintV1<'a> {
+impl VerifiedCrossConeLayoutCodeFingerprintV1 {
     pub const fn code(&self) -> &VerifiedCodeFingerprintV2 {
         &self.code
     }
-
-    pub const fn callable_link_closure(&self) -> &CrossConeLinkClosureSectionV1 {
-        &self.callable_link_closure
-    }
-
-    pub const fn layout_link_closure(&self) -> &CrossConeLayoutLinkClosureSectionV1<'a> {
-        &self.layout_link_closure
-    }
-
-    pub fn into_parts(
-        self,
-    ) -> (
-        VerifiedCodeFingerprintV2,
-        CrossConeLinkClosureSectionV1,
-        CrossConeLayoutLinkClosureSectionV1<'a>,
-        crate::LirLinkSupportSectionV1,
-    ) {
-        (
-            self.code,
-            self.callable_link_closure,
-            self.layout_link_closure,
-            self.link_support,
-        )
+    pub fn into_parts(self) -> (VerifiedCodeFingerprintV2, crate::LirLinkSupportSectionV1) {
+        (self.code, self.link_support)
     }
 }
 
 /// Computes the M23-6 Code digest only after the three undefined-symbol
 /// partitions and both semantic import projections have been bound to the
 /// exact same finalized object proof.
-pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
+pub fn compute_cross_cone_layout_code_fingerprint_v1(
     production: VerifiedSingleConeProductionCodeProjectionV2,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     undefined_partitions: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    external_shape: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
+    external_shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
     link_support: crate::LirLinkSupportSectionV1,
-) -> Result<VerifiedCrossConeLayoutCodeFingerprintV1<'a>, LayoutCodeFingerprintError> {
+) -> Result<VerifiedCrossConeLayoutCodeFingerprintV1, LayoutCodeFingerprintError> {
     let builtins = production
         .link_objects()
         .final_objects()
@@ -146,20 +117,10 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
     if !undefined_partitions.matches_external_shape_closure(external_shape) {
         return Err(LayoutCodeFingerprintError::ExternalShapeClosureMismatch);
     }
-    let callable_link_closure = CrossConeLinkClosureSectionV1::from_verified_requirements(
-        undefined_partitions.cross_cone(),
-        production.link_objects(),
-    )
-    .map_err(LayoutCodeFingerprintError::CrossConeLinkClosure)?;
-    let layout_link_closure = CrossConeLayoutLinkClosureSectionV1::from_verified_requirements(
-        external_shape,
-        production.link_objects(),
-    )
-    .map_err(LayoutCodeFingerprintError::LayoutLinkClosure)?;
     let link_extension_contributions =
         CanonicalKnownLinkExtensionCodeContributionSetV1::from_cross_cone_layout_semantic_imports(
-            callable_link_closure.semantic_imports(),
-            layout_link_closure.semantic_imports(),
+            undefined_partitions.cross_cone().semantic_imports(),
+            external_shape.semantic_imports(),
         )
         .map_err(LayoutCodeFingerprintError::LinkContributionEncoding)?;
     let link_extension_contributions = link_extension_contributions
@@ -173,12 +134,7 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
         defined_symbols,
         undefined_symbols,
     )?;
-    Ok(VerifiedCrossConeLayoutCodeFingerprintV1 {
-        code,
-        callable_link_closure,
-        layout_link_closure,
-        link_support,
-    })
+    Ok(VerifiedCrossConeLayoutCodeFingerprintV1 { code, link_support })
 }
 
 fn compute(

@@ -14,9 +14,10 @@ use crate::link_object::{
     verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
     verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
 };
+use scoop_wire::sha256;
 
 #[test]
-fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
+fn writes_every_registration_slot_and_updates_the_content_fingerprint() {
     let fixture = Fixture::new(Corruption::None);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
@@ -170,38 +171,6 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
             assert_eq!(before, after);
         }
     }
-}
-
-#[test]
-fn rejects_provisional_bytes_changed_after_fingerprint_computation() {
-    let mut fixture = Fixture::new(Corruption::None);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let (safepoints, callables, types, immortal_objects, static_storages, initializations) =
-        verified_fingerprints(&fixture, &objects);
-    let last = fixture.object_bytes.len() - 1;
-    fixture.object_bytes[last] ^= 1;
-    let changed = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-
-    assert!(matches!(
-        patch_strong_registration_fingerprints_v1(
-            safepoints,
-            callables,
-            types,
-            immortal_objects,
-            static_storages,
-            initializations,
-            &changed,
-        ),
-        Err(StrongRegistrationPatchError::ObjectValidation(
-            StrongSafepointRegistrationValidationError::ObjectBytesMismatch(member)
-        )) if member == fixture.member
-    ));
 }
 
 fn verified_fingerprints(

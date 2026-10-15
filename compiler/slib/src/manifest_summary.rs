@@ -1,7 +1,7 @@
 //! Archive and manifest data used by dependency discovery, builds, and caches.
 //!
-//! Reading a summary checks the container, member hashes, compatibility, and
-//! dependency records. Compiler consumers read typed IR and objects separately.
+//! Producers pass this data directly to build orchestration. Explicit artifact
+//! readers obtain the same summary from the manifest.
 
 use std::fmt;
 
@@ -9,27 +9,62 @@ use scoop_identity::ArtifactCapabilityProfileId;
 use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{
-    ArtifactFingerprint, BootstrapManifest, CompatibilityRecord, ConeRecord, DependencyRecord,
-    FingerprintAvailability, GraphValidationError, RuntimeImageFingerprint,
-    SemanticFingerprintRecord, SlibReadError,
+    ArtifactFingerprint, BootstrapManifest, ConeRecord, DependencyRecord, FingerprintAvailability,
+    RuntimeImageFingerprint, SemanticFingerprintRecord, SlibReadError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactManifestSummaryV1 {
     cone: ConeRecord,
     direct_dependencies: Vec<DependencyRecord>,
-    compatibility: CompatibilityRecord,
     target_selection: ValidatedLirTargetSelection,
     profile: ArtifactCapabilityProfileId,
     semantic_fingerprints: SemanticFingerprintRecord,
     artifact_fingerprint: ArtifactFingerprint,
-    member_count: u64,
-    manifest_length: u64,
-    archive_length: u64,
     test_directory: Option<crate::TestDirectory>,
 }
 
+mod read;
+mod wire;
+pub use read::read_artifact_manifest_summary_from_reader;
+pub(crate) use read::read_manifest;
+
 impl ArtifactManifestSummaryV1 {
+    pub fn new(
+        cone: ConeRecord,
+        direct_dependencies: Vec<DependencyRecord>,
+        target_selection: ValidatedLirTargetSelection,
+        profile: ArtifactCapabilityProfileId,
+        semantic_fingerprints: SemanticFingerprintRecord,
+        artifact_fingerprint: ArtifactFingerprint,
+        test_directory: Option<crate::TestDirectory>,
+    ) -> Self {
+        Self {
+            cone,
+            direct_dependencies,
+            target_selection,
+            profile,
+            semantic_fingerprints,
+            artifact_fingerprint,
+            test_directory,
+        }
+    }
+
+    pub(crate) fn from_manifest(
+        manifest: &BootstrapManifest,
+        target_selection: ValidatedLirTargetSelection,
+    ) -> Result<Self, crate::TestDirectoryError> {
+        Ok(Self::new(
+            manifest.cone().clone(),
+            manifest.direct_dependencies().to_vec(),
+            target_selection,
+            manifest.compatibility().artifact_profile().clone(),
+            manifest.semantic_fingerprints(),
+            manifest.artifact_fingerprint(),
+            crate::TestDirectory::from_manifest(manifest)?,
+        ))
+    }
+
     pub fn test_directory(&self) -> Option<&crate::TestDirectory> {
         self.test_directory.as_ref()
     }
@@ -50,10 +85,6 @@ impl ArtifactManifestSummaryV1 {
             self.semantic_fingerprints.mir(),
             self.semantic_fingerprints.lir(),
         )
-    }
-
-    pub const fn compatibility(&self) -> &CompatibilityRecord {
-        &self.compatibility
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
@@ -83,18 +114,6 @@ impl ArtifactManifestSummaryV1 {
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.artifact_fingerprint
     }
-
-    pub const fn member_count(&self) -> u64 {
-        self.member_count
-    }
-
-    pub const fn manifest_length(&self) -> u64 {
-        self.manifest_length
-    }
-
-    pub const fn archive_length(&self) -> u64 {
-        self.archive_length
-    }
 }
 
 pub fn read_artifact_manifest_summary(
@@ -102,56 +121,13 @@ pub fn read_artifact_manifest_summary(
 
     target_selection: ValidatedLirTargetSelection,
 ) -> Result<ArtifactManifestSummaryV1, ArtifactManifestSummaryError> {
-    let graph = crate::DecodedSlibEnvelope::open(bytes, target_selection)
-        .map_err(ArtifactManifestSummaryError::Envelope)?
-        .validate_graph()
-        .map_err(ArtifactManifestSummaryError::Graph)?;
-    let manifest = graph.envelope.manifest();
-    let member_count = length(manifest.members().len())?;
-    let manifest_length = length(graph.envelope.manifest_length())?;
-    let archive_length = length(graph.envelope.archive_length())?;
-    let summary = summary_from_manifest(
-        manifest,
-        target_selection,
-        member_count,
-        manifest_length,
-        archive_length,
-    )?;
-    Ok(summary)
-}
-
-fn summary_from_manifest(
-    manifest: &BootstrapManifest,
-    target_selection: ValidatedLirTargetSelection,
-    member_count: u64,
-    manifest_length: u64,
-    archive_length: u64,
-) -> Result<ArtifactManifestSummaryV1, ArtifactManifestSummaryError> {
-    Ok(ArtifactManifestSummaryV1 {
-        cone: manifest.cone().clone(),
-        direct_dependencies: manifest.direct_dependencies().to_vec(),
-        compatibility: manifest.compatibility().clone(),
-        target_selection,
-        profile: manifest.compatibility().artifact_profile().clone(),
-        semantic_fingerprints: manifest.semantic_fingerprints(),
-        artifact_fingerprint: manifest.artifact_fingerprint(),
-        member_count,
-        manifest_length,
-        archive_length,
-        test_directory: crate::TestDirectory::from_manifest(manifest)
-            .map_err(ArtifactManifestSummaryError::TestDirectory)?,
-    })
-}
-
-fn length(value: usize) -> Result<u64, ArtifactManifestSummaryError> {
-    u64::try_from(value).map_err(|_| ArtifactManifestSummaryError::LengthOverflow)
+    read_artifact_manifest_summary_from_reader(&mut std::io::Cursor::new(bytes), target_selection)
 }
 
 #[derive(Debug)]
 pub enum ArtifactManifestSummaryError {
     Envelope(SlibReadError),
-    Graph(GraphValidationError),
-    LengthOverflow,
+    Io(std::io::Error),
     TestDirectory(crate::TestDirectoryError),
 }
 
@@ -159,9 +135,8 @@ impl fmt::Display for ArtifactManifestSummaryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Envelope(error) => error.fmt(formatter),
-            Self::Graph(error) => error.fmt(formatter),
+            Self::Io(error) => error.fmt(formatter),
             Self::TestDirectory(error) => error.fmt(formatter),
-            Self::LengthOverflow => formatter.write_str("artifact summary length does not fit u64"),
         }
     }
 }
@@ -170,9 +145,8 @@ impl std::error::Error for ArtifactManifestSummaryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Envelope(error) => Some(error),
-            Self::Graph(error) => Some(error),
+            Self::Io(error) => Some(error),
             Self::TestDirectory(error) => Some(error),
-            Self::LengthOverflow => None,
         }
     }
 }
@@ -182,19 +156,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn summary_retains_archive_and_manifest_fields() {
-        let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
+    fn summary_retains_build_inputs() {
+        let bytes = crate::link_decode::complete_strong_artifact_for_test();
         let summary =
             read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
                 .unwrap();
 
-        assert_eq!(summary.archive_length(), bytes.len() as u64);
-        assert!(summary.manifest_length() < summary.archive_length());
-        assert!(summary.member_count() > 0);
         assert!(summary.test_directory().is_none());
         assert_eq!(
             summary.profile(),
-            &scoop_identity::ArtifactCapabilityProfileId::single_cone_strong()
+            &scoop_identity::ArtifactCapabilityProfileId::cross_cone_generic()
         );
         assert_eq!(
             summary.cone().identity(),
@@ -207,22 +178,13 @@ mod tests {
     }
 
     #[test]
-    fn summary_does_not_claim_link_semantic_validation() {
-        let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
+    fn summary_contains_the_same_data_after_record_roundtrip() {
+        let bytes = crate::link_decode::complete_strong_artifact_for_test();
         let summary =
             read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
                 .unwrap();
-        assert_eq!(summary.archive_length(), bytes.len() as u64);
-    }
-
-    #[test]
-    fn summary_rejects_member_bytes_changed_after_manifest_hashing() {
-        let mut bytes = crate::link_decode::complete_strong_artifact_for_test(false);
-        let last = bytes.last_mut().expect("test artifact is nonempty");
-        *last ^= 0x01;
-        let error =
-            read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
-                .unwrap_err();
-        assert!(matches!(error, ArtifactManifestSummaryError::Envelope(_)));
+        let encoded = scoop_wire::encode(&summary).unwrap();
+        let decoded: ArtifactManifestSummaryV1 = scoop_wire::decode_canonical(&encoded).unwrap();
+        assert_eq!(decoded, summary);
     }
 }

@@ -114,6 +114,10 @@ impl std::error::Error for ExactTypeDiagnosticCatalogError {}
 pub struct CanonicalExactTypeDiagnosticName(String);
 
 impl CanonicalExactTypeDiagnosticName {
+    pub fn from_saved(name: String) -> Self {
+        Self(name)
+    }
+
     pub fn from_validated_graph(
         root: PersistentExactTypeId,
         graph: &impl ExactTypeDiagnosticGraph,

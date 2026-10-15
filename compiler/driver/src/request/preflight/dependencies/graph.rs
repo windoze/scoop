@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -12,8 +11,8 @@ use super::{
 
 pub(super) struct ValidatedDependencyNode<'input> {
     pub(super) input: ExplicitDependencyArtifactInput,
-    pub(super) bytes: &'input [u8],
-    pub(super) summary: Cow<'input, ArtifactManifestSummaryV1>,
+    pub(super) artifact: &'input scoop_slib::ArtifactFile,
+    pub(super) summary: &'input ArtifactManifestSummaryV1,
 }
 
 pub(super) fn validate_artifact_shape(
@@ -119,7 +118,7 @@ pub(super) fn validate_dependency_records(
                     .into(),
                 );
             };
-            if !dependency_matches_summary(dependency, &target.summary) {
+            if !dependency_matches_summary(dependency, target.summary) {
                 return Err(
                     ExplicitDependencyValidationError::DependencyRecordMismatch {
                         coordinate: cone.coordinate().clone(),

@@ -414,6 +414,12 @@ impl RuntimeSymbolContractId {
     }
 }
 
+impl scoop_wire::WireDecode for RuntimeSymbolContractId {
+    fn decode(decoder: &mut scoop_wire::Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
+        scoop_wire::Digest256::decode(decoder).map(|digest| Self(*digest.as_array()))
+    }
+}
+
 impl WireEncode for RuntimeSymbolContractId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.bytes(&self.0)

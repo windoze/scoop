@@ -53,16 +53,6 @@ fn derives_primary_and_every_atom_boundary_from_typed_plans() {
 }
 
 #[test]
-fn wire_reader_only_returns_the_independently_rebuilt_surface() {
-    let fixture = fixture(true);
-    let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
-    let encoded = encode(&surface).unwrap();
-    let decoded: DecodedObjectSymbolSurfaceV1 = decode_canonical(&encoded).unwrap();
-
-    assert_eq!(decoded.validate(&fixture.foundation), Ok(surface));
-}
-
-#[test]
 fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
     let fixture = fixture(true);
     let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();

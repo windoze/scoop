@@ -3,32 +3,8 @@ use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
-    DeclarationAccessSourceV1, DeclaredVisibilityV1, ExportDefinitionSourceV1,
-    NominalInterfaceRecordV1, SourceNominalId,
+    DeclarationAccessSourceV1, DeclaredVisibilityV1, ExportDefinitionSourceV1, SourceNominalId,
 };
-
-pub(crate) fn declaration_access(
-    metadata: SharedTypeMetadataV1<'_>,
-    declaration: &NominalInterfaceRecordV1,
-    key: &SourceDeclarationKey,
-) -> Result<DeclarationAccessSourceV1, Error> {
-    let owner = declaration.declaration();
-    let subject = match owner {
-        SourceNominalId::Concrete(owner) => DefinitionOriginSubject::Type(owner),
-        SourceNominalId::GenericTemplate(owner) => DefinitionOriginSubject::GenericType(owner),
-    };
-    if key.origin() != metadata.provider
-        || SourceNominalId::from_source_declaration(key).ok() != Some(owner)
-    {
-        return Err(Error::InheritanceSource(owner));
-    }
-    source_access(
-        metadata,
-        subject,
-        key,
-        declaration.declaration_details().declared_visibility(),
-    )
-}
 
 pub(super) fn source_access(
     metadata: SharedTypeMetadataV1<'_>,

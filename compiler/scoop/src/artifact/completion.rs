@@ -2,37 +2,21 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
 use scoop_protocol::StructuredDiagnosticV1;
-use scoop_slib::{ArtifactFingerprint, ArtifactManifestSummaryError, DependencyRecord};
+use scoop_slib::{ArtifactFingerprint, DependencyRecord};
 
 use super::{
     ArtifactClosurePlan, ArtifactClosureValidationError, BuildArtifact, ValidatedArtifactClosure,
 };
-use crate::{CacheCompletionError, PreparedArtifactCandidate};
+use crate::PreparedArtifactCandidate;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompletedNodeOrigin {
     Prebuilt,
     CacheHit,
     Compiled,
-}
-
-/// A transport path under the current build's private staging area. The path
-/// is never used as semantic identity or artifact authority.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PrivateArtifactPath(PathBuf);
-
-impl PrivateArtifactPath {
-    pub fn as_path(&self) -> &Path {
-        &self.0
-    }
-
-    pub(crate) const fn new(path: PathBuf) -> Self {
-        Self(path)
-    }
 }
 
 /// A completed node retains its artifact data and exact dependency closure.
@@ -42,7 +26,6 @@ pub struct CompletedNode {
     origin: CompletedNodeOrigin,
     artifact: Rc<BuildArtifact>,
     closure: Rc<ValidatedArtifactClosure>,
-    materialized_child_path: PrivateArtifactPath,
     artifact_locator: PathBuf,
     warnings: Vec<StructuredDiagnosticV1>,
 }
@@ -64,17 +47,9 @@ impl CompletedNode {
         &self.closure
     }
 
-    pub const fn materialized_child_path(&self) -> &PrivateArtifactPath {
-        &self.materialized_child_path
-    }
-
-    /// The original prebuilt file or published cache file, retained after staging is dropped.
+    /// The original prebuilt file or the published cache output.
     pub fn artifact_locator(&self) -> &Path {
         &self.artifact_locator
-    }
-
-    pub(crate) fn replace_artifact_locator(&mut self, path: PathBuf) {
-        self.artifact_locator = path;
     }
 
     pub fn warnings(&self) -> &[StructuredDiagnosticV1] {
@@ -85,133 +60,23 @@ impl CompletedNode {
         Rc::clone(&self.artifact)
     }
 
-    pub(crate) fn replace_warnings(&mut self, warnings: Vec<StructuredDiagnosticV1>) {
-        self.warnings = warnings;
-    }
-
-    pub(crate) fn from_cache_hit(
+    pub(crate) fn from_result(
         cone: ConeIdentity,
+        origin: CompletedNodeOrigin,
         artifact: Rc<BuildArtifact>,
         closures: ValidatedArtifactClosure,
-        materialized_child_path: PathBuf,
         artifact_locator: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
     ) -> Self {
         Self {
             cone,
-            origin: CompletedNodeOrigin::CacheHit,
+            origin,
             artifact,
             closure: Rc::new(closures),
-            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
             artifact_locator,
             warnings,
         }
     }
-
-    fn from_compiled(
-        cone: ConeIdentity,
-        artifact: Rc<BuildArtifact>,
-        closures: ValidatedArtifactClosure,
-        materialized_child_path: PathBuf,
-        warnings: Vec<StructuredDiagnosticV1>,
-    ) -> Self {
-        Self {
-            cone,
-            origin: CompletedNodeOrigin::Compiled,
-            artifact,
-            closure: Rc::new(closures),
-            artifact_locator: materialized_child_path.clone(),
-            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
-            warnings,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CompiledCompletionError {
-    CurrentNodeAlreadyCompleted(ConeIdentity),
-    DuplicateCompletedNode(ConeIdentity),
-    Artifact(Box<ArtifactManifestSummaryError>),
-    Plan(Box<ArtifactClosureValidationError>),
-    Warnings(Box<CacheCompletionError>),
-}
-
-impl fmt::Display for CompiledCompletionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::CurrentNodeAlreadyCompleted(identity) => {
-                write!(formatter, "compiled Cone {identity} is already completed")
-            }
-            Self::DuplicateCompletedNode(identity) => {
-                write!(formatter, "completed input repeats Cone {identity}")
-            }
-            Self::Artifact(source) => {
-                write!(
-                    formatter,
-                    "compiled artifact failed archive validation: {source}"
-                )
-            }
-            Self::Plan(source) => {
-                write!(
-                    formatter,
-                    "compiled artifact does not match the resolved graph: {source}"
-                )
-            }
-            Self::Warnings(source) => {
-                write!(formatter, "compiled warnings are not persistable: {source}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for CompiledCompletionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::Artifact(source) => source.as_ref(),
-            Self::Plan(source) => source.as_ref(),
-            Self::Warnings(source) => source.as_ref(),
-            Self::CurrentNodeAlreadyCompleted(_) | Self::DuplicateCompletedNode(_) => return None,
-        })
-    }
-}
-
-pub(crate) fn complete_compiled_candidate(
-    plan: &ArtifactClosurePlan,
-    identity: ConeIdentity,
-    snapshot: Arc<scoop_slib::ArtifactSnapshot>,
-    materialized_path: PathBuf,
-    completed: &[&CompletedNode],
-    warnings: Vec<StructuredDiagnosticV1>,
-) -> Result<CompletedNode, CompiledCompletionError> {
-    let mut artifacts = BTreeMap::new();
-    for node in completed {
-        if node.cone == identity {
-            return Err(CompiledCompletionError::CurrentNodeAlreadyCompleted(
-                identity,
-            ));
-        }
-        if artifacts
-            .insert(node.cone, node.shared_artifact())
-            .is_some()
-        {
-            return Err(CompiledCompletionError::DuplicateCompletedNode(node.cone));
-        }
-    }
-    let artifact = BuildArtifact::read(snapshot, plan.target_selection())
-        .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?;
-    artifacts.insert(identity, Rc::clone(&artifact));
-    let closures = plan
-        .validate(identity, &artifacts)
-        .map_err(|source| CompiledCompletionError::Plan(Box::new(source)))?;
-    crate::validate_warning_origins(&warnings, closures.dependency_first())
-        .map_err(|source| CompiledCompletionError::Warnings(Box::new(source)))?;
-    Ok(CompletedNode::from_compiled(
-        identity,
-        artifact,
-        closures,
-        materialized_path,
-        warnings,
-    ))
 }
 
 #[derive(Debug)]
@@ -292,7 +157,6 @@ impl std::error::Error for PrebuiltCompletionError {
 
 struct ValidatedCandidate {
     source_locator: PathBuf,
-    materialized_path: PathBuf,
     artifact: Rc<BuildArtifact>,
     closures: ValidatedArtifactClosure,
     agreement: ArtifactFingerprint,
@@ -321,10 +185,7 @@ pub(crate) fn complete_prebuilt_candidates(
 
     let mut validated = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        let artifact = Rc::new(BuildArtifact {
-            snapshot: Arc::clone(candidate.snapshot()),
-            summary: candidate.summary().clone(),
-        });
+        let artifact = candidate.shared_artifact();
         artifacts.insert(identity, Rc::clone(&artifact));
         let closures = plan
             .validate(identity, &artifacts)
@@ -349,7 +210,6 @@ pub(crate) fn complete_prebuilt_candidates(
         let summary = artifact.summary();
         validated.push(ValidatedCandidate {
             source_locator: candidate.source_locator().to_path_buf(),
-            materialized_path: candidate.materialized_path().to_path_buf(),
             agreement: summary.artifact_fingerprint(),
             artifact,
             closures,
@@ -378,7 +238,6 @@ pub(crate) fn complete_prebuilt_candidates(
         origin: CompletedNodeOrigin::Prebuilt,
         artifact: selected.artifact,
         closure: Rc::new(selected.closures),
-        materialized_child_path: PrivateArtifactPath::new(selected.materialized_path),
         artifact_locator: selected.source_locator,
         warnings: Vec::new(),
     })

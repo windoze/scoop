@@ -138,7 +138,7 @@ fn rejects_overlap_between_production_and_test_selections() {
 
 #[cfg(unix)]
 #[test]
-fn rejects_test_symlink_aliases_broken_links_and_escape() {
+fn test_symlinks_allow_external_roots_but_reject_duplicates_and_missing_targets() {
     let cone = TempCone::new();
     cone.write("src/api.scoop", "fun api() {}\n");
     std::os::unix::fs::symlink("src", cone.0.join("tests")).unwrap();
@@ -163,9 +163,16 @@ fn rejects_test_symlink_aliases_broken_links_and_escape() {
     ));
     std::fs::remove_file(cone.0.join("tests")).unwrap();
     let outside = TempCone::new();
+    outside.write("case.scoop", "fun outsideTest() {}\n");
     std::os::unix::fs::symlink(&outside.0, cone.0.join("tests")).unwrap();
-    assert!(matches!(
-        discover(&cone).unwrap_err().kind(),
-        SourceDiscoveryErrorKind::EscapesConeRoot
-    ));
+    let discovered = discover(&cone).unwrap();
+    let external = discovered
+        .iter()
+        .find(|source| source.role() == SourceRole::Test)
+        .unwrap();
+    assert_eq!(
+        external.identity().logical_path().as_str(),
+        "tests/case.scoop"
+    );
+    assert_eq!(external.source_text(), "fun outsideTest() {}\n");
 }

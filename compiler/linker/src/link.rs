@@ -10,7 +10,6 @@ use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup:
 
 mod darwin;
 mod elf;
-pub(crate) mod map;
 mod response;
 
 #[cfg(test)]
@@ -18,6 +17,14 @@ mod tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
+impl ResolvedLinkPlanFingerprint {
+    pub const fn as_array(&self) -> &[u8; 32] {
+        self.0.as_array()
+    }
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
+        Self(Digest256::from_array(bytes))
+    }
+}
 impl std::fmt::Display for ResolvedLinkPlanFingerprint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -29,7 +36,7 @@ pub struct ProgramLinkOutput {
     pub path: PathBuf,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
-    /// Actual native files used by this link, for destination alias checks.
+    /// Actual native files and lookup candidates used by this link.
     pub input_paths: Vec<PathBuf>,
 }
 
@@ -39,9 +46,10 @@ pub fn link_program(
     profile: &ValidatedFinalLinkProfile,
     library_paths: &[PathBuf],
     output: &Path,
+    cache: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
-    link_inputs(closure, runtime, profile, &inputs, output)
+    link_inputs(closure, runtime, profile, &inputs, output, cache)
 }
 
 fn link_inputs(
@@ -50,6 +58,7 @@ fn link_inputs(
     profile: &ValidatedFinalLinkProfile,
     inputs: &ProgramInputs<'_>,
     output: &Path,
+    cache: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let output = std::path::absolute(output).map_err(error)?;
     let parent = output
@@ -66,30 +75,16 @@ fn link_inputs(
     write_new(&first, &startup.bytes)?;
     paths.push(first);
     for input in &inputs.objects {
-        let path = directory.path().join(format!("{}.o", input.origin));
-        write_new(&path, input.bytes())?;
-        paths.push(path);
+        paths.push(input.path(cache)?);
     }
     let candidate = directory.path().join("program");
-    let link_map = directory.path().join("program.map");
     match profile {
-        ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
-            profile,
-            inputs,
-            &startup,
-            directory.path(),
-            &paths,
-            &candidate,
-            &link_map,
-        )?,
-        ValidatedFinalLinkProfile::Linux(linux) => elf::link(
-            linux,
-            inputs,
-            directory.path(),
-            &paths,
-            &candidate,
-            &link_map,
-        )?,
+        ValidatedFinalLinkProfile::Darwin(_) => {
+            darwin::link(profile, inputs, directory.path(), &paths, &candidate)?
+        }
+        ValidatedFinalLinkProfile::Linux(linux) => {
+            elf::link(linux, inputs, directory.path(), &paths, &candidate)?
+        }
     }
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
@@ -106,9 +101,6 @@ fn link_inputs(
         .map_err(error)?,
     );
     let plan_dump = dump(closure, runtime, inputs, &startup);
-    std::fs::File::open(&candidate)
-        .and_then(|file| file.sync_all())
-        .map_err(error)?;
     std::fs::rename(candidate, &output).map_err(|err| {
         error(format!(
             "cannot publish executable {}: {err}",
@@ -121,9 +113,8 @@ fn link_inputs(
         plan_dump,
         input_paths: inputs
             .native
-            .files
-            .values()
-            .map(|file| file.locator.clone())
+            .input_paths()
+            .into_iter()
             .chain(inputs.namespace.input_paths())
             .collect(),
     })
@@ -170,7 +161,7 @@ impl WireEncode for Plan<'_> {
         for input in &self.inputs.objects {
             e.array(2)?;
             e.text(&input.origin.to_string())?;
-            sha256(input.bytes()).encode(e)?;
+            input.digest().encode(e)?;
         }
         e.field(7)?;
         e.array(2)?;
@@ -197,14 +188,12 @@ fn dump(
             artifact.manifest().cone().coordinate(),
             artifact.manifest().cone().kind(),
             symbols
-                .final_objects()
-                .objects()
+                .members()
                 .iter()
                 .filter(|object| inputs
                     .selected
                     .contains(artifact.identity(), object.member()))
                 .count()
-                + symbols.object_contents().generated_objects().len()
         ));
     }
     text.push_str(&format!(

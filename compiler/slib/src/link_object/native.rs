@@ -39,9 +39,13 @@ pub struct NativeLinkObject {
     pub(crate) member: crate::SlibMemberId,
     pub(crate) source: NormalizedSourcePath,
     pub(crate) bytes: std::sync::Arc<[u8]>,
+    pub(crate) digest: scoop_wire::Digest256,
 }
 
 impl NativeLinkObject {
+    pub fn digest(&self) -> scoop_wire::Digest256 {
+        self.digest
+    }
     pub fn member(&self) -> crate::SlibMemberId {
         self.member
     }

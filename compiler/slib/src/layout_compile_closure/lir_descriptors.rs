@@ -1,4 +1,4 @@
-//! Descriptor replay from shared types, layouts, dispatch and dependencies.
+//! Saved descriptor references and instance data.
 
 use super::{
     LirDispatchValidatedCrossConeLayoutClosure, LirDispatchValidatedCrossConeLayoutSections,
@@ -7,15 +7,11 @@ use super::{
         LirConstituentsValidatedCrossConeLayoutSections,
     },
 };
-use crate::dependency_reachability::transitive_positions;
-use scoop_identity::ExactTypeDiagnosticCatalog;
 use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 mod errors;
-mod replay;
 pub use errors::{CrossConeLayoutLirDescriptorsError, SharedLirDescriptorValidationError};
-pub use replay::{SharedLirDescriptorInputsV1, replay_shared_mir_descriptors};
 
 pub type LirDescriptorsValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
@@ -44,7 +40,7 @@ impl<'input> LirDispatchValidatedCrossConeLayoutClosure<'input> {
             dependency_positions,
         } = self;
         let mut complete: Vec<LirDescriptorsValidatedCrossConeLayoutSections<'input>> = Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        for artifact in dependency_first {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirDescriptorValidationError> {
                 let LirDispatchValidatedCrossConeLayoutSections {
@@ -56,42 +52,12 @@ impl<'input> LirDispatchValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
 
-                let coordinate = prepared.coordinate().clone();
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions)?;
-                let mut descriptors = Vec::new();
-                let mut coordinates = Vec::new();
-                scoop_wire::allocation::try_reserve(
-                    &mut descriptors,
-                    reachable.len(),
-                    &WirePath::root(),
-                )?;
-                scoop_wire::allocation::try_reserve(
-                    &mut coordinates,
-                    reachable.len() + 1,
-                    &WirePath::root(),
-                )?;
-                coordinates.push(coordinate);
-                for &position in &reachable {
-                    let artifact = &complete[position];
-                    descriptors.push(artifact.descriptors());
-
-                    coordinates.push(artifact.coordinate().clone());
-                }
-                let diagnostics =
-                    ExactTypeDiagnosticCatalog::try_new(parts.identities, &coordinates)?;
-                let expected = replay_shared_mir_descriptors(
+                let layout = layout.read_descriptors(
                     target.target(),
-                    mir.types(),
-                    SharedLirDescriptorInputsV1 {
-                        layouts: layout.layouts(),
-                        dispatch: layout.dispatch(),
-                        dependencies: &descriptors,
-                    },
-                    &diagnostics,
                     parts.lir_foundation,
+                    parts.identities,
                 )?;
-                let layout = layout.validate_descriptors(&expected)?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirDescriptorsValidatedCrossConeLayoutSections {
                     prepared,

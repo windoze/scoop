@@ -1,7 +1,7 @@
 schema = 1
 name = "native-link-formats-relocations"
 inputs = ["cone", "../../m23-native-link/final/root.scoop", "../../m23-native-link/final/native.c"]
-tools = ["scoop", "scoopc", "cc", "ar"]
+tools = ["scoop", "scoopc", "cc"]
 # This fixture mutates Mach-O load commands and AArch64 relocation records.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link"]
@@ -22,8 +22,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "install_m23_final"
 files = [{"copy" = {"from" = "${work}/objects/m23_final.o", "to" = "${work}/native/m23_final.o"}}]
@@ -40,8 +38,11 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
@@ -62,13 +63,12 @@ checks = []
 [[steps]]
 name = "reject_debug-symbol"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_debug-symbol.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -84,13 +84,12 @@ checks = []
 [[steps]]
 name = "reject_load-command"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_load-command.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -106,13 +105,12 @@ checks = []
 [[steps]]
 name = "reject_relocation-table"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_relocation-table.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -128,13 +126,12 @@ checks = []
 [[steps]]
 name = "reject_site"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_site.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -150,13 +147,12 @@ checks = []
 [[steps]]
 name = "reject_scattered"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_scattered.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -172,13 +168,12 @@ checks = []
 [[steps]]
 name = "reject_symbol-index"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_symbol-index.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -194,13 +189,12 @@ checks = []
 [[steps]]
 name = "reject_kind"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_kind.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -216,13 +210,12 @@ checks = []
 [[steps]]
 name = "reject_fields"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_fields.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -238,13 +231,12 @@ checks = []
 [[steps]]
 name = "reject_pair"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_pair.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -260,13 +252,12 @@ checks = []
 [[steps]]
 name = "reject_duplicate"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_duplicate.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -282,11 +273,10 @@ checks = []
 [[steps]]
 name = "reject_unwind"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_unwind.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

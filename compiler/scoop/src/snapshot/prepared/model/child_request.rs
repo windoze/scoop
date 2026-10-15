@@ -31,6 +31,17 @@ impl ChildInvocationPlanV1 {
         &self.request
     }
 
+    pub(crate) fn observe(
+        mut self,
+        stages: scoop_protocol::StageDumpSet,
+    ) -> Result<Self, ChildRequestPlanError> {
+        self.request = self
+            .request
+            .observe(stages)
+            .map_err(ChildRequestPlanError::Protocol)?;
+        Ok(self)
+    }
+
     pub(crate) fn output_path(&self) -> &Path {
         &self.output_path
     }
@@ -99,7 +110,9 @@ impl PreparedBuildGraph {
         };
         let native_inputs = match self.nodes.get(&identity) {
             Some(PreparedGraphNode::ManifestSource(node)) => node
-                .native_inputs
+                .snapshot
+                .native
+                .objects()
                 .iter()
                 .map(|path| path_carrier(path))
                 .collect::<Result<Vec<_>, _>>()?,
@@ -172,7 +185,7 @@ fn completed_core_input(
         .get(&ConeIdentity::CORE)
         .ok_or(ChildRequestPlanError::MissingTrustedCore)?;
     Ok(TrustedCoreRequestV1::ArtifactSlot {
-        artifact: path_carrier(core.materialized_child_path().as_path())?,
+        artifact: path_carrier(core.artifact_locator())?,
     })
 }
 
@@ -203,7 +216,7 @@ fn artifact_paths(
                         dependency: *dependency,
                         role,
                     })?;
-            path_carrier(node.materialized_child_path().as_path())
+            path_carrier(node.artifact_locator())
         })
         .collect()
 }

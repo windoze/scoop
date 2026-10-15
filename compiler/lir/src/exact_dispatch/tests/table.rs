@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn canonical_exports_borrow_foundation_and_reader_rejects_omission() {
+fn canonical_exports_roundtrip_and_producer_rejects_duplicates() {
     let fixture = DirectFixture::new(1);
     let mut resolver = fixture.local_resolver();
     let record = ExactDispatchExportV1::replay(
@@ -20,15 +20,13 @@ fn canonical_exports_borrow_foundation_and_reader_rejects_omission() {
     let bytes = encode(&table).unwrap();
     let decoded = decode_canonical::<DecodedCanonicalExactDispatchExportsV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.validate_against(&table).unwrap(), table);
-    let omitted = decode_canonical::<DecodedCanonicalExactDispatchExportsV1>(b"\x80").unwrap();
-    assert!(matches!(
-        omitted.validate_against(&table),
-        Err(ExactDispatchTableError::Count {
-            expected: 1,
-            actual: 0
-        })
-    ));
+    let mut graph = read::identities(&fixture.foundation, table.records());
+    assert_eq!(
+        decoded
+            .read(TARGET, &fixture.foundation, &[], &mut graph)
+            .unwrap(),
+        table
+    );
 
     let private_only =
         CanonicalExactDispatchExportsV1::try_new(TARGET, &fixture.foundation, Vec::new()).unwrap();

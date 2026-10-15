@@ -32,7 +32,7 @@ fn replay_joins_schema_physical_slot_callable_abi_and_definition() {
     assert_eq!(bytes[0], 0xa5);
     let decoded = decode_canonical::<DecodedExactDispatchExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.validate_against(&record).unwrap(), record);
+    read::roundtrip(&fixture, &record);
 }
 
 #[test]
@@ -57,6 +57,8 @@ fn reference_dispatch_requires_managed_receivers_and_preserves_call_signature() 
         fixture.owner.identity().exact()
     );
 
+    read::roundtrip(&fixture, &record);
+
     let mut resolver = fixture.local_resolver();
     assert!(matches!(
         ExactDispatchExportV1::replay(
@@ -80,6 +82,8 @@ fn reference_dispatch_requires_managed_receivers_and_preserves_call_signature() 
         ),
         GcEffect::Managed,
     );
+    read::roundtrip(&fixture, &record);
+
     let mut resolver = fixture.local_resolver();
     assert!(matches!(
         ExactDispatchExportV1::replay(

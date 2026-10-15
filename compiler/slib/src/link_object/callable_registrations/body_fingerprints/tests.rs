@@ -44,41 +44,6 @@ fn hashes_normalized_body_code_relocations_and_stackmap_inputs() {
 }
 
 #[test]
-fn rechecks_body_object_bytes_before_hashing() {
-    let mut fixture = Fixture::new(Corruption::None);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let stackmaps = fixture.verified_stackmaps();
-    let registrations = verify_strong_callable_registrations_v1(
-        fixture.verified_patch_sites(),
-        fixture.callable_registration_plan.clone(),
-        &objects,
-    )
-    .unwrap();
-    let registration_objects = registrations;
-    let last = fixture.object_bytes.len() - 1;
-    fixture.object_bytes[last] ^= 1;
-    let changed = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-
-    assert_eq!(
-        compute_strong_callable_body_object_fingerprints_v1(
-            registration_objects,
-            stackmaps,
-            fixture.undefined_requirements(),
-            &changed,
-        ),
-        Err(StrongCallableBodyFingerprintError::ObjectValidation(
-            StrongCallableRegistrationValidationError::ObjectBytesMismatch(fixture.member)
-        ))
-    );
-}
-
-#[test]
 fn rejects_body_digest_nodes_without_the_exact_stackmap_inputs() {
     let fixture = Fixture::new(Corruption::None);
     let plan = fixture.callable_registration_plan.registrations()[0];

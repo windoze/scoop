@@ -6,9 +6,10 @@ use scoop_wire::sha256;
 pub(super) fn find(
     key: &NativeLinkRequirementKey,
     profile: &ValidatedFinalLinkProfile,
+    observed: &mut Vec<PathBuf>,
 ) -> Result<LibraryResolution, LinkError> {
     match profile {
-        ValidatedFinalLinkProfile::Darwin(_) => darwin(key, profile),
+        ValidatedFinalLinkProfile::Darwin(_) => darwin(key, profile, observed),
         ValidatedFinalLinkProfile::Linux(linux) => linux_library(key, profile, linux.mode()),
     }
 }
@@ -16,6 +17,7 @@ pub(super) fn find(
 fn darwin(
     key: &NativeLinkRequirementKey,
     profile: &ValidatedFinalLinkProfile,
+    observed: &mut Vec<PathBuf>,
 ) -> Result<LibraryResolution, LinkError> {
     let sdk = profile.startup_toolchain().sdk_root().map_err(error)?;
     let name = key.library().as_str();
@@ -55,6 +57,7 @@ fn darwin(
         NativeLibraryKind::Framework => frameworks.into(),
     };
     for (path, kind) in candidates {
+        observed.push(path.clone());
         match std::fs::symlink_metadata(&path) {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
             Err(err) => {

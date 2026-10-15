@@ -7,7 +7,7 @@ impl WireEncode for RuntimeBuildConfiguration {
         e.field(1)?;
         self.input_key.encode(e)?;
         e.field(2)?;
-        self.compiler_digest.encode(e)?;
+        self.compiler_inputs.encode(e)?;
         e.field(3)?;
         e.array(self.flags.len() as u64)?;
         for flag in &self.flags {
@@ -21,7 +21,7 @@ impl WireDecode for RuntimeBuildConfiguration {
         d.expect_map(3)?;
         Ok(Self {
             input_key: d.field(1, Digest256::decode)?,
-            compiler_digest: d.field(2, Digest256::decode)?,
+            compiler_inputs: d.field(2, Digest256::decode)?,
             flags: d.field(3, |d| d.decode_array(|d, _| Ok(d.text()?.to_owned())))?,
         })
     }
@@ -42,14 +42,12 @@ impl WireEncode for ObjectKey<'_> {
 
 impl WireEncode for RuntimeObject {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(5)?;
+        e.map(4)?;
         e.field(1)?;
         self.id.0.encode(e)?;
         e.field(2)?;
-        e.unsigned(self.bytes.len() as u64)?;
-        e.field(3)?;
         self.digest.encode(e)?;
-        self.info.encode_fields(e, 4)
+        self.info.encode_fields(e, 3)
     }
 }
 

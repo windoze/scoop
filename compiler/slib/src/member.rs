@@ -362,6 +362,10 @@ impl<'record> LinkMemberRecord<'record> {
 }
 
 impl SlibMemberId {
+    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
     pub(crate) fn from_stable_key(
         cone: ConeIdentity,
         stable_key: &MemberStableKey,

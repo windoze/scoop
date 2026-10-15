@@ -6,6 +6,7 @@ pub(super) fn dependency(
     name: &str,
     roots: &[PathBuf],
     profile: &ValidatedFinalLinkProfile,
+    observed: &mut Vec<PathBuf>,
 ) -> Result<NativeFile, LinkError> {
     let mut paths = BTreeMap::new();
     let mut add = |path: PathBuf, system: bool| {
@@ -78,6 +79,7 @@ pub(super) fn dependency(
         )));
     }
     let mut candidates = BTreeMap::new();
+    observed.extend(paths.keys().cloned());
     let mut found = Vec::new();
     for (path, (kind, system)) in paths {
         match std::fs::symlink_metadata(&path) {

@@ -1,7 +1,7 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "cannot snapshot single-file root: invalid single-file input ${work}/main.scoop: source file is not valid UTF-8",
+    "code": "SCOOPC_BUILD_FAILED",
+    "message": "invalid single-file input ${work}/main.scoop: source file is not valid UTF-8",
     "notes": [],
     "origin": {
       "end": null,
@@ -9,7 +9,6 @@
       "path": "${work}/main.scoop",
       "start": null
     },
-    "phase": "SourceSnapshot",
     "severity": "error"
   }
 ]

@@ -2,10 +2,8 @@
 
 use super::*;
 
-mod lir_reader;
 mod lower;
 mod machine;
-mod mir_reader;
 
 pub(super) fn check(
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
@@ -21,7 +19,6 @@ pub(super) fn check(
             vec![],
             artifact.as_bytes(),
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (semantic, link) = read.artifact(core_lir.provider()).unwrap();
@@ -34,7 +31,8 @@ pub(super) fn check(
     let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: semantic.lir_foundation(),
-        production: semantic.lir_strong_production(),
+        definitions: semantic.lir_production_data().canonical_definitions(),
+        support: lir::ShapeLinkSupportV1::Saved(semantic.lir_production_data()),
         ordinary: semantic.lir_cross_cone_bridge(),
         layouts: provider_exports.layouts(),
         callables: provider_exports.callables(),
@@ -102,8 +100,6 @@ pub(super) fn check(
                     input.identities,
                 )
                 .unwrap();
-                mir_reader::check(input, &section, mir_dependency, &expected);
-                lir_reader::check(input, core_lir, &expected);
                 machine::check(
                     name,
                     input,

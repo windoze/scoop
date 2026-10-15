@@ -59,6 +59,18 @@ impl CanonicalExactDispatchExportsV1 {
         })))
     }
 
+    pub(super) fn from_saved(
+        target: LirTargetProfile,
+        provider: ConeIdentity,
+        records: Vec<ExactDispatchExportV1>,
+    ) -> Self {
+        Self(Arc::new(ExactDispatchTableBodyV1 {
+            provider,
+            target,
+            records,
+        }))
+    }
+
     pub fn provider(&self) -> ConeIdentity {
         self.0.provider
     }

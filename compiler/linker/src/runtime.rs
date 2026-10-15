@@ -41,7 +41,7 @@ impl std::fmt::Display for RuntimeArtifactFingerprint {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RuntimeBuildConfiguration {
     pub input_key: Digest256,
-    pub compiler_digest: Digest256,
+    pub compiler_inputs: Digest256,
     pub flags: Vec<String>,
 }
 
@@ -49,7 +49,7 @@ pub struct RuntimeBuildConfiguration {
 pub struct RuntimeObject {
     id: RuntimeObjectId,
     digest: Digest256,
-    bytes: Vec<u8>,
+    path: std::path::PathBuf,
     info: NativeObjectInfo,
 }
 impl RuntimeObject {
@@ -59,8 +59,8 @@ impl RuntimeObject {
     pub fn digest(&self) -> Digest256 {
         self.digest
     }
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+    pub fn path(&self) -> &std::path::Path {
+        &self.path
     }
     pub fn info(&self) -> &NativeObjectInfo {
         &self.info
@@ -79,11 +79,11 @@ pub struct RuntimeObjectSet {
 }
 
 impl RuntimeObjectSet {
-    pub fn from_objects(
+    pub fn from_paths(
         target: LirTargetProfile,
         toolchain: &CBridgeToolchainProfileV1,
         configuration: RuntimeBuildConfiguration,
-        objects: Vec<Vec<u8>>,
+        objects: Vec<std::path::PathBuf>,
     ) -> Result<Self, LinkError> {
         if objects.is_empty() {
             return Err(error("runtime requires a nonempty object collection"));
@@ -94,7 +94,8 @@ impl RuntimeObjectSet {
             ));
         }
         let mut inputs = Vec::with_capacity(objects.len());
-        for bytes in objects {
+        for path in objects {
+            let bytes = std::fs::read(&path).map_err(error)?;
             let info = NativeObjectInfo::read_with_toolchain(&bytes, toolchain)?;
             let digest = sha256(&bytes);
             let id = RuntimeObjectId(
@@ -110,7 +111,7 @@ impl RuntimeObjectSet {
             inputs.push(RuntimeObject {
                 id,
                 digest,
-                bytes,
+                path,
                 info,
             });
         }
@@ -171,7 +172,7 @@ impl RuntimeObjectSet {
         check_exports(target, &merged)?;
         let fingerprint = RuntimeArtifactFingerprint(
             domain_separated_cbor_hash(
-                "scoop-runtime-artifact-v1",
+                "scoop-runtime-artifact-v2",
                 &fingerprint::ArtifactKey {
                     target,
                     toolchain: &toolchain,
@@ -182,6 +183,7 @@ impl RuntimeObjectSet {
             )
             .map_err(error)?,
         );
+        let input_paths = objects.iter().map(|object| object.path.clone()).collect();
         Ok(Self {
             target,
             toolchain,
@@ -189,7 +191,7 @@ impl RuntimeObjectSet {
             objects,
             merged,
             fingerprint,
-            input_paths: Vec::new(),
+            input_paths,
         })
     }
 

@@ -1,7 +1,7 @@
-//! Native translation units prepared before the outer Cone cache lookup.
+//! Native preprocessing and ordinary reusable object builds.
 
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::ValidatedCBridgeToolchainInvocation;
@@ -12,6 +12,10 @@ use scoop_wire::{Digest256, Encoder, WireEncode, sha256};
 use crate::ToolchainError;
 
 mod command;
+mod includes;
+pub use includes::strip_native_include_observations;
+mod objects;
+pub use objects::{PreparedNativeObjects, prepare_native_objects};
 mod paths;
 mod prepare;
 mod toolchain;
@@ -62,7 +66,7 @@ impl NativeSourceInput {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PreparedNativeInputs {
     units: Vec<NativeSourceInput>,
-    dependencies: BTreeMap<String, Digest256>,
+    observed_paths: BTreeSet<PathBuf>,
     flags: Vec<String>,
     cxx_flags: Vec<String>,
     cxx: Option<Digest256>,
@@ -77,18 +81,12 @@ impl PreparedNativeInputs {
 
 impl WireEncode for PreparedNativeInputs {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(6)?;
+        encoder.array(5)?;
         encoder.array(self.units.len() as u64)?;
         for unit in &self.units {
             encoder.array(2)?;
             encoder.text(unit.path.as_str())?;
             unit.digest().encode(encoder)?;
-        }
-        encoder.array(self.dependencies.len() as u64)?;
-        for (path, digest) in &self.dependencies {
-            encoder.array(2)?;
-            encoder.text(path)?;
-            digest.encode(encoder)?;
         }
         encoder.array(self.flags.len() as u64)?;
         for flag in &self.flags {

@@ -6,7 +6,6 @@ use super::*;
 mod physical;
 mod registration_edges;
 mod rejections;
-mod wire;
 
 pub(super) fn check(
     directory: &Path,
@@ -25,7 +24,6 @@ pub(super) fn check(
             vec![],
             core_artifact.as_bytes(),
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (semantic, link) = read.artifact(core_lir.provider()).unwrap();
@@ -35,11 +33,12 @@ pub(super) fn check(
     let mir_exports = mir_dependency.exports();
     let provider_exports = semantic.lir_exports();
     assert_eq!(provider_exports, core_lir.exports());
-    super::publication::check_provider(core_artifact, target.c_bridge_toolchain().profile());
+    super::publication::check_provider(core_artifact);
     let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: semantic.lir_foundation(),
-        production: semantic.lir_strong_production(),
+        definitions: semantic.lir_production_data().canonical_definitions(),
+        support: lir::ShapeLinkSupportV1::Saved(semantic.lir_production_data()),
         ordinary: semantic.lir_cross_cone_bridge(),
         layouts: provider_exports.layouts(),
         callables: provider_exports.callables(),
@@ -95,14 +94,14 @@ pub(super) fn check(
                 )
                 .unwrap();
                 assert_eq!(mir.initialization_uses().records().len(), count);
-                rejections::check(input, core_input, &mir, mir_dependency);
+                rejections::check(input, &mir);
                 let (selected, initialization) = physical::select(
                     input.mir,
                     lir_input.lir,
                     &mir,
                     &provider,
                     provider_exports,
-                    semantic.lir_strong_production(),
+                    semantic.lir_production_data(),
                 );
                 let registration = lir_input
                     .lir
@@ -161,47 +160,23 @@ pub(super) fn check(
                     &owners,
                     production,
                 );
-                super::source_calls::check(input, core_input, core_artifact, &artifact);
-                super::link_materializations::check(core_artifact, &artifact);
+                super::source_calls::check(input, core_input);
                 if family != "m23-property-initialization" {
-                    if family == "m23-extension-call-receivers" {
-                        super::source_calls::check_receivers(input, core_artifact, &artifact);
-                    } else if family == "m23-any-call-signatures" {
-                        super::publication::check(
-                            name,
-                            input.public,
-                            core_artifact,
-                            &artifact,
-                            target.c_bridge_toolchain().profile(),
-                        );
-                        super::source_calls::check_any(input, core_artifact, &artifact);
-                    } else if family == "m23-link-object-contents" {
-                        super::link_object_contents::check(
-                            core_artifact,
-                            &artifact,
-                            target.c_bridge_toolchain().profile(),
-                        );
+                    if family == "m23-any-call-signatures" {
+                        super::publication::check(name, core_artifact, &artifact);
                     } else if family == "m23-link-symbol-uses" {
-                        super::link_symbol_uses::check(
-                            core_artifact,
-                            &artifact,
-                            target.c_bridge_toolchain().profile(),
-                        );
+                        super::link_symbol_uses::check(core_artifact, &artifact);
                     }
                 }
                 if family == "m23-any-call-signatures" {
-                    super::source_calls::check_any_link(
-                        core_artifact,
-                        &artifact,
-                        target.c_bridge_toolchain().profile(),
-                    );
+                    super::source_calls::check_any_link(core_artifact, &artifact);
                 }
                 for (view, closure) in [
                     ("compile", reader::read(core_artifact, &artifact)),
                     ("link", reader::read_link(core_artifact, &artifact)),
                 ] {
                     closure
-                        .replay_physical_imports()
+                        .read_physical_imports()
                         .map(|physical| {
                             let current = physical.artifact(mir.provider()).unwrap();
                             assert_eq!(current.link_sections().is_some(), view == "link");
@@ -209,11 +184,8 @@ pub(super) fn check(
                                 encode(current.lir_physical_imports()).unwrap(),
                                 encode(selected.physical_imports()).unwrap(),
                             );
-                            let units = current
-                                .lir_strong_production()
-                                .initialization_registrations();
+                            let units = current.lir_production_data().initialization_units();
                             let edges = units
-                                .registrations()
                                 .iter()
                                 .flat_map(|unit| {
                                     unit.semantic()

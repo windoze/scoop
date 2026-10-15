@@ -53,17 +53,8 @@ stdout = {file = "expected.stdout"}
 stderr = ""
 
 [[steps]]
-name = "isolate"
-files = [
-  {remove = {path = "${work}/source"}},
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-]
-
-[[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

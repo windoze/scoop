@@ -11,13 +11,14 @@ mod native;
 mod root;
 mod selection;
 mod semantic;
+mod serde_record;
 mod single_file;
-mod stable_file;
 
 pub use discovery::{
-    DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,
-    SourceDiscoveryErrorKind, SourceDisplayLocator, discover_manifest_sources,
-    discover_manifest_sources_for_tests,
+    DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SelectedManifestSources,
+    SelectedSource, SourceDiscoveryError, SourceDiscoveryErrorKind, SourceDisplayLocator,
+    discover_manifest_sources, discover_manifest_sources_for_tests, select_manifest_sources,
+    select_manifest_sources_for_tests,
 };
 pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
@@ -25,8 +26,8 @@ pub use input::{
 };
 pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
 pub use root::{
-    LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
-    ManifestRootLocator, load_cone_manifest,
+    LoadedConeManifest, LocatedConeManifest, ManifestRootError, ManifestRootErrorKind,
+    ManifestRootIoOperation, ManifestRootLocator, load_cone_manifest,
 };
 pub use scoop_identity::RequestedConeKind;
 pub use selection::{
@@ -40,7 +41,7 @@ pub use semantic::{
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,
-    load_single_file_source,
+    load_single_file_source, select_single_file_source,
 };
 
 pub use file_snapshot::{ImmutableInputSnapshot, SnapshotFileError, SnapshotIoOperation};

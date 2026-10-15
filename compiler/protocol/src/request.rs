@@ -166,7 +166,7 @@ impl ScoopcBuildRequestV1 {
         self.optimization
     }
 
-    /// Preprocessed units in normalized, target-selected native source order.
+    /// Compiled objects in normalized, target-selected native source order.
     pub fn with_native_inputs(mut self, inputs: Vec<HostPathCarrier>) -> Self {
         self.native_inputs = inputs;
         self
@@ -241,11 +241,32 @@ impl WireEncode for ScoopcBuildRequestV1 {
 pub struct ScoopcRequestEnvelopeV1 {
     request_id: RequestCorrelationId,
     build: ScoopcBuildRequestV1,
+    observation_only: bool,
 }
 
 impl ScoopcRequestEnvelopeV1 {
     pub const fn new(request_id: RequestCorrelationId, build: ScoopcBuildRequestV1) -> Self {
-        Self { request_id, build }
+        Self {
+            request_id,
+            build,
+            observation_only: false,
+        }
+    }
+
+    pub fn observe(mut self, stages: crate::StageDumpSet) -> Result<Self, ProtocolValidationError> {
+        let StageDumpPolicyV1::Files {
+            stages: requested, ..
+        } = &mut self.build.emit
+        else {
+            return Err(ProtocolValidationError::InvalidDumpStages);
+        };
+        *requested = stages;
+        self.observation_only = true;
+        Ok(self)
+    }
+
+    pub const fn observation_only(&self) -> bool {
+        self.observation_only
     }
 
     pub const fn request_id(&self) -> RequestCorrelationId {
@@ -259,7 +280,7 @@ impl ScoopcRequestEnvelopeV1 {
 
 impl WireEncode for ScoopcRequestEnvelopeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         encoder.bytes(REQUEST_MAGIC)?;
         encoder.field(2)?;
@@ -267,7 +288,9 @@ impl WireEncode for ScoopcRequestEnvelopeV1 {
         encoder.field(3)?;
         self.request_id.encode(encoder)?;
         encoder.field(4)?;
-        self.build.encode(encoder)
+        self.build.encode(encoder)?;
+        encoder.field(5)?;
+        encoder.unsigned(u64::from(self.observation_only))
     }
 }
 

@@ -5,16 +5,16 @@ pub use scoop_identity::{
     ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
 };
 use scoop_identity::{
-    ConeCoordinateError, ConeIdentity, DecodedConeCoordinate, DecodedPersistentId,
-    DecodedPersistentSymbolRequest, DefinitionAtomRole, DigestNodeId, DigestPatchIntentKey,
-    DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentIdMismatch, PersistentImmortalObjectId,
-    PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
-    PersistentSymbolError, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, DecodedConeCoordinate, DecodedPersistentId, DecodedPersistentSymbolRequest,
+    DefinitionAtomRole, DigestNodeId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
+    ObjectDefinitionAtomId, PersistentCallableBodyId, PersistentExactTypeId,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
+    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{
     Decoder, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode,
-    WireEncode, WireError, encode,
+    WireEncode, WireError,
 };
 
 use crate::{
@@ -221,25 +221,6 @@ impl fmt::Display for ConeImagePlanBuildError {
 }
 
 impl std::error::Error for ConeImagePlanBuildError {}
-
-#[derive(Debug)]
-pub enum ConeImagePlanValidationError {
-    Coordinate(ConeCoordinateError),
-    CoordinateMismatch,
-    Identity(PersistentIdMismatch<ConeIdentity>),
-    Hash(HashError),
-    Expected(ConeImagePlanBuildError),
-    Encode(scoop_wire::cbor::EncodeError),
-    PlanMismatch,
-}
-
-impl fmt::Display for ConeImagePlanValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid decoded Cone image plan: {self:?}")
-    }
-}
-
-impl std::error::Error for ConeImagePlanValidationError {}
 
 fn validate_registration_inputs(
     inputs: &[DigestInputRefV1],

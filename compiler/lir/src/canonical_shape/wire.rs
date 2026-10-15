@@ -51,28 +51,3 @@ impl WireEncode for DecodedCanonicalShapeAbisV1 {
         Ok(())
     }
 }
-
-impl DecodedCanonicalShapeAbisV1 {
-    pub fn validate(
-        self,
-        foundation: &ConeLirFoundation,
-    ) -> Result<CanonicalShapeAbisV1, CanonicalShapeAbiError> {
-        let known = identities(foundation)?;
-        let ids = known
-            .keys()
-            .map(|id| (*id.as_array(), *id))
-            .collect::<BTreeMap<_, _>>();
-        let records = self
-            .definitions
-            .into_iter()
-            .map(|(member, abi)| {
-                let id = ids
-                    .get(member.as_array())
-                    .copied()
-                    .ok_or(CanonicalShapeAbiError::UnknownMember(*member.as_array()))?;
-                Ok((id, abi))
-            })
-            .collect::<Result<_, CanonicalShapeAbiError>>()?;
-        CanonicalShapeAbisV1::from_canonical(records, known)
-    }
-}

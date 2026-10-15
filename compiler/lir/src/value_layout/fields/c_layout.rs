@@ -9,9 +9,9 @@ use super::*;
 /// classify source types as C-FFI-safe or infer any C calling convention.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CLayoutStorageReplayV1 {
-    target: LirTargetProfile,
-    contract: CanonicalCAbiLayoutFingerprintRecord,
-    aggregate: AggregateStorageLayoutV1,
+    pub(crate) target: LirTargetProfile,
+    pub(crate) contract: CanonicalCAbiLayoutFingerprintRecord,
+    pub(crate) aggregate: AggregateStorageLayoutV1,
 }
 
 impl CLayoutStorageReplayV1 {

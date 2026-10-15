@@ -2,10 +2,7 @@ use super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MirTypeBridgeUnitProblemV1 {
-    WrongProvider,
     MissingRole,
-    MissingSource,
-    GenericSource,
     DefinitionRole,
     Signature,
 }
@@ -14,7 +11,6 @@ pub enum MirTypeBridgeUnitProblemV1 {
 pub enum MirTypeBridgeSectionError {
     Resource(WireError),
     Identity(IdentityReferenceError),
-    GeneratedIdentity(scoop_identity::GeneratedCallableIdentityError),
     Type(MirTypeBridgeError),
     Callable(MirCallableBridgeError),
     Dispatch(MirDispatchSchemaError),
@@ -37,7 +33,6 @@ pub enum MirTypeBridgeSectionError {
     MissingTarget(MirTypeBridgeDependencyV1),
     MissingDependency(MirTypeBridgeTargetV1),
     SelectedCurrentProvider,
-    SelectedClosure,
     ArithmeticOverflow,
 }
 macro_rules! from_error {
@@ -51,10 +46,6 @@ macro_rules! from_error {
 }
 from_error!(WireError, Resource);
 from_error!(IdentityReferenceError, Identity);
-from_error!(
-    scoop_identity::GeneratedCallableIdentityError,
-    GeneratedIdentity
-);
 from_error!(MirTypeBridgeError, Type);
 from_error!(MirCallableBridgeError, Callable);
 from_error!(MirDispatchSchemaError, Dispatch);

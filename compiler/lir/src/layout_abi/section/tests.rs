@@ -3,7 +3,6 @@ use scoop_identity::{PendingIdentityValidation, PersistentTypeId};
 use scoop_wire::{decode_canonical, encode};
 
 mod fixture;
-mod layout_replay;
 mod resolved_dependencies;
 use fixture::*;
 
@@ -20,15 +19,35 @@ fn empty_section_roundtrips_as_one_complete_six_field_product() {
     let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
     let mut identities = PendingIdentityValidation::new().finish().unwrap();
     let replayed = decoded
-        .validate_layouts(expected.layouts())
+        .read_layouts(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_callables(expected.callables())
+        .read_callables(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_dispatch(expected.dispatch())
+        .read_dispatch(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &[],
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_descriptors(expected.descriptors())
+        .read_descriptors(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_shape_support(expected.shape_support(), expected.direct_callables())
+        .read_shape_support(
+            expected.direct_callables(),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
         .resolve_dependencies(&mut identities)
         .unwrap();
@@ -66,7 +85,7 @@ fn embedded_field_storage_does_not_require_a_layout_symbol() {
 }
 
 #[test]
-fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
+fn reader_retains_saved_selected_semantics() {
     let remote = cone("reader-remote");
     let consumer = cone("reader-consumer");
     let (remote_value, remote_foundation) = empty_struct(remote, "RemoteValue");
@@ -89,26 +108,39 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     pending.register_authority(remote_layout).unwrap();
     let mut identities = pending.finish().unwrap();
     let replayed = decoded
-        .validate_layouts(expected.layouts())
+        .read_layouts(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_callables(expected.callables())
+        .read_callables(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_dispatch(expected.dispatch())
+        .read_dispatch(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &[],
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_descriptors(expected.descriptors())
+        .read_descriptors(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_shape_support(expected.shape_support(), expected.direct_callables())
+        .read_shape_support(
+            expected.direct_callables(),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
         .resolve_dependencies(&mut identities)
         .unwrap();
-    replayed
-        .replay_dependency_closure(&dependencies, &roots)
-        .unwrap();
     assert_eq!(replayed.selected_relations(), roots);
-    assert!(matches!(
-        replayed.replay_dependency_closure(&dependencies, &[]),
-        Err(LayoutAbiSectionError::SelectedClosure)
-    ));
 }
 
 #[test]

@@ -187,12 +187,9 @@ mod tests {
     use crate::{
         CurrentConeRequestV1, DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1,
         DiagnosticSeverityV1, EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
-        ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-        ProtocolDumpContentDigest, ProtocolHirFingerprint, ProtocolLirFingerprint,
-        ProtocolMirFingerprint, ProtocolRuntimeImageFingerprint, ProtocolValidationError,
-        RequestCorrelationId, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
-        ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpKindV1, StageDumpPolicyV1,
-        StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+        ProtocolValidationError, RequestCorrelationId, ScoopcBuildRequestV1,
+        ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpKindV1,
+        StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
     };
 
     use super::*;
@@ -226,6 +223,10 @@ mod tests {
     }
 
     fn request() -> ScoopcRequestEnvelopeV1 {
+        request_with_emit(StageDumpPolicyV1::None)
+    }
+
+    fn request_with_emit(emit: StageDumpPolicyV1) -> ScoopcRequestEnvelopeV1 {
         ScoopcRequestEnvelopeV1::new(
             RequestCorrelationId::from_array([7; 16]),
             ScoopcBuildRequestV1::new(
@@ -240,7 +241,7 @@ mod tests {
                 TargetSelectionRequestV1::new("aarch64-apple-darwin".to_owned()).unwrap(),
                 path("out/current.slib"),
                 DiagnosticOutputPolicyV1::Structured,
-                StageDumpPolicyV1::None,
+                emit,
             )
             .unwrap(),
         )
@@ -251,25 +252,34 @@ mod tests {
         let request = request();
         let frame = encode_request_frame(&request).unwrap();
         assert_eq!(decode_request_frame(&frame).unwrap(), request);
-        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 196);
+        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 199);
+    }
+
+    #[test]
+    fn observation_request_preserves_only_the_missing_stages() {
+        let request = request_with_emit(StageDumpPolicyV1::Files {
+            stages: crate::StageDumpSet::all(),
+            directory: path("dump"),
+        });
+        let request = request
+            .observe(crate::StageDumpSet::one(StageDumpKindV1::Hir))
+            .unwrap();
+        assert!(request.observation_only());
+        assert_eq!(
+            decode_request_frame(&encode_request_frame(&request).unwrap()).unwrap(),
+            request
+        );
     }
 
     #[test]
     fn success_and_failure_response_frames_round_trip() {
         let request_id = RequestCorrelationId::from_array([9; 16]);
         let success = ScoopcSuccessV1::new(
-            ProtocolArtifactFingerprint::from_array([1; 32]),
-            ProtocolConeIdentity::from_array([2; 32]),
-            ProtocolHirFingerprint::from_array([3; 32]),
-            ProtocolMirFingerprint::from_array([4; 32]),
-            ProtocolLirFingerprint::from_array([5; 32]),
-            ProtocolCodeFingerprint::from_array([6; 32]),
-            ProtocolRuntimeImageFingerprint::from_array([7; 32]),
+            crate::test_summary(),
             vec![warning()],
             vec![EmittedDumpDescriptorV1::new(
                 StageDumpKindV1::Lir,
                 EmittedDumpDestinationV1::File(path("dump/lir.txt")),
-                ProtocolDumpContentDigest::from_array([8; 32]),
             )],
         )
         .unwrap();

@@ -1,0 +1,144 @@
+schema = 1
+name = "m48-stage-observations"
+inputs = ["main.scoop", "state.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "cache", "dump"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--message-format", "json", "-o", "${work}/program"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/main.scoop", to = "${work}/main.scoop"}}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 2},
+]
+
+[[steps]]
+name = "save_machine_outputs"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "ast"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "ast", "--dump-dir", "${work}/dumps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${ast.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
+  {actual = "${ast.result.root.path}", equals = "${cold.result.root.path}"},
+  {file = "${work}/dumps/${cold.result.root.identity}/ast.txt", exists = true},
+]
+
+[[steps]]
+name = "hir"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "hir", "--dump-dir", "${work}/dumps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${hir.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
+  {actual = "${hir.result.root.path}", equals = "${cold.result.root.path}"},
+  {file = "${work}/dumps/${cold.result.root.identity}/hir.txt", exists = true},
+]
+
+[[steps]]
+name = "mir"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "mir", "--dump-dir", "${work}/dumps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${mir.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
+  {actual = "${mir.result.root.path}", equals = "${cold.result.root.path}"},
+  {file = "${work}/dumps/${cold.result.root.identity}/mir.txt", exists = true},
+]
+
+[[steps]]
+name = "lir"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "lir", "--dump-dir", "${work}/dumps"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${lir.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
+  {actual = "${lir.result.root.path}", equals = "${cold.result.root.path}"},
+  {file = "${work}/dumps/${cold.result.root.identity}/lir.txt", exists = true},
+]
+
+[[steps]]
+name = "reuse"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/reused"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${reuse.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/reused/${cold.result.root.identity}/lir.txt", same_as = "${work}/dumps/${cold.result.root.identity}/lir.txt"},
+]
+
+[[steps]]
+name = "same_machine_outputs"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/program", "${work}/state.json"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "change_source"
+files = [{replace = {path = "${work}/main.scoop", old = "48", new = "49"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/changed"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed.result.observations.child_invocations.length}", equals = 1},
+]
+
+[[steps]]
+name = "changed_warm"
+argv = ["${scoop}", "build", "${work}/main.scoop", {each = "${link_args}"}, {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/changed-warm"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed_warm.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/changed-warm/${changed.result.root.identity}/ast.txt", same_as = "${work}/changed/${changed.result.root.identity}/ast.txt"},
+]
+
+[[steps]]
+name = "run_changed"
+argv = ["${work}/program"]
+exit = 49
+stdout = ""
+stderr = ""

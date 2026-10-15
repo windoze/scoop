@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::{
-    CanonicalCAbiReturn, CanonicalCStorageType, CanonicalScoopStorage, RepresentationRole,
-    ScoopAbiArgument, ScoopAbiReturn,
+    CanonicalCAbiReturn, CanonicalCStorageType, CanonicalScoopStorage, ScoopAbiArgument,
+    ScoopAbiReturn,
 };
 use scoop_lir::{CompilerNativeContractV1 as Known, CompilerNativeValueV1 as Value};
 
@@ -200,31 +200,26 @@ fn scoop_value(
 ) -> Result<Value, LinkError> {
     let layout = closure
         .artifacts()
-        .find_map(|(artifact, _)| {
-            artifact
-                .layout()
-                .exports()
-                .layouts()
-                .find_exact_role(storage.exact_type(), RepresentationRole::ManagedValue)
-        })
-        .and_then(|layout| layout.value_handle())
+        .find_map(|(artifact, _)| artifact.native_value(storage.exact_type()))
         .ok_or_else(|| {
             error(format!(
                 "missing native ABI layout {}",
                 storage.exact_type()
             ))
         })?;
-    match layout.representation().kind() {
-        scoop_lir::ExactRepresentationKindV1::Scalar(
+    match layout {
+        scoop_lir::LinkValueRepresentation::Scalar(
             scoop_lir::ScalarRepresentationKindV1::Boolean,
         ) => Ok(Value::Boolean),
-        scoop_lir::ExactRepresentationKindV1::Scalar(
+        scoop_lir::LinkValueRepresentation::Scalar(
             scoop_lir::ScalarRepresentationKindV1::Integer(kind),
         ) => Ok(Value::Integer(kind.width().bits() as u8)),
-        scoop_lir::ExactRepresentationKindV1::Scalar(
+        scoop_lir::LinkValueRepresentation::Scalar(
             scoop_lir::ScalarRepresentationKindV1::Float(kind),
         ) => Ok(Value::Float(kind)),
-        scoop_lir::ExactRepresentationKindV1::QualifiedPointer(_) => Ok(Value::Pointer),
-        _ => Err(error("compiler native ABI requires a scalar or pointer")),
+        scoop_lir::LinkValueRepresentation::Pointer => Ok(Value::Pointer),
+        scoop_lir::LinkValueRepresentation::Scalar(scoop_lir::ScalarRepresentationKindV1::Char) => {
+            Err(error("compiler native ABI requires a scalar or pointer"))
+        }
     }
 }

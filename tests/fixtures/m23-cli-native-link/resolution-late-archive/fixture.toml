@@ -22,16 +22,12 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "dylib_m23_late_dynamic"
 argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_late_dynamic.o", "-install_name", "@rpath/libm23_late_dynamic.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_late_dynamic.dylib"]
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "prepare_compile_control"
 files = [{"copy" = {"from" = "${fixture}/native-sources/compile_control.c", "to" = "${work}/sources/native/control.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
@@ -43,8 +39,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "archive_m23_late_archive"
 argv = ["${ar}", "qcS", "${work}/native/libm23_late_archive.a", "${work}/objects/control.o"]
@@ -71,8 +65,11 @@ stdout = "4\n"
 stderr = ""
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
@@ -86,8 +83,6 @@ argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacos
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "replace_archive"
 files = [{"remove" = {"path" = "${work}/native/libm23_late_archive.a"}}]
@@ -109,11 +104,10 @@ checks = []
 [[steps]]
 name = "reject_takeover"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_takeover.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

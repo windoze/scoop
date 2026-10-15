@@ -8,17 +8,6 @@ use scoop_identity::{
 
 mod variants;
 
-pub(super) fn callable<'a>(
-    metadata: SharedTypeMetadataV1<'a>,
-    declaration: CallableTemplateOrigin,
-) -> Result<&'a CallableDeclarationRecordV1, Error> {
-    metadata
-        .public
-        .callable_interfaces()
-        .declaration(declaration)
-        .ok_or(Error::CallableContract(declaration))
-}
-
 pub(super) fn callable_access(
     metadata: SharedTypeMetadataV1<'_>,
     source: &CallableDeclarationRecordV1,

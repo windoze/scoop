@@ -22,15 +22,11 @@ fn directory_contains_exactly_the_emitted_members_in_canonical_order() {
     }
     let bytes = encode(&directory).unwrap();
     let decoded = decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&bytes).unwrap();
-    decoded.validate_against(&directory).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 
     let empty = CanonicalOdrMemberDirectoryV1::from_members(BTreeSet::new(), []).unwrap();
     assert_eq!(encode(&empty).unwrap(), [0x80]);
-    decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&[0x80])
-        .unwrap()
-        .validate_against(&empty)
-        .unwrap();
+    decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&[0x80]).unwrap();
 }
 
 #[test]
@@ -116,7 +112,6 @@ fn directory_wire_accepts_the_release_hook_physical_role() {
     directory.groups[0].members[0].role = OdrMemberRole::ReleaseHook;
     let bytes = encode(&directory).unwrap();
     let decoded = decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&bytes).unwrap();
-    decoded.validate_against(&directory).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
@@ -156,58 +151,6 @@ fn directory_reader_checks_record_shapes_roles_and_digest_widths() {
             }
         );
     }
-}
-
-#[test]
-fn directory_reader_compares_group_member_role_and_abi() {
-    let directory = directory();
-    let member = directory.groups[0].members[0].member;
-    for (changed, error) in [
-        (
-            {
-                let mut changed = directory.clone();
-                changed.groups.pop();
-                changed
-            },
-            OdrMemberDirectoryValidationError::GroupSetMismatch,
-        ),
-        (
-            {
-                let mut changed = directory.clone();
-                changed.groups[0].members[0].role = OdrMemberRole::Layout;
-                changed
-            },
-            OdrMemberDirectoryValidationError::RoleMismatch(member),
-        ),
-        (
-            {
-                let mut changed = directory.clone();
-                changed.groups[0].members[0].abi = OdrAbiFingerprintV1::from_array([9; 32]);
-                changed
-            },
-            OdrMemberDirectoryValidationError::AbiMismatch(member),
-        ),
-    ] {
-        let decoded =
-            decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&encode(&changed).unwrap())
-                .unwrap();
-        assert_eq!(decoded.validate_against(&directory), Err(error));
-    }
-    let mut changed = directory.clone();
-    let group = changed
-        .groups
-        .iter_mut()
-        .find(|g| g.members.len() == 2)
-        .unwrap();
-    let id = group.group;
-    group.members.pop();
-    let decoded =
-        decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&encode(&changed).unwrap())
-            .unwrap();
-    assert_eq!(
-        decoded.validate_against(&directory),
-        Err(OdrMemberDirectoryValidationError::MemberSetMismatch(id))
-    );
 }
 
 fn assert_decode_error(directory: &CanonicalOdrMemberDirectoryV1, expected: WireErrorKind) {

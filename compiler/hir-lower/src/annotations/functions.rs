@@ -102,7 +102,7 @@ impl Lowerer {
                         self.error(
                             annotation.span,
                             format!(
-                                "calling convention `{value}` is not supported; M12 supports only `cdecl`"
+                                "calling convention `{value}` is not supported; only `cdecl` is supported"
                             ),
                         );
                     }

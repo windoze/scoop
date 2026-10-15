@@ -61,14 +61,3 @@ impl WireEncode for DecodedStrongInitializationUnitSemanticProjectionV1 {
         self.encode_fields(encoder)
     }
 }
-
-impl DecodedStrongInitializationUnitSemanticProjectionV1 {
-    /// V2 dependency proofs remain in the checked plan; the projection keeps
-    /// the established unit-id wire and cannot construct those proofs.
-    pub fn validate_against<D: WireEncode>(
-        self,
-        expected: &crate::StrongInitializationUnitSemanticPlan<D>,
-    ) -> Result<(), StrongSemanticProjectionError> {
-        compare_semantics(&self, &expected.semantic_projection())
-    }
-}

@@ -24,36 +24,36 @@ pub(super) fn check<'a>(
     if name == "base" {
         reject_missing_application(input, &section, &source);
     }
-    let bytes = encode(&section).unwrap();
-    let wire: mir::DecodedCrossConeMirTypeBridgeSectionV1 = decoded(&section);
-    assert_eq!(encode(&wire).unwrap(), bytes);
-    let mut graph = identity_graph(input.hir, input.mir, None);
-    let local = MirTypeBridgeLocalInputV1 {
-        provider: input.mir.module().cone,
+    if name == "base" {
+        let bytes = encode(&section).unwrap();
+        let wire: mir::DecodedCrossConeMirTypeBridgeSectionV1 = decoded(&section);
+        assert_eq!(encode(&wire).unwrap(), bytes);
+        let mut graph = identity_graph(input.hir, input.mir, None);
+        let local = MirTypeBridgeLocalInputV1 {
+            provider: input.mir.module().cone,
 
-        production: input.mir.production(),
-        ordinary: input.ordinary,
-    };
-    let replayed = wire
-        .resolve_types(
-            local.provider,
-            input.mir.foundation(),
-            std::iter::empty(),
-            &mut graph,
-        )
-        .unwrap()
-        .resolve_callables(
-            input.mir.foundation(),
-            &[input.ordinary],
-            std::iter::empty(),
-            &mut graph,
-        )
-        .unwrap()
-        .resolve_dependencies(local, &mut graph)
-        .unwrap();
-    replayed
-        .replay_dependency_closure(section.initialization_units(), &[], &source, &graph)
-        .unwrap();
+            production: input.mir.production(),
+            ordinary: input.ordinary,
+        };
+        let replayed = wire
+            .resolve_types(
+                local.provider,
+                input.mir.foundation(),
+                std::iter::empty(),
+                &mut graph,
+            )
+            .unwrap()
+            .resolve_callables(
+                input.mir.foundation(),
+                &[input.ordinary],
+                std::iter::empty(),
+                &mut graph,
+            )
+            .unwrap()
+            .resolve_dependencies(local, &mut graph)
+            .unwrap();
+        assert!(replayed.selected_relations().is_empty());
+    }
     assert_eq!(
         section.initialization_units().len(),
         input.mir.materialization().initialization_roots().len()

@@ -53,13 +53,7 @@ fn linux_final_profiles_link_and_run_with_the_selected_libc_and_llvm_unwinder() 
         )
         .unwrap();
         let binary = directory.path().join("program");
-        let mut command = linux
-            .command(
-                directory.path(),
-                &binary,
-                &directory.path().join("link.map"),
-            )
-            .unwrap();
+        let mut command = linux.command(directory.path(), &binary).unwrap();
         command.arg(object);
         linux.append_system_libraries(&mut command);
         probe::run(&mut command).unwrap();

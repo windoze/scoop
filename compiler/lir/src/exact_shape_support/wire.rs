@@ -1,12 +1,9 @@
-use scoop_identity::SourceDeclarationKey;
-use scoop_wire::{
-    Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode_canonical_temporary,
-};
+use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::*;
 use crate::{
-    CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1, ConeLirFoundation,
-    DecodedParamFreeShapeSupportRolesV1,
+    DecodedParamFreeShapeSupportRolesV1, LinkDataError, LirTargetProfile, link_data::link_error,
 };
 
 impl WireEncode for ParamFreeShapeSupportExportV1 {
@@ -19,18 +16,29 @@ impl WireEncode for ParamFreeShapeSupportExportV1 {
 pub struct DecodedParamFreeShapeSupportExportV1(DecodedParamFreeShapeSupportRolesV1);
 
 impl DecodedParamFreeShapeSupportExportV1 {
-    pub fn validate_against(
+    pub fn read(
         self,
-        expected: &ParamFreeShapeSupportExportV1,
-    ) -> Result<ParamFreeShapeSupportExportV1, ParamFreeShapeSupportWireError> {
-        let path = WirePath::root();
-        let actual = encode_canonical_temporary(&self, &path)?;
-        let expected_bytes = encode_canonical_temporary(expected, &path)?;
-
-        if actual != expected_bytes {
-            return Err(ParamFreeShapeSupportWireError::RecordMismatch);
-        }
-        Ok(expected.clone())
+        target: LirTargetProfile,
+        provider: ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+    ) -> Result<ParamFreeShapeSupportExportV1, LinkDataError> {
+        let roles = self.0.read(identities)?;
+        let source = *roles
+            .source_nominal()
+            .available()
+            .ok_or_else(|| link_error("shape support has no source nominal"))?;
+        let exact = roles
+            .type_descriptor()
+            .available()
+            .ok_or_else(|| link_error("shape support has no type descriptor"))?
+            .semantic_id();
+        Ok(ParamFreeShapeSupportExportV1 {
+            source,
+            exact,
+            provider,
+            target,
+            roles,
+        })
     }
 }
 
@@ -58,35 +66,26 @@ pub struct DecodedCanonicalParamFreeShapeSupportExportsV1 {
 }
 
 impl DecodedCanonicalParamFreeShapeSupportExportsV1 {
-    pub fn validate(
+    pub fn read(
         self,
-        sources: &[SourceDeclarationKey],
-        layouts: &CanonicalExactLayoutExportsV1,
-        descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &ConeLirFoundation,
-    ) -> Result<CanonicalParamFreeShapeSupportExportsV1, ParamFreeShapeSupportTableError> {
-        let expected = CanonicalParamFreeShapeSupportExportsV1::from_sources(
-            sources,
-            layouts,
-            descriptors,
-            foundation,
-        )?;
-        self.validate_against(&expected)
-    }
-
-    pub fn validate_against(
-        self,
-        expected: &CanonicalParamFreeShapeSupportExportsV1,
-    ) -> Result<CanonicalParamFreeShapeSupportExportsV1, ParamFreeShapeSupportTableError> {
-        let path = WirePath::root();
-
-        let actual = encode_canonical_temporary(&self, &path)?;
-        let expected_bytes = encode_canonical_temporary(expected, &path)?;
-
-        if actual != expected_bytes {
-            return Err(ParamFreeShapeSupportTableError::Coverage);
+        target: LirTargetProfile,
+        provider: ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+    ) -> Result<CanonicalParamFreeShapeSupportExportsV1, LinkDataError> {
+        let records = self
+            .records
+            .into_iter()
+            .map(|record| record.read(target, provider, identities))
+            .collect::<Result<Vec<_>, _>>()?;
+        if records
+            .windows(2)
+            .any(|pair| pair[0].source_nominal() >= pair[1].source_nominal())
+        {
+            return Err(link_error("noncanonical shape-support source order"));
         }
-        Ok(expected.clone())
+        Ok(CanonicalParamFreeShapeSupportExportsV1::from_saved(
+            target, provider, records,
+        ))
     }
 }
 
@@ -114,24 +113,3 @@ fn encode_records<T: WireEncode>(
     }
     Ok(())
 }
-
-#[derive(Debug)]
-pub enum ParamFreeShapeSupportWireError {
-    RecordMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-    Resource(WireError),
-}
-
-impl From<WireError> for ParamFreeShapeSupportWireError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-
-impl std::fmt::Display for ParamFreeShapeSupportWireError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "invalid ordinary shape-support wire: {self:?}")
-    }
-}
-
-impl std::error::Error for ParamFreeShapeSupportWireError {}

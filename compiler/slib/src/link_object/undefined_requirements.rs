@@ -19,12 +19,9 @@ use scoop_lir::{
 };
 
 mod wire;
-pub(in crate::link_object) use wire::DecodedCanonicalUndefinedRelocationUseV1;
+pub use wire::DecodedCanonicalUndefinedSymbolRequirementSetV1;
 #[cfg(test)]
 use wire::DecodedFinalUndefinedSymbolRequirementV1;
-pub use wire::{
-    DecodedCanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementValidationError,
-};
 
 mod partitions;
 pub use partitions::*;

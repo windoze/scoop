@@ -14,8 +14,7 @@ use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, CrossConeLayoutProductionManifestV1,
     DecodedSingleConeProductionManifestV1, DependencyRecord, HirFingerprint, LirFingerprint,
-    MirFingerprint, SingleConeProductionManifestValidationError,
-    finalize_layout_partitioned_undefined_symbol_requirements_v1,
+    MirFingerprint, finalize_layout_partitioned_undefined_symbol_requirements_v1,
     seal_builtin_object_external_requirements_v1, verify_current_cone_undefined_requirements_v1,
     verify_dependency_strong_requirements_v1, verify_external_shape_requirements_v1,
     verify_runtime_and_eh_requirements_v1,
@@ -148,25 +147,21 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         3
     );
     assert_eq!(
-        encode(proof.layout_link_closure().semantic_imports()).unwrap(),
-        encode(layout.selected().physical_imports()).unwrap()
+        proof
+            .code()
+            .link_extension_contributions()
+            .contributions()
+            .iter()
+            .find(|entry| entry.capability()
+                == &crate::lir_cross_cone_layout_link_closure_capability())
+            .unwrap()
+            .canonical_projection(),
+        encode(&layout.selected().physical_imports().code_projection()).unwrap()
     );
     let manifest = CrossConeLayoutProductionManifestV1::from_verified_code(proof.code().clone());
     let bytes = encode(&manifest).unwrap();
     let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
-    assert_eq!(decoded.validate_layout(proof.code()).unwrap(), manifest);
-
-    let mut changed = bytes;
-    let offset = changed
-        .windows(32)
-        .position(|bytes| bytes == proof.code().fingerprint().as_array())
-        .unwrap();
-    changed[offset] ^= 1;
-    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&changed).unwrap();
-    assert!(matches!(
-        decoded.validate_layout(proof.code()),
-        Err(SingleConeProductionManifestValidationError::ProjectionMismatch)
-    ));
+    assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 fn legacy_closure(

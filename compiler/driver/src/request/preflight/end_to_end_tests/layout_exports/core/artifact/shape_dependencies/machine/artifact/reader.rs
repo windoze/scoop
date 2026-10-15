@@ -1,9 +1,7 @@
 //! Replay nonempty helper imports from the assembled consumer's bytes.
 
 pub(super) use super::super::super::super::lir_dependencies::reader::open;
-use super::super::super::super::lir_dependencies::reader::{
-    open_link, read, read_link, read_sections,
-};
+use super::super::super::super::lir_dependencies::reader::{open_link, read, read_link};
 use super::*;
 
 mod link;
@@ -61,7 +59,7 @@ pub(super) fn check(
     );
     assert_eq!(current.lir_exports(), layout.exports());
     closure
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());

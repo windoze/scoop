@@ -154,7 +154,11 @@ impl Provider {
     pub(super) fn shape_link_provider(&self) -> ShapeLinkProviderV1<'_> {
         ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: self.output.foundation(),
-            production: &self.section,
+            definitions: self.section.canonical_definitions(),
+            support: ShapeLinkSupportV1::Produced {
+                static_storages: self.section.static_storage_registrations(),
+                initialization: self.section.initialization_registrations(),
+            },
             ordinary: &self.ordinary,
             layouts: &self.layouts,
             callables: &self.callables,

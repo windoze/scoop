@@ -25,22 +25,18 @@ checks = [
 [[steps]]
 name = "save_and_isolate"
 files = [
-  {copy = {from = "${build.result.root.path}", to = "${work}/artifacts/root.slib"}},
-  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/artifacts/core.slib"}},
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
-  {remove = {path = "${work}/sources"}},
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/core.slib"}},
 ]
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
 
 [[steps]]

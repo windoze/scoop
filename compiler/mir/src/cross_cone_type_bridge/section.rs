@@ -24,7 +24,7 @@ pub use error::*;
 pub use model::*;
 pub use resolved_dependencies::DependencyResolvedCrossConeMirTypeBridgeSectionV1;
 pub use selection::SelectedDependencyMirTypeSetV1;
-pub use units::{MirTypeBridgeInitializationUnitV1, replay_source_initialization_units};
+pub use units::{MirTypeBridgeInitializationUnitV1, read_initialization_units};
 pub use view::MirTypeBridgeDependencyViewV1;
 pub use wire::{
     CallablesResolvedCrossConeMirTypeBridgeSectionV1, DecodedCrossConeMirTypeBridgeSectionV1,

@@ -1,29 +1,18 @@
 use super::*;
 
 #[derive(Debug)]
-pub enum SharedMirDependencyGraphError {
-    CallSites(Box<crate::CrossConeMirClosureRelationError>),
-    InputProvider {
-        source: ConeIdentity,
-        mir: ConeIdentity,
-    },
+pub enum MirDependencyReadError {
     Resource(scoop_wire::WireError),
-    TypeOccurrences(Box<scoop_hir::HirDependencyTypeRelationError>),
-    InitializationOccurrences(Box<scoop_hir::HirInitializationUseError>),
-    InitializationUse(Box<mir::MirObjectBridgeError>),
-    InitializationUseInventory,
-    MissingInitializationUnit(scoop_identity::PersistentInitializationUnitId),
-    MissingObjectUnit(scoop_identity::PersistentObjectValueId),
     Mir(Box<mir::MirTypeBridgeSectionError>),
 }
 
-impl From<scoop_wire::WireError> for SharedMirDependencyGraphError {
+impl From<scoop_wire::WireError> for MirDependencyReadError {
     fn from(value: scoop_wire::WireError) -> Self {
         Self::Resource(value)
     }
 }
 
-impl From<mir::MirTypeBridgeSectionError> for SharedMirDependencyGraphError {
+impl From<mir::MirTypeBridgeSectionError> for MirDependencyReadError {
     fn from(value: mir::MirTypeBridgeSectionError) -> Self {
         Self::Mir(Box::new(value))
     }
@@ -32,14 +21,14 @@ impl From<mir::MirTypeBridgeSectionError> for SharedMirDependencyGraphError {
 #[derive(Debug)]
 pub struct CrossConeLayoutMirDependenciesError {
     pub provider: ConeIdentity,
-    pub source: Box<SharedMirDependencyGraphError>,
+    pub source: Box<MirDependencyReadError>,
 }
 
 impl std::fmt::Display for CrossConeLayoutMirDependenciesError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "invalid shared MIR dependency graph for {:?}: {:?}",
+            "invalid MIR dependency references for {:?}: {:?}",
             self.provider, self.source
         )
     }

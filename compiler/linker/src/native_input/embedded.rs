@@ -8,8 +8,12 @@ impl NativeInputs {
     ) -> Result<(), LinkError> {
         for (artifact, _) in closure.artifacts() {
             for object in artifact.native_objects() {
-                let file =
-                    NativeInputId::from_bytes(object.bytes(), NativeFileKind::Object, profile)?;
+                let file = NativeInputId::from_digest(
+                    object.digest(),
+                    object.bytes().len() as u64,
+                    NativeFileKind::Object,
+                    profile,
+                )?;
                 let id = NativeInputId(
                     domain_separated_cbor_hash(
                         "scoop-embedded-native-v1",
@@ -28,13 +32,15 @@ impl NativeInputs {
                 let index = NativeObjectIndex::read_with_toolchain(
                     object.bytes(),
                     profile.startup_toolchain().profile(),
-                    artifact.foundation().native_cxx(),
+                    artifact.native_cxx(),
                 )
                 .map_err(|err| error(format!("{}: {err}", locator.display())))?;
                 self.files.insert(
                     id,
                     NativeFile {
                         id,
+                        object_digest: object.digest(),
+                        object_path: None,
                         bytes: Arc::clone(object.bytes()),
                         slice: 0..object.bytes().len(),
                         locator,

@@ -1,6 +1,6 @@
 use super::*;
 use crate::link_object::DecodedStrongDefinitionOwnerV1;
-use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Debug)]
 pub struct DecodedLirLinkSupportSectionV1 {
@@ -9,35 +9,26 @@ pub struct DecodedLirLinkSupportSectionV1 {
 
 #[derive(Debug)]
 struct DecodedAlias {
-    contract: Digest256,
+    contract: RuntimeSymbolContractId,
     owner: DecodedStrongDefinitionOwnerV1,
 }
 
 impl DecodedLirLinkSupportSectionV1 {
     pub fn read_link(
         &self,
-        descriptors: &scoop_lir::CanonicalExactDescriptorExportsV1,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
     ) -> Result<LirLinkSupportSectionV1, LinkSupportError> {
-        if self.aliases.is_empty() {
-            return Ok(LirLinkSupportSectionV1::default());
-        }
-        if self.aliases.len() != 1 {
-            return Err(err("duplicate or unknown runtime data alias"));
-        }
-        let alias = &self.aliases[0];
-        if alias.contract.as_array() != string_contract(descriptors.target())?.as_array() {
-            return Err(err("unknown runtime data alias contract"));
-        }
-        let exact = alias
-            .owner
-            .exact_descriptor()
-            .ok_or_else(|| err("runtime String alias target is not a TypeDescriptor owner"))?;
-        let descriptor = descriptors
-            .records()
+        let aliases = self
+            .aliases
             .iter()
-            .find(|descriptor| descriptor.exact().as_array() == exact.as_array())
-            .ok_or_else(|| err("runtime String alias target is not defined by this Cone"))?;
-        LirLinkSupportSectionV1::from_string_descriptor(Some(descriptor))
+            .map(|alias| {
+                Ok(RuntimeDataAliasV1 {
+                    contract: alias.contract,
+                    owner: alias.owner.resolve(identities)?,
+                })
+            })
+            .collect::<Result<Vec<_>, LinkSupportError>>()?;
+        Ok(LirLinkSupportSectionV1 { aliases })
     }
 }
 
@@ -70,7 +61,7 @@ impl WireDecode for DecodedLirLinkSupportSectionV1 {
             d.decode_array(|d, _| {
                 d.expect_map(2)?;
                 Ok(DecodedAlias {
-                    contract: d.field(1, Digest256::decode)?,
+                    contract: d.field(1, RuntimeSymbolContractId::decode)?,
                     owner: d.field(2, DecodedStrongDefinitionOwnerV1::decode)?,
                 })
             })

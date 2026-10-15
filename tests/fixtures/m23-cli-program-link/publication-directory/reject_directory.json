@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "existing output is not a regular file",
+    "message": "Is a directory (os error 21)",
     "notes": [],
     "origin": {
       "kind": "none"

@@ -13,6 +13,7 @@ pub(in crate::program_link) fn section(
 pub(super) fn path(source: &SingleConeLinkSectionDecodeError) -> String {
     use SingleConeLinkSectionDecodeError::*;
     match source {
+        MemberRead(error) => error.diagnostic().semantic_path(),
         WrongProfile { .. } => "manifest:compatibility.artifact_profile".to_owned(),
         MissingMetadataMember { location } => format!("{location}:$"),
         MissingMetadataMemberPayload { member, .. } => format!("member/{member}:$"),
@@ -27,8 +28,6 @@ pub(super) fn path(source: &SingleConeLinkSectionDecodeError) -> String {
             source,
         } => format!("{}:{}", name(*location, capability), source.path()),
         Resource(source) => source.diagnostic().semantic_path(),
-        SemanticFingerprints(_) => "manifest:semantic_fingerprints".to_owned(),
-        SemanticFingerprintMismatch { location, .. } => format!("{location}:semantic_fingerprint"),
         Inventory(source) => match source {
             ArtifactProfileInventoryError::ConflictingCapabilityVersion {
                 location, index, ..

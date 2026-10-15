@@ -64,14 +64,3 @@ impl WireEncode for DecodedStrongStaticStorageSemanticProjectionV1 {
         encode_field(encoder, 32, &self.layout_provider)
     }
 }
-
-impl DecodedStrongStaticStorageSemanticProjectionV1 {
-    /// Checks this projection against a complete provider semantic plan. It
-    /// does not authorize the backing storage as an externally selected use.
-    pub fn validate_against(
-        self,
-        expected: &crate::StrongStaticStorageSemanticPlanV1,
-    ) -> Result<(), StrongSemanticProjectionError> {
-        compare_semantics(&self, &expected.semantic_projection())
-    }
-}

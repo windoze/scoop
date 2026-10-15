@@ -1,8 +1,4 @@
-//! Ordinary-producer physical shape-support closures.
-//!
-//! The eight-role wire product is shared with the frozen core authority. This
-//! constituent only admits ordinary producers; core continues to use its
-//! existing strong-production branch.
+//! Physical shape-support roles shared by ordinary and core producers.
 
 mod error;
 pub use error::*;

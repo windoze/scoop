@@ -64,16 +64,12 @@ impl fmt::Display for ExplicitDependencyArtifactInput {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExplicitDependencyLoadOperation {
     Open,
-    Inspect,
-    Read,
 }
 
 impl fmt::Display for ExplicitDependencyLoadOperation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Open => "open",
-            Self::Inspect => "inspect",
-            Self::Read => "read",
         })
     }
 }
@@ -85,10 +81,6 @@ pub enum ExplicitDependencyLoadError {
         operation: ExplicitDependencyLoadOperation,
         source: std::io::Error,
     },
-    NotRegularFile(ExplicitDependencyArtifactInput),
-    LengthOverflow(ExplicitDependencyArtifactInput),
-    Allocation(ExplicitDependencyArtifactInput),
-    ChangedDuringRead(ExplicitDependencyArtifactInput),
 }
 
 impl fmt::Display for ExplicitDependencyLoadError {
@@ -99,18 +91,6 @@ impl fmt::Display for ExplicitDependencyLoadError {
                 operation,
                 source,
             } => write!(formatter, "cannot {operation} dependency {input}: {source}"),
-            Self::NotRegularFile(input) => {
-                write!(formatter, "dependency {input} is not a regular file")
-            }
-            Self::LengthOverflow(input) => {
-                write!(formatter, "dependency {input} length cannot be represented")
-            }
-            Self::Allocation(input) => {
-                write!(formatter, "cannot allocate dependency {input} bytes")
-            }
-            Self::ChangedDuringRead(input) => {
-                write!(formatter, "dependency {input} changed while being read")
-            }
         }
     }
 }
@@ -119,11 +99,6 @@ impl std::error::Error for ExplicitDependencyLoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
-
-            Self::NotRegularFile(_)
-            | Self::LengthOverflow(_)
-            | Self::Allocation(_)
-            | Self::ChangedDuringRead(_) => None,
         }
     }
 }
@@ -131,8 +106,7 @@ impl std::error::Error for ExplicitDependencyLoadError {
 #[derive(Debug)]
 struct LoadedExplicitDependencyArtifact {
     input: ExplicitDependencyArtifactInput,
-    bytes: Vec<u8>,
-    summary: std::cell::OnceCell<scoop_slib::ArtifactManifestSummaryV1>,
+    artifact: scoop_slib::ArtifactFile,
 }
 
 #[derive(Debug)]

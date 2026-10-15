@@ -1,9 +1,6 @@
 //! Production-manifest projection backed by M23-6 Strong V2 semantics.
 
-use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, ConeProductionSectionV2,
-    RegistrationIdentitySurfaceV1,
-};
+use scoop_lir::ConeProductionSectionV2;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
@@ -12,7 +9,7 @@ use super::{
     production::{ProductionPlanInputs, verify_production_code_projection_common},
 };
 use crate::link_object::VerifiedCodeLinkObjectMemberSetV2;
-use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCodeFingerprintV2};
+use crate::{CodeFingerprint, RuntimeImageFingerprint, VerifiedCodeFingerprintV2};
 
 /// V2 metadata and final object bytes producing the shared manifest projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -76,10 +73,6 @@ pub struct CrossConeLayoutProductionManifestV1 {
 }
 
 impl CrossConeLayoutProductionManifestV1 {
-    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
-        self.projection().optimization()
-    }
-
     pub const fn from_verified_code(code: VerifiedCodeFingerprintV2) -> Self {
         Self { code }
     }
@@ -88,20 +81,14 @@ impl CrossConeLayoutProductionManifestV1 {
         &self.code
     }
 
-    pub const fn distribution(&self) -> super::ArtifactDistributionClassV1 {
-        self.projection().distribution()
-    }
-
-    pub const fn output(&self) -> &super::SingleConeProductionOutputV1 {
-        self.projection().output()
-    }
-
-    pub const fn image_owner_member(&self) -> SlibMemberId {
-        self.projection().image_owner_member()
-    }
-
-    pub const fn runtime_registration_projection(&self) -> &RegistrationIdentitySurfaceV1 {
-        self.projection().runtime_registration_projection()
+    pub fn runtime_image_records(&self) -> &crate::RuntimeImageRecords {
+        self.code
+            .production()
+            .link_objects()
+            .final_objects()
+            .runtime_images()
+            .fingerprint()
+            .records()
     }
 
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
@@ -116,22 +103,6 @@ impl CrossConeLayoutProductionManifestV1 {
         self.code.fingerprint()
     }
 
-    pub const fn native_contracts(&self) -> &crate::CanonicalNativeExternalContractCodeSetV1 {
-        self.code.native_contracts()
-    }
-
-    pub fn native_cxx(&self) -> bool {
-        self.code.native_requirements().cxx()
-    }
-
-    pub fn native_library_requirements(&self) -> &[CanonicalNativeLibraryRequirementV1] {
-        self.code.native_requirements().library_requirements()
-    }
-
-    pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
-        self.code.c_bridge_production()
-    }
-
     const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
         self.code.production().projection()
     }
@@ -139,41 +110,10 @@ impl CrossConeLayoutProductionManifestV1 {
 
 impl WireEncode for CrossConeLayoutProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
-        encoder.field(1)?;
-        self.distribution().encode(encoder)?;
-        encoder.field(2)?;
-        self.output().encode(encoder)?;
-        encoder.field(3)?;
-        self.image_owner_member().encode(encoder)?;
-        encoder.field(4)?;
-        self.runtime_registration_projection().encode(encoder)?;
-        encoder.field(6)?;
-        self.runtime_image_fingerprint().encode(encoder)?;
-        encoder.field(7)?;
-        self.code_fingerprint().encode(encoder)?;
-        encoder.field(8)?;
-        self.native_contracts().encode(encoder)?;
-        encoder.field(9)?;
-        encode_array(encoder, self.native_library_requirements())?;
-        encoder.field(10)?;
-        self.c_bridge_production().encode(encoder)?;
+        encoder.map(2)?;
         encoder.field(11)?;
         self.odr_members().encode(encoder)?;
-        encoder.field(12)?;
-        self.optimization().encode(encoder)?;
-        encoder.field(13)?;
-        encoder.unsigned(u64::from(self.native_cxx()))
+        encoder.field(14)?;
+        self.runtime_image_records().encode(encoder)
     }
-}
-
-fn encode_array(
-    encoder: &mut Encoder,
-    values: &[impl WireEncode],
-) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.array(values.len() as u64)?;
-    for value in values {
-        value.encode(encoder)?;
-    }
-    Ok(())
 }

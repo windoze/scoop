@@ -11,7 +11,7 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 
 #[test]
-fn protocol_callable_roundtrips_and_replays_the_source_signature() {
+fn protocol_callable_roundtrips_the_saved_signature() {
     for origin in [
         ConeIdentity::CORE,
         crate::core_protocol_test_support::ordinary_origin(),
@@ -52,7 +52,7 @@ fn protocol_callable_roundtrips_and_replays_the_source_signature() {
 }
 
 #[test]
-fn protocol_callable_reader_rejects_unknown_open_and_wrong_signature_values() {
+fn protocol_callable_wire_preserves_kinds_and_rejects_open_products() {
     for origin in [
         ConeIdentity::CORE,
         crate::core_protocol_test_support::ordinary_origin(),
@@ -109,50 +109,11 @@ fn protocol_callable_reader_rejects_unknown_open_and_wrong_signature_values() {
                 decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&decoded).unwrap(), bytes);
         }
-
-        let function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey> =
-            CborIdentityRecord::from_key(SourceDeclarationKey::function(
-                site_at(origin),
-                CanonicalIdentifier::new("probe").unwrap(),
-                0,
-                None,
-                Vec::new(),
-            ))
-            .unwrap();
-        let unit = CoreBuiltinNominal::Unit.identity_record();
-        let wrong = CoreProtocolCallableV1 {
-            definition: CoreProtocolCallableDefinitionV1::Function(function.id()),
-            signature: SignatureCallableShape::new(
-                Effect::Ordinary,
-                None,
-                vec![SignatureTypeKey::Nominal(unit.id())],
-                SignatureTypeKey::Nominal(unit.id()),
-            ),
-        };
-        let mut foundation = CanonicalHirFoundation::empty();
-        foundation.set_types(vec![unit]).unwrap();
-        foundation.set_functions(vec![function.clone()]).unwrap();
-        foundation
-            .set_definition_origins(vec![origin_record_at(
-                origin,
-                DefinitionOriginSubject::Function(function.id()),
-            )])
-            .unwrap();
-        let decoded: DecodedCoreProtocolCallableV1 =
-            decode_canonical(&encode(&wrong).unwrap()).unwrap();
-        assert_eq!(
-            decoded.validate_against(&foundation),
-            Err(
-                CoreProtocolCallableValidationError::SourceSignatureMismatch(
-                    CoreProtocolCallableDefinitionV1::Function(function.id())
-                )
-            )
-        );
     }
 }
 
 #[test]
-fn protocol_callable_reader_replays_owner_and_callable_binder_groups() {
+fn protocol_callable_reader_preserves_owner_and_callable_binder_groups() {
     for origin in [
         ConeIdentity::CORE,
         crate::core_protocol_test_support::ordinary_origin(),

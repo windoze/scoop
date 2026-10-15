@@ -26,15 +26,6 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         descriptors: &CanonicalExactDescriptorExportsV1,
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
-        Self::from_source_refs(sources.iter(), layouts, descriptors, foundation)
-    }
-
-    pub fn from_source_refs<'a>(
-        sources: impl ExactSizeIterator<Item = &'a SourceDeclarationKey>,
-        layouts: &CanonicalExactLayoutExportsV1,
-        descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &ConeLirFoundation,
-    ) -> Result<Self, ParamFreeShapeSupportTableError> {
         validate_inputs(layouts, descriptors, foundation)?;
         let path = WirePath::root();
 
@@ -48,7 +39,7 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
                 foundation,
             )?);
         }
-        sort_records(&mut records)?;
+        records.sort_unstable_by_key(ParamFreeShapeSupportExportV1::source_nominal);
         for pair in records.windows(2) {
             if pair[0].source_nominal() == pair[1].source_nominal() {
                 return Err(ParamFreeShapeSupportTableError::DuplicateRequiredSource(
@@ -63,49 +54,16 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         })))
     }
 
-    pub fn try_new(
-        sources: &[SourceDeclarationKey],
-        layouts: &CanonicalExactLayoutExportsV1,
-        descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &ConeLirFoundation,
-        mut records: Vec<ParamFreeShapeSupportExportV1>,
-    ) -> Result<Self, ParamFreeShapeSupportTableError> {
-        validate_inputs(layouts, descriptors, foundation)?;
-        sort_records(&mut records)?;
-        for pair in records.windows(2) {
-            if pair[0].source_nominal() == pair[1].source_nominal() {
-                return Err(ParamFreeShapeSupportTableError::Duplicate(
-                    pair[0].source_nominal(),
-                ));
-            }
-        }
-        let expected = Self::from_sources(sources, layouts, descriptors, foundation)?;
-        let expected = expected.records();
-        if records.len() != expected.len() {
-            return Err(ParamFreeShapeSupportTableError::Coverage);
-        }
-        for (record, expected) in records.iter().zip(expected) {
-            if record.provider() != foundation.producer() {
-                return Err(ParamFreeShapeSupportTableError::Provider(
-                    record.source_nominal(),
-                ));
-            }
-            if record.target() != layouts.target() {
-                return Err(ParamFreeShapeSupportTableError::Target(
-                    record.source_nominal(),
-                ));
-            }
-            if record != expected {
-                return Err(ParamFreeShapeSupportTableError::RecordMismatch(
-                    record.source_nominal(),
-                ));
-            }
-        }
-        Ok(Self(Arc::new(ShapeSupportTable {
-            provider: foundation.producer(),
-            target: layouts.target(),
+    pub(super) fn from_saved(
+        target: LirTargetProfile,
+        provider: ConeIdentity,
+        records: Vec<ParamFreeShapeSupportExportV1>,
+    ) -> Self {
+        Self(Arc::new(ShapeSupportTable {
+            provider,
+            target,
             records,
-        })))
+        }))
     }
 
     pub fn provider(&self) -> ConeIdentity {
@@ -142,12 +100,5 @@ fn validate_inputs(
     if layouts.target() != descriptors.target() {
         return Err(ParamFreeShapeSupportTableError::TableTarget);
     }
-    Ok(())
-}
-
-fn sort_records(
-    records: &mut [ParamFreeShapeSupportExportV1],
-) -> Result<(), ParamFreeShapeSupportTableError> {
-    records.sort_unstable_by_key(ParamFreeShapeSupportExportV1::source_nominal);
     Ok(())
 }

@@ -4,7 +4,6 @@ use super::*;
 pub enum LayoutAbiSectionError {
     DuplicateProvider(ConeIdentity),
     DependencyTarget { provider: ConeIdentity },
-    SelectedClosure,
     NonCanonicalSelected { index: usize },
     SelectedCurrentProvider,
     MissingSemanticProvider(ConeIdentity),

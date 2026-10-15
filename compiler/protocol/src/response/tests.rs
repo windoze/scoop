@@ -16,25 +16,11 @@ fn success(
     warnings: Vec<StructuredDiagnosticV1>,
     dumps: Vec<EmittedDumpDescriptorV1>,
 ) -> Result<ScoopcSuccessV1, ProtocolValidationError> {
-    ScoopcSuccessV1::new(
-        ProtocolArtifactFingerprint::from_array([1; 32]),
-        ProtocolConeIdentity::from_array([2; 32]),
-        ProtocolHirFingerprint::from_array([3; 32]),
-        ProtocolMirFingerprint::from_array([4; 32]),
-        ProtocolLirFingerprint::from_array([5; 32]),
-        ProtocolCodeFingerprint::from_array([6; 32]),
-        ProtocolRuntimeImageFingerprint::from_array([7; 32]),
-        warnings,
-        dumps,
-    )
+    ScoopcSuccessV1::new(crate::test_summary(), warnings, dumps)
 }
 
 fn dump() -> EmittedDumpDescriptorV1 {
-    EmittedDumpDescriptorV1::new(
-        StageDumpKindV1::Hir,
-        EmittedDumpDestinationV1::Stdout,
-        ProtocolDumpContentDigest::from_array([8; 32]),
-    )
+    EmittedDumpDescriptorV1::new(StageDumpKindV1::Hir, EmittedDumpDestinationV1::Stdout)
 }
 
 #[test]
@@ -69,4 +55,43 @@ fn response_frames_preserve_complete_diagnostic_text() {
         ScoopcResponseEnvelopeV1::success(RequestCorrelationId::from_array([0; 16]), result);
     let frame = crate::encode_response_frame(&response).unwrap();
     assert_eq!(crate::decode_response_frame(&frame).unwrap(), response);
+}
+
+#[test]
+fn file_level_diagnostic_keeps_its_path_without_a_byte_span() {
+    let origin = DiagnosticOriginV1::HostPath {
+        path: HostPathCarrier::from_path(std::path::Path::new("/workspace/bad.scoop")).unwrap(),
+    };
+    let diagnostic = StructuredDiagnosticV1::new(
+        DiagnosticSeverityV1::Error,
+        "SCOOPC_BUILD_FAILED".to_owned(),
+        "source file is not valid UTF-8".to_owned(),
+        origin,
+        Vec::new(),
+    )
+    .unwrap();
+    let bytes = scoop_wire::encode(&diagnostic).unwrap();
+    let decoded: StructuredDiagnosticV1 = scoop_wire::decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded, diagnostic);
+}
+
+#[test]
+fn observation_response_needs_no_artifact_summary() {
+    let response = ScoopcResponseEnvelopeV1::Observed {
+        request_id: RequestCorrelationId::from_array([3; 16]),
+        result: ScoopcObservationV1::new(
+            Vec::new(),
+            vec![EmittedDumpDescriptorV1::new(
+                StageDumpKindV1::Ast,
+                EmittedDumpDestinationV1::File(
+                    HostPathCarrier::from_path(std::path::Path::new("/tmp/ast.txt")).unwrap(),
+                ),
+            )],
+        )
+        .unwrap(),
+    };
+    assert_eq!(
+        crate::decode_response_frame(&crate::encode_response_frame(&response).unwrap()).unwrap(),
+        response
+    );
 }

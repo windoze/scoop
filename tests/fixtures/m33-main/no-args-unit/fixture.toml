@@ -2,7 +2,7 @@ schema = 1
 name = "m33-main-no-args-unit"
 root = "program.scoop"
 inputs = ["launcher.c", "program.scoop"]
-tools = ["cc", "scoop", "scoopc", "scoop-link"]
+tools = ["cc", "scoop", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m33", "ffi", "gc", "process"]
 variants = [
@@ -33,13 +33,8 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_source"
-files = [{remove = {path = "${work}/source"}}]
-
-[[steps]]
 name = "link"
-argv = ["${scoop-link}", {each = "${link_args}"}, "--library-path", "${work}", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+argv = ["${scoop-link}", {"each" = "${link_args}"}, "--library-path", "${work}", "--root-slib", "${build.result.root.path}", {"each" = "${build.result.dependencies}", "field" = "path", "prefix" = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
 stderr = ""

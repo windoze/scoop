@@ -1,0 +1,82 @@
+schema = 1
+name = "m48-native-tool-record"
+inputs = ["../m48-build-record/library/cone"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "cache", "native-tool"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target", "${target}", "--cc", "${work}/cc", "--message-format", "json", "-o", "${work}/library.slib"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/../m48-build-record/library/cone", to = "${work}/cone"}},
+  {write = {path = "${work}/cc", data = "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"${work}/calls.log\"\nif [ \"$1\" = -dumpfullversion ]; then printf 'probe\\n' >> \"${work}/versions.log\"; fi\nexec \"${cc}\" \"$@\"\n"}},
+  {chmod = {path = "${work}/cc", mode = "755"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 2},
+  {file = "${work}/versions.log", equals = "probe\n"},
+]
+
+[[steps]]
+name = "remember_calls"
+files = [{copy = {from = "${work}/calls.log", to = "${work}/cold.log"}}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/calls.log", same_as = "${work}/cold.log"},
+]
+
+[[steps]]
+name = "update_tool"
+files = [{concat = {path = "${work}/cc", parts = [{file = "${work}/cc"}, "# updated driver\n"]}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed.result.observations.child_invocations.length}", equals = 2},
+  {file = "${work}/calls.log", different_from = "${work}/cold.log"},
+  {file = "${work}/versions.log", equals = "probe\nprobe\n"},
+]
+
+[[steps]]
+name = "remember_changed_calls"
+files = [{copy = {from = "${work}/calls.log", to = "${work}/changed.log"}}]
+
+[[steps]]
+name = "warm_again"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm_again.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/calls.log", same_as = "${work}/changed.log"},
+]

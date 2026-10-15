@@ -4,10 +4,9 @@ use std::fmt;
 use scoop_identity::{
     CborIdentityRecord, ConeIdentity, DecodedPersistentId, GeneratedBridgeAtomId,
     GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
-    GeneratedBridgeUnitKey, IdentityReferenceError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, PersistentId, PersistentIdResolver,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
-    ValidatedIdentityGraph,
+    GeneratedBridgeUnitKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    ObjectDefinitionPlanOwner, PersistentId, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -259,64 +258,6 @@ pub struct DecodedGeneratedBridgePlanSetV1 {
     units: Vec<DecodedGeneratedBridgeUnitPlanV1>,
 }
 
-impl DecodedGeneratedBridgePlanSetV1 {
-    pub fn validate(
-        self,
-        identities: &mut ValidatedIdentityGraph,
-        foundation: &ConeLirFoundation,
-    ) -> Result<GeneratedBridgePlanSetV1, GeneratedBridgePlanValidationError> {
-        let expected = GeneratedBridgePlanSetV1::from_foundation(foundation)
-            .map_err(GeneratedBridgePlanValidationError::Foundation)?;
-        if self.units.len() != expected.units.len() {
-            return Err(GeneratedBridgePlanValidationError::UnitCoverage {
-                expected: expected.units.len(),
-                actual: self.units.len(),
-            });
-        }
-        let mut previous_unit = None;
-        for (index, decoded) in self.units.into_iter().enumerate() {
-            let unit: GeneratedBridgeUnitId = identities
-                .resolve(decoded.unit)
-                .map_err(GeneratedBridgePlanValidationError::Identity)?;
-            if previous_unit.is_some_and(|previous| previous >= unit) {
-                return Err(if previous_unit == Some(unit) {
-                    GeneratedBridgePlanValidationError::DuplicateUnit(unit)
-                } else {
-                    GeneratedBridgePlanValidationError::NonCanonicalUnitOrder { index }
-                });
-            }
-            previous_unit = Some(unit);
-            let primary_atom = identities
-                .resolve(decoded.primary_atom)
-                .map_err(GeneratedBridgePlanValidationError::Identity)?;
-            let materialized_associated_atoms = resolve_atom_array(
-                decoded.materialized_associated_atoms,
-                unit,
-                GeneratedBridgeAtomSet::MaterializedAssociated,
-                identities,
-            )?;
-            let static_assert_atoms = resolve_atom_array(
-                decoded.static_assert_atoms,
-                unit,
-                GeneratedBridgeAtomSet::StaticAssert,
-                identities,
-            )?;
-            let expected_unit = &expected.units[index];
-            if unit != expected_unit.unit()
-                || primary_atom != expected_unit.primary_atom()
-                || materialized_associated_atoms
-                    != expected_unit
-                        .materialized_associated_atoms()
-                        .collect::<Vec<_>>()
-                || static_assert_atoms != expected_unit.static_assert_atoms().collect::<Vec<_>>()
-            {
-                return Err(GeneratedBridgePlanValidationError::UnitMismatch { index });
-            }
-        }
-        Ok(expected)
-    }
-}
-
 impl WireEncode for DecodedGeneratedBridgePlanSetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.units)
@@ -329,35 +270,6 @@ impl WireDecode for DecodedGeneratedBridgePlanSetV1 {
             .decode_array(|decoder, _| DecodedGeneratedBridgeUnitPlanV1::decode(decoder))
             .map(|units| Self { units })
     }
-}
-
-fn resolve_atom_array(
-    decoded: Vec<DecodedPersistentId<GeneratedBridgeAtomId>>,
-    unit: GeneratedBridgeUnitId,
-    set: GeneratedBridgeAtomSet,
-    identities: &mut ValidatedIdentityGraph,
-) -> Result<Vec<GeneratedBridgeAtomId>, GeneratedBridgePlanValidationError> {
-    let mut atoms: Vec<GeneratedBridgeAtomId> = Vec::with_capacity(decoded.len());
-    for (index, decoded_atom) in decoded.into_iter().enumerate() {
-        let atom = identities
-            .resolve(decoded_atom)
-            .map_err(GeneratedBridgePlanValidationError::Identity)?;
-        if index > 0 && atoms[index - 1] >= atom {
-            return Err(if atoms[index - 1] == atom {
-                GeneratedBridgePlanValidationError::DuplicateAtom { unit, set, atom }
-            } else {
-                GeneratedBridgePlanValidationError::NonCanonicalAtomOrder { unit, set, index }
-            });
-        }
-        atoms.push(atom);
-    }
-    Ok(atoms)
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum GeneratedBridgeAtomSet {
-    MaterializedAssociated,
-    StaticAssert,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -388,47 +300,6 @@ impl fmt::Display for GeneratedBridgePlanBuildError {
 
 impl std::error::Error for GeneratedBridgePlanBuildError {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum GeneratedBridgePlanValidationError {
-    Identity(IdentityReferenceError),
-    Foundation(GeneratedBridgePlanBuildError),
-    UnitCoverage {
-        expected: usize,
-        actual: usize,
-    },
-    DuplicateUnit(GeneratedBridgeUnitId),
-    NonCanonicalUnitOrder {
-        index: usize,
-    },
-    DuplicateAtom {
-        unit: GeneratedBridgeUnitId,
-        set: GeneratedBridgeAtomSet,
-        atom: GeneratedBridgeAtomId,
-    },
-    NonCanonicalAtomOrder {
-        unit: GeneratedBridgeUnitId,
-        set: GeneratedBridgeAtomSet,
-        index: usize,
-    },
-    UnitMismatch {
-        index: usize,
-    },
-}
-
-impl fmt::Display for GeneratedBridgePlanValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid generated bridge plan section: {self:?}")
-    }
-}
-
-impl std::error::Error for GeneratedBridgePlanValidationError {}
-
-fn decode_id_array<I: PersistentId>(
-    decoder: &mut Decoder<'_>,
-) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
-    decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
-}
-
 fn encode_array<T: WireEncode>(
     encoder: &mut Encoder,
     values: &[T],
@@ -452,6 +323,12 @@ where
         value.id().encode(encoder)?;
     }
     Ok(())
+}
+
+fn decode_id_array<I: PersistentId>(
+    decoder: &mut Decoder<'_>,
+) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
+    decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
 }
 
 #[cfg(test)]

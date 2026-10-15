@@ -3,7 +3,6 @@
 use super::*;
 
 mod callables;
-mod registrations;
 mod runtime;
 
 #[derive(Default)]

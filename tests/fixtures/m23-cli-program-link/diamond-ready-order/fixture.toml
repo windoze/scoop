@@ -36,45 +36,41 @@ stdout = "10\n20\n30\n40\n50\n"
 stderr = ""
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}}, {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/3.slib"}}, {"copy" = {"from" = "${build.result.dependencies.4.path}", "to" = "${work}/artifacts/4.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
-
-[[steps]]
-name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/4.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan"]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "contains" = "images=6 "}]
+checks = [
+  {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"},
+]
 
 [[steps]]
-name = "run_linked"
-argv = ["${link.result.output}"]
+name = "run_warm"
+argv = ["${warm.result.output}"]
 exit = 0
 stdout = "10\n20\n30\n40\n50\n"
 stderr = ""
 
 [[steps]]
-name = "relocate"
-files = [{"move" = {"from" = "${work}/artifacts", "to" = "${work}/elsewhere"}}]
-
-[[steps]]
-name = "relink"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/elsewhere/root.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--dependency-slib", "${work}/elsewhere/1.slib", "--dependency-slib", "${work}/elsewhere/2.slib", "--dependency-slib", "${work}/elsewhere/3.slib", "--dependency-slib", "${work}/elsewhere/4.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "-o", "${work}/elsewhere/program", "--message-format", "json", "--dump-plan"]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.4.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/linked", "--message-format", "json", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${relink.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${relink.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}]
+checks = [
+  {actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"},
+  {actual = "${link.result.link_plan}", contains = "images=6 "},
+]
 
 [[steps]]
-name = "run_relinked"
-argv = ["${relink.result.output}"]
+name = "run_linked"
+argv = ["${link.result.output}"]
 exit = 0
 stdout = "10\n20\n30\n40\n50\n"
 stderr = ""

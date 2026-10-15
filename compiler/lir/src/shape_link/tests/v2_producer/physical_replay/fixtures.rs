@@ -1,8 +1,8 @@
 use super::*;
 use scoop_identity::*;
 
-pub(super) fn replayed_provider(provider: &Provider) -> ConeProductionSectionV2 {
-    let raw = provider
+pub(super) fn produced_provider(provider: &Provider) -> ConeProductionSectionV2 {
+    provider
         .output
         .build_production_section_v2(
             provider.coordinate.clone(),
@@ -12,19 +12,6 @@ pub(super) fn replayed_provider(provider: &Provider) -> ConeProductionSectionV2 
         )
         .unwrap()
         .validate_layout_abi(&provider.layout_section())
-        .unwrap();
-    let decoded: DecodedConeProductionSectionV2 = decode_canonical(&encode(&raw).unwrap()).unwrap();
-    decoded
-        .replay(
-            provider.coordinate.clone(),
-            &[],
-            TARGET,
-            provider.output.foundation(),
-            EntryProductionSourceV1::Library,
-            &[],
-            &StrongTypeReferenceDefinitionsV2::new(provider.identity, &[], &[]).unwrap(),
-            &StrongInitializationDefinitionCatalogV2::new(provider.identity, &[]).unwrap(),
-        )
         .unwrap()
 }
 
@@ -35,7 +22,11 @@ pub(super) fn view<'a>(
 ) -> ShapeLinkProviderV1<'a> {
     ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
         foundation: provider.output.foundation(),
-        production,
+        definitions: production.canonical_definitions(),
+        support: ShapeLinkSupportV1::Produced {
+            static_storages: production.static_storage_registrations(),
+            initialization: production.initialization_registrations(),
+        },
         ordinary: &provider.ordinary,
         layouts: exports.layouts(),
         callables: exports.callables(),
@@ -49,6 +40,13 @@ pub(super) fn graph(
     provider: &Provider,
     relations: &[LayoutAbiDependencyV1],
 ) -> ValidatedIdentityGraph {
+    pending_graph(provider, relations).finish().unwrap()
+}
+
+fn pending_graph(
+    provider: &Provider,
+    relations: &[LayoutAbiDependencyV1],
+) -> PendingIdentityValidation {
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(provider.identity).unwrap();
     pending.register_authority(provider.exact).unwrap();
@@ -59,6 +57,7 @@ pub(super) fn graph(
         unreachable!()
     };
     pending.register_authority(function).unwrap();
+    pending.register_authority(provider.callable_body).unwrap();
     let exports = provider.layout_section();
     for layout in exports.layouts().records() {
         pending
@@ -78,10 +77,13 @@ pub(super) fn graph(
             .register_authority(storage.semantic().storage())
             .unwrap();
     }
+    for plan in provider.output.foundation().definition_plans() {
+        pending.register_authority(plan.id()).unwrap();
+    }
     for relation in relations {
         assert_eq!(relation.provider(), provider.identity);
     }
-    pending.finish().unwrap()
+    pending
 }
 
 pub(super) fn imports<'a>(

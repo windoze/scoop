@@ -1,0 +1,9 @@
+schema = 1
+sources = [{path = "first"}]
+[cone]
+group = "test.m48"
+name = "manifest-record"
+version = "1.0.0"
+kind = "executable"
+[test]
+sources = [{path = "checks"}]

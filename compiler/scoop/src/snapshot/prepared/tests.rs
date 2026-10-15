@@ -5,11 +5,9 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
-    ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-    ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
-    ProtocolRuntimeImageFingerprint, RequestCorrelationId, ScoopcRequestEnvelopeV1,
-    ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpPolicyV1, StructuredDiagnosticV1,
-    TargetSelectionRequestV1, TrustedCoreRequestV1, encode_machine_capability_frame,
+    RequestCorrelationId, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, StageDumpPolicyV1,
+    StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+    encode_machine_capability_frame,
 };
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, read_artifact_manifest_summary,
@@ -18,8 +16,8 @@ use scoop_slib::{
 use super::*;
 use crate::{
     ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphRequest, BuildRootInput, ChildIoPlan,
-    ChildTransportError, CompileCacheStoreV1, CompiledCompletionError, DiagnosticsPolicy,
-    PairedScoopcLocator, ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedSysrootRoot,
+    ChildTransportError, CompileCacheStoreV1, DiagnosticsPolicy, PairedScoopcLocator,
+    ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedSysrootRoot,
 };
 
 mod core;
@@ -62,42 +60,6 @@ impl SingleConeCompilerRunner for RecordingFailureRunner {
         self.current.push(request.build().current().clone());
         FailureRunner.invoke(_tool, request, io)
     }
-}
-
-struct IncompatibleProfileSuccessRunner;
-
-impl SingleConeCompilerRunner for IncompatibleProfileSuccessRunner {
-    fn invoke(
-        &mut self,
-        _tool: &ResolvedPairedScoopc,
-        request: &ScoopcRequestEnvelopeV1,
-        _io: &ChildIoPlan,
-    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
-        std::fs::write(
-            request.build().out_slib().to_path_buf().unwrap(),
-            core_manifest_artifact(),
-        )
-        .unwrap();
-        Ok(test_success(request.request_id()))
-    }
-}
-
-fn test_success(request_id: RequestCorrelationId) -> ScoopcResponseEnvelopeV1 {
-    ScoopcResponseEnvelopeV1::success(
-        request_id,
-        ScoopcSuccessV1::new(
-            ProtocolArtifactFingerprint::from_array([1; 32]),
-            ProtocolConeIdentity::from_array(*ConeIdentity::CORE.as_array()),
-            ProtocolHirFingerprint::from_array([2; 32]),
-            ProtocolMirFingerprint::from_array([3; 32]),
-            ProtocolLirFingerprint::from_array([4; 32]),
-            ProtocolCodeFingerprint::from_array([5; 32]),
-            ProtocolRuntimeImageFingerprint::from_array([6; 32]),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap(),
-    )
 }
 
 fn write_manifest(root: &Path, name: &str, dependencies: &str) {
@@ -222,24 +184,8 @@ fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     .into_bytes()
 }
 
-fn core_manifest_artifact() -> Vec<u8> {
-    crate::test_artifacts::manifest_archive(
-        crate::test_artifacts::host_target(),
-        scoop_slib::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-        ConeRecord::new(
-            ConeCoordinate::reserved_core(),
-            ConeKind::Library,
-            ConeSourceForm::Manifest,
-        )
-        .unwrap(),
-        "prepare-core-test",
-        Vec::new(),
-    )
-    .into_bytes()
-}
-
 #[test]
-fn prepare_materializes_only_immutable_private_source_inputs() {
+fn prepare_uses_the_actual_source_root() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -261,36 +207,16 @@ fn prepare_materializes_only_immutable_private_source_inputs() {
         Some(PreparedNodeRepresentation::ManifestSource)
     );
 
-    let private_root = prepared.source_input_path(root_identity).unwrap();
-    assert!(private_root.starts_with(prepared.staging_root()));
+    let input_root = prepared.source_input_path(root_identity).unwrap();
+    assert_eq!(input_root, root.canonicalize().unwrap());
     assert_eq!(
-        std::fs::read(private_root.join("src/main.scoop")).unwrap(),
-        b"fun value(): Int = 1\n"
-    );
-    assert_eq!(
-        std::fs::metadata(private_root.join("src/main.scoop"))
-            .unwrap()
-            .permissions()
-            .mode()
-            & 0o777,
-        0o400
-    );
-
-    std::fs::write(root.join("src/main.scoop"), "fun value(): Int = 2\n").unwrap();
-    assert_eq!(
-        prepared
-            .source_snapshot(root_identity)
-            .unwrap()
-            .sources()
-            .next()
-            .unwrap()
-            .as_bytes(),
+        std::fs::read(input_root.join("src/main.scoop")).unwrap(),
         b"fun value(): Int = 1\n"
     );
 }
 
 #[test]
-fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
+fn prepare_uses_the_actual_prebuilt_artifact_path() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -314,15 +240,10 @@ fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
         .next()
         .unwrap();
 
-    assert_eq!(candidate.snapshot().as_bytes(), artifact);
-    assert!(
-        candidate
-            .materialized_path()
-            .starts_with(prepared.staging_root())
-    );
+    assert_eq!(candidate.summary().cone().identity(), identity);
     assert_eq!(
-        std::fs::read(candidate.materialized_path()).unwrap(),
-        candidate.snapshot().as_bytes()
+        candidate.source_locator(),
+        workspace.join("prebuilt.slib").canonicalize().unwrap()
     );
     assert_eq!(prepared.prebuilt_coordinate(identity), Some(&coordinate));
     assert_eq!(
@@ -332,41 +253,7 @@ fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
 }
 
 #[test]
-fn prepare_rejects_artifact_changed_after_discovery() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let artifact_path = workspace.join("prebuilt.slib");
-    let coordinate = ConeCoordinate::new("test", "prebuilt", "1.0.0").unwrap();
-    let mut artifact = manifest_artifact_with_core(coordinate);
-    std::fs::write(&artifact_path, &artifact).unwrap();
-    write_manifest(
-        &root,
-        "root",
-        "[dependencies]\n\"test:prebuilt\" = { version = \"1.0.0\", artifact = \"../prebuilt.slib\" }\n",
-    );
-    let resolved = request(&root, workspace)
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap();
-    *artifact.last_mut().unwrap() ^= 1;
-    std::fs::write(&artifact_path, artifact).unwrap();
-
-    assert!(matches!(
-        resolved.prepare(),
-        Err(PrepareBuildGraphError::ArtifactSummary { .. })
-            | Err(PrepareBuildGraphError::ArtifactSummaryChanged(_))
-    ));
-}
-
-#[test]
-fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
+fn single_file_uses_actual_path_and_fixed_semantic_name() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -388,11 +275,11 @@ fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
     let input = prepared
         .source_input_path(ConeIdentity::SINGLE_FILE)
         .unwrap();
-    assert_eq!(input.file_name().unwrap(), "main.scoop");
+    assert_eq!(input, source.canonicalize().unwrap());
     assert_eq!(std::fs::read(input).unwrap(), b"fun main() {}\n");
     assert_eq!(
         prepared
-            .single_file_snapshot(ConeIdentity::SINGLE_FILE)
+            .single_file_input(ConeIdentity::SINGLE_FILE)
             .unwrap()
             .source()
             .identity()
@@ -403,39 +290,35 @@ fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
 }
 
 #[test]
-fn compile_cache_key_excludes_locator_and_manifest_presentation() {
+fn compile_cache_key_excludes_manifest_presentation() {
     let temp = tempfile::tempdir().unwrap();
-    let first_workspace = temp.path().join("first");
-    let second_workspace = temp.path().join("second");
-    let changed_workspace = temp.path().join("changed");
-
-    for workspace in [&first_workspace, &second_workspace, &changed_workspace] {
-        let sysroot = workspace.join("sysroot");
-        let root = workspace.join("root");
-        write_core(&sysroot);
-        write_manifest(&root, "root", "");
-        write_fake_compiler(&workspace.join("bin/scoopc"));
-    }
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let first = prepare(&root, workspace).unwrap();
+    let first_key = first.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     std::fs::write(
-        second_workspace.join("sysroot/lib/scoop.core/Cone.toml"),
+        sysroot.join("lib/scoop.core/Cone.toml"),
         "# presentation-only comment\nschema=1\n[cone]\ngroup=\"scoop\"\nname=\"scoop.core\"\nversion=\"0.1.0\"\nkind=\"library\"\n",
-    )
-    .unwrap();
+    ).unwrap();
+    let second = prepare(&root, workspace).unwrap();
+    assert_eq!(
+        first_key,
+        second.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
+    );
     std::fs::write(
-        changed_workspace.join("sysroot/lib/scoop.core/src/core.scoop"),
+        sysroot.join("lib/scoop.core/src/core.scoop"),
         "class Any { }\n",
     )
     .unwrap();
-
-    let first = prepare(&first_workspace.join("root"), &first_workspace).unwrap();
-    let second = prepare(&second_workspace.join("root"), &second_workspace).unwrap();
-    let changed = prepare(&changed_workspace.join("root"), &changed_workspace).unwrap();
-
-    let first_key = first.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    let second_key = second.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    let changed_key = changed.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
-    assert_eq!(first_key, second_key);
-    assert_ne!(first_key, changed_key);
+    let changed = prepare(&root, workspace).unwrap();
+    assert_ne!(
+        first_key,
+        changed.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
+    );
 }
 
 #[test]

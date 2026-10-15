@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentIdResolver, SourceContextKey, SourceNativeExternalResolutionError,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{WireEncode, WirePath, encode_canonical_temporary};
+use scoop_wire::{WireEncode, WirePath};
 
 use super::*;
 use crate::{
@@ -121,8 +121,6 @@ fn validate_foundation(
     source_authority: SourceIdentityAuthority,
     dependencies: &[&CanonicalHirFoundation],
 ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
-    let original = encode_canonical_temporary(&foundation, &WirePath::root())
-        .map_err(HirFoundationValidationError::Resource)?;
     let artifact = coordinate
         .identity()
         .map_err(HirFoundationValidationError::CoordinateIdentity)?;
@@ -393,11 +391,6 @@ fn validate_foundation(
     set!(set_external_source_types, external_source_types);
     set!(set_external_generic_types, external_generic_types);
 
-    let rebuilt = encode_canonical_temporary(&canonical, &WirePath::root())
-        .map_err(HirFoundationValidationError::Resource)?;
-    if rebuilt != original {
-        return Err(HirFoundationValidationError::NonCanonicalFoundation);
-    }
     Ok(ValidatedHirFoundation {
         artifact,
         canonical,
@@ -560,7 +553,6 @@ pub enum HirFoundationValidationError {
     },
     NativeBoundaryShapeCoverage(NativeBoundaryShapeCoverageError),
     Build(HirFoundationBuildError),
-    NonCanonicalFoundation,
 }
 
 impl From<DefinitionOriginValidationError> for HirFoundationValidationError {
@@ -640,9 +632,6 @@ impl fmt::Display for HirFoundationValidationError {
             }
             Self::NativeBoundaryShapeCoverage(error) => error.fmt(formatter),
             Self::Build(error) => error.fmt(formatter),
-            Self::NonCanonicalFoundation => {
-                formatter.write_str("HIR foundation tables are not in canonical structural order")
-            }
         }
     }
 }

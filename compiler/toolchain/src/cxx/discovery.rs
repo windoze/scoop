@@ -39,16 +39,20 @@ pub(super) fn paired_driver(
 pub(super) fn inputs(
     c: &ValidatedCBridgeToolchainInvocation,
     driver: &Path,
-    inputs: &mut Vec<Digest256>,
+    inputs: &mut std::collections::BTreeSet<PathBuf>,
 ) -> Result<(), ToolchainError> {
     if c.profile().contract().target().id() == scoop_target_data::DARWIN_AARCH64_ID {
         let sdk = c.sdk_root().map_err(error)?;
+        inputs.extend([
+            sdk.join("usr/lib/libc++.tbd"),
+            sdk.join("usr/lib/libc++.1.tbd"),
+        ]);
         let library = ["usr/lib/libc++.tbd", "usr/lib/libc++.1.tbd"]
             .into_iter()
             .map(|name| sdk.join(name))
             .find(|path| path.is_file())
             .ok_or_else(|| error("selected SDK has no libc++ interface"))?;
-        inputs.push(sha256(&std::fs::read(library).map_err(error)?));
+        inputs.insert(library);
         return Ok(());
     }
     for option in ["-dumpmachine", "-dumpfullversion"] {
@@ -70,6 +74,7 @@ pub(super) fn inputs(
         c.driver_command_with(driver)
             .arg("-print-prog-name=cc1plus"),
     )?;
+    crate::native_record::program_candidates(std::ffi::OsStr::new(&frontend), search, inputs);
     let frontend = crate::linux_c::find_program(std::ffi::OsStr::new(&frontend), search)?;
     let library = PathBuf::from(text(
         c.driver_command_with(driver)
@@ -81,7 +86,7 @@ pub(super) fn inputs(
         ));
     }
     for path in [frontend, library] {
-        inputs.push(sha256(&std::fs::read(path).map_err(error)?));
+        inputs.insert(path);
     }
     Ok(())
 }

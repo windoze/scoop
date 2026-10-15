@@ -1,5 +1,5 @@
 schema = 1
-name = "m33-native-c-reject-source-hardlink-duplicate"
+name = "m33-native-c-reject-definition-hardlink"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
@@ -17,3 +17,4 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {file = "diagnostics.json"}
+diagnostics_normalize = ["native-digests"]

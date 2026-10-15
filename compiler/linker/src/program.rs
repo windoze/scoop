@@ -53,7 +53,6 @@ pub(crate) struct ProgramInputs<'a> {
     pub selected: SelectedMembers,
     pub root: String,
     pub string_target: String,
-    pub strong_relocations: Vec<&'a scoop_slib::VerifiedCurrentConeStrongRelocationClosureV1>,
     pub native: NativeInputs,
 }
 
@@ -76,18 +75,9 @@ impl<'a> ProgramInputs<'a> {
         let mut images = Vec::new();
         let mut root = None;
         let mut string_target = None;
-        let mut strong_relocations = Vec::new();
         for (artifact, symbols) in closure.artifacts() {
             let cone = artifact.identity();
-            strong_relocations.push(
-                symbols
-                    .object_contents()
-                    .patch_sites()
-                    .builtins()
-                    .strong_relocations(),
-            );
-            let image =
-                image::SelectedImage::new(artifact, symbols, selected.definitions(cone), profile)?;
+            let image = image::SelectedImage::new(artifact, selected.definitions(cone), profile)?;
             images.push(image.name.clone());
             requirements.extend(image.references().cloned());
             for name in image.defined_names() {
@@ -100,27 +90,28 @@ impl<'a> ProgramInputs<'a> {
                 definitions.insert(name.to_owned(), DefinitionOwner::Scoop(owner.owner()));
             }
             final_images.push(image);
-            if let scoop_lir::EntryProductionPlanV1::Executable(entry) =
-                artifact.production().entry_plan()
-            {
+            if let Some(entry) = artifact.production().entry_symbol {
                 if cone != closure.root() || root.is_some() {
                     return Err(error(format!("multiple executable entries at Cone {cone}")));
                 }
-                root = Some(object_symbol(entry.root_descriptor_symbol(), profile));
+                root = Some(object_symbol(entry, profile));
             }
-            let mut members = BTreeMap::new();
-            for object in symbols.final_objects().objects() {
-                if selected.contains(cone, object.member()) {
-                    members.insert(object.member(), object.bytes());
+            for object in symbols.members() {
+                let member = object.member();
+                if !selected.contains(cone, member) {
+                    continue;
                 }
+                let directory = artifact.manifest().members();
+                let position = directory
+                    .binary_search_by_key(&member, |record| record.id())
+                    .map_err(|_| error(format!("missing object member {member} in Cone {cone}")))?;
+                let record = &directory[position];
+                objects.push(InputObject {
+                    origin: ObjectOrigin::Cone { cone, member },
+                    bytes: ObjectBytes::Artifact { artifact, member },
+                    digest: record.sha256(),
+                });
             }
-            for object in symbols.object_contents().generated_objects() {
-                members.insert(object.member(), object.bytes());
-            }
-            objects.extend(members.into_iter().map(|(member, bytes)| InputObject {
-                origin: ObjectOrigin::Cone { cone, member },
-                bytes: ObjectBytes::Borrowed(bytes),
-            }));
             for definition in symbols.defined_symbols().owners() {
                 if !selected.contains(cone, definition.member()) {
                     continue;
@@ -151,12 +142,11 @@ impl<'a> ProgramInputs<'a> {
                     return Err(error("runtime String alias has more than one provider"));
                 }
             }
-            for requirement in symbols.undefined_partitions().legacy().requirements() {
+            for requirement in symbols.requirements() {
                 if !selected.contains(cone, requirement.member()) {
                     continue;
                 }
-                let symbol =
-                    String::from_utf8(requirement.use_site().symbol().to_vec()).map_err(error)?;
+                let symbol = String::from_utf8(requirement.symbol().to_vec()).map_err(error)?;
                 requirement_origins
                     .entry(symbol.clone())
                     .or_default()
@@ -188,7 +178,10 @@ impl<'a> ProgramInputs<'a> {
             }
             objects.push(InputObject {
                 origin: ObjectOrigin::Runtime(object.id()),
-                bytes: ObjectBytes::Borrowed(object.bytes()),
+                bytes: ObjectBytes::File {
+                    path: object.path().to_owned(),
+                },
+                digest: object.digest(),
             });
         }
         let root = root.ok_or_else(|| error("executable closure has no root entry"))?;
@@ -225,7 +218,6 @@ impl<'a> ProgramInputs<'a> {
             selected,
             root,
             string_target,
-            strong_relocations,
             native,
         };
         native::resolve(

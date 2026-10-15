@@ -42,7 +42,7 @@ pub(super) fn select<'a>(
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     provider: &lir::ShapeLinkProviderV1<'a>,
     layout: &'a lir::LayoutAbiExportConstituentsV1,
-    production: &'a lir::ConeProductionSectionV2,
+    production: &'a lir::CompileProduction,
 ) -> (
     lir::StrongProductionDependencySelectionV2<'a>,
     Vec<lir::StrongExternalInitializationUseV2>,
@@ -74,16 +74,9 @@ pub(super) fn select<'a>(
     )
     .unwrap();
     let definitions = production
-        .initialization_registrations()
-        .registrations()
+        .initialization_units()
         .iter()
-        .map(|record| {
-            lir::StrongInitializationUnitDefinitionRefV2::from_registrations(
-                production.initialization_registrations(),
-                record.semantic().unit(),
-            )
-            .unwrap()
-        })
+        .map(|record| record.definition())
         .collect::<Vec<_>>();
     let projected =
         scoop_lir_lower::project_external_initialization_uses_v2(mir, &definitions, &selected)

@@ -1,4 +1,3 @@
-use scoop_identity::ArtifactCapabilityProfileId;
 use scoop_wire::encode;
 
 mod declarations;
@@ -8,8 +7,7 @@ use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView,
     MemberPurposeSet, MetadataLocation, SectionLocation, hir_cross_cone_interface_capability,
     hir_cross_cone_type_semantics_capability, lir_cone_production_capability,
-    lir_cross_cone_layout_abi_capability, lir_cross_cone_layout_link_closure_capability,
-    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_cross_cone_layout_abi_capability, lir_cross_cone_param_free_bridge_capability,
     lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
     mir_cross_cone_type_bridge_capability,
     strong_compile_decode::tests::{
@@ -19,7 +17,7 @@ use crate::{
 
 #[test]
 fn layout_profile_decodes_every_compile_required_section_atomically() {
-    let bytes = layout_artifact(false, None);
+    let bytes = layout_artifact(None);
     let sections = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap();
@@ -42,7 +40,7 @@ fn layout_profile_decodes_every_compile_required_section_atomically() {
 
 #[test]
 fn layout_profile_validates_all_foundations_before_exposing_new_payloads() {
-    let bytes = layout_artifact(false, None);
+    let bytes = layout_artifact(None);
     let sections = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap()
@@ -74,7 +72,7 @@ fn layout_profile_validates_all_foundations_before_exposing_new_payloads() {
 
 #[test]
 fn layout_profile_resolves_both_hir_transports_with_one_identity_graph() {
-    let bytes = layout_artifact(false, None);
+    let bytes = layout_artifact(None);
     let sections = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap()
@@ -130,7 +128,7 @@ fn layout_profile_resolves_both_hir_transports_with_one_identity_graph() {
 
 #[test]
 fn layout_profile_replays_the_legacy_hir_production_before_new_semantics() {
-    let bytes = layout_artifact(false, None);
+    let bytes = layout_artifact(None);
     let sections = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap()
@@ -179,24 +177,8 @@ fn layout_profile_replays_the_legacy_hir_production_before_new_semantics() {
 }
 
 #[test]
-fn layout_profile_rejects_the_m23_5_profile_before_payloads() {
-    let bytes = crate::cross_cone_compile_decode::tests::cross_cone_artifact(
-        crate::cross_cone_compile_decode::tests::empty_cross_cone_hir_interface(),
-    );
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_compile_sections(),
-        Err(CrossConeLayoutCompileSectionDecodeError::WrongProfile {
-            expected,
-            actual,
-        }) if expected == ArtifactCapabilityProfileId::cross_cone_generic()
-            && actual == ArtifactCapabilityProfileId::cross_cone_semantics_strong()
-    ));
-}
-
-#[test]
 fn layout_profile_requires_the_type_semantics_section() {
-    let bytes = layout_artifact(false, Some(hir_cross_cone_type_semantics_capability()));
+    let bytes = layout_artifact(Some(hir_cross_cone_type_semantics_capability()));
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_compile_sections(),
@@ -212,7 +194,7 @@ fn layout_profile_requires_the_type_semantics_section() {
 
 #[test]
 fn layout_profile_rejects_a_noncanonical_new_compile_payload() {
-    let bytes = layout_artifact_with_hir_type_payload(vec![0x80], false);
+    let bytes = layout_artifact_with_hir_type_payload(vec![0x80]);
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_compile_sections(),
@@ -224,25 +206,7 @@ fn layout_profile_rejects_a_noncanonical_new_compile_payload() {
     ));
 }
 
-#[test]
-fn layout_profile_rejects_a_semantic_fingerprint_mismatch() {
-    let bytes = layout_artifact(true, None);
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_compile_sections(),
-        Err(
-            CrossConeLayoutCompileSectionDecodeError::SemanticFingerprintMismatch {
-                location: MetadataLocation::Hir,
-                ..
-            }
-        )
-    ));
-}
-
-pub(crate) fn layout_artifact(
-    stale_hir_fingerprint: bool,
-    omitted: Option<scoop_identity::CapabilityId>,
-) -> Vec<u8> {
+pub(crate) fn layout_artifact(omitted: Option<scoop_identity::CapabilityId>) -> Vec<u8> {
     let (mut hir, mir, lir) = layout_sections(
         &cone(),
         &[scoop_identity::ConeIdentity::CORE],
@@ -257,14 +221,10 @@ pub(crate) fn layout_artifact(
         hir,
         mir,
         lir,
-        stale_hir_fingerprint,
     )
 }
 
-fn layout_artifact_with_hir_type_payload(
-    hir_type_semantics: Vec<u8>,
-    stale_hir_fingerprint: bool,
-) -> Vec<u8> {
+fn layout_artifact_with_hir_type_payload(hir_type_semantics: Vec<u8>) -> Vec<u8> {
     let (hir, mir, lir) = layout_sections(
         &cone(),
         &[scoop_identity::ConeIdentity::CORE],
@@ -276,7 +236,6 @@ fn layout_artifact_with_hir_type_payload(
         hir,
         mir,
         lir,
-        stale_hir_fingerprint,
     )
 }
 
@@ -296,7 +255,6 @@ pub(crate) fn layout_artifact_for(
         hir,
         mir,
         lir,
-        false,
     )
 }
 
@@ -371,21 +329,9 @@ fn layout_sections(
         ),
         section(
             MetadataLocation::Lir,
-            lir_cross_cone_link_closure_capability(),
-            MemberPurposeSet::LINK,
-            vec![0x80],
-        ),
-        section(
-            MetadataLocation::Lir,
             lir_cross_cone_layout_abi_capability(),
             MemberPurposeSet::COMPILE_AND_LINK,
             empty_layout_abi(),
-        ),
-        section(
-            MetadataLocation::Lir,
-            lir_cross_cone_layout_link_closure_capability(),
-            MemberPurposeSet::LINK,
-            vec![0xff],
         ),
     ]);
     (hir, mir, lir)

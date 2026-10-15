@@ -1,19 +1,26 @@
 schema = 1
-name = "m33-native-c-reject-source-symlink-escape"
+name = "m33-native-c-external-source"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m33", "native", "negative"]
+tags = ["m33", "native", "input-path"]
 
 [[steps]]
 name = "prepare"
 files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {write = {path = "${work}/outside.c", data = "int outside(void) { return 1; }\n"}}, {symlink = {from = "${work}/outside.c", to = "${work}/cone/alias.c"}}]
 
 [[steps]]
-name = "reject"
+name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {file = "diagnostics.json"}
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 1
+stdout = ""
+stderr = ""

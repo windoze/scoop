@@ -56,37 +56,13 @@ pub enum CoreProtocolSignatureReferenceError {
     UnknownGenericType([u8; 32]),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreProtocolBinderError {
-    DepthOutOfRange(u32),
-    IndexOutOfRange {
-        depth: u32,
-        index: u32,
-        type_parameter_count: u32,
-    },
-}
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum CoreProtocolCallableValidationError {
     UnknownFunction([u8; 32]),
     UnknownGenericFunction([u8; 32]),
     UnknownConstructor([u8; 32]),
     UnknownGeneratedCallable([u8; 32]),
-    MissingDefinitionOrigin(CoreProtocolCallableDefinitionV1),
     SignatureReference(CoreProtocolSignatureReferenceError),
-    WrongSourceKind(CoreProtocolCallableDefinitionV1),
-    SourceSignatureMismatch(CoreProtocolCallableDefinitionV1),
-    InvalidBinder {
-        definition: CoreProtocolCallableDefinitionV1,
-        reason: CoreProtocolBinderError,
-    },
-    UnknownBinderOwner(DefinitionOwnerAtom),
-    UnsupportedGeneratedRole(CoreProtocolCallableDefinitionV1),
-    MissingAdapterSource(CoreProtocolCallableDefinitionV1),
-    AdapterHasParameters(CoreProtocolCallableDefinitionV1),
-    InvalidConstructorShape(CoreProtocolCallableDefinitionV1),
-    MissingConstructorOwner(CoreProtocolCallableDefinitionV1),
-    ConstructorResultMismatch(CoreProtocolCallableDefinitionV1),
 }
 
 impl fmt::Display for CoreProtocolCallableValidationError {

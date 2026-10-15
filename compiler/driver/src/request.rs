@@ -13,7 +13,7 @@ pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestinatio
 pub use preflight::*;
 pub use report::{
     CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, DiagnosticMappingError,
-    EmittedStageDump, SingleConeProductionSuccess,
+    EmittedStageDump, SingleConeCompilation, SingleConeProductionSuccess, StageObservation,
 };
 
 use scoop_codegen::CodegenError;
@@ -108,7 +108,7 @@ pub struct SingleConeBuildRequest {
 enum NativeInputOrigin {
     #[default]
     Source,
-    Preprocessed(Vec<PathBuf>),
+    Objects(Vec<PathBuf>),
 }
 
 impl SingleConeBuildRequest {
@@ -156,7 +156,7 @@ impl SingleConeBuildRequest {
     }
 
     fn with_native_inputs(mut self, inputs: Vec<PathBuf>) -> Self {
-        self.native_inputs = NativeInputOrigin::Preprocessed(inputs);
+        self.native_inputs = NativeInputOrigin::Objects(inputs);
         self
     }
 }

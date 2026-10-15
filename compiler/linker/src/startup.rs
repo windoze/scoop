@@ -8,7 +8,6 @@ use crate::{LinkError, NativeObjectInfo, NativeSymbolKind, error, program::Progr
 
 mod images;
 
-pub(crate) const IMAGE_ARRAY: &str = "_scoop_program_images";
 pub(crate) struct StartupObject {
     pub source: String,
     pub bytes: Vec<u8>,

@@ -40,22 +40,6 @@ pub struct StrongImmortalObjectSemanticPlanV1 {
 }
 
 impl StrongImmortalObjectSemanticPlanV1 {
-    pub(crate) const fn from_artifact(
-        object: PersistentImmortalObjectId,
-        symbol: PersistentSymbolRequest,
-        object_size: u64,
-        required_alignment: u64,
-        type_registration: ImmortalObjectTypeRegistrationRefV1,
-    ) -> Self {
-        Self {
-            object,
-            symbol,
-            object_size,
-            required_alignment,
-            type_registration,
-        }
-    }
-
     pub const fn object(self) -> PersistentImmortalObjectId {
         self.object
     }

@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
 
 mod wire;
-pub use wire::{DecodedTypeInstanceShapeV1, TypeInstanceShapeWireError};
+pub use wire::DecodedTypeInstanceShapeV1;
 
 use crate::{
     ArrayElementStorageKindV1, ArrayElementStorageV1, CheckedRefScanV1, LirTargetProfile,
@@ -335,6 +335,13 @@ pub enum TypeInstanceShapeError {
     ArrayStrideMismatch,
     Scan(RefScanValidationError),
 }
+
+impl std::fmt::Display for TypeInstanceShapeError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "invalid instance shape: {self:?}")
+    }
+}
+impl std::error::Error for TypeInstanceShapeError {}
 
 fn checked_alignment(value: u64) -> Result<NonZeroU64, TypeInstanceShapeError> {
     let value = NonZeroU64::new(value).ok_or(TypeInstanceShapeError::ZeroAlignment)?;

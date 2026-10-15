@@ -219,15 +219,6 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
     let shared: crate::DecodedStrongRegistrationProductionSurfaceV1 =
         decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
-    assert!(
-        shared
-            .validate(
-                crate::target_fixtures::DARWIN_AARCH64,
-                &fixture.foundation,
-                &fixture.digests,
-            )
-            .is_err()
-    );
     for field_count in [0xa7, 0xa9] {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;

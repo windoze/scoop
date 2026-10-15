@@ -1,7 +1,7 @@
 use scoop_identity::{ConeIdentity, SemanticIdentityImportError};
 use scoop_wire::{WireError, WireErrorKind, WirePath};
 
-use crate::{ArchiveReadError, MemberStableKey, SlibMember, SlibMemberRole, SlibReadError};
+use crate::SlibReadError;
 
 use super::{SlibDiagnostic, SlibErrorCode, SlibPrimaryOrigin};
 
@@ -73,29 +73,6 @@ fn nested_reader_error_adds_manifest_origin_without_losing_wire_path() {
     assert_eq!(
         diagnostic.primary_origin(),
         Some(&SlibPrimaryOrigin::Manifest)
-    );
-}
-
-#[test]
-fn member_digest_error_uses_typed_member_origin_and_key_path() {
-    let member = SlibMember::new(
-        ConeIdentity::CORE,
-        MemberStableKey::HirMetadata,
-        SlibMemberRole::HirMetadata,
-        b"payload".to_vec(),
-    )
-    .unwrap();
-    let id = member.record().id();
-    let diagnostic = ArchiveReadError::MemberDigestMismatch { id }.diagnostic();
-
-    assert_eq!(diagnostic.code(), SlibErrorCode::FingerprintMismatch);
-    assert_eq!(
-        diagnostic.path(),
-        &WirePath::root().field(8).key("slib-member", *id.as_array())
-    );
-    assert_eq!(
-        diagnostic.primary_origin(),
-        Some(&SlibPrimaryOrigin::Member(id))
     );
 }
 

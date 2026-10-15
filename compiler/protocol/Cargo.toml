@@ -4,7 +4,12 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+serde.workspace = true
 scoop-identity.workspace = true
 scoop-lir.workspace = true
+scoop-slib.workspace = true
 scoop-manifest.workspace = true
 scoop-wire.workspace = true
+
+[dev-dependencies]
+scoop-target-data.workspace = true

@@ -17,7 +17,7 @@ pub use replay::*;
 mod wire;
 pub use wire::{
     DecodedExactLayoutExportV1, DecodedExactLayoutSemanticProjectionV1,
-    ExactLayoutSemanticProjectionV1, ExactLayoutWireError,
+    ExactLayoutSemanticProjectionV1,
 };
 
 mod table;

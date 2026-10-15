@@ -88,26 +88,19 @@ impl BuildDiagnosticCode {
     pub const GRAPH_CYCLE: Self = Self("SCOOP_GRAPH_CYCLE");
     pub const GRAPH_UNREACHABLE_NODE: Self = Self("SCOOP_GRAPH_UNREACHABLE_NODE");
     pub const GRAPH_ALLOCATION: Self = Self("SCOOP_GRAPH_ALLOCATION");
-    pub const ARTIFACT_LENGTH_OVERFLOW: Self = Self("SCOOP_ARTIFACT_LENGTH_OVERFLOW");
 
     pub const PREBUILT_SUMMARY_MISMATCH: Self = Self("SCOOP_PREBUILT_SUMMARY_MISMATCH");
     pub const PREBUILT_VIEW_INVALID: Self = Self("SCOOP_PREBUILT_VIEW_INVALID");
     pub const PREBUILT_STALE_DEPENDENCY: Self = Self("SCOOP_PREBUILT_STALE_DEPENDENCY");
-    pub const PREBUILT_CHANGED: Self = Self("SCOOP_PREBUILT_CHANGED");
 
     pub const CACHE_IO: Self = Self("SCOOP_CACHE_IO");
-    pub const CACHE_ENTRY_CORRUPT: Self = Self("SCOOP_CACHE_ENTRY_CORRUPT");
     pub const CACHE_LOCK: Self = Self("SCOOP_CACHE_LOCK");
-    pub const CACHE_NONDETERMINISTIC_PRODUCTION: Self =
-        Self("SCOOP_CACHE_NONDETERMINISTIC_PRODUCTION");
     pub const CACHE_PUBLISH: Self = Self("SCOOP_CACHE_PUBLISH");
 
     pub const CHILD_TOOL_MISMATCH: Self = Self("SCOOP_CHILD_TOOL_MISMATCH");
     pub const CHILD_TRANSPORT: Self = Self("SCOOP_CHILD_TRANSPORT");
     pub const CHILD_PROTOCOL: Self = Self("SCOOP_CHILD_PROTOCOL");
     pub const CHILD_EXIT: Self = Self("SCOOP_CHILD_EXIT");
-    pub const CHILD_OUTPUT_MISSING: Self = Self("SCOOP_CHILD_OUTPUT_MISSING");
-    pub const CHILD_OUTPUT_PLAN_MISMATCH: Self = Self("SCOOP_CHILD_OUTPUT_PLAN_MISMATCH");
     pub const CHILD_RESPONSE_MISMATCH: Self = Self("SCOOP_CHILD_RESPONSE_MISMATCH");
 
     pub const fn as_str(self) -> &'static str {
@@ -222,7 +215,7 @@ impl ClassifyBuildFailure for DependencyLocatorError {
                 BuildFailurePhase::Locator,
                 BuildDiagnosticCode::LOCATOR_NOT_FOUND,
             ),
-            Self::ArtifactNotRegularFile(_) | Self::InvalidArtifactSourceForm { .. } => classified(
+            Self::InvalidArtifactSourceForm { .. } => classified(
                 BuildFailurePhase::Locator,
                 BuildDiagnosticCode::LOCATOR_WRONG_TYPE,
             ),
@@ -241,18 +234,6 @@ impl ClassifyBuildFailure for DependencyLocatorError {
             Self::ExecutableDependency { .. } => classified(
                 BuildFailurePhase::GraphVersionKind,
                 BuildDiagnosticCode::GRAPH_EXECUTABLE_DEPENDENCY,
-            ),
-            Self::ArtifactChangedDuringRead(_) => classified(
-                BuildFailurePhase::Summary,
-                BuildDiagnosticCode::PREBUILT_CHANGED,
-            ),
-            Self::LengthOverflow(_) => classified(
-                BuildFailurePhase::Summary,
-                BuildDiagnosticCode::ARTIFACT_LENGTH_OVERFLOW,
-            ),
-            Self::Allocation(_) => classified(
-                BuildFailurePhase::Summary,
-                BuildDiagnosticCode::GRAPH_ALLOCATION,
             ),
             Self::Summary { .. } => classified(
                 BuildFailurePhase::Summary,
@@ -328,22 +309,9 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
                 BuildFailurePhase::Toolchain,
                 BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
             ),
-            Self::ArtifactSummaryChanged(_) | Self::PrebuiltProjectionChanged(_) => classified(
-                BuildFailurePhase::PrebuiltArtifact,
-                BuildDiagnosticCode::PREBUILT_CHANGED,
-            ),
-            Self::ArtifactSummary { .. } => classified(
-                BuildFailurePhase::PrebuiltArtifact,
-                BuildDiagnosticCode::PREBUILT_VIEW_INVALID,
-            ),
-            Self::ArtifactSnapshot { .. } => phase_only(BuildFailurePhase::PrebuiltArtifact),
-
-            Self::Staging(_)
-            | Self::ManifestSnapshot(_)
-            | Self::ManifestChanged(_)
-            | Self::SourceDiscovery(_)
-            | Self::Native(_)
-            | Self::SingleFile(_) => phase_only(BuildFailurePhase::SourceSnapshot),
+            Self::Staging(_) | Self::SourceDiscovery(_) | Self::Native(_) | Self::SingleFile(_) => {
+                phase_only(BuildFailurePhase::SourceSnapshot)
+            }
         }
     }
 }
@@ -378,31 +346,15 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::ProducedOutput { source, .. } => source.classification(),
-            Self::Observation(_) => classified(
+            Self::Observation(_) | Self::UnexpectedResponse => classified(
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
             ),
             Self::CacheStore(source) => source.classification(),
 
-            Self::CacheCompletion(_) => classified(
-                BuildFailurePhase::Cache,
-                BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
-            ),
-
             Self::ChildTransport(source) => source.classification(),
             Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
-            Self::OutputLayout(_) | Self::OutputSnapshot(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_OUTPUT_MISSING,
-            ),
-            Self::ChildResult(_) | Self::DiagnosticPath(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
-            ),
-            Self::Completion(_) | Self::ReceiptValidation(_) | Self::ReceiptHash(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_OUTPUT_PLAN_MISMATCH,
-            ),
+            Self::Completion(_) => phase_only(BuildFailurePhase::ChildOutput),
             Self::NotOrdinarySource(_) | Self::RequestPlan(_) => {
                 phase_only(BuildFailurePhase::ChildTransport)
             }
@@ -445,36 +397,16 @@ impl ClassifyBuildFailure for CompileCacheStoreError {
                 classified(BuildFailurePhase::Cache, BuildDiagnosticCode::CACHE_LOCK)
             }
             Self::Io {
-                operation: CacheIoOperation::Publish,
+                operation: CacheIoOperation::Publish | CacheIoOperation::Write,
                 ..
             }
-            | Self::Io {
-                operation:
-                    CacheIoOperation::Write | CacheIoOperation::Sync | CacheIoOperation::SetPermissions,
-                ..
-            }
-            | Self::CandidateVerificationMissing
-            | Self::CandidateVerificationMismatch
-            | Self::PublishedEntryDisappeared(_)
-            | Self::AtomicNoReplaceUnavailable(_) => classified(
+            | Self::Encode(_) => classified(
                 BuildFailurePhase::CachePublish,
                 BuildDiagnosticCode::CACHE_PUBLISH,
             ),
-            Self::NondeterministicProduction(_) => classified(
-                BuildFailurePhase::CachePublish,
-                BuildDiagnosticCode::CACHE_NONDETERMINISTIC_PRODUCTION,
-            ),
-            Self::Io { .. } | Self::Snapshot { .. } | Self::ReceiptEncode(_) => {
+            Self::Io { .. } | Self::Decode(_) => {
                 classified(BuildFailurePhase::Cache, BuildDiagnosticCode::CACHE_IO)
             }
-            Self::InvalidNamespace(_)
-            | Self::InvalidPathType { .. }
-            | Self::UnexpectedEntryContents { .. }
-            | Self::ReceiptDecode(_)
-            | Self::ReceiptKeyMismatch { .. } => classified(
-                BuildFailurePhase::Cache,
-                BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
-            ),
         }
     }
 }
@@ -482,10 +414,6 @@ impl ClassifyBuildFailure for CompileCacheStoreError {
 impl ClassifyBuildFailure for ChildTransportError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::CompilerChanged(_) => classified(
-                BuildFailurePhase::Toolchain,
-                BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
-            ),
             Self::Request(_)
             | Self::Response { .. }
             | Self::RequestIdMismatch { .. }

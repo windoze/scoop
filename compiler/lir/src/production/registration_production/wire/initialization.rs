@@ -1,6 +1,7 @@
 //! Untrusted initialization registration carriers.
 
 use super::*;
+mod read;
 
 #[derive(Debug)]
 pub(in crate::production::registration_production) enum DecodedStrongInitializationSchedulePlanV1 {

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HostPathEncoding {
     UnixBytes,
     WindowsWtf16Le,
@@ -26,7 +26,7 @@ impl HostPathEncoding {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HostPathCarrier {
     encoding: HostPathEncoding,
     bytes: Vec<u8>,
@@ -120,16 +120,25 @@ impl WireEncode for HostPathCarrier {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct DecodedHostPathCarrier {
+pub struct DecodedHostPathCarrier {
     encoding: u64,
     bytes: Vec<u8>,
 }
 
 impl DecodedHostPathCarrier {
-    pub(crate) fn validate(self) -> Result<HostPathCarrier, HostPathError> {
+    pub fn validate(self) -> Result<HostPathCarrier, HostPathError> {
         let encoding = HostPathEncoding::from_tag(self.encoding)?;
         validate_host_encoding(encoding)?;
         HostPathCarrier::new(encoding, self.bytes)
+    }
+}
+
+impl From<HostPathCarrier> for DecodedHostPathCarrier {
+    fn from(path: HostPathCarrier) -> Self {
+        Self {
+            encoding: path.encoding.tag(),
+            bytes: path.bytes,
+        }
     }
 }
 

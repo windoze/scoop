@@ -19,9 +19,12 @@ impl LinuxFinalLinkProfile {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(super) enum RuntimeLibraries {
-    C { unwind_prefix: PathBuf },
+    C {
+        #[serde(with = "crate::build_record::values::path")]
+        unwind_prefix: PathBuf,
+    },
     Cxx(ValidatedCxxToolchain),
 }
 

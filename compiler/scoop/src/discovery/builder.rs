@@ -55,6 +55,7 @@ impl DiscoveryBuilder {
             let claim = crate::locator::locate_default_core(
                 self.context.sysroot.as_path(),
                 self.context.target.lir_target_selection(),
+                &self.context.cache_root,
             )
             .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
             self.intern_claim(claim)?;
@@ -83,6 +84,7 @@ impl DiscoveryBuilder {
                         &pending.key,
                         &self.context.artifact_search_roots,
                         self.context.target.lir_target_selection(),
+                        &self.context.cache_root,
                     )
                     .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
                 };
@@ -111,6 +113,7 @@ impl DiscoveryBuilder {
                 &self.context.artifact_search_roots,
                 self.context.sysroot.as_path(),
                 self.context.target.lir_target_selection(),
+                &self.context.cache_root,
             ) {
                 // A version-only core edge can use the graph's eventual core.
                 // Defer the default slot until other declarations are expanded.

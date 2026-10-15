@@ -5,7 +5,7 @@ use std::process::Command;
 
 use crate::ValidatedCBridgeToolchainInvocation;
 use scoop_lir::{LirTargetProfile, TargetProfileId};
-use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
+use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash};
 
 use crate::{SystemProvider, ToolchainError, c_bridge};
 
@@ -33,15 +33,38 @@ const OPTIONS: &[&str] = &[
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DarwinFinalLinkProfile {
     startup: ValidatedCBridgeToolchainInvocation,
+    data: Discovery,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(super) struct Discovery {
+    #[serde(with = "crate::build_record::values::path")]
     linker: PathBuf,
+    #[serde(with = "crate::build_record::values::path")]
+    linker_locator: PathBuf,
     linker_version: String,
+    #[serde(with = "crate::build_record::values::digest")]
     linker_digest: Digest256,
+    #[serde(with = "crate::build_record::values::digest")]
     compiler_digest: Digest256,
     system: SystemProvider,
     cxx: Option<crate::ValidatedCxxToolchain>,
+    #[serde(with = "crate::build_record::values::paths")]
+    headers: Vec<PathBuf>,
 }
 
 impl DarwinFinalLinkProfile {
+    pub(super) fn into_discovery(self) -> Discovery {
+        self.data
+    }
+
+    pub(super) fn from_discovery(
+        startup: ValidatedCBridgeToolchainInvocation,
+        data: Discovery,
+    ) -> Self {
+        Self { startup, data }
+    }
+
     pub(crate) fn from_startup(
         startup: ValidatedCBridgeToolchainInvocation,
         cxx: Option<crate::ValidatedCxxToolchain>,
@@ -49,15 +72,14 @@ impl DarwinFinalLinkProfile {
         let path =
             c_bridge::command_text_from_path(Path::new("/usr/bin/xcrun"), &["--find", "ld"])?;
         let linker = std::fs::canonicalize(path.trim()).map_err(error)?;
+        let linker_locator = PathBuf::from(path.trim());
         let linker_version = linker_version(&linker)?;
-        let linker_digest = sha256(&std::fs::read(&linker).map_err(error)?);
-        let compiler_digest = sha256(
-            &std::fs::read(
-                cxx.as_ref()
-                    .map_or(startup.compiler_driver(), |cxx| cxx.driver()),
-            )
-            .map_err(error)?,
-        );
+        let linker_digest =
+            crate::build_record::fingerprint(&crate::build_record::Input::read(&linker)?)?;
+        let compiler_digest = crate::build_record::fingerprint(&crate::build_record::Input::read(
+            cxx.as_ref()
+                .map_or(startup.compiler_driver(), |cxx| cxx.driver()),
+        )?)?;
         let system = SystemProvider::read(
             startup.sdk_root().map_err(error)?,
             startup
@@ -67,16 +89,20 @@ impl DarwinFinalLinkProfile {
                 .map_err(error)?
                 .minimum_os(),
         )?;
-        let profile = Self {
+        let mut profile = Self {
             startup,
-            linker,
-            linker_version,
-            linker_digest,
-            compiler_digest,
-            system,
-            cxx,
+            data: Discovery {
+                linker,
+                linker_locator,
+                linker_version,
+                linker_digest,
+                compiler_digest,
+                system,
+                cxx,
+                headers: Vec::new(),
+            },
         };
-        probe::check(&profile)?;
+        profile.data.headers = probe::check(&profile)?;
         Ok(profile)
     }
 
@@ -90,7 +116,7 @@ impl DarwinFinalLinkProfile {
         "aarch64-apple-darwin"
     }
     pub fn linker_driver(&self) -> &Path {
-        &self.linker
+        &self.data.linker
     }
     pub fn linker_args(&self) -> &'static [&'static str] {
         OPTIONS
@@ -99,14 +125,34 @@ impl DarwinFinalLinkProfile {
         &self.startup
     }
     pub fn compiler_digest(&self) -> Digest256 {
-        self.compiler_digest
+        self.data.compiler_digest
     }
     pub fn system_provider(&self) -> &SystemProvider {
-        &self.system
+        &self.data.system
+    }
+
+    pub(super) fn input_paths(&self) -> Result<Vec<PathBuf>, ToolchainError> {
+        let sdk = self.startup.sdk_root().map_err(error)?;
+        let mut paths = vec![
+            self.data.linker_locator.clone(),
+            self.startup.compiler_driver().to_owned(),
+        ];
+        paths.extend(
+            self.data
+                .system
+                .files()
+                .iter()
+                .map(|file| sdk.join(file.relative_path())),
+        );
+        paths.extend(self.data.headers.iter().cloned());
+        if let Some(cxx) = &self.data.cxx {
+            paths.extend(cxx.input_paths()?);
+        }
+        Ok(paths)
     }
 
     pub fn cxx(&self) -> bool {
-        self.cxx.is_some()
+        self.data.cxx.is_some()
     }
 
     pub fn linker_argument(&self, command: &mut Command, argument: impl AsRef<std::ffi::OsStr>) {
@@ -124,20 +170,15 @@ impl DarwinFinalLinkProfile {
         domain_separated_cbor_hash("scoop-final-link-profile-v2", self).map_err(error)
     }
 
-    /// Callers append the ordered objects, aliases and snapshotted system stub.
-    pub fn command(
-        &self,
-        sdk_snapshot: &Path,
-        output: &Path,
-        map: &Path,
-    ) -> Result<Command, ToolchainError> {
+    /// Callers append the ordered objects, aliases and selected system stubs.
+    pub fn command(&self, sdk_root: &Path, output: &Path) -> Result<Command, ToolchainError> {
         let deployment = self
             .startup
             .profile()
             .contract()
             .deployment()
             .map_err(error)?;
-        let mut command = match &self.cxx {
+        let mut command = match &self.data.cxx {
             Some(cxx) => {
                 let mut command = cxx.command(&self.startup);
                 // The link plan supplies the selected SDK and C++ stubs explicitly.
@@ -145,7 +186,7 @@ impl DarwinFinalLinkProfile {
                 command
             }
             None => {
-                let mut command = Command::new(&self.linker);
+                let mut command = Command::new(&self.data.linker);
                 command
                     .env_clear()
                     .env("LC_ALL", "C")
@@ -163,12 +204,9 @@ impl DarwinFinalLinkProfile {
             deployment.minimum_os().to_string().into(),
             deployment.sdk().to_string().into(),
             "-syslibroot".into(),
-            sdk_snapshot.as_os_str().to_owned(),
+            sdk_root.as_os_str().to_owned(),
             "-o".into(),
             output.as_os_str().to_owned(),
-            "-map".into(),
-            map.as_os_str().to_owned(),
-            "-t".into(),
         ] {
             self.linker_argument(&mut command, argument);
         }
@@ -184,19 +222,19 @@ impl WireEncode for DarwinFinalLinkProfile {
         e.field(2)?;
         self.startup.profile().contract().encode(e)?;
         e.field(3)?;
-        self.compiler_digest.encode(e)?;
+        self.data.compiler_digest.encode(e)?;
         e.field(4)?;
-        self.linker_digest.encode(e)?;
+        self.data.linker_digest.encode(e)?;
         e.field(5)?;
-        e.text(&self.linker_version)?;
+        e.text(&self.data.linker_version)?;
         e.field(6)?;
         e.array(OPTIONS.len() as u64)?;
         for option in OPTIONS {
             e.text(option)?;
         }
         e.field(7)?;
-        e.array(self.system.files().len() as u64)?;
-        for file in self.system.files() {
+        e.array(self.data.system.files().len() as u64)?;
+        for file in self.data.system.files() {
             e.map(2)?;
             e.field(1)?;
             e.text(&file.relative_path().to_string_lossy())?;
@@ -211,8 +249,8 @@ impl WireEncode for DarwinFinalLinkProfile {
         e.field(9)?;
         e.unsigned(1)?;
         e.field(10)?;
-        e.array(u64::from(self.cxx.is_some()))?;
-        if let Some(cxx) = &self.cxx {
+        e.array(u64::from(self.data.cxx.is_some()))?;
+        if let Some(cxx) = &self.data.cxx {
             cxx.fingerprint().encode(e)?;
         }
         Ok(())

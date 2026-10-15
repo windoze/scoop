@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test.m48"
+name = "summary-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"test.m48:summary-provider" = {version = "0.1.0", artifact = "../provider.slib"}

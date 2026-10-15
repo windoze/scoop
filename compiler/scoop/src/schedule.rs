@@ -192,9 +192,10 @@ impl PreparedBuildGraph {
                     PreparedNodeRepresentation::PrebuiltArtifact => None,
                 };
                 let request_id = request_id(position)?;
-                let node = match representation {
+                let (node, invoked_child) = match representation {
                     PreparedNodeRepresentation::PrebuiltArtifact => self
                         .complete_prebuilt_node(identity, &completed_refs)
+                        .map(|node| (node, false))
                         .map_err(|source| {
                             BuildGraphExecutionError::Prebuilt(identity, Box::new(source))
                         })?,
@@ -205,11 +206,11 @@ impl PreparedBuildGraph {
                             BuildGraphExecutionError::Ordinary(identity, Box::new(source))
                         })?,
                 };
-                Ok((cache_key, node))
+                Ok((cache_key, node, invoked_child))
             })();
-            let (cache_key, node) =
+            let (cache_key, node, invoked_child) =
                 result.map_err(|cause| BuildGraphExecutionFailure::new(cause, &completed_refs))?;
-            if node.origin() == CompletedNodeOrigin::Compiled {
+            if invoked_child {
                 child_invocations.push(identity);
             }
             observations.push(BuildNodeObservation {

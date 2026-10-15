@@ -8,82 +8,50 @@ pub struct DecodedCanonicalExactLayoutExportsV1 {
 }
 
 impl DecodedCanonicalExactLayoutExportsV1 {
-    pub fn read_link(
+    pub(crate) fn read_link_values(
+        self,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<
+        std::collections::BTreeMap<
+            scoop_identity::PersistentExactTypeId,
+            crate::LinkValueRepresentation,
+        >,
+        crate::LinkDataError,
+    > {
+        self.records
+            .into_iter()
+            .filter_map(|record| record.link_value(identities).transpose())
+            .collect()
+    }
+
+    pub fn read(
         self,
         target: LirTargetProfile,
         foundation: &ConeLirFoundation,
         identities: &mut scoop_identity::ValidatedIdentityGraph,
-        dependencies: &[&CanonicalExactLayoutExportsV1],
     ) -> Result<CanonicalExactLayoutExportsV1, crate::LinkDataError> {
         use crate::link_data::link_error;
-        let mut available = std::collections::BTreeMap::new();
-        for dependency in dependencies {
-            for record in dependency.records() {
-                available
-                    .entry(record.identity().layout())
-                    .or_insert_with(|| record.clone());
+        let mut prepared = Vec::with_capacity(self.records.len());
+        for raw in self.records {
+            let record = raw.prepare(target, foundation, identities)?;
+            if prepared.last().is_some_and(
+                |previous: &crate::exact_layout::wire::read::saved::PreparedLayout| {
+                    previous.layout() >= record.layout()
+                },
+            ) {
+                return Err(link_error("layout table is not in canonical order"));
             }
+            prepared.push(record);
         }
-        let mut pending = self
-            .records
+        let records = prepared
             .into_iter()
-            .map(|record| {
-                let id = record.link_id(identities)?;
-                let dependencies = record.link_dependencies(target, identities)?;
-                Ok((id, dependencies, record))
-            })
-            .collect::<Result<Vec<_>, crate::LinkDataError>>()?;
-        if pending.windows(2).any(|pair| pair[0].0 >= pair[1].0) {
-            return Err(crate::LinkDataError(
-                "noncanonical layout table order".into(),
-            ));
-        }
-        let mut complete = Vec::new();
-        let mut values = crate::link_data::value_storage::ValueStorageReader::default();
-        while !pending.is_empty() {
-            let Some(index) = pending.iter().position(|(_, dependencies, _)| {
-                dependencies.iter().all(|id| available.contains_key(id))
-            }) else {
-                return Err(crate::LinkDataError(format!(
-                    "missing or cyclic layout dependency for {}",
-                    pending[0].0
-                )));
-            };
-            let (id, _, record) = pending.remove(index);
-            let record =
-                record.read_link(target, foundation, identities, &available, &mut values)?;
-            if let Some(previous) = available.insert(id, record.clone()) {
-                if previous.identity().physical_definition().provider() == foundation.producer() {
-                    return Err(crate::LinkDataError(format!("duplicate layout {id}")));
-                }
-                if !previous.has_same_odr_definition(&record) {
-                    return Err(crate::LinkDataError(format!(
-                        "inconsistent layout definition {id}"
-                    )));
-                }
-            }
-            complete.push(record);
-        }
-        let table = CanonicalExactLayoutExportsV1::try_new(target, foundation, complete)
-            .map_err(link_error)?;
-        Ok(table)
-    }
-
-    pub fn validate_against(
-        self,
-        expected: &CanonicalExactLayoutExportsV1,
-    ) -> Result<CanonicalExactLayoutExportsV1, ExactLayoutTableError> {
-        if self.records.len() != expected.records().len() {
-            return Err(ExactLayoutTableError::Count);
-        }
-        for (index, (record, expected)) in
-            self.records.into_iter().zip(expected.records()).enumerate()
-        {
-            record
-                .validate_against(expected)
-                .map_err(|source| ExactLayoutTableError::Record { index, source })?;
-        }
-        Ok(expected.clone())
+            .map(|record| record.finish(foundation, identities))
+            .collect::<Result<_, _>>()?;
+        Ok(CanonicalExactLayoutExportsV1(Arc::new(LayoutTable {
+            provider: foundation.producer(),
+            target,
+            records,
+        })))
     }
 }
 

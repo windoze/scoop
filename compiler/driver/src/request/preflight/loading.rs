@@ -20,14 +20,15 @@ impl SingleConeBuildRequest {
         if let TrustedCoreInput::Artifact(input) = &trusted_core {
             dependencies.direct.push(input.clone());
         }
-        let mut loaded =
-            LoadedExplicitDependencyInputs::load(dependencies.direct(), dependencies.support())
-                .map_err(|source| {
-                    SingleConePreflightError::ExplicitDependencyLoad(Box::new(source))
-                })?;
+        let mut loaded = LoadedExplicitDependencyInputs::load(
+            dependencies.direct(),
+            dependencies.support(),
+            target.lir_target_selection(),
+        )
+        .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
         if let TrustedCoreInput::DependenciesOrDefault { sysroot } = trusted_core
             && !loaded
-                .contains_explicit_core(target.lir_target_selection())
+                .contains_explicit_core()
                 .map_err(SingleConePreflightError::Dependencies)?
         {
             let slot = crate::trusted_core::resolve_trusted_core_slot_at(
@@ -45,9 +46,11 @@ impl SingleConeBuildRequest {
                 &output,
             )
             .map_err(|source| SingleConePreflightError::Request(Box::new(source)))?;
-            loaded.append_direct(&input).map_err(|source| {
-                SingleConePreflightError::ExplicitDependencyLoad(Box::new(source))
-            })?;
+            loaded
+                .append_direct(&input, target.lir_target_selection())
+                .map_err(|source| {
+                    SingleConePreflightError::ExplicitDependencyLoad(Box::new(source))
+                })?;
         }
         Ok(LoadedSingleConeBuildRequest {
             current,

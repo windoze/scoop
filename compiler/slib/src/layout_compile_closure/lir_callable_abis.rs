@@ -1,4 +1,4 @@
-//! Source-derived ABI replay after shared MIR and layout validation.
+//! Saved callable ABI records and their typed references.
 
 use scoop_lir as lir;
 use scoop_wire::WirePath;
@@ -11,15 +11,11 @@ use super::{
         LirConstituentsValidatedCrossConeLayoutSections,
     },
 };
-use crate::dependency_reachability::transitive_positions;
 
 mod errors;
-mod replay;
 pub use errors::{CrossConeLayoutLirCallableAbisError, SharedLirCallableAbiValidationError};
-pub use replay::validate_shared_mir_callable_abis;
 
-/// Layouts and callable ABIs agree with shared MIR. Remaining semantic,
-/// selected-use, registration and object joins are not implied by this state.
+/// Layouts and saved callable ABI records available to import selection.
 pub type LirCallableAbisValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
@@ -47,7 +43,7 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
             dependency_positions,
         } = self;
         let mut complete: Vec<LirCallableAbisValidatedCrossConeLayoutSections<'input>> = Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        for artifact in dependency_first {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirCallableAbiValidationError> {
                 let OrdinaryLirBridgeValidatedCrossConeLayoutSections {
@@ -59,31 +55,10 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions)?;
-                let mut dependencies = Vec::new();
-                scoop_wire::allocation::try_reserve(
-                    &mut dependencies,
-                    reachable.len(),
-                    &WirePath::root(),
-                )?;
-                dependencies.extend(
-                    reachable
-                        .iter()
-                        .map(|&position| complete[position].layouts()),
-                );
                 let layout = layout.read_callables(
                     target.target(),
                     parts.lir_foundation,
                     parts.identities,
-                )?;
-                validate_shared_mir_callable_abis(
-                    target.target(),
-                    mir.callables(),
-                    layout.layouts(),
-                    &dependencies,
-                    parts.lir_foundation,
-                    parts.identities,
-                    layout.callables(),
                 )?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirCallableAbisValidatedCrossConeLayoutSections {

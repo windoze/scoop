@@ -24,6 +24,7 @@ pub enum CrossConeLayoutArtifactValidationError {
     Resource {
         source: scoop_wire::WireError,
     },
+    TestDirectory(crate::TestDirectoryError),
     MissingCurrentArtifact,
 }
 
@@ -45,6 +46,7 @@ impl std::error::Error for CrossConeLayoutArtifactValidationError {
             Self::Semantic { source } => Some(source.as_ref()),
             Self::Physical { source } => Some(source.as_ref()),
             Self::Resource { source } => Some(source),
+            Self::TestDirectory(source) => Some(source),
             Self::MissingCurrentArtifact => None,
         }
     }

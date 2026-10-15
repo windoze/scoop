@@ -60,8 +60,7 @@ impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
 }
 
 impl<'input> ResolvedCrossConeLayoutHirSections<'input> {
-    /// Replays the unchanged core-bootstrap HIR contract before either the
-    /// old public surface or the new type-semantics tables are trusted.
+    /// Resolves the saved core protocol roles and output records.
     pub fn validate_hir_production(
         self,
     ) -> Result<

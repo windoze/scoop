@@ -1,11 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use super::{ToolchainError, error};
 use scoop_manifest::{
     ConeRelativePath, NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage,
 };
-
-use super::{ToolchainError, error};
 
 pub(super) struct InputRoots {
     pub(super) cone: PathBuf,
@@ -23,13 +22,7 @@ impl InputRoots {
         let resolved = path
             .canonicalize()
             .map_err(|e| error(format!("{}: {e}", path.display())))?;
-        if !resolved.starts_with(&self.cone) {
-            return Err(error(format!(
-                "{} escapes the Cone root",
-                relative.as_str()
-            )));
-        }
-        let metadata = std::fs::metadata(&resolved).map_err(error)?;
+        let metadata = resolved.metadata().map_err(error)?;
         if (directory && !metadata.is_dir()) || (!directory && !metadata.is_file()) {
             return Err(error(format!(
                 "{} must be a {}",
@@ -88,10 +81,7 @@ impl InputRoots {
         if let Some(logical) = self.remap(&resolved) {
             return Ok(logical);
         }
-        Err(error(format!(
-            "{} is outside the Cone, public runtime headers and selected system include directories",
-            resolved.display()
-        )))
+        Ok(resolved.to_string_lossy().into_owned())
     }
 
     fn remap(&self, path: &Path) -> Option<String> {
@@ -108,56 +98,10 @@ pub(super) fn normalize_line_markers(
     bytes: &[u8],
     paths: &BTreeMap<PathBuf, String>,
     roots: &InputRoots,
+    search: &[PathBuf],
+    observed: &mut BTreeSet<PathBuf>,
 ) -> Result<Vec<u8>, ToolchainError> {
-    let mut result = Vec::with_capacity(bytes.len());
-    for line in bytes.split_inclusive(|byte| *byte == b'\n') {
-        if line.starts_with(b"# ") {
-            if let Some(start) = line.iter().position(|byte| *byte == b'"') {
-                let mut end = start + 1;
-                let mut name = Vec::new();
-                while end < line.len() && line[end] != b'"' {
-                    if line[end] == b'\\' {
-                        end += 1;
-                    }
-                    if end < line.len() {
-                        name.push(line[end]);
-                        end += 1;
-                    }
-                }
-                let name = std::str::from_utf8(&name).map_err(error)?;
-                if let Some(mut logical) = paths
-                    .get(Path::new(name))
-                    .cloned()
-                    .or_else(|| roots.remap(Path::new(name)))
-                {
-                    if name.ends_with("//") {
-                        logical.push('/');
-                    }
-                    result.extend_from_slice(&line[..start + 1]);
-                    result.extend_from_slice(
-                        logical
-                            .replace('\\', "\\\\")
-                            .replace('"', "\\\"")
-                            .as_bytes(),
-                    );
-                    result.extend_from_slice(&line[end..]);
-                    continue;
-                }
-            }
-        }
-        result.extend_from_slice(line);
-    }
-    Ok(result)
-}
-
-#[cfg(unix)]
-pub(super) fn physical_identity(path: &Path) -> Result<(u64, u64), ToolchainError> {
-    use std::os::unix::fs::MetadataExt;
-    let metadata = std::fs::metadata(path).map_err(error)?;
-    Ok((metadata.dev(), metadata.ino()))
-}
-
-#[cfg(not(unix))]
-pub(super) fn physical_identity(path: &Path) -> Result<PathBuf, ToolchainError> {
-    path.canonicalize().map_err(error)
+    super::includes::transform(bytes, &roots.cone, search, observed, |path| {
+        paths.get(path).cloned().or_else(|| roots.remap(path))
+    })
 }

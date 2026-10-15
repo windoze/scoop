@@ -10,11 +10,11 @@ pub(super) enum RawInstance {
     },
     Box {
         exact: DecodedPersistentId<PersistentExactTypeId>,
-        layout: DecodedPersistentId<PersistentLayoutId>,
+        layout: crate::DecodedValueLayoutConstituentV1,
     },
     InlineBytes,
     InlineArray {
-        exact: DecodedPersistentId<PersistentExactTypeId>,
+        element: crate::DecodedValueLayoutConstituentV1,
         storage: crate::DecodedArrayElementStorageV1,
     },
     AbstractReference,
@@ -53,7 +53,7 @@ impl WireDecode for RawInstance {
                 length(decoder, fields, 3)?;
                 Ok(Self::Box {
                     exact: decoder.field(1, DecodedPersistentId::decode)?,
-                    layout: decoder.field(2, DecodedPersistentId::decode)?,
+                    layout: decoder.field(2, crate::DecodedValueLayoutConstituentV1::decode)?,
                 })
             }
             3 => {
@@ -63,7 +63,7 @@ impl WireDecode for RawInstance {
             4 => {
                 length(decoder, fields, 3)?;
                 Ok(Self::InlineArray {
-                    exact: decoder.field(1, DecodedPersistentId::decode)?,
+                    element: decoder.field(1, crate::DecodedValueLayoutConstituentV1::decode)?,
                     storage: decoder.field(2, crate::DecodedArrayElementStorageV1::decode)?,
                 })
             }
@@ -123,9 +123,9 @@ impl WireEncode for RawInstance {
                 field(encoder, 2, layout)
             }
             Self::InlineBytes => sum(encoder, 3, 0),
-            Self::InlineArray { exact, storage } => {
+            Self::InlineArray { element, storage } => {
                 sum(encoder, 4, 2)?;
-                field(encoder, 1, exact)?;
+                field(encoder, 1, element)?;
                 field(encoder, 2, storage)
             }
             Self::AbstractReference => sum(encoder, 5, 0),

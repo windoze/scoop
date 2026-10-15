@@ -1,0 +1,104 @@
+schema = 1
+name = "program-link-input-errors"
+inputs = ["cone", "../../m23-program-link/read-println.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "diagnostic", "missing-input", "moving-gc"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "run_built_moving"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "prepare_link_inputs"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "preserve"
+files = [{"copy" = {"from" = "${work}/program", "to" = "${work}/previous-program"}}]
+checks = []
+
+[[steps]]
+name = "remove_root"
+files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}]
+checks = []
+
+[[steps]]
+name = "missing"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing.json"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "directory_root"
+files = [{"mkdir" = {"path" = "${work}/artifacts/root.slib"}}]
+checks = []
+
+[[steps]]
+name = "wrong_type"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "wrong_type.json"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "run_preserved"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "run_preserved_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

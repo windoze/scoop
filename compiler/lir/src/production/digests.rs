@@ -1,12 +1,9 @@
-use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
     CborIdentityRecord, DecodedCborIdentityRecord, DecodedDigestNodeKey,
     DecodedDigestPatchIntentKey, DecodedPersistentId, DigestKind, DigestNodeId, DigestNodeKey,
-    DigestNodeKeyResolutionError, DigestPatchIntentId, DigestPatchIntentKey,
-    DigestSemanticFieldRole, IdentityReferenceError, PersistentIdMismatch, PersistentIdResolver,
-    ValidatedIdentityGraph,
+    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole,
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
@@ -323,9 +320,6 @@ pub struct DecodedDigestFinalizationPlanV1 {
     nodes: Vec<DecodedDigestNodeV1>,
 }
 
-mod reader;
-pub use reader::foundation::DigestPlanReplayError;
-
 impl WireEncode for DecodedDigestFinalizationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.nodes)
@@ -385,52 +379,6 @@ impl fmt::Display for DigestPlanBuildError {
 }
 
 impl std::error::Error for DigestPlanBuildError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DigestPlanValidationError {
-    NodeKey(DigestNodeKeyResolutionError<IdentityReferenceError>),
-    NodeIdentity(PersistentIdMismatch<DigestNodeId>),
-    PatchIdentity(PersistentIdMismatch<DigestPatchIntentId>),
-    IdentityHash(HashError),
-    PatchTarget(IdentityReferenceError),
-    MissingInput {
-        node: DigestNodeId,
-        input: [u8; 32],
-    },
-    InputKindMismatch {
-        node: DigestNodeId,
-        input: DigestNodeId,
-        declared: DigestKind,
-        actual: DigestKind,
-    },
-    MissingPatchSource {
-        node: DigestNodeId,
-        source: [u8; 32],
-    },
-    NonCanonicalNodeOrder {
-        index: usize,
-    },
-    NonCanonicalInputOrder {
-        node: DigestNodeId,
-        index: usize,
-    },
-    NonCanonicalPatchOrder {
-        node: DigestNodeId,
-        index: usize,
-    },
-    Plan(DigestPlanError),
-}
-
-impl fmt::Display for DigestPlanValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid decoded strong digest finalization plan: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for DigestPlanValidationError {}
 
 fn encode_array<T: WireEncode>(
     encoder: &mut Encoder,

@@ -59,7 +59,6 @@ pub enum StrongCallableRegistrationValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     MissingDefinitionAssignment {
         body: PersistentCallableBodyId,
         definition: ObjectDefinitionPlanId,

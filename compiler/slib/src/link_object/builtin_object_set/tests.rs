@@ -122,7 +122,7 @@ fn rejects_missing_scoop_members_before_partial_verification() {
 }
 
 #[test]
-fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
+fn rejects_wrong_object_format_profile() {
     let fixture = fixture(Some("native_bridge"));
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
@@ -173,39 +173,6 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
             member,
             source: super::super::ScoopLirObjectEnvelopeValidationError::UnexpectedDeployment(_),
         }) if member == scoop_member
-    ));
-
-    let valid_scoop_bytes = object_for_plan_with_deployment(
-        symbol_plan.member(scoop_member).unwrap(),
-        canonical_value,
-        &[],
-        None,
-        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
-    )
-    .bytes;
-    let valid_scoop = [ScoopLirObjectCandidateV1::new(
-        scoop_member,
-        &valid_scoop_bytes,
-    )];
-    let mut changed_bridge_bytes = bridge_bytes.clone();
-    let last = changed_bridge_bytes.len() - 1;
-    changed_bridge_bytes[last] ^= 1;
-    let changed_bridge = [GeneratedCBridgeObjectCandidateV1::new(
-        bridge_member,
-        &changed_bridge_bytes,
-    )];
-    assert!(matches!(
-        verify_builtin_object_strong_relocations_v1(
-            &member_plan,
-            &symbol_plan,
-            &valid_scoop,
-            production_proof,
-            &changed_bridge,
-        ),
-        Err(BuiltinObjectSetValidationError::StrongDefinitions {
-            member,
-            source: super::super::StrongObjectDefinitionValidationError::ObjectBytesMismatch,
-        }) if member == bridge_member
     ));
 }
 

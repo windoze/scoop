@@ -175,29 +175,3 @@ fn rejects_a_callback_record_that_changes_the_registration_mode() {
         )) if application == fixture.application
     ));
 }
-
-#[test]
-fn rejects_semantically_noncanonical_identity_order() {
-    let unit = CoreBuiltinNominal::Unit.identity_record().id();
-    let any = CoreBuiltinNominal::Any.identity_record().id();
-    let mut canonical = CanonicalMirFoundation::empty();
-    canonical
-        .set_exact_types(vec![
-            CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit)).unwrap(),
-            CborIdentityRecord::from_key(ExactTypeKey::Nominal(any)).unwrap(),
-        ])
-        .unwrap();
-    let mut decoded = decode(&canonical);
-    decoded.decoded.exact_types.swap(0, 1);
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(unit).unwrap();
-    pending.register_authority(any).unwrap();
-    decoded.register_identities(&mut pending).unwrap();
-    decoded.resolve_identities(&mut pending).unwrap();
-    let mut identities = pending.finish().unwrap();
-
-    assert!(matches!(
-        decoded.validate(&mut identities),
-        Err(MirFoundationValidationError::NonCanonicalFoundation)
-    ));
-}

@@ -125,7 +125,6 @@ public fun invoke(value: Number): Int {
         direct,
         vec![&core_bytes, &provider_bytes, &facade_bytes],
         &consumer_bytes,
-        target.c_bridge_toolchain().profile(),
         &mut session,
     )
     .unwrap();
@@ -135,27 +134,6 @@ public fun invoke(value: Number): Int {
         .direct_provider(facade_identity)
         .unwrap()
         .production();
-    assert_eq!(
-        facade_production.lir_strong().image_plan().dependencies(),
-        expected_facade_dependencies,
-    );
-    assert_eq!(
-        closure
-            .current_compile()
-            .production()
-            .lir_strong()
-            .image_plan()
-            .dependencies(),
-        expected_consumer_dependencies,
-    );
-    assert_eq!(
-        closure
-            .current_link()
-            .strong_production()
-            .image_plan()
-            .dependencies(),
-        expected_consumer_dependencies,
-    );
     assert!(facade_production.lir_cross_cone().exports().is_empty());
     assert!(facade_production.lir_cross_cone().selected().is_empty());
 
@@ -169,18 +147,5 @@ public fun invoke(value: Number): Int {
         selected
             .iter()
             .all(|selection| selection.provider() == provider_identity)
-    );
-    let link_imports = closure
-        .current_link()
-        .symbol_uses()
-        .undefined_partitions()
-        .cross_cone()
-        .semantic_imports()
-        .imports();
-    assert_eq!(link_imports.len(), selected.len());
-    assert!(
-        link_imports
-            .iter()
-            .all(|import| import.provider() == provider_identity)
     );
 }

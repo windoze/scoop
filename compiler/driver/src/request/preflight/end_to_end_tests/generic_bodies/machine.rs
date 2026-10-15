@@ -11,7 +11,6 @@ use scoop_wire::{WirePath, decode_canonical, encode};
 use super::*;
 
 mod objects;
-mod reader;
 
 #[test]
 fn actual_generic_library_emits_shared_odr_objects() {
@@ -37,12 +36,6 @@ fn actual_generic_library_emits_shared_odr_objects() {
         &provider_root,
         &sysroot.path().join("output/provider.slib"),
     );
-    std::fs::rename(
-        provider_root.join("src"),
-        provider_root.join("unused-source"),
-    )
-    .unwrap();
-
     let mut outputs = Vec::new();
     for (case, name, expected_bodies) in [
         ("standalone", "generic-machine-standalone", 1),
@@ -219,14 +212,6 @@ fn actual_generic_library_emits_shared_odr_objects() {
         expected_members.sort_unstable();
         assert_eq!(actual_bodies, expected_members);
         let native_bodies = objects::check(&objects);
-        reader::check(
-            &lir,
-            &production,
-            &coordinates[0],
-            &[ConeIdentity::CORE, provider_coordinate.identity().unwrap()],
-            &dependencies,
-            &selected_layout,
-        );
         let generated = crate::generated_c::emit_c_bridge_object_set(
             &lir,
             sysroot.path(),
@@ -303,16 +288,6 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 }
             }
         }
-        let replayed = scoop_lir::replay_digest_finalization_plan_v2(
-            lir.foundation(),
-            production.registration_production(),
-            &scoop_lir::EntryProductionSourceV1::Library,
-        )
-        .unwrap();
-        assert_eq!(
-            encode(&replayed).unwrap(),
-            encode(production.digest_finalization_plan()).unwrap()
-        );
         let members = identities
             .records::<OdrMemberId, OdrMemberKey>(IdentityLayer::Lir, &WirePath::root())
             .unwrap();

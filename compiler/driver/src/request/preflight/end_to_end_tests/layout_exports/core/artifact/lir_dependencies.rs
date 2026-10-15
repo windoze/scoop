@@ -3,7 +3,6 @@
 use super::*;
 
 pub(super) mod assembly;
-pub(super) mod corruption;
 pub(super) mod reader;
 
 pub(super) fn check(
@@ -81,7 +80,6 @@ pub(super) fn check(
                     layout.selected().physical_imports().records().len(),
                     physical.len()
                 );
-                corruption::check(mir_input, &layout, core_lir);
                 let directory = tempfile::tempdir().unwrap();
                 let artifact = assembly::assemble_with_production(
                     directory.path(),

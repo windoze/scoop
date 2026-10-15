@@ -79,7 +79,7 @@ impl ExactDispatchExportV1 {
     }
 }
 
-fn checked_role(
+pub(super) fn checked_role(
     key: &scoop_identity::DispatchTableKey,
     table: scoop_identity::PersistentDispatchTableId,
 ) -> Result<(scoop_identity::PersistentExactTypeId, ExactDispatchRoleV1), ExactDispatchError> {

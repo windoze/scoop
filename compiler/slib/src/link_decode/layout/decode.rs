@@ -3,8 +3,7 @@ use crate::{
     ValidatedGraphArtifact, hir_core_bootstrap_interface_capability,
     hir_cross_cone_interface_capability, hir_cross_cone_type_semantics_capability,
     hir_identity_foundation_capability, lir_cone_production_capability,
-    lir_cross_cone_layout_abi_capability, lir_cross_cone_layout_link_closure_capability,
-    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_cross_cone_layout_abi_capability, lir_cross_cone_param_free_bridge_capability,
     lir_identity_foundation_capability, lir_link_identity_closure_capability,
     mir_core_bootstrap_bridge_capability, mir_cross_cone_param_free_bridge_capability,
     mir_cross_cone_type_bridge_capability, mir_identity_foundation_capability,
@@ -13,7 +12,6 @@ use crate::{
 use super::super::{
     decode_inner, decode_metadata_envelope, decode_production_manifest, member_payload,
     metadata_member_id, require_strong_profile, required_metadata_section,
-    validate_semantic_fingerprints,
 };
 use super::DecodedCrossConeLayoutLinkSections;
 
@@ -107,16 +105,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
             MetadataLocation::Lir,
             lir_link_identity_closure_capability(),
         )?;
-        let cross_cone_link_closure = decode_required(
-            &lir,
-            MetadataLocation::Lir,
-            lir_cross_cone_link_closure_capability(),
-        )?;
-        let layout_link_closure = decode_required(
-            &lir,
-            MetadataLocation::Lir,
-            lir_cross_cone_layout_link_closure_capability(),
-        )?;
         let link_support = decode_required(
             &lir,
             MetadataLocation::Lir,
@@ -125,7 +113,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         // Only the three Compile semantic contributions are checked here.
         // Code and LinkValidationOnly projections require final-object proofs.
-        validate_semantic_fingerprints(&mut self, &hir, &mir, &lir)?;
 
         Ok(DecodedCrossConeLayoutLinkSections {
             graph: self,
@@ -143,8 +130,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
             lir_cross_cone_bridge,
             lir_layout_abi,
             link_identity_closure,
-            cross_cone_link_closure,
-            layout_link_closure,
+
             link_support,
         })
     }

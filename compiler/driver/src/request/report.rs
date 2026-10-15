@@ -209,6 +209,34 @@ impl SingleConeProductionSuccess {
     }
 }
 
+#[derive(Debug)]
+pub enum SingleConeCompilation {
+    Published(Box<SingleConeProductionSuccess>),
+    Observed(StageObservation),
+}
+
+#[derive(Debug)]
+pub struct StageObservation {
+    pub(super) warnings: CurrentConeDiagnosticSet,
+    pub(super) dumps: Vec<EmittedStageDump>,
+}
+
+impl SingleConeCompilation {
+    pub fn warnings(&self) -> &CurrentConeDiagnosticSet {
+        match self {
+            Self::Published(result) => result.warnings(),
+            Self::Observed(result) => &result.warnings,
+        }
+    }
+
+    pub fn emitted_dumps(&self) -> &[EmittedStageDump] {
+        match self {
+            Self::Published(result) => result.emitted_dumps(),
+            Self::Observed(result) => &result.dumps,
+        }
+    }
+}
+
 fn source_index(
     sources: &mut Vec<CurrentConeDiagnosticSource>,
     identity: &SourceIdentity,

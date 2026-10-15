@@ -1,89 +1,86 @@
 use super::*;
+use scoop_identity::{PersistentInitializationUnitId, PersistentStaticStorageId};
 
-impl<'a> ShapeLinkProviderV1<'a> {
+pub enum ShapeLinkSupportV1<'a> {
+    Produced {
+        static_storages: &'a StrongStaticStorageRegistrationPlanSetV1,
+        initialization: &'a StrongInitializationUnitRegistrationPlanSetV2,
+    },
+    Saved(&'a CompileProduction),
+}
+
+impl ShapeLinkSupportV1<'_> {
+    pub(super) fn providers(&self) -> [ConeIdentity; 2] {
+        match self {
+            Self::Produced {
+                static_storages,
+                initialization,
+            } => [static_storages.producer(), initialization.producer()],
+            Self::Saved(data) => [data.provider(); 2],
+        }
+    }
+    fn initialization(
+        &self,
+        id: PersistentInitializationUnitId,
+    ) -> Option<&StrongInitializationUnitSemanticPlanV2> {
+        match self {
+            Self::Produced { initialization, .. } => initialization
+                .registrations()
+                .iter()
+                .map(|record| record.semantic())
+                .find(|unit| unit.unit() == id),
+            Self::Saved(data) => data
+                .initialization_units()
+                .iter()
+                .map(|record| record.semantic())
+                .find(|unit| unit.unit() == id),
+        }
+    }
+    fn static_storage(
+        &self,
+        id: PersistentStaticStorageId,
+    ) -> Option<&StrongStaticStorageSemanticPlanV1> {
+        match self {
+            Self::Produced {
+                static_storages, ..
+            } => static_storages
+                .registrations()
+                .iter()
+                .map(|record| record.semantic())
+                .find(|storage| storage.storage() == id),
+            Self::Saved(data) => data
+                .static_storages()
+                .iter()
+                .find(|storage| storage.storage() == id),
+        }
+    }
+}
+
+impl ShapeLinkProviderV1<'_> {
     pub(super) fn support_contract(
         &self,
         subject: ExternalStrongShapeSubjectV1,
-        physical: StrongShapeDefinitionRefV1,
     ) -> Result<ShapeLinkContractV1, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
-        let registration =
-            self.parts
-                .production
-                .initialization_registrations()
-                .registrations()
-                .iter()
-                .find(|registration| {
-                    let unit = registration.semantic();
-                    match subject {
-                        Subject::InitializationCell(id)
-                        | Subject::InitializationRegistration(id) => unit.unit() == id,
-                        Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id) => {
-                            unit.storage() == id || unit.failure_root() == id
-                        }
-                        _ => false,
-                    }
-                })
-                .ok_or(ShapeLinkError::SupportRelation(subject))?;
-        let unit = registration.semantic();
         match subject {
             Subject::InitializationCell(id) | Subject::InitializationRegistration(id) => {
-                let (definition, symbol, atom) =
-                    if matches!(subject, Subject::InitializationCell(_)) {
-                        (
-                            registration.cell_definition_plan(),
-                            registration.cell_symbol(),
-                            registration.cell_primary_atom(),
-                        )
-                    } else {
-                        (
-                            registration.registration_definition_plan(),
-                            registration.registration_symbol(),
-                            registration.registration_primary_atom(),
-                        )
-                    };
-                if id != unit.unit()
-                    || definition != physical.definition()
-                    || symbol != physical.symbol()
-                    || atom != physical.primary()
-                {
-                    return Err(ShapeLinkError::DefinitionRelation(subject));
-                }
+                let unit = self
+                    .parts
+                    .support
+                    .initialization(id)
+                    .ok_or(ShapeLinkError::SupportRelation(subject))?;
                 Ok(ShapeLinkContractV1::Initialization {
-                    unit_projection: registration.semantic().clone(),
+                    unit_projection: unit.clone(),
                 })
             }
             Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id) => {
-                let registration = self
+                let storage = self
                     .parts
-                    .production
-                    .static_storage_registrations()
-                    .registrations()
-                    .iter()
-                    .find(|registration| registration.semantic().storage() == id)
+                    .support
+                    .static_storage(id)
                     .ok_or(ShapeLinkError::SupportRelation(subject))?;
-                let (definition, symbol, atom) = if matches!(subject, Subject::StaticStorage(_)) {
-                    (
-                        registration.storage_definition_plan(),
-                        registration.semantic().symbol(),
-                        registration.storage_primary_atom(),
-                    )
-                } else {
-                    (
-                        registration.registration_definition_plan(),
-                        registration.registration_symbol(),
-                        registration.registration_primary_atom(),
-                    )
-                };
-
-                if definition != physical.definition()
-                    || symbol != physical.symbol()
-                    || atom != physical.primary()
-                {
-                    return Err(ShapeLinkError::DefinitionRelation(subject));
-                }
                 Ok(ShapeLinkContractV1::StaticStorage {
-                    storage_projection: registration.semantic().clone(),
+                    storage_projection: storage.clone(),
                 })
             }
             _ => Err(ShapeLinkError::SupportRelation(subject)),

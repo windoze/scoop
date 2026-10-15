@@ -77,20 +77,29 @@ impl fmt::Display for SlibWriteError {
 
 impl std::error::Error for SlibWriteError {}
 
-/// Immutable `.slib` bytes whose canonical container, bootstrap manifest,
-/// typed directory, member ranges, content hashes, and artifact fingerprint
-/// have all been validated. It exposes no payload extraction or IR API.
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// Decoded bootstrap manifest and member ranges for one `.slib` input.
+/// Stored content fingerprints are producer results, not reader checks.
+#[derive(Clone, Debug)]
 pub struct DecodedSlibEnvelope<'input> {
-    archive: DecodedArchive<'input>,
-    manifest: BootstrapManifest,
+    source: EnvelopeSource<'input>,
     target_selection: ValidatedLirTargetSelection,
+}
+
+#[derive(Clone, Debug)]
+enum EnvelopeSource<'input> {
+    Memory {
+        archive: DecodedArchive<'input>,
+        manifest: Box<BootstrapManifest>,
+    },
+    File {
+        file: &'input crate::ArtifactFile,
+        directory: &'input crate::artifact_file::ArtifactFileDirectory,
+    },
 }
 
 impl<'input> DecodedSlibEnvelope<'input> {
     pub fn open(
         input: &'input [u8],
-
         selection: ValidatedLirTargetSelection,
     ) -> Result<Self, SlibReadError> {
         let archive = ManifestArchive::open(input).map_err(SlibReadError::Container)?;
@@ -103,39 +112,56 @@ impl<'input> DecodedSlibEnvelope<'input> {
             .validate_directory(manifest.members())
             .map_err(SlibReadError::Directory)?;
         Ok(Self {
-            archive,
-            manifest,
+            source: EnvelopeSource::Memory {
+                archive,
+                manifest: Box::new(manifest),
+            },
             target_selection: selection,
         })
     }
 
-    pub(crate) fn manifest_length(&self) -> usize {
-        self.archive.manifest_length()
-    }
-
-    pub(crate) fn archive_length(&self) -> usize {
-        self.archive.archive_length()
+    pub fn from_file(file: &'input crate::ArtifactFile) -> Result<Self, SlibReadError> {
+        Ok(Self {
+            source: EnvelopeSource::File {
+                file,
+                directory: file.directory()?,
+            },
+            target_selection: file.target_selection(),
+        })
     }
 
     pub(crate) fn into_manifest(self) -> BootstrapManifest {
-        self.manifest
+        match self.source {
+            EnvelopeSource::Memory { manifest, .. } => *manifest,
+            EnvelopeSource::File { directory, .. } => directory.manifest.clone(),
+        }
     }
 
     pub(crate) const fn manifest(&self) -> &BootstrapManifest {
-        &self.manifest
+        match &self.source {
+            EnvelopeSource::Memory { manifest, .. } => manifest,
+            EnvelopeSource::File { directory, .. } => &directory.manifest,
+        }
     }
 
     pub(crate) const fn target_selection(&self) -> ValidatedLirTargetSelection {
         self.target_selection
     }
 
-    pub(crate) fn member(&self, id: SlibMemberId) -> Option<&'input [u8]> {
-        self.archive.member(id)
+    pub(crate) fn member(&self, id: SlibMemberId) -> Result<Option<&'input [u8]>, SlibReadError> {
+        match &self.source {
+            EnvelopeSource::Memory { archive, .. } => {
+                archive.member(id).map_err(SlibReadError::Container)
+            }
+            EnvelopeSource::File { file, directory } => file.member(directory, id),
+        }
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum SlibReadError {
+    Io(std::io::Error),
+    TestDirectory(crate::TestDirectoryError),
     Container(ArchiveReadError),
     CanonicalWire(WireError),
     Manifest(Box<BootstrapManifestValidationError>),
@@ -147,12 +173,24 @@ impl fmt::Display for SlibReadError {
         match self {
             Self::Container(error) | Self::Directory(error) => error.fmt(formatter),
             Self::CanonicalWire(error) => error.fmt(formatter),
+            Self::Io(error) => error.fmt(formatter),
+            Self::TestDirectory(error) => error.fmt(formatter),
             Self::Manifest(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for SlibReadError {}
+impl std::error::Error for SlibReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Io(error) => error,
+            Self::TestDirectory(error) => error,
+            Self::Container(error) | Self::Directory(error) => error,
+            Self::CanonicalWire(error) => error,
+            Self::Manifest(error) => error.as_ref(),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests;

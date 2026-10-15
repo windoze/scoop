@@ -28,6 +28,10 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
         context,
         module,
         production.canonical_definitions(),
+        production
+            .registration_production()
+            .callables()
+            .runtime_scans(),
         machine,
         profile,
         StrongObjectEmissionSelection::NonCallable,
@@ -67,6 +71,10 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         context,
         module,
         production.canonical_definitions(),
+        production
+            .registration_production()
+            .callables()
+            .runtime_scans(),
         machine,
         profile,
         StrongObjectEmissionSelection::CallableBody(body),

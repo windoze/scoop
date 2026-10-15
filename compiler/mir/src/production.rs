@@ -9,7 +9,7 @@ use scoop_identity::{
     ExecutableEntryIdentityError, IdentityReferenceError, PersistentExactTypeId,
     PersistentFunctionId, PersistentKeyResolver, SourceDeclarationKey, ValidatedIdentityGraph,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use crate::{CallableSignatureSubject, CanonicalMirFoundation, ValidatedMirFoundation};
 
@@ -293,12 +293,6 @@ fn resolve_entry_source(
             entry: expected.root_cone(),
         });
     }
-    let actual_bytes = encode(&decoded).map_err(MirProductionValidationError::EntrySourceEncode)?;
-    let expected_bytes =
-        encode(&expected).map_err(MirProductionValidationError::EntrySourceEncode)?;
-    if actual_bytes != expected_bytes {
-        return Err(MirProductionValidationError::EntrySourceMismatch);
-    }
     Ok(expected)
 }
 
@@ -361,17 +355,11 @@ pub enum MirProductionValidationError {
         artifact: scoop_identity::ConeIdentity,
         entry: scoop_identity::ConeIdentity,
     },
-    EntrySourceEncode(scoop_wire::cbor::EncodeError),
-    EntrySourceMismatch,
-    StrongCallableCoverage {
-        expected: usize,
-        actual: usize,
-    },
     DuplicateStrongCallable(CallableOwner),
     NonCanonicalStrongCallableOrder {
         index: usize,
     },
-    StrongCallableMismatch {
+    MissingStrongCallable {
         index: usize,
     },
     EntryImplementationMismatch {

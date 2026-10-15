@@ -201,21 +201,8 @@ fn rejects_overlapping_atom_ranges_across_one_member() {
 }
 
 #[test]
-fn binds_the_validation_to_exact_bytes_and_requires_zero_padding() {
+fn requires_zero_padding() {
     let fixture = fixture();
-    let mut changed = object_for_plan(&fixture.symbols, canonical_value);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-        scoop_target_data::DARWIN_AARCH64,
-        &changed.bytes,
-    )
-    .unwrap()
-    .into_sections();
-    changed.bytes[changed.section_offset] ^= 1;
-    assert_eq!(
-        verify_member_strong_object_definitions_v1(&changed.bytes, sections, &fixture.symbols),
-        Err(StrongObjectDefinitionValidationError::ObjectBytesMismatch)
-    );
-
     let mut nonzero_padding = object_for_plan(&fixture.symbols, canonical_value);
     nonzero_padding.bytes[nonzero_padding.section_offset + 4] = 1;
     let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(

@@ -1,13 +1,7 @@
-use scoop_identity::{
-    CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, ConeCoordinate, DeclarationScope,
-    DefinitionOwnerChain, DependencyCallableDeclarationId, Effect, ExactTypeKey, GcEffect,
-    PackagePath, PersistentExactTypeId, PersistentFunctionId, ScoopAbiReturn, SourceDeclarationKey,
-    SourceDeclarationSite, StrongCallableDefinitionOwner,
-};
+use scoop_identity::ConeCoordinate;
 use scoop_lir::{
-    CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
-    ConeProductionSectionV2, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
-    EntryProductionSourceV1, ExternalCallableRootPlan, SelectedDependencyLirCallableV1,
+    CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, ConeProductionSectionV2,
+    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, EntryProductionSourceV1,
     StrongRegistrationProductionSurfaceV2,
 };
 
@@ -31,10 +25,8 @@ pub(crate) struct EmptyLayoutCodeFixture<'a> {
     pub dependencies: Vec<DependencyRecord>,
     pub foundation: &'a ConeLirFoundation,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
-    pub mismatched_ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layout: &'a CrossConeLayoutAbiSectionV1<'a>,
-    pub mismatched_layout: &'a CrossConeLayoutAbiSectionV1<'a>,
-    pub code: VerifiedCrossConeLayoutCodeFingerprintV1<'a>,
+    pub code: VerifiedCrossConeLayoutCodeFingerprintV1,
     pub link_objects: Vec<SlibMember>,
 }
 
@@ -65,12 +57,8 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     );
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     let ordinary = CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![]).unwrap();
-    let mismatched_ordinary = nonempty_ordinary(&foundation);
     let target = scoop_target_data::DARWIN_AARCH64;
     let layout = empty_section(producer);
-    let mismatch_provider =
-        crate::link_object::layout_link_closure::tests::fixture::Provider::new();
-    let mismatched_layout = mismatch_provider.consumer(producer);
     let v2 = ConeProductionSectionV2::new(
         cone.coordinate().clone(),
         v1.image_plan().dependencies(),
@@ -157,55 +145,10 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         dependencies,
         foundation: &foundation,
         ordinary: &ordinary,
-        mismatched_ordinary: &mismatched_ordinary,
         layout: &layout,
-        mismatched_layout: &mismatched_layout,
         code,
         link_objects: vec![link_member],
     })
-}
-
-fn nonempty_ordinary(foundation: &ConeLirFoundation) -> CrossConeLirBridgeSectionV1 {
-    let provider = ConeCoordinate::new("test", "layout-writer-callable-provider", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    let function = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
-        SourceDeclarationSite::new(
-            provider,
-            PackagePath::root(),
-            DefinitionOwnerChain::top_level(),
-            DeclarationScope::ConeWide,
-        )
-        .unwrap(),
-        CanonicalIdentifier::new("selectedCallable").unwrap(),
-        0,
-        None,
-        vec![],
-    ))
-    .unwrap();
-    let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-        scoop_identity::CoreBuiltinNominal::Unit
-            .identity_record()
-            .id(),
-    ))
-    .unwrap();
-    let selected = SelectedDependencyLirCallableV1::new(
-        provider,
-        DependencyCallableDeclarationId::Function(function),
-        StrongCallableDefinitionOwner::Function(function),
-        CanonicalScoopAbiFunctionSignature::new(
-            scoop_identity::ExactCallableSignature::new(Effect::Ordinary, None, vec![], unit),
-            vec![],
-            ScoopAbiReturn::unit_void(),
-            GcEffect::NoGc,
-        )
-        .unwrap(),
-        CallingConvention::Cdecl,
-        ExternalCallableRootPlan::NoGc,
-    )
-    .unwrap();
-    CrossConeLirBridgeSectionV1::try_new(foundation, vec![], vec![selected]).unwrap()
 }
 
 fn legacy_closure(

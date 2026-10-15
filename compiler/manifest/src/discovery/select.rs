@@ -56,12 +56,6 @@ fn append_roots(
             continue;
         }
         let resolved = resolve_entry(&display_path)?;
-        if !resolved.path.starts_with(manifest.real_root()) {
-            return Err(SourceDiscoveryError::new(
-                display_path,
-                SourceDiscoveryErrorKind::EscapesConeRoot,
-            ));
-        }
         if matches!(selection, SourceSelection::Default) && !resolved.metadata.is_dir() {
             return Err(SourceDiscoveryError::new(
                 display_path,

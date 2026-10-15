@@ -5,7 +5,7 @@ use super::*;
 mod read;
 pub use read::{
     DecodedCanonicalExactDispatchExportsV1, DecodedExactDispatchExportV1,
-    DecodedExactDispatchSemanticProjectionV1, ExactDispatchWireError,
+    DecodedExactDispatchSemanticProjectionV1,
 };
 
 impl WireEncode for ExactDispatchExportV1 {

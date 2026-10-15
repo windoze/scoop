@@ -13,7 +13,12 @@ impl DynamicInputs {
             .iter()
             .find(|file| file.relative_path() == system.root_stub())
             .ok_or_else(|| error("system provider has no root stub"))?;
-        let input = NativeInputId::from_bytes(file.bytes(), NativeFileKind::TextStub, profile)?;
+        let input = NativeInputId::from_digest(
+            file.digest(),
+            file.byte_len(),
+            NativeFileKind::TextStub,
+            profile,
+        )?;
         let id = DynamicProvider::id(input, system.install_name(), profile)?;
         let (exports, dependencies) = super::stub::entries(
             system.exports().clone(),
@@ -66,7 +71,13 @@ impl DynamicInputs {
                 let target = if let Some(target) = names.get(&edge.name) {
                     *target
                 } else {
-                    let file = locate::dependency(&provider, &edge.name, roots, profile)?;
+                    let file = locate::dependency(
+                        &provider,
+                        &edge.name,
+                        roots,
+                        profile,
+                        &mut native.observed_paths,
+                    )?;
                     let NativeContent::Dynamic(records) = &file.content else {
                         return Err(error("dynamic dependency resolved to a static input"));
                     };

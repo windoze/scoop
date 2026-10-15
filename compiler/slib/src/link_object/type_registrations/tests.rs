@@ -200,26 +200,3 @@ fn rejects_a_digest_slot_materialized_at_the_wrong_field() {
         })
     );
 }
-
-#[test]
-fn rejects_object_bytes_changed_after_all_input_proofs() {
-    let mut fixture = Fixture::new(Corruption::None);
-    let patch_sites = fixture.verified_patch_sites();
-    let last = fixture.object_bytes.len() - 1;
-    fixture.object_bytes[last] ^= 1;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-
-    assert_eq!(
-        verify_strong_type_registrations_v1(
-            patch_sites,
-            fixture.type_registration_plan.clone(),
-            &objects,
-        ),
-        Err(StrongTypeRegistrationValidationError::ObjectBytesMismatch(
-            fixture.member,
-        ))
-    );
-}

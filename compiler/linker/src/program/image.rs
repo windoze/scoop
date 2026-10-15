@@ -1,9 +1,8 @@
 //! Final image records obtained from the retained artifact definitions.
 
 use super::*;
-use scoop_identity::{ObjectDefinitionPlanId, PersistentId};
-use scoop_lir::RegistrationIdentityV1;
-use scoop_slib::{ProgramLinkArtifact, ReplayedLayoutLinkSymbolUsesV1};
+use scoop_identity::ObjectDefinitionPlanId;
+use scoop_slib::ProgramLinkArtifact;
 
 pub(crate) struct SelectedImage {
     pub name: String,
@@ -18,91 +17,43 @@ pub(crate) struct SelectedImage {
 impl SelectedImage {
     pub(super) fn new(
         artifact: &ProgramLinkArtifact,
-        symbols: &ReplayedLayoutLinkSymbolUsesV1,
         selected: &BTreeSet<ObjectDefinitionPlanId>,
         profile: &ValidatedFinalLinkProfile,
     ) -> Result<Self, LinkError> {
         let production = artifact.production();
-        let plan = production.image_plan();
-        let coordinate = plan.cone().coordinate();
-        let registrations = production.registration_production().identities();
-        let tables = [
-            table(
-                registrations.static_storages(),
-                registrations.static_storage_symbol_requests(),
-                selected,
-                profile,
-            ),
-            table(
-                registrations.immortal_objects(),
-                registrations.immortal_object_symbol_requests(),
-                selected,
-                profile,
-            ),
-            table(
-                registrations.initialization_units(),
-                registrations.initialization_unit_symbol_requests(),
-                selected,
-                profile,
-            ),
-            table(
-                registrations.type_registrations(),
-                registrations.type_registration_symbol_requests(),
-                selected,
-                profile,
-            ),
-            table(
-                registrations.safepoints(),
-                registrations.safepoint_symbol_requests(),
-                selected,
-                profile,
-            ),
-            table(
-                registrations.callables(),
-                registrations.callable_symbol_requests(),
-                selected,
-                profile,
-            ),
-        ];
-        let image_definition = production
-            .canonical_definitions()
-            .plan(plan.definition_plan())
-            .expect("verified image definition");
-        let atoms = plan.support_atoms();
+        let coordinate = artifact.manifest().cone().coordinate();
+        let tables = production.registrations.each_ref().map(|entries| {
+            entries
+                .iter()
+                .filter(|(definition, _)| selected.contains(definition))
+                .map(|(_, symbol)| object_symbol(*symbol, profile))
+                .collect()
+        });
         let traps = [
             (
-                atoms.array_bounds_message(),
+                object_symbol(production.trap_symbols[0], profile),
                 b"array index out of bounds\0".as_slice(),
             ),
             (
-                atoms.array_size_overflow_message(),
+                object_symbol(production.trap_symbols[1], profile),
                 b"array size overflow\0".as_slice(),
             ),
-        ]
-        .map(|(atom, bytes)| {
-            let boundary = image_definition
-                .atom_boundaries()
-                .iter()
-                .find(|boundary| boundary.atom() == atom)
-                .expect("verified image support atom");
-            (object_symbol(boundary.start(), profile), bytes)
-        });
-        let fingerprint = symbols
-            .final_objects()
-            .runtime_images()
-            .fingerprint()
+        ];
+        let fingerprint = artifact
+            .runtime_image_records()
             .fingerprint_for_definitions(selected)
             .map_err(error)?;
         Ok(Self {
-            name: object_symbol(plan.symbol(), profile),
+            name: object_symbol(production.image_symbol, profile),
             coordinate: [coordinate.group(), coordinate.name(), coordinate.version()]
                 .map(|part| part.as_bytes().to_vec()),
             cone: *artifact.identity().as_array(),
             fingerprint: *fingerprint.as_array(),
-            dependencies: plan
-                .dependencies()
+            dependencies: artifact
+                .manifest()
+                .direct_dependencies()
                 .iter()
-                .map(|id| *id.as_array())
+                .map(|dependency| *dependency.identity().as_array())
                 .collect(),
             tables,
             traps,
@@ -116,18 +67,4 @@ impl SelectedImage {
     pub(crate) fn references(&self) -> impl Iterator<Item = &String> {
         self.tables.iter().flatten()
     }
-}
-
-fn table<I: PersistentId>(
-    identities: &[RegistrationIdentityV1<I>],
-    symbols: impl Iterator<Item = PersistentSymbolRequest>,
-    selected: &BTreeSet<ObjectDefinitionPlanId>,
-    profile: &ValidatedFinalLinkProfile,
-) -> Vec<String> {
-    identities
-        .iter()
-        .zip(symbols)
-        .filter(|(identity, _)| selected.contains(&identity.definition_plan()))
-        .map(|(_, symbol)| object_symbol(symbol, profile))
-        .collect()
 }

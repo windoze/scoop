@@ -73,12 +73,4 @@ impl DecodedCrossConeLayoutLinkSections<'_> {
     pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {
         &self.link_identity_closure
     }
-
-    pub const fn cross_cone_link_closure_wire(&self) -> &DecodedCrossConeLinkClosureSectionV1 {
-        &self.cross_cone_link_closure
-    }
-
-    pub const fn layout_link_closure_wire(&self) -> &DecodedCrossConeLayoutLinkClosureSectionV1 {
-        &self.layout_link_closure
-    }
 }

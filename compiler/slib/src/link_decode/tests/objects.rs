@@ -213,18 +213,12 @@ pub(super) fn finalized_link_object_fixture() -> (
     )
     .unwrap();
     let compatibility =
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
             .unwrap();
     let image = crate::compute_runtime_image_fingerprint_v1(image, patched, compatibility).unwrap();
     let image = crate::patch_runtime_image_fingerprint_v1(image).unwrap();
     let final_objects = crate::patch_entry_production_v1(image, entry).unwrap();
     (production, final_objects, defined_symbols, requirements)
-}
-
-pub(super) fn link_object_bytes() -> Vec<u8> {
-    finalized_link_object_fixture().1.objects()[0]
-        .bytes()
-        .to_vec()
 }
 
 fn empty_undefined_requirements(

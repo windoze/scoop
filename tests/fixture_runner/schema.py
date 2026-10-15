@@ -67,6 +67,8 @@ BUILTINS = {
     "work",
     "repo",
     "sysroot",
+    "test_core",
+    "class_core",
     "cache",
     "scoop",
     "scoopc",

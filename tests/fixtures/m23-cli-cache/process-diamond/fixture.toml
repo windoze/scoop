@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -46,7 +46,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""

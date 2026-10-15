@@ -1,4 +1,4 @@
-//! Link-only semantic and physical closure for ordinary dependency callables.
+//! Ordinary dependency imports and actual undefined symbol uses.
 
 use std::fmt;
 
@@ -7,20 +7,13 @@ use scoop_identity::{
     PersistentSymbolRequest, StrongCallableDefinitionOwner,
 };
 use scoop_lir::{CrossConeLirBridgeSectionV1, SelectedDependencyLirCallableV1};
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{Encoder, WireEncode};
 
-use super::{
-    CanonicalUndefinedRelocationUseV1, CodeLinkObjectMemberSetV1, VerifiedCodeLinkObjectMemberSetV1,
-};
+use super::CanonicalUndefinedRelocationUseV1;
 use crate::SlibMemberId;
-
-const OBJECT_COVERAGE_DOMAIN: &str = "scoop-cross-cone-object-coverage-v1";
 
 mod classification;
 pub use classification::*;
-
-mod wire;
-pub use wire::{CrossConeLinkClosureSectionValidationError, DecodedCrossConeLinkClosureSectionV1};
 
 #[cfg(test)]
 mod tests;
@@ -156,187 +149,6 @@ impl CrossConeUndefinedRequirementV1 {
     }
 }
 
-impl WireEncode for CrossConeUndefinedRequirementV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.use_site.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.unsigned(u64::from(self.import_index))
-    }
-}
-
-/// Digest binding the complete final LinkObject set to all cross-Cone uses.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CrossConeRelocationUseSetDigestV1([u8; 32]);
-
-impl CrossConeRelocationUseSetDigestV1 {
-    pub const fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl WireEncode for CrossConeRelocationUseSetDigestV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.bytes(&self.0)
-    }
-}
-
-impl fmt::Display for CrossConeRelocationUseSetDigestV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for byte in self.0 {
-            write!(formatter, "{byte:02x}")?;
-        }
-        Ok(())
-    }
-}
-
-/// LinkValidationOnly proof that the physical use set covers final objects.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CrossConeObjectCoverageProofV1 {
-    verified_link_objects: CodeLinkObjectMemberSetV1,
-    relocation_use_set_digest: CrossConeRelocationUseSetDigestV1,
-}
-
-impl CrossConeObjectCoverageProofV1 {
-    pub const fn verified_link_objects(&self) -> &CodeLinkObjectMemberSetV1 {
-        &self.verified_link_objects
-    }
-
-    pub const fn relocation_use_set_digest(&self) -> CrossConeRelocationUseSetDigestV1 {
-        self.relocation_use_set_digest
-    }
-}
-
-impl WireEncode for CrossConeObjectCoverageProofV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.verified_link_objects.encode(encoder)?;
-        encoder.field(2)?;
-        self.relocation_use_set_digest.encode(encoder)
-    }
-}
-
-/// Canonical payload of `org.scoop-lang.lir/cross-cone-link-closure/1`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CrossConeLinkClosureSectionV1 {
-    semantic_imports: CrossConeLinkSemanticImportSetV1,
-    requirements: Vec<CrossConeUndefinedRequirementV1>,
-    object_coverage: CrossConeObjectCoverageProofV1,
-}
-
-impl CrossConeLinkClosureSectionV1 {
-    pub fn from_verified_requirements<D, C, I>(
-        requirements: &VerifiedCrossConeStrongRequirementClosureV1,
-        link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
-    ) -> Result<Self, CrossConeLinkClosureBuildError>
-    where
-        D: scoop_lir::StrongDescriptorReference,
-        C: Clone,
-    {
-        if requirements.producer() != link_objects.producer() {
-            return Err(CrossConeLinkClosureBuildError::ProducerMismatch {
-                requirements: requirements.producer(),
-                objects: link_objects.producer(),
-            });
-        }
-        Self::from_parts(
-            requirements.semantic_imports().clone(),
-            requirements.requirements().to_vec(),
-            link_objects.projection().clone(),
-        )
-    }
-
-    fn from_parts(
-        semantic_imports: CrossConeLinkSemanticImportSetV1,
-        requirements: Vec<CrossConeUndefinedRequirementV1>,
-        verified_link_objects: CodeLinkObjectMemberSetV1,
-    ) -> Result<Self, CrossConeLinkClosureBuildError> {
-        for requirement in &requirements {
-            let member = requirement.use_site.source_member();
-            if verified_link_objects
-                .members()
-                .binary_search_by_key(&member, |entry| entry.member())
-                .is_err()
-            {
-                return Err(CrossConeLinkClosureBuildError::UseOutsideObjectSet { member });
-            }
-        }
-        let digest = object_coverage_digest(&verified_link_objects, &requirements)
-            .map_err(CrossConeLinkClosureBuildError::Hash)?;
-        Ok(Self {
-            semantic_imports,
-            requirements,
-            object_coverage: CrossConeObjectCoverageProofV1 {
-                verified_link_objects,
-                relocation_use_set_digest: digest,
-            },
-        })
-    }
-
-    pub const fn consumer(&self) -> ConeIdentity {
-        self.semantic_imports.consumer()
-    }
-
-    pub const fn semantic_imports(&self) -> &CrossConeLinkSemanticImportSetV1 {
-        &self.semantic_imports
-    }
-
-    pub fn requirements(&self) -> &[CrossConeUndefinedRequirementV1] {
-        &self.requirements
-    }
-
-    pub const fn object_coverage(&self) -> &CrossConeObjectCoverageProofV1 {
-        &self.object_coverage
-    }
-}
-
-impl WireEncode for CrossConeLinkClosureSectionV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.semantic_imports.encode(encoder)?;
-        encoder.field(2)?;
-        encode_array(encoder, &self.requirements)?;
-        encoder.field(3)?;
-        self.object_coverage.encode(encoder)
-    }
-}
-
-struct CrossConeObjectCoveragePreimageV1<'a> {
-    verified_link_objects: &'a CodeLinkObjectMemberSetV1,
-    requirements: &'a [CrossConeUndefinedRequirementV1],
-}
-
-impl WireEncode for CrossConeObjectCoveragePreimageV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.verified_link_objects.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.array(self.requirements.len() as u64)?;
-        for requirement in self.requirements {
-            requirement.use_site.encode(encoder)?;
-        }
-        Ok(())
-    }
-}
-
-fn object_coverage_digest(
-    verified_link_objects: &CodeLinkObjectMemberSetV1,
-    requirements: &[CrossConeUndefinedRequirementV1],
-) -> Result<CrossConeRelocationUseSetDigestV1, HashError> {
-    domain_separated_cbor_hash(
-        OBJECT_COVERAGE_DOMAIN,
-        &CrossConeObjectCoveragePreimageV1 {
-            verified_link_objects,
-            requirements,
-        },
-    )
-    .map(|digest| CrossConeRelocationUseSetDigestV1(*digest.as_array()))
-}
-
 fn encode_array<T: WireEncode>(
     encoder: &mut Encoder,
     values: &[T],
@@ -385,30 +197,3 @@ impl fmt::Display for CrossConeLinkSemanticImportBuildError {
 }
 
 impl std::error::Error for CrossConeLinkSemanticImportBuildError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CrossConeLinkClosureBuildError {
-    ProducerMismatch {
-        requirements: ConeIdentity,
-        objects: ConeIdentity,
-    },
-    UseOutsideObjectSet {
-        member: SlibMemberId,
-    },
-    Hash(HashError),
-}
-
-impl fmt::Display for CrossConeLinkClosureBuildError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot build cross-Cone link closure: {self:?}")
-    }
-}
-
-impl std::error::Error for CrossConeLinkClosureBuildError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Hash(source) => Some(source),
-            Self::ProducerMismatch { .. } | Self::UseOutsideObjectSet { .. } => None,
-        }
-    }
-}

@@ -8,11 +8,10 @@ use std::process::{Command, ExitStatus, Stdio};
 
 use scoop_protocol::{
     ProtocolReadError, ProtocolWriteError, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1,
-    ScoopcSuccessV1, decode_response_frame, encode_request_frame,
+    decode_response_frame, encode_request_frame,
 };
-use scoop_slib::FingerprintAvailability;
 
-use crate::{BuildArtifact, PairedCompilerError, ResolvedPairedScoopc};
+use crate::ResolvedPairedScoopc;
 
 const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 
@@ -67,8 +66,6 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         request: &ScoopcRequestEnvelopeV1,
         io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
-        tool.revalidate_executable()
-            .map_err(ChildTransportError::CompilerChanged)?;
         let request_frame = encode_request_frame(request).map_err(ChildTransportError::Request)?;
         let working_directory = tool.executable_path().parent().ok_or_else(|| {
             ChildTransportError::MissingExecutableParent {
@@ -84,6 +81,7 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
             .arg(tool.protocol().protocol_version().to_string())
             .env_clear()
             .env("SCOOP_SYSROOT", io.trusted_sysroot())
+            .env("SCOOP_CACHE_DIR", &io.temporary_root)
             .env("TMPDIR", temporary.path())
             .envs(
                 io.compiler_environment
@@ -123,8 +121,6 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         let stdout = join_reader(stdout_thread, "stdout")?;
         let stderr = join_reader(stderr_thread, "stderr")?;
         write_result?;
-        tool.revalidate_executable()
-            .map_err(ChildTransportError::CompilerChanged)?;
         if status.code().is_none() {
             return Err(ChildTransportError::Signal);
         }
@@ -145,144 +141,6 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         }
         validate_exit(status, &response)?;
         Ok(response)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ChildSuccessArtifactField {
-    ArtifactFingerprint,
-    ConeIdentity,
-    HirFingerprint,
-    MirFingerprint,
-    LirFingerprint,
-    CodeFingerprint,
-    RuntimeImageFingerprint,
-}
-
-impl fmt::Display for ChildSuccessArtifactField {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::ArtifactFingerprint => "artifact fingerprint",
-            Self::ConeIdentity => "Cone identity",
-            Self::HirFingerprint => "HIR fingerprint",
-            Self::MirFingerprint => "MIR fingerprint",
-            Self::LirFingerprint => "LIR fingerprint",
-            Self::CodeFingerprint => "Code fingerprint",
-            Self::RuntimeImageFingerprint => "runtime-image fingerprint",
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ChildSuccessArtifactMismatch {
-    field: ChildSuccessArtifactField,
-}
-
-impl ChildSuccessArtifactMismatch {
-    pub const fn field(self) -> ChildSuccessArtifactField {
-        self.field
-    }
-}
-
-impl fmt::Display for ChildSuccessArtifactMismatch {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "child success response disagrees with validated {}",
-            self.field
-        )
-    }
-}
-
-impl std::error::Error for ChildSuccessArtifactMismatch {}
-
-pub(crate) fn validate_child_success_artifact(
-    success: &ScoopcSuccessV1,
-    artifact: &BuildArtifact,
-) -> Result<(), ChildSuccessArtifactMismatch> {
-    let summary = artifact.summary();
-    let semantic = summary.semantic_fingerprints();
-    validate_child_success_fields(
-        success,
-        ExpectedChildSuccessArtifact {
-            artifact_fingerprint: *summary.artifact_fingerprint().as_array(),
-            cone_identity: *summary.cone().identity().as_array(),
-            hir_fingerprint: *semantic.hir().as_array(),
-            mir_fingerprint: *semantic.mir().as_array(),
-            lir_fingerprint: *semantic.lir().as_array(),
-            code_fingerprint: available_fingerprint(semantic.code(), |value| *value.as_array()),
-            runtime_image_fingerprint: available_fingerprint(semantic.runtime_image(), |value| {
-                *value.as_array()
-            }),
-        },
-    )
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct ExpectedChildSuccessArtifact {
-    artifact_fingerprint: [u8; 32],
-    cone_identity: [u8; 32],
-    hir_fingerprint: [u8; 32],
-    mir_fingerprint: [u8; 32],
-    lir_fingerprint: [u8; 32],
-    code_fingerprint: Option<[u8; 32]>,
-    runtime_image_fingerprint: Option<[u8; 32]>,
-}
-
-fn available_fingerprint<T>(
-    availability: FingerprintAvailability<T>,
-    to_array: impl FnOnce(T) -> [u8; 32],
-) -> Option<[u8; 32]> {
-    match availability {
-        FingerprintAvailability::Unavailable => None,
-        FingerprintAvailability::Available(value) => Some(to_array(value)),
-    }
-}
-
-fn validate_child_success_fields(
-    success: &ScoopcSuccessV1,
-    expected: ExpectedChildSuccessArtifact,
-) -> Result<(), ChildSuccessArtifactMismatch> {
-    check_child_field(
-        success.artifact_fingerprint().as_array() == &expected.artifact_fingerprint,
-        ChildSuccessArtifactField::ArtifactFingerprint,
-    )?;
-    check_child_field(
-        success.cone_identity().as_array() == &expected.cone_identity,
-        ChildSuccessArtifactField::ConeIdentity,
-    )?;
-    check_child_field(
-        success.hir_fingerprint().as_array() == &expected.hir_fingerprint,
-        ChildSuccessArtifactField::HirFingerprint,
-    )?;
-    check_child_field(
-        success.mir_fingerprint().as_array() == &expected.mir_fingerprint,
-        ChildSuccessArtifactField::MirFingerprint,
-    )?;
-    check_child_field(
-        success.lir_fingerprint().as_array() == &expected.lir_fingerprint,
-        ChildSuccessArtifactField::LirFingerprint,
-    )?;
-    check_child_field(
-        expected.code_fingerprint.as_ref() == Some(success.code_fingerprint().as_array()),
-        ChildSuccessArtifactField::CodeFingerprint,
-    )?;
-    check_child_field(
-        expected.runtime_image_fingerprint.as_ref()
-            == Some(success.runtime_image_fingerprint().as_array()),
-        ChildSuccessArtifactField::RuntimeImageFingerprint,
-    )?;
-    Ok(())
-}
-
-fn check_child_field(
-    matches: bool,
-    field: ChildSuccessArtifactField,
-) -> Result<(), ChildSuccessArtifactMismatch> {
-    if matches {
-        Ok(())
-    } else {
-        Err(ChildSuccessArtifactMismatch { field })
     }
 }
 
@@ -310,7 +168,10 @@ fn validate_exit(
     let Some(code) = status.code() else {
         return Err(ChildTransportError::Signal);
     };
-    let valid = matches!(response, ScoopcResponseEnvelopeV1::Success { .. }) && code == 0
+    let valid = matches!(
+        response,
+        ScoopcResponseEnvelopeV1::Success { .. } | ScoopcResponseEnvelopeV1::Observed { .. }
+    ) && code == 0
         || matches!(response, ScoopcResponseEnvelopeV1::Failure { .. })
             && code == COMPILER_FAILURE_EXIT_CODE;
     if valid {
@@ -319,7 +180,8 @@ fn validate_exit(
         Err(ChildTransportError::ExitMismatch {
             status,
             response: match response {
-                ScoopcResponseEnvelopeV1::Success { .. } => ChildResponseKind::Success,
+                ScoopcResponseEnvelopeV1::Success { .. }
+                | ScoopcResponseEnvelopeV1::Observed { .. } => ChildResponseKind::Success,
                 ScoopcResponseEnvelopeV1::Failure { .. } => ChildResponseKind::Failure,
             },
         })
@@ -334,7 +196,6 @@ pub enum ChildResponseKind {
 
 #[derive(Debug)]
 pub enum ChildTransportError {
-    CompilerChanged(PairedCompilerError),
     Request(ProtocolWriteError),
     TemporaryDirectory(std::io::Error),
     MissingExecutableParent {
@@ -372,12 +233,6 @@ pub enum ChildTransportError {
 impl fmt::Display for ChildTransportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CompilerChanged(source) => {
-                write!(
-                    formatter,
-                    "paired compiler changed around child invocation: {source}"
-                )
-            }
             Self::Request(source) => write!(formatter, "cannot encode child request: {source}"),
             Self::TemporaryDirectory(source) => write!(
                 formatter,
@@ -432,7 +287,6 @@ impl fmt::Display for ChildTransportError {
 impl std::error::Error for ChildTransportError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CompilerChanged(source) => Some(source),
             Self::Request(source) => Some(source),
             Self::Spawn { source, .. }
             | Self::TemporaryDirectory(source)

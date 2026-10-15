@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn seven_field_wire_round_trips_only_after_full_closure_replay() {
+fn seven_field_wire_round_trips_with_typed_dependency_references() {
     let provider = Fixture::new("wire-provider");
     let mut consumer = Fixture::new("wire-consumer");
     consumer.uses = vec![provider.shape_use()];
@@ -17,9 +17,6 @@ fn seven_field_wire_round_trips_only_after_full_closure_replay() {
     let dependencies = [terminal.dependency_view()];
     let replayed =
         resolved_dependencies::read(&consumer, decoded, &dependencies, &mut graph).unwrap();
-    replayed
-        .replay_dependency_closure(&consumer.units, &dependencies, &consumer.uses, &graph)
-        .unwrap();
     assert_eq!(
         replayed.selected_relations(),
         section.selected().relations().collect::<Vec<_>>()
@@ -57,7 +54,7 @@ fn decoded_with_selected(
 }
 
 #[test]
-fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
+fn reader_rejects_duplicate_and_local_selected_records() {
     let provider = Fixture::new("selected-provider");
     let mut consumer = Fixture::new("selected-consumer");
     consumer.uses = vec![provider.type_use()];
@@ -67,15 +64,6 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
         .section(&[terminal.dependency_view()], &graph)
         .unwrap();
     let dependencies = [terminal.dependency_view()];
-    for records in [vec![], vec![provider.type_use(), provider.shape_use()]] {
-        let decoded = decoded_with_selected(&section, &records);
-        let read =
-            resolved_dependencies::read(&consumer, decoded, &dependencies, &mut graph).unwrap();
-        assert!(matches!(
-            read.replay_dependency_closure(&consumer.units, &dependencies, &consumer.uses, &graph),
-            Err(MirTypeBridgeSectionError::SelectedClosure)
-        ));
-    }
     let duplicate = decoded_with_selected(&section, &[provider.type_use(), provider.type_use()]);
     assert!(matches!(
         resolved_dependencies::read(&consumer, duplicate, &dependencies, &mut graph),

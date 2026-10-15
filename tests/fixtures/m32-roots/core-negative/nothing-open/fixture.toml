@@ -10,12 +10,11 @@ name = "prepare"
 files = [
   {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
   {copy = {from = "${fixture}/roots.scoop", to = "${work}/core-source/src/roots.scoop"}},
-  {mkdir = {path = "${work}/empty-sysroot"}},
 ]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

@@ -1,14 +1,20 @@
-use scoop::SourceSnapshot;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use scoop::SelectedSource;
 use scoop_protocol::{DiagnosticOriginV1, DiagnosticSeverityV1, StructuredDiagnosticV1};
 
 use super::*;
+
+type SourceContents = BTreeMap<PathBuf, Option<Vec<u8>>>;
 
 impl Reporter {
     pub(super) fn diagnostics(
         &self,
         diagnostics: &[StructuredDiagnosticV1],
-        sources: &[SourceSnapshot],
+        sources: &[SelectedSource],
     ) -> io::Result<()> {
+        let mut contents = SourceContents::new();
         for diagnostic in diagnostics {
             let severity = match diagnostic.severity() {
                 DiagnosticSeverityV1::Error => "error",
@@ -17,12 +23,12 @@ impl Reporter {
             match self.0 {
                 MessageFormat::Json => {
                     let notes = diagnostic.notes().iter().map(|note| json!({
-                        "message": note.message(), "origin": origin(note.origin()), "display": display(note.origin(), sources),
+                        "message": note.message(), "origin": origin(note.origin()), "display": display(note.origin(), sources, &mut contents),
                     })).collect::<Vec<_>>();
                     write_json(&json!({
                         "schema": 1, "kind": "diagnostic", "severity": severity, "code": diagnostic.code(),
                         "message": diagnostic.message(), "origin": origin(diagnostic.origin()), "notes": notes,
-                        "display": display(diagnostic.origin(), sources),
+                        "display": display(diagnostic.origin(), sources, &mut contents),
                     }))?;
                 }
                 MessageFormat::Human => {
@@ -30,7 +36,7 @@ impl Reporter {
                     writeln!(
                         stderr,
                         "{}{}[{}]: {}",
-                        location(diagnostic.origin(), sources),
+                        location(diagnostic.origin(), sources, &mut contents),
                         severity,
                         diagnostic.code(),
                         diagnostic.message()
@@ -39,7 +45,7 @@ impl Reporter {
                         writeln!(
                             stderr,
                             "{}note: {}",
-                            location(note.origin(), sources),
+                            location(note.origin(), sources, &mut contents),
                             note.message()
                         )?;
                     }
@@ -60,6 +66,9 @@ fn origin(origin: &DiagnosticOriginV1) -> Value {
         } => json!({
             "kind": "source", "cone": scoop_wire::Digest256::from_array(*cone.as_array()).to_string(), "path": logical_path.as_str(), "start": span.start(), "end": span.end(),
         }),
+        DiagnosticOriginV1::HostPath { path } => json!({
+            "kind": "host", "path": path.to_path_buf().ok().map(|path| path_value(&path)), "start": null, "end": null,
+        }),
         DiagnosticOriginV1::HostPathSpan { path, span } => json!({
             "kind": "host", "path": path.to_path_buf().ok().map(|path| path_value(&path)), "start": span.start(), "end": span.end(),
         }),
@@ -72,7 +81,11 @@ fn origin(origin: &DiagnosticOriginV1) -> Value {
     }
 }
 
-fn display(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> Value {
+fn display(
+    origin: &DiagnosticOriginV1,
+    sources: &[SelectedSource],
+    contents: &mut SourceContents,
+) -> Value {
     match origin {
         DiagnosticOriginV1::None => Value::Null,
         DiagnosticOriginV1::SemanticSourceSpan {
@@ -87,8 +100,11 @@ fn display(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> Value {
                 return Value::Null;
             };
             let mut value = json!({"path": path_value(source.display_locator().as_path()), "start": span.start(), "end": span.end()});
+            let bytes = contents
+                .entry(source.physical_path().to_owned())
+                .or_insert_with(|| std::fs::read(source.physical_path()).ok());
             if let Ok(offset) = usize::try_from(span.start())
-                && let Some(bytes) = source.as_bytes().get(..offset)
+                && let Some(bytes) = bytes.as_deref().and_then(|bytes| bytes.get(..offset))
                 && let Ok(prefix) = std::str::from_utf8(bytes)
             {
                 value["line"] = json!(prefix.bytes().filter(|byte| *byte == b'\n').count() + 1);
@@ -96,6 +112,9 @@ fn display(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> Value {
                     json!(prefix.rsplit('\n').next().unwrap_or("").chars().count() + 1);
             }
             value
+        }
+        DiagnosticOriginV1::HostPath { path } => {
+            json!({"path": path.to_path_buf().ok().map(|path| path_value(&path))})
         }
         DiagnosticOriginV1::HostPathSpan { path, span } => {
             json!({"path": path.to_path_buf().ok().map(|path| path_value(&path)), "start": span.start(), "end": span.end()})
@@ -109,8 +128,12 @@ fn display(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> Value {
     }
 }
 
-fn location(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> String {
-    let rendered = display(origin, sources);
+fn location(
+    origin: &DiagnosticOriginV1,
+    sources: &[SelectedSource],
+    contents: &mut SourceContents,
+) -> String {
+    let rendered = display(origin, sources, contents);
     if let Some(path) = rendered.get("path").and_then(Value::as_str) {
         if let (Some(line), Some(column)) = (rendered.get("line"), rendered.get("column")) {
             return format!("{path}:{line}:{column}: ");
@@ -133,6 +156,13 @@ fn location(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> String {
             scoop_wire::Digest256::from_array(*cone.as_array()),
             span.start(),
             span.end()
+        ),
+        DiagnosticOriginV1::HostPath { path } => format!(
+            "{}: ",
+            path.to_path_buf().map_or_else(
+                |_| "<host path>".to_owned(),
+                |path| path.display().to_string(),
+            )
         ),
         DiagnosticOriginV1::HostPathSpan { path, span } => format!(
             "{}:bytes {}..{}: ",
@@ -172,11 +202,14 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                location(&diagnostic, &[]),
+                location(&diagnostic, &[], &mut SourceContents::new()),
                 format!("{}:HIR:$.3[2]: ", path.display())
             );
             assert_eq!(origin(&diagnostic)["path"], path_value(&path));
-            assert_eq!(display(&diagnostic, &[])["member"], "HIR:$.3[2]");
+            assert_eq!(
+                display(&diagnostic, &[], &mut SourceContents::new())["member"],
+                "HIR:$.3[2]"
+            );
         }
     }
 }

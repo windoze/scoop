@@ -1,0 +1,138 @@
+schema = 1
+name = "m48-runtime-record"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m48", "runtime", "cache"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${work}/runtime", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+  {copy = {from = "${runtime}", to = "${work}/runtime"}},
+  {write = {path = "${work}/runtime/include/m48_value.h", data = "#define M48_VALUE 40\n"}},
+  {replace = {path = "${work}/runtime/src/rt.c", old = "#include \"scoop_rt.h\"", new = "#include \"scoop_rt.h\"\n#include \"m48_value.h\"\nint m48_runtime_value(void) { return M48_VALUE; }"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}]
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}, {actual = "${warm.result.runtime_index}", equals = "${cold.result.runtime_index}"}]
+
+[[steps]]
+name = "unrelated_header"
+files = [{write = {path = "${work}/runtime/include/unrelated.h", data = "#define UNUSED 1\n"}}]
+
+[[steps]]
+name = "unrelated"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${unrelated.result.observations.child_invocations.length}", equals = 0}, {actual = "${unrelated.result.runtime_index}", equals = "${cold.result.runtime_index}"}]
+
+[[steps]]
+name = "edit_scoop"
+files = [{replace = {path = "${work}/cone/src/main.scoop", old = "runtimeValue() + 2", new = "runtimeValue() + 3"}}]
+
+[[steps]]
+name = "scoop_changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${scoop_changed.result.observations.child_invocations.length}", equals = 1}, {actual = "${scoop_changed.result.runtime_index}", equals = "${cold.result.runtime_index}"}]
+
+[[steps]]
+name = "run_scoop_changed"
+argv = ["${scoop_changed.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_header"
+files = [{replace = {path = "${work}/runtime/include/m48_value.h", old = "M48_VALUE 40", new = "M48_VALUE 50"}}]
+
+[[steps]]
+name = "header_changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${header_changed.result.observations.child_invocations.length}", equals = 0}, {actual = "${header_changed.result.runtime_index}", not_equals = "${cold.result.runtime_index}"}]
+
+[[steps]]
+name = "run_header_changed"
+argv = ["${header_changed.result.output}"]
+exit = 53
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_runtime"
+files = [{replace = {path = "${work}/runtime/src/rt.c", old = "return M48_VALUE;", new = "return M48_VALUE + 10;"}}]
+
+[[steps]]
+name = "runtime_changed"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${runtime_changed.result.observations.child_invocations.length}", equals = 0}, {actual = "${runtime_changed.result.runtime_index}", not_equals = "${header_changed.result.runtime_index}"}]
+
+[[steps]]
+name = "run_runtime_changed"
+argv = ["${runtime_changed.result.output}"]
+exit = 63
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "runtime_warm"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${runtime_warm.result.observations.child_invocations.length}", equals = 0}, {actual = "${runtime_warm.result.runtime_index}", equals = "${runtime_changed.result.runtime_index}"}]
+
+[[steps]]
+name = "run_runtime_warm"
+argv = ["${runtime_warm.result.output}"]
+exit = 63
+stdout = ""
+stderr = ""

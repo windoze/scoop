@@ -15,6 +15,7 @@ pub(crate) struct Fixture {
     pub library_paths: Vec<PathBuf>,
 }
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub(crate) fn fixture() -> Fixture {
     build_fixture("basic-root.scoop", false)
 }
@@ -101,7 +102,6 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         )
         .unwrap();
         compile_native(&profile, &source, &path.join("m23_final.o"));
-        std::fs::remove_file(source).unwrap();
         vec![path.to_owned()]
     } else {
         Vec::new()
@@ -111,7 +111,6 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &[library, core],
         scoop_target_data::selection(profile.id())
             .expect("implemented target selected by this consumer"),
-        profile.startup_toolchain().profile(),
     )
     .unwrap();
     let output = link_program(
@@ -120,6 +119,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &profile,
         &library_paths,
         &path.join("program"),
+        &path.join("cache"),
     )
     .unwrap();
     Fixture {
@@ -168,7 +168,6 @@ fn compile(
         command.arg("--direct-slib").arg(dependency);
     }
     checked(command.arg("--out-slib").arg(&output));
-    std::fs::remove_dir_all(source).unwrap();
     output
 }
 

@@ -157,7 +157,7 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "extern parameter is not ABI-safe: cEnum.parameter1: enum types have no M12 C ABI representation",
+    "message": "extern parameter is not ABI-safe: cEnum.parameter1: this enum type has no C ABI representation",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",

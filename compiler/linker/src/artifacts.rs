@@ -10,6 +10,7 @@ use crate::{LinkError, ProgramLinkOutput, RuntimeObjectSet, error, link_program}
 mod tests;
 
 pub struct ArtifactLinkRequest {
+    pub cache_dir: PathBuf,
     pub root_slib: PathBuf,
     pub dependency_slibs: Vec<PathBuf>,
     pub runtime_index: PathBuf,
@@ -22,15 +23,23 @@ pub struct ArtifactLinkRequest {
 
 impl ArtifactLinkRequest {
     pub fn link(&self) -> Result<ProgramLinkOutput, LinkError> {
-        let target =
-            ResolvedTargetProfile::resolve_with(&self.target, &self.c_toolchain).map_err(error)?;
+        let target = ResolvedTargetProfile::resolve_with_cached(
+            &self.target,
+            &self.c_toolchain,
+            &self.cache_dir,
+        )
+        .map_err(error)?;
         let closure = read_program_artifacts(
             &self.root_slib,
             &self.dependency_slibs,
             target.lir_target_selection(),
-            target.c_bridge_toolchain().profile(),
         )?;
-        let profile = resolve_program_link_profile(&closure, &target, &self.final_link)?;
+        let profile = resolve_program_link_profile(
+            &closure,
+            &target,
+            &self.final_link,
+            Some(&self.cache_dir),
+        )?;
         let runtime = RuntimeObjectSet::read_index(
             &self.runtime_index,
             profile.target(),
@@ -42,6 +51,7 @@ impl ArtifactLinkRequest {
             &profile,
             &self.library_paths,
             &self.output,
+            &self.cache_dir,
         )
     }
 }
@@ -50,18 +60,18 @@ pub fn read_program_artifacts(
     root: &Path,
     dependencies: &[PathBuf],
     target: ValidatedLirTargetSelection,
-    toolchain: &scoop_lir::CBridgeToolchainProfileV1,
 ) -> Result<ProgramLinkClosure, LinkError> {
     let read = |path: &Path| {
-        std::fs::read(path).map_err(|err| error(format!("artifact {}: {err}", path.display())))
+        scoop_slib::ArtifactFile::open(path, target)
+            .map_err(|err| error(format!("artifact {}: {err}", path.display())))
     };
-    let root_bytes = read(root)?;
-    let dependency_bytes = dependencies
+    let root_file = read(root)?;
+    let dependency_files = dependencies
         .iter()
         .map(|path| read(path))
         .collect::<Result<Vec<_>, _>>()?;
-    let dependencies: Vec<_> = dependency_bytes.iter().map(Vec::as_slice).collect();
-    scoop_slib::read_program_link_closure(&root_bytes, &dependencies, target, toolchain)
+    let dependencies: Vec<_> = dependency_files.iter().collect();
+    scoop_slib::read_program_link_closure(&root_file, &dependencies, target)
         .map_err(|err| error(format!("program Link input {}: {err}", root.display())))
 }
 
@@ -69,10 +79,11 @@ pub fn resolve_program_link_profile(
     closure: &ProgramLinkClosure,
     target: &ResolvedTargetProfile,
     options: &FinalLinkOptions,
+    cache: Option<&Path>,
 ) -> Result<ValidatedFinalLinkProfile, LinkError> {
     let origins = closure
         .artifacts()
-        .filter(|(artifact, _)| artifact.foundation().native_cxx())
+        .filter(|(artifact, _)| artifact.native_cxx())
         .map(|(artifact, _)| artifact.manifest().cone().coordinate().to_string())
         .collect::<Vec<_>>();
     if !origins.is_empty() && target.id() == scoop_target_data::LINUX_X86_64_MUSL_ID {
@@ -81,13 +92,15 @@ pub fn resolve_program_link_profile(
             origins.join(", ")
         )));
     }
-    target
-        .final_link_with_cxx(options, !origins.is_empty())
-        .map_err(|err| {
-            if origins.is_empty() {
-                error(err)
-            } else {
-                error(format!("{err}; C++ required by {}", origins.join(", ")))
-            }
-        })
+    let profile = match cache {
+        Some(cache) => target.final_link_with_cxx_cached(options, !origins.is_empty(), cache),
+        None => target.final_link_with_cxx(options, !origins.is_empty()),
+    };
+    profile.map_err(|err| {
+        if origins.is_empty() {
+            error(err)
+        } else {
+            error(format!("{err}; C++ required by {}", origins.join(", ")))
+        }
+    })
 }

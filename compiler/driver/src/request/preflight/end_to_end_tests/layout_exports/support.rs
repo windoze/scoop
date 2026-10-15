@@ -109,7 +109,6 @@ pub(super) fn with_pair(
             vec![],
             core_bytes,
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (front, _) = core_read.artifact(ConeIdentity::CORE).unwrap();
@@ -126,7 +125,10 @@ pub(super) fn with_pair(
     let default_exports = default_dependency.lir_exports();
     let default_provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: default_dependency.lir_foundation(),
-        production: default_dependency.lir_strong_production(),
+        definitions: default_dependency
+            .lir_production_data()
+            .canonical_definitions(),
+        support: lir::ShapeLinkSupportV1::Saved(default_dependency.lir_production_data()),
         ordinary: default_dependency.lir_cross_cone_bridge(),
         layouts: default_exports.layouts(),
         callables: default_exports.callables(),
@@ -147,7 +149,7 @@ pub(super) fn with_pair(
         &diagnostics,
     )
     .unwrap();
-    let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
+    let (graph, _, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
     let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap();
     let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
     let source = scoop_hir_lower::produce_cross_cone_type_semantics(
@@ -273,25 +275,6 @@ pub(super) fn with_pair(
                 if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
         ));
     }
-    shared_ordinary::check_dependency_uses(
-        hir::SharedTypeMetadataV1 {
-            provider: input.mir.module().cone,
-            identities: &graph,
-            foundation: &foundation,
-            public: &hir.cross_cone_section,
-        },
-        &mir.public,
-        input,
-        dependencies,
-        core.production().lir_cross_cone(),
-        hir::SharedTypeMetadataV1 {
-            provider: core.identity(),
-            identities: &graph,
-            foundation: &core_hir,
-            public: core.production().hir_interface(),
-        },
-        &core_lir,
-    );
     let owners = request
         .dependencies()
         .closure

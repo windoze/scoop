@@ -1,8 +1,6 @@
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentTypeId};
 use scoop_wire::{HashError, WireError};
 
-use super::ParamFreeShapeSupportWireError;
-
 #[derive(Debug)]
 pub enum ParamFreeShapeSupportExportError {
     Provider,
@@ -61,36 +59,16 @@ impl std::error::Error for ParamFreeShapeSupportExportError {}
 
 #[derive(Debug)]
 pub enum ParamFreeShapeSupportTableError {
-    CountOverflow,
-    Duplicate(PersistentTypeId),
     DuplicateRequiredSource(PersistentTypeId),
     TableProvider,
     TableTarget,
-    Provider(PersistentTypeId),
-    Target(PersistentTypeId),
-    Coverage,
-    RecordMismatch(PersistentTypeId),
     Record(ParamFreeShapeSupportExportError),
-    Wire(ParamFreeShapeSupportWireError),
-    Encode(scoop_wire::cbor::EncodeError),
     Resource(WireError),
 }
 
 impl From<ParamFreeShapeSupportExportError> for ParamFreeShapeSupportTableError {
     fn from(error: ParamFreeShapeSupportExportError) -> Self {
         Self::Record(error)
-    }
-}
-
-impl From<ParamFreeShapeSupportWireError> for ParamFreeShapeSupportTableError {
-    fn from(error: ParamFreeShapeSupportWireError) -> Self {
-        Self::Wire(error)
-    }
-}
-
-impl From<scoop_wire::cbor::EncodeError> for ParamFreeShapeSupportTableError {
-    fn from(error: scoop_wire::cbor::EncodeError) -> Self {
-        Self::Encode(error)
     }
 }
 

@@ -1,5 +1,4 @@
 use super::*;
-use crate::link_object::ObjectStackmapSectionError;
 
 pub(crate) mod support;
 use support::{Corruption, Fixture};
@@ -127,24 +126,4 @@ fn rejects_managed_functions_without_an_aarch64_frame_chain() {
             ..
         }) if actual == member
     ));
-}
-
-#[test]
-fn rejects_object_bytes_changed_after_the_builtin_object_proof() {
-    let mut fixture = Fixture::new(Corruption::None);
-    let last = fixture.object_bytes.len() - 1;
-    fixture.object_bytes[last] ^= 1;
-    let member = fixture.member;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        member,
-        &fixture.object_bytes,
-    )];
-
-    assert_eq!(
-        verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
-        Err(ScoopLirStackmapValidationError::PhysicalSection {
-            member,
-            source: ObjectStackmapSectionError::ObjectBytesMismatch,
-        })
-    );
 }

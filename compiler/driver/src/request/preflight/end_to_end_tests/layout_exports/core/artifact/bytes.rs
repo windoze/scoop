@@ -1,8 +1,5 @@
 use super::*;
 
-mod lir_exports;
-mod lir_strong;
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check(
     name: &str,
@@ -10,10 +7,6 @@ pub(super) fn check(
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    hir_core: &hir::CoreBootstrapInterfaceSectionV1,
-    mir_foundation: &mir::CanonicalMirFoundation,
-    strong: &mir::StrongCallableBridgeSurfaceV1,
-    ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {
     let hir_bytes = encode(hir).unwrap();
     let open = || {
@@ -54,7 +47,7 @@ pub(super) fn check(
         encode(compile.lir_strong_production_wire()).unwrap(),
         encode(link.lir_strong_production_wire()).unwrap()
     );
-    let mut declarations = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
+    let declarations = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
         ConeIdentity::CORE,
         artifact.target_selection(),
         Vec::new(),
@@ -76,44 +69,34 @@ pub(super) fn check(
     assert_eq!(declarations.current(), ConeIdentity::CORE);
     assert_eq!(declarations.dependency_first().count(), 1);
     assert!(declarations.artifact(ConeIdentity::CORE).is_some());
-    let checked = declarations.validate_type_foundations().unwrap();
-    assert_eq!(checked.len(), 1);
-    assert_eq!(checked[0].provider(), ConeIdentity::CORE);
-    assert_eq!(checked[0].facts().records(), hir.exact_facts().records());
-    assert_eq!(
-        checked[0].representations().table(),
-        hir.representation_support()
-    );
-    super::type_foundations::check(checked[0]);
-    super::mir_types::check(name, checked[0], hir_core, mir_foundation, mir);
-    super::mir_source_callables::check(name, checked[0], mir_foundation, ordinary, mir);
-    super::mir_constructors::check(name, checked[0], mir_foundation, mir);
-    super::mir_coroutines::check(name, checked[0], hir_core, mir_foundation, mir);
-    super::mir_objects::check(name, checked[0], mir);
-    super::mir_dispatch::check(name, checked[0], hir_core, mir_foundation, ordinary, mir);
-    super::mir_equality::check(name, checked[0], mir_foundation, strong, mir);
-    let units = super::mir_units::check(name, checked[0], mir_foundation, strong, mir);
-    if name == "base" {
-        super::type_foundations::dependencies::check(checked[0]);
-    }
     let callables = declarations
-        .validate_mir_sources()
-        .unwrap_or_else(|error| panic!("{name} shared MIR source validation: {error}"));
-    assert_eq!(callables.current(), ConeIdentity::CORE);
-    assert_eq!(callables.target_selection(), artifact.target_selection());
-    assert!(callables.direct_providers().is_empty());
-    assert_eq!(callables.dependency_count(ConeIdentity::CORE), Some(0));
-    assert_eq!(callables.dependency_first().count(), 1);
-    let current = callables.artifact(ConeIdentity::CORE).unwrap();
-    assert_eq!(current.types(), mir.types());
-    assert_eq!(current.shape_support(), mir.shape_support());
-    assert_eq!(current.callables(), mir.callables());
-    assert_eq!(current.object_values(), mir.object_values());
-    assert_eq!(current.dispatch(), mir.dispatch());
-    assert_eq!(current.initialization_units(), units);
-    assert_eq!(
-        encode(current.lir_layout_abi_wire()).unwrap(),
-        encode(lir).unwrap()
-    );
-    lir_exports::check(name, artifact, callables, &units, mir, lir);
+        .read_mir_records()
+        .unwrap_or_else(|error| panic!("{name} MIR record reading: {error}"));
+    let complete = callables
+        .validate_lir_layouts()
+        .unwrap()
+        .validate_ordinary_lir_bridges()
+        .unwrap()
+        .validate_lir_callable_abis()
+        .unwrap()
+        .validate_lir_dispatch()
+        .unwrap()
+        .validate_lir_descriptors()
+        .unwrap()
+        .validate_lir_shape_support()
+        .unwrap()
+        .read_lir_production_data()
+        .unwrap()
+        .resolve_mir_dependencies()
+        .unwrap()
+        .resolve_lir_dependencies()
+        .unwrap()
+        .read_physical_imports()
+        .unwrap();
+    assert_eq!(complete.current(), ConeIdentity::CORE);
+    assert_eq!(complete.dependency_first().count(), 1);
+    let current = complete.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.lir_exports(), lir.exports());
+    assert_eq!(current.initialization_units(), mir.initialization_units());
+    assert!(current.lir_physical_imports().records().is_empty());
 }

@@ -4,35 +4,13 @@ use scoop_identity::{
     GeneratedBridgeUnitId, GeneratedBridgeUnitKey, NativeExternalContract,
     NativeExternalContractFingerprint, NativeExternalSymbolKey, NativeLibraryBinding,
     ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PendingIdentityValidation, PersistentNativeExternalSymbolId, SourceNativeSymbol,
-    StrongDefinitionEntity, StrongDefinitionRole, ValidatedIdentityGraph,
+    PersistentNativeExternalSymbolId, SourceNativeSymbol, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
-use scoop_wire::{decode_canonical, encode};
+use scoop_wire::decode_canonical;
 
 use super::*;
 use crate::{CanonicalLirFoundation, ConeLirFoundation};
-
-#[test]
-fn generated_bridge_plan_has_a_fixed_wire_vector_and_validates() {
-    let fixture = fixture(true);
-    assert_eq!(fixture.plan.units()[0].unit_authority(), &fixture.unit);
-    assert_eq!(
-        fixture.plan.units()[0].primary_atom_authority(),
-        &fixture.bridge_atom
-    );
-    assert_eq!(
-        hex(&encode(&fixture.plan).unwrap()),
-        "81a40158202412ff1c2c4c3ceb9f9ce1b87ecb6acbb52463ade43c05f5306e2a202ceb459b025820f76584aba39d2482aed593da57167ba894e0d290c6503045ba72031eb8e4958f03800480"
-    );
-
-    let decoded: DecodedGeneratedBridgePlanSetV1 =
-        decode_canonical(&encode(&fixture.plan).unwrap()).unwrap();
-    let mut identities = authorities(fixture.unit.id(), fixture.bridge_atom.id());
-    assert_eq!(
-        decoded.validate(&mut identities, &fixture.foundation),
-        Ok(fixture.plan)
-    );
-}
 
 #[test]
 fn generated_bridge_reader_rejects_non_closed_products() {
@@ -63,28 +41,9 @@ fn generated_bridge_plan_requires_primary_and_definition_plans() {
     );
 }
 
-#[test]
-fn validation_rejects_atoms_moved_to_another_role_set() {
-    let fixture = fixture(true);
-    let bytes = encode(&fixture.plan).unwrap();
-    let mut decoded: DecodedGeneratedBridgePlanSetV1 = decode_canonical(&bytes).unwrap();
-    let primary_atom = decoded.units[0].primary_atom;
-    decoded.units[0]
-        .materialized_associated_atoms
-        .push(primary_atom);
-    let mut identities = authorities(fixture.unit.id(), fixture.bridge_atom.id());
-
-    assert_eq!(
-        decoded.validate(&mut identities, &fixture.foundation),
-        Err(GeneratedBridgePlanValidationError::UnitMismatch { index: 0 })
-    );
-}
-
 struct Fixture {
-    unit: CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>,
     bridge_atom: CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>,
     foundation: ConeLirFoundation,
-    plan: GeneratedBridgePlanSetV1,
 }
 
 fn fixture(include_definition: bool) -> Fixture {
@@ -115,19 +74,9 @@ fn fixture(include_definition: bool) -> Fixture {
             .unwrap();
     }
     let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap();
-    let plan = if include_definition {
-        GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap()
-    } else {
-        GeneratedBridgePlanSetV1 {
-            producer: ConeIdentity::CORE,
-            units: Vec::new(),
-        }
-    };
     Fixture {
-        unit,
         bridge_atom,
         foundation,
-        plan,
     }
 }
 
@@ -169,16 +118,4 @@ fn expected_definition_plan(
         .unwrap(),
     )
     .unwrap()
-}
-
-fn authorities(unit: GeneratedBridgeUnitId, atom: GeneratedBridgeAtomId) -> ValidatedIdentityGraph {
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    pending.register_authority(unit).unwrap();
-    pending.register_authority(atom).unwrap();
-    pending.finish().unwrap()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

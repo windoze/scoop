@@ -3,7 +3,7 @@ use scoop_identity::{ConeIdentity, DefinitionOriginSubject};
 use super::*;
 
 #[test]
-fn protocol_surface_replays_core_and_ordinary_provider_contracts_identically() {
+fn protocol_surface_reads_core_and_ordinary_provider_records() {
     for origin in [
         ConeIdentity::CORE,
         crate::core_protocol_test_support::ordinary_origin(),
@@ -42,28 +42,6 @@ fn protocol_surface_preserves_role_signatures_and_rejects_substitute_providers()
         ),
     ] {
         let (mut surface, foundation) = test_support::standalone_at(origin);
-        let original = surface.source_location_protocol.current.clone();
-        surface.source_location_protocol.current = CoreProtocolCallableV1::for_test(
-            original.definition(),
-            SignatureCallableShape::new(
-                Effect::Ordinary,
-                None,
-                vec![],
-                SignatureTypeKey::Nominal(
-                    scoop_identity::CoreBuiltinNominal::Unit
-                        .identity_record()
-                        .id(),
-                ),
-            ),
-        );
-        assert_eq!(
-            decode(&surface).validate_against(&foundation),
-            Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-                CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
-                    IntrinsicFunctionKind::CurrentSourceLocation
-                )
-            ))
-        );
         let (substitute, _) = test_support::standalone_at(other);
         let substitute = &substitute.source_location_protocol.current;
         surface.source_location_protocol.current = substitute.clone();

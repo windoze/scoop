@@ -191,3 +191,27 @@ fn rejects_non_utf8_directory_entries() {
     let invalid = std::ffi::OsString::from_vec(vec![0xff]);
     assert!(validated_entry_name(&invalid).is_none());
 }
+
+#[test]
+fn metadata_selection_does_not_decode_source_contents() {
+    let cone = TempCone::new();
+    let path = cone.0.join("src/main.scoop");
+    std::fs::write(&path, [0xff]).unwrap();
+    let manifest = cone.load();
+    let selected =
+        select_manifest_sources(&manifest, scoop_target_data::DARWIN_AARCH64_ID).unwrap();
+    let source = selected.iter().next().unwrap();
+    assert_eq!(source.identity().logical_path().as_str(), "src/main.scoop");
+    assert_eq!(source.byte_length(), 1);
+    assert_eq!(source.physical_path(), path.canonicalize().unwrap());
+    assert_eq!(
+        source.modified(),
+        std::fs::metadata(&path).unwrap().modified().unwrap()
+    );
+    assert!(matches!(
+        discover_manifest_sources(&manifest, scoop_target_data::DARWIN_AARCH64_ID)
+            .unwrap_err()
+            .kind(),
+        SourceDiscoveryErrorKind::InvalidUtf8Source,
+    ));
+}

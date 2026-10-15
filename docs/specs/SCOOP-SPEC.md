@@ -2457,15 +2457,15 @@ kind = "library" # 或 "executable"
 - dependency声明没有version range、`latest`、optional/build dependency、feature、platform条件或dependency alias；测试专用依赖见 12.2.4。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
 - `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
 - `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency恰好为core的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；它不接受其他Cone dependency。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
-- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file artifact/cache key另外包含source content digest、core semantic/code fingerprints、compiler/schema/target/toolchain，不因共用reserved identity而碰撞；
+- manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file构建记录另外区分实际source及其修改时间／大小、core结果、compiler/schema/target/toolchain；需要编译时源码内容参与正常语义计算，不因共用reserved identity而冒用另一输入的缓存；
 
 #### 12.2.1 Native C/C++ 源码
 
-manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是 Cone 相对的头文件搜索目录，源码与 include 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是 Cone 相对的头文件搜索目录，源码与 include 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
-编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径也必须是 Cone 相对路径，在准备不可变预处理输入时解析。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。非系统头文件必须来自当前 Cone 或公开 runtime include 目录；不公开 runtime 内部头文件。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
+编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径也必须是 Cone 相对路径，在实际 native 编译时解析。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
 
 manifest Cone 通过 `[native]` 中的 Boolean 字段 `cxx` 显式启用 C++，省略时为 `false`。例如：
 
@@ -2504,7 +2504,7 @@ when = { os = "darwin" }
 
 - **默认模式**：未出现顶层 `sources` 字段时，递归收集 `src/` 下扩展名精确为 `.scoop` 的 regular files。`native.sources` 不改变这一默认规则。
 - **显式模式**：出现 `sources` 字段后，它就是完整的 Scoop 源码选择清单，公共目录或公共文件也必须列出；不再隐式扫描或追加 `src/`。显式空数组、所有条件都不匹配或选中目录没有源码时，不回退到默认模式；最终源码集合为空是构建错误。
-- **路径**：`path` 是 Cone 相对的目录或单个 `.scoop` regular file，不限于 `src/`。使用 `/` 分隔，折叠重复分隔符和 `.`，并按词法消去不越出 Cone 根的 `..`；`.` 可选择 Cone 根。空路径、绝对路径、盘符前缀、反斜线、NUL 和 glob 元字符 `*?[]` 不合法，归一化结果也必须满足这些约束。目录递归收集 `.scoop` 文件。非 UTF-8、选中路径不存在或类型不符、symlink 逃出 Cone 根或形成循环等错误在 parse 前报告。
+- **路径**：`path` 是 Cone 相对的目录或单个 `.scoop` regular file，不限于 `src/`。使用 `/` 分隔，折叠重复分隔符和 `.`，并按词法消去不越出 Cone 根的 `..`；`.` 可选择 Cone 根。空路径、绝对路径、盘符前缀、反斜线、NUL 和 glob 元字符 `*?[]` 不合法，归一化结果也必须满足这些约束。目录递归收集 `.scoop` 文件。非 UTF-8、选中路径不存在或类型不符、实际 I/O 或目录遍历循环错误在 parse 前报告。symlink 按普通文件定位规则使用，不以目标是否位于 Cone 根下决定允许读取，也不审计 owner、权限或 inode。
 - **条件**：省略 `when` 表示无条件；`os ∈ {darwin, linux}`、`arch ∈ {aarch64, x86_64}`、`env ∈ {gnu, musl, none}`，均按构建 target 求值。多个键取“与”，同一键的字符串数组取“或”；未知字段、键、值或错误的数据类型是 manifest 错误。该谓词也用于 `native.sources` 和 `native.libraries`，不为 Cone dependency 增加平台条件。
 - **选择顺序**：先校验全部条目的字段、路径形式和 `when`，再按 target 筛选；只对选中的路径检查文件系统存在性、枚举源码并进行解析和语义检查。没有被任何匹配条目选中的文件不参与编译，不能由默认扫描补入。
 - **重叠与重复**：同一 target 下选中的目录不能相同或互相包含，选中的单文件不能同时被选中目录覆盖。重复的规范化路径、或经 symlink 解析到同一源文件的重复选择，均报构建错误并指出相关条目；不静默去重，不定义先后覆盖。互斥条件在不同 target 选中同一路径不构成重复。
@@ -2540,7 +2540,7 @@ when = { os = "linux" }
 
 普通 `scoop build/run` 与生产用途的 `scoopc build` 只选择生产源码和生产依赖，不检查测试路径的存在性，不读取、解析或类型检查测试文件，也不定位测试依赖。测试源码内容、测试依赖、测试源码选择配置及其 locator 均不进入生产编译缓存键或生产 `.slib` 的依赖闭包；测试目录内即使有非法 Scoop 源码、无效 UTF-8 或不可用的测试依赖，生产构建仍可完成。生产源码选择及非空要求保持 12.2.2 的规则。
 
-测试用途在同一 Cone 中合并生产与测试源码，保留每个文件的生产／测试角色、原 ConeIdentity 和完整 Cone-relative source identity，合并后仍按完整路径排序。测试源码集合允许为空，但不能补足为空的生产源码集合。生产与测试选中的路径也执行 12.2.2 的重叠和重复检查，包括经 symlink 指向同一文件的情况；同一文件不能同时承担两种角色。默认 `tests/` 只有目录本身不存在时才视为空；已存在但类型错误、损坏或逃逸的 symlink 仍是输入错误。
+测试用途在同一 Cone 中合并生产与测试源码，保留每个文件的生产／测试角色、原 ConeIdentity 和完整 Cone-relative source identity，合并后仍按完整路径排序。测试源码集合允许为空，但不能补足为空的生产源码集合。生产与测试选中的路径也执行 12.2.2 的重叠和重复检查，包括经 symlink 指向同一文件的情况；同一文件不能同时承担两种角色。默认 `tests/` 只有目录本身不存在时才视为空；已存在但目标缺失或类型错误的 symlink 按普通输入错误报告；不限制其目标所属目录。
 
 生产源码定义处的名称候选只包含生产声明，测试源码定义处可同时使用生产与测试声明。此规则作用于 import、package 限定名称、类型、值、函数及扩展候选的收集，先于重载选择；测试声明不能补齐生产代码中缺失的名称，也不能改变已有生产调用的选择。泛型正文和默认实参继续使用定义处的源码环境。生产与测试仍处于同一 Cone，9.1.5 的 internal、文件 private 和成员 private/protected 规则保持不变。
 

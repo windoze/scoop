@@ -1,7 +1,7 @@
 use std::path::Path;
 
 /// A lexical Cone-relative input path; `.` denotes the Cone directory itself.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct ConeRelativePath(String);
 
 impl ConeRelativePath {

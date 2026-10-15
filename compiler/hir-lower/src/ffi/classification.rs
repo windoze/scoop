@@ -143,7 +143,7 @@ impl Lowerer {
                 let Some(argument) = self.as_option(resolved) else {
                     return Err(CAbiError {
                         path,
-                        reason: "enum types have no M12 C ABI representation".to_string(),
+                        reason: "this enum type has no C ABI representation".to_string(),
                     });
                 };
                 match self.types[argument] {

@@ -103,29 +103,12 @@ json = "stderr"
 diagnostics = [{severity = "error", code = "SCOOPC_HIR_ERROR", message = "`@NoGC` code may not call managed function `Flag.equals`", origin = {kind = "source", cone = "${direct.result.root.identity}", path = "src/main.scoop", start = 80, end = 93}, notes = []}]
 
 [[steps]]
-name = "isolate"
-files = [
-  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
-  {move = {from = "${work}/source", to = "${work}/source-removed"}},
-  {remove = {path = "${work}/sysroot"}},
-  {remove = {path = "${work}/runtime"}},
-  {mkdir = {path = "${work}/sysroot"}},
-]
-
-[[steps]]
-name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${reexport.result.root.path}", {each = "${reexport.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${reexport.result.runtime_index}", "--sysroot", "${work}/sysroot", "-o", "${work}/relinked", "--message-format", "json"]
-env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${reexport.result.link_plan_fingerprint}"}]
+name = "prepare_link_inputs_isolate"
+files = [{"mkdir" = {"path" = "${work}/sysroot"}}]
 
 [[steps]]
 name = "run_link"
-argv = ["${link.result.output}"]
+argv = ["${reexport.result.output}"]
 exit = 0
 stdout = {file = "expected.stdout"}
 stderr = ""

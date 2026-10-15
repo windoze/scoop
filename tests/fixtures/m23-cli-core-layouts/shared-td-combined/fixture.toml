@@ -1,6 +1,6 @@
 schema = 1
 name = "core-layouts-shared-td-combined"
-inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-core-layout-exports/shared-td-combined.scoop", "consumer", "../support/consumer.scoop"]
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-core-layout-exports/shared-td-combined.scoop", "consumer"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["core-layouts", "shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents"]
@@ -11,35 +11,27 @@ files = [
   {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
   {"copy" = {"from" = "${fixture}/../../m23-core-layout-exports/shared-td-combined.scoop", "to" = "${work}/core-source/src/layout_probe.scoop"}},
-  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
-
-[[steps]]
-name = "remove_core_source"
-files = [
-  {"remove" = {"path" = "${work}/core-source"}},
-]
 
 [[steps]]
 name = "prepare_consumer"
 files = [
   {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/consumer"}},
-  {"copy" = {"from" = "${fixture}/../support/consumer.scoop", "to" = "${work}/consumer/src/main.scoop"}},
 ]
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -48,7 +40,16 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "remove_consumer_source"
-files = [
-  {"remove" = {"path" = "${work}/consumer"}},
-]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1"}

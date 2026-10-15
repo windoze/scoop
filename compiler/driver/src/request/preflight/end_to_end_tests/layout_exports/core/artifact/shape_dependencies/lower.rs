@@ -52,7 +52,6 @@ pub(super) fn with_mir(
             vec![],
             core_bytes,
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     let (core, _) = read.artifact(ConeIdentity::CORE).unwrap();

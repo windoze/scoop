@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -40,7 +40,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -96,7 +96,7 @@ files = [
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -120,7 +120,7 @@ checks = [
 
 [[steps]]
 name = "changed_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -176,7 +176,7 @@ files = [
 
 [[steps]]
 name = "restored"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -185,14 +185,14 @@ diagnostics = []
 checks = [
   {"actual" = "${restored.result.kind}", "equals" = "library"},
   {"actual" = "${restored.result.dependencies.length}", "equals" = 1},
-  {"actual" = "${restored.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${restored.result.observations.child_invocations}", "equals" = ["${restored.result.dependencies.0.identity}"]},
   {"file" = "${work}/private-sysroot/artifacts", "exists" = false},
   {"file" = "${work}/library.slib", "same_as" = "${restored.result.root.path}"},
   {"actual" = "${restored.result.observations.nodes.0.identity}", "equals" = "${restored.result.dependencies.0.identity}"},
-  {"actual" = "${restored.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${restored.result.observations.nodes.0.origin}", "equals" = "compiled"},
   {"actual" = "${restored.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
   {"file" = "${restored.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
-  {"actual" = "${restored.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"},
+  {"actual" = "${restored.result.observations.nodes.0.cache_key}", "not_equals" = "${cold.result.observations.nodes.0.cache_key}"},
   {"actual" = "${restored.result.observations.nodes.1.identity}", "equals" = "${restored.result.root.identity}"},
   {"actual" = "${restored.result.observations.nodes.1.origin}", "equals" = "cache"},
   {"actual" = "${restored.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},

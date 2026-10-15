@@ -21,19 +21,21 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
 
 [[steps]]
@@ -60,18 +62,20 @@ checks = []
 
 [[steps]]
 name = "changed_artifacts"
-files = [{"copy" = {"from" = "${changed.result.root.path}", "to" = "${work}/changed-artifacts/root.slib"}}, {"copy" = {"from" = "${changed.result.dependencies.0.path}", "to" = "${work}/changed-artifacts/0.slib"}}, {"move" = {"from" = "${work}/sources", "to" = "${work}/parked-sources"}}]
+files = [
+  {"copy" = {"from" = "${changed.result.root.path}", "to" = "${work}/changed-artifacts/root.slib"}},
+  {"copy" = {"from" = "${changed.result.dependencies.0.path}", "to" = "${work}/changed-artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
 name = "changed_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/changed-artifacts/root.slib", "--dependency-slib", "${work}/changed-artifacts/0.slib", "--runtime-objects", "${changed.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/changed-artifacts/root.slib", "--dependency-slib", "${work}/changed-artifacts/0.slib", "--runtime-objects", "${changed.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${changed_link.result.link_plan}", "not_equals" = "${link.result.link_plan}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "equals" = "${changed.result.link_plan_fingerprint}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}]
 
 [[steps]]
@@ -83,7 +87,10 @@ stderr = ""
 
 [[steps]]
 name = "runtime_sources"
-files = [{"move" = {"from" = "${work}/parked-sources", "to" = "${work}/sources"}}, {"copy" = {"from" = "${runtime}", "to" = "${work}/runtime-source"}}, {"replace" = {"path" = "${work}/runtime-source/src/rt.c", "old" = "/* Scoop runtime (DESIGN section 3). C11. */", "new" = "/* Scoop runtime (DESIGN section 3). C11. */\n#if defined(__clang__)\n#pragma clang optimize off\n#elif defined(__GNUC__)\n#pragma GCC optimize (\"O0\")\n#endif"}}]
+files = [
+  {"copy" = {"from" = "${runtime}", "to" = "${work}/runtime-source"}},
+  {"replace" = {"path" = "${work}/runtime-source/src/rt.c", "old" = "/* Scoop runtime (DESIGN section 3). C11. */", "new" = "/* Scoop runtime (DESIGN section 3). C11. */\n#if defined(__clang__)\n#pragma clang optimize off\n#elif defined(__GNUC__)\n#pragma GCC optimize (\"O0\")\n#endif"}},
+]
 checks = []
 
 [[steps]]
@@ -97,19 +104,13 @@ diagnostics = []
 checks = [{"actual" = "${runtime_build.result.observations.child_invocations}", "equals" = []}, {"actual" = "${runtime_build.result.link_plan_fingerprint}", "not_equals" = "${changed_link.result.link_plan_fingerprint}"}, {"actual" = "${runtime_build.result.runtime_index}", "not_equals" = "${changed.result.runtime_index}"}]
 
 [[steps]]
-name = "remove_all_sources"
-files = [{"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${work}/runtime-source"}}]
-checks = []
-
-[[steps]]
 name = "runtime_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/changed-artifacts/root.slib", "--dependency-slib", "${work}/changed-artifacts/0.slib", "--runtime-objects", "${runtime_build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/changed-artifacts/root.slib", "--dependency-slib", "${work}/changed-artifacts/0.slib", "--runtime-objects", "${runtime_build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${runtime_link.result.link_plan_fingerprint}", "equals" = "${runtime_build.result.link_plan_fingerprint}"}, {"actual" = "${runtime_link.result.link_plan_fingerprint}", "not_equals" = "${changed_link.result.link_plan_fingerprint}"}]
 
 [[steps]]

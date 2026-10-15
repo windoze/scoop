@@ -1,0 +1,3 @@
+@Extern(name = "m48_runtime_value")
+fun runtimeValue(): Int
+fun main(): Int { @Unsafe { return runtimeValue() + 2 } }

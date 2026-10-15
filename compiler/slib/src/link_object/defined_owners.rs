@@ -8,13 +8,15 @@ use scoop_identity::{
     ObjectDefinitionAtomId, ObjectDefinitionPlanOwner, OdrMemberId, StrongDefinitionEntity,
     StrongDefinitionEntityKind, StrongDefinitionRole,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
     PlannedStrongObjectSymbolRoleV1, VerifiedBoundaryRoleV1,
     VerifiedCurrentConeStrongRelocationClosureV1,
 };
 use crate::SlibMemberId;
+
+mod read;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StrongDefinitionOwnerV1 {
@@ -255,43 +257,6 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
     pub fn owners(&self) -> &[DefinedLinkSymbolOwnerV1] {
         &self.owners
     }
-
-    #[cfg(test)]
-    pub(in crate::link_object) fn replace_owner_for_test(
-        &self,
-        symbol: &[u8],
-        owner: LinkDefinitionOwnerV1,
-    ) -> Self {
-        let mut changed = self.clone();
-        let record = changed
-            .owners
-            .iter_mut()
-            .find(|record| record.symbol() == symbol)
-            .expect("test symbol belongs to the verified owner set");
-        record.owner = owner;
-        changed.owners.sort_unstable_by(|left, right| {
-            (&left.symbol, left.member, left.owner).cmp(&(&right.symbol, right.member, right.owner))
-        });
-        changed
-    }
-
-    #[cfg(test)]
-    pub(in crate::link_object) fn insert_foreign_owner_for_test(
-        &self,
-        symbol: Vec<u8>,
-        owner: LinkDefinitionOwnerV1,
-    ) -> Self {
-        let mut changed = self.clone();
-        changed.owners.push(DefinedLinkSymbolOwnerV1 {
-            member: changed.owners[0].member,
-            symbol,
-            owner,
-        });
-        changed.owners.sort_unstable_by(|left, right| {
-            (&left.symbol, left.member, left.owner).cmp(&(&right.symbol, right.member, right.owner))
-        });
-        changed
-    }
 }
 
 impl WireEncode for CanonicalDefinedLinkSymbolOwnerSetV1 {
@@ -326,16 +291,16 @@ pub(crate) struct DecodedStrongDefinitionOwnerV1 {
 }
 
 impl DecodedStrongDefinitionOwnerV1 {
-    pub(crate) fn exact_descriptor(
+    pub(crate) fn resolve(
         self,
-    ) -> Option<DecodedPersistentId<scoop_identity::PersistentExactTypeId>> {
-        match (self.entity, self.role) {
-            (
-                DecodedStrongDefinitionEntity::ExactType(exact),
-                StrongDefinitionRole::TypeDescriptor,
-            ) => Some(exact),
-            _ => None,
-        }
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<StrongDefinitionOwnerV1, crate::LinkSupportError> {
+        let entity = self
+            .entity
+            .resolve(identities)
+            .map_err(|error| crate::LinkSupportError(error.to_string()))?;
+        StrongDefinitionOwnerV1::new(entity, self.role)
+            .map_err(|error| crate::LinkSupportError(error.to_string()))
     }
 }
 
@@ -468,20 +433,7 @@ pub struct DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
     owners: Vec<DecodedDefinedLinkSymbolOwnerV1>,
 }
 
-impl DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
-    pub fn validate_against(
-        self,
-        expected: &CanonicalDefinedLinkSymbolOwnerSetV1,
-    ) -> Result<CanonicalDefinedLinkSymbolOwnerSetV1, DefinedLinkSymbolOwnerValidationError> {
-        let actual = encode(&self).map_err(DefinedLinkSymbolOwnerValidationError::Encode)?;
-        let expected_bytes =
-            encode(expected).map_err(DefinedLinkSymbolOwnerValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(DefinedLinkSymbolOwnerValidationError::ProjectionMismatch);
-        }
-        Ok(expected.clone())
-    }
-}
+impl DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {}
 
 impl WireEncode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -518,30 +470,6 @@ impl fmt::Display for DefinedLinkSymbolOwnerBuildError {
 }
 
 impl std::error::Error for DefinedLinkSymbolOwnerBuildError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DefinedLinkSymbolOwnerValidationError {
-    ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-}
-
-impl fmt::Display for DefinedLinkSymbolOwnerValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid defined link-symbol owner section: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for DefinedLinkSymbolOwnerValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Encode(error) => Some(error),
-            Self::ProjectionMismatch => None,
-        }
-    }
-}
 
 fn encode_boundary(
     encoder: &mut Encoder,

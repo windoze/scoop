@@ -62,9 +62,7 @@ fn elf_startup_passes_the_exact_image_order_and_root_to_the_runtime_entry() {
                 .arg("-funwind-tables"),
         );
         let program = path.join("program");
-        let mut command = linux
-            .command(path, &program, &path.join("program.map"))
-            .unwrap();
+        let mut command = linux.command(path, &program).unwrap();
         command.args([startup_path, object]);
         linux.append_system_libraries(&mut command);
         checked(&mut command);

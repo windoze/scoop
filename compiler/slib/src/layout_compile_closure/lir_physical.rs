@@ -7,33 +7,30 @@ use scoop_wire::WirePath;
 use std::collections::BTreeMap;
 
 use super::{
-    LirDependencyGraphReplayedCrossConeLayoutClosure,
-    LirDependencyGraphReplayedCrossConeLayoutSections,
+    LirDependenciesResolvedCrossConeLayoutClosure, LirDependenciesResolvedCrossConeLayoutSections,
     lir_constituents::LirConstituentsValidatedCrossConeLayoutSections,
 };
 use crate::dependency_reachability::transitive_positions;
 
 mod accessors;
+mod definitions;
 mod driver;
 mod errors;
-mod objects;
 mod odr;
-mod replay;
-mod symbols;
+mod read;
+pub use definitions::CrossConeLayoutArtifactData;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
-pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
 pub use odr::{
     MergedOdrDefinitions, MergedOdrMemberDefinition, OdrDefinitionCandidate,
     OdrDefinitionDifference, OdrDefinitionMergeError, OdrMemberConflict,
     merge_cross_cone_odr_definitions,
 };
-pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
 pub struct PhysicalImportsReplayedCrossConeLayoutSections {
     semantic: crate::layout_compile_decode::LayoutSemanticSections,
     mir: mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     units: Vec<mir::MirTypeBridgeInitializationUnitV1>,
-    strong: lir::ConeProductionSectionV2,
+    strong: lir::CompileProduction,
     ordinary: lir::CrossConeLirBridgeSectionV1,
     layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
 }
@@ -47,18 +44,12 @@ pub struct PhysicalImportsReplayedCrossConeLayoutClosure {
     positions: BTreeMap<ConeIdentity, usize>,
 }
 
-impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
-    pub fn replay_physical_imports(
+impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
+    pub fn read_physical_imports(
         self,
     ) -> Result<PhysicalImportsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError>
     {
-        self.replay_physical(|artifact, _, _, _| {
-            artifact
-                .prepared
-                .validate_link_materializations()
-                .map_err(SharedLirPhysicalError::from)
-        })
-        .map(|(physical, _)| physical)
+        self.read_physical(|_| Ok(())).map(|(physical, _)| physical)
     }
 }
 
@@ -94,7 +85,7 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn lir_physical_imports(&self) -> &lir::CanonicalExternalShapeLinkImportsV1 {
         self.layout.physical_imports()
     }
-    pub fn lir_strong_production(&self) -> &lir::ConeProductionSectionV2 {
+    pub fn lir_production_data(&self) -> &lir::CompileProduction {
         &self.strong
     }
 }

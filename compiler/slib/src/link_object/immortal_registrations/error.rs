@@ -44,7 +44,6 @@ pub enum StrongImmortalObjectRegistrationValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     MissingDefinitionAssignment {
         object: PersistentImmortalObjectId,
         definition: ObjectDefinitionPlanId,

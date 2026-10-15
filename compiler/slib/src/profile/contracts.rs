@@ -146,7 +146,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.manifest", "single-cone-production", 6) => (
+            ("org.scoop-lang.manifest", "single-cone-production", 8) => (
                 SectionLocation::Manifest,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE
@@ -173,15 +173,10 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-abi", 15) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-abi", 16) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
-            ),
-            ("org.scoop-lang.lir", "cross-cone-layout-link-closure", 8) => (
-                SectionLocation::Lir,
-                MemberPurposeSet::LINK,
-                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
             ("org.scoop-lang.mir", "core-bootstrap-bridge", 2) => (
                 SectionLocation::Mir,
@@ -198,18 +193,13 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-link-closure", 1) => (
-                SectionLocation::Lir,
-                MemberPurposeSet::LINK,
-                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
-            ),
             ("org.scoop-lang.lir", "strong-production", 22)
             | ("org.scoop-lang.lir", "cone-production", 12) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE),
             ),
-            ("org.scoop-lang.lir", "link-identity-closure", 15) => (
+            ("org.scoop-lang.lir", "link-identity-closure", 16) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,

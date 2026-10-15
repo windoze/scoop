@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test.m48"
+name = "external-test-source"
+version = "1.0.0"
+kind = "library"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

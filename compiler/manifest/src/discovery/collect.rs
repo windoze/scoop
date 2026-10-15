@@ -1,10 +1,10 @@
 use super::select::SelectedRoot;
 use super::*;
 
-pub(super) fn discover(
+pub(super) fn select(
     manifest: &LoadedConeManifest,
     roots: Vec<SelectedRoot>,
-) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
+) -> Result<SelectedManifestSources, SourceDiscoveryError> {
     let mut candidates = Vec::new();
     let mut directories = Vec::new();
     for root in roots {
@@ -13,7 +13,6 @@ pub(super) fn discover(
             walk_directory(
                 &root.resolved.path,
                 root.path.as_path(),
-                manifest.real_root(),
                 &root.selection,
                 &mut BTreeSet::new(),
                 &mut selected,
@@ -29,6 +28,7 @@ pub(super) fn discover(
             selected.push(SourceCandidate {
                 logical_path,
                 physical_path: root.resolved.path,
+                metadata: root.resolved.metadata,
                 display_path: manifest.real_root().join(root.path.as_path()),
                 selection: root.selection,
             });
@@ -58,13 +58,27 @@ pub(super) fn discover(
         }
     }
     let mut sources = candidates.into_iter().map(|(role, candidate)| {
-        let mut source = read_discovered_source(candidate, manifest.identity())?;
-        source.role = role;
-        Ok(source)
+        let identity =
+            SourceIdentity::new(manifest.identity(), candidate.logical_path).map_err(|error| {
+                SourceDiscoveryError::new(
+                    candidate.display_path.clone(),
+                    SourceDiscoveryErrorKind::InvalidSourceIdentity(error.to_string()),
+                )
+            })?;
+        SelectedSource::new(
+            identity,
+            SourceDisplayLocator::new(candidate.display_path.clone()),
+            candidate.physical_path,
+            &candidate.metadata,
+            role,
+        )
+        .map_err(|error| {
+            SourceDiscoveryError::io(DiscoveryIoOperation::Inspect, candidate.display_path, error)
+        })
     });
     let first = sources.next().expect("production sources are non-empty")?;
     let rest = sources.collect::<Result<Vec<_>, SourceDiscoveryError>>()?;
-    Ok(DiscoveredManifestSources {
+    Ok(SelectedManifestSources {
         first,
         rest,
         directories,

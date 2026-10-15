@@ -254,7 +254,7 @@ impl RegistrationDependencyFingerprintedProductionV1 {
             .map_err(BuiltinObjectProductionError::RegistrationPatch)?;
             let compatibility = scoop_slib::CompatibilityRecord::new(
                 production.target_selection,
-                ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+                ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             )
             .map_err(BuiltinObjectProductionError::Compatibility)?;
             let image_fingerprint =

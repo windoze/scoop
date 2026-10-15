@@ -31,15 +31,22 @@ fn closure(
 }
 
 #[test]
-fn ordinary_layout_declarations_replay_without_source_factories() {
-    let bytes = layout_artifact(false, None);
-    let mut validated = closure(prepared(&bytes))
+fn ordinary_layout_declarations_read_saved_records() {
+    let bytes = layout_artifact(None);
+    let validated = closure(prepared(&bytes))
         .validate_hir_declarations()
         .unwrap();
     assert_eq!(validated.current(), cone().identity());
     assert!(validated.direct_providers().is_empty());
     assert_eq!(validated.dependency_first().count(), 1);
-    let checked = validated.validate_type_foundations().unwrap();
-    assert_eq!(checked.len(), 1);
-    assert!(checked[0].facts().records().is_empty());
+    assert!(
+        validated
+            .dependency_first()
+            .next()
+            .unwrap()
+            .hir_type_semantics()
+            .exact_facts()
+            .records()
+            .is_empty()
+    );
 }

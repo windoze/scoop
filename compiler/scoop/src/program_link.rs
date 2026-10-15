@@ -1,4 +1,4 @@
-//! Link the immutable artifacts retained by dependency-graph execution.
+//! Read the built artifacts when final linking needs their objects.
 use scoop_linker::LinkError;
 use scoop_toolchain::ResolvedTargetProfile;
 
@@ -17,15 +17,13 @@ pub fn read_built_program(
     let dependencies: Vec<_> = artifacts
         .artifacts()
         .filter(|(identity, _)| *identity != artifacts.root())
-        .map(|(_, artifact)| artifact.snapshot().as_bytes())
-        .collect();
-    // Graph execution checked manifest edges, not Link machine data. Read that
-    // data once from the retained snapshots, without reopening source paths.
+        .map(|(_, artifact)| artifact.file())
+        .collect::<Result<_, _>>()
+        .map_err(|error| LinkError(error.to_string()))?;
     let closure = scoop_slib::read_program_link_closure(
-        root.snapshot().as_bytes(),
+        root.file().map_err(|error| LinkError(error.to_string()))?,
         &dependencies,
         target.lir_target_selection(),
-        target.c_bridge_toolchain().profile(),
     )
     .map_err(|error| LinkError(format!("built program Link input: {error}")))?;
     Ok(closure)

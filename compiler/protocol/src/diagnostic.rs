@@ -69,6 +69,9 @@ impl ProtocolByteSpan {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiagnosticOriginV1 {
     None,
+    HostPath {
+        path: HostPathCarrier,
+    },
     HostPathSpan {
         path: HostPathCarrier,
         span: ProtocolByteSpan,
@@ -106,6 +109,13 @@ impl WireEncode for DiagnosticOriginV1 {
                 encoder.map(1)?;
                 encoder.field(0)?;
                 encoder.unsigned(1)
+            }
+            Self::HostPath { path } => {
+                encoder.map(2)?;
+                encoder.field(0)?;
+                encoder.unsigned(5)?;
+                encoder.field(1)?;
+                path.encode(encoder)
             }
             Self::HostPathSpan { path, span } => {
                 encoder.map(4)?;
@@ -272,6 +282,9 @@ impl WireDecode for StructuredDiagnosticV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedDiagnosticOriginV1 {
     None,
+    HostPath {
+        path: DecodedHostPathCarrier,
+    },
     HostPathSpan {
         path: DecodedHostPathCarrier,
         start: u64,
@@ -293,6 +306,9 @@ impl DecodedDiagnosticOriginV1 {
     fn validate(self) -> Result<DiagnosticOriginV1, ProtocolValidationError> {
         match self {
             Self::None => Ok(DiagnosticOriginV1::None),
+            Self::HostPath { path } => Ok(DiagnosticOriginV1::HostPath {
+                path: path.validate().map_err(ProtocolValidationError::HostPath)?,
+            }),
             Self::HostPathSpan { path, start, end } => Ok(DiagnosticOriginV1::HostPathSpan {
                 path: path.validate().map_err(ProtocolValidationError::HostPath)?,
                 span: ProtocolByteSpan::new(start, end)?,
@@ -326,6 +342,13 @@ impl WireEncode for DecodedDiagnosticOriginV1 {
                 encoder.map(1)?;
                 encoder.field(0)?;
                 encoder.unsigned(1)
+            }
+            Self::HostPath { path } => {
+                encoder.map(2)?;
+                encoder.field(0)?;
+                encoder.unsigned(5)?;
+                encoder.field(1)?;
+                path.encode(encoder)
             }
             Self::HostPathSpan { path, start, end } => {
                 encoder.map(4)?;
@@ -409,6 +432,11 @@ impl WireDecode for DecodedDiagnosticOriginV1 {
                     path,
                     semantic_path,
                 })
+            }
+            5 => {
+                crate::framing::expect_sum_length(decoder, fields, 2)?;
+                let path = decoder.field(1, DecodedHostPathCarrier::decode)?;
+                Ok(Self::HostPath { path })
             }
             tag => Err(crate::framing::unknown_tag(decoder, tag)),
         }

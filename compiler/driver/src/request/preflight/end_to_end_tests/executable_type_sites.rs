@@ -2,7 +2,7 @@ use super::*;
 use scoop_hir::{ExternalHirReferenceRoleV1, HirExpressionTypeRoleV1};
 
 #[test]
-fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
+fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() {
     let target = resolved_target().expect("type occurrence artifacts require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-executable-type-sites");
@@ -26,7 +26,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
     );
     let dependency_bytes =
         [&core, &provider].map(|artifact| std::fs::read(artifact.artifact().path()).unwrap());
-    std::fs::remove_dir_all(provider_root.join("src")).unwrap();
     for name in [
         "standalone",
         "combined",
@@ -62,7 +61,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             direct,
             dependency_bytes.iter().map(Vec::as_slice).collect(),
             &bytes,
-            target.c_bridge_toolchain().profile(),
             &mut session,
         )
         .unwrap();

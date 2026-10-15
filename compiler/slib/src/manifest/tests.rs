@@ -23,7 +23,7 @@ fn fingerprints(seed: u8) -> SemanticFingerprintRecord {
 fn compatibility() -> CompatibilityRecord {
     CompatibilityRecord::new(
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
     )
     .unwrap()
 }

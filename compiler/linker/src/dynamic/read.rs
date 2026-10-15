@@ -121,7 +121,7 @@ pub(crate) fn read(
                     storage,
                 }
             }
-            ExportTarget::Absolute(_) => {
+            ExportTarget::Absolute => {
                 return Err(error(format!(
                     "native absolute export {name} has no function or data storage"
                 )));

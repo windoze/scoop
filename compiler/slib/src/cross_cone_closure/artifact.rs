@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{ConeIdentity, SemanticIdentitySession};
-use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
+use scoop_lir::ValidatedLirTargetSelection;
 
 use super::ValidatedCrossConeSemanticClosure;
 use crate::{
@@ -14,18 +14,17 @@ use crate::{
 mod errors;
 pub use errors::*;
 
-/// Borrowed final bytes for one dependency closure and, optionally, its
-/// completed current artifact.
+/// Borrowed artifact inputs for a dependency closure and its optional current result.
 pub struct CrossConeArtifactClosureInput<'input> {
     pub(crate) current: ConeIdentity,
     pub(crate) target: ValidatedLirTargetSelection,
     pub(crate) direct: Vec<ConeIdentity>,
-    pub(crate) dependency_first: Vec<&'input [u8]>,
+    pub(crate) dependency_first: Vec<crate::ArtifactInput<'input>>,
     pub(crate) current_artifact: Option<&'input [u8]>,
 }
 
 impl<'input> CrossConeArtifactClosureInput<'input> {
-    pub const fn dependencies(
+    pub fn dependencies(
         current: ConeIdentity,
         target: ValidatedLirTargetSelection,
         direct: Vec<ConeIdentity>,
@@ -35,12 +34,33 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
             current,
             target,
             direct,
-            dependency_first,
+            dependency_first: dependency_first
+                .into_iter()
+                .map(crate::ArtifactInput::Bytes)
+                .collect(),
             current_artifact: None,
         }
     }
 
-    pub const fn completed(
+    pub fn file_dependencies(
+        current: ConeIdentity,
+        target: ValidatedLirTargetSelection,
+        direct: Vec<ConeIdentity>,
+        dependency_first: Vec<&'input crate::ArtifactFile>,
+    ) -> Self {
+        Self {
+            current,
+            target,
+            direct,
+            dependency_first: dependency_first
+                .into_iter()
+                .map(crate::ArtifactInput::File)
+                .collect(),
+            current_artifact: None,
+        }
+    }
+
+    pub fn completed(
         current: ConeIdentity,
         target: ValidatedLirTargetSelection,
         direct: Vec<ConeIdentity>,
@@ -51,14 +71,16 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
             current,
             target,
             direct,
-            dependency_first,
+            dependency_first: dependency_first
+                .into_iter()
+                .map(crate::ArtifactInput::Bytes)
+                .collect(),
             current_artifact: Some(current_artifact),
         }
     }
 }
 
-/// The complete artifact set with shared semantics, checked objects, and
-/// cross-Cone references resolved to their provider definitions.
+/// Shared semantic sections, publication summaries, and provider definitions.
 pub struct ValidatedCrossConeArtifactClosure {
     semantic: ValidatedCrossConeSemanticClosure,
     links: Vec<ValidatedCrossConeStrongLinkArtifact>,
@@ -123,15 +145,12 @@ impl ValidatedCrossConeArtifactClosure {
     }
 }
 
-/// Reads each envelope and its semantic sections once, then checks Link
-/// objects and resolves their imports against actual provider definitions.
+/// Read shared semantic sections and saved provider definitions.
 pub fn validate_cross_cone_artifact_closure<'input>(
     input: CrossConeArtifactClosureInput<'input>,
-
-    c_bridge_profile: &CBridgeToolchainProfileV1,
     session: &mut SemanticIdentitySession,
 ) -> Result<ValidatedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
-    let complete = crate::read_cross_cone_layout_artifact_closure(input, c_bridge_profile)
+    let complete = crate::read_cross_cone_layout_artifact_closure(input)
         .map_err(|error| CrossConeArtifactClosureValidationError::Layout(Box::new(error)))?;
     let (current, target, direct, records, odr_definitions) = complete.into_parts();
     let mut artifacts = Vec::with_capacity(records.len());
@@ -141,9 +160,7 @@ pub fn validate_cross_cone_artifact_closure<'input>(
     for (artifact, symbols) in records {
         let artifact = std::rc::Rc::new(artifact);
         positions.insert(artifact.identity(), artifacts.len());
-        publications.push(crate::publish::capture_layout_publication(
-            &artifact, &symbols, target,
-        ));
+        publications.push(symbols.summary().clone());
         links.push(ValidatedCrossConeStrongLinkArtifact::new(
             std::rc::Rc::clone(&artifact),
             symbols,
@@ -165,15 +182,12 @@ pub fn validate_cross_cone_artifact_closure<'input>(
 
 /// Validates a closure that necessarily includes the completed current
 /// artifact and returns a type with total current-view accessors.
-#[allow(clippy::too_many_arguments)]
 pub fn validate_completed_cross_cone_artifact_closure<'input>(
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
     dependency_first: Vec<&'input [u8]>,
     current_artifact: &'input [u8],
-
-    c_bridge_profile: &CBridgeToolchainProfileV1,
     session: &mut SemanticIdentitySession,
 ) -> Result<ValidatedCompletedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
     let closure = validate_cross_cone_artifact_closure(
@@ -184,7 +198,6 @@ pub fn validate_completed_cross_cone_artifact_closure<'input>(
             dependency_first,
             current_artifact,
         ),
-        c_bridge_profile,
         session,
     )?;
     let current_position = closure
@@ -212,7 +225,6 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
             ),
-            &crate::link_decode::c_bridge_profile_for_test(),
             &mut session,
         )
         .unwrap();

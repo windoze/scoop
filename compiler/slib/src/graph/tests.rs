@@ -33,7 +33,7 @@ fn manifest(
         ProducerRecord::new("dev").unwrap(),
         CompatibilityRecord::new(
             selection(),
-            crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            crate::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .unwrap(),
         ConeRecord::new(
@@ -102,8 +102,9 @@ fn graph_rejects_the_reserved_single_file_dependency() {
     assert_eq!(
         DecodedSlibEnvelope::open(archive.as_bytes(), selection(),)
             .unwrap()
-            .validate_graph(),
-        Err(GraphValidationError::SingleFileDependency)
+            .validate_graph()
+            .unwrap_err(),
+        GraphValidationError::SingleFileDependency
     );
 }
 
@@ -122,10 +123,11 @@ fn graph_rejects_a_direct_self_edge() {
     assert_eq!(
         DecodedSlibEnvelope::open(archive.as_bytes(), selection(),)
             .unwrap()
-            .validate_graph(),
-        Err(GraphValidationError::SelfDependency {
+            .validate_graph()
+            .unwrap_err(),
+        GraphValidationError::SelfDependency {
             cone: ConeIdentity::CORE,
-        })
+        }
     );
 }
 

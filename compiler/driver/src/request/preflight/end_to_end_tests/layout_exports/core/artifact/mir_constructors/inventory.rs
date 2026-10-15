@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn check(replay: &Replay<'_>, combined: bool) {
+pub(super) fn check(replay: &Fixture<'_>, combined: bool) {
     assert_eq!(
         replay.fixture_bindings().count(),
         if combined { 16 } else { 4 }
@@ -10,7 +10,6 @@ pub(super) fn check(replay: &Replay<'_>, combined: bool) {
     for binding in replay.fixture_bindings() {
         let source = replay
             .source
-            .metadata()
             .public
             .callable_interfaces()
             .declaration(scoop_identity::CallableTemplateOrigin::Constructor(
@@ -20,15 +19,6 @@ pub(super) fn check(replay: &Replay<'_>, combined: bool) {
         private += usize::from(source.declared_visibility() == hir::DeclaredVisibilityV1::Private);
         internal +=
             usize::from(source.declared_visibility() == hir::DeclaredVisibilityV1::Internal);
-        let records = replay
-            .section
-            .callables()
-            .entries()
-            .iter()
-            .filter(|entry| entry.implementation() != binding.implementation())
-            .cloned()
-            .collect();
-        assert!(matches!(replay.reject(records), Error::Missing(id) if id == declaration(binding)));
     }
     assert_eq!(
         (private, internal),

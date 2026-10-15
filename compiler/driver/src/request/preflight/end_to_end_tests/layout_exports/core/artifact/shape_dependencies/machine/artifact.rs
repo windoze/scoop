@@ -65,9 +65,5 @@ pub(super) fn check(
     .assemble(emitted, &generated, provider.owners)
     .unwrap_or_else(|error| panic!("{} layout artifact assembly: {error:?}", destination.name));
     reader::check(destination.name, provider.artifact, &artifact, layout);
-    super::super::super::link_symbol_uses::check(
-        provider.artifact,
-        &artifact,
-        provider.target.c_bridge_toolchain().profile(),
-    );
+    super::super::super::link_symbol_uses::check(provider.artifact, &artifact);
 }

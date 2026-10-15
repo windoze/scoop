@@ -3,7 +3,7 @@ name = "m43-test-artifact-dependencies"
 inputs = ["program", "provider", "helper"]
 tools = ["scoop"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m43", "test-command", "artifact-only", "test-dependencies"]
+tags = ["m43", "test-command", "test-dependencies"]
 variants = [
     {name = "debug", vars = {profile = "debug"}},
     {name = "release", vars = {profile = "release"}},
@@ -55,10 +55,8 @@ checks = [
 [[steps]]
 name = "artifact-inputs"
 files = [
-    {replace = {path = "${work}/program/Cone.toml", old = 'path = "../provider"', new = 'artifact = "${provider.result.root.path}"'}},
-    {replace = {path = "${work}/program/Cone.toml", old = 'path = "../helper"', new = 'artifact = "${helper.result.root.path}"'}},
-    {remove = {path = "${work}/provider"}},
-    {remove = {path = "${work}/helper"}},
+  {"replace" = {"path" = "${work}/program/Cone.toml", "old" = "path = \"../provider\"", "new" = "artifact = \"${provider.result.root.path}\""}},
+  {"replace" = {"path" = "${work}/program/Cone.toml", "old" = "path = \"../helper\"", "new" = "artifact = \"${helper.result.root.path}\""}},
 ]
 
 [[steps]]
@@ -79,12 +77,8 @@ checks = [
 ]
 
 [[steps]]
-name = "remove-root-sources"
-files = [{remove = {path = "${work}/program"}}]
-
-[[steps]]
 name = "link"
-argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${artifact-run.result.root.path}", {each = "${artifact-run.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${artifact-run.result.runtime_index}", "-o", "${work}/artifact-tests", "--message-format", "json"]
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${artifact-run.result.root.path}", {"each" = "${artifact-run.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${artifact-run.result.runtime_index}", "-o", "${work}/artifact-tests", "--message-format", "json", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
 exit = 0
 stdout = ""
 stderr = ""

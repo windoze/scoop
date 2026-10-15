@@ -194,7 +194,10 @@ fn exact_layout_producer_replays_all_physical_roots_and_zst_descriptor() {
     );
     let bytes = encode(&table).unwrap();
     let raw: lir::DecodedCanonicalExactLayoutExportsV1 = decode_canonical(&bytes).unwrap();
-    assert_eq!(raw.validate_against(&table).unwrap(), table);
+    assert_eq!(
+        scoop_wire::encode(&raw).unwrap(),
+        scoop_wire::encode(&table).unwrap()
+    );
 }
 
 #[test]

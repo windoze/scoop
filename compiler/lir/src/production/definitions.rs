@@ -2,8 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{
-    DecodedPersistentId, DefinitionAtomRole, IdentityReferenceError, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentIdResolver, ValidatedIdentityGraph,
+    DecodedPersistentId, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -161,69 +160,6 @@ pub struct DecodedObjectDefinitionPlanSurfaceV1 {
     plans: Vec<DecodedObjectDefinitionPlanV1>,
 }
 
-impl DecodedObjectDefinitionPlanSurfaceV1 {
-    pub fn validate(
-        self,
-        identities: &mut ValidatedIdentityGraph,
-        foundation: &ConeLirFoundation,
-    ) -> Result<ObjectDefinitionPlanSurfaceV1, ObjectDefinitionPlanValidationError> {
-        let expected = ObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
-            .map_err(ObjectDefinitionPlanValidationError::Foundation)?;
-        if self.plans.len() != expected.plans.len() {
-            return Err(ObjectDefinitionPlanValidationError::PlanCoverage {
-                expected: expected.plans.len(),
-                actual: self.plans.len(),
-            });
-        }
-
-        let mut plans: Vec<ObjectDefinitionPlanV1> = Vec::with_capacity(self.plans.len());
-        for (index, decoded) in self.plans.into_iter().enumerate() {
-            let plan: ObjectDefinitionPlanId = identities
-                .resolve(decoded.plan)
-                .map_err(ObjectDefinitionPlanValidationError::Identity)?;
-            if index > 0 && plans[index - 1].plan >= plan {
-                return Err(if plans[index - 1].plan == plan {
-                    ObjectDefinitionPlanValidationError::DuplicatePlan(plan)
-                } else {
-                    ObjectDefinitionPlanValidationError::NonCanonicalPlanOrder { index }
-                });
-            }
-            let primary_atom: ObjectDefinitionAtomId = identities
-                .resolve(decoded.primary_atom)
-                .map_err(ObjectDefinitionPlanValidationError::Identity)?;
-            let mut associated_atoms: Vec<ObjectDefinitionAtomId> =
-                Vec::with_capacity(decoded.associated_atoms.len());
-            for (atom_index, decoded_atom) in decoded.associated_atoms.into_iter().enumerate() {
-                let atom: ObjectDefinitionAtomId = identities
-                    .resolve(decoded_atom)
-                    .map_err(ObjectDefinitionPlanValidationError::Identity)?;
-                if atom_index > 0 && associated_atoms[atom_index - 1] >= atom {
-                    return Err(if associated_atoms[atom_index - 1] == atom {
-                        ObjectDefinitionPlanValidationError::DuplicateAssociatedAtom { plan, atom }
-                    } else {
-                        ObjectDefinitionPlanValidationError::NonCanonicalAssociatedAtomOrder {
-                            plan,
-                            index: atom_index,
-                        }
-                    });
-                }
-                associated_atoms.push(atom);
-            }
-            plans.push(ObjectDefinitionPlanV1 {
-                plan,
-                primary_atom,
-                associated_atoms,
-            });
-        }
-        for (index, (actual, expected)) in plans.iter().zip(&expected.plans).enumerate() {
-            if actual != expected {
-                return Err(ObjectDefinitionPlanValidationError::PlanMismatch { index });
-            }
-        }
-        Ok(ObjectDefinitionPlanSurfaceV1 { plans })
-    }
-}
-
 impl WireEncode for DecodedObjectDefinitionPlanSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.plans)
@@ -262,42 +198,6 @@ impl fmt::Display for ObjectDefinitionPlanBuildError {
 }
 
 impl std::error::Error for ObjectDefinitionPlanBuildError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ObjectDefinitionPlanValidationError {
-    Identity(IdentityReferenceError),
-    Foundation(ObjectDefinitionPlanBuildError),
-    PlanCoverage {
-        expected: usize,
-        actual: usize,
-    },
-    DuplicatePlan(ObjectDefinitionPlanId),
-    NonCanonicalPlanOrder {
-        index: usize,
-    },
-    DuplicateAssociatedAtom {
-        plan: ObjectDefinitionPlanId,
-        atom: ObjectDefinitionAtomId,
-    },
-    NonCanonicalAssociatedAtomOrder {
-        plan: ObjectDefinitionPlanId,
-        index: usize,
-    },
-    PlanMismatch {
-        index: usize,
-    },
-}
-
-impl fmt::Display for ObjectDefinitionPlanValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid strong object-definition plan section: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for ObjectDefinitionPlanValidationError {}
 
 fn encode_array<T: WireEncode>(
     encoder: &mut Encoder,

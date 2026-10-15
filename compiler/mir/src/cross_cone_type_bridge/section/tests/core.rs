@@ -173,9 +173,6 @@ fn mixed_core_and_ordinary_shape_selections_keep_their_terminal_records() {
     let dependencies = [core.dependency_view(), ordinary.dependency_view()];
     let replayed =
         resolved_dependencies::read(&consumer, decoded, &dependencies, &mut graph).unwrap();
-    replayed
-        .replay_dependency_closure(&consumer.units, &dependencies, &consumer.uses, &graph)
-        .unwrap();
     assert_eq!(
         replayed.selected_relations(),
         section.selected().relations().collect::<Vec<_>>()

@@ -3,10 +3,10 @@
 use la_arena::{Arena, Idx};
 use scoop_identity::{
     DecodedPersistentId, DecodedSignatureCallableShape, DefinitionOriginSubject,
-    DefinitionOwnerAtom, DuplicateSignatureKey, Effect, GeneratedCallableKey,
-    OptionalSignatureType, PersistentConstructorId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-    PersistentIdResolver, PersistentTypeId, SignatureCallableShape, SignatureTypeKey,
+    DuplicateSignatureKey, Effect, OptionalSignatureType, PersistentConstructorId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId, SignatureCallableShape,
+    SignatureTypeKey,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -22,7 +22,7 @@ mod production;
 mod validation;
 
 pub use error::{
-    CoreProtocolBinderError, CoreProtocolCallableBuildError, CoreProtocolCallableValidationError,
+    CoreProtocolCallableBuildError, CoreProtocolCallableValidationError,
     CoreProtocolSignatureReferenceError,
 };
 

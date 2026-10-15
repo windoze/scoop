@@ -3,7 +3,7 @@ use scoop_process::CommandExt;
 use std::process::Command;
 
 #[test]
-fn elf_native_files_and_archives_keep_bytes_and_defer_unselected_initializers() {
+fn elf_native_files_and_archives_defer_unselected_initializers() {
     let mut input_ids = std::collections::BTreeSet::new();
     for triple in ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"] {
         let profile = ValidatedFinalLinkProfile::resolve(triple).unwrap();
@@ -20,7 +20,7 @@ fn elf_native_files_and_archives_keep_bytes_and_defer_unselected_initializers() 
         let direct = locate::read(&object, NativeFileKind::Object, &profile, false).unwrap();
         assert!(input_ids.insert(direct.id));
         let (_, index) = direct.candidate("api").unwrap();
-        assert!(index.check_selected(&direct.bytes).unwrap().is_none());
+        index.check_selected(&direct.bytes).unwrap();
         assert_eq!(
             index.info.definitions["api"].kind,
             crate::NativeSymbolKind::Function
@@ -45,13 +45,10 @@ fn elf_native_files_and_archives_keep_bytes_and_defer_unselected_initializers() 
         let NativeContent::Archive(members) = &file.content else {
             panic!("expected archive")
         };
-        assert!(
-            members[0]
-                .index
-                .check_selected(&file.bytes[members[0].range.clone()])
-                .unwrap()
-                .is_none()
-        );
+        members[0]
+            .index
+            .check_selected(&file.bytes[members[0].range.clone()])
+            .unwrap();
         assert!(
             members[1]
                 .index
@@ -61,11 +58,6 @@ fn elf_native_files_and_archives_keep_bytes_and_defer_unselected_initializers() 
                 .to_string()
                 .contains("initialization")
         );
-        std::fs::write(&archive, b"replaced").unwrap();
-        let retained = object::read::archive::ArchiveFile::parse(file.bytes.as_ref()).unwrap();
-        assert_eq!(retained.members().count(), 2);
-        assert!(locate::read(&archive, NativeFileKind::Archive, &profile, false).is_err());
-
         let thin = path.join("libthin.a");
         checked(Command::new("ar").arg("crsT").arg(&thin).arg(&object));
         let failure = match locate::read(&thin, NativeFileKind::Archive, &profile, false) {

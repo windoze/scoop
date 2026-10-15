@@ -15,10 +15,12 @@ use super::*;
 mod aggregate;
 mod c_layout;
 mod class;
+mod constituent;
 mod placement;
 mod scans;
 mod tuple;
 mod wire;
+pub(crate) use constituent::DecodedValueLayoutConstituentV1;
 
 pub use aggregate::AggregateStorageLayoutV1;
 pub use c_layout::CLayoutStorageReplayV1;
@@ -31,10 +33,10 @@ pub use wire::DecodedFieldStorageV1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValueLayoutConstituentV1 {
-    layout: PersistentLayoutId,
-    key: LayoutKey,
-    target: LirTargetProfile,
-    storage: Arc<ValueStorageLayoutV1>,
+    pub(crate) layout: PersistentLayoutId,
+    pub(crate) key: LayoutKey,
+    pub(crate) target: LirTargetProfile,
+    pub(crate) storage: Arc<ValueStorageLayoutV1>,
 }
 
 impl ValueLayoutConstituentV1 {
@@ -73,7 +75,7 @@ impl ValueLayoutConstituentV1 {
             StorageBody::ZeroSized(_) => None,
             StorageBody::Inline(storage) => Some(NonZeroValueLayoutRefV1 {
                 layout: self.layout,
-                exact: self.exact(),
+                key: self.key.clone(),
                 storage: Arc::clone(storage),
             }),
         }
@@ -83,7 +85,7 @@ impl ValueLayoutConstituentV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NonZeroValueLayoutRefV1 {
     layout: PersistentLayoutId,
-    exact: PersistentExactTypeId,
+    key: LayoutKey,
     storage: Arc<NonZeroValueStorageV1>,
 }
 
@@ -92,7 +94,7 @@ impl NonZeroValueLayoutRefV1 {
         self.layout
     }
     pub const fn exact(&self) -> PersistentExactTypeId {
-        self.exact
+        self.key.exact_type()
     }
     pub fn storage(&self) -> &NonZeroValueStorageV1 {
         &self.storage
@@ -181,9 +183,9 @@ impl<'a> DeclaredFieldStorageV1<'a> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlacedFieldStorageV1 {
-    field: PersistentFieldId,
-    storage: FieldStorageV1,
-    access_alignment: NonZeroPow2,
+    pub(crate) field: PersistentFieldId,
+    pub(crate) storage: FieldStorageV1,
+    pub(crate) access_alignment: NonZeroPow2,
 }
 
 impl PlacedFieldStorageV1 {
@@ -206,14 +208,11 @@ pub enum StorageReplayError {
     TargetMismatch,
     RepresentationRoleMismatch,
     DuplicateField(PersistentFieldId),
-    ClassCycle(PersistentExactTypeId),
     CLayoutMismatch,
     EmptyCLayout,
     InvalidCField(PersistentFieldId),
     MissingNestedCLayout(scoop_identity::CanonicalCAbiLayoutFingerprint),
-    FieldWireMismatch,
     InvalidFieldPlacement,
-    ClassProjectionMismatch,
 }
 
 impl std::fmt::Display for StorageReplayError {

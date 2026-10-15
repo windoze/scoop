@@ -10,11 +10,12 @@ fn write_core_at(root: &std::path::Path) {
 }
 
 #[test]
-fn transitive_core_source_locator_supplies_implicit_edges_without_a_sysroot() {
+fn transitive_core_source_locator_overrides_the_default_source() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("root");
     let helper = temp.path().join("helper");
-    let sysroot = temp.path().join("absent");
+    let sysroot = temp.path().join("sysroot");
+    write_core(&sysroot);
     write_core_at(&temp.path().join("core"));
     write_manifest(
         &root,
@@ -51,14 +52,14 @@ fn transitive_core_source_locator_supplies_implicit_edges_without_a_sysroot() {
     ));
     let resolved = graph.resolve().unwrap();
     assert_eq!(resolved.dependency_first()[0], ConeIdentity::CORE);
-    assert!(!sysroot.exists());
 }
 
 #[test]
 fn explicit_core_artifact_and_search_root_use_common_prebuilt_claims() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("root");
-    let sysroot = temp.path().join("absent");
+    let sysroot = temp.path().join("sysroot");
+    write_core(&sysroot);
     let search_root = temp.path().join("artifacts");
     let directory = search_root.join("scoop/scoop.core/0.1.0");
     std::fs::create_dir_all(&directory).unwrap();
@@ -96,7 +97,6 @@ fn explicit_core_artifact_and_search_root_use_common_prebuilt_claims() {
             ConeIdentity::CORE
         );
     }
-    assert!(!sysroot.exists());
 }
 
 #[test]
@@ -132,6 +132,8 @@ fn explicit_core_locator_errors_do_not_fall_back_to_default_source() {
 fn distinct_explicit_core_sources_report_the_common_locator_conflict() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("root");
+    let sysroot = temp.path().join("sysroot");
+    write_core(&sysroot);
     let helper = temp.path().join("helper");
     write_core_at(&temp.path().join("core-a"));
     write_core_at(&temp.path().join("core-b"));
@@ -146,7 +148,7 @@ fn distinct_explicit_core_sources_report_the_common_locator_conflict() {
         "[dependencies]\n\"scoop:scoop.core\" = { version = \"0.1.0\", path = \"../core-b\" }",
     );
     assert!(
-        matches!(request(&root, &temp.path().join("absent"), vec![]).load_root().unwrap().discover(), Err(BuildGraphDiscoveryError::ConflictingSourceLocator { coordinate, .. }) if coordinate == ConeCoordinate::reserved_core())
+        matches!(request(&root, &sysroot, vec![]).load_root().unwrap().discover(), Err(BuildGraphDiscoveryError::ConflictingSourceLocator { coordinate, .. }) if coordinate == ConeCoordinate::reserved_core())
     );
 }
 

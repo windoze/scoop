@@ -54,7 +54,6 @@ pub enum SourceDiscoveryErrorKind {
     SourceRootNotDirectory,
     TestRootNotDirectory,
     NonUtf8EntryName,
-    EscapesConeRoot,
     SymlinkCycle,
     DirectoryCycle,
     InvalidLogicalPath(NormalizedSourcePathError),
@@ -64,10 +63,8 @@ pub enum SourceDiscoveryErrorKind {
         second: String,
     },
     InvalidUtf8Source,
-    SourceChangedDuringDiscovery,
     EmptySourceSet,
 
-    LengthOverflow,
     Allocation {
         requested_bytes: u64,
     },
@@ -96,9 +93,7 @@ impl fmt::Display for SourceDiscoveryError {
             SourceDiscoveryErrorKind::NonUtf8EntryName => {
                 formatter.write_str("directory entry name is not valid UTF-8")
             }
-            SourceDiscoveryErrorKind::EscapesConeRoot => {
-                formatter.write_str("symlink target escapes the Cone root")
-            }
+
             SourceDiscoveryErrorKind::SymlinkCycle => {
                 formatter.write_str("symlink targets form a cycle")
             }
@@ -118,16 +113,11 @@ impl fmt::Display for SourceDiscoveryError {
             SourceDiscoveryErrorKind::InvalidUtf8Source => {
                 formatter.write_str("source file is not valid UTF-8")
             }
-            SourceDiscoveryErrorKind::SourceChangedDuringDiscovery => {
-                formatter.write_str("source target changed during discovery")
-            }
+
             SourceDiscoveryErrorKind::EmptySourceSet => {
                 formatter.write_str("manifest Cone must contain at least one .scoop source")
             }
 
-            SourceDiscoveryErrorKind::LengthOverflow => {
-                formatter.write_str("source length does not fit the bounded reader")
-            }
             SourceDiscoveryErrorKind::Allocation { requested_bytes } => write!(
                 formatter,
                 "cannot allocate {requested_bytes} bytes for source discovery"

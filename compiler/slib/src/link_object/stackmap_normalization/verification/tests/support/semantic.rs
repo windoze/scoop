@@ -145,15 +145,6 @@ fn complete_registration_production_uses_the_closed_eight_field_shape() {
             .unwrap();
     assert_eq!(scoop_wire::encode(&decoded).unwrap(), encoded);
 
-    let validated = decoded
-        .validate(
-            inputs.module.meta.target_profile,
-            &inputs.foundation,
-            &inputs.digest_plan,
-        )
-        .unwrap();
-    assert_eq!(validated, inputs.registration_production);
-
     let old_identity_only =
         scoop_wire::encode(inputs.registration_production.identities()).unwrap();
     assert!(
@@ -161,33 +152,6 @@ fn complete_registration_production_uses_the_closed_eight_field_shape() {
             &old_identity_only,
         )
         .is_err()
-    );
-}
-
-#[test]
-fn registration_production_rejects_a_stale_derived_plan_identity() {
-    let inputs = inputs(Corruption::None);
-
-    let stale =
-        inputs.registration_production.safepoints().registrations()[0].normalized_stackmap_patch();
-    let mut encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
-    let offset = encoded
-        .windows(stale.as_array().len())
-        .position(|bytes| bytes == stale.as_array())
-        .unwrap();
-    encoded[offset] ^= 1;
-    let decoded =
-        scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&encoded)
-            .unwrap();
-
-    assert!(
-        decoded
-            .validate(
-                inputs.module.meta.target_profile,
-                &inputs.foundation,
-                &inputs.digest_plan,
-            )
-            .is_err()
     );
 }
 

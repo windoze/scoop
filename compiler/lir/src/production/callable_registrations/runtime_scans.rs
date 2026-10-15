@@ -24,10 +24,6 @@ impl StrongCallableRuntimeScanAtomV1 {
     pub const fn scan(&self) -> &RefScan {
         &self.scan
     }
-
-    pub(crate) const fn from_artifact(atom: ObjectDefinitionAtomId, scan: RefScan) -> Self {
-        Self { atom, scan }
-    }
 }
 
 /// Callable-owned scan programs and Context key cells for one body.
@@ -48,18 +44,6 @@ impl StrongCallableRuntimeScanPlanV1 {
 
     pub fn atoms(&self) -> &[StrongCallableRuntimeScanAtomV1] {
         &self.atoms
-    }
-
-    pub(crate) const fn from_artifact(
-        body: PersistentCallableBodyId,
-        atoms: Vec<StrongCallableRuntimeScanAtomV1>,
-        context_keys: Vec<crate::CallableContextKeyCellV1>,
-    ) -> Self {
-        Self {
-            body,
-            atoms,
-            context_keys,
-        }
     }
 }
 
@@ -82,7 +66,14 @@ impl StrongCallableRuntimeScanPlanSetV1 {
                 let plan = callable_definition_plan(foundation, body)?;
                 let actual = foundation
                     .definition_atoms_for_plan(plan)
-                    .filter(|atom| atom.key().role() == DefinitionAtomRole::RuntimeRecord)
+                    .filter(|atom| {
+                        matches!(
+                            atom.key().role(),
+                            DefinitionAtomRole::RuntimeRecord
+                                | DefinitionAtomRole::ContextKeyCell
+                                | DefinitionAtomRole::ContextKeyTable
+                        )
+                    })
                     .map(|atom| atom.id())
                     .collect::<Vec<_>>();
                 if !actual.is_empty() {
@@ -101,7 +92,10 @@ impl StrongCallableRuntimeScanPlanSetV1 {
             })
             .collect::<Result<Vec<_>, _>>()?;
         callables.sort_unstable_by_key(StrongCallableRuntimeScanPlanV1::body);
-        Self::from_artifact(foundation, callables)
+        Ok(Self {
+            producer: foundation.producer(),
+            callables,
+        })
     }
 
     pub fn from_module(module: &Module) -> Result<Self, StrongCallableRuntimeScanPlanError> {
@@ -120,22 +114,6 @@ impl StrongCallableRuntimeScanPlanSetV1 {
         }
         Ok(Self {
             producer: module.cone,
-            callables,
-        })
-    }
-
-    pub(crate) fn from_artifact(
-        foundation: &crate::ConeLirFoundation,
-        callables: Vec<StrongCallableRuntimeScanPlanV1>,
-    ) -> Result<Self, StrongCallableRuntimeScanPlanError> {
-        if !callables.windows(2).all(|pair| pair[0].body < pair[1].body) {
-            return Err(StrongCallableRuntimeScanPlanError::NonCanonicalBodyOrder);
-        }
-        for callable in &callables {
-            validate_artifact_callable(foundation, callable)?;
-        }
-        Ok(Self {
-            producer: foundation.producer(),
             callables,
         })
     }
@@ -293,34 +271,6 @@ fn append_scan_tree(
     Ok(materialized)
 }
 
-fn validate_artifact_callable(
-    foundation: &crate::ConeLirFoundation,
-    callable: &StrongCallableRuntimeScanPlanV1,
-) -> Result<(), StrongCallableRuntimeScanPlanError> {
-    let plan = callable_definition_plan(foundation, callable.body)?;
-    crate::task_context::validate_context_plan(foundation, plan, callable)?;
-    for (ordinal, atom) in callable.atoms.iter().enumerate() {
-        let ordinal = u32::try_from(ordinal)
-            .map_err(|_| StrongCallableRuntimeScanPlanError::TooManyAtoms(callable.body))?;
-        let expected = runtime_scan_atom(plan, ordinal)?;
-        if atom.atom != expected {
-            return Err(StrongCallableRuntimeScanPlanError::AtomIdentity {
-                body: callable.body,
-                ordinal,
-                expected,
-                actual: atom.atom,
-            });
-        }
-        if !atom.scan.contains_reference() {
-            return Err(StrongCallableRuntimeScanPlanError::EmptyAtom {
-                body: callable.body,
-                ordinal,
-            });
-        }
-    }
-    Ok(())
-}
-
 fn callable_definition_plan(
     foundation: &crate::ConeLirFoundation,
     body: PersistentCallableBodyId,
@@ -354,23 +304,11 @@ fn runtime_scan_atom(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableRuntimeScanPlanError {
     DuplicateBody(PersistentCallableBodyId),
-    NonCanonicalBodyOrder,
-    InvalidContextKeys(PersistentCallableBodyId),
     TooManyAtoms(PersistentCallableBodyId),
     EmptyArrayElement(PersistentCallableBodyId),
-    EmptyAtom {
-        body: PersistentCallableBodyId,
-        ordinal: u32,
-    },
     UnexpectedFoundationAtoms {
         body: PersistentCallableBodyId,
         actual: Vec<ObjectDefinitionAtomId>,
-    },
-    AtomIdentity {
-        body: PersistentCallableBodyId,
-        ordinal: u32,
-        expected: ObjectDefinitionAtomId,
-        actual: ObjectDefinitionAtomId,
     },
     MissingDefinition(PersistentCallableBodyId),
     Hash(scoop_wire::HashError),

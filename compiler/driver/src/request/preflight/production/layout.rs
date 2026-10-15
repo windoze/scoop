@@ -18,7 +18,9 @@ pub(super) fn assemble(
     temporary_parent: &Path,
     selected: mir::SelectedExternalMirSet,
     dump: &mut Vec<EmittedStageDump>,
-) -> Result<slib::AssembledCrossConeLayoutArtifactV1, CurrentConeProductionFailure> {
+    stop_after: Option<StageDumpKind>,
+) -> Result<ControlFlow<(), slib::AssembledCrossConeLayoutArtifactV1>, CurrentConeProductionFailure>
+{
     let closure = request.dependencies().semantic();
     let dependencies = closure.layout_dependencies().collect::<Vec<_>>();
     let mir = hir
@@ -36,6 +38,9 @@ pub(super) fn assemble(
         StageDumpKind::Mir,
         || scoop_mir::dump(mir.strong.module()),
     ));
+    if stop_after == Some(StageDumpKind::Mir) {
+        return Ok(ControlFlow::Break(()));
+    }
     let selected = closure
         .project_dependency_callables_to_lir(mir.strong.selected_callables())
         .map_err(CurrentConeLirStageError::DependencyProjection)
@@ -177,6 +182,9 @@ pub(super) fn assemble(
             text
         },
     ));
+    if stop_after == Some(StageDumpKind::Lir) {
+        return Ok(ControlFlow::Break(()));
+    }
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
         mir: &mir.strong,
         lir: &lir,
@@ -273,6 +281,7 @@ pub(super) fn assemble(
         )
         .with_native_cxx(super::native::cxx(request))
         .assemble(objects, &generated, &owners)
+        .map(ControlFlow::Continue)
         .map_err(Error::Artifact)
         .map_err(Into::into)
 }

@@ -53,6 +53,52 @@ impl StrongShapeDefinitionRefV1 {
             primary,
         })
     }
+    pub(crate) fn from_symbols(
+        subject: ExternalStrongShapeSubjectV1,
+        foundation: &crate::ConeLirFoundation,
+        symbols: &crate::ObjectSymbolSurfaceV1,
+    ) -> Result<Self, StrongShapeDefinitionError> {
+        let (entity, role, _) = subject.definition_parts()?;
+        let definition = foundation
+            .definition_for(entity, role)
+            .and_then(|definition| symbols.plan(definition.id()))
+            .ok_or_else(|| {
+                subject
+                    .expected_definition(foundation.producer())
+                    .map(|(key, _)| StrongShapeDefinitionError::MissingDefinition(key))
+                    .unwrap_or_else(|error| error)
+            })?;
+        Ok(Self {
+            provider: foundation.producer(),
+            subject,
+            symbol: definition.primary_symbol(),
+            definition: definition.definition_plan(),
+            primary: definition.primary_atom(),
+        })
+    }
+
+    pub(crate) fn from_saved(
+        subject: ExternalStrongShapeSubjectV1,
+        definition: ObjectDefinitionPlanId,
+        symbol: PersistentSymbolRequest,
+        foundation: &crate::ConeLirFoundation,
+    ) -> Result<Self, crate::LinkDataError> {
+        use crate::link_data::link_error;
+        if !foundation.contains_symbol_request(symbol) {
+            return Err(link_error(format!("missing definition symbol {symbol:?}")));
+        }
+        let (_, primary) = foundation
+            .resolve_definition_atom(definition, DefinitionAtomRole::Primary)
+            .map_err(link_error)?;
+        Ok(Self {
+            provider: foundation.producer(),
+            subject,
+            definition,
+            symbol,
+            primary,
+        })
+    }
+
     pub const fn provider(&self) -> ConeIdentity {
         self.provider
     }

@@ -10,6 +10,7 @@ use crate::ResolvedTargetProfile;
 
 #[cfg(not(target_env = "musl"))]
 mod cxx;
+mod objects;
 
 fn target() -> &'static ResolvedTargetProfile {
     static TARGET: OnceLock<ResolvedTargetProfile> = OnceLock::new();
@@ -50,7 +51,7 @@ fn prepare(manifest: &LoadedConeManifest) -> PreparedNativeInputs {
 }
 
 #[test]
-fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
+fn nested_headers_and_flags_track_real_input_changes() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("cone");
     let manifest = manifest(
@@ -66,7 +67,6 @@ fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
         original_key,
         scoop_wire::encode(&prepare(&manifest)).unwrap()
     );
-    std::fs::write(root.join("include/second.h"), "#define VALUE 9\n").unwrap();
     let object = directory.path().join("answer.o");
     compile_native_source(
         &prepared.units()[0],
@@ -103,6 +103,7 @@ fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
             .unwrap()
             .success()
     );
+    std::fs::write(root.join("include/second.h"), "#define VALUE 9\n").unwrap();
     assert_ne!(
         original_key,
         scoop_wire::encode(&prepare(&manifest)).unwrap()
@@ -138,22 +139,22 @@ fn relocation_preserves_preprocessed_bytes_and_object_content() {
 }
 
 #[test]
-fn native_headers_cannot_escape_the_declared_input_roots() {
+fn native_headers_use_the_actual_include_path() {
     let directory = tempfile::tempdir().unwrap();
-    std::fs::write(directory.path().join("outside.h"), "#define VALUE 1\n").unwrap();
+    let outside = directory.path().join("outside.h");
+    std::fs::write(&outside, "#define VALUE 1\n").unwrap();
     let manifest = manifest(
         &directory.path().join("cone"),
         "#include \"../outside.h\"\nint answer(void) { return VALUE; }\n",
     );
-    let error = prepare_native_inputs(
-        &manifest,
-        target().id(),
-        target().c_bridge_toolchain(),
-        OptimizationMode::Debug,
-        &crate::development_runtime_root().join("include"),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("outside the Cone"), "{error}");
+    let prepared = prepare(&manifest);
+    assert!(
+        prepared
+            .observed_paths
+            .iter()
+            .any(|p| p.canonicalize().ok() == outside.canonicalize().ok())
+    );
+    assert!(String::from_utf8_lossy(prepared.units()[0].preprocessed()).contains("return 1"));
 }
 
 #[test]
@@ -202,7 +203,7 @@ fn public_runtime_header_changes_invalidate_native_inputs() {
 
 #[cfg(unix)]
 #[test]
-fn repeated_native_files_are_rejected_through_hard_links() {
+fn distinct_native_source_paths_remain_distinct_translation_units() {
     let directory = tempfile::tempdir().unwrap();
     let manifest = manifest(directory.path(), "int answer(void) { return 42; }\n");
     std::fs::hard_link(
@@ -220,13 +221,13 @@ fn repeated_native_files_are_rejected_through_hard_links() {
     .unwrap();
     let manifest =
         load_cone_manifest(&ManifestRootLocator::cone_directory(directory.path())).unwrap();
-    let error = prepare_native_inputs(
+    let prepared = prepare_native_inputs(
         &manifest,
         target().id(),
         target().c_bridge_toolchain(),
         OptimizationMode::Debug,
         &crate::development_runtime_root().join("include"),
     )
-    .unwrap_err();
-    assert!(error.0.contains("duplicate native source"), "{error}");
+    .unwrap();
+    assert_eq!(prepared.units().len(), 2);
 }

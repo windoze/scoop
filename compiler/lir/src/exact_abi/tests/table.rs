@@ -99,5 +99,9 @@ fn table_canonicalizes_targets_and_round_trips_complete_records() {
     let bytes = encode(&table).unwrap();
     let decoded = decode_canonical::<DecodedCanonicalExactCallableAbiExportsV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.validate_against(&table).unwrap(), table);
+    let mut graph = fixtures::identities(&foundation, table.records());
+    assert_eq!(
+        decoded.read(TARGET, &foundation, &mut graph).unwrap(),
+        table
+    );
 }

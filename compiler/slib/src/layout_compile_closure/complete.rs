@@ -1,4 +1,4 @@
-//! Complete shared semantic replay before view-specific physical validation.
+//! Read saved semantic records before selecting physical imports.
 
 use super::*;
 use crate::{
@@ -7,12 +7,11 @@ use crate::{
 };
 
 impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
-    /// Checks the shared semantic records in the decoded dependency closure.
-    /// Link consumption additionally checks objects and physical imports.
-    pub fn replay_semantics(
+    /// Reads the shared semantic records in the decoded dependency closure.
+    pub fn read_semantic_sections(
         self,
     ) -> Result<
-        LirDependencyGraphReplayedCrossConeLayoutClosure<'input>,
+        LirDependenciesResolvedCrossConeLayoutClosure<'input>,
         CrossConeLayoutSemanticClosureError,
     > {
         Ok(self
@@ -22,16 +21,16 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
             .resolve_hir_sections()?
             .validate_hir_productions()?
             .validate_hir_declarations()?
-            .validate_mir_sources()?
+            .read_mir_records()?
             .validate_lir_layouts()?
             .validate_ordinary_lir_bridges()?
             .validate_lir_callable_abis()?
             .validate_lir_dispatch()?
             .validate_lir_descriptors()?
             .validate_lir_shape_support()?
-            .replay_lir_strong_production()?
-            .replay_mir_dependency_graph()?
-            .replay_lir_dependency_graph()?)
+            .read_lir_production_data()?
+            .resolve_mir_dependencies()?
+            .resolve_lir_dependencies()?)
     }
 }
 
@@ -65,14 +64,14 @@ semantic_errors! {
     HirResolution(CrossConeLayoutClosureHirResolutionError),
     HirProduction(CrossConeClosureHirProductionError),
     HirDeclarations(CrossConeLayoutHirDeclarationError),
-    SourceCallables(CrossConeLayoutMirSourceCallablesError),
+    SourceCallables(CrossConeLayoutMirReadError),
     LirLayouts(CrossConeLayoutLirLayoutsError),
     LirCallableAbis(CrossConeLayoutLirCallableAbisError),
     LirDispatch(CrossConeLayoutLirDispatchError),
     LirDescriptors(CrossConeLayoutLirDescriptorsError),
     LirShapeSupport(CrossConeLayoutLirShapeSupportError),
     OrdinaryLirBridges(CrossConeLayoutOrdinaryLirBridgeError),
-    LirStrongProduction(CrossConeLayoutLirStrongProductionError),
+    LirStrongProduction(CrossConeLayoutLirProductionDataError),
     MirDependencies(CrossConeLayoutMirDependenciesError),
     LirDependencies(CrossConeLayoutLirDependenciesError),
 }

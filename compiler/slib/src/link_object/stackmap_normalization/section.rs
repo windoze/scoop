@@ -5,7 +5,6 @@ use std::fmt;
 use std::num::NonZeroU32;
 
 use crate::link_object::ObjectRelocationShapeV1;
-use scoop_wire::sha256;
 
 use super::{
     LlvmStackmapSectionParseError, ParsedLlvmStackmapFunctionV3, parse_llvm_stackmap_section_v3,
@@ -64,11 +63,6 @@ pub fn verify_object_stackmap_section_v3(
     sections: &ValidatedBuiltinObjectSectionInventoryV1,
 ) -> Result<Option<VerifiedObjectStackmapSectionV3>, ObjectStackmapSectionError> {
     let envelope = sections.envelope();
-    if u64::try_from(object_bytes.len()).ok() != Some(envelope.byte_length())
-        || sha256(object_bytes) != envelope.content_digest()
-    {
-        return Err(ObjectStackmapSectionError::ObjectBytesMismatch);
-    }
     if sections.profile() != BuiltinLinkObjectSectionProfileV1::ScoopLir {
         return Err(ObjectStackmapSectionError::WrongSectionProfile(
             sections.profile(),
@@ -176,7 +170,6 @@ pub fn verify_object_stackmap_section_v3(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ObjectStackmapSectionError {
-    ObjectBytesMismatch,
     WrongSectionProfile(BuiltinLinkObjectSectionProfileV1),
     SectionOrdinalOverflow,
     SectionNotFileBacked,

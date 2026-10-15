@@ -2,7 +2,7 @@ use std::fmt;
 
 use scoop_wire::{Digest256, Encoder, WireEncode};
 
-/// Content of the selected compiler, wrapper/specs and consumed C headers.
+/// Configuration observed from the selected GCC and libc header probe.
 /// Paths are retained by tool discovery, not by the artifact contract.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct GccCompilerIdentityV1 {

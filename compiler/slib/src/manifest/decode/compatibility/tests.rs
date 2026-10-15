@@ -2,10 +2,28 @@ use super::*;
 use scoop_wire::{decode_canonical, encode};
 
 #[test]
+fn retired_artifact_profiles_require_rebuilding() {
+    let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
+    let current =
+        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC).unwrap();
+    for name in ["single-cone-strong", "cross-cone-semantics-strong"] {
+        let mut decoded: DecodedCompatibilityRecord =
+            decode_canonical(&encode(&current).unwrap()).unwrap();
+        let retired =
+            scoop_identity::CapabilityId::new("org.scoop-lang.slib-profile", name, 5).unwrap();
+        decoded.artifact_profile = decode_canonical(&encode(&retired).unwrap()).unwrap();
+        assert!(matches!(
+            decoded.validate(selection),
+            Err(CompatibilityValidationError::ArtifactProfile(_))
+        ));
+    }
+}
+
+#[test]
 fn unknown_or_mismatched_backend_identity_is_rejected_even_with_known_fingerprint() {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let record =
-        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::SINGLE_CONE_STRONG).unwrap();
+        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC).unwrap();
     for (name, version) in [
         ("future-backend", 1),
         ("llvm-22-1", 2),
@@ -30,18 +48,14 @@ fn unknown_or_mismatched_backend_identity_is_rejected_even_with_known_fingerprin
 #[test]
 fn compatibility_reader_selects_the_exact_registered_artifact_profile() {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
-    for profile in [
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-        ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
-    ] {
-        let expected = CompatibilityRecord::new(selection, profile).unwrap();
-        let decoded =
-            decode_canonical::<DecodedCompatibilityRecord>(&encode(&expected).unwrap()).unwrap();
-        let actual = decoded.validate(selection).unwrap();
-        assert_eq!(actual, expected);
-        assert_eq!(actual.artifact_profile(), &profile.id());
-    }
+    let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
+
+    let expected = CompatibilityRecord::new(selection, profile).unwrap();
+    let decoded =
+        decode_canonical::<DecodedCompatibilityRecord>(&encode(&expected).unwrap()).unwrap();
+    let actual = decoded.validate(selection).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(actual.artifact_profile(), &profile.id());
 }
 
 #[test]
@@ -76,7 +90,7 @@ fn canonical_unknown_target_is_rejected_even_with_matching_fingerprints() {
     let selection =
         scoop_lir::ValidatedLirTargetSelection::new(target, scoop_target_data::LLVM_22_1);
     let record =
-        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::SINGLE_CONE_STRONG).unwrap();
+        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC).unwrap();
     let decoded: DecodedCompatibilityRecord = decode_canonical(&encode(&record).unwrap()).unwrap();
     assert!(matches!(
         decoded.validate(selection),
@@ -88,7 +102,7 @@ fn canonical_unknown_target_is_rejected_even_with_matching_fingerprints() {
 fn target_identity_must_match_the_selected_consumer_profile() {
     let selection = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let record =
-        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::SINGLE_CONE_STRONG).unwrap();
+        CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC).unwrap();
     for (name, version) in [
         ("unknown-target", 1),
         ("darwin-aarch64", 2),

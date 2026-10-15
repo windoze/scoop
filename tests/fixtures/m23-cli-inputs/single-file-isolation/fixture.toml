@@ -45,7 +45,7 @@ cwd = "${work}/noisy"
 checks = [
   {"actual" = "${neighboring_files.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
   {"file" = "${neighboring_files.result.root.path}", "same_as" = "${baseline.result.root.path}"},
-  {"actual" = "${neighboring_files.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${neighboring_files.result.observations.child_invocations}", "equals" = ["${baseline.result.root.identity}"]},
   {"actual" = "${neighboring_files.result.link_plan_fingerprint}", "equals" = "${baseline.result.link_plan_fingerprint}"},
 ]
 
@@ -93,7 +93,7 @@ cwd = "${work}/noisy"
 checks = [
   {"actual" = "${unicode_file.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
   {"file" = "${unicode_file.result.root.path}", "same_as" = "${baseline.result.root.path}"},
-  {"actual" = "${unicode_file.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${unicode_file.result.observations.child_invocations}", "equals" = ["${baseline.result.root.identity}"]},
   {"actual" = "${unicode_file.result.link_plan_fingerprint}", "equals" = "${baseline.result.link_plan_fingerprint}"},
 ]
 

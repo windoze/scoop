@@ -10,8 +10,6 @@ use scoop_identity::{
 };
 use scoop_wire::{decode_canonical, encode, encode_runtime};
 
-mod type_references;
-
 fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,

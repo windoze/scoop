@@ -23,7 +23,6 @@ mod declarations;
 mod foundations;
 mod hir;
 mod lir_callable_abis;
-mod lir_callable_layouts;
 mod lir_constituents;
 mod lir_dependencies;
 mod lir_descriptors;
@@ -33,12 +32,8 @@ mod lir_ordinary;
 mod lir_physical;
 mod lir_shape_support;
 mod lir_strong;
-mod mir_coroutines;
 mod mir_dependencies;
-mod mir_dispatch;
-mod mir_source_callables;
-mod mir_types;
-mod type_foundations;
+mod mir_records;
 pub use complete::CrossConeLayoutSemanticClosureError;
 pub use declarations::{
     CrossConeHirDeclarationValidationError, CrossConeLayoutHirDeclarationError,
@@ -48,71 +43,50 @@ pub use hir::CrossConeLayoutClosureHirResolutionError;
 pub use lir_callable_abis::{
     CrossConeLayoutLirCallableAbisError, LirCallableAbisValidatedCrossConeLayoutClosure,
     LirCallableAbisValidatedCrossConeLayoutSections, SharedLirCallableAbiValidationError,
-    validate_shared_mir_callable_abis,
 };
 pub use lir_dependencies::{
-    CrossConeLayoutLirDependenciesError, LirDependencyGraphReplayedCrossConeLayoutClosure,
-    LirDependencyGraphReplayedCrossConeLayoutSections, SharedLirDependencyGraphError,
-    replay_shared_lir_dependency_graph, replay_shared_lir_initialization_dependencies,
+    CrossConeLayoutLirDependenciesError, LirDependenciesResolvedCrossConeLayoutClosure,
+    LirDependenciesResolvedCrossConeLayoutSections, LirDependencyReadError,
 };
 pub use lir_descriptors::{
     CrossConeLayoutLirDescriptorsError, LirDescriptorsValidatedCrossConeLayoutClosure,
-    LirDescriptorsValidatedCrossConeLayoutSections, SharedLirDescriptorInputsV1,
-    SharedLirDescriptorValidationError, replay_shared_mir_descriptors,
+    LirDescriptorsValidatedCrossConeLayoutSections, SharedLirDescriptorValidationError,
 };
 pub use lir_dispatch::{
     CrossConeLayoutLirDispatchError, LirDispatchValidatedCrossConeLayoutClosure,
-    LirDispatchValidatedCrossConeLayoutSections, SharedLirDispatchAbiInputsV1,
-    SharedLirDispatchValidationError, replay_shared_mir_dispatch,
+    LirDispatchValidatedCrossConeLayoutSections, SharedLirDispatchValidationError,
 };
 pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,
     LirLayoutsValidatedCrossConeLayoutSections, SharedLirLayoutValidationError,
-    replay_shared_mir_layouts,
 };
 pub use lir_ordinary::{
     CrossConeLayoutOrdinaryLirBridgeError, OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
-    OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeDependenciesV1,
-    SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
+    OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeValidationError,
 };
 pub use lir_physical::{
-    CrossConeLayoutLirPhysicalError, LinkObjectsReplayedCrossConeLayoutClosure,
-    LinkSymbolsReplayedCrossConeLayoutClosure, MergedOdrDefinitions, MergedOdrMemberDefinition,
-    OdrDefinitionCandidate, OdrDefinitionDifference, OdrDefinitionMergeError, OdrMemberConflict,
-    PhysicalImportsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutSections,
-    SharedLirPhysicalError, merge_cross_cone_odr_definitions,
+    CrossConeLayoutArtifactData, CrossConeLayoutLirPhysicalError, MergedOdrDefinitions,
+    MergedOdrMemberDefinition, OdrDefinitionCandidate, OdrDefinitionDifference,
+    OdrDefinitionMergeError, OdrMemberConflict, PhysicalImportsReplayedCrossConeLayoutClosure,
+    PhysicalImportsReplayedCrossConeLayoutSections, SharedLirPhysicalError,
+    merge_cross_cone_odr_definitions,
 };
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,
     LirExportsValidatedCrossConeLayoutSections, SharedLirShapeSupportValidationError,
-    replay_shared_mir_shape_support,
 };
 pub use lir_strong::{
-    CrossConeLayoutLirStrongProductionError, LirStrongProductionReplayedCrossConeLayoutClosure,
-    LirStrongProductionReplayedCrossConeLayoutSections, SharedLirStrongProductionError,
+    CrossConeLayoutLirProductionDataError, LirProductionDataCrossConeLayoutClosure,
+    LirProductionDataCrossConeLayoutSections,
 };
-pub use mir_coroutines::{SharedMirCoroutineValidationError, validate_shared_mir_coroutines};
 pub use mir_dependencies::{
-    CrossConeLayoutMirDependenciesError, MirDependencyGraphReplayedCrossConeLayoutClosure,
-    MirDependencyGraphReplayedCrossConeLayoutSections, SharedMirDependencyGraphError,
-    replay_shared_mir_dependency_graph,
+    CrossConeLayoutMirDependenciesError, MirDependenciesResolvedCrossConeLayoutClosure,
+    MirDependenciesResolvedCrossConeLayoutSections, MirDependencyReadError,
 };
-pub use mir_dispatch::{
-    SharedMirDispatchComponent, SharedMirDispatchValidationError, validate_shared_mir_dispatch,
+pub use mir_records::{
+    CrossConeLayoutMirReadError, MirRecordsCrossConeLayoutClosure,
+    MirRecordsCrossConeLayoutSections, SharedMirReadError,
 };
-pub use mir_source_callables::{
-    CrossConeLayoutMirSourceCallablesError, MirSourceCallablesValidatedCrossConeLayoutClosure,
-    MirSourceCallablesValidatedCrossConeLayoutSections, SharedMirConstructorComponent,
-    SharedMirConstructorValidationError, SharedMirEqualityValidationError,
-    SharedMirObjectComponent, SharedMirObjectValidationError, SharedMirSourceCallableComponent,
-    SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
-    validate_shared_mir_constructors, validate_shared_mir_equality, validate_shared_mir_objects,
-    validate_shared_mir_source_callables,
-};
-pub use mir_types::{
-    SharedMirTypeComponent, SharedMirTypeValidationError, validate_shared_mir_type_exports,
-};
-pub use type_foundations::CrossConeLayoutTypeFoundationError;
 
 /// Decoded artifacts visible while compiling one current Cone.
 pub struct DecodedCrossConeLayoutCompileClosure<'input> {
@@ -157,7 +131,7 @@ pub struct FoundationValidatedCrossConeLayoutCompileClosure<'input> {
 }
 
 /// Both old and new HIR transports are resolved through each artifact's one
-/// validated identity graph. Semantic tables remain untrusted.
+/// identity graph. Saved declarations are available to downstream queries.
 pub struct ResolvedCrossConeLayoutHirClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
@@ -167,8 +141,7 @@ pub struct ResolvedCrossConeLayoutHirClosure<'input> {
     dependency_positions: Vec<Vec<usize>>,
 }
 
-/// Resolved layout-profile HIR transports whose unchanged core bootstrap
-/// production surface has also been replayed.
+/// Resolved layout-profile HIR transports and saved core protocol records.
 pub struct HirProductionValidatedCrossConeLayoutClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,

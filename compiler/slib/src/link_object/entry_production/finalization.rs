@@ -4,9 +4,8 @@ use super::record::{ROOT_ENTRY_DESCRIPTOR_SIZE, expected_final_root_entry_record
 use super::{VerifiedEntryProductionBranchV1, VerifiedEntryProductionV1};
 use crate::SlibMemberId;
 use crate::link_object::{
-    ScoopLirObjectEnvelopeValidationError, ValidatedScoopLirObjectEnvelopeV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedRuntimeImagePatchSetV1, same_object_shape,
-    validate_scoop_lir_llvm_22_1_object_envelope_v1,
+    ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1,
+    VerifiedRuntimeImagePatchSetV1,
 };
 
 const DIGEST_WIDTH: usize = 32;
@@ -137,16 +136,15 @@ where
         if member != source.member() {
             return Err(EntryPatchError::ObjectOrderMismatch);
         }
-        verify_only_entry_slots_changed(member, &bytes, source.bytes(), entry.branch())?;
-        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-            scoop_target_data::layout(source.envelope().sections().envelope().target())
-                .expect("implemented target selected by this consumer"),
-            &bytes,
-        )
-        .map_err(|source| EntryPatchError::FinalEnvelope { member, source })?;
-        if !same_object_shape(source.envelope().sections(), envelope.sections()) {
-            return Err(EntryPatchError::MachOShapeChanged(member));
-        }
+        let envelope = if matches!(entry.branch(), VerifiedEntryProductionBranchV1::Executable(entry) if entry.member() == member)
+        {
+            ValidatedScoopLirObjectEnvelopeV1::after_digest_patch(
+                source.envelope().sections().clone(),
+                &bytes,
+            )
+        } else {
+            source.envelope().clone()
+        };
         finalized.push(VerifiedEntryPatchedScoopLirObjectV1 {
             member,
             bytes,
@@ -237,35 +235,6 @@ fn validate_final_record(
     Ok(())
 }
 
-fn verify_only_entry_slots_changed(
-    member: SlibMemberId,
-    final_bytes: &[u8],
-    source_bytes: &[u8],
-    branch: &VerifiedEntryProductionBranchV1,
-) -> Result<(), EntryPatchError> {
-    let mut normalized = final_bytes.to_vec();
-    if let VerifiedEntryProductionBranchV1::Executable(entry) = branch
-        && entry.member() == member
-    {
-        digest_slot_mut(
-            &mut normalized,
-            entry.source_signature_patch().checked_offset(),
-            EntryPatchFieldV1::SourceSignature,
-        )?
-        .fill(0);
-        digest_slot_mut(
-            &mut normalized,
-            entry.gateway_definition_patch().checked_offset(),
-            EntryPatchFieldV1::GatewayDefinition,
-        )?
-        .fill(0);
-    }
-    if normalized != source_bytes {
-        return Err(EntryPatchError::NormalizedObjectMismatch(member));
-    }
-    Ok(())
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EntryPatchFieldV1 {
     SourceSignature,
@@ -293,12 +262,6 @@ pub enum EntryPatchError {
         expected: u8,
         actual: u8,
     },
-    NormalizedObjectMismatch(SlibMemberId),
-    FinalEnvelope {
-        member: SlibMemberId,
-        source: ScoopLirObjectEnvelopeValidationError,
-    },
-    MachOShapeChanged(SlibMemberId),
 }
 
 impl fmt::Display for EntryPatchError {
@@ -307,11 +270,4 @@ impl fmt::Display for EntryPatchError {
     }
 }
 
-impl std::error::Error for EntryPatchError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::FinalEnvelope { source, .. } => Some(source),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for EntryPatchError {}

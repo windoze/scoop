@@ -30,9 +30,6 @@ pub use manifest_summary::*;
 mod test_directory;
 pub use test_directory::*;
 
-mod artifact_snapshot;
-pub use artifact_snapshot::*;
-
 mod compile_decode;
 pub use compile_decode::*;
 
@@ -52,7 +49,8 @@ mod layout_compile_decode;
 pub use layout_compile_decode::*;
 
 mod dependency_reachability;
-mod production_dependencies;
+mod runtime_image_records;
+pub use runtime_image_records::RuntimeImageRecords;
 mod program_link;
 pub use program_link::*;
 mod link_support;
@@ -60,25 +58,15 @@ pub use link_support::*;
 mod layout_compile_closure;
 pub use layout_compile_closure::*;
 
-mod layout_link_objects;
-pub use layout_link_objects::{LayoutLinkObjectContentsError, ReplayedLayoutLinkObjectContentsV1};
+mod artifact_file;
+pub use artifact_file::ArtifactFile;
+pub use artifact_file::ArtifactInput;
 
-mod layout_link_symbols;
-pub use layout_link_symbols::{LayoutLinkSymbolUseError, ReplayedLayoutLinkSymbolUsesV1};
+mod artifact_definitions;
+pub use artifact_definitions::ArtifactDefinitionData;
 
 mod cross_cone_closure;
 pub use cross_cone_closure::*;
-
-mod cross_cone_hir_authority;
-mod hir_dependency_calls;
-mod hir_interface_validation;
-pub use cross_cone_hir_authority::{
-    CrossConeHirIntrinsicTypeError, CrossConeHirNominalAuthorityError,
-    CrossConeIntrinsicDeclarationError,
-};
-pub use hir_interface_validation::{
-    CrossConeHirCallSiteOriginError, CrossConeHirReferenceSurfaceError, CrossConeHirTypeSiteError,
-};
 
 mod publish;
 pub use publish::*;
@@ -97,6 +85,3 @@ pub use link_object::*;
 
 mod diagnostic;
 pub use diagnostic::*;
-
-#[cfg(test)]
-mod nominal_interface_fixture;

@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -44,7 +44,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -107,7 +107,7 @@ files = [
 
 [[steps]]
 name = "body"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -135,7 +135,7 @@ checks = [
 
 [[steps]]
 name = "body_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -198,7 +198,7 @@ files = [
 
 [[steps]]
 name = "helper"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -226,7 +226,7 @@ checks = [
 
 [[steps]]
 name = "helper_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -289,7 +289,7 @@ files = [
 
 [[steps]]
 name = "default"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -317,7 +317,7 @@ checks = [
 
 [[steps]]
 name = "default_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -380,7 +380,7 @@ files = [
 
 [[steps]]
 name = "condition"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -408,7 +408,7 @@ checks = [
 
 [[steps]]
 name = "condition_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -471,7 +471,7 @@ files = [
 
 [[steps]]
 name = "arguments"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -500,7 +500,7 @@ checks = [
 
 [[steps]]
 name = "arguments_warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""

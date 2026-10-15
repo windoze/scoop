@@ -3,10 +3,7 @@ use scoop_wire::{Encoder, WireEncode};
 use super::*;
 
 mod read;
-pub use read::{
-    DecodedCanonicalExactCallableAbiExportsV1, DecodedExactCallableAbiExportV1,
-    ExactCallableAbiWireError,
-};
+pub use read::{DecodedCanonicalExactCallableAbiExportsV1, DecodedExactCallableAbiExportV1};
 
 impl WireEncode for ExactCallableAbiExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {

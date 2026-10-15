@@ -27,7 +27,7 @@ pub(super) enum RawValue {
     },
     Unit,
     Interface,
-    MaybeUninit(DecodedPersistentId<scoop_identity::PersistentLayoutId>),
+    MaybeUninit(crate::DecodedValueLayoutConstituentV1),
 }
 
 #[derive(Debug)]
@@ -96,9 +96,10 @@ impl WireDecode for RawValue {
             }
             9 => {
                 length(decoder, fields, 2)?;
-                Ok(Self::MaybeUninit(
-                    decoder.field(1, DecodedPersistentId::decode)?,
-                ))
+                Ok(Self::MaybeUninit(decoder.field(
+                    1,
+                    crate::DecodedValueLayoutConstituentV1::decode,
+                )?))
             }
             tag => Err(unknown(decoder, tag)),
         }

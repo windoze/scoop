@@ -107,10 +107,7 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
             })?;
         let boundary = self
             .surface
-            .plans()
-            .iter()
-            .flat_map(|plan| plan.atom_boundaries())
-            .find(|boundary| boundary.atom() == cell.atom)
+            .atom_boundary(cell.atom)
             .ok_or_else(|| CodegenError(format!("Context cell {} has no boundary", cell.atom)))?;
         self.llvm
             .get_global(boundary.start().symbol().as_str())
@@ -136,19 +133,12 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
                 planned.atom()
             )));
         }
-        let boundary = self
-            .surface
-            .plans()
-            .iter()
-            .flat_map(|definition| definition.atom_boundaries())
-            .find(|boundary| boundary.atom() == planned.atom())
-            .copied()
-            .ok_or_else(|| {
-                CodegenError(format!(
-                    "callable runtime scan atom {} has no strong boundary plan",
-                    planned.atom()
-                ))
-            })?;
+        let boundary = self.surface.atom_boundary(planned.atom()).ok_or_else(|| {
+            CodegenError(format!(
+                "callable runtime scan atom {} has no strong boundary plan",
+                planned.atom()
+            ))
+        })?;
         if boundary.atom_role() != scoop_lir::DefinitionAtomRole::RuntimeRecord {
             return Err(CodegenError(format!(
                 "callable runtime scan atom {} has role {:?}",

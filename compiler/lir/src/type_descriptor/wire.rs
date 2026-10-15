@@ -1,9 +1,8 @@
-//! Frozen physical shape product. Its scalars are compared with a shape
-//! rebuilt from the representation's typed dependencies before promotion.
+//! Saved instance geometry and GC scan data.
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::{DecodedRefScanV1, RefScanValidationError, TypeInstanceShapeV1};
+use crate::{DecodedRefScanV1, TypeInstanceShapeV1};
 
 #[derive(Debug)]
 pub struct DecodedTypeInstanceShapeV1 {
@@ -13,21 +12,64 @@ pub struct DecodedTypeInstanceShapeV1 {
 }
 
 impl DecodedTypeInstanceShapeV1 {
-    pub fn validate_against(
+    pub fn read(
         self,
-        expected: &TypeInstanceShapeV1,
-    ) -> Result<(), TypeInstanceShapeWireError> {
-        if self.scalars != shape_scalars(expected) {
-            return Err(TypeInstanceShapeWireError::ShapeMismatch);
+        target: crate::LirTargetProfile,
+    ) -> Result<TypeInstanceShapeV1, crate::LinkDataError> {
+        use super::{InlineStorageKindV1 as Inline, TypeInstanceKindV1 as Kind};
+        use crate::link_data::link_error;
+        let [
+            kind,
+            inline,
+            minimum_size,
+            instance_alignment,
+            inline_offset,
+            inline_size,
+            inline_stride,
+            inline_alignment,
+        ] = self.scalars;
+        let instance_kind = match kind {
+            1 => Kind::FixedObject,
+            2 => Kind::BoxedValue,
+            3 => Kind::InlineBytes,
+            4 => Kind::InlineArray,
+            5 => Kind::AbstractRef,
+            _ => return Err(link_error("unknown instance kind")),
+        };
+        let inline_storage_kind = match inline {
+            0 => Inline::None,
+            1 => Inline::Inline,
+            2 => Inline::ZeroSized,
+            _ => return Err(link_error("unknown inline storage kind")),
+        };
+        let object_scan = self.object_scan.validate().map_err(link_error)?;
+        let inline_scan = self.inline_scan.validate().map_err(link_error)?;
+        if instance_kind != Kind::AbstractRef {
+            crate::StorageGeometryV1::new(target, minimum_size, instance_alignment)
+                .map_err(link_error)?;
+            super::require_managed_object_size(target, minimum_size).map_err(link_error)?;
+            object_scan
+                .validate_extent(minimum_size, instance_alignment)
+                .map_err(link_error)?;
         }
-        let object_scan = self.object_scan.validate()?;
-        let inline_scan = self.inline_scan.validate()?;
-        if object_scan.as_ref_scan() != expected.object_scan()
-            || inline_scan.as_ref_scan() != expected.inline_scan()
-        {
-            return Err(TypeInstanceShapeWireError::ScanMismatch);
+        if inline_storage_kind != Inline::None {
+            crate::NonZeroPow2::new(inline_alignment).map_err(link_error)?;
+            inline_scan
+                .validate_extent(inline_size, inline_alignment)
+                .map_err(link_error)?;
         }
-        Ok(())
+        Ok(TypeInstanceShapeV1 {
+            instance_kind,
+            inline_storage_kind,
+            minimum_size,
+            instance_alignment,
+            inline_offset,
+            inline_size,
+            inline_stride,
+            inline_alignment,
+            object_scan: object_scan.into_ref_scan(),
+            inline_scan: inline_scan.into_ref_scan(),
+        })
     }
 }
 
@@ -90,30 +132,6 @@ fn encode_scalars(
     }
     Ok(())
 }
-
-#[derive(Debug)]
-pub enum TypeInstanceShapeWireError {
-    ShapeMismatch,
-    ScanMismatch,
-    Scan(RefScanValidationError),
-    Resource(WireError),
-}
-impl From<RefScanValidationError> for TypeInstanceShapeWireError {
-    fn from(error: RefScanValidationError) -> Self {
-        Self::Scan(error)
-    }
-}
-impl From<WireError> for TypeInstanceShapeWireError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-impl std::fmt::Display for TypeInstanceShapeWireError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "instance shape wire does not match replay: {self:?}")
-    }
-}
-impl std::error::Error for TypeInstanceShapeWireError {}
 
 #[cfg(test)]
 mod tests;

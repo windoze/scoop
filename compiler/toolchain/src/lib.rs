@@ -18,8 +18,12 @@ mod linux_c;
 mod linux_target;
 mod manifest;
 pub use manifest::{SOURCE_TARGETS, load_cone_manifest, parse_cone_manifest};
+mod build_record;
 mod native;
+mod native_record;
+mod object_file;
 mod paths;
+pub use object_file::{object_path, store_object};
 mod registry;
 mod request;
 mod runtime;
@@ -33,10 +37,14 @@ pub use final_link::{
 };
 pub use linux_c::resolve_linux_c_toolchain;
 pub use native::{
-    NativeSourceInput, NativeToolchain, PreparedNativeInputs, compile_native_source,
-    prepare_native_inputs,
+    NativeSourceInput, NativeToolchain, PreparedNativeInputs, PreparedNativeObjects,
+    compile_native_source, prepare_native_inputs, prepare_native_objects,
+    strip_native_include_observations,
 };
-pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
+pub use paths::{
+    configured_cache_root, configured_sysroot_root, development_runtime_root,
+    development_workspace_root,
+};
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};
 pub use runtime::ValidatedRuntimeBuildProfile;
@@ -58,3 +66,4 @@ impl fmt::Display for ToolchainError {
 
 impl std::error::Error for ToolchainError {}
 pub use compiler::paired_compiler_machine_capability;
+pub use native_record::inputs::{Input as NativeInputMetadata, native_include_search_paths};

@@ -13,11 +13,11 @@ use crate::{
 /// This proves neither a representation body nor cross-Cone authorization.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExactLayoutIdentityV1 {
-    exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-    layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
-    target: LirTargetProfile,
-    physical: StrongShapeDefinitionRefV1,
-    definition: StrongShapeDefinitionV1<PersistentLayoutId>,
+    pub(crate) exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
+    pub(crate) layout: CborIdentityRecord<PersistentLayoutId, LayoutKey>,
+    pub(crate) target: LirTargetProfile,
+    pub(crate) physical: StrongShapeDefinitionRefV1,
+    pub(crate) definition: StrongShapeDefinitionV1<PersistentLayoutId>,
 }
 
 impl ExactLayoutIdentityV1 {

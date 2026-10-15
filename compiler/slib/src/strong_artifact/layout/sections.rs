@@ -10,12 +10,10 @@ use scoop_mir::{
 use super::CrossConeLayoutArtifactWriteError;
 use crate::strong_artifact::{LayerAssembly, StrongArtifactSectionV1, build_section};
 use crate::{
-    CrossConeLayoutLinkClosureSectionV1, CrossConeLinkClosureSectionV1,
     LinkIdentityClosureSectionV1, MemberPurposeSet, MetadataLocation, VerifiedCodeFingerprintV2,
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_cross_cone_type_semantics_capability, hir_identity_foundation_capability,
     lir_cone_production_capability, lir_cross_cone_layout_abi_capability,
-    lir_cross_cone_layout_link_closure_capability, lir_cross_cone_link_closure_capability,
     lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
     lir_link_identity_closure_capability, mir_core_bootstrap_bridge_capability,
     mir_cross_cone_param_free_bridge_capability, mir_cross_cone_type_bridge_capability,
@@ -36,8 +34,6 @@ pub(super) struct LayoutMetadataInput<'section, 'ir> {
     pub lir_layout_abi: &'section CrossConeLayoutAbiSectionV1<'ir>,
     pub code: &'section VerifiedCodeFingerprintV2,
     pub link_identity_closure: &'section LinkIdentityClosureSectionV1,
-    pub callable_link_closure: &'section CrossConeLinkClosureSectionV1,
-    pub layout_link_closure: &'section CrossConeLayoutLinkClosureSectionV1<'ir>,
     pub link_support: &'section crate::LirLinkSupportSectionV1,
 }
 
@@ -164,20 +160,6 @@ pub(super) fn assemble_metadata(
                 lir_link_identity_closure_capability(),
                 MemberPurposeSet::LINK,
                 input.link_identity_closure,
-            )?,
-            build_section(
-                StrongArtifactSectionV1::CrossConeLinkClosure,
-                MetadataLocation::Lir,
-                lir_cross_cone_link_closure_capability(),
-                MemberPurposeSet::LINK,
-                input.callable_link_closure,
-            )?,
-            build_section(
-                StrongArtifactSectionV1::CrossConeLayoutLinkClosure,
-                MetadataLocation::Lir,
-                lir_cross_cone_layout_link_closure_capability(),
-                MemberPurposeSet::LINK,
-                input.layout_link_closure,
             )?,
         ],
     )?;

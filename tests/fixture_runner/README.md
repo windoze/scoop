@@ -11,8 +11,8 @@ fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分�
 可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
 共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
-Linux 的链接参数包含仓库 `sysroot/native/<target>/unwind`，因此移除 fixture 私有
-sysroot 源码后仍能执行 artifact-only link。显式 `--cc` 也传给 Linux Scoop 工具。
+Linux 的链接参数包含仓库 `sysroot/native/<target>/unwind`，供普通程序链接使用。
+显式 `--cc` 也传给 Linux Scoop 工具；用例保留其实际源码、sysroot 和工具。
 native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
 `${target_profile}` 是 core artifact 的目录名；`${symbol_prefix}` 是 C/编译器逻辑名字
@@ -79,7 +79,7 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 静态 hex 或完整引用使用相同的预检和执行规则。
 `${variants.normal.build.result.root.artifact_fingerprint}` 可比较前一变体。
 普通功能 fixture 不额外保存整份产物、core 或 native 输入的固定指纹快照。
-缓存命中／失效、确定性、产物读写和源码构建／artifact-only 消费一致性，应使用
+缓存命中／失效、确定性、产物读写和正常多 Cone 编译，应使用
 `equals`／`not_equals` 或 `same_as`／`different_from` 比较本次实际产生的值。
 固定摘要仅用于输入严格受控、需要锁定编码或指纹规则的专门测试；结构、诊断、
 ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一化隐藏这些差异。
@@ -95,10 +95,10 @@ checks = [
 该期望应锁定小程序的 CFG、求值顺序或清理路径，而非展开整个 core。
 AST/HIR/MIR/LIR 的 typed IR 测试同样可承担结构职责；不要求每个功能保存四阶段输出。
 代表组和迁移理由见 [M40 迁移说明](../../docs/milestone40/MIGRATION.md)。
-观察模式本身的 CLI 专测继续检查输出文件集合、缓存重编译和产物一致性。
-普通语言组合用例的链接检查保留实际构建与独立链接的一致性、Cone/image/root
-关系、相关符号及运行结果，不逐份冻结整个 core 的物理对象数量和生成的 startup C。
-专门测试 native 输入选择、归档成员与动态绑定的用例仍保留对应完整计划。
+观察模式本身的 CLI 专测检查输出文件集合、已有观察复用和缺失观察补齐。
+普通语言组合用例直接运行 build 输出，检查语言结果及真实多 Cone 消费，不重复独立链接、
+复制产物或固定公共内部符号。build／独立链接一致性、Cone/image/root 关系和 mangling
+由少量链接与 ABI 专测覆盖；native 输入选择、归档成员与动态绑定专测保留必要计划。
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`
 展开实际清单。程序 JSON 中的非 UTF-8 path carrier 保留字节，不经过 shell。
@@ -124,8 +124,16 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 每一步的 `checks` 选择 `actual`（JSON 引用）、`file` 或 `glob`（排序后的路径数组），并选择一个比较：
 `equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
-文件损坏用例保留有针对性的修改、实际 reader 诊断与原子输出断言，不以整份编译产物或
-系统工具输出的固定 SHA-256 作为准备步骤。受控编码／指纹规则的固定向量由对应 Rust 单元测试覆盖。
+不新增缓存损坏、收据伪造或文件来源／权限防御用例，也不通过删除、移走或隐藏源码、工具、原始产物来验收消费能力。混合用例保留真实语言、ABI、GC、运行与诊断断言，迁为输入保持存在的多 Cone 构建。缓存通过正常输入变化、工具实际调用及输出复用验证；真实缺失输入、失败不发布和测试结束清理继续覆盖。受控编码／指纹规则的固定向量由对应 Rust 单元测试覆盖。
+普通语言用例运行正常 build 的 executable，不再为同一运行结果重复复制工具和产物后独立链接。显式链接、ODR、native 选择和失败不发布专测继续使用实际工具、sysroot 和已有产物，显式指定本次 fixture 的缓存目录。源码目录正常搬迁后以新位置重新构建属于输入位置变化，相关源码须保留到用例结束。
+
+`${test_core}` 是本轮共享的 core 源码目录，仅加入已有 `stage3_test.scoop` 语言测试辅助声明。
+普通多 Cone 用例从这个固定路径执行真实 build，共用 `${cache}` 的正常输入更新判断，
+避免为每个用例在不同路径重编相同 core。它保持源码和工具存在，不预制编译结果，
+用例不得修改该目录；需要修改 core 或验证输入失效的专测仍使用自己的源码副本。
+`${class_core}` 同样共享导入类用例已有的固定 core 声明（RebuiltReadable、直接异常基类
+和辅助值 43）。这些普通语言用例只消费该输入；core 更新前后的比较由 rebuilt-core
+与需要不同 core 声明的专测覆盖，不在每个类规则中重复两次冷构建。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
 边界，完整比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。
@@ -154,7 +162,7 @@ native 诊断中的 `native object` 引用及 `NativeInputId(Digest256(...))` �
 先读取所有部分再写目标，输入缺失时不覆盖已有目标。原输入仍需声明在 `inputs` 中。
 `remove` 删除目录树，或解除普通文件、符号链接和命名管道，不打开文件内容。
 `truncate(path,size)` 将现有文件缩短为指定非负字节数；超过当前文件长度时报配置错误，
-不扩展或修改文件。它与精确 byte patch 共用于 archive／cache corruption 用例。
+不扩展或修改文件。普通编译缓存测试不使用它制造损坏后要求检测或恢复。
 
 并发进程声明 `background = true`，其结果期望在后续 `wait = "step"` 时检查。
 `await_file = "${work}/ready"` 等待被测程序写出的就绪文件；

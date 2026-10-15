@@ -9,14 +9,13 @@ tags = ["core-dependencies", "negative"]
 name = "prepare_core"
 files = [
   {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
   {"copy" = {"from" = "${fixture}/../../core-library/dependency-missing.scoop", "to" = "${work}/core-source/src/dependency-calls.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/dependency-locals.scoop", "to" = "${work}/core-source/src/dependency-locals.scoop"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""

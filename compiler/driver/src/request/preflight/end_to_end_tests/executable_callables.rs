@@ -93,7 +93,6 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             direct,
             dependency_bytes.iter().map(Vec::as_slice).collect(),
             &bytes,
-            target.c_bridge_toolchain().profile(),
             &mut session,
         )
         .unwrap();
@@ -107,17 +106,6 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
         );
         assert_eq!(
             production.lir_cross_cone().selected().len(),
-            machine_selected
-        );
-        assert_eq!(
-            closure
-                .current_link()
-                .symbol_uses()
-                .undefined_partitions()
-                .cross_cone()
-                .semantic_imports()
-                .imports()
-                .len(),
             machine_selected
         );
         let references = production.hir_interface().external_references().records();

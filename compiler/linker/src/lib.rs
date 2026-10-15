@@ -1,7 +1,6 @@
 //! Artifact-only program linking and its ordinary runtime object inputs.
 mod artifacts;
 mod dynamic;
-mod final_image;
 mod link;
 mod macho_cursor;
 mod macho_exports;

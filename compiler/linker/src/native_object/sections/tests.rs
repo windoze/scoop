@@ -3,18 +3,13 @@ use super::*;
 #[test]
 fn real_dwarf_eh_records_reject_truncation_bad_cies_and_invalid_fde_references() {
     let fixture = crate::test_support::fixture();
-    let inputs = crate::program::ProgramInputs::new(
-        &fixture.closure,
-        &fixture.runtime,
-        &fixture.profile,
-        &[],
-    )
-    .unwrap();
-    let data = inputs
-        .objects
+    let data = fixture
+        .runtime
+        .objects()
         .iter()
         .find_map(|input| {
-            let file: MachOFile64<'_> = MachOFile64::parse(input.bytes()).unwrap();
+            let bytes = std::fs::read(input.path()).unwrap();
+            let file: MachOFile64<'_> = MachOFile64::parse(bytes.as_slice()).unwrap();
             let section = file.section_by_name("__eh_frame")?;
             (section.size() != 0).then(|| section.data().unwrap().to_vec())
         })

@@ -1,53 +1,37 @@
 use super::*;
-use scoop_slib::{
-    SharedOrdinaryLirBridgeDependenciesV1, SharedOrdinaryLirBridgeValidationError as Error,
-};
 
-mod corruption;
-mod dependencies;
-mod layouts;
-
-pub(super) use dependencies::check_dependency_uses;
-
-pub(super) fn check(
-    name: &str,
-    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    foundation: &scoop_hir::CanonicalHirFoundation,
-    lir: &lir::ConeLirOutput,
-    layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    expected: &lir::CrossConeLirBridgeSectionV1,
-) {
-    let source = hir::SharedTypeMetadataV1 {
-        provider: input.mir.module().cone,
-        identities: input.identities,
-        foundation,
-        public: input.public,
-    };
-    let replay = |layouts: &lir::CanonicalExactLayoutExportsV1| {
-        scoop_slib::replay_shared_ordinary_lir_bridge(
-            lir.module().meta.target_profile,
-            source,
-            input.ordinary,
-            layouts,
-            SharedOrdinaryLirBridgeDependenciesV1 {
-                metadata: &[],
-                layouts: &[],
-                callables: &[],
-            },
-            lir.foundation(),
-            expected,
-        )
-    };
-    let actual = replay(layout.layouts()).unwrap_or_else(|error| panic!("{name}: {error}"));
-    assert_eq!(&actual, expected);
-    let wire: lir::DecodedCrossConeLirBridgeSectionV1 = decoded(expected);
-    assert_eq!(&wire.validate_against(actual).unwrap(), expected);
-    if name.starts_with("shared-ordinary-") {
-        assert!(expected.exports().iter().any(|record| matches!(
-            record.declaration(),
-            scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(_)
-        )));
-        corruption::check(expected);
-        layouts::check(layout.layouts(), lir.foundation(), replay);
-    }
+#[test]
+fn ordinary_bridge_selects_real_dependency_function_and_getter_calls() {
+    let target = resolved_target().expect("ordinary bridges require a supported host target");
+    let directory = tempfile::tempdir().unwrap();
+    copy_trusted_core_sources(directory.path());
+    let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
+    std::fs::copy(
+        fixtures.join("shared-ordinary-standalone.scoop"),
+        directory
+            .path()
+            .join("lib/scoop.core/src/ordinary_probe.scoop"),
+    )
+    .unwrap();
+    let core = bootstrap_core(directory.path(), &target);
+    let bytes = std::fs::read(core.artifact().path()).unwrap();
+    let source = std::fs::read_to_string(fixtures.join("shared-ordinary-consumer.scoop")).unwrap();
+    let ordinary = std::cell::RefCell::new(None);
+    support::with_inspection(
+        directory.path(),
+        &target,
+        &bytes,
+        &source,
+        |input, _| {
+            assert_eq!(input.ordinary.selected().len(), 2);
+            *ordinary.borrow_mut() = Some(input.ordinary.clone());
+        },
+        |input, _| {
+            let ordinary = ordinary.borrow();
+            let mir = ordinary.as_ref().unwrap();
+            let lir = scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, mir, input.lir)
+                .unwrap();
+            assert_eq!(lir.selected().len(), 2);
+        },
+    );
 }

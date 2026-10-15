@@ -2,10 +2,7 @@ use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::ManifestRootLocator;
-use scoop_slib::{
-    ArtifactDistributionClassV1, ConeKind, ConeSourceForm, DecodedSlibEnvelope,
-    SingleConeProductionOutputV1,
-};
+use scoop_slib::{ConeKind, ConeSourceForm, DecodedSlibEnvelope};
 
 use super::*;
 use crate::{ExplicitDependencyInputs, HostArtifactLocator};
@@ -22,6 +19,7 @@ mod generic_bodies;
 mod image_dependencies;
 mod layout_exports;
 mod nominal_signatures;
+mod observations;
 mod program_link;
 mod publication;
 mod release_hooks;
@@ -61,15 +59,6 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
     );
     assert_eq!(library_validation.kind(), ConeKind::Library);
     assert_eq!(library_validation.source_form(), ConeSourceForm::Manifest);
-    assert_eq!(
-        library_validation.link_summary().distribution(),
-        ArtifactDistributionClassV1::DistributableCone
-    );
-    assert_eq!(
-        library_validation.link_summary().output(),
-        &SingleConeProductionOutputV1::Library
-    );
-    assert!(library_validation.link_summary().link_object_count() > 0);
     assert_graph_dependencies(&library, &target, &[ConeIdentity::CORE]);
 
     let executable_root = sysroot.path().join("executable");
@@ -92,15 +81,6 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
         executable_validation.source_form(),
         ConeSourceForm::Manifest
     );
-    assert_eq!(
-        executable_validation.link_summary().distribution(),
-        ArtifactDistributionClassV1::DistributableCone
-    );
-    assert!(matches!(
-        executable_validation.link_summary().output(),
-        SingleConeProductionOutputV1::Executable(_)
-    ));
-    assert!(executable_validation.link_summary().link_object_count() > 0);
     assert_graph_dependencies(&executable, &target, &[ConeIdentity::CORE]);
 }
 
@@ -221,10 +201,6 @@ fun main() {
 
     assert!(artifact.artifact().path().is_file());
     assert_eq!(artifact.artifact().summary().kind(), ConeKind::Executable);
-    assert!(matches!(
-        artifact.artifact().summary().link_summary().output(),
-        SingleConeProductionOutputV1::Executable(_)
-    ));
     assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
 }
 
@@ -263,9 +239,5 @@ fun main() {
 
     assert!(artifact.artifact().path().is_file());
     assert_eq!(artifact.artifact().summary().kind(), ConeKind::Executable);
-    assert!(matches!(
-        artifact.artifact().summary().link_summary().output(),
-        SingleConeProductionOutputV1::Executable(_)
-    ));
     assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
 }

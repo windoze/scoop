@@ -42,7 +42,13 @@ impl ElfNamespace {
                 let child = if let Some(child) = names.get(name) {
                     *child
                 } else {
-                    let file = self.dependency(&self.providers[&id], name, roots, profile)?;
+                    let file = self.dependency(
+                        &self.providers[&id],
+                        name,
+                        roots,
+                        profile,
+                        &mut native.observed_paths,
+                    )?;
                     let child = file.id;
                     native.files.entry(child).or_insert(file);
                     self.insert(native, child, &mut names)?;
@@ -107,6 +113,7 @@ impl ElfNamespace {
         name: &str,
         roots: &[PathBuf],
         profile: &ValidatedFinalLinkProfile,
+        observed: &mut Vec<PathBuf>,
     ) -> Result<crate::native_input::NativeFile, LinkError> {
         let parent = provider
             .locator
@@ -140,6 +147,7 @@ impl ElfNamespace {
                 .collect()
         };
         let mut candidates = BTreeMap::new();
+        observed.extend(paths.iter().cloned());
         for path in paths.iter().filter(|path| path.is_file()) {
             let file = crate::native_input::locate::read(
                 path,

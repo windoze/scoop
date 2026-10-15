@@ -26,7 +26,6 @@ pub enum DigestPatchSiteValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedObjectMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     InvalidPatchTarget {
         intent: DigestPatchIntentId,
         kind: DefinitionAtomResolutionError,

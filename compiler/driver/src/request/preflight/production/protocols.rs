@@ -15,14 +15,26 @@ pub(super) fn lower_machine(
     cone: scoop_slib::ConeRecord,
     temporary_parent: &Path,
     dump: &mut Vec<EmittedStageDump>,
-) -> Result<scoop_slib::AssembledCrossConeLayoutArtifactV1, CurrentConeProductionFailure> {
+    stop_after: Option<StageDumpKind>,
+) -> Result<
+    ControlFlow<(), scoop_slib::AssembledCrossConeLayoutArtifactV1>,
+    CurrentConeProductionFailure,
+> {
     let selected = request
         .dependencies()
         .semantic()
         .project_dependency_callables_to_mir(&hir.hir)
         .map_err(CurrentConeMirStageError::DependencyProjection)
         .map_err(CurrentConeProductionFailure::Mir)?;
-    layout::assemble(hir, request, cone, temporary_parent, selected, dump)
+    layout::assemble(
+        hir,
+        request,
+        cone,
+        temporary_parent,
+        selected,
+        dump,
+        stop_after,
+    )
 }
 
 pub(super) fn type_identities(

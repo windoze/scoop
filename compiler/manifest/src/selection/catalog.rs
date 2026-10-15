@@ -11,8 +11,9 @@ pub struct SourceTarget<'a> {
     pub env: &'a str,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub(super) struct SelectedSourceTarget {
+    #[serde(with = "crate::serde_record::target")]
     pub(super) id: TargetProfileId,
     pub(super) triple: String,
 }

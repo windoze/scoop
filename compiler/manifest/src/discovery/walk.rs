@@ -3,7 +3,6 @@ use super::*;
 pub(super) fn walk_directory(
     real_directory: &Path,
     logical_directory: &Path,
-    cone_root: &Path,
     selection: &str,
     active_directories: &mut BTreeSet<PathBuf>,
     candidates: &mut Vec<SourceCandidate>,
@@ -18,7 +17,6 @@ pub(super) fn walk_directory(
     let result = walk_active_directory(
         real_directory,
         logical_directory,
-        cone_root,
         selection,
         active_directories,
         candidates,
@@ -30,7 +28,6 @@ pub(super) fn walk_directory(
 fn walk_active_directory(
     real_directory: &Path,
     logical_directory: &Path,
-    cone_root: &Path,
     selection: &str,
     active_directories: &mut BTreeSet<PathBuf>,
     candidates: &mut Vec<SourceCandidate>,
@@ -80,18 +77,11 @@ fn walk_active_directory(
         let name = name.to_str().expect("entry names were validated as UTF-8");
         let logical_path = logical_directory.join(name);
         let resolved = resolve_entry(&entry.path())?;
-        if !resolved.path.starts_with(cone_root) {
-            return Err(SourceDiscoveryError::new(
-                entry.path(),
-                SourceDiscoveryErrorKind::EscapesConeRoot,
-            ));
-        }
 
         if resolved.metadata.is_dir() {
             walk_directory(
                 &resolved.path,
                 &logical_path,
-                cone_root,
                 selection,
                 active_directories,
                 candidates,
@@ -119,6 +109,7 @@ fn walk_active_directory(
             candidates.push(SourceCandidate {
                 logical_path: normalized,
                 physical_path: resolved.path,
+                metadata: resolved.metadata,
                 display_path: entry.path(),
                 selection: selection.to_owned(),
             });

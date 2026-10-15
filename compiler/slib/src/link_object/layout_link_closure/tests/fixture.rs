@@ -1,6 +1,5 @@
 use scoop_identity::*;
 use scoop_lir::*;
-use scoop_wire::{decode_canonical, encode};
 
 pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
     scoop_target_data::DARWIN_AARCH64;
@@ -101,33 +100,19 @@ impl Provider {
         let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap();
 
         let digests = image.digest_finalization_plan().clone();
-        let old = ConeProductionSectionV1::new(
+        let production = ConeProductionSectionV2::new(
             coordinate.clone(),
             &[scoop_identity::ConeIdentity::CORE],
             &foundation,
             digests.clone(),
-            StrongRegistrationProductionSurfaceV1::empty(TARGET, &foundation, &digests).unwrap(),
+            StrongRegistrationProductionSurfaceV2::empty(TARGET, &foundation, &digests).unwrap(),
             EntryProductionSourceV1::Library,
             &[],
             scoop_lir::CanonicalCallableAbisV1::new(Vec::new(), &foundation).unwrap(),
             scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
         )
         .unwrap();
-        let raw: DecodedConeProductionSectionV2 = decode_canonical(&encode(&old).unwrap()).unwrap();
-        let production = raw
-            .replay(
-                coordinate,
-                old.image_plan().dependencies(),
-                TARGET,
-                &foundation,
-                EntryProductionSourceV1::Library,
-                &[],
-                &StrongTypeReferenceDefinitionsV2::new(provider, &[], &[]).unwrap(),
-                &StrongInitializationDefinitionCatalogV2::new(provider, &[]).unwrap(),
-            )
-            .unwrap()
-            .validate_layout_abi(&section)
-            .unwrap();
+        let production = production.validate_layout_abi(&section).unwrap();
         let ordinary =
             CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
         Self {
@@ -142,7 +127,11 @@ impl Provider {
     pub fn import(&self, consumer: ConeIdentity) -> ExternalShapeLinkImportV1 {
         let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: &self.foundation,
-            production: &self.production,
+            definitions: self.production.canonical_definitions(),
+            support: ShapeLinkSupportV1::Produced {
+                static_storages: self.production.static_storage_registrations(),
+                initialization: self.production.initialization_registrations(),
+            },
             ordinary: &self.ordinary,
             layouts: self.section.layouts(),
             callables: self.section.callables(),

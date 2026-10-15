@@ -1,28 +1,21 @@
-//! Layout replay in the same owned Compile closure as shared HIR and MIR.
+//! Saved layout data in the owned Compile closure.
 
 use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    MirSourceCallablesValidatedCrossConeLayoutClosure,
-    MirSourceCallablesValidatedCrossConeLayoutSections,
+    MirRecordsCrossConeLayoutClosure, MirRecordsCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
     },
 };
-use crate::{
-    dependency_reachability::transitive_positions,
-    layout_compile_decode::DecodedCrossConeLayoutLirCandidates,
-};
+use crate::layout_compile_decode::DecodedCrossConeLayoutLirCandidates;
 
 mod errors;
-mod replay;
 pub use errors::{CrossConeLayoutLirLayoutsError, SharedLirLayoutValidationError};
-pub use replay::replay_shared_mir_layouts;
 
-/// HIR, MIR source constituents and LIR layouts agree. Selected-use, remaining
-/// LIR exports, Strong production and final object joins remain mandatory.
+/// Loaded layout records retained with their owning artifact.
 pub type LirLayoutsValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
@@ -36,7 +29,7 @@ pub type LirLayoutsValidatedCrossConeLayoutClosure<'input> =
         lir::DecodedCrossConeLirBridgeSectionV1,
     >;
 
-impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
+impl<'input> MirRecordsCrossConeLayoutClosure<'input> {
     pub fn validate_lir_layouts(
         self,
     ) -> Result<LirLayoutsValidatedCrossConeLayoutClosure<'input>, CrossConeLayoutLirLayoutsError>
@@ -50,41 +43,23 @@ impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
             dependency_positions,
         } = self;
         let mut complete: Vec<LirLayoutsValidatedCrossConeLayoutSections<'input>> = Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        for artifact in dependency_first {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirLayoutValidationError> {
-                let MirSourceCallablesValidatedCrossConeLayoutSections {
+                let MirRecordsCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     lir,
                     units,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions)?;
-                let mut dependencies = Vec::new();
-                scoop_wire::allocation::try_reserve(
-                    &mut dependencies,
-                    reachable.len(),
-                    &WirePath::root(),
-                )?;
-                dependencies.extend(
-                    reachable
-                        .iter()
-                        .map(|&position| complete[position].layouts()),
-                );
-                let expected = replay_shared_mir_layouts(
-                    target.target(),
-                    mir.types(),
-                    parts.lir_foundation,
-                    parts.identities,
-                    &dependencies,
-                )?;
                 let DecodedCrossConeLayoutLirCandidates {
                     strong,
                     ordinary,
                     layout,
                 } = lir;
-                let layout = layout.validate_layouts(&expected)?;
+                let layout =
+                    layout.read_layouts(target.target(), parts.lir_foundation, parts.identities)?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirLayoutsValidatedCrossConeLayoutSections {
                     prepared,

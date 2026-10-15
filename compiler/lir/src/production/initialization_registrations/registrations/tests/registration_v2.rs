@@ -12,7 +12,6 @@ use crate::{
 use scoop_wire::{decode_canonical, encode};
 
 mod dump;
-mod reader;
 
 fn build(
     fixture: &Fixture,

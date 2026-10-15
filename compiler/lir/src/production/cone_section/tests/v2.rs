@@ -55,7 +55,6 @@ fn layout_schema_retains_ten_shared_production_fields() {
     )
     .unwrap();
     let bytes = encode(&current).unwrap();
-    super::digests::check(&current, &foundation);
     assert_eq!(bytes[0], 0xaa);
     assert_eq!(bytes, encode(&old).unwrap());
     let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();

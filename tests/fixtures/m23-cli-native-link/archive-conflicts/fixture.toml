@@ -21,8 +21,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "archive_m23_math"
 argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/good.o"]
@@ -42,8 +40,11 @@ diagnostics = []
 checks = []
 
 [[steps]]
-name = "isolate"
-files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
 checks = []
 
 [[steps]]
@@ -57,8 +58,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "prepare_second_missing"
 files = [{"copy" = {"from" = "${fixture}/native-sources/second_missing.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
@@ -70,8 +69,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "remove_archive_missing"
 files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
@@ -93,13 +90,12 @@ checks = []
 [[steps]]
 name = "reject_missing"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_missing.${target}.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -113,8 +109,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "prepare_second_strong"
 files = [{"copy" = {"from" = "${fixture}/native-sources/second_strong.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
@@ -126,8 +120,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "remove_archive_strong"
 files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
@@ -149,13 +141,12 @@ checks = []
 [[steps]]
 name = "reject_strong"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_strong.${target}.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
@@ -169,8 +160,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "prepare_second_weak"
 files = [{"copy" = {"from" = "${fixture}/native-sources/second_weak.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
@@ -182,8 +171,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "remove_archive_weak"
 files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
@@ -204,13 +191,12 @@ checks = []
 
 [[steps]]
 name = "link_weak"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"actual" = "${link_weak.result.kind}", "equals" = "link"}]
 
 [[steps]]
@@ -231,8 +217,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "prepare_second_constructor"
 files = [{"copy" = {"from" = "${fixture}/native-sources/second_constructor.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
@@ -244,8 +228,6 @@ argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-com
 exit = 0
 stdout = ""
 stderr = ""
-env = {"PATH" = "/usr/bin:/bin"}
-
 [[steps]]
 name = "remove_archive_constructor"
 files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
@@ -267,11 +249,10 @@ checks = []
 [[steps]]
 name = "reject_constructor"
 diagnostics_normalize = ["native-digests"]
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "reject_constructor.${target}.json"}
-env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

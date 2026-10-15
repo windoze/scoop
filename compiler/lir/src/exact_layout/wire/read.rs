@@ -1,5 +1,4 @@
-//! Raw complete layout records. Refinement compares every constituent with
-//! a record replayed from canonical source identities and checked inputs.
+//! Saved complete layout records and their typed representation references.
 
 use scoop_identity::{
     DecodedCapabilityId, DecodedPersistentId, PersistentExactTypeId, PersistentLayoutId,
@@ -13,14 +12,13 @@ use crate::{DecodedTypeInstanceShapeV1, DecodedValueStorageLayoutV1};
 mod fields;
 mod instance;
 mod link;
+pub(in crate::exact_layout) mod saved;
 #[cfg(test)]
 mod tests;
-mod validation;
 mod value;
 
 use fields::*;
 use instance::*;
-pub use validation::ExactLayoutWireError;
 use value::*;
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-//! The shared finite MIR roots close all five LIR export constituents.
+//! Saved shape-support roles complete the local LIR exports.
 
 use super::{
     LirDescriptorsValidatedCrossConeLayoutClosure, LirDescriptorsValidatedCrossConeLayoutSections,
@@ -11,9 +11,7 @@ use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 mod errors;
-mod replay;
 pub use errors::{CrossConeLayoutLirShapeSupportError, SharedLirShapeSupportValidationError};
-pub use replay::replay_shared_mir_shape_support;
 
 pub type LirExportsValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
@@ -54,14 +52,7 @@ impl<'input> LirDescriptorsValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let expected = replay_shared_mir_shape_support(
-                    mir.shape_support(),
-                    layout.layouts(),
-                    layout.descriptors(),
-                    parts.identities,
-                    parts.lir_foundation,
-                )?;
-                let layout = layout.validate_shape_support(&expected, &ordinary)?;
+                let layout = layout.read_shape_support(&ordinary, parts.identities)?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirExportsValidatedCrossConeLayoutSections {
                     prepared,

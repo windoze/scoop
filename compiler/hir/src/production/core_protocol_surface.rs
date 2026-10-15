@@ -152,16 +152,4 @@ impl CoreCompilerProtocolSurfaceV1 {
         ))
         .expect("a resolved nominal declaration has a canonical exact identity")
     }
-
-    pub(crate) fn option_some(&self) -> PersistentEnumVariantId {
-        self.option_protocol.some
-    }
-
-    pub(crate) fn option_some_payload(&self) -> PersistentEnumVariantFieldId {
-        self.option_protocol.some_payload
-    }
-
-    pub(crate) fn option_none(&self) -> PersistentEnumVariantId {
-        self.option_protocol.none
-    }
 }

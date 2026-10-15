@@ -35,7 +35,7 @@ fn shape_wire_round_trips_all_closed_instances_and_inline_storage_branches() {
     for shape in shapes() {
         let decoded = decode(&shape);
         assert_eq!(encode(&decoded).unwrap(), encode(&shape).unwrap());
-        decoded.validate_against(&shape).unwrap();
+        assert_eq!(decoded.read(TARGET).unwrap(), shape);
     }
     assert_eq!(
         encode(&TypeInstanceShapeV1::abstract_ref()).unwrap(),
@@ -43,37 +43,6 @@ fn shape_wire_round_trips_all_closed_instances_and_inline_storage_branches() {
             0xaa, 1, 5, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 0xa1, 0, 1, 10, 0xa1, 0, 1
         ]
     );
-}
-
-#[test]
-fn shape_reader_rejects_every_changed_scalar_and_both_changed_scans() {
-    let shape = TypeInstanceShapeV1::abstract_ref();
-    for index in 0..8 {
-        let mut decoded = decode(&shape);
-        decoded.scalars[index] += 1;
-        assert!(matches!(
-            decoded.validate_against(&shape),
-            Err(TypeInstanceShapeWireError::ShapeMismatch)
-        ));
-    }
-    let shape = TypeInstanceShapeV1::boxed_value(
-        TARGET,
-        ValueStorageLayoutV1::inline(8, 8, RefScan::References(vec![0])).unwrap(),
-    )
-    .unwrap();
-    for object in [false, true] {
-        let mut decoded = decode(&shape);
-        let none: DecodedRefScanV1 = decode_canonical(&[0xa1, 0, 1]).unwrap();
-        if object {
-            decoded.object_scan = none;
-        } else {
-            decoded.inline_scan = none;
-        }
-        assert!(matches!(
-            decoded.validate_against(&shape),
-            Err(TypeInstanceShapeWireError::ScanMismatch)
-        ));
-    }
 }
 
 #[test]
@@ -86,10 +55,11 @@ fn shape_reader_requires_exact_product_length_and_canonical_scan() {
     }
     let mut decoded = decode(&shape);
     decoded.object_scan = decode_canonical(&[0xa2, 0, 2, 1, 0x82, 0, 0]).unwrap();
-    assert!(matches!(
-        decoded.validate_against(&shape),
-        Err(TypeInstanceShapeWireError::Scan(
-            crate::RefScanValidationError::UnorderedReferences
-        ))
-    ));
+    assert!(
+        decoded
+            .read(TARGET)
+            .unwrap_err()
+            .to_string()
+            .contains("UnorderedReferences")
+    );
 }

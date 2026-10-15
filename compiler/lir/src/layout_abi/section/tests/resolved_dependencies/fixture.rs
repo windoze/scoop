@@ -37,22 +37,11 @@ impl Fixture {
         result
     }
 
-    pub(super) fn dependencies(&self) -> [&LayoutAbiExportConstituentsV1; 2] {
-        [&self.middle, &self.leaf]
-    }
-
     pub(super) fn resolve(
         &self,
         semantic: &[LayoutAbiDependencyV1],
     ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
-        self.resolve_with(&self.local, semantic)
-    }
-
-    pub(super) fn resolve_with(
-        &self,
-        local: &LayoutAbiExportConstituentsV1,
-        semantic: &[LayoutAbiDependencyV1],
-    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
+        let local = &self.local;
         let wire = Selection {
             exports: local,
             semantic,
@@ -60,15 +49,35 @@ impl Fixture {
         let bytes = encode(&wire).unwrap();
         let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
         let exports = decoded
-            .validate_layouts(local.layouts())
+            .read_layouts(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_callables(local.callables())
+            .read_callables(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_dispatch(local.dispatch())
+            .read_dispatch(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &[],
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_descriptors(local.descriptors())
+            .read_descriptors(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_shape_support(local.shape_support(), local.direct_callables())
+            .read_shape_support(
+                local.direct_callables(),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap();
         assert_eq!(encode(&exports).unwrap(), bytes);
         let mut pending = PendingIdentityValidation::new();

@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use scoop_identity::{ConeIdentity, NormalizedSourcePath};
-use scoop_manifest::ImmutableInputSnapshot;
-use scoop_toolchain::{NativeSourceInput, NativeToolchain, ToolchainError};
+use scoop_toolchain::{NativeToolchain, ToolchainError};
 
 use super::{ValidatedCurrentConeInput, ValidatedSingleConeBuildRequest};
 use crate::request::NativeInputOrigin;
@@ -13,7 +12,7 @@ pub(super) fn compile(
     temporary_parent: &Path,
 ) -> Result<Vec<scoop_slib::SlibMember>, ToolchainError> {
     let ValidatedCurrentConeInput::Manifest { manifest } = request.current() else {
-        if let NativeInputOrigin::Preprocessed(inputs) = &request.request.native_inputs
+        if let NativeInputOrigin::Objects(inputs) = &request.request.native_inputs
             && !inputs.is_empty()
         {
             return Err(error(
@@ -24,44 +23,42 @@ pub(super) fn compile(
     };
     let config = manifest.parsed().semantic().native();
     let target = request.target();
-    let compiler = NativeToolchain::resolve(target.c_bridge_toolchain(), manifest)?;
-    let units = match &request.request.native_inputs {
-        NativeInputOrigin::Source => compiler
-            .prepare(
-                manifest,
-                request.optimization(),
-                &scoop_toolchain::development_runtime_root().join("include"),
-            )?
-            .units()
-            .to_vec(),
-        NativeInputOrigin::Preprocessed(inputs) => {
-            let mut selected: Vec<_> = config
-                .sources()
-                .iter()
-                .filter(|source| source.predicate().matches(target.id()))
-                .collect();
-            selected.sort_by_key(|source| source.path());
-            if selected.len() != inputs.len() {
-                return Err(error(format!(
-                    "native input count {} does not match {} selected sources",
-                    inputs.len(),
-                    selected.len()
-                )));
-            }
-            selected
-                .iter()
-                .zip(inputs)
-                .map(|(source, input)| {
-                    let captured = ImmutableInputSnapshot::capture(input).map_err(error)?;
-                    Ok(NativeSourceInput::new(
-                        source.path().clone(),
-                        config.source_language(source.path()).map_err(error)?,
-                        captured.shared_bytes(),
-                    ))
-                })
-                .collect::<Result<Vec<_>, ToolchainError>>()?
+    let mut selected: Vec<_> = config
+        .sources()
+        .iter()
+        .filter(|s| s.predicate().matches(target.id()))
+        .collect();
+    selected.sort_by_key(|s| s.path());
+    if let NativeInputOrigin::Objects(objects) = &request.request.native_inputs {
+        if selected.len() != objects.len() {
+            return Err(error(format!(
+                "native object count {} does not match {} selected sources",
+                objects.len(),
+                selected.len()
+            )));
         }
-    };
+        return selected
+            .iter()
+            .zip(objects)
+            .map(|(source, object)| {
+                let source = NormalizedSourcePath::new(source.path().as_str()).map_err(error)?;
+                scoop_slib::native_link_object_member(
+                    cone,
+                    target.lir_target(),
+                    &source,
+                    std::fs::read(object).map_err(error)?,
+                )
+                .map_err(error)
+            })
+            .collect();
+    }
+    let compiler = NativeToolchain::resolve(target.c_bridge_toolchain(), manifest)?;
+    let prepared = compiler.prepare(
+        manifest,
+        request.optimization(),
+        &scoop_toolchain::development_runtime_root().join("include"),
+    )?;
+    let units = prepared.units();
     if units.is_empty() {
         return Ok(Vec::new());
     }
@@ -70,12 +67,12 @@ pub(super) fn compile(
         .tempdir_in(temporary_parent)
         .map_err(error)?;
     units
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(index, unit)| {
             let output = directory.path().join(format!("{index:08}.o"));
             scoop_toolchain::compile_native_source(
-                &unit,
+                unit,
                 config,
                 &compiler,
                 request.optimization(),

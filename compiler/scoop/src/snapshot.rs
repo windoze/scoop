@@ -1,4 +1,4 @@
-//! Immutable source and artifact inputs prepared for one build graph.
+//! Selected sources and artifact inputs prepared for one build graph.
 
 mod prepared;
 mod staging;

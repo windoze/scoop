@@ -14,7 +14,6 @@ pub(super) fn check(
             vec![],
             &bytes,
         ),
-        target.c_bridge_toolchain().profile(),
     )
     .unwrap();
     drop(bytes);

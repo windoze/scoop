@@ -1,5 +1,8 @@
 //! Complete expected persistent symbols for every strong definition plan.
 
+mod link;
+mod read;
+
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -12,7 +15,7 @@ pub use scoop_identity::{
     DefinitionAtomRole, PersistentDispatchTableId, PersistentLayoutId, StrongDefinitionEntity,
     StrongDefinitionEntityKind, StrongDefinitionRole,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{ConeLirFoundation, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1};
 
@@ -346,23 +349,6 @@ pub struct DecodedObjectSymbolSurfaceV1 {
     plans: Vec<DecodedDefinitionSymbolPlanV1>,
 }
 
-impl DecodedObjectSymbolSurfaceV1 {
-    pub fn validate(
-        self,
-        foundation: &ConeLirFoundation,
-    ) -> Result<ObjectSymbolSurfaceV1, ObjectSymbolSurfaceValidationError> {
-        let actual = encode(&self).map_err(ObjectSymbolSurfaceValidationError::Encode)?;
-        let expected = ObjectSymbolSurfaceV1::from_foundation(foundation)
-            .map_err(ObjectSymbolSurfaceValidationError::Foundation)?;
-        let expected_bytes =
-            encode(&expected).map_err(ObjectSymbolSurfaceValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(ObjectSymbolSurfaceValidationError::SurfaceMismatch);
-        }
-        Ok(expected)
-    }
-}
-
 impl WireEncode for DecodedObjectSymbolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.plans)
@@ -374,32 +360,6 @@ impl WireDecode for DecodedObjectSymbolSurfaceV1 {
         decoder
             .decode_array(|decoder, _| DecodedDefinitionSymbolPlanV1::decode(decoder))
             .map(|plans| Self { plans })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ObjectSymbolSurfaceValidationError {
-    Foundation(ObjectSymbolSurfaceBuildError),
-    Encode(scoop_wire::cbor::EncodeError),
-    SurfaceMismatch,
-}
-
-impl fmt::Display for ObjectSymbolSurfaceValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid decoded strong object symbol surface: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for ObjectSymbolSurfaceValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Foundation(source) => Some(source),
-            Self::Encode(source) => Some(source),
-            Self::SurfaceMismatch => None,
-        }
     }
 }
 

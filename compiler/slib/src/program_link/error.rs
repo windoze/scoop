@@ -1,9 +1,6 @@
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 
-use crate::{
-    CodeLinkObjectMemberValidationError, CrossConeClosureGraphError, LayoutLinkSymbolUseError,
-    SlibDiagnostic,
-};
+use crate::CrossConeClosureGraphError;
 
 mod section;
 pub(super) use section::section;
@@ -74,31 +71,4 @@ pub(super) fn graph(
         | MissingDirectArtifact { .. } => (root, "manifest:direct_dependencies"),
     };
     error(source).at(cone, path)
-}
-
-pub(super) fn symbols(source: LayoutLinkSymbolUseError) -> ProgramLinkReadError {
-    let mut result = error(&source);
-    if let LayoutLinkSymbolUseError::CodeInput(source) = &source {
-        result.semantic_path = section::path(source);
-    } else if let LayoutLinkSymbolUseError::Resource(source) = &source {
-        result.semantic_path = source.diagnostic().semantic_path();
-    }
-    if let LayoutLinkSymbolUseError::FinalMembers(source) = &source {
-        use CodeLinkObjectMemberValidationError::*;
-        let member = match source {
-            FinalProofMissingMember(member)
-            | FinalProofDuplicateMember(member)
-            | DuplicateDirectoryMember(member)
-            | MissingDirectoryMember(member)
-            | UnexpectedDirectoryMember(member)
-            | UnsupportedLinkExtension { member, .. }
-            | MemberIdentityMismatch(member)
-            | MemberContentMismatch(member) => Some(member),
-            Hash(_) => None,
-        };
-        if let Some(member) = member {
-            result.semantic_path = format!("member/{member}:$");
-        }
-    }
-    result
 }

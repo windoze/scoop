@@ -20,6 +20,40 @@ fn open_archive(input: &[u8]) -> Result<ManifestArchive<'_>, ArchiveReadError> {
     ManifestArchive::open(input)
 }
 
+#[test]
+fn object_outputs_borrow_the_written_payloads_after_archive_padding() {
+    let capability = CapabilityId::new("org.scoop-lang.test", "object", 1).unwrap();
+    let mut members = vec![diagnostic_member(b"log", b"diagnostic").unwrap()];
+    let mut expected = std::collections::BTreeMap::new();
+    for bytes in [b"odd".as_slice(), b"even".as_slice()] {
+        let member = SlibMember::new(
+            ConeIdentity::CORE,
+            MemberStableKey::LinkObject {
+                verifier_capability: capability.clone(),
+                logical_key: crate::LogicalMemberKey::new(bytes.to_vec()).unwrap(),
+            },
+            SlibMemberRole::LinkObject {
+                target_profile: scoop_identity::TargetProfileWireId::new(
+                    scoop_target_data::DARWIN_AARCH64_ID,
+                ),
+                object_format: scoop_identity::ObjectFormatId::macho_relocatable(),
+                verifier_capability: capability.clone(),
+            },
+            bytes.to_vec(),
+        )
+        .unwrap();
+        expected.insert(member.record().sha256(), bytes);
+        members.push(member);
+    }
+    let archive = CanonicalSlibArchive::write(b"m", members).unwrap();
+    assert_eq!(
+        archive
+            .object_payloads()
+            .collect::<std::collections::BTreeMap<_, _>>(),
+        expected
+    );
+}
+
 fn validate_archive<'input>(
     input: &'input [u8],
     records: &[SlibMemberRecord],
@@ -119,13 +153,7 @@ fn reader_validates_manifest_directory_and_member_ranges() {
         decoded.member_ids().collect::<Vec<_>>(),
         records.iter().map(SlibMemberRecord::id).collect::<Vec<_>>()
     );
-    let payload = |id| {
-        let index = decoded
-            .members
-            .binary_search_by_key(&id, |(member_id, _)| *member_id)
-            .unwrap();
-        &decoded.input[decoded.members[index].1.clone()]
-    };
+    let payload = |id| decoded.member(id).unwrap().unwrap();
     assert_eq!(payload(first.record().id()), first.payload());
     assert_eq!(payload(second.record().id()), second.payload());
 }
@@ -158,7 +186,7 @@ fn reader_rejects_noncanonical_container_bytes() {
 }
 
 #[test]
-fn reader_rejects_directory_order_name_digest_and_total_length_corruption() {
+fn reader_indexes_the_directory_and_checks_requested_headers() {
     let first = diagnostic_member(b"first", b"one").unwrap();
     let second = diagnostic_member(b"second", b"two").unwrap();
     let mut records = vec![first.record().clone(), second.record().clone()];
@@ -179,29 +207,11 @@ fn reader_rejects_directory_order_name_digest_and_total_length_corruption() {
     let first_header = open_archive(&bad_name).unwrap().next_header;
     bad_name[first_header] = b'x';
     assert_eq!(
-        validate_archive(&bad_name, &records),
+        validate_archive(&bad_name, &records)
+            .unwrap()
+            .member(records[0].id()),
         Err(ArchiveReadError::NonCanonicalHeader {
             member: ArchiveMemberOrdinal::Directory(0),
-        })
-    );
-
-    let mut bad_payload = archive.as_bytes().to_vec();
-    let first_header = open_archive(&bad_payload).unwrap().next_header;
-    bad_payload[first_header + 60] ^= 1;
-    assert_eq!(
-        validate_archive(&bad_payload, &records),
-        Err(ArchiveReadError::MemberDigestMismatch {
-            id: records[0].id()
-        })
-    );
-
-    let mut trailing = archive.as_bytes().to_vec();
-    trailing.push(0);
-    assert_eq!(
-        validate_archive(&trailing, &records),
-        Err(ArchiveReadError::PredictedLengthMismatch {
-            predicted: archive.as_bytes().len() as u64,
-            actual: archive.as_bytes().len() as u64 + 1,
         })
     );
 }

@@ -8,7 +8,7 @@ use scoop_slib::{ArtifactManifestSummaryError, SlibDiagnostic};
 
 use crate::{
     BuildFailurePhase, BuildGraphDiscoveryError, BuildGraphExecutionFailure, ClassifyBuildFailure,
-    DependencyLocatorError, LoadBuildRootError, PrepareBuildGraphError, SourceSnapshot,
+    DependencyLocatorError, LoadBuildRootError, PrepareBuildGraphError, SelectedSource,
 };
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct BuildFailure {
     pub location: BuildFailureLocation,
     pub diagnostics: Vec<StructuredDiagnosticV1>,
     pub warnings: Vec<StructuredDiagnosticV1>,
-    pub sources: Vec<SourceSnapshot>,
+    pub sources: Vec<SelectedSource>,
 }
 
 #[derive(Debug)]
@@ -97,7 +97,6 @@ impl BuildFailure {
         let path: Option<&Path> = match &error {
             PrepareBuildGraphError::SourceDiscovery(error) => Some(error.path()),
             PrepareBuildGraphError::SingleFile(error) => Some(error.path()),
-            PrepareBuildGraphError::ManifestChanged(path) => Some(path),
             _ => None,
         };
         let path = path.map(Path::to_owned);
@@ -110,7 +109,7 @@ impl BuildFailure {
 
     pub(super) fn execution(
         error: BuildGraphExecutionFailure,
-        sources: &[SourceSnapshot],
+        sources: &[SelectedSource],
     ) -> Box<Self> {
         let diagnostics = error.child_diagnostics().unwrap_or_default().to_vec();
         let warnings = error.warnings().to_vec();
@@ -124,7 +123,7 @@ impl BuildFailure {
     pub fn with_context(
         mut self: Box<Self>,
         warnings: &[StructuredDiagnosticV1],
-        sources: &[SourceSnapshot],
+        sources: &[SelectedSource],
     ) -> Box<Self> {
         self.warnings = warnings.to_vec();
         self.sources = sources.to_vec();
@@ -150,11 +149,10 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
             path: path.clone(),
             member: match source {
                 ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
-                ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::Io(_) => "container:$".to_owned(),
                 ArtifactManifestSummaryError::TestDirectory(_) => {
                     "manifest:test-directory".to_owned()
                 }
-                ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
             },
         },
         Error::InvalidArtifactSourceForm { path, .. } => BuildFailureLocation::Artifact {
@@ -166,10 +164,6 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
             member: "manifest:cone.identity".to_owned(),
         },
         Error::Io { path, .. }
-        | Error::ArtifactNotRegularFile(path)
-        | Error::LengthOverflow(path)
-        | Error::ArtifactChangedDuringRead(path)
-        | Error::Allocation(path)
         | Error::CoordinateMismatch { path, .. }
         | Error::ExecutableDependency { path, .. }
         | Error::SelfSourceLocator { root: path, .. } => BuildFailureLocation::Host {

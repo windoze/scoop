@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "test.m48"
+name = "native-objects"
+version = "1.0.0"
+kind = "library"
+[native]
+include = ["first", "second"]
+[[native.sources]]
+path = "native/answer.c"

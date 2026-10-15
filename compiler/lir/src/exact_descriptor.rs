@@ -14,7 +14,6 @@ mod constituents;
 pub use constituents::ExactDescriptorSourceInputV1;
 
 mod replay;
-pub(crate) use replay::{validate_inline_scan, validate_registration_plan};
 
 mod table;
 pub use table::*;
@@ -23,7 +22,6 @@ mod wire;
 pub use wire::{
     DecodedCanonicalExactDescriptorExportsV1, DecodedExactDescriptorExportV1,
     DecodedExactDescriptorSemanticProjectionV1, ExactDescriptorSemanticProjectionV1,
-    ExactDescriptorWireError,
 };
 
 #[cfg(test)]

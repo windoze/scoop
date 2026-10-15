@@ -11,9 +11,9 @@ mod fixtures;
 use fixtures::*;
 
 mod canonical;
+mod read;
 mod replay;
 mod table;
 mod wire;
 
 mod projection;
-mod shape_link;

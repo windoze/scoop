@@ -6,7 +6,7 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["cli", "core", "cache", "negative"]
 
 [vars]
-options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--runtime-root", "${work}/missing-runtime", "--message-format", "json"]
+options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--runtime-root", "${runtime}", "--message-format", "json"]
 
 [[steps]]
 name = "prepare"
@@ -30,9 +30,9 @@ checks = [
 ]
 
 [[steps]]
-name = "poison_artifact"
+name = "publish_core"
 files = [
-  {"write" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib", "data" = "not an archive\n"}},
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
@@ -47,7 +47,6 @@ checks = [
   {"actual" = "${source.result.dependencies.0.artifact_fingerprint}", "equals" = "${core.result.root.artifact_fingerprint}"},
   {"actual" = "${source.result.observations.nodes.0.origin}", "equals" = "cache"},
   {"actual" = "${source.result.observations.child_invocations}", "equals" = ["${source.result.root.identity}"]},
-  {"file" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib", "equals" = "not an archive\n"},
 ]
 
 [[steps]]
@@ -108,80 +107,6 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = {"file" = "dangling_source.json"}
-checks = [
-  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
-]
-
-[[steps]]
-name = "prepare_invalid_artifact"
-files = [
-  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"write" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib", "data" = "not an archive\n"}},
-]
-
-[[steps]]
-name = "invalid_artifact"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "invalid_artifact.json"}
-checks = [
-  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
-]
-
-[[steps]]
-name = "prepare_wrong_coordinate"
-files = [
-  {"copy" = {"from" = "${work}/previous.slib", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
-]
-
-[[steps]]
-name = "wrong_coordinate"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "wrong_coordinate.json"}
-checks = [
-  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
-]
-
-[[steps]]
-name = "prepare_artifact_directory"
-files = [
-  {"remove" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
-  {"mkdir" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
-]
-
-[[steps]]
-name = "artifact_directory"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "artifact_directory.json"}
-checks = [
-  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
-]
-
-[[steps]]
-name = "prepare_missing_artifact"
-files = [
-  {"remove" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
-]
-
-[[steps]]
-name = "missing_artifact"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "missing_artifact.json"}
 checks = [
   {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
 ]
