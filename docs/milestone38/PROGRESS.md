@@ -72,4 +72,8 @@ fmt、workspace Clippy、release 构建及 47 项 codec／注解／类型描述 
 
 ## 剩余验收
 
-M38 功能均已完成本机针对性验证。接下来统一执行本机完整 Rust／runner／正式 CLI 验收，闭合问题后再到 Linux 做 GNU／musl 组合验收；最终三目标验收完成前不宣称 M38 完成。
+本机完整 Rust 范围 5,302 项已全部通过，零忽略；50 项 fixture runner 规则也通过。完整执行后只补验失败项：HIR 期望和构造器修复见上节，后续同步 HIR identity-foundation 10 的固定向量，并清理 core 产物测试对整份内部闭包／泛型实例名单及 singleton／初始化单元总数的绑定。每个实际描述符的 exact layout、特化组、链接属性和导出边界仍逐项检查；初始化单元按真实声明身份核对函数对，缺失类型负例仍精确核对被删除的类型，允许引用检查或依赖检查先发现它。bootstrap 额外检查 Inspectable、TypeInfo 和 TypeRef 的实际泛型应用。
+
+core 组合的 16 项在 debug 补验通过，剩余基础产物、初始化单元和 singleton 三项使用优化测试构建通过；较重的属性初始化组合在两种构建中均通过。格式化、workspace Clippy 及后续受影响 crate 的 lint 均通过。正式 CLI 的旧 builtin-binding 用例改为直接复用当前 Int 源码，删除 154 行重复声明，新增 inspector 所需导入；该项单独补验通过，1 variant、2 processes，并清理结束的 case 目录约 71 MiB。
+
+正式 CLI 完整验收仍在进行；完成本机闭合后再到 Linux 做 GNU／musl 统一验收。三目标完成前不宣称 M38 完成。原始日志和逐用例报告均保存在仓库外，本文只记录范围、结果概要及失败闭合情况。
