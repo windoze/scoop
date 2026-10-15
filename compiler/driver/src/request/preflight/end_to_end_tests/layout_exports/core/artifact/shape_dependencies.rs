@@ -2,7 +2,6 @@
 
 use super::*;
 
-mod lir_reader;
 mod lower;
 mod machine;
 mod mir_reader;
@@ -33,13 +32,8 @@ pub(super) fn check(
     let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: semantic.lir_foundation(),
-        definitions: semantic.lir_strong_production().canonical_definitions(),
-        static_storages: semantic
-            .lir_strong_production()
-            .static_storage_registrations(),
-        initialization: semantic
-            .lir_strong_production()
-            .initialization_registrations(),
+        definitions: semantic.lir_production_data().canonical_definitions(),
+        support: lir::ShapeLinkSupportV1::Saved(semantic.lir_production_data()),
         ordinary: semantic.lir_cross_cone_bridge(),
         layouts: provider_exports.layouts(),
         callables: provider_exports.callables(),
@@ -108,7 +102,6 @@ pub(super) fn check(
                 )
                 .unwrap();
                 mir_reader::check(input, &section, mir_dependency, &expected);
-                lir_reader::check(input, core_lir, &expected);
                 machine::check(
                     name,
                     input,

@@ -12,7 +12,7 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
     pub fn replay_semantics(
         self,
     ) -> Result<
-        LirDependencyGraphReplayedCrossConeLayoutClosure<'input>,
+        LirDependenciesResolvedCrossConeLayoutClosure<'input>,
         CrossConeLayoutSemanticClosureError,
     > {
         Ok(self
@@ -29,9 +29,9 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
             .validate_lir_dispatch()?
             .validate_lir_descriptors()?
             .validate_lir_shape_support()?
-            .replay_lir_strong_production()?
+            .read_lir_production_data()?
             .replay_mir_dependency_graph()?
-            .replay_lir_dependency_graph()?)
+            .resolve_lir_dependencies()?)
     }
 }
 
@@ -72,7 +72,7 @@ semantic_errors! {
     LirDescriptors(CrossConeLayoutLirDescriptorsError),
     LirShapeSupport(CrossConeLayoutLirShapeSupportError),
     OrdinaryLirBridges(CrossConeLayoutOrdinaryLirBridgeError),
-    LirStrongProduction(CrossConeLayoutLirStrongProductionError),
+    LirStrongProduction(CrossConeLayoutLirProductionDataError),
     MirDependencies(CrossConeLayoutMirDependenciesError),
     LirDependencies(CrossConeLayoutLirDependenciesError),
 }

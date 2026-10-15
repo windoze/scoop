@@ -1,8 +1,6 @@
 //! Complete type registration validation.
 
-use super::type_references::{
-    self, DependencyTypeReferences, LegacyTypeReferences, TypeReferences,
-};
+use super::type_references::{self, LegacyTypeReferences, TypeReferences};
 use super::*;
 use crate::{
     DecodedStrongTypeRegistrationPlan, StrongDescriptorReference, StrongTypeDescriptorSemanticPlan,
@@ -39,47 +37,6 @@ pub(crate) fn validate_types(
         &LegacyTypeReferences {
             foundation,
             identities,
-        },
-    )
-}
-
-/// Replays the complete type-registration table and binds dependency references
-/// to physical definitions. This constituent does not authorize exports or
-/// selections; the production reader must additionally join the same records
-/// to the complete layout/ABI section and its committed dependency closure.
-#[allow(clippy::too_many_arguments)]
-pub fn validate_type_registration_constituents_v2(
-    decoded: Vec<crate::DecodedStrongTypeRegistrationPlanV2>,
-    target: LirTargetProfile,
-    foundation: &ConeLirFoundation,
-    identities: &RegistrationIdentitySurfaceV1,
-
-    definitions: &crate::StrongTypeReferenceDefinitionsV2,
-    digests: &DigestFinalizationPlanV1,
-) -> Result<crate::StrongTypeDescriptorSemanticPlanSetV2, StrongRegistrationProductionValidationError>
-{
-    let actual = definitions.consumer();
-    if actual != foundation.producer() {
-        return Err(
-            crate::StrongTypeReferenceResolutionErrorV2::ProducerMismatch {
-                expected: foundation.producer(),
-                actual,
-            }
-            .into(),
-        );
-    }
-    validate_types_with_references(
-        decoded,
-        target,
-        foundation,
-        identities,
-        digests,
-        &DependencyTypeReferences {
-            local: LegacyTypeReferences {
-                foundation,
-                identities,
-            },
-            definitions,
         },
     )
 }

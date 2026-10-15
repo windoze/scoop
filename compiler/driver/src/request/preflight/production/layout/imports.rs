@@ -16,12 +16,9 @@ pub(super) fn initialization(
                 .iter()
                 .find(|dependency| dependency.identity() == usage.provider())
                 .and_then(|dependency| {
-                    lir::StrongInitializationUnitDefinitionRefV2::from_registrations(
-                        dependency
-                            .lir_strong_production()
-                            .initialization_registrations(),
-                        usage.dependency_unit(),
-                    )
+                    dependency
+                        .lir_production_data()
+                        .initialization_definition(usage.dependency_unit())
                 })
                 .ok_or(
                     scoop_lir_lower::StrongProductionV2ProjectionError::MissingDefinition {

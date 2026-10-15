@@ -25,6 +25,7 @@ use crate::{
     StrongTypeDescriptorSemanticPlanSetV1, StrongTypeRegistrationPlanBuildError,
 };
 
+mod read;
 mod wire;
 pub use wire::*;
 

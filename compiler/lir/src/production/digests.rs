@@ -5,8 +5,7 @@ use scoop_identity::{
     CborIdentityRecord, DecodedCborIdentityRecord, DecodedDigestNodeKey,
     DecodedDigestPatchIntentKey, DecodedPersistentId, DigestKind, DigestNodeId, DigestNodeKey,
     DigestNodeKeyResolutionError, DigestPatchIntentId, DigestPatchIntentKey,
-    DigestSemanticFieldRole, IdentityReferenceError, PersistentIdMismatch, PersistentIdResolver,
-    ValidatedIdentityGraph,
+    DigestSemanticFieldRole, IdentityReferenceError, PersistentIdMismatch, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
@@ -324,7 +323,6 @@ pub struct DecodedDigestFinalizationPlanV1 {
 }
 
 mod reader;
-pub use reader::foundation::DigestPlanReplayError;
 
 impl WireEncode for DecodedDigestFinalizationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {

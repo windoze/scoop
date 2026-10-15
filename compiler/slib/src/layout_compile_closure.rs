@@ -51,9 +51,8 @@ pub use lir_callable_abis::{
     validate_shared_mir_callable_abis,
 };
 pub use lir_dependencies::{
-    CrossConeLayoutLirDependenciesError, LirDependencyGraphReplayedCrossConeLayoutClosure,
-    LirDependencyGraphReplayedCrossConeLayoutSections, SharedLirDependencyGraphError,
-    replay_shared_lir_dependency_graph, replay_shared_lir_initialization_dependencies,
+    CrossConeLayoutLirDependenciesError, LirDependenciesResolvedCrossConeLayoutClosure,
+    LirDependenciesResolvedCrossConeLayoutSections, LirDependencyReadError,
 };
 pub use lir_descriptors::{
     CrossConeLayoutLirDescriptorsError, LirDescriptorsValidatedCrossConeLayoutClosure,
@@ -88,8 +87,8 @@ pub use lir_shape_support::{
     replay_shared_mir_shape_support,
 };
 pub use lir_strong::{
-    CrossConeLayoutLirStrongProductionError, LirStrongProductionReplayedCrossConeLayoutClosure,
-    LirStrongProductionReplayedCrossConeLayoutSections, SharedLirStrongProductionError,
+    CrossConeLayoutLirProductionDataError, LirProductionDataCrossConeLayoutClosure,
+    LirProductionDataCrossConeLayoutSections,
 };
 pub use mir_coroutines::{SharedMirCoroutineValidationError, validate_shared_mir_coroutines};
 pub use mir_dependencies::{

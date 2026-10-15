@@ -126,14 +126,9 @@ pub(super) fn with_pair(
     let default_provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: default_dependency.lir_foundation(),
         definitions: default_dependency
-            .lir_strong_production()
+            .lir_production_data()
             .canonical_definitions(),
-        static_storages: default_dependency
-            .lir_strong_production()
-            .static_storage_registrations(),
-        initialization: default_dependency
-            .lir_strong_production()
-            .initialization_registrations(),
+        support: lir::ShapeLinkSupportV1::Saved(default_dependency.lir_production_data()),
         ordinary: default_dependency.lir_cross_cone_bridge(),
         layouts: default_exports.layouts(),
         callables: default_exports.callables(),

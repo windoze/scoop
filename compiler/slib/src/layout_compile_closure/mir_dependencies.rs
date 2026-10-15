@@ -6,8 +6,7 @@ use scoop_mir as mir;
 use scoop_wire::WirePath;
 
 use super::{
-    LirStrongProductionReplayedCrossConeLayoutClosure,
-    LirStrongProductionReplayedCrossConeLayoutSections,
+    LirProductionDataCrossConeLayoutClosure, LirProductionDataCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -29,7 +28,7 @@ pub type MirDependencyGraphReplayedCrossConeLayoutSections<'input> =
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ConeProductionSectionV2,
+        lir::CompileProduction,
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 pub type MirDependencyGraphReplayedCrossConeLayoutClosure<'input> =
@@ -37,11 +36,11 @@ pub type MirDependencyGraphReplayedCrossConeLayoutClosure<'input> =
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ConeProductionSectionV2,
+        lir::CompileProduction,
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 
-impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
+impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
     pub fn replay_mir_dependency_graph(
         self,
     ) -> Result<
@@ -61,7 +60,7 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedMirDependencyGraphError> {
-                let LirStrongProductionReplayedCrossConeLayoutSections {
+                let LirProductionDataCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,
@@ -110,9 +109,7 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                 )
                 .map_err(|source| SharedMirDependencyGraphError::CallSites(Box::new(source)))?;
                 let materialized_units = strong
-                    .registration_production()
                     .initialization_units()
-                    .registrations()
                     .iter()
                     .map(|unit| unit.semantic().unit())
                     .collect::<Vec<_>>();
@@ -163,7 +160,7 @@ impl MirDependencyGraphReplayedCrossConeLayoutSections<'_> {
         &self.mir
     }
 
-    pub const fn lir_strong_production(&self) -> &lir::ConeProductionSectionV2 {
+    pub const fn lir_production_data(&self) -> &lir::CompileProduction {
         &self.strong
     }
 }

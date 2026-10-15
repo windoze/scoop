@@ -5,14 +5,10 @@ use scoop_wire::WireEncode;
 mod fixtures;
 mod negative;
 mod wire;
-use fixtures::{graph, replayed_provider, view};
+use fixtures::{graph, produced_provider, view};
 
-pub(super) fn check_join(
-    provider: &Provider,
-    consumer: &ConeProductionSectionV2,
-    layout: &CrossConeLayoutAbiSectionV1<'_>,
-) {
-    let production = replayed_provider(provider);
+pub(super) fn check_join(provider: &Provider, layout: &CrossConeLayoutAbiSectionV1<'_>) {
+    let production = produced_provider(provider);
     let exports = provider.layout_section();
     let dependencies = [view(provider, &production, exports.exports())];
     let semantic = layout.selected().semantic_relations().collect::<Vec<_>>();
@@ -27,27 +23,10 @@ pub(super) fn check_join(
             .replay_physical_imports(&dependencies, &mut identities)
     };
     let checked = replay(&rows, &semantic).unwrap();
-    consumer.validate_layout_selection(&checked).unwrap();
     assert_eq!(
         encode(checked.physical_imports()).unwrap(),
         encode(layout.selected().physical_imports()).unwrap()
     );
-    for omitted in 0..rows.len() {
-        let incomplete = rows
-            .iter()
-            .enumerate()
-            .filter_map(|(index, row)| (index != omitted).then_some(*row))
-            .collect::<Vec<_>>();
-        let checked = replay(&incomplete, &semantic).unwrap();
-        assert!(matches!(
-            consumer.validate_layout_selection(&checked),
-            Err(
-                StrongProductionLayoutJoinError::MissingPhysicalDescriptor { .. }
-                    | StrongProductionLayoutJoinError::MissingPhysicalCallable { .. }
-                    | StrongProductionLayoutJoinError::MissingPhysicalInitialization { .. }
-            )
-        ));
-    }
     assert!(matches!(
         replay(&rows, &[]),
         Err(LayoutAbiSectionError::MissingPhysicalSemantic(_))
@@ -72,7 +51,7 @@ fn shared_physical_contract_replay_covers_all_ten_subjects() {
         ConeCoordinate::new("test", "physical-provider", "1.0.0").unwrap(),
     ] {
         let provider = Provider::for_coordinate(coordinate);
-        let production = replayed_provider(&provider);
+        let production = produced_provider(&provider);
         let exports = provider.layout_section();
         let view = view(&provider, &production, exports.exports());
         let consumer = ConeCoordinate::new("test", "physical-consumer", "1.0.0").unwrap();

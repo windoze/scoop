@@ -42,33 +42,9 @@ pub(super) fn location(error: &Error) -> Option<(ConeIdentity, String)> {
         Error::OrdinaryLirBridges(error) => (error.provider, "lir/ordinary-bridges"),
         Error::MirDependencies(error) => (error.provider, "mir/dependencies"),
         Error::LirDependencies(error) => (error.provider, "lir/dependencies"),
-        Error::LirStrongProduction(error) => return Some((error.provider, strong(&error.source))),
+        Error::LirStrongProduction(error) => (error.provider, "lir/production-data"),
     };
     Some((provider, path.to_owned()))
-}
-
-fn strong(error: &slib::SharedLirStrongProductionError) -> String {
-    use scoop_lir::{
-        ConeProductionSectionValidationError as Production,
-        StrongRegistrationProductionValidationError as Registration,
-    };
-    use slib::SharedLirStrongProductionError as Strong;
-    let capability = slib::lir_cone_production_capability();
-    let prefix = format!("lir/{}/{}", capability.name(), capability.major_version());
-    match error {
-        Strong::InitializationRelation { unit, field } => {
-            format!("{prefix}/initialization/{unit}/{field}")
-        }
-        Strong::InitializationDefinition(unit) => format!("{prefix}/initialization/{unit}"),
-        Strong::FunctionDescriptor { exact, field } => {
-            format!("{prefix}/function-descriptor/{exact}/{field}")
-        }
-        Strong::Replay(Production::Registrations(Registration::TableLength { table, .. })) => {
-            format!("{prefix}/registrations/{table:?}")
-        }
-        Strong::Replay(Production::Registrations(_)) => format!("{prefix}/registrations"),
-        _ => prefix,
-    }
 }
 
 fn graph(error: &slib::CrossConeClosureGraphError) -> Option<(ConeIdentity, String)> {

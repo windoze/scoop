@@ -44,7 +44,6 @@ use crate::{
 mod callables;
 use callables::{validate_callable_runtime_scans, validate_safepoints};
 mod types;
-pub use types::validate_type_registration_constituents_v2;
 pub(crate) use types::validate_types;
 mod type_shape;
 use type_shape::{validate_type_descriptor_inline_scan, validate_type_instance_shape};
@@ -55,10 +54,7 @@ use immortal::validate_immortal_objects;
 mod static_storage;
 use static_storage::validate_static_storages;
 mod initialization;
-pub use initialization::validate_initialization_registration_constituents_v2;
 use initialization::validate_initialization_units;
-
-mod v2;
 
 impl DecodedStrongRegistrationProductionSurfaceV1 {
     pub fn validate(
@@ -93,15 +89,10 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             .registrations(),
         )?;
         let type_semantics = validate_types(self.types, target, foundation, &identities, digests)?;
-        let immortal_semantics = validate_immortal_objects(
-            self.immortal_objects,
-            target,
-            foundation,
-            &identities,
-            None,
-        )?;
+        let immortal_semantics =
+            validate_immortal_objects(self.immortal_objects, target, foundation, &identities)?;
         let static_semantics =
-            validate_static_storages(self.static_storages, target, foundation, &identities, None)?;
+            validate_static_storages(self.static_storages, target, foundation, &identities)?;
         let initialization_semantics = validate_initialization_units(
             self.initialization_units,
             target,
@@ -218,7 +209,6 @@ pub enum StrongRegistrationProductionValidationError {
     ProducerMismatch,
     Encode(scoop_wire::cbor::EncodeError),
     Resource(scoop_wire::WireError),
-    TypeReference(crate::StrongTypeReferenceResolutionErrorV2),
     InitializationDependency(crate::InitializationDependencyResolutionError),
     InitializationDefinition(crate::InitializationDefinitionResolutionErrorV2),
     Identities(RegistrationIdentityValidationError),
@@ -256,14 +246,6 @@ impl From<scoop_wire::WireError> for StrongRegistrationProductionValidationError
         Self::Resource(error)
     }
 }
-impl From<crate::StrongTypeReferenceResolutionErrorV2>
-    for StrongRegistrationProductionValidationError
-{
-    fn from(error: crate::StrongTypeReferenceResolutionErrorV2) -> Self {
-        Self::TypeReference(error)
-    }
-}
-
 impl From<crate::InitializationDependencyResolutionError>
     for StrongRegistrationProductionValidationError
 {

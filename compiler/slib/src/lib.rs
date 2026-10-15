@@ -49,7 +49,6 @@ mod layout_compile_decode;
 pub use layout_compile_decode::*;
 
 mod dependency_reachability;
-mod production_dependencies;
 mod runtime_image_records;
 pub use runtime_image_records::RuntimeImageRecords;
 mod program_link;

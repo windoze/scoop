@@ -33,5 +33,3 @@ mod errors;
 pub use errors::DigestProjectionError;
 mod graph;
 use graph::DigestGraphWriter;
-mod replay;
-pub use replay::replay_digest_finalization_plan_v2;

@@ -14,7 +14,7 @@ pub(in super::super) fn open(
 pub(in super::super) fn read<'a>(
     core: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
-) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+) -> scoop_slib::LirDependenciesResolvedCrossConeLayoutClosure<'a> {
     read_sections(open(core), open(artifact))
 }
 
@@ -32,7 +32,7 @@ pub(in super::super) fn open_link(
 pub(in super::super) fn read_link<'a>(
     core: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
-) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+) -> scoop_slib::LirDependenciesResolvedCrossConeLayoutClosure<'a> {
     read_sections(
         open_link(core).into_shared_sections().unwrap(),
         open_link(artifact).into_shared_sections().unwrap(),
@@ -42,7 +42,7 @@ pub(in super::super) fn read_link<'a>(
 pub(in super::super) fn read_sections<'a>(
     core: scoop_slib::DecodedCrossConeLayoutCompileSections<'a>,
     artifact: scoop_slib::DecodedCrossConeLayoutCompileSections<'a>,
-) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+) -> scoop_slib::LirDependenciesResolvedCrossConeLayoutClosure<'a> {
     let closure = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
         artifact.identity(),
         artifact.target_selection(),
@@ -77,11 +77,11 @@ pub(in super::super) fn read_sections<'a>(
         .unwrap()
         .validate_lir_shape_support()
         .unwrap()
-        .replay_lir_strong_production()
+        .read_lir_production_data()
         .unwrap()
         .replay_mir_dependency_graph()
         .unwrap()
-        .replay_lir_dependency_graph()
+        .resolve_lir_dependencies()
         .unwrap()
 }
 

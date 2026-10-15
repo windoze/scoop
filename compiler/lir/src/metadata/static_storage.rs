@@ -75,3 +75,26 @@ impl StaticStorageLayout {
         }
     }
 }
+
+impl LayoutIdentity {
+    pub(crate) fn from_records(
+        layout: scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentLayoutId,
+            scoop_identity::LayoutKey,
+        >,
+        scan: scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentScanId,
+            scoop_identity::ScanKey,
+        >,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let root = crate::MaterializationRoot::cone_owned();
+        let layout_materialization = root.layout(layout.id())?;
+        let scan_materialization = root.scan(scan.id())?;
+        Ok(Self {
+            layout,
+            scan,
+            layout_materialization,
+            scan_materialization,
+        })
+    }
+}

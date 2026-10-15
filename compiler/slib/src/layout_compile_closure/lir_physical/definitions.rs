@@ -8,7 +8,7 @@ pub struct CrossConeLayoutArtifactData {
     odr_definitions: MergedOdrDefinitions,
 }
 
-impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
+impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
     pub fn read_definition_data(
         self,
     ) -> Result<CrossConeLayoutArtifactData, CrossConeLayoutLirPhysicalError> {

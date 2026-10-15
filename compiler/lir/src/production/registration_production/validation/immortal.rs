@@ -7,7 +7,6 @@ pub(super) fn validate_immortal_objects(
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
     identities: &RegistrationIdentitySurfaceV1,
-    definitions: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::ImmortalObject,
@@ -73,19 +72,12 @@ pub(super) fn validate_immortal_objects(
                 )?;
                 ImmortalObjectTypeRegistrationRefV1::Local(exact_type)
             }
-            DecodedImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact } => {
-                let (provider, exact) = definitions
-                    .and_then(|definitions| {
-                        definitions.resolve_external_descriptor(provider, exact)
-                    })
-                    .ok_or_else(|| {
-                        semantic_error(
-                            RegistrationProductionTableV1::ImmortalObject,
-                            index,
-                            "external_type_registration",
-                        )
-                    })?;
-                ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact }
+            DecodedImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. } => {
+                return Err(semantic_error(
+                    RegistrationProductionTableV1::ImmortalObject,
+                    index,
+                    "external_type_registration",
+                ));
             }
         };
         let symbol = PersistentSymbolRequest::new(

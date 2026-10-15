@@ -109,5 +109,3 @@ fn validate_type_dispatch_slots(
 
 mod version;
 pub(super) use version::*;
-mod dependency;
-pub(super) use dependency::*;

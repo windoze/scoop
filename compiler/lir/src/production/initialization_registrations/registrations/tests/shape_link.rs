@@ -9,7 +9,6 @@ const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 mod fixture;
 use fixture::ProviderFixture;
 mod canonical;
-mod reader;
 mod relations;
 
 #[test]

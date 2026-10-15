@@ -38,13 +38,8 @@ pub(super) fn check(
     let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: semantic.lir_foundation(),
-        definitions: semantic.lir_strong_production().canonical_definitions(),
-        static_storages: semantic
-            .lir_strong_production()
-            .static_storage_registrations(),
-        initialization: semantic
-            .lir_strong_production()
-            .initialization_registrations(),
+        definitions: semantic.lir_production_data().canonical_definitions(),
+        support: lir::ShapeLinkSupportV1::Saved(semantic.lir_production_data()),
         ordinary: semantic.lir_cross_cone_bridge(),
         layouts: provider_exports.layouts(),
         callables: provider_exports.callables(),
@@ -107,7 +102,7 @@ pub(super) fn check(
                     &mir,
                     &provider,
                     provider_exports,
-                    semantic.lir_strong_production(),
+                    semantic.lir_production_data(),
                 );
                 let registration = lir_input
                     .lir
@@ -193,11 +188,8 @@ pub(super) fn check(
                                 encode(current.lir_physical_imports()).unwrap(),
                                 encode(selected.physical_imports()).unwrap(),
                             );
-                            let units = current
-                                .lir_strong_production()
-                                .initialization_registrations();
+                            let units = current.lir_production_data().initialization_units();
                             let edges = units
-                                .registrations()
                                 .iter()
                                 .flat_map(|unit| {
                                     unit.semantic()

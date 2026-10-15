@@ -19,7 +19,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
     assert!(matches!(
         descriptor(
             crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact },
-            Selection::Complete(section.selected())
+            Selection(section.selected())
         ),
         Err(StrongProductionLayoutJoinError::MissingSelectedDescriptor {
             provider: actual,
@@ -44,7 +44,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
                 provider,
                 body,
             },
-            Selection::Complete(section.selected())
+            Selection(section.selected())
         ),
         Err(StrongProductionLayoutJoinError::MissingPhysicalCallable {
             provider: actual,
@@ -58,7 +58,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
         );
     let unit = dependency.unit();
     assert!(matches!(
-        initialization(&dependency, Selection::Complete(section.selected())),
+        initialization(&dependency, Selection(section.selected())),
         Err(StrongProductionLayoutJoinError::MissingPhysicalInitialization {
             provider: actual,
             unit: actual_unit,

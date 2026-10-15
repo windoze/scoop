@@ -336,10 +336,19 @@ ProgramLink 从已保存字段取得成员选择、image／入口／trap 符号�
 
 ProgramLink identity／foundation 边界、Compile 重放、writer 其余复核、dump 复用和最小阶段、最终全量与五轮性能验收仍待完成。此次定向结果不替代完整 M48 验收，M38 未启动。
 
-## 32. 外部物理定义选择复用已有导出（本批验收完成）
+## 32. 外部物理定义选择复用已有导出（aa5c2cd0）
 
 ShapeLinkProvider 直接使用导出记录、已有 definition symbol plan 和初始化／静态存储数据，不再要求整份 strong production，也不逐次重建符号、扫描 atom 集合或反查 type／callable 注册表重做布局、scan、继承及 dispatch slot 比对。20 个代码／spec 文件净删 203 行，移除 177 行重复类型检查模块；未修改 wire、profile 或 runtime ABI。
 
 本机与 Linux 的 fmt／workspace clippy、17 项 shape-link、7 项 Link closure、真实泛型产物和 release 构建均通过。Darwin、GNU、musl 各通过 16 项 CLI、18 variants、199 processes，覆盖泛型／ODR、继承／接口／装箱、属性／初始化、native、runtime image、M46 序列化及对象文件复用。清理本机上一批已完成的 CLI 工作目录，释放 2,152,275,968 字节；本批测试目录和增量结果保留。[范围与证据](validation/provider-data.md)。
 
 Compile reader 当前仍先重放 strong production，再传入三个必要字段；该重放与其他语义／布局重建尚待退役。ProgramLink identity／foundation 边界、writer 复核、dump 复用和最小阶段、最终全量及五轮性能验收继续，M38 未启动。
+
+
+## 33. Compile production 直接读取与集中清理
+
+Compile 只读取 definition symbol plan、静态存储／初始化语义及必要定义引用；完整 V2 production／registration、digest 与 LIR 依赖闭包重放及其独占 API 一并退役。23 个显式测试函数删除或替换，普通功能和 negative fixtures 保留。122 个代码／规范文件净删 3,222 行。
+
+本机 fmt／workspace clippy、454 项 LIR、527 项 slib、release 构建及真实泛型产物通过。属性初始化长测试在调度调整时中断，未计通过；本批 CLI 与 Linux 验收未执行。清理已结束 fixture 目录约 7.09 GB，保留增量缓存。[范围、退役清单与已有验证](validation/compile-data.md)。
+
+按用户最新要求调整后续工作：先在本机完成 M48 所有剩余修改和清理，迭代期间仅做格式化、lint 和受影响的针对性测试；整体完成后先做本机完整复验，通过后统一进行 Linux GNU／musl 验证，不再每轮到 Linux 测试。其余语义／布局重放、writer、dump 及最终全量／五轮性能验收仍未完成，M38 未推进。

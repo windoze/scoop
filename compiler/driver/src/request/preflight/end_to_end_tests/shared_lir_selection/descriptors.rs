@@ -46,13 +46,8 @@ pub(super) fn check(
             let exports = dependency.lir_exports();
             let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
                 foundation: dependency.lir_foundation(),
-                definitions: dependency.lir_strong_production().canonical_definitions(),
-                static_storages: dependency
-                    .lir_strong_production()
-                    .static_storage_registrations(),
-                initialization: dependency
-                    .lir_strong_production()
-                    .initialization_registrations(),
+                definitions: dependency.lir_production_data().canonical_definitions(),
+                support: ShapeLinkSupportV1::Saved(dependency.lir_production_data()),
                 ordinary: dependency.lir_cross_cone_bridge(),
                 layouts: exports.layouts(),
                 callables: exports.callables(),

@@ -9,9 +9,9 @@ pub use foundation::InitializationDefinitionResolutionErrorV2;
 /// One addressable definition already joined to its symbol and primary atom.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongInitializationArtifactRefV2 {
-    symbol: PersistentSymbolRequest,
-    plan: ObjectDefinitionPlanId,
-    primary: ObjectDefinitionAtomId,
+    pub(in crate::production) symbol: PersistentSymbolRequest,
+    pub(in crate::production) plan: ObjectDefinitionPlanId,
+    pub(in crate::production) primary: ObjectDefinitionAtomId,
 }
 
 impl StrongInitializationArtifactRefV2 {
@@ -29,10 +29,10 @@ impl StrongInitializationArtifactRefV2 {
 /// A physical unit reference retains the cell and registration definitions.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongInitializationUnitDefinitionRefV2 {
-    provider: ConeIdentity,
-    unit: PersistentInitializationUnitId,
-    cell: StrongInitializationArtifactRefV2,
-    registration: StrongInitializationArtifactRefV2,
+    pub(in crate::production) provider: ConeIdentity,
+    pub(in crate::production) unit: PersistentInitializationUnitId,
+    pub(in crate::production) cell: StrongInitializationArtifactRefV2,
+    pub(in crate::production) registration: StrongInitializationArtifactRefV2,
 }
 
 impl StrongInitializationUnitDefinitionRefV2 {

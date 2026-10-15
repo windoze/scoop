@@ -39,8 +39,10 @@ pub(super) fn check(
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: producer.foundation(),
         definitions: production.canonical_definitions(),
-        static_storages: production.static_storage_registrations(),
-        initialization: production.initialization_registrations(),
+        support: lir::ShapeLinkSupportV1::Produced {
+            static_storages: production.static_storage_registrations(),
+            initialization: production.initialization_registrations(),
+        },
         ordinary,
         layouts: layout.layouts(),
         callables: layout.callables(),

@@ -4,11 +4,11 @@ type PhysicalInput<'input> = LirConstituentsValidatedCrossConeLayoutSections<
     'input,
     lir::PhysicalImportsReplayedLayoutAbiSectionV1,
     lir::CrossConeLirBridgeSectionV1,
-    lir::ConeProductionSectionV2,
+    lir::CompileProduction,
     mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
 >;
 
-impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
+impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
     pub(super) fn replay_physical<O>(
         self,
         mut replay_objects: impl FnMut(
@@ -26,7 +26,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
         for (position, artifact) in self.dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let replay = || -> Result<_, SharedLirPhysicalError> {
-                let LirDependencyGraphReplayedCrossConeLayoutSections {
+                let LirDependenciesResolvedCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,
@@ -44,7 +44,6 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 )?;
                 dependencies.extend(reachable.iter().map(|&index| &complete[index]));
                 let layout = replay::physical(layout, &dependencies, parts.identities)?;
-                strong.validate_layout_selection(&layout)?;
 
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 scoop_wire::allocation::try_reserve_count(&mut objects, 1, &WirePath::root())?;

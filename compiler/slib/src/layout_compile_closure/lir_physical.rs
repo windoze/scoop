@@ -7,8 +7,7 @@ use scoop_wire::WirePath;
 use std::collections::BTreeMap;
 
 use super::{
-    LirDependencyGraphReplayedCrossConeLayoutClosure,
-    LirDependencyGraphReplayedCrossConeLayoutSections,
+    LirDependenciesResolvedCrossConeLayoutClosure, LirDependenciesResolvedCrossConeLayoutSections,
     lir_constituents::LirConstituentsValidatedCrossConeLayoutSections,
 };
 use crate::dependency_reachability::transitive_positions;
@@ -31,7 +30,7 @@ pub struct PhysicalImportsReplayedCrossConeLayoutSections {
     semantic: crate::layout_compile_decode::LayoutSemanticSections,
     mir: mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     units: Vec<mir::MirTypeBridgeInitializationUnitV1>,
-    strong: lir::ConeProductionSectionV2,
+    strong: lir::CompileProduction,
     ordinary: lir::CrossConeLirBridgeSectionV1,
     layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
 }
@@ -45,7 +44,7 @@ pub struct PhysicalImportsReplayedCrossConeLayoutClosure {
     positions: BTreeMap<ConeIdentity, usize>,
 }
 
-impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
+impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
     pub fn replay_physical_imports(
         self,
     ) -> Result<PhysicalImportsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError>
@@ -87,7 +86,7 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn lir_physical_imports(&self) -> &lir::CanonicalExternalShapeLinkImportsV1 {
         self.layout.physical_imports()
     }
-    pub fn lir_strong_production(&self) -> &lir::ConeProductionSectionV2 {
+    pub fn lir_production_data(&self) -> &lir::CompileProduction {
         &self.strong
     }
 }

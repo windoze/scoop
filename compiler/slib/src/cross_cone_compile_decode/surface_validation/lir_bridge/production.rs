@@ -27,9 +27,6 @@ impl ValidatedCrossConeSemanticsProduction {
     pub fn mir_cross_cone(&self) -> &scoop_mir::CrossConeMirBridgeSectionV1 {
         self.artifact.mir_cross_cone_bridge()
     }
-    pub fn lir_strong(&self) -> &scoop_lir::ConeProductionSectionV2 {
-        self.artifact.lir_strong_production()
-    }
     pub fn lir_cross_cone(&self) -> &scoop_lir::CrossConeLirBridgeSectionV1 {
         self.artifact.lir_cross_cone_bridge()
     }

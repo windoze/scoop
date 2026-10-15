@@ -1,8 +1,4 @@
-//! Versioned references owned by `strong-production/4`.
-//!
-//! Resolving identities only authenticates their canonical keys. The complete
-//! production reader must additionally join dependency references to the same
-//! provider's selected layout/ABI and physical Strong definition proofs.
+//! Typed local and external registration references saved in production data.
 
 use scoop_identity::{ConeIdentity, PersistentCallableBodyId, PersistentExactTypeId};
 use scoop_wire::{Decoder, Encoder, WireEncode, WireError, WireErrorKind};
@@ -11,8 +7,6 @@ use crate::RuntimeFunction;
 
 mod decode;
 pub use decode::*;
-mod definitions;
-pub use definitions::*;
 #[cfg(test)]
 mod tests;
 

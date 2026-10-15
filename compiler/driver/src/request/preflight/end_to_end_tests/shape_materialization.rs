@@ -38,17 +38,17 @@ fn ordinary_public_nominals_materialize_and_publish_the_shared_shape_plan() {
         )
         .unwrap();
         let production = closure.current_compile().production();
-        let plan = production.lir_strong().shape_support_plan();
-        assert_eq!(plan.closures().len(), expected_roots);
+        let plan = production.layout().lir_exports().shape_support();
+        assert_eq!(plan.records().len(), expected_roots);
         assert_eq!(
-            plan.closures()
+            plan.records()
                 .iter()
                 .filter(|root| { root.roles().boxed_value().available().is_some() })
                 .count(),
             expected_boxes
         );
-        for root in plan.closures() {
-            assert_eq!(root.root(), identity);
+        for root in plan.records() {
+            assert_eq!(root.provider(), identity);
             let roles = root.roles();
             assert!(roles.value_layout().available().is_some());
             assert!(roles.ref_scan().available().is_some());

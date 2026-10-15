@@ -7,7 +7,7 @@ pub(super) fn check(
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let checked = input
-        .replay_lir_strong_production()
+        .read_lir_production_data()
         .unwrap_or_else(|error| panic!("{name} shared Strong V2 replay: {error}"));
     assert_eq!(checked.current(), ConeIdentity::CORE);
     assert_eq!(checked.dependency_first().count(), 1);
@@ -19,8 +19,8 @@ pub(super) fn check(
         layout.shape_support()
     );
     assert_eq!(current.initialization_units(), units);
-    let strong = current.lir_strong_production();
-    assert!(!strong.digest_finalization_plan().nodes().is_empty());
+    let strong = current.lir_production_data();
+    assert!(!strong.canonical_definitions().plans().is_empty());
     let dependencies = checked
         .replay_mir_dependency_graph()
         .unwrap_or_else(|error| panic!("{name} shared MIR dependency graph: {error}"));
@@ -35,7 +35,7 @@ pub(super) fn check(
             .is_empty()
     );
     let dependencies = dependencies
-        .replay_lir_dependency_graph()
+        .resolve_lir_dependencies()
         .unwrap_or_else(|error| panic!("{name} shared LIR dependency graph: {error}"));
     assert_eq!(dependencies.current(), ConeIdentity::CORE);
     assert_eq!(dependencies.dependency_first().count(), 1);

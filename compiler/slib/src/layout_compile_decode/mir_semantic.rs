@@ -144,10 +144,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         self.graph.coordinate()
     }
 
-    pub(crate) fn lir_foundation(&self) -> &ConeLirFoundation {
-        &self.foundations.lir
-    }
-
     pub(crate) fn semantic_parts(&mut self) -> PreparedLayoutMirSemanticParts<'_> {
         let manifest = self.graph.envelope.manifest();
         PreparedLayoutMirSemanticParts {

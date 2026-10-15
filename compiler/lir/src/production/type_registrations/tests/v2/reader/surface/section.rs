@@ -1,10 +1,7 @@
 //! Dependency TD/dispatch references traverse the actual ten-field wire.
 
 use super::*;
-use crate::{
-    ConeProductionSectionV2, ConeProductionSectionValidationError as SectionError,
-    DecodedConeProductionSectionV2, EntryProductionSourceV1,
-};
+use crate::{ConeProductionSectionV2, DecodedConeProductionSectionV2, EntryProductionSourceV1};
 use scoop_identity::ConeCoordinate;
 
 fn complete_fixture() -> Fixture {
@@ -32,111 +29,22 @@ fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
     .unwrap()
 }
 
-fn replay_section(
-    fixture: &Fixture,
-    bytes: &[u8],
-    definitions: &StrongTypeReferenceDefinitionsV2,
-) -> Result<ConeProductionSectionV2, SectionError> {
-    let decoded: DecodedConeProductionSectionV2 = decode_canonical(bytes).unwrap();
-    decoded.replay(
-        ConeCoordinate::reserved_single_file(),
-        &[],
-        crate::target_fixtures::DARWIN_AARCH64,
-        &fixture.foundation,
-        EntryProductionSourceV1::Library,
-        &[],
-        definitions,
-        &StrongInitializationDefinitionCatalogV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap(),
-    )
-}
-
 #[test]
-fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
+fn ten_field_section_preserves_foreign_type_references_on_wire() {
     let fixture = complete_fixture();
-    let original = section(&fixture);
-    let bytes = encode(&original).unwrap();
+    let bytes = encode(&section(&fixture)).unwrap();
     assert_eq!(bytes[0], 0xaa);
-    let shared: crate::DecodedConeProductionSectionV1 = decode_canonical(&bytes).unwrap();
-    assert_eq!(encode(&shared).unwrap(), bytes);
-    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    let replayed = replay_section(&fixture, &bytes, &definitions).unwrap();
-
-    assert_eq!(
-        replayed.canonical_definitions(),
-        original.canonical_definitions()
-    );
-    assert_eq!(
-        replayed.object_definition_plans(),
-        original.object_definition_plans()
-    );
-    assert_eq!(
-        replayed.digest_finalization_plan(),
-        original.digest_finalization_plan()
-    );
-    assert_eq!(
-        replayed.registration_identities(),
-        original.registration_production().identities()
-    );
-    assert_eq!(
-        replayed.type_registrations(),
-        original.registration_production().types()
-    );
-    assert_eq!(replayed.image_plan(), original.image_plan());
-    assert_eq!(replayed.entry_plan(), original.entry_plan());
-    assert_eq!(replayed.shape_support_plan(), original.shape_support_plan());
-    assert_eq!(
-        replayed.generated_bridge_plan(),
-        original.generated_bridge_plan()
-    );
-}
-
-#[test]
-fn ten_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
-    let fixture = complete_fixture();
-    let original = section(&fixture);
-    let bytes = encode(&original).unwrap();
-    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[], &[]).unwrap();
-    assert!(matches!(
-        replay_section(&fixture, &bytes, &empty),
-        Err(SectionError::Registrations(Error::TypeReference(_)))
-    ));
-    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    let mut altered = bytes;
-    let atom = fixture.foundation.definition_atoms()[0].id();
-    let position = altered
-        .windows(32)
-        .position(|bytes| bytes == atom.as_array())
-        .unwrap();
-    altered[position] ^= 1;
-    assert!(matches!(
-        replay_section(&fixture, &altered, &definitions),
-        Err(SectionError::SectionMismatch)
-    ));
-}
-
-#[test]
-fn ten_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
-    let fixture = complete_fixture();
-    let bytes = crate::production::cone_section::tests::without_image_input(
-        &section(&fixture),
-        &fixture.foundation,
-    );
-    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    assert!(matches!(
-        replay_section(&fixture, &bytes, &definitions),
-        Err(SectionError::DigestMismatch)
-    ));
+    let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 #[test]
 fn final_layout_join_keeps_dependency_checks_for_unexported_local_types() {
     let fixture = complete_fixture();
-    let bytes = encode(&section(&fixture)).unwrap();
-    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    let replayed = replay_section(&fixture, &bytes, &definitions).unwrap();
+    let production = section(&fixture);
     let layout = empty_layout_section();
     assert!(matches!(
-        replayed.validate_layout_abi(&layout),
+        production.validate_layout_abi(&layout),
         Err(crate::StrongProductionLayoutJoinError::MissingSelectedDescriptor { provider, .. })
             if provider == ConeIdentity::CORE
     ));

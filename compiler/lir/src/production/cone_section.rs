@@ -229,14 +229,16 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
     }
 }
 
+mod compile;
+pub use compile::{CompileInitializationUnit, CompileProduction};
 mod decoded;
 mod link;
 pub use decoded::*;
 pub use link::{ProgramLinkDefinition, ProgramLinkProduction};
 
+mod layout_join;
 mod registrations;
-mod replay;
-pub use replay::StrongProductionLayoutJoinError;
+pub use layout_join::StrongProductionLayoutJoinError;
 
 impl DecodedConeProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]
@@ -312,11 +314,7 @@ impl std::error::Error for ConeProductionSectionBuildError {}
 pub enum ConeProductionSectionValidationError {
     CanonicalCallables(crate::CanonicalCallableAbiError),
     CanonicalShapes(crate::CanonicalShapeAbiError),
-    DigestReplay(Box<crate::DigestPlanReplayError>),
-    DigestProjection(Box<crate::DigestProjectionError>),
-    DigestMismatch,
     Encode(scoop_wire::cbor::EncodeError),
-    Resource(WireError),
     DigestPlan(DigestPlanValidationError),
     Registrations(StrongRegistrationProductionValidationError),
     Expected(ConeProductionSectionBuildError),

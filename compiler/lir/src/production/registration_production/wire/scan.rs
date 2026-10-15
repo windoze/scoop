@@ -87,3 +87,36 @@ impl WireDecode for DecodedRefScan {
         }
     }
 }
+
+impl DecodedRefScan {
+    pub(in crate::production::registration_production) fn read(
+        self,
+    ) -> Result<crate::RefScan, crate::LinkDataError> {
+        use crate::{NonEmptyRefScan, RefScan, link_data::link_error};
+        Ok(match self {
+            Self::None => RefScan::None,
+            Self::References(offsets) => RefScan::References(offsets),
+            Self::Sequence(parts) => RefScan::Sequence(
+                parts
+                    .into_iter()
+                    .map(Self::read)
+                    .collect::<Result<_, _>>()?,
+            ),
+            Self::Array {
+                length_offset,
+                first_element_offset,
+                stride,
+                element,
+            } => RefScan::Array {
+                length_offset,
+                first_element_offset,
+                stride: std::num::NonZeroU64::new(stride)
+                    .ok_or_else(|| link_error("zero array scan stride"))?,
+                element: Box::new(
+                    NonEmptyRefScan::new(element.read()?)
+                        .ok_or_else(|| link_error("empty array element scan"))?,
+                ),
+            },
+        })
+    }
+}

@@ -2,8 +2,6 @@
 
 use super::*;
 
-pub(super) mod foundation;
-
 impl DecodedDigestFinalizationPlanV1 {
     pub fn validate(
         self,

@@ -161,53 +161,8 @@ fn exercise_dependency_production(provider: Provider) {
             if *found == provider.identity && *body == provider.callable_body
     ));
     let section = produced;
-    let bytes = encode(&section).unwrap();
-    let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
-    let definitions = [
-        StrongShapeDefinitionRefV1::from_foundation(
-            ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),
-            provider.output.foundation(),
-        )
-        .unwrap(),
-        StrongShapeDefinitionRefV1::from_foundation(
-            ExternalStrongShapeSubjectV1::Callable(
-                scoop_identity::CallableDefinitionOwner::Strong(provider.callable),
-            ),
-            provider.output.foundation(),
-        )
-        .unwrap(),
-    ];
-    let replayed = decoded
-        .replay(
-            consumer_coordinate.clone(),
-            &[provider.identity],
-            TARGET,
-            output.foundation(),
-            EntryProductionSourceV1::Library,
-            &[],
-            &StrongTypeReferenceDefinitionsV2::new(
-                output.foundation().producer(),
-                &definitions,
-                &[],
-            )
-            .unwrap(),
-            &StrongInitializationDefinitionCatalogV2::new(
-                output.foundation().producer(),
-                &[initialization_definition],
-            )
-            .unwrap(),
-        )
-        .unwrap();
-    physical_replay::check_join(&provider, &replayed, &complete);
-    let validated = replayed.validate_layout_abi(&complete).unwrap();
-    assert_eq!(
-        validated.type_registrations(),
-        section.registration_production().types()
-    );
-    assert_eq!(
-        validated.initialization_registrations(),
-        section.registration_production().initialization_units()
-    );
+    physical_replay::check_join(&provider, &complete);
+    section.validate_layout_abi(&complete).unwrap();
 }
 
 #[test]

@@ -13,7 +13,7 @@ pub use contract::{DecodedShapeLinkContractV1, ShapeLinkContractV1};
 pub use decoded::DecodedExternalShapeLinkImportV1;
 pub use error::ShapeLinkError;
 pub use import::ExternalShapeLinkImportV1;
-pub use provider::{ShapeLinkProviderPartsV1, ShapeLinkProviderV1};
+pub use provider::{ShapeLinkProviderPartsV1, ShapeLinkProviderV1, ShapeLinkSupportV1};
 pub use table::{CanonicalExternalShapeLinkImportsV1, DecodedCanonicalExternalShapeLinkImportsV1};
 
 #[cfg(test)]

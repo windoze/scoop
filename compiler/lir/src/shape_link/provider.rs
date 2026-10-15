@@ -5,12 +5,12 @@ use crate::*;
 
 pub(super) mod contracts;
 mod support;
+pub use support::ShapeLinkSupportV1;
 
 pub struct ShapeLinkProviderPartsV1<'a> {
     pub foundation: &'a ConeLirFoundation,
     pub definitions: &'a ObjectSymbolSurfaceV1,
-    pub static_storages: &'a StrongStaticStorageRegistrationPlanSetV1,
-    pub initialization: &'a StrongInitializationUnitRegistrationPlanSetV2,
+    pub support: ShapeLinkSupportV1<'a>,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layouts: &'a CanonicalExactLayoutExportsV1,
     pub callables: &'a CanonicalExactCallableAbiExportsV1,
@@ -32,8 +32,8 @@ impl<'a> ShapeLinkProviderV1<'a> {
             parts.callables.provider(),
             parts.descriptors.provider(),
             parts.dispatch.provider(),
-            parts.static_storages.producer(),
-            parts.initialization.producer(),
+            parts.support.providers()[0],
+            parts.support.providers()[1],
         ]
         .into_iter()
         .any(|actual| actual != provider)

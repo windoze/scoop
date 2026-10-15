@@ -129,8 +129,10 @@ impl ProviderFixture {
         ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: &self.source.foundation,
             definitions: self.section.canonical_definitions(),
-            static_storages: self.section.static_storage_registrations(),
-            initialization: self.section.initialization_registrations(),
+            support: ShapeLinkSupportV1::Produced {
+                static_storages: self.section.static_storage_registrations(),
+                initialization: self.section.initialization_registrations(),
+            },
             ordinary: &self.ordinary,
             layouts: &self.layouts,
             callables: &self.callables,

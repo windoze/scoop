@@ -11,10 +11,8 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 
 mod complete_image;
-mod digests;
 use crate::DigestNodeV1;
 pub(in crate::production) use complete_image::attach_image;
-pub(in crate::production) use digests::without_image_input;
 
 #[test]
 fn strong_section_has_ten_closed_fields_and_round_trips() {

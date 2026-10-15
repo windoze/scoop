@@ -7,7 +7,6 @@ pub(super) fn validate_static_storages(
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
     identities: &RegistrationIdentitySurfaceV1,
-    dependencies: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongStaticStorageSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::StaticStorage,
@@ -79,27 +78,11 @@ pub(super) fn validate_static_storages(
                 )
             })?
         } else {
-            let value = dependencies
-                .and_then(|dependencies| {
-                    dependencies.resolve_value_layout(decoded.layout_provider, decoded.layout)
-                })
-                .ok_or_else(|| {
-                    semantic_error(
-                        RegistrationProductionTableV1::StaticStorage,
-                        index,
-                        "dependency_layout",
-                    )
-                })?;
-            if value.scan().as_array() != decoded.scan.as_array()
-                || foundation.contains_layout(value.identity().layout())
-            {
-                return Err(semantic_error(
-                    RegistrationProductionTableV1::StaticStorage,
-                    index,
-                    "scan_relation",
-                ));
-            }
-            crate::StaticStorageLayout::External(value)
+            return Err(semantic_error(
+                RegistrationProductionTableV1::StaticStorage,
+                index,
+                "dependency_layout",
+            ));
         };
         if layout.layout_key().target_profile() != &target.wire_id()
             || layout.layout_key().representation() == RepresentationRole::ManagedObject

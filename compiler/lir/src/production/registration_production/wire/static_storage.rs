@@ -1,6 +1,7 @@
 //! Untrusted static storage registration carriers.
 
 use super::*;
+mod read;
 
 #[derive(Debug)]
 pub(in crate::production::registration_production) struct DecodedStaticImmortalRelocationPlanV1 {

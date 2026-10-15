@@ -74,14 +74,15 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
         &mut scoop_identity::SemanticIdentitySession::new(),
     )
     .unwrap();
-    let compile_image = closure
-        .current_compile()
-        .production()
-        .lir_strong()
-        .image_plan();
-    let link_image = closure.current_link().strong_production().image_plan();
-    assert_eq!(compile_image, link_image);
-    assert_eq!(compile_image.dependencies(), dependencies);
+    assert_eq!(
+        closure
+            .current_link()
+            .direct_dependencies()
+            .iter()
+            .map(|dependency| dependency.identity())
+            .collect::<Vec<_>>(),
+        dependencies,
+    );
     let selected = closure
         .current_compile()
         .production()
@@ -96,12 +97,19 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
         coordinates[1].identity().unwrap(),
     ] {
         let semantic = closure.semantic().direct_provider(provider).unwrap();
-        let image = semantic.production().lir_strong().image_plan();
+        let manifest = semantic.production().layout().manifest();
         let expected = if provider == ConeIdentity::CORE {
             vec![]
         } else {
             vec![ConeIdentity::CORE]
         };
-        assert_eq!(image.dependencies(), expected);
+        assert_eq!(
+            manifest
+                .direct_dependencies()
+                .iter()
+                .map(|dependency| dependency.identity())
+                .collect::<Vec<_>>(),
+            expected
+        );
     }
 }

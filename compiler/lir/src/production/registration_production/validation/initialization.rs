@@ -4,9 +4,6 @@ use super::*;
 use scoop_identity::PersistentInitializationUnitId;
 use scoop_wire::WirePath;
 
-mod v2;
-pub use v2::validate_initialization_registration_constituents_v2;
-
 pub(super) fn validate_initialization_units(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,

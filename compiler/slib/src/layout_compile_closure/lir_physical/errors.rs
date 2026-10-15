@@ -6,7 +6,6 @@ pub enum SharedLirPhysicalError {
     Resource(scoop_wire::WireError),
     Layout(Box<lir::LayoutAbiSectionError>),
     Contract(Box<lir::ShapeLinkError>),
-    Strong(Box<lir::StrongProductionLayoutJoinError>),
     OdrDefinitions(Box<OdrDefinitionMergeError>),
 }
 
@@ -21,7 +20,6 @@ macro_rules! from_error {
 }
 from_error!(lir::LayoutAbiSectionError, Layout);
 from_error!(lir::ShapeLinkError, Contract);
-from_error!(lir::StrongProductionLayoutJoinError, Strong);
 impl From<scoop_wire::WireError> for SharedLirPhysicalError {
     fn from(value: scoop_wire::WireError) -> Self {
         Self::Resource(value)

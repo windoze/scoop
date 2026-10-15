@@ -16,16 +16,8 @@ impl ConeProductionSectionV2 {
         layout: &crate::CrossConeLayoutAbiSectionV1<'_>,
     ) -> Result<Self, StrongProductionLayoutJoinError> {
         local::validate(&self, layout.exports())?;
-        selected::validate(&self, selected::Selection::Complete(layout.selected()))?;
+        selected::validate(&self, selected::Selection(layout.selected()))?;
         Ok(self)
-    }
-
-    pub fn validate_layout_selection(
-        &self,
-        layout: &crate::PhysicalImportsReplayedLayoutAbiSectionV1,
-    ) -> Result<(), StrongProductionLayoutJoinError> {
-        local::validate(self, layout.exports())?;
-        selected::validate(self, selected::Selection::Replayed(layout))
     }
 }
 

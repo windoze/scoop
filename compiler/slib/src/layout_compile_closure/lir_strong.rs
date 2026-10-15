@@ -1,4 +1,4 @@
-//! Complete Strong V2 physical replay within the owned dependency closure.
+//! Read saved production inputs within the dependency closure.
 
 use scoop_lir as lir;
 use scoop_wire::WirePath;
@@ -12,36 +12,31 @@ use super::{
 };
 use crate::dependency_reachability::transitive_positions;
 
-mod dependencies;
 mod errors;
-mod functions;
-mod initialization;
-mod replay;
-pub use errors::{CrossConeLayoutLirStrongProductionError, SharedLirStrongProductionError};
+pub use errors::CrossConeLayoutLirProductionDataError;
 
-/// Physical replay retains the unresolved selected/layout transport. It is
-/// not a publishable Compile capability or a committed production section.
-pub type LirStrongProductionReplayedCrossConeLayoutSections<'input> =
+/// Saved definition and initialization data for dependency compilation.
+pub type LirProductionDataCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ConeProductionSectionV2,
+        lir::CompileProduction,
     >;
-pub type LirStrongProductionReplayedCrossConeLayoutClosure<'input> =
+pub type LirProductionDataCrossConeLayoutClosure<'input> =
     LirConstituentsValidatedCrossConeLayoutClosure<
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ConeProductionSectionV2,
+        lir::CompileProduction,
     >;
 
 impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
-    pub fn replay_lir_strong_production(
+    pub fn read_lir_production_data(
         self,
     ) -> Result<
-        LirStrongProductionReplayedCrossConeLayoutClosure<'input>,
-        CrossConeLayoutLirStrongProductionError,
+        LirProductionDataCrossConeLayoutClosure<'input>,
+        CrossConeLayoutLirProductionDataError,
     > {
         let Self {
             current,
@@ -51,11 +46,10 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
             positions,
             dependency_positions,
         } = self;
-        let mut complete: Vec<LirStrongProductionReplayedCrossConeLayoutSections<'input>> =
-            Vec::new();
+        let mut complete: Vec<LirProductionDataCrossConeLayoutSections<'input>> = Vec::new();
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
-            let resolve = || -> Result<_, SharedLirStrongProductionError> {
+            let resolve = || -> Result<_, lir::LinkDataError> {
                 let LirExportsValidatedCrossConeLayoutSections {
                     mut prepared,
                     mir,
@@ -67,34 +61,26 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
 
                 let path = WirePath::root();
 
-                let coordinate = prepared.coordinate();
-                let coordinate = coordinate.clone();
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions)?;
-                let mut dependencies = Vec::new();
-                scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &path)?;
-                dependencies.extend(reachable.iter().map(|&index| &complete[index]));
-                let mut direct_providers = Vec::new();
-                scoop_wire::allocation::try_reserve(
-                    &mut direct_providers,
-                    dependency_positions[position].len(),
-                    &path,
-                )?;
-                direct_providers.extend(
-                    dependency_positions[position]
-                        .iter()
-                        .map(|&index| complete[index].identity()),
-                );
-                let strong = replay::replay(
-                    coordinate,
-                    &direct_providers,
-                    target.target(),
-                    strong,
-                    parts,
+                let reachable = transitive_positions(position, &dependency_positions)
+                    .map_err(|error| lir::LinkDataError(error.to_string()))?;
+                let dependencies = reachable
+                    .iter()
+                    .map(|&index| &complete[index].strong)
+                    .collect::<Vec<_>>();
+                let layouts = reachable
+                    .iter()
+                    .map(|&index| complete[index].layout.exports().layouts())
+                    .collect::<Vec<_>>();
+                let strong = strong.read_compile(
+                    parts.lir_foundation,
+                    parts.identities,
+                    &layouts,
                     &dependencies,
                 )?;
-                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
-                Ok(LirStrongProductionReplayedCrossConeLayoutSections {
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)
+                    .map_err(|error| lir::LinkDataError(error.to_string()))?;
+                Ok(LirProductionDataCrossConeLayoutSections {
                     prepared,
                     mir,
                     units,
@@ -103,13 +89,11 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 })
             };
-            let artifact = resolve().map_err(|source| CrossConeLayoutLirStrongProductionError {
-                provider,
-                source: Box::new(source),
-            })?;
+            let artifact = resolve()
+                .map_err(|source| CrossConeLayoutLirProductionDataError { provider, source })?;
             complete.push(artifact);
         }
-        Ok(LirStrongProductionReplayedCrossConeLayoutClosure {
+        Ok(LirProductionDataCrossConeLayoutClosure {
             current,
             target,
             direct,
@@ -120,8 +104,8 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
     }
 }
 
-impl LirStrongProductionReplayedCrossConeLayoutSections<'_> {
-    pub const fn lir_strong_production(&self) -> &lir::ConeProductionSectionV2 {
+impl LirProductionDataCrossConeLayoutSections<'_> {
+    pub const fn lir_production_data(&self) -> &lir::CompileProduction {
         &self.strong
     }
 }

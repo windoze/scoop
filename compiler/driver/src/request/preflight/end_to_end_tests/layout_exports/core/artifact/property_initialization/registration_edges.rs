@@ -63,17 +63,5 @@ pub(super) fn check(
             scoop_lir_lower::LayoutAbiDependencyLoweringError::InitializationEdges(error)
                 if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
         ));
-        let error = scoop_slib::replay_shared_lir_initialization_dependencies(
-            input.bridge.initialization_uses(),
-            registration
-                .registration_production()
-                .initialization_units(),
-        )
-        .unwrap_err();
-        assert!(matches!(
-            error,
-            scoop_slib::SharedLirDependencyGraphError::InitializationEdges(error)
-                if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
-        ));
     }
 }

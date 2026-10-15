@@ -79,27 +79,6 @@ pub(super) fn check<'a, 'p>(
     let section =
         lir::CrossConeLayoutAbiSectionV1::try_new(exports, &[provider.layout], imports, &roots)
             .unwrap();
-    let relations = section.selected().semantic_relations().collect::<Vec<_>>();
-    let decoded = super::super::super::lir_dependencies::corruption::wire::resolve(
-        &section,
-        &relations,
-        source_input.identities,
-    )
-    .unwrap();
-    let foundation =
-        hir::CanonicalHirFoundation::from_type_semantics_output(source_input.hir).unwrap();
-    scoop_slib::replay_shared_lir_dependency_graph(
-        hir::SharedTypeMetadataV1 {
-            provider: source_input.mir.module().cone,
-            identities: source_input.identities,
-            foundation: &foundation,
-            public: source_input.public,
-        },
-        &decoded,
-        &[provider.layout],
-        registration.static_storage_registrations().registrations(),
-    )
-    .unwrap();
     let production = registration.validate_layout_abi(&section).unwrap();
     assert_eq!(
         production.type_registrations().registrations().len(),
