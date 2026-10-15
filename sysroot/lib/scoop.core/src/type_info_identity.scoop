@@ -1,28 +1,28 @@
-public class NominalRef public constructor(private val identity: String) : Equals<NominalRef> {
+public struct NominalRef(val identity: String) : Equals<NominalRef> {
     public override operator fun equals(other: NominalRef): Boolean = identity == other.identity
 }
 
-public class FieldRef public constructor(private val identity: String) : Equals<FieldRef> {
+public struct FieldRef(val identity: String) : Equals<FieldRef> {
     public override operator fun equals(other: FieldRef): Boolean = identity == other.identity
 }
 
-public class PropertyRef public constructor(private val identity: String) : Equals<PropertyRef> {
+public struct PropertyRef(val identity: String) : Equals<PropertyRef> {
     public override operator fun equals(other: PropertyRef): Boolean = identity == other.identity
 }
 
-public class AccessorRef public constructor(private val identity: String) : Equals<AccessorRef> {
+public struct AccessorRef(val identity: String) : Equals<AccessorRef> {
     public override operator fun equals(other: AccessorRef): Boolean = identity == other.identity
 }
 
-public class VariantRef public constructor(private val identity: String) : Equals<VariantRef> {
+public struct VariantRef(val identity: String) : Equals<VariantRef> {
     public override operator fun equals(other: VariantRef): Boolean = identity == other.identity
 }
 
-public class ConstructorRef public constructor(private val identity: String) : Equals<ConstructorRef> {
+public struct ConstructorRef(val identity: String) : Equals<ConstructorRef> {
     public override operator fun equals(other: ConstructorRef): Boolean = identity == other.identity
 }
 
-public class ParameterRef public constructor(private val identity: String) : Equals<ParameterRef> {
+public struct ParameterRef(val identity: String) : Equals<ParameterRef> {
     public override operator fun equals(other: ParameterRef): Boolean = identity == other.identity
 }
 

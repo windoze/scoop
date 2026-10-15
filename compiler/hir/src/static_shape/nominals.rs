@@ -2,6 +2,7 @@ use super::*;
 
 mod parents;
 mod primitives;
+mod relationships;
 
 #[derive(Clone, Copy)]
 pub enum StaticNominalOrigin {

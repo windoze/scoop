@@ -40,6 +40,7 @@ pub struct PropertyDeclarationRecordV1 {
     accessors: PropertyAccessorsV1,
     representation: PropertyRepresentationV1,
     visibility: DeclaredVisibilityV1,
+    overrides: Vec<scoop_identity::PersistentPropertyId>,
 }
 
 impl PropertyDeclarationRecordV1 {
@@ -72,7 +73,17 @@ impl PropertyDeclarationRecordV1 {
             accessors,
             representation,
             visibility,
+            overrides: Vec::new(),
         })
+    }
+
+    pub fn with_overrides(mut self, overrides: Vec<scoop_identity::PersistentPropertyId>) -> Self {
+        self.overrides = overrides;
+        self
+    }
+
+    pub fn overrides(&self) -> &[scoop_identity::PersistentPropertyId] {
+        &self.overrides
     }
 
     pub const fn declaration(&self) -> PropertyDeclarationId {

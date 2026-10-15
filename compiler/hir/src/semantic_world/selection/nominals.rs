@@ -52,6 +52,40 @@ impl ImportedNominalDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    /// Description generation also needs types of uncalled constructors and
+    /// computed properties, which do not participate in the storage layout.
+    pub fn description_member_types(
+        &self,
+        owner: SourceNominalId,
+    ) -> impl Iterator<Item = &scoop_identity::SignatureTypeKey> {
+        let owner = crate::PublicDeclarationOwnerV1::Nominal(owner);
+        self.catalog
+            .properties
+            .values()
+            .filter(move |property| property.interface.owner() == owner)
+            .map(|property| property.interface.value_type())
+            .chain(
+                self.catalog
+                    .callables
+                    .values()
+                    .filter(move |callable| {
+                        callable.interface.owner() == owner
+                            && matches!(
+                                callable.interface.declaration(),
+                                scoop_identity::CallableTemplateOrigin::Constructor(_)
+                            )
+                    })
+                    .flat_map(|callable| {
+                        callable
+                            .interface
+                            .parameters()
+                            .parameters()
+                            .iter()
+                            .map(|parameter| parameter.value_type())
+                    }),
+            )
+    }
+
     /// Queries declaration identity directly, including private storage support.
     /// Source visibility is checked by the caller's binding or member lookup.
     pub fn nominal(&self, id: PersistentTypeId) -> Option<&Arc<ImportedNominalDeclaration>> {

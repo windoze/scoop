@@ -214,6 +214,8 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::PrimitiveBinary(_)
             | hir::IntrinsicFunctionKind::Pointer(_)
             | hir::IntrinsicFunctionKind::CurrentSourceLocation
+            | hir::IntrinsicFunctionKind::TypeReference
+            | hir::IntrinsicFunctionKind::TypeDescription
             | hir::IntrinsicFunctionKind::ForeignCallbackRegister
             | hir::IntrinsicFunctionKind::ForeignCallbackRetain
             | hir::IntrinsicFunctionKind::ForeignCallbackRelease

@@ -76,6 +76,20 @@ pub(super) fn project(
         representation,
         property.access.declared.into(),
     )
+    .map(|record| {
+        record.with_overrides(
+            property
+                .overrides
+                .iter()
+                .map(|reference| match reference {
+                    crate::PropertyReference::Local(id) => export.property_identities[*id]
+                        .ordinary_id()
+                        .expect("member overrides reference ordinary properties"),
+                    crate::PropertyReference::Imported { declaration, .. } => *declaration,
+                })
+                .collect(),
+        )
+    })
     .map_err(|source| Error::Record {
         property: declaration,
         source,

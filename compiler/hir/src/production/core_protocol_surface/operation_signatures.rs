@@ -17,7 +17,10 @@ pub(super) fn expected_operation_signature(
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
     let (effect, parameters, result) = match kind {
-        IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_) => {
+        IntrinsicFunctionKind::Atomic(_)
+        | IntrinsicFunctionKind::MaybeUninit(_)
+        | IntrinsicFunctionKind::TypeReference
+        | IntrinsicFunctionKind::TypeDescription => {
             unreachable!("these signatures come from their ordinary nominal declaration")
         }
         IntrinsicFunctionKind::Float(kind) => {
@@ -294,6 +297,7 @@ fn expected_pointer_signature(
 pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) -> u32 {
     match kind {
         IntrinsicFunctionKind::DataBorrow(kind) => kind.type_parameter_count(),
+        IntrinsicFunctionKind::TypeReference | IntrinsicFunctionKind::TypeDescription => 1,
         IntrinsicFunctionKind::GcPinRaw
         | IntrinsicFunctionKind::GcUnpinRaw
         | IntrinsicFunctionKind::GcGetHandleRaw

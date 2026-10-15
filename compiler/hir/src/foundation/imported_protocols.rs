@@ -192,11 +192,16 @@ pub struct ImportedCoreProtocols {
     foreign_callback_protocol: ImportedCoreForeignCallbackProtocol,
     source_location_protocol: ImportedCoreSourceLocationProtocol,
     program_arguments: ImportedCoreProtocolCallable,
+    type_reference: ImportedCoreProtocolCallable,
 }
 
 impl ImportedCoreProtocols {
     pub const fn program_arguments(&self) -> &ImportedCoreProtocolCallable {
         &self.program_arguments
+    }
+
+    pub const fn type_reference(&self) -> &ImportedCoreProtocolCallable {
+        &self.type_reference
     }
 
     pub(crate) fn import(
@@ -234,6 +239,7 @@ impl ImportedCoreProtocols {
                 protocols.source_location_protocol(),
             )?,
             program_arguments: import::import_callable(foundation, protocols.program_arguments())?,
+            type_reference: import::import_callable(foundation, protocols.type_reference())?,
         })
     }
 

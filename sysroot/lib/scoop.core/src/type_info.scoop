@@ -1,3 +1,25 @@
+public fun <T> typeInfo(): TypeInfo<T> = TypeInfo<T>(__scoopTypeReference<T>())
+
+internal fun <T> __scoopTypeReference(): TypeRef {
+    val data = coreTypeReference<T>()
+    return TypeRef(data.identity, data.displayName, data.nominal, data.arguments, {
+        coreTypeDescription<T>()
+    })
+}
+
+internal struct TypeReferenceData(
+    val identity: String,
+    val displayName: String,
+    val nominal: Option<NominalRef>,
+    val arguments: Array<TypeRef>
+)
+
+@Intrinsic("type_reference")
+internal fun <T> coreTypeReference(): TypeReferenceData
+
+@Intrinsic("type_description")
+internal fun <T> coreTypeDescription(): TypeDescription
+
 public struct TypeInfo<T>(val type: TypeRef) {
     public fun describe(): TypeDescription = type.describe()
 }

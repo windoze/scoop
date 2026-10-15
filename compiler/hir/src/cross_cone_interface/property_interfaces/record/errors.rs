@@ -120,6 +120,7 @@ impl std::error::Error for PropertyInterfaceRecordBuildError {}
 
 #[derive(Debug)]
 pub enum PropertyInterfaceRecordResolutionError<E> {
+    Override(E),
     Declaration(E),
     Owner(E),
     TypeParameters(BinderListValidationError<E>),
@@ -133,6 +134,7 @@ impl<E: fmt::Display> fmt::Display for PropertyInterfaceRecordResolutionError<E>
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Declaration(error) => write!(formatter, "invalid property declaration: {error}"),
+            Self::Override(error) => write!(formatter, "invalid overridden property: {error}"),
             Self::Owner(error) => write!(formatter, "invalid property owner: {error}"),
             Self::TypeParameters(error) => {
                 write!(formatter, "invalid property type parameters: {error}")

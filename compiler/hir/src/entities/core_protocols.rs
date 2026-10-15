@@ -17,6 +17,8 @@ pub enum CoreProtocols {
 pub struct DefinedCoreProtocols {
     /// Ordinary core body that constructs the root entry argument array.
     pub program_arguments: FunctionId,
+    /// Ordinary generic factory used by generated child type references.
+    pub type_reference: FunctionId,
     /// Checked `Option<T>` source contract used by nullable syntax.
     pub option: OptionCore,
     /// Source iteration protocol and its dispatch target.

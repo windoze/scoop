@@ -23,6 +23,21 @@ pub(crate) fn core_file() -> SourceFile {
     equals.operator = Some(ast::OperatorModifier { span: sp() });
     declarations.push(generic_interface_decl("Equals", vec!["T"], vec![equals]));
     declarations.extend(intrinsic_type_declarations());
+    declarations.push(class_decl(
+        ast::ClassModifier::Final,
+        "TypeRef",
+        vec![],
+        None,
+        vec![],
+        vec![],
+    ));
+    declarations.push(fun_sig(
+        "__scoopTypeReference",
+        vec!["T"],
+        Vec::new(),
+        Some(ty_named("TypeRef")),
+        vec![throw_stmt(call("IllegalStateException", vec![]))],
+    ));
     declarations.extend(super::floating::floating_declarations());
     declarations.extend([
         struct_decl(
@@ -260,7 +275,9 @@ fn make_declaration_public(declaration: &mut Decl) {
         Decl::Function(function)
             if !matches!(
                 function.name.text.as_str(),
-                "__scoopThrowInitializationCycle" | "__scoopProgramArguments"
+                "__scoopThrowInitializationCycle"
+                    | "__scoopProgramArguments"
+                    | "__scoopTypeReference"
             ) =>
         {
             make_function_public(function)

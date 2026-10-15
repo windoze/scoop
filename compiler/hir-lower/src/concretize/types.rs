@@ -316,7 +316,7 @@ impl Concretizer<'_> {
         function
     }
 
-    fn intern_function_type(
+    pub(super) fn intern_function_type(
         &mut self,
         is_suspend: bool,
         parameter_types: Vec<concrete::TypeId>,
@@ -325,7 +325,7 @@ impl Concretizer<'_> {
         self.intern_receiver_function_type(is_suspend, None, parameter_types, return_type)
     }
 
-    fn intern_receiver_function_type(
+    pub(super) fn intern_receiver_function_type(
         &mut self,
         is_suspend: bool,
         receiver: Option<concrete::TypeId>,

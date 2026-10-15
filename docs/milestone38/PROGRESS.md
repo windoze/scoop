@@ -22,6 +22,18 @@ core 新增六个普通 Scoop 模块，提供 TypeInfo／TypeRef／TypeShape、�
 
 本批仅交付可运行的普通数据层。用例主动构造描述值以检验库合同，**不把它计作编译器自动查询的验收**；typeInfo／annotationKey 源码查询及描述生成仍待实现，M38-1 尚未达到退出条件。Linux 仍留待本机完整功能批次稳定后统一进行。
 
+## TypeInfo 自动查询
+
+公开 typeInfo<T>() 由普通 core 泛型函数实现，内部引用数据和当前层描述 intrinsic 在 concrete HIR 生成普通值、数组、闭包和函数调用。子类型使用惰性 TypeRef；精确类型字符串从既有 exact-type 身份表读取，MIR 不重算身份，也不增加 runtime ABI 或运行期注册表。七种成员引用及 AnnotationKey 使用普通 struct。
+
+生成逻辑复用静态声明视图，覆盖全部类型形状、字段／property／accessor、基类／接口、构造参数映射、原声明 Option 事实、类型使用路径和注解参数／默认值。property override 的已绑定身份随共有接口保存；描述依赖的注解参数、计算属性结果和未调用构造器参数类型走正常加载流程。注解声明的惰性辅助函数保留实际 annotation identity 与查询所在 callable template，并继承其实例化上下文；跨 Cone 复用现有 ODR 归属，避免重复 Strong 定义。
+
+本机 5 个新 fixture 最终均通过，6 个 writer／普通数据模型回归也通过。正例实际运行普通和 moving-GC 两种模式；总计 11 项、11 variants、33 processes，不保存普通功能 IR 快照。覆盖同型递归、透明 alias、泛型原声明 Option、enum payload／integer enum、私有／计算／委托属性、override、构造关联、泛型 companion、suspend receiver／FunPtr／原生指针、Nothing／atomic、局部泛型／捕获／inner／anonymous 类型。真实 provider .slib 与 consumer 验证普通和泛型查询、嵌套／repeatable 注解、空数组元素种类、浮点原始位型，以及仅由描述引用的类型。负例精确检查 annotation 不能作为 typeInfo 的普通类型实参。
+
+fmt、workspace Clippy 与 release 构建通过。受影响 Rust 测试覆盖 generated callable 15 项、property interfaces 43 项、core protocol surface 10 项、static shapes 9 项、artifact profile 17 项；旧字段数／未知 tag／版本指纹断言按新格式修正后只补验对应测试，全部闭合。HIR core-bootstrap-interface 为 16，cross-cone-interface 为 77；HIR／MIR／LIR identity-foundation 为 10／8／9，旧产物须重建。原始日志与报告继续放在仓库外。
+
+这批交付自动 typeInfo 查询；公开 annotationKey<A>() 尚未实现，不能据此宣称 M38-1 或 M38 完成。Linux 按用户要求留待本机完整功能稳定后统一验收。
+
 ## 剩余交付
 
-TypeInfo／annotationKey 自动查询和全部描述生成、Inspectable 合成与普通访问检查、DebugPrinter、独立 scoop.cli、稳定 CliDecoder、功能跨 Cone 组合及最终三目标验收均未完成。先继续类型描述和其源码／产物消费闭环，再完成值观察、debug 与 CLI；不缩减原设计范围。
+公开 annotationKey<A>() 查询、Inspectable 合成与普通访问检查、DebugPrinter、独立 scoop.cli、稳定 CliDecoder、更完整的跨 Cone 组合及最终三目标验收均未完成。下一步继续注解声明查询，再完成值观察、debug 与 CLI；不缩减原设计范围。

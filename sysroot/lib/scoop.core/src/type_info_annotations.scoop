@@ -1,7 +1,7 @@
-public class AnnotationKey public constructor(
-    private val identity: String,
-    public val displayName: String,
-    private val describeBody: () -> AnnotationDeclarationInfo
+public struct AnnotationKey(
+    val identity: String,
+    val displayName: String,
+    val describeBody: () -> AnnotationDeclarationInfo
 ) : Equals<AnnotationKey> {
     public override operator fun equals(other: AnnotationKey): Boolean = identity == other.identity
 

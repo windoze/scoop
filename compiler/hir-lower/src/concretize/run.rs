@@ -156,7 +156,9 @@ impl Concretizer<'_> {
                 let previous_use = self.type_use_site;
                 self.instantiation_site = site;
                 self.type_use_site = site;
+                let previous_function = self.current_function.replace(id);
                 let function = self.lower_function(&key);
+                self.current_function = previous_function;
                 self.instantiation_site = previous;
                 self.type_use_site = previous_use;
                 let slot = id.into_raw().into_u32() as usize;

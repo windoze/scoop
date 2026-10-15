@@ -508,6 +508,11 @@ impl Lowerer {
         } else {
             None
         };
+        let type_reference = if defines_core {
+            self.validate_type_info_core(files)
+        } else {
+            None
+        };
         let exception_core = if defines_core {
             self.validate_exception_core(files)
         } else {
@@ -572,6 +577,12 @@ impl Lowerer {
             self.error(Span::new(0, 0), error);
         }
         self.complete_imported_generic_bodies();
+        if self.diagnostics.is_empty()
+            && let Err(error) = self.prepare_type_info_dependencies()
+        {
+            self.error(Span::new(0, 0), error);
+        }
+        self.complete_imported_generic_bodies();
         if self.diagnostics.is_empty() {
             self.prepare_published_equalities();
         }
@@ -606,6 +617,8 @@ impl Lowerer {
                 hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
                     program_arguments: program_arguments
                         .expect("an invalid program argument builder is diagnosed"),
+                    type_reference: type_reference
+                        .expect("an invalid type reference factory is diagnosed"),
                     option: self
                         .option_core
                         .expect("a missing or invalid core `Option` is always diagnosed"),

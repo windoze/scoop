@@ -78,7 +78,7 @@ impl Concretizer<'_> {
                 };
                 Some((kind, [object.ty, block.ty]))
             }
-            FunctionSource::Companion(..) => None,
+            FunctionSource::AnnotationDescription { .. } | FunctionSource::Companion(..) => None,
         }
     }
 }

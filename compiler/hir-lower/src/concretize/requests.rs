@@ -27,6 +27,12 @@ impl FunctionKey {
 /// A record location is separate from a request's semantic identity.
 #[derive(Clone, Copy)]
 pub(super) enum FunctionSource {
+    AnnotationDescription {
+        annotation: scoop_identity::PersistentAnnotationId,
+        parent: concrete::FunctionId,
+        result: concrete::TypeId,
+        origin: export::ConcreteExpressionOrigin,
+    },
     Local(export::FunctionId),
     Imported(export::ImportedGenericCallableTemplateId),
     Companion(
@@ -60,6 +66,19 @@ impl Concretizer<'_> {
         arguments: Vec<concrete::TypeId>,
     ) -> FunctionKey {
         let definition = match source {
+            FunctionSource::AnnotationDescription {
+                annotation, parent, ..
+            } => FunctionDefinition::Body(export::DefaultCallableDeclarationV1::Generated(
+                scoop_identity::PersistentGeneratedCallableId::from_key(
+                    &scoop_identity::GeneratedCallableKey::AnnotationDescription {
+                        annotation,
+                        parent: self.function_keys[parent.into_raw().into_u32() as usize]
+                            .template_owner()
+                            .expect("a metadata query has a source callable"),
+                    },
+                )
+                .expect("annotation helper has an exact declaration"),
+            )),
             FunctionSource::Local(source) => self.source_function_definition(source),
             FunctionSource::Imported(source) => FunctionDefinition::Body(
                 self.source.imported_generic_templates[source]
@@ -161,6 +180,12 @@ impl Concretizer<'_> {
             return id;
         }
         let (parameter_count, emittable) = match source {
+            FunctionSource::AnnotationDescription { parent, .. } => (
+                self.function_keys[parent.into_raw().into_u32() as usize]
+                    .arguments
+                    .len(),
+                true,
+            ),
             FunctionSource::Local(source) => (
                 self.source.functions[source].type_param_count(),
                 self.is_emittable_source_function(source),
@@ -169,10 +194,13 @@ impl Concretizer<'_> {
                 self.source.imported_generic_templates[source]
                     .type_parameters
                     .len(),
-                !matches!(
-                    self.source.imported_generic_templates[source].implementation,
-                    export::FunctionKind::Intrinsic(_) | export::FunctionKind::Extern(_)
-                ),
+                matches!(&self.source.imported_generic_templates[source].implementation,
+                    export::FunctionKind::Intrinsic(intrinsic)
+                    if intrinsic.kind.is_type_info())
+                    || !matches!(
+                        self.source.imported_generic_templates[source].implementation,
+                        export::FunctionKind::Intrinsic(_) | export::FunctionKind::Extern(_)
+                    ),
             ),
             FunctionSource::Companion(template, _) => (
                 self.source.imported_constructor_templates

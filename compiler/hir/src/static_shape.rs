@@ -3,6 +3,8 @@
 
 use crate::*;
 
+mod annotation_declarations;
+pub use annotation_declarations::*;
 mod annotations;
 mod constructors;
 mod fields;

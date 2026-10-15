@@ -1,6 +1,7 @@
 use super::*;
 use scoop_identity::CallableTemplateOrigin;
 
+mod declarations;
 mod parameters;
 pub use parameters::*;
 
@@ -15,6 +16,7 @@ enum ParameterSource<'a> {
 
 #[derive(Clone, Copy)]
 enum ParameterTargets<'a> {
+    Plain,
     Struct,
     Variant(StaticVariantShape<'a>),
     Class(&'a ClassConstructor),

@@ -8,7 +8,10 @@ pub(super) fn expected_operation_owner(
 ) -> Option<DefinitionOwnerAtom> {
     let fundamental = &surface.fundamental_types;
     match kind {
-        IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_) => {
+        IntrinsicFunctionKind::Atomic(_)
+        | IntrinsicFunctionKind::MaybeUninit(_)
+        | IntrinsicFunctionKind::TypeReference
+        | IntrinsicFunctionKind::TypeDescription => {
             unreachable!("these intrinsics use their ordinary nominal owner")
         }
         IntrinsicFunctionKind::Float(kind) => {

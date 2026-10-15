@@ -8,7 +8,8 @@ public enum StorageOrigin {
     Backing(PropertyRef),
     Delegate(PropertyRef),
     Outer,
-    Capture
+    Capture,
+    Generated
 }
 
 public struct FieldInfo(

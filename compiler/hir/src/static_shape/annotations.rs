@@ -139,3 +139,18 @@ impl<'a> StaticVariantShape<'a> {
         target.resolve(self.owner, dependencies)
     }
 }
+
+impl Module {
+    pub fn static_nominal_annotations<'a>(
+        &'a self,
+        declaration: SourceNominalId,
+        world: &ImportedSemanticWorld<'a>,
+    ) -> StaticAnnotations<'a> {
+        match self.nominal_identities.declaration(declaration) {
+            Some(owner) => StaticAnnotations::current(self, SourceAnnotationTarget::Nominal(owner)),
+            None => world
+                .static_nominal_annotations(declaration)
+                .expect("a nominal query retains its source declaration"),
+        }
+    }
+}

@@ -56,6 +56,7 @@ fn reader_rejects_old_property_records_tables_and_lookup_bearing_accessor_sets()
     let suffix = [
         b"\x08".as_slice(),
         &encode(&f.record.declared_visibility()).unwrap(),
+        b"\x09\x80".as_slice(),
     ]
     .concat();
     assert!(seven_fields.ends_with(&suffix));
@@ -80,7 +81,7 @@ fn reader_rejects_old_property_records_tables_and_lookup_bearing_accessor_sets()
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 8,
+            expected: 9,
             actual: 7
         }
     );

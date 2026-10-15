@@ -124,6 +124,14 @@ impl Index<hir::ImportedGenericCallableTemplateId> for ImportedGenericTemplates 
 }
 
 impl ImportedGenericTemplates {
+    pub(crate) fn has_type_info(&self) -> bool {
+        self.templates.iter().flatten().any(|template| {
+            matches!(&template.source, PreparedImportedCallableSource::Declaration(declaration)
+                if matches!(declaration.interface().effects().implementation(),
+                    hir::CallableImplementationV1::Intrinsic(kind) if kind.is_type_info()))
+        })
+    }
+
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedGenericCallableTemplate> {
         self.templates
             .into_iter()

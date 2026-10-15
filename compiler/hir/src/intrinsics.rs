@@ -28,6 +28,8 @@ pub enum IntrinsicFunctionKind {
     CoroutineStart,
     CoroutineSuspend,
     CurrentSourceLocation,
+    TypeReference,
+    TypeDescription,
     ForeignCallbackRegister,
     ForeignCallbackRetain,
     ForeignCallbackRelease,
@@ -47,6 +49,10 @@ pub enum IntrinsicFunctionKind {
 }
 
 impl IntrinsicFunctionKind {
+    pub const fn is_type_info(self) -> bool {
+        matches!(self, Self::TypeReference | Self::TypeDescription)
+    }
+
     pub const fn is_foreign_callback(self) -> bool {
         matches!(
             self,
@@ -81,6 +87,8 @@ impl IntrinsicFunctionKind {
             Self::CoroutineStart => "coroutine_start".to_string(),
             Self::CoroutineSuspend => "coroutine_suspend".to_string(),
             Self::CurrentSourceLocation => "current_source_location".to_string(),
+            Self::TypeReference => "type_reference".to_string(),
+            Self::TypeDescription => "type_description".to_string(),
             Self::ForeignCallbackRegister => "foreign_callback_register".to_string(),
             Self::ForeignCallbackRetain => "foreign_callback_retain".to_string(),
             Self::ForeignCallbackRelease => "foreign_callback_release".to_string(),

@@ -1,0 +1,53 @@
+fun check(condition: Boolean, message: String) {
+    if (!condition) { throw IllegalStateException(Some(message)) }
+}
+
+fun <T> referenceOf(value: T): TypeRef = typeInfo<T>().type
+
+fun <T> localReference(value: T): TypeRef {
+    class Local public constructor(val own: T) {
+        val captured: T = value
+    }
+    return typeInfo<Local>().type
+}
+
+class Host<T> public constructor(val original: T) {
+    inner class Child public constructor(val own: Long) {
+        fun read(): T = original
+    }
+}
+
+fun classShape(reference: TypeRef): ClassInfo = when (reference.describe().shape) {
+    case TypeShape.Class(value) -> value
+   ; else -> throw IllegalStateException()
+}
+
+fun main() {
+    val first = localReference(3L)
+    val second = localReference("text")
+    check(first != second && first.nominal!! == second.nominal!!, "local generic identity")
+    val local = classShape(first)
+    check(local.properties.size == 2L && local.properties[0L].type == typeInfo<Long>().type, "local property substitution")
+    var captured = false
+    for (field in local.storage) {
+        if (field.origin == StorageOrigin.Capture) { captured = true }
+    }
+    check(captured, "capture storage")
+
+    val inner = classShape(typeInfo<Host<String>.Child>().type)
+    check(inner.properties.size == 1L, "inner own properties")
+    var outer = false
+    for (field in inner.storage) {
+        if (field.origin == StorageOrigin.Outer) {
+            outer = field.type == typeInfo<Host<String>>().type
+        }
+    }
+    check(outer, "outer storage type")
+    check(inner.constructors[0L].parameters.size == 1L, "source constructor excludes hidden outer")
+
+    val anonymous = referenceOf(object { val item: Long = 7L })
+    check(classShape(anonymous).properties[0L].type == typeInfo<Long>().type, "anonymous own property")
+    gcCollect()
+    check(classShape(first).properties[1L].type == typeInfo<Long>().type, "local description survives GC")
+    println("local-type-query-ok")
+}

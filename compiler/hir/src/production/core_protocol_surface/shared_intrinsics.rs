@@ -22,7 +22,10 @@ impl CoreCompilerProtocolSurfaceV1 {
         }
         if matches!(
             kind,
-            IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_)
+            IntrinsicFunctionKind::Atomic(_)
+                | IntrinsicFunctionKind::MaybeUninit(_)
+                | IntrinsicFunctionKind::TypeReference
+                | IntrinsicFunctionKind::TypeDescription
         ) {
             // Atomic and MaybeUninit owners are ordinary nominal declarations,
             // not members of the fixed bootstrap protocol surface.

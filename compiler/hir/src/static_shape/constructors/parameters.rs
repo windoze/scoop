@@ -37,6 +37,24 @@ impl<'a> StaticConstructorParameter<'a> {
         }
     }
 
+    pub fn value_type_source(self) -> StaticShapeTypeSource<'a> {
+        match self.constructor.source {
+            ParameterSource::Current(source) => {
+                StaticShapeTypeSource::Hir(match source.parameters[self.index].calling {
+                    ExportParameterCalling::Required { value_type }
+                    | ExportParameterCalling::Default { value_type, .. } => value_type,
+                    ExportParameterCalling::Vararg { parameter_type, .. } => {
+                        self.constructor.owner.module.export_vararg_parameter_types[parameter_type]
+                            .array_type
+                    }
+                })
+            }
+            ParameterSource::Dependency { parameters, .. } => StaticShapeTypeSource::Published(
+                parameters.parameters().parameters()[self.index].value_type(),
+            ),
+        }
+    }
+
     pub fn value_type(
         self,
         binders: &[HirSignatureBinder],
@@ -63,6 +81,7 @@ impl<'a> StaticConstructorParameter<'a> {
     pub fn target(self) -> StaticParameterTarget {
         let owner = self.constructor.owner;
         match self.constructor.targets {
+            ParameterTargets::Plain => StaticParameterTarget::Plain,
             ParameterTargets::Struct => StaticParameterTarget::Field(
                 owner
                     .fields()

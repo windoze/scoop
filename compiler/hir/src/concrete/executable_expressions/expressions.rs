@@ -154,6 +154,7 @@ impl<'a> Traversal<'a> {
                 }
             }
             ExprKind::StringLiteral { .. }
+            | ExprKind::TypeIdentityLiteral(_)
             | ExprKind::IntegerLiteral(_)
             | ExprKind::CharLiteral(_)
             | ExprKind::FloatLiteral(_)

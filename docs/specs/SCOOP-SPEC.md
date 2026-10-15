@@ -1608,7 +1608,7 @@ public fun <T> decodeFrom(decoder: Decoder, codec: Decodable<T>): T =
 | struct | 按声明序排列的字段：独立字段身份、名称、类型、注解、对应构造参数及其已有default引用 |
 | enum | 按声明序排列的variant及其注解；各variant独立的有序payload字段、名称/位置、类型、注解及构造关系 |
 | class | 直接base关系、本owner的存储字段及logical property；保留声明顺序、访问域、存储/计算/委托类别和构造参数映射 |
-| object / companion | 自身的base、存储字段和logical property；companion保留完整宿主application并替换宿主binder，不把宿主实例字段当作自身字段 |
+| object / companion | 自身的base、存储字段和logical property；companion的自身TypeRef保留宿主实参并替换宿主binder，companionHost指向宿主声明；不把宿主实例字段当作自身字段 |
 | interface | 父接口、logical property及其类型/注解；不伪造实例存储字段 |
 | tuple / Unit | 有序元素，位置名从`_1`开始；Unit为空积；没有源码注解或名义字段声明 |
 | 核心intrinsic类型 | 标明其实际表示类别；String、Array、指针等不能因没有普通源码字段就被当作空record |
@@ -1619,6 +1619,8 @@ public fun <T> decodeFrom(decoder: Decoder, codec: Decodable<T>): T =
 静态描述供 11.13 的方法合成使用，并随必要的 `.slib` 类型接口和模板保存。core 的 `TypeInfo<T>`、`TypeRef` 与以下普通不可变描述值使用同一组声明事实。公开描述不提供任意编译期循环、CTFE、按名称取类型、反射构造或调用；普通源码访问仍受 9.1.5 约束。取得私有成员的描述不使其值变得可访问。
 
 #### 9.6.1 类型引用与当前层描述
+
+`typeInfo<T>(): TypeInfo<T>` 返回完整 T 的描述入口；泛型正文中的 T 在单态化时替换，不需要 reified。annotation 声明不是普通类型，不能作为这个查询的类型实参。类型查询不隐式查找 companion，也不合成 Inspectable 或编码接口。
 
 `TypeInfo<T>.type` 保存非泛型 `TypeRef`，`describe()` 等价于 `type.describe()`。`TypeRef` 保存展示名 `displayName`、名义原声明 `nominal: Option<NominalRef>` 与有序具体实参 `arguments: Array<TypeRef>`，实现 `Equals<TypeRef>`。相等按完整类型身份判断，不比较名称、布局或描述对象地址；透明 alias 与展开后的类型相同，函数的 suspend、receiver、参数和结果也参与身份。
 
@@ -1632,7 +1634,7 @@ public fun <T> decodeFrom(decoder: Decoder, codec: Decodable<T>): T =
 
 `NominalRef`、`FieldRef`、`PropertyRef`、`AccessorRef`、`VariantRef`、`ConstructorRef` 和 `ParameterRef` 分别表示实际声明身份并实现自身类型的 Equals。owner 使用完整 TypeRef，泛型声明身份与 application 分开保存；visibility 明确区分 Public、Internal、Protected、Private、Local。
 
-struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系独立保存。storage 的 Declared、Backing、Delegate、Outer、Capture 来源不混入 logical property 列表。
+struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系以 `Option<NominalRef>` 保存：泛型宿主是声明，不伪造某个具体实参。storage 的 Declared、Backing、Delegate、Outer、Capture、Generated 来源不混入 logical property 列表。
 
 `FieldInfo` 与 `PropertyInfo` 保存 `typeUse`，`type` 是其只读便捷属性。`isOptionAtDeclaration` 从原成员完成绑定、展开 alias 后的类型取得，与 11.13 的默认字段规则复用同一事实；原声明 T 具体化为 Option<U> 时仍为 false，原声明 Option<T> 为 true。property 保存实际 getter/setter、被覆写 property 与 Stored/Computed/Delegated 类别，backing/delegate field 仍为独立实体。
 

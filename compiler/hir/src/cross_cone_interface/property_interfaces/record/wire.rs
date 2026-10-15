@@ -2,7 +2,7 @@ use super::*;
 
 impl WireEncode for PropertyDeclarationRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(9)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -18,7 +18,13 @@ impl WireEncode for PropertyDeclarationRecordV1 {
         encoder.field(7)?;
         self.representation.encode(encoder)?;
         encoder.field(8)?;
-        self.visibility.encode(encoder)
+        self.visibility.encode(encoder)?;
+        encoder.field(9)?;
+        encoder.array(self.overrides.len() as u64)?;
+        for id in &self.overrides {
+            id.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -32,6 +38,7 @@ pub struct DecodedPropertyDeclarationRecordV1 {
     accessors: DecodedPropertyAccessorsV1,
     representation: PropertyRepresentationV1,
     visibility: DeclaredVisibilityV1,
+    overrides: Vec<scoop_identity::DecodedPersistentId<scoop_identity::PersistentPropertyId>>,
 }
 
 impl DecodedPropertyDeclarationRecordV1 {
@@ -70,6 +77,15 @@ impl DecodedPropertyDeclarationRecordV1 {
             .accessors
             .resolve(resolver)
             .map_err(PropertyInterfaceRecordResolutionError::Capability)?;
+        let overrides = self
+            .overrides
+            .into_iter()
+            .map(|id| {
+                resolver
+                    .resolve(id)
+                    .map_err(PropertyInterfaceRecordResolutionError::Override)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         PropertyDeclarationRecordV1::try_new(
             declaration,
             owner,
@@ -80,13 +96,14 @@ impl DecodedPropertyDeclarationRecordV1 {
             self.representation,
             self.visibility,
         )
+        .map(|record| record.with_overrides(overrides))
         .map_err(PropertyInterfaceRecordResolutionError::Record)
     }
 }
 
 impl WireEncode for DecodedPropertyDeclarationRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(9)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -102,13 +119,19 @@ impl WireEncode for DecodedPropertyDeclarationRecordV1 {
         encoder.field(7)?;
         self.representation.encode(encoder)?;
         encoder.field(8)?;
-        self.visibility.encode(encoder)
+        self.visibility.encode(encoder)?;
+        encoder.field(9)?;
+        encoder.array(self.overrides.len() as u64)?;
+        for id in &self.overrides {
+            id.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedPropertyDeclarationRecordV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(8)?;
+        decoder.expect_map(9)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedPropertyDeclarationId::decode)?,
             owner: decoder.field(2, DecodedPublicDeclarationOwnerV1::decode)?,
@@ -118,6 +141,12 @@ impl WireDecode for DecodedPropertyDeclarationRecordV1 {
             accessors: decoder.field(6, DecodedPropertyAccessorsV1::decode)?,
             representation: decoder.field(7, PropertyRepresentationV1::decode)?,
             visibility: decoder.field(8, DeclaredVisibilityV1::decode)?,
+            overrides: decoder.field(9, |decoder| {
+                let count = decoder.array()?;
+                (0..count)
+                    .map(|_| scoop_identity::DecodedPersistentId::decode(decoder))
+                    .collect()
+            })?,
         })
     }
 }

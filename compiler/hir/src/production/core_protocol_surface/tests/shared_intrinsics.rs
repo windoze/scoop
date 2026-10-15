@@ -15,6 +15,8 @@ fn every_shared_intrinsic_uses_typed_roles_for_core_and_ordinary_providers() {
                 kind,
                 crate::IntrinsicFunctionKind::Atomic(_)
                     | crate::IntrinsicFunctionKind::MaybeUninit(_)
+                    | crate::IntrinsicFunctionKind::TypeReference
+                    | crate::IntrinsicFunctionKind::TypeDescription
             )
         }) {
             let (source, record) = fixture.callable(kind);

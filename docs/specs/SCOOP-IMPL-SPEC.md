@@ -415,9 +415,9 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/8` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/9`、`core-bootstrap-interface/15`、`cross-cone-interface/76`、`cross-cone-type-semantics/29` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/7`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/77`、`cross-cone-type-semantics/29` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -905,6 +905,12 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 公开描述的递归关系由普通 TypeRef 和闭包断开，引用构造不调用其 describe。描述函数及子引用闭包沿既有泛型具体化机制生成：同型递归复用已有请求，实参沿递归环增长时使用现有 polymorphic-recursion 诊断，不加深度预算或内容缺失的占位描述。公开模型的普通数据声明本身不改变 `.slib` wire 格式或 runtime ABI；查询的 HIR 登记及产物依赖必须使用实际声明身份。
 
+`typeInfo<T>` 是普通 core 泛型正文；内部 `__scoopTypeReference<T>()` 先调用 `type_reference` 取得 TypeReferenceData，再用普通 TypeRef constructor 和调用 `type_description<T>` 的普通闭包构造引用。引用数据由 identity、displayName、nominal、arguments 四项组成；成员引用为各自独立的普通 struct。两个 intrinsic 在 concrete HIR 中生成普通正文，不进入 MIR。引用构造函数作为 core protocol 的 field 10 保存实际 generic callable identity，下游按此身份请求模板，不按名称猜函数。intrinsic wire tags 26／27 分别表示引用数据和当前层描述；因此 HIR core-bootstrap-interface 升至 16，cross-cone-interface 升至 77。注解声明的惰性描述正文使用 `GeneratedCallableKey::AnnotationDescription`（tag 18），键保存实际 PersistentAnnotationId 与查询所在 callable template；无参数辅助函数继承该 callable 的实例化上下文，复用其普通 ODR 归属。递归注解描述保持同一查询宿主，不逐层产生新的宿主。它不是 runtime 注册表。HIR／MIR／LIR identity-foundation 分别升至 10／8／9；runtime ABI 保持。cross-cone-interface/77 的 property declaration field 9 保存已经绑定的原 property override 身份序列，供描述直接读取。
+
+描述生成使用已经绑定的声明事实。正常类型加载补齐注解参数、计算属性结果和未调用构造器参数的类型，避免只有布局使用过的类型才能被描述；不调用对应正文或重新执行注解求值。
+
+concrete HIR 的 TypeIdentityLiteral 指向已完全绑定的 TypeId，值类型固定为 String。MIR lower 只从现成 exact-type 表读取该 id 的十六进制 bytes 并生成普通 StringConst；不重新计算身份、遍历字段或解释描述。这让描述函数沿同一实例化队列生成，身份仍由原最终关系统一建立。
+
 annotation 声明使用独立 PersistentAnnotationId。普通值参数保存完整 signature type key；annotation 原子及其数组参数使用独立的 annotation identity 和实际 core Array 模板身份，不把 annotation class 编成 runtime TypeId。应用保存实际 typed target 和按参数顺序补齐的静态值。CanonicalConstValueV1 保持原标量用途；CanonicalAnnotationValueV1 以封闭的 Scalar、IntegralEnum、Annotation、Array 保存静态值。整型枚举值保留完整 application signature、variant identity 和底层整数位型，嵌套应用保存实际 annotation identity 和完整参数；数组保存明确元素类型、有序值以及逐元素的 SourceIdentity 和 span，默认值保留定义处来源。共享 reader 在既有边界检查引用、枚举 variant/数值、嵌套参数及 tag/payload 一致性，不重放名称查找或默认值求值。参数/default 的循环依赖在源码定义处诊断。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
 
 HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
@@ -917,9 +923,9 @@ annotation 声明保存已绑定的允许目标集合与 repeatable 属性。集
 
 HIR lower 在正常类型解析过程中记录这些位置和 alias 的实际替换关系，注解值待相应 schema/常量完成后仅绑定一次。alias 与泛型替换复用原 binder 映射，合并相应路径的静态应用，不污染共享类型或重跑类型检查。annotation 参数的 annotation class 及其 Array 使用独立 annotation identity，不制造 runtime TypeId；用于确认 Array alias 转发关系的临时参数不进入静态描述。
 
-共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。cross-cone-interface 当前版本为 76，旧产物须重建；MIR/LIR 和 runtime ABI 保持不变。
+共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。cross-cone-interface 当前版本为 77，旧产物须重建；MIR/LIR 和 runtime ABI 保持不变。
 
-property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2），generated callable tag 17 保留不用。
+property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2）；generated callable tag 17 为 TestEntry，tag 18 为 AnnotationDescription。
 
 companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 primary 参数值；ordinary static nested declaration 隔断该 binder。companion declaration、完整 application 和 concrete singleton 分别有身份，泛型状态共享规则见 2.13。
 

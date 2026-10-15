@@ -48,7 +48,7 @@ public struct ObjectInfo(
     val interfaces: Array<TypeUseInfo>,
     val properties: Array<PropertyInfo>,
     val storage: Array<FieldInfo>,
-    val companionHost: Option<TypeRef>
+    val companionHost: Option<NominalRef>
 )
 
 public struct InterfaceInfo(val parents: Array<TypeUseInfo>, val properties: Array<PropertyInfo>)
