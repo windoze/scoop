@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn summary_retains_build_inputs() {
-        let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
+        let bytes = crate::link_decode::complete_strong_artifact_for_test();
         let summary =
             read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
                 .unwrap();
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn summary_contains_the_same_data_after_record_roundtrip() {
-        let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
+        let bytes = crate::link_decode::complete_strong_artifact_for_test();
         let summary =
             read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
                 .unwrap();

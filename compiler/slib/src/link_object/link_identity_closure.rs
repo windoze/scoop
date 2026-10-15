@@ -13,69 +13,11 @@ use crate::SlibMemberId;
 
 mod final_objects;
 mod wire;
-pub use wire::{
-    DecodedLinkIdentityClosureSectionV1, DigestPatchInputCheckedLinkIdentityClosureSectionV1,
-    LinkDigestPatchInputValidationError, LinkFinalObjectProjectionError,
-    LinkIdentityClosureSectionValidationError, LinkObjectMaterializationValidationError,
-    LinkObjectProjectionValidationError, LinkSymbolProjectionValidationError,
-    MaterializationCheckedLinkIdentityClosureSectionV1,
-    ObjectProjectionCheckedLinkIdentityClosureSectionV1,
-    SymbolProjectionCheckedLinkIdentityClosureSectionV1,
-};
+pub use wire::DecodedLinkIdentityClosureSectionV1;
 
 #[cfg(test)]
 pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {
     wire::tests::encoded_link_identity_closure_for_test()
-}
-
-#[cfg(test)]
-pub(crate) fn encoded_link_identity_closure_for_patch_test(
-    plan: &PlannedLinkObjectMemberSetV1,
-    builtins: &super::VerifiedBuiltinObjectStrongRelocationSetV1,
-    intent: scoop_identity::DigestPatchIntentId,
-    member: SlibMemberId,
-    checked_offset: u64,
-) -> Vec<u8> {
-    wire::tests::encoded_link_identity_closure_for_patch_test(
-        plan,
-        Some(builtins),
-        intent,
-        member,
-        checked_offset,
-    )
-}
-
-#[cfg(test)]
-pub(crate) fn encoded_link_identity_closure_without_object_projection_for_test(
-    plan: &PlannedLinkObjectMemberSetV1,
-    intent: scoop_identity::DigestPatchIntentId,
-    member: SlibMemberId,
-    checked_offset: u64,
-) -> Vec<u8> {
-    wire::tests::encoded_link_identity_closure_for_patch_test(
-        plan,
-        None,
-        intent,
-        member,
-        checked_offset,
-    )
-}
-
-#[cfg(test)]
-pub(crate) fn encoded_link_identity_closure_without_symbol_projection_for_test(
-    plan: &PlannedLinkObjectMemberSetV1,
-    builtins: &super::VerifiedBuiltinObjectStrongRelocationSetV1,
-    intent: scoop_identity::DigestPatchIntentId,
-    member: SlibMemberId,
-    checked_offset: u64,
-) -> Vec<u8> {
-    wire::tests::encoded_link_identity_closure_without_symbol_projection_for_test(
-        plan,
-        builtins,
-        intent,
-        member,
-        checked_offset,
-    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

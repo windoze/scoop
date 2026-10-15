@@ -5,7 +5,7 @@ use crate::{DecodedSlibEnvelope, ExtensionRequirement, LogicalMemberKey};
 
 #[test]
 fn optional_members_round_trip_without_changing_link_objects_or_semantic_fingerprints() {
-    let baseline_bytes = complete_artifact(false);
+    let baseline_bytes = complete_artifact();
     let baseline = DecodedSlibEnvelope::open(&baseline_bytes, selection()).unwrap();
     let extended_bytes = extend(&baseline, ExtensionRequirement::Optional);
     let extended = DecodedSlibEnvelope::open(&extended_bytes, selection()).unwrap();
@@ -32,24 +32,11 @@ fn optional_members_round_trip_without_changing_link_objects_or_semantic_fingerp
         encode(baseline_objects.projection()).unwrap(),
         encode(extended_objects.projection()).unwrap()
     );
-    let materialized = open_graph(&extended_bytes)
-        .decode_single_cone_link_sections()
-        .unwrap()
-        .validate_identities()
-        .unwrap()
-        .validate_foundation_structure()
-        .unwrap()
-        .validate_production()
-        .unwrap()
-        .validate_materializations()
-        .unwrap();
-    assert_eq!(materialized.scoop_objects().len(), 1);
-    assert!(materialized.generated_bridge_objects().is_empty());
 }
 
 #[test]
 fn link_required_member_is_rejected_after_valid_archive_readback() {
-    let bytes = complete_artifact(false);
+    let bytes = complete_artifact();
     let baseline = DecodedSlibEnvelope::open(&bytes, selection()).unwrap();
     let extended_bytes = extend(&baseline, ExtensionRequirement::Link);
     let extended = DecodedSlibEnvelope::open(&extended_bytes, selection()).unwrap();

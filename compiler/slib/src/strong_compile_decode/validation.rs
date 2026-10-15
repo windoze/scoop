@@ -14,46 +14,6 @@ pub(crate) struct StrongProfileSemanticFront<'a> {
     pub(crate) lir_foundation: &'a ConeLirFoundation,
 }
 
-pub(crate) fn validate_strong_profile_production(
-    graph: &ValidatedGraphArtifact<'_>,
-    identities: &mut ValidatedIdentityGraph,
-    foundations: &CanonicalFoundationSet,
-    production: DecodedStrongProfileProductionSet,
-) -> Result<ValidatedSingleConeStrongProduction, StrongProfileProductionError> {
-    let local = validate_strong_profile_local_production(
-        graph.identity(),
-        identities,
-        &foundations.hir,
-        production.hir,
-        &foundations.mir,
-        production.mir,
-    )
-    .map_err(StrongProfileProductionError::Local)?;
-    validate_strong_profile_relations(
-        graph.identity(),
-        graph.kind(),
-        &local.hir,
-        &local.mir,
-        &foundations.hir,
-    )
-    .map_err(StrongProfileProductionError::Relation)?;
-    let lir = validate_strong_profile_lir_production(
-        graph,
-        identities,
-        StrongProfileSemanticFront {
-            hir_foundation: &foundations.hir,
-            hir_production: &local.hir,
-            mir_production: &local.mir,
-            lir_foundation: &foundations.lir,
-        },
-        production.lir,
-    )
-    .map_err(StrongProfileProductionError::Lir)?;
-    Ok(ValidatedSingleConeStrongProduction::new(
-        local.hir, local.mir, lir,
-    ))
-}
-
 pub(super) fn validate_strong_profile_local_production(
     artifact: ConeIdentity,
     identities: &mut ValidatedIdentityGraph,

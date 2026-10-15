@@ -132,12 +132,6 @@ pub(crate) struct CanonicalFoundationSet {
     pub(crate) lir: ConeLirFoundation,
 }
 
-pub(crate) struct DecodedStrongProfileProductionSet {
-    pub(crate) hir: DecodedCoreBootstrapInterfaceSectionV1,
-    pub(crate) mir: DecodedCoreBootstrapBridgeSectionV1,
-    pub(crate) lir: DecodedConeProductionSectionV1,
-}
-
 /// The validated HIR, MIR, and LIR production surfaces retained by a
 /// structurally valid `SingleConeStrongProfile` proof.
 #[derive(Clone)]
@@ -736,8 +730,7 @@ use validation::validate_strong_profile_local_production;
 pub(crate) use validation::{
     StrongProfileSemanticFront, validate_cross_cone_profile_foundations,
     validate_strong_profile_foundations, validate_strong_profile_lir_production,
-    validate_strong_profile_lir_with_shape_sources, validate_strong_profile_production,
-    validate_strong_profile_relations,
+    validate_strong_profile_lir_with_shape_sources, validate_strong_profile_relations,
 };
 
 #[cfg(test)]

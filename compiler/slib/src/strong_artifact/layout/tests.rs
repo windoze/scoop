@@ -40,11 +40,8 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
     );
     let expected_identity = LinkIdentityClosureSectionV1::from_verified_layout_code(&code).unwrap();
     assert_eq!(
-        link.link_identity_closure_wire()
-            .clone()
-            .validate_layout(&code)
-            .unwrap(),
-        expected_identity
+        encode(link.link_identity_closure_wire()).unwrap(),
+        encode(&expected_identity).unwrap()
     );
     let decoded_manifest = decode_canonical::<DecodedSingleConeProductionManifestV1>(
         &encode(link.production_manifest_wire()).unwrap(),

@@ -1,35 +1,18 @@
-//! Strict untrusted wire projection for the Link identity closure.
-
-use std::collections::{BTreeMap, BTreeSet};
+//! Saved Link identity closure fields and their wire encoding.
 
 use scoop_identity::{
     DecodedPersistentId, DefinitionAtomRole, DigestPatchIntentId, GeneratedBridgeUnitId,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentId,
 };
-use scoop_lir::{DigestFinalizationPlanV1, ProducerUnitPartitionV1};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-mod digest_inputs;
-mod errors;
-pub use errors::*;
-mod final_objects;
-pub use final_objects::LinkFinalObjectProjectionError;
-mod materializations;
-mod object_projections;
 mod read;
-mod resources;
-mod symbol_projections;
 
-use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalGeneratedBridgeObjectUnitSetV1,
-    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
-    DecodedCanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalUndefinedSymbolRequirementSetV1,
-    DecodedCodeLinkObjectMemberSetV1, DecodedFixedBytesV1, DefinedLinkSymbolOwnerValidationError,
-    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedLinkObjectMemberSetV1,
-    ProvisionalDigestPatchSiteV1, UndefinedSymbolRequirementValidationError,
-    VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2, VerifiedScoopLirDigestPatchSiteSetV1,
+    CanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalDefinedLinkSymbolOwnerSetV1,
+    DecodedCanonicalUndefinedSymbolRequirementSetV1, DecodedCodeLinkObjectMemberSetV1,
+    DecodedFixedBytesV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -314,8 +297,7 @@ impl WireDecode for DecodedEntryOwnerBranchV1 {
     }
 }
 
-/// Canonically decoded closure fields without any authority to promote the
-/// carried identities or fingerprints.
+/// Decoded fields used by member selection and symbol resolution.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedLinkIdentityClosureSectionV1 {
     materializations: Vec<DecodedLinkObjectMaterializationV1>,
@@ -328,154 +310,6 @@ pub struct DecodedLinkIdentityClosureSectionV1 {
     entry_owner: DecodedEntryOwnerBranchV1,
 }
 
-/// A decoded closure whose materialization array has been rebuilt from one
-/// typed producer partition. The remaining closure fields are still
-/// untrusted until the complete Code proof is available.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MaterializationCheckedLinkIdentityClosureSectionV1 {
-    decoded: DecodedLinkIdentityClosureSectionV1,
-    member_plan: PlannedLinkObjectMemberSetV1,
-}
-
-/// A decoded closure whose digest patch inputs were matched to the validated
-/// digest plan and checked materialization plan. Physical object validation is
-/// still required before these inputs become verified patch sites.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
-    decoded: DecodedLinkIdentityClosureSectionV1,
-    member_plan: PlannedLinkObjectMemberSetV1,
-    provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
-}
-
-/// A decoded closure whose first three fields are canonical projections of
-/// the checked member plan and exact verified object/digest proofs.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
-    decoded: DecodedLinkIdentityClosureSectionV1,
-    member_plan: PlannedLinkObjectMemberSetV1,
-}
-
-/// A decoded closure whose object projections and both canonical link-symbol
-/// tables were independently rebuilt and matched byte-for-byte.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
-    decoded: DecodedLinkIdentityClosureSectionV1,
-    member_plan: PlannedLinkObjectMemberSetV1,
-}
-
-impl MaterializationCheckedLinkIdentityClosureSectionV1 {
-    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
-        &self.member_plan
-    }
-
-    pub fn validate_digest_patch_inputs(
-        self,
-        digest_plan: &DigestFinalizationPlanV1,
-    ) -> Result<
-        DigestPatchInputCheckedLinkIdentityClosureSectionV1,
-        LinkDigestPatchInputValidationError,
-    > {
-        let sites = self
-            .decoded
-            .replay_digest_patch_inputs(&self.member_plan, digest_plan)?;
-
-        Ok(DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
-            decoded: self.decoded,
-            member_plan: self.member_plan,
-            provisional_patch_sites: sites,
-        })
-    }
-
-    pub fn validate(
-        self,
-        code: &VerifiedCodeFingerprintV1,
-    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
-            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
-        validate_against(self.decoded, &expected)
-    }
-}
-
-impl DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
-    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
-        &self.member_plan
-    }
-
-    pub fn provisional_patch_sites(&self) -> &[ProvisionalDigestPatchSiteV1] {
-        &self.provisional_patch_sites
-    }
-
-    pub fn validate_object_projections(
-        self,
-        patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    ) -> Result<
-        ObjectProjectionCheckedLinkIdentityClosureSectionV1,
-        LinkObjectProjectionValidationError,
-    > {
-        self.decoded
-            .replay_object_projections(&self.member_plan, patch_sites)?;
-        Ok(ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
-            decoded: self.decoded,
-            member_plan: self.member_plan,
-        })
-    }
-
-    pub fn validate(
-        self,
-        code: &VerifiedCodeFingerprintV1,
-    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
-            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
-        validate_against(self.decoded, &expected)
-    }
-}
-
-impl ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
-    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
-        &self.member_plan
-    }
-
-    pub fn validate_symbol_projections(
-        self,
-        defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
-        undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
-    ) -> Result<
-        SymbolProjectionCheckedLinkIdentityClosureSectionV1,
-        LinkSymbolProjectionValidationError,
-    > {
-        self.decoded
-            .replay_symbol_projections(defined_symbols, undefined_symbols)?;
-        Ok(SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
-            decoded: self.decoded,
-            member_plan: self.member_plan,
-        })
-    }
-
-    pub fn validate(
-        self,
-        code: &VerifiedCodeFingerprintV1,
-    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
-            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
-        validate_against(self.decoded, &expected)
-    }
-}
-
-impl SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
-    pub const fn member_plan(&self) -> &PlannedLinkObjectMemberSetV1 {
-        &self.member_plan
-    }
-
-    pub fn validate(
-        self,
-        code: &VerifiedCodeFingerprintV1,
-    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
-            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
-        validate_against(self.decoded, &expected)
-    }
-}
-
 impl DecodedLinkIdentityClosureSectionV1 {
     pub(crate) fn read_defined_symbols(
         &self,
@@ -483,43 +317,6 @@ impl DecodedLinkIdentityClosureSectionV1 {
         identities: &mut scoop_identity::ValidatedIdentityGraph,
     ) -> Result<CanonicalDefinedLinkSymbolOwnerSetV1, String> {
         self.defined_symbols.read(producer, identities)
-    }
-
-    pub fn validate_materializations(
-        self,
-        target: scoop_lir::LirTargetProfile,
-        partition: &ProducerUnitPartitionV1,
-    ) -> Result<
-        MaterializationCheckedLinkIdentityClosureSectionV1,
-        LinkObjectMaterializationValidationError,
-    > {
-        let member_plan = self.replay_materializations(target, partition)?;
-        Ok(MaterializationCheckedLinkIdentityClosureSectionV1 {
-            decoded: self,
-            member_plan,
-        })
-    }
-
-    /// Rebuilds the entire closure from the same verified Code/object proof
-    /// and only promotes the decoded payload after exact byte equality.
-    pub fn validate(
-        self,
-        code: &VerifiedCodeFingerprintV1,
-    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-        let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
-            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
-        validate_against(self, &expected)
-    }
-
-    /// Rebuilds the unchanged wire projection from a Strong V2 layout Code
-    /// proof and promotes it only after exact canonical equality.
-    pub fn validate_layout(
-        self,
-        code: &VerifiedCodeFingerprintV2,
-    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-        let expected = LinkIdentityClosureSectionV1::from_verified_layout_code(code)
-            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
-        validate_against(self, &expected)
     }
 }
 
@@ -570,19 +367,6 @@ impl WireDecode for DecodedLinkIdentityClosureSectionV1 {
     }
 }
 
-fn validate_against(
-    actual: DecodedLinkIdentityClosureSectionV1,
-    expected: &LinkIdentityClosureSectionV1,
-) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
-    let actual = encode(&actual).map_err(LinkIdentityClosureSectionValidationError::Encode)?;
-    let expected_bytes =
-        encode(expected).map_err(LinkIdentityClosureSectionValidationError::Encode)?;
-    if actual != expected_bytes {
-        return Err(LinkIdentityClosureSectionValidationError::ProjectionMismatch);
-    }
-    Ok(expected.clone())
-}
-
 fn decode_persistent_id_array<I: PersistentId>(
     decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
@@ -608,14 +392,6 @@ fn encode_array(
         value.encode(encoder)?;
     }
     Ok(())
-}
-
-struct WireArray<'values, T>(&'values [T]);
-
-impl<T: WireEncode> WireEncode for WireArray<'_, T> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encode_array(encoder, self.0)
-    }
 }
 
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {

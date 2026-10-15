@@ -3,7 +3,7 @@ use crate::{DecodedSlibEnvelope, SlibMemberRole};
 
 #[test]
 fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
-    let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
+    let bytes = crate::link_decode::complete_strong_artifact_for_test();
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("complete.slib");
     std::fs::write(&path, &bytes).unwrap();

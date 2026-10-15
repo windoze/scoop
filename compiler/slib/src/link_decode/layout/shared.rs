@@ -1,12 +1,11 @@
-//! Share decoded Link inputs with semantic validation without reopening bytes.
+//! Share decoded Link inputs with the artifact's semantic records.
 
 use scoop_wire::WireError;
 
 use super::*;
 use crate::DecodedCrossConeLayoutCompileSections;
 
-/// Complete Link-only wire retained alongside the same artifact's shared
-/// semantic payloads. These fields still require object and fingerprint checks.
+/// Link fields retained alongside the same artifact's shared semantic payloads.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutLinkOnlySections {
     pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
@@ -32,8 +31,7 @@ impl DecodedLayoutView {
 }
 
 impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
-    /// Reuses the complete shared semantic pipeline. Link-only fields remain
-    /// owned by this artifact and never become a machine or object permit.
+    /// Shares already decoded sections with Compile's semantic input.
     pub fn into_shared_sections(
         self,
     ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, WireError> {

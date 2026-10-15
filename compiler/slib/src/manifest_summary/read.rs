@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn summary_reads_only_the_manifest_of_a_complete_artifact() {
-        let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
+        let bytes = crate::link_decode::complete_strong_artifact_for_test();
         let manifest = crate::ManifestArchive::open(&bytes).unwrap();
         let end = GLOBAL_MAGIC.len() + HEADER_LENGTH as usize + manifest.manifest().len();
         let mut reader = io::Cursor::new(bytes.as_slice());

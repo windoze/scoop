@@ -221,12 +221,6 @@ pub(super) fn finalized_link_object_fixture() -> (
     (production, final_objects, defined_symbols, requirements)
 }
 
-pub(super) fn link_object_bytes() -> Vec<u8> {
-    finalized_link_object_fixture().1.objects()[0]
-        .bytes()
-        .to_vec()
-}
-
 fn empty_undefined_requirements(
     patch_sites: &crate::VerifiedScoopLirDigestPatchSiteSetV1,
     foundation: &ConeLirFoundation,
