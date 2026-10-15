@@ -30,6 +30,8 @@ runtime-owned exception ABI:
 - `src/gc/mark.c` retains the first-marked live set for relocation; `mark_objects.c`
   owns atomic marking and batched scans, `mark_queue.c` owns task publication and
   stealing, and `mark_pool.c` coordinates persistent internal marker threads;
+- `src/gc/pressure.c` deliberately ignores external pressure hints; the public
+  `gc_binding/pressure.c` facade remains GC-free, including in release hooks;
 - `src/gc/statistics.c` exposes allocation, promotion, scanning, collector phase
   times and per-worker CPU counters;
 - `src/gc_binding/` adapts Scoop representation to collector visitors:

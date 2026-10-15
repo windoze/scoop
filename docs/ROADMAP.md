@@ -593,6 +593,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 在 M38 完成后实施；首先修复泛型扩展回调的参数／返回类型联合推断，再接入普通 `scoop.platform` Cone。
 - core 提供 Disposable、普通／挂起 use 与 GC-free pressure 提示；platform 提供 native buffer、同步 IO、文件、进程、线程、网络、系统时间与熵。
+- M45-1～4 本机实现与回归完成，已交付推断修复、系统字符串／路径／错误、资源协议与 NativeByteBuffer；下一批为同步 IO、文件和目录。结果见[实施记录](milestone45/PROGRESS.md)。
 - 库行为优先通过 `scoop.test` 验证，编译器、ABI、GC 与产物边界保留必要专测；本机批次稳定后统一验证 Linux GNU／musl。
 
 ### M46 序列化基础协议与 DTO 合成（已完成，[设计](milestone46/DESIGN.md)）
@@ -644,7 +645,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### 从 M26 移出的后续事项
 
-- 通用 off-heap ByteBuffer 与 I/O 边界：容量增长、borrow/view、显式 close、失败原子性、M24 hook 兜底释放，以及 external-memory pressure accounting / managed GC 反馈 / hook 只扣减的 release-safe 入口，整体另行设计与排期；不阻塞 M26 的集合与字符串闭环。
+- off-heap NativeByteBuffer 与 I/O 边界归入 M45：连续独占容量、同步 borrow、显式 close、失败原子性和 M24 hook 兜底已在 M45-4 本机完成。容量变化共用一个 GC-free pressure 提示，首版 GC 有意忽略；不建立外部内存总账或主动收集协议。共享 view 等仍留后续；不阻塞 M26 的集合与字符串闭环。
 
 ### 来自 M1
 

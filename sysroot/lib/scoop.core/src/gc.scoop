@@ -1,5 +1,5 @@
 // GC facilities (spec 14.1, M12 DESIGN section 4.2). Public operations are
-// ordinary unsafe core functions; only the raw runtime boundary is intrinsic.
+// ordinary unsafe core functions; pressure uses a direct C leaf binding.
 
 public struct PinnedPtr<T : ref>(val raw: ULong)
 
@@ -40,3 +40,8 @@ public fun gcCollect()
 
 @Intrinsic("rt_gc_stats")
 public fun gcStats(): ULong
+
+// A leaf hint only: it never collects, allocates, or accesses thread state.
+@GCLeaf
+@Extern(name = "scoop_rt_gc_adjust_pressure")
+public fun gcAdjustPressure(delta: Long)

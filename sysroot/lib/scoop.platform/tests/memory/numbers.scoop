@@ -1,0 +1,73 @@
+package scoop.platform.memory
+
+import scoop.bytes.ByteOrder
+import scoop.test.*
+
+@Test
+private class NativeByteBufferNumbersTest {
+    @Test
+    fun `both byte orders preserve unaligned integers and floating bit patterns`() {
+        roundTrip(ByteOrder.BIG_ENDIAN)
+        roundTrip(ByteOrder.LITTLE_ENDIAN)
+    }
+
+    private fun roundTrip(order: ByteOrder) {
+        NativeByteBuffer.allocate(80L).use { buffer ->
+            buffer.writeByte(42.toInt8())
+            buffer.writeInt8(-128.toInt8())
+            buffer.writeUInt8(255.toUInt8())
+            buffer.writeInt16(-12345.toInt16(), order)
+            buffer.writeUInt16(65535.toUInt16(), order)
+            buffer.writeInt(Int.MIN_VALUE, order)
+            buffer.writeUInt(UInt.MAX_VALUE, order)
+            buffer.writeLong(Long.MIN_VALUE, order)
+            buffer.writeULong(ULong.MAX_VALUE, order)
+            buffer.writeFloat(Float.fromBits(0x7fc12345), order)
+            buffer.writeDouble(Double.fromBits(0x7ff8123456789abcL), order)
+            buffer.writeFloat(-0.0f, order)
+            buffer.writeDouble(-0.0, order)
+            assertEquals(42.toInt8(), buffer.readByte())
+            assertEquals(-128.toInt8(), buffer.readInt8())
+            assertEquals(255.toUInt8(), buffer.readUInt8())
+            assertEquals(-12345.toInt16(), buffer.readInt16(order))
+            assertEquals(65535.toUInt16(), buffer.readUInt16(order))
+            assertEquals(Int.MIN_VALUE, buffer.readInt(order))
+            assertEquals(UInt.MAX_VALUE, buffer.readUInt(order))
+            assertEquals(Long.MIN_VALUE, buffer.readLong(order))
+            assertEquals(ULong.MAX_VALUE, buffer.readULong(order))
+            assertEquals(0x7fc12345, buffer.readFloat(order).toBits())
+            assertEquals(0x7ff8123456789abcL, buffer.readDouble(order).toBits())
+            assertEquals(Int.MIN_VALUE, buffer.readFloat(order).toBits())
+            assertEquals(Long.MIN_VALUE, buffer.readDouble(order).toBits())
+            assertEquals(0L, buffer.readableBytes)
+        }
+    }
+
+    @Test
+    fun `byte order determines the physical byte sequence`() {
+        NativeByteBuffer.allocate(8L).use { buffer ->
+            buffer.writeInt(0x01020304, ByteOrder.BIG_ENDIAN)
+            buffer.writeInt(0x01020304, ByteOrder.LITTLE_ENDIAN)
+            val expected = Array<Byte>(8L) { (if (it < 4L) it + 1L else 8L - it).toInt8() }
+            var index = 0L
+            while (index < expected.size) {
+                assertEquals(expected[index], buffer.getByte(index))
+                index += 1L
+            }
+        }
+    }
+
+    @Test
+    fun `short numeric reads and writes do not partially advance or overwrite`() {
+        NativeByteBuffer.allocate(5L).use { buffer ->
+            buffer.writeByte(9.toInt8())
+            assertFailsWith<IndexOutOfBoundsException> { buffer.writeLong(1L, ByteOrder.BIG_ENDIAN) }
+            assertEquals(1L, buffer.writePosition)
+            buffer.writeInt(0x01020304, ByteOrder.BIG_ENDIAN)
+            assertFailsWith<IndexOutOfBoundsException> { buffer.readLong(ByteOrder.BIG_ENDIAN) }
+            assertEquals(0L, buffer.readPosition)
+            assertEquals(9.toInt8(), buffer.readByte())
+            assertEquals(0x01020304, buffer.readInt(ByteOrder.BIG_ENDIAN))
+        }
+    }
+}

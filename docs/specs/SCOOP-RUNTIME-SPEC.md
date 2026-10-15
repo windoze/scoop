@@ -313,6 +313,8 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 累计对象数、nursery 对象数及两种分配字节数在 collection 后不清零。查询按 registry/world lock → heap lock 读取目录与基线；STW collector 在目录已稳定、持 heap lock 时直接汇总，不反向取得 world lock。detached 总账在移除线程前更新，主线程退出后的最终报告仍包含其分配。并发查询是逐线程、逐字段的原子快照，不承诺不同统计字段间的事务一致性；STW 与线程全部退出后的汇总精确。线程计数区域按 128-byte 边界独立对齐并分配，覆盖当前 Darwin/AArch64 的 128-byte 和 amd64 的 64-byte cache line。
 
+外部 native 容量可通过 `void scoop_rt_gc_adjust_pressure(int64_t delta)` 提示 GC。适配层直接调用 GC 操作 `scoop_gc_adjust_pressure`，不经过 managed entry、线程 attachment 或收集协议。入口始终 GC-free、无异常、无 managed 分配、无 safepoint、无 TLS／root／handle／pin 访问、不等待 mutator，并发及未 attach 调用合法。首版操作有意为无状态 no-op；不要求维护精确计数、收集阈值、配额或分配失败重试。后续策略只能在原有合法收集决策位置消费提示，不能从通知栈内发起收集。正负 delta 是调用者已提交资源变化的贡献，零无变化；接口不接管资源所有权。
+
 ### 3.2 Safepoint 与机器根
 
 平台实现按实际职责分开：managed frame、caller anchor、返回值 shim 与浮点环境控制属于 arch，线程栈／VM 属于 OS，加载映射与 metadata 属于 image。构建只组合已实现的组件，架构专用 flags 只由对应架构选择；此职责划分不改变 GC、异常、对象布局或公共 runtime ABI。
@@ -461,7 +463,7 @@ release hook 仅属于符合语言规范 9.1.6 的 FixedObject 类型。启动�
 
 正常 collection 决定回收 ready 对象时，在 storage 失效前清除 ready 并尝试调用一次 hook。未完成构造的对象不调用；移动副本和旧地址回收不额外调用。ready 的 release/acquire 配对保证构造写入可见，显式 close 的 inert-state 写入也必须在 park 前完成；hook 不为有数据竞争的程序补充同步。
 
-hook 在 world 停止期间执行，不得分配 managed 对象、发起 GC、访问 root/handle/pin/thread API、等待停顿的 mutator、回调 Scoop 或跨出 foreign unwind。允许的 Scoop helper 必须满足 NoGc/release-safe 效果，直接 C extern 遵守 raw leaf 契约；不能保留临时地址或重新进入 runtime。
+hook 在 world 停止期间执行，不得分配 managed 对象、发起 GC、访问 root/handle/pin/thread API、等待停顿的 mutator、回调 Scoop 或跨出 foreign unwind。允许的 Scoop helper 必须满足 NoGc/release-safe 效果，直接 C extern 遵守 raw leaf 契约；不能保留临时地址或重新进入 runtime。唯一例外是 3.1 的 `scoop_rt_gc_adjust_pressure` 提示：它保持同一 GC-free leaf 合同，不读取 owner 或线程状态，也不触发收集。
 
 符合语言规范 9.1.6、13.4.2 的直接 C extern 可捕获 errno。生成的 bridge 在原调用前清零 libc errno、返回后立即保存为本次调用的局部整数，与 native 结果一起交回普通 GC-free tuple；不访问 Scoop TLS 或 thread runtime，也不改变 collector 状态。hook 中的新捕获不会覆盖 mutator 已取得的错误值，collector 不为此保存或恢复线程级 last-error。其他 release-safe、`ReleaseValue` 与一般 TLS 访问限制继续适用。
 

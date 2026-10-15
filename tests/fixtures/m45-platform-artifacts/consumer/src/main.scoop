@@ -1,3 +1,4 @@
+import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.fs.Path
 import scoop.platform.system.*
 
@@ -13,4 +14,14 @@ fun main() {
     println(error.kind == PlatformErrorKind.Other)
     val failure = PlatformException("open", error.kind, Some(error), Some(raw))
     println(failure.operation)
+    val buffer = NativeByteBuffer.allocate(2L)
+    println(buffer.use { current ->
+        current.writeByte(7.toInt8())
+        @Unsafe {
+            return@use current.withReadableBytes { pointer, _ ->
+                @Unsafe { return@withReadableBytes pointer!!.load() }
+            }
+        }
+    })
+    println(buffer.isDisposed)
 }

@@ -27,7 +27,7 @@ diagnostics = []
 name = "run"
 argv = ["${consumer.result.output}"]
 exit = 0
-stdout = "/beta\nbeta\ntrue\n-1\n1\ntrue\nopen\n"
+stdout = "/beta\nbeta\ntrue\n-1\n1\ntrue\nopen\n7\ntrue\n"
 stderr = ""
 
 [[steps]]
@@ -35,5 +35,5 @@ name = "moving"
 argv = ["${consumer.result.output}"]
 env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
-stdout = "/beta\nbeta\ntrue\n-1\n1\ntrue\nopen\n"
+stdout = "/beta\nbeta\ntrue\n-1\n1\ntrue\nopen\n7\ntrue\n"
 stderr = ""

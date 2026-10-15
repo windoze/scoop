@@ -1,6 +1,6 @@
 # M45：NativeByteBuffer 与 native IO 边界
 
-状态：设计完成，待实施。范围、任务和测试规则见 [M45 设计](DESIGN.md)，资源协议见 [RESOURCES](RESOURCES.md)。
+状态：M45-4 本机实现与回归完成；Linux 组合验收安排在 M45-10。实际结果见[实施记录](PROGRESS.md)。范围、任务和测试规则见 [M45 设计](DESIGN.md)，资源协议见 [RESOURCES](RESOURCES.md)。
 
 ## 1. 类型与所有权
 
@@ -8,7 +8,7 @@
 
 首版用于文件、pipe、socket 及同步 C API 的字节输入输出；它不是保存 managed reference 的通用 native 容器。不得把任意 T、Scoop object pointer、GcHandle 或 closure 隐藏在字节区并期待 GC 扫描它们。
 
-基本工厂为 `NativeByteBuffer.allocate(capacity: Long = 0L)`。容量为零时允许没有 native allocation。构造出的 buffer 没有可读数据，不承诺 native allocation 已清零。分配失败不能返回半可用对象，临时所有权按 factory 回滚规则处理。
+基本工厂为 `NativeByteBuffer.allocate(capacity: Long = 0L)`。初始容量精确等于请求值，容量为零时没有 native allocation。构造出的 buffer 没有可读数据，不承诺 native allocation 已清零。分配失败不能返回半可用对象，临时所有权按 factory 回滚规则处理。
 
 复用 `scoop.bytes.ByteOrder`，不定义第二个 byte-order enum。容量、游标、数量与偏移使用 Long；native size_t／ssize_t 转换在 C 边界检查，M45 不引入 ISize／USize 或修改 core 数组索引类型。
 
@@ -64,18 +64,18 @@ native 区间不保证每次访问都满足数值类型的自然对齐，不能�
 ```scoop
 @Unsafe
 public fun <R> withReadableBytes(
-    block: (Ptr<Byte>?, Long) -> R,
+    block: (Ptr<Byte>?, Long) -> R
 ): R
 
 @Unsafe
 public fun withWritableBytes(
-    block: (Ptr<Byte>?, Long) -> Long,
+    block: (Ptr<Byte>?, Long) -> Long
 ): Long
 ```
 
 withReadableBytes 提供当前可读前缀的起始地址与长度，不移动游标。调用方承诺只读该区间；core Ptr 没有 const 限定，不能由类型系统自动保证这一点。
 
-withWritableBytes 提供当前可写尾部；回调返回从该地址开始连续初始化的字节数 n。仅在回调正常返回且 `0 <= n <= writableBytes` 时推进 writePosition 并返回 n。回调必须实际初始化整个前缀，不能只返回一个数量；库检查 n 的范围，不能证明 native 代码已经写过这些字节。
+withWritableBytes 提供当前可写尾部；回调返回从该地址开始连续初始化的字节数 n。仅在回调正常返回且 `0 <= n <= writableBytes` 时推进 writePosition 并返回 n。无效返回值抛 IllegalArgumentException。回调必须实际初始化整个前缀，不能只返回一个数量；库检查 n 的范围，不能证明 native 代码已经写过这些字节。
 
 两个 API 在长度为零时传 None 和 0，并仍调用 block 一次；非空范围传 Some(pointer)。不为了制造一个非零裸 Ptr 而分配假字节，也不把零地址伪装成合法 Ptr。调用方须遵守具体 C API 对空范围／null 的要求。
 
@@ -83,7 +83,7 @@ withWritableBytes 提供当前可写尾部；回调返回从该地址开始连�
 
 - block 是普通非 suspend 函数，可以分配 managed 对象、抛异常和执行同步阻塞 C 调用；借用必须在它返回或抛出时结束。
 - owner 在整个 block 与退出清理期间保持 live managed root；finally 清除借用状态。GC 可以移动 wrapper，native allocation 地址在本次借用内保持不变，不需要 pin wrapper。
-- 借用期间拒绝 dispose、ensureWritable、compact、clear、顺序读写、绝对写和其他改变字节／游标／allocation 的操作。重复或嵌套借用也拒绝；只读状态查询仍可用。拒绝发生在任何修改之前，抛 IllegalStateException。
+- 借用期间拒绝 dispose、ensureWritable、compact、clear、顺序读写、绝对写和其他改变字节／游标／allocation 的操作。重复或嵌套借用也拒绝；只读状态查询和已初始化区间的 getByte 仍可用。拒绝发生在任何修改之前，抛 IllegalStateException。
 - pointer 不得返回、存储、交给稍后完成的 native 操作、捕获到逃出的 closure 或用于挂起之后；callee 在返回前必须停止使用。M45 不提供一般性逃逸分析或静态 borrow checker，这些是 unsafe caller 的义务。
 - writable block 只能写借出的尾部，不读取未初始化内容、不改写其他区间。回调抛出或返回无效 n 时不提交游标；尾部可能已被 native 修改，但仍不可被 safe API 读取。
 - 不提供并发访问保证。借用标志用于拒绝同一对象的重入冲突，不是跨线程锁；跨线程共享必须由调用者同步，并遵守语言数据竞争规则。
@@ -132,7 +132,7 @@ pressure factor 采用可加减的整数贡献，不采用由 buffer 计算的 G
 | 显式 dispose 或 release hook 实际释放容量 c | `-c`，同一份所有权只撤销一次 |
 | 已报告的分配随后回滚 | 撤销此前报告的贡献；未报告的临时分配不产生虚假的负贡献 |
 
-先提交成功的存储状态，再报告其变化；释放时先取出资源并将 owner 置为 inert，实际 free 后报告减量。增长过程的瞬时峰值、allocator metadata 和整个进程 RSS 不属于该 buffer 贡献的精确统计承诺。容量与差值继续受原有 Long／地址边界检查约束。
+先提交成功的存储状态，再报告其变化；显式释放时先取出资源并将 owner 置为 inert，实际 free 后报告减量。GC hook 仅读取自己的原始字段，在 collector 已清除 ready 后 free 并报告减量；hook 不修改字段，也不调用 dispose。显式释放后的字段已为空，后续 hook 不再 free 或报告。增长过程的瞬时峰值、allocator metadata 和整个进程 RSS 不属于该 buffer 贡献的精确统计承诺。容量与差值继续受原有 Long／地址边界检查约束。
 
 ### 6.2 始终 GC-free，显式路径与 hook 共用
 

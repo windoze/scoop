@@ -1295,10 +1295,10 @@ block 的字段读取、local、temporary、实参和结果都须满足该条件
 
 **release-safe 操作与调用：**
 
-- release 是比普通 `@NoGC` 更窄的执行上下文，不是 `@NoGC` annotation target，也不新增公开 `@ReleaseSafe`。禁止 managed allocation/ref、boxing、String/Array/closure、异常、suspend、safepoint/poll、初始化 ensure、动态/接口/间接调用及 root/handle/pin/thread/GC runtime 操作。
+- release 是比普通 `@NoGC` 更窄的执行上下文，不是 `@NoGC` annotation target，也不新增公开 `@ReleaseSafe`。禁止 managed allocation/ref、boxing、String/Array/closure、异常、suspend、safepoint/poll、初始化 ensure、动态/接口/间接调用及 root/handle/pin/thread/GC runtime 操作；唯一允许的 GC 提示是 14.1 的 GC-free `gcAdjustPressure` 直接 C leaf 调用。
 - 直接调用的 Scoop helper 必须有实际 Scoop 正文、满足既有 NoGc 合同，并经定义方推导为传递 release-safe。普通顶层/扩展函数、值类型 direct method/accessor、值类型 secondary constructor 及编译器已有的纯存储 accessor 使用同一规则；值的 primary construction 和 enum assembly 仍为普通值操作。未标注且未由既有规则生成 NoGc 合同的 callable 不因正文看似简单而自动放行。任何 C/Scoop ABI extern 函数调用、native transition、TLS、managed 操作或捕获环境都会使 helper 不可用于 release；不为 helper 生成另一份 release-context body。
 - 推导结果和泛型条件保存在已有 callable 接口中。依赖方直接消费该效果信息与真实 typed target，不重新读取非泛型 helper 源码或遍历其完整实现调用图；泛型正文仍在本次正常实例化中检查替换后的值和实际调用。没有额外调用资格、凭证或独立信任链。
-- release block 本身可以在显式 `@Unsafe` 中直接调用 C ABI extern。投影后的 native 签名须满足 C-FFI-safe，全部 Scoop 参数及结果还须满足 `ReleaseValue`；此调用直接使用 native ABI 或 storage bridge，不执行 managed/native transition。允许 13.4.2 的 `captureErrno = true`：bridge 只在本次调用内清零、读取 libc 的 errno，并返回普通 `(R, Int)` 值；不访问 Scoop TLS 或 thread runtime，不需要 collector 保存、恢复其他调用的错误值。这不放宽一般 TLS 访问限制，也不改变 Scoop helper 的 release-safe 推导规则。同一 extern 在普通代码中的调用仍走既有 FFI 协议。C 实现必须不展开异常、不回调任何 Scoop 入口、不操作 GC/root/handle/pin/thread runtime、不保留 hook 的临时地址，也不等待已停顿的 mutator 或依赖其进展。这是调用处承担的 unsafe native 契约，不能由 `@Extern` 拼写、`nounwind` 或对象文件符号扫描证明。
+- release block 本身可以在显式 `@Unsafe` 中直接调用 C ABI extern。投影后的 native 签名须满足 C-FFI-safe，全部 Scoop 参数及结果还须满足 `ReleaseValue`；此调用直接使用 native ABI 或 storage bridge，不执行 managed/native transition。允许 13.4.2 的 `captureErrno = true`：bridge 只在本次调用内清零、读取 libc 的 errno，并返回普通 `(R, Int)` 值；不访问 Scoop TLS 或 thread runtime，不需要 collector 保存、恢复其他调用的错误值。这不放宽一般 TLS 访问限制，也不改变 Scoop helper 的 release-safe 推导规则。同一 extern 在普通代码中的调用仍走既有 FFI 协议。C 实现必须不展开异常、不回调任何 Scoop 入口、不操作 GC/root/handle/pin/thread runtime（14.1 的 GC-free pressure 提示除外）、不保留 hook 的临时地址，也不等待已停顿的 mutator 或依赖其进展。这是调用处承担的 unsafe native 契约，不能由 `@Extern` 拼写、`nounwind` 或对象文件符号扫描证明。
 - effect 在普通名称查找、唯一目标选择和完整实参展开之后检查。默认参数、operator/accessor、解构、`for`、`vararg` 等产生的操作一并检查；不能因 effect 不合格而退回另一个重载。运行期整数 `/`、`%` 仍按 11.2 调用可抛异常的 Managed 运算，即使受 `if` 保护或除数为常量也不允许；已合法求值的 GC-free const 可直接使用。不新增路径证明或循环执行预算。
 - `@Unsafe`/`@Safe` 嵌套规则不变。TLS、singleton 和需要 ensure 的普通全局属性不可访问；GC-free const、无 ensure 的合格普通存储 accessor、非 TLS 的 GC-free raw/native global 可按原可见性、unsafe 和数据竞争规则访问。native global storage bridge 只进行普通存储操作；`@ThreadLocal` 不能借 helper 或 bridge 绕过限制。
 
@@ -3197,11 +3197,11 @@ core 内部的三个 top-level borrow intrinsic 分别接收对应对象和上�
 
 Scoop ABI（见 13.8）供能识别 Scoop 类型信息并与 GC 交互的外部函数使用，主要消费者是 runtime 与核心库的实现者。
 
-### 14.1 GC 基础设施 `scoop.core.gc`
+### 14.1 GC 基础设施
 
-```
-package scoop.core.gc
+以下声明位于 core 根 package，沿普通 public prelude 提供。
 
+```scoop
 struct PinnedPtr<T : ref>(val raw: ULong)
 struct GcHandle<T : ref>(val raw: ULong)
 
@@ -3209,6 +3209,10 @@ struct GcHandle<T : ref>(val raw: ULong)
 @Unsafe fun <T : ref> unpin(p: PinnedPtr<T>): T
 @Unsafe fun <T : ref> getGcHandle(v: T): GcHandle<T>
 @Unsafe fun <T : ref> releaseGcHandle(h: GcHandle<T>): T
+
+@GCLeaf
+@Extern(name = "scoop_rt_gc_adjust_pressure")
+public fun gcAdjustPressure(delta: Long)
 ```
 
 - **`pin`**：将对象固定在 GC 堆上（不移动、不回收），返回 `PinnedPtr`——其 `raw` 就是对象的实际地址，pin 标志记录在对象头（见 运行时规范 3.4），可以直接交给 FFI 当裸指针使用。同一对象可重复或由多个线程 pin，每次成功调用增加一次固定计数；复制 `PinnedPtr` 值不增加计数。固定对象会影响 GC 效率且可能造成内存泄漏，固定时间应尽可能短。
@@ -3219,6 +3223,8 @@ struct GcHandle<T : ref>(val raw: ULong)
 - 取舍：短期持有并需要裸指针时用 `pin`（摊还 O(1)，但阻碍 GC 移动）；长期保活且允许移动时用 `GcHandle`。
 - Scoop ABI extern 的同步调用期间若只借用 direct ref，调用方不需要显式 pin 或 handle；被调方需要跨 safepoint或调用结束保存引用时才使用 14.3 的 native root、pin 或 handle机制。
 - handle 取回对象时类型 `T` 来自 handle 的类型参数，编译器无法校验其真实性——这层正确性由 runtime 作者保证。
+
+`gcAdjustPressure` 是直接 C leaf 绑定，调用须处于显式 Unsafe 上下文。delta 为可加减的整数压力贡献，零无变化；不携带 owner 或 pointer，不返回收集建议、配额或错误。此入口始终不分配 managed 对象、不抛异常、不执行 safepoint／收集、不等待 mutator、不访问 managed 引用、TLS、root、handle、pin 或线程状态；允许未 attach 的线程、多线程和 release hook 调用。GC 可以完全忽略提示，首版为无状态 no-op；若以后采用提示，只能在既有合法收集决策位置使用，不能改变入口的 leaf 合同。它不建立资源总账、所有权或一般预算。release 中的调用遵守 9.1.6 的直接 C extern 规则，不放宽普通 NoGC helper 的推导条件。
 
 ### 14.2 调用约定
 

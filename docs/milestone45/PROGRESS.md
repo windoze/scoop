@@ -40,4 +40,16 @@ CLI 回归还覆盖既有 contextual inference、泛型约束、receiver functio
 - 批次初次为 120 通过、1 项旧 LIR 期望失败；核对删除复制调用及其临时变量、root/site 编号的变化后，仅复跑该 SSA roots 用例，debug／release／minor 三个变体通过，包含链接后重运行。没有重复整批或 Linux 验收。
 - 格式化、workspace all-targets clippy、C 严格告警及前置修复的 1732 项 Rust 回归已通过。原始输出保留在仓库外，文档 validation 目录无原始日志。
 
-下一批为 M45-4；Linux GNU／musl 仍集中安排在全部本机功能稳定后。
+## M45-4：NativeByteBuffer 与 GC pressure
+
+2026-10-16 完成本机实现。普通 final class 独占 native 字节区，提供受检游标、显式增长、compact、数组复制、未对齐整数／浮点字节序操作及同步 unsafe 借用。成功写入才提交游标；借用期间拒绝重入修改，finally 保活并恢复状态。显式释放先清空 owner，GC hook 只读取字段并兜底释放。C shim 仅承担 realloc/free/memmove，失败 errno 在 NativeSafe 返回握手前保存。
+
+core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作边界；生产实现有意为无状态 no-op。容量成功变化后报告增减，不主动收集或失败重试；没有新增 intrinsic、ABI 格式、生产计数器或资源预算。
+
+- Rust 格式化、workspace all-targets clippy、C 格式化与严格告警通过；受影响的 toolchain 32 项测试通过。
+- 新增 13 项 scoop.test 行为用例，debug、release 与 debug moving GC 均全部通过；覆盖初始化边界、大小溢出、独立数组、两种字节序／NaN／负零、关闭、重入冲突、异常与无效返回不提交游标。
+- M45 正式 CLI 共 14 个用例闭合。新增 GC 专测通过 debug/release、普通和 moving：实际分配／扩容失败保留状态和地址、捕获 ENOMEM、容量通知配平、临时 owner 跨借用收集保活、显式关闭后不重复 free，以及遗弃 owner 的 hook 释放。仅 fixture 替换 GC 操作并包装实际 realloc/free 以观察通知与注入一次失败；原源码和工具始终保留。
+- 独立 no-op 专测只链接真实 pressure 操作与 facade，不初始化 runtime，从主线程及四个未 attach pthread 反复传入零和 Long 极值；通过。下游 `.slib` 消费新增 buffer/use/借用组合，普通与 moving 通过。
+- 首轮新代码有 lambda Unsafe 上下文、局部返回及可变捕获用法错误，已按既有语言规则修正；只复验受影响的 13 项库测试和两个 fixture，未重跑已通过的整批，也未进行 Linux 验收。
+
+下一批为 M45-5；Linux GNU／musl 仍集中安排在全部本机功能稳定后。
