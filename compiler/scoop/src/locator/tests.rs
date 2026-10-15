@@ -229,7 +229,10 @@ fn absent_dangling_and_wrong_type_candidates_are_distinct() {
             TARGET,
             &ArtifactCacheRoot::new(temp.path().join("cache")).unwrap()
         ),
-        Err(DependencyLocatorError::ArtifactNotRegularFile(_))
+        Err(DependencyLocatorError::Io {
+            operation: LocatorIoOperation::Read,
+            ..
+        })
     ));
 
     #[cfg(unix)]

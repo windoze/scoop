@@ -65,7 +65,7 @@ fn read(path: &Path, selection: ValidatedLirTargetSelection) -> BuildResult<Loca
     let summary = snapshot.manifest_summary(selection).map_err(|error| {
         let member = match &error {
             ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
-            ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+            ArtifactManifestSummaryError::Io(_) => "container:$".to_owned(),
             ArtifactManifestSummaryError::TestDirectory(_) => "manifest:test-directory".to_owned(),
         };
         failure(error).at_artifact(path, member)

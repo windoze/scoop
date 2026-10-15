@@ -1,14 +1,12 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use scoop_manifest::{LoadedConeManifest, select_manifest_sources, select_single_file_source};
-use scoop_slib::ArtifactSnapshot;
 
 use super::staging::PreparedStaging;
 use crate::discovery::{BuildContext, GraphNode};
 use crate::graph::ResolvedGraphParts;
 use crate::locator::{PrebuiltArtifactCandidate, PrebuiltArtifactProjection};
-use crate::{ImmutableInputSnapshot, ResolvedBuildGraph, ResolvedPairedScoopc};
+use crate::{ResolvedBuildGraph, ResolvedPairedScoopc};
 
 mod error;
 mod model;
@@ -91,7 +89,7 @@ impl Preparer {
                     PreparedGraphNode::PrebuiltArtifact(Box::new(PreparedPrebuiltArtifactNode {
                         coordinate: prebuilt.coordinate().clone(),
                         artifact_fingerprint: prebuilt.artifact_fingerprint(),
-                        candidates: prepare_prebuilt_candidates(*prebuilt, &self.parts.context)?,
+                        candidates: prepare_prebuilt_candidates(*prebuilt),
                     }))
                 }
                 GraphNode::SingleFile(locator) => {
@@ -177,58 +175,20 @@ fn select_manifest_input(
 
 fn prepare_prebuilt_candidates(
     prebuilt: PrebuiltArtifactProjection,
-    context: &BuildContext,
-) -> Result<NonEmptyPreparedArtifactCandidates, PrepareBuildGraphError> {
-    let (coordinate, artifact_fingerprint, first, rest) = prebuilt.into_parts();
-    let first = prepare_artifact_candidate(first, context)?;
-    let rest = rest
-        .into_iter()
-        .map(|candidate| prepare_artifact_candidate(candidate, context))
-        .collect::<Result<Vec<_>, _>>()?;
-    if first.summary.cone().coordinate() != &coordinate
-        || first.summary.artifact_fingerprint() != artifact_fingerprint
-        || rest.iter().any(|candidate| {
-            candidate.summary.cone().coordinate() != &coordinate
-                || candidate.summary.artifact_fingerprint() != artifact_fingerprint
-        })
-    {
-        return Err(PrepareBuildGraphError::PrebuiltProjectionChanged(
-            coordinate,
-        ));
+) -> NonEmptyPreparedArtifactCandidates {
+    let (_, _, first, rest) = prebuilt.into_parts();
+    NonEmptyPreparedArtifactCandidates {
+        first: prepare_artifact_candidate(first),
+        rest: rest.into_iter().map(prepare_artifact_candidate).collect(),
     }
-    Ok(NonEmptyPreparedArtifactCandidates { first, rest })
 }
 
-fn prepare_artifact_candidate(
-    candidate: PrebuiltArtifactCandidate,
-    context: &BuildContext,
-) -> Result<PreparedArtifactCandidate, PrepareBuildGraphError> {
-    let (source_locator, expected_summary) = candidate.into_parts();
-    let input = ImmutableInputSnapshot::capture(&source_locator).map_err(|source| {
-        PrepareBuildGraphError::ArtifactSnapshot {
-            path: source_locator.clone(),
-            source,
-        }
-    })?;
-
-    let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
-    let summary = snapshot
-        .manifest_summary(context.target.lir_target_selection())
-        .map_err(|source| PrepareBuildGraphError::ArtifactSummary {
-            path: source_locator.clone(),
-            source,
-        })?;
-    if summary != expected_summary {
-        return Err(PrepareBuildGraphError::ArtifactSummaryChanged(
-            source_locator,
-        ));
-    }
-
-    Ok(PreparedArtifactCandidate {
+fn prepare_artifact_candidate(candidate: PrebuiltArtifactCandidate) -> PreparedArtifactCandidate {
+    let (source_locator, summary) = candidate.into_parts();
+    PreparedArtifactCandidate {
         source_locator,
-        snapshot,
         summary,
-    })
+    }
 }
 
 #[cfg(test)]

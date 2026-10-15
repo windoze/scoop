@@ -95,7 +95,7 @@ fn dependency_first_invariant_is_rechecked_by_the_closure_gate() {
 
 #[test]
 fn completed_nodes_share_artifact_data_with_their_closure() {
-    use scoop_slib::{ArtifactCapabilityProfile, ArtifactSnapshot, ConeRecord};
+    use scoop_slib::{ArtifactCapabilityProfile, ConeRecord, read_artifact_manifest_summary};
     use std::sync::Arc;
 
     let coordinate = ConeCoordinate::reserved_core();
@@ -119,16 +119,13 @@ fn completed_nodes_share_artifact_data_with_their_closure() {
     let cached_path = directory.path().join("cached.slib");
     std::fs::write(&candidate, archive.as_bytes()).unwrap();
     std::fs::copy(&candidate, &cached_path).unwrap();
-    let snapshot = Arc::new(ArtifactSnapshot::from_bytes(
-        std::fs::read(&candidate).unwrap(),
-    ));
-    let artifact = BuildArtifact::from_snapshot(
-        candidate.clone(),
-        Arc::clone(&snapshot),
-        snapshot
-            .manifest_summary(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
-            .unwrap(),
-    );
+    let summary = read_artifact_manifest_summary(
+        archive.as_bytes(),
+        scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
+    )
+    .unwrap();
+    let artifact = BuildArtifact::from_result(candidate.clone(), summary);
+    let snapshot = Arc::clone(artifact.snapshot().unwrap());
     let closure = plan
         .collect(core, &BTreeMap::from([(core, Rc::clone(&artifact))]))
         .unwrap();

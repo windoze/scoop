@@ -149,7 +149,7 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
             path: path.clone(),
             member: match source {
                 ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
-                ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::Io(_) => "container:$".to_owned(),
                 ArtifactManifestSummaryError::TestDirectory(_) => {
                     "manifest:test-directory".to_owned()
                 }
@@ -164,10 +164,6 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
             member: "manifest:cone.identity".to_owned(),
         },
         Error::Io { path, .. }
-        | Error::ArtifactNotRegularFile(path)
-        | Error::LengthOverflow(path)
-        | Error::ArtifactChangedDuringRead(path)
-        | Error::Allocation(path)
         | Error::CoordinateMismatch { path, .. }
         | Error::ExecutableDependency { path, .. }
         | Error::SelfSourceLocator { root: path, .. } => BuildFailureLocation::Host {

@@ -1,13 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ConeManifestSemantic, SelectedManifestSources};
-use scoop_slib::{
-    ArtifactFingerprint, ArtifactManifestSummaryV1, ArtifactSnapshot, ConeKind, ConeSourceForm,
-};
+use scoop_slib::{ArtifactFingerprint, ArtifactManifestSummaryV1, ConeKind, ConeSourceForm};
 
 use super::super::staging::PreparedStaging;
 use crate::ResolvedPairedScoopc;
@@ -76,17 +73,12 @@ impl SingleFileSourceInput {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedArtifactCandidate {
     pub(super) source_locator: PathBuf,
-    pub(super) snapshot: Arc<ArtifactSnapshot>,
     pub(super) summary: ArtifactManifestSummaryV1,
 }
 
 impl PreparedArtifactCandidate {
     pub fn source_locator(&self) -> &Path {
         &self.source_locator
-    }
-
-    pub fn snapshot(&self) -> &Arc<ArtifactSnapshot> {
-        &self.snapshot
     }
 
     pub const fn summary(&self) -> &ArtifactManifestSummaryV1 {

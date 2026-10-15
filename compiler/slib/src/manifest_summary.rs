@@ -10,7 +10,7 @@ use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{
     ArtifactFingerprint, BootstrapManifest, ConeRecord, DependencyRecord, FingerprintAvailability,
-    GraphValidationError, RuntimeImageFingerprint, SemanticFingerprintRecord, SlibReadError,
+    RuntimeImageFingerprint, SemanticFingerprintRecord, SlibReadError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,7 +24,9 @@ pub struct ArtifactManifestSummaryV1 {
     test_directory: Option<crate::TestDirectory>,
 }
 
+mod read;
 mod wire;
+pub use read::read_artifact_manifest_summary_from_reader;
 
 impl ArtifactManifestSummaryV1 {
     pub fn new(
@@ -118,19 +120,13 @@ pub fn read_artifact_manifest_summary(
 
     target_selection: ValidatedLirTargetSelection,
 ) -> Result<ArtifactManifestSummaryV1, ArtifactManifestSummaryError> {
-    let graph = crate::DecodedSlibEnvelope::open(bytes, target_selection)
-        .map_err(ArtifactManifestSummaryError::Envelope)?
-        .validate_graph()
-        .map_err(ArtifactManifestSummaryError::Graph)?;
-    let manifest = graph.envelope.manifest();
-    ArtifactManifestSummaryV1::from_manifest(manifest, target_selection)
-        .map_err(ArtifactManifestSummaryError::TestDirectory)
+    read_artifact_manifest_summary_from_reader(&mut std::io::Cursor::new(bytes), target_selection)
 }
 
 #[derive(Debug)]
 pub enum ArtifactManifestSummaryError {
     Envelope(SlibReadError),
-    Graph(GraphValidationError),
+    Io(std::io::Error),
     TestDirectory(crate::TestDirectoryError),
 }
 
@@ -138,7 +134,7 @@ impl fmt::Display for ArtifactManifestSummaryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Envelope(error) => error.fmt(formatter),
-            Self::Graph(error) => error.fmt(formatter),
+            Self::Io(error) => error.fmt(formatter),
             Self::TestDirectory(error) => error.fmt(formatter),
         }
     }
@@ -148,7 +144,7 @@ impl std::error::Error for ArtifactManifestSummaryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Envelope(error) => Some(error),
-            Self::Graph(error) => Some(error),
+            Self::Io(error) => Some(error),
             Self::TestDirectory(error) => Some(error),
         }
     }

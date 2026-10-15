@@ -1,12 +1,9 @@
 use std::fmt;
-use std::path::PathBuf;
 
-use scoop_identity::ConeCoordinate;
 use scoop_manifest::{SingleFileInputError, SourceDiscoveryError};
-use scoop_slib::ArtifactManifestSummaryError;
 
 use super::super::staging::StagingError;
-use crate::{PairedCompilerError, SnapshotFileError};
+use crate::PairedCompilerError;
 
 #[derive(Debug)]
 pub enum PrepareBuildGraphError {
@@ -15,18 +12,6 @@ pub enum PrepareBuildGraphError {
     SourceDiscovery(SourceDiscoveryError),
     Native(scoop_toolchain::ToolchainError),
     SingleFile(SingleFileInputError),
-
-    ArtifactSnapshot {
-        path: PathBuf,
-        source: SnapshotFileError,
-    },
-
-    ArtifactSummary {
-        path: PathBuf,
-        source: ArtifactManifestSummaryError,
-    },
-    ArtifactSummaryChanged(PathBuf),
-    PrebuiltProjectionChanged(ConeCoordinate),
 }
 
 impl fmt::Display for PrepareBuildGraphError {
@@ -41,27 +26,6 @@ impl fmt::Display for PrepareBuildGraphError {
             Self::SingleFile(error) => {
                 write!(formatter, "cannot snapshot single-file root: {error}")
             }
-
-            Self::ArtifactSnapshot { path, source } => write!(
-                formatter,
-                "cannot snapshot prebuilt artifact {}: {source}",
-                path.display()
-            ),
-
-            Self::ArtifactSummary { path, source } => write!(
-                formatter,
-                "cannot re-probe artifact snapshot {}: {source}",
-                path.display()
-            ),
-            Self::ArtifactSummaryChanged(path) => write!(
-                formatter,
-                "artifact {} changed after graph discovery",
-                path.display()
-            ),
-            Self::PrebuiltProjectionChanged(coordinate) => write!(
-                formatter,
-                "prebuilt projection for {coordinate} changed during graph preparation"
-            ),
         }
     }
 }
@@ -74,10 +38,6 @@ impl std::error::Error for PrepareBuildGraphError {
             Self::Staging(error) => Some(error),
             Self::SourceDiscovery(error) => Some(error),
             Self::SingleFile(error) => Some(error),
-            Self::ArtifactSnapshot { source, .. } => Some(source),
-            Self::ArtifactSummary { source, .. } => Some(source),
-
-            _ => None,
         }
     }
 }

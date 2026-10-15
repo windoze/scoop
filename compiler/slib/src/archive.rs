@@ -5,8 +5,8 @@ use scoop_wire::{WireError, WirePath};
 
 use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
-const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
-const HEADER_LENGTH: u64 = 60;
+pub(crate) const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
+pub(crate) const HEADER_LENGTH: u64 = 60;
 
 mod write;
 pub use write::{ArchiveWriteError, CanonicalSlibArchive};
@@ -209,9 +209,7 @@ impl<'input> ManifestArchive<'input> {
     }
 }
 
-/// Canonical physical archive whose member headers, ranges, padding, lengths,
-/// and content digests match a typed directory. It intentionally exposes no
-/// member payload extraction API or semantic view.
+/// Archive member ranges indexed by the manifest directory.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedArchive<'input> {
     input: &'input [u8],
@@ -252,26 +250,14 @@ fn read_member(
         .get(header_start..header_end)
         .ok_or(ArchiveReadError::TruncatedHeader { member })?;
 
-    if !is_canonical_archive_name(&header[0..16], expected_name)
-        || !is_canonical_field(&header[16..28], b"0")
-        || !is_canonical_field(&header[28..34], b"0")
-        || !is_canonical_field(&header[34..40], b"0")
-        || !is_canonical_field(&header[40..48], b"100644")
-        || &header[58..60] != b"`\n"
-    {
-        return Err(ArchiveReadError::NonCanonicalHeader { member });
-    }
-    let payload_length =
-        parse_size(&header[48..58]).ok_or(ArchiveReadError::InvalidSize { member })?;
-    let payload_length_usize =
-        usize::try_from(payload_length).map_err(|_| ArchiveReadError::LengthOverflow)?;
+    let payload_length_usize = read_member_header(header, expected_name, member)?;
     let payload_end = header_end
         .checked_add(payload_length_usize)
         .ok_or(ArchiveReadError::LengthOverflow)?;
     if input.get(header_end..payload_end).is_none() {
         return Err(ArchiveReadError::TruncatedPayload { member });
     }
-    let next_header = if payload_length & 1 == 1 {
+    let next_header = if payload_length_usize & 1 == 1 {
         let padding_end = payload_end
             .checked_add(1)
             .ok_or(ArchiveReadError::LengthOverflow)?;
@@ -283,6 +269,28 @@ fn read_member(
         payload_end
     };
     Ok((header_end..payload_end, next_header))
+}
+
+pub(crate) fn read_member_header(
+    header: &[u8],
+    expected_name: &[u8],
+    member: ArchiveMemberOrdinal,
+) -> Result<usize, ArchiveReadError> {
+    if header.len() != HEADER_LENGTH as usize {
+        return Err(ArchiveReadError::TruncatedHeader { member });
+    }
+    if !is_canonical_archive_name(&header[0..16], expected_name)
+        || !is_canonical_field(&header[16..28], b"0")
+        || !is_canonical_field(&header[28..34], b"0")
+        || !is_canonical_field(&header[34..40], b"0")
+        || !is_canonical_field(&header[40..48], b"100644")
+        || &header[58..60] != b"`\n"
+    {
+        return Err(ArchiveReadError::NonCanonicalHeader { member });
+    }
+    let payload_length =
+        parse_size(&header[48..58]).ok_or(ArchiveReadError::InvalidSize { member })?;
+    usize::try_from(payload_length).map_err(|_| ArchiveReadError::LengthOverflow)
 }
 
 fn is_canonical_field(field: &[u8], value: &[u8]) -> bool {

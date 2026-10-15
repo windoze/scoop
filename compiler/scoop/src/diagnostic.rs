@@ -88,12 +88,10 @@ impl BuildDiagnosticCode {
     pub const GRAPH_CYCLE: Self = Self("SCOOP_GRAPH_CYCLE");
     pub const GRAPH_UNREACHABLE_NODE: Self = Self("SCOOP_GRAPH_UNREACHABLE_NODE");
     pub const GRAPH_ALLOCATION: Self = Self("SCOOP_GRAPH_ALLOCATION");
-    pub const ARTIFACT_LENGTH_OVERFLOW: Self = Self("SCOOP_ARTIFACT_LENGTH_OVERFLOW");
 
     pub const PREBUILT_SUMMARY_MISMATCH: Self = Self("SCOOP_PREBUILT_SUMMARY_MISMATCH");
     pub const PREBUILT_VIEW_INVALID: Self = Self("SCOOP_PREBUILT_VIEW_INVALID");
     pub const PREBUILT_STALE_DEPENDENCY: Self = Self("SCOOP_PREBUILT_STALE_DEPENDENCY");
-    pub const PREBUILT_CHANGED: Self = Self("SCOOP_PREBUILT_CHANGED");
 
     pub const CACHE_IO: Self = Self("SCOOP_CACHE_IO");
     pub const CACHE_LOCK: Self = Self("SCOOP_CACHE_LOCK");
@@ -217,7 +215,7 @@ impl ClassifyBuildFailure for DependencyLocatorError {
                 BuildFailurePhase::Locator,
                 BuildDiagnosticCode::LOCATOR_NOT_FOUND,
             ),
-            Self::ArtifactNotRegularFile(_) | Self::InvalidArtifactSourceForm { .. } => classified(
+            Self::InvalidArtifactSourceForm { .. } => classified(
                 BuildFailurePhase::Locator,
                 BuildDiagnosticCode::LOCATOR_WRONG_TYPE,
             ),
@@ -236,18 +234,6 @@ impl ClassifyBuildFailure for DependencyLocatorError {
             Self::ExecutableDependency { .. } => classified(
                 BuildFailurePhase::GraphVersionKind,
                 BuildDiagnosticCode::GRAPH_EXECUTABLE_DEPENDENCY,
-            ),
-            Self::ArtifactChangedDuringRead(_) => classified(
-                BuildFailurePhase::Summary,
-                BuildDiagnosticCode::PREBUILT_CHANGED,
-            ),
-            Self::LengthOverflow(_) => classified(
-                BuildFailurePhase::Summary,
-                BuildDiagnosticCode::ARTIFACT_LENGTH_OVERFLOW,
-            ),
-            Self::Allocation(_) => classified(
-                BuildFailurePhase::Summary,
-                BuildDiagnosticCode::GRAPH_ALLOCATION,
             ),
             Self::Summary { .. } => classified(
                 BuildFailurePhase::Summary,
@@ -323,16 +309,6 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
                 BuildFailurePhase::Toolchain,
                 BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
             ),
-            Self::ArtifactSummaryChanged(_) | Self::PrebuiltProjectionChanged(_) => classified(
-                BuildFailurePhase::PrebuiltArtifact,
-                BuildDiagnosticCode::PREBUILT_CHANGED,
-            ),
-            Self::ArtifactSummary { .. } => classified(
-                BuildFailurePhase::PrebuiltArtifact,
-                BuildDiagnosticCode::PREBUILT_VIEW_INVALID,
-            ),
-            Self::ArtifactSnapshot { .. } => phase_only(BuildFailurePhase::PrebuiltArtifact),
-
             Self::Staging(_) | Self::SourceDiscovery(_) | Self::Native(_) | Self::SingleFile(_) => {
                 phase_only(BuildFailurePhase::SourceSnapshot)
             }

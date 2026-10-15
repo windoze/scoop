@@ -1,6 +1,5 @@
 use std::fmt;
 use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
@@ -10,7 +9,7 @@ use scoop_manifest::{
 };
 use scoop_slib::{
     ArtifactFingerprint, ArtifactManifestSummaryError, ArtifactManifestSummaryV1, ConeKind,
-    ConeSourceForm, read_artifact_manifest_summary,
+    ConeSourceForm, read_artifact_manifest_summary_from_reader,
 };
 
 use crate::{ArtifactCacheRoot, ArtifactSearchRoot};
@@ -334,57 +333,19 @@ fn probe_artifact_candidate(
         path: resolved_path.clone(),
         source,
     })?;
-    let metadata = file
-        .metadata()
-        .map_err(|source| DependencyLocatorError::Io {
-            operation: LocatorIoOperation::Inspect,
-            path: resolved_path.clone(),
-            source,
-        })?;
-    if !metadata.is_file() {
-        return Err(DependencyLocatorError::ArtifactNotRegularFile(
-            resolved_path,
-        ));
-    }
-    let expected_length = usize::try_from(metadata.len())
-        .map_err(|_| DependencyLocatorError::LengthOverflow(resolved_path.clone()))?;
-    let mut bytes = Vec::new();
-    bytes
-        .try_reserve_exact(expected_length)
-        .map_err(|_| DependencyLocatorError::Allocation(resolved_path.clone()))?;
-    let read_bound = metadata
-        .len()
-        .checked_add(1)
-        .ok_or_else(|| DependencyLocatorError::LengthOverflow(resolved_path.clone()))?;
-    file.by_ref()
-        .take(read_bound)
-        .read_to_end(&mut bytes)
-        .map_err(|source| DependencyLocatorError::Io {
-            operation: LocatorIoOperation::Read,
-            path: resolved_path.clone(),
-            source,
-        })?;
-    let after = file
-        .metadata()
-        .map_err(|source| DependencyLocatorError::Io {
-            operation: LocatorIoOperation::Inspect,
-            path: resolved_path.clone(),
-            source,
-        })?;
-    if bytes.len() != expected_length
-        || after.len() != metadata.len()
-        || after.modified().ok() != metadata.modified().ok()
-    {
-        return Err(DependencyLocatorError::ArtifactChangedDuringRead(
-            resolved_path,
-        ));
-    }
-    let summary = read_artifact_manifest_summary(&bytes, target).map_err(|source| {
-        DependencyLocatorError::Summary {
-            path: resolved_path.clone(),
-            source,
-        }
-    })?;
+    let summary = read_artifact_manifest_summary_from_reader(&mut file, target).map_err(
+        |source| match source {
+            ArtifactManifestSummaryError::Io(source) => DependencyLocatorError::Io {
+                operation: LocatorIoOperation::Read,
+                path: resolved_path.clone(),
+                source,
+            },
+            source => DependencyLocatorError::Summary {
+                path: resolved_path.clone(),
+                source,
+            },
+        },
+    )?;
     validate_artifact_shape(expected, &resolved_path, &summary)?;
 
     Ok(PrebuiltArtifactCandidate {
@@ -464,10 +425,6 @@ pub enum DependencyLocatorError {
         path: PathBuf,
         source: std::io::Error,
     },
-    ArtifactNotRegularFile(PathBuf),
-    LengthOverflow(PathBuf),
-    ArtifactChangedDuringRead(PathBuf),
-    Allocation(PathBuf),
     Summary {
         path: PathBuf,
         source: ArtifactManifestSummaryError,
@@ -523,32 +480,6 @@ impl fmt::Display for DependencyLocatorError {
                 path,
                 source,
             } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
-            Self::ArtifactNotRegularFile(path) => {
-                write!(
-                    formatter,
-                    "artifact {} is not a regular file",
-                    path.display()
-                )
-            }
-            Self::LengthOverflow(path) => write!(
-                formatter,
-                "artifact {} length cannot be represented",
-                path.display()
-            ),
-            Self::ArtifactChangedDuringRead(path) => {
-                write!(
-                    formatter,
-                    "artifact {} changed while it was read",
-                    path.display()
-                )
-            }
-            Self::Allocation(path) => {
-                write!(
-                    formatter,
-                    "cannot allocate artifact bytes for {}",
-                    path.display()
-                )
-            }
             Self::Summary { path, source } => {
                 write!(
                     formatter,

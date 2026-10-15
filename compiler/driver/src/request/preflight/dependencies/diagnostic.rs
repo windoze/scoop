@@ -89,9 +89,7 @@ impl Error {
                     slib::ArtifactManifestSummaryError::Envelope(error) => {
                         error.diagnostic().semantic_path()
                     }
-                    slib::ArtifactManifestSummaryError::Graph(error) => {
-                        error.diagnostic().semantic_path()
-                    }
+                    slib::ArtifactManifestSummaryError::Io(_) => "container:$".to_owned(),
                     slib::ArtifactManifestSummaryError::TestDirectory(_) => {
                         "manifest:test-directory".to_owned()
                     }

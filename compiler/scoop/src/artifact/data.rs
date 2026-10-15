@@ -23,18 +23,6 @@ impl BuildArtifact {
         })
     }
 
-    pub(crate) fn from_snapshot(
-        path: PathBuf,
-        snapshot: Arc<ArtifactSnapshot>,
-        summary: ArtifactManifestSummaryV1,
-    ) -> Rc<Self> {
-        Rc::new(Self {
-            path,
-            snapshot: OnceCell::from(Ok(snapshot)),
-            summary,
-        })
-    }
-
     pub fn snapshot(&self) -> io::Result<&Arc<ArtifactSnapshot>> {
         self.snapshot
             .get_or_init(|| {

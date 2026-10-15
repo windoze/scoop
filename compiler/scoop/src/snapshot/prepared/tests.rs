@@ -240,7 +240,7 @@ fn prepare_uses_the_actual_prebuilt_artifact_path() {
         .next()
         .unwrap();
 
-    assert_eq!(candidate.snapshot().as_bytes(), artifact);
+    assert_eq!(candidate.summary().cone().identity(), identity);
     assert_eq!(
         candidate.source_locator(),
         workspace.join("prebuilt.slib").canonicalize().unwrap()
@@ -250,40 +250,6 @@ fn prepare_uses_the_actual_prebuilt_artifact_path() {
         prepared.prebuilt_artifact_fingerprint(identity),
         Some(candidate.summary().artifact_fingerprint())
     );
-}
-
-#[test]
-fn prepare_rejects_artifact_changed_after_discovery() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let artifact_path = workspace.join("prebuilt.slib");
-    let coordinate = ConeCoordinate::new("test", "prebuilt", "1.0.0").unwrap();
-    let mut artifact = manifest_artifact_with_core(coordinate);
-    std::fs::write(&artifact_path, &artifact).unwrap();
-    write_manifest(
-        &root,
-        "root",
-        "[dependencies]\n\"test:prebuilt\" = { version = \"1.0.0\", artifact = \"../prebuilt.slib\" }\n",
-    );
-    let resolved = request(&root, workspace)
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap();
-    *artifact.last_mut().unwrap() ^= 1;
-    std::fs::write(&artifact_path, artifact).unwrap();
-
-    assert!(matches!(
-        resolved.prepare(),
-        Err(PrepareBuildGraphError::ArtifactSummary { .. })
-            | Err(PrepareBuildGraphError::ArtifactSummaryChanged(_))
-    ));
 }
 
 #[test]

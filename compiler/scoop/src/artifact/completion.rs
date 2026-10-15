@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
 use scoop_protocol::StructuredDiagnosticV1;
@@ -186,9 +185,8 @@ pub(crate) fn complete_prebuilt_candidates(
 
     let mut validated = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        let artifact = BuildArtifact::from_snapshot(
+        let artifact = BuildArtifact::from_result(
             candidate.source_locator().to_path_buf(),
-            Arc::clone(candidate.snapshot()),
             candidate.summary().clone(),
         );
         artifacts.insert(identity, Rc::clone(&artifact));
