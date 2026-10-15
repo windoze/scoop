@@ -7,7 +7,7 @@ pub(crate) fn locate_build_dependency(
     target: scoop_lir::ValidatedLirTargetSelection,
     cache: &ArtifactCacheRoot,
 ) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
-    match locate_from_search_roots(coordinate, search_roots, target) {
+    match locate_from_search_roots(coordinate, search_roots, target, cache) {
         Ok(prebuilt) => Ok(LocatedDependencyClaim::Prebuilt(Box::new(prebuilt))),
         Err(DependencyLocatorError::ArtifactNotFound { .. })
             if coordinate.group() == "scoop" && *coordinate != ConeCoordinate::reserved_core() =>

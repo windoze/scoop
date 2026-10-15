@@ -1,5 +1,4 @@
 use std::fmt;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
@@ -9,7 +8,7 @@ use scoop_manifest::{
 };
 use scoop_slib::{
     ArtifactFingerprint, ArtifactManifestSummaryError, ArtifactManifestSummaryV1, ConeKind,
-    ConeSourceForm, read_artifact_manifest_summary_from_reader,
+    ConeSourceForm,
 };
 
 use crate::{ArtifactCacheRoot, ArtifactSearchRoot};
@@ -173,9 +172,10 @@ pub(crate) fn locate_manifest_dependency(
             resolve_from_manifest(parent, path.as_path()),
             coordinate,
             target,
+            cache,
         ),
         DependencyLocator::SearchRoots => {
-            locate_from_search_roots(coordinate, search_roots, target)
+            locate_from_search_roots(coordinate, search_roots, target, cache)
                 .map(|prebuilt| LocatedDependencyClaim::Prebuilt(Box::new(prebuilt)))
         }
     }
@@ -185,8 +185,9 @@ fn locate_artifact_dependency(
     path: PathBuf,
     coordinate: &ConeCoordinate,
     target: scoop_lir::ValidatedLirTargetSelection,
+    cache: &ArtifactCacheRoot,
 ) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
-    let candidate = probe_artifact_candidate(path, coordinate, target)?;
+    let candidate = probe_artifact_candidate(path, coordinate, target, cache)?;
     Ok(LocatedDependencyClaim::Prebuilt(Box::new(
         PrebuiltArtifactProjection {
             coordinate: coordinate.clone(),
@@ -252,6 +253,7 @@ pub(crate) fn locate_from_search_roots(
     coordinate: &ConeCoordinate,
     search_roots: &[ArtifactSearchRoot],
     target: scoop_lir::ValidatedLirTargetSelection,
+    cache: &ArtifactCacheRoot,
 ) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     let mut checked = Vec::new();
     let mut resolved = Vec::new();
@@ -291,11 +293,11 @@ pub(crate) fn locate_from_search_roots(
             checked,
         });
     };
-    let first = probe_artifact_candidate(first_path, coordinate, target)?;
+    let first = probe_artifact_candidate(first_path, coordinate, target, cache)?;
     let expected_fingerprint = first.summary.artifact_fingerprint();
     let mut rest = Vec::new();
     for path in paths {
-        rest.push(probe_artifact_candidate(path, coordinate, target)?);
+        rest.push(probe_artifact_candidate(path, coordinate, target, cache)?);
     }
     if rest
         .iter()
@@ -326,26 +328,10 @@ fn probe_artifact_candidate(
     path: PathBuf,
     expected: &ConeCoordinate,
     target: scoop_lir::ValidatedLirTargetSelection,
+    cache: &ArtifactCacheRoot,
 ) -> Result<PrebuiltArtifactCandidate, DependencyLocatorError> {
     let resolved_path = canonicalize(&path)?;
-    let mut file = File::open(&resolved_path).map_err(|source| DependencyLocatorError::Io {
-        operation: LocatorIoOperation::Open,
-        path: resolved_path.clone(),
-        source,
-    })?;
-    let summary = read_artifact_manifest_summary_from_reader(&mut file, target).map_err(
-        |source| match source {
-            ArtifactManifestSummaryError::Io(source) => DependencyLocatorError::Io {
-                operation: LocatorIoOperation::Read,
-                path: resolved_path.clone(),
-                source,
-            },
-            source => DependencyLocatorError::Summary {
-                path: resolved_path.clone(),
-                source,
-            },
-        },
-    )?;
+    let summary = cache.load_artifact_summary(&resolved_path, target)?;
     validate_artifact_shape(expected, &resolved_path, &summary)?;
 
     Ok(PrebuiltArtifactCandidate {
@@ -402,6 +388,8 @@ pub enum LocatorIoOperation {
     Canonicalize,
     Open,
     Read,
+    Write,
+    Lock,
 }
 
 impl fmt::Display for LocatorIoOperation {
@@ -411,6 +399,8 @@ impl fmt::Display for LocatorIoOperation {
             Self::Canonicalize => "canonicalize",
             Self::Open => "open",
             Self::Read => "read",
+            Self::Write => "write",
+            Self::Lock => "lock",
         })
     }
 }

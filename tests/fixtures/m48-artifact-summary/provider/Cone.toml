@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test.m48"
+name = "summary-provider"
+version = "0.1.0"
+kind = "library"

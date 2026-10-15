@@ -421,6 +421,8 @@ manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 
 
 依赖发现只读取归档头和首个 manifest 成员，取得 Cone、依赖、构建摘要与测试目录，不扫描后续成员头或读取其内容。字节输入与文件输入共用该摘要读取逻辑。准备 prebuilt 输入直接传递发现时取得的摘要和实际路径，不再次捕获完整归档、重算摘要或比较发现前后状态；实际编译／链接需要成员时再读取，普通 I/O 错误照常传播。
 
+显式 artifact、artifact 搜索目录及默认 core 产物的发现共用 `artifact-summaries-v1` 普通摘要记录。按选中实际路径、mtime、大小和所选 target／backend 配置定位；未变化时直接读取已保存的摘要，不打开原归档或重新读取 manifest。路径／输入 metadata 或配置变化后按上述最小读取取得新摘要；普通锁协调同键首次读取，成功后原子发布记录。缺失实际输入仍报告输入错误，记录读取失败正常传播，不扫描或恢复损坏记录。该记录不改变语言身份、语义摘要或源码依赖的失效规则。
+
 production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、digest patch 位置、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
 
 executable entry 保存完整签名以及封闭的声明分支：生产入口引用源码 PersistentFunctionId，测试入口引用 PersistentGeneratedCallableId。测试入口的 generated key 由当前 ConeIdentity 与 TestEntry role 确定，不生成伪造的源码 main identity；两者均通过正常 Strong callable body、root gateway 和 failure-root 链接。HIR 完成入口选择并检查签名，后续 stage 传递实际声明、body 与签名，不重新按名称选择入口。

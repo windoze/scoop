@@ -21,7 +21,7 @@ pub(crate) fn locate_default_core(
                 LocatedDependencyClaim::Source(Box::new(ManifestSourceProjection { manifest }))
             }),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            locate_artifact_dependency(layout.artifact().to_path_buf(), &coordinate, target)
+            locate_artifact_dependency(layout.artifact().to_path_buf(), &coordinate, target, cache)
         }
         Err(source) => Err(DependencyLocatorError::Io {
             operation: LocatorIoOperation::Inspect,

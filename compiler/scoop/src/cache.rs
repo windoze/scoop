@@ -1,5 +1,6 @@
 //! Versioned single-Cone compile cache contracts.
 
+mod artifact;
 mod key;
 mod manifest;
 mod record;

@@ -1,0 +1,2 @@
+import m48.summary.VALUE
+fun main(): Int = VALUE
