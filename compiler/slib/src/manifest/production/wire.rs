@@ -148,8 +148,7 @@ impl WireDecode for DecodedSingleConeProductionOutputV1 {
 type DecodedNativeLibraryRequirementV1 =
     DecodedCborIdentityRecord<NativeLinkRequirementId, DecodedNativeLinkRequirementKey>;
 
-/// Parsed twelve-field manifest, compared with the actual production result
-/// before its IDs and fingerprints are consumed.
+/// Decoded production fields used by artifact consumers.
 #[derive(Debug)]
 pub struct DecodedSingleConeProductionManifestV1 {
     distribution: DecodedArtifactDistributionClassV1,
@@ -162,6 +161,7 @@ pub struct DecodedSingleConeProductionManifestV1 {
     native_contracts: DecodedCanonicalNativeExternalContractCodeSetV1,
     native_library_requirements: Vec<DecodedNativeLibraryRequirementV1>,
     native_cxx: bool,
+    runtime_image_records: crate::runtime_image_records::DecodedRuntimeImageRecords,
     c_bridge_production: DecodedCBridgeProductionSetV1,
     odr_members: DecodedCanonicalOdrMemberDirectoryV1,
     optimization: scoop_lir::OptimizationMode,
@@ -202,6 +202,13 @@ impl CBridgeCheckedSingleConeProductionManifestV1 {
 }
 
 impl DecodedSingleConeProductionManifestV1 {
+    pub(crate) fn read_runtime_image_records(
+        &self,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<crate::RuntimeImageRecords, scoop_identity::IdentityReferenceError> {
+        self.runtime_image_records.read(identities)
+    }
+
     pub(crate) fn read_odr_members(
         &self,
         identities: &mut scoop_identity::ValidatedIdentityGraph,
@@ -257,7 +264,7 @@ impl DecodedSingleConeProductionManifestV1 {
 
 impl WireEncode for DecodedSingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(13)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -281,13 +288,15 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
         encoder.field(12)?;
         self.optimization.encode(encoder)?;
         encoder.field(13)?;
-        encoder.unsigned(u64::from(self.native_cxx))
+        encoder.unsigned(u64::from(self.native_cxx))?;
+        encoder.field(14)?;
+        self.runtime_image_records.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedSingleConeProductionManifestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(12)?;
+        decoder.expect_map(13)?;
         Ok(Self {
             distribution: decoder.field(1, DecodedArtifactDistributionClassV1::decode)?,
             output: decoder.field(2, DecodedSingleConeProductionOutputV1::decode)?,
@@ -309,6 +318,10 @@ impl WireDecode for DecodedSingleConeProductionManifestV1 {
                 1 => Ok(true),
                 tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
             })?,
+            runtime_image_records: decoder.field(
+                14,
+                crate::runtime_image_records::DecodedRuntimeImageRecords::decode,
+            )?,
         })
     }
 }

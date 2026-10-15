@@ -200,6 +200,10 @@ fn read_artifact(
         reachable,
     )
     .map_err(super::error::symbols)?;
+    let runtime_image_records = link
+        .production_manifest_wire()
+        .read_runtime_image_records(&mut identities)
+        .map_err(error)?;
     let native_objects = super::native::read(&mut graph, selection.target())?;
     Ok((
         ProgramLinkArtifact {
@@ -210,6 +214,7 @@ fn read_artifact(
             ordinary,
             layout,
             native_objects,
+            runtime_image_records,
         },
         symbols,
     ))

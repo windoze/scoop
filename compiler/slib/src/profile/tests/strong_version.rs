@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn production_manifest_v6_requires_odr_and_cxx_fields_in_every_profile() {
+fn production_manifest_v7_requires_runtime_records_in_every_profile() {
     let current = manifest_single_cone_production_capability();
-    assert_eq!(current.major_version(), 6);
-    let old = CapabilityId::new(current.namespace(), current.name(), 5).unwrap();
+    assert_eq!(current.major_version(), 7);
+    let old = CapabilityId::new(current.namespace(), current.name(), 6).unwrap();
     assert!(CapabilityContractRegistry::contract(&old).is_none());
     for profile in [
         ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

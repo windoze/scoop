@@ -77,8 +77,7 @@ impl<'a> ProgramInputs<'a> {
         let mut string_target = None;
         for (artifact, symbols) in closure.artifacts() {
             let cone = artifact.identity();
-            let image =
-                image::SelectedImage::new(artifact, symbols, selected.definitions(cone), profile)?;
+            let image = image::SelectedImage::new(artifact, selected.definitions(cone), profile)?;
             images.push(image.name.clone());
             requirements.extend(image.references().cloned());
             for name in image.defined_names() {

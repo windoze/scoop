@@ -226,8 +226,7 @@ impl VerifiedSingleConeProductionCodeProjectionV1 {
     }
 }
 
-/// The complete eleven-field manifest payload. All fields remain derived from
-/// the owned code proof, so repeated digests and projections cannot diverge.
+/// Production manifest fields derived from the compilation result.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SingleConeProductionManifestV1 {
     code: VerifiedCodeFingerprintV1,
@@ -260,6 +259,16 @@ impl SingleConeProductionManifestV1 {
 
     pub const fn runtime_registration_projection(&self) -> &RegistrationIdentitySurfaceV1 {
         self.projection().runtime_registration_projection()
+    }
+
+    pub fn runtime_image_records(&self) -> &crate::RuntimeImageRecords {
+        self.code
+            .production()
+            .link_objects()
+            .final_objects()
+            .runtime_images()
+            .fingerprint()
+            .records()
     }
 
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
@@ -299,7 +308,7 @@ impl SingleConeProductionManifestV1 {
 
 impl WireEncode for SingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(13)?;
         encoder.field(1)?;
         self.distribution().encode(encoder)?;
         encoder.field(2)?;
@@ -323,7 +332,9 @@ impl WireEncode for SingleConeProductionManifestV1 {
         encoder.field(12)?;
         self.optimization().encode(encoder)?;
         encoder.field(13)?;
-        encoder.unsigned(u64::from(self.native_cxx()))
+        encoder.unsigned(u64::from(self.native_cxx()))?;
+        encoder.field(14)?;
+        self.runtime_image_records().encode(encoder)
     }
 }
 

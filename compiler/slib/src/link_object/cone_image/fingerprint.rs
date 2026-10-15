@@ -1,13 +1,11 @@
-use std::{collections::BTreeSet, fmt};
+use std::fmt;
 
 mod encoding;
 use encoding::RuntimeImageFingerprintInputV1;
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::{RuntimeAbiFingerprint, TargetProfileFingerprint};
-use scoop_wire::{
-    HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
-};
+use scoop_wire::{HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
 use super::VerifiedConeImageV1;
 use crate::link_object::{
@@ -17,8 +15,6 @@ use crate::link_object::{
     runtime_encode_type_record_v1,
 };
 use crate::{CompatibilityRecord, RuntimeImageFingerprint, VerifiedStrongRegistrationPatchSetV1};
-
-const RUNTIME_IMAGE_DOMAIN: &str = "scoop-runtime-image-v2";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedRuntimeImageFingerprintV1<
@@ -30,6 +26,7 @@ pub struct VerifiedRuntimeImageFingerprintV1<
     registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     compatibility: CompatibilityRecord,
     fingerprint: RuntimeImageFingerprint,
+    records: crate::RuntimeImageRecords,
 }
 
 pub type VerifiedRuntimeImageFingerprintV2 = VerifiedRuntimeImageFingerprintV1<
@@ -61,23 +58,8 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
         self.fingerprint
     }
 
-    /// Hash the actual final tables without revalidating unchanged artifact contents.
-    pub fn fingerprint_for_definitions(
-        &self,
-        selected: &BTreeSet<scoop_identity::ObjectDefinitionPlanId>,
-    ) -> Result<RuntimeImageFingerprint, RuntimeImageFingerprintError> {
-        domain_separated_runtime_hash(
-            RUNTIME_IMAGE_DOMAIN,
-            &RuntimeImageFingerprintInputV1 {
-                image: &self.image,
-                registrations: &self.registrations,
-                runtime_abi: self.compatibility.runtime_abi(),
-                target_profile: self.compatibility.target_fingerprint(),
-                selected: Some(selected),
-            },
-        )
-        .map(|digest| RuntimeImageFingerprint::from_array(*digest.as_array()))
-        .map_err(RuntimeImageFingerprintError::Hash)
+    pub const fn records(&self) -> &crate::RuntimeImageRecords {
+        &self.records
     }
 }
 
@@ -108,23 +90,23 @@ where
 {
     validate_proof_binding(&image, &registrations)?;
     validate_tables(&image, &registrations)?;
-    let fingerprint = domain_separated_runtime_hash(
-        RUNTIME_IMAGE_DOMAIN,
-        &RuntimeImageFingerprintInputV1 {
-            image: &image,
-            registrations: &registrations,
-            runtime_abi: compatibility.runtime_abi(),
-            target_profile: compatibility.target_fingerprint(),
-            selected: None,
-        },
-    )
-    .map(|digest| RuntimeImageFingerprint::from_array(*digest.as_array()))
-    .map_err(RuntimeImageFingerprintError::Hash)?;
+    let records = RuntimeImageFingerprintInputV1 {
+        image: &image,
+        registrations: &registrations,
+        runtime_abi: compatibility.runtime_abi(),
+        target_profile: compatibility.target_fingerprint(),
+    }
+    .records()
+    .map_err(|_| RuntimeImageFingerprintError::Hash(HashError::RuntimeEncoding))?;
+    let fingerprint = records
+        .fingerprint()
+        .map_err(RuntimeImageFingerprintError::Hash)?;
     Ok(VerifiedRuntimeImageFingerprintV1 {
         image,
         registrations,
         compatibility,
         fingerprint,
+        records,
     })
 }
 

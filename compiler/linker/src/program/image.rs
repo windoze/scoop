@@ -3,7 +3,7 @@
 use super::*;
 use scoop_identity::{ObjectDefinitionPlanId, PersistentId};
 use scoop_lir::RegistrationIdentityV1;
-use scoop_slib::{ProgramLinkArtifact, ReplayedLayoutLinkSymbolUsesV1};
+use scoop_slib::ProgramLinkArtifact;
 
 pub(crate) struct SelectedImage {
     pub name: String,
@@ -18,7 +18,6 @@ pub(crate) struct SelectedImage {
 impl SelectedImage {
     pub(super) fn new(
         artifact: &ProgramLinkArtifact,
-        symbols: &ReplayedLayoutLinkSymbolUsesV1,
         selected: &BTreeSet<ObjectDefinitionPlanId>,
         profile: &ValidatedFinalLinkProfile,
     ) -> Result<Self, LinkError> {
@@ -87,10 +86,8 @@ impl SelectedImage {
                 .expect("verified image support atom");
             (object_symbol(boundary.start(), profile), bytes)
         });
-        let fingerprint = symbols
-            .final_objects()
-            .runtime_images()
-            .fingerprint()
+        let fingerprint = artifact
+            .runtime_image_records()
             .fingerprint_for_definitions(selected)
             .map_err(error)?;
         Ok(Self {

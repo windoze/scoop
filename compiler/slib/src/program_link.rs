@@ -18,10 +18,15 @@ pub struct ProgramLinkArtifact {
     pub(crate) production: lir::ConeProductionSectionV2,
     pub(crate) ordinary: lir::CrossConeLirBridgeSectionV1,
     pub(crate) layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
+    pub(crate) runtime_image_records: crate::RuntimeImageRecords,
     pub(crate) native_objects: Vec<crate::NativeLinkObject>,
 }
 
 impl ProgramLinkArtifact {
+    pub fn runtime_image_records(&self) -> &crate::RuntimeImageRecords {
+        &self.runtime_image_records
+    }
+
     pub fn identity(&self) -> ConeIdentity {
         self.manifest.cone().identity()
     }
