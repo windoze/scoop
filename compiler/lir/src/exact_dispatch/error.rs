@@ -3,8 +3,6 @@ use scoop_identity::{
 };
 use scoop_wire::{HashError, WireError};
 
-use super::ExactDispatchWireError;
-
 #[derive(Debug)]
 pub enum ExactDispatchError {
     CountOverflow,
@@ -56,23 +54,14 @@ impl std::error::Error for ExactDispatchError {}
 
 #[derive(Debug)]
 pub enum ExactDispatchTableError {
-    LayoutProvider,
-    LayoutTarget,
     CountOverflow,
-    Count {
-        expected: usize,
-        actual: usize,
-    },
+    Count { expected: usize, actual: usize },
     Duplicate(PersistentDispatchTableId),
     Missing(PersistentDispatchTableId),
     Target(PersistentDispatchTableId),
     Provider(PersistentDispatchTableId),
     Definition(PersistentDispatchTableId),
     PhysicalDefinition(crate::StrongShapeDefinitionError),
-    Record {
-        index: usize,
-        source: ExactDispatchWireError,
-    },
     Resource(WireError),
 }
 

@@ -70,7 +70,7 @@ fn shared_lir_callable_abis_preserve_zst_indirect_results_and_boxing_adjustments
 }
 
 #[test]
-fn shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis() {
+fn shared_lir_dispatch_preserves_complete_tables_and_actual_callable_abis() {
     check_core_layout_exports(&[
         "shared-lir-dispatch-standalone",
         "shared-lir-dispatch-combined",
@@ -237,14 +237,7 @@ fn check_core_layout_exports(names: &[&str]) {
         if name.starts_with("shared-abi-") {
             shared_abis::probe(input, &result);
         }
-        shared_dispatch::check(
-            input,
-            scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
-            &result,
-        );
-        if name.starts_with("shared-lir-dispatch-") {
-            shared_dispatch::probe(input, &result);
-        }
+        shared_dispatch::check(input, &result);
         shared_descriptors::check(input, &result);
         if name.starts_with("shared-td-") {
             shared_descriptors::probe(input, &result);

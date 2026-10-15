@@ -361,3 +361,12 @@ Compile 只读取 definition symbol plan、静态存储／初始化语义及必�
 本机 fmt／workspace clippy、452 项 LIR、19 项 MIR section、527 项 slib、真实初始化组合和 core 产物通过；普通跨库 function／getter 在前半批通过。清理 10 个已结束 fixture 目录，释放 9.43 GB，保留近期编译缓存。[范围、原始验证与清理记录](validation/compile-relations.md)。
 
 本批未执行 Linux、整仓全量或性能验收。先在本机完成剩余布局／物理、底层 reader、writer、dump 等全部修改，再本机完整复验，随后统一 Linux 验收；M38 未推进。
+
+
+## 35. callable ABI 与 dispatch 保存记录读取
+
+callable ABI reader 不再调用生产构造器派生 body／definition 或重编码比较；dispatch 直接读取 table、slot、implementation 与 ABI 引用，接收者适配借用已有 layout。集中删除 MIR dispatch 重建、ABI 查找对照、候选修改工厂及无消费者的 API。44 个代码／规范文件净删 396 行，格式与 runtime ABI 不变。
+
+本机最终 fmt／workspace clippy、452 项 LIR、527 项 slib、真实分派 standalone／combined 和泛型 ODR 产物通过；前半批另有 ZST／间接返回／装箱 ABI 组合通过。[范围、退役清单与验证日志](validation/callable-dispatch.md)。target 没有新增已结束 fixture 目录，保留近期增量缓存。
+
+继续先完成本机全部修改及清理，再本机完整复验，通过后统一 Linux 验收。本批未运行 Linux 或全量，M48 仍在实施，M38 未推进。

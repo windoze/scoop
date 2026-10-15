@@ -6,6 +6,7 @@ pub(super) fn resolve(
     exports: &LayoutAbiExportConstituentsV1,
     semantic: &[LayoutAbiDependencyV1],
     rows: &[&dyn WireEncode],
+    foundation: &ConeLirFoundation,
     identities: &mut ValidatedIdentityGraph,
 ) -> DependencyResolvedCrossConeLayoutAbiSectionV1 {
     let bytes = encode(&Selection {
@@ -18,9 +19,9 @@ pub(super) fn resolve(
     decoded
         .validate_layouts(exports.layouts())
         .unwrap()
-        .validate_callables(exports.callables())
+        .read_callables(TARGET, foundation, identities)
         .unwrap()
-        .validate_dispatch(exports.dispatch())
+        .read_dispatch(TARGET, foundation, &[], identities)
         .unwrap()
         .validate_descriptors(exports.descriptors())
         .unwrap()

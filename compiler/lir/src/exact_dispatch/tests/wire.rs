@@ -72,5 +72,5 @@ fn wire_preserves_all_four_dispatch_implementation_branches() {
     let bytes = encode(&record).unwrap();
     let decoded = decode_canonical::<DecodedExactDispatchExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    decoded.validate_against(&record).unwrap();
+    read::roundtrip(&fixture, &record);
 }

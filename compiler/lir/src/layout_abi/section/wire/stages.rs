@@ -29,32 +29,16 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
         foundation: &crate::ConeLirFoundation,
         identities: &mut scoop_identity::ValidatedIdentityGraph,
     ) -> Result<CallablesResolvedCrossConeLayoutAbiSectionV1, crate::LinkDataError> {
-        Ok(CallablesResolvedCrossConeLayoutAbiSectionV1 {
-            layouts: self.layouts,
-            descriptors: self.descriptors,
-            dispatch: self.dispatch,
-            callables: self.callables.read_link(target, foundation, identities)?,
-            shape_support: self.shape_support,
-            selected: self.selected,
-        })
-    }
-
-    pub fn validate_callables(
-        self,
-        expected: &crate::CanonicalExactCallableAbiExportsV1,
-    ) -> Result<CallablesResolvedCrossConeLayoutAbiSectionV1, crate::ExactCallableAbiTableError>
-    {
-        if self.layouts.provider() != expected.provider() {
-            return Err(crate::ExactCallableAbiTableError::LayoutProvider);
-        }
-        if self.layouts.target() != expected.target() {
-            return Err(crate::ExactCallableAbiTableError::LayoutTarget);
+        if self.layouts.provider() != foundation.producer() || self.layouts.target() != target {
+            return Err(crate::LinkDataError(
+                "callable table layout provider or target mismatch".into(),
+            ));
         }
         Ok(CallablesResolvedCrossConeLayoutAbiSectionV1 {
             layouts: self.layouts,
             descriptors: self.descriptors,
             dispatch: self.dispatch,
-            callables: self.callables.validate_against(expected)?,
+            callables: self.callables.read(target, foundation, identities)?,
             shape_support: self.shape_support,
             selected: self.selected,
         })
@@ -75,25 +59,29 @@ impl<D, T>
 }
 
 impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
-    pub const fn dispatch_wire(&self) -> &crate::DecodedCanonicalExactDispatchExportsV1 {
-        &self.dispatch
-    }
-
-    pub fn validate_dispatch(
+    pub fn read_dispatch(
         self,
-        expected: &crate::CanonicalExactDispatchExportsV1,
-    ) -> Result<DispatchResolvedCrossConeLayoutAbiSectionV1, crate::ExactDispatchTableError> {
-        if self.layouts.provider() != expected.provider() {
-            return Err(crate::ExactDispatchTableError::LayoutProvider);
+        target: crate::LirTargetProfile,
+        foundation: &crate::ConeLirFoundation,
+        dependencies: &[&crate::CanonicalExactLayoutExportsV1],
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<DispatchResolvedCrossConeLayoutAbiSectionV1, crate::LinkDataError> {
+        if self.layouts.provider() != foundation.producer() || self.layouts.target() != target {
+            return Err(crate::LinkDataError(
+                "dispatch layout provider or target mismatch".into(),
+            ));
         }
-        if self.layouts.target() != expected.target() {
-            return Err(crate::ExactDispatchTableError::LayoutTarget);
-        }
+        let layouts = std::iter::once(&self.layouts)
+            .chain(dependencies.iter().copied())
+            .collect::<Vec<_>>();
+        let dispatch = self
+            .dispatch
+            .read(target, foundation, &layouts, identities)?;
         Ok(DispatchResolvedCrossConeLayoutAbiSectionV1 {
             layouts: self.layouts,
             descriptors: self.descriptors,
-            dispatch: self.dispatch.validate_against(expected)?,
             callables: self.callables,
+            dispatch,
             shape_support: self.shape_support,
             selected: self.selected,
         })

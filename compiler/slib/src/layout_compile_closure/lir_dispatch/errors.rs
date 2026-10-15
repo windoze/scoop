@@ -1,49 +1,23 @@
-use scoop_identity::{
-    CallableDefinitionOwner, ConeIdentity, PersistentDispatchTableId, PersistentExactTypeId,
-};
-use scoop_lir as lir;
-use scoop_wire::{HashError, WireError};
+use scoop_identity::ConeIdentity;
 
 #[derive(Debug)]
 pub enum SharedLirDispatchValidationError {
-    LocalProvider,
-    LocalTarget,
-    DependencyProvider(ConeIdentity),
-    DependencyTarget(ConeIdentity),
-    MissingType(PersistentExactTypeId),
-    MissingSchema(PersistentExactTypeId),
-    FiniteInheritance(PersistentExactTypeId),
-    MissingCallable(CallableDefinitionOwner),
-    DuplicateCallable(CallableDefinitionOwner),
-    MissingValueLayout(PersistentExactTypeId),
-    DuplicateValueLayout(PersistentExactTypeId),
-    Replay {
-        table: PersistentDispatchTableId,
-        source: Box<lir::ExactDispatchError>,
-    },
-    Table(lir::ExactDispatchTableError),
-    Hash(HashError),
-    Resource(WireError),
+    Read(scoop_lir::LinkDataError),
+    Resource(scoop_wire::WireError),
 }
-
-impl From<lir::ExactDispatchTableError> for SharedLirDispatchValidationError {
-    fn from(source: lir::ExactDispatchTableError) -> Self {
-        Self::Table(source)
+impl From<scoop_lir::LinkDataError> for SharedLirDispatchValidationError {
+    fn from(error: scoop_lir::LinkDataError) -> Self {
+        Self::Read(error)
     }
 }
-impl From<HashError> for SharedLirDispatchValidationError {
-    fn from(source: HashError) -> Self {
-        Self::Hash(source)
-    }
-}
-impl From<WireError> for SharedLirDispatchValidationError {
-    fn from(source: WireError) -> Self {
-        Self::Resource(source)
+impl From<scoop_wire::WireError> for SharedLirDispatchValidationError {
+    fn from(error: scoop_wire::WireError) -> Self {
+        Self::Resource(error)
     }
 }
 impl std::fmt::Display for SharedLirDispatchValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid shared MIR/LIR dispatch relation: {self:?}")
+        write!(f, "invalid dispatch records: {self:?}")
     }
 }
 impl std::error::Error for SharedLirDispatchValidationError {}

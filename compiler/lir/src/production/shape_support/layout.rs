@@ -15,6 +15,27 @@ impl StrongShapeDefinitionV1<PersistentLayoutId> {
 }
 
 impl<I: PersistentId> DecodedStrongShapeDefinitionV1<I> {
+    pub(crate) fn read(
+        self,
+        identities: &mut ValidatedIdentityGraph,
+    ) -> Result<StrongShapeDefinitionV1<I>, crate::LinkDataError>
+    where
+        ValidatedIdentityGraph:
+            scoop_identity::PersistentIdResolver<I, Error = scoop_identity::IdentityReferenceError>,
+    {
+        use crate::link_data::link_error;
+        use scoop_identity::PersistentIdResolver;
+        Ok(StrongShapeDefinitionV1::from_artifact(
+            identities.resolve(self.semantic_id).map_err(link_error)?,
+            PersistentIdResolver::<ObjectDefinitionPlanId>::resolve(
+                identities,
+                self.definition_plan,
+            )
+            .map_err(link_error)?,
+            self.symbol.resolve(identities).map_err(link_error)?,
+        ))
+    }
+
     pub(crate) fn matches_definition(
         self,
         expected: StrongShapeDefinitionV1<I>,

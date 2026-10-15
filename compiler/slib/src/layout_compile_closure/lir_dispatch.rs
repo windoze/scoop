@@ -1,4 +1,4 @@
-//! Dispatch replay from the shared MIR schemas and checked LIR ABIs.
+//! Saved dispatch records and their referenced receiver layouts.
 
 use scoop_lir as lir;
 use scoop_wire::WirePath;
@@ -14,12 +14,9 @@ use super::{
 use crate::dependency_reachability::transitive_positions;
 
 mod errors;
-mod replay;
 pub use errors::{CrossConeLayoutLirDispatchError, SharedLirDispatchValidationError};
-pub use replay::{SharedLirDispatchAbiInputsV1, replay_shared_mir_dispatch};
 
-/// Layouts, callable ABIs and dispatch agree with shared MIR. Descriptor,
-/// selected-use, registration and object joins remain separate validations.
+/// Parsed layouts, callable ABIs and dispatch records.
 pub type LirDispatchValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
@@ -59,39 +56,17 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
                 let mut layouts = Vec::new();
-                let mut callables = Vec::new();
-                let mut direct_callables = Vec::new();
-                scoop_wire::allocation::try_reserve(
-                    &mut layouts,
-                    reachable.len(),
-                    &WirePath::root(),
-                )?;
-                scoop_wire::allocation::try_reserve(
-                    &mut callables,
-                    reachable.len(),
-                    &WirePath::root(),
-                )?;
-                for &position in &reachable {
-                    layouts.push(complete[position].layouts());
-                    callables.push(complete[position].callable_abis());
-                    direct_callables.push(complete[position].lir_cross_cone_bridge());
-                }
-                let expected = replay_shared_mir_dispatch(
+                layouts.extend(
+                    reachable
+                        .iter()
+                        .map(|&position| complete[position].layouts()),
+                );
+                let layout = layout.read_dispatch(
                     target.target(),
-                    mir.types(),
-                    mir.dispatch(),
-                    SharedLirDispatchAbiInputsV1 {
-                        local_dispatch: layout.dispatch_wire(),
-                        local_layouts: layout.layouts(),
-                        local_callables: layout.callables(),
-                        local_direct_callables: &ordinary,
-                        dependency_layouts: &layouts,
-                        dependency_callables: &callables,
-                        dependency_direct_callables: &direct_callables,
-                    },
                     parts.lir_foundation,
+                    &layouts,
+                    parts.identities,
                 )?;
-                let layout = layout.validate_dispatch(&expected)?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirDispatchValidatedCrossConeLayoutSections {
                     prepared,

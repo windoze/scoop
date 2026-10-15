@@ -5,7 +5,7 @@ use std::sync::Arc;
 use scoop_identity::{
     CallableDefinitionOwner, CanonicalScoopAbiFunctionSignature, GcEffect, PersistentCallableBodyId,
 };
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
 
 use crate::{
     ConeLirFoundation, ExactLayoutExportV1, LirTargetProfile, StrongShapeDefinitionRefV1,
@@ -20,10 +20,7 @@ mod table;
 pub use table::*;
 
 mod wire;
-pub use wire::{
-    DecodedCanonicalExactCallableAbiExportsV1, DecodedExactCallableAbiExportV1,
-    ExactCallableAbiWireError,
-};
+pub use wire::{DecodedCanonicalExactCallableAbiExportsV1, DecodedExactCallableAbiExportV1};
 
 #[cfg(test)]
 mod tests;

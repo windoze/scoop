@@ -11,6 +11,7 @@ mod fixtures;
 use fixtures::*;
 
 mod canonical;
+mod read;
 mod replay;
 mod table;
 mod wire;

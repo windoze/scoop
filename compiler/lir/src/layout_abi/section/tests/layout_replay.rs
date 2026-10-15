@@ -13,7 +13,7 @@ fn staged_layout_replay_preserves_the_remaining_wire() {
 }
 
 #[test]
-fn staged_callable_replay_preserves_wire_and_rejects_a_different_layout_provider() {
+fn staged_callable_reader_preserves_wire_and_requires_the_layout_provider() {
     let expected = empty_exports(cone("abi-stage"));
     let source = [];
     let section = section(expected.clone(), &[], &source).unwrap();
@@ -26,17 +26,27 @@ fn staged_callable_replay_preserves_wire_and_rejects_a_different_layout_provider
     };
     let changed = empty_exports(cone("different-abi-stage"));
     assert!(matches!(
-        decode().validate_callables(changed.callables()),
-        Err(crate::ExactCallableAbiTableError::LayoutProvider)
+        decode().read_callables(
+            TARGET,
+            &empty_foundation(changed.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap()
+        ),
+        Err(crate::LinkDataError(_))
     ));
-    let checked = decode().validate_callables(expected.callables()).unwrap();
+    let checked = decode()
+        .read_callables(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
+        .unwrap();
     assert_eq!(checked.layouts(), expected.layouts());
     assert_eq!(checked.callables(), expected.callables());
     assert_eq!(encode(&checked).unwrap(), bytes);
 }
 
 #[test]
-fn staged_dispatch_replay_keeps_wire_and_rejects_a_different_provider() {
+fn staged_dispatch_reader_keeps_wire_and_rejects_a_different_provider() {
     let expected = empty_exports(cone("dispatch-stage"));
     let source = [];
     let section = section(expected.clone(), &[], &source).unwrap();
@@ -46,15 +56,31 @@ fn staged_dispatch_replay_keeps_wire_and_rejects_a_different_provider() {
             .unwrap()
             .validate_layouts(expected.layouts())
             .unwrap()
-            .validate_callables(expected.callables())
+            .read_callables(
+                TARGET,
+                &empty_foundation(expected.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
     };
     let changed = empty_exports(cone("different-dispatch-stage"));
     assert!(matches!(
-        decode().validate_dispatch(changed.dispatch()),
-        Err(crate::ExactDispatchTableError::LayoutProvider)
+        decode().read_dispatch(
+            TARGET,
+            &empty_foundation(changed.provider()),
+            &[],
+            &mut PendingIdentityValidation::new().finish().unwrap()
+        ),
+        Err(crate::LinkDataError(_))
     ));
-    let checked = decode().validate_dispatch(expected.dispatch()).unwrap();
+    let checked = decode()
+        .read_dispatch(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &[],
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
+        .unwrap();
     assert_eq!(checked.dispatch(), expected.dispatch());
     assert_eq!(encode(&checked).unwrap(), bytes);
 }
@@ -70,9 +96,18 @@ fn staged_descriptor_replay_keeps_wire_and_requires_the_layout_provider() {
             .unwrap()
             .validate_layouts(expected.layouts())
             .unwrap()
-            .validate_callables(expected.callables())
+            .read_callables(
+                TARGET,
+                &empty_foundation(expected.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_dispatch(expected.dispatch())
+            .read_dispatch(
+                TARGET,
+                &empty_foundation(expected.provider()),
+                &[],
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
     };
     let changed = empty_exports(cone("different-descriptor-stage"));
@@ -98,9 +133,18 @@ fn staged_shape_replay_retains_all_exports_and_checks_provider_before_selection(
             .unwrap()
             .validate_layouts(expected.layouts())
             .unwrap()
-            .validate_callables(expected.callables())
+            .read_callables(
+                TARGET,
+                &empty_foundation(expected.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_dispatch(expected.dispatch())
+            .read_dispatch(
+                TARGET,
+                &empty_foundation(expected.provider()),
+                &[],
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
             .validate_descriptors(expected.descriptors())
             .unwrap()

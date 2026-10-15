@@ -58,9 +58,18 @@ impl Fixture {
         let exports = decoded
             .validate_layouts(local.layouts())
             .unwrap()
-            .validate_callables(local.callables())
+            .read_callables(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
-            .validate_dispatch(local.dispatch())
+            .read_dispatch(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &[],
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
             .validate_descriptors(local.descriptors())
             .unwrap()

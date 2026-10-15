@@ -82,7 +82,7 @@ pub(super) fn function(
     exact_result: PersistentExactTypeId,
     result: ScoopAbiReturn,
     arguments: Vec<ScoopAbiArgument>,
-) -> ExactCallableAbiExportV1 {
+) -> (ExactCallableAbiExportV1, ConeLirFoundation) {
     let signature = ExactCallableSignature::new(
         Effect::Ordinary,
         None,
@@ -93,7 +93,7 @@ pub(super) fn function(
         exact_result,
     );
     let (target, foundation) = foundation("function", true);
-    ExactCallableAbiExportV1::from_signature(
+    let record = ExactCallableAbiExportV1::from_signature(
         TARGET,
         target,
         CanonicalScoopAbiFunctionSignature::new(
@@ -105,7 +105,8 @@ pub(super) fn function(
         .unwrap(),
         &foundation,
     )
-    .unwrap()
+    .unwrap();
+    (record, foundation)
 }
 
 pub(super) fn integer_part(value: CanonicalScoopStorage, bits: u8) -> AbiCoercion {
@@ -163,10 +164,57 @@ pub(super) fn enumeration(payload: &ExactValueLayoutV1) -> ExactLayoutExportV1 {
         .into()
 }
 
-pub(super) fn roundtrip(expected: &ExactCallableAbiExportV1) {
+pub(super) fn roundtrip(expected: &ExactCallableAbiExportV1, foundation: &ConeLirFoundation) {
     let bytes = encode(expected).unwrap();
     let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes).unwrap();
     assert_eq!(bytes[0], 0xa5);
     assert_eq!(encode(&raw).unwrap(), bytes);
-    assert_eq!(raw.validate_against(expected).unwrap(), *expected);
+    let mut graph = identities(foundation, std::slice::from_ref(expected));
+    assert_eq!(raw.read(TARGET, foundation, &mut graph).unwrap(), *expected);
+}
+
+pub(super) fn identities(
+    foundation: &ConeLirFoundation,
+    records: &[ExactCallableAbiExportV1],
+) -> ValidatedIdentityGraph {
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(foundation.producer()).unwrap();
+    let mut exacts = std::collections::BTreeSet::new();
+    for record in records {
+        let CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(function)) =
+            record.target()
+        else {
+            panic!("ABI unit fixtures use source functions");
+        };
+        pending.register_authority(function).unwrap();
+        let signature = record.canonical_signature().signature();
+        exacts.extend(signature.receiver().into_option());
+        exacts.extend(signature.parameters().iter().copied());
+        exacts.insert(signature.result());
+    }
+    for exact in exacts {
+        pending.register_authority(exact).unwrap();
+    }
+    for plan in foundation.definition_plans() {
+        pending.register_authority(plan.id()).unwrap();
+    }
+    let bodies = foundation
+        .callable_bodies()
+        .iter()
+        .map(|record| {
+            decode_canonical::<DecodedRuntimeIdentityRecord<PersistentCallableBodyId>>(
+                &encode(record).unwrap(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+    for body in &bodies {
+        pending
+            .register_callable_body(IdentityLayer::Lir, body)
+            .unwrap();
+    }
+    for body in &bodies {
+        pending.resolve_callable_body(body).unwrap();
+    }
+    pending.finish().unwrap()
 }

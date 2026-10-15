@@ -56,8 +56,7 @@ pub use lir_descriptors::{
 };
 pub use lir_dispatch::{
     CrossConeLayoutLirDispatchError, LirDispatchValidatedCrossConeLayoutClosure,
-    LirDispatchValidatedCrossConeLayoutSections, SharedLirDispatchAbiInputsV1,
-    SharedLirDispatchValidationError, replay_shared_mir_dispatch,
+    LirDispatchValidatedCrossConeLayoutSections, SharedLirDispatchValidationError,
 };
 pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,

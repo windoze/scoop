@@ -40,6 +40,34 @@ pub(super) fn graph(
     provider: &Provider,
     relations: &[LayoutAbiDependencyV1],
 ) -> ValidatedIdentityGraph {
+    pending_graph(provider, relations).finish().unwrap()
+}
+
+pub(super) fn consumer_graph(
+    provider: &Provider,
+    relations: &[LayoutAbiDependencyV1],
+    exports: &LayoutAbiExportConstituentsV1,
+) -> ValidatedIdentityGraph {
+    let mut pending = pending_graph(provider, relations);
+    pending.register_authority(exports.provider()).unwrap();
+    pending.register_authority(provider.callable_body).unwrap();
+    for table in exports.dispatch().records() {
+        pending.register_authority(table.table()).unwrap();
+        pending.register_authority(table.owner_exact()).unwrap();
+        pending
+            .register_authority(table.definition().definition_plan())
+            .unwrap();
+        for entry in table.entries() {
+            pending.register_authority(entry.slot()).unwrap();
+        }
+    }
+    pending.finish().unwrap()
+}
+
+fn pending_graph(
+    provider: &Provider,
+    relations: &[LayoutAbiDependencyV1],
+) -> PendingIdentityValidation {
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(provider.identity).unwrap();
     pending.register_authority(provider.exact).unwrap();
@@ -72,7 +100,7 @@ pub(super) fn graph(
     for relation in relations {
         assert_eq!(relation.provider(), provider.identity);
     }
-    pending.finish().unwrap()
+    pending
 }
 
 pub(super) fn imports<'a>(

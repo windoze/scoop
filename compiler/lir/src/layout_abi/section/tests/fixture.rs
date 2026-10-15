@@ -25,11 +25,12 @@ pub(super) fn source(provider: ConeIdentity, name: &str) -> SourceDeclarationKey
     )
 }
 
+pub(super) fn empty_foundation(provider: ConeIdentity) -> crate::ConeLirFoundation {
+    crate::ConeLirFoundation::try_new(provider, crate::CanonicalLirFoundation::empty()).unwrap()
+}
+
 pub(super) fn empty_exports(provider: ConeIdentity) -> LayoutAbiExportConstituentsV1 {
-    let foundation =
-        crate::ConeLirFoundation::try_new(provider, crate::CanonicalLirFoundation::empty())
-            .unwrap();
-    exports(&foundation, Vec::new())
+    exports(&empty_foundation(provider), Vec::new())
 }
 
 pub(super) fn exports(

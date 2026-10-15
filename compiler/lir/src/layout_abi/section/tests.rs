@@ -22,9 +22,18 @@ fn empty_section_roundtrips_as_one_complete_six_field_product() {
     let replayed = decoded
         .validate_layouts(expected.layouts())
         .unwrap()
-        .validate_callables(expected.callables())
+        .read_callables(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_dispatch(expected.dispatch())
+        .read_dispatch(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &[],
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
         .validate_descriptors(expected.descriptors())
         .unwrap()
@@ -91,9 +100,18 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     let replayed = decoded
         .validate_layouts(expected.layouts())
         .unwrap()
-        .validate_callables(expected.callables())
+        .read_callables(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
-        .validate_dispatch(expected.dispatch())
+        .read_dispatch(
+            TARGET,
+            &empty_foundation(expected.provider()),
+            &[],
+            &mut PendingIdentityValidation::new().finish().unwrap(),
+        )
         .unwrap()
         .validate_descriptors(expected.descriptors())
         .unwrap()

@@ -477,6 +477,10 @@ Compile 读取 ordinary callable bridge 与 callable ABI 时，直接采用已�
 
 Compile 读取 MIR 类型、callable、constructor、object、dispatch、coroutine 与 equality 记录时保留本层格式、typed 引用和必要签名关系，不重新遍历 HIR 声明／继承图推导同一清单和语义。初始化单元从已保存的 strong callable 记录按 unit／role 取得 initializer 与 ensure 及其签名，不重算 generated identity，也不与 HIR source-unit 清单再次证明；缺失调用对仍报告实际引用错误。对应 HIR→MIR 对照重放及改写候选后要求来源复核的专用测试退役，真实源码生产、产物读写和语言规则 fixture 保留。
 
+callable ABI 的底层 reader 直接解析保存的 signature／protocol、body ID、definition plan 与 symbol。它用已有 typed body key 和 definition 记录解析实际引用关系，读取 primary atom，不调用生产构造器重新派生 body／definition ID，不重编码 signature 或整张 ABI 表再比较。保留调用协议与 GC effect、目标配置、provider、表顺序及实际引用错误；生产端 ABI 分类和 definition 生成照常。只供候选与重建期望对照的单条／表级 ABI API 和测试一起退役。
+
+Compile 的 dispatch 导出同样直接读取保存的 table、owner、role、slot signature、implementation 和 ABI body 引用，不从 MIR schema 重新生成表和 ABI 绑定，不把解码后的表重编码成另一份期望。reference-dispatch 的 receiver layout 从已读取的本地／依赖 layout 导出中按 typed exact 引用取得，不重算布局。表顺序、entry position、typed 引用和 definition 关系保留；生产端 slot／receiver／ABI 检查继续执行。
+
 旧 single-cone Link 的逐级验证资格 API、从 final 对象清零摘要再重建 provisional 的路径及其独占测试一并删除，不保留为备用 reader。仍被正常 Compile／ProgramLink 使用的 section 读取和真正生产对象的编码、重定位、摘要填充继续存在；归档格式测试使用正常产物，不能通过改坏最终对象来延续退役的消费复核合同。
 
 persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。

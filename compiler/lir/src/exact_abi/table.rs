@@ -54,6 +54,18 @@ impl CanonicalExactCallableAbiExportsV1 {
         })))
     }
 
+    pub(super) fn from_saved(
+        target: LirTargetProfile,
+        provider: ConeIdentity,
+        records: Vec<ExactCallableAbiExportV1>,
+    ) -> Self {
+        Self(Arc::new(CallableAbiTable {
+            provider,
+            target,
+            records,
+        }))
+    }
+
     pub fn provider(&self) -> ConeIdentity {
         self.0.provider
     }
@@ -80,20 +92,12 @@ impl CanonicalExactCallableAbiExportsV1 {
 
 #[derive(Debug)]
 pub enum ExactCallableAbiTableError {
-    LayoutProvider,
-    LayoutTarget,
-    CountOverflow,
-    Count,
     Duplicate(CallableDefinitionOwner),
     Target(CallableDefinitionOwner),
     Provider(CallableDefinitionOwner),
     Body(CallableDefinitionOwner),
     Definition(CallableDefinitionOwner),
     PhysicalDefinition(crate::StrongShapeDefinitionError),
-    Record {
-        index: usize,
-        source: ExactCallableAbiWireError,
-    },
     Hash(HashError),
     Resource(WireError),
 }

@@ -79,7 +79,7 @@ fn abi_records_preserve_receiver_order_and_carrier_plans() {
         value.canonical_signature().result(),
         ScoopAbiReturn::DirectParts(_, _)
     ));
-    fixtures::roundtrip(&value);
+    fixtures::roundtrip(&value, &foundation);
     for result in [&unit, &zst, &byte, &reference] {
         let storage = result.value_handle().unwrap().canonical_storage();
         let result_plan = if result.identity().exact() == unit.identity().exact() {
@@ -89,7 +89,8 @@ fn abi_records_preserve_receiver_order_and_carrier_plans() {
         } else {
             ScoopAbiReturn::direct(storage).unwrap()
         };
-        let value = fixtures::function(result.identity().exact(), result_plan, vec![]);
+        let (value, foundation) =
+            fixtures::function(result.identity().exact(), result_plan, vec![]);
         match result.value_handle().unwrap().representation().kind() {
             ExactRepresentationKindV1::IntrinsicValue(IntrinsicValueFamilyV1::Unit) => assert_eq!(
                 value.canonical_signature().result(),
@@ -104,7 +105,7 @@ fn abi_records_preserve_receiver_order_and_carrier_plans() {
                 ScoopAbiReturn::Direct(_)
             )),
         }
-        fixtures::roundtrip(&value);
+        fixtures::roundtrip(&value, &foundation);
     }
 }
 
@@ -118,13 +119,13 @@ fn abi_keeps_integer_coercion_and_pointer_niche_distinct_at_equal_size() {
     );
     let tagged_storage = tagged.value_handle().unwrap().canonical_storage();
     let coercion = fixtures::integer_part(tagged_storage, 64);
-    let tagged = fixtures::function(
+    let (tagged, tagged_foundation) = fixtures::function(
         tagged.identity().exact(),
         ScoopAbiReturn::direct_parts(tagged_storage, coercion).unwrap(),
         vec![ScoopAbiArgument::direct_parts(tagged_storage, coercion).unwrap()],
     );
     let niche_storage = niche.value_handle().unwrap().canonical_storage();
-    let niche = fixtures::function(
+    let (niche, niche_foundation) = fixtures::function(
         niche.identity().exact(),
         ScoopAbiReturn::direct(niche_storage).unwrap(),
         vec![ScoopAbiArgument::direct(niche_storage).unwrap()],
@@ -145,8 +146,8 @@ fn abi_keeps_integer_coercion_and_pointer_niche_distinct_at_equal_size() {
         niche.canonical_signature().result(),
         ScoopAbiReturn::Direct(_)
     ));
-    fixtures::roundtrip(&tagged);
-    fixtures::roundtrip(&niche);
+    fixtures::roundtrip(&tagged, &tagged_foundation);
+    fixtures::roundtrip(&niche, &niche_foundation);
 }
 
 #[test]

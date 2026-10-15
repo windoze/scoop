@@ -9,6 +9,7 @@ use super::*;
 use crate::{DecodedStrongTypeDispatchCallableRefV2, production::DecodedStrongShapeDefinitionV1};
 
 mod codec;
+mod resolve;
 
 #[derive(Debug)]
 pub struct DecodedExactDispatchExportV1 {
@@ -74,19 +75,6 @@ enum DecodedExactDispatchImplementationV1 {
     AdjustThunkTarget(DecodedCallableDefinitionOwner),
 }
 
-impl DecodedExactDispatchExportV1 {
-    pub fn validate_against(
-        self,
-        expected: &ExactDispatchExportV1,
-    ) -> Result<ExactDispatchExportV1, ExactDispatchWireError> {
-        self.semantic.validate_against(expected)?;
-        if !self.definition.matches_definition(expected.definition())? {
-            return Err(ExactDispatchWireError::Mismatch);
-        }
-        Ok(expected.clone())
-    }
-}
-
 impl DecodedExactDispatchSemanticProjectionV1 {
     pub fn validate_against(
         self,
@@ -101,43 +89,6 @@ impl DecodedExactDispatchSemanticProjectionV1 {
             return Err(ExactDispatchWireError::Mismatch);
         }
         Ok(())
-    }
-}
-
-impl DecodedCanonicalExactDispatchExportsV1 {
-    pub fn callable_reference(
-        &self,
-        table: PersistentDispatchTableId,
-        position: u32,
-    ) -> Option<DecodedStrongTypeDispatchCallableRefV2> {
-        self.records
-            .iter()
-            .find(|record| record.semantic.table.as_array() == table.as_array())?
-            .semantic
-            .entries
-            .iter()
-            .find(|entry| entry.position == position)
-            .map(|entry| entry.abi)
-    }
-
-    pub fn validate_against(
-        self,
-        expected: &CanonicalExactDispatchExportsV1,
-    ) -> Result<CanonicalExactDispatchExportsV1, ExactDispatchTableError> {
-        if self.records.len() != expected.records().len() {
-            return Err(ExactDispatchTableError::Count {
-                expected: expected.records().len(),
-                actual: self.records.len(),
-            });
-        }
-        for (index, (record, expected)) in
-            self.records.into_iter().zip(expected.records()).enumerate()
-        {
-            record
-                .validate_against(expected)
-                .map_err(|source| ExactDispatchTableError::Record { index, source })?;
-        }
-        Ok(expected.clone())
     }
 }
 

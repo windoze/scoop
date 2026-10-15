@@ -1,7 +1,9 @@
 use scoop_identity::{DecodedCallableDefinitionOwner, DecodedCanonicalScoopAbiFunctionSignature};
-use scoop_wire::{Decoder, WireDecode, WireErrorKind, encode_canonical_temporary};
+use scoop_wire::{Decoder, WireDecode, WireErrorKind};
 
 use super::*;
+
+mod definition;
 
 #[derive(Debug)]
 pub struct DecodedExactCallableAbiExportV1 {
@@ -18,7 +20,7 @@ pub struct DecodedCanonicalExactCallableAbiExportsV1 {
 }
 
 impl DecodedExactCallableAbiExportV1 {
-    pub fn read_link(
+    pub fn read(
         self,
         target: crate::LirTargetProfile,
         foundation: &crate::ConeLirFoundation,
@@ -26,60 +28,38 @@ impl DecodedExactCallableAbiExportV1 {
     ) -> Result<ExactCallableAbiExportV1, crate::LinkDataError> {
         use crate::link_data::link_error;
         let owner = self.target.resolve(identities).map_err(link_error)?;
-        let signature = self
-            .signature
-            .clone()
-            .resolve(identities)
-            .map_err(link_error)?;
-        let expected =
-            ExactCallableAbiExportV1::from_signature(target, owner, signature, foundation)
-                .map_err(link_error)?;
-        self.validate_against(&expected).map_err(link_error)
-    }
-
-    pub fn validate_against(
-        self,
-        expected: &ExactCallableAbiExportV1,
-    ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiWireError> {
-        let path = WirePath::root();
-
-        if !target_matches(self.target, expected.target()) {
-            return Err(ExactCallableAbiWireError::Target);
-        }
-        if self.convention != expected.calling_convention()
-            || self.protocol != expected.call_protocol()
+        let signature = self.signature.resolve(identities).map_err(link_error)?;
+        if self.convention != crate::CallingConvention::Cdecl
+            || self.protocol.gc_effect() != signature.gc_effect()
         {
-            return Err(ExactCallableAbiWireError::Protocol);
+            return Err(link_error(
+                "callable ABI protocol does not match its signature",
+            ));
         }
-        if !self.definition.matches_definition(expected.definition())? {
-            return Err(ExactCallableAbiWireError::Definition);
-        }
-        // Compare the complete frozen signature product: exact receiver and
-        // parameters, result, every storage field and pass mode, and GC effect.
-        // No raw signature is promoted or repaired through a digest match.
-
-        let actual = encode_canonical_temporary(&self.signature, &path)?;
-        let wanted = encode_canonical_temporary(expected.canonical_signature(), &path)?;
-
-        if actual != wanted {
-            return Err(ExactCallableAbiWireError::Signature);
-        }
-        Ok(expected.clone())
+        let definition = self.definition.read(identities)?;
+        let physical = definition::read(owner, definition, foundation, identities)?;
+        Ok(ExactCallableAbiExportV1(Arc::new(CallableAbiBodyV1 {
+            target: owner,
+            target_profile: target,
+            signature,
+            protocol: self.protocol,
+            physical,
+            definition,
+        })))
     }
 }
 
 impl DecodedCanonicalExactCallableAbiExportsV1 {
-    pub fn read_link(
+    pub fn read(
         self,
         target: crate::LirTargetProfile,
         foundation: &crate::ConeLirFoundation,
         identities: &mut scoop_identity::ValidatedIdentityGraph,
     ) -> Result<CanonicalExactCallableAbiExportsV1, crate::LinkDataError> {
-        use crate::link_data::link_error;
         let records = self
             .records
             .into_iter()
-            .map(|record| record.read_link(target, foundation, identities))
+            .map(|record| record.read(target, foundation, identities))
             .collect::<Result<Vec<_>, _>>()?;
         if records
             .windows(2)
@@ -89,50 +69,11 @@ impl DecodedCanonicalExactCallableAbiExportsV1 {
                 "noncanonical callable ABI table order".into(),
             ));
         }
-        CanonicalExactCallableAbiExportsV1::try_new(target, foundation, records).map_err(link_error)
-    }
-
-    pub fn validate_against(
-        self,
-        expected: &CanonicalExactCallableAbiExportsV1,
-    ) -> Result<CanonicalExactCallableAbiExportsV1, ExactCallableAbiTableError> {
-        if self.records.len() != expected.records().len() {
-            return Err(ExactCallableAbiTableError::Count);
-        }
-        for (index, (actual, expected)) in
-            self.records.into_iter().zip(expected.records()).enumerate()
-        {
-            actual
-                .validate_against(expected)
-                .map_err(|source| ExactCallableAbiTableError::Record { index, source })?;
-        }
-        Ok(expected.clone())
-    }
-}
-
-fn target_matches(raw: DecodedCallableDefinitionOwner, expected: CallableDefinitionOwner) -> bool {
-    use scoop_identity::{
-        DecodedStrongCallableDefinitionOwner as D, StrongCallableDefinitionOwner as E,
-    };
-    match (raw, expected) {
-        (
-            DecodedCallableDefinitionOwner::Strong(raw),
-            CallableDefinitionOwner::Strong(expected),
-        ) => match (raw, expected) {
-            (D::Function(raw), E::Function(expected)) => raw.verify(expected).is_ok(),
-            (D::Constructor(raw), E::Constructor(expected)) => raw.verify(expected).is_ok(),
-            (D::PropertyAccessor(raw), E::PropertyAccessor(expected)) => {
-                raw.verify(expected).is_ok()
-            }
-            (D::GeneratedCallable(raw), E::GeneratedCallable(expected)) => {
-                raw.verify(expected).is_ok()
-            }
-            _ => false,
-        },
-        (DecodedCallableDefinitionOwner::Odr(raw), CallableDefinitionOwner::Odr(expected)) => {
-            raw.verify(expected.member()).is_ok()
-        }
-        _ => false,
+        Ok(CanonicalExactCallableAbiExportsV1::from_saved(
+            target,
+            foundation.producer(),
+            records,
+        ))
     }
 }
 
@@ -197,23 +138,3 @@ impl WireEncode for DecodedCanonicalExactCallableAbiExportsV1 {
         Ok(())
     }
 }
-
-#[derive(Debug)]
-pub enum ExactCallableAbiWireError {
-    Target,
-    Signature,
-    Protocol,
-    Definition,
-    Resource(WireError),
-}
-impl From<WireError> for ExactCallableAbiWireError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-impl std::fmt::Display for ExactCallableAbiWireError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "callable ABI wire differs from checked replay: {self:?}")
-    }
-}
-impl std::error::Error for ExactCallableAbiWireError {}

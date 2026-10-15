@@ -7,7 +7,11 @@ mod negative;
 mod wire;
 use fixtures::{graph, produced_provider, view};
 
-pub(super) fn check_join(provider: &Provider, layout: &CrossConeLayoutAbiSectionV1<'_>) {
+pub(super) fn check_join(
+    provider: &Provider,
+    layout: &CrossConeLayoutAbiSectionV1<'_>,
+    foundation: &ConeLirFoundation,
+) {
     let production = produced_provider(provider);
     let exports = provider.layout_section();
     let dependencies = [view(provider, &production, exports.exports())];
@@ -18,9 +22,15 @@ pub(super) fn check_join(provider: &Provider, layout: &CrossConeLayoutAbiSection
         .map(|value| value as &dyn WireEncode)
         .collect::<Vec<_>>();
     let replay = |rows: &[&dyn WireEncode], semantic: &[LayoutAbiDependencyV1]| {
-        let mut identities = graph(provider, semantic);
-        wire::resolve(layout.exports(), semantic, rows, &mut identities)
-            .replay_physical_imports(&dependencies, &mut identities)
+        let mut identities = fixtures::consumer_graph(provider, semantic, layout.exports());
+        wire::resolve(
+            layout.exports(),
+            semantic,
+            rows,
+            foundation,
+            &mut identities,
+        )
+        .replay_physical_imports(&dependencies, &mut identities)
     };
     let checked = replay(&rows, &semantic).unwrap();
     assert_eq!(
