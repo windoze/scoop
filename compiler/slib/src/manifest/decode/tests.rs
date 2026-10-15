@@ -110,7 +110,7 @@ fn manifest_and_compatibility_schema_stay_at_the_initial_value() {
 }
 
 #[test]
-fn decoded_manifest_recomputes_cone_and_fingerprints() {
+fn decoded_manifest_checks_language_abi_compatibility() {
     let encoded = encode(&manifest(Vec::new())).unwrap();
     let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
     decoded.compatibility.corrupt_language_fingerprint();
@@ -122,15 +122,6 @@ fn decoded_manifest_recomputes_cone_and_fingerprints() {
                 ..
             }
         ))
-    ));
-
-    let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
-    let mut bytes = *decoded.artifact_fingerprint.as_array();
-    bytes[0] ^= 1;
-    decoded.artifact_fingerprint = Digest256::from_array(bytes);
-    assert!(matches!(
-        validate(decoded),
-        Err(BootstrapManifestValidationError::ArtifactFingerprintMismatch { .. })
     ));
 }
 

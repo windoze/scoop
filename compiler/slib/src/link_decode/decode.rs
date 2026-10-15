@@ -83,7 +83,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
             link_identity_closure_capability,
             closure_payload,
         )?;
-        validate_semantic_fingerprints(&mut self, &hir_envelope, &mir_envelope, &lir_envelope)?;
 
         Ok(DecodedSingleConeLinkSections {
             graph: self,

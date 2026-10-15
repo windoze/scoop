@@ -79,17 +79,8 @@ impl WireEncode for SupportEdges<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.dependencies.len() as u64)?;
         let role = SupportEdgeRoleId::all_direct();
-        match &self.dependencies.entries {
-            DependencyEntries::Canonical(entries) => {
-                for dependency in *entries {
-                    encode_support_edge(encoder, self.layer, &role, dependency)?;
-                }
-            }
-            DependencyEntries::Sorted(entries) => {
-                for dependency in entries {
-                    encode_support_edge(encoder, self.layer, &role, dependency)?;
-                }
-            }
+        for dependency in &self.dependencies.entries {
+            encode_support_edge(encoder, self.layer, &role, dependency)?;
         }
         Ok(())
     }

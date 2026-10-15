@@ -111,7 +111,7 @@ fn bootstrap_writer_is_reproducible_and_rejects_directory_mismatch() {
 }
 
 #[test]
-fn envelope_rejects_manifest_and_member_corruption() {
+fn envelope_reports_invalid_manifest_headers() {
     let members = members();
     let manifest = manifest(&members);
     let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members).unwrap();
@@ -136,24 +136,4 @@ fn envelope_rejects_manifest_and_member_corruption() {
         diagnostic.primary_origin(),
         Some(&SlibPrimaryOrigin::Manifest)
     );
-
-    let mut bad_member = archive.as_bytes().to_vec();
-    let payload = b"unique HIR payload";
-    let offset = bad_member
-        .windows(payload.len())
-        .position(|window| window == payload)
-        .unwrap();
-    bad_member[offset] ^= 1;
-    let error = DecodedSlibEnvelope::open(&bad_member, selection())
-        .expect_err("corrupted member payload must fail");
-    assert!(matches!(
-        &error,
-        SlibReadError::Directory(ArchiveReadError::MemberDigestMismatch { .. })
-    ));
-    let diagnostic = error.diagnostic();
-    assert_eq!(diagnostic.code(), SlibErrorCode::FingerprintMismatch);
-    assert!(matches!(
-        diagnostic.primary_origin(),
-        Some(SlibPrimaryOrigin::Member(_))
-    ));
 }

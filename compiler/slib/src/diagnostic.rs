@@ -251,11 +251,6 @@ impl SlibDiagnostic for ArchiveReadError {
                     .index(u64::try_from(*second_index).unwrap_or(u64::MAX)),
             )
             .with_origin(SlibPrimaryOrigin::Manifest),
-            Self::MemberDigestMismatch { id } => SlibDiagnosticRecord::new(
-                SlibErrorCode::FingerprintMismatch,
-                WirePath::root().field(8).key("slib-member", *id.as_array()),
-            )
-            .with_origin(SlibPrimaryOrigin::Member(*id)),
             Self::Allocation(error) => error.diagnostic().with_origin(SlibPrimaryOrigin::Container),
         }
     }
@@ -333,11 +328,6 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
             )
             .with_origin(manifest),
             Self::Manifest(error) => manifest_build_diagnostic(error),
-            Self::ArtifactFingerprintMismatch { .. } => SlibDiagnosticRecord::new(
-                SlibErrorCode::FingerprintMismatch,
-                WirePath::root().field(11),
-            )
-            .with_origin(manifest),
             Self::Wire(error) => error.diagnostic().with_origin(manifest),
         }
     }

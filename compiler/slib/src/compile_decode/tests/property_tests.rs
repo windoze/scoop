@@ -19,7 +19,6 @@ fn arbitrary_archives_are_panic_free_deterministic_and_failure_atomic() {
         hir,
         mir,
         lir,
-        false,
     );
     let canonical_attempt = compile_attempt(&canonical);
     assert!(canonical_attempt.result.is_ok());

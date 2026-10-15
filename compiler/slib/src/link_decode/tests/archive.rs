@@ -4,7 +4,7 @@ pub(super) fn artifact(
     manifest_sections: Vec<ManifestSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(manifest_sections, lir_sections, true, true, false, true)
+    build_artifact(manifest_sections, lir_sections, true, true, true)
 }
 
 pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
@@ -216,7 +216,6 @@ pub(super) fn build_artifact(
     lir_sections: Vec<MetadataSection>,
     include_hir_production: bool,
     include_lir_foundation: bool,
-    stale_hir_fingerprint: bool,
     include_link_object: bool,
 ) -> Vec<u8> {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
@@ -309,11 +308,7 @@ pub(super) fn build_artifact(
     )
     .unwrap();
     let semantic = SemanticFingerprintRecord::from_digests(
-        if stale_hir_fingerprint {
-            HirFingerprint::from_array([9; 32])
-        } else {
-            semantic.hir()
-        },
+        semantic.hir(),
         semantic.mir(),
         semantic.lir(),
         FingerprintAvailability::Available(CodeFingerprint::from_array([4; 32])),

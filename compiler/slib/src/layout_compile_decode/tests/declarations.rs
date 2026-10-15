@@ -32,7 +32,7 @@ fn closure(
 
 #[test]
 fn ordinary_layout_declarations_replay_without_source_factories() {
-    let bytes = layout_artifact(false, None);
+    let bytes = layout_artifact(None);
     let mut validated = closure(prepared(&bytes))
         .validate_hir_declarations()
         .unwrap();

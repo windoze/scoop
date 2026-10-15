@@ -554,9 +554,10 @@ impl BootstrapManifest {
 
     pub(super) fn from_canonical_records(
         records: CanonicalManifestRecords,
+        artifact_fingerprint: ArtifactFingerprint,
     ) -> Result<Self, BootstrapManifestError> {
         require_foundation_metadata(&records.members)?;
-        Self::build(records)
+        Ok(Self::from_records(records, artifact_fingerprint))
     }
 
     fn build(records: CanonicalManifestRecords) -> Result<Self, BootstrapManifestError> {
@@ -570,7 +571,14 @@ impl BootstrapManifest {
             sections: &records.sections,
         };
         let artifact_fingerprint = calculate_artifact_fingerprint(&input, &records.members)?;
-        Ok(Self {
+        Ok(Self::from_records(records, artifact_fingerprint))
+    }
+
+    fn from_records(
+        records: CanonicalManifestRecords,
+        artifact_fingerprint: ArtifactFingerprint,
+    ) -> Self {
+        Self {
             producer: records.producer,
             compatibility: records.compatibility,
             cone: records.cone,
@@ -579,7 +587,7 @@ impl BootstrapManifest {
             semantic_fingerprints: records.semantic_fingerprints,
             sections: records.sections,
             artifact_fingerprint,
-        })
+        }
     }
 
     pub const fn cone(&self) -> &ConeRecord {

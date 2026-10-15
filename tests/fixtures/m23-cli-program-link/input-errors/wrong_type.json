@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "snapshot input ${work}/artifacts/root.slib is not a regular file",
+    "message": "cannot read ${work}/artifacts/root.slib: Is a directory (os error 21)",
     "notes": [],
     "origin": {
       "kind": "artifact",

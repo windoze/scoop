@@ -64,7 +64,6 @@ fn foreign_declarations_require_their_actual_cone_dependency() {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
-                false,
             );
             let result = crate::compile_decode::validate_foundation_identity_graph(
                 &mut open_graph(&bytes),

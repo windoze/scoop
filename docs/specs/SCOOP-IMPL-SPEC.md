@@ -417,6 +417,8 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 exact direct dependencies 与三层语义指纹、language/runtime/identity/mangling ABI、target/backend 配置及其兼容摘要、全部成员目录、三层/Code/RuntimeImage/Artifact fingerprints 和 required sections。
 
+成员内容、三层语义与 Artifact 摘要在生产这些结果时计算并保存。普通 reader 直接读取已保存的值；整包字节容器不计算另一份摘要，目录读取不逐成员哈希，Compile／Link section 解码也不重新计算三层语义摘要或重新编码 manifest 以复核 Artifact 值。格式解析、长度／范围、typed 引用与所选 target／ABI 配置检查仍在实际使用边界完成。该调整不改变 wire 字段、生产端摘要公式或正常输入变化的失效规则，也不新增另一个带复核的 reader。
+
 production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、digest patch 位置、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
 
 executable entry 保存完整签名以及封闭的声明分支：生产入口引用源码 PersistentFunctionId，测试入口引用 PersistentGeneratedCallableId。测试入口的 generated key 由当前 ConeIdentity 与 TestEntry role 确定，不生成伪造的源码 main identity；两者均通过正常 Strong callable body、root gateway 和 failure-root 链接。HIR 完成入口选择并检查签名，后续 stage 传递实际声明、body 与签名，不重新按名称选择入口。

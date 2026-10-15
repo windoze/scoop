@@ -77,9 +77,8 @@ impl fmt::Display for SlibWriteError {
 
 impl std::error::Error for SlibWriteError {}
 
-/// Immutable `.slib` bytes whose canonical container, bootstrap manifest,
-/// typed directory, member ranges, content hashes, and artifact fingerprint
-/// have all been validated. It exposes no payload extraction or IR API.
+/// Decoded bootstrap manifest and member ranges for one `.slib` input.
+/// Stored content fingerprints are producer results, not reader checks.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedSlibEnvelope<'input> {
     archive: DecodedArchive<'input>,

@@ -80,8 +80,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
             lir_cross_cone_param_free_bridge_capability(),
         )?;
 
-        metadata.validate_semantic_fingerprints(&mut self)?;
-
         Ok((
             DecodedCrossConeHirFrontSections {
                 graph: self,

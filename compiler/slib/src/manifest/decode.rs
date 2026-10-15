@@ -124,25 +124,19 @@ impl DecodedBootstrapManifest {
 
         require_strictly_increasing_sections(&sections)?;
 
-        let manifest = BootstrapManifest::from_canonical_records(CanonicalManifestRecords {
-            producer,
-            compatibility,
-            cone,
-            direct_dependencies: dependencies,
-            members,
-            semantic_fingerprints,
-            sections,
-        })
-        .map_err(BootstrapManifestValidationError::Manifest)?;
-        if self.artifact_fingerprint.as_array() != manifest.artifact_fingerprint().as_array() {
-            return Err(
-                BootstrapManifestValidationError::ArtifactFingerprintMismatch {
-                    expected: manifest.artifact_fingerprint(),
-                    actual: *self.artifact_fingerprint.as_array(),
-                },
-            );
-        }
-        Ok(manifest)
+        BootstrapManifest::from_canonical_records(
+            CanonicalManifestRecords {
+                producer,
+                compatibility,
+                cone,
+                direct_dependencies: dependencies,
+                members,
+                semantic_fingerprints,
+                sections,
+            },
+            ArtifactFingerprint::from_array(*self.artifact_fingerprint.as_array()),
+        )
+        .map_err(BootstrapManifestValidationError::Manifest)
     }
 }
 
@@ -275,10 +269,6 @@ pub enum BootstrapManifestValidationError {
         second_index: usize,
     },
     Manifest(BootstrapManifestError),
-    ArtifactFingerprintMismatch {
-        expected: ArtifactFingerprint,
-        actual: [u8; 32],
-    },
     Wire(WireError),
 }
 
@@ -322,13 +312,6 @@ impl fmt::Display for BootstrapManifestValidationError {
                 "section capabilities at indexes {first_index} and {second_index} are not strictly increasing"
             ),
             Self::Manifest(error) => error.fmt(formatter),
-            Self::ArtifactFingerprintMismatch { expected, actual } => {
-                write!(
-                    formatter,
-                    "artifact fingerprint mismatch: expected {expected}, found "
-                )?;
-                write_hex(actual, formatter)
-            }
             Self::Wire(error) => error.fmt(formatter),
         }
     }
@@ -415,13 +398,6 @@ fn encode_array_field<T: WireEncode>(
     encoder.array(values.len() as u64)?;
     for value in values {
         value.encode(encoder)?;
-    }
-    Ok(())
-}
-
-fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-    for byte in bytes {
-        write!(formatter, "{byte:02x}")?;
     }
     Ok(())
 }

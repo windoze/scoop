@@ -4,9 +4,9 @@ use scoop_identity::{CapabilityId, ConeIdentity};
 use scoop_wire::{Encoder, HashError, WireEncode, WireError, domain_separated_cbor_hash};
 
 use crate::{
-    CapabilityContractRegistry, CompatibilityRecord, DecodedMetadataSection, DependencyRecord,
-    FingerprintSink, HirFingerprint, LirFingerprint, MemberPurposeSet, MetadataLocation,
-    MetadataSection, MirFingerprint, SemanticFingerprintRecord,
+    CapabilityContractRegistry, CompatibilityRecord, DependencyRecord, FingerprintSink,
+    HirFingerprint, LirFingerprint, MemberPurposeSet, MetadataLocation, MetadataSection,
+    MirFingerprint, SemanticFingerprintRecord,
 };
 
 mod encoding;
@@ -160,58 +160,20 @@ impl SemanticFingerprintRecord {
         lir: &[MetadataSection],
     ) -> Result<Self, SemanticFingerprintError> {
         let dependencies = OrderedDependencies::sorted(direct_dependencies)?;
-        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, None)
-    }
-
-    pub(crate) fn from_decoded_compile_metadata_sections(
-        compatibility: &CompatibilityRecord,
-        direct_dependencies: &[DependencyRecord],
-        hir: &[DecodedMetadataSection<'_>],
-        mir: &[DecodedMetadataSection<'_>],
-        lir: &[DecodedMetadataSection<'_>],
-    ) -> Result<Self, SemanticFingerprintError> {
-        let dependencies = OrderedDependencies::canonical(direct_dependencies);
-        metadata_fingerprints(
-            compatibility,
-            hir,
-            mir,
-            lir,
-            &dependencies,
-            Some(MemberPurposeSet::COMPILE),
-        )
+        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies)
     }
 }
 
-fn metadata_fingerprints<S: SemanticSection>(
+fn metadata_fingerprints(
     compatibility: &CompatibilityRecord,
-    hir: &[S],
-    mir: &[S],
-    lir: &[S],
+    hir: &[MetadataSection],
+    mir: &[MetadataSection],
+    lir: &[MetadataSection],
     dependencies: &OrderedDependencies<'_>,
-
-    required_view: Option<MemberPurposeSet>,
 ) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
-    let hir = calculate_layer_fingerprint(
-        FoundationLayer::Hir,
-        compatibility,
-        hir,
-        dependencies,
-        required_view,
-    )?;
-    let mir = calculate_layer_fingerprint(
-        FoundationLayer::Mir,
-        compatibility,
-        mir,
-        dependencies,
-        required_view,
-    )?;
-    let lir = calculate_layer_fingerprint(
-        FoundationLayer::Lir,
-        compatibility,
-        lir,
-        dependencies,
-        required_view,
-    )?;
+    let hir = calculate_layer_fingerprint(FoundationLayer::Hir, compatibility, hir, dependencies)?;
+    let mir = calculate_layer_fingerprint(FoundationLayer::Mir, compatibility, mir, dependencies)?;
+    let lir = calculate_layer_fingerprint(FoundationLayer::Lir, compatibility, lir, dependencies)?;
     Ok(SemanticFingerprintRecord::from_foundation_digests(
         HirFingerprint::from_array(*hir.as_array()),
         MirFingerprint::from_array(*mir.as_array()),
@@ -219,58 +181,13 @@ fn metadata_fingerprints<S: SemanticSection>(
     ))
 }
 
-trait SemanticSection {
-    fn location(&self) -> MetadataLocation;
-    fn capability(&self) -> &CapabilityId;
-    fn required_for(&self) -> MemberPurposeSet;
-    fn payload(&self) -> &[u8];
-}
-
-impl SemanticSection for MetadataSection {
-    fn location(&self) -> MetadataLocation {
-        self.location()
-    }
-
-    fn capability(&self) -> &CapabilityId {
-        self.capability()
-    }
-
-    fn required_for(&self) -> MemberPurposeSet {
-        self.required_for()
-    }
-
-    fn payload(&self) -> &[u8] {
-        self.payload()
-    }
-}
-
-impl SemanticSection for DecodedMetadataSection<'_> {
-    fn location(&self) -> MetadataLocation {
-        self.location()
-    }
-
-    fn capability(&self) -> &CapabilityId {
-        self.capability()
-    }
-
-    fn required_for(&self) -> MemberPurposeSet {
-        self.required_for()
-    }
-
-    fn payload(&self) -> &[u8] {
-        self.payload()
-    }
-}
-
-fn calculate_layer_fingerprint<S: SemanticSection>(
+fn calculate_layer_fingerprint(
     layer: FoundationLayer,
     compatibility: &CompatibilityRecord,
-    sections: &[S],
+    sections: &[MetadataSection],
     dependencies: &OrderedDependencies<'_>,
-
-    required_view: Option<MemberPurposeSet>,
 ) -> Result<scoop_wire::Digest256, SemanticFingerprintError> {
-    let contributions = collect_contributions(layer, sections, required_view)?;
+    let contributions = collect_contributions(layer, sections)?;
     let input = LayerFingerprintInput {
         context: LayerFingerprintContext {
             layer,
@@ -286,11 +203,9 @@ fn calculate_layer_fingerprint<S: SemanticSection>(
     domain_separated_cbor_hash(layer.domain(), &input).map_err(SemanticFingerprintError::Hash)
 }
 
-fn collect_contributions<'section, S: SemanticSection>(
+fn collect_contributions<'section>(
     layer: FoundationLayer,
-    sections: &'section [S],
-
-    required_view: Option<MemberPurposeSet>,
+    sections: &'section [MetadataSection],
 ) -> Result<Vec<CanonicalSemanticContribution<'section>>, SemanticFingerprintError> {
     let mut contributions = Vec::new();
     contributions
@@ -308,10 +223,7 @@ fn collect_contributions<'section, S: SemanticSection>(
             });
         }
         let Some(contract) = CapabilityContractRegistry::contract(section.capability()) else {
-            if required_view.map_or(
-                section.required_for() != MemberPurposeSet::NONE,
-                |purpose| section.required_for().contains(purpose),
-            ) {
+            if section.required_for() != MemberPurposeSet::NONE {
                 return Err(SemanticFingerprintError::UnsupportedRequiredCapability {
                     layer,
                     index,
@@ -374,13 +286,8 @@ impl FoundationLayer {
     }
 }
 
-enum DependencyEntries<'dependency> {
-    Canonical(&'dependency [DependencyRecord]),
-    Sorted(Vec<&'dependency DependencyRecord>),
-}
-
 struct OrderedDependencies<'dependency> {
-    entries: DependencyEntries<'dependency>,
+    entries: Vec<&'dependency DependencyRecord>,
 }
 
 impl<'dependency> OrderedDependencies<'dependency> {
@@ -403,22 +310,11 @@ impl<'dependency> OrderedDependencies<'dependency> {
                 identity: pair[0].identity(),
             });
         }
-        Ok(Self {
-            entries: DependencyEntries::Sorted(entries),
-        })
-    }
-
-    const fn canonical(dependencies: &'dependency [DependencyRecord]) -> Self {
-        Self {
-            entries: DependencyEntries::Canonical(dependencies),
-        }
+        Ok(Self { entries })
     }
 
     fn len(&self) -> usize {
-        match &self.entries {
-            DependencyEntries::Canonical(entries) => entries.len(),
-            DependencyEntries::Sorted(entries) => entries.len(),
-        }
+        self.entries.len()
     }
 }
 

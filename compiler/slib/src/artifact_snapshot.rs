@@ -4,14 +4,12 @@ use std::io::{self, Write};
 use std::sync::Arc;
 
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{Digest256, sha256};
 
 use crate::{ArtifactManifestSummaryError, read_artifact_manifest_summary};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactSnapshot {
     bytes: Arc<[u8]>,
-    digest: Digest256,
 }
 
 impl ArtifactSnapshot {
@@ -20,12 +18,7 @@ impl ArtifactSnapshot {
     }
 
     pub fn from_shared(bytes: Arc<[u8]>) -> Self {
-        let digest = sha256(&bytes);
-        Self { bytes, digest }
-    }
-
-    pub const fn digest(&self) -> Digest256 {
-        self.digest
+        Self { bytes }
     }
 
     pub fn byte_length(&self) -> usize {

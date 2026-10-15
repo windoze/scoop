@@ -85,7 +85,6 @@ fn cross_cone_hir_front_rejects_the_legacy_profile_before_payloads() {
         hir,
         mir,
         lir,
-        false,
     );
 
     assert!(matches!(
@@ -108,7 +107,6 @@ fn cross_cone_hir_front_requires_the_general_hir_capability() {
         hir,
         mir,
         lir,
-        false,
     );
 
     assert!(matches!(
@@ -594,7 +592,6 @@ pub(crate) fn cross_cone_artifact_for(
         hir,
         mir,
         lir,
-        false,
     )
 }
 
@@ -632,7 +629,6 @@ pub(crate) fn cross_cone_artifact_for_with_hir_foundation(
         hir,
         mir,
         lir,
-        false,
     )
 }
 

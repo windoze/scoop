@@ -27,8 +27,6 @@ pub(super) fn path(source: &SingleConeLinkSectionDecodeError) -> String {
             source,
         } => format!("{}:{}", name(*location, capability), source.path()),
         Resource(source) => source.diagnostic().semantic_path(),
-        SemanticFingerprints(_) => "manifest:semantic_fingerprints".to_owned(),
-        SemanticFingerprintMismatch { location, .. } => format!("{location}:semantic_fingerprint"),
         Inventory(source) => match source {
             ArtifactProfileInventoryError::ConflictingCapabilityVersion {
                 location, index, ..

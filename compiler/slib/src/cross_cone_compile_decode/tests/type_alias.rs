@@ -474,7 +474,6 @@ impl AliasSurface {
             hir,
             mir,
             lir,
-            false,
         )
     }
 }

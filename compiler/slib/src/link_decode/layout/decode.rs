@@ -13,7 +13,6 @@ use crate::{
 use super::super::{
     decode_inner, decode_metadata_envelope, decode_production_manifest, member_payload,
     metadata_member_id, require_strong_profile, required_metadata_section,
-    validate_semantic_fingerprints,
 };
 use super::DecodedCrossConeLayoutLinkSections;
 
@@ -125,7 +124,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         // Only the three Compile semantic contributions are checked here.
         // Code and LinkValidationOnly projections require final-object proofs.
-        validate_semantic_fingerprints(&mut self, &hir, &mir, &lir)?;
 
         Ok(DecodedCrossConeLayoutLinkSections {
             graph: self,

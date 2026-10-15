@@ -264,7 +264,6 @@ fn compile_section_decode_rejects_wrong_profile_before_payloads() {
         hir,
         mir,
         lir,
-        false,
     );
     assert!(matches!(
         open_graph(&bytes).decode_single_cone_compile_sections(),
@@ -329,21 +328,6 @@ fn compile_section_decode_keeps_link_only_unknown_section_opaque() {
             .decode_single_cone_compile_sections()
             .is_ok()
     );
-}
-
-#[test]
-fn compile_section_decode_rejects_semantic_fingerprint_mismatch() {
-    let (hir, mir, lir) = required_sections();
-    let bytes = artifact_with_semantic_mismatch(hir, mir, lir);
-    assert!(matches!(
-        open_graph(&bytes).decode_single_cone_compile_sections(),
-        Err(
-            SingleConeCompileSectionDecodeError::SemanticFingerprintMismatch {
-                location: MetadataLocation::Hir,
-                ..
-            }
-        )
-    ));
 }
 
 pub(crate) fn required_sections() -> (
@@ -477,22 +461,6 @@ fn artifact(
         hir_sections,
         mir_sections,
         lir_sections,
-        false,
-    )
-}
-
-fn artifact_with_semantic_mismatch(
-    hir_sections: Vec<MetadataSection>,
-    mir_sections: Vec<MetadataSection>,
-    lir_sections: Vec<MetadataSection>,
-) -> Vec<u8> {
-    build_artifact_for_profile(
-        cone(),
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-        hir_sections,
-        mir_sections,
-        lir_sections,
-        true,
     )
 }
 
@@ -508,7 +476,6 @@ fn artifact_for_cone(
         hir_sections,
         mir_sections,
         lir_sections,
-        false,
     )
 }
 
@@ -518,7 +485,6 @@ pub(crate) fn build_artifact_for_profile(
     hir_sections: Vec<MetadataSection>,
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
-    stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
     let dependencies = fixture_dependencies(&cone, Vec::new());
     build_artifact_for_profile_with_dependencies(
@@ -528,7 +494,6 @@ pub(crate) fn build_artifact_for_profile(
         hir_sections,
         mir_sections,
         lir_sections,
-        stale_hir_fingerprint,
     )
 }
 
@@ -562,7 +527,6 @@ pub(crate) fn build_artifact_for_profile_with_dependencies(
     hir_sections: Vec<MetadataSection>,
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
-    stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
     let producer = cone.identity();
     let compatibility = CompatibilityRecord::new(selection(), profile).unwrap();
@@ -578,11 +542,7 @@ pub(crate) fn build_artifact_for_profile_with_dependencies(
     )
     .unwrap();
     let semantic = SemanticFingerprintRecord::from_digests(
-        if stale_hir_fingerprint {
-            HirFingerprint::from_array([9; 32])
-        } else {
-            semantic.hir()
-        },
+        semantic.hir(),
         semantic.mir(),
         semantic.lir(),
         FingerprintAvailability::Available(CodeFingerprint::from_array([4; 32])),

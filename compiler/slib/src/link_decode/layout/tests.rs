@@ -17,7 +17,7 @@ use crate::{
 
 #[test]
 fn layout_link_front_decodes_the_complete_profile_atomically() {
-    let bytes = layout_artifact(false, None, empty_link_closure(0x22), false);
+    let bytes = layout_artifact(None, empty_link_closure(0x22), false);
     let sections = open_graph(&bytes)
         .decode_cross_cone_layout_link_sections()
         .unwrap();
@@ -64,7 +64,6 @@ fn layout_link_front_rejects_the_m23_5_profile_before_payloads() {
 #[test]
 fn layout_link_front_requires_the_new_link_closure() {
     let bytes = layout_artifact(
-        false,
         Some(lir_cross_cone_layout_link_closure_capability()),
         empty_link_closure(0x22),
         false,
@@ -84,7 +83,7 @@ fn layout_link_front_requires_the_new_link_closure() {
 
 #[test]
 fn layout_link_front_rejects_a_malformed_new_link_payload() {
-    let bytes = layout_artifact(false, None, vec![0xff], false);
+    let bytes = layout_artifact(None, vec![0xff], false);
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_link_sections(),
@@ -97,23 +96,8 @@ fn layout_link_front_rejects_a_malformed_new_link_payload() {
 }
 
 #[test]
-fn layout_link_front_rejects_a_semantic_fingerprint_mismatch() {
-    let bytes = layout_artifact(true, None, empty_link_closure(0x22), false);
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_link_sections(),
-        Err(
-            CrossConeLayoutLinkSectionDecodeError::SemanticFingerprintMismatch {
-                location: MetadataLocation::Hir,
-                ..
-            }
-        )
-    ));
-}
-
-#[test]
 fn layout_link_front_rejects_mixed_strong_production_versions() {
-    let bytes = layout_artifact(false, None, empty_link_closure(0x22), true);
+    let bytes = layout_artifact(None, empty_link_closure(0x22), true);
 
     assert!(matches!(
         open_graph(&bytes).decode_cross_cone_layout_link_sections(),
@@ -130,7 +114,6 @@ fn layout_link_front_rejects_mixed_strong_production_versions() {
 }
 
 fn layout_artifact(
-    stale_hir_fingerprint: bool,
     omitted: Option<CapabilityId>,
     layout_link_payload: Vec<u8>,
     include_v1_production: bool,
@@ -159,7 +142,6 @@ fn layout_artifact(
         hir,
         mir,
         lir,
-        stale_hir_fingerprint,
     )
 }
 

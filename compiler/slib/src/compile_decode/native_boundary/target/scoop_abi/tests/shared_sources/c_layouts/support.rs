@@ -119,7 +119,6 @@ impl DeclaredLayout {
             hir,
             mir,
             lir,
-            false,
         );
         let mut graph = crate::strong_compile_decode::tests::open_graph(&bytes);
         let view = crate::NativeBoundaryFoundationView {

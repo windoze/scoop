@@ -231,8 +231,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let lir_production =
             decode_compile_section(&metadata, MetadataLocation::Lir, lir_production_capability)?;
 
-        metadata.validate_semantic_fingerprints(&mut self)?;
-
         Ok(DecodedSingleConeCompileSections {
             graph: self,
             hir_foundation,

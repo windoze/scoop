@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
-use scoop_wire::{WireError, WirePath, sha256};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
@@ -59,9 +59,6 @@ pub enum ArchiveReadError {
         declared: u64,
         actual: u64,
     },
-    MemberDigestMismatch {
-        id: SlibMemberId,
-    },
     LengthOverflow,
     Allocation(WireError),
 }
@@ -106,12 +103,6 @@ impl fmt::Display for ArchiveReadError {
                 formatter,
                 "{member} header length {actual} does not match directory length {declared}"
             ),
-            Self::MemberDigestMismatch { id } => {
-                write!(
-                    formatter,
-                    "archive member {id} payload digest does not match its directory record"
-                )
-            }
             Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
             Self::Allocation(error) => error.fmt(formatter),
         }
@@ -206,9 +197,6 @@ impl<'input> ManifestArchive<'input> {
                 });
             }
 
-            if sha256(&self.input[range.clone()]) != record.sha256() {
-                return Err(ArchiveReadError::MemberDigestMismatch { id: record.id() });
-            }
             ranges.push((record.id(), range));
             cursor = next_header;
         }

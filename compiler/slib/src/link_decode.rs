@@ -43,14 +43,13 @@ use crate::{
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
     ProductionCodeProjectionError, RuntimeAndEhRequirementValidationError,
     RuntimeImageFingerprintError, RuntimeImagePatchError, ScoopLirObjectCandidateV1,
-    ScoopLirStackmapValidationError, SemanticFingerprintError, SemanticFingerprintRecord,
-    SingleConeProductionManifestV1, SingleConeProductionManifestValidationError, SlibMemberId,
-    SlibMemberRecord, SlibMemberRole, SourceExternalRequirementValidationError,
-    StrongCallableBodyFingerprintError, StrongCallableFingerprintError,
-    StrongCallableRegistrationValidationError, StrongImmortalObjectFingerprintError,
-    StrongImmortalObjectRegistrationValidationError, StrongInitializationFingerprintError,
-    StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
-    StrongRegistrationPatchError, StrongSafepointFingerprintError,
+    ScoopLirStackmapValidationError, SemanticFingerprintRecord, SingleConeProductionManifestV1,
+    SingleConeProductionManifestValidationError, SlibMemberId, SlibMemberRecord, SlibMemberRole,
+    SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
+    StrongCallableFingerprintError, StrongCallableRegistrationValidationError,
+    StrongImmortalObjectFingerprintError, StrongImmortalObjectRegistrationValidationError,
+    StrongInitializationFingerprintError, StrongInitializationRegistrationValidationError,
+    StrongObjectSymbolPlanningError, StrongRegistrationPatchError, StrongSafepointFingerprintError,
     StrongSafepointRegistrationValidationError, StrongStaticStorageFingerprintError,
     StrongStaticStorageRegistrationValidationError, StrongStaticStorageShapeFingerprintError,
     StrongTypeFingerprintError, StrongTypeRegistrationValidationError,
@@ -266,59 +265,6 @@ fn decode_inner<T: WireDecode>(
         capability,
         source,
     })
-}
-
-fn validate_semantic_fingerprints(
-    graph: &mut ValidatedGraphArtifact<'_>,
-    hir: &DecodedMetadataEnvelope<'_>,
-    mir: &DecodedMetadataEnvelope<'_>,
-    lir: &DecodedMetadataEnvelope<'_>,
-) -> Result<(), SingleConeLinkSectionDecodeError> {
-    let actual = {
-        let manifest = graph.envelope.manifest();
-        SemanticFingerprintRecord::from_decoded_compile_metadata_sections(
-            manifest.compatibility(),
-            manifest.direct_dependencies(),
-            hir.sections(),
-            mir.sections(),
-            lir.sections(),
-        )
-    }
-    .map_err(SingleConeLinkSectionDecodeError::SemanticFingerprints)?;
-    let expected = graph.envelope.manifest().semantic_fingerprints();
-    require_fingerprint(
-        MetadataLocation::Hir,
-        expected.hir().as_array(),
-        actual.hir().as_array(),
-    )?;
-    require_fingerprint(
-        MetadataLocation::Mir,
-        expected.mir().as_array(),
-        actual.mir().as_array(),
-    )?;
-    require_fingerprint(
-        MetadataLocation::Lir,
-        expected.lir().as_array(),
-        actual.lir().as_array(),
-    )
-}
-
-fn require_fingerprint(
-    location: MetadataLocation,
-    expected: &[u8; 32],
-    actual: &[u8; 32],
-) -> Result<(), SingleConeLinkSectionDecodeError> {
-    if expected == actual {
-        Ok(())
-    } else {
-        Err(
-            SingleConeLinkSectionDecodeError::SemanticFingerprintMismatch {
-                location,
-                expected: *expected,
-                actual: *actual,
-            },
-        )
-    }
 }
 
 #[derive(Debug)]
@@ -730,12 +676,6 @@ pub enum SingleConeLinkSectionDecodeError {
         source: WireError,
     },
     Resource(WireError),
-    SemanticFingerprints(SemanticFingerprintError),
-    SemanticFingerprintMismatch {
-        location: MetadataLocation,
-        expected: [u8; 32],
-        actual: [u8; 32],
-    },
 }
 
 impl fmt::Display for SingleConeLinkSectionDecodeError {
@@ -750,12 +690,10 @@ impl std::error::Error for SingleConeLinkSectionDecodeError {
             Self::Inventory(error) => Some(error),
             Self::OuterEnvelope { source, .. } => Some(source),
             Self::InnerSection { source, .. } | Self::Resource(source) => Some(source),
-            Self::SemanticFingerprints(error) => Some(error),
             Self::WrongProfile { .. }
             | Self::MissingMetadataMember { .. }
             | Self::MissingMetadataMemberPayload { .. }
-            | Self::MissingSection { .. }
-            | Self::SemanticFingerprintMismatch { .. } => None,
+            | Self::MissingSection { .. } => None,
         }
     }
 }

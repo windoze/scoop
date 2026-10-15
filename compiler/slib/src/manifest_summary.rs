@@ -190,15 +190,4 @@ mod tests {
         let decoded: ArtifactManifestSummaryV1 = scoop_wire::decode_canonical(&encoded).unwrap();
         assert_eq!(decoded, summary);
     }
-
-    #[test]
-    fn summary_rejects_member_bytes_changed_after_manifest_hashing() {
-        let mut bytes = crate::link_decode::complete_strong_artifact_for_test(false);
-        let last = bytes.last_mut().expect("test artifact is nonempty");
-        *last ^= 0x01;
-        let error =
-            read_artifact_manifest_summary(&bytes, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
-                .unwrap_err();
-        assert!(matches!(error, ArtifactManifestSummaryError::Envelope(_)));
-    }
 }

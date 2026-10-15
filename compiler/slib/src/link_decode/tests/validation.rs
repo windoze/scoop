@@ -46,7 +46,6 @@ fn link_materialization_requires_the_complete_planned_object_directory() {
         true,
         true,
         false,
-        false,
     );
 
     assert!(matches!(
@@ -167,7 +166,6 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
         vec![strong_section(), closure_section()],
         true,
         false,
-        false,
         true,
     );
     assert!(matches!(
@@ -186,7 +184,6 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
         vec![strong_section(), closure_section()],
         false,
         true,
-        false,
         true,
     );
     assert!(matches!(
@@ -195,24 +192,6 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
             location: Some(MetadataLocation::Hir),
             ..
         })
-    ));
-
-    let stale = build_artifact(
-        vec![production_manifest_section()],
-        vec![strong_section(), closure_section()],
-        true,
-        true,
-        true,
-        true,
-    );
-    assert!(matches!(
-        open_graph(&stale).decode_single_cone_link_sections(),
-        Err(
-            SingleConeLinkSectionDecodeError::SemanticFingerprintMismatch {
-                location: MetadataLocation::Hir,
-                ..
-            }
-        )
     ));
 }
 
@@ -225,7 +204,6 @@ fn link_section_decode_rejects_the_wrong_profile_before_payloads() {
         hir,
         mir,
         lir,
-        false,
     );
     assert!(matches!(
         open_graph(&bytes).decode_single_cone_link_sections(),

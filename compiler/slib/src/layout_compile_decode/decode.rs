@@ -88,8 +88,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
             lir_cross_cone_layout_abi_capability(),
         )?;
 
-        metadata.validate_semantic_fingerprints(&mut self)?;
-
         Ok(DecodedCrossConeLayoutCompileSections {
             graph: self,
             view: crate::link_decode::DecodedLayoutView::Compile,

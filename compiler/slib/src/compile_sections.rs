@@ -1,4 +1,4 @@
-//! Shared fail-closed front end for profile-specific Compile section readers.
+//! Shared envelope decoding for profile-specific Compile section readers.
 
 use std::fmt;
 
@@ -7,9 +7,8 @@ use scoop_wire::{WireDecode, WireError, decode_canonical};
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, DecodedMetadataEnvelope,
-    DecodedMetadataSection, MetadataLocation, MetadataReadError, SemanticFingerprintError,
-    SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
-    ValidatedGraphArtifact,
+    DecodedMetadataSection, MetadataLocation, MetadataReadError, SlibMemberId, SlibMemberRecord,
+    SlibMemberRole, ValidatedGraphArtifact,
 };
 
 /// Canonically decoded HIR, MIR, and LIR metadata envelopes for one exact
@@ -41,39 +40,6 @@ impl<'input> DecodedCompileMetadataEnvelopes<'input> {
                 location,
                 capability: capability.clone(),
             })
-    }
-
-    pub(crate) fn validate_semantic_fingerprints(
-        &self,
-        graph: &mut ValidatedGraphArtifact<'_>,
-    ) -> Result<(), CompileSectionDecodeError> {
-        let actual = {
-            let manifest = graph.envelope.manifest();
-            SemanticFingerprintRecord::from_decoded_compile_metadata_sections(
-                manifest.compatibility(),
-                manifest.direct_dependencies(),
-                self.hir.sections(),
-                self.mir.sections(),
-                self.lir.sections(),
-            )
-        }
-        .map_err(CompileSectionDecodeError::SemanticFingerprints)?;
-        let expected = graph.envelope.manifest().semantic_fingerprints();
-        require_fingerprint(
-            MetadataLocation::Hir,
-            expected.hir().as_array(),
-            actual.hir().as_array(),
-        )?;
-        require_fingerprint(
-            MetadataLocation::Mir,
-            expected.mir().as_array(),
-            actual.mir().as_array(),
-        )?;
-        require_fingerprint(
-            MetadataLocation::Lir,
-            expected.lir().as_array(),
-            actual.lir().as_array(),
-        )
     }
 }
 
@@ -171,22 +137,6 @@ fn member_payload<'input>(
         .ok_or(CompileSectionDecodeError::MissingMetadataMemberPayload { location, member })
 }
 
-fn require_fingerprint(
-    location: MetadataLocation,
-    expected: &[u8; 32],
-    actual: &[u8; 32],
-) -> Result<(), CompileSectionDecodeError> {
-    if expected == actual {
-        Ok(())
-    } else {
-        Err(CompileSectionDecodeError::SemanticFingerprintMismatch {
-            location,
-            expected: *expected,
-            actual: *actual,
-        })
-    }
-}
-
 #[derive(Debug)]
 pub enum CompileSectionDecodeError {
     WrongProfile {
@@ -214,12 +164,6 @@ pub enum CompileSectionDecodeError {
         capability: CapabilityId,
         source: WireError,
     },
-    SemanticFingerprints(SemanticFingerprintError),
-    SemanticFingerprintMismatch {
-        location: MetadataLocation,
-        expected: [u8; 32],
-        actual: [u8; 32],
-    },
 }
 
 impl fmt::Display for CompileSectionDecodeError {
@@ -234,12 +178,10 @@ impl std::error::Error for CompileSectionDecodeError {
             Self::Inventory(error) => Some(error),
             Self::OuterEnvelope { source, .. } => Some(source),
             Self::InnerSection { source, .. } => Some(source),
-            Self::SemanticFingerprints(error) => Some(error),
             Self::WrongProfile { .. }
             | Self::MissingMetadataMember { .. }
             | Self::MissingMetadataMemberPayload { .. }
-            | Self::MissingSection { .. }
-            | Self::SemanticFingerprintMismatch { .. } => None,
+            | Self::MissingSection { .. } => None,
         }
     }
 }

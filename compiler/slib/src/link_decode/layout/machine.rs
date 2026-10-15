@@ -1,7 +1,7 @@
 //! Decode only canonical keys and machine records for program linking.
 use super::super::{
     decode_metadata_envelope, decode_production_manifest, member_payload, metadata_member_id,
-    require_strong_profile, validate_semantic_fingerprints,
+    require_strong_profile,
 };
 use super::decode::{decode_required, validate_inventories};
 use super::*;
@@ -93,8 +93,6 @@ impl<'a> ValidatedGraphArtifact<'a> {
                 lir_cross_cone_layout_link_closure_capability(),
             )?,
         };
-        // Hash the immutable payloads; this does not decode source semantics.
-        validate_semantic_fingerprints(&mut self, &hir, &mir, &lir)?;
         Ok(DecodedMachineLinkSections {
             graph: self,
             hir_keys,

@@ -26,7 +26,6 @@ fn cross_cone_hir_front_rejects_a_noncanonical_mir_bridge_payload() {
         hir,
         mir,
         lir,
-        false,
     );
 
     assert!(matches!(
@@ -65,7 +64,6 @@ fn cross_cone_hir_front_rejects_a_noncanonical_lir_bridge_payload() {
         hir,
         mir,
         lir,
-        false,
     );
 
     assert!(matches!(
