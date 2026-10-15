@@ -109,6 +109,7 @@ mod m37_type_annotations;
 mod m4;
 mod m41_f_bounds;
 mod m41_operators;
+mod m45_lambda_inference;
 mod m5;
 mod m6;
 mod m7;

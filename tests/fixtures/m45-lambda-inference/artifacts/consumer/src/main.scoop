@@ -1,0 +1,27 @@
+import inference.*
+class Gate(var waiter: Continuation<Unit>?) {
+    fun complete() { val current = waiter!!; waiter = None; current.resume(Unit) }
+}
+class Registration(val gate: Gate) : SuspendRegistration<Unit> {
+    public override fun register(continuation: Continuation<Unit>) { gate.waiter = Some(continuation) }
+}
+suspend fun waitFor(gate: Gate) { suspendCoroutine(Registration(gate)) }
+class Task(val gate: Gate) : SuspendTask<Int> {
+    public override suspend fun run(): Int {
+        val resource = Resource(21)
+        val first = Resource(20).scope(suspend { value -> value.read() })
+        return resource.scope(suspend { value -> waitFor(gate); value.read() + first })
+    }
+}
+class Completion : Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(exception: Throwable) { println("unexpected") }
+}
+fun main() {
+    println(keep(Resource(17).scope { value -> value.read() }))
+    val gate = Gate(None)
+    startCoroutine(Task(gate), Completion())
+    println("suspended")
+    gcCollect()
+    gate.complete()
+}

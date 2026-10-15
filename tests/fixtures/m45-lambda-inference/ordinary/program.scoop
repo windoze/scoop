@@ -1,0 +1,21 @@
+interface Carrier { fun read(): Int }
+class Resource(val value: Int) : Carrier {
+    public override fun read(): Int = value
+}
+fun <T : Carrier, R> T.scope(block: (T) -> R): R = block(this)
+suspend fun <T : Carrier, R> T.scope(block: suspend (T) -> R): R = block(this)
+fun <T> keep(value: T): T = value
+fun <T : Carrier, R> T.inspect(block: T.() -> R): R = this.block()
+fun <T, R> collect(value: T, first: (T) -> R?, second: (T) -> R): R = second(value)
+fun main() {
+    println(Resource(11).scope { resource -> resource.read() })
+    val resource = Resource(12)
+    println(resource.scope { value -> value.read() })
+    println(resource.scope { it.read() })
+    println(resource.scope { value: Resource -> value.read() })
+    println(keep(resource.scope { value -> value.scope { it.read() } }))
+    println(resource.inspect { read() })
+    val empty: Int? = resource.scope { None }
+    println(empty == None)
+    println(collect(resource, { value -> None }, { value -> value.read() }))
+}

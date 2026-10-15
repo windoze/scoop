@@ -126,7 +126,13 @@ impl Lowerer {
             {
                 continue;
             }
-            let expected = self.try_substitute(patterns[index].ty, &initial_hints);
+            let expected = expression.expectation(self, patterns[index].ty, &initial_hints);
+            if matches!(
+                expected,
+                Some(crate::expr::ExpressionExpectation::Lambda(_))
+            ) {
+                continue;
+            }
             match expression.lower(self, index, expected, false) {
                 Ok((value, sink)) => {
                     patterns[index].constrain(session, index, value.ty);
@@ -162,15 +168,21 @@ impl Lowerer {
                 .all(Option::is_some);
             let hints = hint_bindings(parameters, &partial);
             let mut progress = false;
+            let mut first_failure = None;
             for (index, expression) in expressions.iter().enumerate() {
                 if values[index].is_some() {
                     continue;
                 }
                 let hint = forced_hint
                     .filter(|(source, _)| *source == index)
-                    .map(|(_, hint)| hint)
-                    .or_else(|| self.try_substitute(patterns[index].ty, &hints));
+                    .map(|(_, hint)| crate::expr::ExpressionExpectation::Type(hint))
+                    .or_else(|| expression.expectation(self, patterns[index].ty, &hints));
                 let Some(hint) = hint else { continue };
+                let partial_lambda = matches!(hint, crate::expr::ExpressionExpectation::Lambda(_));
+                if partial_lambda && expected_result.is_some() {
+                    continue;
+                }
+                let saved = partial_lambda.then(|| Box::new(self.clone()));
                 match expression.lower(self, index, Some(hint), true) {
                     Ok((value, sink)) => {
                         patterns[index].constrain(session, index, value.ty);
@@ -179,6 +191,11 @@ impl Lowerer {
                         progress = true;
                     }
                     Err(failure) => {
+                        if let Some(mut saved) = saved {
+                            std::mem::swap(self, &mut saved);
+                            first_failure.get_or_insert((saved, failure));
+                            continue;
+                        }
                         return Err(Box::new(ArgumentInferenceFailure {
                             arguments: values,
                             kind: ArgumentInferenceFailureKind::Expression(failure),
@@ -208,7 +225,6 @@ impl Lowerer {
                 .filter_map(|(index, value)| value.is_none().then_some(index))
                 .collect::<Vec<_>>();
             seeds.sort_by_key(|&index| std::cmp::Reverse(expressions[index].seed_rank(self)));
-            let mut first_failure = None;
             for index in seeds {
                 let expressions::ArgumentAttempt { mut state, result } =
                     expressions[index].try_default(self, index);

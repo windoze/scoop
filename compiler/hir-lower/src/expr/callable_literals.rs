@@ -1,8 +1,11 @@
 use super::*;
 mod anonymous;
+mod expectation;
 mod parameters;
 mod returns;
 mod synthesized;
+pub(crate) use expectation::ExpressionExpectation;
+use expectation::LambdaExpectation;
 
 impl Lowerer {
     pub(super) fn lower_lambda(
@@ -12,7 +15,7 @@ impl Lowerer {
         parameters: Option<&[ast::LambdaParam]>,
         body: &ast::Block,
         span: Span,
-        expected: Option<TypeId>,
+        expected: Option<LambdaExpectation>,
     ) -> Option<hir::Expr> {
         self.with_pattern_transaction(|state| {
             state.lower_lambda_inner(
@@ -39,14 +42,10 @@ impl Lowerer {
         parameters: Option<&[ast::LambdaParam]>,
         body_span: Span,
         span: Span,
-        expected: Option<TypeId>,
+        expected_signature: Option<LambdaExpectation>,
         lower_body: impl FnOnce(&mut Self, Option<TypeId>) -> Option<crate::stmt::ValueBlock>,
     ) -> Option<hir::Expr> {
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        if let Some((_, signature)) = &expected_signature
+        if let Some(signature) = &expected_signature
             && signature.is_suspend != is_suspend
         {
             self.error(
@@ -58,9 +57,9 @@ impl Lowerer {
         let source_parameters: Vec<Option<&ast::LambdaParam>> = match parameters {
             Some(parameters) => parameters.iter().map(Some).collect(),
             None => match &expected_signature {
-                Some((_, signature)) if signature.parameter_types.len() == 1 => vec![None],
-                Some((_, signature)) if signature.parameter_types.is_empty() => Vec::new(),
-                Some((_, signature)) => {
+                Some(signature) if signature.parameter_types.len() == 1 => vec![None],
+                Some(signature) if signature.parameter_types.is_empty() => Vec::new(),
+                Some(signature) => {
                     self.error(
                         span,
                         format!(
@@ -73,7 +72,7 @@ impl Lowerer {
                 None => Vec::new(),
             },
         };
-        if let Some((_, signature)) = &expected_signature
+        if let Some(signature) = &expected_signature
             && source_parameters.len() != signature.parameter_types.len()
         {
             self.error(
@@ -112,7 +111,7 @@ impl Lowerer {
         let outer_this = self.current_this.take();
         let outer_initialization = if expected_signature
             .as_ref()
-            .is_some_and(|(_, signature)| signature.receiver.is_some())
+            .is_some_and(|signature| signature.receiver.is_some())
         {
             self.initialization_context.take()
         } else {
@@ -145,7 +144,7 @@ impl Lowerer {
         let lowered = (|| {
             let receiver_ty = expected_signature
                 .as_ref()
-                .and_then(|(_, signature)| signature.receiver);
+                .and_then(|signature| signature.receiver);
             let receiver = receiver_ty.map(|ty| {
                 self.bind_callable_receiver(ty, label.map(|label| label.text.clone()), span)
             });
@@ -154,7 +153,9 @@ impl Lowerer {
             }
             let parameters = self.lower_lambda_parameters(
                 &source_parameters,
-                expected_signature.as_ref().map(|(_, signature)| signature),
+                expected_signature
+                    .as_ref()
+                    .map(|signature| signature.parameter_types.as_slice()),
                 span,
             )?;
             let mut prefix = parameters.prefix;
@@ -166,7 +167,7 @@ impl Lowerer {
 
             let expected_return = expected_signature
                 .as_ref()
-                .map(|(_, signature)| signature.return_type);
+                .and_then(|signature| signature.return_type);
             self.current_return_ty = expected_return.unwrap_or(self.unit);
             self.return_inference = expected_return.is_none().then(ReturnInference::default);
             let mut value_block = lower_body(self, expected_return)?;

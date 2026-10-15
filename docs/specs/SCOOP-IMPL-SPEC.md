@@ -74,6 +74,8 @@ smart cast 分析使用已有 BindingId、类型约束及带实际 LoopId 的控
 
 重载探测共享已经检查的声明、签名和正文；候选新增或修改的函数、局部值与词法绑定各自隔离，只有选中候选的结果进入当前状态。一次探测不复制此前所有函数正文或当前函数的全部局部值。内部共享不改变实体分配顺序、诊断与重载规则，输出仍为原有完整 HIR 数据。
 
+候选局部约束求解可以先把已确定的参数、可选 receiver 与 suspend effect 传给 lambda，再用正文推断尚未确定的返回类型。这个部分期望仅存在于 lowering 的推断上下文，不是缺少返回类型的 HIR 函数类型；提交 lambda 时其参数、返回值、捕获和正文仍全部确定。当前 Cone 与依赖模板调用使用同一推断路径，不按扩展名或库名特判。
+
 `SemanticHir` 保存已检查的声明与正文，对外有两个不同的输出合同：
 
 - **ExportHir**：跨 Cone 的声明与必要正文。区分 public/re-export lookup、protected inheritance/slot、generic hidden support 和 interface dependency；支持声明的存在不扩大可见性。保存签名、默认值、const、alias、注解、类型关系与模板，普通非泛型函数的实现正文不复制给下游。

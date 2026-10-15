@@ -589,6 +589,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 先建立当前同机基线和完整停顿口径，再按功能分别提交优化与模块迁移；通过实际性能对照、共享路径集成回归、三目标和无源码产物消费验收。
 - M44-1～6 全部交付。Darwin 工作区通过 5629 项测试及 2 项 doctest，正式 CLI 全量通过 4037 项；Linux GNU／musl 适用组合分别通过 1163／1167 项。零搬迁、实际移动、minor、线程进度和四程序性能对照完成，回退修复、原始失败及测量限制均保留。
 
+### M45 平台库、确定性资源释放与 native IO buffer（实施中，[设计](milestone45/DESIGN.md)）
+
+- 在 M38 完成后实施；首先修复泛型扩展回调的参数／返回类型联合推断，再接入普通 `scoop.platform` Cone。
+- core 提供 Disposable、普通／挂起 use 与 GC-free pressure 提示；platform 提供 native buffer、同步 IO、文件、进程、线程、网络、系统时间与熵。
+- 库行为优先通过 `scoop.test` 验证，编译器、ABI、GC 与产物边界保留必要专测；本机批次稳定后统一验证 Linux GNU／musl。
+
 ### M46 序列化基础协议与 DTO 合成（已完成，[设计](milestone46/DESIGN.md)）
 
 - 按 M46-1～6 完成稳定解码视图、null 查询、编码共享容器、统一 Serialize 与 Option 默认值、不可变 JsonValue，以及 API／Cone 离线数据形状验收。
