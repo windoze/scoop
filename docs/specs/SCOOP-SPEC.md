@@ -1644,6 +1644,8 @@ struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/proper
 
 #### 9.6.3 注解数据
 
+`annotationKey<A>(): AnnotationKey` 查询一个实际 annotation 声明。该 core 入口要求恰好一个显式声明实参且没有值实参；A 沿正常词法、import、re-export 和可见性规则绑定。普通类型、类型参数及不可访问的 annotation 不能用于该查询；它不为 annotation 创建 runtime 类型，也不能取得该查询的 callable reference。调用绑定到实际 core 声明，同名普通函数继续遵守普通调用规则。已绑定的声明身份随泛型正文和默认参数模板保存，消费方不按名称重新解析。
+
 `AnnotationKey` 是独立声明引用，按身份相等，惰性 `describe()` 返回 `AnnotationDeclarationInfo`，其中包含 visibility、有序参数和元注解。`AnnotationInfo(key, arguments)` 表示一个应用或嵌套值；参数按声明序保存 ParameterRef、名称、类型与正规化值，缺省参数已补齐。实际 target 由包含该应用的描述节点表达，不将其复制到 property、accessor、storage 或不同 type-use 节点。
 
 `AnnotationParameterType` 区分 Scalar(TypeRef)、IntegerEnum(TypeRef)、Annotation(AnnotationKey)、Array(AnnotationAtomType)；AtomType 只有前三种，保持一维数组限制。`AnnotationValue` 保存 Boolean、String、Char、Integer(IntegerValue)、FloatBits(UInt)、DoubleBits(ULong)、IntegerEnum(type, variant, value)、Annotation(AnnotationInfo)、Array(element, values)。IntegerValue 的八个带类型分支分别保存有符号/无符号 8/16/32/64 位整数；浮点保存目标精度的原始位型，整型 enum 保留原 variant 和完整类型。空数组仍保留元素种类。

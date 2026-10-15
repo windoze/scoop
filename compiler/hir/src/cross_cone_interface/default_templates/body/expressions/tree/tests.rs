@@ -254,9 +254,10 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             },
         })),
         DefaultExpressionKindV1::Unreachable,
+        DefaultExpressionKindV1::AnnotationKey(fixture.annotation),
     ];
 
-    assert_eq!(cases.len(), 60);
+    assert_eq!(cases.len(), 61);
     for (index, kind) in cases.into_iter().enumerate() {
         let expected_tag = match index {
             43 => 57,
@@ -264,6 +265,7 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             57 => 71,
             58 => 72,
             59 => 74,
+            60 => 75,
             _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);
@@ -297,6 +299,13 @@ fn leaf_and_recursive_expressions_have_fixed_tags_and_round_trip() {
 
     let cases = [
         (4, unit),
+        (
+            75,
+            expression(
+                DefaultExpressionKindV1::AnnotationKey(fixture.annotation),
+                &fixture,
+            ),
+        ),
         (51, binary),
         (22, pointer_load),
         (

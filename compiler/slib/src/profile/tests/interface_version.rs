@@ -1,20 +1,20 @@
 use super::*;
 
 #[test]
-fn source_interface_v77_preserves_property_overrides() {
+fn source_interface_v78_preserves_annotation_queries() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        77,
+        78,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn type_semantics_v29_preserves_unreachable_templates() {
+fn type_semantics_v30_preserves_annotation_queries() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        29,
+        30,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

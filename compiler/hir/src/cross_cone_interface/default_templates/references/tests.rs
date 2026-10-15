@@ -113,6 +113,9 @@ fn reference_set_sorts_each_domain_and_round_trips() {
     )
     .unwrap();
 
+    let expected = expected
+        .with_annotations(vec![reference(fixture.annotation, &fixture)])
+        .unwrap();
     assert_eq!(expected.callables(), &[direct, address]);
     let bytes = encode(&expected).unwrap();
     let decoded: DecodedExportDefaultReferenceSetV1 = decode_canonical(&bytes).unwrap();
@@ -276,14 +279,14 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 6,
+            expected: 7,
             actual: 0,
         }
     );
 
     assert_eq!(
         hex(&encode(&ExportDefaultReferenceSetV1::default()).unwrap()),
-        "a6018002800380048005800680"
+        "a70180028003800480058006800780"
     );
 }
 
@@ -297,10 +300,10 @@ struct ReferenceSetWire {
 
 impl WireEncode for ReferenceSetWire {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         encode_sequence(encoder, &self.callables)?;
-        for field in 2..=6 {
+        for field in 2..=7 {
             encoder.field(field)?;
             encoder.array(0)?;
         }

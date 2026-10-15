@@ -414,6 +414,14 @@ pub struct ExportDefaultReferences {
     pub globals: Vec<ExportDefaultGlobalRef>,
     pub singleton_values: Vec<ExportDefaultSingletonValueRef>,
     pub fields: Vec<ExportDefaultFieldRef>,
+    pub annotations: Vec<ExportDefaultAnnotationRef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExportDefaultAnnotationRef {
+    pub target: scoop_identity::PersistentAnnotationId,
+    pub target_domain: AccessDomain,
+    pub origin: DefinitionOrigin,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

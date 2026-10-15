@@ -14,7 +14,17 @@ impl CallableIdentityBuilder<'_> {
             FunctionSource::AnnotationDescription {
                 annotation, parent, ..
             } => {
-                let parent = self.resolve_function(parent.into_raw().into_u32() as usize);
+                let parent = match parent {
+                    type_info::CallableBody::Function(id) => {
+                        self.resolve_function(id.into_raw().into_u32() as usize)
+                    }
+                    type_info::CallableBody::ClassConstructor(id) => {
+                        self.resolve_class_constructor(id.into_raw().into_u32() as usize)
+                    }
+                    type_info::CallableBody::StructConstructor(id) => {
+                        self.resolve_struct_constructor(id.into_raw().into_u32() as usize)
+                    }
+                };
                 let record =
                     CborIdentityRecord::from_key(GeneratedCallableKey::AnnotationDescription {
                         annotation,

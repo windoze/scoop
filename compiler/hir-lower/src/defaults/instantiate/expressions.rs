@@ -111,6 +111,7 @@ impl Lowerer {
             hir::ExprKind::BoolLiteral(value) => hir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::Unreachable => hir::ExprKind::Unreachable,
             hir::ExprKind::UnitLiteral => hir::ExprKind::UnitLiteral,
+            hir::ExprKind::AnnotationKey(annotation) => hir::ExprKind::AnnotationKey(*annotation),
             hir::ExprKind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 elements
                     .iter()

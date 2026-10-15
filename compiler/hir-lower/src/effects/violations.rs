@@ -144,6 +144,10 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(operand, out, requirements);
                 }
             }
+            ExprKind::AnnotationKey(_) => out.push((
+                expr.span,
+                "annotation metadata allocation is not allowed in `@NoGC` code".into(),
+            )),
             ExprKind::ContextLookup(_) => out.push((
                 expr.span,
                 "context lookup is not allowed in `@NoGC` code".into(),

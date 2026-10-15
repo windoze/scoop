@@ -57,6 +57,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     },
     Unreachable,
     UnitLiteral,
+    AnnotationKey(&'a scoop_identity::PersistentAnnotationId),
     TupleLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
     StructInit {
         constructor: &'a DefaultConstructorRefV1,
@@ -321,6 +322,9 @@ impl DefaultExpressionV1 {
             }
             DefaultExpressionKindV1::Unreachable => IndexedDefaultExpressionKindV1::Unreachable,
             DefaultExpressionKindV1::UnitLiteral => IndexedDefaultExpressionKindV1::UnitLiteral,
+            DefaultExpressionKindV1::AnnotationKey(annotation) => {
+                IndexedDefaultExpressionKindV1::AnnotationKey(annotation)
+            }
             DefaultExpressionKindV1::TupleLiteral(elements) => {
                 IndexedDefaultExpressionKindV1::TupleLiteral(index_sequence(
                     elements, resolver, 5, 1,

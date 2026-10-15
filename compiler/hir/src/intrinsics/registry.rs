@@ -138,6 +138,13 @@ pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {
 /// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
+        name: "annotation_key",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::AnnotationKey,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
         name: "type_reference",
         stage: IntrinsicStage::Hir,
         kind: IntrinsicFunctionKind::TypeReference,

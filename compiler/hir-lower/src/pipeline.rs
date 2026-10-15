@@ -10,6 +10,7 @@ impl Lowerer {
             substitution_slot as u32,
         );
         self.next_type_param_identity += 1;
+        self.intern_type(hir::Type::Param(parameter));
         parameter
     }
 

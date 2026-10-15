@@ -278,8 +278,8 @@ fn validate_origins(
                     _ => false,
                 };
                 matches.then_some(source_template.origin)
-            }).or_else(|| export.imported_constructor_templates.iter().find_map(|(_, template)| {
-                matches!(occurrence.position.root.template(), scoop_identity::CallableTemplateOwner::Constructor(declaration) if declaration == template.declaration).then_some(template.origin)
+            }).or_else(|| export.imported_constructor_templates.iter().find_map(|(_, constructor)| {
+                matches!(template, scoop_identity::CallableTemplateOwner::Constructor(declaration) if declaration == constructor.declaration).then_some(constructor.origin)
             })).or_else(|| output.local.module().release_hooks.iter().find_map(|(_, hook)| {
                 (occurrence.position.root == hook.materialization).then_some(hook.origin)
             }));

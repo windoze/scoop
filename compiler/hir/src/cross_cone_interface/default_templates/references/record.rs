@@ -140,6 +140,7 @@ pub enum ExportDefaultReferenceTargetResolutionError<E> {
     Callable(ExportDefaultCallableTargetResolutionError<E>),
     Constructor(DefaultConstructorRefResolutionError<E>),
     Type(E),
+    Annotation(E),
     Global(E),
     Singleton(E),
     Field(DefaultFieldRefResolutionError<E>),
@@ -153,6 +154,9 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceTargetResolutionErr
             }
             Self::Constructor(error) => {
                 write!(formatter, "invalid constructor reference target: {error}")
+            }
+            Self::Annotation(error) => {
+                write!(formatter, "invalid annotation reference target: {error}")
             }
             Self::Type(error) => write!(formatter, "invalid type reference target: {error}"),
             Self::Global(error) => write!(formatter, "invalid global reference target: {error}"),

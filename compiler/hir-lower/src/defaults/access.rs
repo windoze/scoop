@@ -60,6 +60,36 @@ impl Lowerer {
 }
 
 impl ReferenceCollector<'_> {
+    fn annotation(
+        &mut self,
+        target: scoop_identity::PersistentAnnotationId,
+        origin: hir::DefinitionOrigin,
+    ) {
+        let domain = if let Some(declaration) = self.lowerer.source_annotations.get(&target) {
+            declaration.access.lookup.0.clone()
+        } else {
+            let declaration = self
+                .lowerer
+                .dependencies
+                .as_ref()
+                .unwrap()
+                .annotation_declaration(target)
+                .expect("a bound annotation retains its declaration");
+            self.lowerer.imported_type_name_access_domain(
+                &declaration.source,
+                declaration.declaration.visibility,
+            )
+        };
+        let target_domain = self.checked_target_domain(domain, origin, "an annotation");
+        self.references
+            .annotations
+            .push(hir::ExportDefaultAnnotationRef {
+                target,
+                target_domain,
+                origin,
+            });
+    }
+
     fn direct_delegate_storage(&mut self, origin: hir::DefinitionOrigin) {
         self.lowerer.error(
             origin.span,

@@ -76,3 +76,6 @@ public fun findAnnotations(items: Array<AnnotationInfo>, key: AnnotationKey): Ar
     }
     return result.toArray()
 }
+
+@Intrinsic("annotation_key")
+public fun <A> annotationKey(): AnnotationKey

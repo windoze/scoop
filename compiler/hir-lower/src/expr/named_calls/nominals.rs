@@ -1,6 +1,7 @@
 use super::*;
 use crate::constructor_resolution::NominalConstructorCall;
 
+mod annotation_keys;
 mod finish;
 mod functions;
 mod imported;
@@ -43,6 +44,12 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Result<Option<hir::Expr>, ()> {
+        if targets.is_empty() {
+            return Ok(None);
+        }
+        if let Some(result) = self.lower_annotation_key_query(targets, call) {
+            return result.map(Some);
+        }
         let mut plans = Vec::new();
         let diagnostics_before = self.diagnostics.len();
         let mut failures = Vec::new();

@@ -62,6 +62,7 @@ where
             | DefaultExpressionKindV1::FloatLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::Unreachable
+            | DefaultExpressionKindV1::AnnotationKey(_)
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
             | DefaultExpressionKindV1::Capture(_)

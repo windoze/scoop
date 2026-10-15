@@ -97,6 +97,7 @@ pub(super) fn operands(expression: &hir::Expr) -> Vec<&hir::Expr> {
         | E::FloatLiteral(_)
         | E::BoolLiteral(_)
         | E::Unreachable
+        | E::AnnotationKey(_)
         | E::UnitLiteral
         | E::Local(_)
         | E::ConstructorReceiver

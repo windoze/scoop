@@ -80,6 +80,11 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn lower_pending_constructor(&mut self, work: ConstructorWork) {
+        let body = match work {
+            ConstructorWork::Class(id) => type_info::CallableBody::ClassConstructor(id),
+            ConstructorWork::Struct(id) => type_info::CallableBody::StructConstructor(id),
+        };
+        let previous = self.current_body.replace(body);
         match work {
             ConstructorWork::Class(id) => {
                 let index = id.into_raw().into_u32() as usize;
@@ -104,5 +109,6 @@ impl Concretizer<'_> {
                 );
             }
         }
+        self.current_body = previous;
     }
 }

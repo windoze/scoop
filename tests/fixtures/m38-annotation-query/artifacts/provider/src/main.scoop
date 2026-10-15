@@ -1,0 +1,11 @@
+package keys.provider
+public annotation class Label(val text: String = "provider")
+private annotation class Hidden(val level: Int = 9)
+public fun <T> genericKey(): AnnotationKey = annotationKey<Hidden>()
+public fun built(): AnnotationKey = genericKey<Long>()
+public fun defaulted(key: AnnotationKey = annotationKey<Label>()): AnnotationKey = key
+public fun <T> callback(): () -> AnnotationKey = { annotationKey<Hidden>() }
+public class Keyed public constructor(public val key: AnnotationKey = annotationKey<Label>())
+public class Stored<T> public constructor() { public val key: AnnotationKey = annotationKey<Hidden>() }
+public fun builtStored(): AnnotationKey = Stored<Long>().key
+public struct BuiltKey(val key: AnnotationKey) { public constructor() : this(annotationKey<Label>()) {} }

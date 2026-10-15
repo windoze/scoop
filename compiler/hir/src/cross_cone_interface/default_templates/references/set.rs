@@ -22,6 +22,7 @@ pub enum ExportDefaultReferenceKindV1 {
     Global,
     Singleton,
     Field,
+    Annotation,
 }
 
 impl fmt::Display for ExportDefaultReferenceKindV1 {
@@ -33,6 +34,7 @@ impl fmt::Display for ExportDefaultReferenceKindV1 {
             Self::Global => "global",
             Self::Singleton => "singleton",
             Self::Field => "field",
+            Self::Annotation => "annotation",
         })
     }
 }
@@ -45,6 +47,7 @@ pub struct ExportDefaultReferenceSetV1 {
     globals: Vec<ExportDefaultGlobalReferenceV1>,
     singleton_values: Vec<ExportDefaultSingletonReferenceV1>,
     fields: Vec<ExportDefaultFieldReferenceV1>,
+    annotations: Vec<ExportDefaultReferenceV1<scoop_identity::PersistentAnnotationId>>,
 }
 
 impl ExportDefaultReferenceSetV1 {
@@ -72,7 +75,22 @@ impl ExportDefaultReferenceSetV1 {
                 ExportDefaultReferenceKindV1::Singleton,
             )?,
             fields: canonicalize(fields, ExportDefaultReferenceKindV1::Field)?,
+            annotations: Vec::new(),
         })
+    }
+
+    pub fn with_annotations(
+        mut self,
+        annotations: Vec<ExportDefaultReferenceV1<scoop_identity::PersistentAnnotationId>>,
+    ) -> Result<Self, ExportDefaultReferenceSetBuildError> {
+        self.annotations = canonicalize(annotations, ExportDefaultReferenceKindV1::Annotation)?;
+        Ok(self)
+    }
+
+    pub fn annotations(
+        &self,
+    ) -> &[ExportDefaultReferenceV1<scoop_identity::PersistentAnnotationId>] {
+        &self.annotations
     }
 
     pub fn callables(&self) -> &[ExportDefaultCallableReferenceV1] {
@@ -106,18 +124,20 @@ impl ExportDefaultReferenceSetV1 {
             && self.globals.is_empty()
             && self.singleton_values.is_empty()
             && self.fields.is_empty()
+            && self.annotations.is_empty()
     }
 }
 
 impl WireEncode for ExportDefaultReferenceSetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encode_field(encoder, 1, &self.callables)?;
         encode_field(encoder, 2, &self.constructors)?;
         encode_field(encoder, 3, &self.types)?;
         encode_field(encoder, 4, &self.globals)?;
         encode_field(encoder, 5, &self.singleton_values)?;
-        encode_field(encoder, 6, &self.fields)
+        encode_field(encoder, 6, &self.fields)?;
+        encode_field(encoder, 7, &self.annotations)
     }
 }
 
@@ -129,6 +149,11 @@ pub struct DecodedExportDefaultReferenceSetV1 {
     globals: Vec<DecodedExportDefaultGlobalReferenceV1>,
     singleton_values: Vec<DecodedExportDefaultSingletonReferenceV1>,
     fields: Vec<DecodedExportDefaultFieldReferenceV1>,
+    annotations: Vec<
+        DecodedExportDefaultReferenceV1<
+            scoop_identity::DecodedPersistentId<scoop_identity::PersistentAnnotationId>,
+        >,
+    >,
 }
 
 impl DecodedExportDefaultReferenceSetV1 {
@@ -217,6 +242,16 @@ impl DecodedExportDefaultReferenceSetV1 {
                     .map_err(ExportDefaultReferenceTargetResolutionError::Field)
             },
         )?;
+        let annotations = resolve_set(
+            self.annotations,
+            resolver,
+            path,
+            ExportDefaultReferenceKindV1::Annotation,
+            |target, resolver| {
+                scoop_identity::PersistentIdResolver::resolve(resolver, target)
+                    .map_err(ExportDefaultReferenceTargetResolutionError::Annotation)
+            },
+        )?;
         Ok(ExportDefaultReferenceSetV1 {
             callables,
             constructors,
@@ -224,25 +259,27 @@ impl DecodedExportDefaultReferenceSetV1 {
             globals,
             singleton_values,
             fields,
+            annotations,
         })
     }
 }
 
 impl WireEncode for DecodedExportDefaultReferenceSetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encode_field(encoder, 1, &self.callables)?;
         encode_field(encoder, 2, &self.constructors)?;
         encode_field(encoder, 3, &self.types)?;
         encode_field(encoder, 4, &self.globals)?;
         encode_field(encoder, 5, &self.singleton_values)?;
-        encode_field(encoder, 6, &self.fields)
+        encode_field(encoder, 6, &self.fields)?;
+        encode_field(encoder, 7, &self.annotations)
     }
 }
 
 impl WireDecode for DecodedExportDefaultReferenceSetV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
+        decoder.expect_map(7)?;
         Ok(Self {
             callables: decode_field(decoder, 1)?,
             constructors: decode_field(decoder, 2)?,
@@ -250,6 +287,7 @@ impl WireDecode for DecodedExportDefaultReferenceSetV1 {
             globals: decode_field(decoder, 4)?,
             singleton_values: decode_field(decoder, 5)?,
             fields: decode_field(decoder, 6)?,
+            annotations: decode_field(decoder, 7)?,
         })
     }
 }

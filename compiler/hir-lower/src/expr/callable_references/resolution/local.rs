@@ -103,6 +103,15 @@ impl Lowerer {
                 crate::expr::atomics::ATOMIC_REFERENCE_ERROR.into(),
             ));
         }
+        if matches!(state.functions[function].kind, hir::FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind == hir::IntrinsicFunctionKind::AnnotationKey)
+        {
+            return Err(fail(
+                &state,
+                "annotationKey is a declaration query and cannot be used as a callable reference"
+                    .into(),
+            ));
+        }
         let own_type_param_count = view.signature.callable_parameters.len();
         let forwarding_parameter_types = extension_receiver
             .into_iter()

@@ -84,6 +84,17 @@ pub(super) fn project(
         ));
     }
 
+    let mut annotations = references
+        .annotations
+        .iter()
+        .map(|reference| {
+            Ok(ExportDefaultReferenceV1::new(
+                reference.target,
+                origin(entities.export(), reference.origin)?,
+            ))
+        })
+        .collect::<Result<Vec<_>, super::DefaultReferenceProjectionError>>()?;
+    canonicalize(&mut annotations);
     canonicalize(&mut callables);
     canonicalize(&mut constructors);
     canonicalize(&mut types);
@@ -98,6 +109,7 @@ pub(super) fn project(
         singleton_values,
         fields,
     )
+    .and_then(|references| references.with_annotations(annotations))
     .map_err(super::DefaultReferenceProjectionError::Set)
 }
 

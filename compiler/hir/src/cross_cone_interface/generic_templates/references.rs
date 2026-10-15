@@ -73,6 +73,9 @@ where
         path: &WirePath,
     ) -> Result<(), E> {
         let target = match occurrence.target {
+            DefaultBodyReferenceTargetV1::Annotation(annotation) => {
+                ExternalHirTargetV1::Annotation(annotation)
+            }
             DefaultBodyReferenceTargetV1::Type(signature) => {
                 let mut walker = SignatureNominalWalker::new(signature, path)?;
                 while let Some(nominal) = walker.next(path)? {

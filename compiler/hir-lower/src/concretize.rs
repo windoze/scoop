@@ -189,7 +189,7 @@ struct Concretizer<'a> {
     checked_context_requirements:
         std::collections::HashSet<(export::ContextRequirementOwner, Vec<concrete::TypeId>)>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId, Option<SourceSite>)>,
-    current_function: Option<concrete::FunctionId>,
+    current_body: Option<type_info::CallableBody>,
     pending_constructors: VecDeque<(constructor_work::ConstructorWork, Option<SourceSite>)>,
     emitted_functions: Vec<concrete::FunctionId>,
     lambdas: Arena<concrete::Lambda>,
@@ -369,7 +369,7 @@ impl<'a> Concretizer<'a> {
             type_condition_errors: Vec::new(),
             checked_context_requirements: Default::default(),
             pending_functions: VecDeque::new(),
-            current_function: None,
+            current_body: None,
             pending_constructors: VecDeque::new(),
             emitted_functions: Vec::new(),
             lambdas: Arena::new(),

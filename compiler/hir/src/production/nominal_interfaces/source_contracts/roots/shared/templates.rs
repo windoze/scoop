@@ -197,6 +197,8 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for TemplateReferences<'_, '_> 
         path: &WirePath,
     ) -> Result<(), Self::Error> {
         match occurrence.target {
+            // Annotation declarations are retained by the shared annotation table.
+            DefaultBodyReferenceTargetV1::Annotation(_) => {}
             DefaultBodyReferenceTargetV1::Callable(target) => match target {
                 DefaultCallableReferenceTargetViewV1::Callable(callable) => {
                     self.callable(callable.declaration())?

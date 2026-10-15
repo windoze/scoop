@@ -157,6 +157,9 @@ impl BodyProjection<'_, '_> {
                 }
             }
             ExprKind::Local(local) => DefaultExpressionKindV1::Local(self.local(*local)?),
+            ExprKind::AnnotationKey(annotation) => {
+                DefaultExpressionKindV1::AnnotationKey(*annotation)
+            }
             ExprKind::GlobalRead(global) => {
                 DefaultExpressionKindV1::GlobalRead(self.entities.global_property(*global)?)
             }

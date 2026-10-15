@@ -11,7 +11,8 @@ pub(super) fn expected_operation_owner(
         IntrinsicFunctionKind::Atomic(_)
         | IntrinsicFunctionKind::MaybeUninit(_)
         | IntrinsicFunctionKind::TypeReference
-        | IntrinsicFunctionKind::TypeDescription => {
+        | IntrinsicFunctionKind::TypeDescription
+        | IntrinsicFunctionKind::AnnotationKey => {
             unreachable!("these intrinsics use their ordinary nominal owner")
         }
         IntrinsicFunctionKind::Float(kind) => {

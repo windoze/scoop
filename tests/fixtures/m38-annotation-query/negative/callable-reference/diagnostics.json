@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::annotationKey` in dependency candidate layer:\n  - dependency function `annotationKey` — annotationKey is a declaration query and cannot be used as a callable reference",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 61,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 46
+    },
+    "severity": "error"
+  }
+]

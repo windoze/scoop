@@ -1,0 +1,3 @@
+private annotation class Hidden
+public fun query(key: AnnotationKey = annotationKey<Hidden>()): AnnotationKey = key
+fun main() {}

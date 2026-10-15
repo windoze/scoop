@@ -178,6 +178,15 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for ClosureObserver<'_> {
             ..
         } = occurrence;
         match target {
+            Target::Annotation(target) => observe_record(
+                self.domains.annotations.records,
+                &mut self.domains.annotations.seen,
+                origin,
+                ExportDefaultReferenceKindV1::Annotation,
+                site,
+                |declared, _| Ok(declared.cmp(&target)),
+                path,
+            ),
             Target::Callable(target) => self.observe_callable(target, origin, site, path),
             Target::Constructor(target) => self.observe_constructor(target, origin, site, path),
             Target::Type(target) => self.match_type(target, origin, site, path),

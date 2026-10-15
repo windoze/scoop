@@ -29,7 +29,7 @@ impl FunctionKey {
 pub(super) enum FunctionSource {
     AnnotationDescription {
         annotation: scoop_identity::PersistentAnnotationId,
-        parent: concrete::FunctionId,
+        parent: type_info::CallableBody,
         result: concrete::TypeId,
         origin: export::ConcreteExpressionOrigin,
     },
@@ -72,9 +72,7 @@ impl Concretizer<'_> {
                 scoop_identity::PersistentGeneratedCallableId::from_key(
                     &scoop_identity::GeneratedCallableKey::AnnotationDescription {
                         annotation,
-                        parent: self.function_keys[parent.into_raw().into_u32() as usize]
-                            .template_owner()
-                            .expect("a metadata query has a source callable"),
+                        parent: self.metadata_parent_request(parent).0,
                     },
                 )
                 .expect("annotation helper has an exact declaration"),
@@ -180,12 +178,9 @@ impl Concretizer<'_> {
             return id;
         }
         let (parameter_count, emittable) = match source {
-            FunctionSource::AnnotationDescription { parent, .. } => (
-                self.function_keys[parent.into_raw().into_u32() as usize]
-                    .arguments
-                    .len(),
-                true,
-            ),
+            FunctionSource::AnnotationDescription { parent, .. } => {
+                (self.metadata_parent_request(parent).2.len(), true)
+            }
             FunctionSource::Local(source) => (
                 self.source.functions[source].type_param_count(),
                 self.is_emittable_source_function(source),

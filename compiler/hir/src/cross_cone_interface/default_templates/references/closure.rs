@@ -61,6 +61,7 @@ struct ReferenceDomains<'a> {
     globals: ReferenceDomain<'a, PersistentPropertyId>,
     singletons: ReferenceDomain<'a, PersistentObjectValueId>,
     fields: ReferenceDomain<'a, DefaultFieldRefV1>,
+    annotations: ReferenceDomain<'a, scoop_identity::PersistentAnnotationId>,
 }
 
 impl<'a> ReferenceDomains<'a> {
@@ -76,6 +77,7 @@ impl<'a> ReferenceDomains<'a> {
             globals: ReferenceDomain::new(references.globals(), path)?,
             singletons: ReferenceDomain::new(references.singleton_values(), path)?,
             fields: ReferenceDomain::new(references.fields(), path)?,
+            annotations: ReferenceDomain::new(references.annotations(), path)?,
         })
     }
 
@@ -91,7 +93,11 @@ impl<'a> ReferenceDomains<'a> {
             ExportDefaultReferenceKindV1::Singleton,
             &self.singletons.seen,
         )?;
-        check_extras(ExportDefaultReferenceKindV1::Field, &self.fields.seen)
+        check_extras(ExportDefaultReferenceKindV1::Field, &self.fields.seen)?;
+        check_extras(
+            ExportDefaultReferenceKindV1::Annotation,
+            &self.annotations.seen,
+        )
     }
 }
 

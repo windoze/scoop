@@ -216,6 +216,7 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::CurrentSourceLocation
             | hir::IntrinsicFunctionKind::TypeReference
             | hir::IntrinsicFunctionKind::TypeDescription
+            | hir::IntrinsicFunctionKind::AnnotationKey
             | hir::IntrinsicFunctionKind::ForeignCallbackRegister
             | hir::IntrinsicFunctionKind::ForeignCallbackRetain
             | hir::IntrinsicFunctionKind::ForeignCallbackRelease

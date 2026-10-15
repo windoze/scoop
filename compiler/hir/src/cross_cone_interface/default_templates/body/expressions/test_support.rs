@@ -26,6 +26,7 @@ pub(crate) struct Fixture {
     pub(crate) function: PersistentFunctionId,
     pub(crate) generic_function: PersistentGenericFunctionId,
     pub(crate) property: PersistentPropertyId,
+    pub(crate) annotation: scoop_identity::PersistentAnnotationId,
     pub(crate) generated: PersistentGeneratedCallableId,
     pub(crate) type_id: PersistentTypeId,
     pub(crate) constructor: PersistentConstructorId,
@@ -130,7 +131,17 @@ impl Fixture {
             &InitializationUnitKey::TopLevelProperty(property),
         )
         .unwrap();
+        let annotation = scoop_identity::PersistentAnnotationId::from_source_declaration(
+            &SourceDeclarationKey::nominal(
+                top_level_site(),
+                identifier("Label"),
+                SourceNominalKind::AnnotationClass,
+                0,
+            ),
+        )
+        .unwrap();
         Self {
+            annotation,
             function,
             generic_function,
             property,
@@ -177,6 +188,7 @@ impl Fixture {
 
     pub(crate) const fn resolver(&self) -> Resolver {
         Resolver {
+            annotation: Some(self.annotation),
             function: Some(self.function),
             generic_function: Some(self.generic_function),
             property: Some(self.property),
@@ -193,6 +205,7 @@ impl Fixture {
 }
 
 pub(crate) struct Resolver {
+    annotation: Option<scoop_identity::PersistentAnnotationId>,
     function: Option<PersistentFunctionId>,
     generic_function: Option<PersistentGenericFunctionId>,
     property: Option<PersistentPropertyId>,
@@ -209,6 +222,7 @@ pub(crate) struct Resolver {
 impl Resolver {
     pub(crate) const fn rejecting() -> Self {
         Self {
+            annotation: None,
             function: None,
             generic_function: None,
             property: None,
@@ -275,6 +289,16 @@ impl PersistentIdResolver<PersistentGenericFunctionId> for Resolver {
     }
 }
 
+impl PersistentIdResolver<scoop_identity::PersistentAnnotationId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<scoop_identity::PersistentAnnotationId>,
+    ) -> Result<scoop_identity::PersistentAnnotationId, Self::Error> {
+        id.verify(self.annotation.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
 reject_identity!(PersistentPropertyAccessorId);
 reject_identity!(scoop_identity::PersistentExactTypeId);
 reject_identity!(scoop_identity::PersistentExtensionPropertyId);

@@ -143,6 +143,16 @@ impl CrossConeHirInterfaceSectionV1 {
                 )?;
             }
 
+            for (reference_index, reference) in set.annotations().iter().enumerate() {
+                validator.observe(
+                    ExternalHirTargetV1::Annotation(*reference.target()),
+                    ExternalHirDefaultUseSiteV1::DefaultAnnotation {
+                        template_index,
+                        reference_index,
+                    },
+                )?;
+            }
+
             for (reference_index, reference) in set.fields().iter().enumerate() {
                 if let Some(target) = field_target(reference.target()) {
                     validator.observe(
@@ -357,6 +367,10 @@ const fn field_target(field: &DefaultFieldRefV1) -> Option<ExternalHirTargetV1> 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExternalHirDefaultUseSiteV1 {
+    DefaultAnnotation {
+        template_index: usize,
+        reference_index: usize,
+    },
     Annotation {
         reference_index: usize,
     },

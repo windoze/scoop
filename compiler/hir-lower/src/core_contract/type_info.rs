@@ -47,6 +47,7 @@ impl Lowerer {
                 "core type reference factory must be internal, managed, non-suspend `fun <T> __scoopTypeReference(): TypeRef`".into());
         }
         for (kind, result) in [
+            (hir::IntrinsicFunctionKind::AnnotationKey, "AnnotationKey"),
             (
                 hir::IntrinsicFunctionKind::TypeReference,
                 "TypeReferenceData",

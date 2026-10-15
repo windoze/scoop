@@ -5,7 +5,7 @@ use scoop_identity::{
 };
 
 impl Concretizer<'_> {
-    pub(super) fn metadata_annotation_key(
+    pub(in crate::concretize) fn metadata_annotation_key(
         &mut self,
         annotation: PersistentAnnotationId,
         result: concrete::TypeId,
@@ -25,20 +25,26 @@ impl Concretizer<'_> {
         };
         let description = self.function_types[function_type].return_type;
         let current = self
-            .current_function
+            .current_body
             .expect("metadata is generated in a callable body");
-        let parent = match self.function_sources[current.into_raw().into_u32() as usize] {
-            FunctionSource::AnnotationDescription { parent, .. } => parent,
+        let parent = match current {
+            CallableBody::Function(id) => {
+                match self.function_sources[id.into_raw().into_u32() as usize] {
+                    FunctionSource::AnnotationDescription { parent, .. } => parent,
+                    _ => current,
+                }
+            }
             _ => current,
         };
-        let parent_key = self.function_keys[parent.into_raw().into_u32() as usize].clone();
+        let (_, owner, arguments) = self.metadata_parent_request(parent);
+        let arguments = arguments.to_vec();
         let source = FunctionSource::AnnotationDescription {
             annotation,
             parent,
             result: description,
             origin,
         };
-        let key = self.function_key(source, parent_key.owner, parent_key.arguments);
+        let key = self.function_key(source, owner, arguments);
         let function = self.request_function_key(key, source);
         let lambda = self.lambdas.alloc(concrete::Lambda {
             definition_path: StructuralDefinitionPath::from_first(
