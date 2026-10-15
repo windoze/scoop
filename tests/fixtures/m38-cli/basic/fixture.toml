@@ -7,6 +7,7 @@ tags = ["m38", "cli", "gc"]
 
 [[steps]]
 name = "build"
+timeout = 600
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
