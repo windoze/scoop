@@ -1,4 +1,5 @@
 use super::*;
+use scoop_slib::ArtifactInput;
 
 #[test]
 fn program_link_reads_machine_data_from_actual_executable_artifacts() {
@@ -21,8 +22,11 @@ fn program_link_reads_machine_data_from_actual_executable_artifacts() {
         );
         let bytes = std::fs::read(executable.artifact().path()).unwrap();
         let closure = scoop_slib::read_program_link_closure(
-            &bytes,
-            &[&core_bytes, &core_bytes],
+            ArtifactInput::Bytes(&bytes),
+            &[
+                ArtifactInput::Bytes(&core_bytes),
+                ArtifactInput::Bytes(&core_bytes),
+            ],
             target.lir_target_selection(),
             target.c_bridge_toolchain().profile(),
         )
@@ -53,7 +57,7 @@ fn program_link_reads_machine_data_from_actual_executable_artifacts() {
             root.manifest().semantic_fingerprints().code()
         );
         let missing = scoop_slib::read_program_link_closure(
-            &bytes,
+            ArtifactInput::Bytes(&bytes),
             &[],
             target.lir_target_selection(),
             target.c_bridge_toolchain().profile(),
@@ -63,7 +67,7 @@ fn program_link_reads_machine_data_from_actual_executable_artifacts() {
         assert!(missing.to_string().contains("MissingDirectArtifact"));
     }
     let library_root = scoop_slib::read_program_link_closure(
-        &core_bytes,
+        ArtifactInput::Bytes(&core_bytes),
         &[],
         target.lir_target_selection(),
         target.c_bridge_toolchain().profile(),

@@ -1,13 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-use std::sync::Arc;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_slib::{ArtifactManifestSummaryError, ArtifactSnapshot, SlibDiagnostic};
+use scoop_slib::{ArtifactFile, SlibDiagnostic};
 
 use super::{LinkRequest, LocatedLinkArtifact, failure};
-use crate::{BuildResult, ImmutableInputSnapshot};
+use crate::BuildResult;
 
 pub(super) fn artifacts(
     request: &LinkRequest,
@@ -59,20 +58,18 @@ pub(super) fn artifacts(
 }
 
 fn read(path: &Path, selection: ValidatedLirTargetSelection) -> BuildResult<LocatedLinkArtifact> {
-    let input = ImmutableInputSnapshot::capture(path)
+    let file = ArtifactFile::open(path, selection)
         .map_err(|error| failure(error).at_artifact(path, "container:$"))?;
-    let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
-    let summary = snapshot.manifest_summary(selection).map_err(|error| {
-        let member = match &error {
-            ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
-            ArtifactManifestSummaryError::Io(_) => "container:$".to_owned(),
-            ArtifactManifestSummaryError::TestDirectory(_) => "manifest:test-directory".to_owned(),
-        };
-        failure(error).at_artifact(path, member)
-    })?;
+    let summary = file
+        .summary()
+        .map_err(|error| {
+            let member = error.diagnostic().semantic_path();
+            failure(error).at_artifact(path, member)
+        })?
+        .clone();
     Ok(LocatedLinkArtifact {
-        path: input.source_locator().to_owned(),
-        snapshot,
+        path: path.to_owned(),
+        file,
         summary,
     })
 }
@@ -83,7 +80,7 @@ fn insert(
 ) -> BuildResult<()> {
     let identity = artifact.summary.cone().identity();
     if let Some(previous) = artifacts.get(&identity) {
-        if previous.snapshot.as_bytes() != artifact.snapshot.as_bytes() {
+        if previous.summary.artifact_fingerprint() != artifact.summary.artifact_fingerprint() {
             return Err(failure(format!(
                 "different complete artifacts for {identity}: {} and {}",
                 previous.path.display(),

@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "cannot read ${work}/artifacts/root.slib: Is a directory (os error 21)",
+    "message": "Is a directory (os error 21)",
     "notes": [],
     "origin": {
       "kind": "artifact",

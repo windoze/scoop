@@ -17,15 +17,11 @@ pub fn read_built_program(
     let dependencies: Vec<_> = artifacts
         .artifacts()
         .filter(|(identity, _)| *identity != artifacts.root())
-        .map(|(_, artifact)| artifact.snapshot().map(|snapshot| snapshot.as_bytes()))
+        .map(|(_, artifact)| artifact.file().map(scoop_slib::ArtifactInput::File))
         .collect::<Result<_, _>>()
         .map_err(|error| LinkError(error.to_string()))?;
-    // This is the first byte read for source-built results; graph completion
-    // only retained their paths and producer summaries.
     let closure = scoop_slib::read_program_link_closure(
-        root.snapshot()
-            .map_err(|error| LinkError(error.to_string()))?
-            .as_bytes(),
+        scoop_slib::ArtifactInput::File(root.file().map_err(|error| LinkError(error.to_string()))?),
         &dependencies,
         target.lir_target_selection(),
         target.c_bridge_toolchain().profile(),

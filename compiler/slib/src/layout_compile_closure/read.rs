@@ -3,7 +3,7 @@
 use super::*;
 use crate::{
     CrossConeArtifactClosureInput, CrossConeClosureArtifactSlotV1,
-    CrossConeLayoutArtifactValidationError as Error, DecodedSlibEnvelope,
+    CrossConeLayoutArtifactValidationError as Error,
 };
 
 pub fn read_cross_cone_layout_artifact_closure(
@@ -54,24 +54,22 @@ fn decode<'input>(
     target: ValidatedLirTargetSelection,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, Error> {
-    match input {
-        crate::ArtifactInput::Bytes(bytes) => DecodedSlibEnvelope::open(bytes, target),
-        crate::ArtifactInput::File(file) => DecodedSlibEnvelope::from_file(file),
-    }
-    .map_err(|source| Error::Envelope {
-        slot,
-        source: Box::new(source),
-    })?
-    .validate_graph()
-    .map_err(|source| Error::Graph {
-        slot,
-        source: Box::new(source),
-    })?
-    .decode_cross_cone_layout_link_sections()
-    .map_err(|source| Error::LinkSections {
-        slot,
-        source: Box::new(source),
-    })?
-    .into_shared_sections()
-    .map_err(|source| Error::Resource { source })
+    input
+        .open(target)
+        .map_err(|source| Error::Envelope {
+            slot,
+            source: Box::new(source),
+        })?
+        .validate_graph()
+        .map_err(|source| Error::Graph {
+            slot,
+            source: Box::new(source),
+        })?
+        .decode_cross_cone_layout_link_sections()
+        .map_err(|source| Error::LinkSections {
+            slot,
+            source: Box::new(source),
+        })?
+        .into_shared_sections()
+        .map_err(|source| Error::Resource { source })
 }

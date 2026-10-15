@@ -64,16 +64,25 @@ pub fn read_program_artifacts(
     toolchain: &scoop_lir::CBridgeToolchainProfileV1,
 ) -> Result<ProgramLinkClosure, LinkError> {
     let read = |path: &Path| {
-        std::fs::read(path).map_err(|err| error(format!("artifact {}: {err}", path.display())))
+        scoop_slib::ArtifactFile::open(path, target)
+            .map_err(|err| error(format!("artifact {}: {err}", path.display())))
     };
-    let root_bytes = read(root)?;
-    let dependency_bytes = dependencies
+    let root_file = read(root)?;
+    let dependency_files = dependencies
         .iter()
         .map(|path| read(path))
         .collect::<Result<Vec<_>, _>>()?;
-    let dependencies: Vec<_> = dependency_bytes.iter().map(Vec::as_slice).collect();
-    scoop_slib::read_program_link_closure(&root_bytes, &dependencies, target, toolchain)
-        .map_err(|err| error(format!("program Link input {}: {err}", root.display())))
+    let dependencies: Vec<_> = dependency_files
+        .iter()
+        .map(scoop_slib::ArtifactInput::File)
+        .collect();
+    scoop_slib::read_program_link_closure(
+        scoop_slib::ArtifactInput::File(&root_file),
+        &dependencies,
+        target,
+        toolchain,
+    )
+    .map_err(|err| error(format!("program Link input {}: {err}", root.display())))
 }
 
 pub fn resolve_program_link_profile(

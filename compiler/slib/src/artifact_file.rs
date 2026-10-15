@@ -115,9 +115,21 @@ impl ArtifactFile {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum ArtifactInput<'input> {
+pub enum ArtifactInput<'input> {
     Bytes(&'input [u8]),
     File(&'input ArtifactFile),
+}
+
+impl<'input> ArtifactInput<'input> {
+    pub(crate) fn open(
+        self,
+        target: ValidatedLirTargetSelection,
+    ) -> Result<crate::DecodedSlibEnvelope<'input>, SlibReadError> {
+        match self {
+            Self::Bytes(bytes) => crate::DecodedSlibEnvelope::open(bytes, target),
+            Self::File(file) => crate::DecodedSlibEnvelope::from_file(file),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,9 +1,8 @@
 //! Resolve an exact artifact closure without source discovery or compiler probes.
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use scoop_linker::{ResolvedLinkPlanFingerprint, RuntimeObjectSet, link_program};
-use scoop_slib::{ArtifactManifestSummaryV1, ArtifactSnapshot};
+use scoop_slib::{ArtifactFile, ArtifactInput, ArtifactManifestSummaryV1};
 use scoop_toolchain::ResolvedTargetProfile;
 
 use crate::materialize::OutputLocation;
@@ -28,7 +27,7 @@ pub struct LinkRequest {
 #[derive(Debug)]
 pub struct LocatedLinkArtifact {
     pub path: PathBuf,
-    pub snapshot: Arc<ArtifactSnapshot>,
+    pub file: ArtifactFile,
     pub summary: ArtifactManifestSummaryV1,
 }
 
@@ -51,13 +50,13 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     .map_err(failure)?;
     let selection = target.lir_target_selection();
     let (root, dependencies) = resolve::artifacts(&request, selection)?;
-    let bytes = dependencies
+    let inputs = dependencies
         .iter()
-        .map(|artifact| artifact.snapshot.as_bytes())
+        .map(|artifact| ArtifactInput::File(&artifact.file))
         .collect::<Vec<_>>();
     let closure = scoop_slib::read_program_link_closure(
-        root.snapshot.as_bytes(),
-        &bytes,
+        ArtifactInput::File(&root.file),
+        &inputs,
         selection,
         target.c_bridge_toolchain().profile(),
     )

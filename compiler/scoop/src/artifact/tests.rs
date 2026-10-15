@@ -96,7 +96,6 @@ fn dependency_first_invariant_is_rechecked_by_the_closure_gate() {
 #[test]
 fn completed_nodes_share_artifact_data_with_their_closure() {
     use scoop_slib::{ArtifactCapabilityProfile, ConeRecord, read_artifact_manifest_summary};
-    use std::sync::Arc;
 
     let coordinate = ConeCoordinate::reserved_core();
     let core = coordinate.identity().unwrap();
@@ -125,7 +124,7 @@ fn completed_nodes_share_artifact_data_with_their_closure() {
     )
     .unwrap();
     let artifact = BuildArtifact::from_result(candidate.clone(), summary);
-    let snapshot = Arc::clone(artifact.snapshot().unwrap());
+    let file = artifact.file().unwrap() as *const _;
     let closure = plan
         .collect(core, &BTreeMap::from([(core, Rc::clone(&artifact))]))
         .unwrap();
@@ -137,10 +136,7 @@ fn completed_nodes_share_artifact_data_with_their_closure() {
         candidate,
         Vec::new(),
     );
-    assert!(Arc::ptr_eq(
-        completed.artifact().snapshot().unwrap(),
-        &snapshot
-    ));
+    assert!(std::ptr::eq(completed.artifact().file().unwrap(), file));
     let cached = CompletedNode::from_result(
         core,
         CompletedNodeOrigin::CacheHit,
@@ -155,6 +151,9 @@ fn completed_nodes_share_artifact_data_with_their_closure() {
         let artifact = node.closure().artifact(core).unwrap();
         assert!(std::ptr::eq(artifact, node.artifact()));
         assert_eq!(artifact.summary().cone().identity(), core);
-        assert_eq!(artifact.snapshot().unwrap().as_bytes(), archive.as_bytes());
+        assert_eq!(
+            artifact.file().unwrap().summary().unwrap(),
+            artifact.summary()
+        );
     }
 }

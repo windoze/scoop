@@ -2,15 +2,14 @@ use std::cell::OnceCell;
 use std::io;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
 
-use scoop_slib::{ArtifactManifestSummaryV1, ArtifactSnapshot};
+use scoop_slib::{ArtifactFile, ArtifactManifestSummaryV1};
 
-/// Build metadata is immediately available; artifact bytes are read on demand.
+/// Build metadata is immediately available; artifact files open only when needed.
 #[derive(Debug)]
 pub struct BuildArtifact {
     path: PathBuf,
-    snapshot: OnceCell<Result<Arc<ArtifactSnapshot>, io::Error>>,
+    file: OnceCell<ArtifactFile>,
     pub(super) summary: ArtifactManifestSummaryV1,
 }
 
@@ -18,18 +17,17 @@ impl BuildArtifact {
     pub(crate) fn from_result(path: PathBuf, summary: ArtifactManifestSummaryV1) -> Rc<Self> {
         Rc::new(Self {
             path,
-            snapshot: OnceCell::new(),
+            file: OnceCell::new(),
             summary,
         })
     }
 
-    pub fn snapshot(&self) -> io::Result<&Arc<ArtifactSnapshot>> {
-        self.snapshot
-            .get_or_init(|| {
-                std::fs::read(&self.path).map(|bytes| Arc::new(ArtifactSnapshot::from_bytes(bytes)))
-            })
-            .as_ref()
-            .map_err(|error| io::Error::new(error.kind(), error.to_string()))
+    pub fn file(&self) -> io::Result<&ArtifactFile> {
+        if let Some(file) = self.file.get() {
+            return Ok(file);
+        }
+        let file = ArtifactFile::open(&self.path, self.summary.target_selection())?;
+        Ok(self.file.get_or_init(|| file))
     }
 
     pub const fn summary(&self) -> &ArtifactManifestSummaryV1 {

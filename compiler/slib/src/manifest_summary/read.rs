@@ -11,7 +11,10 @@ pub fn read_artifact_manifest_summary_from_reader(
     reader: &mut impl Read,
     selection: ValidatedLirTargetSelection,
 ) -> Result<ArtifactManifestSummaryV1, Error> {
-    let (manifest, _) = read_manifest(reader, selection).map_err(Error::Envelope)?;
+    let (manifest, _) = read_manifest(reader, selection).map_err(|error| match error {
+        SlibReadError::Io(source) => Error::Io(source),
+        source => Error::Envelope(source),
+    })?;
     ArtifactManifestSummaryV1::from_manifest(&manifest, selection).map_err(Error::TestDirectory)
 }
 

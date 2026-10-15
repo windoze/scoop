@@ -421,6 +421,8 @@ Compile 的依赖读取直接采用保存的 defined symbol owners、ODR member 
 
 依赖文件通过同一普通 artifact 入口保持文件句柄、一次解析的 manifest 和成员目录。目录给出成员偏移；仅在请求某个 metadata／对象成员时读取该成员，已读成员复用同一份缓冲区。内存产物与文件产物使用同一目录偏移与成员头解析规则，不为未使用成员扫描内容或逐项复核归档。Compile 加载实际所需的 HIR／MIR／LIR metadata，不读机器对象；文件打开、seek、read 的实际错误正常传播，不比较读取前后的文件身份、长度或时间，也不要求文件被替换或删除后继续成功。
 
+普通构建后的 ProgramLink、显式 `scoop link` 和独立链接器都使用该文件入口。parent 的构建结果只保留路径与摘要，在真正链接时首次打开文件；显式链接的发现与成员消费共享文件句柄和已解析 manifest，不捕获整包输入快照或重算内容摘要。同一 Cone 的重复候选按已有 Artifact 指纹区分结果，不比较整包字节；本次依赖、符号和 ODR 选择继续使用实际数据。
+
 manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 exact direct dependencies 与三层语义指纹、language/runtime/identity/mangling ABI、target/backend 配置及其兼容摘要、全部成员目录、三层/Code/RuntimeImage/Artifact fingerprints 和 required sections。
 
 成员内容、三层语义与 Artifact 摘要在生产这些结果时计算并保存。普通 reader 直接读取已保存的值；整包字节容器不计算另一份摘要，目录读取不逐成员哈希，Compile／Link section 解码也不重新计算三层语义摘要或重新编码 manifest 以复核 Artifact 值。格式解析、长度／范围、typed 引用与所选 target／ABI 配置检查仍在实际使用边界完成。该调整不改变 wire 字段、生产端摘要公式或正常输入变化的失效规则，也不新增另一个带复核的 reader。

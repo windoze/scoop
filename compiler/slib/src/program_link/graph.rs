@@ -2,17 +2,18 @@ use super::*;
 use crate::cross_cone_closure::graph_validation::{
     CrossConeClosureArtifact, ValidatedCrossConeClosureGraph, validate_artifact_graph,
 };
-use crate::{ConeKind, DecodedSlibEnvelope, DependencyRecord, ValidatedGraphArtifact};
+use crate::{ConeKind, DependencyRecord, ValidatedGraphArtifact};
 use scoop_identity::ConeCoordinate;
 use std::collections::BTreeMap;
 
 pub(super) fn read<'a>(
-    root: &'a [u8],
-    dependencies: &[&'a [u8]],
+    root: crate::ArtifactInput<'a>,
+    dependencies: &[crate::ArtifactInput<'a>],
     target: lir::ValidatedLirTargetSelection,
 ) -> Result<ValidatedCrossConeClosureGraph<ValidatedGraphArtifact<'a>>, ProgramLinkReadError> {
-    let decode = |bytes| {
-        DecodedSlibEnvelope::open(bytes, target)
+    let decode = |input: crate::ArtifactInput<'a>| {
+        input
+            .open(target)
             .map_err(error)?
             .validate_graph()
             .map_err(error)

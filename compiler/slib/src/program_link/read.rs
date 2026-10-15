@@ -3,8 +3,8 @@ use crate::production_dependencies::{self, DefinitionProvider};
 use crate::{DecodedMachineLinkSections, ValidatedGraphArtifact};
 
 pub fn read_program_link_closure(
-    root: &[u8],
-    dependencies: &[&[u8]],
+    root: crate::ArtifactInput<'_>,
+    dependencies: &[crate::ArtifactInput<'_>],
     selection: lir::ValidatedLirTargetSelection,
     profile: &lir::CBridgeToolchainProfileV1,
 ) -> Result<ProgramLinkClosure, ProgramLinkReadError> {
