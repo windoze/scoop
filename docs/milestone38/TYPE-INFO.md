@@ -17,7 +17,7 @@ public fun <T> typeInfo(): TypeInfo<T>
 | `TypeRef.nominal: Option<NominalRef>` | 名义类型的原声明；tuple/function 等没有名义声明 |
 | `TypeRef.arguments: Array<TypeRef>` | 当前名义 application 的实参，按声明顺序；非名义类型为空 |
 | `TypeRef.describe(): TypeDescription` | 展开当前层，不递归展开所有子类型 |
-| `TypeRef` 的 `Equality<TypeRef>` | 比较完整类型身份；不是名称、布局或实例地址比较 |
+| `TypeRef` 的 `Equals<TypeRef>` | 比较完整类型身份；不是名称、布局或实例地址比较 |
 
 `TypeInfo<T>` 是普通不可变库值，`T` 保留调用端类型关系；异构字段列表使用非泛型 `TypeRef`。`field.type` 是描述值，不能写成运行期选定的泛型实参，也不提供任意 dynamic cast。
 
@@ -55,7 +55,7 @@ class 的继承关系不扁平化：`ClassInfo.base: Option<TypeUseInfo>` 指向
 
 ### 3.1 身份和可见性
 
-`NominalRef`、`FieldRef`、`PropertyRef`、`VariantRef`、`ConstructorRef`、`ParameterRef`、`AnnotationKey` 分别包装对应的 typed declaration identity，不能互相代用。泛型原声明与具体 application 由声明引用和完整 TypeRef 分开表达。
+`NominalRef`、`FieldRef`、`PropertyRef`、`AccessorRef`、`VariantRef`、`ConstructorRef`、`ParameterRef`、`AnnotationKey` 分别包装对应的 typed declaration identity，不能互相代用。泛型原声明与具体 application 由声明引用和完整 TypeRef 分开表达。
 
 引用可以比较相等，名字用于展示。跨 Cone、alias import 或 re-export 后，原声明仍是同一引用；两个同名声明不相等。内部继续区分 generic declaration、resolved application、concrete function/type 等身份，不把公开反射对象地址当作持久化身份。
 
@@ -157,7 +157,7 @@ annotationKey<Help>(): AnnotationKey
 
 普通标量类型与 annotation 声明不是同一种类型。`AnnotationParameterType` 明确区分 `Scalar(TypeRef)`、`IntegerEnum(TypeRef)`、`Annotation(AnnotationKey)` 以及一维 `Array(AnnotationAtomType)`。AtomType 不含 Array，保留 M37 的一维限制。
 
-`AnnotationValue` 是封闭的带标签值：Boolean、String、Char、各有符号/无符号整数、Float、Double、整型 enum 的合法 variant、嵌套 AnnotationInfo、有序 Array。整数保留实际位宽和类型，浮点保留目标精度及 raw bits，整型 enum 不退化成裸整数。
+`AnnotationValue` 是封闭的带标签值：Boolean、String、Char、Integer(IntegerValue)、FloatBits(UInt)、DoubleBits(ULong)、整型 enum 的合法 variant、嵌套 AnnotationInfo、有序 Array。IntegerValue 的八个带类型分支保留实际位宽和符号，浮点保留目标精度及 raw bits，整型 enum 不退化成裸整数。
 
 数组携带完整元素种类及有序值，空数组仍有类型。嵌套 annotation 自己可以含数组参数；这不允许 Array<Array<T>>。M38 直接发布 M37 已检查的 typed 常量，不重新运行用户代码或常量求值。
 

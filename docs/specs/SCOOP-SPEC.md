@@ -61,7 +61,7 @@ Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统
   - `@JvmStatic` / `@JvmField` / `@JvmOverloads` / `@Throws` 等一切 JVM 互操作注解；
   - `external` 声明（FFI 通过 `@Extern` 注解机制提供，见第 13 章）；
   - Java 互操作语义（SAM 转换、平台类型 `T!` 等）。
-- 运行期反射：`KClass`、`::class` 的运行期反射 API、`kotlin.reflect` 体系。9.6 的静态描述只在编译期消费，不提供运行期字段枚举、按名称取类型或反射构造。
+- 运行期反射：`KClass`、`::class` 的运行期反射 API、`kotlin.reflect` 体系。9.6 提供由编译器生成的普通描述值；不提供按名称取类型、反射构造或调用。
 - `inline class` / `value class`（Kotlin 的 JVM 值类）：被 Scoop 的原生值类型（第 4 章）取代。
 - `data class`：被 `struct`（4.1）取代；解构等能力由 4.6 的内建解构提供。
 - Kotlin 的 `enum class`：被 Scoop 的 `enum`（第 4.2 节）取代。
@@ -1616,7 +1616,37 @@ public fun <T> decodeFrom(decoder: Decoder, codec: Decodable<T>): T =
 
 泛型定义的字段类型可以引用其binder；具体化后得到完整字段类型，透明alias展开后与目标共享类型描述。递归引用以typed type reference表示，不递归复制无限树。描述的名称仅用于显示或生成字段名常量，不作为实体identity；enum字段名的作用域是所在variant。class的基类字段经base关系取得，不扁平化成当前owner新字段，编译器生成的delegate slot等也不冒充源码property。
 
-静态描述供 11.13 的方法合成使用，并随必要的 `.slib` 类型接口和模板保存。它不提供源码可执行的 `TypeInfo` 值、任意编译期循环、CTFE 或通用按字段构造原语。普通源码访问仍受 9.1.5 约束；没有运行期字段表、annotation 对象或按名称查类型、字段、构造器的入口。
+静态描述供 11.13 的方法合成使用，并随必要的 `.slib` 类型接口和模板保存。core 的 `TypeInfo<T>`、`TypeRef` 与以下普通不可变描述值使用同一组声明事实。公开描述不提供任意编译期循环、CTFE、按名称取类型、反射构造或调用；普通源码访问仍受 9.1.5 约束。取得私有成员的描述不使其值变得可访问。
+
+#### 9.6.1 类型引用与当前层描述
+
+`TypeInfo<T>.type` 保存非泛型 `TypeRef`，`describe()` 等价于 `type.describe()`。`TypeRef` 保存展示名 `displayName`、名义原声明 `nominal: Option<NominalRef>` 与有序具体实参 `arguments: Array<TypeRef>`，实现 `Equals<TypeRef>`。相等按完整类型身份判断，不比较名称、布局或描述对象地址；透明 alias 与展开后的类型相同，函数的 suspend、receiver、参数和结果也参与身份。
+
+`TypeRef.describe()` 惰性产生一层 `TypeDescription(type, annotations, shape)`。子类型只以引用或 `TypeUseInfo` 保存，不立即展开；同型递归不需要递归初始化整棵描述树。描述值、数组、字符串及描述闭包使用普通分配、异常和 GC 规则，不保证无分配或 NoGC。编译器生成的描述不调用被描述类型的 constructor、default、getter 或 companion 初始化。
+
+`TypeShape` 是封闭 enum，分支为 Struct、Enum、IntegerEnum、Class、Object、Interface、Tuple、Unit、Intrinsic、Function、Pointer。各分支使用对应的 `*Info` 记录；Intrinsic 保留布尔、整数位宽及符号、浮点精度、字符、字符串、数组、Any、Nothing、MaybeUninit 和 atomic 的实际类别。Ptr 保存 pointee，FunPtr 保存完整函数签名。零字段普通 nominal 仍与 Unit 和 intrinsic 类型不同。
+
+这些类型是普通库数据，构造器和闭包遵守普通访问规则。自行构造描述值不产生语言声明、可访问权限或可实例化的运行期类型；由调用者提供的 describe 闭包按其普通正文执行。compiler 生成引用所用的 identity 字符串编码既有 persistent/exact identity，展示名不参与该编码；不同种类引用不能互相代用。
+
+#### 9.6.2 成员、构造关系与类型使用
+
+`NominalRef`、`FieldRef`、`PropertyRef`、`AccessorRef`、`VariantRef`、`ConstructorRef` 和 `ParameterRef` 分别表示实际声明身份并实现自身类型的 Equals。owner 使用完整 TypeRef，泛型声明身份与 application 分开保存；visibility 明确区分 Public、Internal、Protected、Private、Local。
+
+struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系独立保存。storage 的 Declared、Backing、Delegate、Outer、Capture 来源不混入 logical property 列表。
+
+`FieldInfo` 与 `PropertyInfo` 保存 `typeUse`，`type` 是其只读便捷属性。`isOptionAtDeclaration` 从原成员完成绑定、展开 alias 后的类型取得，与 11.13 的默认字段规则复用同一事实；原声明 T 具体化为 Option<U> 时仍为 false，原声明 Option<T> 为 true。property 保存实际 getter/setter、被覆写 property 与 Stored/Computed/Delegated 类别，backing/delegate field 仍为独立实体。
+
+`ConstructorInfo` 区分 Primary、Secondary、Variant，参数保存真实 ParameterRef、序号、typeUse、注解、hasDefault、isVararg 与 `ParameterMember.None/Field/Property`。字段和参数数组的位置不代表构造映射；公开描述不包含可执行 default，也不求值或伪造其结果。
+
+`TypeUseInfo(type, annotations, children)` 的注解仅属于该使用节点。`TypeUseChild` 的封闭角色区分 Argument、TupleElement、Receiver、Parameter、Result、Pointee，并保存所需序号。alias 展开和替换按 9.4 的既有 type-use 规则保留路径，不修改共享 TypeRef 的身份或注解。
+
+#### 9.6.3 注解数据
+
+`AnnotationKey` 是独立声明引用，按身份相等，惰性 `describe()` 返回 `AnnotationDeclarationInfo`，其中包含 visibility、有序参数和元注解。`AnnotationInfo(key, arguments)` 表示一个应用或嵌套值；参数按声明序保存 ParameterRef、名称、类型与正规化值，缺省参数已补齐。实际 target 由包含该应用的描述节点表达，不将其复制到 property、accessor、storage 或不同 type-use 节点。
+
+`AnnotationParameterType` 区分 Scalar(TypeRef)、IntegerEnum(TypeRef)、Annotation(AnnotationKey)、Array(AnnotationAtomType)；AtomType 只有前三种，保持一维数组限制。`AnnotationValue` 保存 Boolean、String、Char、Integer(IntegerValue)、FloatBits(UInt)、DoubleBits(ULong)、IntegerEnum(type, variant, value)、Annotation(AnnotationInfo)、Array(element, values)。IntegerValue 的八个带类型分支分别保存有符号/无符号 8/16/32/64 位整数；浮点保存目标精度的原始位型，整型 enum 保留原 variant 和完整类型。空数组仍保留元素种类。
+
+注解参数的 defaultValue 是 M37 已检查的静态数据，与普通 constructor default 不同。repeatable 应用保持原顺序；`findAnnotations(items, key)` 只按实际 key 筛选当前列表，不沿 owner/base/accessor 自动继承注解。注解声明仍不是普通可实例化类型。
 
 ---
 

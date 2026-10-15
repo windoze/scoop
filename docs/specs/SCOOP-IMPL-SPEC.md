@@ -901,7 +901,9 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 ### 2.17 静态类型描述与编码方法
 
-静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实，不构造运行期 TypeInfo 或任意 CTFE。描述查询本身不触发物化、初始化或可见性扩张。
+静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实。语言规范 9.6 的 TypeInfo/TypeRef/TypeShape 及成员、注解记录由普通 core 类型承载；编译器内部查询仍为原 HIR 数据的视图，公开描述在具体类型已知时生成普通值和当前层 describe 闭包，不引入 CTFE。引用的相等编码既有 typed persistent/exact identity，不能用名称或地址回退；成员的声明处 Option 事实复用默认 codec 的原类型查询。查询不执行被描述声明的 constructor/default/getter/companion，也不扩张可见性。
+
+公开描述的递归关系由普通 TypeRef 和闭包断开，引用构造不调用其 describe。描述函数及子引用闭包沿既有泛型具体化机制生成：同型递归复用已有请求，实参沿递归环增长时使用现有 polymorphic-recursion 诊断，不加深度预算或内容缺失的占位描述。公开模型的普通数据声明本身不改变 `.slib` wire 格式或 runtime ABI；查询的 HIR 登记及产物依赖必须使用实际声明身份。
 
 annotation 声明使用独立 PersistentAnnotationId。普通值参数保存完整 signature type key；annotation 原子及其数组参数使用独立的 annotation identity 和实际 core Array 模板身份，不把 annotation class 编成 runtime TypeId。应用保存实际 typed target 和按参数顺序补齐的静态值。CanonicalConstValueV1 保持原标量用途；CanonicalAnnotationValueV1 以封闭的 Scalar、IntegralEnum、Annotation、Array 保存静态值。整型枚举值保留完整 application signature、variant identity 和底层整数位型，嵌套应用保存实际 annotation identity 和完整参数；数组保存明确元素类型、有序值以及逐元素的 SourceIdentity 和 span，默认值保留定义处来源。共享 reader 在既有边界检查引用、枚举 variant/数值、嵌套参数及 tag/payload 一致性，不重放名称查找或默认值求值。参数/default 的循环依赖在源码定义处诊断。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
 

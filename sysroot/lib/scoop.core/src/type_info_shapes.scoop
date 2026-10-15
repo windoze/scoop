@@ -1,0 +1,92 @@
+public enum TypeShape {
+    Struct(StructInfo),
+    Enum(EnumInfo),
+    IntegerEnum(IntegerEnumInfo),
+    Class(ClassInfo),
+    Object(ObjectInfo),
+    Interface(InterfaceInfo),
+    Tuple(TupleInfo),
+    Unit,
+    Intrinsic(IntrinsicInfo),
+    Function(FunctionTypeInfo),
+    Pointer(PointerTypeInfo)
+}
+
+public struct StructInfo(
+    val fields: Array<FieldInfo>,
+    val constructors: Array<ConstructorInfo>,
+    val interfaces: Array<TypeUseInfo>
+)
+
+public struct EnumInfo(val variants: Array<VariantInfo>, val interfaces: Array<TypeUseInfo>)
+
+public struct IntegerEnumInfo(
+    val underlyingType: TypeRef,
+    val variants: Array<IntegerEnumVariantInfo>,
+    val interfaces: Array<TypeUseInfo>
+)
+
+public struct IntegerEnumVariantInfo(
+    val id: VariantRef,
+    val owner: TypeRef,
+    val name: String,
+    val annotations: Array<AnnotationInfo>,
+    val index: Long,
+    val value: IntegerValue
+)
+
+public struct ClassInfo(
+    val base: Option<TypeUseInfo>,
+    val interfaces: Array<TypeUseInfo>,
+    val properties: Array<PropertyInfo>,
+    val storage: Array<FieldInfo>,
+    val constructors: Array<ConstructorInfo>
+)
+
+public struct ObjectInfo(
+    val base: Option<TypeUseInfo>,
+    val interfaces: Array<TypeUseInfo>,
+    val properties: Array<PropertyInfo>,
+    val storage: Array<FieldInfo>,
+    val companionHost: Option<TypeRef>
+)
+
+public struct InterfaceInfo(val parents: Array<TypeUseInfo>, val properties: Array<PropertyInfo>)
+
+public struct TupleInfo(val elements: Array<TupleElementInfo>)
+
+public enum IntrinsicKind {
+    Boolean,
+    Integer(Boolean, Long),
+    Float,
+    Double,
+    Char,
+    String,
+    Array,
+    MutableArray,
+    Any,
+    Nothing,
+    MaybeUninit,
+    Atomic(AtomicTypeKind)
+}
+
+public enum AtomicTypeKind {
+    Int,
+    Long,
+    Boolean,
+    Reference
+}
+
+public struct IntrinsicInfo(val kind: IntrinsicKind)
+
+public struct FunctionTypeInfo(
+    val isSuspend: Boolean,
+    val receiver: Option<TypeUseInfo>,
+    val parameters: Array<TypeUseInfo>,
+    val result: TypeUseInfo
+)
+
+public enum PointerTypeInfo {
+    Ptr(TypeUseInfo),
+    FunPtr(FunctionTypeInfo)
+}

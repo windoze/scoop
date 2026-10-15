@@ -1,0 +1,16 @@
+public struct TypeUseInfo(
+    val type: TypeRef,
+    val annotations: Array<AnnotationInfo>,
+    val children: Array<TypeUseChild>
+)
+
+public struct TypeUseChild(val role: TypeUseRole, val value: TypeUseInfo)
+
+public enum TypeUseRole {
+    Argument(Long),
+    TupleElement(Long),
+    Receiver,
+    Parameter(Long),
+    Result,
+    Pointee
+}

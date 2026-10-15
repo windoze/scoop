@@ -1,0 +1,21 @@
+public struct TypeInfo<T>(val type: TypeRef) {
+    public fun describe(): TypeDescription = type.describe()
+}
+
+public class TypeRef public constructor(
+    private val identity: String,
+    public val displayName: String,
+    public val nominal: Option<NominalRef>,
+    public val arguments: Array<TypeRef>,
+    private val describeBody: () -> TypeDescription
+) : Equals<TypeRef> {
+    public override operator fun equals(other: TypeRef): Boolean = identity == other.identity
+
+    public fun describe(): TypeDescription = describeBody()
+}
+
+public struct TypeDescription(
+    val type: TypeRef,
+    val annotations: Array<AnnotationInfo>,
+    val shape: TypeShape
+)

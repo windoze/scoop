@@ -52,6 +52,8 @@ related_types: TypeDescriptor pointer[related_type_count]
 
 固定部分为 152 bytes，随后为 `8 * related_type_count` bytes 的尾表。TypeDescriptor 不带 2.8 的 descriptor prefix。`type_id` 与 persistent exact type identity 在整个程序中一一对应，固定宽度碰撞是错误。
 
+语言规范 9.6 的 TypeInfo、成员及注解描述是普通 core struct/class/Array/String 和闭包，不添加 TypeDescriptor 字段、全局名称索引或 runtime 查询 ABI。描述内的 managed 引用按普通 rooting/relocation 规则处理；语义相等不依赖描述对象或 TypeDescriptor 的地址。
+
 `diagnostic_name` 是由完整 exact type 确定的非空、稳定 UTF-8 名称；alias、re-export 或使用处的拼写不改变其 bytes。同一 exact type 的名称逐 byte 相同，存储只读且与 TD 同生命周期。该名称只用于诊断，不参与类型判断、用户字符串化、相等或哈希。
 
 `ScoopTypeInstanceShapeV1` 依次为两个 `u32` 字段 `instance_kind, inline_storage_kind`，六个 `u64` 字段 `minimum_size, instance_alignment, inline_offset, inline_size, inline_stride, inline_alignment`，以及 `inline_scan` 指针。即 shape 共 64 bytes：2 个 `u32`、6 个 `u64`、1 个指针。

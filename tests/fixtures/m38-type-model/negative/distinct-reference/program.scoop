@@ -1,0 +1,2 @@
+fun accept(field: FieldRef): Unit {}
+fun main() { accept(PropertyRef("same")) }
