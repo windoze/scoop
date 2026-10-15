@@ -51,7 +51,6 @@ int main(void) {
     };
     ScoopGcRootVisitor visitor = {
         .visit_slot = replace_root,
-        .visit_external_object = NULL,
         .visit_region = NULL,
         .context = &state,
     };

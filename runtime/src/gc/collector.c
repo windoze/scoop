@@ -19,8 +19,7 @@ static void visit_managed_slot(void **slot, void *raw_context) {
     ScoopGcBlockMeta *block;
     size_t word;
     if (!object_meta(target, &block, &word)) {
-        if (!scoop_gc_is_immortal_object_locked(target) &&
-            !scoop_gc_is_external_object_locked(target)) {
+        if (!scoop_gc_is_immortal_object_locked(target)) {
             heap_fatal("managed slot points outside the current heap and stable object tables");
         }
         return;
@@ -37,15 +36,6 @@ static void visit_managed_slot(void **slot, void *raw_context) {
     }
 }
 
-static void visit_object(void *object, void *context) {
-    const uint64_t *scan = scoop_gc_object_scan(object);
-    scoop_gc_scan_descriptor(object, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
-}
-
-static void visit_external_root(const void *object, void *context) {
-    visit_object((void *)object, context);
-}
-
 static void visit_root_region(void *base, const uint64_t *scan, void *context) {
     scoop_gc_scan_descriptor(base, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
 }
@@ -53,7 +43,6 @@ static void visit_root_region(void *base, const uint64_t *scan, void *context) {
 static void scan_roots(ScoopGcVisitContext *context) {
     scoop_gc_scan_roots((ScoopGcRootVisitor){
         .visit_slot = visit_managed_slot,
-        .visit_external_object = visit_external_root,
         .visit_region = visit_root_region,
         .context = context,
     });

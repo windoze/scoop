@@ -39,10 +39,9 @@ impl RuntimeAbiSymbolV1 {
                     M::ContextEnsureRoot => (&[P], P),
                     M::Safepoint | M::GcCollect => (&[], V),
                     M::Alloc => (&[P, I(64)], P),
-                    M::BoxZst
-                    | M::MaterializeException
-                    | M::InitializationFailure
-                    | M::InitializationCycleMessage => (&[P], P),
+                    M::BoxZst | M::InitializationFailure | M::InitializationCycleMessage => {
+                        (&[P], P)
+                    }
                     M::BoxValue | M::StringConcat => (&[P, P], P),
                     M::InitializationEnter => (&[P], I(64)),
                     M::InitializationSucceed => (&[P], V),

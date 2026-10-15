@@ -253,20 +253,20 @@ mod tests {
             LanguageAbiContract.fingerprint().unwrap().to_string(),
             "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
         );
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010c02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010d02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586"
+            "7f6b81cc9c8c1046ac6623fde91708f32aa0170c53f7e75f12466250d1f7be33"
         );
 
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc900539102582054f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c3793765860301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
+            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258207f6b81cc9c8c1046ac6623fde91708f32aa0170c53f7e75f12466250d1f7be330301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "a34960d3760496a3fe9c31e2a55b3897fdfd1cdf6cfc68352fb330ceb17a59b9"
+            "d31b357a6cdcebd332ca80106215cb4abf787d636883378ab71b3f0d4d50c234"
         );
     }
 

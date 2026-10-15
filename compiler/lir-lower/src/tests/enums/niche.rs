@@ -31,7 +31,7 @@ fn option_of_string_uses_the_niche_representation() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
-        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
+        call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -40,8 +40,7 @@ fn option_of_string_uses_the_niche_representation() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
-        global_store global0, t3
+        global_store global0, t2
         end_catch
         ret integer<UInt>(0x00000001)
       td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
@@ -165,7 +164,7 @@ fn option_of_int_uses_the_tagged_representation() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
-        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
+        call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -174,8 +173,7 @@ fn option_of_int_uses_the_tagged_representation() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
-        global_store global0, t3
+        global_store global0, t2
         end_catch
         ret integer<UInt>(0x00000001)
       td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

@@ -123,53 +123,9 @@ pub(super) fn gateway(
         },
     ];
     if let Some(global) = failure_root {
-        let out = function.temps.alloc(Temp { ty: MANAGED_PTR });
-        let reference = AbiValue::new(
-            MANAGED_PTR,
-            AbiNonZeroLayout::new(8, 8).unwrap(),
-            RefScan::References(vec![0]),
-        )
-        .unwrap();
-        let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
-            vec![AbiArgument::Direct(reference.clone().into())],
-            reference,
-            CallingConvention::Cdecl,
-        ));
-        let target = targets.managed_targets.direct.alloc(CallTarget {
-            destination: ManagedCallDestination::Runtime(
-                ManagedRuntimeFunction::MaterializeException,
-            ),
-            signature,
-        });
-        identities.push((
-            SafepointSiteRef::from_u32(2),
-            SafepointIdentity::new(
-                function.callable_body.id(),
-                SafepointSiteRole::ManagedCall,
-                0,
-            )
-            .unwrap(),
-        ));
-        instructions.push(Instruction::Call {
-            site: CallSite::Managed(ManagedCallSite {
-                call: ManagedTypedCall::Direct {
-                    target,
-                    out,
-                    args: vec![AbiCallArgument::Direct(Value::Temp(payload))],
-                },
-                safepoint: SafepointSiteRef::from_u32(2),
-                live: StatepointLiveSet::new(vec![StatepointLiveValue {
-                    source: CallerRootSource::Temp(payload),
-                    ty: MANAGED_PTR,
-                    leaves: ManagedLeafPaths::new(vec![ManagedLeafPath { byte_offset: 0 }])
-                        .unwrap(),
-                }])
-                .unwrap(),
-            }),
-        });
         instructions.push(Instruction::GlobalStore {
             global,
-            value: Value::Temp(out),
+            value: Value::Temp(payload),
         });
     }
     instructions.push(Instruction::EndCatch);

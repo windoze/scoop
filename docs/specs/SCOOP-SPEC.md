@@ -1281,7 +1281,7 @@ final class NativeOwner public constructor(
 
 **owner 与字段读取：**
 
-- owner 必须是普通、可实例化的 final class，默认 final 也合法；`open`/`abstract`/`sealed`、interface、struct、enum、annotation class、intrinsic class、object/companion 及 compiler-generated class 均不能声明。`Throwable` 的继承闭包同样排除，因为异常记录会按值复制 payload。static nested 与 generic final class 合法；可以继承普通无 hook 基类并实现 interface，release 不继承、不覆写、不形成 hook chain。
+- owner 必须是普通、可实例化的 final class，默认 final 也合法；`open`/`abstract`/`sealed`、interface、struct、enum、annotation class、intrinsic class、object/companion 及 compiler-generated class 均不能声明。`Throwable` 的继承闭包同样排除。static nested 与 generic final class 合法；可以继承普通无 hook 基类并实现 interface，release 不继承、不覆写、不形成 hook chain。
 - block 没有 managed `this`，只在独立的 reclaiming-receiver 上下文中读取本 owner 自己声明的 backing field。primary property 与 body stored property 均可读；即使 stored property 有 custom getter，此处仍直接读取 backing storage。computed、delegated、inherited property 及 primary constructor 的非 property 参数不提供这样的字段。局部绑定按普通词法规则遮蔽字段，不能用 `this` 绕过遮蔽。
 - 字段读取取得普通值副本；字段赋值、复合赋值、更新及 `addressOf(field)` 均非法。对副本的值类型投影、解构、局部更新及合法 native pointer 操作遵守现有规则。源对象不能被传参、返回、存储、捕获、装箱、cast、比较、取址或取得 root/handle/pin；`super`、本对象的 getter/setter/method/extension 不能被调用。
 
@@ -1948,6 +1948,8 @@ build 返回当前所有 parts 按顺序连接的 String 内容快照，空 buil
 实现复用普通 `ArrayList<String>` 保存 parts 和扩容；拼接后备仅消费 backing 中由列表保证已初始化的前缀，不另建容量管理或复制临时 String 数组。
 
 ### 11.7 异常
+
+throw 与 catch 传递同一个 Throwable 对象，保持引用身份、动态类型和可变字段的别名关系。重新抛出、跨协程挂起保存和普通库捕获也遵守这一规则；native unwind record 的生命周期与对象独立，见运行时规范 5.1～5.4。
 
 - `Throwable`（引用类型，可被 `throw` / `catch`）及其最小子类：
   - `Exception(message: String?)`：通用异常基类；
@@ -3344,7 +3346,7 @@ assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一�
 
 `AssertionValue` 为普通 enum，具有 `Unavailable`、`Text(String)`、`RenderingFailed(Throwable)` 三个变体。比较断言失败时才尝试渲染 expected/actual：实际值实现 ToString 时普通调用其 toString，否则记录 Unavailable；渲染抛出的 Throwable 保存在 RenderingFailed 中，仍抛出原来的 AssertionFailure 并保留消息、位置及另一个值的渲染结果。渲染不增加断言的 ToString 类型约束，不重新执行实参或比较。fail 和 assertFailsWith 不设置 expected/actual。
 
-assertFailsWith 同步调用 block 一次，捕获 Throwable 后按普通 `is E` 关系检查，包括子类；匹配时返回捕获到的 managed 异常对象，便于继续检查其字段。异常物化沿运行时规范 5.3～5.4，不额外保证与 throw 实参的引用身份相同。block 正常结束或类型不匹配时，在捕获区域之外抛出 AssertionFailure；类型不匹配时 cause 保存捕获到的异常，未抛出时为 None。此规则避免该断言自己生成的失败满足 E。用户 block 自己抛出的 AssertionFailure 仍按普通类型匹配。panic、native crash、abort 或进程退出不属于可捕获的预期异常。
+assertFailsWith 同步调用 block 一次，捕获 Throwable 后按普通 `is E` 关系检查，包括子类；匹配时返回捕获到的 managed 异常对象，便于继续检查其字段。异常引用沿运行时规范 5.3～5.4，与 throw 实参保持同一对象身份。block 正常结束或类型不匹配时，在捕获区域之外抛出 AssertionFailure；类型不匹配时 cause 保存捕获到的异常，未抛出时为 None。此规则避免该断言自己生成的失败满足 E。用户 block 自己抛出的 AssertionFailure 仍按普通类型匹配。panic、native crash、abort 或进程退出不属于可捕获的预期异常。
 
 ### 16.3 测试标记与声明
 
@@ -3390,7 +3392,7 @@ public fun completeTestRun(): Unit
 
 调用适配在 initialize 回调实际执行时调用已解析的构造器，再将捕获该实例不可变引用的正文和可选 hooks 组成 TestActions 返回；不预建实例，也不捕获可变局部变量。TestAction 保存已解析方法的 typed 动作与声明位置。runTestCase 的 location 对应实例初始化位置；它和 TestAction 的默认位置供普通源码调用使用，合成适配显式传递对应的源码位置。runTestCase 同步调用初始化回调与后续动作，捕获普通 Throwable 并返回 Passed 或 Failed。Failed 的第一项保存首次失败，第二项仅保存该失败之后的 AfterTest 失败；只有清理失败时，第一项的阶段为 AfterTest，第二项为 None。
 
-TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规范 5.3～5.4 的异常物化规则。cause 为 AssertionFailure 时 location 使用断言自己的位置，否则使用当前动作的位置；原始异常数据不渲染、不丢弃。finally、Context 与 GC 沿普通调用和异常规则执行。panic、abort、native crash 和进程退出不在此捕获范围内，进程结果由测试命令另行报告。
+TestFailure 保留捕获后的 managed Throwable，遵守 16.2 与运行时规范 5.3～5.4 的异常引用规则。cause 为 AssertionFailure 时 location 使用断言自己的位置，否则使用当前动作的位置；原始异常数据不渲染、不丢弃。finally、Context 与 GC 沿普通调用和异常规则执行。panic、abort、native crash 和进程退出不在此捕获范围内，进程结果由测试命令另行报告。
 
 合成入口通过 runReportedTestCase 包围上述执行：先记录开始，再调用 runTestCase，在完整生命周期结束后记录单调耗时、结果及首次／清理失败；全部选中用例结束后调用 completeTestRun。没有父命令设置的结果通道时，这两个适配不捕获输出或渲染结果，直接运行仍保持普通 stdout/stderr。事件 I/O、计时和串行 stdio 重定向由 scoop.test 自身的普通 native 源码提供，不增加公共 runtime ABI。诊断保留断言 kind/message、expected/actual 的可用／渲染失败状态和 cause；普通 Exception 使用 message，其他 Throwable 可通过 ToString 提供说明，说明转换抛出时保留固定的渲染失败说明，不覆盖原测试失败。
 

@@ -22,19 +22,16 @@ typedef enum ScoopExceptionState {
 } ScoopExceptionState;
 
 /* Runtime-private storage. Generated code observes only `unwind` as an
- * opaque pointer and the aligned payload returned by begin-catch. */
+ * opaque pointer and the managed object returned by begin-catch. */
 typedef struct ScoopExceptionRecord {
     uint64_t magic;
     ScoopExceptionState state;
-    void *allocation_base;
-    size_t allocation_size;
-    size_t payload_offset;
+    uint64_t object_handle;
     struct ScoopThreadState *owner;
     struct ScoopExceptionRecord *caught_previous;
     struct ScoopExceptionRecord *active_previous;
     struct ScoopExceptionRecord *active_next;
     struct _Unwind_Exception unwind;
-    unsigned char payload_storage[];
 } ScoopExceptionRecord;
 
 _Static_assert(CHAR_BIT == 8, "the Scoop EH ABI requires 8-bit bytes");
@@ -42,15 +39,11 @@ _Static_assert(sizeof(uintptr_t) == sizeof(uint64_t),
                "the Scoop EH profile requires 64-bit uintptr_t");
 _Static_assert(sizeof(_Unwind_Exception_Class) == sizeof(uint64_t),
                "the Scoop exception class must be exactly 64 bits");
-_Static_assert(_Alignof(ScoopExceptionRecord) >=
-                   _Alignof(struct _Unwind_Exception),
+_Static_assert(_Alignof(ScoopExceptionRecord) >= _Alignof(struct _Unwind_Exception),
                "the exception record under-aligns _Unwind_Exception");
-_Static_assert(offsetof(ScoopExceptionRecord, unwind) %
-                       _Alignof(struct _Unwind_Exception) ==
-                   0,
+_Static_assert(offsetof(ScoopExceptionRecord, unwind) % _Alignof(struct _Unwind_Exception) == 0,
                "the embedded _Unwind_Exception is misaligned");
-_Static_assert(offsetof(ScoopExceptionRecord, unwind) +
-                       sizeof(struct _Unwind_Exception) <=
+_Static_assert(offsetof(ScoopExceptionRecord, unwind) + sizeof(struct _Unwind_Exception) <=
                    sizeof(ScoopExceptionRecord),
                "the unwind container conversion is invalid");
 
@@ -111,17 +104,15 @@ typedef struct ScoopEhDecodeResult {
  * pure: it neither consults nor mutates an unwind context. `instruction_pointer`
  * is the value reported by `_Unwind_GetIP`; ordinary frames are selected with
  * IP - 1 as required by the Itanium ABI. */
-ScoopEhDecodeResult scoop_eh_decode_lsda(ScoopEhByteRange lsda,
-                                         uintptr_t region_start,
+ScoopEhDecodeResult scoop_eh_decode_lsda(ScoopEhByteRange lsda, uintptr_t region_start,
                                          uintptr_t instruction_pointer);
 
 const char *scoop_eh_decode_reason_name(ScoopEhDecodeReason reason);
 
-_Unwind_Reason_Code scoop_eh_personality(
-    int version, _Unwind_Action actions,
-    _Unwind_Exception_Class exception_class,
-    struct _Unwind_Exception *exception_object,
-    struct _Unwind_Context *context);
+_Unwind_Reason_Code scoop_eh_personality(int version, _Unwind_Action actions,
+                                         _Unwind_Exception_Class exception_class,
+                                         struct _Unwind_Exception *exception_object,
+                                         struct _Unwind_Context *context);
 
 void scoop_eh_prepare_shutdown(void);
 uint64_t scoop_eh_debug_active_record_count(void);

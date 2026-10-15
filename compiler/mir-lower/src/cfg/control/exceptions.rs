@@ -125,34 +125,13 @@ impl<'a> CfgLowerer<'a> {
                 Some(next)
             };
             self.enter(catch_block);
-            let materialized = self.new_hidden(
-                "catch",
-                StructuralDefinitionSiteRole::SyntheticValue,
-                SyntheticLocalRole::Temporary,
-                mir::Type::Any,
-            );
-            self.push(
-                mir::StatementKind::Call(mir::CallEffect::Value {
-                    destination: materialized,
-                    call: mir::Call {
-                        target: mir::CallTarget::Direct(mir::Callee::Runtime(
-                            mir::RuntimeFn::MaterializeException,
-                        )),
-                        args: vec![mir::Expr::caught_exception()],
-                    },
-                }),
-                catch.span,
-            );
             self.push(
                 mir::StatementKind::ValDecl {
                     local: catch.local,
                     init: mir::Expr::new(
                         catch.ty.as_ref().clone(),
                         mir::ExprKind::Retype {
-                            operand: Box::new(mir::Expr::new(
-                                mir::Type::Any,
-                                mir::ExprKind::Local(materialized),
-                            )),
+                            operand: Box::new(mir::Expr::caught_exception()),
                             ty: catch.ty.clone(),
                         },
                     ),
@@ -264,7 +243,7 @@ impl<'a> CfgLowerer<'a> {
 
     /// A body that actually calls a suspend function cannot keep a native
     /// catch token live while a source catch/finally may suspend. Every
-    /// unwind scope therefore materializes its own exact Throwable local and
+    /// unwind scope therefore saves the original object in its own Throwable local and
     /// ends the native catch before dispatching or entering cleanup code.
     fn lower_managed_coroutine_try(&mut self, try_: &'a smir::Try) {
         let enclosing = self.try_stack.last().cloned();
@@ -327,7 +306,7 @@ impl<'a> CfgLowerer<'a> {
             "try body unwind scopes are lexically nested"
         );
 
-        self.materialize_unwind_target(&own_target);
+        self.capture_unwind_target(&own_target);
         self.enter(dispatch);
         let caught = self.managed_exception_expr(&own_target);
         let mut unmatched_reachable = true;
@@ -411,7 +390,7 @@ impl<'a> CfgLowerer<'a> {
         }
 
         if let Some(handler_target) = handler_target {
-            self.materialize_unwind_target(&handler_target);
+            self.capture_unwind_target(&handler_target);
             self.enter(handler_target.continuation);
             if let Some(finally) = finally {
                 self.normal_cleanups.push(NormalCleanup::Finally {
@@ -434,7 +413,7 @@ impl<'a> CfgLowerer<'a> {
         }
     }
 
-    fn materialize_unwind_target(&mut self, target: &UnwindTarget) {
+    fn capture_unwind_target(&mut self, target: &UnwindTarget) {
         let destination = target
             .managed_exception
             .expect("coroutine EH targets own an exact managed exception local");
@@ -446,18 +425,17 @@ impl<'a> CfgLowerer<'a> {
         );
         self.push(mir::StatementKind::Eh(mir::EhStatement::BeginCatch), span);
         self.push(
-            mir::StatementKind::Call(mir::CallEffect::Value {
-                destination,
-                call: mir::Call {
-                    target: mir::CallTarget::Direct(mir::Callee::Runtime(
-                        mir::RuntimeFn::MaterializeException,
-                    )),
-                    args: vec![mir::Expr::new(
-                        mir::Type::Any,
-                        mir::ExprKind::CaughtException,
-                    )],
-                },
-            }),
+            mir::StatementKind::ValDecl {
+                local: destination,
+                init: mir::Expr::new(
+                    self.coroutine_eh
+                        .as_ref()
+                        .expect("coroutine EH mode")
+                        .throwable
+                        .clone(),
+                    mir::ExprKind::CaughtException,
+                ),
+            },
             span,
         );
         self.push(mir::StatementKind::Eh(mir::EhStatement::EndCatch), span);

@@ -4,26 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../gc/gc_internal.h"
 #include "../image/registry.h"
 #include "internal.h"
-#include "../gc/gc_internal.h"
 #include "scoop_rt.h"
 
-typedef enum ScoopGcRootKind {
-    SCOOP_GC_ROOT_SLOT,
-    SCOOP_GC_ROOT_EXTERNAL_OBJECT,
-} ScoopGcRootKind;
-
-typedef struct ScoopGcRoot {
-    ScoopGcRootKind kind;
-    union {
-        void **slot;
-        const void *external_object;
-    } source;
-} ScoopGcRoot;
-
 static pthread_mutex_t roots_lock = PTHREAD_MUTEX_INITIALIZER;
-static ScoopGcRoot *roots;
+static void ***roots;
 static size_t roots_len;
 static size_t roots_cap;
 
@@ -44,38 +31,25 @@ void scoop_gc_roots_unlock(void) {
     }
 }
 
-static void root_push(ScoopGcRoot root) {
+static void root_push(void **slot) {
     if (roots_len == roots_cap) {
         size_t new_cap = roots_cap == 0 ? 16 : roots_cap * 2;
-        ScoopGcRoot *grown = realloc(roots, new_cap * sizeof *grown);
+        void ***grown = realloc(roots, new_cap * sizeof *grown);
         if (grown == NULL) {
             scoop_gc_roots_fatal("out of memory growing the root list");
         }
         roots = grown;
         roots_cap = new_cap;
     }
-    roots[roots_len++] = root;
+    roots[roots_len++] = slot;
 }
 
 bool scoop_gc_is_immortal_object_locked(const void *object) {
     return scoop_image_immortal(scoop_image_current(), object) != NULL;
 }
 
-static bool is_external_object(const void *object) {
-    for (size_t index = 0; index < roots_len; index++) {
-        if (roots[index].kind == SCOOP_GC_ROOT_EXTERNAL_OBJECT &&
-            roots[index].source.external_object == object) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool scoop_gc_is_external_object_locked(const void *object) { return is_external_object(object); }
-
 bool scoop_gc_stw_is_stable_object(const void *object) {
-    return scoop_image_immortal(scoop_image_current(), object) != NULL ||
-           is_external_object(object);
+    return scoop_image_immortal(scoop_image_current(), object) != NULL;
 }
 
 void scoop_rt_gc_add_root(void **slot) {
@@ -83,39 +57,12 @@ void scoop_rt_gc_add_root(void **slot) {
         scoop_gc_roots_fatal("process root has a null slot address");
     }
     scoop_gc_roots_lock();
-    root_push((ScoopGcRoot){
-        .kind = SCOOP_GC_ROOT_SLOT,
-        .source.slot = slot,
-    });
+    root_push(slot);
     scoop_gc_roots_unlock();
-}
-
-void scoop_rt_gc_add_root_object(const void *object) {
-    scoop_gc_roots_lock();
-    root_push((ScoopGcRoot){
-        .kind = SCOOP_GC_ROOT_EXTERNAL_OBJECT,
-        .source.external_object = object,
-    });
-    scoop_gc_roots_unlock();
-}
-
-void scoop_rt_gc_remove_root_object(const void *object) {
-    scoop_gc_roots_lock();
-    for (size_t index = 0; index < roots_len; index++) {
-        if (roots[index].kind == SCOOP_GC_ROOT_EXTERNAL_OBJECT &&
-            roots[index].source.external_object == object) {
-            roots[index] = roots[--roots_len];
-            scoop_gc_roots_unlock();
-            return;
-        }
-    }
-    scoop_gc_roots_unlock();
-    scoop_gc_roots_fatal("attempted to remove an unknown external object root");
 }
 
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
-    if (visitor.visit_slot == NULL || visitor.visit_external_object == NULL ||
-        visitor.visit_region == NULL) {
+    if (visitor.visit_slot == NULL || visitor.visit_region == NULL) {
         scoop_gc_roots_fatal("collector supplied an incomplete root visitor");
     }
     const ScoopImageRegistry *registry = scoop_image_current();
@@ -124,14 +71,7 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
         visitor.visit_region(storage->writable_base, storage->scan_program, visitor.context);
     }
     for (size_t index = 0; index < roots_len; index++) {
-        switch (roots[index].kind) {
-        case SCOOP_GC_ROOT_SLOT:
-            visitor.visit_slot(roots[index].source.slot, visitor.context);
-            break;
-        case SCOOP_GC_ROOT_EXTERNAL_OBJECT:
-            visitor.visit_external_object(roots[index].source.external_object, visitor.context);
-            break;
-        }
+        visitor.visit_slot(roots[index], visitor.context);
     }
     scoop_gc_visit_handles_locked(visitor);
 }

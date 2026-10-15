@@ -225,9 +225,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                     .into(),
                             ));
                         }
-                        scoop_lir::ManagedRuntimeFunction::MaterializeException => {
-                            (vec![scoop_lir::MANAGED_PTR], scoop_lir::MANAGED_PTR)
-                        }
                         scoop_lir::ManagedRuntimeFunction::ContextPush => (
                             vec![
                                 scoop_lir::RAW_PTR,

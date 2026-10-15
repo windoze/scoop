@@ -270,7 +270,7 @@ public val 字段名为 mostSignificantBits、leastSignificantBits，类型均�
 
 `getOrThrow` 只适用于 `E : Throwable`；`runCatching(block)` 返回 Result<T,Throwable>，捕获普通可抛出的 Throwable，不捕获 runtime fatal、进程信号或终止。结果方法通过普通模式匹配实现，不改变 try/throw、Option 或 Nothing 的语言规则。采用 Kotlin 的 Result/Success/Failure/getOrThrow 命名，但保留 Scoop 的显式错误类型 E；不新增隐式异常转换。
 
-runCatching 保存普通 catch 物化后的 managed 异常；getOrThrow 与直接 throw 使用同一既有异常契约。运行时规范 5.1～5.4 的 payload 复制和 catch 物化仍适用，不额外承诺 throw 前后保持对象 identity；动态类型、值字段和 payload 中引用字段的浅复制语义保持。
+runCatching 保存普通 catch 捕获的原 managed 异常；getOrThrow 与直接 throw 使用运行时规范 5.1～5.4 的同一异常契约，保持引用身份、动态类型与字段别名，不复制异常对象。
 
 Option 增加 map/flatMap/filter/fold/getOrElse/orElse、toResult(errorProducer)，Result 提供 toOption。Some(None) 保留层次；懒缺省只在缺失／失败分支调用一次。无约束的 T/E 不因此取得 Equals、Hash、ToString 或编码能力。
 

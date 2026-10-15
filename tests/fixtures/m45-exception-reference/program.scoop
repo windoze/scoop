@@ -1,0 +1,61 @@
+class Mark(var code: Int, val text: String) : Throwable()
+class Other : Throwable()
+class Gate(var waiter: Continuation<Unit>? = None)
+class Completion : Continuation<Mark> {
+    var value: Mark? = None
+    public override fun resume(result: Mark) { value = Some(result) }
+    public override fun resumeWithException(exception: Throwable) { println("unexpected failure") }
+}
+
+fun caught(original: Mark): Mark {
+    try { throw original }
+    catch (error: Mark) {
+        println(error === original)
+        error.code += 1
+        gcCollect()
+        println(error === original)
+        return error
+    }
+}
+
+fun main() {
+    val original = Mark(1, "original")
+    val escaped = caught(original)
+    gcCollect()
+    println(escaped === original)
+    println(original.code)
+    try {
+        try { throw original }
+        catch (other: Other) { println("wrong handler") }
+        finally { gcCollect() }
+    } catch (error: Mark) {
+        println(error === original)
+    }
+    try {
+        try { throw original }
+        catch (error: Mark) { error.code += 1; throw error }
+    } catch (error: Mark) {
+        println(error === original)
+        println(original.code)
+    }
+    val gate = Gate()
+    val completion = Completion()
+    startCoroutine(suspend {
+        try { throw original }
+        catch (error: Mark) {
+            println(error === original)
+            suspendCoroutine<Unit> { continuation -> gate.waiter = Some(continuation) }
+            gcCollect()
+            println(error === original)
+            error.code += 1
+            error
+        }
+    }, completion)
+    gcCollect()
+    val continuation = gate.waiter!!
+    gate.waiter = None
+    continuation.resume(Unit)
+    gcCollect()
+    println(completion.value!! === original)
+    println(original.code)
+}

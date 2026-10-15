@@ -124,7 +124,11 @@ fn class_initializers_chain_on_one_exact_allocation() {
     // The use site performs the only allocation. Each initializer receives
     // that object, calls the direct base initializer, then writes its own
     // complete-layout field.
-    check_mir_snapshot("class_initializers_chain_on_one_exact_allocation", &module);
+    check_mir_snapshot(
+        "class_initializers_chain_on_one_exact_allocation",
+        &module,
+        &["main", "init.Root.$c0", "init.Base.$c1", "init.Point.$c2"],
+    );
 }
 
 #[test]

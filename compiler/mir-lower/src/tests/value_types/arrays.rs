@@ -70,7 +70,7 @@ fn array_nodes_translate_one_to_one() {
     // The subscript read and the indexed store both get the M8
     // bounds check: array and index evaluated once into hidden
     // locals, then `IndexOutOfBoundsException` on failure.
-    check_mir_snapshot("array_nodes_translate_one_to_one", &module);
+    check_mir_snapshot("array_nodes_translate_one_to_one", &module, &["main"]);
 }
 
 #[test]

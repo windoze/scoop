@@ -628,7 +628,11 @@ fn division_by_zero_throws_arithmetic_exception() {
     );
     let module = lower(&h.finish(main));
 
-    check_mir_snapshot("division_by_zero_throws_arithmetic_exception", &module);
+    check_mir_snapshot(
+        "division_by_zero_throws_arithmetic_exception",
+        &module,
+        &["main"],
+    );
 }
 
 #[test]

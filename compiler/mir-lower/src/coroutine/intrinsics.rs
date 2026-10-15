@@ -464,15 +464,10 @@ pub(super) fn rewrite_intrinsic_site(
                 cleanup: false,
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
-            statement(mir::StatementKind::Call(mir::CallEffect::Value {
-                destination: exception,
-                call: mir::Call {
-                    target: mir::CallTarget::Direct(mir::Callee::Runtime(
-                        mir::RuntimeFn::MaterializeException,
-                    )),
-                    args: vec![mir::Expr::caught_exception()],
-                },
-            })),
+            statement(mir::StatementKind::ValDecl {
+                local: exception,
+                init: mir::Expr::new(throwable.clone(), mir::ExprKind::CaughtException),
+            }),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
             statement(mir::StatementKind::ValDecl {
                 local: registration_claim,

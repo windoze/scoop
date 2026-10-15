@@ -59,7 +59,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
-        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
+        call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
         br @success
       block success
@@ -68,8 +68,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
-        global_store global0, t3
+        global_store global0, t2
         end_catch
         ret integer<UInt>(0x00000001)
       td td0 C @scoop$1$td$eb205ad260a812589e9f030260657692c3e8a971a60e730337a3c28f28bc6cc9 type-id=1930812111026443540 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[]
@@ -153,7 +152,7 @@ fn interface_calls_read_the_carried_itable() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
-        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
+        call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td11)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -162,8 +161,7 @@ fn interface_calls_read_the_carried_itable() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
-        global_store global0, t3
+        global_store global0, t2
         end_catch
         ret integer<UInt>(0x00000001)
       td td0 Describable @scoop$1$td$2297a60bc362ce3d8b2494a877d19cf862c59a12c3f68dc36b859a026e02eecc type-id=2551552645907048390 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]

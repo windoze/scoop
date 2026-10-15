@@ -48,7 +48,7 @@ runtime-owned exception ABI:
   separates STW collection, managed/native transitions, root frames, and
   debug queries;
 - `src/eh.c` owns `ScoopExceptionRecord`, the per-thread caught stack,
-  throw/begin/end/rethrow, and stable external-root lifetime;
+  throw/begin/end/rethrow, and handles preserving exception identity;
 - `src/eh_personality.c` owns the Scoop personality; `src/eh/` contains
   the bounded LLVM 22.1 catch-all/cleanup LSDA decoder, including tables
   that omit TType for cleanup-only functions;

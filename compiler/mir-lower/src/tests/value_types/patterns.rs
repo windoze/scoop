@@ -86,7 +86,7 @@ fn when_lowers_to_a_decision_sequence() {
     // edge unreachable. (`print` /
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
-    check_mir_snapshot("when_lowers_to_a_decision_sequence", &module);
+    check_mir_snapshot("when_lowers_to_a_decision_sequence", &module, &["main"]);
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -661,7 +661,11 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     // The guard nests inside the typed variant test's then branch; failing
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
-    check_mir_snapshot("a_failed_guard_falls_through_to_the_next_arm", &module);
+    check_mir_snapshot(
+        "a_failed_guard_falls_through_to_the_next_arm",
+        &module,
+        &["main"],
+    );
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -1038,5 +1042,9 @@ fn destructuring_val_declarations_extract_bindings() {
 
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
-    check_mir_snapshot("destructuring_val_declarations_extract_bindings", &module);
+    check_mir_snapshot(
+        "destructuring_val_declarations_extract_bindings",
+        &module,
+        &["main"],
+    );
 }

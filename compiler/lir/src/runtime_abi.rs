@@ -67,7 +67,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 12,
+                1 => 13,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -116,7 +116,7 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 65] = [
+    pub const ALL: [Self; 64] = [
         Self::PollState,
         Self::WorldPhase,
         Self::GcEpoch,
@@ -142,9 +142,6 @@ impl RuntimeAbiSymbolV1 {
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxZst)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxValue)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::GcCollect)),
-        Self::LirCall(RuntimeFunction::Managed(
-            ManagedRuntimeFunction::MaterializeException,
-        )),
         Self::LirCall(RuntimeFunction::Managed(
             ManagedRuntimeFunction::StringConcat,
         )),
@@ -252,9 +249,6 @@ impl RuntimeAbiSymbolV1 {
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::GcCollect)) => {
                 "scoop_rt_gc_collect"
             }
-            Self::LirCall(RuntimeFunction::Managed(
-                ManagedRuntimeFunction::MaterializeException,
-            )) => "scoop_rt_materialize_exception",
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::StringConcat)) => {
                 "scoop_rt_string_concat"
             }
@@ -784,17 +778,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runtime_abi_contract_versions_regular_allocation_and_barriers() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010c02010302");
+    fn runtime_abi_contract_versions_exception_reference_semantics() {
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010d02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586"
+            "7f6b81cc9c8c1046ac6623fde91708f32aa0170c53f7e75f12466250d1f7be33"
         );
     }
 
     #[test]
     fn boxing_runtime_entries_retire_the_old_tag_without_reusing_it() {
         assert_eq!(RuntimeFunction::from_wire_tags(1, 3), None);
+        assert_eq!(RuntimeFunction::from_wire_tags(1, 5), None);
         let entries = [
             (
                 RuntimeFunction::Managed(ManagedRuntimeFunction::BoxZst),
@@ -862,7 +857,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "438b82e34c509a3ef475d3ee5177a55385b5fc6b6095e1b8899225c9bf2eef83"
+            "3a5677195b44d701f5cac100058c1bdfdad75e7fa4e3538a18c7b39cb8190e25"
         );
         assert!(
             registry
@@ -918,7 +913,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "c7bff79f28cb631b2742589021487189512304722f0976947933def615e69ee6"
+            "4354af907d5639620d44fa371c093c602b694e46735ce9f2d093c14a3c94dcfe"
         );
     }
 

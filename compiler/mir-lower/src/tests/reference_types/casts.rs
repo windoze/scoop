@@ -66,5 +66,9 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
     // `ClassCastException` on failure (M8); `as?` wraps in
     // Some / None. The value-type checks registered the boxed
     // payload class. Capabilities are not synthesized from boxing.
-    check_mir_snapshot("is_instance_and_casts_lower_to_runtime_checks", &module);
+    check_mir_snapshot(
+        "is_instance_and_casts_lower_to_runtime_checks",
+        &module,
+        &["main"],
+    );
 }

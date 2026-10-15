@@ -52,7 +52,6 @@ void scoop_rt_unbox_zst(const void *object, const ScoopTypeDescriptor *expected_
 void scoop_rt_unbox_value(const void *object, const ScoopTypeDescriptor *expected_td,
                           void *destination);
 void scoop_rt_gc_collect(void);
-void *scoop_rt_materialize_exception(const void *caught);
 _Noreturn void scoop_rt_throw(const void *object);
 _Noreturn void scoop_rt_rethrow(void);
 void *scoop_rt_begin_catch(void *raw_exception);
@@ -136,7 +135,5 @@ extern ScoopGcPageMapEntry scoop_gc_page_map[4096];
 /* Other compiler/runtime ABI declarations that are not part of the native
  * FFI-author surface. */
 void scoop_rt_gc_add_root(void **slot);
-void scoop_rt_gc_add_root_object(const void *object);
-void scoop_rt_gc_remove_root_object(const void *object);
 
 #endif /* SCOOP_RT_GENERATED_ENTRIES_H */

@@ -937,8 +937,8 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             .any(|statement| {
                 matches!(
                     &statement.kind,
-                    mir::StatementKind::Call(mir::CallEffect::Value { call, .. })
-                        if matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
+                    mir::StatementKind::ValDecl { init, .. }
+                        if matches!(init.kind, mir::ExprKind::CaughtException)
                 )
             })
     );
