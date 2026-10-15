@@ -335,6 +335,8 @@ codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM fu
 
 优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在最终根分组处检查该合并链没有派生地址，并以 LLVM 22.1 的 `is_base_value` 标记向 RS4GC 保留这一事实；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；原有 typed 根恢复、base=derived 与机器 stackmap 检查保持。
 
+RS4GC 后的指针活跃性检查使用 LLVM 已有的实际使用链，包括 call operand bundle 和 PHI incoming edge；同一函数的指令位置与 CFG 后继只收集一次。不得为每个 safepoint／派生指针反复扫描整函数寻找使用点。循环中重新执行定义仍截断旧动态值的活跃区间，跨 safepoint 的旧根使用与派生地址仍被拒绝；此查询优化不改变 GC 合同或产物格式。
+
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
 每个实际物理定义都有 typed owner、role、linkage、symbol 和精确 section range。引用使用 typed target 与真实 relocation；跨对象 external 声明不能变成可缺失的 weak reference。Strong 属于原定义 Cone，ODR 使用其稳定 member identity。

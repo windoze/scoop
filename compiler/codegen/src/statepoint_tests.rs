@@ -21,6 +21,8 @@ mod constant_roots;
 mod copied_aggregate;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
+#[path = "statepoint_tests/liveness.rs"]
+mod liveness;
 #[path = "statepoint_tests/no_gc.rs"]
 mod no_gc;
 #[path = "statepoint_tests/optimized.rs"]

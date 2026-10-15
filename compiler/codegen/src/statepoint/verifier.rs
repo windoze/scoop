@@ -207,7 +207,7 @@ pub(crate) fn verify_rewritten(
         )));
     }
     restorations::verify(&restorations, &observed, expected, managed_address_space)?;
-    provenance::verify_no_derived_live_through(&observed, managed_address_space)?;
+    provenance::verify_lifetimes(&observed, managed_address_space)?;
     for (id, site) in &observed {
         match &expected.sites[id].statepoint {
             ExpectedStatepoint::Relocating(_) => {}
@@ -229,7 +229,6 @@ pub(crate) fn verify_rewritten(
                 )));
             }
         }
-        provenance::verify_no_stale_root_uses(*id, site)?;
     }
     Ok(())
 }

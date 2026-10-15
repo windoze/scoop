@@ -91,3 +91,10 @@ Linux fmt、整仓 Clippy、release 工具构建及 50 项 runner 规则通过�
 CLI 首轮在两个目标各发现 10 个 M38 用例无法读取 manifest：新增文件使用小写 `cone.toml`，目录入口要求 `Cone.toml`；本机文件系统未暴露大小写差异。统一 20 个文件名及 5 处显式 fixture 输入，内容保持不变。格式与整仓 lint 通过后，本机只补验受影响的 10 项，10 variants、45 processes 全部通过；编译器、runtime 和 Scoop 库源码未改变。Linux 将只补验同一组，完整回归继续执行。
 
 Linux 补验中，CLI 基本组合的冷编译触及默认 300 秒上限；本机完整轮次的同一用例耗时 169.93 秒。仅将该用例 build 步骤的上限设为 600 秒，保留全部编译、普通及 moving-GC 运行断言；格式与 lint 通过，本机复用缓存单独补验 1 项、3 processes 通过。Linux 只重跑这一项，其余补验结果继续保留。
+
+
+## 冷编译的 GC 指针查询开销
+
+600 秒的补验仍未完成，连续调用栈采样定位到 RS4GC 后的指针活跃性检查：原实现按每个 safepoint、每个派生指针重复扫描整函数的所有指令及 operand。现按实现规范 2.5 直接遍历 LLVM 的实际使用链，包含 operand bundle；函数内的指令位置与 CFG 后继收集一次并复用，block 内使用按实际定义区间判断。PHI incoming edge、循环重新定义、旧根与派生地址跨 safepoint 的拒绝规则保持不变，没有删除 GC 合同检查。
+
+移除临时的 600 秒放宽，CLI 基本组合恢复默认 300 秒。fmt、整仓 Clippy、release 工具构建和本机 codegen 全组 377 项通过；新增三项专测覆盖 operand bundle 重复使用、statepoint 调用参数和 PHI 两条分支的正反例。随后集中补验 M38 全组及 gc 标签的 315 个正式 CLI 用例：308 项通过、7 项目标不适用，M38 的 52 项全部通过；CLI 基本组合在全新工作目录中冷编译及普通／moving-GC 运行共 35.01 秒。本机闭合后再安排 Linux 同批验证。原始记录仍全部位于仓库外。
