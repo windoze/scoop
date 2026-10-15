@@ -1,0 +1,38 @@
+public interface Disposable {
+    public fun dispose()
+}
+
+public class ResourceUseException public constructor(
+    public val primaryFailure: Throwable,
+    public val cleanupFailure: Throwable
+) : Throwable()
+
+public fun <T : Disposable, R> T.use(block: (T) -> R): R {
+    val result = try {
+        block(this)
+    } catch (primary: Throwable) {
+        try {
+            dispose()
+        } catch (cleanup: Throwable) {
+            throw ResourceUseException(primary, cleanup)
+        }
+        throw primary
+    }
+    dispose()
+    return result
+}
+
+public suspend fun <T : Disposable, R> T.use(block: suspend (T) -> R): R {
+    val result = try {
+        block(this)
+    } catch (primary: Throwable) {
+        try {
+            dispose()
+        } catch (cleanup: Throwable) {
+            throw ResourceUseException(primary, cleanup)
+        }
+        throw primary
+    }
+    dispose()
+    return result
+}

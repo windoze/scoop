@@ -1,0 +1,89 @@
+package scoop.platform.resources
+
+import scoop.test.*
+
+@Test
+private class SuspendResourceUseTest {
+    @Test
+    fun `suspension preserves the resource until the final successful resume`() {
+        val gate = ResourceGate<Int>()
+        val resource = RecordingResource("close", ArrayList<String>())
+        val completion = ResourceCompletion<Int>()
+        startCoroutine(suspend {
+            resource.use(suspend { current ->
+                val first = awaitResource(gate)
+                assertFalse(current.released)
+                val second = awaitResource(gate)
+                current.number() + first + second
+            })
+        }, completion)
+        assertEquals(0, resource.calls)
+        assertEquals(0, completion.calls)
+        gcCollect()
+        gate.complete(2)
+        assertEquals(0, resource.calls)
+        assertEquals(0, completion.calls)
+        gcCollect()
+        gate.complete(3)
+        assertEquals(47, completion.value!!)
+        assertEquals(1, resource.calls)
+        assertEquals(1, completion.calls)
+        assertTrue(when (completion.failure) { case None -> true; else -> false })
+    }
+
+    @Test
+    fun `failed resume preserves the primary exception`() {
+        val gate = ResourceGate<Int>()
+        val primary = Throwable()
+        val resource = RecordingResource("close", ArrayList<String>())
+        val completion = ResourceCompletion<Int>()
+        startCoroutine(suspend { resource.use(suspend { awaitResource(gate) }) }, completion)
+        assertEquals(0, resource.calls)
+        gcCollect()
+        gate.fail(primary)
+        assertSame(primary, completion.failure!!)
+        assertEquals(1, resource.calls)
+        assertEquals(1, completion.calls)
+    }
+
+    @Test
+    fun `cleanup failure after successful resume is not retried`() {
+        val gate = ResourceGate<Int>()
+        val cleanup = Throwable()
+        val resource = RecordingResource("close", ArrayList<String>(), Some(cleanup))
+        val completion = ResourceCompletion<Int>()
+        startCoroutine(suspend { resource.use(suspend { awaitResource(gate) }) }, completion)
+        gate.complete(7)
+        assertSame(cleanup, completion.failure!!)
+        assertEquals(1, resource.calls)
+        assertEquals(1, completion.calls)
+    }
+
+    @Test
+    fun `failed resume and cleanup preserve both failures`() {
+        val gate = ResourceGate<Int>()
+        val primary = Throwable()
+        val cleanup = Throwable()
+        val resource = RecordingResource("close", ArrayList<String>(), Some(cleanup))
+        val completion = ResourceCompletion<Int>()
+        startCoroutine(suspend { resource.use(suspend { awaitResource(gate) }) }, completion)
+        assertEquals(0, resource.calls)
+        gcCollect()
+        gate.fail(primary)
+        val failure = completion.failure!! as ResourceUseException
+        assertSame(primary, failure.primaryFailure)
+        assertSame(cleanup, failure.cleanupFailure)
+        assertEquals(1, resource.calls)
+        assertEquals(1, completion.calls)
+    }
+
+    @Test
+    fun `ordinary lambda stays ordinary inside a suspend caller`() {
+        val resource = RecordingResource("close", ArrayList<String>())
+        val completion = ResourceCompletion<Int>()
+        startCoroutine(suspend { resource.use { it.number() } }, completion)
+        assertEquals(42, completion.value!!)
+        assertEquals(1, resource.calls)
+        assertEquals(1, completion.calls)
+    }
+}

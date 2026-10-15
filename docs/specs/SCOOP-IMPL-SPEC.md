@@ -830,6 +830,8 @@ Option protocol 保存同一个实际 owner、Some payload 与 None variant；In
 
 ToString、Hash、普通 operator、print/println、容器和 codec 通过普通声明与接口分派使用。新增普通 core 成员不要求新增编译器角色表；intrinsic 表示不自动赋予未声明的 conformance。
 
+Disposable、普通／挂起 use 和 ResourceUseException 同样是普通 core 声明。use 的成功与失败出口由 Scoop try/catch 和函数调用表达，跨 Cone 复用已绑定的泛型正文与协程转换，不按名称生成专用 cleanup，也不把该异常加入 compiler exception protocol。
+
 write/writeError 通过普通 String 作用域借用调用 C ABI 字节输出后备，flushOutput 通过普通 C ABI 调用刷新 stdout；编译器复用 NativeSafe 调用及 pin 帧，不为输出名称增加 intrinsic 或专用状态切换。print/println/eprint/eprintln 的 ToString bound、求值次序和跨产物泛型展开均遵守普通函数规则（语言规范 14.4）。
 
 exit 是返回实际 Nothing 的普通 core Scoop ABI extern；调用及产物保留底类型、既有返回 carrier 和无正常后继的语义，不伪装成 Unit 或添加不可达占位正文。runtime 的单向终止和刷新合同见运行时规范第 7 章。

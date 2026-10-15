@@ -1,0 +1,42 @@
+package scoop.platform.resources
+
+internal class RecordingResource(
+    val name: String,
+    val events: MutableList<String>,
+    val failure: Throwable? = None,
+    val collectOnDispose: Boolean = false
+) : Disposable {
+    var calls: Int = 0
+    var released: Boolean = false
+
+    fun number(): Int = 42
+
+    public override fun dispose() {
+        calls += 1
+        if (released) return
+        released = true
+        events.add(name)
+        if (collectOnDispose) gcCollect()
+        when (failure) {
+            case Some(error) -> throw error
+            case None -> return
+        }
+    }
+}
+
+internal class ResourceGate<T> {
+    var waiter: Continuation<T>? = None
+    fun complete(value: T) { val current = waiter!!; waiter = None; current.resume(value) }
+    fun fail(error: Throwable) { val current = waiter!!; waiter = None; current.resumeWithException(error) }
+}
+
+internal class ResourceCompletion<T> : Continuation<T> {
+    var calls: Int = 0
+    var value: T? = None
+    var failure: Throwable? = None
+    public override fun resume(value: T) { calls += 1; this.value = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { calls += 1; failure = Some(exception) }
+}
+
+internal suspend fun <T> awaitResource(gate: ResourceGate<T>): T =
+    suspendCoroutine { continuation -> gate.waiter = Some(continuation) }

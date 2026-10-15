@@ -30,3 +30,14 @@ CLI 回归还覆盖既有 contextual inference、泛型约束、receiver functio
 资源双失败测试暴露 throw/catch 复制 Throwable 的旧合同。已先修订语言、runtime 与 std 规范：throw、catch、重抛和跨挂起保存都保留原对象及字段别名。native record 通过现有 GcHandle 保活；删除两次对象复制、异常物化入口、无生产使用者的堆外对象 root 注册与扫描分支。runtime contract 升至 13，metadata 布局不变；旧产物按既有兼容性规则重建。
 
 本机格式化、workspace all-targets clippy 与 C 严格告警检查通过；受影响的 MIR／LIR、lowering、codegen/runtime 与 slib 共 1732 项 Rust 测试通过。独立源码回归覆盖字段别名、catch 返回、重抛、实际挂起恢复、debug/release 和 moving GC。旧 ABI 固定向量及必要 LIR 期望已核对更新；11 份 MIR 代表快照只保存各自被测函数，从 5775 行缩至 605 行，异常与协程的专门 typed 断言仍保留。组合 CLI 与资源库结果在下一节记录，Linux 留到 M45-10。
+
+## M45-3：core Disposable 与普通／挂起 use
+
+2026-10-16 完成本机实现。三个普通 core 声明提供资源协议、两个 use 重载与保存原始双失败的 ResourceUseException；成功结果先保存，正文失败只清理一次，清理失败不被同一 catch 再次捕获后重试。挂起调用在最后恢复完成或失败时清理，嵌套资源从内向外退出；不新增语法、intrinsic 或专用 compiler role。
+
+- `scoop test sysroot/lib/scoop.platform`：26 项全部通过，其中 14 项资源用例覆盖精确接收者／结果推断、含引用结果跨清理 GC、四种退出组合、异常身份、嵌套与获取失败、真实挂起及异常恢复。
+- 正式 CLI 组合回归共 121 个用例闭合，覆盖 M45、现有异常／finally／callback／产物消费与全部 M38 用例。新增 core-only 资源及异常身份用例均通过 debug/release、普通与 moving GC。
+- 批次初次为 120 通过、1 项旧 LIR 期望失败；核对删除复制调用及其临时变量、root/site 编号的变化后，仅复跑该 SSA roots 用例，debug／release／minor 三个变体通过，包含链接后重运行。没有重复整批或 Linux 验收。
+- 格式化、workspace all-targets clippy、C 严格告警及前置修复的 1732 项 Rust 回归已通过。原始输出保留在仓库外，文档 validation 目录无原始日志。
+
+下一批为 M45-4；Linux GNU／musl 仍集中安排在全部本机功能稳定后。

@@ -1,0 +1,128 @@
+package scoop.platform.resources
+
+import scoop.test.*
+
+private struct ResourceValue(val number: Int, val text: String)
+private class ResourceObject(val text: String)
+
+@Test
+private class ResourceUseTest {
+    @Test
+    fun `callback keeps the concrete receiver and runs once before cleanup`() {
+        val events = ArrayList<String>()
+        val resource = RecordingResource("close", events, collectOnDispose = true)
+        val value = resource.use { current ->
+            assertSame(resource, current)
+            assertFalse(current.released)
+            events.add("body")
+            ResourceValue(current.number(), "value" + current.number().toString())
+        }
+        assertEquals(42, value.number)
+        assertEquals("value42", value.text)
+        assertEquals(1, resource.calls)
+        assertEquals(2L, events.size)
+        assertEquals("body", events[0L])
+        assertEquals("close", events[1L])
+    }
+
+    @Test
+    fun `a managed result remains live while cleanup collects`() {
+        val resource = RecordingResource("close", ArrayList<String>(), collectOnDispose = true)
+        val result = resource.use { ResourceObject("result" + it.number().toString()) }
+        assertEquals("result42", result.text)
+        assertEquals(1, resource.calls)
+    }
+
+    @Test
+    fun `successful body does not repeat a failing cleanup`() {
+        val failure = Throwable()
+        val resource = RecordingResource("close", ArrayList<String>(), Some(failure))
+        val caught = assertFailsWith<Throwable> { resource.use { it.number() } }
+        assertSame(failure, caught)
+        assertEquals(1, resource.calls)
+        assertTrue(resource.released)
+    }
+
+    @Test
+    fun `body failure preserves identity when cleanup succeeds`() {
+        val primary = Throwable()
+        val resource = RecordingResource("close", ArrayList<String>())
+        val caught = assertFailsWith<Throwable> { resource.use { throw primary } }
+        assertSame(primary, caught)
+        assertEquals(1, resource.calls)
+    }
+
+    @Test
+    fun `double failure retains both objects and is not an Exception`() {
+        val primary = Throwable()
+        val cleanup = IllegalStateException()
+        val resource = RecordingResource("close", ArrayList<String>(), Some(cleanup))
+        val caught = assertFailsWith<ResourceUseException> { resource.use { throw primary } }
+        assertSame(primary, caught.primaryFailure)
+        assertSame(cleanup, caught.cleanupFailure)
+        val root: Throwable = caught
+        assertFalse(root is Exception)
+        assertEquals(1, resource.calls)
+    }
+
+    @Test
+    fun `nested resources close from inner to outer`() {
+        val events = ArrayList<String>()
+        RecordingResource("outer", events).use { outer ->
+            RecordingResource("inner", events).use { inner ->
+                assertFalse(outer.released)
+                assertFalse(inner.released)
+                events.add("body")
+            }
+        }
+        assertEquals(3L, events.size)
+        assertEquals("body", events[0L])
+        assertEquals("inner", events[1L])
+        assertEquals("outer", events[2L])
+    }
+
+    @Test
+    fun `failed inner acquisition still cleans the entered outer resource`() {
+        val events = ArrayList<String>()
+        val primary = Throwable()
+        val outer = RecordingResource("outer", events)
+        val caught = assertFailsWith<Throwable> {
+            outer.use { failAcquisition(primary).use { it.number() } }
+        }
+        assertSame(primary, caught)
+        assertEquals(1, outer.calls)
+        assertEquals(1L, events.size)
+    }
+
+    @Test
+    fun `nested cleanup failures retain the complete exception chain`() {
+        val primary = Throwable()
+        val innerFailure = Throwable()
+        val outerFailure = Throwable()
+        val events = ArrayList<String>()
+        val caught = assertFailsWith<ResourceUseException> {
+            RecordingResource("outer", events, Some(outerFailure)).use {
+                RecordingResource("inner", events, Some(innerFailure)).use { throw primary }
+            }
+        }
+        assertSame(outerFailure, caught.cleanupFailure)
+        val inner = caught.primaryFailure as ResourceUseException
+        assertSame(primary, inner.primaryFailure)
+        assertSame(innerFailure, inner.cleanupFailure)
+        assertEquals("inner", events[0L])
+        assertEquals("outer", events[1L])
+    }
+
+    @Test
+    fun `use still calls the body for an already released receiver`() {
+        val events = ArrayList<String>()
+        val resource = RecordingResource("close", events)
+        resource.dispose()
+        val empty: Int? = resource.use { current -> assertTrue(current.released); None }
+        assertTrue(empty == None)
+        assertEquals(2, resource.calls)
+        assertEquals(1L, events.size)
+    }
+}
+
+private fun failAcquisition(error: Throwable): RecordingResource { throw error }
