@@ -163,8 +163,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .map_err(CrossConeLayoutArtifactWriteError::Compatibility)?;
-        let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code)
-            .map_err(CrossConeLayoutArtifactWriteError::LinkIdentityClosure)?;
+        let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
 
         let metadata = assemble_metadata(LayoutMetadataInput {
             hir_foundation,

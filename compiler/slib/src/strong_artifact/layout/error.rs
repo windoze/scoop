@@ -6,9 +6,9 @@ use scoop_wire::HashError;
 
 use super::super::{StrongArtifactAssemblyError, StrongArtifactSectionV1};
 use crate::{
-    BootstrapManifestError, CrossConeLinkSemanticImportBuildError, LinkIdentityClosureBuildError,
-    ManifestSectionError, MetadataEnvelopeError, MetadataLocation, MetadataSectionError,
-    SemanticFingerprintError, SlibMemberId, SlibMemberRecordError, SlibWriteError,
+    BootstrapManifestError, CrossConeLinkSemanticImportBuildError, ManifestSectionError,
+    MetadataEnvelopeError, MetadataLocation, MetadataSectionError, SemanticFingerprintError,
+    SlibMemberId, SlibMemberRecordError, SlibWriteError,
 };
 
 #[derive(Debug)]
@@ -39,7 +39,6 @@ pub enum CrossConeLayoutArtifactWriteError {
     },
     LinkObjectFingerprint(HashError),
     Compatibility(HashError),
-    LinkIdentityClosure(LinkIdentityClosureBuildError),
     HirInterfaceIndex(CrossConeHirInterfaceIndexError),
     Encoding {
         section: StrongArtifactSectionV1,
@@ -121,7 +120,6 @@ impl std::error::Error for CrossConeLayoutArtifactWriteError {
         match self {
             Self::CallableSemanticImports(source) => Some(source),
             Self::LinkObjectFingerprint(source) | Self::Compatibility(source) => Some(source),
-            Self::LinkIdentityClosure(source) => Some(source),
             Self::HirInterfaceIndex(source) => Some(source),
             Self::Encoding { source, .. } => Some(source),
             Self::MetadataSection { source, .. } => Some(source),

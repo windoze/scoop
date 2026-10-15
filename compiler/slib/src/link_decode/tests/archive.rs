@@ -64,7 +64,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         undefined_symbols,
     )
     .unwrap();
-    let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code).unwrap();
+    let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code);
     let production_manifest = crate::SingleConeProductionManifestV1::from_verified_code(code);
     let hir_sections = vec![
         MetadataSection::new(

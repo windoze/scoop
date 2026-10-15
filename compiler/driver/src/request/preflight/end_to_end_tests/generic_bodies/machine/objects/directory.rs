@@ -35,7 +35,7 @@ pub(super) fn check(code: &VerifiedCodeFingerprintV2, expected: &BTreeSet<OdrMem
 
     let manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code.clone());
     let bytes = encode(&manifest).unwrap();
-    assert_eq!(bytes[0], 0xad);
+    assert_eq!(bytes[0], 0xa2);
     let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }

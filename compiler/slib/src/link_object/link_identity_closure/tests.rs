@@ -18,11 +18,3 @@ fn materializations_are_sorted_by_member_and_keep_producer_kinds_distinct() {
         encode(&materializations[1]).unwrap()[2]
     );
 }
-
-#[test]
-fn entry_owner_library_is_the_fixed_empty_sum() {
-    assert_eq!(
-        encode(&VerifiedEntryOwnerBranchV1::Library).unwrap(),
-        vec![0xa1, 0x00, 0x01]
-    );
-}

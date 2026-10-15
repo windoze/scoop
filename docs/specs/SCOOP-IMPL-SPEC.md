@@ -410,10 +410,10 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 | 位置 / namespace | section 与 major |
 | --- | --- |
-| Manifest / `org.scoop-lang.manifest` | `single-cone-production/7` |
+| Manifest / `org.scoop-lang.manifest` | `single-cone-production/8` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/9`、`core-bootstrap-interface/15`、`cross-cone-interface/76`、`cross-cone-type-semantics/29` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/7`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/15`、`cross-cone-layout-link-closure/8`、`cone-production/12`、`link-identity-closure/15`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/15`、`cross-cone-layout-link-closure/8`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -455,9 +455,11 @@ operator equals 的成员签名、operator 标记、已绑定调用及必要的�
 
 接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；M41 删除 core Equality/equalTo，改为普通 Equals/operator equals，旧依赖须按既有失效规则重建。不为库接口迁移增加 runtime 比较 ABI。
 
-`single-cone-production/7` 的 field 4 为完整 typed registration projection，field 6 为 RuntimeImage fingerprint，field 11 为物理 ODR member 目录，field 12 为 OptimizationMode，field 13 为 native C++ 需求；field 5 保留不用。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。
+`single-cone-production/8` 只保存两个实际消费字段：field 11 为物理 ODR member 目录，field 14 为 runtime image records。field 1～10、12 和 13 不再写入；distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不再作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。删除 production section 的 C bridge 与全量投影重建比较 API；对象生产阶段原有的 Code 输入与指纹公式不变。
 
-field 14 保存最终链接实际使用的 runtime image records，编码为 `{1=prefix bytes, 2=six record arrays}`。prefix 是运行时规范 2.8 所定义的 RuntimeAbiFingerprint、TargetProfileFingerprint、canonical Cone record 与 direct dependencies 的连续 runtime 编码；六组记录依次为 static storage、immortal object、initialization、type、safepoint、callable，每项为 `[ObjectDefinitionPlanId, canonical runtime record bytes]`。记录在生产时按运行时规范的表顺序编码一次。最终链接按实际选择的 definition 筛选记录，写入所选条数与保存的记录字节，计算最终 image fingerprint；不为此反向解析对象、重建注册证明或重算各记录的 definition／layout／stackmap 指纹。该字段直接参与最终输出，不是缓存复核材料；读取时解析 typed definition 引用，不与对象或另行重建的记录逐项比较。runtime ABI 与 fingerprint 编码保持不变；缺少该字段的旧 production section 按版本规则重建。
+`link-identity-closure/16` 只保存三个字段：field 1 为物理成员目录（Scoop member 保留 typed definition 分配，generated-C member 只保存 member id，不复制已无消费者的 unit 列表），field 4 为 defined symbol owners，field 5 为 undefined symbol uses。不再写入只服务消费者重放的 definition atom ranges、patch sites、对象目录副本及 image／entry owner 投影（原 field 2、3、6、7、8）。实际机器对象的生成、重定位和摘要填充仍使用生产端数据，不为生成此 section 再构造上述索引或对象投影。两个 section 的旧格式按版本规则重建；runtime ABI 不变。
+
+`single-cone-production/8` 的 field 14 保存最终链接实际使用的 runtime image records，编码为 `{1=prefix bytes, 2=six record arrays}`。prefix 是运行时规范 2.8 所定义的 RuntimeAbiFingerprint、TargetProfileFingerprint、canonical Cone record 与 direct dependencies 的连续 runtime 编码；六组记录依次为 static storage、immortal object、initialization、type、safepoint、callable，每项为 `[ObjectDefinitionPlanId, canonical runtime record bytes]`。记录在生产时按运行时规范的表顺序编码一次。最终链接按实际选择的 definition 筛选记录，写入所选条数与保存的记录字节，计算最终 image fingerprint；不为此反向解析对象、重建注册证明或重算各记录的 definition／layout／stackmap 指纹。该字段直接参与最终输出，不是缓存复核材料；读取时解析 typed definition 引用，不与对象或另行重建的记录逐项比较。runtime ABI 与 fingerprint 编码保持不变；缺少该字段的旧 production section 按版本规则重建。
 
 `link-support/1` 为单字段 map `{1=runtime_data_aliases}`，把必要的 runtime 数据符号关联到实际定义；String alias 不创建额外 TD 或存储。
 
@@ -585,7 +587,7 @@ run 直接执行本次成功构建确定的文件；同一请求构建失败时�
 
 `c_flags`／`cxx_flags` 只作用于当前 Cone 的相应 native 源码，按 argv 元素与声明顺序传递。native 默认语言标准分别为 C11 和 C++20，可由对应 flags 中的 `-std` 覆盖。`cxx` 和实际生效的编译参数、C++ 源码及头文件、配套编译器与标准库 ABI 配置进入构建输入和 compile key。library 构建把 C++ 链接及运行库需求写入 `.slib` 的逻辑 native requirements，不执行最终 C++ 链接。
 
-LIR foundation 以必需的 Boolean `native_cxx` 保存当前 Cone 的显式 C++ 运行库需求；该字段与普通 native library 表一起进入 Code 和 production native requirement 投影。foundation wire 升为 8，manifest single-cone-production 升为 6，严格拒绝缺少该字段的旧格式。需求不依赖是否选中 C++ 文件，也不从机器符号推断。C++ 编译器沿已选择 C driver 的配套位置解析，保留相同 target、sysroot 和环境；GNU 的 target 与 compiler version 必须匹配，缺失配套 driver、标准库或 ABI 配置直接诊断。
+LIR foundation 以必需的 Boolean `native_cxx` 保存当前 Cone 的显式 C++ 运行库需求；该字段与普通 native library 表一起进入 Code。foundation wire 为 8；production/8 不再复制这一数据，读取方采用同一份 foundation。需求不依赖是否选中 C++ 文件，也不从机器符号推断。C++ 编译器沿已选择 C driver 的配套位置解析，保留相同 target、sysroot 和环境；GNU 的 target 与 compiler version 必须匹配，缺失配套 driver、标准库或 ABI 配置直接诊断。
 
 native 与 runtime 的真实编译保存源码、depfile 中实际使用的头文件（含 scoop_rt.h）、include 配置、工具输入及影响 include 选择的目录状态。后续先检查这些输入的 metadata；全部未变化时不调用预处理器、不读取全部头文件。增加、删除或改变 include 搜索输入后重新发现并编译必要部分；所选 target、宏、SDK、C/C++ 配置与诊断位置沿正常工具调用传递。不为构建中外部替换输入建立稳定性检测、重试或不可变预处理镜像。
 
@@ -635,7 +637,7 @@ runtime 构建使用 `runtime-v2` 普通记录，按实际源码根、选中源�
 
 native linker 成功后直接发布其输出，不重新读取整份 Mach-O／ELF，重放输入对象、重定位、stackmap、EH、动态绑定或代码签名的正确性检查；不通过链接 map／trace 审计实际读取文件。必要的符号选择、对象格式、ABI／GC 数据及工具参数在产生输入与实际链接时完成，工具退出失败正常传播。生成程序的正常运行和专门 ABI／GC 回归承担输出行为验收，不保留修改刚生成的可执行文件后要求发布复核拒绝的测试。
 
-逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。driver 将选中 manifest 要求合并到既有 LIR foundation native library 表；相同 key 去重，产物不要求每个库都有 Scoop extern 使用者。Code 与 production manifest 继续覆盖完整逻辑要求，Link reader 复用该表，不从机器符号反推库名。先在全部显式 library roots 中按既有规则收集候选；该层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。显式候选损坏、target/ABI 不匹配或歧义直接报错，不能用系统库掩盖。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、用户脚本或任意 linker 参数。
+逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。driver 将选中 manifest 要求合并到既有 LIR foundation native library 表；相同 key 去重，产物不要求每个库都有 Scoop extern 使用者。Code 覆盖完整逻辑要求，Link reader 复用同一份 LIR foundation 表，不从机器符号反推库名。先在全部显式 library roots 中按既有规则收集候选；该层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。显式候选损坏、target/ABI 不匹配或歧义直接报错，不能用系统库掩盖。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、用户脚本或任意 linker 参数。
 
 Cone native 源码对象使用 `org.scoop-lang.link-object/native/1` LinkObject 类别，logical key 为归一化 Cone 相对源码路径的 UTF-8 字节，member identity 仍包含所属 Cone。实际 Link fingerprint 按 member ID 排序加入既有 Code 对象投影；这些对象没有 Scoop Strong/ODR 或 generated-C recipe。program-link 从依赖闭包的对应成员读取普通 native 对象，每个成员作为独立输入参与符号解析；不同 Cone 的相同对象内容不能据此合并。对象格式、target、实际定义与引用沿普通 native 对象规则检查。
 
@@ -943,6 +945,6 @@ ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的
 
 最终 image descriptors 和六张表由 program-link 从所选 records 生成，不改写输入 `.slib`。选择与实际内容进入 RuntimeImage、Code、Artifact 和 ResolvedLinkPlan 的对应摘要。
 
-OptimizationMode 在 machine request field 9、production manifest field 12 中编码 Debug=1、Release=2；compile cache domain 为 `scoop-cone-compile-cache-v2`，mode 位于 field 13。generated-C flag 的 SelectedOptimization tag 为 15，tag 6 保留不用。
+OptimizationMode 在 machine request field 9 中编码 Debug=1、Release=2；生产端 Code 输入继续保存模式，production section 不再复制该值；compile cache domain 为 `scoop-cone-compile-cache-v2`，mode 位于 field 13。generated-C flag 的 SelectedOptimization tag 为 15，tag 6 保留不用。
 
 digest kinds 4、8、9，digest owner tags 4、11、9，以及 RegistrationDefinition patch role 1 保留不用。registration 公共 identity 只含 linkage、semantic ID、ODR group/member；body、layout、descriptor、scan 与 normalized-stackmap fingerprints 仍用于所选实现自身的内容、引用及 GC 合同，不作为不同优化正文必须相等的条件。

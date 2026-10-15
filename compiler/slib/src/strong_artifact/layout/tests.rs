@@ -38,7 +38,7 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
         encode(link.lir_strong_production_wire()).unwrap(),
         encode(code.production().strong_production()).unwrap()
     );
-    let expected_identity = LinkIdentityClosureSectionV1::from_verified_layout_code(&code).unwrap();
+    let expected_identity = LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
     assert_eq!(
         encode(link.link_identity_closure_wire()).unwrap(),
         encode(&expected_identity).unwrap()
@@ -48,8 +48,11 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
     )
     .unwrap();
     assert_eq!(
-        decoded_manifest.validate_layout(&code).unwrap(),
-        CrossConeLayoutProductionManifestV1::from_verified_code(code)
+        encode(&decoded_manifest).unwrap(),
+        encode(&CrossConeLayoutProductionManifestV1::from_verified_code(
+            code
+        ))
+        .unwrap()
     );
 }
 

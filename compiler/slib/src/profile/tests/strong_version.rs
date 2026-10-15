@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn production_manifest_v7_requires_runtime_records_in_every_profile() {
+fn production_manifest_v8_uses_consumed_fields_in_every_profile() {
     let current = manifest_single_cone_production_capability();
-    assert_eq!(current.major_version(), 7);
-    let old = CapabilityId::new(current.namespace(), current.name(), 6).unwrap();
+    assert_eq!(current.major_version(), 8);
+    let old = CapabilityId::new(current.namespace(), current.name(), 7).unwrap();
     assert!(CapabilityContractRegistry::contract(&old).is_none());
     for profile in [
         ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
@@ -54,7 +54,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15][..],
         ),
         (
             lir_strong_production_capability(),

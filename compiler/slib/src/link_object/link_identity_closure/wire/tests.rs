@@ -8,20 +8,20 @@ use crate::link_object::symbol_verification::tests::fixture_named;
 use crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong;
 use crate::link_object::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1,
-    empty_code_link_object_member_set_for_test, verify_current_cone_strong_relocation_closure_v1,
+    verify_current_cone_strong_relocation_closure_v1,
 };
 
 #[test]
 fn closure_wire_round_trips_saved_fields() {
     let bytes = encode(&closure()).unwrap();
-    assert_eq!(bytes[0], 0xa8);
+    assert_eq!(bytes[0], 0xa3);
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 #[test]
 fn closure_reader_rejects_old_extended_and_unknown_sum_shapes() {
-    for bytes in [vec![0xa7], vec![0xa9]] {
+    for bytes in [vec![0xa2], vec![0xa4], vec![0xa8]] {
         assert!(decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).is_err());
     }
 
@@ -30,8 +30,6 @@ fn closure_reader_rejects_old_extended_and_unknown_sum_shapes() {
     assert_eq!(&materialization[..3], &[0xa3, 0x00, 0x01]);
     materialization[2] = 3;
     assert!(decode_canonical::<DecodedLinkObjectMaterializationV1>(&materialization).is_err());
-
-    assert!(decode_canonical::<DecodedEntryOwnerBranchV1>(&[0xa1, 0x00, 0x03]).is_err());
 }
 
 fn closure() -> LinkIdentityClosureSectionV1 {
@@ -42,11 +40,8 @@ fn closure() -> LinkIdentityClosureSectionV1 {
     .unwrap();
     let member = &strong.members()[0];
     let definition = &member.definitions().definitions()[0];
-    let atom = definition.atoms()[0];
     let member_id = member.member();
     let definition_id = definition.definition();
-    let primary_atom = definition.primary_atom();
-    let primary_symbol_table_index = definition.primary_symbol_table_index();
     let defined_symbols =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
     let undefined_symbols = empty_final_requirements_for_strong(strong);
@@ -56,33 +51,8 @@ fn closure() -> LinkIdentityClosureSectionV1 {
             member: member_id,
             units: CanonicalScoopLirObjectUnitSetV1::new(vec![definition_id]).unwrap(),
         }],
-        definition_indexes: vec![super::super::VerifiedObjectDefinitionIndexV1 {
-            member: member_id,
-            definition: definition_id,
-            primary_atom,
-            primary_symbol_table_index,
-            atoms: vec![super::super::VerifiedDefinitionAtomRangeProjectionV1 {
-                atom: atom.atom(),
-                atom_role: atom.atom_role(),
-                section_ordinal: atom.section_ordinal().get(),
-                start: atom.start(),
-                end: atom.end(),
-                padding_end: atom.padding_end(),
-            }],
-        }],
-        patch_sites: Vec::new(),
         defined_symbols,
         undefined_symbols,
-        verified_link_objects: empty_code_link_object_member_set_for_test(),
-        image_owner: super::super::VerifiedImageOwnerProjectionV1 {
-            member: member_id,
-            definition: definition_id,
-            primary_atom,
-            primary_symbol_table_index,
-            checked_offset: atom.start(),
-            byte_size: atom.end() - atom.start(),
-        },
-        entry_owner: super::super::VerifiedEntryOwnerBranchV1::Library,
     }
 }
 
