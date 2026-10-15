@@ -7,6 +7,7 @@ mod delegation;
 pub(crate) use delegation::InterfaceForwarder;
 mod encoding;
 mod imported;
+mod inspection;
 mod interfaces;
 mod order;
 mod overrides;

@@ -1,0 +1,3 @@
+class Secret(private val value: Int)
+object Inspector : Inspectable<Secret>
+fun main() {}

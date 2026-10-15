@@ -1,0 +1,3 @@
+object Record { val value: Int = 1 }
+object Inspector : Inspectable<Record>
+fun main() {}

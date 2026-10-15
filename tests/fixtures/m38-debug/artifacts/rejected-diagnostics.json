@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalSecret` has no property `token`",
+    "notes": [],
+    "origin": {
+      "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
+      "end": 463,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 458
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "automatic inspect cannot read member `token` from this inspector",
+    "notes": [],
+    "origin": {
+      "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
+      "end": 64,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 19
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "automatic inspect cannot read member `value` from this inspector",
+    "notes": [],
+    "origin": {
+      "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
+      "end": 118,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 65
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "automatic inspect cannot read member `value` from this inspector",
+    "notes": [],
+    "origin": {
+      "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
+      "end": 174,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 119
+    },
+    "severity": "error"
+  }
+]

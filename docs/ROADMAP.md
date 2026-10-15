@@ -542,7 +542,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ### M38 TypeInfo、结构化调试输出与 CLI 参数解析（实施中，[设计](milestone38/DESIGN.md)、[进度](milestone38/PROGRESS.md)）
 
 - M46 与 M48 完成后启动；先交付 debug／CLI 共用的普通 TextWriter 和 StringWriter，独立、跨 Cone、异常与 moving-GC 本机用例通过。
-- typeInfo 与 annotationKey 源码查询及 typed 声明／注解描述已完成本机针对性验收，包含真实跨 Cone 消费与 moving-GC；继续完成 Inspectable 与普通访问控制、DebugPrinter，以及复用稳定 Decoder 的独立 scoop.cli。
+- typeInfo 与 annotationKey 源码查询、typed 声明／注解描述、Inspectable 普通访问及合成、DebugPrinter 已完成本机针对性验收，包含真实跨 Cone 消费、组合 codec 与 moving-GC；继续完成复用稳定 Decoder 的独立 scoop.cli。
 - 逐功能提交，先集中完成本机修改与必要验证，再统一 Linux 验收；原始日志不入库，仅记录结果概要。
 
 ### M39 目标平台边界重构（已完成并验收，[设计](milestone39/DESIGN.md)，[验收记录](milestone39/ACCEPTANCE.md)）

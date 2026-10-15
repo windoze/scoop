@@ -1,0 +1,30 @@
+public enum DebugLayout { Compact, Pretty }
+
+public struct DebugOptions(
+    val layout: DebugLayout = DebugLayout.Compact,
+    val indent: String = "  ",
+    val maxDepth: Long = 8L,
+    val maxItems: Long = 32L,
+    val maxStringLength: Long = 256L
+)
+
+@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+public annotation class DebugIgnore
+
+@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+public annotation class DebugRedact(val replacement: String = "<redacted>")
+
+public object DebugPrinter {
+    public fun write(view: ValueView, writer: TextWriter, options: DebugOptions = DebugOptions()) {
+        if (options.maxDepth < 0L || options.maxItems < 0L || options.maxStringLength < 0L) {
+            throw IllegalArgumentException()
+        }
+        DebugSession(writer, options).write(view, 0L, true)
+    }
+
+    public fun format(view: ValueView, options: DebugOptions = DebugOptions()): String {
+        val writer = StringWriter()
+        write(view, writer, options)
+        return writer.build()
+    }
+}

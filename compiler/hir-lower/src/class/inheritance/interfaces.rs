@@ -253,6 +253,14 @@ impl Lowerer {
                                         &candidates,
                                     )
                                 })
+                                .or_else(|| {
+                                    self.derive_missing_inspection(
+                                        owner,
+                                        &member,
+                                        &all_interfaces,
+                                        &candidates,
+                                    )
+                                })
                             {
                                 candidates
                                     .push(crate::CallableCandidate::method(function, own_owner));

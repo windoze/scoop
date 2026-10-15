@@ -141,7 +141,10 @@ public struct Int :
 
     public override fun hash(): Long = coreLongHash(this.toInt64())
 
-    public companion object : Encodable<Int>, Decodable<Int> {
+    public companion object : Encodable<Int>, Decodable<Int>, Inspectable<Int> {
+        public override fun inspect(value: Int): ValueView =
+            ValueObservation(typeInfo<Int>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value.toInt64())) })
+
         public const val MIN_VALUE: Int = -2147483648
         public const val MAX_VALUE: Int = 2147483647
 

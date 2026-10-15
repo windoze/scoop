@@ -1,0 +1,24 @@
+internal class OptionInspector<T>(private val element: Inspectable<T>) : Inspectable<Option<T>> {
+    public override fun inspect(value: Option<T>): ValueView {
+        val type = typeInfo<Option<T>>().type
+        return ValueObservation(type, None, {
+            val info = when (type.describe().shape) {
+                case TypeShape.Enum(info) -> info
+                else -> { throw IllegalStateException() }
+            }
+            when (value) {
+                case Option.None -> ValueShape.Variant(VariantView(info.variants[1L], []))
+                case Option.Some(item) -> {
+                    val variant = info.variants[0L]
+                    val field = when (variant.payload) {
+                        case VariantPayload.Positional(fields) -> fields[0L]
+                        else -> { throw IllegalStateException() }
+                    }
+                    ValueShape.Variant(VariantView(variant, [
+                        MemberView(ObservedMember.Field(field), { element.inspect(item) })
+                    ]))
+                }
+            }
+        })
+    }
+}

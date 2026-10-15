@@ -3,6 +3,19 @@ use scoop_identity::{CallableTemplateOrigin, PropertyOwner};
 use super::*;
 
 impl ImportedDependencySelectionPlan {
+    pub fn property_definition_origin(
+        &self,
+        declaration: crate::PropertyDeclarationId,
+    ) -> Option<&scoop_identity::DefinitionOrigin> {
+        Some(
+            self.catalog
+                .properties
+                .get(&declaration)?
+                .definition_origin
+                .origin(),
+        )
+    }
+
     pub fn property_native_contract(
         &self,
         property: scoop_identity::PersistentPropertyId,

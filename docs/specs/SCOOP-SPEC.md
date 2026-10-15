@@ -2476,6 +2476,26 @@ StringWriter 按 write 顺序累积文本，保留空字符串、Unicode scalar 
 
 本接口不指定 write 的分块方式，不承诺跨多次调用的原子性，也不附带 flush、close、stdout、stderr 或线程同步。文件、终端和日志 writer 由对应库或应用提供；需要换行时显式写入 `"\n"`。
 
+### 11.17 只读值观察与调试输出
+
+core 的普通 invariant 接口 `Inspectable<T>` 具有 `inspect(value: T): ValueView`。调用者显式选择实现，`InspectFunction<T>((T) -> ValueView)` 适配普通函数；没有动态 inspector 注册表或调用点访问域参数。ValueView 提供 `type: TypeRef`、`referenceIdentity: Option<Any>` 和 `shape(): ValueShape`。`ValueObservation(type, referenceIdentity, describeBody: () -> ValueShape)` 为普通构造入口，shape 只调用所持函数，不预先展开子节点。
+
+ValueShape 分为 Scalar(ScalarValue)、Record(RecordView)、Variant(VariantView)、IntegerEnum(IntegerEnumView)、Tuple(TupleView)、Sequence(SequenceView) 与 Opaque(OpaqueValue)。ScalarValue 分为 Boolean、Signed(Long)、Unsigned(ULong)、Float、Double、Char、String 与 Unit；原数值类型由 TypeRef 保留，不跨浮点精度转换。ObservedMember 分为 Field(FieldInfo) 与 Property(PropertyInfo)；MemberView(info, readBody: () -> ValueView) 的 read 只在调用时读取。RecordView 保存有序 members 与可选 base；VariantView 保存实际 VariantInfo 与活动 payload 的 members；IntegerEnumView 保存实际 IntegerEnumVariantInfo。TupleView 和 SequenceView 保存 Long size 及按 Long index 读取的函数，element 每次只读取一个元素。OpaqueValue 保存 description，不读取对象内部。
+
+Boolean、八种整数、Float／Double、Char、String 的 companion 实现 Inspectable，Unit 使用 UnitInspector。Option／Array／MutableArray／ArrayList 的 companion.inspector(element) 提供普通组合；ListInspector／MutableListInspector 仅通过公开 size/get 观察。Option 保留 None／Some 及其嵌套；集合只展示逻辑元素。OpaqueInspector<T>(description) 是显式的不展开策略，不成为能力缺失时的默认回退。值类型按值捕获，引用对象保存原引用；referenceIdentity 只使用原引用对象，不能使用 wrapper 或值装箱的 identity。
+
+只有显式实现实际 core Inspectable<T> 且普通用户实现、继承方法或 interface default 均未满足 inspect requirement 时，才合成缺省正文。目标可为 struct、普通／整型 enum、tuple，或没有显式 class 基类的普通 final class。class 只选择本 owner 的普通存储 property；computed／abstract property 不求值，delegated 或带自定义 accessor 的存储要求手写实现。其他目标必须手写 inspector。字段顺序与名称保留源码结构，不应用 Serialize 的 wire 名称、ignore、required 或 Option 编码投影。
+
+每次读取都按合成方法实际定义处的 9.1.5 普通访问规则检查；非法读取在请求合成处报错，不跳过字段，也不把 helper 移入目标类型。字段 inspector 依次选择当前实现 primary constructor 的完整匹配 val 依赖、同型 this、字段类型可见且符合接口的 companion、core 容器组合或 Unit／tuple helper；依赖歧义与能力缺失为编译错误。选择在泛型定义处绑定，具体化不重新选择。读取与依赖求值置于惰性子函数中，构造外层视图不遍历对象图。普通读取闭包在定义处合法后可按其函数类型调用，不在 read 调用点重新检查成员权限。
+
+`DebugPrinter.write(view, writer, options = DebugOptions())` 与 `format(view, options = DebugOptions()): String` 只使用上述视图和 TextWriter。DebugOptions 的 layout 为 DebugLayout.Compact／Pretty，默认 Compact；indent 默认两个空格，maxDepth／maxItems／maxStringLength 默认 8L／32L／256L。三个限值非负，否则在写入前抛 IllegalArgumentException。根深度为 0；达到深度上限输出 `<Type …>` 并不调用 shape，超过 items 的部分输出 `…`；字符串按 Unicode scalar 截断并在引号内添加 `…`。限值仅控制调试输出，不参与类型合法性或 runtime 资源预算。
+
+Compact 格式使用 `Type(field=value)`、`Type.Variant`／`Type.Variant(payload)`、`Type.Variant(integer)`、`(tuple elements)`、`[sequence elements]`、`Unit` 与 `<opaque description>`；单元素 tuple 保留尾逗号。名称取 TypeRef 及实际成员／variant；String／Char 分别使用双／单引号，转义引号、反斜杠、换行、制表符和控制字符。数值沿用 core ToString，保留浮点负零。Pretty 在同一成员序列上换行并缩进，不改变选择或读取次数，不自动换行结束、flush 或 close。
+
+普通注解 DebugIgnore 与 DebugRedact(val replacement: String = "<redacted>") 仅允许 FIELD／PROPERTY target。printer 先按实际 annotationKey 检查：Ignore 优先并不占展示项；否则 Redact 保留名称、输出带转义的 replacement 并占一项；两者均不调用 read。logical property 不自动取得 backing field、accessor 或 constructor parameter 的注解。注解及截断不能豁免生成读取正文时的类型／权限检查。
+
+printer 对实际展示的每个成员或元素调用一次读取函数，忽略或截断的节点不读取；不承诺并发快照。它在当前递归路径保存原对象引用并以 `===` 检查循环，遇到祖先输出 `<cycle Type>`；非祖先的共享对象仍可展开。显式 base 是同一对象的投影，在已进入节点内展示而不重复进行对象进入检查；base 字段回指原对象仍检测循环。读取和 writer 异常按普通调用传播，已写文本保留；每次打印使用独立路径状态。
+
 ---
 
 ## 12. Cone模块、package与库

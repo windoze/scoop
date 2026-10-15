@@ -114,7 +114,7 @@ public interface ValueView {
 | `ValueShape.Scalar(ScalarValue)` | Boolean、signed/unsigned 整数、Float、Double、Char、String、Unit |
 | `ValueShape.Record(RecordView)` | 有序 MemberView 和可选的显式 base 视图 |
 | `ValueShape.Variant(VariantView)` | 当前 VariantInfo 及 unit/named/positional payload |
-| `ValueShape.IntegerEnum(IntegerEnumView)` | 当前 VariantInfo 与底层整数值 |
+| `ValueShape.IntegerEnum(IntegerEnumView)` | 当前 IntegerEnumVariantInfo（含底层整数值） |
 | `ValueShape.Tuple(TupleView)` | 有序元素，按 index 惰性读取 |
 | `ValueShape.Sequence(SequenceView)` | 逻辑 size 和 `element(index): ValueView` |
 | `ValueShape.Opaque(OpaqueValue)` | 显式选择的不可展开表示，包含类型和简短的种类说明 |
@@ -199,7 +199,7 @@ val text = writer.build()
 | 整型 enum | `Color.Red(1)`，其中 1 是底层合法值 |
 | tuple / Unit | `("Ada", 37)`、`Unit`；单元素 tuple 保留尾逗号 |
 | Array/List | `[1, 2, 3]` |
-| Option | `Option.None`、`Option.Some("out.txt")`，保留实际 variant |
+| Option | `Option<String>.None`、`Option<String>.Some("out.txt")`，保留完整展示名与实际 variant |
 | opaque | `<opaque Ptr<Int>>` 等明确的类型说明 |
 | 环 | `<cycle Node>` |
 

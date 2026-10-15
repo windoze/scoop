@@ -1,0 +1,146 @@
+internal class DebugSession(private val writer: TextWriter, private val options: DebugOptions) {
+    private val path: ArrayList<Any> = ArrayList<Any>()
+    private val ignore: AnnotationKey = annotationKey<DebugIgnore>()
+    private val redact: AnnotationKey = annotationKey<DebugRedact>()
+
+    internal fun write(view: ValueView, depth: Long, enter: Boolean) {
+        val identity = view.referenceIdentity
+        val hasIdentity = when (identity) { case Some(_) -> true; case None -> false }
+        if (enter && hasIdentity) {
+            for (ancestor in path) {
+                if (ancestor === identity!!) {
+                    writer.write("<cycle " + view.type.displayName + ">")
+                    return
+                }
+            }
+        }
+        if (depth >= options.maxDepth) {
+            writer.write("<" + view.type.displayName + " …>")
+            return
+        }
+        if (enter && hasIdentity) { path.add(identity!!) }
+        when (view.shape()) {
+            case ValueShape.Scalar(ScalarValue.Boolean(value)) -> { writer.write(value.toString()) }
+            case ValueShape.Scalar(ScalarValue.Signed(value)) -> { writer.write(value.toString()) }
+            case ValueShape.Scalar(ScalarValue.Unsigned(value)) -> { writer.write(value.toString()) }
+            case ValueShape.Scalar(ScalarValue.Float(value)) -> { writer.write(value.toString()) }
+            case ValueShape.Scalar(ScalarValue.Double(value)) -> { writer.write(value.toString()) }
+            case ValueShape.Scalar(ScalarValue.Char(value)) -> { writer.write(debugQuoted(value.toString(), '\'', 1L)) }
+            case ValueShape.Scalar(ScalarValue.String(value)) -> { writer.write(debugQuoted(value, '"', options.maxStringLength)) }
+            case ValueShape.Scalar(ScalarValue.Unit) -> { writer.write("Unit") }
+            case ValueShape.Record(record) -> {
+                writer.write(view.type.displayName + "(")
+                writeMembers(record.members, record.base, depth)
+            }
+            case ValueShape.Variant(variant) -> {
+                writer.write(view.type.displayName + "." + variant.info.name)
+                when (variant.info.payload) {
+                    case VariantPayload.Unit -> {}
+                    else -> {
+                        writer.write("(")
+                        writeMembers(variant.members, None, depth)
+                    }
+                }
+            }
+            case ValueShape.IntegerEnum(value) -> {
+                writer.write(view.type.displayName + "." + value.info.name + "(")
+                writer.write(debugInteger(value.info.value))
+                writer.write(")")
+            }
+            case ValueShape.Tuple(tuple) -> {
+                writer.write("(")
+                writeElements(tuple.size, { index -> tuple.element(index) }, ")", tuple.size == 1L, depth)
+            }
+            case ValueShape.Sequence(sequence) -> {
+                writer.write("[")
+                writeElements(sequence.size, { index -> sequence.element(index) }, "]", false, depth)
+            }
+            case ValueShape.Opaque(value) -> { writer.write("<opaque " + value.description + ">") }
+        }
+        if (enter && hasIdentity) { path.removeAt(path.size - 1L) }
+    }
+
+    private fun separator(index: Long, depth: Long) {
+        if (index != 0L) { writer.write(",") }
+        if (options.layout == DebugLayout.Pretty) {
+            newline(depth + 1L)
+        } else {
+            if (index != 0L) { writer.write(" ") }
+        }
+    }
+
+    private fun newline(depth: Long) {
+        writer.write("\n")
+        for (index in 0L until depth) { writer.write(options.indent) }
+    }
+
+    private fun close(text: String, count: Long, depth: Long) {
+        if (count != 0L && options.layout == DebugLayout.Pretty) { newline(depth) }
+        writer.write(text)
+    }
+
+    private fun writeElements(size: Long, element: (Long) -> ValueView, end: String, singleton: Boolean, depth: Long) {
+        var count = 0L
+        while (count < size && count < options.maxItems) {
+            separator(count, depth)
+            write(element(count), depth + 1L, true)
+            count = count + 1L
+        }
+        if (count < size) {
+            separator(count, depth)
+            writer.write("…")
+            count = count + 1L
+        } else {
+            if (singleton) { writer.write(",") }
+        }
+        close(end, count, depth)
+    }
+
+    private fun writeMembers(members: Array<MemberView>, base: Option<ValueView>, depth: Long) {
+        var count = 0L
+        if (when (base) { case Some(_) -> true; case None -> false }) {
+            separator(count, depth)
+            if (options.maxItems == 0L) {
+                writer.write("…")
+                close(")", 1L, depth)
+                return
+            }
+            writer.write("base=")
+            write(base!!, depth + 1L, false)
+            count = 1L
+        }
+        for (member in members) {
+            val annotations = when (member.info) {
+                case ObservedMember.Field(info) -> info.annotations
+                case ObservedMember.Property(info) -> info.annotations
+            }
+            if (findAnnotations(annotations, ignore).size != 0L) { continue }
+            separator(count, depth)
+            if (count == options.maxItems) {
+                writer.write("…")
+                count = count + 1L
+                break
+            }
+            val name = when (member.info) {
+                case ObservedMember.Field(info) -> info.name
+                case ObservedMember.Property(info) -> MemberName.Named(info.name)
+            }
+            when (name) {
+                case MemberName.Named(text) -> { writer.write(text + "=") }
+                case MemberName.Positional(_) -> {}
+            }
+            val redactions = findAnnotations(annotations, redact)
+            if (redactions.size == 0L) {
+                write(member.read(), depth + 1L, true)
+            } else {
+                val replacement = when (redactions[0L].arguments[0L].value) {
+                    case AnnotationValue.String(text) -> text
+                    else -> { throw IllegalStateException() }
+                }
+                writer.write(debugQuoted(replacement, '"', options.maxStringLength))
+            }
+            count = count + 1L
+        }
+        close(")", count, depth)
+    }
+}

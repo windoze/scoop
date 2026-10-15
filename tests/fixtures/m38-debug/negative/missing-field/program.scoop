@@ -1,0 +1,3 @@
+class Leaf
+struct Record(val value: Leaf) { companion object : Inspectable<Record> }
+fun main() {}

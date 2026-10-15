@@ -561,6 +561,7 @@ impl Lowerer {
         }
         self.lower_derived_encoding_bodies();
         self.lower_derived_decoding_bodies();
+        self.lower_derived_inspection_bodies(type_reference);
         self.lower_interface_forwarder_bodies();
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);

@@ -44,6 +44,16 @@ fmt、workspace Clippy 与 release 构建通过。受影响 Rust 测试覆盖 ge
 
 受共享辅助函数归属影响的 TypeInfo 独立及跨库两个 fixture 也通过，2 variants、8 processes。原始日志与报告仍保存在仓库外，仅在本文保留结果概要；Linux 留待本机完整功能稳定后统一验证。
 
+## Inspectable 与 DebugPrinter
+
+语言规范 11.17 定义普通值视图、显式 inspector、惰性读取和 debug 输出；实现规范 2.17 与运行时规范 2.2 同步普通闭包、引用身份及 GC 合同。core 提供 ValueObservation、各类形状和成员视图、标量／Option／序列 inspector、显式 opaque 策略及 DebugPrinter。Compact／Pretty、Unicode scalar 截断、Ignore／Redact、深度／项数控制和当前祖先路径的循环检测均由普通 Scoop 实现；基类投影复用已进入对象，不误报循环。
+
+HIR 在正常 requirement 选择后补全缺失 inspect，复用 codec 的实际 core 声明、显式依赖、成员访问和普通调用。支持 struct、三种 enum payload、整型 enum、tuple 与无 class 基类的 final class。合成器不读取 computed property；不合法的存储 accessor／delegate、private／protected／跨 Cone internal 读取、字段能力缺失及歧义在定义处报错。已绑定读取闭包及泛型依赖沿现有共享正文发布，不增加 wire 格式或 runtime 入口。core 自身的类型描述 intrinsic 同时登记普通来源上下文，支持库内标量 inspector 查询类型。
+
+本机 20 个新 fixture 覆盖独立观察、自动派生、3 Cone 再发布及精确负例；三个正例包含普通与 moving-GC 运行。枚举构造器式 payload 与命名式 payload 统一使用 Named 元数据，位置式仍使用 Positional。组合包含私有字段 companion、定义处泛型依赖、JSON codec 与 debug 同时派生、延迟读取计数、深度／项数／redact 跳过读取、显式基类投影、自环／互环／共享对象、GC 中的读取和 writer、异常传播与已有输出保留。跨库负例同时证明 inline、调用者移入目标类型和 false 分支不能改变非法读取的定义处访问规则。
+
+fmt、workspace Clippy、release 构建及 47 项 codec／注解／类型描述 Rust 回归通过。20 个新 fixture 最终全部通过；新增跨库负例记录精确诊断后，只补验其所在组合。4 个既有 TypeInfo／annotationKey 独立与跨库 fixture 也通过，连同补验组合共 5 项、25 processes。没有为期望文件更新重跑无关套件。原始日志与报告保存在仓库外；清理已结束的 fixture case 目录约 451 MiB，保留共享缓存和 Rust 增量结果。Linux 留待本机整体功能稳定后统一验收。
+
 ## 剩余交付
 
-Inspectable 合成与普通访问检查、DebugPrinter、独立 scoop.cli、稳定 CliDecoder、更完整的跨 Cone 组合及最终三目标验收均未完成。下一步完成值观察、debug 与 CLI；不缩减原设计范围。
+独立 scoop.cli、稳定 CliDecoder、CLI／debug／codec 的完整组合及最终三目标验收仍未完成。下一步完成 CLI；不缩减原设计范围。

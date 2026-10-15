@@ -342,6 +342,7 @@ impl Lowerer {
             interface_delegates: HashMap::new(),
             interface_forwarders: HashMap::new(),
             derived_decoding_methods: Vec::new(),
+            derived_inspection_methods: Vec::new(),
             invalid_override_methods: HashSet::new(),
             top_level: Shared::default(),
             unit,

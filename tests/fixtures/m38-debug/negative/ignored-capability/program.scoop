@@ -1,0 +1,2 @@
+struct Record(@DebugIgnore val value: () -> Int) { companion object : Inspectable<Record> }
+fun main() {}

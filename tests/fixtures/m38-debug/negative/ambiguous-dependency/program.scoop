@@ -1,0 +1,3 @@
+struct Box(val value: Int)
+class Inspector(private val first: Inspectable<Int>, private val second: Inspectable<Int>) : Inspectable<Box>
+fun main() {}

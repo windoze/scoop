@@ -16,6 +16,7 @@ impl Lowerer {
         let (parameters, result) = match context.direction {
             CodingDirection::Encode => (vec![target, stream], self.unit),
             CodingDirection::Decode => (vec![stream], target),
+            CodingDirection::Inspect(_) => (vec![target], stream),
         };
         let function = self.lower_synthesized_lambda(
             false,
@@ -40,6 +41,13 @@ impl Lowerer {
                         context,
                         target,
                         elements,
+                        parameters[0].clone(),
+                        span,
+                        &mut statements,
+                    )?,
+                    CodingDirection::Inspect(_) => state.inspect_target(
+                        context,
+                        target,
                         parameters[0].clone(),
                         span,
                         &mut statements,

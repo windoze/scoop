@@ -1,0 +1,45 @@
+internal fun debugInteger(value: IntegerValue): String = when (value) {
+    case IntegerValue.Int8(number) -> number.toString()
+    case IntegerValue.Int16(number) -> number.toString()
+    case IntegerValue.Int(number) -> number.toString()
+    case IntegerValue.Long(number) -> number.toString()
+    case IntegerValue.UInt8(number) -> number.toString()
+    case IntegerValue.UInt16(number) -> number.toString()
+    case IntegerValue.UInt(number) -> number.toString()
+    case IntegerValue.ULong(number) -> number.toString()
+}
+
+internal fun debugQuoted(text: String, quote: Char, maxLength: Long): String {
+    val result = StringBuilder()
+    val hex = "0123456789abcdef"
+    result.add(quote)
+    var count = 0L
+    for (character in text) {
+        if (count == maxLength) {
+            result.add("…")
+            break
+        }
+        count = count + 1L
+        if (character == quote) {
+            result.add('\\')
+            result.add(character)
+        } else {
+            when (character) {
+                case '\\' -> { result.add("\\\\") }
+                case '\n' -> { result.add("\\n") }
+                case '\r' -> { result.add("\\r") }
+                case '\t' -> { result.add("\\t") }
+                else -> {
+                    val code = character.code
+                    if (code < 32 || (code >= 127 && code <= 159)) {
+                        result.add("\\u00")
+                        result.add(hex[(code / 16).toInt64()])
+                        result.add(hex[(code % 16).toInt64()])
+                    } else { result.add(character) }
+                }
+            }
+        }
+    }
+    result.add(quote)
+    return result.build()
+}

@@ -77,6 +77,7 @@ impl Lowerer {
             {
                 self.error(declaration.span, format!("intrinsic `{}` must have one type parameter, no value parameters, and its core description result type", kind.name()));
             }
+            self.set_source_context(hir::SourceContextSubject::Function(function));
         }
         Some(factory)
     }

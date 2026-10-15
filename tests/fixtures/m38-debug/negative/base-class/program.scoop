@@ -1,0 +1,4 @@
+open class Base
+class Record : Base()
+object Inspector : Inspectable<Record>
+fun main() {}
