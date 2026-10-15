@@ -1,0 +1,56 @@
+package relocated
+
+import Equals
+import Add
+import Compare
+import Get
+import ToString
+import Hash
+import Int
+import Long
+import Boolean
+import Char
+import Byte
+import Iterable
+import Iterator
+import StringIterator
+import MutableArray
+import List
+import IndexOutOfBoundsException
+import Option.None
+import Option.Some
+import toArray
+import coreStringEquals
+import coreStringHash
+import coreStringByteLength
+import coreStringLength
+import coreStringGet
+import coreStringSliceBounds
+import coreStringSliceBytes
+import coreStringByteAt
+import coreStringFromChars
+import coreStringFromBytes
+import Encodable
+import Encoder
+import Unit
+import Decodable
+import Decoder
+
+import Array
+import UInt8
+import Int8
+import Ptr
+import IllegalArgumentException
+import requireValidUtf8
+import decodeUtf8
+import decodeUtf8Lossy
+import coreStringDecodeUtf8
+import coreCStringLength
+
+import Inspectable
+import ValueView
+import ValueObservation
+import ValueShape
+import ScalarValue
+import typeInfo
+

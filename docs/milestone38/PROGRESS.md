@@ -78,4 +78,6 @@ core 组合的 16 项在 debug 补验通过，剩余基础产物、初始化单�
 
 CLI 完整首轮另发现 6 项 core 根类型负例的旧诊断期望：新增 inspector 改变 ArrayList 的源码范围，并在故意缺失或破坏 Any 时产生额外的连带错误。首条被测根类型诊断不变；同步全部诊断后只补验这 6 项，6 variants、6 processes 全部通过。没有修改编译器、runtime 或 sysroot，也没有放宽诊断匹配。
 
+`program-link-rebuilt-core` 同样依赖旧 String 正文的完整文本替换；现直接复用当前 sysroot 源码，只调整实际被测的类型位置及新增方法，删除两份重复正文。原有类型身份、重建 core、显式产物链接及普通／moving-GC 断言保持；格式与 lint 通过后只补验此项，1 variant、9 processes 全部通过。
+
 正式 CLI 完整验收仍在进行；完成本机闭合后再到 Linux 做 GNU／musl 统一验收。三目标完成前不宣称 M38 完成。原始日志和逐用例报告均保存在仓库外，本文只记录范围、结果概要及失败闭合情况。
