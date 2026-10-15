@@ -22,7 +22,7 @@ pub(super) fn check(
     let strong = current.lir_production_data();
     assert!(!strong.canonical_definitions().plans().is_empty());
     let dependencies = checked
-        .replay_mir_dependency_graph()
+        .resolve_mir_dependencies()
         .unwrap_or_else(|error| panic!("{name} shared MIR dependency graph: {error}"));
     assert_eq!(dependencies.current(), ConeIdentity::CORE);
     assert_eq!(dependencies.dependency_first().count(), 1);

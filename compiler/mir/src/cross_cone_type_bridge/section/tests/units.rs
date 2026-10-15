@@ -121,3 +121,34 @@ fn initialization_use_cannot_supply_a_missing_local_unit_inventory() {
         ))
     ));
 }
+
+#[test]
+fn saved_initialization_pairs_preserve_signatures_and_require_both_roles() {
+    let core = core::fixture();
+    let mut provider = Fixture::new("saved-unit-pairs");
+    add_units(&mut provider, &core, &["first", "second"]);
+    let graph = graph(&[&core, &provider]);
+    let strong = provider.production.strong_callable_bridges();
+    assert_eq!(
+        read_initialization_units(strong, &graph).unwrap(),
+        provider.units
+    );
+
+    for missing in [provider.units[0].initializer(), provider.units[0].ensure()] {
+        let remaining = crate::StrongCallableBridgeSurfaceV1::try_new(
+            strong
+                .bridges()
+                .iter()
+                .filter(|record| record.implementation() != missing.callable_owner())
+                .cloned()
+                .collect(),
+        )
+        .unwrap();
+        assert!(matches!(
+            read_initialization_units(&remaining, &graph),
+            Err(MirTypeBridgeSectionError::Unit {
+                unit, problem: MirTypeBridgeUnitProblemV1::MissingRole
+            }) if unit == provider.units[0].unit()
+        ));
+    }
+}

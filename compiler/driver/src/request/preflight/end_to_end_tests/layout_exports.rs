@@ -69,7 +69,6 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                         });
                 assertions::actual(input, &result);
                 shared_layouts::check(input, dependencies, &result);
-                shared_abis::check(input, dependencies, &result);
                 shared_dispatch::check(input, dependencies, &result);
                 shared_descriptors::check(input, &result);
                 shared_shapes::check(input, &result);
@@ -93,7 +92,6 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                     scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
                 private_types::check(input, &result);
                 shared_layouts::check(input, dependencies, &result);
-                shared_abis::check(input, dependencies, &result);
                 shared_dispatch::check(input, dependencies, &result);
                 shared_descriptors::check(input, &result);
                 shared_shapes::check(input, &result);

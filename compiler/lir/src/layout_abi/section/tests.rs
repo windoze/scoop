@@ -101,14 +101,7 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
         .unwrap()
         .resolve_dependencies(&mut identities)
         .unwrap();
-    replayed
-        .replay_dependency_closure(&dependencies, &roots)
-        .unwrap();
     assert_eq!(replayed.selected_relations(), roots);
-    assert!(matches!(
-        replayed.replay_dependency_closure(&dependencies, &[]),
-        Err(LayoutAbiSectionError::SelectedClosure)
-    ));
 }
 
 #[test]

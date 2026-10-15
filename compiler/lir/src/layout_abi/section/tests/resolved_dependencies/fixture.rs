@@ -37,10 +37,6 @@ impl Fixture {
         result
     }
 
-    pub(super) fn dependencies(&self) -> [&LayoutAbiExportConstituentsV1; 2] {
-        [&self.middle, &self.leaf]
-    }
-
     pub(super) fn resolve(
         &self,
         semantic: &[LayoutAbiDependencyV1],

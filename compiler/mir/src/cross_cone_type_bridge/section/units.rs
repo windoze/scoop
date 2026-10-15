@@ -3,8 +3,8 @@ use scoop_identity::{
     GeneratedCallableKey, InitializationCallableRole, PersistentGeneratedCallableId,
 };
 
-mod shared;
-pub use shared::replay_source_initialization_units;
+mod read;
+pub use read::read_initialization_units;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MirTypeBridgeInitializationUnitV1 {

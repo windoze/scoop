@@ -63,7 +63,7 @@ pub(in super::super) fn read_sections<'a>(
     .validate_hir_declarations()
     .unwrap();
     closure
-        .validate_mir_sources()
+        .read_mir_records()
         .unwrap()
         .validate_lir_layouts()
         .unwrap()
@@ -79,7 +79,7 @@ pub(in super::super) fn read_sections<'a>(
         .unwrap()
         .read_lir_production_data()
         .unwrap()
-        .replay_mir_dependency_graph()
+        .resolve_mir_dependencies()
         .unwrap()
         .resolve_lir_dependencies()
         .unwrap()

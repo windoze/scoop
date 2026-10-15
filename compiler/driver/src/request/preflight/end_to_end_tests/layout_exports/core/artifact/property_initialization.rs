@@ -6,7 +6,6 @@ use super::*;
 mod physical;
 mod registration_edges;
 mod rejections;
-mod wire;
 
 pub(super) fn check(
     directory: &Path,
@@ -95,7 +94,7 @@ pub(super) fn check(
                 )
                 .unwrap();
                 assert_eq!(mir.initialization_uses().records().len(), count);
-                rejections::check(input, core_input, &mir, mir_dependency);
+                rejections::check(input, &mir);
                 let (selected, initialization) = physical::select(
                     input.mir,
                     lir_input.lir,

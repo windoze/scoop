@@ -40,10 +40,6 @@ pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
 
 pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) identities: &'a mut ValidatedIdentityGraph,
-    pub(crate) hir_foundation: &'a scoop_hir::CanonicalHirFoundation,
-    pub(crate) hir_core: &'a CoreBootstrapInterfaceSectionV1,
-    pub(crate) hir_interface: &'a CrossConeHirInterfaceSectionV1,
-    pub(crate) hir_types: &'a CrossConeTypeSemanticsSectionV1,
     pub(crate) mir_foundation: &'a scoop_mir::CanonicalMirFoundation,
     pub(crate) mir_core: &'a CoreBootstrapBridgeSectionV1,
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
@@ -127,15 +123,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         self.view.link()
     }
 
-    pub(crate) fn shared_metadata(&self) -> scoop_hir::SharedTypeMetadataV1<'_> {
-        scoop_hir::SharedTypeMetadataV1 {
-            provider: self.graph.identity(),
-            identities: &self.identities,
-            foundation: &self.foundations.hir,
-            public: &self.hir_interface,
-        }
-    }
-
     pub(crate) fn provider(&self) -> scoop_identity::ConeIdentity {
         self.graph.identity()
     }
@@ -148,10 +135,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         let manifest = self.graph.envelope.manifest();
         PreparedLayoutMirSemanticParts {
             identities: &mut self.identities,
-            hir_foundation: &self.foundations.hir,
-            hir_core: &self.hir_core,
-            hir_interface: &self.hir_interface,
-            hir_types: &self.hir_types,
             mir_foundation: &self.foundations.mir,
             mir_core: &self.mir_core,
             mir_ordinary: &self.mir_ordinary,

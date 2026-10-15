@@ -352,3 +352,12 @@ Compile 只读取 definition symbol plan、静态存储／初始化语义及必�
 本机 fmt／workspace clippy、454 项 LIR、527 项 slib、release 构建及真实泛型产物通过。属性初始化长测试在调度调整时中断，未计通过；本批 CLI 与 Linux 验收未执行。清理已结束 fixture 目录约 7.09 GB，保留增量缓存。[范围、退役清单与已有验证](validation/compile-data.md)。
 
 按用户最新要求调整后续工作：先在本机完成 M48 所有剩余修改和清理，迭代期间仅做格式化、lint 和受影响的针对性测试；整体完成后先做本机完整复验，通过后统一进行 Linux GNU／musl 验证，不再每轮到 Linux 测试。其余语义／布局重放、writer、dump 及最终全量／五轮性能验收仍未完成，M38 未推进。
+
+
+## 34. Compile 来源对照与依赖闭包集中退役
+
+删除普通 callable bridge 的 HIR／MIR 重建、MIR→LIR ABI 对照、MIR/LIR dependency closure 重算，并集中退役 HIR→MIR 类型、callable、constructor、object、dispatch、coroutine、equality 对照及专用修改工厂。初始化单元改为读取保存的 strong callable 调用对；typed 引用、格式／顺序及实际签名关系检查继续保留。真实源码和普通 negative fixtures 保留。109 个代码／规范文件净删 7,341 行。
+
+本机 fmt／workspace clippy、452 项 LIR、19 项 MIR section、527 项 slib、真实初始化组合和 core 产物通过；普通跨库 function／getter 在前半批通过。清理 10 个已结束 fixture 目录，释放 9.43 GB，保留近期编译缓存。[范围、原始验证与清理记录](validation/compile-relations.md)。
+
+本批未执行 Linux、整仓全量或性能验收。先在本机完成剩余布局／物理、底层 reader、writer、dump 等全部修改，再本机完整复验，随后统一 Linux 验收；M38 未推进。

@@ -149,7 +149,7 @@ pub(super) fn with_pair(
         &diagnostics,
     )
     .unwrap();
-    let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
+    let (graph, _, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
     let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap();
     let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
     let source = scoop_hir_lower::produce_cross_cone_type_semantics(
@@ -275,25 +275,6 @@ pub(super) fn with_pair(
                 if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
         ));
     }
-    shared_ordinary::check_dependency_uses(
-        hir::SharedTypeMetadataV1 {
-            provider: input.mir.module().cone,
-            identities: &graph,
-            foundation: &foundation,
-            public: &hir.cross_cone_section,
-        },
-        &mir.public,
-        input,
-        dependencies,
-        core.production().lir_cross_cone(),
-        hir::SharedTypeMetadataV1 {
-            provider: core.identity(),
-            identities: &graph,
-            foundation: &core_hir,
-            public: core.production().hir_interface(),
-        },
-        &core_lir,
-    );
     let owners = request
         .dependencies()
         .closure

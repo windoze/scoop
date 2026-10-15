@@ -1,4 +1,4 @@
-//! Shared HIR roots and complete MIR constituent dependency graph replay.
+//! Saved MIR dependency records for import selection.
 
 use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
@@ -12,18 +12,12 @@ use super::{
         LirConstituentsValidatedCrossConeLayoutSections,
     },
 };
-use crate::dependency_reachability::transitive_positions;
 
 mod errors;
-mod initialization;
-mod replay;
-pub use errors::{CrossConeLayoutMirDependenciesError, SharedMirDependencyGraphError};
-pub use replay::replay_shared_mir_dependency_graph;
+pub use errors::{CrossConeLayoutMirDependenciesError, MirDependencyReadError};
 
-/// The recursive selected graph agrees with shared materialized type roots.
-/// Per-use HIR/access and final LIR/Link joins are still
-/// required; these records cannot construct an external machine arena.
-pub type MirDependencyGraphReplayedCrossConeLayoutSections<'input> =
+/// Parsed MIR dependency records used by later import selection.
+pub type MirDependenciesResolvedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
@@ -31,7 +25,7 @@ pub type MirDependencyGraphReplayedCrossConeLayoutSections<'input> =
         lir::CompileProduction,
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
-pub type MirDependencyGraphReplayedCrossConeLayoutClosure<'input> =
+pub type MirDependenciesResolvedCrossConeLayoutClosure<'input> =
     LirConstituentsValidatedCrossConeLayoutClosure<
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
@@ -41,10 +35,10 @@ pub type MirDependencyGraphReplayedCrossConeLayoutClosure<'input> =
     >;
 
 impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
-    pub fn replay_mir_dependency_graph(
+    pub fn resolve_mir_dependencies(
         self,
     ) -> Result<
-        MirDependencyGraphReplayedCrossConeLayoutClosure<'input>,
+        MirDependenciesResolvedCrossConeLayoutClosure<'input>,
         CrossConeLayoutMirDependenciesError,
     > {
         let Self {
@@ -55,11 +49,10 @@ impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
             positions,
             dependency_positions,
         } = self;
-        let mut complete: Vec<MirDependencyGraphReplayedCrossConeLayoutSections<'input>> =
-            Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        let mut complete: Vec<MirDependenciesResolvedCrossConeLayoutSections<'input>> = Vec::new();
+        for artifact in dependency_first {
             let provider = artifact.identity();
-            let resolve = || -> Result<_, SharedMirDependencyGraphError> {
+            let resolve = || -> Result<_, MirDependencyReadError> {
                 let LirProductionDataCrossConeLayoutSections {
                     mut prepared,
                     mir,
@@ -69,7 +62,6 @@ impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mir = mir.resolve_dependencies(
                     mir::MirTypeBridgeLocalInputV1 {
                         provider,
@@ -80,54 +72,8 @@ impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
                     parts.identities,
                 )?;
                 let path = WirePath::root();
-                let mut dependencies = Vec::new();
-                scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &path)?;
-                dependencies.extend(
-                    reachable
-                        .iter()
-                        .map(|&index| complete[index].mir.dependency_view(&complete[index].units)),
-                );
-                let mut source_dependencies = Vec::new();
-
-                scoop_wire::allocation::try_reserve(
-                    &mut source_dependencies,
-                    reachable.len(),
-                    &path,
-                )?;
-                source_dependencies.extend(
-                    reachable
-                        .iter()
-                        .map(|&index| complete[index].prepared.shared_metadata()),
-                );
-                crate::hir_dependency_calls::validate_executable_hir_calls(
-                    parts.hir_interface,
-                    parts.mir_core.strong_callable_bridges(),
-                    parts.mir_ordinary,
-                    Some((&mir, &dependencies)),
-                    parts.mir_foundation,
-                    parts.identities,
-                )
-                .map_err(|source| SharedMirDependencyGraphError::CallSites(Box::new(source)))?;
-                let materialized_units = strong
-                    .initialization_units()
-                    .iter()
-                    .map(|unit| unit.semantic().unit())
-                    .collect::<Vec<_>>();
-                replay_shared_mir_dependency_graph(
-                    scoop_hir::SharedTypeMetadataV1 {
-                        provider,
-                        identities: parts.identities,
-                        foundation: parts.hir_foundation,
-                        public: parts.hir_interface,
-                    },
-                    &source_dependencies,
-                    &mir,
-                    &units,
-                    &materialized_units,
-                    &dependencies,
-                )?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
-                Ok(MirDependencyGraphReplayedCrossConeLayoutSections {
+                Ok(MirDependenciesResolvedCrossConeLayoutSections {
                     prepared,
                     mir,
                     units,
@@ -142,7 +88,7 @@ impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
             })?;
             complete.push(artifact);
         }
-        Ok(MirDependencyGraphReplayedCrossConeLayoutClosure {
+        Ok(MirDependenciesResolvedCrossConeLayoutClosure {
             current,
             target,
             direct,
@@ -153,7 +99,7 @@ impl<'input> LirProductionDataCrossConeLayoutClosure<'input> {
     }
 }
 
-impl MirDependencyGraphReplayedCrossConeLayoutSections<'_> {
+impl MirDependenciesResolvedCrossConeLayoutSections<'_> {
     pub const fn mir_dependency_transport(
         &self,
     ) -> &mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1 {

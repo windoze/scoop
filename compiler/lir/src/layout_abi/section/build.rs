@@ -20,7 +20,7 @@ pub(super) fn complete<'a>(
     roots: &[LayoutAbiDependencyV1],
 ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError> {
     dispatch_inventory::validate(&exports)?;
-    let relations = close_selection(&exports, &dependencies, roots, None)?;
+    let relations = semantic_closure::close(exports.provider(), &exports, &dependencies, roots)?;
     let mut semantic = reserve(relations.len())?;
     for relation in relations {
         let terminal = dependencies
@@ -45,21 +45,6 @@ pub(super) fn complete<'a>(
         physical_imports,
     );
     Ok(CrossConeLayoutAbiSectionV1 { exports, selected })
-}
-
-pub(super) fn close_selection(
-    exports: &LayoutAbiExportConstituentsV1,
-    dependencies: &[&LayoutAbiExportConstituentsV1],
-    committed: &[LayoutAbiDependencyV1],
-    candidate: Option<&[LayoutAbiDependencyV1]>,
-) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSectionError> {
-    let relations = semantic_closure::close(exports.provider(), exports, dependencies, committed)?;
-    if let Some(expected) = candidate {
-        if expected != relations {
-            return Err(LayoutAbiSectionError::SelectedClosure);
-        }
-    }
-    Ok(relations)
 }
 
 pub(super) fn validate_selected_records(

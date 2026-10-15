@@ -197,8 +197,6 @@ impl std::error::Error for CrossConeLirBridgeBuildError {
 
 #[derive(Debug)]
 pub enum CrossConeLirBridgeValidationError {
-    Resource(scoop_wire::WireError),
-    Encode(scoop_wire::cbor::EncodeError),
     Export {
         index: usize,
         source: ParamFreeLirCallableResolutionError,
@@ -223,7 +221,6 @@ pub enum CrossConeLirBridgeValidationError {
         index: usize,
     },
     Relation(CrossConeLirBridgeRelationError),
-    SectionMismatch,
 }
 
 impl fmt::Display for CrossConeLirBridgeValidationError {
@@ -235,16 +232,13 @@ impl fmt::Display for CrossConeLirBridgeValidationError {
 impl std::error::Error for CrossConeLirBridgeValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Resource(source) => Some(source),
-            Self::Encode(source) => Some(source),
             Self::Export { source, .. } => Some(source),
             Self::Selected { source, .. } => Some(source),
             Self::Relation(source) => Some(source),
             Self::DuplicateExport { .. }
             | Self::NonCanonicalExportOrder { .. }
             | Self::DuplicateSelected { .. }
-            | Self::NonCanonicalSelectedOrder { .. }
-            | Self::SectionMismatch => None,
+            | Self::NonCanonicalSelectedOrder { .. } => None,
         }
     }
 }

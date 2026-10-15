@@ -6,8 +6,7 @@ use scoop_mir as mir;
 use scoop_wire::WirePath;
 
 use super::{
-    MirDependencyGraphReplayedCrossConeLayoutClosure,
-    MirDependencyGraphReplayedCrossConeLayoutSections,
+    MirDependenciesResolvedCrossConeLayoutClosure, MirDependenciesResolvedCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -34,7 +33,7 @@ pub type LirDependenciesResolvedCrossConeLayoutClosure<'input> =
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 
-impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
+impl<'input> MirDependenciesResolvedCrossConeLayoutClosure<'input> {
     pub fn resolve_lir_dependencies(
         self,
     ) -> Result<
@@ -53,7 +52,7 @@ impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
         for artifact in dependency_first {
             let provider = artifact.identity();
             let resolve = || -> Result<_, LirDependencyReadError> {
-                let MirDependencyGraphReplayedCrossConeLayoutSections {
+                let MirDependenciesResolvedCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,

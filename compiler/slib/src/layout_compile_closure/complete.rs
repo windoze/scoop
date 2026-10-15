@@ -22,7 +22,7 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
             .resolve_hir_sections()?
             .validate_hir_productions()?
             .validate_hir_declarations()?
-            .validate_mir_sources()?
+            .read_mir_records()?
             .validate_lir_layouts()?
             .validate_ordinary_lir_bridges()?
             .validate_lir_callable_abis()?
@@ -30,7 +30,7 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
             .validate_lir_descriptors()?
             .validate_lir_shape_support()?
             .read_lir_production_data()?
-            .replay_mir_dependency_graph()?
+            .resolve_mir_dependencies()?
             .resolve_lir_dependencies()?)
     }
 }
@@ -65,7 +65,7 @@ semantic_errors! {
     HirResolution(CrossConeLayoutClosureHirResolutionError),
     HirProduction(CrossConeClosureHirProductionError),
     HirDeclarations(CrossConeLayoutHirDeclarationError),
-    SourceCallables(CrossConeLayoutMirSourceCallablesError),
+    SourceCallables(CrossConeLayoutMirReadError),
     LirLayouts(CrossConeLayoutLirLayoutsError),
     LirCallableAbis(CrossConeLayoutLirCallableAbisError),
     LirDispatch(CrossConeLayoutLirDispatchError),

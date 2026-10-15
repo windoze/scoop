@@ -17,7 +17,7 @@ fn actual_layout_artifacts_retain_alias_chains_and_combined_member_signatures() 
 }
 
 #[test]
-fn shared_mir_types_replay_standalone_and_combined_source_policies() {
+fn shared_mir_types_preserve_standalone_and_combined_records() {
     check_core_layout_exports(&["shared-mir-standalone", "shared-mir-combined"]);
 }
 
@@ -27,12 +27,12 @@ fn shared_accessor_forms_select_only_actual_source_machine_bodies() {
 }
 
 #[test]
-fn shared_source_callable_inventory_replays_bodies_and_abstract_overrides() {
+fn shared_source_callables_preserve_bodies_and_abstract_overrides() {
     check_core_layout_exports(&["shared-callables-standalone", "shared-callables-combined"]);
 }
 
 #[test]
-fn shared_constructor_inventory_replays_primary_secondary_and_class_initializers() {
+fn shared_constructors_preserve_primary_secondary_and_class_initializers() {
     check_core_layout_exports(&[
         "shared-constructors-standalone",
         "shared-constructors-combined",
@@ -40,22 +40,22 @@ fn shared_constructor_inventory_replays_primary_secondary_and_class_initializers
 }
 
 #[test]
-fn shared_object_inventory_replays_singletons_companions_and_initialization_entries() {
+fn shared_objects_preserve_singletons_companions_and_initialization_entries() {
     check_core_layout_exports(&["shared-objects-standalone", "shared-objects-combined"]);
 }
 
 #[test]
-fn shared_dispatch_replays_slot_order_targets_reabstraction_and_boxing() {
+fn shared_dispatch_preserves_slot_order_targets_reabstraction_and_boxing() {
     check_core_layout_exports(&["shared-dispatch-standalone", "shared-dispatch-combined"]);
 }
 
 #[test]
-fn shared_equality_replays_materialized_source_applications_and_default_only_keys() {
+fn shared_equality_preserves_materialized_source_applications_and_default_only_keys() {
     check_core_layout_exports(&["shared-equality-standalone", "shared-equality-combined"]);
 }
 
 #[test]
-fn shared_initialization_units_replay_source_keys_and_complete_strong_pairs() {
+fn shared_initialization_units_read_saved_strong_pairs() {
     check_core_layout_exports(&["shared-units-standalone", "shared-units-combined"]);
 }
 
@@ -65,7 +65,7 @@ fn shared_lir_layouts_replay_recursive_references_zst_and_base_prefixes() {
 }
 
 #[test]
-fn shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments() {
+fn shared_lir_callable_abis_preserve_zst_indirect_results_and_boxing_adjustments() {
     check_core_layout_exports(&["shared-abi-standalone", "shared-abi-combined"]);
 }
 
@@ -88,7 +88,7 @@ fn shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots() {
 }
 
 #[test]
-fn shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis() {
+fn shared_ordinary_lir_bridges_preserve_gc_and_layout_abis() {
     check_core_layout_exports(&["shared-ordinary-standalone", "shared-ordinary-combined"]);
 }
 
@@ -234,11 +234,6 @@ fn check_core_layout_exports(names: &[&str]) {
         if name.starts_with("shared-layouts-") {
             shared_layouts::probe(input, &result);
         }
-        shared_abis::check(
-            input,
-            scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
-            &result,
-        );
         if name.starts_with("shared-abi-") {
             shared_abis::probe(input, &result);
         }

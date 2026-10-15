@@ -23,7 +23,6 @@ mod declarations;
 mod foundations;
 mod hir;
 mod lir_callable_abis;
-mod lir_callable_layouts;
 mod lir_constituents;
 mod lir_dependencies;
 mod lir_descriptors;
@@ -33,11 +32,8 @@ mod lir_ordinary;
 mod lir_physical;
 mod lir_shape_support;
 mod lir_strong;
-mod mir_coroutines;
 mod mir_dependencies;
-mod mir_dispatch;
-mod mir_source_callables;
-mod mir_types;
+mod mir_records;
 mod type_foundations;
 pub use complete::CrossConeLayoutSemanticClosureError;
 pub use declarations::{
@@ -48,7 +44,6 @@ pub use hir::CrossConeLayoutClosureHirResolutionError;
 pub use lir_callable_abis::{
     CrossConeLayoutLirCallableAbisError, LirCallableAbisValidatedCrossConeLayoutClosure,
     LirCallableAbisValidatedCrossConeLayoutSections, SharedLirCallableAbiValidationError,
-    validate_shared_mir_callable_abis,
 };
 pub use lir_dependencies::{
     CrossConeLayoutLirDependenciesError, LirDependenciesResolvedCrossConeLayoutClosure,
@@ -71,8 +66,7 @@ pub use lir_layouts::{
 };
 pub use lir_ordinary::{
     CrossConeLayoutOrdinaryLirBridgeError, OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
-    OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeDependenciesV1,
-    SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
+    OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeValidationError,
 };
 pub use lir_physical::{
     CrossConeLayoutArtifactData, CrossConeLayoutLirPhysicalError, MergedOdrDefinitions,
@@ -90,26 +84,13 @@ pub use lir_strong::{
     CrossConeLayoutLirProductionDataError, LirProductionDataCrossConeLayoutClosure,
     LirProductionDataCrossConeLayoutSections,
 };
-pub use mir_coroutines::{SharedMirCoroutineValidationError, validate_shared_mir_coroutines};
 pub use mir_dependencies::{
-    CrossConeLayoutMirDependenciesError, MirDependencyGraphReplayedCrossConeLayoutClosure,
-    MirDependencyGraphReplayedCrossConeLayoutSections, SharedMirDependencyGraphError,
-    replay_shared_mir_dependency_graph,
+    CrossConeLayoutMirDependenciesError, MirDependenciesResolvedCrossConeLayoutClosure,
+    MirDependenciesResolvedCrossConeLayoutSections, MirDependencyReadError,
 };
-pub use mir_dispatch::{
-    SharedMirDispatchComponent, SharedMirDispatchValidationError, validate_shared_mir_dispatch,
-};
-pub use mir_source_callables::{
-    CrossConeLayoutMirSourceCallablesError, MirSourceCallablesValidatedCrossConeLayoutClosure,
-    MirSourceCallablesValidatedCrossConeLayoutSections, SharedMirConstructorComponent,
-    SharedMirConstructorValidationError, SharedMirEqualityValidationError,
-    SharedMirObjectComponent, SharedMirObjectValidationError, SharedMirSourceCallableComponent,
-    SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
-    validate_shared_mir_constructors, validate_shared_mir_equality, validate_shared_mir_objects,
-    validate_shared_mir_source_callables,
-};
-pub use mir_types::{
-    SharedMirTypeComponent, SharedMirTypeValidationError, validate_shared_mir_type_exports,
+pub use mir_records::{
+    CrossConeLayoutMirReadError, MirRecordsCrossConeLayoutClosure,
+    MirRecordsCrossConeLayoutSections, SharedMirReadError,
 };
 pub use type_foundations::CrossConeLayoutTypeFoundationError;
 

@@ -1,4 +1,4 @@
-//! Owned dependency transport and shared recursive graph replay.
+//! Saved dependency transport and typed references.
 
 use super::*;
 
@@ -33,42 +33,5 @@ impl DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
             units,
             direct: &self.direct,
         }
-    }
-
-    /// Compares the entire candidate selection with independently supplied
-    /// roots and all semantic edges. Source/access replay remains a separate
-    /// requirement of the containing artifact closure.
-    pub fn replay_dependency_closure(
-        &self,
-        units: &[MirTypeBridgeInitializationUnitV1],
-        dependencies: &[MirTypeBridgeDependencyViewV1<'_>],
-        committed: &[MirTypeBridgeDependencyV1],
-        graph: &ValidatedIdentityGraph,
-    ) -> Result<(), MirTypeBridgeSectionError> {
-        let count = dependencies
-            .len()
-            .checked_add(1)
-            .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
-        let mut tables = reserve(count)?;
-        tables.push(self.exports.types());
-        tables.extend(dependencies.iter().map(|view| view.exports.types()));
-        let types = MirTypeBridgeTypeIndexV1::try_new(&tables)?;
-        let expected = closure::close_views(
-            self.dependency_view(units),
-            dependencies,
-            committed,
-            graph,
-            &types,
-        )?;
-
-        if !self
-            .selected
-            .iter()
-            .copied()
-            .eq(expected.iter().map(|entry| entry.relation))
-        {
-            return Err(MirTypeBridgeSectionError::SelectedClosure);
-        }
-        Ok(())
     }
 }

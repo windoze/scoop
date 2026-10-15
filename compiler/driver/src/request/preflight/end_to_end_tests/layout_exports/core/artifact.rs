@@ -7,12 +7,9 @@ mod link_symbol_uses;
 mod lir_dependencies;
 mod machine_selection;
 mod mir_constructors;
-mod mir_coroutines;
-mod mir_dispatch;
 mod mir_equality;
 mod mir_objects;
 mod mir_source_callables;
-mod mir_types;
 mod mir_units;
 mod property_initialization;
 mod publication;
@@ -43,7 +40,6 @@ pub(super) fn check(
         hir::CoreBootstrapInterfaceSectionV1::from_export(&input.hir.output().export).unwrap();
     let ordinary =
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
-    shared_ordinary::check(name, input, &foundation, lir, layout, &ordinary);
     shared_initialization::check(input.mir.production(), &ordinary, lir);
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
     let generated =
@@ -80,8 +76,6 @@ pub(super) fn check(
         input.source,
         mir_section,
         layout,
-        &production,
-        input.mir.foundation(),
         input.mir.production().strong_callable_bridges(),
         input.ordinary,
     );

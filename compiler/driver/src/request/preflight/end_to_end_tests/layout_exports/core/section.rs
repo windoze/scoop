@@ -51,9 +51,7 @@ pub(super) fn check<'a>(
         .unwrap()
         .resolve_dependencies(local, &mut graph)
         .unwrap();
-    replayed
-        .replay_dependency_closure(section.initialization_units(), &[], &source, &graph)
-        .unwrap();
+    assert!(replayed.selected_relations().is_empty());
     assert_eq!(
         section.initialization_units().len(),
         input.mir.materialization().initialization_roots().len()

@@ -3,7 +3,7 @@ use super::*;
 pub(super) fn check(
     name: &str,
     artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
-    callables: scoop_slib::MirSourceCallablesValidatedCrossConeLayoutClosure<'_>,
+    callables: scoop_slib::MirRecordsCrossConeLayoutClosure<'_>,
     units: &[mir::MirTypeBridgeInitializationUnitV1],
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,

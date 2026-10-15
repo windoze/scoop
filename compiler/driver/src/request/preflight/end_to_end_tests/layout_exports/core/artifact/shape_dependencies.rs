@@ -4,7 +4,6 @@ use super::*;
 
 mod lower;
 mod machine;
-mod mir_reader;
 
 pub(super) fn check(
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
@@ -101,7 +100,6 @@ pub(super) fn check(
                     input.identities,
                 )
                 .unwrap();
-                mir_reader::check(input, &section, mir_dependency, &expected);
                 machine::check(
                     name,
                     input,

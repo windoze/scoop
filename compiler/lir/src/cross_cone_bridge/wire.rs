@@ -10,7 +10,7 @@ use scoop_identity::{
     DecodedDependencyCallableDeclarationId, DecodedPersistentId, PersistentIdResolver,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Clone, Debug)]
 struct DecodedParamFreeLirCallableExportV1 {
@@ -107,31 +107,11 @@ pub struct DecodedCrossConeLirBridgeSectionV1 {
 }
 
 impl DecodedCrossConeLirBridgeSectionV1 {
-    /// Compares the entire untrusted table with a source-derived replay. The
-    /// candidate never supplies roots or replaces the expected constituent.
-    pub fn validate_against(
-        self,
-        expected: CrossConeLirBridgeSectionV1,
-    ) -> Result<CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError> {
-        use scoop_wire::{WirePath, encode_canonical_temporary};
-        let path = WirePath::root();
-        let actual = encode_canonical_temporary(&self, &path)
-            .map_err(CrossConeLirBridgeValidationError::Resource)?;
-        let bytes = encode_canonical_temporary(&expected, &path)
-            .map_err(CrossConeLirBridgeValidationError::Resource)?;
-
-        if actual != bytes {
-            return Err(CrossConeLirBridgeValidationError::SectionMismatch);
-        }
-        Ok(expected)
-    }
-
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
         foundation: &ConeLirFoundation,
     ) -> Result<CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError> {
-        let actual = encode(&self).map_err(CrossConeLirBridgeValidationError::Encode)?;
         let producer = foundation.producer();
         let mut exports = Vec::with_capacity(self.exports.len());
         for (index, decoded) in self.exports.into_iter().enumerate() {
@@ -158,11 +138,6 @@ impl DecodedCrossConeLirBridgeSectionV1 {
             exports: exports.into(),
             selected: selected.into(),
         };
-        let expected_bytes =
-            encode(&expected).map_err(CrossConeLirBridgeValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(CrossConeLirBridgeValidationError::SectionMismatch);
-        }
         Ok(expected)
     }
 }

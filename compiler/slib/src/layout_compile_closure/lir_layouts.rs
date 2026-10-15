@@ -4,8 +4,7 @@ use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    MirSourceCallablesValidatedCrossConeLayoutClosure,
-    MirSourceCallablesValidatedCrossConeLayoutSections,
+    MirRecordsCrossConeLayoutClosure, MirRecordsCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -36,7 +35,7 @@ pub type LirLayoutsValidatedCrossConeLayoutClosure<'input> =
         lir::DecodedCrossConeLirBridgeSectionV1,
     >;
 
-impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
+impl<'input> MirRecordsCrossConeLayoutClosure<'input> {
     pub fn validate_lir_layouts(
         self,
     ) -> Result<LirLayoutsValidatedCrossConeLayoutClosure<'input>, CrossConeLayoutLirLayoutsError>
@@ -53,7 +52,7 @@ impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirLayoutValidationError> {
-                let MirSourceCallablesValidatedCrossConeLayoutSections {
+                let MirRecordsCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     lir,

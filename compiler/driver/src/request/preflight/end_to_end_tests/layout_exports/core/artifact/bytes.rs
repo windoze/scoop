@@ -10,8 +10,6 @@ pub(super) fn check(
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    hir_core: &hir::CoreBootstrapInterfaceSectionV1,
-    mir_foundation: &mir::CanonicalMirFoundation,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {
@@ -85,20 +83,17 @@ pub(super) fn check(
         hir.representation_support()
     );
     super::type_foundations::check(checked[0]);
-    super::mir_types::check(name, checked[0], hir_core, mir_foundation, mir);
-    super::mir_source_callables::check(name, checked[0], mir_foundation, ordinary, mir);
-    super::mir_constructors::check(name, checked[0], mir_foundation, mir);
-    super::mir_coroutines::check(name, checked[0], hir_core, mir_foundation, mir);
+    super::mir_source_callables::check(name, checked[0], ordinary, mir);
+    super::mir_constructors::check(name, checked[0], mir);
     super::mir_objects::check(name, checked[0], mir);
-    super::mir_dispatch::check(name, checked[0], hir_core, mir_foundation, ordinary, mir);
-    super::mir_equality::check(name, checked[0], mir_foundation, strong, mir);
-    let units = super::mir_units::check(name, checked[0], mir_foundation, strong, mir);
+    super::mir_equality::check(name, checked[0], strong, mir);
+    let units = super::mir_units::check(name, checked[0], strong, mir);
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }
     let callables = declarations
-        .validate_mir_sources()
-        .unwrap_or_else(|error| panic!("{name} shared MIR source validation: {error}"));
+        .read_mir_records()
+        .unwrap_or_else(|error| panic!("{name} MIR record reading: {error}"));
     assert_eq!(callables.current(), ConeIdentity::CORE);
     assert_eq!(callables.target_selection(), artifact.target_selection());
     assert!(callables.direct_providers().is_empty());
