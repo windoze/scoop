@@ -1,6 +1,6 @@
 # M38：独立 CLI Cone 与 Decoder
 
-本文件从属于 [总体设计](DESIGN.md)。2026-10-14 修订以 [M46 Decoder 合同](../milestone46/DESIGN.md)和[统一 Serialize／Option 规则](../milestone46/SERIALIZE.md)为基线。类型描述由 [TypeInfo](TYPE-INFO.md) 提供，help 使用 [TextWriter](DEBUG.md)；参数对象继续由普通 `Decodable<T>` 构造。这些是待实施设计。
+本文件从属于 [总体设计](DESIGN.md)。2026-10-14 修订以 [M46 Decoder 合同](../milestone46/DESIGN.md)和[统一 Serialize／Option 规则](../milestone46/SERIALIZE.md)为基线。类型描述由 [TypeInfo](TYPE-INFO.md) 提供，help 使用 [TextWriter](DEBUG.md)；参数对象继续由普通 `Decodable<T>` 构造。具体实现进度见 [PROGRESS.md](PROGRESS.md)。
 
 ## 1. Cone 和依赖
 
@@ -204,7 +204,7 @@ M37 整型 enum 不等于其底层整数，也没有从任意整数隐式构造 
 | `Choice(Array<CliChoice>)` | 从明确的文本选择映射到 unit variant 的 wire key |
 | `Repeated(inner)` | 收集多次出现，逐项使用 inner，然后组成 Sequence |
 
-CliChoice 保存 `spelling` 与 `wireName`。Repeated 的 inner 为 Text 或 Choice；Flag 只用于单值 flag 角色。没有 Some 分支；Option 不属于 argv 归一化操作。重复嵌套序列、Repeated(Flag) 等不符合角色或当前输入表面的配置在 schema 构造时拒绝。没有额外 None／null 字面量，也不虚构缺失的内部值。
+CliChoice 保存 `spelling` 与 `wireName`。Repeated 的 inner 使用独立 CliElementShape（Text 或 Choice），从数据结构排除嵌套序列和 Repeated(Flag)；Flag 只用于单值 flag 角色。没有 Some 分支；Option 不属于 argv 归一化操作。自动类型推导遇到重复嵌套序列时在 schema 构造报错。没有额外 None／null 字面量，也不虚构缺失的内部值。
 
 显式 schema 和自动 schema 都生成同一种 CliEntry，走同一归一化及 Decoder。比如 `Port(val raw: Int)` 若手写 codec 从单个数值解码，显式把该字段标成 Text 即可；不能因 TypeInfo 看到 Port 是 struct 就自动要求嵌套命令行对象。
 

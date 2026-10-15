@@ -1,0 +1,8 @@
+package cli.bridge
+public import cli.model.*
+public import scoop.cli.CliFlag as Toggle
+import scoop.cli.CliParser
+
+public fun <T> forwarded(element: Decodable<T>): () -> CliParser<GenericArguments<T>> = {
+    genericParser(element)
+}

@@ -1,0 +1,59 @@
+package scoop.cli
+
+public struct CliConfig(val programName: String, val summary: String = "")
+public enum CliRole { Option, Flag, Argument(Long) }
+public struct CliChoice(val spelling: String, val wireName: String)
+public enum CliElementShape { Text, Choice(Array<CliChoice>) }
+public enum CliValueShape { Text, Flag, Choice(Array<CliChoice>), Repeated(CliElementShape) }
+
+public struct CliEntry(
+    val sourceName: String,
+    val wireKey: String,
+    val role: CliRole,
+    val valueShape: CliValueShape,
+    val names: Array<String> = [],
+    val negativeNames: Array<String> = [],
+    val help: String = "",
+    val valueName: String = "",
+    val defaultText: String = "",
+    val required: Boolean = true,
+    val hasDefault: Boolean = false,
+    val member: Option<ObservedMember> = None
+)
+
+public class CliSchema<T> public constructor(
+    public val info: TypeInfo<T>, public val config: CliConfig, entries: Array<CliEntry>
+) {
+    private val layout: CliLayout = checkedEntries(entries)
+    public val entries: Array<CliEntry> = layout.entries
+    internal val positions: Array<Long> = layout.positions
+
+    public fun writeHelp(writer: TextWriter): Unit = writeCliHelp(config, entries, positions, writer)
+    public fun help(): String {
+        val writer = StringWriter()
+        writeHelp(writer)
+        return writer.build()
+    }
+}
+
+public object Cli {
+    public fun <T> schema(info: TypeInfo<T>, config: CliConfig): CliSchema<T> =
+        CliSchema<T>(info, config, automaticEntries(info.type))
+}
+
+public enum CliResult<T> { Parsed(T), HelpRequested }
+
+public class CliParser<T> public constructor(private val schema: CliSchema<T>, private val codec: Decodable<T>) {
+    public fun parse(arguments: Array<String>): CliResult<T> = parseFrom(arguments, 0L)
+
+    public fun parseCommandLine(argv: Array<String>): CliResult<T> {
+        if (argv.size == 0L) { throw DecodingException("", "complete argv requires a program item") }
+        return parseFrom(argv, 1L)
+    }
+
+    private fun parseFrom(arguments: Array<String>, start: Long): CliResult<T> =
+        when (CliTokens(schema.entries, schema.positions, arguments, start).parse()) {
+            case CliInputResult.Help -> CliResult.HelpRequested
+            case CliInputResult.Value(input) -> CliResult.Parsed(codec.decode(CliDecoder(input, "")))
+        }
+}

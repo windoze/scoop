@@ -37,7 +37,7 @@ public fun <T> typeInfo(): TypeInfo<T>
 | `Struct(StructInfo)` | 本类型字段、构造关系、实现的接口；字段保持声明序 |
 | `Enum(EnumInfo)` | 声明序 variant，各自独立 payload 与构造关系 |
 | `IntegerEnum(IntegerEnumInfo)` | M37 整型枚举，底层整数类型、各 variant 的已检查静态值 |
-| `Class(ClassInfo)` | 直接 base、接口、本 owner 的 logical property 和 storage、构造器 |
+| `Class(ClassInfo)` | isFinal、直接 base、接口、本 owner 的 logical property 和 storage、构造器 |
 | `Object(ObjectInfo)` | singleton 自身的类型、base、property/storage；companion 的自身引用保留宿主实参，companionHost 指向宿主声明 |
 | `Interface(InterfaceInfo)` | 父接口和本 owner 的 logical property，不伪造存储 |
 | `Tuple(TupleInfo)` | 有序 TupleElementInfo，位置从 0 计，展示名从 `_1` 起 |
@@ -49,6 +49,8 @@ public fun <T> typeInfo(): TypeInfo<T>
 上述分支覆盖所有合法完整类型的表示类别。普通核心库类型如 ArrayList、StringBuilder 仍是 Class；其 debug 展示可以由普通 inspector 选择逻辑内容。MaybeUninit 等 compiler-represented 类型保留独立 intrinsic 类别与完整参数，不被当成已初始化的 T。
 
 泛型/inner/局部/匿名声明使用 M37 确定的 typed owner、捕获与 application。`ObjectInfo.companionHost: Option<NominalRef>` 指向宿主声明，泛型宿主不凭空选择具体实参。描述不把隐藏 outer/capture/delegate 存储伪装成用户声明的公开字段。接口委托等编译器内部字段使用 Generated 来源。需要保留的内部 storage 带明确来源种类，logical property 列表只包含实际 property。
+
+AccessorInfo.kind 保留 Storage／Constant／Body／Abstract 的源码事实；普通存储 accessor 的函数体物化不产生新的公开 kind。
 
 class 的继承关系不扁平化：`ClassInfo.base: Option<TypeUseInfo>` 指向直接基类，基类字段通过其自身描述取得。同名成员仍有不同的实际成员身份，override 指向实际被覆写声明。companion 的描述不包含宿主实例的字段。
 

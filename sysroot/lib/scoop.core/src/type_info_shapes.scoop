@@ -40,7 +40,8 @@ public struct ClassInfo(
     val interfaces: Array<TypeUseInfo>,
     val properties: Array<PropertyInfo>,
     val storage: Array<FieldInfo>,
-    val constructors: Array<ConstructorInfo>
+    val constructors: Array<ConstructorInfo>,
+    val isFinal: Boolean
 )
 
 public struct ObjectInfo(

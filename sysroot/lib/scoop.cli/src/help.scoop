@@ -1,0 +1,74 @@
+package scoop.cli
+
+internal fun joined(values: Array<String>, separator: String): String {
+    val result = StringBuilder()
+    for (index in 0L until values.size) {
+        if (index != 0L) { result.add(separator) }
+        result.add(values[index])
+    }
+    return result.build()
+}
+
+internal fun choicesText(choices: Array<CliChoice>): String =
+    joined(Array<String>(choices.size) { index -> choices[index].spelling }, "|")
+
+internal fun metavar(entry: CliEntry): String {
+    val label = if (entry.valueName != "") { entry.valueName } else { when (entry.valueShape) {
+        case CliValueShape.Choice(choices) -> choicesText(choices)
+        case CliValueShape.Repeated(CliElementShape.Choice(choices)) -> choicesText(choices)
+        else -> "VALUE"
+    } }
+    return "<" + label + ">" + if (isRepeated(entry.valueShape)) { "..." } else { "" }
+}
+
+internal fun entrySyntax(entry: CliEntry, aliases: Boolean): String = when (entry.role) {
+    case CliRole.Argument(_) -> metavar(entry)
+    case CliRole.Option -> (if (aliases) { joined(entry.names, ", ") } else { entry.names[0L] }) + " " + metavar(entry)
+    case CliRole.Flag -> {
+        val names = if (aliases) { joined(entry.names, ", ") } else { entry.names[0L] }
+        if (aliases && entry.negativeNames.size != 0L) { names + ", " + joined(entry.negativeNames, ", ") } else { names }
+    }
+}
+
+internal fun helpEntry(entry: CliEntry, writer: TextWriter) {
+    writer.write("  " + entrySyntax(entry, true))
+    if (entry.required) { writer.write(" (required)") }
+    if (entry.help != "") { writer.write("  " + entry.help) }
+    if (entry.valueName != "") {
+        when (entry.valueShape) {
+            case CliValueShape.Choice(choices) -> writer.write(" [choices: " + choicesText(choices) + "]")
+            case CliValueShape.Repeated(CliElementShape.Choice(choices)) -> writer.write(" [choices: " + choicesText(choices) + "]")
+            else -> {}
+        }
+    }
+    if (!entry.required) {
+        if (entry.defaultText != "") { writer.write(" [default: " + entry.defaultText + "]") }
+        else { if (entry.hasDefault) { writer.write(" [有默认值]") } }
+    }
+    writer.write("\n")
+}
+
+internal fun writeCliHelp(config: CliConfig, entries: Array<CliEntry>, positions: Array<Long>, writer: TextWriter) {
+    writer.write("Usage: " + config.programName)
+    for (entry in entries) {
+        when (entry.role) { case CliRole.Argument(_) -> { continue }; else -> {} }
+        val text = entrySyntax(entry, false)
+        writer.write(" " + if (entry.required) { text } else { "[" + text + "]" })
+    }
+    for (index in positions) {
+        val entry = entries[index]
+        val text = entrySyntax(entry, false)
+        writer.write(" " + if (entry.required) { text } else { "[" + text + "]" })
+    }
+    writer.write("\n")
+    if (config.summary != "") { writer.write(config.summary + "\n") }
+    if (positions.size != 0L) {
+        writer.write("\nArguments:\n")
+        for (index in positions) { helpEntry(entries[index], writer) }
+    }
+    writer.write("\nOptions:\n")
+    for (entry in entries) {
+        when (entry.role) { case CliRole.Argument(_) -> {}; else -> helpEntry(entry, writer) }
+    }
+    writer.write("  -h, --help  Show help\n")
+}

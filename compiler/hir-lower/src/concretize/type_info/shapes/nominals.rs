@@ -42,7 +42,11 @@ impl Concretizer<'_> {
                     });
                     self.metadata_option(fields[4], host, origin)
                 };
-                vec![base, interfaces, properties, storage, last]
+                let mut values = vec![base, interfaces, properties, storage, last];
+                if shape.kind() == export::StaticNominalKind::Class {
+                    values.push(self.metadata_bool(shape.is_final_class(), origin));
+                }
+                values
             }
             export::StaticNominalKind::Interface => {
                 let parents = self.metadata_interfaces(target, shape, fields[0], origin);

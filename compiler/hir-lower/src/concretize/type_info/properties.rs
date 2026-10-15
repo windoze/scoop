@@ -128,11 +128,11 @@ impl Concretizer<'_> {
             origin,
         );
         let kind = match accessor.implementation {
-            export::PropertyAccessorImplementationV1::Storage => "Storage",
+            export::PropertyAccessorImplementationV1::Storage
+            | export::PropertyAccessorImplementationV1::StorageBody => "Storage",
             export::PropertyAccessorImplementationV1::Constant => "Constant",
             export::PropertyAccessorImplementationV1::Body => "Body",
             export::PropertyAccessorImplementationV1::AbstractSlot => "Abstract",
-            export::PropertyAccessorImplementationV1::StorageBody => "StorageBody",
         };
         let kind = self.metadata_case(fields[3], kind, Vec::new(), origin);
         self.metadata_record(result, vec![id, visibility, annotations, kind], origin)

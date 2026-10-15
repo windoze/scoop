@@ -1,0 +1,57 @@
+import scoop.cli.*
+
+class Inputs {
+    val parser: CliParser<Decoder> = CliParser(
+        CliSchema(typeInfo<Decoder>(), CliConfig("numbers"), [
+            CliEntry("value", "value", CliRole.Option, CliValueShape.Text, ["--value"])
+        ]), DecodeFunction<Decoder>({ decoder -> decoder })
+    )
+    fun value(text: String): Decoder = parsed(parser.parse(["--value=" + text])).keyed().required("value")
+}
+
+fun main() {
+    val inputs = Inputs()
+    check(inputs.value("-9223372036854775808").singleValue().readLong() == -9223372036854775808L)
+    check(inputs.value("+9223372036854775807").singleValue().readLong() == 9223372036854775807L)
+    check(inputs.value("18446744073709551615").singleValue().readULong() == 18446744073709551615uL)
+    check(inputs.value("+000123").singleValue().readULong() == 123uL)
+    check(inputs.value("-000").singleValue().readLong() == 0L)
+    for (text in ["", "+", "-", " 1", "1 ", "1_0", "0x10", "1.0", "1e2", "١", "1\u{0}", "--1", "9223372036854775808", "-9223372036854775809"]) {
+        val value = inputs.value(text)
+        fails("/value", { value.singleValue().readLong() })
+        equal(value.singleValue().readString(), text)
+    }
+    for (text in ["-0", "-1", "18446744073709551616", "", "+", "0xff", "1_0"]) {
+        fails("/value", { inputs.value(text).singleValue().readULong() })
+    }
+    check(Int8.decode(inputs.value("-128")) == -128 && UInt8.decode(inputs.value("255")) == 255u)
+    check(Int16.decode(inputs.value("32767")) == 32767 && UInt16.decode(inputs.value("65535")) == 65535u)
+    check(Int.decode(inputs.value("2147483647")) == 2147483647 && UInt.decode(inputs.value("4294967295")) == 4294967295u)
+    fails("/value", { Int8.decode(inputs.value("128")) })
+    fails("/value", { UInt8.decode(inputs.value("256")) })
+    fails("/value", { Int16.decode(inputs.value("32768")) })
+    fails("/value", { UInt16.decode(inputs.value("65536")) })
+    fails("/value", { Int.decode(inputs.value("2147483648")) })
+    fails("/value", { UInt.decode(inputs.value("4294967296")) })
+    check(inputs.value("1.000000059604644775390625000001").singleValue().readFloat() == 1.00000011920928955078125f)
+    check(inputs.value("-0.0").singleValue().readFloat().toBits() == -2147483648)
+    check(inputs.value("-0e9").singleValue().readDouble().toBits() == -9223372036854775808L)
+    check(inputs.value("+001.25e+2").singleValue().readDouble() == 125.0)
+    check(inputs.value("1e-45").singleValue().readFloat().toBits() == 1)
+    check(inputs.value("5e-324").singleValue().readDouble().toBits() == 1L)
+    check(inputs.value("-1e-9999").singleValue().readFloat().toBits() == -2147483648)
+    for (text in ["", " ", "1 ", "NaN", "Infinity", "nan", "0x1p0", ".5", "1.", "1e", "1e+", "1_0", "1\u{0}", "1e9999"]) {
+        val value = inputs.value(text)
+        fails("/value", { value.singleValue().readFloat() })
+        fails("/value", { value.singleValue().readDouble() })
+        equal(value.singleValue().readString(), text)
+    }
+    check(inputs.value("true").singleValue().readBoolean() && !inputs.value("false").singleValue().readBoolean())
+    for (text in ["True", "FALSE", "1", "0", "", " true"]) { fails("/value", { inputs.value(text).singleValue().readBoolean() }) }
+    check(Char.decode(inputs.value("😀")) == '😀')
+    fails("/value", { Char.decode(inputs.value("")) })
+    fails("/value", { Char.decode(inputs.value("ab")) })
+    equal(String.decode(inputs.value("null")), "null")
+    equal(String.decode(inputs.value("")), "")
+    println("cli-numbers-ok")
+}

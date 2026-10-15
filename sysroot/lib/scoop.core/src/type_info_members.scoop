@@ -56,8 +56,7 @@ public enum AccessorKind {
     Storage,
     Constant,
     Body,
-    Abstract,
-    StorageBody
+    Abstract
 }
 
 public struct AccessorInfo(

@@ -1634,9 +1634,9 @@ public fun <T> decodeFrom(decoder: Decoder, codec: Decodable<T>): T =
 
 `NominalRef`、`FieldRef`、`PropertyRef`、`AccessorRef`、`VariantRef`、`ConstructorRef` 和 `ParameterRef` 分别表示实际声明身份并实现自身类型的 Equals。owner 使用完整 TypeRef，泛型声明身份与 application 分开保存；visibility 明确区分 Public、Internal、Protected、Private、Local。
 
-struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系以 `Option<NominalRef>` 保存：泛型宿主是声明，不伪造某个具体实参。storage 的 Declared、Backing、Delegate、Outer、Capture、Generated 来源不混入 logical property 列表。
+struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/property 和 constructor 参数分别保持声明序。`MemberName.Named(String)` 与 `Positional(Long)`、`VariantPayload.Unit/Named/Positional` 保留源码形状；tuple 元素只有索引和 `_1` 起的展示名，不伪造字段声明。ClassInfo.isFinal 保存普通 class 的 final 声明事实；class 的 base、interface 的 parents 不扁平化，object/companion 的宿主关系以 `Option<NominalRef>` 保存：泛型宿主是声明，不伪造某个具体实参。storage 的 Declared、Backing、Delegate、Outer、Capture、Generated 来源不混入 logical property 列表。
 
-`FieldInfo` 与 `PropertyInfo` 保存 `typeUse`，`type` 是其只读便捷属性。`isOptionAtDeclaration` 从原成员完成绑定、展开 alias 后的类型取得，与 11.13 的默认字段规则复用同一事实；原声明 T 具体化为 Option<U> 时仍为 false，原声明 Option<T> 为 true。property 保存实际 getter/setter、被覆写 property 与 Stored/Computed/Delegated 类别，backing/delegate field 仍为独立实体。
+`FieldInfo` 与 `PropertyInfo` 保存 `typeUse`，`type` 是其只读便捷属性。`isOptionAtDeclaration` 从原成员完成绑定、展开 alias 后的类型取得，与 11.13 的默认字段规则复用同一事实；原声明 T 具体化为 Option<U> 时仍为 false，原声明 Option<T> 为 true。property 保存实际 getter/setter、被覆写 property 与 Stored/Computed/Delegated 类别，backing/delegate field 仍为独立实体。AccessorInfo.kind 只区分源码的 Storage、Constant、Body、Abstract；普通存储 accessor 在发布或分派时物化为函数体仍为 Storage，本地与跨 Cone 描述保持一致。
 
 `ConstructorInfo` 区分 Primary、Secondary、Variant，参数保存真实 ParameterRef、序号、typeUse、注解、hasDefault、isVararg 与 `ParameterMember.None/Field/Property`。字段和参数数组的位置不代表构造映射；公开描述不包含可执行 default，也不求值或伪造其结果。
 
@@ -2748,6 +2748,30 @@ core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖�
 - core 自身不隐式依赖自身。core manifest 的显式 dependency 使用普通语法、定位与无环规则；core 到普通库的依赖若与该库到 core 的依赖形成环，按 12.3 报错。用户可在普通源码目录声明 core coordinate、修改或扩展源码，并重新构建 library；intrinsic 声明遵守第 13 章的名称、类型和唯一性规则；
 - core 声明与 Option variant 的默认可见性来自 core `.slib` 中的 typed prelude binding，不通过把 core 源码拼入用户 AST、扫描 package name 或对 `Some`/`None` 写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
+
+### 12.7 独立命令行参数库
+
+`scoop:scoop.cli:0.1.0` 是显式依赖 core 的普通 library Cone，源码 package 为 scoop.cli，发布在 sysroot/lib/scoop.cli。应用显式依赖并 import；core 不依赖 CLI，CLI 不依赖 JSON。编译器不解释 CLI 注解，不增加 runtime ABI。
+
+`Cli.schema<T>(info: TypeInfo<T>, config: CliConfig): CliSchema<T>` 生成默认 record schema；`CliSchema<T>(info, config, entries: Array<CliEntry>)` 提供相同已检查模型的显式入口。CliConfig 保存 programName 与 summary（默认空串）。schema 只在构造边界检查配置，之后只读；CliParser<T>(schema, codec: Decodable<T>) 不重放验证。parse(arguments: Array<String>) 接收不含程序项的参数；parseCommandLine(argv) 跳过 argv[0]，空完整 argv 报输入错误。两者返回 CliResult.Parsed(T) 或 HelpRequested。schema.help() 与 writeHelp(TextWriter) 生成相同、以换行结束的纯文本；不执行 codec、constructor、default 或 getter，也不绑定 stdout、终端或进程退出。
+
+CliOption(names = [], help = "", valueName = "", defaultText = "")、CliFlag(names = [], negativeNames = [], help = "", defaultText = "")、CliArgument(position: Long, help = "", valueName = "", defaultText = "") 是 FIELD／PROPERTY 上的普通不可重复注解，三个 role 互斥。无 role 时 exact Boolean 为 flag，其余为带值 option；无 names 时使用完整源码名的 --name。长名以 -- 起始且后续非空，不能含 =、空白或控制字符；短名为 - 加一个 ASCII 字母。所有正负 alias 唯一，-h／--help 保留；negativeNames 显式指定，不自动生成。flag 只适用于 exact Boolean，Option<Boolean> 和序列使用文本 true／false。
+
+CliEntry 保存 sourceName、wireKey、CliRole（Option、Flag、Argument(Long)）、CliValueShape、names／negativeNames、help、valueName、defaultText、required、hasDefault 与可选 ObservedMember。CliValueShape 为 Text、Flag、Choice(Array<CliChoice>)、Repeated(CliElementShape)；CliElementShape 只含 Text 与 Choice，从数据结构排除嵌套序列和重复 flag。CliChoice 保存文本 spelling 与 variant wireName。显式 schema 与自动 schema 使用同一 parser／Decoder；显式模型可以与普通手写 codec 配合，不分析 codec 正文。
+
+自动 schema 仅接收 struct 或无 class 基类的普通 final class，使用真实 primary constructor 参数映射。computed property 不参与；自定义存储 accessor、delegate、未映射构造状态或额外 class storage 要求显式 schema。按实际 annotationKey 读取 Serialize：ignore 排除字段，rename 只改变 wireKey，required 强制出现，emitNull 不影响解码。参与字段 required 为 serialize.required || (!parameter.hasDefault && !member.isOptionAtDeclaration)；hasDefault 与原声明 Option 事实保持分开。原字段 T 后来取 Option 不因此可缺省。字段缺失始终留给所选 codec，parser 不生成 None、空数组或默认值，不执行 defaultText。
+
+标量支持 String、Char、定宽整数、Float／Double、Boolean 和纯 unit enum；enum 的文本用源码 variant 名，wireName 使用其 Serialize.rename。Option 透明展开，允许最多一层 Array／MutableArray／ArrayList，支持 Option<Array<S>> 与 Array<Option<S>>；按实际 nominal identity 匹配，不能按展示名猜类型。payload enum、整型 enum 和其他 wrapper 需要显式 shape／codec。存在的文本 null 是普通 String，空文本也是实际值；不存在的字段才是 missing。
+
+argv 已完成 shell 分词。支持 --name=value／--name value、-pvalue／-p=value／-p value、连续短 flag 与最后一个带值短 option。带值 option 可接受空 attached 文本；flag 拒绝 attached 值。需要下一 token 时，--、长 option 或 - 加 ASCII 字母起始的 token 表示缺值；-3、-0.5 可作为值或 positional。单 - 是普通值，-- 终止选项解释。未知 alias、重复 scalar／flag（含正负 alias 混用）、多余 positional、缺值均报错；Repeated 按出现顺序收集，不按逗号拆分。position 从 0 连续，必填单值先于可缺省位置项，最多最后一项为 variadic；未出现的 variadic 保持 missing。options 可穿插 positional。
+
+-h／--help 在选项边界立即返回 HelpRequested，不处理后续 token，也不调用 decode；此前语法错误仍报错。--path=--help 是值，-- 后的 --help 是 positional，--port --help 先报告 port 缺值；短名组按顺序识别 h。help 包含 programName／summary、usage、全部 alias、metavar／choices、required 状态、help 及显式 defaultText。可缺省且 hasDefault 的项无 defaultText 时标注“有默认值”，仅隐式 None 不虚构 constructor default；required 项不展示可省略的默认提示。
+
+私有归一化节点只有 Text、BooleanValue、Record、Sequence，并保留必要 token 下标／拼写；attached value 的来源仍保留完整原 token。CliDecoder 实现 11.13 的稳定视图：keyed 可复读且 keys 不随读取改变；optional 只区分缺失；unkeyed 每次创建独立游标，element 取得 child 后推进一次，子值失败不再推进；singleValue 的成功或失败均不消耗节点。isNull 恒 false，readNull 总是报错。keyed.end 无全量消费要求；unkeyed.end 检查剩余元素且失败不推进。没有全局 selected／consumed 状态、根完成重放或重试时深拷贝／重新分词。
+
+readString 只接受 Text；readBoolean 接受 BooleanValue 或 exact true／false。Long／ULong 按完整十进制 token 逐位检查范围，允许正号和前导零，ULong 拒绝负号；不接受空白、下划线、hex、小数或指数。Float／Double 接受可选符号、至少一位整数、可选小数（点后至少一位）及 exponent（可选符号后至少一位），拒绝空白、hex、NaN／Infinity；直接按目标精度转换并检查有限值。CLI 以普通 extern 声明复用现有 scoop_rt_json_parse_float／double，不依赖 JSON Cone，也不复制 native 解析器。窄整数、Char 和 wrapper 的进一步检查由原 codec 完成。
+
+配置错误抛 IllegalArgumentException；argv 与 Decoder 错误抛 DecodingException，包含 wire path、原因及可用的 token 来源。codec／constructor／default／writer 的普通异常原样传播，writer 可能已产生部分输出。CLI 不支持首版范围以外的子命令、环境变量、配置文件、shell completion 或自动嵌套 record 展平。
 
 ---
 

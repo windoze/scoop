@@ -1,0 +1,112 @@
+package scoop.cli
+
+internal class CliTokens(
+    private val entries: Array<CliEntry>, private val positions: Array<Long>,
+    private val arguments: Array<String>, start: Long
+) {
+    private var cursor: Long = start
+    private var positional: Long = 0L
+    private val values: Array<ArrayList<CliInput>> = Array<ArrayList<CliInput>>(entries.size) { _ -> ArrayList<CliInput>() }
+
+    internal fun parse(): CliInputResult {
+        var options = true
+        while (cursor < arguments.size) {
+            val source = CliSource(cursor, arguments[cursor])
+            val text = source.spelling
+            cursor = cursor + 1L
+            if (options && text == "--") { options = false; continue }
+            if (options && optionToken(text)) {
+                val help = if (text[1L] == '-') { longOption(text, source) } else { shortOptions(text, source) }
+                if (help) { return CliInputResult.Help }
+            } else {
+                if (positional == positions.size) { inputError("", Some(source), "extra positional argument") }
+                val index = positions[positional]
+                add(index, textInput(entries[index], text, source), source)
+                if (!isRepeated(entries[index].valueShape)) { positional = positional + 1L }
+            }
+        }
+        val members = ArrayList<CliMember>()
+        for (index in 0L until entries.size) {
+            val items = values[index]
+            if (items.size == 0L) { continue }
+            val value = if (isRepeated(entries[index].valueShape)) {
+                CliInput(CliNode.Sequence(items.toArray()), items[0L].source)
+            } else { items[0L] }
+            members.add(CliMember(entries[index].wireKey, value))
+        }
+        return CliInputResult.Value(CliInput(CliNode.Record(members.toArray()), None))
+    }
+
+    private fun alias(name: String, source: CliSource): CliAlias = when (findAlias(entries, name)) {
+        case Some(result) -> result
+        case None -> inputError("", Some(source), "unknown option " + name)
+    }
+
+    private fun add(index: Long, value: CliInput, source: CliSource) {
+        if (!isRepeated(entries[index].valueShape) && values[index].size != 0L) {
+            inputError(childPath("", entries[index].wireKey), Some(source), "duplicate argument " + entries[index].sourceName)
+        }
+        values[index].add(value)
+    }
+
+    private fun takeValue(index: Long, attached: Option<String>, source: CliSource): CliInput {
+        when (attached) {
+            case Some(text) -> { return textInput(entries[index], text, source) }
+            case None -> {}
+        }
+        if (cursor == arguments.size || optionToken(arguments[cursor])) {
+            inputError(childPath("", entries[index].wireKey), Some(source), "missing option value")
+        }
+        val next = CliSource(cursor, arguments[cursor])
+        cursor = cursor + 1L
+        return textInput(entries[index], next.spelling, next)
+    }
+
+    private fun longOption(text: String, source: CliSource): Boolean {
+        var split = text.length
+        for (index in 2L until text.length) { if (text[index] == '=') { split = index; break } }
+        val name = text.slice(0L, split)
+        val attached = if (split == text.length) { None } else { Some(text.slice(split + 1L, text.length)) }
+        if (name == "--help") {
+            if (split != text.length) { inputError("", Some(source), "help does not accept a value") }
+            return true
+        }
+        val selected = alias(name, source)
+        when (entries[selected.index].role) {
+            case CliRole.Flag -> {
+                if (split != text.length) { inputError(childPath("", entries[selected.index].wireKey), Some(source), "flag does not accept a value") }
+                add(selected.index, CliInput(CliNode.BooleanValue(!selected.negative), Some(source)), source)
+            }
+            else -> add(selected.index, takeValue(selected.index, attached, source), source)
+        }
+        return false
+    }
+
+    private fun shortOptions(text: String, source: CliSource): Boolean {
+        var index = 1L
+        while (index < text.length) {
+            val name = "-" + text[index].toString()
+            index = index + 1L
+            if (name == "-h") {
+                if (index < text.length && text[index] == '=') { inputError("", Some(source), "help does not accept a value") }
+                return true
+            }
+            val selected = alias(name, source)
+            when (entries[selected.index].role) {
+                case CliRole.Flag -> {
+                    if (index < text.length && text[index] == '=') { inputError(childPath("", entries[selected.index].wireKey), Some(source), "flag does not accept a value") }
+                    add(selected.index, CliInput(CliNode.BooleanValue(!selected.negative), Some(source)), source)
+                }
+                else -> {
+                    val attached = if (index == text.length) { None } else {
+                        if (text[index] == '=') { index = index + 1L }
+                        Some(text.slice(index, text.length))
+                    }
+                    add(selected.index, takeValue(selected.index, attached, source), source)
+                    return false
+                }
+            }
+        }
+        return false
+    }
+}

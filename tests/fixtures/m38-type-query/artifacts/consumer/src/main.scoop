@@ -28,6 +28,8 @@ fun main() {
     val base = when (typeInfo<Base>().describe().shape) { case TypeShape.Class(value) -> value; else -> throw IllegalStateException() }
     check(row.base!!.annotations.size == 1L, "base type annotation")
     check(row.properties.size == 5L && row.storage.size == 3L, "own properties and hidden storage")
+    check(row.isFinal && !base.isFinal, "class finality across artifacts")
+    check(row.properties[0L].getter.kind == AccessorKind.Storage, "materialized storage getter keeps its source kind")
     check(row.properties[1L].overrides[0L] == base.properties[0L].id, "property override identity")
     check(row.properties[2L].visibility == DeclarationVisibility.Private, "private property description")
     check(when (row.properties[3L].storage) { case PropertyStorage.Delegated(field) -> field == row.storage[2L].id; else -> false }, "delegate storage identity")

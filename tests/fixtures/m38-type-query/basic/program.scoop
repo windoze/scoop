@@ -75,6 +75,7 @@ fun main() {
     val row = when (typeInfo<Row<String>>().describe().shape) { case TypeShape.Class(shape) -> shape; else -> throw IllegalStateException() }
     check(row.base!!.type == typeInfo<Base>().type)
     check(row.properties.size == 3L && row.storage.size == 2L)
+    check(row.isFinal && row.properties[0L].getter.kind == AccessorKind.Storage)
     check(row.constructors.size == 2L)
     check(row.properties[0L].constructorParameter!! == row.constructors[0L].parameters[1L].id)
     check(row.constructors[1L].parameters[0L].member == ParameterMember.None)

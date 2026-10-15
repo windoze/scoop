@@ -1,0 +1,74 @@
+package scoop.cli
+
+internal class CliDecoder(internal val value: CliInput, public override val path: String)
+    : Decoder, SingleValueDecodingContainer {
+    internal fun fail(message: String): Nothing = inputError(path, value.source, message)
+
+    public override fun keyed(): KeyedDecodingContainer = when (value.node) {
+        case CliNode.Record(members) -> CliKeyedDecoder(this, members)
+        else -> fail("expected a record")
+    }
+    public override fun unkeyed(): UnkeyedDecodingContainer = when (value.node) {
+        case CliNode.Sequence(elements) -> CliUnkeyedDecoder(this, elements)
+        else -> fail("expected a sequence")
+    }
+    public override fun singleValue(): SingleValueDecodingContainer = this
+    public override fun isNull(): Boolean = false
+    public override fun readNull(): Unit = fail("CLI input has no null value")
+
+    public override fun readString(): String = when (value.node) {
+        case CliNode.Text(text) -> text
+        else -> fail("expected text")
+    }
+    public override fun readBoolean(): Boolean = when (value.node) {
+        case CliNode.BooleanValue(result) -> result
+        case CliNode.Text(text) -> {
+            if (text == "true") { true } else { if (text == "false") { false } else { fail("expected true or false") } }
+        }
+        else -> fail("expected a Boolean")
+    }
+    public override fun readLong(): Long = signedInteger(this, readString())
+    public override fun readULong(): ULong = unsignedInteger(this, readString())
+    public override fun readFloat(): Float {
+        val text = readString()
+        checkDecimal(this, text)
+        return when (parseFloat(text)) { case Some(value) -> value; case None -> fail("Float is out of range") }
+    }
+    public override fun readDouble(): Double {
+        val text = readString()
+        checkDecimal(this, text)
+        return when (parseDouble(text)) { case Some(value) -> value; case None -> fail("Double is out of range") }
+    }
+}
+
+internal class CliKeyedDecoder(private val owner: CliDecoder, private val members: Array<CliMember>)
+    : KeyedDecodingContainer {
+    public override val keys: List<String> get() = Array<String>(members.size) { index -> members[index].name }
+    public override fun optional(name: String): Option<Decoder> {
+        for (member in members) {
+            if (member.name == name) { return Some(CliDecoder(member.value, childPath(owner.path, name))) }
+        }
+        return None
+    }
+    public override fun required(name: String): Decoder = when (optional(name)) {
+        case Some(child) -> child
+        case None -> inputError(childPath(owner.path, name), owner.value.source, "missing required field")
+    }
+    public override fun end(): Unit = Unit
+}
+
+internal class CliUnkeyedDecoder(private val owner: CliDecoder, private val elements: Array<CliInput>)
+    : UnkeyedDecodingContainer {
+    private var cursor: Long = 0L
+    public override val hasNext: Boolean get() = cursor < elements.size
+    public override fun element(): Decoder {
+        val path = childPath(owner.path, cursor.toString())
+        if (cursor == elements.size) { inputError(path, owner.value.source, "missing sequence element") }
+        val child = CliDecoder(elements[cursor], path)
+        cursor = cursor + 1L
+        return child
+    }
+    public override fun end() {
+        if (cursor != elements.size) { owner.fail("extra sequence elements") }
+    }
+}

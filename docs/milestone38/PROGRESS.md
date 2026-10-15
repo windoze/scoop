@@ -54,6 +54,16 @@ HIR 在正常 requirement 选择后补全缺失 inspect，复用 codec 的实际
 
 fmt、workspace Clippy、release 构建及 47 项 codec／注解／类型描述 Rust 回归通过。20 个新 fixture 最终全部通过；新增跨库负例记录精确诊断后，只补验其所在组合。4 个既有 TypeInfo／annotationKey 独立与跨库 fixture 也通过，连同补验组合共 5 项、25 processes。没有为期望文件更新重跑无关套件。原始日志与报告保存在仓库外；清理已结束的 fixture case 目录约 451 MiB，保留共享缓存和 Rust 增量结果。Linux 留待本机整体功能稳定后统一验收。
 
-## 剩余交付
+## 独立 scoop.cli
 
-独立 scoop.cli、稳定 CliDecoder、CLI／debug／codec 的完整组合及最终三目标验收仍未完成。下一步完成 CLI；不缩减原设计范围。
+语言规范 12.7 与实现规范 2.17 定义独立 CLI Cone、显式依赖、schema、参数语法、稳定 Decoder、help 与错误。库由约 800 行普通 Scoop 分成 10 个模块实现，只依赖 core；没有 JSON 中间表示或 compiler／runtime 专用 CLI 入口。Float／Double 以普通 extern 复用已有目标精度转换 ABI。schema 构造一次检查名称、wire key、role、choices 和位置布局，保存只读结果；parser 接收现成 schema，归一化节点保留 token 来源，Decoder 不记录全局消费状态。
+
+自动模型使用实际 annotationKey、nominal identity、primary constructor 映射、hasDefault 和原声明 Option 事实；Serialize.rename／ignore／required／emitNull 与 CLI 命名、help 和输入缺失保持各自职责。ClassInfo 新增 isFinal，支持正常拒绝 open／abstract 目标。跨库组合发现普通 getter 物化为函数体后曾暴露内部 StorageBody；现统一映射为公开 Storage 并删除该实现细节的公开枚举项，本地和跨 Cone 的 getter／setter 保持同一源码事实。
+
+6 个新 fixture 最终全部通过，6 variants、21 processes；5 个正例均包含普通与 moving-GC。覆盖长短选项、分组／attached／负数／终止符、完整 argv、help 提前返回、重复／缺值／未知参数、配置错误、整数与浮点边界、直接 Float 舍入、Char／Unicode、Option 与嵌套序列规则、unit enum choice、默认值和 constructor 次数、显式 wrapper codec、错误 path 和 token、字段／标量复读、容器失败后换视图、独立／共享序列游标及读后异常恢复。真实 provider／bridge／consumer 消费独立 CLI 产物，组合泛型再次发布、注解 alias／re-export／type-use、JSON 和 debug；必填性与实际解码同时核对。注解负例精确检查 target、重复和参数类型。
+
+初轮只修正用例中的 Array 相等比较与遗漏的 enum inspector；跨库普通 getter 的公开描述修复后，集中复验 CLI 全组和相关 TypeInfo／debug 用例。3 个相关 fixture 通过，3 variants、16 processes；fmt、workspace Clippy 与 release 构建通过。原始日志／逐次报告在仓库外，本文只保存范围与结论；清理本批已结束的 fixture case 目录约 497 MiB，继续复用缓存。
+
+## 剩余验收
+
+M38 功能均已完成本机针对性验证。接下来统一执行本机完整 Rust／runner／正式 CLI 验收，闭合问题后再到 Linux 做 GNU／musl 组合验收；最终三目标验收完成前不宣称 M38 完成。
