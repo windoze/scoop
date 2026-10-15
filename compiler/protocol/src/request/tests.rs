@@ -53,7 +53,7 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
     assert_eq!(decoded.build().optimization(), OptimizationMode::Release);
     assert_eq!(decoded.build().target(), request.build().target());
     let mut unknown = bytes;
-    let optimization = unknown.len() - 5;
+    let optimization = unknown.len() - 7;
     assert_eq!(unknown[optimization], 2);
     unknown[optimization] = 3;
     assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown).is_err());
@@ -86,7 +86,8 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
         test
     );
     let mut unknown_purpose = bytes;
-    *unknown_purpose.last_mut().unwrap() = 3;
+    let purpose = unknown_purpose.len() - 3;
+    unknown_purpose[purpose] = 3;
     assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown_purpose).is_err());
     let mut missing = encode(request.build()).unwrap();
     assert_eq!(missing.pop(), Some(1));

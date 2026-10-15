@@ -7,10 +7,7 @@ use crate::{
     StrongInitializationUnitSemanticPlanV2, StrongStaticStorageSemanticPlanV1,
 };
 
-mod decoded;
-mod validate;
 mod wire;
-pub use decoded::DecodedShapeLinkContractV1;
 
 /// Typed data required by one external physical import.
 #[derive(Clone, Debug)]

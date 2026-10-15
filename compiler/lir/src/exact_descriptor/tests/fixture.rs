@@ -4,6 +4,7 @@ use super::super::*;
 use crate::*;
 
 mod diagnostics;
+mod read;
 use diagnostics::Graph;
 
 const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;

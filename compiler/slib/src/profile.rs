@@ -21,111 +21,48 @@ use inventory::validate_inventory;
 pub use inventory::{ArtifactProfileInventoryError, ArtifactProfileView};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ArtifactCapabilityProfile(ArtifactCapabilityProfileKind);
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum ArtifactCapabilityProfileKind {
-    SingleCone,
-    CrossConeSemantics,
-    CrossConeGeneric,
-}
+pub struct ArtifactCapabilityProfile;
 
 impl ArtifactCapabilityProfile {
-    pub const SINGLE_CONE_STRONG: Self = Self(ArtifactCapabilityProfileKind::SingleCone);
-    pub const CROSS_CONE_SEMANTICS_STRONG: Self =
-        Self(ArtifactCapabilityProfileKind::CrossConeSemantics);
-    pub const CROSS_CONE_GENERIC: Self = Self(ArtifactCapabilityProfileKind::CrossConeGeneric);
+    pub const CROSS_CONE_GENERIC: Self = Self;
 
     pub fn id(self) -> ArtifactCapabilityProfileId {
-        match self.0 {
-            ArtifactCapabilityProfileKind::SingleCone => {
-                ArtifactCapabilityProfileId::single_cone_strong()
-            }
-            ArtifactCapabilityProfileKind::CrossConeSemantics => {
-                ArtifactCapabilityProfileId::cross_cone_semantics_strong()
-            }
-            ArtifactCapabilityProfileKind::CrossConeGeneric => {
-                ArtifactCapabilityProfileId::cross_cone_generic()
-            }
-        }
+        ArtifactCapabilityProfileId::cross_cone_generic()
     }
 
     pub fn from_id(id: &ArtifactCapabilityProfileId) -> Option<Self> {
-        if id == &ArtifactCapabilityProfileId::single_cone_strong() {
-            Some(Self::SINGLE_CONE_STRONG)
-        } else if id == &ArtifactCapabilityProfileId::cross_cone_semantics_strong() {
-            Some(Self::CROSS_CONE_SEMANTICS_STRONG)
-        } else if id == &ArtifactCapabilityProfileId::cross_cone_generic() {
-            Some(Self::CROSS_CONE_GENERIC)
-        } else {
-            None
-        }
+        (id == &ArtifactCapabilityProfileId::cross_cone_generic()).then_some(Self)
     }
 
     pub fn descriptor(self) -> ArtifactCapabilityProfileDescriptor {
-        match self.0 {
-            ArtifactCapabilityProfileKind::CrossConeGeneric => {
-                let mut descriptor = Self::CROSS_CONE_SEMANTICS_STRONG.descriptor();
-                descriptor.id = self.id();
-                descriptor
-                    .required_hir
-                    .push(hir_cross_cone_type_semantics_capability());
-                descriptor
-                    .required_mir
-                    .push(mir_cross_cone_type_bridge_capability());
-                descriptor
-                    .required_lir
-                    .retain(|capability| capability != &lir_strong_production_capability());
-                descriptor.required_lir.extend([
-                    lir_cross_cone_layout_abi_capability(),
-                    lir_cone_production_capability(),
-                    lir_link_support_capability(),
-                ]);
-                descriptor.required_hir.sort_unstable();
-                descriptor.required_mir.sort_unstable();
-                descriptor.required_lir.sort_unstable();
-                descriptor
-            }
-            ArtifactCapabilityProfileKind::SingleCone => ArtifactCapabilityProfileDescriptor {
-                id: self.id(),
-                required_manifest: vec![manifest_single_cone_production_capability()],
-                required_hir: vec![
-                    hir_core_bootstrap_interface_capability(),
-                    hir_identity_foundation_capability(),
-                ],
-                required_mir: vec![
-                    mir_core_bootstrap_bridge_capability(),
-                    mir_identity_foundation_capability(),
-                ],
-                required_lir: vec![
-                    lir_identity_foundation_capability(),
-                    lir_link_identity_closure_capability(),
-                    lir_strong_production_capability(),
-                ],
-            },
-            ArtifactCapabilityProfileKind::CrossConeSemantics => {
-                ArtifactCapabilityProfileDescriptor {
-                    id: self.id(),
-                    required_manifest: vec![manifest_single_cone_production_capability()],
-                    required_hir: vec![
-                        hir_core_bootstrap_interface_capability(),
-                        hir_cross_cone_interface_capability(),
-                        hir_identity_foundation_capability(),
-                    ],
-                    required_mir: vec![
-                        mir_core_bootstrap_bridge_capability(),
-                        mir_cross_cone_param_free_bridge_capability(),
-                        mir_identity_foundation_capability(),
-                    ],
-                    required_lir: vec![
-                        lir_cross_cone_param_free_bridge_capability(),
-                        lir_identity_foundation_capability(),
-                        lir_link_identity_closure_capability(),
-                        lir_strong_production_capability(),
-                    ],
-                }
-            }
-        }
+        let mut descriptor = ArtifactCapabilityProfileDescriptor {
+            id: self.id(),
+            required_manifest: vec![manifest_single_cone_production_capability()],
+            required_hir: vec![
+                hir_core_bootstrap_interface_capability(),
+                hir_cross_cone_interface_capability(),
+                hir_cross_cone_type_semantics_capability(),
+                hir_identity_foundation_capability(),
+            ],
+            required_mir: vec![
+                mir_core_bootstrap_bridge_capability(),
+                mir_cross_cone_param_free_bridge_capability(),
+                mir_cross_cone_type_bridge_capability(),
+                mir_identity_foundation_capability(),
+            ],
+            required_lir: vec![
+                lir_cross_cone_param_free_bridge_capability(),
+                lir_identity_foundation_capability(),
+                lir_link_identity_closure_capability(),
+                lir_cross_cone_layout_abi_capability(),
+                lir_cone_production_capability(),
+                lir_link_support_capability(),
+            ],
+        };
+        descriptor.required_hir.sort_unstable();
+        descriptor.required_mir.sort_unstable();
+        descriptor.required_lir.sort_unstable();
+        descriptor
     }
 
     pub fn fingerprint(self) -> Result<ArtifactCapabilityProfileFingerprint, HashError> {

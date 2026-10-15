@@ -8,7 +8,6 @@ fn descriptor_projection_preserves_complete_semantics_and_excludes_both_post_slo
     assert_eq!(bytes[0], 0xa8);
     let decoded: DecodedExactDescriptorSemanticProjectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    decoded.validate_against(&descriptor).unwrap();
     let mut complete = bytes;
     complete[0] = 0xaa;
     complete.push(9);

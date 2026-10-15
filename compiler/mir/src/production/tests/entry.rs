@@ -82,20 +82,6 @@ fn executable_entry_bridge_round_trips_the_complete_hir_proof() {
         panic!("the executable bridge remains executable")
     };
     assert_eq!(entry.source(), &source);
-
-    let mut tampered = bytes;
-    let body = source.main().body();
-    let offset = tampered
-        .windows(body.as_array().len())
-        .position(|window| window == body.as_array())
-        .unwrap();
-    tampered[offset + body.as_array().len() - 1] ^= 1;
-    let decoded: DecodedCoreBootstrapBridgeSectionV1 = decode_canonical(&tampered).unwrap();
-    let (mut identities, foundation) = validate_mir(&hir, &mir);
-    assert_eq!(
-        decoded.validate(artifact, &mut identities, &foundation),
-        Err(MirProductionValidationError::EntrySourceMismatch)
-    );
 }
 
 #[test]

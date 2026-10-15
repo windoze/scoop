@@ -40,6 +40,11 @@ impl CanonicalExternalShapeLinkImportsV1 {
         records.extend(keyed.into_iter().map(|(_, record)| record));
         Ok(Self { records })
     }
+    /// Code inputs retain the selected semantic contract; artifact imports only store references.
+    pub fn code_projection(&self) -> impl WireEncode + '_ {
+        CodeProjection(self)
+    }
+
     pub fn records(&self) -> &[ExternalShapeLinkImportV1] {
         &self.records
     }
@@ -48,32 +53,6 @@ impl CanonicalExternalShapeLinkImportsV1 {
 #[derive(Debug)]
 pub struct DecodedCanonicalExternalShapeLinkImportsV1 {
     records: Vec<DecodedExternalShapeLinkImportV1>,
-}
-
-impl DecodedCanonicalExternalShapeLinkImportsV1 {
-    pub fn validate_against(
-        self,
-        expected: &CanonicalExternalShapeLinkImportsV1,
-    ) -> Result<CanonicalExternalShapeLinkImportsV1, ShapeLinkError> {
-        let path = WirePath::root();
-
-        if self.records.len() != expected.records.len() {
-            return Err(ShapeLinkError::Count);
-        }
-        let mut previous: Option<Vec<u8>> = None;
-        for (actual, expected) in self.records.into_iter().zip(&expected.records) {
-            let key = key(&actual.provider, &actual.subject)?;
-            if previous.as_ref().is_some_and(|previous| previous >= &key) {
-                return Err(ShapeLinkError::Order);
-            }
-            previous = Some(key);
-            actual.validate_against(expected)?;
-        }
-        let mut records = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut records, expected.records.len(), &path)?;
-        records.extend_from_slice(&expected.records);
-        Ok(CanonicalExternalShapeLinkImportsV1 { records })
-    }
 }
 
 impl WireEncode for CanonicalExternalShapeLinkImportsV1 {
@@ -111,4 +90,21 @@ fn key(provider: &impl WireEncode, subject: &impl WireEncode) -> Result<Vec<u8>,
         }
     }
     encode_canonical_temporary(&Key(provider, subject), &WirePath::root())
+}
+
+struct CodeProjection<'a>(&'a CanonicalExternalShapeLinkImportsV1);
+impl WireEncode for CodeProjection<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
+        use super::wire::field;
+        encoder.array(self.0.records.len() as u64)?;
+        for record in &self.0.records {
+            encoder.map(5)?;
+            field(encoder, 1, &record.provider())?;
+            field(encoder, 2, &record.subject())?;
+            field(encoder, 3, &record.expected_symbol())?;
+            field(encoder, 4, &record.required_definition())?;
+            field(encoder, 5, record.contract())?;
+        }
+        Ok(())
+    }
 }

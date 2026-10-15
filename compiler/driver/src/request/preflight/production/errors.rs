@@ -62,7 +62,7 @@ pub struct CurrentConeProductionError {
 }
 
 impl CurrentConeProductionError {
-    pub(super) fn before_hir(cause: CurrentConeProductionFailure) -> Self {
+    pub(in crate::request::preflight) fn before_hir(cause: CurrentConeProductionFailure) -> Self {
         Self {
             cause: Box::new(cause),
             warnings: None,

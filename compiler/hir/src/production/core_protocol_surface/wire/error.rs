@@ -4,9 +4,7 @@ use super::*;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CoreCompilerProtocolSurfaceValidationError {
-    RoleKindMismatch {
-        index: usize,
-    },
+    RoleKindMismatch { index: usize },
     UnknownType([u8; 32]),
     UnknownGenericType([u8; 32]),
     UnknownEnumVariant([u8; 32]),
@@ -16,33 +14,7 @@ pub enum CoreCompilerProtocolSurfaceValidationError {
     ExpectedSourceEnumOwner,
     GeneratedEnumMember,
     MissingDefinitionOrigin(DefinitionOriginSubject),
-    NominalRoleMismatch {
-        product: CoreProtocolProductKindV1,
-        index: usize,
-    },
-    OptionOwnerMismatch,
-    OptionPayloadMismatch,
-    OptionVariantFieldCount {
-        variant: PersistentEnumVariantId,
-        expected: usize,
-        actual: usize,
-    },
-    CallbackVariantOwnerMismatch {
-        index: usize,
-    },
-    CallbackFailureTypeMismatch,
-    InterfaceDispatchMismatch {
-        product: CoreProtocolProductKindV1,
-        callable_index: usize,
-        slot_index: usize,
-    },
-    RoleCallableOwnerMismatch {
-        product: CoreProtocolProductKindV1,
-        index: usize,
-    },
-    OperationOwnerMismatch(IntrinsicFunctionKind),
     Callable(CoreProtocolCallableValidationError),
-    Relation(CoreCompilerProtocolSurfaceRelationError),
 }
 
 impl fmt::Display for CoreCompilerProtocolSurfaceValidationError {

@@ -111,7 +111,7 @@ pub(super) fn check(
         encode(layout).unwrap()
     );
     closure
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             let current = physical.artifact(layout.provider()).unwrap();
@@ -128,7 +128,7 @@ pub(super) fn check(
         })
         .unwrap();
     read_link(core, artifact)
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             for current in physical.dependency_first() {

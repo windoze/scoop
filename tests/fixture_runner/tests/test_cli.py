@@ -10,10 +10,32 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from fixture_runner.cli import arguments, environment
+from fixture_runner.cores import prepare_test_core
 from fixture_runner.model import EnvironmentError
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_shared_language_core_preserves_sysroot_and_reuses_unchanged_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            original = work / "sysroot/lib/scoop.core/src"
+            original.mkdir(parents=True)
+            (original / "core.scoop").write_text("public fun coreValue(): Int = 1\n")
+            helper = repo / "tests/fixtures/m23-cli-imported-classes/support/stage3_test.scoop"
+            helper.parent.mkdir(parents=True)
+            helper.write_text("public fun stage3CoreAnswer(): Long = 42\n")
+            prepare_test_core(repo, work)
+            shared = work / "test-core/src/stage3_test.scoop"
+            stamp = shared.stat().st_mtime_ns
+            prepare_test_core(repo, work)
+            self.assertEqual(shared.stat().st_mtime_ns, stamp)
+            self.assertEqual(shared.read_text(), helper.read_text())
+            self.assertFalse((original / "stage3_test.scoop").exists())
+            self.assertEqual(
+                (work / "test-core/src/core.scoop").read_text(),
+                (original / "core.scoop").read_text(),
+            )
+
     def prepare(self, directory):
         repo = Path(directory) / "repo"
         work = Path(directory) / "work"

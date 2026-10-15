@@ -187,10 +187,9 @@ mod tests {
     use crate::{
         CurrentConeRequestV1, DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1,
         DiagnosticSeverityV1, EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
-        ProtocolDumpContentDigest, ProtocolValidationError, RequestCorrelationId,
-        ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
-        StageDumpKindV1, StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1,
-        TrustedCoreRequestV1,
+        ProtocolValidationError, RequestCorrelationId, ScoopcBuildRequestV1,
+        ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpKindV1,
+        StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
     };
 
     use super::*;
@@ -224,6 +223,10 @@ mod tests {
     }
 
     fn request() -> ScoopcRequestEnvelopeV1 {
+        request_with_emit(StageDumpPolicyV1::None)
+    }
+
+    fn request_with_emit(emit: StageDumpPolicyV1) -> ScoopcRequestEnvelopeV1 {
         ScoopcRequestEnvelopeV1::new(
             RequestCorrelationId::from_array([7; 16]),
             ScoopcBuildRequestV1::new(
@@ -238,7 +241,7 @@ mod tests {
                 TargetSelectionRequestV1::new("aarch64-apple-darwin".to_owned()).unwrap(),
                 path("out/current.slib"),
                 DiagnosticOutputPolicyV1::Structured,
-                StageDumpPolicyV1::None,
+                emit,
             )
             .unwrap(),
         )
@@ -249,7 +252,23 @@ mod tests {
         let request = request();
         let frame = encode_request_frame(&request).unwrap();
         assert_eq!(decode_request_frame(&frame).unwrap(), request);
-        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 197);
+        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 199);
+    }
+
+    #[test]
+    fn observation_request_preserves_only_the_missing_stages() {
+        let request = request_with_emit(StageDumpPolicyV1::Files {
+            stages: crate::StageDumpSet::all(),
+            directory: path("dump"),
+        });
+        let request = request
+            .observe(crate::StageDumpSet::one(StageDumpKindV1::Hir))
+            .unwrap();
+        assert!(request.observation_only());
+        assert_eq!(
+            decode_request_frame(&encode_request_frame(&request).unwrap()).unwrap(),
+            request
+        );
     }
 
     #[test]
@@ -261,7 +280,6 @@ mod tests {
             vec![EmittedDumpDescriptorV1::new(
                 StageDumpKindV1::Lir,
                 EmittedDumpDestinationV1::File(path("dump/lir.txt")),
-                ProtocolDumpContentDigest::from_array([8; 32]),
             )],
         )
         .unwrap();

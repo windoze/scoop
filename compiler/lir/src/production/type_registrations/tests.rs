@@ -69,30 +69,6 @@ fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
 }
 
 #[test]
-fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
-    let fixture = Fixture::new(Options::default());
-    let plans = fixture.build().unwrap();
-    let decoded = plans
-        .registrations()
-        .iter()
-        .map(|plan| {
-            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encode(plan).unwrap()).unwrap()
-        })
-        .collect();
-
-    let validated = crate::validate_types(
-        decoded,
-        crate::target_fixtures::DARWIN_AARCH64,
-        &fixture.foundation,
-        &fixture.identities,
-        &fixture.digests,
-    )
-    .unwrap();
-
-    assert_eq!(validated, fixture.semantics);
-}
-
-#[test]
 fn wire_reader_rejects_type_registrations_without_runtime_relations() {
     let fixture = Fixture::new(Options::default());
     let plans = fixture.build().unwrap();
@@ -116,46 +92,6 @@ fn wire_reader_rejects_type_registrations_without_runtime_relations() {
     encoded.truncate(encoded.len() - 7);
 
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded,).is_err());
-}
-
-#[test]
-fn records_and_round_trips_the_exact_typed_itable_directory() {
-    let fixture = Fixture::new(Options {
-        first_type_has_itable: true,
-        ..Options::default()
-    });
-    let plans = fixture.build().unwrap();
-    let plan = &plans.registrations()[0];
-    let expected = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
-        plan.descriptor_definition_plan(),
-        DefinitionAtomRole::RuntimeRecord,
-        DefinitionAtomSubkey::ExactType(plan.exact_type()),
-    ))
-    .unwrap();
-    assert_eq!(
-        plan.itable_directory(),
-        TypeDescriptorITableDirectoryV1::Defined(expected.id())
-    );
-
-    let decoded = plans
-        .registrations()
-        .iter()
-        .map(|plan| {
-            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encode(plan).unwrap()).unwrap()
-        })
-        .collect();
-
-    assert_eq!(
-        crate::validate_types(
-            decoded,
-            crate::target_fixtures::DARWIN_AARCH64,
-            &fixture.foundation,
-            &fixture.identities,
-            &fixture.digests,
-        )
-        .unwrap(),
-        fixture.semantics
-    );
 }
 
 #[test]

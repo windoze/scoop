@@ -8,14 +8,14 @@
 
 保留正常 Compile／ProgramLink 所需的 section 解码、typed 引用解析和对象生产端数据。归档 helper 不再提供修改最终 image digest 的开关；manifest 读取范围与记录往返测试使用正常完整产物。现有对象生产、归档可复现性、扩展成员和 wire 格式断言继续保留；writer 的 Link identity 检查直接比较测试中实际编码的字段，不在生产 reader 建立比对路径。
 
-[退役测试清单](old-link-retired-tests.json.gz)列出 20 个旧名称：19 项为被删除 API 的专用测试，另 1 项迁移为普通 wire 往返。并未删除源码语言、真实 ODR、ABI、GC 或 FFI 功能用例。reader 主文件从 728 行缩到 212 行，Link identity wire 从 642 行缩到 418 行；无新的运行时格式或 ABI 变更。
+退役测试清单列出 20 个旧名称：19 项为被删除 API 的专用测试，另 1 项迁移为普通 wire 往返。并未删除源码语言、真实 ODR、ABI、GC 或 FFI 功能用例。reader 主文件从 728 行缩到 212 行，Link identity wire 从 642 行缩到 418 行；无新的运行时格式或 ABI 变更。
 
 ## 本机验证
 
-[workspace clippy](old-link-darwin-clippy.log.gz)、[545 项 slib](old-link-darwin-slib.log.gz)、[release 构建](old-link-darwin-release.log.gz)通过。删除旧 API 后修正了一处 writer 测试调用，继续保留实际编码字段断言。最后仅修正了已过时的对象资格注释，再次 fmt／workspace clippy 通过，无语义改动。
+workspace clippy、545 项 slib、release 构建通过。删除旧 API 后修正了一处 writer 测试调用，继续保留实际编码字段断言。最后仅修正了已过时的对象资格注释，再次 fmt／workspace clippy 通过，无语义改动。
 
-[6 项正式 CLI](old-link-darwin-cli.log.gz)、[报告](old-link-darwin-cli.json.gz)通过：8 variants、93 processes，包含普通链接、稳定对象复用／缺失输出补产、泛型 adapter 合并、ODR 冲突、native C 和 Test 用途。此处只覆盖本批相关路径，不代替最终全量。测试完成后另清理 [1,316.7 MiB incremental](old-link-cleanup.json.gz)。
+6 项正式 CLI、报告通过：8 variants、93 processes，包含普通链接、稳定对象复用／缺失输出补产、泛型 adapter 合并、ODR 冲突、native C 和 Test 用途。此处只覆盖本批相关路径，不代替最终全量。测试完成后另清理 1,316.7 MiB incremental。
 
 ## Linux 验证
 
-使用独立的 `target/m48-summary-reader`，历史迁移的 `target/release` 保持原版本。[fmt](old-link-linux-fmt.log.gz)、[workspace clippy](old-link-linux-clippy.log.gz)、[release](old-link-linux-release.log.gz)和 [546 项 slib](old-link-linux-slib.log.gz)通过。GNU 与 musl 各 6 项 CLI、8 variants、93 processes 全部通过，分别见 [GNU 报告](old-link-gnu-cli.json.gz)与[musl 报告](old-link-musl-cli.json.gz)。执行参数见[脚本](old-link-linux.py.gz)。
+使用独立的 `target/m48-summary-reader`，历史迁移的 `target/release` 保持原版本。fmt、workspace clippy、release和 546 项 slib通过。GNU 与 musl 各 6 项 CLI、8 variants、93 processes 全部通过，分别见 GNU 报告与musl 报告。执行参数见脚本。

@@ -43,27 +43,6 @@ pub(super) fn graph(
     pending_graph(provider, relations).finish().unwrap()
 }
 
-pub(super) fn consumer_graph(
-    provider: &Provider,
-    relations: &[LayoutAbiDependencyV1],
-    exports: &LayoutAbiExportConstituentsV1,
-) -> ValidatedIdentityGraph {
-    let mut pending = pending_graph(provider, relations);
-    pending.register_authority(exports.provider()).unwrap();
-    pending.register_authority(provider.callable_body).unwrap();
-    for table in exports.dispatch().records() {
-        pending.register_authority(table.table()).unwrap();
-        pending.register_authority(table.owner_exact()).unwrap();
-        pending
-            .register_authority(table.definition().definition_plan())
-            .unwrap();
-        for entry in table.entries() {
-            pending.register_authority(entry.slot()).unwrap();
-        }
-    }
-    pending.finish().unwrap()
-}
-
 fn pending_graph(
     provider: &Provider,
     relations: &[LayoutAbiDependencyV1],
@@ -78,6 +57,7 @@ fn pending_graph(
         unreachable!()
     };
     pending.register_authority(function).unwrap();
+    pending.register_authority(provider.callable_body).unwrap();
     let exports = provider.layout_section();
     for layout in exports.layouts().records() {
         pending
@@ -96,6 +76,9 @@ fn pending_graph(
         pending
             .register_authority(storage.semantic().storage())
             .unwrap();
+    }
+    for plan in provider.output.foundation().definition_plans() {
+        pending.register_authority(plan.id()).unwrap();
     }
     for relation in relations {
         assert_eq!(relation.provider(), provider.identity);

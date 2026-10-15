@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use super::*;
 use scoop_identity::DecodedPersistentId;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
@@ -94,47 +92,5 @@ impl WireDecode for DecodedCanonicalCallableAbisV1 {
         Ok(Self {
             definitions: decoder.decode_array(|decoder, _| DecodedDefinition::decode(decoder))?,
         })
-    }
-}
-
-impl DecodedCanonicalCallableAbisV1 {
-    pub fn validate(
-        self,
-        foundation: &ConeLirFoundation,
-    ) -> Result<CanonicalCallableAbisV1, CanonicalCallableAbiError> {
-        let known = foundation
-            .callable_bodies()
-            .iter()
-            .map(|record| (*record.id().as_array(), record))
-            .collect::<BTreeMap<_, _>>();
-        if self
-            .definitions
-            .windows(2)
-            .any(|pair| pair[0].body.as_array() >= pair[1].body.as_array())
-        {
-            return Err(CanonicalCallableAbiError::UnsortedBodies);
-        }
-        let definitions = self
-            .definitions
-            .into_iter()
-            .map(|definition| {
-                let record = known.get(definition.body.as_array()).copied().ok_or(
-                    CanonicalCallableAbiError::UnknownBody(*definition.body.as_array()),
-                )?;
-                let body = record.id();
-                let owner = match (body_odr_member(record, foundation), definition.odr_abi) {
-                    (None, None) => CanonicalCallableAbiOwnerV1::Strong,
-                    (Some((group, member, role)), Some(abi)) => CanonicalCallableAbiOwnerV1::Odr {
-                        group,
-                        member,
-                        role,
-                        abi,
-                    },
-                    _ => return Err(CanonicalCallableAbiError::DefinitionOwner { body }),
-                };
-                Ok(CanonicalCallableAbiV1::new(body, owner))
-            })
-            .collect::<Result<Vec<_>, CanonicalCallableAbiError>>()?;
-        CanonicalCallableAbisV1::new(definitions, foundation)
     }
 }

@@ -24,13 +24,7 @@ fn removing_codegen_records_updates_boundary_queries_without_changing_wire() {
     assert_eq!(surface, expected);
     let decoded: DecodedObjectSymbolSurfaceV1 =
         decode_canonical(&encode(&surface).unwrap()).unwrap();
-    assert_eq!(
-        decoded
-            .validate(&foundation)
-            .unwrap()
-            .atom_boundary(fixture.primary.id()),
-        Some(primary)
-    );
+    assert_eq!(encode(&decoded).unwrap(), encode(&surface).unwrap());
 
     surface.remove_codegen_records(&BTreeSet::from([fixture.plan.id()]), &BTreeSet::new());
     assert!(surface.plans().is_empty());

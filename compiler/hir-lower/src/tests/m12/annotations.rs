@@ -93,7 +93,7 @@ fn annotation_schema_target_and_coexistence_are_checked_in_hir() {
     assert!(
         errors
             .iter()
-            .any(|message| message.contains("supports only `cdecl`"))
+            .any(|message| message.contains("only `cdecl` is supported"))
     );
     assert!(
         errors

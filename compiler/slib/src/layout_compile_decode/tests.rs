@@ -1,4 +1,3 @@
-use scoop_identity::ArtifactCapabilityProfileId;
 use scoop_wire::encode;
 
 mod declarations;
@@ -175,22 +174,6 @@ fn layout_profile_replays_the_legacy_hir_production_before_new_semantics() {
     let _ = sections.lir_strong_production_wire();
     let _ = sections.lir_cross_cone_bridge_wire();
     let _ = sections.lir_layout_abi_wire();
-}
-
-#[test]
-fn layout_profile_rejects_the_m23_5_profile_before_payloads() {
-    let bytes = crate::cross_cone_compile_decode::tests::cross_cone_artifact(
-        crate::cross_cone_compile_decode::tests::empty_cross_cone_hir_interface(),
-    );
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_compile_sections(),
-        Err(CrossConeLayoutCompileSectionDecodeError::WrongProfile {
-            expected,
-            actual,
-        }) if expected == ArtifactCapabilityProfileId::cross_cone_generic()
-            && actual == ArtifactCapabilityProfileId::cross_cone_semantics_strong()
-    ));
 }
 
 #[test]

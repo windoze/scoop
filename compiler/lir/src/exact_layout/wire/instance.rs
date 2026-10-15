@@ -33,12 +33,12 @@ impl WireEncode for InstanceRepresentationV1 {
             InstanceRepresentationKindV1::BoxedPayload(payload) => {
                 sum(encoder, 2, 2)?;
                 field(encoder, 1, &payload.exact())?;
-                field(encoder, 2, &payload.layout())
+                field(encoder, 2, payload)
             }
             InstanceRepresentationKindV1::InlineBytes => sum(encoder, 3, 0),
             InstanceRepresentationKindV1::InlineArray { element, storage } => {
                 sum(encoder, 4, 2)?;
-                field(encoder, 1, &element.exact())?;
+                field(encoder, 1, element)?;
                 field(encoder, 2, storage)
             }
             InstanceRepresentationKindV1::AbstractReference => sum(encoder, 5, 0),

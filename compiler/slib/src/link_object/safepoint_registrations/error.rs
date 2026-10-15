@@ -47,7 +47,6 @@ pub enum StrongSafepointRegistrationValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     SiteCoverageMismatch {
         expected: Vec<PersistentSafepointSiteId>,
         actual: Vec<PersistentSafepointSiteId>,

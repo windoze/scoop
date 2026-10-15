@@ -165,7 +165,7 @@ mod tests {
         assert!(summary.test_directory().is_none());
         assert_eq!(
             summary.profile(),
-            &scoop_identity::ArtifactCapabilityProfileId::single_cone_strong()
+            &scoop_identity::ArtifactCapabilityProfileId::cross_cone_generic()
         );
         assert_eq!(
             summary.cone().identity(),

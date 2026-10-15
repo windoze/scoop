@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AggregateStorageLayoutV1 {
-    pub(super) storage: ValueStorageLayoutV1,
-    pub(super) fields: Vec<PlacedFieldStorageV1>,
+    pub(crate) storage: ValueStorageLayoutV1,
+    pub(crate) fields: Vec<PlacedFieldStorageV1>,
 }
 
 impl AggregateStorageLayoutV1 {

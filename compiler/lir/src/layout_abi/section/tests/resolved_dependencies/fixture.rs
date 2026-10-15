@@ -41,14 +41,7 @@ impl Fixture {
         &self,
         semantic: &[LayoutAbiDependencyV1],
     ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
-        self.resolve_with(&self.local, semantic)
-    }
-
-    pub(super) fn resolve_with(
-        &self,
-        local: &LayoutAbiExportConstituentsV1,
-        semantic: &[LayoutAbiDependencyV1],
-    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
+        let local = &self.local;
         let wire = Selection {
             exports: local,
             semantic,
@@ -56,7 +49,11 @@ impl Fixture {
         let bytes = encode(&wire).unwrap();
         let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
         let exports = decoded
-            .validate_layouts(local.layouts())
+            .read_layouts(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
             .read_callables(
                 TARGET,
@@ -71,7 +68,11 @@ impl Fixture {
                 &mut PendingIdentityValidation::new().finish().unwrap(),
             )
             .unwrap()
-            .validate_descriptors(local.descriptors())
+            .read_descriptors(
+                TARGET,
+                &empty_foundation(local.provider()),
+                &mut PendingIdentityValidation::new().finish().unwrap(),
+            )
             .unwrap()
             .read_shape_support(
                 local.direct_callables(),

@@ -5,17 +5,13 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use scoop_hir::ImportedHirFoundation;
-use scoop_identity::{
-    ImportedIdentityLayers, SemanticIdentityImport, SemanticIdentityImportError,
-    SemanticIdentitySession, SemanticOriginFingerprint, ValidatedIdentityGraph,
-};
+use scoop_identity::{SemanticIdentityImportError, ValidatedIdentityGraph};
 use scoop_lir::{ImportedLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::ImportedMirFoundation;
 use scoop_wire::WireError;
 
 use crate::{
     ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord, SemanticFingerprintRecord,
-    ValidatedGraphArtifact,
 };
 
 mod profile_seal {
@@ -25,16 +21,6 @@ mod profile_seal {
 /// The complete production data carried by each supported Compile profile.
 pub trait CompileCapabilityProfile: profile_seal::Sealed {
     type Production;
-}
-
-/// The M23-3 production Compile profile for one Cone whose definitions all
-/// use strong linkage.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct SingleConeStrongProfile;
-
-impl profile_seal::Sealed for SingleConeStrongProfile {}
-impl CompileCapabilityProfile for SingleConeStrongProfile {
-    type Production = crate::ValidatedSingleConeStrongProduction;
 }
 
 /// The complete M23-6 type, layout and object profile in one semantic session.
@@ -149,30 +135,6 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
     pub const fn production(&self) -> &P::Production {
         &self.production
     }
-}
-
-pub(crate) fn commit_identity_graph(
-    graph: &mut ValidatedGraphArtifact<'_>,
-    identities: &ValidatedIdentityGraph,
-    session: &mut SemanticIdentitySession,
-) -> Result<ImportedIdentityLayers, CompileCommitError> {
-    let import = semantic_identity_import(graph, identities);
-    session
-        .import(import.origin(), import.fingerprint(), import.graph())
-        .map_err(CompileCommitError::SemanticImport)
-}
-
-pub(crate) fn semantic_identity_import<'a>(
-    graph: &ValidatedGraphArtifact<'_>,
-    identities: &'a ValidatedIdentityGraph,
-) -> SemanticIdentityImport<'a> {
-    let semantic = graph.envelope.manifest().semantic_fingerprints();
-    let fingerprint = SemanticOriginFingerprint::new(
-        *semantic.hir().as_array(),
-        *semantic.mir().as_array(),
-        *semantic.lir().as_array(),
-    );
-    SemanticIdentityImport::new(graph.identity(), fingerprint, identities)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

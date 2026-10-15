@@ -9,7 +9,7 @@ mod provider;
 pub(crate) mod table;
 mod wire;
 
-pub use contract::{DecodedShapeLinkContractV1, ShapeLinkContractV1};
+pub use contract::ShapeLinkContractV1;
 pub use decoded::DecodedExternalShapeLinkImportV1;
 pub use error::ShapeLinkError;
 pub use import::ExternalShapeLinkImportV1;

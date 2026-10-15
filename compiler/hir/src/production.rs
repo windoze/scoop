@@ -9,7 +9,7 @@ use scoop_identity::{
     ConeIdentity, DecodedExecutableEntryIdentity, DecodedPersistentId, ExecutableEntryIdentity,
     ExecutableEntryIdentityError, PersistentExportBindingId,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use crate::{
     CanonicalHirFoundation, CanonicalPublicExportBindingsV1, ConeOutputKind, ExportHir,
@@ -146,13 +146,6 @@ impl DecodedHirOutputContractV1 {
                         entry: expected.root_cone(),
                     });
                 }
-                let actual_bytes =
-                    encode(decoded.as_ref()).map_err(HirOutputContractValidationError::Encode)?;
-                let expected_bytes =
-                    encode(&expected).map_err(HirOutputContractValidationError::Encode)?;
-                if actual_bytes != expected_bytes {
-                    return Err(HirOutputContractValidationError::EntryMismatch);
-                }
                 Ok(HirOutputContractV1::Executable(Box::new(expected)))
             }
         }
@@ -214,8 +207,6 @@ pub enum HirOutputContractValidationError {
         artifact: ConeIdentity,
         entry: ConeIdentity,
     },
-    Encode(scoop_wire::cbor::EncodeError),
-    EntryMismatch,
 }
 
 impl fmt::Display for HirOutputContractValidationError {
@@ -233,10 +224,6 @@ impl fmt::Display for HirOutputContractValidationError {
             Self::ForeignEntry { artifact, entry } => write!(
                 formatter,
                 "HIR executable entry belongs to Cone {entry}, not artifact Cone {artifact}"
-            ),
-            Self::Encode(error) => error.fmt(formatter),
-            Self::EntryMismatch => formatter.write_str(
-                "HIR executable output payload does not match its declaration and exact signature",
             ),
         }
     }
@@ -517,24 +504,6 @@ mod tests {
         let mut bytes = vec![0xa2, 0x00, 0x02, 0x01, 0x58, 0x20];
         bytes.extend_from_slice(function.id().as_array());
         assert!(decode_canonical::<DecodedHirOutputContractV1>(&bytes).is_err());
-    }
-
-    #[test]
-    fn executable_contract_rejects_a_tampered_derived_body() {
-        let (function, _) = function_and_binding("main");
-        let mut foundation = CanonicalHirFoundation::empty();
-        foundation.set_functions(vec![function.clone()]).unwrap();
-        foundation
-            .set_exact_types(vec![unit_exact_record()])
-            .unwrap();
-        let mut bytes = encode(&executable_contract(&function)).unwrap();
-        *bytes.last_mut().unwrap() ^= 1;
-        let decoded = decode_canonical::<DecodedHirOutputContractV1>(&bytes).unwrap();
-
-        assert_eq!(
-            decoded.validate_against(ConeIdentity::CORE, &foundation),
-            Err(HirOutputContractValidationError::EntryMismatch)
-        );
     }
 
     #[test]

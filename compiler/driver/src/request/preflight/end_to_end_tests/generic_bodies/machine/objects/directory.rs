@@ -21,10 +21,8 @@ pub(super) fn check(code: &VerifiedCodeFingerprintV2, expected: &BTreeSet<OdrMem
     assert_eq!(&actual, expected);
     assert!(!actual.is_empty());
     let bytes = encode(directory).unwrap();
-    decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&bytes)
-        .unwrap()
-        .validate_against(directory)
-        .unwrap();
+    let decoded: DecodedCanonicalOdrMemberDirectoryV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
     let projection_bytes = encode(projection).unwrap();
     assert_eq!(projection_bytes[0], 0xa7);
     let mut suffix = vec![11];

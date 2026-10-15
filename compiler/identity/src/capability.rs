@@ -226,22 +226,6 @@ capability_refinement!(
 pub struct ArtifactCapabilityProfileId(CapabilityId);
 
 impl ArtifactCapabilityProfileId {
-    pub fn single_cone_strong() -> Self {
-        Self(CapabilityId {
-            namespace: "org.scoop-lang.slib-profile".to_owned(),
-            name: "single-cone-strong".to_owned(),
-            major_version: 5,
-        })
-    }
-
-    pub fn cross_cone_semantics_strong() -> Self {
-        Self(CapabilityId {
-            namespace: "org.scoop-lang.slib-profile".to_owned(),
-            name: "cross-cone-semantics-strong".to_owned(),
-            major_version: 5,
-        })
-    }
-
     pub fn cross_cone_generic() -> Self {
         Self(CapabilityId {
             namespace: "org.scoop-lang.slib-profile".to_owned(),
@@ -257,13 +241,7 @@ impl ArtifactCapabilityProfileId {
     pub fn refine(
         capability: CapabilityId,
     ) -> Result<Self, ArtifactCapabilityProfileRefinementError> {
-        let single_cone_strong = Self::single_cone_strong();
-        let cross_cone_semantics_strong = Self::cross_cone_semantics_strong();
-        let cross_cone_generic = Self::cross_cone_generic();
-        if capability == single_cone_strong.0
-            || capability == cross_cone_semantics_strong.0
-            || capability == cross_cone_generic.0
-        {
+        if capability == Self::cross_cone_generic().0 {
             Ok(Self(capability))
         } else {
             Err(ArtifactCapabilityProfileRefinementError { actual: capability })
@@ -439,16 +417,13 @@ mod tests {
 
     #[test]
     fn artifact_profile_refinement_accepts_all_registered_profiles() {
-        for profile in [
-            ArtifactCapabilityProfileId::single_cone_strong(),
-            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
-            ArtifactCapabilityProfileId::cross_cone_generic(),
-        ] {
-            assert_eq!(
-                ArtifactCapabilityProfileId::refine(profile.capability().clone()),
-                Ok(profile)
-            );
-        }
+        let profile = ArtifactCapabilityProfileId::cross_cone_generic();
+
+        assert_eq!(
+            ArtifactCapabilityProfileId::refine(profile.capability().clone()),
+            Ok(profile)
+        );
+
         assert!(
             ArtifactCapabilityProfileId::refine(
                 CapabilityId::new("org.scoop-lang.slib-profile", "unknown", 1).unwrap()
@@ -461,8 +436,8 @@ mod tests {
     fn retired_artifact_profiles_require_rebuilding() {
         for (name, last_major) in [
             ("identity-foundation", 2),
-            ("single-cone-strong", 2),
-            ("cross-cone-semantics-strong", 2),
+            ("single-cone-strong", 5),
+            ("cross-cone-semantics-strong", 5),
             ("cross-cone-layout-strong", 3),
             ("cross-cone-generic", 4),
         ] {

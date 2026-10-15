@@ -7,7 +7,7 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 use crate::{
     CrossConeLayoutProductionManifestV1, DecodedSingleConeProductionManifestV1,
-    DecodedSlibEnvelope, SlibMember, ValidatedGraphArtifact,
+    DecodedSlibEnvelope, ValidatedGraphArtifact,
 };
 use crate::{EmptyLayoutCodeFixture, with_empty_layout_code_fixture};
 use support::{
@@ -57,15 +57,6 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
 }
 
 #[test]
-fn layout_writer_rejects_mismatched_object_bytes() {
-    let (result, _) = write_artifact(WriterMutation::ObjectBytes);
-    assert!(matches!(
-        result,
-        Err(CrossConeLayoutArtifactWriteError::LinkObjectMismatch { .. })
-    ));
-}
-
-#[test]
 fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
     let (result, _) = write_artifact(WriterMutation::ManifestIdentity);
     assert!(matches!(
@@ -82,7 +73,6 @@ fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
 #[derive(Clone, Copy)]
 enum WriterMutation {
     None,
-    ObjectBytes,
     ManifestIdentity,
 }
 
@@ -112,18 +102,6 @@ fn write_artifact_from_fixture(
         .unwrap();
     let mir_type_bridge = empty_mir_type_bridge(provider, &mir_production, &mir_ordinary, &graph);
 
-    if matches!(mutation, WriterMutation::ObjectBytes) {
-        let record = lir.link_objects[0].record();
-        lir.link_objects = vec![
-            SlibMember::new(
-                provider,
-                record.stable_key().clone(),
-                record.role().clone(),
-                vec![0],
-            )
-            .unwrap(),
-        ];
-    }
     if matches!(mutation, WriterMutation::ManifestIdentity) {
         lir.cone = crate::ConeRecord::new(
             ConeCoordinate::new("test", "wrong-layout-writer", "0.0.0").unwrap(),

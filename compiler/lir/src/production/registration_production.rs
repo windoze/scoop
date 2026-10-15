@@ -29,9 +29,6 @@ mod read;
 mod wire;
 pub use wire::*;
 
-mod validation;
-pub use validation::*;
-
 mod model;
 pub use model::*;
 

@@ -1,13 +1,5 @@
-use scoop_hir::CrossConeHirInternalClosureValidationError;
 use scoop_identity::ConeIdentity;
 use scoop_wire::WireError;
-
-use crate::{
-    CrossConeHirCallableSurfaceError, CrossConeHirConstSurfaceError,
-    CrossConeHirDefinitionSourceSurfaceError, CrossConeHirNominalSurfaceError,
-    CrossConeHirPropertySurfaceError, CrossConeHirSourceInterfaceSurfaceError,
-    CrossConeHirTypeAliasSurfaceError, hir_interface_validation::CrossConeHirReferenceSurfaceError,
-};
 
 #[derive(Debug)]
 pub struct CrossConeLayoutHirDeclarationError {
@@ -20,15 +12,6 @@ pub enum CrossConeHirDeclarationValidationError {
     Resource(WireError),
     AliasReferences(crate::CrossConeHirAliasReferenceError),
     AliasExpansion(scoop_hir::TypeAliasExpansionError),
-    Internal(Box<CrossConeHirInternalClosureValidationError>),
-    DefinitionSources(CrossConeHirDefinitionSourceSurfaceError),
-    Nominals(CrossConeHirNominalSurfaceError),
-    Properties(CrossConeHirPropertySurfaceError),
-    Callables(CrossConeHirCallableSurfaceError),
-    TypeAliases(CrossConeHirTypeAliasSurfaceError),
-    Sources(CrossConeHirSourceInterfaceSurfaceError),
-    Constants(CrossConeHirConstSurfaceError),
-    References(CrossConeHirReferenceSurfaceError),
 }
 
 impl std::fmt::Display for CrossConeLayoutHirDeclarationError {
@@ -53,15 +36,6 @@ impl std::fmt::Display for CrossConeHirDeclarationValidationError {
             Self::Resource(error) => error.fmt(f),
             Self::AliasReferences(error) => error.fmt(f),
             Self::AliasExpansion(error) => error.fmt(f),
-            Self::Internal(error) => error.fmt(f),
-            Self::DefinitionSources(error) => error.fmt(f),
-            Self::Nominals(error) => error.fmt(f),
-            Self::Properties(error) => error.fmt(f),
-            Self::Callables(error) => error.fmt(f),
-            Self::TypeAliases(error) => error.fmt(f),
-            Self::Sources(error) => error.fmt(f),
-            Self::Constants(error) => error.fmt(f),
-            Self::References(error) => error.fmt(f),
         }
     }
 }

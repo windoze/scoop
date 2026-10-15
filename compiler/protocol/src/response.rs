@@ -73,7 +73,6 @@ macro_rules! protocol_digest {
 }
 
 protocol_digest!(ProtocolConeIdentity, "Cone identity");
-protocol_digest!(ProtocolDumpContentDigest, "dump content digest");
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmittedDumpDestinationV1 {
@@ -104,20 +103,11 @@ impl WireEncode for EmittedDumpDestinationV1 {
 pub struct EmittedDumpDescriptorV1 {
     stage: StageDumpKindV1,
     destination: EmittedDumpDestinationV1,
-    content_digest: ProtocolDumpContentDigest,
 }
 
 impl EmittedDumpDescriptorV1 {
-    pub const fn new(
-        stage: StageDumpKindV1,
-        destination: EmittedDumpDestinationV1,
-        content_digest: ProtocolDumpContentDigest,
-    ) -> Self {
-        Self {
-            stage,
-            destination,
-            content_digest,
-        }
+    pub const fn new(stage: StageDumpKindV1, destination: EmittedDumpDestinationV1) -> Self {
+        Self { stage, destination }
     }
 
     pub const fn stage(&self) -> StageDumpKindV1 {
@@ -127,21 +117,15 @@ impl EmittedDumpDescriptorV1 {
     pub const fn destination(&self) -> &EmittedDumpDestinationV1 {
         &self.destination
     }
-
-    pub const fn content_digest(&self) -> ProtocolDumpContentDigest {
-        self.content_digest
-    }
 }
 
 impl WireEncode for EmittedDumpDescriptorV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.stage.encode(encoder)?;
         encoder.field(2)?;
-        self.destination.encode(encoder)?;
-        encoder.field(3)?;
-        self.content_digest.encode(encoder)
+        self.destination.encode(encoder)
     }
 }
 
@@ -158,23 +142,7 @@ impl ScoopcSuccessV1 {
         warnings: Vec<StructuredDiagnosticV1>,
         emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
     ) -> Result<Self, ProtocolValidationError> {
-        if warnings.iter().any(|warning| warning.severity().is_error()) {
-            return Err(ProtocolValidationError::SuccessContainsErrorDiagnostic);
-        }
-        if emitted_dump_descriptors.len() > MAX_EMITTED_DUMPS {
-            return Err(ProtocolValidationError::TooManyEmittedDumps(
-                emitted_dump_descriptors.len(),
-            ));
-        }
-        if !emitted_dump_descriptors
-            .windows(2)
-            .all(|pair| pair[0].stage() < pair[1].stage())
-            || emitted_dump_descriptors
-                .iter()
-                .any(|dump| matches!(dump.destination(), EmittedDumpDestinationV1::Stdout))
-        {
-            return Err(ProtocolValidationError::InvalidDumpDescriptors);
-        }
+        validate_success_fields(&warnings, &emitted_dump_descriptors)?;
         Ok(Self {
             summary,
             warnings,
@@ -195,8 +163,39 @@ impl ScoopcSuccessV1 {
     }
 }
 
+fn validate_success_fields(
+    warnings: &[StructuredDiagnosticV1],
+    emitted_dump_descriptors: &[EmittedDumpDescriptorV1],
+) -> Result<(), ProtocolValidationError> {
+    if warnings.iter().any(|warning| warning.severity().is_error()) {
+        return Err(ProtocolValidationError::SuccessContainsErrorDiagnostic);
+    }
+    if emitted_dump_descriptors.len() > MAX_EMITTED_DUMPS {
+        return Err(ProtocolValidationError::TooManyEmittedDumps(
+            emitted_dump_descriptors.len(),
+        ));
+    }
+    if !emitted_dump_descriptors
+        .windows(2)
+        .all(|pair| pair[0].stage() < pair[1].stage())
+        || emitted_dump_descriptors
+            .iter()
+            .any(|dump| matches!(dump.destination(), EmittedDumpDestinationV1::Stdout))
+    {
+        return Err(ProtocolValidationError::InvalidDumpDescriptors);
+    }
+    Ok(())
+}
+
+mod observation;
+pub use observation::ScoopcObservationV1;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopcResponseEnvelopeV1 {
+    Observed {
+        request_id: RequestCorrelationId,
+        result: ScoopcObservationV1,
+    },
     Success {
         request_id: RequestCorrelationId,
         result: Box<ScoopcSuccessV1>,
@@ -228,7 +227,9 @@ impl ScoopcResponseEnvelopeV1 {
 
     pub const fn request_id(&self) -> RequestCorrelationId {
         match self {
-            Self::Success { request_id, .. } | Self::Failure { request_id, .. } => *request_id,
+            Self::Success { request_id, .. }
+            | Self::Observed { request_id, .. }
+            | Self::Failure { request_id, .. } => *request_id,
         }
     }
 }
@@ -242,6 +243,9 @@ impl WireEncode for ScoopcResponseEnvelopeV1 {
         encoder.unsigned(u64::from(PROTOCOL_VERSION))?;
         encoder.field(3)?;
         match self {
+            Self::Observed { request_id, result } => {
+                observation::encode_observation(encoder, *request_id, result)
+            }
             Self::Success { request_id, result } => encode_success(encoder, *request_id, result),
             Self::Failure {
                 request_id,

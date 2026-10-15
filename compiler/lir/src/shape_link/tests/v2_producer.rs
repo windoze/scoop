@@ -161,7 +161,6 @@ fn exercise_dependency_production(provider: Provider) {
             if *found == provider.identity && *body == provider.callable_body
     ));
     let section = produced;
-    physical_replay::check_join(&provider, &complete, output.foundation());
     section.validate_layout_abi(&complete).unwrap();
 }
 

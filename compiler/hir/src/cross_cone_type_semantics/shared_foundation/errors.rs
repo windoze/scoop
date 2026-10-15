@@ -4,10 +4,7 @@ use scoop_identity::{
 };
 use scoop_wire::WireError;
 
-use crate::{
-    ExactTypeFactsSemanticError, InheritanceGraphError, NominalMaterializationClosureError,
-    SourceNominalId,
-};
+use crate::{ExactTypeFactsSemanticError, NominalMaterializationClosureError, SourceNominalId};
 
 #[derive(Debug)]
 pub enum SharedTypeMetadataError {
@@ -31,44 +28,22 @@ pub enum SharedTypeMetadataError {
     TypeUseInventory,
     SourceOnlyNominal(PersistentTypeId),
     MissingNominal(PersistentTypeId),
-    MissingGenericNominal(scoop_identity::PersistentGenericTypeId),
-    MissingFact(PersistentExactTypeId),
-    ForeignFact(PersistentExactTypeId),
-    FactInventory,
-    ByValueCycle(PersistentExactTypeId),
     NonConcreteSignature,
-    GenericFact(PersistentExactTypeId),
-    IntrinsicNominal(PersistentTypeId),
     NominalOwner(PersistentTypeId),
-    RepresentationInventory,
     Representation(PersistentTypeId),
-    DeclarationSource(PersistentTypeId),
-    ClassBase(PersistentTypeId),
     Facts(Box<ExactTypeFactsSemanticError<SharedTypeMetadataError>>),
     InheritanceSource(SourceNominalId),
-    InheritanceOrigin,
-    InheritanceInventory(ConeIdentity),
     InheritanceEdges(PersistentExactTypeId),
-    InheritanceGraph(Box<InheritanceGraphError<SharedTypeMetadataError>>),
     DeclarationMetadata(DefinitionOriginSubject),
     CallableContract(CallableTemplateOrigin),
     CallableClassification(crate::NominalCallableClassificationError),
     ObjectInitializationOwner(SourceNominalId),
     DuplicateObjectInitialization(SourceNominalId),
-    ProtectedMemberInventory(PersistentExactTypeId),
     PropertyContract(PersistentPropertyId),
-    DefinitionSourceLocation(crate::DefinitionSourceLocationValidationError),
-    DispatchDeclarations(crate::NominalDispatchDeclarationError),
-    SlotSource(PersistentDispatchSlotId),
-    SlotOrder(PersistentExactTypeId),
-    SlotSchemas(Box<crate::InheritanceSlotSchemaSemanticError<SharedTypeMetadataError>>),
-    SlotCallable(crate::InheritanceCallableDeclarationV1),
-    SlotSelectionInventory(PersistentExactTypeId),
     SlotSelection {
         owner: PersistentExactTypeId,
         slot: PersistentDispatchSlotId,
     },
-    SlotContracts(Box<crate::InheritanceInterfaceSemanticError<SharedTypeMetadataError>>),
 }
 
 impl From<WireError> for SharedTypeMetadataError {

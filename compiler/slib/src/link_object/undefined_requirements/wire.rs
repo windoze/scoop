@@ -1,7 +1,5 @@
 //! Closed wire schema for finalized undefined-symbol requirements.
 
-use std::fmt;
-
 use scoop_identity::{
     DecodedNativeLibraryBinding, DecodedPersistentId, DefinitionAtomRole, GeneratedBridgeUnitId,
     NativeExternalContractFingerprint, ObjectDefinitionAtomId, OdrMemberId,
@@ -9,7 +7,7 @@ use scoop_identity::{
 use scoop_lir::{
     CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
     CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
@@ -291,20 +289,6 @@ impl DecodedCanonicalUndefinedSymbolRequirementSetV1 {
             )
         })
     }
-
-    pub fn validate_against(
-        self,
-        expected: &CanonicalUndefinedSymbolRequirementSetV1,
-    ) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementValidationError>
-    {
-        let actual = encode(&self).map_err(UndefinedSymbolRequirementValidationError::Encode)?;
-        let expected_bytes =
-            encode(expected).map_err(UndefinedSymbolRequirementValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(UndefinedSymbolRequirementValidationError::ProjectionMismatch);
-        }
-        Ok(expected.clone())
-    }
 }
 
 impl WireEncode for DecodedCanonicalUndefinedSymbolRequirementSetV1 {
@@ -324,30 +308,6 @@ impl WireDecode for DecodedCanonicalUndefinedSymbolRequirementSetV1 {
                 DecodedCanonicalUndefinedSymbolRequirementV1::decode(decoder)
             })
             .map(|requirements| Self { requirements })
-    }
-}
-
-#[derive(Debug)]
-pub enum UndefinedSymbolRequirementValidationError {
-    ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-}
-
-impl fmt::Display for UndefinedSymbolRequirementValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid decoded undefined symbol requirement set: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for UndefinedSymbolRequirementValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Encode(error) => Some(error),
-            Self::ProjectionMismatch => None,
-        }
     }
 }
 

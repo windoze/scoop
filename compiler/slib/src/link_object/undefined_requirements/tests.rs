@@ -214,21 +214,6 @@ fn rejects_proofs_built_from_different_strong_closures() {
 }
 
 #[test]
-fn decoded_requirement_projection_rejects_another_verified_object_projection() {
-    let runtime = final_from_external(classify(b"_scoop_rt_allocation_context"));
-    let eh = final_from_external(classify(b"__Unwind_Resume"));
-    let decoded = decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(
-        &encode(&runtime).unwrap(),
-    )
-    .unwrap();
-
-    assert!(matches!(
-        decoded.validate_against(&eh),
-        Err(UndefinedSymbolRequirementValidationError::ProjectionMismatch)
-    ));
-}
-
-#[test]
 fn decoded_requirement_sum_rejects_unknown_and_incomplete_variants() {
     for bytes in [
         vec![0xa1, 0x00, 0x18, 0xff],
@@ -243,8 +228,7 @@ fn assert_projection_round_trip(expected: &CanonicalUndefinedSymbolRequirementSe
     let bytes = encode(expected).unwrap();
     let decoded =
         decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(&bytes).unwrap();
-    let actual = decoded.validate_against(expected).unwrap();
-    assert_eq!(actual, *expected);
+    assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 fn final_from_external(

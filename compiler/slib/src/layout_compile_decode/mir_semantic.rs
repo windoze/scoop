@@ -1,4 +1,4 @@
-//! Legacy MIR-front replay before the M23-6 type-bridge closure.
+//! Saved MIR production records and typed references for the shared reader.
 
 use std::fmt;
 
@@ -18,11 +18,8 @@ pub(crate) use owned::LayoutSemanticSections;
 
 use super::HirProductionValidatedCrossConeLayoutSections;
 use crate::{
-    ValidatedGraphArtifact,
-    layout_compile_decode::DecodedCrossConeLayoutLirCandidates,
-    strong_compile_decode::{
-        CanonicalFoundationSet, StrongProfileRelationError, validate_strong_profile_relations,
-    },
+    ValidatedGraphArtifact, layout_compile_decode::DecodedCrossConeLayoutLirCandidates,
+    strong_compile_decode::CanonicalFoundationSet,
 };
 
 pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
@@ -80,14 +77,6 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         let mir_core = mir_core_production
             .validate_against(provider, &mut identities, &foundations.mir)
             .map_err(CrossConeLayoutMirFrontValidationError::CoreProduction)?;
-        validate_strong_profile_relations(
-            provider,
-            graph.kind(),
-            &hir_core_production,
-            &mir_core,
-            &foundations.hir,
-        )
-        .map_err(CrossConeLayoutMirFrontValidationError::CrossLayer)?;
         let mir_ordinary = mir_cross_cone_bridge
             .validate(provider, &mut identities, &foundations.mir)
             .map_err(CrossConeLayoutMirFrontValidationError::OrdinaryBridge)?;
@@ -149,7 +138,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
 #[derive(Debug)]
 pub enum CrossConeLayoutMirFrontValidationError {
     CoreProduction(MirProductionValidationError),
-    CrossLayer(StrongProfileRelationError),
     OrdinaryBridge(CrossConeMirBridgeValidationError),
 }
 
@@ -158,9 +146,6 @@ impl fmt::Display for CrossConeLayoutMirFrontValidationError {
         match self {
             Self::CoreProduction(source) => {
                 write!(formatter, "invalid legacy MIR production: {source}")
-            }
-            Self::CrossLayer(source) => {
-                write!(formatter, "invalid HIR/MIR production relation: {source}")
             }
             Self::OrdinaryBridge(source) => {
                 write!(formatter, "invalid ordinary MIR bridge: {source}")
@@ -173,7 +158,6 @@ impl std::error::Error for CrossConeLayoutMirFrontValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::CoreProduction(source) => Some(source),
-            Self::CrossLayer(source) => Some(source),
             Self::OrdinaryBridge(source) => Some(source),
         }
     }

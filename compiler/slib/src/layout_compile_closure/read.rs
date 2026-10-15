@@ -39,7 +39,7 @@ pub fn read_cross_cone_layout_artifact_closure(
         )
     };
     decoded
-        .replay_semantics()
+        .read_semantic_sections()
         .map_err(|source| Error::Semantic {
             source: Box::new(source),
         })?

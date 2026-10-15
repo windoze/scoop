@@ -4,7 +4,7 @@ use scoop_identity::DependencyCallableDeclarationId as Declaration;
 
 pub(super) fn check(
     name: &str,
-    source: hir::CheckedSharedTypeFoundationV1<'_>,
+    source: hir::SharedTypeMetadataV1<'_>,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
@@ -34,13 +34,13 @@ pub(super) fn check(
     }
 }
 struct Fixture<'a> {
-    source: hir::CheckedSharedTypeFoundationV1<'a>,
+    source: hir::SharedTypeMetadataV1<'a>,
 }
 impl Fixture<'_> {
     fn function(&self, name: &str) -> Option<scoop_identity::PersistentFunctionId> {
-        self.source.metadata().public.callable_interfaces().all_declarations().find_map(|source| {
+        self.source.public.callable_interfaces().all_declarations().find_map(|source| {
             let scoop_identity::CallableTemplateOrigin::Function(id) = source.declaration() else { return None };
-            let key = self.source.metadata().identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(id).unwrap();
+            let key = self.source.identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(id).unwrap();
             matches!(key.name(), scoop_identity::DeclarationName::Named(actual) if actual.as_str() == name).then_some(id)
         })
     }

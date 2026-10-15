@@ -6,21 +6,21 @@
 
 ## 本机验证
 
-- [workspace clippy](link-file-darwin-clippy-final.log.gz)、[87 项 scoop](link-file-darwin-scoop.log.gz)、[4 项 linker](link-file-darwin-linker.log.gz)及[正式产物 ProgramLink](link-file-darwin-program.log.gz)通过。linker 真实 native 用例耗时 115.85 秒，ProgramLink 用例耗时 71.50 秒，均确认进程后继续等待。首轮 scoop 发现摘要 I/O 分类回归，修复后通过，[首轮结果](link-file-darwin-scoop-first.log.gz)保留。
-- [release](link-file-darwin-release.log.gz)通过；[CLI 首轮](link-file-darwin-cli.log.gz)8 项成功，另测试入口用例暴露旧夹具在两个不同源目录间要求同一缓存路径的问题。改为 production／test 从开始就使用同一工作目录，原来的产物路径和零编译断言保留；只[重跑该项](link-file-darwin-purpose.log.gz)，debug／release 两个 variants 均通过。最终覆盖 9 个不同用例、12 variants、125 次成功用例进程，包含三种链接入口、重复依赖与实际图错误、ODR、native、moving／minor GC、M46 序列化、生成测试入口及所需对象补产。
-- 最后移除无人使用的 `ArtifactSnapshot` 后，通过 clippy、[1 项共享数据测试](link-file-darwin-sharing.log.gz)、[2 项文件入口测试](link-file-darwin-reader.log.gz)及[最终 release 构建](link-file-darwin-release-final.log.gz)，未重复无关的 native 大测试。
+- workspace clippy、87 项 scoop、4 项 linker及正式产物 ProgramLink通过。linker 真实 native 用例耗时 115.85 秒，ProgramLink 用例耗时 71.50 秒，均确认进程后继续等待。首轮 scoop 发现摘要 I/O 分类回归，修复后通过，首轮结果保留。
+- release通过；CLI 首轮8 项成功，另测试入口用例暴露旧夹具在两个不同源目录间要求同一缓存路径的问题。改为 production／test 从开始就使用同一工作目录，原来的产物路径和零编译断言保留；只重跑该项，debug／release 两个 variants 均通过。最终覆盖 9 个不同用例、12 variants、125 次成功用例进程，包含三种链接入口、重复依赖与实际图错误、ODR、native、moving／minor GC、M46 序列化、生成测试入口及所需对象补产。
+- 最后移除无人使用的 `ArtifactSnapshot` 后，通过 clippy、1 项共享数据测试、2 项文件入口测试及最终 release 构建，未重复无关的 native 大测试。
 
 ## Linux 验证与读取采样
 
-独立 `target/m48-summary-reader` 下的 [fmt](link-file-linux-fmt.log.gz)、[clippy](link-file-linux-clippy.log.gz)、[90 项 scoop](link-file-linux-scoop.log.gz)、[release 构建](link-file-linux-release.log.gz)及[正式产物 ProgramLink](link-file-linux-program.log.gz)通过。ProgramLink 用例实际运行 124.32 秒。
+独立 `target/m48-summary-reader` 下的 fmt、clippy、90 项 scoop、release 构建及正式产物 ProgramLink通过。ProgramLink 用例实际运行 124.32 秒。
 
-linker [首次执行](link-file-linux-linker.log.gz)13 项通过，4 项因独立 target 没有默认查找的 debug `scoopc` 而失败。构建当前 release 并通过 `SCOOP_TEST_PAIRED_SCOOPC` 指定后，只补跑 [native alias](link-file-linux-linker-alias.log.gz)、[DSO 更新](link-file-linux-linker-dso.log.gz)、[C++／musl](link-file-linux-linker-cxx.log.gz)和[archive 选择](link-file-linux-linker-selection.log.gz)，全部通过，17 项结果齐全。保留[初始脚本](link-file-linux-first.py.gz)、[补跑脚本](link-file-linux-resume.py.gz)及[完整正确顺序](link-file-linux.py.gz)。
+linker 首次执行13 项通过，4 项因独立 target 没有默认查找的 debug `scoopc` 而失败。构建当前 release 并通过 `SCOOP_TEST_PAIRED_SCOOPC` 指定后，只补跑 native alias、DSO 更新、C++／musl和archive 选择，全部通过，17 项结果齐全。保留初始脚本、补跑脚本及完整正确顺序。
 
-[GNU](link-file-gnu-cli.log.gz) 和 [musl](link-file-musl-cli.log.gz)各通过 9 个不同 CLI 用例、12 variants、125 processes，与本机最终成功选择一致。所有源码、工具及原产物在正常消费中保持存在。
+GNU 和 musl各通过 9 个不同 CLI 用例、12 variants、125 processes，与本机最终成功选择一致。所有源码、工具及原产物在正常消费中保持存在。
 
-显式 `scoop link` 的 [GNU 采样](link-file-gnu-link.trace.gz)确认三个 `.slib` 各打开一次，manifest 只读取一次，成员读取区间没有重叠；重新链接的程序输出 `42`。准备构建没有 compiler child。保留[命令及逐文件统计](link-file-gnu-link.json.gz)、[采样脚本](link-file-trace.py.gz)、[准备输出](link-file-gnu-prepare.stderr.gz)和[链接输出](link-file-gnu-link.stderr.gz)。当前 Link replay 仍请求所有机器对象，因此这里 core 的约 41.6 MB 仍几乎全读；本批只证明入口复用与重复读取退役，不宣称对象读取已消失。
+显式 `scoop link` 的 GNU 采样确认三个 `.slib` 各打开一次，manifest 只读取一次，成员读取区间没有重叠；重新链接的程序输出 `42`。准备构建没有 compiler child。保留命令及逐文件统计、采样脚本、准备输出和链接输出。当前 Link replay 仍请求所有机器对象，因此这里 core 的约 41.6 MB 仍几乎全读；本批只证明入口复用与重复读取退役，不宣称对象读取已消失。
 
-确认本机没有 cargo／rustc／clippy 后，[清理 incremental 4,020.7 MiB](link-file-darwin-cleanup.log.gz)。
+确认本机没有 cargo／rustc／clippy 后，清理 incremental 4,020.7 MiB。
 
 ## 范围与后续
 

@@ -108,23 +108,6 @@ fn actual_generic_calls_retain_odr_roots_in_the_shared_machine_input() {
                 .unwrap(),
             input.production()
         );
-
-        let incomplete = mir::CoreBootstrapBridgeSectionV1::try_new(
-            current,
-            mir::EntryMirBridgeBranchV1::Library,
-            mir::StrongCallableBridgeSurfaceV1::try_new(strong[..strong.len() - 1].to_vec())
-                .unwrap(),
-        )
-        .unwrap();
-        let decoded = decode_canonical::<mir::DecodedCoreBootstrapBridgeSectionV1>(
-            &encode(&incomplete).unwrap(),
-        )
-        .unwrap();
-        assert!(matches!(
-            decoded.validate(current, &mut identities, &restored),
-            Err(mir::MirProductionValidationError::StrongCallableCoverage { expected, actual })
-                if expected == strong.len() && actual + 1 == expected
-        ));
     })
     .unwrap();
 }

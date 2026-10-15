@@ -6,15 +6,8 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["generic-shapes", "constructors"]
 
 [[steps]]
-name = "prepare_core"
-files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-]
-
-[[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -104,43 +97,20 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = []
-
-[[steps]]
-name = "prepare_link_inputs_isolate"
-files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}}]
-
-[[steps]]
-name = "link"
-argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${sysroot}", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--cache-dir", "${cache}"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
 checks = [
-  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
-  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-constructor-provider:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-constructor-local-base:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-constructor-downstream-local-base:0.1.0 kind=Library objects="},
-  {actual = "${link.result.link_plan}", contains = "cone dev.example:runtime-fixture:0.1.0 kind=Executable objects="},
-  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7"},
-  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+  {actual = "${program.result.dependencies.length}", equals = 4},
 ]
 
 [[steps]]
 name = "run"
-argv = ["${work}/program"]
+argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "run_moving"
-argv = ["${work}/program"]
+argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""

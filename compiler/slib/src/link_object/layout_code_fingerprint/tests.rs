@@ -156,7 +156,7 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
                 == &crate::lir_cross_cone_layout_link_closure_capability())
             .unwrap()
             .canonical_projection(),
-        encode(layout.selected().physical_imports()).unwrap()
+        encode(&layout.selected().physical_imports().code_projection()).unwrap()
     );
     let manifest = CrossConeLayoutProductionManifestV1::from_verified_code(proof.code().clone());
     let bytes = encode(&manifest).unwrap();

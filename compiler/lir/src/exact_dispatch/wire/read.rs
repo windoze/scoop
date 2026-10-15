@@ -3,7 +3,6 @@ use scoop_identity::{
     DecodedPersistentId, GcEffect, PersistentDispatchSlotId, PersistentDispatchTableId,
     PersistentExactTypeId,
 };
-use scoop_wire::{WireError, WirePath, encode_canonical_temporary};
 
 use super::*;
 use crate::{DecodedStrongTypeDispatchCallableRefV2, production::DecodedStrongShapeDefinitionV1};
@@ -74,43 +73,3 @@ enum DecodedExactDispatchImplementationV1 {
     },
     AdjustThunkTarget(DecodedCallableDefinitionOwner),
 }
-
-impl DecodedExactDispatchSemanticProjectionV1 {
-    pub fn validate_against(
-        self,
-        expected: &ExactDispatchExportV1,
-    ) -> Result<(), ExactDispatchWireError> {
-        let path = WirePath::root();
-
-        let actual = encode_canonical_temporary(&self, &path)?;
-        let wanted = encode_canonical_temporary(&expected.semantic_projection(), &path)?;
-
-        if actual != wanted {
-            return Err(ExactDispatchWireError::Mismatch);
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub enum ExactDispatchWireError {
-    Mismatch,
-    Resource(WireError),
-}
-
-impl From<WireError> for ExactDispatchWireError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-
-impl std::fmt::Display for ExactDispatchWireError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "dispatch wire differs from checked replay: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for ExactDispatchWireError {}

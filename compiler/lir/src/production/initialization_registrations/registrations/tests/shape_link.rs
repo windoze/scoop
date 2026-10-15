@@ -9,7 +9,6 @@ const TARGET: LirTargetProfile = crate::target_fixtures::DARWIN_AARCH64;
 mod fixture;
 use fixture::ProviderFixture;
 mod canonical;
-mod relations;
 
 #[test]
 fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_schedules() {
@@ -35,10 +34,9 @@ fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_sche
             assert_eq!(import.expected_symbol(), physical.symbol());
             assert!(import.contract().matches_subject(subject));
             let bytes = encode(&import).unwrap();
-            assert_eq!(bytes[0], 0xa5);
+            assert_eq!(bytes[0], 0xa4);
             let raw: DecodedExternalShapeLinkImportV1 = decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&raw).unwrap(), bytes);
-            raw.validate_against(&import).unwrap();
         }
     }
 }
@@ -51,43 +49,6 @@ fn shape_link_rejects_same_provider_imports() {
     assert!(matches!(
         ExternalShapeLinkImportV1::replay(&provider, subject, provider.provider()),
         Err(ShapeLinkError::LocalImport)
-    ));
-}
-
-#[test]
-fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
-    let fixture = ProviderFixture::new(true);
-    let import = ExternalShapeLinkImportV1::replay(
-        &fixture.provider(),
-        Subject::InitializationRegistration(fixture.unit().unit()),
-        ConeIdentity::CORE,
-    )
-    .unwrap();
-    let bytes = encode(&import).unwrap();
-    for needle in [
-        import.required_definition().as_array().as_slice(),
-        fixture.unit().diagnostic_path().as_bytes(),
-    ] {
-        let mut altered = bytes.clone();
-        let index = altered
-            .windows(needle.len())
-            .position(|part| part == needle)
-            .unwrap();
-        altered[index] ^= 1;
-        let raw: DecodedExternalShapeLinkImportV1 = decode_canonical(&altered).unwrap();
-        assert!(raw.validate_against(&import).is_err());
-    }
-    let mut altered = bytes;
-    let symbol = encode(&import.expected_symbol()).unwrap();
-    let index = altered
-        .windows(symbol.len())
-        .position(|part| part == symbol)
-        .unwrap();
-    altered[index + symbol.len() - 1] = 2;
-    let raw: DecodedExternalShapeLinkImportV1 = decode_canonical(&altered).unwrap();
-    assert!(matches!(
-        raw.validate_against(&import),
-        Err(ShapeLinkError::Header)
     ));
 }
 

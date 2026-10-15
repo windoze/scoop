@@ -25,13 +25,6 @@ fn owned_lir_dependency_graph_resolves_explicit_symbol_roots() {
 }
 
 #[test]
-fn local_field_storage_requires_no_additional_symbol_selection() {
-    let fixture = Fixture::new();
-    let resolved = fixture.resolve_with(&fixture.middle, &[]).unwrap();
-    assert!(resolved.selected_relations().is_empty());
-}
-
-#[test]
 fn owned_lir_dependency_records_require_canonical_external_references() {
     let fixture = Fixture::new();
     let expected = fixture.relations();

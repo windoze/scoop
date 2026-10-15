@@ -35,7 +35,7 @@ fn reader_requires_a_known_role_on_every_strong_record() {
 }
 
 #[test]
-fn builder_and_reader_reject_two_initialization_roles_in_the_shared_table() {
+fn builder_reject_two_initialization_roles_in_the_shared_table() {
     let mut fixture = fixture();
     for bridge in &mut fixture.section.strong_callable_bridges.bridges {
         bridge.role = CallableRole::InitializationCycle;
@@ -46,17 +46,10 @@ fn builder_and_reader_reject_two_initialization_roles_in_the_shared_table() {
         ),
         Err(MirProductionBuildError::DuplicateInitializationCycle)
     );
-    let (mut identities, foundation) = validate_foundations(&fixture);
-    assert_eq!(
-        decode(&fixture.section).validate(ConeIdentity::CORE, &mut identities, &foundation),
-        Err(MirProductionValidationError::Relation(
-            MirProductionBuildError::DuplicateInitializationCycle
-        ))
-    );
 }
 
 #[test]
-fn builder_and_reader_require_a_source_function_for_initialization() {
+fn builder_require_a_source_function_for_initialization() {
     let mut fixture = fixture();
     let generated = generated_callable_sorting_before(fixture.function.id());
     let implementation = CallableOwner::Generated(generated.id());
@@ -81,14 +74,6 @@ fn builder_and_reader_require_a_source_function_for_initialization() {
         StrongCallableBridgeSurfaceV1::try_new(strong.bridges.clone()),
         Err(MirProductionBuildError::InvalidInitializationCycleOwner(
             implementation
-        ))
-    );
-    fixture.section.strong_callable_bridges = strong;
-    let (mut identities, foundation) = validate_foundations(&fixture);
-    assert_eq!(
-        decode(&fixture.section).validate(ConeIdentity::CORE, &mut identities, &foundation),
-        Err(MirProductionValidationError::Relation(
-            MirProductionBuildError::InvalidInitializationCycleOwner(implementation)
         ))
     );
 }

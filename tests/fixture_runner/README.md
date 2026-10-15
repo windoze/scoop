@@ -96,9 +96,9 @@ checks = [
 AST/HIR/MIR/LIR 的 typed IR 测试同样可承担结构职责；不要求每个功能保存四阶段输出。
 代表组和迁移理由见 [M40 迁移说明](../../docs/milestone40/MIGRATION.md)。
 观察模式本身的 CLI 专测检查输出文件集合、已有观察复用和缺失观察补齐。
-普通语言组合用例的链接检查保留实际构建与独立链接的一致性、Cone/image/root
-关系、相关符号及运行结果，不逐份冻结整个 core 的物理对象数量和生成的 startup C。
-专门测试 native 输入选择、归档成员与动态绑定的用例仍保留对应完整计划。
+普通语言组合用例直接运行 build 输出，检查语言结果及真实多 Cone 消费，不重复独立链接、
+复制产物或固定公共内部符号。build／独立链接一致性、Cone/image/root 关系和 mangling
+由少量链接与 ABI 专测覆盖；native 输入选择、归档成员与动态绑定专测保留必要计划。
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`
 展开实际清单。程序 JSON 中的非 UTF-8 path carrier 保留字节，不经过 shell。
@@ -126,6 +126,14 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
 不新增缓存损坏、收据伪造或文件来源／权限防御用例，也不通过删除、移走或隐藏源码、工具、原始产物来验收消费能力。混合用例保留真实语言、ABI、GC、运行与诊断断言，迁为输入保持存在的多 Cone 构建。缓存通过正常输入变化、工具实际调用及输出复用验证；真实缺失输入、失败不发布和测试结束清理继续覆盖。受控编码／指纹规则的固定向量由对应 Rust 单元测试覆盖。
 普通语言用例运行正常 build 的 executable，不再为同一运行结果重复复制工具和产物后独立链接。显式链接、ODR、native 选择和失败不发布专测继续使用实际工具、sysroot 和已有产物，显式指定本次 fixture 的缓存目录。源码目录正常搬迁后以新位置重新构建属于输入位置变化，相关源码须保留到用例结束。
+
+`${test_core}` 是本轮共享的 core 源码目录，仅加入已有 `stage3_test.scoop` 语言测试辅助声明。
+普通多 Cone 用例从这个固定路径执行真实 build，共用 `${cache}` 的正常输入更新判断，
+避免为每个用例在不同路径重编相同 core。它保持源码和工具存在，不预制编译结果，
+用例不得修改该目录；需要修改 core 或验证输入失效的专测仍使用自己的源码副本。
+`${class_core}` 同样共享导入类用例已有的固定 core 声明（RebuiltReadable、直接异常基类
+和辅助值 43）。这些普通语言用例只消费该输入；core 更新前后的比较由 rebuilt-core
+与需要不同 core 声明的专测覆盖，不在每个类规则中重复两次冷构建。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
 边界，完整比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。

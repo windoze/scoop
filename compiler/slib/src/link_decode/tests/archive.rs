@@ -122,7 +122,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         .unwrap(),
     ];
     let compatibility =
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
             .unwrap();
     let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,

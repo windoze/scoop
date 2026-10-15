@@ -4,9 +4,6 @@ use crate::{DecodedRefScanV1, LirTargetProfile};
 
 use super::*;
 
-mod replay;
-pub use replay::StorageWireReplayError;
-
 #[derive(Debug)]
 pub struct DecodedValueStorageLayoutV1(RawStorage);
 

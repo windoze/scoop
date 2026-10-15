@@ -34,9 +34,8 @@ pub(crate) use mir_semantic::{LayoutSemanticSections, PreparedCrossConeLayoutMir
 /// Canonically decoded payloads from one exact
 /// `cross-cone-generic/3` Compile or Link view.
 ///
-/// These wire values have passed profile inventory and semantic-fingerprint
-/// checks. Subsequent validation joins their typed identities, sources,
-/// selections, layouts, and production records.
+/// The profile selects the section inventory. Subsequent reading resolves typed
+/// identities and joins saved declarations, layouts and production records.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutCompileSections<'input> {
     pub(crate) graph: ValidatedGraphArtifact<'input>,
@@ -114,9 +113,7 @@ pub struct ResolvedCrossConeLayoutHirSections<'input> {
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
 
-/// Resolved M23-6 HIR payloads whose unchanged core-bootstrap production
-/// contract was replayed against the same ODR-free foundation. General public
-/// and type-semantics tables still require their complete semantic authorities.
+/// Resolved HIR payloads and saved core protocol records for downstream queries.
 pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     view: DecodedLayoutView,

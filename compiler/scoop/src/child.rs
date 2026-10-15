@@ -168,7 +168,10 @@ fn validate_exit(
     let Some(code) = status.code() else {
         return Err(ChildTransportError::Signal);
     };
-    let valid = matches!(response, ScoopcResponseEnvelopeV1::Success { .. }) && code == 0
+    let valid = matches!(
+        response,
+        ScoopcResponseEnvelopeV1::Success { .. } | ScoopcResponseEnvelopeV1::Observed { .. }
+    ) && code == 0
         || matches!(response, ScoopcResponseEnvelopeV1::Failure { .. })
             && code == COMPILER_FAILURE_EXIT_CODE;
     if valid {
@@ -177,7 +180,8 @@ fn validate_exit(
         Err(ChildTransportError::ExitMismatch {
             status,
             response: match response {
-                ScoopcResponseEnvelopeV1::Success { .. } => ChildResponseKind::Success,
+                ScoopcResponseEnvelopeV1::Success { .. }
+                | ScoopcResponseEnvelopeV1::Observed { .. } => ChildResponseKind::Success,
                 ScoopcResponseEnvelopeV1::Failure { .. } => ChildResponseKind::Failure,
             },
         })

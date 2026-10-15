@@ -39,7 +39,7 @@ fn manifest(sections: Vec<ManifestSection>) -> BootstrapManifest {
         ProducerRecord::new("dev").unwrap(),
         CompatibilityRecord::new(
             selection(),
-            crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            crate::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .unwrap(),
         ConeRecord::new(

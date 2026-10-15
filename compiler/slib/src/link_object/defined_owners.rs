@@ -8,7 +8,7 @@ use scoop_identity::{
     ObjectDefinitionAtomId, ObjectDefinitionPlanOwner, OdrMemberId, StrongDefinitionEntity,
     StrongDefinitionEntityKind, StrongDefinitionRole,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
     PlannedStrongObjectSymbolRoleV1, VerifiedBoundaryRoleV1,
@@ -433,20 +433,7 @@ pub struct DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
     owners: Vec<DecodedDefinedLinkSymbolOwnerV1>,
 }
 
-impl DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
-    pub fn validate_against(
-        self,
-        expected: &CanonicalDefinedLinkSymbolOwnerSetV1,
-    ) -> Result<CanonicalDefinedLinkSymbolOwnerSetV1, DefinedLinkSymbolOwnerValidationError> {
-        let actual = encode(&self).map_err(DefinedLinkSymbolOwnerValidationError::Encode)?;
-        let expected_bytes =
-            encode(expected).map_err(DefinedLinkSymbolOwnerValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(DefinedLinkSymbolOwnerValidationError::ProjectionMismatch);
-        }
-        Ok(expected.clone())
-    }
-}
+impl DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {}
 
 impl WireEncode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -483,30 +470,6 @@ impl fmt::Display for DefinedLinkSymbolOwnerBuildError {
 }
 
 impl std::error::Error for DefinedLinkSymbolOwnerBuildError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DefinedLinkSymbolOwnerValidationError {
-    ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-}
-
-impl fmt::Display for DefinedLinkSymbolOwnerValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid defined link-symbol owner section: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for DefinedLinkSymbolOwnerValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Encode(error) => Some(error),
-            Self::ProjectionMismatch => None,
-        }
-    }
-}
 
 fn encode_boundary(
     encoder: &mut Encoder,

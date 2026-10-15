@@ -1,9 +1,7 @@
 //! Archive assembly shared by the current Strong/ODR production path.
 
 mod assembly;
-use assembly::{
-    LayerAssembly, StrongArtifactAssemblyError, build_section, verify_layout_link_objects,
-};
+use assembly::{LayerAssembly, StrongArtifactAssemblyError, build_section};
 
 mod layout;
 pub use layout::*;

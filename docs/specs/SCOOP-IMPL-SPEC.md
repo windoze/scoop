@@ -364,6 +364,8 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。对象的必要后端检查在首次产生时完成，后续打包和链接复用已有结果；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
 
+同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填保留局部范围与槽位检查，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。
@@ -408,12 +410,14 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/5`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
+早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
+
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/8` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/9`、`core-bootstrap-interface/15`、`cross-cone-interface/76`、`cross-cone-type-semantics/29` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/7`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/15`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -473,6 +477,8 @@ Compile 为本次实际使用选择外部物理定义时，直接从 provider �
 
 Compile reader 从 production 字段直接读取 definition symbol plan、静态存储语义、初始化语义及其 cell／registration 定义引用，解析本次消费所需的 typed 引用及当前依赖的初始化定义。只供对象生产使用的 digest node／patch、完整注册生产字段不进入 Compile 数据结构。它不重建整份 ConeProductionSection、digest graph、type／callable／safepoint／immortal 注册表、入口或 runtime image，也不再从 HIR 公开类型、Function 声明和 MIR 初始化使用重新证明这些已有记录。消费方不把读取结果重新编码后与原字节比较。已保存的 LIR dependency records 只解析 typed 引用，不从 HIR materialized roots 和注册表再次推导闭包并比较；实际外部导入选择继续使用这些记录。失去消费者的完整 V2 production／registration 重放、digest 重建及其独占测试一起退役。完整生产计划继续供对象发射使用；此次读取职责调整不改变持久字段、profile 或 runtime ABI。
 
+Compile 读取已完成的 HIR 接口时，直接解析保存的 typed 声明、默认值、调用点与类型信息；不再为同一依赖重新验证声明形状、可见性、默认参数来源、const 求值、intrinsic 或调用点签名。别名展开与实际引用解析仍用于后续编译；当前源码的语言检查继续由 HIR lowering 完成。仅服务消费端复核的 authority 实现、改写候选后要求拒绝的测试和发布时语义重放一起删除。
+
 Compile 读取 ordinary callable bridge 与 callable ABI 时，直接采用已保存的 ABI、调用协议和 typed 引用，不从 HIR／MIR 声明重新生成同一桥接表，不重做参数／返回值布局分类或逐项比较。读取 MIR dependency records 时只解析实际 typed 引用，不再从 HIR materialized type／shape／property／singleton uses 推导整份候选闭包并比较，也不重做已有 HIR call-site 与 MIR 调用清单证明。生产端源码检查、依赖选择及 ABI／GC 生成保持；只服务上述消费者复核的测试、目录与重放 API 一并退役。
 
 Compile 读取 MIR 类型、callable、constructor、object、dispatch、coroutine 与 equality 记录时保留本层格式、typed 引用和必要签名关系，不重新遍历 HIR 声明／继承图推导同一清单和语义。初始化单元从已保存的 strong callable 记录按 unit／role 取得 initializer 与 ensure 及其签名，不重算 generated identity，也不与 HIR source-unit 清单再次证明；缺失调用对仍报告实际引用错误。对应 HIR→MIR 对照重放及改写候选后要求来源复核的专用测试退役，真实源码生产、产物读写和语言规则 fixture 保留。
@@ -483,7 +489,17 @@ Compile 的 dispatch 导出同样直接读取保存的 table、owner、role、sl
 
 Compile 的 param-free shape-support 从保存的八种 role 读取 source、exact、layout／scan／descriptor／registration 与 box／coroutine helper 引用。它不从 MIR root 清单或源码 nominal 重新生成相同闭包，不为同一 role 重编码比较。source 与 descriptor 的必要角色、typed 引用及 canonical source 顺序在读取边界确定；实际布局、helper 生产和物理导入仍使用各自的数据与规则。专供重建期望的 shape-support reader API、候选修改工厂及重复表构造器一并删除。
 
+Compile 的 layout／descriptor 导出直接读取已保存的值存储、字段偏移、enum 区域、class 完整字段和实例形状，以及 descriptor 的布局、继承、分派、注册和诊断名称引用。字段、MaybeUninit payload、box payload 和数组元素在表示中保存自己的 typed layout key 与完整存储事实，不要求这些内嵌值另外拥有物理布局导出或 symbol。reader 解析 key 中的类型引用并读取存储，不从 MIR 重新放置字段、重建继承布局、推导 GC／niche 或重生成 descriptor。保留实际格式、引用、目标配置及内存范围检查；不再次证明生产端语义。只为重建期望或修改候选后复核来源而存在的重放模块、API 和测试一并退役。生产端布局算法与 runtime ABI 保持；上述内嵌存储编码随本批 `cross-cone-layout-abi/16` 发布。
+
+物理 shape import 只保存 provider、typed subject、symbol 与 definition 引用，不再复制整份 ABI／layout／scan／descriptor／dispatch／storage／initialization 语义合同。消费时从已读取的选中 provider 取得实际合同并连接保存的 symbol／definition；不重编码比较合同副本。删除对应合同副本 reader、逐字段比较 API 与独占改写测试。此字段删除将 `cross-cone-layout-abi` 升至 16，旧版本产物按普通 profile 兼容规则重建；Code contribution 继续编码实际内存合同，runtime ABI 不变。
+
+归档 writer 接收同一次对象生产得到的 member 与 Code 数据后，不再逐 member 重新计算 fingerprint 与生产目录比较。member 的普通格式检查和实际归档编码保留。defined symbol owners、undefined symbol uses、ODR directory 的 consumer 已使用保存数据后，失去用途的“与重建结果比较”API 及其专用测试也一并移除。
+
+HIR／MIR／LIR foundation 读取复用 identity 边界已解析的 typed records，保留当前实际使用的引用和结构检查；不得为证明解码前后相同而完整编码原始 foundation、再编码重建对象并逐字节比较。仅服务这一深比较的错误分支和候选顺序改写测试退役。
+
 旧 single-cone Link 的逐级验证资格 API、从 final 对象清零摘要再重建 provisional 的路径及其独占测试一并删除，不保留为备用 reader。仍被正常 Compile／ProgramLink 使用的 section 读取和真正生产对象的编码、重定位、摘要填充继续存在；归档格式测试使用正常产物，不能通过改坏最终对象来延续退役的消费复核合同。
+
+旧 single-cone strong 与 cross-cone semantics strong Compile 的独立解码／验证／提交流水线及其专属测试退役，随之删除仅供这些入口使用的 native ABI 全量重放。正常源码依赖与当前产物统一由共有 layout reader 读取，不为历史阶段 profile 保留备用 Compile reader；归档／section 格式辅助数据和当前路径使用的基础引用检查继续保留。
 
 persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。
 
@@ -615,13 +631,13 @@ native 与 runtime 的真实编译保存源码、depfile 中实际使用的头�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。工具变化可以直接失效，不为恢复内容可能相同的命中强制读取整个程序。尚未使用的 generator 配置不影响构建；实际使用的工具按同一规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 10，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 11，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用记录保存普通版本／deployment 配置、host locator 和本机输入摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 
 本机编译结果保存在 `compile-v2`：按输入键保存 `artifact.slib` 和普通 `record.cbor`（生产摘要与 warning），不保留 v1 收据、收据指纹或产物交叉验证。命中只读记录并检查所需输出是否存在；输出数据在真正的编译／链接消费者需要时才读取。编译成功后的输出经 rename 发布，记录普通原子替换，不读回、同步落盘或比较并发产物。取得构建锁后已有结果即采用，不建立等价性证明。库的用户输出在目标位置旁保存所对应结果的普通记录；未变化且文件存在时不读回或重新复制。相同位置改为可执行文件时废止此前库输出记录，不使下一次库构建误用其他构建结果。
 
-显式观察使用 `--emit ast|hir|mir|lir|all --dump-dir dir [--dump-scope root|sources]`，默认 root；sources 覆盖源码节点，不从 prebuilt 反造 AST 或 LocalConcreteHir。HIR dump 同时包含 Export、LocalConcrete 与共有跨 Cone 接口。当前输入已有相应 dump 时直接复用；缺失时只执行产生该观察所需的前置阶段，不重做仍有效的机器对象、归档或最终链接。源码变化使观察记录失效，诊断使用当前定位；观察失败不能报告成功。
+显式观察使用 `--emit ast|hir|mir|lir|all --dump-dir dir [--dump-scope root|sources]`，默认 root；sources 覆盖源码节点，不从 prebuilt 反造 AST 或 LocalConcreteHir。HIR dump 同时包含 Export、LocalConcrete 与共有跨 Cone 接口。当前输入已有相应 dump 时直接复用；缺失时只执行产生该观察所需的前置阶段，不重做仍有效的机器对象、归档或最终链接。源码变化使观察记录失效，诊断使用当前定位；观察失败不能报告成功。dump 文件保存在对应编译输入键的缓存目录，命中后按请求复制到输出目录；只为缺失阶段调用 observation-only child。dump 描述只保存阶段及文件位置，不保存或复核内容摘要，不要求私有空目录、来源隔离或持久化同步屏障。
 
 诊断具有明确 Error/Warning severity，primary 与 notes 保存实际 Cone、logical source 和 byte span。源码读取等文件级错误仅有实际 host path、没有字节区间时，使用独立的 HostPath origin（wire tag 5），不得丢失路径或伪造区间；已有 HostPathSpan 编码保持。产物错误保存 container/manifest/member/section 与 wire field path，I/O 错误不伪装成源码位置。human 与逐行 JSON 使用同一结构化记录，写 stderr；stdout 留给被执行程序。缓存中的 warning 在本次显示时附加 locator，不丢失原位置。显示源码诊断时仅按需读取涉及的文件以计算行列，同一轮显示共享读取结果；此读取不参与缓存更新判定。
 

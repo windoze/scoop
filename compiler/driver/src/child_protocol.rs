@@ -41,7 +41,9 @@ fn run_transport(
         scoop_protocol::decode_request_frame(&frame).map_err(ChildProtocolError::DecodeRequest)?;
     let response = execute_request(request)?;
     let exit = match response {
-        ScoopcResponseEnvelopeV1::Success { .. } => ChildProtocolExit::Success,
+        ScoopcResponseEnvelopeV1::Success { .. } | ScoopcResponseEnvelopeV1::Observed { .. } => {
+            ChildProtocolExit::Success
+        }
         ScoopcResponseEnvelopeV1::Failure { .. } => ChildProtocolExit::CompilerFailure,
     };
     let frame = scoop_protocol::encode_response_frame(&response)
@@ -78,7 +80,7 @@ fn execute_request(
             return failure_response(request_id, CHILD_REQUEST_ERROR_CODE, error.to_string());
         }
     };
-    match build.build_and_publish() {
+    match build.compile(request.observation_only()) {
         Ok(success) => match success_response(request_id, &success, request.build().emit()) {
             Err(ChildProtocolError::DumpOutput(error)) => failure_response_with_warnings(
                 request_id,
@@ -136,19 +138,31 @@ fn failure_response_with_warnings(
 
 fn success_response(
     request_id: RequestCorrelationId,
-    success: &scoopc::SingleConeProductionSuccess,
+    success: &scoopc::SingleConeCompilation,
     policy: &StageDumpPolicyV1,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
     let dumps = dumps::write_dumps(policy, success.emitted_dumps())
         .map_err(ChildProtocolError::DumpOutput)?;
-    let artifact = success.artifact().summary();
     let warnings = success
         .warnings()
         .structured()
         .map_err(ChildProtocolError::DiagnosticMapping)?;
-    let result = ScoopcSuccessV1::new(artifact.manifest_summary().clone(), warnings, dumps)
-        .map_err(ChildProtocolError::ConstructResponse)?;
-    Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
+    match success {
+        scoopc::SingleConeCompilation::Published(success) => {
+            let result = ScoopcSuccessV1::new(
+                success.artifact().summary().manifest_summary().clone(),
+                warnings,
+                dumps,
+            )
+            .map_err(ChildProtocolError::ConstructResponse)?;
+            Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
+        }
+        scoopc::SingleConeCompilation::Observed(_) => Ok(ScoopcResponseEnvelopeV1::Observed {
+            request_id,
+            result: scoop_protocol::ScoopcObservationV1::new(warnings, dumps)
+                .map_err(ChildProtocolError::ConstructResponse)?,
+        }),
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

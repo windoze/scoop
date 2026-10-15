@@ -346,7 +346,7 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::ProducedOutput { source, .. } => source.classification(),
-            Self::Observation(_) => classified(
+            Self::Observation(_) | Self::UnexpectedResponse => classified(
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
             ),

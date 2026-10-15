@@ -1,22 +1,10 @@
-use scoop_identity::{ConeIdentity, PersistentExactTypeId};
+use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_wire::WireError;
 
 #[derive(Debug)]
 pub enum SharedLirDescriptorValidationError {
-    LocalProvider,
-    LocalTarget,
-    DependencyProvider(ConeIdentity),
-    DependencyTarget(ConeIdentity),
-    MissingDescriptor(PersistentExactTypeId),
-    DuplicateDescriptor(PersistentExactTypeId),
-    Replay {
-        exact: PersistentExactTypeId,
-        source: Box<lir::ExactDescriptorError>,
-    },
-    Table(lir::ExactDescriptorTableError),
-    Diagnostic(scoop_identity::ExactTypeDiagnosticCatalogError),
-    Encoding(scoop_wire::cbor::EncodeError),
+    Read(lir::LinkDataError),
     Resource(WireError),
 }
 macro_rules! from_error {
@@ -28,14 +16,12 @@ macro_rules! from_error {
         }
     };
 }
-from_error!(lir::ExactDescriptorTableError, Table);
-from_error!(scoop_identity::ExactTypeDiagnosticCatalogError, Diagnostic);
-from_error!(scoop_wire::cbor::EncodeError, Encoding);
+from_error!(lir::LinkDataError, Read);
 from_error!(WireError, Resource);
 
 impl std::fmt::Display for SharedLirDescriptorValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid shared MIR/LIR descriptor relation: {self:?}")
+        write!(f, "invalid saved descriptor data: {self:?}")
     }
 }
 impl std::error::Error for SharedLirDescriptorValidationError {}

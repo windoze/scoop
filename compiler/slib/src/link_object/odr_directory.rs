@@ -12,7 +12,7 @@ use super::{
 };
 
 mod wire;
-pub use wire::{DecodedCanonicalOdrMemberDirectoryV1, OdrMemberDirectoryValidationError};
+pub use wire::DecodedCanonicalOdrMemberDirectoryV1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OdrMemberDirectoryEntryV1 {

@@ -3,13 +3,11 @@ use slib::CrossConeLayoutArtifactValidationError as Error;
 
 pub(super) fn check(
     destination: &Path,
-    public: &hir::CrossConeHirInterfaceSectionV1,
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     let current = reader::open(artifact).identity();
     let direct = [reader::open(provider).identity()];
-    let dependencies = [provider.as_bytes()];
     let reject = |bytes: &[u8], providers: &[&[u8]]| {
         let result = slib::read_cross_cone_layout_artifact_summary(
             bytes,
@@ -20,25 +18,6 @@ pub(super) fn check(
         );
         result.unwrap_err()
     };
-    let (bytes, expected) = source_calls::publication_mutation(public, artifact);
-    let Error::Semantic { source } = reject(&bytes, &dependencies) else {
-        panic!("expected source signature rejection")
-    };
-    let slib::CrossConeLayoutSemanticClosureError::HirDeclarations(error) = *source else {
-        panic!("expected source call validation: {source:?}")
-    };
-    assert_eq!(error.provider, current);
-    let slib::CrossConeHirDeclarationValidationError::References(
-        slib::CrossConeHirReferenceSurfaceError::CallSites(error),
-    ) = *error.source
-    else {
-        panic!("expected actual call-site relation")
-    };
-    assert!(
-        matches!(*error, slib::CrossConeHirCallSiteOriginError::Signature { position, .. }
-        if position == expected)
-    );
-
     let Error::Semantic { source } = reject(artifact.as_bytes(), &[]) else {
         panic!("expected missing dependency rejection")
     };

@@ -49,8 +49,8 @@ pub enum StoragePlacementPolicyV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StoragePlacementV1 {
-    offset: u64,
-    access_alignment: NonZeroPow2,
+    pub(crate) offset: u64,
+    pub(crate) access_alignment: NonZeroPow2,
 }
 
 impl StoragePlacementV1 {

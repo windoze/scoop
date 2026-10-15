@@ -33,7 +33,7 @@ fn manifest(
         ProducerRecord::new("dev").unwrap(),
         CompatibilityRecord::new(
             selection(),
-            crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            crate::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .unwrap(),
         ConeRecord::new(

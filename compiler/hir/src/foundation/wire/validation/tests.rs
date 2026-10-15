@@ -264,22 +264,6 @@ fn rejects_an_origin_endpoint_absent_from_the_source_point_table() {
 }
 
 #[test]
-fn rejects_semantically_noncanonical_table_order() {
-    let fixture = fixture(true, true);
-    let mut decoded = decode(&fixture.canonical);
-    decoded.decoded.types.swap(0, 1);
-    let mut identities = validate_identities(
-        &decoded,
-        [ConeIdentity::CORE, fixture.coordinate.identity().unwrap()],
-    );
-
-    assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities),
-        Err(HirFoundationValidationError::NonCanonicalFoundation)
-    ));
-}
-
-#[test]
 fn rejects_a_foreign_source_declaration_in_the_artifact_delta() {
     let coordinate = ConeCoordinate::new("example", "current", "0.1.0").unwrap();
     let foreign = ConeCoordinate::new("example", "foreign", "0.1.0")

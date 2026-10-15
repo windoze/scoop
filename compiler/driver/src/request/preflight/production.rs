@@ -11,12 +11,26 @@ pub use errors::{CurrentConeProductionError, CurrentConeProductionFailure};
 pub use layout::LayoutProductionError;
 pub(super) use layout_references::collect_mir_references;
 pub(super) use layout_selection::select_lir_dependencies;
+use std::ops::ControlFlow;
 
 impl ParsedSingleConeBuildRequest<'_, '_> {
     pub fn build_and_publish(
         self,
         temporary_parent: &Path,
     ) -> Result<SingleConeProductionSuccess, CurrentConeProductionError> {
+        match self.compile(temporary_parent, None)? {
+            SingleConeCompilation::Published(result) => Ok(*result),
+            SingleConeCompilation::Observed(_) => {
+                unreachable!("production has no observation stop")
+            }
+        }
+    }
+
+    pub(super) fn compile(
+        self,
+        temporary_parent: &Path,
+        stop_after: Option<StageDumpKind>,
+    ) -> Result<SingleConeCompilation, CurrentConeProductionError> {
         let protocols = self.request.protocols();
         let cone = match self.request.current() {
             ValidatedCurrentConeInput::Manifest { manifest } => {
@@ -36,14 +50,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             scoop_slib::ConeKind::Executable => scoop_identity::RequestedConeKind::Executable,
         };
         let emit = self.request.emit();
-        let mut dump = capture_stage_dump(emit, StageDumpKind::Ast, || {
-            self.sources
-                .sources()
-                .sources()
-                .iter()
-                .map(|source| scoop_ast::dump(source.ast()))
-                .collect()
-        });
+        let mut dump = observation::ast_dumps(&self.sources, emit);
         let world = self
             .request
             .dependencies()
@@ -72,9 +79,24 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 scoop_hir::dump_cross_cone(&hir.hir, &hir.cross_cone_section)
             )
         }));
+        if stop_after == Some(StageDumpKind::Hir) {
+            return Ok(SingleConeCompilation::Observed(StageObservation {
+                warnings,
+                dumps: dump,
+            }));
+        }
         let artifact = (|| {
-            let artifact =
-                protocols::lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
+            let ControlFlow::Continue(artifact) = protocols::lower_machine(
+                hir,
+                self.request,
+                cone,
+                temporary_parent,
+                &mut dump,
+                stop_after,
+            )?
+            else {
+                return Ok(ControlFlow::Break(()));
+            };
             let cache = scoop_toolchain::configured_cache_root(None)
                 .map_err(CurrentConeProductionFailure::ObjectOutput)?;
             for (digest, bytes) in artifact.object_payloads() {
@@ -83,12 +105,17 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             }
             artifact
                 .publish(self.request.output().as_path())
+                .map(ControlFlow::Continue)
                 .map_err(CurrentConeProductionFailure::Publication)
         })();
         match artifact {
-            Ok(artifact) => Ok(SingleConeProductionSuccess::new_cross_cone(
-                artifact, warnings, dump,
-            )),
+            Ok(ControlFlow::Break(())) => Ok(SingleConeCompilation::Observed(StageObservation {
+                warnings,
+                dumps: dump,
+            })),
+            Ok(ControlFlow::Continue(artifact)) => Ok(SingleConeCompilation::Published(Box::new(
+                SingleConeProductionSuccess::new_cross_cone(artifact, warnings, dump),
+            ))),
             Err(cause) => Err(CurrentConeProductionError::after_hir(cause, warnings)),
         }
     }

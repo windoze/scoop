@@ -59,21 +59,3 @@ impl<'a> SharedTypeMetadataV1<'a> {
         })
     }
 }
-
-impl<'a> MetadataTypes<'a, '_> {
-    pub(crate) fn applied_nominal(
-        self,
-        exact: PersistentExactTypeId,
-    ) -> Result<AppliedNominal<'a>, Error> {
-        SharedTypeMetadataV1 {
-            identities: self.identity_graph(exact),
-            ..self.current
-        }
-        .applied_nominal(
-            exact,
-            self.dependencies
-                .iter()
-                .map(|dependency| dependency.metadata),
-        )
-    }
-}

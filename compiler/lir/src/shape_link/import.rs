@@ -52,11 +52,10 @@ impl ExternalShapeLinkImportV1 {
 
 impl WireEncode for ExternalShapeLinkImportV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
-        encoder.map(5)?;
+        encoder.map(4)?;
         field(encoder, 1, &self.provider)?;
         field(encoder, 2, &self.subject)?;
         field(encoder, 3, &self.expected_symbol)?;
-        field(encoder, 4, &self.required_definition)?;
-        field(encoder, 5, &self.contract)
+        field(encoder, 4, &self.required_definition)
     }
 }

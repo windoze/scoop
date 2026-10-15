@@ -10,7 +10,7 @@ pub(super) fn check(
 ) {
     let provider_wire = open_link(provider);
     read_link(provider, artifact)
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             assert_eq!(physical.direct_providers(), &[provider_wire.identity()]);

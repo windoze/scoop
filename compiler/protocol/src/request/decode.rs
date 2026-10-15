@@ -241,6 +241,7 @@ pub(crate) struct DecodedScoopcRequestEnvelopeV1 {
     version: u32,
     request_id: Vec<u8>,
     build: DecodedScoopcBuildRequestV1,
+    observation_only: bool,
 }
 
 impl DecodedScoopcRequestEnvelopeV1 {
@@ -251,16 +252,25 @@ impl DecodedScoopcRequestEnvelopeV1 {
         if self.version != PROTOCOL_VERSION {
             return Err(ProtocolValidationError::UnsupportedVersion(self.version));
         }
-        Ok(ScoopcRequestEnvelopeV1::new(
+        let request = ScoopcRequestEnvelopeV1::new(
             RequestCorrelationId::from_vec(self.request_id)?,
             self.build.validate()?,
-        ))
+        );
+        if self.observation_only {
+            let StageDumpPolicyV1::Files { stages, .. } = request.build().emit() else {
+                return Err(ProtocolValidationError::InvalidDumpStages);
+            };
+            let stages = *stages;
+            request.observe(stages)
+        } else {
+            Ok(request)
+        }
     }
 }
 
 impl WireEncode for DecodedScoopcRequestEnvelopeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         encoder.bytes(&self.magic)?;
         encoder.field(2)?;
@@ -268,22 +278,30 @@ impl WireEncode for DecodedScoopcRequestEnvelopeV1 {
         encoder.field(3)?;
         encoder.bytes(&self.request_id)?;
         encoder.field(4)?;
-        self.build.encode(encoder)
+        self.build.encode(encoder)?;
+        encoder.field(5)?;
+        encoder.unsigned(u64::from(self.observation_only))
     }
 }
 
 impl WireDecode for DecodedScoopcRequestEnvelopeV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(5)?;
         let magic = decoder.field(1, Decoder::owned_bytes)?;
         let version = decoder.field(2, Decoder::u32)?;
         let request_id = decoder.field(3, Decoder::owned_bytes)?;
         let build = decoder.field(4, DecodedScoopcBuildRequestV1::decode)?;
+        let observation_only = decoder.field(5, |decoder| match decoder.unsigned()? {
+            0 => Ok(false),
+            1 => Ok(true),
+            tag => Err(crate::framing::unknown_tag(decoder, tag)),
+        })?;
         Ok(Self {
             magic,
             version,
             request_id,
             build,
+            observation_only,
         })
     }
 }

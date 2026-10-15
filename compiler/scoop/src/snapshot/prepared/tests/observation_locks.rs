@@ -6,7 +6,6 @@ use super::*;
 
 struct LockCheckingRunner {
     file: File,
-    observed: bool,
 }
 
 impl SingleConeCompilerRunner for LockCheckingRunner {
@@ -17,18 +16,13 @@ impl SingleConeCompilerRunner for LockCheckingRunner {
         io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         let result = fs4::FileExt::try_lock(&self.file);
-        if self.observed {
-            result.expect("an observed child must not monopolize the compile cache key");
-            fs4::FileExt::unlock(&self.file).unwrap();
-        } else {
-            assert!(matches!(result, Err(fs4::TryLockError::WouldBlock)));
-        }
+        assert!(matches!(result, Err(fs4::TryLockError::WouldBlock)));
         FailureRunner.invoke(tool, request, io)
     }
 }
 
 #[test]
-fn observations_leave_the_cache_key_available_while_ordinary_misses_deduplicate() {
+fn ordinary_and_observed_misses_share_the_compile_cache_lock() {
     for observed in [false, true] {
         let temp = tempfile::tempdir().unwrap();
         let workspace = temp.path();
@@ -56,7 +50,7 @@ fn observations_leave_the_cache_key_available_while_ordinary_misses_deduplicate(
             .open(lock.path())
             .unwrap();
         drop(lock);
-        let mut runner = LockCheckingRunner { file, observed };
+        let mut runner = LockCheckingRunner { file };
         assert!(matches!(
             prepared.execute_ordinary_source(
                 ConeIdentity::CORE,

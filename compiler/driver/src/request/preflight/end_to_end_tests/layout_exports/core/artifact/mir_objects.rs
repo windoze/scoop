@@ -3,16 +3,17 @@ use scoop_identity::{GeneratedCallableKey, SourceDeclarationKey};
 
 pub(super) fn check(
     name: &str,
-    source: hir::CheckedSharedTypeFoundationV1<'_>,
+    source: hir::SharedTypeMetadataV1<'_>,
+    representations: &hir::CanonicalNominalRepresentationSupportV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
     if !name.starts_with("shared-objects-") {
         return;
     }
-    let metadata = source.metadata();
+    let metadata = source;
     let units = metadata.object_initialization_units().unwrap();
     let mut objects = 0;
-    for representation in source.representations().table().records() {
+    for representation in representations.records() {
         let hir::NominalRepresentationShapeV1::Object { .. } = representation.shape() else {
             continue;
         };
@@ -31,7 +32,7 @@ pub(super) fn check(
             scoop_identity::InitializationUnitKey::Object(_)
                 | scoop_identity::InitializationUnitKey::Companion(_)
         ));
-        assert_eq!(key.origin(), source.provider());
+        assert_eq!(key.origin(), source.provider);
         objects += 1;
     }
     // Include scalar companions and the independent UnitEncoder/UnitDecoder objects.

@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::ScanRole;
 
 impl<'a> ShapeLinkProviderV1<'a> {
-    pub(super) fn contract(
+    pub(in crate::shape_link) fn contract(
         &self,
         subject: ExternalStrongShapeSubjectV1,
     ) -> Result<ShapeLinkContractV1, ShapeLinkError> {

@@ -14,8 +14,8 @@ use scoop_toolchain::load_cone_manifest;
 
 use super::{
     CompilationPurpose, CurrentConeDiagnosticSet, CurrentConeInput, DiagnosticOutputPolicy,
-    EmittedStageDump, SingleConeBuildRequest, SingleConeProductionSuccess, SlibOutputDestination,
-    StageDumpKind, StageDumpPolicy, TrustedCoreInput,
+    EmittedStageDump, SingleConeBuildRequest, SingleConeCompilation, SingleConeProductionSuccess,
+    SlibOutputDestination, StageDumpKind, StageDumpPolicy, StageObservation, TrustedCoreInput,
 };
 
 mod current_hir;
@@ -25,6 +25,7 @@ mod dependencies;
 mod end_to_end_tests;
 mod loading;
 mod machine;
+mod observation;
 pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
 mod production;
 mod validated;
@@ -97,6 +98,29 @@ impl SingleConeBuildRequest {
     pub fn build_and_publish(
         self,
     ) -> Result<SingleConeProductionSuccess, SingleConeProductionError> {
+        match self.compile(false)? {
+            SingleConeCompilation::Published(result) => Ok(*result),
+            SingleConeCompilation::Observed(_) => {
+                unreachable!("production has no observation stop")
+            }
+        }
+    }
+
+    pub fn compile(
+        self,
+        observation_only: bool,
+    ) -> Result<SingleConeCompilation, SingleConeProductionError> {
+        let stop_after = if observation_only {
+            let StageDumpPolicy::Stages(stages) = self.emit else {
+                return Err(SingleConeProductionError::ObservationRequiresStages);
+            };
+            stages.iter().last()
+        } else {
+            None
+        };
+        if stop_after == Some(StageDumpKind::Ast) {
+            return self.observe_ast();
+        }
         let temporary_parent = self
             .output
             .as_path()
@@ -116,7 +140,7 @@ impl SingleConeBuildRequest {
             .parse_current_sources()
             .map_err(SingleConeProductionError::Sources)?;
         parsed
-            .build_and_publish(temporary.path())
+            .compile(temporary.path(), stop_after)
             .map_err(|source| SingleConeProductionError::Production(Box::new(source)))
     }
 
@@ -142,6 +166,7 @@ fn capture_stage_dump(
 
 #[derive(Debug)]
 pub enum SingleConeProductionError {
+    ObservationRequiresStages,
     TemporaryWorkspace(std::io::Error),
     Preflight(SingleConePreflightError),
     Validation(SingleConeDependencyValidationError),
@@ -152,6 +177,9 @@ pub enum SingleConeProductionError {
 impl fmt::Display for SingleConeProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ObservationRequiresStages => {
+                formatter.write_str("stage observation requires at least one dump")
+            }
             Self::TemporaryWorkspace(source) => {
                 write!(
                     formatter,
@@ -169,6 +197,7 @@ impl fmt::Display for SingleConeProductionError {
 impl std::error::Error for SingleConeProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::ObservationRequiresStages => return None,
             Self::TemporaryWorkspace(source) => source,
             Self::Preflight(source) => source,
             Self::Validation(source) => source,
@@ -211,7 +240,8 @@ impl SingleConeProductionError {
     pub fn warnings(&self) -> Option<&CurrentConeDiagnosticSet> {
         match self {
             Self::Production(error) => error.warnings(),
-            Self::TemporaryWorkspace(_)
+            Self::ObservationRequiresStages
+            | Self::TemporaryWorkspace(_)
             | Self::Preflight(_)
             | Self::Validation(_)
             | Self::Sources(_) => None,

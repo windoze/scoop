@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn protocol_constructor_adapters_replay_actual_source_and_result_for_each_provider() {
+fn protocol_constructor_adapters_read_saved_source_and_result() {
     for origin in [
         ConeIdentity::CORE,
         crate::core_protocol_test_support::ordinary_origin(),
@@ -62,7 +62,7 @@ fn protocol_constructor_adapters_replay_actual_source_and_result_for_each_provid
             CoreProtocolCallableDefinitionV1::Constructor(constructor.id()),
             CoreProtocolCallableDefinitionV1::GeneratedCallable(adapter.id()),
         ] {
-            let mut callable = CoreProtocolCallableV1::for_test(
+            let callable = CoreProtocolCallableV1::for_test(
                 definition,
                 SignatureCallableShape::new(
                     Effect::Ordinary,
@@ -75,33 +75,7 @@ fn protocol_constructor_adapters_replay_actual_source_and_result_for_each_provid
                 decode(&callable).validate_against(&foundation),
                 Ok(callable.clone())
             );
-            callable.signature = SignatureCallableShape::new(
-                Effect::Ordinary,
-                None,
-                vec![],
-                SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
-            );
-            assert_eq!(
-                decode(&callable).validate_against(&foundation),
-                Err(CoreProtocolCallableValidationError::ConstructorResultMismatch(definition))
-            );
         }
-        let callable = CoreProtocolCallableV1::for_test(
-            CoreProtocolCallableDefinitionV1::GeneratedCallable(adapter.id()),
-            SignatureCallableShape::new(
-                Effect::Ordinary,
-                None,
-                vec![],
-                SignatureTypeKey::Nominal(owner.id()),
-            ),
-        );
-        foundation.set_constructors(vec![]).unwrap();
-        assert_eq!(
-            decode(&callable).validate_against(&foundation),
-            Err(CoreProtocolCallableValidationError::MissingAdapterSource(
-                callable.definition()
-            ))
-        );
     }
 }
 

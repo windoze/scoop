@@ -3,11 +3,11 @@ use scoop_identity::InitializationUnitKey;
 
 pub(super) fn check(
     name: &str,
-    source: hir::CheckedSharedTypeFoundationV1<'_>,
+    source: hir::SharedTypeMetadataV1<'_>,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) -> Vec<mir::MirTypeBridgeInitializationUnitV1> {
-    let metadata = source.metadata();
+    let metadata = source;
     let units = mir::read_initialization_units(strong, metadata.identities).unwrap();
     assert_eq!(units.len(), section.initialization_units().len());
     for (unit, producer) in units.iter().zip(section.initialization_units()) {

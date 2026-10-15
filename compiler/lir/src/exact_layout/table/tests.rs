@@ -1,5 +1,5 @@
 use scoop_identity::*;
-use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::exact_layout::tests::{Bound, unit};
@@ -74,20 +74,6 @@ fn table() -> CanonicalExactLayoutExportsV1 {
     .unwrap()
 }
 
-fn decode_records(records: &[&ExactLayoutExportV1]) -> DecodedCanonicalExactLayoutExportsV1 {
-    struct Records<'a>(&'a [&'a ExactLayoutExportV1]);
-    impl WireEncode for Records<'_> {
-        fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-            encoder.array(self.0.len() as u64)?;
-            for record in self.0 {
-                record.encode(encoder)?;
-            }
-            Ok(())
-        }
-    }
-    decode_canonical(&encode(&Records(records)).unwrap()).unwrap()
-}
-
 #[test]
 fn layout_table_canonicalizes_roles_without_collapsing_exact_identity() {
     let (foundation, mut records) = fixture();
@@ -109,8 +95,31 @@ fn layout_table_canonicalizes_roles_without_collapsing_exact_identity() {
     let raw = decode_canonical::<DecodedCanonicalExactLayoutExportsV1>(&encode(&expected).unwrap())
         .unwrap();
     assert_eq!(encode(&raw).unwrap(), encode(&expected).unwrap());
-    let validated = raw.validate_against(&expected).unwrap();
-    assert!(Arc::ptr_eq(&validated.0, &expected.0));
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_external_canonical_authority(
+            expected.records()[0].identity().exact_record().clone(),
+        )
+        .unwrap();
+    for record in foundation.layouts() {
+        pending
+            .register_external_canonical_authority(record.clone())
+            .unwrap();
+    }
+    for record in foundation.scans() {
+        pending.register_authority(record.id()).unwrap();
+    }
+    for record in foundation.definition_plans() {
+        pending.register_authority(record.id()).unwrap();
+    }
+    let actual = raw
+        .read(
+            expected.target(),
+            &foundation,
+            &mut pending.finish().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(actual, expected);
 }
 
 #[test]
@@ -141,19 +150,6 @@ fn layout_table_rejects_duplicate_keys_and_foreign_or_incomplete_foundation() {
 }
 
 #[test]
-fn layout_table_reader_rejects_reordering_duplication_and_omission() {
-    let expected = table();
-    let records = expected.records();
-    for raw in [
-        decode_records(&[&records[1], &records[0]]),
-        decode_records(&[&records[0], &records[0]]),
-        decode_records(&[&records[0]]),
-    ] {
-        assert!(raw.validate_against(&expected).is_err());
-    }
-}
-
-#[test]
 fn layout_table_preserves_empty_wire() {
     let foundation =
         ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
@@ -166,5 +162,13 @@ fn layout_table_preserves_empty_wire() {
     .unwrap();
     assert_eq!(encode(&empty).unwrap(), [0x80]);
     let raw = decode_canonical::<DecodedCanonicalExactLayoutExportsV1>(&[0x80]).unwrap();
-    assert_eq!(raw.validate_against(&empty).unwrap(), empty);
+    assert_eq!(
+        raw.read(
+            empty.target(),
+            &foundation,
+            &mut PendingIdentityValidation::new().finish().unwrap()
+        )
+        .unwrap(),
+        empty
+    );
 }

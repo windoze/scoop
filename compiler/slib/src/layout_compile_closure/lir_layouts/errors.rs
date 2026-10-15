@@ -1,25 +1,9 @@
-use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentLayoutId};
+use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 
 #[derive(Debug)]
 pub enum SharedLirLayoutValidationError {
-    DependencyProvider(ConeIdentity),
-    DependencyTarget(ConeIdentity),
-    AmbiguousDependency(PersistentLayoutId),
-    MissingDependency(PersistentLayoutId),
-    DependencyKind(PersistentExactTypeId),
-    MissingMirShape(PersistentExactTypeId),
-    Cycle(PersistentLayoutId),
-    Role(PersistentLayoutId),
-    SourceObject(PersistentExactTypeId),
-    SourceFacts(PersistentExactTypeId),
-    CLayout(PersistentExactTypeId),
-    ArithmeticOverflow,
-    Identity(scoop_identity::IdentityReferenceError),
-    Hash(scoop_wire::HashError),
-    LayoutIdentity(lir::ExactLayoutIdentityError),
-    Replay(lir::ExactLayoutReplayError),
-    Table(lir::ExactLayoutTableError),
+    Read(lir::LinkDataError),
     Resource(scoop_wire::WireError),
 }
 
@@ -47,16 +31,12 @@ macro_rules! from_error {
         }
     };
 }
-from_error!(scoop_identity::IdentityReferenceError, Identity);
-from_error!(scoop_wire::HashError, Hash);
-from_error!(lir::ExactLayoutIdentityError, LayoutIdentity);
-from_error!(lir::ExactLayoutReplayError, Replay);
-from_error!(lir::ExactLayoutTableError, Table);
+from_error!(lir::LinkDataError, Read);
 from_error!(scoop_wire::WireError, Resource);
 
 impl std::fmt::Display for SharedLirLayoutValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "shared MIR/LIR layout replay: {self:?}")
+        write!(f, "saved LIR layout data: {self:?}")
     }
 }
 impl std::error::Error for SharedLirLayoutValidationError {}

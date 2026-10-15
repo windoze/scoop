@@ -160,13 +160,10 @@ pub(super) fn check(
                     &owners,
                     production,
                 );
-                super::source_calls::check(input, core_input, core_artifact, &artifact);
+                super::source_calls::check(input, core_input);
                 if family != "m23-property-initialization" {
-                    if family == "m23-extension-call-receivers" {
-                        super::source_calls::check_receivers(input, core_artifact, &artifact);
-                    } else if family == "m23-any-call-signatures" {
-                        super::publication::check(name, input.public, core_artifact, &artifact);
-                        super::source_calls::check_any(input, core_artifact, &artifact);
+                    if family == "m23-any-call-signatures" {
+                        super::publication::check(name, core_artifact, &artifact);
                     } else if family == "m23-link-symbol-uses" {
                         super::link_symbol_uses::check(core_artifact, &artifact);
                     }
@@ -179,7 +176,7 @@ pub(super) fn check(
                     ("link", reader::read_link(core_artifact, &artifact)),
                 ] {
                     closure
-                        .replay_physical_imports()
+                        .read_physical_imports()
                         .map(|physical| {
                             let current = physical.artifact(mir.provider()).unwrap();
                             assert_eq!(current.link_sections().is_some(), view == "link");

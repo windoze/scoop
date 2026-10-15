@@ -75,7 +75,6 @@ pub enum StrongInitializationRegistrationValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     MissingDefinitionAssignment {
         unit: PersistentInitializationUnitId,
         definition: ObjectDefinitionPlanId,

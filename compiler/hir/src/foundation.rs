@@ -400,13 +400,6 @@ impl CanonicalHirFoundation {
         })
     }
 
-    pub(crate) fn enum_variant_field_count(&self, variant: PersistentEnumVariantId) -> usize {
-        self.enum_variant_fields
-            .iter()
-            .filter(|record| record.key().variant() == variant)
-            .count()
-    }
-
     pub fn set_sources(
         &mut self,
         mut records: Vec<SourceRecord>,

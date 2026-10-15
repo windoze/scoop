@@ -1,0 +1,7 @@
+fun main() {
+    val empty = SharedAbiEmpty()
+    empty.drop(empty)
+    empty.empty(empty, empty)
+    val wide = empty.wide(SharedAbiWide(11, 22, 33), empty)
+    if (wide.first != 11L || wide.second != 22L || wide.third != 33L) throw IllegalStateException()
+}

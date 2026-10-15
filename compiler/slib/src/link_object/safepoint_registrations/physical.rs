@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_wire::sha256;
-
 use super::{
     SafepointRegistrationAtomFileRangeFailureV1, StrongSafepointRegistrationValidationError,
 };
@@ -46,15 +44,7 @@ pub(in crate::link_object) fn validate_objects<'a>(
 
     let mut verified = BTreeMap::new();
     for object in objects {
-        let member = verified_member(builtins, object.member())?;
-        let envelope = member.definitions().sections().envelope();
-        if u64::try_from(object.bytes().len()).ok() != Some(envelope.byte_length())
-            || sha256(object.bytes()) != envelope.content_digest()
-        {
-            return Err(
-                StrongSafepointRegistrationValidationError::ObjectBytesMismatch(object.member()),
-            );
-        }
+        verified_member(builtins, object.member())?;
         verified.insert(object.member(), object.bytes());
     }
     Ok(verified)

@@ -3,11 +3,7 @@ use std::fmt;
 use super::VerifiedRuntimeImageFingerprintV1;
 use super::record::{IMAGE_DESCRIPTOR_SIZE, expected_final_image_record};
 use crate::SlibMemberId;
-use crate::link_object::{
-    ScoopLirObjectEnvelopeValidationError, ValidatedScoopLirObjectEnvelopeV1,
-    VerifiedMaterializedPatchSiteV1, same_object_shape,
-    validate_scoop_lir_llvm_22_1_object_envelope_v1,
-};
+use crate::link_object::{ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1};
 
 const DIGEST_WIDTH: usize = 32;
 
@@ -122,16 +118,14 @@ where
         if member != source.member() {
             return Err(RuntimeImagePatchError::ObjectOrderMismatch);
         }
-        verify_only_image_slot_changed(member, &bytes, source.bytes(), image_member, image_patch)?;
-        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
-            scoop_target_data::layout(source.envelope().sections().envelope().target())
-                .expect("implemented target selected by this consumer"),
-            &bytes,
-        )
-        .map_err(|source| RuntimeImagePatchError::FinalEnvelope { member, source })?;
-        if !same_object_shape(source.envelope().sections(), envelope.sections()) {
-            return Err(RuntimeImagePatchError::MachOShapeChanged(member));
-        }
+        let envelope = if member == image_member {
+            ValidatedScoopLirObjectEnvelopeV1::after_digest_patch(
+                source.envelope().sections().clone(),
+                &bytes,
+            )
+        } else {
+            source.envelope().clone()
+        };
         finalized.push(VerifiedRuntimeImagePatchedScoopLirObjectV1 {
             member,
             bytes,
@@ -200,27 +194,6 @@ fn validate_final_image_record(
     Ok(())
 }
 
-fn verify_only_image_slot_changed(
-    member: SlibMemberId,
-    final_bytes: &[u8],
-    source_bytes: &[u8],
-    image_member: SlibMemberId,
-    image_patch: VerifiedMaterializedPatchSiteV1,
-) -> Result<(), RuntimeImagePatchError> {
-    if member != image_member {
-        if final_bytes != source_bytes {
-            return Err(RuntimeImagePatchError::NormalizedObjectMismatch(member));
-        }
-        return Ok(());
-    }
-    let mut normalized = final_bytes.to_vec();
-    digest_slot_mut(&mut normalized, image_patch.checked_offset())?.fill(0);
-    if normalized != source_bytes {
-        return Err(RuntimeImagePatchError::NormalizedObjectMismatch(member));
-    }
-    Ok(())
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RuntimeImagePatchError {
     PatchMemberMismatch {
@@ -242,12 +215,6 @@ pub enum RuntimeImagePatchError {
         expected: u8,
         actual: u8,
     },
-    NormalizedObjectMismatch(SlibMemberId),
-    FinalEnvelope {
-        member: SlibMemberId,
-        source: ScoopLirObjectEnvelopeValidationError,
-    },
-    MachOShapeChanged(SlibMemberId),
 }
 
 impl fmt::Display for RuntimeImagePatchError {
@@ -259,14 +226,7 @@ impl fmt::Display for RuntimeImagePatchError {
     }
 }
 
-impl std::error::Error for RuntimeImagePatchError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::FinalEnvelope { source, .. } => Some(source),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for RuntimeImagePatchError {}
 
 #[cfg(test)]
 pub(in crate::link_object::cone_image) fn patch_image_bytes_for_test(

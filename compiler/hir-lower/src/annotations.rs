@@ -197,7 +197,7 @@ impl Lowerer {
                 }
                 _ => self.error(
                     annotation.span,
-                    format!("unsupported annotation `@{name}` in milestone M12"),
+                    format!("unsupported annotation `@{name}` for this declaration"),
                 ),
             }
         }
@@ -353,7 +353,7 @@ impl Lowerer {
             } else {
                 self.error(
                     annotation.span,
-                    format!("unsupported annotation `@{name}` in milestone M12"),
+                    format!("unsupported annotation `@{name}` for this declaration"),
                 );
             }
         }

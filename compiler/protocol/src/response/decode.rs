@@ -63,7 +63,6 @@ impl WireDecode for DecodedDumpDestinationV1 {
 struct DecodedDumpDescriptorV1 {
     stage: u64,
     destination: DecodedDumpDestinationV1,
-    digest: Vec<u8>,
 }
 
 impl DecodedDumpDescriptorV1 {
@@ -71,39 +70,36 @@ impl DecodedDumpDescriptorV1 {
         Ok(EmittedDumpDescriptorV1::new(
             decode_stage(self.stage)?,
             self.destination.validate()?,
-            ProtocolDumpContentDigest::from_vec(self.digest)?,
         ))
     }
 }
 
 impl WireEncode for DecodedDumpDescriptorV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         encoder.unsigned(self.stage)?;
         encoder.field(2)?;
-        self.destination.encode(encoder)?;
-        encoder.field(3)?;
-        encoder.bytes(&self.digest)
+        self.destination.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedDumpDescriptorV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         let stage = decoder.field(1, Decoder::unsigned)?;
         let destination = decoder.field(2, DecodedDumpDestinationV1::decode)?;
-        let digest = decoder.field(3, Decoder::owned_bytes)?;
-        Ok(Self {
-            stage,
-            destination,
-            digest,
-        })
+        Ok(Self { stage, destination })
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedResponseV1 {
+    Observed {
+        request_id: Vec<u8>,
+        warnings: Vec<DecodedStructuredDiagnosticV1>,
+        dumps: Vec<DecodedDumpDescriptorV1>,
+    },
     Success {
         request_id: Vec<u8>,
         summary: Box<scoop_slib::ArtifactManifestSummaryV1>,
@@ -119,6 +115,23 @@ enum DecodedResponseV1 {
 impl DecodedResponseV1 {
     fn validate(self) -> Result<ScoopcResponseEnvelopeV1, ProtocolValidationError> {
         match self {
+            Self::Observed {
+                request_id,
+                warnings,
+                dumps,
+            } => Ok(ScoopcResponseEnvelopeV1::Observed {
+                request_id: RequestCorrelationId::from_vec(request_id)?,
+                result: ScoopcObservationV1::new(
+                    warnings
+                        .into_iter()
+                        .map(DecodedStructuredDiagnosticV1::validate)
+                        .collect::<Result<_, _>>()?,
+                    dumps
+                        .into_iter()
+                        .map(DecodedDumpDescriptorV1::validate)
+                        .collect::<Result<_, _>>()?,
+                )?,
+            }),
             Self::Success {
                 request_id,
                 summary,
@@ -159,6 +172,25 @@ impl DecodedResponseV1 {
 impl WireEncode for DecodedResponseV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::Observed {
+                request_id,
+                warnings,
+                dumps,
+            } => {
+                encoder.map(4)?;
+                encoder.field(0)?;
+                encoder.unsigned(3)?;
+                encoder.field(1)?;
+                encoder.bytes(request_id)?;
+                encoder.field(2)?;
+                encode_decoded_diagnostics(encoder, warnings)?;
+                encoder.field(3)?;
+                encoder.array(dumps.len() as u64)?;
+                for dump in dumps {
+                    dump.encode(encoder)?;
+                }
+                Ok(())
+            }
             Self::Success {
                 request_id,
                 summary,
@@ -202,6 +234,16 @@ impl WireDecode for DecodedResponseV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            3 => {
+                crate::framing::expect_sum_length(decoder, fields, 4)?;
+                Ok(Self::Observed {
+                    request_id: decoder.field(1, Decoder::owned_bytes)?,
+                    warnings: decoder.field(2, decode_decoded_diagnostics)?,
+                    dumps: decoder.field(3, |decoder| {
+                        decoder.decode_array(|decoder, _| DecodedDumpDescriptorV1::decode(decoder))
+                    })?,
+                })
+            }
             1 => {
                 crate::framing::expect_sum_length(decoder, fields, 5)?;
                 let request_id = decoder.field(1, Decoder::owned_bytes)?;

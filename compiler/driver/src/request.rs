@@ -13,7 +13,7 @@ pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestinatio
 pub use preflight::*;
 pub use report::{
     CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, DiagnosticMappingError,
-    EmittedStageDump, SingleConeProductionSuccess,
+    EmittedStageDump, SingleConeCompilation, SingleConeProductionSuccess, StageObservation,
 };
 
 use scoop_codegen::CodegenError;

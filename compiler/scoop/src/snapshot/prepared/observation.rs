@@ -1,12 +1,10 @@
-use std::collections::BTreeSet;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::ConeIdentity;
 use scoop_protocol::{EmittedDumpDescriptorV1, EmittedDumpDestinationV1, StageDumpSet};
 
 use super::model::{PreparedBuildGraph, PreparedGraphNode};
-use crate::ImmutableInputSnapshot;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DumpScope {
@@ -29,7 +27,7 @@ pub(super) struct PreparedDump {
 }
 
 impl PreparedBuildGraph {
-    /// Observe selected source nodes through the same production invocation.
+    /// Request stage outputs for selected source nodes.
     pub fn observe_dumps(&mut self, request: BuildDumpRequest) -> io::Result<()> {
         if !self.dumps.is_empty() {
             return Err(invalid("stage observation is already configured"));
@@ -54,93 +52,97 @@ impl PreparedBuildGraph {
         Ok(())
     }
 
-    pub(crate) fn is_observed(&self, identity: ConeIdentity) -> bool {
-        self.dumps.contains_key(&identity)
-    }
-
-    pub(super) fn publish_dumps(
+    pub(super) fn missing_dumps(
         &self,
         identity: ConeIdentity,
+        cache: &Path,
+    ) -> io::Result<Option<StageDumpSet>> {
+        match self.dumps.get(&identity) {
+            Some(dump) => missing_stages(dump.stages, cache),
+            None => Ok(None),
+        }
+    }
+
+    pub(super) fn store_dumps(
+        &self,
+        identity: ConeIdentity,
+        stages: Option<StageDumpSet>,
         descriptors: &[EmittedDumpDescriptorV1],
+        cache: &Path,
+    ) -> io::Result<()> {
+        let requested = stages.or_else(|| self.dumps.get(&identity).map(|dump| dump.stages));
+        store_dumps(requested, descriptors, cache)
+    }
+
+    pub(super) fn publish_cached_dumps(
+        &self,
+        identity: ConeIdentity,
+        cache: &Path,
     ) -> io::Result<()> {
         let Some(dump) = self.dumps.get(&identity) else {
-            return if descriptors.is_empty() {
-                Ok(())
-            } else {
-                Err(invalid("unrequested stage dumps"))
-            };
+            return Ok(());
         };
-        let captures = capture_dumps(dump, descriptors)?;
         std::fs::create_dir_all(&dump.destination)?;
-        for (stage, snapshot) in dump.stages.iter().zip(captures) {
-            let mut file = tempfile::NamedTempFile::new_in(&dump.destination)?;
-            file.write_all(snapshot.as_bytes())?;
-            file.as_file().sync_all()?;
-            file.persist(dump.destination.join(stage.file_name()))
-                .map_err(|error| error.error)?;
+        for stage in dump.stages.iter() {
+            copy_dump(
+                &cache.join(stage.file_name()),
+                &dump.destination,
+                stage.file_name(),
+            )?;
         }
         Ok(())
     }
 }
 
-fn capture_dumps(
-    dump: &PreparedDump,
-    descriptors: &[EmittedDumpDescriptorV1],
-) -> io::Result<Vec<ImmutableInputSnapshot>> {
-    let stages = dump.stages.iter().collect::<Vec<_>>();
-    if descriptors
-        .iter()
-        .map(|descriptor| descriptor.stage())
-        .collect::<Vec<_>>()
-        != stages
-    {
-        return Err(invalid(
-            "compiler dump descriptors do not match the requested stage set",
-        ));
+fn missing_stages(stages: StageDumpSet, cache: &Path) -> io::Result<Option<StageDumpSet>> {
+    let mut missing = Vec::new();
+    for stage in stages.iter() {
+        if !cache.join(stage.file_name()).try_exists()? {
+            missing.push(stage);
+        }
     }
-    validate_directory(&dump.private_directory)?;
-    let names = std::fs::read_dir(&dump.private_directory)?
-        .map(|entry| entry.map(|entry| entry.file_name()))
-        .collect::<Result<BTreeSet<_>, _>>()?;
-    let expected = stages
-        .iter()
-        .map(|stage| stage.file_name().into())
-        .collect();
-    if names != expected {
-        return Err(invalid(
-            "compiler dump directory does not contain exactly the requested files",
-        ));
+    if missing.is_empty() {
+        Ok(None)
+    } else {
+        StageDumpSet::new(&missing).map(Some).map_err(invalid)
     }
-    descriptors
-        .iter()
-        .map(|descriptor| {
-            let EmittedDumpDestinationV1::File(carrier) = descriptor.destination() else {
-                return Err(invalid("machine stage dumps cannot use stdout"));
-            };
-            let path = carrier.to_path_buf().map_err(invalid)?;
-            let expected = dump.private_directory.join(descriptor.stage().file_name());
-            if path != expected {
-                return Err(invalid(format!(
-                    "compiler dump path differs from {}",
-                    expected.display()
-                )));
-            }
-            let snapshot = ImmutableInputSnapshot::capture(&path).map_err(invalid)?;
-            if snapshot.digest().as_array() != descriptor.content_digest().as_array() {
-                return Err(invalid(format!(
-                    "compiler dump digest differs for {}",
-                    path.display()
-                )));
-            }
-            Ok(snapshot)
-        })
-        .collect()
 }
 
-fn validate_directory(path: &Path) -> io::Result<()> {
-    if !std::fs::symlink_metadata(path)?.is_dir() {
-        return Err(invalid("compiler dump directory is not a directory"));
+fn store_dumps(
+    requested: Option<StageDumpSet>,
+    descriptors: &[EmittedDumpDescriptorV1],
+    cache: &Path,
+) -> io::Result<()> {
+    let expected = requested.into_iter().flat_map(StageDumpSet::iter);
+    if !expected.eq(descriptors.iter().map(EmittedDumpDescriptorV1::stage)) {
+        return Err(invalid(
+            "compiler dump descriptors do not match the requested stages",
+        ));
     }
+    if descriptors.is_empty() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(cache)?;
+    for descriptor in descriptors {
+        let EmittedDumpDestinationV1::File(path) = descriptor.destination() else {
+            return Err(invalid("machine stage dumps require a file"));
+        };
+        copy_dump(
+            &path.to_path_buf().map_err(invalid)?,
+            cache,
+            descriptor.stage().file_name(),
+        )?;
+    }
+    Ok(())
+}
+
+fn copy_dump(source: &Path, directory: &Path, name: &str) -> io::Result<()> {
+    let mut source = std::fs::File::open(source)?;
+    let mut output = tempfile::NamedTempFile::new_in(directory)?;
+    io::copy(&mut source, &mut output)?;
+    output
+        .persist(directory.join(name))
+        .map_err(|error| error.error)?;
     Ok(())
 }
 

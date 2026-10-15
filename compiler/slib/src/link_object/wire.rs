@@ -15,10 +15,6 @@ impl<I> DecodedFixedBytesV1<I> {
     pub(crate) const fn bytes(&self) -> &[u8; 32] {
         &self.bytes
     }
-
-    pub(crate) fn matches(&self, expected: &[u8; 32]) -> bool {
-        self.bytes == *expected
-    }
 }
 
 impl<I> WireEncode for DecodedFixedBytesV1<I> {

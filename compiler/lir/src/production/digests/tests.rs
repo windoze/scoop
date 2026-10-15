@@ -2,40 +2,14 @@ use scoop_identity::{
     CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DefinitionAtomRole, DefinitionAtomSubkey,
     DigestKind, DigestNodeId, DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole,
     ExactTypeKey, LayoutKey, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
-    PendingIdentityValidation, PersistentExactTypeId, RepresentationRole, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    PersistentExactTypeId, RepresentationRole, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{decode_canonical, encode};
 
 use super::{
-    DecodedDigestFinalizationPlanV1, DigestFinalizationPlanV1, DigestInputRefV1,
-    DigestNodeBuildError, DigestNodeV1, DigestPlanBuildError, DigestPlanError,
-    DigestPlanValidationError,
+    DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
+    DigestPlanBuildError, DigestPlanError,
 };
 use crate::{CanonicalLirFoundation, ConeLirFoundation};
-
-#[test]
-fn runtime_image_only_plan_has_canonical_wire_and_round_trips() {
-    let foundation = empty_foundation();
-    let image = image_node(Vec::new());
-    let plan = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
-    let bytes = encode(&plan).unwrap();
-    let decoded: DecodedDigestFinalizationPlanV1 = decode_canonical(&bytes).unwrap();
-    let mut pending = PendingIdentityValidation::new();
-    pending
-        .register_authority(ConeIdentity::SINGLE_FILE)
-        .unwrap();
-    let mut identities = pending.finish().unwrap();
-    let validated = decoded.validate(&mut identities, &foundation).unwrap();
-
-    assert_eq!(encode(&validated).unwrap(), bytes);
-    assert_eq!(validated.nodes().len(), 1);
-    assert_eq!(validated.nodes()[0].kind(), DigestKind::RuntimeImage);
-    assert_eq!(
-        hex(&bytes),
-        "81a301a201582064065d7cecf340fb84eaf79a1de2a018d762b8597b0f5a95a5b9c8e78fae03ca02a2010a02a2000a01582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b602800380"
-    );
-}
 
 #[test]
 fn trusted_builder_sorts_nodes_and_accepts_only_typed_legal_edges() {
@@ -110,29 +84,6 @@ fn patch_intents_bind_one_source_to_one_real_target_atom() {
     ));
 }
 
-#[test]
-fn reader_rejects_noncanonical_node_order_without_sorting() {
-    let (foundation, layout) = layout_foundation();
-    let layout_node =
-        DigestNodeV1::new(DigestNodeKey::layout(layout), Vec::new(), Vec::new()).unwrap();
-    let image = image_node(vec![DigestInputRefV1::from_node(&layout_node)]);
-    let plan = DigestFinalizationPlanV1::new(vec![image, layout_node], &foundation).unwrap();
-    let mut decoded: DecodedDigestFinalizationPlanV1 =
-        decode_canonical(&encode(&plan).unwrap()).unwrap();
-    decoded.nodes.swap(0, 1);
-
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(layout).unwrap();
-    pending
-        .register_authority(ConeIdentity::SINGLE_FILE)
-        .unwrap();
-    let mut identities = pending.finish().unwrap();
-    assert!(matches!(
-        decoded.validate(&mut identities, &foundation),
-        Err(DigestPlanValidationError::NonCanonicalNodeOrder { .. })
-    ));
-}
-
 fn empty_foundation() -> ConeLirFoundation {
     ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty()).unwrap()
 }
@@ -198,8 +149,4 @@ fn definition_foundation() -> (
         plan_id,
         atom_id,
     )
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

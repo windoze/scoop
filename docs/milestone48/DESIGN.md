@@ -1,8 +1,8 @@
 # M48 设计：缓存直接复用与编译职责收敛
 
-状态：实施中，先于 M38。日期：2026-10-15。原调研基线：`e548b9ebe`；本轮实现基线：M46 完成提交 `6571bb4a`。
+状态：实现与最终验收完成，先于 M38。日期：2026-10-15。原调研基线：`e548b9ebe`；本轮实现基线：M46 完成提交 `6571bb4a`。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md)、[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)和[路线图](../ROADMAP.md)。本文规定 M48 的目标合同；[历史测试清理](CLEANUP.md)规定删除与迁移范围，并附[源码隔离测试扫描清单](SOURCE-ISOLATION.tsv)。实际完成项与证据见[进度](PROGRESS.md)，设计要求本身不代表实现或测试已经完成。各批实施前先修改相应 spec，再修改实现。
+依据：[语言规范](../specs/SCOOP-SPEC.md)、[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)和[路线图](../ROADMAP.md)。本文规定 M48 的目标合同；[历史测试清理](CLEANUP.md)规定删除与迁移范围，并附[源码隔离测试扫描清单](SOURCE-ISOLATION.tsv)。实际完成项见[进度](PROGRESS.md)，最终验证见[验收对应表](ACCEPTANCE.md)和[结果概要](validation/README.md)。各批实施前先修改相应 spec，再修改实现。
 
 ## 1. 原则与交付
 

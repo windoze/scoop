@@ -6,7 +6,6 @@ use crate::*;
 mod export_boundary;
 mod fixture;
 mod projection;
-mod shape_link;
 use fixture::Fixture;
 
 #[test]
@@ -16,7 +15,16 @@ fn shared_constituents_replay_the_same_complete_descriptor() {
     assert_eq!(replayed, fixture.replay(fixture.semantic()).unwrap());
     let wire =
         decode_canonical::<DecodedExactDescriptorExportV1>(&encode(&replayed).unwrap()).unwrap();
-    assert_eq!(wire.validate_against(&replayed).unwrap(), replayed);
+    assert_eq!(
+        wire.read(
+            crate::target_fixtures::DARWIN_AARCH64,
+            fixture.foundation(),
+            fixture.layouts(),
+            &mut fixture.read_graph()
+        )
+        .unwrap(),
+        replayed
+    );
 }
 
 #[test]
@@ -55,7 +63,17 @@ fn descriptor_and_table_have_canonical_checked_wire_round_trips() {
     assert_eq!(bytes[0], 0xaa);
     let decoded = decode_canonical::<DecodedExactDescriptorExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.validate_against(&descriptor).unwrap(), descriptor);
+    assert_eq!(
+        decoded
+            .read(
+                crate::target_fixtures::DARWIN_AARCH64,
+                fixture.foundation(),
+                fixture.layouts(),
+                &mut fixture.read_graph()
+            )
+            .unwrap(),
+        descriptor
+    );
 
     let table = CanonicalExactDescriptorExportsV1::try_new(
         crate::target_fixtures::DARWIN_AARCH64,
@@ -68,7 +86,17 @@ fn descriptor_and_table_have_canonical_checked_wire_round_trips() {
     let bytes = encode(&table).unwrap();
     let decoded = decode_canonical::<DecodedCanonicalExactDescriptorExportsV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.validate_against(&table).unwrap(), table);
+    assert_eq!(
+        decoded
+            .read(
+                crate::target_fixtures::DARWIN_AARCH64,
+                fixture.foundation(),
+                fixture.layouts(),
+                &mut fixture.read_graph()
+            )
+            .unwrap(),
+        table
+    );
 }
 
 #[test]

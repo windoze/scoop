@@ -50,5 +50,4 @@ pub struct DecodedCanonicalExactDescriptorExportsV1 {
 }
 
 mod codec;
-mod validation;
-pub use validation::ExactDescriptorWireError;
+mod saved;

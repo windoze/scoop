@@ -10,7 +10,6 @@ pub(super) fn check(replay: &Fixture<'_>, combined: bool) {
     for binding in replay.fixture_bindings() {
         let source = replay
             .source
-            .metadata()
             .public
             .callable_interfaces()
             .declaration(scoop_identity::CallableTemplateOrigin::Constructor(

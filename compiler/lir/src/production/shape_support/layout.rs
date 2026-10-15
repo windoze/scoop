@@ -35,27 +35,6 @@ impl<I: PersistentId> DecodedStrongShapeDefinitionV1<I> {
             self.symbol.resolve(identities).map_err(link_error)?,
         ))
     }
-
-    pub(crate) fn matches_definition(
-        self,
-        expected: StrongShapeDefinitionV1<I>,
-    ) -> Result<bool, WireError> {
-        let path = scoop_wire::WirePath::root();
-
-        if self.semantic_id.verify(expected.semantic_id()).is_err()
-            || self
-                .definition_plan
-                .verify(expected.definition_plan())
-                .is_err()
-        {
-            return Ok(false);
-        }
-        // The frozen symbol-request product has no standalone refinement API.
-        // Compare its complete canonical fields, never merely their digest.
-        let actual = scoop_wire::encode_canonical_temporary(&self.symbol, &path)?;
-        let expected = scoop_wire::encode_canonical_temporary(&expected.symbol(), &path)?;
-        Ok(actual == expected)
-    }
 }
 
 impl<I: PersistentId> DecodedStrongShapeRegistrationV1<I> {
@@ -78,24 +57,5 @@ impl<I: PersistentId> DecodedStrongShapeRegistrationV1<I> {
             definition.definition_plan(),
             definition.symbol(),
         ))
-    }
-
-    pub(crate) fn matches_registration(
-        self,
-        expected: StrongShapeRegistrationV1<I>,
-    ) -> Result<bool, WireError> {
-        let path = scoop_wire::WirePath::root();
-
-        if self.semantic_id.verify(expected.semantic_id()).is_err()
-            || self
-                .definition_plan
-                .verify(expected.definition_plan())
-                .is_err()
-        {
-            return Ok(false);
-        }
-        let actual = scoop_wire::encode_canonical_temporary(&self.symbol, &path)?;
-        let expected = scoop_wire::encode_canonical_temporary(&expected.symbol(), &path)?;
-        Ok(actual == expected)
     }
 }

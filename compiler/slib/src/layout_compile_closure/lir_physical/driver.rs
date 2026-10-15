@@ -9,14 +9,9 @@ type PhysicalInput<'input> = LirConstituentsValidatedCrossConeLayoutSections<
 >;
 
 impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
-    pub(super) fn replay_physical<O>(
+    pub(super) fn read_physical<O>(
         self,
-        mut replay_objects: impl FnMut(
-            &mut PhysicalInput<'input>,
-            &[usize],
-            &[O],
-            &[PhysicalImportsReplayedCrossConeLayoutSections],
-        ) -> Result<O, SharedLirPhysicalError>,
+        mut read_data: impl FnMut(&mut PhysicalInput<'input>) -> Result<O, SharedLirPhysicalError>,
     ) -> Result<
         (PhysicalImportsReplayedCrossConeLayoutClosure, Vec<O>),
         CrossConeLayoutLirPhysicalError,
@@ -25,7 +20,7 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
         let mut objects = Vec::new();
         for (position, artifact) in self.dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
-            let replay = || -> Result<_, SharedLirPhysicalError> {
+            let read = || -> Result<_, SharedLirPhysicalError> {
                 let LirDependenciesResolvedCrossConeLayoutSections {
                     mut prepared,
                     mir,
@@ -43,7 +38,7 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
                     &WirePath::root(),
                 )?;
                 dependencies.extend(reachable.iter().map(|&index| &complete[index]));
-                let layout = replay::physical(layout, &dependencies, parts.identities)?;
+                let layout = read::physical(layout, &dependencies, parts.identities)?;
 
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 scoop_wire::allocation::try_reserve_count(&mut objects, 1, &WirePath::root())?;
@@ -55,7 +50,7 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
                     ordinary,
                     layout,
                 };
-                let object = replay_objects(&mut artifact, &reachable, &objects, &complete)?;
+                let object = read_data(&mut artifact)?;
                 let PhysicalInput {
                     prepared,
                     mir,
@@ -74,11 +69,10 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
                 };
                 Ok((artifact, object))
             };
-            let (artifact, object) =
-                replay().map_err(|source| CrossConeLayoutLirPhysicalError {
-                    provider,
-                    source: Box::new(source),
-                })?;
+            let (artifact, object) = read().map_err(|source| CrossConeLayoutLirPhysicalError {
+                provider,
+                source: Box::new(source),
+            })?;
             complete.push(artifact);
             objects.push(object);
         }

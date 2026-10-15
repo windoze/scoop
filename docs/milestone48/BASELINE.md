@@ -1,6 +1,6 @@
 # M48 Darwin 基线
 
-日期：2026-10-15。工具实现基线为 M46 的 `6571bb4a`（其最后生产代码提交为 `1b53d060`）。使用 Apple M3 Ultra、本机 release 工具和 debug Scoop profile。测量源码与工具一直保留，生成的程序均实际运行并检查输出。
+日期：2026-10-15。工具实现基线为 M46 的 `6571bb4a`（其最后生产代码提交为 `1b53d060`）。历史记录标注 Apple M3 Ultra，使用本机 release 工具和 debug Scoop profile。测量源码与工具一直保留，生成的程序均实际运行并检查输出。最终对照已在确认硬件的 M4 Pro 重新测量原版本，见[性能记录](PERFORMANCE.md)，不混用本表数值。
 
 每项五组独立命令。冷指新 Scoop 缓存，不刷新 OS 文件缓存；各组的临时缓存与 target 在结束时清理。RSS 为 `ps` 同一轮全部存活后代之和的峰值，约每 20 ms 加查询耗时采样，不能代表未采到的瞬时峰值。
 
@@ -20,8 +20,9 @@
 
 compiler build 次数来自正式 CLI 的实际 child invocation 记录，全部暖构建为零。原始 `sampled_processes` 可能漏掉短命工具，不能用它给出精确 native 编译／链接调用数；M48 最终结构验收仍须记录实际 native／linker 调用，不能用零 Scoop child 代替零重新链接。
 
-证据：[统计与工具摘要](validation/darwin-baseline-summary.json)、[逐轮命令、构建结果与进程样本](validation/darwin-baseline-report.json.gz)、[原始 stdout/stderr](validation/darwin-baseline-logs.tar.gz)。测量脚本见 [tests/benchmarks/m48](../../tests/benchmarks/m48/README.md)。
 
 M48-1 验证：Rust 格式化／workspace clippy、固定版本 Ruff format/check、fixture runner 公共规则测试 49 项及现有正式用例发现 4,091 项通过；本批未重复运行 M46 已完成的全量语言测试。此处数量是新增 M48 用例前的基线。
 
-GNU 补充结构基线：`nuc12` 在原 `6571bb4a8` 工具上，以真实空 main 执行一组冷／暖构建，`strace` 捕获全部成功 `execve`，源码与工具保持存在。暖构建虽然 Scoop build child 为 0，仍运行 1 次 scoopc 能力查询、C 工具配置／能力探测、startup 编译和最终链接；`ld` 总计运行 2 次（含链接能力探测）。[精确调用统计](validation/gnu-baseline-empty-exec.json)，[冷构建 trace](validation/gnu-baseline-empty-cold.exec.gz)，[暖构建 trace](validation/gnu-baseline-empty-warm.exec.gz)。这是一组结构证据，不计作五轮性能测量或最终 M48 验收。
+GNU 补充结构基线：`nuc12` 在原 `6571bb4a8` 工具上，以真实空 main 执行一组冷／暖构建，`strace` 捕获全部成功 `execve`，源码与工具保持存在。暖构建虽然 Scoop build child 为 0，仍运行 1 次 scoopc 能力查询、C 工具配置／能力探测、startup 编译和最终链接；`ld` 总计运行 2 次（含链接能力探测）。这是一组结构证据，不计作五轮性能测量或最终 M48 验收。
+
+测量脚本见 [tests/benchmarks/m48](../../tests/benchmarks/m48/README.md)；原始日志与逐轮报告保存在仓库外。

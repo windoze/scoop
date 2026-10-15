@@ -11,10 +11,6 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::DecodedRegistrationIdentitySurfaceV1;
 
-mod projection;
-pub use projection::StrongSemanticProjectionError;
-use projection::compare_semantics;
-
 mod surface;
 pub use surface::*;
 

@@ -25,9 +25,7 @@ pub use representation_fields::*;
 pub use representation_policy::*;
 pub use section::*;
 pub use selected::*;
-pub use shared_foundation::{
-    CheckedSharedTypeFoundationV1, SharedTypeMetadataError, SharedTypeMetadataV1,
-};
+pub use shared_foundation::{SharedTypeMetadataError, SharedTypeMetadataV1};
 pub use slot_contracts::*;
 pub use slot_schemas::*;
 pub use source_authority::*;

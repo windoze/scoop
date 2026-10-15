@@ -13,7 +13,7 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
         self,
     ) -> Result<CrossConeLayoutArtifactData, CrossConeLayoutLirPhysicalError> {
         let selection = self.target;
-        let (physical, symbols) = self.replay_physical(|artifact, _, _, _| {
+        let (physical, symbols) = self.read_physical(|artifact| {
             let parts = artifact.prepared.semantic_parts();
             let link = parts.link_sections.ok_or_else(|| {
                 SharedLirPhysicalError::DefinitionData("missing definition metadata".to_owned())

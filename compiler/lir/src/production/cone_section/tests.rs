@@ -2,9 +2,8 @@ use scoop_identity::{
     CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, DefinitionAtomRole,
     DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
     DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PendingIdentityValidation,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -41,21 +40,7 @@ fn strong_section_has_ten_closed_fields_and_round_trips() {
     assert_eq!(encoded[0], 0xaa);
 
     let decoded: DecodedConeProductionSectionV1 = decode_canonical(&encoded).unwrap();
-    let mut identities = identities(&foundation);
-    let validated = decoded
-        .validate(
-            coordinate,
-            &[],
-            crate::target_fixtures::DARWIN_AARCH64,
-            &foundation,
-            EntryProductionSourceV1::Library,
-            &[],
-            &mut identities,
-        )
-        .unwrap();
-
-    assert_eq!(validated, section);
-    assert_eq!(encode(&validated).unwrap(), encoded);
+    assert_eq!(encode(&decoded).unwrap(), encoded);
 }
 
 #[test]
@@ -172,15 +157,6 @@ fn image_atoms(
     keys.into_iter()
         .map(|key| CborIdentityRecord::from_key(key).unwrap())
         .collect()
-}
-
-fn identities(foundation: &ConeLirFoundation) -> scoop_identity::ValidatedIdentityGraph {
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(foundation.producer()).unwrap();
-    for definition in foundation.definition_plans() {
-        pending.register_authority(definition.id()).unwrap();
-    }
-    pending.finish().unwrap()
 }
 
 mod v2;

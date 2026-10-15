@@ -10,17 +10,26 @@ pub struct DecodedTupleElementStorageV1 {
 }
 
 impl DecodedTupleElementStorageV1 {
-    pub fn validate_against(
+    pub(crate) fn read(
         self,
-        expected: &TupleElementStorageV1,
-    ) -> Result<TupleElementStorageV1, TupleStorageReplayError> {
-        if self.index != expected.index.ordinal()
-            || self.access_alignment != expected.access_alignment.get()
-        {
-            return Err(TupleStorageReplayError::ElementWireMismatch);
+        tuple: PersistentExactTypeId,
+        ordinal: usize,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+        target: LirTargetProfile,
+        extent: u64,
+    ) -> Result<TupleElementStorageV1, crate::LinkDataError> {
+        use crate::link_data::link_error;
+        if self.index != ordinal as u64 {
+            return Err(link_error("tuple element index mismatch"));
         }
-        self.storage.validate_against(&expected.storage)?;
-        Ok(expected.clone())
+        Ok(TupleElementStorageV1 {
+            index: TupleElementIndexV1 {
+                tuple,
+                ordinal: self.index,
+            },
+            storage: self.storage.read(identities, target, extent)?,
+            access_alignment: NonZeroPow2::new(self.access_alignment).map_err(link_error)?,
+        })
     }
 }
 

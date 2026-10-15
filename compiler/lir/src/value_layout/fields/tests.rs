@@ -3,7 +3,6 @@ use scoop_identity::{
     FieldIdentityKey, PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
     SourceNominalKind,
 };
-use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -160,22 +159,6 @@ fn class_prefix_preserves_base_tail_padding_and_complete_field_order() {
     assert_eq!(derived.declared_fields()[0].storage.offset().get(), 24);
     assert_eq!(derived.shape().minimum_size(), 32);
     assert_eq!(derived.complete_fields()[0], base.complete_fields()[0]);
-    derived
-        .validate_projection(derived.base_prefix(), derived.complete_fields())
-        .unwrap();
-    assert_eq!(
-        derived.validate_projection(derived.base_prefix(), derived.declared_fields()),
-        Err(StorageReplayError::ClassProjectionMismatch)
-    );
-    assert_eq!(
-        ClassStorageLayoutV1::replay(
-            TARGET,
-            class_key("Base"),
-            ClassBaseStorageV1::Base(&derived),
-            &[]
-        ),
-        Err(StorageReplayError::ClassCycle(exact("Base")))
-    );
 }
 
 #[test]
@@ -224,36 +207,4 @@ fn replay_rejects_duplicate_fields_wrong_role_and_size_overflow() {
     ));
 }
 
-#[test]
-fn field_wire_replays_refs_and_rejects_forged_offset_exact_and_layout() {
-    let values = [
-        value("Empty", 0, 16, RefScan::None),
-        value("Word", 8, 8, RefScan::None),
-    ];
-    let aggregate = AggregateStorageLayoutV1::ordinary(TARGET, &input(&values)).unwrap();
-    for field in aggregate.fields() {
-        let expected = field.storage();
-        let bytes = encode(expected).unwrap();
-        let decoded = decode_canonical::<DecodedFieldStorageV1>(&bytes).unwrap();
-        assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(decoded.validate_against(expected).unwrap(), *expected);
-        for index in [6, 39] {
-            let mut forged = bytes.clone();
-            forged[index] ^= 1;
-            let decoded = decode_canonical::<DecodedFieldStorageV1>(&forged).unwrap();
-            assert_eq!(
-                decoded.validate_against(expected),
-                Err(StorageReplayError::FieldWireMismatch)
-            );
-        }
-    }
-    let stored = aggregate.fields()[1].storage();
-    let mut bytes = encode(stored).unwrap();
-    *bytes.last_mut().unwrap() ^= 1;
-    assert_eq!(
-        decode_canonical::<DecodedFieldStorageV1>(&bytes)
-            .unwrap()
-            .validate_against(stored),
-        Err(StorageReplayError::FieldWireMismatch)
-    );
-}
+mod saved;

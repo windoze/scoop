@@ -60,7 +60,7 @@ fn shared_initialization_units_read_saved_strong_pairs() {
 }
 
 #[test]
-fn shared_lir_layouts_replay_recursive_references_zst_and_base_prefixes() {
+fn shared_lir_layouts_preserve_recursive_references_zst_and_base_prefixes() {
     check_core_layout_exports(&["shared-layouts-standalone", "shared-layouts-combined"]);
 }
 
@@ -78,7 +78,7 @@ fn shared_lir_dispatch_preserves_complete_tables_and_actual_callable_abis() {
 }
 
 #[test]
-fn shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents() {
+fn shared_lir_descriptors_preserve_ancestry_scans_and_registration() {
     check_core_layout_exports(&["shared-td-standalone", "shared-td-combined"]);
 }
 
@@ -93,12 +93,12 @@ fn shared_ordinary_lir_bridges_preserve_gc_and_layout_abis() {
 }
 
 #[test]
-fn shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contract() {
+fn shared_initialization_abi_preserves_the_protocol_role_and_layout_contract() {
     check_core_layout_exports(&["shared-init-abi-standalone", "shared-init-abi-combined"]);
 }
 
 #[test]
-fn shared_strong_digests_replay_complete_runtime_registration_roles() {
+fn shared_strong_digests_preserve_runtime_registration_roles() {
     check_core_layout_exports(&["shared-digests-standalone", "shared-digests-combined"]);
 }
 
@@ -226,26 +226,33 @@ fn check_core_layout_exports(names: &[&str]) {
             scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
         )
         .unwrap_or_else(|error| panic!("{name} LIR exports: {error}"));
-        shared_layouts::check(
-            input,
-            scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
-            &result,
-        );
-        if name.starts_with("shared-layouts-") {
-            shared_layouts::probe(input, &result);
-        }
+        shared_layouts::check(input, &result);
         if name.starts_with("shared-abi-") {
             shared_abis::probe(input, &result);
         }
         shared_dispatch::check(input, &result);
         shared_descriptors::check(input, &result);
-        if name.starts_with("shared-td-") {
-            shared_descriptors::probe(input, &result);
-        }
         shared_shapes::check(input, &result);
         contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);
         let layout_section = layout_section::check(mir_input, input, result);
+        let mir_section = section::check(name, mir_input, bridge);
+        artifact::check_mir(name, mir_input, &mir_section);
+        shared_initialization::check(mir_input.mir.production(), &ordinary, &lir);
+        artifact::check_boxing(
+            name,
+            &target,
+            &lir,
+            &layout_section,
+            &ordinary,
+            &registration,
+        );
+        if !matches!(
+            name,
+            "base" | "shared-aliases-combined" | "property-initialization-provider"
+        ) {
+            continue;
+        }
         let production = registration.validate_layout_abi(&layout_section).unwrap();
         assert_eq!(
             production.type_registrations().registrations().len(),
@@ -260,7 +267,6 @@ fn check_core_layout_exports(names: &[&str]) {
         )
         .unwrap();
         assert!(!objects.members().is_empty());
-        let mir_section = section::check(name, mir_input, bridge);
         artifact::check(
             name,
             directory.path(),

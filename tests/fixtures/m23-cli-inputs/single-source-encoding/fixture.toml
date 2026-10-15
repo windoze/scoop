@@ -55,7 +55,7 @@ name = "human"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/main.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/main.scoop: error[SCOOP_BUILD_FAILED]: cannot snapshot single-file root: invalid single-file input ${work}/main.scoop: source file is not valid UTF-8\n"
+stderr = "${work}/main.scoop: error[SCOOPC_BUILD_FAILED]: invalid single-file input ${work}/main.scoop: source file is not valid UTF-8\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

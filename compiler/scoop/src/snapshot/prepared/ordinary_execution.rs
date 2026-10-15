@@ -11,123 +11,144 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 impl PreparedBuildGraph {
-    /// Observed sources compile independently; ordinary misses keep their key
-    /// lock through compilation. Both publish under the same exclusive key lock.
+    /// Reuse compiled output and complete only missing observations under the key lock.
     pub(crate) fn execute_ordinary_source(
         &mut self,
         identity: ConeIdentity,
         completed: &[&CompletedNode],
         runner: &mut impl SingleConeCompilerRunner,
         request_id: RequestCorrelationId,
-    ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
+    ) -> Result<(CompletedNode, bool), OrdinarySourceExecutionError> {
+        use OrdinarySourceExecutionError as Error;
         if !matches!(
             self.nodes.get(&identity),
             Some(PreparedGraphNode::ManifestSource(_) | PreparedGraphNode::SingleFile(_))
         ) {
-            return Err(OrdinarySourceExecutionError::NotOrdinarySource(identity));
+            return Err(Error::NotOrdinarySource(identity));
         }
         let key = self
             .compile_cache_key(identity, completed)
-            .map_err(|source| OrdinarySourceExecutionError::CacheKey(Box::new(source)))?;
+            .map_err(|source| Error::CacheKey(Box::new(source)))?;
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        let lock = if self.is_observed(identity) {
-            None
-        } else {
-            {
-                let lock = store
-                    .acquire_shared(key)
-                    .map_err(OrdinarySourceExecutionError::CacheStore)?;
-                if let CompileCacheLookupV1::Hit(entry) = store
-                    .lookup(&lock)
-                    .map_err(OrdinarySourceExecutionError::CacheStore)?
-                {
-                    return self
-                        .complete_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
-                        .map_err(OrdinarySourceExecutionError::Completion);
-                }
-            }
-
-            let lock = store
-                .acquire_exclusive(key)
-                .map_err(OrdinarySourceExecutionError::CacheStore)?;
-            if let CompileCacheLookupV1::Hit(entry) = store
-                .lookup(&lock)
-                .map_err(OrdinarySourceExecutionError::CacheStore)?
+        let dumps = store.entry_path(key).join("dumps");
+        {
+            let lock = store.acquire_shared(key).map_err(Error::CacheStore)?;
+            if let CompileCacheLookupV1::Hit(entry) =
+                store.lookup(&lock).map_err(Error::CacheStore)?
+                && self
+                    .missing_dumps(identity, &dumps)
+                    .map_err(Error::Observation)?
+                    .is_none()
             {
                 return self
-                    .complete_result(identity, *entry, completed, CompletedNodeOrigin::CacheHit)
-                    .map_err(OrdinarySourceExecutionError::Completion);
+                    .finish_result(
+                        identity,
+                        *entry,
+                        completed,
+                        CompletedNodeOrigin::CacheHit,
+                        &dumps,
+                    )
+                    .map(|node| (node, false));
             }
-            Some(lock)
-        };
-
-        let invocation = self
-            .child_invocation_plan(identity, request_id, completed)
-            .map_err(OrdinarySourceExecutionError::RequestPlan)?;
-
-        let response = runner
-            .invoke(&self.compiler, invocation.request(), invocation.io())
-            .map_err(OrdinarySourceExecutionError::ChildTransport)?;
-
-        let success = match response {
-            ScoopcResponseEnvelopeV1::Success { result, .. } => result,
-            ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
-                return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
-            }
-        };
-        self.finish_source_output(identity, completed, &invocation, key, lock, &success)
-            .map_err(|source| {
-                if success.warnings().is_empty() {
-                    source
-                } else {
-                    OrdinarySourceExecutionError::ProducedOutput {
-                        source: Box::new(source),
-                        warnings: success.warnings().to_vec(),
+        }
+        let lock = store.acquire_exclusive(key).map_err(Error::CacheStore)?;
+        let cached = store.lookup(&lock).map_err(Error::CacheStore)?;
+        if let CompileCacheLookupV1::Hit(entry) = cached {
+            let missing = self
+                .missing_dumps(identity, &dumps)
+                .map_err(Error::Observation)?;
+            if let Some(missing) = missing {
+                let invocation = self
+                    .child_invocation_plan(identity, request_id, completed)
+                    .and_then(|plan| plan.observe(missing))
+                    .map_err(Error::RequestPlan)?;
+                match runner
+                    .invoke(&self.compiler, invocation.request(), invocation.io())
+                    .map_err(Error::ChildTransport)?
+                {
+                    ScoopcResponseEnvelopeV1::Observed { result, .. } => self
+                        .store_dumps(
+                            identity,
+                            Some(missing),
+                            result.emitted_dump_descriptors(),
+                            &dumps,
+                        )
+                        .map_err(Error::Observation)?,
+                    ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
+                        return Err(Error::ChildFailure(diagnostics));
+                    }
+                    ScoopcResponseEnvelopeV1::Success { .. } => {
+                        return Err(Error::UnexpectedResponse);
                     }
                 }
-            })
+            }
+            return self
+                .finish_result(
+                    identity,
+                    *entry,
+                    completed,
+                    CompletedNodeOrigin::CacheHit,
+                    &dumps,
+                )
+                .map(|node| (node, missing.is_some()));
+        }
+        let invocation = self
+            .child_invocation_plan(identity, request_id, completed)
+            .map_err(Error::RequestPlan)?;
+        let success = match runner
+            .invoke(&self.compiler, invocation.request(), invocation.io())
+            .map_err(Error::ChildTransport)?
+        {
+            ScoopcResponseEnvelopeV1::Success { result, .. } => result,
+            ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
+                return Err(Error::ChildFailure(diagnostics));
+            }
+            ScoopcResponseEnvelopeV1::Observed { .. } => return Err(Error::UnexpectedResponse),
+        };
+        let result = (|| {
+            self.store_dumps(identity, None, success.emitted_dump_descriptors(), &dumps)
+                .map_err(Error::Observation)?;
+            let entry = store
+                .publish(
+                    &lock,
+                    invocation.output_path(),
+                    CompileBuildRecordV1 {
+                        summary: success.summary().clone(),
+                        warnings: success.warnings().to_vec(),
+                    },
+                )
+                .map_err(Error::CacheStore)?;
+            self.finish_result(
+                identity,
+                entry,
+                completed,
+                CompletedNodeOrigin::Compiled,
+                &dumps,
+            )
+        })();
+        result.map(|node| (node, true)).map_err(|source| {
+            if success.warnings().is_empty() {
+                source
+            } else {
+                Error::ProducedOutput {
+                    source: Box::new(source),
+                    warnings: success.warnings().to_vec(),
+                }
+            }
+        })
     }
 
-    fn finish_source_output(
+    fn finish_result(
         &self,
         identity: ConeIdentity,
+        entry: CompileCacheEntryV1,
         completed: &[&CompletedNode],
-        invocation: &super::model::child_request::ChildInvocationPlanV1,
-        key: crate::ConeCompileCacheKeyV1,
-        held_lock: Option<crate::CompileCacheKeyLockV1>,
-        success: &scoop_protocol::ScoopcSuccessV1,
+        origin: CompletedNodeOrigin,
+        dumps: &std::path::Path,
     ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
-        let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        self.publish_dumps(identity, success.emitted_dump_descriptors())
+        self.publish_cached_dumps(identity, dumps)
             .map_err(OrdinarySourceExecutionError::Observation)?;
-        let lock = match held_lock {
-            Some(lock) => lock,
-            None => {
-                let lock = store
-                    .acquire_exclusive(key)
-                    .map_err(OrdinarySourceExecutionError::CacheStore)?;
-                if let CompileCacheLookupV1::Hit(entry) = store
-                    .lookup(&lock)
-                    .map_err(OrdinarySourceExecutionError::CacheStore)?
-                {
-                    return self
-                        .complete_result(identity, *entry, completed, CompletedNodeOrigin::Compiled)
-                        .map_err(OrdinarySourceExecutionError::Completion);
-                }
-                lock
-            }
-        };
-        let entry = store
-            .publish(
-                &lock,
-                invocation.output_path(),
-                CompileBuildRecordV1 {
-                    summary: success.summary().clone(),
-                    warnings: success.warnings().to_vec(),
-                },
-            )
-            .map_err(OrdinarySourceExecutionError::CacheStore)?;
-        self.complete_result(identity, entry, completed, CompletedNodeOrigin::Compiled)
+        self.complete_result(identity, entry, completed, origin)
             .map_err(OrdinarySourceExecutionError::Completion)
     }
 
@@ -163,6 +184,7 @@ pub enum OrdinarySourceExecutionError {
         warnings: Vec<StructuredDiagnosticV1>,
     },
     Observation(std::io::Error),
+    UnexpectedResponse,
     NotOrdinarySource(ConeIdentity),
     CacheKey(Box<CompileCacheKeyError>),
     CacheStore(CompileCacheStoreError),
@@ -177,6 +199,9 @@ impl fmt::Display for OrdinarySourceExecutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ProducedOutput { source, .. } => source.fmt(formatter),
+            Self::UnexpectedResponse => {
+                formatter.write_str("compiler response does not match the requested operation")
+            }
             Self::Observation(source) => {
                 write!(formatter, "cannot observe compiler stages: {source}")
             }
@@ -209,7 +234,7 @@ impl std::error::Error for OrdinarySourceExecutionError {
 
             Self::ChildTransport(source) => Some(source),
             Self::Completion(source) => Some(source),
-            Self::NotOrdinarySource(_) | Self::ChildFailure(_) => None,
+            Self::UnexpectedResponse | Self::NotOrdinarySource(_) | Self::ChildFailure(_) => None,
         }
     }
 }

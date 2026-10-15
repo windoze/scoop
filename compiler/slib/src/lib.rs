@@ -68,17 +68,6 @@ pub use artifact_definitions::ArtifactDefinitionData;
 mod cross_cone_closure;
 pub use cross_cone_closure::*;
 
-mod cross_cone_hir_authority;
-mod hir_dependency_calls;
-mod hir_interface_validation;
-pub use cross_cone_hir_authority::{
-    CrossConeHirIntrinsicTypeError, CrossConeHirNominalAuthorityError,
-    CrossConeIntrinsicDeclarationError,
-};
-pub use hir_interface_validation::{
-    CrossConeHirCallSiteOriginError, CrossConeHirReferenceSurfaceError, CrossConeHirTypeSiteError,
-};
-
 mod publish;
 pub use publish::*;
 
@@ -96,6 +85,3 @@ pub use link_object::*;
 
 mod diagnostic;
 pub use diagnostic::*;
-
-#[cfg(test)]
-mod nominal_interface_fixture;

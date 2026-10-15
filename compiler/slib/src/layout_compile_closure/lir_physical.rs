@@ -17,7 +17,7 @@ mod definitions;
 mod driver;
 mod errors;
 mod odr;
-mod replay;
+mod read;
 pub use definitions::CrossConeLayoutArtifactData;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
 pub use odr::{
@@ -45,12 +45,11 @@ pub struct PhysicalImportsReplayedCrossConeLayoutClosure {
 }
 
 impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
-    pub fn replay_physical_imports(
+    pub fn read_physical_imports(
         self,
     ) -> Result<PhysicalImportsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError>
     {
-        self.replay_physical(|_, _, _, _| Ok(()))
-            .map(|(physical, _)| physical)
+        self.read_physical(|_| Ok(())).map(|(physical, _)| physical)
     }
 }
 

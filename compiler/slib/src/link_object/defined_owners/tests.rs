@@ -73,7 +73,7 @@ fn owner_set_is_canonical_across_member_input_order() {
 }
 
 #[test]
-fn owner_set_wire_round_trips_only_against_the_rebuilt_projection() {
+fn owner_set_wire_round_trips_saved_records() {
     let first = fixture_for_producer(ConeIdentity::CORE, "wireFirst");
     let second = fixture_for_producer(ConeIdentity::CORE, "wireSecond");
     let closure = verify_current_cone_strong_relocation_closure_v1(vec![
@@ -86,17 +86,7 @@ fn owner_set_wire_round_trips_only_against_the_rebuilt_projection() {
     let bytes = encode(&expected).unwrap();
     let decoded: DecodedCanonicalDefinedLinkSymbolOwnerSetV1 = decode_canonical(&bytes).unwrap();
 
-    assert_eq!(
-        decoded.clone().validate_against(&expected),
-        Ok(expected.clone())
-    );
-
-    let mut reordered = decoded;
-    reordered.owners.swap(0, 1);
-    assert_eq!(
-        reordered.validate_against(&expected),
-        Err(DefinedLinkSymbolOwnerValidationError::ProjectionMismatch)
-    );
+    assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 #[test]

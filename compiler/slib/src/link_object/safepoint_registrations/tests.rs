@@ -125,29 +125,6 @@ fn rejects_relocations_inside_a_registration_record() {
 }
 
 #[test]
-fn rejects_object_bytes_changed_after_all_input_proofs() {
-    let mut fixture = Fixture::new(Corruption::None);
-    let stackmaps = fixture.verified_stackmaps();
-    let patch_sites = fixture.verified_patch_sites();
-    let last = fixture.object_bytes.len() - 1;
-    fixture.object_bytes[last] ^= 1;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-
-    assert_eq!(
-        verify_strong_safepoint_registrations_v1(
-            stackmaps,
-            patch_sites,
-            fixture.registration_plan.clone(),
-            &objects,
-        ),
-        Err(StrongSafepointRegistrationValidationError::ObjectBytesMismatch(fixture.member,))
-    );
-}
-
-#[test]
 fn rejects_stackmap_and_patch_proofs_from_different_object_sets() {
     let fixture = Fixture::new(Corruption::None);
     let other = Fixture::new(Corruption::RegistrationMagic);

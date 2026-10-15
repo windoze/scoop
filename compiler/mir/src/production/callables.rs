@@ -188,17 +188,6 @@ impl DecodedStrongCallableBridgeSurfaceV1 {
         identities: &mut ValidatedIdentityGraph,
         foundation: &CanonicalMirFoundation,
     ) -> Result<StrongCallableBridgeSurfaceV1, MirProductionValidationError> {
-        let strong_count = foundation
-            .callable_signatures()
-            .iter()
-            .filter(|record| matches!(record.subject(), CallableSignatureSubject::Strong(_)))
-            .count();
-        if self.bridges.len() != strong_count {
-            return Err(MirProductionValidationError::StrongCallableCoverage {
-                expected: strong_count,
-                actual: self.bridges.len(),
-            });
-        }
         let mut bridges: Vec<StrongCallableBridgeV1> = Vec::with_capacity(self.bridges.len());
         for (index, decoded) in self.bridges.into_iter().enumerate() {
             let bridge = resolve_strong_bridge(decoded, identities)?;
@@ -215,24 +204,10 @@ impl DecodedStrongCallableBridgeSurfaceV1 {
         }
         for (index, bridge) in bridges.iter().enumerate() {
             let subject = bridge.subject();
-            let Ok(expected_index) = foundation
-                .callable_signatures()
-                .binary_search_by(|record| record.subject().compare_sort_key(subject))
-            else {
-                return Err(MirProductionValidationError::StrongCallableMismatch { index });
-            };
-            let expected = &foundation.callable_signatures()[expected_index];
-            let CallableSignatureSubject::Strong(expected_implementation) = expected.subject()
-            else {
-                return Err(MirProductionValidationError::StrongCallableMismatch { index });
-            };
-            if bridge.implementation != expected_implementation
-                || bridge.signature != *expected.signature()
-            {
-                return Err(MirProductionValidationError::StrongCallableMismatch { index });
+            if foundation.callable_signature(subject).is_none() {
+                return Err(MirProductionValidationError::MissingStrongCallable { index });
             }
         }
-        validate_callable_roles(&bridges).map_err(MirProductionValidationError::Relation)?;
         Ok(StrongCallableBridgeSurfaceV1 { bridges })
     }
 }

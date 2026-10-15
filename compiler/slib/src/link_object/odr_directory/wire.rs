@@ -150,63 +150,7 @@ impl DecodedCanonicalOdrMemberDirectoryV1 {
             .collect::<Result<_, scoop_identity::IdentityReferenceError>>()?;
         Ok(CanonicalOdrMemberDirectoryV1 { groups })
     }
-
-    pub fn validate_against(
-        &self,
-        expected: &CanonicalOdrMemberDirectoryV1,
-    ) -> Result<(), OdrMemberDirectoryValidationError> {
-        if self.groups.len() != expected.groups.len() {
-            return Err(OdrMemberDirectoryValidationError::GroupSetMismatch);
-        }
-        for (actual, expected) in self.groups.iter().zip(&expected.groups) {
-            if actual.group.as_array() != expected.group.as_array() {
-                return Err(OdrMemberDirectoryValidationError::GroupSetMismatch);
-            }
-            if actual.members.len() != expected.members.len() {
-                return Err(OdrMemberDirectoryValidationError::MemberSetMismatch(
-                    expected.group,
-                ));
-            }
-            let group = expected.group;
-            for (actual, expected) in actual.members.iter().zip(&expected.members) {
-                if actual.member.as_array() != expected.member.as_array() {
-                    return Err(OdrMemberDirectoryValidationError::MemberSetMismatch(group));
-                }
-                if actual.role != expected.role {
-                    return Err(OdrMemberDirectoryValidationError::RoleMismatch(
-                        expected.member,
-                    ));
-                }
-                if !actual.abi.matches(expected.abi.as_array()) {
-                    return Err(OdrMemberDirectoryValidationError::AbiMismatch(
-                        expected.member,
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OdrMemberDirectoryValidationError {
-    GroupSetMismatch,
-    MemberSetMismatch(OdrGroupId),
-    RoleMismatch(OdrMemberId),
-    AbiMismatch(OdrMemberId),
-    DefinitionMismatch(OdrMemberId),
-}
-
-impl fmt::Display for OdrMemberDirectoryValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "ODR member directory differs from emitted definitions: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for OdrMemberDirectoryValidationError {}
 
 fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))

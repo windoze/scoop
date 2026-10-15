@@ -112,27 +112,6 @@ fn rejects_type_relocation_to_the_immortal_object() {
 }
 
 #[test]
-fn rejects_object_bytes_changed_after_all_input_proofs() {
-    let mut fixture = Fixture::new(Corruption::None);
-    let patch_sites = fixture.verified_patch_sites();
-    let last = fixture.object_bytes.len() - 1;
-    fixture.object_bytes[last] ^= 1;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-
-    assert_eq!(
-        verify_strong_immortal_object_registrations_v1(
-            patch_sites,
-            fixture.immortal_registration_plan.clone(),
-            &objects,
-        ),
-        Err(StrongImmortalObjectRegistrationValidationError::ObjectBytesMismatch(fixture.member))
-    );
-}
-
-#[test]
 fn rejects_invalid_immortal_string_payload_and_descriptor() {
     for (corruption, kind) in [
         (

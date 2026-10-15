@@ -17,6 +17,18 @@ struct DescriptorTable {
 }
 
 impl CanonicalExactDescriptorExportsV1 {
+    pub(crate) fn from_saved(
+        target: LirTargetProfile,
+        provider: ConeIdentity,
+        records: Vec<ExactDescriptorExportV1>,
+    ) -> Self {
+        Self(Arc::new(DescriptorTable {
+            provider,
+            target,
+            records,
+        }))
+    }
+
     pub fn try_new(
         target: LirTargetProfile,
         foundation: &ConeLirFoundation,
@@ -73,19 +85,11 @@ impl CanonicalExactDescriptorExportsV1 {
 
 #[derive(Debug)]
 pub enum ExactDescriptorTableError {
-    LayoutProvider,
-    LayoutTarget,
-    CountOverflow,
-    Count,
     Duplicate(PersistentExactTypeId),
     Target(PersistentExactTypeId),
     Provider(PersistentExactTypeId),
     Definition(PersistentExactTypeId),
     PhysicalDefinition(crate::StrongShapeDefinitionError),
-    Record {
-        index: usize,
-        source: ExactDescriptorWireError,
-    },
     Resource(WireError),
 }
 

@@ -1,0 +1,9 @@
+fun main() {
+    val payload = SharedTdPayload("value", SharedTdEmpty())
+    val boxed: SharedTdRoot = payload
+    val reference: SharedTdRoot = SharedTdObject
+    val choice = SharedTdChoice.Value(payload)
+    if (boxed.text() != "value" || reference.text() != "object") throw IllegalStateException()
+    if (reference !is SharedTdDiamond) throw IllegalStateException()
+    if (choice != SharedTdChoice.Value(payload)) throw IllegalStateException()
+}

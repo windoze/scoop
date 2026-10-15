@@ -1,6 +1,6 @@
 # M48：历史隔离与防御性测试清理
 
-状态：实施中，分批删除与迁移记录见下文。日期：2026-10-15。原基线：`e548b9ebe`，已在 M46 完成后的 `6571bb4a` 工作区复扫。本文件配套 [M48 主设计](DESIGN.md)，范围覆盖整个仓库，不限于 M23 或名称包含 `artifact-only` 的测试。
+状态：清理与最终验收完成，分批删除与迁移记录见下文及[最终概要](validation/README.md)。日期：2026-10-15。原基线：`e548b9ebe`，已在 M46 完成后的 `6571bb4a` 工作区复扫。本文件配套 [M48 主设计](DESIGN.md)，范围覆盖整个仓库，不限于 M23 或名称包含 `artifact-only` 的测试。
 
 ## 1. 清理规则
 
@@ -108,7 +108,7 @@
 
 通过迁移后的正式 CLI 全量和相关 Rust 测试确认语言、ABI、GC、FFI 与运行覆盖仍在；减少的执行数要能解释为历史场景退役或冗余覆盖合并，不能仅以测试总数下降声称性能改善。
 
-活动设计复查：M47 已采用源码／工具保留和实际调用观察的合同；M38 未发现要求删除源码／工具后仍成功的条款。尚未实施的 M45 设计仍有“无源码下游链接运行”要求，列入 M48-5 的活动设计清理，不以该旧条款约束本期实现。
+活动设计复查：M47 已采用源码／工具保留和实际调用观察的合同；M38 未发现要求删除源码／工具后仍成功的条款。最终收尾将本地 M45 草稿的一处“无源码下游链接运行”改为源码和工具保持存在、验证下游产物消费及实际调用复用。M45 草稿尚未纳入版本控制，除这一处对应旧合同的措辞外不属于 M48 提交范围。
 
 ### 已执行批次：配套编译器
 
@@ -193,11 +193,11 @@ GNU `m48-executable-tools` 继续保留真实 compiler／linker，以标准 `-B`
 
 扫描清单剩余的 1,618 项已逐项给出保留源码后的落点；另清理未出现在旧清单中的 `m23-cli/basic`、core 默认选择、M32 core negative 与残留环境包装，共修改 1,646 份 fixture 描述。批量转换删除 6,421 个隔离删除操作、3 个隐藏源码的 move、1,575 个空目录准备、1,294 个工具／来源副本和 3,109 份隐藏工具环境；手工拆分 core 默认来源和 program-link 输入错误。普通多 Cone 语言用例保留 provider／consumer／core 源码，修改过的 core 使用实际有源码的私有 sysroot；独立 scoopc 同时准备其需要的默认 core 产物。
 
-304 个普通语言用例删除 306 次重复显式链接，运行步骤指向原 build 的 executable，保留原 exit／signal／stdout／stderr／stdin／moving GC 期望。native、ODR、ABI、runtime、进程和真正的链接专测继续调用真实工具，保留其计划与运行断言。移除只服务重复链接的一致性检查和产物副本；107 份描述删除不再调用的工具声明。逐项转换记录见 [源码包装迁移](validation/source-isolation-migrations.json.gz)、[重复链接落点](validation/source-isolation-link-removals.json.gz)和[多余工具声明](validation/source-isolation-unused-tools.json.gz)。
+304 个普通语言用例删除 306 次重复显式链接，运行步骤指向原 build 的 executable，保留原 exit／signal／stdout／stderr／stdin／moving GC 期望。native、ODR、ABI、runtime、进程和真正的链接专测继续调用真实工具，保留其计划与运行断言。移除只服务重复链接的一致性检查和产物副本；107 份描述删除不再调用的工具声明。逐项转换记录见 [源码包装迁移](SOURCE-ISOLATION.tsv)、重复链接落点和多余工具声明。
 
 `program-link/artifact-corruption` 改为 [input-errors](../../tests/fixtures/m23-cli-program-link/input-errors/fixture.toml)：删除修改成员 digest、截断、破坏 magic 与其五个命令步骤、四份诊断文件，保留真实输入不存在／目录代替文件的错误，以及失败后原程序仍可正常和 moving GC 运行；补齐 GNU／musl target。`core-default` 删除损坏默认产物与删除源码后的产物防御分支，改为源码与有效默认产物共存的普通选择，保留非法 manifest、缺失 manifest、dangling 目标的实际 I/O 错误和失败不发布。错误 core 坐标仍由 driver 的 `assert_non_core_artifact_is_rejected` 覆盖，文件类型与缺失产物由 `input-errors` 覆盖。删除四份失去调用的 JSON 期望。
 
-Rust 的类型位置、泛型 ODR／优化用例不再删除或移走 provider 源码；直接 core 输入 helper 使用有源码的 sysroot。core 图发现的显式来源测试改为默认源码实际存在时仍正确选中显式路径。测试结束清理、必要输出缺失后的补产、真正输入更新／缺失仍保留。完整 fixture 复扫只剩 25 份描述的正常文件操作，详见[保留操作](validation/source-isolation-retained-file-operations.json.gz)：源码 relocation 在新位置重新构建，native archive／DSO 更新或布局迁移、缺失输入、冷缓存与缺失结果均有实际功能目的。
+Rust 的类型位置、泛型 ODR／优化用例不再删除或移走 provider 源码；直接 core 输入 helper 使用有源码的 sysroot。core 图发现的显式来源测试改为默认源码实际存在时仍正确选中显式路径。测试结束清理、必要输出缺失后的补产、真正输入更新／缺失仍保留。完整 fixture 复扫只剩 25 份描述的正常文件操作，详见[保留操作](FILE-OPERATIONS.tsv)：源码 relocation 在新位置重新构建，native archive／DSO 更新或布局迁移、缺失输入、冷缓存与缺失结果均有实际功能目的。
 
 本机代表验收与修正后的定向复验通过；GNU／musl 冻结工具分别完成原清单全部 1,646 个用例的成功或目标不适用结果，集合核对无遗漏。本次提交剩余 1,644 份描述、4 份诊断期望与公共 helper；core-default 与 program-link 输入错误已在前批提交。最终复扫的 25 份正常文件操作与审阅记录一致，详见[迁移验收](validation/source-isolation.md)。这完成历史隔离包装迁移，不代表 M48-5 的 dump、最终当前代码全量和五轮性能验收完成；语义／布局重放也仍需清理。
 
@@ -255,3 +255,12 @@ production/8 删除 distribution／output／image owner／registration、优化�
 ## 冷显式产物入口复用
 
 删除 discovery 只保留摘要、完成阶段再新建空文件入口的路径；现有候选共享已打开的 BuildArtifact，摘要记录命中仍不打开产物。既有输入变化与真实 I/O 错误覆盖保留，未增加隔离或缓存损坏验收。三平台与父进程 I/O 证据见[记录](validation/cold-entry.md)。历史迁移验收完成后清理其独立临时工作目录，日志与冻结工具保留。
+
+
+### 集中闭合：旧 Compile 与保存记录 reader
+
+本机清理合并移除旧 single／cross-cone strong Compile、native ABI 消费 replay、完整 LIR production reader、HIR 声明／默认值／调用点及测试专用类型继承重放。普通格式、typed 引用、实际生产规则与源码功能 fixture 保留；混合测试保留其生产断言。新增 dump 缓存与最小阶段补算覆盖。详见[本轮范围和统一验收](validation/consolidated-cleanup.md)及[基线相对退役清单](CLEANUP-TESTS.tsv)。本机完整验收正在进行，Linux 留到本机稳定后统一执行。
+
+## 集中验收前的最终文件操作复核
+
+按当前正式发现入口复扫全部 TOML 和内联描述：25 份用例含 remove／move，仍对应真实缺失／更新、必要输出补产、正常 native 布局迁移及冷构建；连同 native 格式输入的 patch／truncate 和测试工具执行位准备，共 33 份用例、52 个操作。原始操作及逐项保留理由见[最终复核](FILE-OPERATIONS.tsv)。native 对象／归档的格式、重定位与 TLS 输入检查保留，不把它们误当作 Scoop 缓存防御测试删除。M48 helper 的缺失对象／executable 补产不移除源码或工具。

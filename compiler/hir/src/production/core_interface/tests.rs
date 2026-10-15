@@ -152,18 +152,12 @@ fn imported_core_inputs_expose_compiler_protocols() {
             .len(),
         integers.len()
     );
-    assert_eq!(
-        protocols.option().some().persistent(),
-        fixture.interface.option_some()
-    );
+    assert_eq!(protocols.option().some().persistent(), fixture.some);
     assert_eq!(
         protocols.option().some_payload().persistent(),
-        fixture.interface.option_some_payload()
+        fixture.some_payload
     );
-    assert_eq!(
-        protocols.option().none().persistent(),
-        fixture.interface.option_none()
-    );
+    assert_eq!(protocols.option().none().persistent(), fixture.none);
     assert_ne!(
         protocols.iteration().next().definition(),
         protocols.exceptions().throwable_constructor().definition()
@@ -323,6 +317,9 @@ fn non_core_section() -> CoreBootstrapInterfaceSectionV1 {
 }
 
 struct Fixture {
+    some: PersistentEnumVariantId,
+    some_payload: PersistentEnumVariantFieldId,
+    none: PersistentEnumVariantId,
     foundation: CanonicalHirFoundation,
     direct: CanonicalDirectPublicSurfaceV1,
     interface: CoreCompilerProtocolSurfaceV1,
@@ -382,6 +379,9 @@ fn fixture() -> Fixture {
         .unwrap();
 
     Fixture {
+        some: some.id(),
+        some_payload: some_payload.id(),
+        none: none.id(),
         foundation,
         direct,
         interface,

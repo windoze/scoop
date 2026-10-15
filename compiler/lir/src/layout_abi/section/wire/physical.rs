@@ -11,7 +11,7 @@ pub struct PhysicalImportsReplayedLayoutAbiSectionV1 {
 }
 
 impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
-    pub fn replay_physical_imports<'a>(
+    pub fn read_physical_imports<'a>(
         self,
         dependencies: &[ShapeLinkProviderV1<'a>],
 
@@ -34,7 +34,7 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
         }
         let physical = self
             .physical
-            .replay(self.exports.provider(), dependencies, identities)?;
+            .read(self.exports.provider(), dependencies, identities)?;
         for import in physical.records() {
             let terminal = dependencies
                 .iter()

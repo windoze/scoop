@@ -2,10 +2,8 @@
 
 use std::fmt;
 
-use scoop_hir::{CoreBootstrapInterfaceValidationError, CrossConeHirInterfaceResolutionError};
-use scoop_identity::{
-    ConeCoordinate, ConeIdentity, IdentityReferenceError, IdentityValidationError,
-};
+use scoop_hir::CoreBootstrapInterfaceValidationError;
+use scoop_identity::{ConeCoordinate, ConeIdentity, IdentityValidationError};
 use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{ConeKind, DependencyRecord, StrongProfileFoundationError};
@@ -187,43 +185,6 @@ impl std::error::Error for CrossConeClosureFoundationError {
         match self {
             Self::Artifact { source, .. } => Some(source),
             Self::SourceProvenance { source, .. } => Some(source),
-            Self::Allocation { .. } => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CrossConeClosureHirResolutionError {
-    Allocation {
-        requested_slots: usize,
-    },
-    Artifact {
-        identity: ConeIdentity,
-        source: Box<CrossConeHirInterfaceResolutionError<IdentityReferenceError>>,
-    },
-}
-
-impl fmt::Display for CrossConeClosureHirResolutionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Allocation { requested_slots } => write!(
-                formatter,
-                "cannot allocate {requested_slots} resolved cross-Cone HIR slots"
-            ),
-            Self::Artifact { identity, source } => {
-                write!(
-                    formatter,
-                    "cannot resolve cross-Cone HIR interface for {identity}: {source}"
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for CrossConeClosureHirResolutionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::Allocation { .. } => None,
         }
     }

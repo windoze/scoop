@@ -59,51 +59,6 @@ fn reader_rejects_removed_core_production_field() {
 }
 
 #[test]
-fn validation_requires_total_strong_signature_coverage() {
-    let fixture = fixture();
-    let invalid = CoreBootstrapBridgeSectionV1 {
-        entry_bridge: fixture.section.entry_bridge.clone(),
-        strong_callable_bridges: StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap(),
-    };
-    let (mut identities, foundation) = validate_foundations(&fixture);
-
-    assert_eq!(
-        decode(&invalid).validate(ConeIdentity::CORE, &mut identities, &foundation),
-        Err(MirProductionValidationError::StrongCallableCoverage {
-            expected: 2,
-            actual: 0,
-        })
-    );
-}
-
-#[test]
-fn validation_replays_the_foundation_signature() {
-    let fixture = fixture();
-    let wrong_signature =
-        ExactCallableSignature::new(Effect::Suspend, None, Vec::new(), fixture.exact_unit);
-    let invalid = CoreBootstrapBridgeSectionV1 {
-        entry_bridge: fixture.section.entry_bridge.clone(),
-        strong_callable_bridges: StrongCallableBridgeSurfaceV1::try_new(vec![
-            StrongCallableBridgeV1::new(
-                CallableOwner::Function(fixture.function.id()),
-                wrong_signature,
-            ),
-            StrongCallableBridgeV1::new(
-                CallableOwner::Function(fixture.other_function.id()),
-                ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), fixture.exact_unit),
-            ),
-        ])
-        .unwrap(),
-    };
-    let (mut identities, foundation) = validate_foundations(&fixture);
-
-    assert!(matches!(
-        decode(&invalid).validate(ConeIdentity::CORE, &mut identities, &foundation),
-        Err(MirProductionValidationError::StrongCallableMismatch { .. })
-    ));
-}
-
-#[test]
 fn validation_rejects_noncanonical_strong_callable_order() {
     let fixture = fixture();
     let signature =

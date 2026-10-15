@@ -1,4 +1,4 @@
-use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
+use scoop_identity::CapabilityId;
 use scoop_wire::encode;
 
 use super::*;
@@ -43,19 +43,6 @@ fn layout_link_front_decodes_the_complete_profile_atomically() {
     let _ = sections.lir_cross_cone_bridge_wire();
     let _ = sections.lir_layout_abi_wire();
     let _ = sections.link_identity_closure_wire();
-}
-
-#[test]
-fn layout_link_front_rejects_the_m23_5_profile_before_payloads() {
-    let bytes = crate::cross_cone_compile_decode::tests::cross_cone_artifact(
-        crate::cross_cone_compile_decode::tests::empty_cross_cone_hir_interface(),
-    );
-
-    assert!(matches!(
-        open_graph(&bytes).decode_cross_cone_layout_link_sections(),
-        Err(CrossConeLayoutLinkSectionDecodeError::WrongProfile { actual })
-            if actual == ArtifactCapabilityProfileId::cross_cone_semantics_strong()
-    ));
 }
 
 #[test]

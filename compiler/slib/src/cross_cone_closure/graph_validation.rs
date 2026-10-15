@@ -5,10 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 
-use super::{
-    CrossConeClosureGraphError, DecodedCrossConeClosure, ProfileValidatedCrossConeHirClosure,
-};
-use crate::{ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord};
+use super::CrossConeClosureGraphError;
+use crate::{ConeKind, DependencyRecord};
 
 pub(crate) trait CrossConeClosureArtifact {
     fn coordinate(&self) -> &ConeCoordinate;
@@ -19,32 +17,6 @@ pub(crate) trait CrossConeClosureArtifact {
     fn dependency_record(&self) -> DependencyRecord;
 }
 
-impl CrossConeClosureArtifact for DecodedCrossConeHirFrontSections<'_> {
-    fn coordinate(&self) -> &ConeCoordinate {
-        self.coordinate()
-    }
-
-    fn identity(&self) -> ConeIdentity {
-        self.identity()
-    }
-
-    fn kind(&self) -> ConeKind {
-        self.kind()
-    }
-
-    fn target_selection(&self) -> ValidatedLirTargetSelection {
-        self.target_selection()
-    }
-
-    fn direct_dependencies(&self) -> &[DependencyRecord] {
-        self.direct_dependencies()
-    }
-
-    fn dependency_record(&self) -> DependencyRecord {
-        self.dependency_record()
-    }
-}
-
 pub(crate) struct ValidatedCrossConeClosureGraph<T> {
     pub(crate) current: ConeIdentity,
     pub(crate) target: ValidatedLirTargetSelection,
@@ -52,28 +24,6 @@ pub(crate) struct ValidatedCrossConeClosureGraph<T> {
     pub(crate) dependency_first: Vec<T>,
     pub(crate) positions: BTreeMap<ConeIdentity, usize>,
     pub(crate) dependency_positions: Vec<Vec<usize>>,
-}
-
-pub(super) fn validate_profile_graph(
-    closure: DecodedCrossConeClosure<'_>,
-) -> Result<ProfileValidatedCrossConeHirClosure<'_>, CrossConeClosureGraphError> {
-    let DecodedCrossConeClosure {
-        current,
-        target,
-        direct,
-        dependency_first,
-        current_artifact,
-    } = closure;
-    let validated =
-        validate_artifact_graph(current, target, direct, dependency_first, current_artifact)?;
-    Ok(ProfileValidatedCrossConeHirClosure {
-        current: validated.current,
-        target: validated.target,
-        direct: validated.direct,
-        dependency_first: validated.dependency_first,
-        positions: validated.positions,
-        dependency_positions: validated.dependency_positions,
-    })
 }
 
 pub(crate) fn validate_artifact_graph<T: CrossConeClosureArtifact>(

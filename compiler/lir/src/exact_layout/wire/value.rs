@@ -6,7 +6,7 @@ impl WireEncode for ExactRepresentationLayoutV1 {
             ExactRepresentationKindV1::Interface => sum(encoder, 8, 0),
             ExactRepresentationKindV1::MaybeUninit(value) => {
                 sum(encoder, 9, 1)?;
-                field(encoder, 1, &value.layout())
+                field(encoder, 1, value)
             }
             ExactRepresentationKindV1::Scalar(kind) => {
                 sum(encoder, 1, 1)?;

@@ -8,15 +8,15 @@
 
 ## 本机验证
 
-- `cargo fmt --all` 与 [workspace clippy](compile-definitions-darwin-clippy.log.gz) 通过。
-- [568 项 slib](compile-definitions-darwin-slib.log.gz)、[正式产物发布](compile-definitions-darwin-formal.log.gz)、[不同优化级别 ODR](compile-definitions-darwin-odr.log.gz)、[属性初始化组合](compile-definitions-darwin-initialization.log.gz)、[机器 callable／默认参数](compile-definitions-darwin-callables.log.gz)、[链式 re-export](compile-definitions-darwin-reexports.log.gz)通过。属性初始化组合耗时 716 秒，未因长时间无输出而重启。
-- [release 构建](compile-definitions-darwin-release.log.gz)通过。CLI [第一组 8 项](compile-definitions-darwin-cli.log.gz)共 9 variants、90 processes；GC leaf 选择名称修正后单独[补跑 1 项](compile-definitions-darwin-gc.log.gz)，共 2 variants、16 processes。合计 9 个不同用例、11 variants、106 processes。
-- 最后删除重复摘要后，重新通过 slib、正式发布、clippy 和 release；只对受影响的 core artifact、泛型 siblings、GC leaf、M46 序列化与输入错误做 [5 项复验](compile-definitions-darwin-final.log.gz)，共 6 variants、50 processes。未重复耗时的属性大组合。
-- 确认没有 cargo／rustc 进程后[清理 incremental 4,233.4 MiB](compile-definitions-darwin-cleanup.log.gz)。
+- `cargo fmt --all` 与 workspace clippy 通过。
+- 568 项 slib、正式产物发布、不同优化级别 ODR、属性初始化组合、机器 callable／默认参数、链式 re-export通过。属性初始化组合耗时 716 秒，未因长时间无输出而重启。
+- release 构建通过。CLI 第一组 8 项共 9 variants、90 processes；GC leaf 选择名称修正后单独补跑 1 项，共 2 variants、16 processes。合计 9 个不同用例、11 variants、106 processes。
+- 最后删除重复摘要后，重新通过 slib、正式发布、clippy 和 release；只对受影响的 core artifact、泛型 siblings、GC leaf、M46 序列化与输入错误做 5 项复验，共 6 variants、50 processes。未重复耗时的属性大组合。
+- 确认没有 cargo／rustc 进程后清理 incremental 4,233.4 MiB。
 
 ## Linux 验证
 
-使用 `target/m48-summary-reader`，没有覆盖历史 fixture 回归使用的 `target/release`。完整命令和选择见[脚本](compile-definitions-linux.py.gz)。[fmt](compile-definitions-linux-fmt.log.gz)、[workspace clippy](compile-definitions-linux-clippy.log.gz)、[569 项 slib](compile-definitions-linux-slib.log.gz)、[正式发布](compile-definitions-linux-formal.log.gz)、[不同优化级别 ODR](compile-definitions-linux-odr.log.gz)和 [release 构建](compile-definitions-linux-release.log.gz)通过。[GNU](compile-definitions-gnu-cli.log.gz) 和 [musl](compile-definitions-musl-cli.log.gz) 均通过 9 个 CLI 用例、11 variants、106 processes，覆盖正常 core／artifact 消费、泛型 siblings、真实 ODR 输入冲突、native、GC leaf、M46 序列化、稳定对象及真实输入错误。正常消费用例保留源码、工具和原始 `.slib`；输入错误与缺失对象补产按各自场景验证。首次同步漏掉同时含源码保留迁移的类型位置测试调用，Linux clippy 因旧参数数量失败；补齐该文件后通过，保留[首次输出](compile-definitions-linux-clippy-first.log.gz)。
+使用 `target/m48-summary-reader`，没有覆盖历史 fixture 回归使用的 `target/release`。完整命令和选择见脚本。fmt、workspace clippy、569 项 slib、正式发布、不同优化级别 ODR和 release 构建通过。GNU 和 musl 均通过 9 个 CLI 用例、11 variants、106 processes，覆盖正常 core／artifact 消费、泛型 siblings、真实 ODR 输入冲突、native、GC leaf、M46 序列化、稳定对象及真实输入错误。正常消费用例保留源码、工具和原始 `.slib`；输入错误与缺失对象补产按各自场景验证。首次同步漏掉同时含源码保留迁移的类型位置测试调用，Linux clippy 因旧参数数量失败；补齐该文件后通过，保留首次输出。
 
 ## 范围与后续
 

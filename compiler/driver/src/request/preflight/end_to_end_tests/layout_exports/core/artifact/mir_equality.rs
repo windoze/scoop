@@ -5,7 +5,7 @@ mod applications;
 
 pub(super) fn check(
     name: &str,
-    source: hir::CheckedSharedTypeFoundationV1<'_>,
+    source: hir::SharedTypeMetadataV1<'_>,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
@@ -21,7 +21,7 @@ pub(super) fn check(
 }
 
 struct Fixture<'a> {
-    source: hir::CheckedSharedTypeFoundationV1<'a>,
+    source: hir::SharedTypeMetadataV1<'a>,
     strong: &'a mir::StrongCallableBridgeSurfaceV1,
     section: &'a mir::CrossConeMirTypeBridgeSectionV1<'a>,
 }

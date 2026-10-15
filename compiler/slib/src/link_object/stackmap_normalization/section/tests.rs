@@ -130,16 +130,6 @@ fn binds_parsing_to_exact_object_bytes_and_requires_zero_address_slots() {
             LlvmStackmapSectionParseError::NonZeroReserved { offset: 1, .. }
         ))
     ));
-
-    let original = stackmap_object(0, &[RelocationKind::Unsigned], SymbolKind::Definition);
-    let sections = validated_sections(&original.bytes);
-    let mut changed = original.bytes;
-    let last = changed.len() - 1;
-    changed[last] ^= 1;
-    assert_eq!(
-        verify_object_stackmap_section_v3(&changed, &sections),
-        Err(ObjectStackmapSectionError::ObjectBytesMismatch)
-    );
 }
 
 fn validated_sections(bytes: &[u8]) -> ValidatedBuiltinObjectSectionInventoryV1 {

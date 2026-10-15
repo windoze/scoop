@@ -1,12 +1,14 @@
 use super::*;
 
 impl DecodedCrossConeLayoutAbiSectionV1 {
-    pub fn validate_layouts(
+    pub fn read_layouts(
         self,
-        expected: &crate::CanonicalExactLayoutExportsV1,
-    ) -> Result<LayoutsResolvedCrossConeLayoutAbiSectionV1, crate::ExactLayoutTableError> {
+        target: crate::LirTargetProfile,
+        foundation: &crate::ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<LayoutsResolvedCrossConeLayoutAbiSectionV1, crate::LinkDataError> {
         Ok(LayoutsResolvedCrossConeLayoutAbiSectionV1 {
-            layouts: self.layouts.validate_against(expected)?,
+            layouts: self.layouts.read(target, foundation, identities)?,
             descriptors: self.descriptors,
             dispatch: self.dispatch,
             callables: self.callables,

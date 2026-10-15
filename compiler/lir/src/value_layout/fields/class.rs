@@ -21,14 +21,13 @@ pub enum ClassBasePrefixV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassStorageLayoutV1 {
-    exact: PersistentExactTypeId,
-    layout: PersistentLayoutId,
-    target: LirTargetProfile,
-    base_prefix: ClassBasePrefixV1,
-    declared_fields: Vec<PlacedFieldStorageV1>,
-    complete_fields: Vec<PlacedFieldStorageV1>,
-    shape: TypeInstanceShapeV1,
-    ancestry: Vec<PersistentExactTypeId>,
+    pub(crate) exact: PersistentExactTypeId,
+    pub(crate) layout: PersistentLayoutId,
+    pub(crate) target: LirTargetProfile,
+    pub(crate) base_prefix: ClassBasePrefixV1,
+    pub(crate) declared_fields: Vec<PlacedFieldStorageV1>,
+    pub(crate) complete_fields: Vec<PlacedFieldStorageV1>,
+    pub(crate) shape: TypeInstanceShapeV1,
 }
 
 impl ClassStorageLayoutV1 {
@@ -40,20 +39,16 @@ impl ClassStorageLayoutV1 {
     ) -> Result<Self, StorageReplayError> {
         require_key(target, &key, true)?;
         let exact = key.exact_type();
-        let (base_prefix, cursor, alignment, mut complete_fields, mut ancestry) = match base {
+        let (base_prefix, cursor, alignment, mut complete_fields) = match base {
             ClassBaseStorageV1::NoBase => (
                 ClassBasePrefixV1::NoBase,
                 16,
                 NonZeroPow2::new(8).map_err(StorageReplayError::Shape)?,
                 Vec::new(),
-                Vec::new(),
             ),
             ClassBaseStorageV1::Base(base) => {
                 if base.target != target {
                     return Err(StorageReplayError::TargetMismatch);
-                }
-                if base.ancestry.contains(&exact) {
-                    return Err(StorageReplayError::ClassCycle(exact));
                 }
                 let alignment = NonZeroPow2::new(base.shape.instance_alignment())
                     .map_err(StorageReplayError::Shape)?;
@@ -67,7 +62,6 @@ impl ClassStorageLayoutV1 {
                     base.shape.minimum_size(),
                     alignment,
                     base.complete_fields.clone(),
-                    base.ancestry.clone(),
                 )
             }
         };
@@ -93,7 +87,6 @@ impl ClassStorageLayoutV1 {
             scan,
         )
         .map_err(StorageReplayError::Shape)?;
-        ancestry.push(exact);
         Ok(Self {
             exact,
             layout: PersistentLayoutId::from_key(&key).map_err(StorageReplayError::Hash)?,
@@ -102,7 +95,6 @@ impl ClassStorageLayoutV1 {
             declared_fields: placed.fields,
             complete_fields,
             shape,
-            ancestry,
         })
     }
 
@@ -123,21 +115,5 @@ impl ClassStorageLayoutV1 {
     }
     pub fn complete_fields(&self) -> &[PlacedFieldStorageV1] {
         &self.complete_fields
-    }
-    pub fn inheritance_depth(&self) -> usize {
-        self.ancestry.len()
-    }
-
-    /// The complete list is a mechanical projection, never independent input.
-    pub fn validate_projection(
-        &self,
-        prefix: ClassBasePrefixV1,
-        complete: &[PlacedFieldStorageV1],
-    ) -> Result<(), StorageReplayError> {
-        if prefix == self.base_prefix && complete == self.complete_fields {
-            Ok(())
-        } else {
-            Err(StorageReplayError::ClassProjectionMismatch)
-        }
     }
 }

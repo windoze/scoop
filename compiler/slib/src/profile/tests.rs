@@ -6,99 +6,6 @@ mod layout;
 mod strong_version;
 
 #[test]
-fn single_cone_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
-    let profile = ArtifactCapabilityProfile::SINGLE_CONE_STRONG;
-    let descriptor = profile.descriptor();
-    assert_eq!(
-        hex(&encode(&descriptor).unwrap()),
-        "a501a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c65027273696e676c652d636f6e652d7374726f6e6703050281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03080382a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e74657266616365030fa301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03090482a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650302a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03070583a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0308a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f737572650310a301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e0316"
-    );
-    assert_eq!(
-        profile.fingerprint().unwrap().to_string(),
-        "58c8eead8517515f1cf2a1302cf03d30bbb44a7624e6f51826227b1d3295af9f"
-    );
-    assert_eq!(
-        ArtifactCapabilityProfile::from_id(descriptor.id()),
-        Some(profile)
-    );
-
-    assert_eq!(
-        descriptor.required_manifest(),
-        &[manifest_single_cone_production_capability()]
-    );
-    assert_eq!(
-        descriptor.required_hir(),
-        &[
-            hir_core_bootstrap_interface_capability(),
-            hir_identity_foundation_capability(),
-        ]
-    );
-    assert_eq!(
-        descriptor.required_mir(),
-        &[
-            mir_core_bootstrap_bridge_capability(),
-            mir_identity_foundation_capability(),
-        ]
-    );
-    assert_eq!(
-        descriptor.required_lir(),
-        &[
-            lir_identity_foundation_capability(),
-            lir_link_identity_closure_capability(),
-            lir_strong_production_capability(),
-        ]
-    );
-}
-
-#[test]
-fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
-    let profile = ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG;
-    let descriptor = profile.descriptor();
-    assert_eq!(
-        hex(&encode(&descriptor).unwrap()),
-        include_str!("tests/semantics_profile.hex").trim()
-    );
-    assert_eq!(
-        profile.fingerprint().unwrap().to_string(),
-        "14d993ef12f4ade5d0f00d8fb380c5db8240f3ab1bd29966694afc4179f94cb5"
-    );
-
-    assert_eq!(
-        ArtifactCapabilityProfile::from_id(descriptor.id()),
-        Some(profile)
-    );
-    assert_eq!(
-        descriptor.required_manifest(),
-        &[manifest_single_cone_production_capability()]
-    );
-    assert_eq!(
-        descriptor.required_hir(),
-        &[
-            hir_core_bootstrap_interface_capability(),
-            hir_cross_cone_interface_capability(),
-            hir_identity_foundation_capability(),
-        ]
-    );
-    assert_eq!(
-        descriptor.required_mir(),
-        &[
-            mir_core_bootstrap_bridge_capability(),
-            mir_cross_cone_param_free_bridge_capability(),
-            mir_identity_foundation_capability(),
-        ]
-    );
-    assert_eq!(
-        descriptor.required_lir(),
-        &[
-            lir_cross_cone_param_free_bridge_capability(),
-            lir_identity_foundation_capability(),
-            lir_link_identity_closure_capability(),
-            lir_strong_production_capability(),
-        ]
-    );
-}
-
-#[test]
 fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
     let code_runtime_link = FingerprintSinkSet::CODE
         .union(FingerprintSinkSet::RUNTIME_IMAGE)
@@ -197,7 +104,7 @@ fn manifest_inventory_is_closed_by_artifact_profile() {
     )
     .unwrap();
     assert_eq!(
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG.validate_link_manifest_inventory(&[]),
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC.validate_link_manifest_inventory(&[]),
         Err(ArtifactProfileInventoryError::MissingRequiredCapability {
             view: ArtifactProfileView::Link,
             location: SectionLocation::Manifest,
@@ -205,21 +112,7 @@ fn manifest_inventory_is_closed_by_artifact_profile() {
         })
     );
     assert!(
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG
-            .validate_link_manifest_inventory(std::slice::from_ref(&production))
-            .is_ok()
-    );
-    assert_eq!(
-        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG
-            .validate_link_manifest_inventory(&[]),
-        Err(ArtifactProfileInventoryError::MissingRequiredCapability {
-            view: ArtifactProfileView::Link,
-            location: SectionLocation::Manifest,
-            capability: manifest_single_cone_production_capability()
-        })
-    );
-    assert!(
-        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC
             .validate_link_manifest_inventory(std::slice::from_ref(&production))
             .is_ok()
     );
@@ -230,97 +123,10 @@ fn manifest_inventory_is_closed_by_artifact_profile() {
     )
     .unwrap();
     assert!(
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC
             .validate_link_manifest_inventory(&[production, optional])
             .is_ok()
     );
-}
-
-#[test]
-fn cross_cone_metadata_inventory_requires_each_new_capability_in_its_view() {
-    let profile = ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG;
-    let descriptor = profile.descriptor();
-    assert!(
-        validate_metadata_inventory(
-            profile,
-            ArtifactProfileView::Compile,
-            crate::MetadataLocation::Hir,
-            descriptor.required_hir(),
-        )
-        .is_ok()
-    );
-    assert!(
-        validate_metadata_inventory(
-            profile,
-            ArtifactProfileView::Compile,
-            crate::MetadataLocation::Mir,
-            descriptor.required_mir(),
-        )
-        .is_ok()
-    );
-    assert!(
-        validate_metadata_inventory(
-            profile,
-            ArtifactProfileView::Compile,
-            crate::MetadataLocation::Lir,
-            descriptor.required_lir(),
-        )
-        .is_ok()
-    );
-    assert!(
-        validate_metadata_inventory(
-            profile,
-            ArtifactProfileView::Link,
-            crate::MetadataLocation::Lir,
-            descriptor.required_lir(),
-        )
-        .is_ok()
-    );
-
-    for (view, location, capability, inventory) in [
-        (
-            ArtifactProfileView::Compile,
-            crate::MetadataLocation::Hir,
-            hir_cross_cone_interface_capability(),
-            descriptor.required_hir(),
-        ),
-        (
-            ArtifactProfileView::Compile,
-            crate::MetadataLocation::Mir,
-            mir_cross_cone_param_free_bridge_capability(),
-            descriptor.required_mir(),
-        ),
-        (
-            ArtifactProfileView::Compile,
-            crate::MetadataLocation::Lir,
-            lir_cross_cone_param_free_bridge_capability(),
-            descriptor.required_lir(),
-        ),
-        (
-            ArtifactProfileView::Link,
-            crate::MetadataLocation::Lir,
-            lir_link_identity_closure_capability(),
-            descriptor.required_lir(),
-        ),
-    ] {
-        let incomplete = inventory
-            .iter()
-            .filter(|candidate| *candidate != &capability)
-            .cloned()
-            .collect::<Vec<_>>();
-        assert_eq!(
-            validate_metadata_inventory(profile, view, location, &incomplete),
-            Err(ArtifactProfileInventoryError::MissingRequiredCapability {
-                view,
-                location: match location {
-                    crate::MetadataLocation::Hir => SectionLocation::Hir,
-                    crate::MetadataLocation::Mir => SectionLocation::Mir,
-                    crate::MetadataLocation::Lir => SectionLocation::Lir,
-                },
-                capability,
-            })
-        );
-    }
 }
 
 fn validate_metadata_inventory(

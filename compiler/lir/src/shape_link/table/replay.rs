@@ -1,12 +1,11 @@
-//! Candidate rows are contracts to compare, never evidence of actual use.
+//! Read saved import references and select their already loaded provider data.
 
 use super::*;
 use crate::ShapeLinkProviderV1;
 use scoop_identity::{ConeIdentity, PersistentIdResolver, ValidatedIdentityGraph};
 
 impl DecodedCanonicalExternalShapeLinkImportsV1 {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn replay<'a>(
+    pub(crate) fn read<'a>(
         self,
         consumer: ConeIdentity,
         providers: &[ShapeLinkProviderV1<'a>],
@@ -32,9 +31,10 @@ impl DecodedCanonicalExternalShapeLinkImportsV1 {
                 .iter()
                 .find(|view| view.provider() == provider)
                 .ok_or(ShapeLinkError::MissingProvider(provider))?;
-            let expected = ExternalShapeLinkImportV1::replay(terminal, subject, consumer)?;
-            actual.validate_against(&expected)?;
-            records.push(expected);
+            if provider == consumer {
+                return Err(ShapeLinkError::LocalImport);
+            }
+            records.push(actual.read(terminal, subject, identities)?);
         }
         Ok(CanonicalExternalShapeLinkImportsV1 { records })
     }

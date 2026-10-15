@@ -12,8 +12,7 @@ pub use wire::DecodedCanonicalExactLayoutExportsV1;
 #[cfg(test)]
 mod tests;
 
-/// Canonical physical records from one provider foundation. This table does
-/// not replace source representation joins or selected dependency authority.
+/// Canonical physical layout records from one provider.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalExactLayoutExportsV1(Arc<LayoutTable>);
 
@@ -105,8 +104,6 @@ impl CanonicalExactLayoutExportsV1 {
 
 #[derive(Debug)]
 pub enum ExactLayoutTableError {
-    CountOverflow,
-    Count,
     Duplicate(PersistentLayoutId),
     Target(PersistentLayoutId),
     Provider(PersistentLayoutId),
@@ -114,10 +111,6 @@ pub enum ExactLayoutTableError {
     Scan(PersistentLayoutId),
     Binding(ExactLayoutIdentityError),
     Definition(crate::StrongShapeDefinitionError),
-    Record {
-        index: usize,
-        source: ExactLayoutWireError,
-    },
     Resource(WireError),
 }
 

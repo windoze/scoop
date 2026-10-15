@@ -92,7 +92,7 @@ fn layout_profile_code_contribution_contains_both_semantic_import_projections() 
     );
     assert_eq!(
         contributions.contributions()[0].canonical_projection(),
-        scoop_wire::encode(layout.selected().physical_imports()).unwrap()
+        scoop_wire::encode(&layout.selected().physical_imports().code_projection()).unwrap()
     );
     assert_ne!(
         contributions.contributions()[0].canonical_projection(),

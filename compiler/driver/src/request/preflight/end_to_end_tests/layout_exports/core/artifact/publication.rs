@@ -22,7 +22,6 @@ pub(super) fn check_provider(provider: &slib::AssembledCrossConeLayoutArtifactV1
 
 pub(super) fn check(
     name: &str,
-    public: &hir::CrossConeHirInterfaceSectionV1,
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
@@ -55,7 +54,7 @@ pub(super) fn check(
     assert_eq!(&reread, published.summary());
     assert_no_temporary(root.path(), &destination);
 
-    rejections::check(&destination, public, provider, artifact);
+    rejections::check(&destination, provider, artifact);
 }
 
 fn verify(

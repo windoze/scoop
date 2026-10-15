@@ -8,7 +8,6 @@ use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
     ObjectDefinitionPlanOwner,
 };
-use scoop_wire::sha256;
 
 use super::{
     BuiltinObjectSectionRoleV1, ObjectSymbolKindV1, ObservedObjectSymbolV1,
@@ -189,11 +188,6 @@ pub fn verify_member_strong_object_definitions_v1(
     sections: ValidatedBuiltinObjectSectionInventoryV1,
     plan: &PlannedMemberStrongObjectSymbolsV1,
 ) -> Result<VerifiedMemberStrongObjectDefinitionIndexV1, StrongObjectDefinitionValidationError> {
-    if u64::try_from(bytes.len()).ok() != Some(sections.envelope().byte_length())
-        || sha256(bytes) != sections.envelope().content_digest()
-    {
-        return Err(StrongObjectDefinitionValidationError::ObjectBytesMismatch);
-    }
     let expected = plan
         .symbols()
         .iter()
@@ -478,7 +472,6 @@ pub enum StrongObjectDefinitionValidationError {
         expected: LinkageClass,
         actual: ObjectSymbolKindV1,
     },
-    ObjectBytesMismatch,
     DuplicateExternalStrongDefinition {
         name: Vec<u8>,
     },

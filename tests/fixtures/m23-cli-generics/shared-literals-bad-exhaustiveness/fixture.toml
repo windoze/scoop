@@ -6,15 +6,8 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["generics", "shared_literal_patterns_republish_defaults_and_generic_bodies_through_artifacts", "negative"]
 
 [[steps]]
-name = "prepare_core"
-files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-]
-
-[[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""

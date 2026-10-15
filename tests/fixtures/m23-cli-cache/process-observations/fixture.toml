@@ -89,7 +89,7 @@ checks = [
   {"actual" = "${observed.result.dependencies.1.artifact_fingerprint}", "equals" = "${cold.result.dependencies.1.artifact_fingerprint}"},
   {"file" = "${observed.result.dependencies.1.path}", "same_as" = "${cold.result.dependencies.1.path}"},
   {"actual" = "${observed.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
-  {"actual" = "${observed.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${observed.result.observations.nodes.2.origin}", "equals" = "cache"},
   {"actual" = "${observed.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
   {"file" = "${observed.result.root.path}", "same_as" = "${cold.result.root.path}"},
   {"glob" = "${work}/dump/*", "equals" = ["${work}/dump/${observed.result.root.identity}"]},
@@ -97,6 +97,33 @@ checks = [
   {"file" = "${work}/dump/${observed.result.root.identity}/hir.txt", "exists" = true},
   {"file" = "${work}/dump/${observed.result.root.identity}/mir.txt", "exists" = true},
   {"file" = "${work}/dump/${observed.result.root.identity}/lir.txt", "exists" = true},
+]
+
+[[steps]]
+name = "reuse_observed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {each = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump-again"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${reuse_observed.result.observations.child_invocations.length}", equals = 0},
+  {file = "${work}/dump-again/${observed.result.root.identity}/lir.txt", same_as = "${work}/dump/${observed.result.root.identity}/lir.txt"},
+]
+
+[[steps]]
+name = "observe_sources"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {each = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/library.slib", "--emit", "hir", "--dump-dir", "${work}/dump-sources", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${observe_sources.result.observations.child_invocations}", equals = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}"]},
+  {file = "${work}/dump-sources/${cold.result.dependencies.1.identity}/hir.txt", exists = true},
+  {file = "${work}/dump-sources/${cold.result.root.identity}/hir.txt", same_as = "${work}/dump/${cold.result.root.identity}/hir.txt"},
 ]
 
 [[steps]]

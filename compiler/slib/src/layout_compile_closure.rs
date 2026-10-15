@@ -34,7 +34,6 @@ mod lir_shape_support;
 mod lir_strong;
 mod mir_dependencies;
 mod mir_records;
-mod type_foundations;
 pub use complete::CrossConeLayoutSemanticClosureError;
 pub use declarations::{
     CrossConeHirDeclarationValidationError, CrossConeLayoutHirDeclarationError,
@@ -51,8 +50,7 @@ pub use lir_dependencies::{
 };
 pub use lir_descriptors::{
     CrossConeLayoutLirDescriptorsError, LirDescriptorsValidatedCrossConeLayoutClosure,
-    LirDescriptorsValidatedCrossConeLayoutSections, SharedLirDescriptorInputsV1,
-    SharedLirDescriptorValidationError, replay_shared_mir_descriptors,
+    LirDescriptorsValidatedCrossConeLayoutSections, SharedLirDescriptorValidationError,
 };
 pub use lir_dispatch::{
     CrossConeLayoutLirDispatchError, LirDispatchValidatedCrossConeLayoutClosure,
@@ -61,7 +59,6 @@ pub use lir_dispatch::{
 pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,
     LirLayoutsValidatedCrossConeLayoutSections, SharedLirLayoutValidationError,
-    replay_shared_mir_layouts,
 };
 pub use lir_ordinary::{
     CrossConeLayoutOrdinaryLirBridgeError, OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
@@ -90,7 +87,6 @@ pub use mir_records::{
     CrossConeLayoutMirReadError, MirRecordsCrossConeLayoutClosure,
     MirRecordsCrossConeLayoutSections, SharedMirReadError,
 };
-pub use type_foundations::CrossConeLayoutTypeFoundationError;
 
 /// Decoded artifacts visible while compiling one current Cone.
 pub struct DecodedCrossConeLayoutCompileClosure<'input> {
@@ -135,7 +131,7 @@ pub struct FoundationValidatedCrossConeLayoutCompileClosure<'input> {
 }
 
 /// Both old and new HIR transports are resolved through each artifact's one
-/// validated identity graph. Semantic tables remain untrusted.
+/// identity graph. Saved declarations are available to downstream queries.
 pub struct ResolvedCrossConeLayoutHirClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
@@ -145,8 +141,7 @@ pub struct ResolvedCrossConeLayoutHirClosure<'input> {
     dependency_positions: Vec<Vec<usize>>,
 }
 
-/// Resolved layout-profile HIR transports whose unchanged core bootstrap
-/// production surface has also been replayed.
+/// Resolved layout-profile HIR transports and saved core protocol records.
 pub struct HirProductionValidatedCrossConeLayoutClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,

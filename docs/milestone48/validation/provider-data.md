@@ -10,14 +10,14 @@ ShapeLinkProvider 只借用实际需要的 definition symbol plan、callable ABI
 
 ## 验收
 
-本机先完成格式化与 [workspace clippy](provider-data-darwin-clippy.log.gz)，随后按[脚本](provider-data-darwin.py.gz)通过 [17 项 shape-link](provider-data-darwin-shape.log.gz)、[7 项 Link closure](provider-data-darwin-closure.log.gz)、[release 构建](provider-data-darwin-release.log.gz)和[真实泛型产物](provider-data-darwin-generic.log.gz)。现有测试覆盖十类外部物理 subject；本批未删除测试，也未增加只镜像实现的测试。
+本机先完成格式化与 workspace clippy，随后按脚本通过 17 项 shape-link、7 项 Link closure、release 构建和真实泛型产物。现有测试覆盖十类外部物理 subject；本批未删除测试，也未增加只镜像实现的测试。
 
-[Darwin CLI](provider-data-darwin-cli.json.gz)通过 16 项、18 variants、199 processes，覆盖跨 Cone 泛型与 ODR、普通链接、runtime image／初始化、继承、接口、装箱、属性更新、C 产物、M46 序列化、生成测试入口与稳定对象文件。所有输入源码、工具和原产物保持存在。
+Darwin CLI通过 16 项、18 variants、199 processes，覆盖跨 Cone 泛型与 ODR、普通链接、runtime image／初始化、继承、接口、装箱、属性更新、C 产物、M46 序列化、生成测试入口与稳定对象文件。所有输入源码、工具和原产物保持存在。
 
-Linux 使用独立 `target/m48-summary-reader`，在本机验收完成后按[脚本](provider-data-linux.py.gz)通过 [fmt](provider-data-linux-fmt.log.gz)、[workspace clippy](provider-data-linux-clippy.log.gz)、[17 项 shape-link](provider-data-linux-shape.log.gz)、[7 项 Link closure](provider-data-linux-closure.log.gz)、[release 构建](provider-data-linux-release.log.gz)及[真实泛型产物](provider-data-linux-generic.log.gz)。[GNU](provider-data-gnu-cli.json.gz)和 [musl](provider-data-musl-cli.json.gz)各通过同样 16 项、18 variants、199 processes；compiler 同步 dry-run 无差异。本批没有改动文件读取路径，未重复上一批 ProgramLink I/O 采样；未据此声称已有最终性能数据。
+Linux 使用独立 `target/m48-summary-reader`，在本机验收完成后按脚本通过 fmt、workspace clippy、17 项 shape-link、7 项 Link closure、release 构建及真实泛型产物。GNU和 musl各通过同样 16 项、18 variants、199 processes；compiler 同步 dry-run 无差异。本批没有改动文件读取路径，未重复上一批 ProgramLink I/O 采样；未据此声称已有最终性能数据。
 
 ## 清理与剩余范围
 
-确认没有运行进程引用后，清理上一批两个已完成且报告已归档的本机 CLI 工作目录，共释放 2,152,275,968 字节磁盘分配空间；[记录](provider-data-darwin-cleanup.json.gz)。本批测试目录、release 工具和增量编译结果保留。
+确认没有运行进程引用后，清理上一批两个已完成且报告已归档的本机 CLI 工作目录，共释放 2,152,275,968 字节磁盘分配空间；记录。本批测试目录、release 工具和增量编译结果保留。
 
 本批仅消除每次实际选择导出时的重复比对。Compile reader 仍先重放 strong production，再向 provider 传入其中三个必要字段；该重放与其余语义／布局重建仍待退役。ProgramLink identity／foundation 边界、writer 其余复核、dump 复用和最小阶段、最终当前代码全量回归及五轮性能复测仍属 M48 范围。未以本批定向结果代替完整验收，M38 未启动。

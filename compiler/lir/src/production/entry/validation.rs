@@ -364,18 +364,3 @@ impl fmt::Display for EntryProductionPlanBuildError {
 }
 
 impl std::error::Error for EntryProductionPlanBuildError {}
-
-#[derive(Debug)]
-pub enum EntryProductionPlanValidationError {
-    Expected(EntryProductionPlanBuildError),
-    Encode(scoop_wire::cbor::EncodeError),
-    PlanMismatch,
-}
-
-impl fmt::Display for EntryProductionPlanValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid encoded entry production plan: {self:?}")
-    }
-}
-
-impl std::error::Error for EntryProductionPlanValidationError {}

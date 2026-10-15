@@ -9,6 +9,7 @@ pub enum ShapeLinkError {
     Target,
     LocalImport,
     Identity(scoop_identity::IdentityReferenceError),
+    Symbol(scoop_identity::PersistentSymbolResolutionError<scoop_identity::IdentityReferenceError>),
     Subject(crate::ExternalShapeSubjectResolutionError),
     MissingProvider(ConeIdentity),
     MissingSubject(ExternalStrongShapeSubjectV1),
@@ -19,16 +20,8 @@ pub enum ShapeLinkError {
         provider: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,
     },
-    Count,
     Order,
-    Header,
-    Contract,
     Definition(crate::StrongShapeDefinitionError),
-    Layout(crate::ExactLayoutWireError),
-    Descriptor(crate::ExactDescriptorWireError),
-    Dispatch(crate::ExactDispatchWireError),
-    Scan(crate::RefScanValidationError),
-    Storage(crate::StrongSemanticProjectionError),
     Resource(WireError),
 }
 
@@ -45,11 +38,6 @@ from_error!(WireError, Resource);
 from_error!(scoop_identity::IdentityReferenceError, Identity);
 from_error!(crate::ExternalShapeSubjectResolutionError, Subject);
 from_error!(crate::StrongShapeDefinitionError, Definition);
-from_error!(crate::ExactLayoutWireError, Layout);
-from_error!(crate::ExactDescriptorWireError, Descriptor);
-from_error!(crate::ExactDispatchWireError, Dispatch);
-from_error!(crate::RefScanValidationError, Scan);
-from_error!(crate::StrongSemanticProjectionError, Storage);
 
 impl std::fmt::Display for ShapeLinkError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,3 +45,8 @@ impl std::fmt::Display for ShapeLinkError {
     }
 }
 impl std::error::Error for ShapeLinkError {}
+
+from_error!(
+    scoop_identity::PersistentSymbolResolutionError<scoop_identity::IdentityReferenceError>,
+    Symbol
+);

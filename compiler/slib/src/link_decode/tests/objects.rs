@@ -213,7 +213,7 @@ pub(super) fn finalized_link_object_fixture() -> (
     )
     .unwrap();
     let compatibility =
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
             .unwrap();
     let image = crate::compute_runtime_image_fingerprint_v1(image, patched, compatibility).unwrap();
     let image = crate::patch_runtime_image_fingerprint_v1(image).unwrap();

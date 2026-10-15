@@ -32,6 +32,15 @@ impl ValidatedGeneratedCBridgeObjectEnvelopeV1 {
 }
 
 impl ValidatedScoopLirObjectEnvelopeV1 {
+    pub(in crate::link_object) fn after_digest_patch(
+        mut sections: ValidatedBuiltinObjectSectionInventoryV1,
+        bytes: &[u8],
+    ) -> Self {
+        // Digest slots cannot alter the parsed section, symbol or relocation structure.
+        sections.envelope.content_digest = scoop_wire::sha256(bytes);
+        Self { sections }
+    }
+
     pub const fn sections(&self) -> &ValidatedBuiltinObjectSectionInventoryV1 {
         &self.sections
     }

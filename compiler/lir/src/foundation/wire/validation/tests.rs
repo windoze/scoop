@@ -64,17 +64,6 @@ fn validates_callback_safepoint_runtime_and_symbol_relations_atomically() {
 }
 
 #[test]
-fn rejects_noncanonical_mapping_order_after_all_relations_resolve() {
-    let (mut decoded, mut identities, _) = callback_fixture(&[0, 1], 0);
-    decoded.decoded.safepoints.swap(0, 1);
-
-    assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
-        Err(LirFoundationValidationError::NonCanonicalFoundation)
-    ));
-}
-
-#[test]
 fn accepts_retained_safepoint_ordinals_without_renumbering() {
     let (decoded, mut identities, bytes) = callback_fixture(&[1, 3, u32::MAX], 0);
 

@@ -151,5 +151,4 @@ fn assert_wire_roundtrip(value: impl Into<ExactLayoutExportV1>) {
     let bytes = encode(&expected).unwrap();
     let raw = scoop_wire::decode_canonical::<DecodedExactLayoutExportV1>(&bytes).unwrap();
     assert_eq!(encode(&raw).unwrap(), bytes);
-    assert_eq!(raw.validate_against(&expected).unwrap(), expected);
 }

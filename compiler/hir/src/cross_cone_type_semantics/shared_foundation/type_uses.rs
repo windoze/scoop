@@ -132,18 +132,5 @@ impl<'a> SharedTypeMetadataV1<'a> {
     }
 }
 
-impl CheckedSharedTypeFoundationV1<'_> {
-    /// Precisely compares type, inheritance, shape, construction and member calls.
-    /// This does not construct a complete selected-use or artifact permit.
-    pub fn validate_materialized_type_uses(self, dependencies: &[Self]) -> Result<(), Error> {
-        let path = WirePath::root().field(8);
-        let mut metadata = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut metadata, dependencies.len(), &path)?;
-        metadata.extend(dependencies.iter().map(|dependency| dependency.metadata()));
-        self.metadata
-            .validate_materialized_type_uses(self.section.selected(), &metadata)
-    }
-}
-
 #[cfg(test)]
 mod tests;

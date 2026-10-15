@@ -31,6 +31,17 @@ impl ChildInvocationPlanV1 {
         &self.request
     }
 
+    pub(crate) fn observe(
+        mut self,
+        stages: scoop_protocol::StageDumpSet,
+    ) -> Result<Self, ChildRequestPlanError> {
+        self.request = self
+            .request
+            .observe(stages)
+            .map_err(ChildRequestPlanError::Protocol)?;
+        Ok(self)
+    }
+
     pub(crate) fn output_path(&self) -> &Path {
         &self.output_path
     }

@@ -33,19 +33,8 @@ files = [
 checks = []
 
 [[steps]]
-name = "program"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--cone-path", "${work}/artifacts"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-checks = []
-
-[[steps]]
-name = "prepare_verified"
+name = "prepare_assertions"
 files = [
-  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/original-program.slib"}},
   {"replace" = {"path" = "${work}/sources/program/src/main.scoop", "old" = "    val answer = stage3CoreAnswer()", "new" = "    val answer = stage3CoreAnswer()\n    if (answer != 42) { throw IllegalStateException() }"}},
 ]
 checks = []

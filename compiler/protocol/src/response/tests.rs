@@ -20,11 +20,7 @@ fn success(
 }
 
 fn dump() -> EmittedDumpDescriptorV1 {
-    EmittedDumpDescriptorV1::new(
-        StageDumpKindV1::Hir,
-        EmittedDumpDestinationV1::Stdout,
-        ProtocolDumpContentDigest::from_array([8; 32]),
-    )
+    EmittedDumpDescriptorV1::new(StageDumpKindV1::Hir, EmittedDumpDestinationV1::Stdout)
 }
 
 #[test]
@@ -77,4 +73,25 @@ fn file_level_diagnostic_keeps_its_path_without_a_byte_span() {
     let bytes = scoop_wire::encode(&diagnostic).unwrap();
     let decoded: StructuredDiagnosticV1 = scoop_wire::decode_canonical(&bytes).unwrap();
     assert_eq!(decoded, diagnostic);
+}
+
+#[test]
+fn observation_response_needs_no_artifact_summary() {
+    let response = ScoopcResponseEnvelopeV1::Observed {
+        request_id: RequestCorrelationId::from_array([3; 16]),
+        result: ScoopcObservationV1::new(
+            Vec::new(),
+            vec![EmittedDumpDescriptorV1::new(
+                StageDumpKindV1::Ast,
+                EmittedDumpDestinationV1::File(
+                    HostPathCarrier::from_path(std::path::Path::new("/tmp/ast.txt")).unwrap(),
+                ),
+            )],
+        )
+        .unwrap(),
+    };
+    assert_eq!(
+        crate::decode_response_frame(&crate::encode_response_frame(&response).unwrap()).unwrap(),
+        response
+    );
 }

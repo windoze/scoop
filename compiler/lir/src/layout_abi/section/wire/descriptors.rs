@@ -14,20 +14,18 @@ impl<T>
 }
 
 impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
-    pub fn validate_descriptors(
+    pub fn read_descriptors(
         self,
-        expected: &crate::CanonicalExactDescriptorExportsV1,
-    ) -> Result<DescriptorsResolvedCrossConeLayoutAbiSectionV1, crate::ExactDescriptorTableError>
-    {
-        if self.layouts.provider() != expected.provider() {
-            return Err(crate::ExactDescriptorTableError::LayoutProvider);
-        }
-        if self.layouts.target() != expected.target() {
-            return Err(crate::ExactDescriptorTableError::LayoutTarget);
-        }
+        target: crate::LirTargetProfile,
+        foundation: &crate::ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<DescriptorsResolvedCrossConeLayoutAbiSectionV1, crate::LinkDataError> {
+        let descriptors = self
+            .descriptors
+            .read(target, foundation, &self.layouts, identities)?;
         Ok(DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
             layouts: self.layouts,
-            descriptors: self.descriptors.validate_against(expected)?,
+            descriptors,
             dispatch: self.dispatch,
             callables: self.callables,
             shape_support: self.shape_support,

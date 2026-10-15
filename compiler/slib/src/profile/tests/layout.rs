@@ -10,7 +10,7 @@ fn generic_profile_has_a_fixed_descriptor_and_fingerprint() {
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "d46f7a63b421465c5f75230e154cbf6980de972c4e6fb7d29630311b8891a5af"
+        "71e9daed2fb0a53ce7ef7d7c0e0cbca8dd32e28f609afc97f89404710a8342a8"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),
@@ -118,48 +118,6 @@ fn generic_profile_rejects_legacy_strong_production_even_when_optional() {
                     descriptor.required_lir(), &sections, |section| &section.0, |section| section.1),
                     Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. })
                         if *required == lir_cone_production_capability() && *actual == legacy));
-            }
-        }
-    }
-}
-
-#[test]
-fn legacy_strong_profiles_reject_generic_sections() {
-    let descriptor = ArtifactCapabilityProfile::CROSS_CONE_GENERIC.descriptor();
-    for profile in [
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-    ] {
-        let legacy = profile.descriptor();
-        for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {
-            assert!(matches!(
-                validate_metadata_inventory(
-                    profile,
-                    view,
-                    crate::MetadataLocation::Lir,
-                    descriptor.required_lir()
-                ),
-                Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. })
-                    if *required == lir_strong_production_capability() && *actual == lir_cone_production_capability()
-            ));
-            for purpose in [MemberPurposeSet::NONE, MemberPurposeSet::COMPILE_AND_LINK] {
-                let mut sections = legacy
-                    .required_lir()
-                    .iter()
-                    .map(|capability| {
-                        (
-                            capability.clone(),
-                            CapabilityContractRegistry::contract(capability)
-                                .unwrap()
-                                .required_for(),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                sections.push((lir_cone_production_capability(), purpose));
-                assert!(matches!(validate_inventory(view, SectionLocation::Lir,
-                    legacy.required_lir(), &sections, |section| &section.0, |section| section.1),
-                    Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. })
-                        if *required == lir_strong_production_capability() && *actual == lir_cone_production_capability()));
             }
         }
     }

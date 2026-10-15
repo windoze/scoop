@@ -5,7 +5,7 @@ use scoop_identity::{
 };
 
 pub(super) fn check(replay: &Fixture<'_>, name: &str) {
-    let metadata = replay.source.metadata();
+    let metadata = replay.source;
     let coordinates = [ConeCoordinate::reserved_core()];
     let names = ExactTypeDiagnosticCatalog::try_new(metadata.identities, &coordinates).unwrap();
     let exact = |id| {

@@ -5,13 +5,13 @@ use scoop_identity::{
     PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     SourceSignatureFingerprint,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 
 mod link;
 mod validation;
-pub use validation::{EntryProductionPlanBuildError, EntryProductionPlanValidationError};
+pub use validation::EntryProductionPlanBuildError;
 use validation::{build_executable, validate_library_foundation};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -234,26 +234,6 @@ impl WireDecode for DecodedExecutableEntryPlanV1 {
 pub enum DecodedEntryProductionPlanV1 {
     Library,
     Executable(Box<DecodedExecutableEntryPlanV1>),
-}
-
-impl DecodedEntryProductionPlanV1 {
-    pub fn validate(
-        self,
-        source: EntryProductionSourceV1,
-        foundation: &ConeLirFoundation,
-        registrations: &RegistrationIdentitySurfaceV1,
-        digests: &DigestFinalizationPlanV1,
-    ) -> Result<EntryProductionPlanV1, EntryProductionPlanValidationError> {
-        let actual = encode(&self).map_err(EntryProductionPlanValidationError::Encode)?;
-        let expected = EntryProductionPlanV1::new(source, foundation, registrations, digests)
-            .map_err(EntryProductionPlanValidationError::Expected)?;
-        let expected_bytes =
-            encode(&expected).map_err(EntryProductionPlanValidationError::Encode)?;
-        if actual != expected_bytes {
-            return Err(EntryProductionPlanValidationError::PlanMismatch);
-        }
-        Ok(expected)
-    }
 }
 
 impl WireEncode for DecodedEntryProductionPlanV1 {

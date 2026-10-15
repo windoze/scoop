@@ -1,25 +1,19 @@
 mod error;
 mod references;
-mod relations;
 
 pub use error::CoreCompilerProtocolSurfaceValidationError;
 use references::*;
 mod roles;
 
-use relations::validate_foundation_relations;
-
 use scoop_identity::{
-    CoreBuiltinNominal, DecodedPersistentId, DefinitionOriginSubject, DefinitionOwnerAtom,
-    DispatchDeclarationOwner, DispatchRole, EnumVariantFieldSelector, NominalDeclarationOwner,
+    CoreBuiltinNominal, DecodedPersistentId, DefinitionOriginSubject, NominalDeclarationOwner,
     PersistentDispatchSlotId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
     PersistentExactTypeId, PersistentGenericTypeId, PersistentTypeId, SourceDeclarationKind,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::*;
-use crate::{
-    CanonicalHirFoundation, CoreProtocolCallableDefinitionV1, CoreProtocolCallableValidationError,
-};
+use crate::{CanonicalHirFoundation, CoreProtocolCallableValidationError};
 
 impl WireEncode for CoreProtocolNominalV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -299,15 +293,6 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
                 .validate_against(foundation)
                 .map_err(CoreCompilerProtocolSurfaceValidationError::Callable)?,
         };
-        surface
-            .validate_internal_relations()
-            .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
-        validate_foundation_relations(&surface, foundation)?;
-        validate_fixed_callable_signatures(&surface)
-            .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
-        surface
-            .validate_fixed_intrinsic_signatures()
-            .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
         Ok(surface)
     }
 }

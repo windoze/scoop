@@ -7,7 +7,7 @@ use scoop_identity::{
     OdrMemberId, OdrMemberIdentityError, OdrMemberKey, PersistentCallbackRegistrationId,
     PersistentId, PersistentIdResolver, PersistentKeyResolver, ValidatedIdentityGraph,
 };
-use scoop_wire::{WireEncode, WirePath, encode_canonical_temporary};
+use scoop_wire::{WireEncode, WirePath};
 
 use super::*;
 use crate::{
@@ -63,8 +63,6 @@ fn validate_foundation(
     foundation: DecodedMirFoundation,
     identities: &mut ValidatedIdentityGraph,
 ) -> Result<ValidatedMirFoundation, MirFoundationValidationError> {
-    let original = encode_canonical_temporary(&foundation, &WirePath::root())
-        .map_err(MirFoundationValidationError::Resource)?;
     let DecodedMirFoundationWire {
         exact_types: _,
         generated_callables: _,
@@ -160,11 +158,6 @@ fn validate_foundation(
     set!(set_odr_groups, odr_groups);
     set!(set_odr_members, odr_members);
 
-    let rebuilt = encode_canonical_temporary(&canonical, &WirePath::root())
-        .map_err(MirFoundationValidationError::Resource)?;
-    if rebuilt != original {
-        return Err(MirFoundationValidationError::NonCanonicalFoundation);
-    }
     Ok(ValidatedMirFoundation { canonical })
 }
 
@@ -495,7 +488,6 @@ pub enum MirFoundationValidationError {
     },
     CallbackRelation(CallbackApplicationRelationError),
     Build(MirFoundationBuildError),
-    NonCanonicalFoundation,
 }
 
 impl From<CallbackApplicationRelationError> for MirFoundationValidationError {
@@ -523,9 +515,6 @@ impl fmt::Display for MirFoundationValidationError {
             }
             Self::CallbackRelation(error) => error.fmt(formatter),
             Self::Build(error) => error.fmt(formatter),
-            Self::NonCanonicalFoundation => {
-                formatter.write_str("MIR foundation tables are not in canonical structural order")
-            }
         }
     }
 }

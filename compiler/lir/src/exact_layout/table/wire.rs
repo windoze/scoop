@@ -24,21 +24,34 @@ impl DecodedCanonicalExactLayoutExportsV1 {
             .collect()
     }
 
-    pub fn validate_against(
+    pub fn read(
         self,
-        expected: &CanonicalExactLayoutExportsV1,
-    ) -> Result<CanonicalExactLayoutExportsV1, ExactLayoutTableError> {
-        if self.records.len() != expected.records().len() {
-            return Err(ExactLayoutTableError::Count);
+        target: LirTargetProfile,
+        foundation: &ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<CanonicalExactLayoutExportsV1, crate::LinkDataError> {
+        use crate::link_data::link_error;
+        let mut prepared = Vec::with_capacity(self.records.len());
+        for raw in self.records {
+            let record = raw.prepare(target, foundation, identities)?;
+            if prepared.last().is_some_and(
+                |previous: &crate::exact_layout::wire::read::saved::PreparedLayout| {
+                    previous.layout() >= record.layout()
+                },
+            ) {
+                return Err(link_error("layout table is not in canonical order"));
+            }
+            prepared.push(record);
         }
-        for (index, (record, expected)) in
-            self.records.into_iter().zip(expected.records()).enumerate()
-        {
-            record
-                .validate_against(expected)
-                .map_err(|source| ExactLayoutTableError::Record { index, source })?;
-        }
-        Ok(expected.clone())
+        let records = prepared
+            .into_iter()
+            .map(|record| record.finish(foundation, identities))
+            .collect::<Result<_, _>>()?;
+        Ok(CanonicalExactLayoutExportsV1(Arc::new(LayoutTable {
+            provider: foundation.producer(),
+            target,
+            records,
+        })))
     }
 }
 

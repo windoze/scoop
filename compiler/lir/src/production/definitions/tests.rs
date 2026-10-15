@@ -15,19 +15,6 @@ use crate::{CanonicalLirFoundation, ConeLirFoundation, DecodedLirFoundation};
 mod atom_lookup;
 
 #[test]
-fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
-    let (surface, mut identities, foundation) = fixture();
-    assert_eq!(
-        hex(&encode(&surface).unwrap()),
-        "81a3015820f4e2eb5a9996b91c604af52e977e53c337cf67ef6cd3e5d1bae2949a2eae2ecb025820468d6c3d2f032ae18dfc22bf1ac59d2903f18bb0d7dfbea3281aff39935f5ccd03815820e017e1fec15a99d136c5b43da7cd68e2063ce2975f240b0b8fff876a75a29594"
-    );
-
-    let decoded: DecodedObjectDefinitionPlanSurfaceV1 =
-        decode_canonical(&encode(&surface).unwrap()).unwrap();
-    assert_eq!(decoded.validate(&mut identities, &foundation), Ok(surface));
-}
-
-#[test]
 fn definition_plan_reader_rejects_non_closed_products() {
     for bytes in [vec![0x81, 0xa2], vec![0x81, 0xa4]] {
         assert!(decode_canonical::<DecodedObjectDefinitionPlanSurfaceV1>(&bytes,).is_err());
@@ -92,27 +79,6 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
             atom: orphan_id,
             plan: orphan_plan,
         })
-    );
-}
-
-#[test]
-fn validation_rejects_noncanonical_and_semantically_mismatched_atoms() {
-    let (surface, mut identities, foundation) = fixture();
-    let bytes = encode(&surface).unwrap();
-    let mut decoded: DecodedObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
-    let duplicate = decoded.plans[0].associated_atoms[0];
-    decoded.plans[0].associated_atoms.push(duplicate);
-    assert!(matches!(
-        decoded.validate(&mut identities, &foundation),
-        Err(ObjectDefinitionPlanValidationError::DuplicateAssociatedAtom { .. })
-    ));
-
-    let mut decoded: DecodedObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
-    let plan = &mut decoded.plans[0];
-    std::mem::swap(&mut plan.primary_atom, &mut plan.associated_atoms[0]);
-    assert_eq!(
-        decoded.validate(&mut identities, &foundation),
-        Err(ObjectDefinitionPlanValidationError::PlanMismatch { index: 0 })
     );
 }
 
@@ -225,8 +191,4 @@ fn fixture() -> (
     let foundation = ConeLirFoundation::from_validated(validated);
     let surface = ObjectDefinitionPlanSurfaceV1::from_foundation(&foundation).unwrap();
     (surface, identities, foundation)
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

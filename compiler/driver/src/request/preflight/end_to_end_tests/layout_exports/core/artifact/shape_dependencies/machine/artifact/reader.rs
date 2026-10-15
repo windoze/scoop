@@ -59,7 +59,7 @@ pub(super) fn check(
     );
     assert_eq!(current.lir_exports(), layout.exports());
     closure
-        .replay_physical_imports()
+        .read_physical_imports()
         .map(|physical| {
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());

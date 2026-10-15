@@ -157,28 +157,6 @@ fn rejects_nonzero_or_relocated_slot_bytes() {
 }
 
 #[test]
-fn rechecks_the_exact_object_bytes_after_definition_verification() {
-    let fixture = patch_fixture([0; 64], &[]);
-    let site = patch_site(&fixture);
-    let mut changed = fixture.bytes.clone();
-    let last = changed.len() - 1;
-    changed[last] ^= 1;
-
-    assert_eq!(
-        verify_scoop_lir_digest_patch_sites_v1(
-            fixture.builtins,
-            &fixture.foundation,
-            fixture.digest_plan,
-            &[ScoopLirObjectCandidateV1::new(fixture.member, &changed)],
-            &[site],
-        ),
-        Err(DigestPatchSiteValidationError::ObjectBytesMismatch(
-            fixture.member
-        ))
-    );
-}
-
-#[test]
 fn rejects_a_digest_plan_validated_against_another_foundation() {
     let fixture = patch_fixture([0; 64], &[]);
     let unrelated = ConeLirFoundation::try_new(

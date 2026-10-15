@@ -86,7 +86,6 @@ pub enum StrongTypeRegistrationValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     MissingDefinitionAssignment {
         exact_type: PersistentExactTypeId,
         definition: ObjectDefinitionPlanId,

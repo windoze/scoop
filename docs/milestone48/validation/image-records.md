@@ -12,14 +12,14 @@
 
 ## 本机验收
 
-- [workspace clippy](image-records-darwin-clippy.log.gz)、[570 项 slib 测试](image-records-darwin-slib.log.gz)、[release 构建](image-records-darwin-release.log.gz)通过。
-- [实际 ProgramLink 读取测试](image-records-darwin-program.log.gz)通过，包含三个真实 executable 产物与 core。
-- [10 个 CLI 用例](image-records-darwin-cli.log.gz)、[报告](image-records-darwin-cli.json.gz)通过：11 variants、142 processes。包括普通链接、稳定对象复用与缺失结果补产、空 image、普通／有序初始化、两类跨 Cone 泛型 ODR 合并、真实 ODR 冲突诊断、argv／moving GC／minor GC 和 M46 序列化。
+- workspace clippy、570 项 slib 测试、release 构建通过。
+- 实际 ProgramLink 读取测试通过，包含三个真实 executable 产物与 core。
+- 10 个 CLI 用例、报告通过：11 variants、142 processes。包括普通链接、稳定对象复用与缺失结果补产、空 image、普通／有序初始化、两类跨 Cone 泛型 ODR 合并、真实 ODR 冲突诊断、argv／moving GC／minor GC 和 M46 序列化。
 - 首轮 slib 的 5 项失败是格式版本与固定 capability 描述指纹期望仍为旧版；按更新后的规范描述独立计算 SHA-256 并更新期望，完整 slib 复验通过。其余 565 项首轮即通过。
-- 所有本机编译／测试结束后，清理 inactive `target/debug/incremental` [2,992.0 MiB](image-records-cleanup.log.gz)。
+- 所有本机编译／测试结束后，清理 inactive `target/debug/incremental` 2,992.0 MiB。
 
 ## Linux 验收
 
-使用 `target/m48-summary-reader` 独立构建目录；历史 fixture 迁移仍使用原 `target/release`，两者不互相覆盖。[fmt](image-records-linux-fmt.log.gz)、[workspace clippy](image-records-linux-clippy.log.gz)、[release 构建](image-records-linux-release.log.gz)、[571 项 slib 测试](image-records-linux-slib.log.gz)和[实际 ProgramLink 读取测试](image-records-linux-program.log.gz)全部通过。
+使用 `target/m48-summary-reader` 独立构建目录；历史 fixture 迁移仍使用原 `target/release`，两者不互相覆盖。fmt、workspace clippy、release 构建、571 项 slib 测试和实际 ProgramLink 读取测试全部通过。
 
-[GNU](image-records-gnu-cli.log.gz)与 [musl](image-records-musl-cli.log.gz)各通过同一组 10 个 CLI 用例、11 variants、142 processes；[GNU 报告](image-records-gnu-cli.json.gz)、[musl 报告](image-records-musl-cli.json.gz)逐项确认通过。执行顺序与参数见[Linux 验收脚本](image-records-linux.py.gz)。该组针对本批运行时记录与真实链接消费，不替代 M48 最终全量验收及五轮独立性能测量。
+GNU与 musl各通过同一组 10 个 CLI 用例、11 variants、142 processes；GNU 报告、musl 报告逐项确认通过。执行顺序与参数见Linux 验收脚本。该组针对本批运行时记录与真实链接消费，不替代 M48 最终全量验收及五轮独立性能测量。

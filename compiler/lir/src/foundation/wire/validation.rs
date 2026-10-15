@@ -2,7 +2,7 @@ use scoop_identity::PersistentIdResolver;
 use scoop_identity::{
     CallableBodyKey, ConeIdentity, GeneratedBridgeUnitKey, IdentityLayer, ValidatedIdentityGraph,
 };
-use scoop_wire::{WireEncode, WirePath, encode_canonical_temporary};
+use scoop_wire::{WireEncode, WirePath};
 
 use super::*;
 
@@ -81,8 +81,6 @@ fn validate_foundation(
     producer: ConeIdentity,
     identities: &mut ValidatedIdentityGraph,
 ) -> Result<ValidatedLirFoundation, LirFoundationValidationError> {
-    let original = encode_canonical_temporary(&foundation, &WirePath::root())
-        .map_err(LirFoundationValidationError::Resource)?;
     let DecodedLirFoundationWire {
         materialized_exact_types,
         layouts: _,
@@ -305,11 +303,6 @@ fn validate_foundation(
     set!(set_definition_atoms, definition_atoms);
     canonical.native_cxx = native_cxx;
 
-    let rebuilt = encode_canonical_temporary(&canonical, &WirePath::root())
-        .map_err(LirFoundationValidationError::Resource)?;
-    if rebuilt != original {
-        return Err(LirFoundationValidationError::NonCanonicalFoundation);
-    }
     Ok(ValidatedLirFoundation {
         producer,
         canonical,

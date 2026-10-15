@@ -78,7 +78,6 @@ pub enum ConeImageValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    ObjectBytesMismatch(SlibMemberId),
     MissingDefinitionAssignment(ObjectDefinitionPlanId),
     DefinitionAssignedToNonScoopMember(SlibMemberId),
     ImageDefinitionSet {

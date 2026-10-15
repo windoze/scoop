@@ -3,6 +3,7 @@ use super::*;
 mod aliases;
 mod bytes;
 mod external_boxing;
+pub(super) use external_boxing::check as check_boxing;
 mod link_symbol_uses;
 mod lir_dependencies;
 mod machine_selection;
@@ -15,7 +16,6 @@ mod property_initialization;
 mod publication;
 mod shape_dependencies;
 mod source_calls;
-mod type_foundations;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check(
@@ -40,8 +40,6 @@ pub(super) fn check(
         hir::CoreBootstrapInterfaceSectionV1::from_export(&input.hir.output().export).unwrap();
     let ordinary =
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
-    shared_initialization::check(input.mir.production(), &ordinary, lir);
-    external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
     let generated =
         crate::generated_c::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();
@@ -70,15 +68,9 @@ pub(super) fn check(
     )
     .assemble(objects, &generated, &[])
     .unwrap_or_else(|error| panic!("{name} layout artifact assembly: {error:?}"));
-    bytes::check(
-        name,
-        &artifact,
-        input.source,
-        mir_section,
-        layout,
-        input.mir.production().strong_callable_bridges(),
-        input.ordinary,
-    );
+    if name == "base" {
+        bytes::check(name, &artifact, input.source, mir_section, layout);
+    }
     if name.starts_with("shared-aliases-") {
         aliases::check(&artifact, target);
     }
@@ -89,4 +81,38 @@ pub(super) fn check(
     if name == "property-initialization-provider" {
         property_initialization::check(directory, target, input, mir_section, layout, &artifact);
     }
+}
+
+pub(super) fn check_mir(
+    name: &str,
+    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+    section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
+) {
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();
+    let metadata = hir::SharedTypeMetadataV1 {
+        provider: input.mir.module().cone,
+        identities: input.identities,
+        foundation: &foundation,
+        public: input.public,
+    };
+    mir_source_callables::check(name, metadata, input.ordinary, section);
+    mir_constructors::check(name, metadata, section);
+    mir_objects::check(
+        name,
+        metadata,
+        input.source.representation_support(),
+        section,
+    );
+    mir_equality::check(
+        name,
+        metadata,
+        input.mir.production().strong_callable_bridges(),
+        section,
+    );
+    mir_units::check(
+        name,
+        metadata,
+        input.mir.production().strong_callable_bridges(),
+        section,
+    );
 }

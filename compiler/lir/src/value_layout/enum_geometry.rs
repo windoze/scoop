@@ -19,9 +19,9 @@ pub struct EnumVariantGeometryInputV1<'a> {
 /// shared pure region combines independent maximum size and alignment.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EnumStorageRegionV1 {
-    offset: u64,
-    byte_size: u64,
-    alignment: NonZeroPow2,
+    pub(crate) offset: u64,
+    pub(crate) byte_size: u64,
+    pub(crate) alignment: NonZeroPow2,
 }
 impl EnumStorageRegionV1 {
     pub const fn offset(self) -> u64 {
@@ -51,9 +51,9 @@ impl EnumVariantSlotV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EnumVariantStorageGeometryV1 {
-    storage: StorageGeometryV1,
-    fields: Vec<StoragePlacementV1>,
-    slot: EnumVariantSlotV1,
+    pub(crate) storage: StorageGeometryV1,
+    pub(crate) fields: Vec<StoragePlacementV1>,
+    pub(crate) slot: EnumVariantSlotV1,
 }
 impl EnumVariantStorageGeometryV1 {
     /// Natural variant geometry, also used for the variant's wire slot size.
@@ -71,10 +71,10 @@ impl EnumVariantStorageGeometryV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EnumStorageGeometryV1 {
-    storage: StorageGeometryV1,
-    tag_layout: EnumStorageRegionV1,
-    pure_region: EnumStorageRegionV1,
-    variants: Vec<EnumVariantStorageGeometryV1>,
+    pub(crate) storage: StorageGeometryV1,
+    pub(crate) tag_layout: EnumStorageRegionV1,
+    pub(crate) pure_region: EnumStorageRegionV1,
+    pub(crate) variants: Vec<EnumVariantStorageGeometryV1>,
 }
 impl EnumStorageGeometryV1 {
     pub fn tagged(

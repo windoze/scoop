@@ -19,6 +19,7 @@ mod generic_bodies;
 mod image_dependencies;
 mod layout_exports;
 mod nominal_signatures;
+mod observations;
 mod program_link;
 mod publication;
 mod release_hooks;

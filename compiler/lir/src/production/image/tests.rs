@@ -5,60 +5,13 @@ use scoop_identity::{
     ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{decode_canonical, encode, encode_runtime};
+use scoop_wire::encode_runtime;
 
-use super::{ConeImagePlanBuildError, ConeImagePlanV1, ConeRecordV1, DecodedConeImagePlanV1};
+use super::{ConeImagePlanBuildError, ConeImagePlanV1, ConeRecordV1};
 use crate::{
     CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
     DigestNodeV1, RegistrationIdentitySurfaceV1,
 };
-
-#[test]
-fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
-    let coordinate = ConeCoordinate::reserved_single_file();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
-    let plan = ConeImagePlanV1::new(
-        coordinate.clone(),
-        &[scoop_identity::ConeIdentity::CORE],
-        &foundation,
-        &registrations,
-        &digest_plan,
-    )
-    .unwrap();
-
-    assert_eq!(plan.cone().coordinate(), &coordinate);
-    assert_eq!(plan.cone().identity(), ConeIdentity::SINGLE_FILE);
-    assert_eq!(plan.dependencies(), &[ConeIdentity::CORE]);
-    assert!(plan.tables().static_storages().is_empty());
-    assert!(plan.tables().immortal_objects().is_empty());
-    assert!(plan.tables().initialization_units().is_empty());
-    assert!(plan.tables().type_registrations().is_empty());
-    assert!(plan.tables().safepoints().is_empty());
-    assert!(plan.tables().callables().is_empty());
-    assert_eq!(plan.symbol().linkage(), LinkageClass::ConeStrong);
-    assert_ne!(
-        plan.support_atoms().dependencies(),
-        plan.support_atoms().static_storages()
-    );
-
-    let bytes = encode(&plan).unwrap();
-    let decoded: DecodedConeImagePlanV1 = decode_canonical(&bytes).unwrap();
-    let validated = decoded
-        .validate(
-            &coordinate,
-            &[ConeIdentity::CORE],
-            &foundation,
-            &registrations,
-            &digest_plan,
-        )
-        .unwrap();
-    assert_eq!(encode(&validated).unwrap(), bytes);
-    assert_eq!(
-        hex(&bytes),
-        "a701a201a3016573636f6f70026b73696e676c652d66696c650365302e302e3002582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6028158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d03a601800280038004800580068004a201a2001101582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b602010558200a6b2c5d4d7a6df125364db1b8299514682385fbb59b91bc4cc661d456f8d12c06ac01582073f2fdcb7429fe8bd11f3fc99126ad7a633b3dd7923907e9725a3a0d105508a30258206201bf4b3657fdcdc2027baedd4e7115fe96c99cd03543e2ca050fe4fdfd31d1035820b34ed9537b06e55fe3759051e00d7a5fcb4463826571c120b5373ad0b5785b5004582023697c2b6819a50f041a0ccef1821dbd911e8d97d0c17e19422d9748af13f682055820b77bcdfe99e5148caf8a888e888410ed9be43294cf02378aa1097a8ccfb136c2065820fa6b3ba4eb80b07fc0ba7b7f170dcc8ef39a995ca2dca206dca4cf58451251c10758201cac9a0d4cb821b0b8b71aab4066e8ab44b278a29ec2a511a754bad6f7432aaf085820e486529b0103087625514cf0a890a15fc954aece66801177ed942cac2f23996d0958201a3312e5ae116d0648c83edc2989ca558541d7c3eb6f1d8cc8d6bf288fed06fd0a582088a456ea6eeae7001794f6cd99f19a749e3d751842f46074d7334f27cf831ece0b58203d175a2054423000b95a7c61c1f7285e43d3bf0aca26402bf0c04ff130c0e7420c58206544eb65909af6ed630ad399d909303de3bebc2c7fcb7951e57c459224dd233307582072888c00464fa258dfb42b658f906c21cc9ded31ce0a4077616ee2f0caa402c1"
-    );
-}
 
 #[test]
 fn core_image_preserves_an_explicit_empty_dependency_set() {
@@ -101,34 +54,6 @@ fn image_requires_every_record_digest_field_as_a_direct_input() {
         ),
         Err(ConeImagePlanBuildError::RegistrationInputs { .. })
     ));
-}
-
-#[test]
-fn reader_rejects_a_coordinate_from_another_cone() {
-    let coordinate = ConeCoordinate::reserved_single_file();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
-    let plan = ConeImagePlanV1::new(
-        coordinate.clone(),
-        &[scoop_identity::ConeIdentity::CORE],
-        &foundation,
-        &registrations,
-        &digest_plan,
-    )
-    .unwrap();
-    let decoded: DecodedConeImagePlanV1 = decode_canonical(&encode(&plan).unwrap()).unwrap();
-
-    assert!(
-        decoded
-            .validate(
-                &ConeCoordinate::reserved_core(),
-                &[],
-                &foundation,
-                &registrations,
-                &digest_plan,
-            )
-            .is_err()
-    );
 }
 
 #[test]
@@ -376,8 +301,4 @@ fn unit_exact_type() -> PersistentExactTypeId {
         CoreBuiltinNominal::Unit.identity_record().id(),
     ))
     .unwrap()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

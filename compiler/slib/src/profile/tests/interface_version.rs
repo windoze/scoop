@@ -6,10 +6,7 @@ fn source_interface_v76_preserves_type_use_annotations() {
         hir_cross_cone_interface_capability(),
         76,
         MemberPurposeSet::COMPILE,
-        &[
-            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
-        ],
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
@@ -39,19 +36,15 @@ fn mir_foundation_v7_keeps_implementation_identities_out_of_semantic_fingerprint
         mir_identity_foundation_capability(),
         7,
         MemberPurposeSet::COMPILE_AND_LINK,
-        &[
-            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
-        ],
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn lir_layout_abi_v15_preserves_maybe_uninit_values() {
+fn lir_layout_abi_v16_preserves_inline_storage() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        15,
+        16,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -63,7 +56,7 @@ fn lir_param_free_v3_retains_target_coercions() {
         lir_cross_cone_param_free_bridge_capability(),
         3,
         MemberPurposeSet::COMPILE_AND_LINK,
-        &[ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG],
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
@@ -73,11 +66,7 @@ fn compiler_protocol_v15_preserves_generated_entries() {
         hir_core_bootstrap_interface_capability(),
         15,
         MemberPurposeSet::COMPILE,
-        &[
-            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
-        ],
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
@@ -130,10 +119,6 @@ fn hir_foundation_v9_preserves_test_entry_keys() {
         hir_identity_foundation_capability(),
         9,
         MemberPurposeSet::COMPILE_AND_LINK,
-        &[
-            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
-        ],
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

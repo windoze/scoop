@@ -1,4 +1,4 @@
-//! Complete shared semantic replay before view-specific physical validation.
+//! Read saved semantic records before selecting physical imports.
 
 use super::*;
 use crate::{
@@ -7,9 +7,8 @@ use crate::{
 };
 
 impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
-    /// Checks the shared semantic records in the decoded dependency closure.
-    /// Link consumption additionally checks objects and physical imports.
-    pub fn replay_semantics(
+    /// Reads the shared semantic records in the decoded dependency closure.
+    pub fn read_semantic_sections(
         self,
     ) -> Result<
         LirDependenciesResolvedCrossConeLayoutClosure<'input>,

@@ -15,6 +15,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+from .cores import prepare_class_core, prepare_test_core
 from .discovery import discover
 from .model import ConfigurationError, EnvironmentError
 from .suite import run_suite
@@ -74,6 +75,8 @@ def environment(repo, work, fixtures, args):
         "runtime": str(repo / "runtime"),
         "cache": str(work / "cache"),
         "sysroot": str(work / "sysroot"),
+        "test_core": str(work / "test-core"),
+        "class_core": str(work / "class-core"),
         "target": target,
         "llvm_target": target,
         "target_profile": {
@@ -158,6 +161,10 @@ def environment(repo, work, fixtures, args):
         common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]
     if not (work / "sysroot").exists():
         shutil.copytree(repo / "sysroot", work / "sysroot", symlinks=True)
+    if any("${test_core}" in json.dumps(fixture.data) for fixture in applicable):
+        prepare_test_core(repo, work)
+    if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
+        prepare_class_core(repo, work)
     (work / "cache").mkdir(exist_ok=True)
     return common
 

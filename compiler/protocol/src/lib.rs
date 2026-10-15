@@ -29,12 +29,12 @@ pub use request::{
     TargetSelectionRequestV1, TrustedCoreRequestV1,
 };
 pub use response::{
-    EmittedDumpDescriptorV1, EmittedDumpDestinationV1, ProtocolConeIdentity,
-    ProtocolDumpContentDigest, RequestCorrelationId, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
+    EmittedDumpDescriptorV1, EmittedDumpDestinationV1, ProtocolConeIdentity, RequestCorrelationId,
+    ScoopcObservationV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 10;
+pub const PROTOCOL_VERSION: u32 = 11;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 

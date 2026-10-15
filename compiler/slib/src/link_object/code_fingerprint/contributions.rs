@@ -80,7 +80,7 @@ impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
             },
             KnownLinkExtensionCodeContributionV1 {
                 capability: lir_cross_cone_layout_link_closure_capability(),
-                canonical_projection: encode(shape_imports)?,
+                canonical_projection: encode(&shape_imports.code_projection())?,
             },
         ];
         contributions.sort_unstable_by(|left, right| left.capability.cmp(&right.capability));

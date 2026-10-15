@@ -1,53 +1,11 @@
 use scoop_identity::ConeIdentity;
-use scoop_wire::{HashError, WireEncode, encode};
+use scoop_wire::{WireEncode, encode};
 
 use super::StrongArtifactSectionV1;
 use crate::{
     MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataEnvelopeError, MetadataLocation,
-    MetadataSection, MetadataSectionError, SlibMember, SlibMemberId, SlibMemberRecordError,
-    SlibMemberRole, VerifiedCodeFingerprintV2, VerifiedCodeLinkObjectMemberV1,
+    MetadataSection, MetadataSectionError, SlibMember, SlibMemberRecordError, SlibMemberRole,
 };
-
-pub(super) fn verify_layout_link_objects(
-    code: &VerifiedCodeFingerprintV2,
-    actual: &[SlibMember],
-) -> Result<(), StrongArtifactAssemblyError> {
-    verify_link_object_members(code.production().link_objects().members(), actual)
-}
-
-fn verify_link_object_members(
-    expected: &[VerifiedCodeLinkObjectMemberV1],
-    actual: &[SlibMember],
-) -> Result<(), StrongArtifactAssemblyError> {
-    if actual.len() != expected.len() {
-        return Err(StrongArtifactAssemblyError::LinkObjectCount {
-            expected: expected.len(),
-            actual: actual.len(),
-        });
-    }
-    for (index, (member, expected)) in actual.iter().zip(expected).enumerate() {
-        if !matches!(member.record().role(), SlibMemberRole::LinkObject { .. }) {
-            return Err(StrongArtifactAssemblyError::InvalidLinkObjectRole {
-                index,
-                member: member.record().id(),
-            });
-        }
-        let fingerprint = member
-            .record()
-            .as_link_member()
-            .expect("a LinkObject record has a Link member projection")
-            .fingerprint()
-            .map_err(StrongArtifactAssemblyError::LinkObjectFingerprint)?;
-        if member.record().id() != expected.member() || fingerprint != expected.fingerprint() {
-            return Err(StrongArtifactAssemblyError::LinkObjectMismatch {
-                index,
-                expected: expected.member(),
-                actual: member.record().id(),
-            });
-        }
-    }
-    Ok(())
-}
 
 pub(super) struct LayerAssembly {
     location: MetadataLocation,
@@ -105,20 +63,6 @@ pub(super) fn build_section(
 
 #[derive(Debug)]
 pub(super) enum StrongArtifactAssemblyError {
-    LinkObjectCount {
-        expected: usize,
-        actual: usize,
-    },
-    InvalidLinkObjectRole {
-        index: usize,
-        member: SlibMemberId,
-    },
-    LinkObjectMismatch {
-        index: usize,
-        expected: SlibMemberId,
-        actual: SlibMemberId,
-    },
-    LinkObjectFingerprint(HashError),
     Encoding {
         section: StrongArtifactSectionV1,
         source: scoop_wire::cbor::EncodeError,

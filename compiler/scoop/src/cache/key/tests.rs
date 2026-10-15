@@ -214,7 +214,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "44d7b56a5690f10069098f9eff161528f018576c8a2ca3b3076542994e9e69ab"
+        "4caa1e4d19597ac56c5c16db3e591c6977223b79c640071cc0cca4161d062c20"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xaf));
 }
@@ -326,9 +326,6 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
             sha256(b"distribution-v1"),
             sha256(b"build-v1"),
         );
-    });
-    assert_mutation_misses(&baseline, |input| {
-        input.artifact_profile = ArtifactCapabilityProfileId::single_cone_strong();
     });
     assert_mutation_misses(&baseline, |input| {
         input.c_bridge_toolchain =

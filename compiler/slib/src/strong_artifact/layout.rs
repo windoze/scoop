@@ -14,7 +14,7 @@ use scoop_mir::{
 };
 use scoop_wire::encode;
 
-use super::{StrongArtifactSectionV1, verify_layout_link_objects};
+use super::StrongArtifactSectionV1;
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
     CompatibilityRecord, ConeRecord, CrossConeLayoutProductionManifestV1, DependencyRecord,
@@ -141,7 +141,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             lir_cross_cone,
             lir_layout_abi,
         )?;
-        verify_layout_link_objects(&code, &link_objects)?;
 
         let target_selection = code.undefined_symbols().selection();
         if lir_layout_abi.target_profile() != target_selection.target() {
