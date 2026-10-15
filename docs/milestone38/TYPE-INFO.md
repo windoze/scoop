@@ -1,6 +1,6 @@
 # M38：TypeInfo 与相关描述类型
 
-本文件从属于 [总体设计](DESIGN.md)。下列签名表是拟定 API 目录；实现时使用普通 Scoop 声明和完整 body，只有明确登记的 intrinsic 省略 body。
+本文件从属于 [总体设计](DESIGN.md)。2026-10-14 修订补充与 [M46 默认字段规则](../milestone46/SERIALIZE.md)对齐的声明处类型事实。下列签名表是拟定 API 目录；实现时使用普通 Scoop 声明和完整 body，只有明确登记的 intrinsic 省略 body。
 
 ## 1. 查询入口
 
@@ -65,8 +65,8 @@ class 的继承关系不扁平化：`ClassInfo.base: Option<TypeUseInfo>` 指向
 
 | 类型 | 主要成员 |
 | --- | --- |
-| `FieldInfo` | `id: FieldRef`、owner、源码名称或位置、`typeUse: TypeUseInfo`、声明序、注解、visibility、来源、构造参数关联 |
-| `PropertyInfo` | `id: PropertyRef`、owner、name、typeUse、val/var、visibility、注解、getter/setter 描述、存储类别、关联的 backing/delegate field |
+| `FieldInfo` | `id: FieldRef`、owner、源码名称或位置、`typeUse: TypeUseInfo`、`isOptionAtDeclaration: Boolean`、声明序、注解、visibility、来源、构造参数关联 |
+| `PropertyInfo` | `id: PropertyRef`、owner、name、typeUse、`isOptionAtDeclaration: Boolean`、val/var、visibility、注解、getter/setter 描述、存储类别、关联的 backing/delegate field |
 | `AccessorInfo` | 实际 accessor 引用、visibility、注解及普通/abstract/存储访问类别；不提供 invoke |
 | `TupleElementInfo` | index、展示名、typeUse；不伪造 FieldRef 或构造参数声明 |
 | `VariantInfo` | `id: VariantRef`、所属 enum、name、注解、声明序、payload 形状 |
@@ -92,6 +92,24 @@ struct/enum 字段按现有规则具有固定 public representation visibility�
 primary 参数与字段/property 的映射用于 CLI 的必填规则及 schema 对齐。编译器内部已有的 default template 引用继续供正常 Decodable 合成使用；公开元数据无须复制可执行 body。
 
 字段/property 的完整声明顺序与 constructor 参数顺序分别保存。CLI 必须沿构造映射确定 default，不能假设两个数组的第 n 项必然相同。
+
+### 3.4 声明处 Option 与具体化后的类型
+
+`FieldInfo.isOptionAtDeclaration` 和 `PropertyInfo.isOptionAtDeclaration` 表示：该成员的类型在原声明处完成绑定、透明 alias 展开后，外层是否已经是实际核心 `Option` application。这个布尔值在宿主泛型具体化前确定，随原成员保留；不按短名、源码是否写了 `?` 或具体化后的 TypeRef 重新判断。
+
+| 原字段类型 | 具体化后的类型示例 | isOptionAtDeclaration | 无 default、无 required 覆盖时 |
+| --- | --- | --- | --- |
+| `String?` 或 `Option<String>` | `Option<String>` | true | 默认解码允许缺失，补 None |
+| `T?`，T 取 String | `Option<String>` | true | 默认解码允许缺失，补 None |
+| `T`，T 取 `Option<String>` | `Option<String>` | false | 默认解码仍要求字段存在 |
+| 展开为 `Option<T>` 的 alias | `Option<String>` | true | 与直接声明 Option 相同 |
+| 展开为 T 的 alias，T 取 `Option<String>` | `Option<String>` | false | 与直接声明类型参数相同 |
+
+它是原成员类型的事实，不表示成员是否参与序列化，也不直接表示字段必填性。computed property 同样可以有此事实，但不会因此成为合成 codec 的字段。`Serialize.ignore`／`required`、constructor 的 hasDefault 与这个事实共同决定 CLI 默认 schema；规则见 [CLI 5.1](CLI.md#51-默认-record-schema)。实际字段 TypeRef 始终保留完整具体类型，用于值形状、类型判等和展示。
+
+生成该事实和 M46 合成中的对应判断复用同一已绑定成员类型查询。既有 HIR／产物已经保留原声明的带 binder 类型；从该事实生成一个普通 Boolean 即可，不公开未绑定的运行期 TypeRef，不复制默认表达式，也不新增通用 codec 描述协议。普通 TypeRef equality 不受此成员属性影响。
+
+这个默认字段合同属于数据成员声明，针对具体化目标直接请求缺省 codec 时也保持一致；手写 codec 可以选择其他缺失行为，此时 CLI 使用显式 schema。TypeInfo 不读取、分析或保证任意 `Decodable<T>` 正文的行为。
 
 ## 4. 类型使用位置
 
@@ -149,7 +167,7 @@ annotationKey<Help>(): AnnotationKey
 
 库以实际 AnnotationKey 从某个成员的 `annotations` 中筛选应用，再按声明中的参数取值。可以提供普通 `findAnnotations(items, key): Array<AnnotationInfo>` helper；它只遍历当前列表，不沿 owner/base/accessor 自动继承或合并注解。
 
-debug 与 CLI 分别查询自己声明的注解 key。编译器不因遇到 `CliOption`、`DebugIgnore` 等名称而改变一般 annotation 绑定、读取权限或 default 求值。
+debug 与 CLI 分别查询自己声明的注解 key；CLI 的默认 schema 还查询实际核心 Serialize 的 key。Serialize 的 String／Boolean 参数全部属于现有 AnnotationValue 值域，不增加特殊反射表示。编译器不因遇到 `CliOption`、`DebugIgnore` 等名称而改变一般 annotation 绑定、读取权限或 default 求值。
 
 ## 6. 生成、存储与生命周期
 
@@ -172,5 +190,6 @@ debug 与 CLI 分别查询自己声明的注解 key。编译器不因遇到 `Cli
 - 非法类型实参、错误 annotation 查询、不可见声明、缺失必要的 `.slib` 结构信息都在对应编译边界报错，不返回内容缺失的 TypeInfo。
 - HIR 的查询结果具有确定类型；各 shape 分支所需内容由结构保证，不用 `Option<TypeInfo>` 表示“以后再补”。有意义的可选关系，例如无基类或无默认值，才使用 Option/封闭分支。
 - 字段顺序、完整替换、enum payload、constructor 关联、同名不同身份、泛型 companion、同型递归、增长型描述闭包诊断及 type-use 注解都需要本地与产物消费用例。
+- 同一具体字段类型来自原声明 T 或 Option<T> 时，isOptionAtDeclaration 的结果必须保留区别；包含透明 alias、本地查询、仅产物消费和泛型再次发布。它与 M46 默认字段分支及 CLI help 的必填状态组合验证。
 - 验证初始化计数：纯元数据查询不执行目标 constructor/default/getter/companion；metadata 自身的正常库分配允许发生。
 - 私有成员可以出现在描述中，但取得描述不能用作读取原始值的 API。实际读取错误由 [DEBUG.md](DEBUG.md) 中的普通方法检查覆盖。

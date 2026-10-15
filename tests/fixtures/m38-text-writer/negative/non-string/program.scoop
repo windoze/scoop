@@ -1,0 +1,1 @@
+fun main() { StringWriter().write(42) }

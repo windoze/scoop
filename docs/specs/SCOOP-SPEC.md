@@ -2416,6 +2416,32 @@ core 提供公开 intrinsic struct `MaybeUninit<T>`，恰有一个 invariant、�
 
 wrapper 的 managed 槽始终为 null 或有效引用，复用 T 的精确 value scan；GC-free 当且仅当 T GC-free。普通赋值、字段或数组 setter 写入新的 wrapper；写入 uninit 即清除旧引用，不另设 reset/write intrinsic。合法 wrapper 不表示合法 T，不能施加 T 的 nonnull、enum tag 或 niche 假设，也不能使用 LLVM undef/poison 代替零化。布局相同不授予 C-FFI-safe 资格或相同的调用 ABI；物理分类见实现规范 2.4。
 
+### 11.16 文本 writer
+
+core 提供普通文本输出接口与字符串累积实现：
+
+```scoop
+public interface TextWriter {
+    public fun write(text: String): Unit
+}
+
+public class StringWriter public constructor() : TextWriter {
+    private val builder: StringBuilder = StringBuilder()
+
+    public override fun write(text: String): Unit {
+        builder.add(text)
+    }
+
+    public fun build(): String = builder.build()
+}
+```
+
+`write` 是普通同步接口调用，只接收 String，不隐式调用其他值的 ToString。具体 writer 可以分配或抛异常，异常原样沿普通调用栈传播；此前已写出的内容不回滚。
+
+StringWriter 按 write 顺序累积文本，保留空字符串、Unicode scalar 和嵌入的零字符，不自动添加换行。build 返回当前文本的不可变 String；重复 build 不清空累积内容，后续 write 不改变此前返回的 String。存储和构建复用 11.6 的 StringBuilder，按普通 GC 合同保活。
+
+本接口不指定 write 的分块方式，不承诺跨多次调用的原子性，也不附带 flush、close、stdout、stderr 或线程同步。文件、终端和日志 writer 由对应库或应用提供；需要换行时显式写入 `"\n"`。
+
 ---
 
 ## 12. Cone模块、package与库
