@@ -4,7 +4,7 @@
 
 ## 1. Cone 和依赖
 
-CLI 库位于计划新增的 `sysroot/lib/scoop.cli/`，与 scoop.json 同级，源码 package 为 `scoop.cli`。manifest 为：
+CLI 库位于 `sysroot/lib/scoop.cli/`，与 scoop.json 同级，源码 package 为 `scoop.cli`。`Cone.toml` 为：
 
 ```toml
 schema = 1
@@ -27,7 +27,7 @@ CLI 对 M46 的依赖是稳定解码视图、isNull、Serialize 及普通 Option
 
 ## 2. 对外接口
 
-以下是拟定签名目录，不是省略 body 的普通函数源码：
+以下为公开 API 的签名与行为：
 
 | API | 行为 |
 | --- | --- |
@@ -85,7 +85,7 @@ fun run(args: Array<String>, writer: TextWriter): Int {
 }
 ```
 
-此示例演示拟定 M38 API；companion 显式请求两个缺省方法，并不是未完成的空实现。应用的实际 main 负责选择 writer 并处理异常/退出码。
+companion 显式请求两个缺省方法。应用的实际 main 负责选择 writer 并处理异常和退出码。
 
 output 没有 constructor default，仍因原声明的 String? 而允许 CLI 输入缺失，并由合成 decoder 补 None。这不改变普通源码调用 ServeArgs 构造器时的实参要求。
 

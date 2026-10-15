@@ -539,11 +539,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 `inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 
-### M38 TypeInfo、结构化调试输出与 CLI 参数解析（实施中，[设计](milestone38/DESIGN.md)、[进度](milestone38/PROGRESS.md)）
+### M38 TypeInfo、结构化调试输出与 CLI 参数解析（已完成并验收，[设计](milestone38/DESIGN.md)、[验收](milestone38/ACCEPTANCE.md)、[进度](milestone38/PROGRESS.md)）
 
-- M46 与 M48 完成后启动；先交付 debug／CLI 共用的普通 TextWriter 和 StringWriter，独立、跨 Cone、异常与 moving-GC 本机用例通过。
-- typeInfo 与 annotationKey 源码查询、typed 声明／注解描述、Inspectable 普通访问及合成、DebugPrinter 已完成本机针对性验收，独立 scoop.cli 的 schema／argv／稳定 Decoder／help 也已交付本机功能批次；真实跨 Cone、组合 codec／debug 与 moving-GC 均通过，进入统一完整验收。
-- 逐功能提交，先集中完成本机修改与必要验证，再统一 Linux 验收；原始日志不入库，仅记录结果概要。
+- 在 M46／M48 完成后交付 TextWriter／StringWriter、typeInfo／annotationKey、typed 声明与注解描述、Inspectable 普通访问及合成、DebugPrinter，以及独立 scoop.cli 的 schema／argv／稳定 Decoder／help。
+- 52 项新增正式 fixture 在三个目标全部通过，包含真实跨 Cone 产物、组合 codec／debug、精确负例及 moving GC。当前 Rust 覆盖本机 5,305／Linux 5,341 项；正式 CLI 本机 4,141、GNU 4,130、musl 4,126 项通过，完整轮次与受影响补验均已闭合。
+- 修正 Linux manifest 大小写，并将 GC 指针查询改为实际使用链及共享 CFG 位置，CLI 基本组合恢复默认超时。逐功能提交，原始日志在仓库外，只保留验收概要；后续按用户要求推进 M45。
 
 ### M39 目标平台边界重构（已完成并验收，[设计](milestone39/DESIGN.md)，[验收记录](milestone39/ACCEPTANCE.md)）
 

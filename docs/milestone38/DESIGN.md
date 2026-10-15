@@ -1,10 +1,10 @@
 # M38 设计：TypeInfo、结构化调试输出与 CLI 参数解析
 
-状态：实施中。初稿：2026-10-11；对齐 M46 的修订：2026-10-14。M48 已完成并提交 `f75704bac`，当前实现进度见 [PROGRESS.md](PROGRESS.md)。
+状态：已完成并验收，2026-10-16。初稿：2026-10-11；对齐 M46 的修订：2026-10-14。实现基于 M48 最终提交 `f75704bac`，交付及三目标验证见 [ACCEPTANCE.md](ACCEPTANCE.md)，过程见 [PROGRESS.md](PROGRESS.md)。
 
 本里程碑把 M29 的编译器内部静态类型描述开放为程序可读取的 `TypeInfo<T>`，在 core 提供面向文本 writer 的 debug printer，并以独立 `scoop.cli` Cone 提供参数解析和 help 生成。实例读取沿用普通成员访问与方法合成规则，不增加按反射调用点授予权限的机制。
 
-本目录规定完整目标，只有实施记录中已验证的部分视为交付。类型描述与 debug 以 M37 完成后的语言能力为基础；CLI 同时采用 [M46 的 Decoder 合同](../milestone46/DESIGN.md)及[统一 Serialize／Option 默认规则](../milestone46/SERIALIZE.md)。每批先同步对应 spec，再修改实现。
+本目录规定本期交付范围。类型描述与 debug 以 M37 完成后的语言能力为基础；CLI 同时采用 [M46 的 Decoder 合同](../milestone46/DESIGN.md)及[统一 Serialize／Option 默认规则](../milestone46/SERIALIZE.md)。每批先同步对应 spec，再修改实现。
 
 ## 1. 文档与交付范围
 

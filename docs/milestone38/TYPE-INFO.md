@@ -1,6 +1,6 @@
 # M38：TypeInfo 与相关描述类型
 
-本文件从属于 [总体设计](DESIGN.md)。2026-10-14 修订补充与 [M46 默认字段规则](../milestone46/SERIALIZE.md)对齐的声明处类型事实。下列签名表是拟定 API 目录；实现时使用普通 Scoop 声明和完整 body，只有明确登记的 intrinsic 省略 body。
+本文件从属于 [总体设计](DESIGN.md)。2026-10-14 修订补充与 [M46 默认字段规则](../milestone46/SERIALIZE.md)对齐的声明处类型事实。下列签名表列出公开 API；实现使用普通 Scoop 声明和完整 body，只有明确登记的 intrinsic 省略 body。
 
 ## 1. 查询入口
 
