@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 
 use scoop_linker::{ResolvedLinkPlanFingerprint, RuntimeObjectSet, link_program};
-use scoop_slib::{ArtifactFile, ArtifactInput, ArtifactManifestSummaryV1};
+use scoop_slib::{ArtifactFile, ArtifactManifestSummaryV1};
 use scoop_toolchain::ResolvedTargetProfile;
 
 use crate::materialize::OutputLocation;
@@ -52,15 +52,10 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     let (root, dependencies) = resolve::artifacts(&request, selection)?;
     let inputs = dependencies
         .iter()
-        .map(|artifact| ArtifactInput::File(&artifact.file))
+        .map(|artifact| &artifact.file)
         .collect::<Vec<_>>();
-    let closure = scoop_slib::read_program_link_closure(
-        ArtifactInput::File(&root.file),
-        &inputs,
-        selection,
-        target.c_bridge_toolchain().profile(),
-    )
-    .map_err(|error| read_failure(error, &root, &dependencies))?;
+    let closure = scoop_slib::read_program_link_closure(&root.file, &inputs, selection)
+        .map_err(|error| read_failure(error, &root, &dependencies))?;
     let profile = scoop_linker::resolve_program_link_profile(
         &closure,
         &target,

@@ -11,10 +11,7 @@ use scoop_lir::{
     CBridgeProductionSetV1, CBridgeProductionValidationError, CBridgeToolchainProfileV1,
     DecodedCBridgeProductionSetV1, DecodedRegistrationIdentitySurfaceV1, GeneratedBridgePlanSetV1,
 };
-use scoop_wire::{
-    Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath, encode,
-    encode_canonical_temporary,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::SingleConeProductionManifestV1;
 use crate::CrossConeLayoutProductionManifestV1;
@@ -24,11 +21,6 @@ use crate::link_object::{
     VerifiedCodeFingerprintV2,
 };
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId};
-
-mod runtime;
-pub use runtime::RuntimeProductionProjectionError;
-mod code;
-pub use code::CodeProductionProjectionError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DecodedArtifactDistributionClassV1 {

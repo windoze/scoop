@@ -16,6 +16,7 @@ mod final_objects;
 pub use final_objects::LinkFinalObjectProjectionError;
 mod materializations;
 mod object_projections;
+mod read;
 mod resources;
 mod symbol_projections;
 

@@ -23,7 +23,7 @@ mod native;
 mod native_record;
 mod object_file;
 mod paths;
-pub use object_file::store_object;
+pub use object_file::{object_path, store_object};
 mod registry;
 mod request;
 mod runtime;

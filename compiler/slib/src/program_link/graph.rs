@@ -7,12 +7,12 @@ use scoop_identity::ConeCoordinate;
 use std::collections::BTreeMap;
 
 pub(super) fn read<'a>(
-    root: crate::ArtifactInput<'a>,
-    dependencies: &[crate::ArtifactInput<'a>],
+    root: &'a crate::ArtifactFile,
+    dependencies: &[&'a crate::ArtifactFile],
     target: lir::ValidatedLirTargetSelection,
 ) -> Result<ValidatedCrossConeClosureGraph<ValidatedGraphArtifact<'a>>, ProgramLinkReadError> {
-    let decode = |input: crate::ArtifactInput<'a>| {
-        input
+    let decode = |input: &'a crate::ArtifactFile| {
+        crate::ArtifactInput::File(input)
             .open(target)
             .map_err(error)?
             .validate_graph()
@@ -26,7 +26,7 @@ pub(super) fn read<'a>(
     }
     let mut by_identity = BTreeMap::new();
     for bytes in dependencies {
-        let artifact = decode(*bytes)?;
+        let artifact = decode(bytes)?;
         if artifact.identity() == root.identity() {
             if artifact.artifact_fingerprint() != root.artifact_fingerprint() {
                 return Err(error("root Cone has conflicting artifact contents")

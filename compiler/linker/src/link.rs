@@ -188,14 +188,12 @@ fn dump(
             artifact.manifest().cone().coordinate(),
             artifact.manifest().cone().kind(),
             symbols
-                .final_objects()
-                .objects()
+                .members()
                 .iter()
                 .filter(|object| inputs
                     .selected
                     .contains(artifact.identity(), object.member()))
                 .count()
-                + symbols.object_contents().generated_objects().len()
         ));
     }
     text.push_str(&format!(

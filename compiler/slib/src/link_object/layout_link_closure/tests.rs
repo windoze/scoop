@@ -16,7 +16,6 @@ pub(in crate::link_object) mod fixture;
 use fixture::{Provider, TARGET, empty_section};
 
 mod partitions;
-mod terminal;
 
 fn legacy_for(
     strong: VerifiedCurrentConeStrongRelocationClosureV1,

@@ -33,7 +33,6 @@ impl ArtifactLinkRequest {
             &self.root_slib,
             &self.dependency_slibs,
             target.lir_target_selection(),
-            target.c_bridge_toolchain().profile(),
         )?;
         let profile = resolve_program_link_profile(
             &closure,
@@ -61,7 +60,6 @@ pub fn read_program_artifacts(
     root: &Path,
     dependencies: &[PathBuf],
     target: ValidatedLirTargetSelection,
-    toolchain: &scoop_lir::CBridgeToolchainProfileV1,
 ) -> Result<ProgramLinkClosure, LinkError> {
     let read = |path: &Path| {
         scoop_slib::ArtifactFile::open(path, target)
@@ -72,17 +70,9 @@ pub fn read_program_artifacts(
         .iter()
         .map(|path| read(path))
         .collect::<Result<Vec<_>, _>>()?;
-    let dependencies: Vec<_> = dependency_files
-        .iter()
-        .map(scoop_slib::ArtifactInput::File)
-        .collect();
-    scoop_slib::read_program_link_closure(
-        scoop_slib::ArtifactInput::File(&root_file),
-        &dependencies,
-        target,
-        toolchain,
-    )
-    .map_err(|err| error(format!("program Link input {}: {err}", root.display())))
+    let dependencies: Vec<_> = dependency_files.iter().collect();
+    scoop_slib::read_program_link_closure(&root_file, &dependencies, target)
+        .map_err(|err| error(format!("program Link input {}: {err}", root.display())))
 }
 
 pub fn resolve_program_link_profile(

@@ -9,7 +9,9 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
     std::fs::write(&path, &bytes).unwrap();
     let target = scoop_target_data::DARWIN_AARCH64_LLVM_22_1;
     let file = ArtifactFile::open(&path, target).unwrap();
+    let shared = file.clone();
     let summary = file.summary().unwrap();
+    assert!(std::ptr::eq(summary, shared.summary().unwrap()));
     assert!(std::ptr::eq(summary, file.summary().unwrap()));
     let saved = file.directory().unwrap();
     assert!(
@@ -29,12 +31,19 @@ fn complete_file_reads_only_requested_members_and_reuses_their_buffers() {
             | SlibMemberRole::LirMetadata => {
                 let payload = envelope.member(record.id()).unwrap().unwrap();
                 assert_eq!(payload, memory.member(record.id()).unwrap().unwrap());
-                let position = file.file.borrow_mut().stream_position().unwrap();
+                let position = file.0.file.borrow_mut().stream_position().unwrap();
                 assert!(std::ptr::eq(
                     payload,
-                    envelope.member(record.id()).unwrap().unwrap()
+                    DecodedSlibEnvelope::from_file(&shared)
+                        .unwrap()
+                        .member(record.id())
+                        .unwrap()
+                        .unwrap()
                 ));
-                assert_eq!(file.file.borrow_mut().stream_position().unwrap(), position);
+                assert_eq!(
+                    file.0.file.borrow_mut().stream_position().unwrap(),
+                    position
+                );
                 metadata += 1;
             }
             SlibMemberRole::LinkObject { .. } => {

@@ -461,6 +461,8 @@ field 14 保存最终链接实际使用的 runtime image records，编码为 `{1
 
 `link-support/1` 为单字段 map `{1=runtime_data_aliases}`，把必要的 runtime 数据符号关联到实际定义；String alias 不创建额外 TD 或存储。
 
+ProgramLink 直接读取保存的 member 到 typed definition 映射、defined symbol owners、undefined symbol uses、ODR ABI 与 native requirements，执行本次实际的对象选择和符号连接。它不再为消费已生成的 Scoop／generated-C 对象重建 producer partition、重定位、digest patch、stackmap、registration、final/provisional 对象副本、Code／RuntimeImage 指纹或 coverage 证明，也不再次读取 production section 来重算 Code。每个文件输入的 manifest、metadata 与按需成员共用同一个文件入口。选中的稳定对象文件已存在时直接传给 native linker，不读取对应归档成员；缺少该输出时才从同一入口读取该成员并保存一次。用户 native 对象仍按真实 native 符号选择的需要读取，链接失败照常报告。
+
 persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。
 
 共有 HIR expression 为 `{1=kind, 2=result_type, 3=definition_origin, 4=evaluation_origin}`。Call 的 tag 为 57，payload 保存 callee、arguments、SourceCallReceiver；receiver 为 NoReceiver=1 或 Receiver=2（完整静态类型）。实际 call-site 保留完整逻辑实参与结果、定义／求值位置及原 receiver，Unit/ZST 参数不能按物理省略规则消失。

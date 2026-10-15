@@ -50,13 +50,7 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
         );
     }
     let gnu = ResolvedTargetProfile::resolve("x86_64-unknown-linux-gnu").unwrap();
-    let closure = read_program_artifacts(
-        &root,
-        &[core],
-        gnu.lir_target_selection(),
-        gnu.c_bridge_toolchain().profile(),
-    )
-    .unwrap();
+    let closure = read_program_artifacts(&root, &[core], gnu.lir_target_selection()).unwrap();
     let musl = ResolvedTargetProfile::resolve("x86_64-unknown-linux-musl").unwrap();
     for mode in [
         scoop_toolchain::LinkMode::Static,

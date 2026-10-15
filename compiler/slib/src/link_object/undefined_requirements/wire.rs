@@ -283,6 +283,15 @@ pub struct DecodedCanonicalUndefinedSymbolRequirementSetV1 {
 }
 
 impl DecodedCanonicalUndefinedSymbolRequirementSetV1 {
+    pub(crate) fn symbol_uses(&self) -> impl Iterator<Item = (SlibMemberId, &[u8])> {
+        self.requirements.iter().map(|record| {
+            (
+                SlibMemberId::from_array(*record.use_site.source_member.bytes()),
+                record.use_site.symbol.as_slice(),
+            )
+        })
+    }
+
     pub fn validate_against(
         self,
         expected: &CanonicalUndefinedSymbolRequirementSetV1,

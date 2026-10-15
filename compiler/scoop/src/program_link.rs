@@ -17,14 +17,13 @@ pub fn read_built_program(
     let dependencies: Vec<_> = artifacts
         .artifacts()
         .filter(|(identity, _)| *identity != artifacts.root())
-        .map(|(_, artifact)| artifact.file().map(scoop_slib::ArtifactInput::File))
+        .map(|(_, artifact)| artifact.file())
         .collect::<Result<_, _>>()
         .map_err(|error| LinkError(error.to_string()))?;
     let closure = scoop_slib::read_program_link_closure(
-        scoop_slib::ArtifactInput::File(root.file().map_err(|error| LinkError(error.to_string()))?),
+        root.file().map_err(|error| LinkError(error.to_string()))?,
         &dependencies,
         target.lir_target_selection(),
-        target.c_bridge_toolchain().profile(),
     )
     .map_err(|error| LinkError(format!("built program Link input: {error}")))?;
     Ok(closure)

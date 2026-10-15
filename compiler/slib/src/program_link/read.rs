@@ -3,12 +3,16 @@ use crate::production_dependencies::{self, DefinitionProvider};
 use crate::{DecodedMachineLinkSections, ValidatedGraphArtifact};
 
 pub fn read_program_link_closure(
-    root: crate::ArtifactInput<'_>,
-    dependencies: &[crate::ArtifactInput<'_>],
+    root: &crate::ArtifactFile,
+    dependencies: &[&crate::ArtifactFile],
     selection: lir::ValidatedLirTargetSelection,
-    profile: &lir::CBridgeToolchainProfileV1,
 ) -> Result<ProgramLinkClosure, ProgramLinkReadError> {
     let graph = super::graph::read(root, dependencies, selection)?;
+    let mut files = std::collections::BTreeMap::new();
+    for file in std::iter::once(root).chain(dependencies.iter().copied()) {
+        let identity = file.directory().map_err(error)?.manifest.cone().identity();
+        files.entry(identity).or_insert(file);
+    }
     let mut artifacts = Vec::with_capacity(graph.dependency_first.len());
     let mut symbols = Vec::with_capacity(graph.dependency_first.len());
     for (position, input) in graph.dependency_first.into_iter().enumerate() {
@@ -19,9 +23,14 @@ pub fn read_program_link_closure(
             &graph.dependency_positions,
         )
         .map_err(error)?;
-        let (artifact, symbol) =
-            read_artifact(input, &artifacts, &symbols, &reachable, selection, profile)
-                .map_err(|err| err.context(identity, &coordinate))?;
+        let (artifact, symbol) = read_artifact(
+            input,
+            (*files[&identity]).clone(),
+            &artifacts,
+            &reachable,
+            selection,
+        )
+        .map_err(|err| err.context(identity, &coordinate))?;
         artifacts.push(artifact);
         symbols.push(symbol);
     }
@@ -31,11 +40,7 @@ pub fn read_program_link_closure(
             .map(|artifact| &artifact.identities)
             .zip(&symbols)
             .map(|(identities, symbols)| {
-                (
-                    identities,
-                    symbols.defined_symbols(),
-                    symbols.production_projection().odr_members(),
-                )
+                (identities, symbols.defined_symbols(), symbols.odr_members())
             }),
     )
     .map_err(error)?;
@@ -49,12 +54,11 @@ pub fn read_program_link_closure(
 
 fn read_artifact(
     graph: ValidatedGraphArtifact<'_>,
+    source: crate::ArtifactFile,
     previous: &[ProgramLinkArtifact],
-    previous_symbols: &[ReplayedLayoutLinkSymbolUsesV1],
     reachable: &[usize],
     selection: lir::ValidatedLirTargetSelection,
-    profile: &lir::CBridgeToolchainProfileV1,
-) -> Result<(ProgramLinkArtifact, ReplayedLayoutLinkSymbolUsesV1), ProgramLinkReadError> {
+) -> Result<(ProgramLinkArtifact, ProgramLinkData), ProgramLinkReadError> {
     let DecodedMachineLinkSections {
         mut graph,
         hir_keys,
@@ -177,29 +181,15 @@ fn read_artifact(
     production
         .validate_layout_selection(&layout)
         .map_err(error)?;
-    let objects =
-        crate::layout_link_objects::replay(&link, &mut graph, &foundation, &production, profile)
-            .map_err(|source| error(format!("{source:?}")))?;
-    let code_strong =
-        crate::link_decode::layout_code_strong_input(&mut graph).map_err(super::error::section)?;
-    let symbols = crate::layout_link_symbols::replay(
-        objects,
-        crate::layout_link_symbols::ReplayInputs {
-            link: &link,
-            foundation: &foundation,
-            strong: &production,
-            ordinary: &ordinary,
-            layout: &layout,
-            selection,
-            profile,
-            manifest: graph.envelope.manifest(),
-            code_strong: &code_strong,
-        },
-        previous_symbols,
-        previous.iter().map(|artifact| &artifact.layout),
-        reachable,
+    let symbols = ProgramLinkData::read(
+        &link,
+        graph.envelope.manifest(),
+        &mut identities,
+        &foundation,
+        &layout,
+        selection,
     )
-    .map_err(super::error::symbols)?;
+    .map_err(error)?;
     let runtime_image_records = link
         .production_manifest_wire()
         .read_runtime_image_records(&mut identities)
@@ -208,6 +198,7 @@ fn read_artifact(
     Ok((
         ProgramLinkArtifact {
             manifest: graph.envelope.into_manifest(),
+            source,
             identities,
             foundation,
             production,

@@ -27,8 +27,7 @@ pub(crate) use projection::{ProductionPlanInputs, verify_production_code_project
 
 mod wire;
 pub use wire::{
-    CBridgeCheckedSingleConeProductionManifestV1, CodeProductionProjectionError,
-    DecodedSingleConeProductionManifestV1, RuntimeProductionProjectionError,
+    CBridgeCheckedSingleConeProductionManifestV1, DecodedSingleConeProductionManifestV1,
     SingleConeProductionManifestValidationError,
 };
 

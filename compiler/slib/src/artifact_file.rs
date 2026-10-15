@@ -4,6 +4,7 @@ use std::cell::{OnceCell, RefCell};
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::Path;
+use std::rc::Rc;
 
 use scoop_lir::ValidatedLirTargetSelection;
 
@@ -12,8 +13,11 @@ use crate::{
     ArchiveReadError, ArtifactManifestSummaryV1, BootstrapManifest, SlibMemberId, SlibReadError,
 };
 
+#[derive(Clone, Debug)]
+pub struct ArtifactFile(Rc<ArtifactFileInner>);
+
 #[derive(Debug)]
-pub struct ArtifactFile {
+struct ArtifactFileInner {
     file: RefCell<File>,
     target: ValidatedLirTargetSelection,
     directory: OnceCell<ArtifactFileDirectory>,
@@ -28,15 +32,15 @@ pub(crate) struct ArtifactFileDirectory {
 
 impl ArtifactFile {
     pub fn open(path: &Path, target: ValidatedLirTargetSelection) -> io::Result<Self> {
-        Ok(Self {
+        Ok(Self(Rc::new(ArtifactFileInner {
             file: RefCell::new(File::open(path)?),
             target,
             directory: OnceCell::new(),
-        })
+        })))
     }
 
-    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
-        self.target
+    pub fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.0.target
     }
 
     pub fn summary(&self) -> Result<&ArtifactManifestSummaryV1, SlibReadError> {
@@ -44,20 +48,20 @@ impl ArtifactFile {
     }
 
     pub(crate) fn directory(&self) -> Result<&ArtifactFileDirectory, SlibReadError> {
-        if let Some(directory) = self.directory.get() {
+        if let Some(directory) = self.0.directory.get() {
             return Ok(directory);
         }
-        let mut file = self.file.borrow_mut();
+        let mut file = self.0.file.borrow_mut();
         file.seek(SeekFrom::Start(0)).map_err(SlibReadError::Io)?;
-        let (manifest, next) = crate::manifest_summary::read_manifest(&mut *file, self.target)?;
-        let summary = ArtifactManifestSummaryV1::from_manifest(&manifest, self.target)
+        let (manifest, next) = crate::manifest_summary::read_manifest(&mut *file, self.0.target)?;
+        let summary = ArtifactManifestSummaryV1::from_manifest(&manifest, self.0.target)
             .map_err(SlibReadError::TestDirectory)?;
         let members = member_positions(manifest.members(), next)
             .map_err(SlibReadError::Directory)?
             .into_iter()
             .map(|(id, position)| (id, position, OnceCell::new()))
             .collect();
-        Ok(self.directory.get_or_init(|| ArtifactFileDirectory {
+        Ok(self.0.directory.get_or_init(|| ArtifactFileDirectory {
             manifest,
             summary,
             members,
@@ -79,7 +83,7 @@ impl ArtifactFile {
         if let Some(bytes) = cached.get() {
             return Ok(Some(bytes));
         }
-        let mut file = self.file.borrow_mut();
+        let mut file = self.0.file.borrow_mut();
         file.seek(SeekFrom::Start(position.header))
             .map_err(SlibReadError::Io)?;
         let mut header = [0; HEADER_LENGTH as usize];

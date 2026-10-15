@@ -25,18 +25,17 @@ impl SelectedMembers {
             let cone = artifact.identity();
             let selected = result.definitions.entry(cone).or_default();
             let surface = artifact.production().canonical_definitions();
-            let builtins = symbols.object_contents().patch_sites().builtins();
-            for member in builtins.strong_relocations().members() {
-                let plans = member
-                    .definitions()
-                    .definitions()
-                    .iter()
-                    .map(|definition| {
-                        surface
-                            .plan(definition.definition())
-                            .expect("verified physical definition")
-                    })
-                    .collect::<Vec<_>>();
+            for member in symbols.members() {
+                let scoop_slib::ProgramLinkMember::Scoop { definitions, .. } = member else {
+                    // Generated-C objects have ordinary provider ownership.
+                    result.members.insert((cone, member.member()));
+                    continue;
+                };
+                let plans = definitions.iter().map(|definition| {
+                    surface.plan(*definition).ok_or_else(|| error(format!(
+                        "Cone {cone}: object member {} refers to missing definition {definition}", member.member()
+                    )))
+                }).collect::<Result<Vec<_>, _>>()?;
                 let image = plans
                     .iter()
                     .any(|plan| plan.definition_role() == StrongDefinitionRole::ImageDescriptor);
@@ -75,10 +74,6 @@ impl SelectedMembers {
                 }
                 result.members.insert((cone, member.member()));
                 selected.extend(plans.iter().map(|plan| plan.definition_plan()));
-            }
-            // Generated-C units have ordinary provider ownership and no ODR candidates.
-            for object in symbols.object_contents().generated_objects() {
-                result.members.insert((cone, object.member()));
             }
         }
         Ok(result)

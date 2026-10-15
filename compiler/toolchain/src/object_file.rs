@@ -6,19 +6,24 @@ use scoop_wire::Digest256;
 
 use crate::ToolchainError;
 
+pub fn object_path(cache: &Path, digest: Digest256) -> Result<PathBuf, ToolchainError> {
+    Ok(std::path::absolute(cache)
+        .map_err(error)?
+        .join("objects-v1")
+        .join(format!("{digest}.o")))
+}
+
 pub fn store_object(
     cache: &Path,
     digest: Digest256,
     bytes: &[u8],
 ) -> Result<PathBuf, ToolchainError> {
-    let directory = std::path::absolute(cache)
-        .map_err(error)?
-        .join("objects-v1");
-    let path = directory.join(format!("{digest}.o"));
+    let path = object_path(cache, digest)?;
+    let directory = path.parent().expect("object path has a directory");
     if path.try_exists().map_err(error)? {
         return Ok(path);
     }
-    std::fs::create_dir_all(&directory).map_err(error)?;
+    std::fs::create_dir_all(directory).map_err(error)?;
     let mut temporary = tempfile::NamedTempFile::new_in(directory).map_err(error)?;
     temporary.write_all(bytes).map_err(error)?;
     match temporary.persist_noclobber(&path) {
