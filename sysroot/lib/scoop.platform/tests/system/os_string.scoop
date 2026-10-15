@@ -1,0 +1,47 @@
+package scoop.platform.system
+
+import scoop.test.*
+
+@Test
+private class OsStringTest {
+    @Test
+    fun `Unicode round trips without normalization`() {
+        val text = "文件-é-λ"
+        val value = OsString.fromString(text)
+        assertEquals(text, value.decodeUtf8())
+        assertEquals(text, value.display())
+        assertEquals(value, OsString.fromBytes(value.toBytes()))
+        assertEquals(value.hash(), OsString.fromString(text).hash())
+        assertFalse(OsString.fromString("a") == OsString.fromString("A"))
+    }
+
+    @Test
+    fun `input and output arrays are independent snapshots`() {
+        val input: MutableArray<Byte> = [65, 66]
+        val value = OsString.fromBytes(input)
+        input[0L] = 67
+        assertEquals("AB", value.decodeUtf8())
+        val first = value.toBytes()
+        val second = value.toBytes()
+        assertNotSame(first, second)
+        assertEquals(66.toInt8(), first[1L])
+    }
+
+    @Test
+    fun `invalid UTF8 remains intact and lossy decoding is explicit`() {
+        val value = OsString.fromBytes(Array<Byte>(2L) { index -> if (index == 0L) 65 else -1 })
+        assertEquals(-1.toInt8(), value.toBytes()[1L])
+        val error = assertFailsWith<CharacterCodingException> { value.decodeUtf8() }
+        assertEquals(1L, error.byteOffset)
+        assertEquals("A�", value.decodeUtf8Lossy())
+        assertEquals(value.decodeUtf8Lossy(), value.display())
+    }
+
+    @Test
+    fun `empty strings and NUL are valid raw system strings`() {
+        assertEquals(0L, OsString.fromString("").toBytes().size)
+        val value = OsString.fromBytes(Array<Byte>(1L) { _ -> 0 })
+        assertEquals(1L, value.decodeUtf8().byteLength)
+        assertEquals(0.toInt8(), value.toBytes()[0L])
+    }
+}

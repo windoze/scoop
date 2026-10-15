@@ -1,0 +1,103 @@
+package scoop.platform.fs
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.system.OsString
+import scoop.platform.system.byteContentsEqual
+import scoop.platform.system.byteContentsHash
+
+public class Path private constructor(private val bytes: Array<Byte>) : Equals<Path>, Hash {
+    public val isAbsolute: Boolean get() = bytes.size > 0L && bytes[0L] == 47
+
+    public val fileName: OsString? get() {
+        val end = endWithoutSeparators()
+        if (end == 0L) return None
+        val start = componentStart(end)
+        val name = OsString.fromBytes(Array<Byte>(end - start) { index -> bytes[start + index] })
+        if (name == OsString.fromString(".") || name == OsString.fromString("..")) return None
+        return Some(name)
+    }
+
+    public val parent: Path? get() {
+        val end = endWithoutSeparators()
+        if (end == 0L) return None
+        var start = componentStart(end)
+        while (start > 1L && bytes[start - 1L] == 47) start -= 1L
+        val count = start
+        return Some(Path(Array<Byte>(count) { index -> bytes[index] }))
+    }
+
+    private fun endWithoutSeparators(): Long {
+        var end = bytes.size
+        while (end > 0L && bytes[end - 1L] == 47) end -= 1L
+        return end
+    }
+
+    private fun componentStart(end: Long): Long {
+        var start = end
+        while (start > 0L && bytes[start - 1L] != 47) start -= 1L
+        return start
+    }
+
+    public fun components(): Array<OsString> {
+        val parts = ArrayList<OsString>()
+        var cursor = 0L
+        while (cursor < bytes.size) {
+            if (bytes[cursor] == 47) { cursor += 1L; continue }
+            val start = cursor
+            while (cursor < bytes.size && bytes[cursor] != 47) cursor += 1L
+            parts.add(OsString.fromBytes(Array<Byte>(cursor - start) { index -> bytes[start + index] }))
+        }
+        return parts.toArray()
+    }
+
+    public fun resolve(child: Path): Path {
+        if (child.isAbsolute || bytes.size == 0L) return child
+        if (child.bytes.size == 0L) return this
+        val result = ByteArrayBuilder()
+        result.append(bytes)
+        if (bytes[bytes.size - 1L] != 47) result.append(47.toInt8())
+        result.append(child.bytes)
+        return Path(result.toByteArray())
+    }
+
+    public fun normalizeLexically(): Path {
+        val absolute = isAbsolute
+        val dot = OsString.fromString(".")
+        val up = OsString.fromString("..")
+        val parts = ArrayList<OsString>()
+        for (part in components()) {
+            if (part == dot) continue
+            if (part == up) {
+                if (parts.size > 0L && parts[parts.size - 1L] != up) parts.removeAt(parts.size - 1L)
+                else if (!absolute) parts.add(part)
+            } else parts.add(part)
+        }
+        val result = ByteArrayBuilder()
+        if (absolute) result.append(47.toInt8())
+        val prefix = if (absolute) 1L else 0L
+        for (part in parts) {
+            if (result.size > prefix) result.append(47.toInt8())
+            result.append(part.toBytes())
+        }
+        if (result.size == 0L) result.append(46.toInt8())
+        return Path(result.toByteArray())
+    }
+
+    public fun toOsString(): OsString = OsString.fromBytes(bytes)
+    public fun decodeUtf8(): String = toOsString().decodeUtf8()
+    public fun decodeUtf8Lossy(): String = toOsString().decodeUtf8Lossy()
+    public fun display(): String = decodeUtf8Lossy()
+    public override operator fun equals(other: Path): Boolean = byteContentsEqual(bytes, other.bytes)
+    public override fun hash(): Long = byteContentsHash(bytes)
+
+    public companion object {
+        public fun fromString(value: String): Path = fromOsString(OsString.fromString(value))
+        public fun fromOsString(value: OsString): Path {
+            val bytes = value.toBytes()
+            for (byte in bytes) {
+                if (byte == 0) throw IllegalArgumentException(Some("path contains NUL"))
+            }
+            return Path(bytes)
+        }
+    }
+}

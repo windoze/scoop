@@ -30,6 +30,8 @@
 
 core 不依赖 std。现有 Iterator、Iterable、List、MutableList、ArrayList、StringBuilder、Option、编码协议与运算符接口保持原实体；`scoop.collections` 可通过普通 `public import` 再发布 core 的集合类型。JSON 继续是独立 Cone；M42 不要求迁移 JSON 或让 std 依赖 JSON。
 
+系统字符串、路径及 OS 错误属于独立的普通 `scoop.platform` Cone，见[平台库规范](SCOOP-PLATFORM-SPEC.md)。platform 依赖 std／core，std 不反向依赖 platform；字节序、集合、时间与随机源接口等平台无关类型保持原实体。
+
 ### 1.2 命名、类型与失败
 
 类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、mapNotNull、getOrNull、sortedWith、Random、Duration、Instant、LocalDate、Uuid。以下 Scoop 规则优先：

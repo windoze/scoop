@@ -1,6 +1,6 @@
 # M45 设计：平台库、确定性资源释放与 native IO buffer
 
-状态：实施中；M38 已于 2026-10-16 完成，M45-1 本机实现与回归完成，下一批为 M45-2。设计日期：2026-10-14。调研基线：`e548b9ebe`。实际验证见 [实施记录](PROGRESS.md)。
+状态：实施中；M38 已于 2026-10-16 完成，M45-1/2 本机实现与回归完成，下一批为 M45-3。设计日期：2026-10-14。调研基线：`e548b9ebe`。实际验证见 [实施记录](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md)与[路线图](../ROADMAP.md)。本文及配套文档记录 M45 的交付范围、API 合同、实施任务和验收要求，不表示接口已实现。每批实施前先同步对应 spec，再修改代码。
 
@@ -103,7 +103,7 @@ Scoop 负责公共对象、参数检查、异常、所有权状态、缓冲算�
 | 任务 | 内容 | 前置与完成出口 |
 | --- | --- | --- |
 | M45-1 | 修复泛型扩展回调参数推断（本机完成） | 普通／挂起 lambda 参数从 receiver 和候选参数类型推导，源码与跨 Cone 都通过；保留应失败的重载／effect 诊断；Linux 纳入 M45-10 |
-| M45-2 | platform Cone、系统字符串／路径及错误 | 依赖 M45-1；接入普通 native sources 和 scoop.test 宿主；三目标可构建消费；OsString／Path 无损往返、参数检查与错误快照通过 |
+| M45-2 | platform Cone、系统字符串／路径及错误（本机完成） | 普通 native sources、scoop.test 宿主与下游 `.slib` 消费已通过；OsString／Path 无损往返、参数检查与错误快照通过；Linux 纳入 M45-10 |
 | M45-3 | core Disposable 与两个 use | 依赖 M45-1，行为测试使用 M45-2 的测试宿主；普通实现与模板可只依赖 core 使用；正常、异常、双失败、嵌套和受控挂起／恢复清理通过 |
 | M45-4 | NativeByteBuffer 与 GC pressure 提示 | 依赖 M45-2/3；容量／游标／借用／释放闭环，增长失败保留原状态，hook 与显式路径不重复 free／反馈；delta 增减与回滚配平，GC 采用 no-op 也通过验收 |
 | M45-5 | 同步字节 IO、文件／目录、标准流与文本 | 依赖 M45-4；实际读写、短 IO、EOF、错误进度、目录提前退出、UTF-8 与资源组合通过 |

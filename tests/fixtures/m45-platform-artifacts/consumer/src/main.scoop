@@ -1,0 +1,16 @@
+import scoop.platform.fs.Path
+import scoop.platform.system.*
+
+fun main() {
+    val path = Path.fromString("/alpha/../beta//").normalizeLexically()
+    println(path.decodeUtf8())
+    println(path.fileName!!.decodeUtf8())
+    println(path.hash() == Path.fromString("/beta").hash())
+    val raw = OsString.fromBytes(Array<Byte>(2L) { index -> if (index == 0L) 97 else -1 })
+    println(Path.fromOsString(raw).toOsString().toBytes()[1L])
+    try { raw.decodeUtf8() } catch (error: CharacterCodingException) { println(error.byteOffset) }
+    val error = NativeError(NativeErrorDomain.PosixErrno, Int.MAX_VALUE)
+    println(error.kind == PlatformErrorKind.Other)
+    val failure = PlatformException("open", error.kind, Some(error), Some(raw))
+    println(failure.operation)
+}

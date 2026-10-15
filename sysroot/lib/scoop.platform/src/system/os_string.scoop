@@ -1,0 +1,39 @@
+package scoop.platform.system
+
+public class OsString private constructor(private val bytes: Array<Byte>) : Equals<OsString>, Hash {
+    public fun toBytes(): Array<Byte> = Array<Byte>(bytes.size) { index -> bytes[index] }
+
+    public fun decodeUtf8(): String =
+        String.fromUtf8(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() })
+
+    public fun decodeUtf8Lossy(): String =
+        String.fromUtf8Lossy(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() })
+
+    public fun display(): String = decodeUtf8Lossy()
+
+    public override operator fun equals(other: OsString): Boolean = byteContentsEqual(bytes, other.bytes)
+    public override fun hash(): Long = byteContentsHash(bytes)
+
+    public companion object {
+        public fun fromString(value: String): OsString = fromBytes(value.toByteArray())
+        public fun fromBytes(value: Array<Byte>): OsString =
+            OsString(Array<Byte>(value.size) { index -> value[index] })
+        public fun fromBytes(value: MutableArray<Byte>): OsString = OsString(Array<Byte>(value))
+    }
+}
+
+internal fun byteContentsEqual(left: Array<Byte>, right: Array<Byte>): Boolean {
+    if (left.size != right.size) return false
+    var index = 0L
+    while (index < left.size) {
+        if (left[index] != right[index]) return false
+        index += 1L
+    }
+    return true
+}
+
+internal fun byteContentsHash(bytes: Array<Byte>): Long {
+    var result = 1L
+    for (value in bytes) result = result * 31L + value.toInt64()
+    return result
+}
