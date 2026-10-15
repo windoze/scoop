@@ -179,8 +179,11 @@ fn generated_entry_round_trips_and_cannot_reuse_the_production_gateway() {
         .unwrap();
     let mut identities = pending.finish().unwrap();
     assert_eq!(
-        decoded.link_source(&mut identities).unwrap(),
-        fixture.source
+        decoded.link_symbol(&mut identities).unwrap(),
+        match &plan {
+            EntryProductionPlanV1::Executable(entry) => Some(entry.root_descriptor_symbol()),
+            EntryProductionPlanV1::Library => None,
+        }
     );
     assert_eq!(
         decoded

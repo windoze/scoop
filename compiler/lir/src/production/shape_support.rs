@@ -701,6 +701,5 @@ fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     )
 }
 
-mod link;
 #[cfg(test)]
 mod tests;

@@ -1,5 +1,7 @@
 //! Complete expected persistent symbols for every strong definition plan.
 
+mod link;
+
 use std::collections::BTreeMap;
 use std::fmt;
 

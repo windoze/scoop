@@ -83,7 +83,7 @@ pub fn resolve_program_link_profile(
 ) -> Result<ValidatedFinalLinkProfile, LinkError> {
     let origins = closure
         .artifacts()
-        .filter(|(artifact, _)| artifact.foundation().native_cxx())
+        .filter(|(artifact, _)| artifact.native_cxx())
         .map(|(artifact, _)| artifact.manifest().cone().coordinate().to_string())
         .collect::<Vec<_>>();
     if !origins.is_empty() && target.id() == scoop_target_data::LINUX_X86_64_MUSL_ID {

@@ -56,7 +56,6 @@ impl ProgramLinkData {
         manifest: &BootstrapManifest,
         identities: &mut ValidatedIdentityGraph,
         foundation: &lir::ConeLirFoundation,
-        layout: &lir::PhysicalImportsReplayedLayoutAbiSectionV1,
         selection: lir::ValidatedLirTargetSelection,
     ) -> Result<Self, String> {
         let wire = link.link_identity_closure_wire();
@@ -77,7 +76,7 @@ impl ProgramLinkData {
             .collect();
         let support = link
             .link_support_wire()
-            .read_link(layout.exports().descriptors())
+            .read_link(identities)
             .map_err(|error| error.to_string())?;
         let native = lir::CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
             selection.target(),

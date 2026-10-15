@@ -90,13 +90,11 @@ impl<'a> ProgramInputs<'a> {
                 definitions.insert(name.to_owned(), DefinitionOwner::Scoop(owner.owner()));
             }
             final_images.push(image);
-            if let scoop_lir::EntryProductionPlanV1::Executable(entry) =
-                artifact.production().entry_plan()
-            {
+            if let Some(entry) = artifact.production().entry_symbol {
                 if cone != closure.root() || root.is_some() {
                     return Err(error(format!("multiple executable entries at Cone {cone}")));
                 }
-                root = Some(object_symbol(entry.root_descriptor_symbol(), profile));
+                root = Some(object_symbol(entry, profile));
             }
             for object in symbols.members() {
                 let member = object.member();

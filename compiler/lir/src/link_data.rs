@@ -2,8 +2,6 @@
 
 use std::fmt;
 
-pub(crate) mod value_storage;
-
 #[derive(Debug)]
 pub struct LinkDataError(pub String);
 
@@ -17,4 +15,11 @@ impl std::error::Error for LinkDataError {}
 
 pub(crate) fn link_error(error: impl fmt::Display) -> LinkDataError {
     LinkDataError(error.to_string())
+}
+
+/// Stored value representation used by native compiler ABI symbol matching.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LinkValueRepresentation {
+    Scalar(crate::ScalarRepresentationKindV1),
+    Pointer,
 }

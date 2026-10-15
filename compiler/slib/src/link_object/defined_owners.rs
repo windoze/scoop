@@ -291,16 +291,16 @@ pub(crate) struct DecodedStrongDefinitionOwnerV1 {
 }
 
 impl DecodedStrongDefinitionOwnerV1 {
-    pub(crate) fn exact_descriptor(
+    pub(crate) fn resolve(
         self,
-    ) -> Option<DecodedPersistentId<scoop_identity::PersistentExactTypeId>> {
-        match (self.entity, self.role) {
-            (
-                DecodedStrongDefinitionEntity::ExactType(exact),
-                StrongDefinitionRole::TypeDescriptor,
-            ) => Some(exact),
-            _ => None,
-        }
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<StrongDefinitionOwnerV1, crate::LinkSupportError> {
+        let entity = self
+            .entity
+            .resolve(identities)
+            .map_err(|error| crate::LinkSupportError(error.to_string()))?;
+        StrongDefinitionOwnerV1::new(entity, self.role)
+            .map_err(|error| crate::LinkSupportError(error.to_string()))
     }
 }
 

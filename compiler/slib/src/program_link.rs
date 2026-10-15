@@ -17,10 +17,12 @@ pub struct ProgramLinkArtifact {
     pub(crate) manifest: BootstrapManifest,
     pub(crate) source: crate::ArtifactFile,
     pub(crate) identities: ValidatedIdentityGraph,
-    pub(crate) foundation: lir::ConeLirFoundation,
-    pub(crate) production: lir::ConeProductionSectionV2,
-    pub(crate) ordinary: lir::CrossConeLirBridgeSectionV1,
-    pub(crate) layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
+    pub(crate) native_cxx: bool,
+    pub(crate) production: lir::ProgramLinkProduction,
+    pub(crate) native_values: std::collections::BTreeMap<
+        scoop_identity::PersistentExactTypeId,
+        lir::LinkValueRepresentation,
+    >,
     pub(crate) runtime_image_records: crate::RuntimeImageRecords,
     pub(crate) native_objects: Vec<crate::NativeLinkObject>,
 }
@@ -54,14 +56,17 @@ impl ProgramLinkArtifact {
     pub fn identities(&self) -> &ValidatedIdentityGraph {
         &self.identities
     }
-    pub fn foundation(&self) -> &lir::ConeLirFoundation {
-        &self.foundation
+    pub fn native_cxx(&self) -> bool {
+        self.native_cxx
     }
-    pub fn production(&self) -> &lir::ConeProductionSectionV2 {
+    pub fn production(&self) -> &lir::ProgramLinkProduction {
         &self.production
     }
-    pub fn layout(&self) -> &lir::PhysicalImportsReplayedLayoutAbiSectionV1 {
-        &self.layout
+    pub fn native_value(
+        &self,
+        exact: scoop_identity::PersistentExactTypeId,
+    ) -> Option<lir::LinkValueRepresentation> {
+        self.native_values.get(&exact).copied()
     }
 }
 

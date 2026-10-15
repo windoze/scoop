@@ -20,6 +20,22 @@ pub struct DecodedStrongRegistrationProductionSurface<T> {
     pub(in super::super) callable_runtime_scans: Vec<DecodedStrongCallableRuntimeScanPlanV1>,
 }
 
+impl<T> DecodedStrongRegistrationProductionSurface<T> {
+    pub(crate) fn link_registrations(
+        self,
+        foundation: &crate::ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<
+        [Vec<(
+            scoop_identity::ObjectDefinitionPlanId,
+            scoop_identity::PersistentSymbolRequest,
+        )>; 6],
+        crate::LinkDataError,
+    > {
+        self.identities.read_link(foundation, identities)
+    }
+}
+
 impl<T: WireEncode> WireEncode for DecodedStrongRegistrationProductionSurface<T> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(8)?;

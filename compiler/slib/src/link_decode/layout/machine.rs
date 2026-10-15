@@ -13,7 +13,6 @@ pub(crate) struct DecodedMachineLinkSections<'a> {
     pub mir_keys: DecodedMirFoundation,
     pub foundation: DecodedLirFoundation,
     pub production: DecodedConeProductionSectionV2,
-    pub ordinary: DecodedCrossConeLirBridgeSectionV1,
     pub layout: DecodedCrossConeLayoutAbiSectionV1,
     pub link: DecodedCrossConeLayoutLinkOnlySections,
 }
@@ -60,11 +59,6 @@ impl<'a> ValidatedGraphArtifact<'a> {
             MetadataLocation::Lir,
             lir_cone_production_capability(),
         )?;
-        let ordinary = decode_required(
-            &lir,
-            MetadataLocation::Lir,
-            lir_cross_cone_param_free_bridge_capability(),
-        )?;
         let layout = decode_required(
             &lir,
             MetadataLocation::Lir,
@@ -89,7 +83,6 @@ impl<'a> ValidatedGraphArtifact<'a> {
             mir_keys,
             foundation,
             production,
-            ordinary,
             layout,
             link,
         })

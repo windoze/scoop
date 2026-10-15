@@ -1,6 +1,7 @@
 //! Complete image plans with explicit artifact dependencies.
 
 use super::*;
+mod link;
 
 #[cfg(test)]
 #[path = "tests/dependencies.rs"]

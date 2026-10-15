@@ -1,5 +1,4 @@
 use super::*;
-use crate::production_dependencies::{self, DefinitionProvider};
 use crate::{DecodedMachineLinkSections, ValidatedGraphArtifact};
 
 pub fn read_program_link_closure(
@@ -65,7 +64,6 @@ fn read_artifact(
         mir_keys,
         foundation,
         production,
-        ordinary,
         layout,
         link,
     } = graph
@@ -89,104 +87,15 @@ fn read_artifact(
             .validate(graph.identity(), &mut identities)
             .map_err(error)?,
     );
-    let exports = dependencies
-        .iter()
-        .map(|dependency| dependency.layout.exports())
-        .collect::<Vec<_>>();
-    let layout = layout
-        .read_link_layouts(
-            selection.target(),
-            &foundation,
-            &mut identities,
-            &exports
-                .iter()
-                .map(|exports| exports.layouts())
-                .collect::<Vec<_>>(),
-        )
-        .map_err(error)?;
-    let inputs = dependencies
-        .iter()
-        .map(|dependency| DefinitionProvider {
-            identities: &dependency.identities,
-            foundation: &dependency.foundation,
-            strong: &dependency.production,
-            layouts: dependency.layout.exports().layouts(),
-        })
-        .collect::<Vec<_>>();
-    let (types, units) =
-        production_dependencies::definitions(graph.identity(), &inputs).map_err(error)?;
-    let shape_sources = production
-        .link_shape_sources(&mut identities)
-        .map_err(error)?;
-    let direct = graph
-        .direct_dependencies()
-        .iter()
-        .map(crate::DependencyRecord::identity)
-        .collect::<Vec<_>>();
     let production = production
-        .read_link(
-            graph.coordinate().clone(),
-            &direct,
-            selection.target(),
-            &foundation,
-            &mut identities,
-            &shape_sources,
-            &types,
-            &units,
-        )
+        .read_link(&foundation, &mut identities)
         .map_err(error)?;
-    let ordinary = ordinary
-        .validate(&mut identities, &foundation)
-        .map_err(error)?;
-    let coordinates = std::iter::once(graph.coordinate().clone())
-        .chain(
-            dependencies
-                .iter()
-                .map(|dependency| dependency.manifest.cone().coordinate().clone()),
-        )
-        .collect::<Vec<_>>();
-    let layout = layout
-        .read_link_exports(
-            selection.target(),
-            &foundation,
-            &mut identities,
-            &production,
-            &ordinary,
-            &shape_sources,
-            &coordinates,
-            &exports,
-        )
-        .map_err(error)?
-        .resolve_dependencies(&mut identities)
-        .map_err(error)?;
-    let providers = dependencies
-        .iter()
-        .map(|dependency| {
-            let exports = dependency.layout.exports();
-            lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
-                foundation: &dependency.foundation,
-                production: &dependency.production,
-                ordinary: &dependency.ordinary,
-                layouts: exports.layouts(),
-                callables: exports.callables(),
-                descriptors: exports.descriptors(),
-                dispatch: exports.dispatch(),
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(error)?;
-    let layout = layout
-        .replay_physical_imports(&providers, &mut identities)
-        .map_err(error)?;
-    production
-        .validate_layout_selection(&layout)
-        .map_err(error)?;
+    let native_values = layout.read_link_values(&mut identities).map_err(error)?;
     let symbols = ProgramLinkData::read(
         &link,
         graph.envelope.manifest(),
         &mut identities,
         &foundation,
-        &layout,
         selection,
     )
     .map_err(error)?;
@@ -200,10 +109,9 @@ fn read_artifact(
             manifest: graph.envelope.into_manifest(),
             source,
             identities,
-            foundation,
+            native_cxx: foundation.native_cxx(),
             production,
-            ordinary,
-            layout,
+            native_values,
             native_objects,
             runtime_image_records,
         },

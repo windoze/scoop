@@ -1,3 +1,5 @@
+mod link;
+
 use std::fmt;
 
 use scoop_identity::{
