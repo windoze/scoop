@@ -595,7 +595,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - core 与格式库保持普通 Scoop 实现；字段规则在 HIR 生成普通 typed body，不增加专用 runtime ABI、JSON IR 或运行期反射。
 - M46-1～6 已分批实现、提交并验收；四组离线基线及组合映射见 [覆盖记录](milestone46/COVERAGE.md)。Linux GNU 全量 4061 项通过、30 项不适用；musl 本期及必要回归 224 项通过，Rust 单元／集成测试 5665 项与 2 项 doctest 通过。
 - 每项功能先同步规范、实现和针对性验证，再提交；先本机测试，再在 Linux 完整验证。M46 已完成，后续按用户要求严格先完成 M48，再推进 M38。
-- 分批执行、性能修复、原始失败与复验记录见[实施记录](milestone46/PROGRESS.md)和[验收汇总](milestone46/validation/linux-summary.json)。
+- 分批执行、性能修复、失败闭合与验收概要见[实施记录](milestone46/PROGRESS.md)。
 
 ## 3. 备注
 

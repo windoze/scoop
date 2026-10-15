@@ -1,5 +1,7 @@
 # M44 Linux 性能记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 状态：整体优化和最终 runtime 边界对照完成，minor 更新回退已修复；GNU／musl 适用功能验收通过。
 Darwin 结果见 [PERFORMANCE](PERFORMANCE.md)，最终验收见 [ACCEPTANCE](ACCEPTANCE.md)。
 
@@ -7,7 +9,7 @@ Darwin 结果见 [PERFORMANCE](PERFORMANCE.md)，最终验收见 [ACCEPTANCE](AC
 
 主机 nuc12，Intel Core i7-12700H、14 核／20 线程、约 61 GiB，Linux x86_64 GNU，
 LLVM 22.1.2。工具和程序为固定 release 副本，runtime C 为 O2、无 LTO。
-[准备记录](validation/linux-preparation.json.gz)保存编译器、runtime 来源及机器信息。
+准备记录保存编译器、runtime 来源及机器信息。
 
 - 整体对照：`44a3c0bf` 的未优化 runtime → `f300090b` 的生产 runtime；当前工具构建于
   `af49910f`，期间编译器行为没有变化。基线使用与其 runtime 源清单匹配的 M43 工具。
@@ -21,10 +23,10 @@ LLVM 22.1.2。工具和程序为固定 release 副本，runtime C 为 O2、无 L
   指 T2−T0，尚不包括线程实际重新推进；进程耗时还包含构图和验证。阶段墙钟不能简单求和。
 
 完整命令、运行顺序、binary／工具摘要、构建输入、预热和正式样本分别保存在
-[整体对照](validation/performance-initial-gnu.json.gz)、
-[边界对照](validation/performance-boundary-gnu.json.gz)。
+整体对照、
+边界对照。
 两份压缩包是文件名到原始文件文本的 JSON 映射。
-[工作量核对](validation/performance-audit-gnu.json.gz)逐对检查 15 个计数字段，
+工作量核对逐对检查 15 个计数字段，
 包含 live／traced／moved、映射量、mark 槽、晋升、脏卡、旧代槽及 source／target。
 整体、边界和下述对齐实验共 18 组图对照全部保持对应轮次工作量一致。
 
@@ -86,7 +88,7 @@ minor 的回退更稳定：
 重复对照为 251.28→272.63 µs；将双方都固定在 CPU 4 的 P-core 后仍为
 249.83→269.27 µs，各七次进程的中位数均表现为拆分后更慢，因此不能仅归为调度噪声。
 
-[诊断与对齐实验](validation/performance-alignment-gnu.json.gz)包含实际 cache object
+诊断与对齐实验包含实际 cache object
 反汇编、relocation、符号地址、重复／固定 CPU 测量和完整六组场景。八个更新热函数
 的指令字节在拆分前后相同；relocation 唯一差异是 scanner 的冷错误出口转至 binding
 的 fatal。图的根 `.slib` 与 native helper object 也相同。callback 地址从
@@ -96,7 +98,7 @@ minor 的回退更稳定：
 只在独立源码副本将 callback 对齐到 64 bytes，可使 minor 恢复到约 252 µs；
 完整对照却使 compact update 从 11.672 增至 12.858 ms，因此拒绝合入。
 另一份副本在遍历前选择 full／minor callback，以去掉逐槽模式判断；
-[分流实验](validation/mode-experiment-gnu.json.gz)的机器码确认 helper 已内联，
+分流实验的机器码确认 helper 已内联，
 但 minor 为 253→276 µs、compact 为 11.664→12.988 ms，同样拒绝合入。
 两种实验均未改变生产 runtime；原始不利结果完整保留。后续修复必须同时核对
 full／minor、零搬迁、分配和实际进度，不能只挑 minor 的有利样本。
@@ -108,8 +110,8 @@ GC 私有 heap_internal.h，声明为普通 `static inline`；没有强制内联
 源位置解析、mark／pin／source 判断、自指／缺失 forwarding 及 collection 状态检查
 全部保留，ABI 和收集策略不变。该批隔离测量时生产文件尚未采用该改动，最终采用方式见本节末。
 
-[候选原始记录](validation/performance-forward-gnu.json.gz)包含两处源码、构建来源、
-实际机器码和全部六组对照。[逐轮核对](validation/forward-audit-gnu.json.gz)确认各侧
+候选原始记录包含两处源码、构建来源、
+实际机器码和全部六组对照。逐轮核对确认各侧
 仍为七次进程、35 轮，15 个工作量字段相同；实际 O2／无 LTO 的槽访问和 claim 函数
 已消除对 forwarding helper 的外部调用，原有失败出口保留。
 
@@ -132,15 +134,15 @@ full 的配对 update 差值中位为 −752 µs，35 对中 31 对未增加；m
 14.065→12.033、19.167→18.847、18.992→17.950、16.460→17.952 ms，
 同样均在重叠范围内；例如 primitive 两侧为 13.967–18.857／15.353–18.245 ms。
 
-[Darwin 隔离验证](validation/forward-validation-darwin.json.gz)的 31 项 collector
+Darwin 隔离验证的 31 项 collector
 测试和三个正式 M44 fixture 通过，并已构建本机图／进度／四程序对照 binary。
 已有 Rust 测试驱动只通过临时 cc wrapper 将 runtime 源码和 include 路径转向副本，
 没有修改断言；逐命令记录与源码核对随报告保留。相同方式运行的
-[Linux codegen/runtime 全组](validation/forward-codegen-gnu.json.gz)387 项通过；
-[GNU／musl 正式 fixture](validation/isolated-fixtures-linux.json.gz)也各为三项、
+Linux codegen/runtime 全组387 项通过；
+GNU／musl 正式 fixture也各为三项、
 六个变体、24 个执行步骤通过。
 
 这些结果不替代 GNU／musl 最终全部适用组合。统一内联在 Darwin 引入的数组 mark 回退
 已通过平台层选择调用方式解决，见 [最终平台策略](PERFORMANCE.md#最终平台调用策略)。
 生产代码共用一份函数体，x86-64 仍使用本节已验证的普通内联；重新构建后，GNU 全部
-94 个 runtime 对象及完整图程序与本节候选逐字节相同，证据见[产物核对](validation/forward-platform-validation.json.gz)。因此保留并复用本节六组原始测量；GNU／musl 最终功能覆盖分别通过 1163／1167 项，完整结果见[验收核对](ACCEPTANCE.md)。
+94 个 runtime 对象及完整图程序与本节候选逐字节相同，证据见产物核对。因此保留并复用本节六组原始测量；GNU／musl 最终功能覆盖分别通过 1163／1167 项，完整结果见[验收核对](ACCEPTANCE.md)。

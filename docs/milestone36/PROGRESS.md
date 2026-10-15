@@ -1,5 +1,7 @@
 # M36 实施记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 开始日期：2026-10-10。基线：`d276dcf97`（M35 已验收），分支：`m36`。
 
 状态：已完成（2026-10-11）。功能提交、最终测试范围与兼容性结论见 [ACCEPTANCE.md](ACCEPTANCE.md)。
@@ -163,15 +165,15 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 
 ## 本机最终阶段回归（2026-10-11）
 
-12 项功能完成后，使用最终 release 的三个正式 CLI 分批更新旧阶段快照，避免每项功能都重跑这一范围。共选择 1,237 项：1,236 项通过、1 项按 target 不适用；按每项最终结果去重，包含 1,450 个配置、9,646 个进程和 11,519 次阶段／计划快照检查。第二批暴露的默认参数 when 引用问题已在 `4453ce90b` 修复，并以四项普通比较闭合；保留初始失败和后续来源，不把它计作直接通过。实际结果见 [阶段回归](validation/darwin-snapshots.json)、[初始失败](validation/darwin-snapshots-initial-failure.json) 和 [引用回归](validation/default-reference-regression.json)。
+12 项功能完成后，使用最终 release 的三个正式 CLI 分批更新旧阶段快照，避免每项功能都重跑这一范围。共选择 1,237 项：1,236 项通过、1 项按 target 不适用；按每项最终结果去重，包含 1,450 个配置、9,646 个进程和 11,519 次阶段／计划快照检查。第二批暴露的默认参数 when 引用问题已在 `4453ce90b` 修复，并以四项普通比较闭合；保留初始失败和后续来源，不把它计作直接通过。实际结果见 阶段回归、初始失败 和 引用回归。
 
-迁移 2,605 份 HIR、2,157 份 MIR 和 229 份 LIR 快照。LIR 逐份审阅：200 份只有无用零大小值物化和临时编号变化；18 份进一步删除 Unit 字段提取；4 份中的六个函数在删除该提取后不再使用 aggregate 参数，入口 poll 的根集合相应为空；5 份删除无用的 MaybeUninit<Unit> 结果 local。另两份协程转储分别删除无用 Unit 保存槽，或删除多余保存／恢复及空跳转。一个私有 lambda frame 从 88 缩为 80 字节，字段与 scan 偏移同步调整；调用、异常及 finally 路径保持。逐份归类见 [LIR 审阅](validation/darwin-lir-review.json)。
+迁移 2,605 份 HIR、2,157 份 MIR 和 229 份 LIR 快照。LIR 逐份审阅：200 份只有无用零大小值物化和临时编号变化；18 份进一步删除 Unit 字段提取；4 份中的六个函数在删除该提取后不再使用 aggregate 参数，入口 poll 的根集合相应为空；5 份删除无用的 MaybeUninit<Unit> 结果 local。另两份协程转储分别删除无用 Unit 保存槽，或删除多余保存／恢复及空跳转。一个私有 lambda frame 从 88 缩为 80 字节，字段与 scan 偏移同步调整；调用、异常及 finally 路径保持。逐份归类见 LIR 审阅。
 
-随后关闭快照更新，普通比较 231/231 项通过：337 个配置、2,486 个进程、2,311 次阶段／计划快照检查。范围包括全部 26 个 M36 新用例、实际 LIR 变化与必要 Darwin 专项，见 [选择](validation/darwin-selection.json)、[结果](validation/darwin-final.json) 和 [实际命令／清理](validation/darwin-final-execution.json)。共享阶段的剩余范围交由 Linux 完整正式 CLI 再次比较，不在本机重复全部 1,237 项。公共 fixture runner 的 44 项测试通过。
+随后关闭快照更新，普通比较 231/231 项通过：337 个配置、2,486 个进程、2,311 次阶段／计划快照检查。范围包括全部 26 个 M36 新用例、实际 LIR 变化与必要 Darwin 专项，见 选择、结果 和 实际命令／清理。共享阶段的剩余范围交由 Linux 完整正式 CLI 再次比较，不在本机重复全部 1,237 项。公共 fixture runner 的 44 项测试通过。
 
-新增 49 个 Rust 文件，最长 396 行；原有超过 500 行的文件没有增加超过 30 行，见 [长度检查](validation/file-lengths.json)。未新增依赖、TODO、todo! 或 unimplemented!。每批完成后清理用例工作目录，保留当前 CLI、共享 sysroot、缓存和报告；上述七批记录合计约 46.3 GB 的已清理逻辑文件大小，目录内可能存在硬链接，该数字不表示等量实际磁盘释放。
+新增 49 个 Rust 文件，最长 396 行；原有超过 500 行的文件没有增加超过 30 行，见 长度检查。未新增依赖、TODO、todo! 或 unimplemented!。每批完成后清理用例工作目录，保留当前 CLI、共享 sysroot、缓存和报告；上述七批记录合计约 46.3 GB 的已清理逻辑文件大小，目录内可能存在硬链接，该数字不表示等量实际磁盘释放。
 
-Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 已按下节记录以普通全量和失败补验完成；musl 受影响范围的普通比较亦已完成。
+Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 Linux Rust 记录。GNU 完整正式 CLI 已按下节记录以普通全量和失败补验完成；musl 受影响范围的普通比较亦已完成。
 
 ## GNU fixture 可移植性修正
 
@@ -179,32 +181,32 @@ GNU 目标快照初跑 176 项，175 项通过；新 C 布局 fixture 刻意将 
 
 目标审阅同时确认 call-targets/suspend、intrinsics/operands、intrinsics/borrows、when/flow 的八份 debug/release LIR 含平台 ABI 差异，改用 program.${profile}.${target}.lir.txt。既有 Darwin 输出逐字节保留；新增八份对应 GNU 输出及 C 布局的 GNU LIR。16 字节 enum 的物理 carrier、C byval 和含非自然对齐字段的 aggregate 传参／返回按实际 target 记录，HIR／MIR 保持共享。
 
-两平台分别以普通比较复验这五项：均为 5 项通过、9 个配置、38 个进程、27 次阶段快照检查；debug／release、正常／moving／minor GC 断言均保留。修正不涉及 Rust 源码或 ABI 规则，沿用已有 Rust 验证和配套 release CLI。实际初跑与补验见 [GNU 初跑](validation/gnu-snapshots-initial.json) 和 [可移植性记录](validation/target-fixture-portability.json)。其余 GNU 输出继续进入正式 --all 普通验收。
+两平台分别以普通比较复验这五项：均为 5 项通过、9 个配置、38 个进程、27 次阶段快照检查；debug／release、正常／moving／minor GC 断言均保留。修正不涉及 Rust 源码或 ABI 规则，沿用已有 Rust 验证和配套 release CLI。实际初跑与补验见 GNU 初跑 和 可移植性记录。其余 GNU 输出继续进入正式 --all 普通验收。
 
 ## GNU 正式全量与失败补验
 
-一次正式普通 `--all` 选择全部 3,091 项，初次为 2,855 项通过、206 项失败、30 项不适用。失败分别为 192 项阶段快照迁移、12 项 core 构建超过 300 秒、1 项 native 构建超过 300 秒，以及 1 项修饰符诊断位置预期。保留 [初次摘要](validation/gnu-all-initial.json) 和 [完整原始报告](validation/gnu-all-initial-report.json.gz)，没有将初次失败改写为通过。
+一次正式普通 `--all` 选择全部 3,091 项，初次为 2,855 项通过、206 项失败、30 项不适用。失败分别为 192 项阶段快照迁移、12 项 core 构建超过 300 秒、1 项 native 构建超过 300 秒，以及 1 项修饰符诊断位置预期。保留 初次摘要 和 完整原始报告，没有将初次失败改写为通过。
 
-审阅现有编译转储后更新预期，以 6 并发对这 206 项执行普通比较，205 项通过；嵌套 enum 默认参数继续执行到第三层消费时又遇到一份旧 LIR 预期，核对后仅复验该项，通过全部 12 个进程和 14 次阶段／计划快照检查。13 项原超时均在原有时限内通过，没有修改超时或断言。实际来源见 [首轮补验](validation/gnu-recheck-initial.json)、[嵌套 enum 补验](validation/gnu-nested-enum-recheck.json) 和 [执行记录](validation/gnu-rechecks-execution.json)。
+审阅现有编译转储后更新预期，以 6 并发对这 206 项执行普通比较，205 项通过；嵌套 enum 默认参数继续执行到第三层消费时又遇到一份旧 LIR 预期，核对后仅复验该项，通过全部 12 个进程和 14 次阶段／计划快照检查。13 项原超时均在原有时限内通过，没有修改超时或断言。实际来源见 首轮补验、嵌套 enum 补验 和 执行记录。
 
-按每项最后的普通结果合并，GNU 为 3,061 项通过、30 项不适用，覆盖 3,305 个配置、14,478 个进程和 12,256 次阶段／计划快照检查；全部 26 个 M36 新用例通过。此结果来自正式全量加定向补验，不是一次全绿运行，见 [最终覆盖及逐项来源](validation/gnu-final.json)。
+按每项最后的普通结果合并，GNU 为 3,061 项通过、30 项不适用，覆盖 3,305 个配置、14,478 个进程和 12,256 次阶段／计划快照检查；全部 26 个 M36 新用例通过。此结果来自正式全量加定向补验，不是一次全绿运行，见 最终覆盖及逐项来源。
 
-本轮迁移 449 份阶段快照：173 份 HIR、102 份 MIR、174 份 LIR，补齐此前命名选集未包含的旧 CLI 转储和 GNU 专用输出。HIR 对应完整整数操作、declared、when 与 Return；bare return 新增真实 Unit 和来源记录，生成包装函数直接返回已有 Unit 调用。MIR 只增加完整 Unit 返回值。169 份先前生成的 GNU LIR 已逐份分类，见 [LIR 审阅](validation/gnu-lir-review.json)；补充的五份 LIR 中三份仅有未使用的零大小值，两份是嵌套 enum 的局部变量顺序变化。对后两份逐一映射定义、使用、GC root 与生成的调试名称后，整份文件与新输出完全一致，见 [阶段审阅与局部编号映射](validation/gnu-stage-review.json)。
+本轮迁移 449 份阶段快照：173 份 HIR、102 份 MIR、174 份 LIR，补齐此前命名选集未包含的旧 CLI 转储和 GNU 专用输出。HIR 对应完整整数操作、declared、when 与 Return；bare return 新增真实 Unit 和来源记录，生成包装函数直接返回已有 Unit 调用。MIR 只增加完整 Unit 返回值。169 份先前生成的 GNU LIR 已逐份分类，见 LIR 审阅；补充的五份 LIR 中三份仅有未使用的零大小值，两份是嵌套 enum 的局部变量顺序变化。对后两份逐一映射定义、使用、GC root 与生成的调试名称后，整份文件与新输出完全一致，见 阶段审阅与局部编号映射。
 
-另将 `override release` 的错误区间从 `18..18` 更新为完整关键字 `18..26`，符合 R11 已实现的准确修饰符位置；错误代码、消息和严重程度保持原样。本机额外普通复验三项旧 CLI 输入／缓存用例、一项修饰符负例和一项嵌套 enum 产物用例，均通过，见 [Darwin 补充结果](validation/darwin-supplement.json)。以上修改仅涉及 fixture 预期和记录，沿用已通过 fmt／clippy 的 Rust 源码与 release CLI。
+另将 `override release` 的错误区间从 `18..18` 更新为完整关键字 `18..26`，符合 R11 已实现的准确修饰符位置；错误代码、消息和严重程度保持原样。本机额外普通复验三项旧 CLI 输入／缓存用例、一项修饰符负例和一项嵌套 enum 产物用例，均通过，见 Darwin 补充结果。以上修改仅涉及 fixture 预期和记录，沿用已通过 fmt／clippy 的 Rust 源码与 release CLI。
 
 失败目录在相应普通补验通过后清理，未完成项的现场一直保留到通过。期间清理 122 个已完成补验的旧目录，远端 target 实际占用由约 26.3 GB 降至 21.1 GB；逻辑文件大小与实际占用分别记录。Linux 原工作目录的 21 个既有修改文件仍与初始记录一致。
 
 ## musl 受影响范围验收
 
-在 GNU 普通全量闭合后，对 188 项受影响及 musl 专项用例生成并审阅目标快照，再关闭快照更新，对同一选集执行普通比较。两轮均为 188/188 通过；最终普通比较覆盖 291 个配置、1,913 个进程和 1,525 次阶段／计划快照检查，包含全部 26 个 M36 新用例。范围包括 musl PIE、native C／静态链接限制、异常深栈、native-safe transition，以及泛型、默认参数、协程、Context、MaybeUninit 和 moving／minor GC 组合。选择、生成、普通结果及实际命令分别见 [选集](validation/musl-selection.json)、[生成记录](validation/musl-snapshot-update.json)、[普通结果](validation/musl-final.json) 和 [执行记录](validation/musl-execution.json)。
+在 GNU 普通全量闭合后，对 188 项受影响及 musl 专项用例生成并审阅目标快照，再关闭快照更新，对同一选集执行普通比较。两轮均为 188/188 通过；最终普通比较覆盖 291 个配置、1,913 个进程和 1,525 次阶段／计划快照检查，包含全部 26 个 M36 新用例。范围包括 musl PIE、native C／静态链接限制、异常深栈、native-safe transition，以及泛型、默认参数、协程、Context、MaybeUninit 和 moving／minor GC 组合。选择、生成、普通结果及实际命令分别见 选集、生成记录、普通结果 和 执行记录。
 
-本轮修改 173 份既有 LIR、7 份 HIR、6 份 MIR，新增 9 份 M36 目标 LIR；未修改共享快照或源码。173 份 LIR 中，149 份仅涉及未使用的零大小值及临时编号；15 份删除 Unit 字段提取，5 份删除无用 MaybeUninit<Unit> 结果，2 份处理协程 Unit 保存／恢复，2 份为嵌套 enum 的一致局部编号置换。后四类共 24 份文件的修改前后内容均与已审阅的 GNU 对应文件逐字节相同；新增的九份 LIR 也与 GNU 对应输出逐字节相同。其余平台专用 HIR／MIR 单独审阅，仅为完整 Return、整数操作和 declared payload 的表示变化；errno 等原有 libc 差异保留。逐份依据见 [musl 阶段审阅](validation/musl-stage-review.json)。
+本轮修改 173 份既有 LIR、7 份 HIR、6 份 MIR，新增 9 份 M36 目标 LIR；未修改共享快照或源码。173 份 LIR 中，149 份仅涉及未使用的零大小值及临时编号；15 份删除 Unit 字段提取，5 份删除无用 MaybeUninit<Unit> 结果，2 份处理协程 Unit 保存／恢复，2 份为嵌套 enum 的一致局部编号置换。后四类共 24 份文件的修改前后内容均与已审阅的 GNU 对应文件逐字节相同；新增的九份 LIR 也与 GNU 对应输出逐字节相同。其余平台专用 HIR／MIR 单独审阅，仅为完整 Return、整数操作和 declared payload 的表示变化；errno 等原有 libc 差异保留。逐份依据见 musl 阶段审阅。
 
 三个目标的全部 26 个 M36 新用例均已通过普通比较。最终验收、记录汇总和构建目录清理均已完成。
 
 ## 最终完成
 
-普通结果按用例去重后，本机为 236 项通过，GNU 全量与补验为 3,061 项通过、30 项不适用，musl 受影响选集为 188 项通过。Darwin 的 target 可移植性复验与原主选集重叠，不重复计数；汇总依据见 [本机普通覆盖](validation/darwin-ordinary-final.json)。
+普通结果按用例去重后，本机为 236 项通过，GNU 全量与补验为 3,061 项通过、30 项不适用，musl 受影响选集为 188 项通过。Darwin 的 target 可移植性复验与原主选集重叠，不重复计数；汇总依据见 本机普通覆盖。
 
-最终任务临时目录均为空，完成用例目录已清理；本机 target 约 19.1 GB，Linux 独立工作树约 19.5 GB，保留当前 CLI、依赖、sysroot、缓存和报告。本机另清理过 13,938 个中间对象与过期 incremental 缓存；GNU 初败目录全部在对应补验通过后清理。记录见 [清理及工作区检查](validation/cleanup.json)。M36 的 12 项功能及后续修复、平台验收分别提交，M37 原有设计稿保持独立。
+最终任务临时目录均为空，完成用例目录已清理；本机 target 约 19.1 GB，Linux 独立工作树约 19.5 GB，保留当前 CLI、依赖、sysroot、缓存和报告。本机另清理过 13,938 个中间对象与过期 incremental 缓存；GNU 初败目录全部在对应补验通过后清理。记录见 清理及工作区检查。M36 的 12 项功能及后续修复、平台验收分别提交，M37 原有设计稿保持独立。

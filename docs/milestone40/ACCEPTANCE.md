@@ -1,5 +1,7 @@
 # M40 验收记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 状态：已完成。三个 target 的全部适用 fixture 均有最终通过结果，未闭合失败为 0。
 
 实施基线为 `b59294fbc`。交付范围与逐项取舍见 [设计](DESIGN.md)和[迁移说明](MIGRATION.md)。
@@ -48,7 +50,7 @@ Native plan 期望从原有内容截取，仍锁定完整 native 输入选择及
 
 ## 文件规模与覆盖
 
-同口径统计见 [JSON](validation/migration-statistics.json)，内容字节使用十进制。
+同口径统计见 JSON，内容字节使用十进制。
 
 | 项目 | 实施前 | 实施后 |
 | --- | ---: | ---: |
@@ -68,7 +70,7 @@ Native plan 期望从原有内容截取，仍锁定完整 native 输入选择及
 ## 正式 CLI 结果
 
 按实际执行来源合并，逐 fixture 核对当前声明的名称、target 适用性及全部变体数，
-结果见[汇总 JSON](validation/summary.json)。每个 target 均覆盖发现的 3,771 项，未闭合失败为 0。
+结果见汇总 JSON。每个 target 均覆盖发现的 3,771 项，未闭合失败为 0。
 
 | target | 通过 | 不适用 | 变体 | 进程 | golden |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -80,12 +82,12 @@ Native plan 期望从原有内容截取，仍锁定完整 native 输入选择及
 
 | 报告 | 通过 | 失败 | 不适用 | 变体 | 进程 | golden |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [Darwin 全量](validation/full-darwin.json) | 3,752 | 3 | 16 | 4,216 | 15,930 | 89 |
-| [Darwin 残余精简/诊断补验](validation/residual-darwin.json) | 2 | 2 | 0 | 4 | 29 | 3 |
-| [Darwin GC 最终补验](validation/native-gc-darwin.json) | 2 | 0 | 0 | 4 | 16 | 0 |
-| [Darwin 同步产物链接](validation/retained-darwin.json) | 1 | 0 | 0 | 1 | 4 | 0 |
-| [GNU 全量](validation/full-gnu.json) | 3,739 | 2 | 30 | 4,199 | 15,727 | 71 |
-| [GNU 最终补验](validation/retained-gnu.json) | 4 | 0 | 0 | 8 | 32 | 3 |
+| Darwin 全量 | 3,752 | 3 | 16 | 4,216 | 15,930 | 89 |
+| Darwin 残余精简/诊断补验 | 2 | 2 | 0 | 4 | 29 | 3 |
+| Darwin GC 最终补验 | 2 | 0 | 0 | 4 | 16 | 0 |
+| Darwin 同步产物链接 | 1 | 0 | 0 | 1 | 4 | 0 |
+| GNU 全量 | 3,739 | 2 | 30 | 4,199 | 15,727 | 71 |
+| GNU 最终补验 | 4 | 0 | 0 | 8 | 32 | 3 |
 
 全量的两项 GC 计划比较和一项固定长度诊断失败已按迁移说明修复。
 残余补验中的 SSA roots 三变体和完整产物损坏测试通过；两项 GC 用例因复用目录内的
@@ -97,11 +99,11 @@ Native plan 期望从原有内容截取，仍锁定完整 native 输入选择及
 GNU 的两项旧 GC 计划失败与 Darwin 原因相同，最终补验同时覆盖同步产物持有和 SSA roots。
 截断产物诊断使用 Mach-O 固定位置，原声明仅适用于 Darwin；GNU/musl 保持不适用。
 
-musl 的[部分结果](validation/partial-musl.json)记录 247 通过、1 超时、3,491 中断、32 不适用。
-[定向补验](validation/retained-musl.json)的产物持有/GC/SSA roots 共 4 项、8 变体通过；
+musl 的部分结果记录 247 通过、1 超时、3,491 中断、32 不适用。
+定向补验的产物持有/GC/SSA roots 共 4 项、8 变体通过；
 原超时的 `core-layouts-shared-dispatch-combined` 在低负载、单并发下
-[106.15 秒通过](validation/core-retry-musl.json)，未调整 300 秒超时。
-其余 [3,487 项续跑](validation/remaining-musl.json)以 8 并发全部通过
+106.15 秒通过，未调整 300 秒超时。
+其余 3,487 项续跑以 8 并发全部通过
 （3,944 变体、14,686 进程、68 次 golden 比较）；续跑未重复已通过项。
 
 ## 复跑命令

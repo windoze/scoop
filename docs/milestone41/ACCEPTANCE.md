@@ -1,5 +1,7 @@
 # M41 验收记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 状态：已完成并验收（2026-10-13）。实施基线为 `9e715a3c`；范围见[设计](DESIGN.md)，逐功能过程见[实施记录](PROGRESS.md)。
 
 ## 交付内容
@@ -41,7 +43,7 @@ Float/Double 仍不提供 Hash，函数值不自动实现 Invoke；本里程碑�
 
 元数据对象发射还修正了一项实际冷构建开销（`e5ba66a9`）：按既有物理对象序列逐层投影较小模块，
 避免逐对象复制全份 LLVM 元数据。本机一次 debug core 冷构建由约 62 秒降至 12.96 秒，新旧 `.slib` 的
-SHA-256 完全一致；[记录](validation/metadata-projection.json)说明计时范围。新增投影模块 74 行，未改变对象或 ABI 合同。
+SHA-256 完全一致；记录说明计时范围。新增投影模块 74 行，未改变对象或 ABI 合同。
 
 ## 验证环境与结果
 
@@ -55,10 +57,10 @@ Linux native unwind 安装保留复用。正式 CLI 使用 release 构建；测�
 
 | 范围 | 通过 | 不适用／忽略 | 覆盖来源 |
 | --- | ---: | ---: | --- |
-| Linux Rust workspace 完整覆盖 | 5,584 | 0 | [汇总](validation/rust-linux.json)、[逐项结果](validation/rust-linux-coverage.json.gz) |
-| GNU 正式 CLI 完整覆盖（全量＋定向补验） | 3,785 | 30 不适用 | [报告](validation/linux-gnu.json)、[日志](validation/linux-gnu.log.gz) |
-| musl 正式 CLI 完整覆盖（全量＋定向补验） | 3,783 | 32 不适用 | [报告](validation/linux-musl.json)、[日志](validation/linux-musl.log.gz) |
-| Darwin 分功能定向 CLI，最终同名结果去重 | 177 | 1 不适用 | 230 变体、825 进程、24 次 golden；[覆盖](validation/darwin-coverage.json)、[原始报告](validation/darwin-reports.json.gz) |
+| Linux Rust workspace 完整覆盖 | 5,584 | 0 | 汇总、逐项结果 |
+| GNU 正式 CLI 完整覆盖（全量＋定向补验） | 3,785 | 30 不适用 | 报告、日志 |
+| musl 正式 CLI 完整覆盖（全量＋定向补验） | 3,783 | 32 不适用 | 报告、日志 |
+| Darwin 分功能定向 CLI，最终同名结果去重 | 177 | 1 不适用 | 230 变体、825 进程、24 次 golden；覆盖、原始报告 |
 | 公共 fixture runner unittest | 每台宿主 47 | 0 | 本机与 Linux 各通过 |
 
 GNU 最终同名结果去重覆盖 4,271 个变体、15,963 次进程、70 次 golden；29 项初次失败均以定向复验闭合。musl 对应为 4,269 个变体、15,959 次进程、70 次 golden；5 项旧结果均以定向复验闭合。两份全量原报告均 complete，选中全部 3,815 项，没有未选中或中断项。
@@ -83,7 +85,7 @@ M41 专项共 46 个正式 fixture，其中 2 项从 M30 迁移，净增 44 项�
 Linux Rust 原有四项旧断言按已交付语义修正：GNU 不注入 musl 专用 REALGCC；Unit 不再作为派生比较引用和导出；IntRange 新增能力带入 Contains/Iterable/Iterator/Option 的具体形状。
 保留实际字段、环境、产物读写、全部 callable 分类及结构派生数量检查。
 Linux 原生链接 19 项旧计划另有系统导入数变化：Rem 接口入口使既有 fmodf/fmod 依赖可达。40 份 GNU/musl 计划仅调整这一计数，其余原生输入、归档成员与绑定保持；GNU 普通比较补验全部通过（34 变体、195 进程、35 次计划检查），musl 完整运行中的对应 19 项也全部通过。
-GNU CLI 另暴露四项真实编译失败：导入默认值中的 tuple 派生 helper 调用普通 Unit.equals 时，依赖调用来源检查遗漏了现有按类型生成函数的来源规则。按 spec 补齐 typed DerivedEquality/NoSubstitution 识别，所有位置与上下文投影仍检查；新增 Rust 回归及全部 20 个源码默认值正式 fixture 在本机通过。GNU、musl 同范围补验各 20 项全部通过；Linux 补验使用独立构建目录，未替换仍在执行的全量二进制。最终标准 target/release 的三个工具与补验工具逐字节相同，见[工具记录](validation/linux-final-tools.json)。
+GNU CLI 另暴露四项真实编译失败：导入默认值中的 tuple 派生 helper 调用普通 Unit.equals 时，依赖调用来源检查遗漏了现有按类型生成函数的来源规则。按 spec 补齐 typed DerivedEquality/NoSubstitution 识别，所有位置与上下文投影仍检查；新增 Rust 回归及全部 20 个源码默认值正式 fixture 在本机通过。GNU、musl 同范围补验各 20 项全部通过；Linux 补验使用独立构建目录，未替换仍在执行的全量二进制。最终标准 target/release 的三个工具与补验工具逐字节相同，见工具记录。
 GNU CLI 另发现旧 M33 generic/接口合约程序中的四个 NaN 不相等断言，按新默认语义修正；用户自定义非自反 equals 仍受测试。
 GNU CLI 另发现旧异常返回路径整模块 MIR 快照。六个用户函数 CFG 不变；现逐字节检查完整函数片段，删除无关 core 元数据和打印函数正文快照。
 两项其他旧期望分别为 `NaN >= 0.0` 的结果和 native-storage 归档成员数；
@@ -96,7 +98,7 @@ GNU ABI 首两轮与大型 Rust 测试并行时，冷构建触及原有 300 秒�
 
 ## 清理与复跑
 
-最后一批清理的 `target/m41` 占用（`du -sk`）：本机 314.9 MiB → 8.3 MiB，Linux 13.14 GiB → 6.1 MiB。已删除结束用例、重复 core／工具构建、缓存、私有 sysroot 和临时目录；此前多轮清理单独记录。保留日志、报告、可复用 Cargo 依赖、当前 release 工具及 `sysroot/native` unwind 安装。数字仅表示最后一批目录占用，不能作为整个里程碑的物理回收总量；详见[清理记录](validation/cleanup.json)。
+最后一批清理的 `target/m41` 占用（`du -sk`）：本机 314.9 MiB → 8.3 MiB，Linux 13.14 GiB → 6.1 MiB。已删除结束用例、重复 core／工具构建、缓存、私有 sysroot 和临时目录；此前多轮清理单独记录。保留日志、报告、可复用 Cargo 依赖、当前 release 工具及 `sysroot/native` unwind 安装。数字仅表示最后一批目录占用，不能作为整个里程碑的物理回收总量；详见清理记录。
 
 从仓库根目录执行，先建立 `target/m41/tmp` 并设置 `TMPDIR="$PWD/target/m41/tmp"`。
 LLVM 前缀：本机 `/opt/homebrew/opt/llvm@22`；Linux `/usr/lib/llvm-22`，并将 `$HOME/.cargo/bin` 加入 PATH。

@@ -1,5 +1,7 @@
 # M40 fixture 职责迁移
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 ## 实际基线
 
 实施起点为 `b59294fbcadce0c655cba08258497c5e7d5c28a4`（M37 合入后的 main），
@@ -59,7 +61,7 @@ ODR 的 typed 物理定义与强弱绑定测试保持原样，普通多 consumer
 
 本机 fmt/workspace clippy、Ruff、44 项公共 runner 测试通过；
 `generic-equality-payload` 与 `native-link-archive-chain` 两项 CLI 验证通过
-（20 个进程，见 [报告](validation/symbols-darwin.json)）。
+（20 个进程，见 报告）。
 
 ### IR 批次与保留范围
 
@@ -91,10 +93,10 @@ LIR 检查引用活跃位置、聚合 carrier 与 Scoop/C ABI 及跨 Cone 调用
 专测负责，不把仅能成功产生 library 的用例记作运行行为验证。
 
 本机四个 stage crate 的单元测试 2,200 项及 parser doctest 1 项通过。
-8 项迁移选测通过（11 变体、57 进程、6 golden），见 [报告](validation/ir-darwin.json)。
+8 项迁移选测通过（11 变体、57 进程、6 golden），见 报告。
 未批量更新任何 IR 期望，保留的 golden 使用原有字节比较。
 六项 ABI/内联/去虚化专测补验也通过（12 变体、66 进程、18 golden），
-见 [报告](validation/structures-darwin.json)。
+见 报告。
 
 ### Native 链接计划批次
 
@@ -111,7 +113,7 @@ LIR 检查引用活跃位置、聚合 carrier 与 Scoop/C ABI 及跨 Cone 调用
 测试使用真实比较入口验证 selection、range、digest 关系、动态目标、
 weak 属性与未知字段的变化都会使只读验证失败。
 Ruff 与 47 项公共规则测试通过；archive-chain、dynamic-reexport、runtime-location
-三项 CLI 验证通过（27 进程、4 golden），见 [报告](validation/native-plan-darwin.json)。
+三项 CLI 验证通过（27 进程、4 golden），见 报告。
 
 ODR 补验：本机 codegen/slib 的 15 项选测和 driver 的真实 provider/consumer
 共享 ODR 产物测试通过；后者直接检查实际生成对象和跨 consumer 的实体复用。
@@ -155,8 +157,8 @@ compiled/cache 路径，继续核对共享字节和闭包对象。新增 86 行 
 
 两机先完成 `cargo fmt --all` / workspace clippy，再运行上述两个 Rust 测试，均通过。
 本机真实构建图测试耗时 38.51 秒，Linux 为 174.01 秒；两者均实际删除文件后成功读取
-root 与 core 的 Link 数据。CLI [Darwin](validation/retained-darwin.json) 单项通过
-（4 进程）；[GNU](validation/retained-gnu.json) 和 [musl](validation/retained-musl.json)
+root 与 core 的 Link 数据。CLI Darwin 单项通过
+（4 进程）；GNU 和 musl
 分别验证本用例及上述三个相关专测，均为 4 项、8 变体、32 进程、3 次 golden 比较通过。
 本用例在 GNU/musl 分别耗时 5.74/12.15 秒，复用原验收缓存；Darwin 空缓存耗时 44.97 秒。
 本批未重复全量测试；已清理结束的 CLI case 和本机 dev profile，报告留存。

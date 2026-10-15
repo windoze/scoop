@@ -1,5 +1,7 @@
 # M46 离线基线覆盖记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 本记录按 [BASELINES.md](BASELINES.md) 的形状矩阵关联普通 Scoop 用例。它不是完整 API client 或新 manifest 入口。生产库只提供协议、Serialize 合成和 JsonValue；基线 DTO 与业务检查留在测试中。四组基线均已完成 Darwin、Linux GNU 和 Linux musl 验收。
 
 ## Cone 等价 JSON
@@ -91,4 +93,4 @@
 | B15 | [codecs](../../tests/fixtures/m46-serialize/codecs/program/src/main.scoop)、[generics](../../tests/fixtures/m46-serialize/generics/program/src/main.scoop)、[无源码 Serialize](../../tests/fixtures/m46-serialize/artifacts/fixture.toml)：注入、声明处 T／T?、alias、重导出 |
 | B16 | [three-state](../../tests/fixtures/m46-serialize/three-state/program/src/main.scoop)：用户 FieldState 的 Missing／Null／Value，无 core 扩展 |
 
-矩阵关联本机分批测试和 Linux 验收。GNU 的 4061 项适用 fixture 全部通过，另有 30 项 target 不适用；musl 的本期及必要回归共 224 项通过。每批原始报告与失败修正记录见 [PROGRESS.md](PROGRESS.md)，按用例名去重的结果见[验收汇总](validation/linux-summary.json)；不同批次复用构建缓存，不反复跑全量。
+矩阵关联本机分批测试和 Linux 验收。GNU 的 4061 项适用 fixture 全部通过，另有 30 项 target 不适用；musl 的本期及必要回归共 224 项通过。每批原始报告与失败修正记录见 [PROGRESS.md](PROGRESS.md)，按用例名去重的结果见验收汇总；不同批次复用构建缓存，不反复跑全量。

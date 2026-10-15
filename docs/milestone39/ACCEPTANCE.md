@@ -1,5 +1,7 @@
 # M39 验收记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 状态：已完成并验收，2026-10-13。最终代码提交为 `e7f2fb7d`；后续提交仅记录验证与验收。
 
 实施基线：`e88f7d73`。范围见 [设计](DESIGN.md)，逐功能验证见 [实施记录](PROGRESS.md)。
@@ -62,10 +64,10 @@ parser、AST、HIR、MIR 及其 lowering 相对基线没有变更；lir-lower �
 
 | 范围 | 通过 | 不适用／忽略 | 其他覆盖 |
 | --- | ---: | ---: | --- |
-| Linux Rust workspace 完整覆盖 | 5,576 | 0 ignored | 48 个测试目标，含 doctest；[汇总及原始日志来源](validation/rust-linux.json)、[逐项覆盖](validation/rust-linux-coverage.json.gz) |
-| Linux GNU 正式 CLI 全量 | 3,741 | 30 不适用 | 4,203 变体、15,731 进程、71 次 golden；[报告](validation/linux-gnu.json)、[日志](validation/linux-gnu.log.gz) |
-| Linux musl 正式 CLI 全量 | 3,739 | 32 不适用 | 4,201 变体、15,727 进程、71 次 golden；[报告](validation/linux-musl.json)、[日志](validation/linux-musl.log.gz) |
-| Darwin 各功能定向 CLI，按最终同名结果去重 | 83 | 1 不适用 | 105 变体、376 进程、16 次 golden；[覆盖报告](validation/darwin-coverage.json) |
+| Linux Rust workspace 完整覆盖 | 5,576 | 0 ignored | 48 个测试目标，含 doctest；汇总及原始日志来源、逐项覆盖 |
+| Linux GNU 正式 CLI 全量 | 3,741 | 30 不适用 | 4,203 变体、15,731 进程、71 次 golden；报告、日志 |
+| Linux musl 正式 CLI 全量 | 3,739 | 32 不适用 | 4,201 变体、15,727 进程、71 次 golden；报告、日志 |
+| Darwin 各功能定向 CLI，按最终同名结果去重 | 83 | 1 不适用 | 105 变体、376 进程、16 次 golden；覆盖报告 |
 | 公共 fixture runner unittest | 每台宿主 47 | 0 | 本机与 Linux 各一次 |
 
 两个 Linux CLI 运行均选择全部 3,771 项，各执行一轮，最终报告 `complete=true`、`unselected=0`，
@@ -80,8 +82,8 @@ Rust 验证中发现并修复两项问题：target Debug 名称不能用作对�
 ## 清理与保留
 
 - 实施过程中多次清理本机 debug incremental，Linux 开始前清理旧 target（约 21 GiB）；native unwind 安装保留复用。
-- 两个 Linux 全量运行中按成功完成状态分批清理 case 目录，不删除运行中用例或失败证据；[清理日志](validation/linux-cleanup.log.gz)保留每次记录。
-- GNU 完成后清理约 6 GiB 私有 cache；最终清理本机 14 个 cache/sysroot 目录（约 699 MiB）及 Linux musl cache、cases、sysroot、临时目录与空 incremental（约 6,116 MiB），见[记录](validation/cleanup.json)。
+- 两个 Linux 全量运行中按成功完成状态分批清理 case 目录，不删除运行中用例或失败证据；清理日志保留每次记录。
+- GNU 完成后清理约 6 GiB 私有 cache；最终清理本机 14 个 cache/sysroot 目录（约 699 MiB）及 Linux musl cache、cases、sysroot、临时目录与空 incremental（约 6,116 MiB），见记录。
 - 保留报告、原始日志、release 命令及可供 M41 复用的编译依赖；M39 的 fixture 私有缓存和临时目录均已清理。测试全程使用仓库内的临时目录。
 
 ## 后续架构移植的位置

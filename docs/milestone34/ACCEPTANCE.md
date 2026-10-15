@@ -1,5 +1,7 @@
 # M34 实施与验收
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 完成日期：2026-10-10。
 
 基线为 M33 的 `e97b40f5c9c408e2ff785e5d09c6bf9222c78979`，工作分支为 `codex/m34`。功能按批次完成并分别提交，规范、实现与实际测试见 [设计](DESIGN.md)、[实施记录](PROGRESS.md)和[性能记录](PERFORMANCE.md)。本记录按真实执行范围区分普通快照比较、审阅后的快照更新与定向复验。
@@ -39,7 +41,7 @@
 
 ## Rust 与公共 runner
 
-Darwin 执行一次 `cargo test --release --workspace --no-fail-fast`，共 5,404 项：初跑 5,343 通过、61 失败、0 ignored。保留初跑并按失败清单补验，61 项已在 [Darwin](validation/rust-failure-closure-darwin.json) 和 [GNU](validation/rust-failure-closure-linux-gnu.json) 逐项闭合；五项 capability 测试随真实格式版本改名，记录保留旧名与新名的对应关系。
+Darwin 执行一次 `cargo test --release --workspace --no-fail-fast`，共 5,404 项：初跑 5,343 通过、61 失败、0 ignored。保留初跑并按失败清单补验，61 项已在 Darwin 和 GNU 逐项闭合；五项 capability 测试随真实格式版本改名，记录保留旧名与新名的对应关系。
 
 后续 `memset`、non-integral 与机器布局修复各增加一个 codegen 回归。最终生产实现 `db40db07a35896c040166fe454ff5d32c9ba3555` 下，Darwin 的 363 项、Linux 的 378 项 codegen 测试全部通过，数量差异来自平台条件测试；两机各 20 项 MIR 引用类型测试通过。没有把这些分组相加声称执行了另一轮全工作区，也没有重复未受影响的测试。公共 Python fixture runner 的 44 项规则测试通过。
 
@@ -49,19 +51,19 @@ Darwin 执行一次 `cargo test --release --workspace --no-fail-fast`，共 5,40
 
 正式 CLI 使用冻结的同一批配套工具，完整执行源码构建、产物消费、链接、运行、moving GC 和诊断断言。快照更新只迁移审阅过的预期；普通比较、更新执行与定向复验分别记录，合并时按 fixture 名去重。
 
-Darwin 的一次 `--all` 初跑发现 2,920 项，其中 1,593 通过、1,311 失败、16 不适用。边界修复后的七组严格复验、1,304 组预期迁移、11 组完整诊断／native／损坏产物严格复验，以及 M34 其余 53 组严格复验，共闭合全部 2,904 个适用 fixture；按每项最后成功执行去重为 3,125 variants、14,240 processes、12,201 次 stage／plan／symbols 快照检查。完整名称与执行来源见 [Darwin 覆盖记录](validation/cli-coverage-darwin.json)。这不是另一次无更新的 `--all`。
+Darwin 的一次 `--all` 初跑发现 2,920 项，其中 1,593 通过、1,311 失败、16 不适用。边界修复后的七组严格复验、1,304 组预期迁移、11 组完整诊断／native／损坏产物严格复验，以及 M34 其余 53 组严格复验，共闭合全部 2,904 个适用 fixture；按每项最后成功执行去重为 3,125 variants、14,240 processes、12,201 次 stage／plan／symbols 快照检查。完整名称与执行来源见 Darwin 覆盖记录。这不是另一次无更新的 `--all`。
 
 机器布局修复后，Darwin 再严格运行全部 40 个 M34 正例与退出用例。旧 fixture 的公共预期原本会被 release 覆盖，现按实际 profile 拆分；九个代表用例共 19 variants、106 processes、89 次快照检查严格通过。离线逐份核对先前保存的实际文件输出，11,442 次观测／10,904 个不同文件全部一致；对没有落盘的共享 native link plan，仅重放原 artifact-link 步骤，44 次精确快照比较通过，不把它们算成再次完整执行 fixture。
 
-M34 自身有 54 个 fixture，覆盖接口 6、去虚拟化 3、内联 5、poll 2、线程分配 2、小值 ABI 5、DirectC 3、多 region 2、reclamation 2、并行 mark 2、MaybeUninit 18、容器 4；MaybeUninit 的 18 项包含 14 项编译错误规则。Musl 的这 54 项及六组 String receiver 边界已严格通过，共 100 variants、502 processes、304 次快照检查，原始精简报告见 [musl 功能验收](validation/features-strict-musl-report.json)。
+M34 自身有 54 个 fixture，覆盖接口 6、去虚拟化 3、内联 5、poll 2、线程分配 2、小值 ABI 5、DirectC 3、多 region 2、reclamation 2、并行 mark 2、MaybeUninit 18、容器 4；MaybeUninit 的 18 项包含 14 项编译错误规则。Musl 的这 54 项及六组 String receiver 边界已严格通过，共 100 variants、502 processes、304 次快照检查，原始精简报告见 musl 功能验收。
 
-GNU 对 Darwin 受影响用例和 Linux 专用用例累计覆盖 1,347 项，其中 1,317 项适用用例通过、30 项不适用，没有未闭合失败；去重为 1,521 variants、10,685 processes、11,593 次快照检查。63 项 core 重建与既有超时用例以两路并发全部通过，保持原有时限。最终生产实现再严格运行 47 项 M34 正例、退出与 native 组合，93 variants、539 processes、384 次快照检查全部通过。完整来源见 [GNU 覆盖记录](validation/cli-coverage-gnu.json)与[最终严格复验](validation/final-strict-gnu-report.json)。
+GNU 对 Darwin 受影响用例和 Linux 专用用例累计覆盖 1,347 项，其中 1,317 项适用用例通过、30 项不适用，没有未闭合失败；去重为 1,521 variants、10,685 processes、11,593 次快照检查。63 项 core 重建与既有超时用例以两路并发全部通过，保持原有时限。最终生产实现再严格运行 47 项 M34 正例、退出与 native 组合，93 variants、539 processes、384 次快照检查全部通过。完整来源见 GNU 覆盖记录与最终严格复验。
 
-两机共有预期中，633 份 LIR 因真实 carrier 差异拆为按 target 选择，涉及 416 个 fixture；共同 HIR／MIR 没有新增平台差异。GNU 的 10,854 次保存文件观测／10,399 个不同文件逐份吻合，共享 native plan 另以 34 次原 artifact-link 进程严格复验。profile 拆分、目标拆分与精确文件核对见[快照迁移记录](validation/golden-migration.json)。
+两机共有预期中，633 份 LIR 因真实 carrier 差异拆为按 target 选择，涉及 416 个 fixture；共同 HIR／MIR 没有新增平台差异。GNU 的 10,854 次保存文件观测／10,399 个不同文件逐份吻合，共享 native plan 另以 34 次原 artifact-link 进程严格复验。profile 拆分、目标拆分与精确文件核对见快照迁移记录。
 
-musl 对实际不同的原生符号、链接计划与平台专用用例生成自己的预期；相同 SysV ABI 的 805 份预期更新单独记录，不计作 musl 执行成功。随后 442 项旧回归用最终生产实现完整执行，11 项以两路并发、431 项以四路并发全部通过，未修改时限。与 M34／String 和退出用例按名称合并，累计 503 项全部通过，共 583 variants、5,589 processes、6,018 次快照检查，完整来源见 [musl 覆盖记录](validation/cli-coverage-musl.json)。GNU 与 musl 均按受影响范围选择，没有声称执行全部 2,920 项。
+musl 对实际不同的原生符号、链接计划与平台专用用例生成自己的预期；相同 SysV ABI 的 805 份预期更新单独记录，不计作 musl 执行成功。随后 442 项旧回归用最终生产实现完整执行，11 项以两路并发、431 项以四路并发全部通过，未修改时限。与 M34／String 和退出用例按名称合并，累计 503 项全部通过，共 583 variants、5,589 processes、6,018 次快照检查，完整来源见 musl 覆盖记录。GNU 与 musl 均按受影响范围选择，没有声称执行全部 2,920 项。
 
-最终生产实现下，musl 的全部 40 个 M34 正例再次关闭快照更新通过，共 80 variants、436 processes、288 次快照检查，见[最终严格复验](validation/final-strict-musl-report.json)。编译前端未变化的 14 个 MaybeUninit 负例复用已通过的严格结果。
+最终生产实现下，musl 的全部 40 个 M34 正例再次关闭快照更新通过，共 80 variants、436 processes、288 次快照检查，见最终严格复验。编译前端未变化的 14 个 MaybeUninit 负例复用已通过的严格结果。
 
 musl 保存文件的 5,279 次观测／5,103 个不同文件全部一致，34 次共享 native link plan 精确比较通过。取得实际输出后，5,769 份快照中 4,932 份与本机字节相同，合入另外 837 份目标专用文件，没有共享输出冲突；15 份已无引用的旧 musl profile 文件删除。487 份 fixture 声明经解析后与提交前比较，变化仅有 800 处 snapshot 路径，命令、超时、环境、运行断言与归一化规则保持原值。三个 target 最后的非更新模式配置发现均为 2,920 项。
 
@@ -90,7 +92,7 @@ musl 保存文件的 5,279 次观测／5,103 个不同文件全部一致，34 �
 
 `MaybeUninit` nominal／callable role 为 14／25，三种操作为 1／2／3，默认值 tag 为 73，MIR／LIR 表示 tag 为 13／9。LLVM memory target-support 中 `memcpy`／`memset` 的稳定 tag 为 1／8。`ni:1` 只约束 LLVM 的指针转换，不改变目标指针大小、alignment 或原生 ABI。
 
-两机均把真实 M33 `.slib`、其 core 依赖与原 runtime index 交给当前 linker：明确拒绝 runtime ABI fingerprint，exit 1，不产生输出文件；原始结果见 [Darwin](validation/old-abi-darwin.json) 和 [GNU](validation/old-abi-linux-gnu.json)。当前期望值为 `54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586`，旧值为 `8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583`。新 ABI 的混合 debug／release 与 artifact-only 用例正常运行。
+两机均把真实 M33 `.slib`、其 core 依赖与原 runtime index 交给当前 linker：明确拒绝 runtime ABI fingerprint，exit 1，不产生输出文件；原始结果见 Darwin 和 GNU。当前期望值为 `54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586`，旧值为 `8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583`。新 ABI 的混合 debug／release 与 artifact-only 用例正常运行。
 
 ## 默认策略与范围
 
@@ -104,7 +106,7 @@ musl 保存文件的 5,279 次观测／5,103 个不同文件全部一致，34 �
 
 新增源码分为实际优化、ABI、marker、队列、region 与回收子模块。优化实现最长 260 行，新增 runtime 实现最长 183 行；Scoop ABI 验证从原大文件按 metadata／call site／destination 拆分，最长 473 行。对实现差异检查没有新增 `TODO`／`todo!`／`unimplemented!` 占位。
 
-按批次清理已链接的中间对象和 inactive incremental，保留有效库、CLI、测试 executable 和用于比较的 M33 工具。已记录 Darwin 16 次、GNU 17 次清理，逻辑大小分别为 114,293,748,135 和 35,331,927,274 bytes；这些是清理项的逻辑大小，部分项为目录。最近 Darwin 一次清理为 1,509,504,489 bytes。GNU 最后一次清理为 1,412,833,095 bytes；逐批原始指标，见 [target 清理记录](validation/target-cleanups.json)。
+按批次清理已链接的中间对象和 inactive incremental，保留有效库、CLI、测试 executable 和用于比较的 M33 工具。已记录 Darwin 16 次、GNU 17 次清理，逻辑大小分别为 114,293,748,135 和 35,331,927,274 bytes；这些是清理项的逻辑大小，部分项为目录。最近 Darwin 一次清理为 1,509,504,489 bytes。GNU 最后一次清理为 1,412,833,095 bytes；逐批原始指标，见 target 清理记录。
 
 ## 功能提交
 

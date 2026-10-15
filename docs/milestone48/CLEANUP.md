@@ -264,3 +264,10 @@ production/8 删除 distribution／output／image owner／registration、优化�
 ## 集中验收前的最终文件操作复核
 
 按当前正式发现入口复扫全部 TOML 和内联描述：25 份用例含 remove／move，仍对应真实缺失／更新、必要输出补产、正常 native 布局迁移及冷构建；连同 native 格式输入的 patch／truncate 和测试工具执行位准备，共 33 份用例、52 个操作。原始操作及逐项保留理由见[最终复核](FILE-OPERATIONS.tsv)。native 对象／归档的格式、重定位与 TLS 输入检查保留，不把它们误当作 Scoop 缓存防御测试删除。M48 helper 的缺失对象／executable 补产不移除源码或工具。
+
+
+## 历史验收原始记录移出仓库（2026-10-16）
+
+按用户要求，M34、M35、M36、M37、M39、M40、M41、M43、M44、M46 的 validation 目录共 643 份原始日志、逐次 JSON 报告和压缩归档移至仓库外，共 39,999,707 字节（约 38.1 MiB）。各期 ACCEPTANCE／PROGRESS／PERFORMANCE 中已有的验收范围、通过数量、失败闭合及平台限制继续保留，移除指向原始文件的链接。M48 的 23 份 Markdown 验收概要保留。
+
+AGENTS.md 和忽略规则统一规定后续只提交 Markdown 结果概要。转移后逐份比对原始文件的大小和摘要，并检查文档链接及差异空白；本批仅清理记录和文档，不重跑编译器、runtime 或 fixture 测试。原始记录转移不改变任何历史验收结论。

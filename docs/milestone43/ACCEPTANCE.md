@@ -1,5 +1,7 @@
 # M43 验收核对
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 状态：M43 已完成，Darwin、Linux GNU 与 Linux musl 验收均通过。日期：2026-10-14。
 
 范围依据 [设计第 9～10 章](DESIGN.md#9-实施批次)，实施与失败修复历史见 [PROGRESS](PROGRESS.md)。M43 仅交付同 Cone 单元测试；integration-test 等待 multi-cone workspace 定型。首个实际应用为 scoop.std。
@@ -37,7 +39,7 @@
 | 产物与缓存 | generated、failures 验证生产／测试隔离、热缓存、测试变化后的新指纹与实际执行输出；artifact-dependencies 删除依赖源码后构建，再删除根源码执行 artifact-only 链接；共享入口回归覆盖四种生产 main 与无源码产物消费 |
 | GC、Context 与平台 | [retention](../../tests/fixtures/m43-lifecycle/retention/program/src/main.scoop) 在 hooks 分配／GC 后检查实例、首次失败、清理失败和 Context 恢复；constant-dynamic-root 覆盖修复后的 LLVM 根合并；三目标的 CLI 执行状态见第 4 节 |
 
-不能运行外来 target 时，当前宿主的真实请求均在目标工具链解析处失败，没有宿主回退，见 [Darwin→GNU](validation/foreign-target-darwin.json.gz) 和 [Linux→Darwin](validation/foreign-target-linux.json.gz)。本环境没有对应交叉工具链，这两项不声称覆盖已链接外来程序的执行；执行阶段沿既有 OS spawn 错误路径返回工具诊断。
+不能运行外来 target 时，当前宿主的真实请求均在目标工具链解析处失败，没有宿主回退，见 Darwin→GNU 和 Linux→Darwin。本环境没有对应交叉工具链，这两项不声称覆盖已链接外来程序的执行；执行阶段沿既有 OS spawn 错误路径返回工具诊断。
 
 ## 3. Darwin 已完成证据
 
@@ -45,14 +47,14 @@
 
 | 报告 | 使用规则 |
 | --- | --- |
-| [initial](validation/acceptance-initial-darwin.json.gz) | 基础 43 项；两项热缓存断言失败由 warm-cache 替换，selection-invalid 的扩展也由该复验替换 |
-| [warm-cache](validation/warm-cache-darwin.json.gz) | 3 项、5 个变体、47 个步骤，替换上述 3 项 |
-| [declarations](validation/declarations-darwin.json.gz) | 49 项、49 个步骤 |
-| [artifact-dependencies](validation/artifact-dependencies-darwin.json.gz) | 1 项、2 个变体、12 个步骤 |
-| [boundaries](validation/boundaries-darwin.json.gz) | 11 项、12 个变体、16 个步骤 |
-| [panic/process](validation/panic-darwin.json.gz) | 1 项、2 个变体、10 个步骤；替换增加 panic 前的 process 报告 |
+| initial | 基础 43 项；两项热缓存断言失败由 warm-cache 替换，selection-invalid 的扩展也由该复验替换 |
+| warm-cache | 3 项、5 个变体、47 个步骤，替换上述 3 项 |
+| declarations | 49 项、49 个步骤 |
+| artifact-dependencies | 1 项、2 个变体、12 个步骤 |
+| boundaries | 11 项、12 个变体、16 个步骤 |
+| panic/process | 1 项、2 个变体、10 个步骤；替换增加 panic 前的 process 报告 |
 
-共享生产功能另有 62 项、71 个变体、293 个步骤通过，取 [source-roles](validation/source-roles-darwin.json)、[dependency-roles](validation/dependency-roles-darwin.json)、[entry](validation/entry-darwin.json)、[discovery](validation/discovery-darwin.json) 中非 M43 fixture 的去重集合。它们覆盖源码选择、名称与依赖查找、构造决议、生产入口、退出、链接与产物消费。阶段数据与身份编码的 Rust 验证见 PROGRESS 中各功能提交的实际日志。
+共享生产功能另有 62 项、71 个变体、293 个步骤通过，取 source-roles、dependency-roles、entry、discovery 中非 M43 fixture 的去重集合。它们覆盖源码选择、名称与依赖查找、构造决议、生产入口、退出、链接与产物消费。阶段数据与身份编码的 Rust 验证见 PROGRESS 中各功能提交的实际日志。
 
 报告中的 complete=false 表示使用定向选择而非全仓 --all，不表示所选 fixture 尚未结束；每项是否通过以 results 的状态及进程结果为准。本轮没有重跑与改动无关的全仓 4050 项 fixture。
 
@@ -62,10 +64,10 @@
 
 - 格式检查、workspace clippy、配套工具构建与 49 项 runner 测试已通过，日志见 PROGRESS 的 Linux 验证记录。
 - 受影响 Rust 组共 1193 项通过，包含 385 项 Linux codegen、571 项 slib、21 项测试发现／入口，以及源码／依赖角色和 driver 输入检查。
-- [初始 CLI 选择清单](validation/linux-selection.json)定义每目标 167 项范围，即 105 项 M43 加 62 项共享回归；166 项首批和 process 分开启动。两个平台首轮各有 imported-constructor-private-constructor 因并行 Cargo 重建正在使用的 scoopc 而失败。
-- 固定 release 工具的 [GNU 验证报告](validation/release-check-gnu.json.gz)共 4 项、6 个变体、22 个步骤通过，包括该构造回归、scoop.std 选择与 process。同一冷缓存构造负例由 debug 工具的 259.62 秒降至 33.07 秒；据此结束较慢的首轮工具进程，保留已完成结果，将剩余项切换到独立的固定 release 工具。
-- 首轮提前结束，没有生成整组 report.json；[GNU 原始日志](validation/debug-initial-gnu.log.gz)、[musl 原始日志](validation/debug-initial-musl.log.gz)分别保存 11 个完整 fixture 的 passed 记录。[GNU 摘录](validation/debug-observed-gnu.json.gz)和 [musl 摘录](validation/debug-observed-musl.json.gz)只提取这些已完成状态，不补写未完成项的通过结果。
-- [剩余选择清单](validation/linux-remaining-selection.json.gz)已核对集合：GNU 的 14 项已完成证据与 153 项续验没有交集，并集为完整的 167 项；musl 的 11 项已完成证据与 156 项续验同样覆盖完整范围。
-- GNU 153 项续验全部通过，共 180 个变体、491 个进程步骤，见 [报告](validation/remaining-gnu.json.gz) 和 [日志](validation/remaining-gnu.log.gz)。与首轮已完成日志和四项 release 验证按名称合并后，GNU 的全部 167 项均已验证，包括 105 项 M43 及 62 项共享回归；首轮受工具重建影响的构造回归已成功复验。
-- musl 156 项续验全部通过，共 185 个变体、512 个进程步骤，见 [报告](validation/remaining-musl.json.gz) 和 [日志](validation/remaining-musl.log.gz)。与首轮 11 项完整通过记录合并，覆盖全部 167 项；首轮构造回归的失败已成功复验。
-- [三目标覆盖索引](validation/coverage.json.gz)逐项保存当前 105 项 M43 与 62 项共享回归的实际证据来源。各目标完成集合均与要求集合完全一致，全部状态为 passed；原始失败和提前结束的日志保持，不被覆盖或当成整组通过。三目标验收完成后，M43 的设计、实施状态与路线图同步收尾；继续推进 M44。
+- 初始 CLI 选择清单定义每目标 167 项范围，即 105 项 M43 加 62 项共享回归；166 项首批和 process 分开启动。两个平台首轮各有 imported-constructor-private-constructor 因并行 Cargo 重建正在使用的 scoopc 而失败。
+- 固定 release 工具的 GNU 验证报告共 4 项、6 个变体、22 个步骤通过，包括该构造回归、scoop.std 选择与 process。同一冷缓存构造负例由 debug 工具的 259.62 秒降至 33.07 秒；据此结束较慢的首轮工具进程，保留已完成结果，将剩余项切换到独立的固定 release 工具。
+- 首轮提前结束，没有生成整组 report.json；GNU 原始日志、musl 原始日志分别保存 11 个完整 fixture 的 passed 记录。GNU 摘录和 musl 摘录只提取这些已完成状态，不补写未完成项的通过结果。
+- 剩余选择清单已核对集合：GNU 的 14 项已完成证据与 153 项续验没有交集，并集为完整的 167 项；musl 的 11 项已完成证据与 156 项续验同样覆盖完整范围。
+- GNU 153 项续验全部通过，共 180 个变体、491 个进程步骤，见 报告 和 日志。与首轮已完成日志和四项 release 验证按名称合并后，GNU 的全部 167 项均已验证，包括 105 项 M43 及 62 项共享回归；首轮受工具重建影响的构造回归已成功复验。
+- musl 156 项续验全部通过，共 185 个变体、512 个进程步骤，见 报告 和 日志。与首轮 11 项完整通过记录合并，覆盖全部 167 项；首轮构造回归的失败已成功复验。
+- 三目标覆盖索引逐项保存当前 105 项 M43 与 62 项共享回归的实际证据来源。各目标完成集合均与要求集合完全一致，全部状态为 passed；原始失败和提前结束的日志保持，不被覆盖或当成整组通过。三目标验收完成后，M43 的设计、实施状态与路线图同步收尾；继续推进 M44。

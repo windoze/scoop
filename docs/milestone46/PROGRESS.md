@@ -1,5 +1,7 @@
 # M46 实施记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 基线：`e548b9ebe`。按用户要求先完成整个 M46，再开始 M38；M38 的已有设计修改保持原样。
 
 ## M46-1：稳定解码视图
@@ -9,78 +11,78 @@
 - 独立 fixture 覆盖标量错误后重试、missing/null/value、重复字段、end 后读取、独立游标；组合 fixture 覆盖合成候选、default 次数、tuple 精确长度及 moving GC。缺失 isNull 的实现有准确编译诊断。
 - 同步既有 decoder 实现及旧一次性消费断言。没有修改 runtime、IR、产物格式或编译器合成逻辑。
 - 本机 cargo fmt、全工作区 clippy、debug/release 三个 CLI 工具构建通过。相关 59 个 fixture 全部闭合：初轮 25 项通过后切到优化版编译器，其余 34 项中 31 项直接通过，3 项新用例修正 lambda 裸 return 后复验通过；每个运行型新用例同时执行普通和 moving GC。
-- 原始报告：[初轮](validation/decoder-initial-darwin.json.gz)、[剩余项](validation/decoder-remaining-darwin.json.gz)、[修正复验](validation/decoder-retry-darwin.json.gz)。初轮中断不计通过；三项源码语法错误及后续通过均保留。未改 Rust／runtime，本批不运行无关 Rust 全量；Linux 完整验证放在本机功能完成之后。
+- 原始报告：初轮、剩余项、修正复验。初轮中断不计通过；三项源码语法错误及后续通过均保留。未改 Rust／runtime，本批不运行无关 Rust 全量；Linux 完整验证放在本机功能完成之后。
 
 ## M46-2：共享编码容器与提交
 
 - 语言规范 11.13.2 区分当前完成与最终提交。JSON 编码器用封闭的容器类别保存同类共享视图，record／sequence 在 end 后可继续写入，新写入使旧完成状态失效。
 - pending 子入口在父级推进或 end 时提交，root 在 codec 返回后提交；提交后的 writer 不能修改输出。重复 key、跨类别请求、单值重复写入及未完成值仍有带 path 的错误。容器代码拆到 encoding_containers.scoop，两个实现文件分别为 99／64 行。
 - 五个独立／组合 fixture 覆盖 keyed／unkeyed、多视图交替、空容器、end 后追加、合成 flatten／tagged、根与子 writer 过期引用、错误边界及 moving GC。
-- 本机 fmt／全工作区 clippy 通过；18 项 CLI fixture 全部通过（5 项新编码、5 项解码协议回归、8 项既有编码／JSON／产物组合）。首轮被 JSON enum 的裸绑定 warning 阻断，改用已有明确匹配及取值形式后全部通过。报告：[初轮](validation/encoder-initial-darwin.json.gz)、[完成验证](validation/encoder-verified-darwin.json.gz)。
+- 本机 fmt／全工作区 clippy 通过；18 项 CLI fixture 全部通过（5 项新编码、5 项解码协议回归、8 项既有编码／JSON／产物组合）。首轮被 JSON enum 的裸绑定 warning 阻断，改用已有明确匹配及取值形式后全部通过。报告：初轮、完成验证。
 
 ## M46-3：Serialize、nullable Option 与字段缺省
 
 - 语言规范 11.13 和实现规范 2.17 先定义统一 Serialize、缺失／null、required／emitNull／ignore、直接 None default 的保守省略及泛型声明处规则；core 移除 SerialName／Transient，Option 的普通 codec 改为 nullable 值。
 - HIR 合成复用现有 annotation 静态值、原声明类型和已绑定 default body；没有新增 IR／产物 section。编码只读字段一次，省略分支包住 child 创建及 codec 求值；解码保留先读取、end、依次 default、正常构造的顺序。原 T 与 T? 的区别在具体目标和依赖产物消费时均保留。
 - 新增 8 个运行型 fixture（每项含普通及 moving GC）和 10 个准确 negative fixture，覆盖字段配置、default 副作用、完整 Option codec 注入、泛型／alias、class／enum／tuple、三态用户 enum，以及三 Cone 无源码消费与重导出。既有功能用例迁移注解和 Option wire 表示，不保存普通功能 IR 全量快照。新增默认值辅助模块 117 行，修改的合成子模块最大 208 行。
-- 本机 fmt／全工作区 clippy、release 三个 CLI 工具构建及 [47 项相关 HIR 测试](validation/serialize-hir-darwin.log.gz) 通过。18 项新 fixture、156 项相关旧 fixture、6 项 std codec fixture 全部闭合，共 180 项：旧回归首轮 136 项通过，19 项诊断期望随改名／位置更新，1 项旧序列消费约束断言按 M46-1 修正，20 项复验全通过。新用例修正一次 lambda statement 和测试库构造器可见性；negative 初轮用于取得并逐项审查准确诊断，10 项复验全通过。
-- 原始报告：[新功能首轮](validation/serialize-initial-darwin.json.gz)、[三态／产物首轮](validation/serialize-artifacts-initial-darwin.json.gz)、[产物通过与 negative 初轮](validation/serialize-negative-initial-darwin.json.gz)、[negative 复验](validation/serialize-negative-verified-darwin.json.gz)、[旧回归首轮](validation/serialize-regression-initial-darwin.json.gz)、[20 项复验](validation/serialize-regression-verified-darwin.json.gz)、[std codec](validation/serialize-stdlib-darwin.json.gz)。原始失败保留，不计作通过。
+- 本机 fmt／全工作区 clippy、release 三个 CLI 工具构建及 47 项相关 HIR 测试 通过。18 项新 fixture、156 项相关旧 fixture、6 项 std codec fixture 全部闭合，共 180 项：旧回归首轮 136 项通过，19 项诊断期望随改名／位置更新，1 项旧序列消费约束断言按 M46-1 修正，20 项复验全通过。新用例修正一次 lambda statement 和测试库构造器可见性；negative 初轮用于取得并逐项审查准确诊断，10 项复验全通过。
+- 原始报告：新功能首轮、三态／产物首轮、产物通过与 negative 初轮、negative 复验、旧回归首轮、20 项复验、std codec。原始失败保留，不计作通过。
 
 ## M46-4：不可变 JsonValue 与树值入口
 
 - 语言规范 11.13 增加公共不可变 JsonValue class、普通 companion codec 和 Json.encodeValue／decodeValue。现有树重命名为 internal JsonNode，公开 wrapper 只有 internal 构造器及节点，不公开可变集合；文本与树值入口共用根编码／提交和 decoder。
 - 捕获直接共享既有合法节点；编码逐层使用普通容器，数字沿 Cone 内部精确 token 写入。没有新增 core operation、runtime ABI、反射、平行树或出口重新解析。新 codec 文件 45 行，JSON 实现子文件均不超过 112 行。
 - 5 个新运行型 fixture 含普通／moving GC，覆盖全部 JSON 节点、超出 ULong／Double 的数字、负零与长小数、字符串与对象区别、子树错误后复读、延迟 typed 解码、未知字段 LinkedHashMap、allow／deny／collect、flatten 冲突、过期 writer、格式入口不匹配、非法未知子树，以及三 Cone 无源码生产／消费。1 个 negative fixture 精确断言节点不能被外部访问。
-- 本机 fmt／全工作区 clippy 通过；6 项新增用例和 13 项必要既有回归全部通过。首轮 3 项通过，1 个新用例错误地要求 JsonValue 具有 Equals，改用普通 Option 模式检查后通过；没有为测试增添公开相等性能力。跨产物通过，访问负例取得并审查诊断后复验通过。报告：[首轮](validation/values-initial-darwin.json.gz)、[产物与修正用例](validation/values-artifacts-darwin.json.gz)、[访问负例复验](validation/values-hidden-darwin.json.gz)、[既有回归](validation/values-regression-darwin.json.gz)。本批没有 Rust／runtime 实现改动，不重复相关 Rust 测试。
+- 本机 fmt／全工作区 clippy 通过；6 项新增用例和 13 项必要既有回归全部通过。首轮 3 项通过，1 个新用例错误地要求 JsonValue 具有 Equals，改用普通 Option 模式检查后通过；没有为测试增添公开相等性能力。跨产物通过，访问负例取得并审查诊断后复验通过。报告：首轮、产物与修正用例、访问负例复验、既有回归。本批没有 Rust／runtime 实现改动，不重复相关 Rust 测试。
 
 ## M46-5：离线形状基线
 
 - Cone 等价 JSON 已完成普通 Scoop DTO、稳定视图包装校验、动态依赖 object、短长式依赖和 target 条件。完整配置、默认配置、显式空数组、全部 library kind、条件 AND／OR、typed 往返及 67 个准确错误路径覆盖 T1～T9；没有新增 Cone.json 构建入口或移植构建器。源码按职责分为 10 个文件，各不超过 91 行。映射见 [COVERAGE.md](COVERAGE.md)。
 - 本机 fmt／全工作区 clippy 通过；Cone fixture 普通模式执行全部输入，moving GC 执行完整正向组合和首末两个代表性失败，合计约 37 秒通过。初轮修正 enum payload 的 warning 和测试中 null 字段路径误写；全错误矩阵的 moving 重复成本过高，主动中断后缩减到代表组合，普通错误矩阵保持完整。
-- 报告：[编译首轮](validation/cone-initial-darwin.json.gz)、[运行首轮](validation/cone-runtime-initial-darwin.json.gz)、[路径诊断](validation/cone-path-darwin.json.gz)、[搬迁测试中断](validation/cone-moving-interrupted-darwin.json.gz)、[完成验证](validation/cone-verified-darwin.json.gz)。失败和中断不计为通过。
+- 报告：编译首轮、运行首轮、路径诊断、搬迁测试中断、完成验证。失败和中断不计为通过。
 - Chat 基线完成 C1～C8：普通模式执行全部 typed 往返和 12 个准确错误路径，moving GC 执行完整多模态请求组合；本机 fmt／全工作区 clippy 和 fixture 通过，约 121 秒。源码按职责拆分，各不超过 114 行。没有生产库改动。
-- Chat 首轮修正测试的泛型函数声明、Array 完整类型实参、Option<Array> 无相等性及 enum 裸绑定 warning。完整正向矩阵在普通模式通过后，中断成本过高的重复搬迁矩阵，改为代表组合后复验通过。[语法首轮](validation/chat-initial-darwin.json.gz)、[类型首轮](validation/chat-typed-initial-darwin.json.gz)、[搬迁中断](validation/chat-moving-interrupted-darwin.json.gz)、[完成验证](validation/chat-verified-darwin.json.gz)均保留。
-- Responses 基线完成 R1～R7：15 类 mixed item、7 类工具、16 个完整事件、动态 typed prompt variables、缺失 type 的简式消息与 12 个错误路径。本机 fmt／全工作区 clippy 和普通／代表 moving GC 首轮通过，约 184 秒；1137 行源码按职责分为 21 个文件，最大 111 行。[原始报告](validation/responses-verified-darwin.json.gz)。本批没有生产库修改。
-- Messages 基线完成 A1～A8：15 块混合内容、7 类工具、5 类引用、14 个完整事件、递归工具结果、双层 discriminator、signature／opaque 数据与 15 个错误路径。官方 schema 复核发现 nullable diagnostics 实为 tagged object，补齐 CacheMiss 六分支及 null 后复验；没有把已知结构当作开放 JSON。22 个源码文件共 1107 行，最大 103 行。本机 fmt／全工作区 clippy、普通／代表 moving GC 通过，约 139 秒。[首轮](validation/messages-initial-darwin.json.gz)、[完成验证](validation/messages-verified-darwin.json.gz)。
-- 四组基线及 B1～B16 组合证据已关联到 [COVERAGE.md](COVERAGE.md)。2026-10-15 的 [49 项 fixture 公共规则测试](validation/runner-darwin.log.gz)通过；`--all --list` 验证 4091 项声明与全部源码归属。此项不冒充 4091 项执行通过。
+- Chat 首轮修正测试的泛型函数声明、Array 完整类型实参、Option<Array> 无相等性及 enum 裸绑定 warning。完整正向矩阵在普通模式通过后，中断成本过高的重复搬迁矩阵，改为代表组合后复验通过。语法首轮、类型首轮、搬迁中断、完成验证均保留。
+- Responses 基线完成 R1～R7：15 类 mixed item、7 类工具、16 个完整事件、动态 typed prompt variables、缺失 type 的简式消息与 12 个错误路径。本机 fmt／全工作区 clippy 和普通／代表 moving GC 首轮通过，约 184 秒；1137 行源码按职责分为 21 个文件，最大 111 行。原始报告。本批没有生产库修改。
+- Messages 基线完成 A1～A8：15 块混合内容、7 类工具、5 类引用、14 个完整事件、递归工具结果、双层 discriminator、signature／opaque 数据与 15 个错误路径。官方 schema 复核发现 nullable diagnostics 实为 tagged object，补齐 CacheMiss 六分支及 null 后复验；没有把已知结构当作开放 JSON。22 个源码文件共 1107 行，最大 103 行。本机 fmt／全工作区 clippy、普通／代表 moving GC 通过，约 139 秒。首轮、完成验证。
+- 四组基线及 B1～B16 组合证据已关联到 [COVERAGE.md](COVERAGE.md)。2026-10-15 的 49 项 fixture 公共规则测试通过；`--all --list` 验证 4091 项声明与全部源码归属。此项不冒充 4091 项执行通过。
 
 ## M46-6：跨 target 验收（已完成）
 
 - 本机各新增功能和必要既有回归已分批闭合。Linux Rust workspace、公共 fixture 规则、GNU 完整文件 fixture，以及 musl 的 M46 全部与必要回归均已闭合。以下保留分批执行过程，最终结果见本节末尾。
-- 2026-10-15 初次连接 nuc12 超时；用户恢复环境后连接成功。远端从同一基线切到 `codex/m46-m38`，同步至 `e3348cbc`；显式选择已有 Cargo 1.99.0／Rust 1.99.0 和 LLVM 22.1.2，不使用默认 PATH 中的 LLVM 21。见[环境记录](validation/environment-linux.log.gz)。
-- Linux [fmt／全 workspace clippy](validation/clippy-linux.log.gz)、[release 三个 CLI 构建](validation/build-linux.log.gz)、[49 项公共规则测试](validation/runner-linux.log.gz)均通过；复用已安装的私有 LLVM libunwind，GNU PIE、musl static／PIE 的[实际 cleanup／catch／delete 检查](validation/unwind-linux.log.gz)通过。
-- GNU 完整发现 4091 项，30 项 target 不适用。初轮 4 路并行完成 37 项后改为 12 路继续剩余项；恢复时发现用例序号目录与旧只读产物冲突，保存报告后隔离旧 cases，仅复用编译缓存。权限失败项已在干净用例目录通过。保留[初轮中断](validation/gnu-initial.json.gz)及[恢复目录冲突](validation/gnu-resume-initial.json.gz)，中断和失败不计作通过。GNU 剩余项仍在运行。
-- Rust workspace 的前 24 组共 5570 项通过，最后的 driver debug 端到端测试运行约 10 分钟后中止，保留[原始日志](validation/rust-initial-linux.log.gz)。只将 driver library 改为 release、4 路测试线程继续验收，之后补 driver binary 与 workspace 文档测试，不重复已通过的其他 crate。
-- musl [224 项首轮](validation/musl-initial.json.gz)中 220 项通过，std codec 错误矩阵与三个 API 基线在 build 步骤触发 300 秒时限。隔离旧 cases 后串行复验，std codec 约 38 秒通过，Chat 仍超过 300 秒；[复验原始报告](validation/musl-retry-initial.json.gz)保留失败与中断。临时给三个大型 DTO 的 build 设置 600 秒，并将该串行 runner 限定到 nuc12 的性能核 0～11，Chat 仍[超时](validation/musl-timeout600.json.gz)。停止其余两项复验，检查实际热点；临时时限已撤回，保留原 300 秒默认时限。[临时配置的本机 clippy](validation/final-clippy-darwin.log.gz)也归档。
+- 2026-10-15 初次连接 nuc12 超时；用户恢复环境后连接成功。远端从同一基线切到 `codex/m46-m38`，同步至 `e3348cbc`；显式选择已有 Cargo 1.99.0／Rust 1.99.0 和 LLVM 22.1.2，不使用默认 PATH 中的 LLVM 21。见环境记录。
+- Linux fmt／全 workspace clippy、release 三个 CLI 构建、49 项公共规则测试均通过；复用已安装的私有 LLVM libunwind，GNU PIE、musl static／PIE 的实际 cleanup／catch／delete 检查通过。
+- GNU 完整发现 4091 项，30 项 target 不适用。初轮 4 路并行完成 37 项后改为 12 路继续剩余项；恢复时发现用例序号目录与旧只读产物冲突，保存报告后隔离旧 cases，仅复用编译缓存。权限失败项已在干净用例目录通过。保留初轮中断及恢复目录冲突，中断和失败不计作通过。GNU 剩余项仍在运行。
+- Rust workspace 的前 24 组共 5570 项通过，最后的 driver debug 端到端测试运行约 10 分钟后中止，保留原始日志。只将 driver library 改为 release、4 路测试线程继续验收，之后补 driver binary 与 workspace 文档测试，不重复已通过的其他 crate。
+- musl 224 项首轮中 220 项通过，std codec 错误矩阵与三个 API 基线在 build 步骤触发 300 秒时限。隔离旧 cases 后串行复验，std codec 约 38 秒通过，Chat 仍超过 300 秒；复验原始报告保留失败与中断。临时给三个大型 DTO 的 build 设置 600 秒，并将该串行 runner 限定到 nuc12 的性能核 0～11，Chat 仍超时。停止其余两项复验，检查实际热点；临时时限已撤回，保留原 300 秒默认时限。临时配置的本机 clippy也归档。
 
 ### 大型 DTO 暴露的 image 注册表查询开销
 
-- Linux 慢编译的[实际调用栈](validation/chat-backtrace.log.gz)定位到 image safepoint 注册表验证：每个表项线性扫描整个 relocation、Strong binding 及符号集合。实现规范先明确复用查询索引；实现对本 atom 的 relocation 按 offset 查询，复用既有 `bindings_at`，并为 member 的符号表序号建立一次索引。保持原有数量、唯一 offset、target、role、宽度及编码值检查，不改变产物格式、ABI 或语言语义。
-- 本机 fmt、[全 workspace clippy](validation/registration-clippy-darwin.log.gz)、[571 项 slib 测试](validation/registration-tests-darwin.log.gz)通过；补充注册数量与错误 target owner 负例、符号序号查询断言。新 CLI 的 [Chat／Serialize 产物／JsonValue 产物 fixture](validation/registration-fixtures-darwin.json.gz)均通过，包含普通运行和 moving GC。Chat 在新工作区约 163 秒，其余两项约 17／18 秒；此值不与旧暖缓存用例直接作性能比。Linux 将使用修复后的工具继续验收。
-- 修复提交 `247a4d16` 后，Linux [clippy](validation/registration-clippy-linux.log.gz)、[CLI 构建](validation/registration-build-linux.log.gz)及 [572 项 slib 测试](validation/registration-slib-linux.log.gz)通过。musl 使用原 300 秒时限，Chat 约 236 秒、Cone 约 48 秒通过；Messages 构建超时，其余未完成项保留在[原始报告](validation/musl-registration-initial.json.gz)。GNU 在切换修复前的[续跑报告](validation/gnu-pre-registration.json.gz)有 762 项通过，与前两轮合计 816 项；剩余 3245 项在新工具上继续运行。旧 release driver 在切换工具时中止，保留[日志](validation/driver-initial-linux.log.gz)，最终 driver 验收仍待完成。
+- Linux 慢编译的实际调用栈定位到 image safepoint 注册表验证：每个表项线性扫描整个 relocation、Strong binding 及符号集合。实现规范先明确复用查询索引；实现对本 atom 的 relocation 按 offset 查询，复用既有 `bindings_at`，并为 member 的符号表序号建立一次索引。保持原有数量、唯一 offset、target、role、宽度及编码值检查，不改变产物格式、ABI 或语言语义。
+- 本机 fmt、全 workspace clippy、571 项 slib 测试通过；补充注册数量与错误 target owner 负例、符号序号查询断言。新 CLI 的 Chat／Serialize 产物／JsonValue 产物 fixture均通过，包含普通运行和 moving GC。Chat 在新工作区约 163 秒，其余两项约 17／18 秒；此值不与旧暖缓存用例直接作性能比。Linux 将使用修复后的工具继续验收。
+- 修复提交 `247a4d16` 后，Linux clippy、CLI 构建及 572 项 slib 测试通过。musl 使用原 300 秒时限，Chat 约 236 秒、Cone 约 48 秒通过；Messages 构建超时，其余未完成项保留在原始报告。GNU 在切换修复前的续跑报告有 762 项通过，与前两轮合计 816 项；剩余 3245 项在新工具上继续运行。旧 release driver 在切换工具时中止，保留日志，最终 driver 验收仍待完成。
 
 ### Callable 元数据发射复用 atom boundary 索引
 
-- 修复后的 Chat [采样](validation/chat-indexed-backtrace.log.gz)已进入 LLVM 输出；Messages 的[慢路径采样](validation/messages-indexed-backtrace.log.gz)进一步发现每次 callable 元数据发射都重新建立全 Cone 的 boundary BTreeMap。按已有一次建立／复用原则先补实现规范，再让 ObjectSymbolSurface 保存按 atom identity 查询的位置索引；删除未发射定义／atom 后同步更新，wire 只编码原有 plans。codegen 只查询本次实际发射的 atom，保持 owner 冲突、缺失 atom、别名及范围检查。
-- 本机 fmt、[clippy](validation/boundary-clippy-darwin.log.gz)、[6 项 LIR 查询／wire 测试](validation/boundary-lir-darwin.log.gz)、[36 项元数据 ABI 测试](validation/boundary-codegen-darwin.log.gz)、[9 项对象分区测试](validation/boundary-partition-darwin.log.gz)、[3 项 shape 测试](validation/boundary-shapes-darwin.log.gz)通过。[Messages／Responses／JsonValue 无源码产物 fixture](validation/boundary-fixtures-darwin.json.gz)均通过，含普通及 moving GC，分别约 107／107／19 秒；没有增加测试时限、wire 字段或 runtime ABI。
-- `7d578bdf` 在 Linux 的 fmt／[clippy](validation/boundary-clippy-linux.log.gz)、[release CLI 构建](validation/boundary-build-linux.log.gz)、[475 项 LIR 测试](validation/boundary-lir-linux.log.gz)和 [387 项 codegen／runtime 测试](validation/boundary-codegen-linux.log.gz)通过。Rust 剩余覆盖已闭合：[83 项 release driver library 测试](validation/boundary-driver-linux.log.gz)、[7 项 CLI 单元测试与 1 项 capability 集成测试](validation/boundary-driver-cli-linux.log.gz)、[workspace 的 2 项文档测试](validation/boundary-doc-linux.log.gz)全部通过。
-- GNU 切换 boundary 修复前的[报告](validation/gnu-pre-boundary.json.gz)新增 893 项通过；修复后的[续跑报告](validation/gnu-boundary.json.gz)新增 1341 项通过、1 项旧 Option 期望失败，与此前累计 3050 项通过。为让未执行的三个大型基线使用更新时限，保存中断报告后继续剩余 1011 项；已通过项不重跑。
-- musl 在原 300 秒配置下的[本轮报告](validation/musl-boundary.json.gz)有 36 项通过，仅三个大型 API 基线在构建步骤超时；其中 Chat 的[采样](validation/chat-boundary-backtrace.log.gz)位于 LLVM 模块验证。两处具体重复扫描修复后，最终将三个大型基线的 build 单独设为 600 秒，其他步骤和普通用例保持默认值；[本机 clippy](validation/baseline-timeout-clippy-darwin.log.gz)及全部 4091 项声明／源码归属检查通过。大型基线在独立目录复验；首次通过缓存软链接复用被构建器拒绝，保留[报告](validation/musl-baseline-cache-link.json.gz)，改用缓存实际副本继续。
+- 修复后的 Chat 采样已进入 LLVM 输出；Messages 的慢路径采样进一步发现每次 callable 元数据发射都重新建立全 Cone 的 boundary BTreeMap。按已有一次建立／复用原则先补实现规范，再让 ObjectSymbolSurface 保存按 atom identity 查询的位置索引；删除未发射定义／atom 后同步更新，wire 只编码原有 plans。codegen 只查询本次实际发射的 atom，保持 owner 冲突、缺失 atom、别名及范围检查。
+- 本机 fmt、clippy、6 项 LIR 查询／wire 测试、36 项元数据 ABI 测试、9 项对象分区测试、3 项 shape 测试通过。Messages／Responses／JsonValue 无源码产物 fixture均通过，含普通及 moving GC，分别约 107／107／19 秒；没有增加测试时限、wire 字段或 runtime ABI。
+- `7d578bdf` 在 Linux 的 fmt／clippy、release CLI 构建、475 项 LIR 测试和 387 项 codegen／runtime 测试通过。Rust 剩余覆盖已闭合：83 项 release driver library 测试、7 项 CLI 单元测试与 1 项 capability 集成测试、workspace 的 2 项文档测试全部通过。
+- GNU 切换 boundary 修复前的报告新增 893 项通过；修复后的续跑报告新增 1341 项通过、1 项旧 Option 期望失败，与此前累计 3050 项通过。为让未执行的三个大型基线使用更新时限，保存中断报告后继续剩余 1011 项；已通过项不重跑。
+- musl 在原 300 秒配置下的本轮报告有 36 项通过，仅三个大型 API 基线在构建步骤超时；其中 Chat 的采样位于 LLVM 模块验证。两处具体重复扫描修复后，最终将三个大型基线的 build 单独设为 600 秒，其他步骤和普通用例保持默认值；本机 clippy及全部 4091 项声明／源码归属检查通过。大型基线在独立目录复验；首次通过缓存软链接复用被构建器拒绝，保留报告，改用缓存实际副本继续。
 
 ### ELF 符号准备复用定义组索引
 
-- 三个大型基线在新时限下的[报告](validation/musl-baseline-before-elf.json.gz)中，Chat 约 377 秒通过；Messages 构建过程中，CLI 集成测试重新链接了 `scoopc`，触发配套工具变更检查，需要在工具稳定后复验。Responses 构建仍超过 600 秒，其[采样](validation/responses-final-backtrace.log.gz)定位到每个 callable 都遍历全 Cone 符号计划、重新生成符号名并查找未发射 alias 的 ELF 准备路径。
+- 三个大型基线在新时限下的报告中，Chat 约 377 秒通过；Messages 构建过程中，CLI 集成测试重新链接了 `scoopc`，触发配套工具变更检查，需要在工具稳定后复验。Responses 构建仍超过 600 秒，其采样定位到每个 callable 都遍历全 Cone 符号计划、重新生成符号名并查找未发射 alias 的 ELF 准备路径。
 - 实现规范先明确一次建立符号／定义组索引。codegen 在 callable 批次开始时建立索引，逐 module 只查询实际 global、function 与 alias，并按原计划顺序应用可见性和 COMDAT。保留同名多请求、alias owner、private owner、weak linkage 及定义组冲突检查；metadata 的最终裁剪使用裁剪后的新计划。没有新增 IR、wire、runtime ABI 或工具授权机制。
-- 本机 fmt／[clippy](validation/elf-clippy-darwin.log.gz)、[2 项索引复用与冲突测试](validation/elf-tests-darwin.log.gz)、[5 项实际 Linux ELF 交叉发射测试](validation/elf-cross-darwin.log.gz)及 [9 项对象分区测试](validation/elf-partition-darwin.log.gz)通过。实现按职责拆为 64／105 行模块，新增测试 86 行。Linux 将在停止旧 fixture 后统一构建三个 CLI，再运行定向回归和剩余全量用例，期间不再运行会重写 CLI 的 Cargo 命令。
+- 本机 fmt／clippy、2 项索引复用与冲突测试、5 项实际 Linux ELF 交叉发射测试及 9 项对象分区测试通过。实现按职责拆为 64／105 行模块，新增测试 86 行。Linux 将在停止旧 fixture 后统一构建三个 CLI，再运行定向回归和剩余全量用例，期间不再运行会重写 CLI 的 Cargo 命令。
 
 ### 最终验收
 
-GNU 全量续跑发现 `m34-containers-builder` 仍断言 Option 的旧外层 enum JSON；按已更新的 nullable 合同将期望改为 `[null,7]`。全仓检索未发现其他遗漏的旧 None／Some JSON 正向期望。本机 fmt／[clippy](validation/builder-clippy-darwin.log.gz)及该用例的 debug／release、普通／moving／minor GC [全部通过](validation/builder-darwin.json.gz)；Linux [定向复验](validation/gnu-pre-elf.json.gz)也通过，没有重跑已通过的完整选集。
+GNU 全量续跑发现 `m34-containers-builder` 仍断言 Option 的旧外层 enum JSON；按已更新的 nullable 合同将期望改为 `[null,7]`。全仓检索未发现其他遗漏的旧 None／Some JSON 正向期望。本机 fmt／clippy及该用例的 debug／release、普通／moving／minor GC 全部通过；Linux 定向复验也通过，没有重跑已通过的完整选集。
 
-- 最终生产代码 `1b53d060` 在 Linux 的 fmt／[clippy](validation/elf-clippy-linux.log.gz)、[389 项 codegen／runtime 测试](validation/elf-tests-linux.log.gz)及[统一 release CLI 构建](validation/elf-build-linux.log.gz)通过。之后保持工具文件稳定，完成所有剩余 fixture。
-- GNU 在 [ELF 修复前续跑](validation/gnu-pre-elf.json.gz)新增 460 项通过；[最后 551 项](validation/gnu-elf.json.gz)中 550 项通过，仅 Responses 构建在并行负载下超时。[独立性能核复验](validation/gnu-responses-final.json.gz)通过，复用了本轮生成的缓存，约 35 秒包含产物消费、链接及普通／moving GC；该值不是冷编译性能。按用例名合并全部报告，4061 项适用用例全部通过，另有 30 项 target 不适用。
-- musl [最终定向验证](validation/musl-elf.json.gz)的 Chat／Messages／Responses 及 Serialize／JsonValue 无源码产物组合全部通过，包含普通／moving GC，分别约 345／320／437／26／26 秒。与此前 M46 和必要回归报告合并，224 项全部通过。三个大型 API 基线仅 build 使用 600 秒时限，未调整其他步骤。
-- [验收汇总](validation/linux-summary.json)逐用例合并保留的报告，中断不覆盖已完成结果，后续失败必须由通过复验关闭；不是声称同一次运行在最终提交上重跑全部套件。Rust 用最新 LIR／slib／codegen 结果替换对应旧组后，共 5665 项单元／集成测试及 2 项文档测试通过；公共 runner 的 49 项规则测试与 GNU PIE／musl static／musl PIE unwind 检查通过。所有原始失败和中断均已保留。
+- 最终生产代码 `1b53d060` 在 Linux 的 fmt／clippy、389 项 codegen／runtime 测试及统一 release CLI 构建通过。之后保持工具文件稳定，完成所有剩余 fixture。
+- GNU 在 ELF 修复前续跑新增 460 项通过；最后 551 项中 550 项通过，仅 Responses 构建在并行负载下超时。独立性能核复验通过，复用了本轮生成的缓存，约 35 秒包含产物消费、链接及普通／moving GC；该值不是冷编译性能。按用例名合并全部报告，4061 项适用用例全部通过，另有 30 项 target 不适用。
+- musl 最终定向验证的 Chat／Messages／Responses 及 Serialize／JsonValue 无源码产物组合全部通过，包含普通／moving GC，分别约 345／320／437／26／26 秒。与此前 M46 和必要回归报告合并，224 项全部通过。三个大型 API 基线仅 build 使用 600 秒时限，未调整其他步骤。
+- 验收汇总逐用例合并保留的报告，中断不覆盖已完成结果，后续失败必须由通过复验关闭；不是声称同一次运行在最终提交上重跑全部套件。Rust 用最新 LIR／slib／codegen 结果替换对应旧组后，共 5665 项单元／集成测试及 2 项文档测试通过；公共 runner 的 49 项规则测试与 GNU PIE／musl static／musl PIE unwind 检查通过。所有原始失败和中断均已保留。
 
 M46-1～6 已完成。本记录提交后开始 M38。
 
