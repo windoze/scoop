@@ -20,7 +20,7 @@ fn write_artifact(path: &Path, producer: &str, modified: std::time::SystemTime) 
         Vec::new(),
     );
     std::fs::write(path, archive.as_bytes()).unwrap();
-    File::options()
+    std::fs::File::options()
         .write(true)
         .open(path)
         .unwrap()
@@ -51,15 +51,18 @@ fn summaries_reuse_records_and_follow_actual_artifact_updates() {
     let path = temp.path().join("library.slib");
     let cache = ArtifactCacheRoot::new(temp.path().join("cache")).unwrap();
     write_artifact(&path, "first", UNIX_EPOCH - Duration::from_secs(1));
-    let first = cache.load_artifact_summary(&path, TARGET).unwrap();
+    let first = cache.load_artifact(&path, TARGET).unwrap();
     let before = records(&cache);
     assert_eq!(before.len(), 1);
-    assert_eq!(cache.load_artifact_summary(&path, TARGET).unwrap(), first);
+    assert_eq!(cache.load_artifact(&path, TARGET).unwrap(), first);
     assert_eq!(records(&cache), before);
     write_artifact(&path, "second", UNIX_EPOCH + Duration::from_secs(1));
-    let second = cache.load_artifact_summary(&path, TARGET).unwrap();
-    assert_eq!(first.cone(), second.cone());
-    assert_ne!(first.artifact_fingerprint(), second.artifact_fingerprint());
+    let second = cache.load_artifact(&path, TARGET).unwrap();
+    assert_eq!(first.summary().cone(), second.summary().cone());
+    assert_ne!(
+        first.summary().artifact_fingerprint(),
+        second.summary().artifact_fingerprint()
+    );
     assert_eq!(records(&cache).len(), 2);
 }
 
@@ -69,15 +72,15 @@ fn incompatible_target_and_missing_input_do_not_publish_summary_records() {
     let path = temp.path().join("library.slib");
     let cache = ArtifactCacheRoot::new(temp.path().join("cache")).unwrap();
     write_artifact(&path, "first", UNIX_EPOCH);
-    cache.load_artifact_summary(&path, TARGET).unwrap();
+    cache.load_artifact(&path, TARGET).unwrap();
     let before = records(&cache);
     assert!(matches!(
-        cache.load_artifact_summary(&path, scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1),
+        cache.load_artifact(&path, scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1),
         Err(DependencyLocatorError::Summary { .. })
     ));
     assert_eq!(records(&cache), before);
     std::fs::remove_file(&path).unwrap();
-    assert!(matches!(cache.load_artifact_summary(&path, TARGET),
+    assert!(matches!(cache.load_artifact(&path, TARGET),
         Err(DependencyLocatorError::Io { source, .. }) if source.kind() == io::ErrorKind::NotFound));
     assert_eq!(records(&cache), before);
 }

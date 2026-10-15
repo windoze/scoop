@@ -1,5 +1,6 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
 use scoop_manifest::{
@@ -11,7 +12,7 @@ use scoop_slib::{
     ConeSourceForm,
 };
 
-use crate::{ArtifactCacheRoot, ArtifactSearchRoot};
+use crate::{ArtifactCacheRoot, ArtifactSearchRoot, BuildArtifact};
 
 mod default_core;
 pub(crate) use default_core::locate_default_core;
@@ -48,21 +49,20 @@ impl ManifestSourceProjection {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PrebuiltArtifactCandidate {
-    resolved_path: PathBuf,
-    summary: Box<ArtifactManifestSummaryV1>,
+    artifact: Rc<BuildArtifact>,
 }
 
 impl PrebuiltArtifactCandidate {
     pub(crate) fn resolved_path(&self) -> &Path {
-        &self.resolved_path
+        self.artifact.path()
     }
 
-    pub(crate) const fn summary(&self) -> &ArtifactManifestSummaryV1 {
-        &self.summary
+    pub(crate) fn summary(&self) -> &ArtifactManifestSummaryV1 {
+        self.artifact.summary()
     }
 
-    pub(crate) fn into_parts(self) -> (PathBuf, ArtifactManifestSummaryV1) {
-        (self.resolved_path, *self.summary)
+    pub(crate) fn into_artifact(self) -> Rc<BuildArtifact> {
+        self.artifact
     }
 }
 
@@ -120,14 +120,14 @@ impl PrebuiltArtifactProjection {
         for candidate in other.candidate_iter().cloned() {
             if !self
                 .candidate_iter()
-                .any(|existing| existing.resolved_path == candidate.resolved_path)
+                .any(|existing| existing.resolved_path() == candidate.resolved_path())
             {
                 self.candidates.rest.push(candidate);
             }
         }
         self.candidates
             .rest
-            .sort_by(|left, right| left.resolved_path.cmp(&right.resolved_path));
+            .sort_by(|left, right| left.resolved_path().cmp(right.resolved_path()));
     }
 }
 
@@ -191,7 +191,7 @@ fn locate_artifact_dependency(
     Ok(LocatedDependencyClaim::Prebuilt(Box::new(
         PrebuiltArtifactProjection {
             coordinate: coordinate.clone(),
-            artifact_fingerprint: candidate.summary.artifact_fingerprint(),
+            artifact_fingerprint: candidate.summary().artifact_fingerprint(),
             candidates: NonEmptyPrebuiltArtifactCandidates {
                 first: candidate,
                 rest: Vec::new(),
@@ -294,21 +294,21 @@ pub(crate) fn locate_from_search_roots(
         });
     };
     let first = probe_artifact_candidate(first_path, coordinate, target, cache)?;
-    let expected_fingerprint = first.summary.artifact_fingerprint();
+    let expected_fingerprint = first.summary().artifact_fingerprint();
     let mut rest = Vec::new();
     for path in paths {
         rest.push(probe_artifact_candidate(path, coordinate, target, cache)?);
     }
     if rest
         .iter()
-        .any(|candidate| candidate.summary.artifact_fingerprint() != expected_fingerprint)
+        .any(|candidate| candidate.summary().artifact_fingerprint() != expected_fingerprint)
     {
         let candidates = std::iter::once(first)
             .chain(rest)
             .map(|candidate| {
                 (
-                    candidate.resolved_path,
-                    candidate.summary.artifact_fingerprint(),
+                    candidate.resolved_path().to_path_buf(),
+                    candidate.summary().artifact_fingerprint(),
                 )
             })
             .collect();
@@ -331,13 +331,10 @@ fn probe_artifact_candidate(
     cache: &ArtifactCacheRoot,
 ) -> Result<PrebuiltArtifactCandidate, DependencyLocatorError> {
     let resolved_path = canonicalize(&path)?;
-    let summary = cache.load_artifact_summary(&resolved_path, target)?;
-    validate_artifact_shape(expected, &resolved_path, &summary)?;
+    let artifact = cache.load_artifact(&resolved_path, target)?;
+    validate_artifact_shape(expected, &resolved_path, artifact.summary())?;
 
-    Ok(PrebuiltArtifactCandidate {
-        resolved_path,
-        summary: Box::new(summary),
-    })
+    Ok(PrebuiltArtifactCandidate { artifact })
 }
 
 fn validate_artifact_shape(

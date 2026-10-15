@@ -72,17 +72,20 @@ impl SingleFileSourceInput {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedArtifactCandidate {
-    pub(super) source_locator: PathBuf,
-    pub(super) summary: ArtifactManifestSummaryV1,
+    pub(super) artifact: std::rc::Rc<crate::BuildArtifact>,
 }
 
 impl PreparedArtifactCandidate {
     pub fn source_locator(&self) -> &Path {
-        &self.source_locator
+        self.artifact.path()
     }
 
-    pub const fn summary(&self) -> &ArtifactManifestSummaryV1 {
-        &self.summary
+    pub fn summary(&self) -> &ArtifactManifestSummaryV1 {
+        self.artifact.summary()
+    }
+
+    pub(crate) fn shared_artifact(&self) -> std::rc::Rc<crate::BuildArtifact> {
+        std::rc::Rc::clone(&self.artifact)
     }
 }
 

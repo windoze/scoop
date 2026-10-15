@@ -184,10 +184,8 @@ fn prepare_prebuilt_candidates(
 }
 
 fn prepare_artifact_candidate(candidate: PrebuiltArtifactCandidate) -> PreparedArtifactCandidate {
-    let (source_locator, summary) = candidate.into_parts();
     PreparedArtifactCandidate {
-        source_locator,
-        summary,
+        artifact: candidate.into_artifact(),
     }
 }
 

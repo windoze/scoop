@@ -1,23 +1,22 @@
-use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
+use std::rc::Rc;
 
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_slib::{
-    ArtifactManifestSummaryError, ArtifactManifestSummaryV1,
-    read_artifact_manifest_summary_from_reader,
+    ArtifactFile, ArtifactManifestSummaryError, ArtifactManifestSummaryV1, SlibReadError,
 };
 use scoop_wire::sha256;
 
-use crate::ArtifactCacheRoot;
 use crate::locator::{DependencyLocatorError, LocatorIoOperation};
+use crate::{ArtifactCacheRoot, BuildArtifact};
 
 impl ArtifactCacheRoot {
-    pub(crate) fn load_artifact_summary(
+    pub(crate) fn load_artifact(
         &self,
         path: &Path,
         target: ValidatedLirTargetSelection,
-    ) -> Result<ArtifactManifestSummaryV1, DependencyLocatorError> {
+    ) -> Result<Rc<BuildArtifact>, DependencyLocatorError> {
         let inspect = |error| io_error(path, LocatorIoOperation::Inspect, error);
         let metadata = path.metadata().map_err(inspect)?;
         let modified = match metadata
@@ -48,7 +47,7 @@ impl ArtifactCacheRoot {
         let directory = self.as_path().join("artifact-summaries-v1");
         let record = directory.join(format!("{name}.cbor"));
         if let Some(summary) = read_record(&record)? {
-            return Ok(summary);
+            return Ok(BuildArtifact::from_result(path.to_path_buf(), summary));
         }
         let write = |error| io_error(&record, LocatorIoOperation::Write, error);
         std::fs::create_dir_all(&directory).map_err(write)?;
@@ -57,30 +56,31 @@ impl ArtifactCacheRoot {
         let lock = super::open_build_lock(&lock_path).map_err(lock_error)?;
         fs4::FileExt::lock(&lock).map_err(lock_error)?;
         if let Some(summary) = read_record(&record)? {
-            return Ok(summary);
+            return Ok(BuildArtifact::from_result(path.to_path_buf(), summary));
         }
-        let mut file =
-            File::open(path).map_err(|error| io_error(path, LocatorIoOperation::Open, error))?;
-        let summary =
-            read_artifact_manifest_summary_from_reader(&mut file, target).map_err(|source| {
-                match source {
-                    ArtifactManifestSummaryError::Io(source) => {
-                        io_error(path, LocatorIoOperation::Read, source)
-                    }
-                    source => DependencyLocatorError::Summary {
-                        path: path.to_path_buf(),
-                        source,
+        let file = ArtifactFile::open(path, target)
+            .map_err(|error| io_error(path, LocatorIoOperation::Open, error))?;
+        let artifact =
+            BuildArtifact::from_file(path.to_path_buf(), file).map_err(|source| match source {
+                SlibReadError::Io(source) => io_error(path, LocatorIoOperation::Read, source),
+                source => DependencyLocatorError::Summary {
+                    path: path.to_path_buf(),
+                    source: match source {
+                        SlibReadError::TestDirectory(source) => {
+                            ArtifactManifestSummaryError::TestDirectory(source)
+                        }
+                        source => ArtifactManifestSummaryError::Envelope(source),
                     },
-                }
+                },
             })?;
-        let encoded =
-            scoop_wire::encode(&summary).map_err(|error| write(io::Error::other(error)))?;
+        let encoded = scoop_wire::encode(artifact.summary())
+            .map_err(|error| write(io::Error::other(error)))?;
         let mut output = tempfile::NamedTempFile::new_in(directory).map_err(write)?;
         output.write_all(&encoded).map_err(write)?;
         output
             .persist(&record)
             .map_err(|error| write(error.error))?;
-        Ok(summary)
+        Ok(artifact)
     }
 }
 

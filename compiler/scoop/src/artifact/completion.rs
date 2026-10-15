@@ -185,10 +185,7 @@ pub(crate) fn complete_prebuilt_candidates(
 
     let mut validated = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        let artifact = BuildArtifact::from_result(
-            candidate.source_locator().to_path_buf(),
-            candidate.summary().clone(),
-        );
+        let artifact = candidate.shared_artifact();
         artifacts.insert(identity, Rc::clone(&artifact));
         let closures = plan
             .validate(identity, &artifacts)

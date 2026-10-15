@@ -248,6 +248,10 @@ Compile 对象内容、materialization、Code／RuntimeImage 重建和 symbol-us
 
 production/8 删除 distribution／output／image owner／registration、优化模式、重复摘要与 native／C bridge 复核投影，只保留 ODR 与 runtime records。Link identity/16 删除 atom／patch／对象副本／image 与 entry owner 投影及 generated-C unit 列表；相关生产构造、decoded 类型、C bridge 资格包装和投影比对 API 一并删除。3 项专用测试随退役字段删除，3 项迁移或更名保留，真实 Code、ODR、native 与 GC 覆盖继续。格式变更、完整测试名称清单与三平台验收见[记录](validation/link-fields.md)。其余两个 Link closure section、语义／布局与 dump 清理继续。
 
-## 重复跨 Cone Link closure section 退役
+## 重复跨 Cone Link closure section 退役（d9ae49dc）
 
 删除 callable／layout 两个重复 metadata section、coverage 和对象目录／relocation use 副本、旧 decoder、发布比对与已无调用方的 native Code projection reader。14 项只服务退役路径的测试删除，2 项转为实际 LinkSupport 的 inventory／读取检查；Code 输入、真实符号分类、非空 imports、共享布局、ODR、native 和 GC 覆盖保留。两类已无消费方的 use 编码实现也已移除。三平台验收及逐项名称见[记录](validation/closures.md)；其余语义／布局重放与 writer 复核仍待清理。
+
+## 冷显式产物入口复用
+
+删除 discovery 只保留摘要、完成阶段再新建空文件入口的路径；现有候选共享已打开的 BuildArtifact，摘要记录命中仍不打开产物。既有输入变化与真实 I/O 错误覆盖保留，未增加隔离或缓存损坏验收。三平台与父进程 I/O 证据见[记录](validation/cold-entry.md)。历史迁移验收完成后清理其独立临时工作目录，日志与冻结工具保留。
