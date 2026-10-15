@@ -5,11 +5,12 @@ use crate::*;
 
 pub(super) mod contracts;
 mod support;
-mod types;
 
 pub struct ShapeLinkProviderPartsV1<'a> {
     pub foundation: &'a ConeLirFoundation,
-    pub production: &'a ConeProductionSectionV2,
+    pub definitions: &'a ObjectSymbolSurfaceV1,
+    pub static_storages: &'a StrongStaticStorageRegistrationPlanSetV1,
+    pub initialization: &'a StrongInitializationUnitRegistrationPlanSetV2,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layouts: &'a CanonicalExactLayoutExportsV1,
     pub callables: &'a CanonicalExactCallableAbiExportsV1,
@@ -17,8 +18,7 @@ pub struct ShapeLinkProviderPartsV1<'a> {
     pub dispatch: &'a CanonicalExactDispatchExportsV1,
 }
 
-/// Borrowed, same-provider inputs. Export and actual-use closure are checked
-/// by the containing section; this view validates the physical contract.
+/// Borrowed provider data used to select an actual external definition.
 pub struct ShapeLinkProviderV1<'a> {
     parts: ShapeLinkProviderPartsV1<'a>,
 }
@@ -32,10 +32,8 @@ impl<'a> ShapeLinkProviderV1<'a> {
             parts.callables.provider(),
             parts.descriptors.provider(),
             parts.dispatch.provider(),
-            parts.production.type_registrations().producer(),
-            parts.production.callable_registrations().producer(),
-            parts.production.static_storage_registrations().producer(),
-            parts.production.initialization_registrations().producer(),
+            parts.static_storages.producer(),
+            parts.initialization.producer(),
         ]
         .into_iter()
         .any(|actual| actual != provider)
@@ -46,7 +44,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
         if parts.callables.target() != target
             || parts.descriptors.target() != target
             || parts.dispatch.target() != target
-            || parts.production.type_registrations().target() != &target.wire_id()
         {
             return Err(ShapeLinkError::Target);
         }
@@ -72,7 +69,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
     /// Closure validators use this exact surface for the consumer-side
     /// foreign-definition exclusion; it is not reconstructed from symbols.
     pub fn canonical_definitions(&self) -> &'a ObjectSymbolSurfaceV1 {
-        self.parts.production.canonical_definitions()
+        self.parts.definitions
     }
 
     pub(super) fn import(
@@ -83,22 +80,12 @@ impl<'a> ShapeLinkProviderV1<'a> {
         if consumer == self.provider() {
             return Err(ShapeLinkError::LocalImport);
         }
-        let physical = StrongShapeDefinitionRefV1::from_foundation(subject, self.parts.foundation)?;
-
-        let plan = self
-            .parts
-            .production
-            .canonical_definitions()
-            .plan(physical.definition())
-            .ok_or(ShapeLinkError::DefinitionRelation(subject))?;
-        if plan.primary_atom() != physical.primary() || plan.primary_symbol() != physical.symbol() {
-            return Err(ShapeLinkError::DefinitionRelation(subject));
-        }
-
-        let contract = self.contract(subject, physical)?;
-        if !contract.matches_subject(subject) {
-            return Err(ShapeLinkError::Contract);
-        }
+        let physical = StrongShapeDefinitionRefV1::from_symbols(
+            subject,
+            self.parts.foundation,
+            self.parts.definitions,
+        )?;
+        let contract = self.contract(subject)?;
         let import = ExternalShapeLinkImportV1 {
             provider: self.provider(),
             subject,

@@ -38,7 +38,9 @@ pub(super) fn check(
     let foundation = lir::ConeLirFoundation::from_module(&module).unwrap();
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: producer.foundation(),
-        production,
+        definitions: production.canonical_definitions(),
+        static_storages: production.static_storage_registrations(),
+        initialization: production.initialization_registrations(),
         ordinary,
         layouts: layout.layouts(),
         callables: layout.callables(),

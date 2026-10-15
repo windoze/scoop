@@ -13,7 +13,9 @@ pub(super) fn physical(
         providers.push(lir::ShapeLinkProviderV1::try_new(
             lir::ShapeLinkProviderPartsV1 {
                 foundation: dependency.lir_foundation(),
-                production: &dependency.strong,
+                definitions: dependency.strong.canonical_definitions(),
+                static_storages: dependency.strong.static_storage_registrations(),
+                initialization: dependency.strong.initialization_registrations(),
                 ordinary: &dependency.ordinary,
                 layouts: exports.layouts(),
                 callables: exports.callables(),

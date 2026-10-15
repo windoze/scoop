@@ -328,10 +328,18 @@ Compile 从共享 identity 数据解析已有 defined owners 与 ODR member ABI�
 摘要缓存未命中后保留已打开的 ArtifactFile，与 locator、prepared 候选和 completed node 共用 BuildArtifact；命中已有摘要时继续延迟打开。修复首次 discovery 与后续真实链接重复打开同一文件、重读 manifest 的问题。本机 87 项、Linux 90 项 scoop 测试和两端 fmt／clippy／release 通过；三平台各 3 项 CLI（3 variants、33 processes）通过。GNU 父进程冷加载只打开 provider 一次，读取 26,444 字节，其中 manifest 1,814 字节仅一次，无重叠；后续全命中零打开、零读取、零 compiler child，实际程序退出码均为 50。[记录](validation/cold-entry.md)。本机清理 incremental 790,932,155 字节；Linux 已结束的历史工作目录清理约 116.37 GiB。语义／布局重放、writer 复核、dump 和最终全量／五轮性能验收继续，M38 未启动。
 
 
-## 31. ProgramLink 直接读取 production 与 native ABI 数据（本批验收完成）
+## 31. ProgramLink 直接读取 production 与 native ABI 数据（74c1b42d）
 
 ProgramLink 从已保存字段取得成员选择、image／入口／trap 符号、六类注册与 native 标量／指针表示，删除整份 strong production、digest、注册、布局、descriptor／dispatch、shape support 与 physical import 重放。普通 param-free bridge 不再解码，完整 LIR foundation 不再长期保留；无持久格式或 runtime ABI 变化。46 个代码／spec 文件净删 1,114 行。
 
 本机 fmt／workspace clippy、528 项 slib、6 项入口、4 项 linker、真实产物 ProgramLink 及 release 通过；Linux 对应 529 项 slib、6 项入口、17 项 linker、真实产物和构建通过。Darwin／GNU 各 24 项 CLI 通过（29 variants、270 processes）；musl 23 项通过、1 项 C++ 不适用（27 variants、256 processes）。GNU 采样证明三个产物各打开一次、无重复读取，4,458 个机器对象成员未读、compiler child 为零，实际输出 `42`。本机／Linux 分别清理 incremental 4,950,100,741／13,139,123,342 字节。[范围、退役测试和证据](validation/link-inputs.md)。
 
 ProgramLink identity／foundation 边界、Compile 重放、writer 其余复核、dump 复用和最小阶段、最终全量与五轮性能验收仍待完成。此次定向结果不替代完整 M48 验收，M38 未启动。
+
+## 32. 外部物理定义选择复用已有导出（本批验收完成）
+
+ShapeLinkProvider 直接使用导出记录、已有 definition symbol plan 和初始化／静态存储数据，不再要求整份 strong production，也不逐次重建符号、扫描 atom 集合或反查 type／callable 注册表重做布局、scan、继承及 dispatch slot 比对。20 个代码／spec 文件净删 203 行，移除 177 行重复类型检查模块；未修改 wire、profile 或 runtime ABI。
+
+本机与 Linux 的 fmt／workspace clippy、17 项 shape-link、7 项 Link closure、真实泛型产物和 release 构建均通过。Darwin、GNU、musl 各通过 16 项 CLI、18 variants、199 processes，覆盖泛型／ODR、继承／接口／装箱、属性／初始化、native、runtime image、M46 序列化及对象文件复用。清理本机上一批已完成的 CLI 工作目录，释放 2,152,275,968 字节；本批测试目录和增量结果保留。[范围与证据](validation/provider-data.md)。
+
+Compile reader 当前仍先重放 strong production，再传入三个必要字段；该重放与其他语义／布局重建尚待退役。ProgramLink identity／foundation 边界、writer 复核、dump 复用和最小阶段、最终全量及五轮性能验收继续，M38 未启动。

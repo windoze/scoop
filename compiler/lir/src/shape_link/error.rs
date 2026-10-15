@@ -26,7 +26,6 @@ pub enum ShapeLinkError {
     Definition(crate::StrongShapeDefinitionError),
     Layout(crate::ExactLayoutWireError),
     Descriptor(crate::ExactDescriptorWireError),
-    DescriptorPlan(crate::ExactDescriptorError),
     Dispatch(crate::ExactDispatchWireError),
     Scan(crate::RefScanValidationError),
     Storage(crate::StrongSemanticProjectionError),

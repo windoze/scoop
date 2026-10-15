@@ -53,6 +53,30 @@ impl StrongShapeDefinitionRefV1 {
             primary,
         })
     }
+    pub(crate) fn from_symbols(
+        subject: ExternalStrongShapeSubjectV1,
+        foundation: &crate::ConeLirFoundation,
+        symbols: &crate::ObjectSymbolSurfaceV1,
+    ) -> Result<Self, StrongShapeDefinitionError> {
+        let (entity, role, _) = subject.definition_parts()?;
+        let definition = foundation
+            .definition_for(entity, role)
+            .and_then(|definition| symbols.plan(definition.id()))
+            .ok_or_else(|| {
+                subject
+                    .expected_definition(foundation.producer())
+                    .map(|(key, _)| StrongShapeDefinitionError::MissingDefinition(key))
+                    .unwrap_or_else(|error| error)
+            })?;
+        Ok(Self {
+            provider: foundation.producer(),
+            subject,
+            symbol: definition.primary_symbol(),
+            definition: definition.definition_plan(),
+            primary: definition.primary_atom(),
+        })
+    }
+
     pub const fn provider(&self) -> ConeIdentity {
         self.provider
     }

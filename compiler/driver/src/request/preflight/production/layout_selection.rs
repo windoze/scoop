@@ -41,7 +41,13 @@ pub(in crate::request::preflight) fn select_lir_dependencies<'a>(
             let exports = dependency.lir_exports();
             lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
                 foundation: dependency.lir_foundation(),
-                production: dependency.lir_strong_production(),
+                definitions: dependency.lir_strong_production().canonical_definitions(),
+                static_storages: dependency
+                    .lir_strong_production()
+                    .static_storage_registrations(),
+                initialization: dependency
+                    .lir_strong_production()
+                    .initialization_registrations(),
                 ordinary: dependency.lir_cross_cone_bridge(),
                 layouts: exports.layouts(),
                 callables: exports.callables(),

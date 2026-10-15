@@ -8,7 +8,9 @@ fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
     let production = replayed.validate_layout_abi(&layout_abi).unwrap();
     let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
         foundation: &fixture.source.foundation,
-        production: &production,
+        definitions: production.canonical_definitions(),
+        static_storages: production.static_storage_registrations(),
+        initialization: production.initialization_registrations(),
         ordinary: &fixture.ordinary,
         layouts: layout_abi.layouts(),
         callables: layout_abi.callables(),

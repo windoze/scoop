@@ -35,7 +35,9 @@ pub(super) fn view<'a>(
 ) -> ShapeLinkProviderV1<'a> {
     ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
         foundation: provider.output.foundation(),
-        production,
+        definitions: production.canonical_definitions(),
+        static_storages: production.static_storage_registrations(),
+        initialization: production.initialization_registrations(),
         ordinary: &provider.ordinary,
         layouts: exports.layouts(),
         callables: exports.callables(),

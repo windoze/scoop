@@ -142,7 +142,9 @@ impl Provider {
     pub fn import(&self, consumer: ConeIdentity) -> ExternalShapeLinkImportV1 {
         let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: &self.foundation,
-            production: &self.production,
+            definitions: self.production.canonical_definitions(),
+            static_storages: self.production.static_storage_registrations(),
+            initialization: self.production.initialization_registrations(),
             ordinary: &self.ordinary,
             layouts: self.section.layouts(),
             callables: self.section.callables(),

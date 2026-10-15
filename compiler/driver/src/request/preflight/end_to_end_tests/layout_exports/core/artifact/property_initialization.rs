@@ -38,7 +38,13 @@ pub(super) fn check(
     let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: semantic.lir_foundation(),
-        production: semantic.lir_strong_production(),
+        definitions: semantic.lir_strong_production().canonical_definitions(),
+        static_storages: semantic
+            .lir_strong_production()
+            .static_storage_registrations(),
+        initialization: semantic
+            .lir_strong_production()
+            .initialization_registrations(),
         ordinary: semantic.lir_cross_cone_bridge(),
         layouts: provider_exports.layouts(),
         callables: provider_exports.callables(),

@@ -469,6 +469,8 @@ ProgramLink 直接读取保存的 member 到 typed definition 映射、defined s
 
 ProgramLink 从已保存的 LIR 数据取得 definition 的 owner／role、image 与入口符号、六类注册的 definition／symbol，以及 native ABI 实际使用的标量／指针表示。它不重建整份 strong production、digest finalization、注册生产计划、shape support、descriptor／dispatch exports 或 physical imports，也不重新编码比较它们。runtime 数据别名直接读取其 typed owner；String 的布局合同在生产该别名时检查。链接所需的 native contract、ODR ABI、符号选择与 runtime image records 继续使用，当前符号连接错误正常报告。此读取简化不增加持久字段，不改变 wire/profile 或 runtime ABI。
 
+Compile 为本次实际使用选择外部物理定义时，直接从 provider 的导出记录取得 callable ABI、layout／scan、descriptor、dispatch 和初始化／静态存储语义，并从已有 definition symbol plan 取得符号与 primary atom。不再为同一导出重建物理符号、扫描 atom 集合，或反查整份 type／callable 注册表重做布局、scan、继承与 dispatch slot 比对。provider 视图只借用实际需要的导出、definition symbol plan 和初始化／静态存储记录，不要求整份 strong production。缺失的实际 subject、错误的本地／外部引用及当前选择所需的类型与 ABI 规则仍在相应边界报告；导出生产时的完整性检查保持。
+
 旧 single-cone Link 的逐级验证资格 API、从 final 对象清零摘要再重建 provisional 的路径及其独占测试一并删除，不保留为备用 reader。仍被正常 Compile／ProgramLink 使用的 section 读取和真正生产对象的编码、重定位、摘要填充继续存在；归档格式测试使用正常产物，不能通过改坏最终对象来延续退役的消费复核合同。
 
 persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。
