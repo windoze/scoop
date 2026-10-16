@@ -17,11 +17,6 @@ const void *scoop_rt_array_clone_impl(const void *object, const ScoopTypeDescrip
         source_shape->inline_alignment != target_shape->inline_alignment) {
         scoop_shape_fatal("array clone element storage mismatch");
     }
-#if defined(SCOOP_VERIFY_METADATA) && SCOOP_VERIFY_METADATA
-    if (!scoop_shape_scan_equal(source_shape->inline_scan, target_shape->inline_scan, 0)) {
-        scoop_shape_fatal("array clone element scan mismatch");
-    }
-#endif
     scoop_gc_check_array_clone_source(object, source_td);
     const ScoopArray *source = object;
     uint64_t count = source->size;

@@ -99,7 +99,7 @@ Array      = u32(3) || u64(length_offset) || u64(first_element_offset)
 
 scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)`，ByteSpan 为 `u64 length + bytes`。共享 child 的物理地址不改变其语义编码。
 
-消费边界必须检查 scan 的格式、引用、循环、对齐和范围。动态 Array 的 length 与乘加在扫描时也必须落入本次 region 的 extent；已验证且不变的静态结构可复用。
+编译器完成 scan 的静态格式、类型布局、对齐和引用规则。runtime 登记实际 scan 的可读地址范围和 child 引用，直接使用已生成的布局，不重新比较 inline/object scan、重算类型形状或另设完整 metadata 复核模式。动态 Array 的 length 与乘加、实际分配及对象访问继续遵守相应范围。
 
 `parent`、itable 和相关类型引用必须解析到实际登记的 TypeDescriptor。空 vtable 为 null；空接口仍保留以其真实 TD 为键的 itable entry，slot table 可以为 null。slot 与 callable ABI 由产物合同确定。
 
@@ -228,7 +228,7 @@ root gateway 的返回值只表示调用状态：`0` 为成功，`1` 为失败�
 
 正常调用及 shutdown 完成后，`scoop_rt_run_program` 将该完整退出码返回生成的 C main，由 C main 返回给目标进程退出机制；当前 target 的 C `int` 为 32-bit，不作额外的低 8 位截断或范围拒绝。POSIX 向父进程呈现的正常退出状态仍遵守其低 8 位规则。启动或 main 的未捕获异常使用第 7 章的诊断与退出码 `1` 路径，不将异常展开到 C，也不把 gateway status 直接当作用户返回值。
 
-所有 image、类型、scan、静态根、初始化单元、callable 和 safepoint 必须在首个 managed initializer 前登记。runtime 验证当前加载边界的格式、引用、实际地址范围、唯一性和 GC 契约，复用编译与链接边界已完成且未变化的语义、布局和 ODR 结果。
+所有 image、类型、scan、静态根、初始化单元、callable 和 safepoint 必须在首个 managed initializer 前登记。runtime 验证当前加载边界的格式、引用、实际地址范围、唯一性和 GC 契约，复用编译与链接边界已完成且未变化的语义、布局和 ODR 结果；不重新检查继承图、boxed payload 与 parent 的布局等语言规则。
 
 登记建立完整 typed ID 与 record/address 的对应关系。runtime type ID 与 exact type、非零 SafepointId 与完整 site identity 都必须全程序一一对应；不同完整 identity 的固定宽度碰撞必须在使用前报错。不同 body ID 不得共用 callable entry；同一共享实体不得有多个实际地址。
 
@@ -489,7 +489,7 @@ roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同
 
 mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。没有搬迁时按 3.7 跳过 relocation。首版复制、引用回写、release hook、reclaim 和 VM 归还均由 coordinator 执行，worker 全部结束前不移动或释放 metadata；shutdown 停止并 join worker。
 
-存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 metadata 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
+存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 GC heap 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
 
 诊断分别记录停稳等待、roots、remembered、mark、plan、copy、reference update、reclaim 与 VM 归还的墙钟时间，以及各 marker 的线程 CPU／标记对象数、数组任务和窃取次数。mark 阶段加速与总停顿分开报告；root producer 的工作计入 roots／remembered 阶段，不把重叠时间相加成停顿。所有阶段计数在 worker 完成后由 coordinator 归并，release hook 不在 marker 上执行。
 

@@ -22,7 +22,6 @@ static void check_storage(ScoopImageRegistry *registry, size_t index) {
             scoop_metadata_fatal(&check, "None scan has references");
         }
     } else if (storage->scan_kind == SCOOP_STATIC_SCAN_RECURSIVE_V1) {
-        scoop_shape_scan_validate(storage->scan_program, storage->byte_size);
         registry->static_roots[registry->static_root_count++] = storage;
     } else {
         scoop_metadata_fatal(&check, "unknown scan kind");

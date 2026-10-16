@@ -26,23 +26,19 @@ static void collect_types(ScoopImageRegistry *registry) {
         ScoopMetadataCheck check =
             scoop_record_check(registry, SCOOP_RECORD_TYPE, index);
         const ScoopTypeRegistrationDescriptorV1 *type = table->entries[index].record;
-        if (type->reserved_zero != 0 || type->runtime_type_id == 0) {
-            scoop_metadata_fatal(&check, "reserved field or runtime ID");
+        if (type->reserved_zero != 0) {
+            scoop_metadata_fatal(&check, "reserved field");
         }
         const ScoopTypeDescriptor *td = type->descriptor;
         scoop_metadata_range(&check, td, 1, sizeof *td, 8, "TypeDescriptor header range");
         scoop_metadata_range(&check, td, sizeof *td + (uint64_t)td->related_type_count * 8, 1, 8,
                              "TypeDescriptor related types range");
-        if (td->type_id != type->runtime_type_id) {
-            scoop_metadata_fatal(&check, "TypeDescriptor runtime ID mirror");
-        }
         scoop_metadata_bytes(&check, td->diagnostic_name, "diagnostic name span");
         if (td->diagnostic_name.length == 0) {
             scoop_metadata_fatal(&check, "empty diagnostic name");
         }
         registry->type_addresses[index] = (ScoopRecordAddress){(uintptr_t)td, index};
-        runtime_ids[index] =
-            (ScoopRecordAddress){(uintptr_t)type->runtime_type_id, index};
+        runtime_ids[index] = (ScoopRecordAddress){(uintptr_t)td->type_id, index};
     }
     unique_addresses(registry, SCOOP_RECORD_TYPE, registry->type_addresses,
                      "different exact types share a TypeDescriptor address");
@@ -112,6 +108,5 @@ void scoop_image_validate_code_and_types(ScoopImageRegistry *registry) {
         const ScoopTypeDescriptor *td = type->descriptor;
         scoop_metadata_scan(registry, &check, td->object_scan);
         scoop_metadata_scan(registry, &check, td->instance_shape.inline_scan);
-        scoop_shape_validate(td);
     }
 }

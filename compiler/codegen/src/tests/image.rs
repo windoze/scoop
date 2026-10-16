@@ -30,7 +30,6 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/gc_binding/stackmap/payload.c",
         "runtime/src/platform/arch/aarch64.c",
         "runtime/src/value_shape.c",
-        "runtime/src/value_scan.c",
     ] {
         command.arg(workspace.join(source));
     }

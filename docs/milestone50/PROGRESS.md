@@ -35,8 +35,9 @@
 29. Runtime 初值：删除静态初值与 immortal relocation 全量回放、cell／storage 零状态扫描及 callable 地址／指纹副本比较；保留实际根登记、存储引用、初始化排序和动态访问边界。
 30. Runtime 装载范围：Darwin 使用 loader segment、Linux 使用 PT_LOAD，删除 VM region／proc maps 权限审计与只读／不可执行封口；统一实际范围检查，保留溢出、对齐和跨段边界。
 31. Runtime 摘要：删除 release hook 身份重编码与地址副本比较，以及未消费摘要的非零断言；移除失去用途的 SHA-256 平台后备、Mbed TLS 源码与专属测试，保留编译／链接摘要编码及实际 runtime 索引。
-32. 待完成：runtime 其余重复证明、同类要求及最终验收。
-33. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+32. Runtime shape：删除静态 shape／inline scan 重建比较、继承语义重放与 Context 初值／顺序预检；移除完整 metadata 复核模式和专属 scan 验证器。保留实际对象大小、分配、类型查询、scan 地址边界，以及独立的动态 GC heap 验证。
+33. 待完成：IR／meta 与归档其余重复证明、历史文档一致性及最终验收。
+34. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -107,3 +108,5 @@ Runtime 初值批次：格式化、workspace clippy 无警告；release codegen 
 Runtime 装载范围批次：格式化、workspace clippy 无警告；image 4 项及 Darwin 实际装载范围 1 项通过。首轮空 freeze helper 导致的 C 警告已删除并补验；Linux 装载／PIE／静态 musl 路径待目标环境执行。
 
 Runtime 摘要批次：格式化、workspace clippy 无警告；release codegen image 4 项通过。runtime object index 集成测试受 Linux cfg 限制，本机筛选为 0 项，留待目标环境验证；不将其记作已验收。
+
+Runtime shape 批次：格式化、workspace clippy 无警告；image 4 项与 collector 30 项通过，覆盖 ZST／装拆箱／数组、根与搬迁、初始化、Context、pin、线程握手和 release hook。首轮遗留的 interface 继承循环断言已随静态语义重放删除并定向补验，未重复运行其余已通过 image 测试。

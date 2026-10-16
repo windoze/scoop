@@ -207,56 +207,37 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->object_scan[4] = (uintptr_t)data->object_scan;
         return "cyclic scan child";
     case 7:
-        data->object_scan[1] = 24;
-        return "reference scan exceeds its storage";
-    case 8:
-        data->object_scan[1] = 17;
-        return "reference scan offsets are not canonical";
-    case 9:
-        td(data, 0)->parent = td(data, 0);
-        return "cyclic type inheritance";
-    case 10:
-        td(data, 3)->related_type_count = 1;
-        td(data, 3)->related_types[0] = td(data, 3);
-        return "cyclic type inheritance";
-    case 11:
         data->callables[1].entry = body0;
         return "different callable bodies share an entry address";
-    case 12:
+    case 8:
         data->sites[1].safepoint_id = 1;
         return "64-bit safepoint ID collision";
-    case 13:
+    case 9:
         data->sites[1].owner_callable_id.bytes[0] = 200;
         return "owner callable identity or producer";
-    case 14:
+    case 10:
         data->sites[0].site_role = 0;
         return "site ID, role";
-    case 15:
+    case 11:
         data->itable.interface = guard;
         return "unregistered TypeDescriptor";
-    case 16:
+    case 12:
         data->itable.slots = guard;
         return "itable slots range";
-    case 17:
+    case 13:
         td(data, 0)->itables = guard;
         return "itable entries range";
-    case 18:
+    case 14:
         data->types[0].reserved_zero = 1;
         return "reserved field";
-    case 19:
+    case 15:
         data->callables[0].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
         return "entry range";
-    case 20:
-        td(data, 1)->instance_shape = (ScoopTypeInstanceShapeV1){
-            .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
-            .minimum_size = 16,
-            .instance_alignment = 8};
-        return "reference scan exceeds its storage";
-    case 21:
+    case 16:
         td(data, 3)->related_type_count = 1;
         td(data, 3)->related_types[0] = NULL;
         return "unregistered TypeDescriptor";
-    case 22:
+    case 17:
         data->callables[2].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
         return "entry range";
     default:
@@ -324,7 +305,7 @@ int main(void) {
         assert(munmap(fixture.data,
                       fixture.size + (size_t)sysconf(_SC_PAGESIZE)) == 0);
     }
-    for (unsigned test = 0; test < 23; test++)
+    for (unsigned test = 0; test < 18; test++)
         negative(test);
     puts("image type and scan tests passed");
 }

@@ -147,7 +147,7 @@ static bool collect(bool minor) {
     metrics->full_collections += !minor;
 
     bool verify_heap = scoop_gc_stress_move_enabled();
-#ifdef SCOOP_VERIFY_METADATA
+#if defined(SCOOP_GC_VERIFY_HEAP) && SCOOP_GC_VERIFY_HEAP
     verify_heap = true;
 #endif
     if (verify_heap) {

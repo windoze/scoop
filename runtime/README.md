@@ -7,9 +7,8 @@ runtime-owned exception ABI:
   unboxing and array cloning, including zero-sized payloads;
 - `src/gc.h` exposes complete allocation, checked-value and lifecycle operations
   to ordinary runtime code, including an inline copy with its range barrier;
-- `src/value_shape.c` and `src/value_scan.c` check managed shape arithmetic,
-  scan translation and storage bounds, with an iterative traversal that reuses
-  shared subgraphs and detects cycles without expansion or byte quotas;
+- `src/value_shape.c` computes managed allocation sizes and checks dynamic
+  counts, exact object sizes and operation-specific representation bounds;
 - `src/gc/heap.c` owns region-external block/object metadata;
 - `src/gc/regions.c` owns 16 MiB ordinary regions and independently sized large
   mappings; `page_map.c` publishes their sparse address index, and `cards.c`
@@ -136,7 +135,7 @@ The counters are diagnostic and do not impose program limits.
 Static TypeDescriptor layouts and scan graphs are checked by the compiler or
 artifact reader. Normal runtime operations retain dynamic bounds, count,
 exact-type and GC-root checks without repeating full static graph validation.
-Build with `-DSCOOP_VERIFY_METADATA=1` to enable that additional validation at
-runtime operation boundaries. `scoop_shape_validate` is also available to
-explicit metadata checks and tests. Boxing roots use the descriptor's inline
-scan pointer directly, including before the managed-entry handshake.
+There is no runtime mode that replays static metadata validation.
+`-DSCOOP_GC_VERIFY_HEAP=1` and moving stress can check the current heap and
+references after collection. Boxing roots use the descriptor's inline scan
+pointer directly, including before the managed-entry handshake.

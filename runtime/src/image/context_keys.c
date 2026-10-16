@@ -24,9 +24,6 @@ void scoop_image_context_keys(ScoopImageRegistry *registry) {
         const ScoopCallableRegistrationDescriptorV1 *body =
             table->entries[index].record;
         if (body->context_key_count == 0) {
-            if (body->context_keys != NULL) {
-                scoop_metadata_fatal(&check, "non-null empty Context key table");
-            }
             continue;
         }
         scoop_metadata_range(&check, body->context_keys, body->context_key_count,
@@ -49,14 +46,6 @@ void scoop_image_context_keys(ScoopImageRegistry *registry) {
             const ScoopContextKeyUseV1 *use = &body->context_keys[key];
             scoop_metadata_range(&check, use->slot_cell, 1, sizeof *use->slot_cell, 8,
                                  "Context slot cell range");
-            if (*use->slot_cell != 0 || scoop_digest_zero(&use->exact_key)) {
-                scoop_metadata_fatal(&check, "Context cell initial value or exact key");
-            }
-            if (key != 0 && memcmp(body->context_keys[key - 1].exact_key.bytes,
-                                   use->exact_key.bytes, 32) >= 0) {
-                scoop_metadata_fatal(&check,
-                                     "Context keys are not distinct and ordered");
-            }
             registry->context_cells[next++] = (ScoopContextCell){use, index, 0};
         }
     }
