@@ -1,5 +1,7 @@
 # M50 实施记录
 
+状态：已完成，汇总见 [验收](ACCEPTANCE.md)。
+
 依据 [设计](DESIGN.md)，实施日期：2026-10-17。原始日志与测试工作文件在仓库外 `~/.cache/scoop-m50`；用户原有 M47 文档修改不纳入提交。
 
 ## 分批实施
@@ -45,7 +47,7 @@
 39. Darwin 动态库：删除内部 undefined 符号的 C++ 前缀／ordinal 扫描及 flat namespace／weak binding 非空拒绝；保留实际 export、re-export、目标和显式库绑定。新增真实 C++ 异常与 C cleanup 组合，覆盖普通／flat、weak coalescing、moving GC 与已有产物独立链接。
 40. Archive 读取：直接使用普通 reader 的成员序列与实际范围，删除第二次完整 header／padding 扫描和成员名前缀黑名单。member ordinal 统一排除 TOC／名称表，相关精简链接计划同步。
 41. 文档与平台收尾：同步 M23、M28、M44 历史设计中的权限审计、完整 metadata 重验、SHA 复算和源码隔离要求，修正退役入口链接；移除 Linux cfg 下遗留的 unused import。
-42. 最终验收进行中：本机定向回归及公共 runner 规则，Linux release workspace、完整 GNU CLI 与 musl 目标组合。
+42. 最终验收：本机定向回归及公共 runner 规则，Linux release workspace、完整 GNU CLI 与 musl 目标组合均已完成。
 43. 最终工具探测：删除 Darwin／Linux 探测 executable 的整体复核、EH 前缀拒绝及 Linux unwind map 比对；保留真实工具调用、系统输入发现与运行测试，退役 API 不迁入测试。
 
 ## 验证
@@ -142,4 +144,6 @@ Archive 批次：格式化、workspace clippy 无警告。8 个定向 CLI 用例
 
 Linux 验收发现并修正两类测试期望：ELF metadata fixture 实际只有两个 lazy 单元，迁移时误加的 eager gateway 槽预期已改为无槽；移除 `/proc/self/maps` 读取后不再导入 `getline`、`sscanf`、`feof`，musl 系统导入数减三；GNU 还因移除 Mbed TLS 不再导入 `explicit_bzero`，总计减四。40 个 GNU／musl 精简链接计划按实际符号同步。实体选择、归档范围、ABI 与运行断言均保留，按受影响用例补验。
 
-最终工具探测批次：本机格式化、workspace clippy 无警告；6 项／11 变体／54 进程 CLI 通过，覆盖 C++ 值、析构、产物消费、模式缓存及两个 Darwin 动态库用例。全量 Linux 使用此前工具继续运行；本批在目标环境单独补验，避免重新执行已完成的全量用例。
+最终工具探测批次：本机格式化、workspace clippy 无警告；6 项／11 变体／54 进程 CLI 通过，覆盖 C++ 值、析构、产物消费、模式缓存及两个 Darwin 动态库用例。Linux 格式化、workspace clippy 无警告，工具链 3 项与 startup 1 项定向通过。全目录结束后重建最终工具，GNU 26 项／44 变体／239 进程／35 个 golden 与 musl 4 项／5 变体／21 进程／2 个 golden 全部通过，含此前 19 项 GNU 期望差异的闭合；没有重跑完整目录。
+
+最终汇总：Linux Rust workspace 含 doctest 共 4,956 项完成，首轮唯一失败及最后探测收尾均定向补验通过；公共 runner 两端各 50 项通过。GNU 全目录 4,160 项通过、30 项不适用，合计 4,701 变体／16,447 进程／70 个专门 golden；musl 专项 88 项通过、21 项不适用，113 变体／465 进程／35 个专门 golden。无未闭合失败。最终验证范围与限制见 [验收](ACCEPTANCE.md)。

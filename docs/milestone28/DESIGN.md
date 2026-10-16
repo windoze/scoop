@@ -83,7 +83,7 @@ runtime:   platform/image/{elf,macho}.c
 
 `runtime_sources` 拆为共有源文件清单和实际 platform 组件清单。glibc/musl 共用 Linux/amd64 runtime 源码，区别主要由编译输入和最终链接表达。通用 collector、thread、callback 和 Context 不散布 arch/libc 条件编译。
 
-实际实现入口见 [runtime 源文件组合](../../compiler/toolchain/src/runtime.rs)、[Linux platform bundle](../../runtime/src/platform/profiles/linux_x86_64.c)、[ELF 共有 reader](../../compiler/slib/src/link_object/elf.rs)、[amd64 relocation](../../compiler/slib/src/link_object/elf/x86_64.rs)、[codegen 机器帧检查](../../compiler/codegen/src/artifact/x86_64.rs)及 [ELF 链接动作](../../compiler/linker/src/link/elf.rs)。这些边界由当前 Darwin 和两种 Linux libc 的实现共用；未为未来 arm64 添加空 profile 或占位实现。
+实际实现入口见 [runtime 源文件组合](../../compiler/toolchain/src/runtime.rs)、[Linux platform bundle](../../runtime/src/platform/profiles/linux_x86_64.c)、[ELF 共有 reader](../../compiler/slib/src/link_object/elf.rs)、[amd64 relocation](../../compiler/slib/src/link_object/elf/x86_64.rs)及 [ELF 链接动作](../../compiler/linker/src/link/elf.rs)。原 codegen 机器帧复核已在 M50 中删除。这些边界由当前 Darwin 和两种 Linux libc 的实现共用；未为未来 arm64 添加空 profile 或占位实现。
 
 现有 `scoop_darwin_aarch64_managed_frame_ops` 等名称在确有跨 OS 复用时改为相应架构/ABI 名称；Darwin 与 ELF 的汇编符号拼写留在格式适配处。不能假定 Darwin AArch64 的每个过程 ABI 细节都等同于 Linux AAPCS64。
 
