@@ -138,3 +138,5 @@ Darwin 动态库批次：格式化、workspace clippy 无警告。两个新 fixt
 Archive 批次：格式化、workspace clippy 无警告。8 个定向 CLI 用例中 7 项首轮通过；截断输入仍正确报错，诊断现由普通 archive reader 给出，更新三个目标的期望后仅补验该用例并通过。覆盖普通／长成员名、TOC、递归抽取、重名／冲突、C ABI／callback／TLS 组合及失败不发布；新增 `__.SYMDEF_extra.o` 普通成员正常链接运行。
 
 本机最终组合：公共 fixture runner 50 项规则通过；7 项／9 变体／44 进程 CLI 通过，覆盖 COMMON、泛型派发、初始化、静态 GC 根、物化、Scoop ABI 和 callback。三轮同机性能复测共 24 次 build 成功，冷构建中位数降低 29.8%～35.6%，暖构建均零编译子进程，见 [性能记录](PERFORMANCE.md)。
+
+Linux 验收发现并修正两类测试期望：ELF metadata fixture 实际只有两个 lazy 单元，迁移时误加的 eager gateway 槽预期已改为无槽；移除 `/proc/self/maps` 读取后不再导入 `getline`、`sscanf`、`feof`，40 个 GNU／musl 精简链接计划的系统导入数相应减三。实体选择、归档范围、ABI 与运行断言均保留，按受影响用例补验。
