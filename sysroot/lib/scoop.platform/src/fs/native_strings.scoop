@@ -3,7 +3,7 @@ package scoop.platform.fs
 import scoop.platform.system.OsString
 
 @Unsafe
-internal fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
+public fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
     val source = toBytes()
     for (byte in source) {
         if (byte == 0) throw IllegalArgumentException(Some("native string contains NUL"))
@@ -14,7 +14,7 @@ internal fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
 }
 
 @Unsafe
-internal fun <R> Path.withNativePath(block: (Ptr<Byte>) -> R): R = toOsString().withNativeString(block)
+public fun <R> Path.withNativePath(block: (Ptr<Byte>) -> R): R = toOsString().withNativeString(block)
 
 @Unsafe
 internal fun copyNativeString(pointer: Ptr<Byte>): OsString {

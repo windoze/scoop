@@ -29,4 +29,10 @@ int scoop_socket_failed(int descriptor);
 int scoop_platform_socket_bind(struct ScoopSocketAddress address, bool datagram, bool reuse,
                                int backlog);
 
+struct addrinfo;
+struct ScoopResolution scoop_platform_resolve(const char *host, int port, int family);
+void *scoop_platform_resolve_next(struct addrinfo *entry);
+struct ScoopSocketAddress scoop_platform_resolve_address(struct addrinfo *entry);
+void scoop_platform_resolve_free(struct addrinfo *head);
+
 #endif

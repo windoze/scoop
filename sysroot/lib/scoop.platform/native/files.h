@@ -1,6 +1,7 @@
 #ifndef SCOOP_PLATFORM_FILES_H
 #define SCOOP_PLATFORM_FILES_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {
@@ -12,5 +13,8 @@ typedef struct {
     int64_t changed_seconds, changed_nanos;
     int64_t created_seconds, created_nanos;
 } ScoopPlatformFileMetadata;
+
+int scoop_platform_file_open(const char *path, int flags, int mode);
+int scoop_platform_file_sync(int fd, bool data_only);
 
 #endif

@@ -263,3 +263,7 @@ socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置
 `native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
 
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
+
+`OsString.withNativeString<R>((Ptr<Byte>) -> R)` 与 `Path.withNativePath<R>((Ptr<Byte>) -> R)` 是 fs package 的公开 Unsafe 同步扩展：检查 NUL、保持原始字节并追加终止 NUL，指针只在 callback 内有效，不得保留或交给尚未完成的异步操作；异步使用者须在 callback 内复制到自己的 native 存储。`OpenOptions.nativeFlags(): Int` 公开复用 6.1 的参数检查，返回 file_open helper 的稳定位组合（read=1、write=2、append=4、create=8、createNew=16、truncate=32），不是系统 O_* 值。
+
+`native/io.h` 声明 fd_read／fd_write／fd_close；`native/files.h` 声明 file_open／file_sync。read／write 使用 4～6 章的短传输及 EINTR 规则，close 只调用一次 raw close，syncData 在 Darwin 可用 fsync 实现。`socket_native.h` 还声明 resolve／resolve_next／resolve_address／resolve_free；ScoopResolution 保存 owned addrinfo 链、原始 EAI code、可选的同次 errno。以上函数不进入 managed 代码，可直接从工作线程调用；错误必须在返回时立即保存，资源只能释放一次。
