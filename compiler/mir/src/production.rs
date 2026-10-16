@@ -156,13 +156,6 @@ impl CoreBootstrapBridgeSectionV1 {
         })
     }
 
-    pub(crate) fn validate_for_artifact(
-        &self,
-        artifact: scoop_identity::ConeIdentity,
-    ) -> Result<(), MirProductionBuildError> {
-        validate_section_relations(artifact, &self.entry_bridge, &self.strong_callable_bridges)
-    }
-
     pub const fn entry_bridge(&self) -> &EntryMirBridgeBranchV1 {
         &self.entry_bridge
     }

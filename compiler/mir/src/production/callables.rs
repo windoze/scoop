@@ -141,20 +141,6 @@ impl StrongCallableBridgeSurfaceV1 {
             .find(|bridge| bridge.role == crate::CallableRole::InitializationCycle)
     }
 
-    pub fn matches_foundation(&self, foundation: &CanonicalMirFoundation) -> bool {
-        let signatures = foundation.callable_signatures();
-        self.bridges.len()
-            == signatures
-                .iter()
-                .filter(|record| matches!(record.subject(), CallableSignatureSubject::Strong(_)))
-                .count()
-            && self.bridges.iter().all(|actual| {
-                foundation
-                    .callable_signature(actual.subject())
-                    .is_some_and(|expected| actual.signature() == expected.signature())
-            })
-    }
-
     pub fn bridges(&self) -> &[StrongCallableBridgeV1] {
         &self.bridges
     }

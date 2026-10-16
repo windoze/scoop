@@ -9,9 +9,9 @@ use scoop_identity::{
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
-    DependencyMirOutput, EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId,
-    FunctionId, GeneratedExactTypeLocation, GlobalId, InitializationUnitId, MirOutput, Module,
-    ObjectId, SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
+    DependencyMirOutput, ExternFunctionId, ExternalCallableUseId, FunctionId,
+    GeneratedExactTypeLocation, GlobalId, InitializationUnitId, Module, ObjectId,
+    SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
 };
 
 mod errors;
@@ -294,19 +294,8 @@ impl ConeMirInput {
     ) -> Result<Self, ConeMirInputError> {
         let (module, foundation, selected_callables, external_callable_roots) = output.into_parts();
 
-        if !production
-            .strong_callable_bridges()
-            .matches_foundation(&foundation)
-        {
-            return Err(ConeMirInputError::StrongCallableSurfaceMismatch);
-        }
-
-        production
-            .validate_for_artifact(module.cone)
-            .map_err(ConeMirInputError::Production)?;
         let callable_roots = callable_roots(&module)?;
-        validate_output(&module, &production, &callable_roots)?;
-        let initialization_roots = initialization::validate(&module, &callable_roots)
+        let initialization_roots = initialization::bind(&module, &callable_roots)
             .map_err(ConeMirInputError::Initialization)?;
 
         let mut source_nominal_shapes = module
@@ -403,32 +392,4 @@ fn callable_roots(module: &Module) -> Result<Vec<CallableMaterializationRoot>, C
     }
     roots.sort_unstable_by(|left, right| left.subject.compare_sort_key(right.subject));
     Ok(roots)
-}
-
-fn validate_output(
-    module: &Module,
-    production: &CoreBootstrapBridgeSectionV1,
-    callable_roots: &[CallableMaterializationRoot],
-) -> Result<(), ConeMirInputError> {
-    match (module.output, production.entry_bridge()) {
-        (MirOutput::Library, EntryMirBridgeBranchV1::Library) => Ok(()),
-        (MirOutput::Executable { entry, .. }, EntryMirBridgeBranchV1::Executable(bridge)) => {
-            let implementation = callable_roots
-                .iter()
-                .find(|root| root.function == entry)
-                .map(|root| root.subject)
-                .ok_or(ConeMirInputError::MissingEntryRoot(entry))?;
-            if implementation != CallableSignatureSubject::Strong(bridge.implementation()) {
-                return Err(ConeMirInputError::EntryImplementationMismatch {
-                    expected: bridge.implementation(),
-                    actual: implementation,
-                });
-            }
-            Ok(())
-        }
-        (MirOutput::Library, EntryMirBridgeBranchV1::Executable(_))
-        | (MirOutput::Executable { .. }, EntryMirBridgeBranchV1::Library) => {
-            Err(ConeMirInputError::OutputMismatch)
-        }
-    }
 }

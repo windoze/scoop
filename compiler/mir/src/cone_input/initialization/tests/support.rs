@@ -2,9 +2,9 @@ use super::*;
 use la_arena::Arena;
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-    CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionOwnerChain,
-    ExactCallableSignature, PackagePath, PersistentPropertyId, PropertyOwner,
-    SourceDeclarationSite,
+    CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionOwnerChain, Effect,
+    ExactCallableSignature, GeneratedCallableKey, InitializationUnitKey, PackagePath,
+    PersistentGeneratedCallableId, PersistentPropertyId, PropertyOwner, SourceDeclarationSite,
 };
 
 pub(super) fn unit_id() -> InitializationUnitId {
@@ -160,7 +160,7 @@ pub(super) fn replace_source(module: &mut Module, replacement: SourceCallableMat
     .unwrap();
 }
 
-pub(super) fn seal(module: Module) -> Result<ConeMirInput, ConeMirInputError> {
+pub(super) fn bind_input(module: Module) -> Result<ConeMirInput, ConeMirInputError> {
     let selected = crate::SelectedExternalMirSet::empty(module.cone);
     let output = crate::DependencyMirOutput::try_new(module, selected).unwrap();
     let module = output.module();
