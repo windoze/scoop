@@ -52,3 +52,11 @@ path = "native/pipes.c"
 path = "native/process.c"
 [[native.sources]]
 path = "native/process_wait.c"
+[[native.sources]]
+path = "native/socket_addresses.c"
+[[native.sources]]
+path = "native/socket_open.c"
+[[native.sources]]
+path = "native/socket_io.c"
+[[native.sources]]
+path = "native/resolve.c"

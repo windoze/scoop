@@ -217,3 +217,31 @@ communicate(input: Array<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 通信驱动失败时关闭其端点，显式 kill 并 reap 本次负责的 child，再传播原异常及必要清理失败；没有遗留工作线程或跨调用 buffer 借用。正常 communicate 不终止 child。普通用户自管 pipes／wait 仍需安排三方向进度；继承管道的后代进程可能延迟 EOF，API 不承诺超时或管理整个进程树。
 
 依据：[POSIX spawn 与 file actions](https://pubs.opengroup.org/onlinepubs/9799919799/functions/posix_spawn.html)、[Linux posix_spawn](https://man7.org/linux/man-pages/man3/posix_spawn.3.html) 以及当前 Darwin SDK 的 spawn 扩展。上述能力均为普通 platform 库，不增加 runtime 进程管理协议。
+
+## 12. 阻塞 DNS、TCP 与 UDP
+
+### 12.1 地址与解析
+
+`scoop.platform.net.AddressFamily` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromBytes 接受 4 或 16 字节副本，IPv4 不接受非零 scope。toBytes 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
+
+SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress 给出实际值。
+
+resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重载使用阻塞 getaddrinfo，返回实际地址数组，不承诺排序或去重。名称与 IP parse 分开，不做 IDNA 或隐式构造器联网；名称字节不含 NUL。错误保存 AddressResolution 的 EAI code；仅 EAI_SYSTEM 另保存同次 errno。native 结果在复制后 freeaddrinfo，包括复制失败路径；不使用外部 DNS 服务作为测试前提。
+
+### 12.2 TCP 与端点所有权
+
+TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress、accept(): TcpStream、isDisposed 与 dispose/close。TcpStream.connect(address) 返回 owned stream，提供 localAddress、peerAddress、ByteSource／ByteSink、shutdownInput、shutdownOutput、isDisposed、dispose/close，以及 noDelay／keepAlive 查询和 setNoDelay／setKeepAlive 设置。
+
+所有 socket 为 close-on-exec。创建、配置、bind/listen/connect 或 accept 后配置失败都会关闭未移交的 fd；显式关闭复用第 6.1 节的单次消费语义，hook 仅 raw close。活动 accept/read/write/地址查询／配置保活 owner，操作与 close／配置改变的竞争由调用方同步。stream 支持 OS 允许的并发读写，但不保证复合操作原子。
+
+TCP 是字节流：允许短读写，正请求读取零表示输入 EOF，写入无进度抛 WriteZeroException；游标只提交实际字节。shutdownOutput 只关闭输出方向，之后仍可读取；shutdownInput 与整个关闭区分，按 OS 报告错误。flush 只检查状态，不承诺对端收到或持久化。可恢复的 read/write/accept EINTR 重试；连接创建若失败或被中断，关闭本次 fd 并报告实际错误，不重复使用未确定状态的 socket。
+
+### 12.3 UDP 与 SIGPIPE
+
+UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提供 localAddress、isDisposed、dispose/close。sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long 把当前可读前缀作为一个 datagram，零长度合法；一次 syscall 成功才消费相应字节，不拆包、不在失败后自动重发。OS 拒绝过大报文时保留 errno 与未消费游标；异常的短发送先提交实际进度，再报告没有伪造 errno 的 PlatformException。
+
+receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram 返回 source: SocketAddress、count: Long、truncated: Boolean。count 参数必须为正且不超过可写尾部。使用 recvmsg 的实际复制长度与 MSG_TRUNC；只提交复制字节，不把截断后的长度称为原包总长。空 datagram 返回 count=0、truncated=false，仍消费该报文，不代表 EOF；不足容量时消费整包并标记截断，下一次接收是下一包。
+
+socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置 SO_NOSIGPIPE；错误路径不安装或修改全局 signal handler。pipe/fd 的既有策略不变。DNS、连接、accept、传输和可能阻塞的操作使用 NativeSafe，复用已有精确根、借用与 FFI ABI。地址的 C 对应结构只是普通 @CLayout 值，不新增 compiler/runtime 协议、连接池、异步调度或网络安全框架。
+
+依据：[getaddrinfo](https://man7.org/linux/man-pages/man3/getaddrinfo.3.html)、[recvmsg／MSG_TRUNC 与空包](https://man7.org/linux/man-pages/man2/recvmsg.2.html) 及目标 socket headers。验收使用 loopback、动态端口与显式线程同步。

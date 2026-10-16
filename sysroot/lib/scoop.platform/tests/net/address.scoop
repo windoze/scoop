@@ -1,0 +1,63 @@
+package scoop.platform.net
+
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class NetworkAddressTest {
+    @Test
+    fun `IP literals and bytes preserve families scope and value identity`() {
+        for (literal in ["127.0.0.1", "0.0.0.0", "255.255.255.255", "::1", "2001:db8::1234", "::ffff:127.0.0.1", "fe80::abcd%4294967295"]) {
+            val address = IpAddress.parse(literal)
+            val copy = IpAddress.fromBytes(address.toBytes(), address.scopeId)
+            assertEquals(address, copy)
+            assertEquals(address.hash(), copy.hash())
+            assertEquals(address, IpAddress.parse(address.toString()))
+        }
+        assertEquals(IpAddress.IPV4_LOOPBACK, IpAddress.parse("127.0.0.1"))
+        assertEquals(IpAddress.IPV6_LOOPBACK, IpAddress.parse("::1"))
+        assertEquals("0.0.0.0", IpAddress.IPV4_ANY.toString())
+        assertEquals("::", IpAddress.IPV6_ANY.toString())
+        assertTrue(IpAddress.IPV4_ANY.family == AddressFamily.IPv4)
+        assertTrue(IpAddress.IPV6_ANY.family == AddressFamily.IPv6)
+        assertEquals(4294967295u, IpAddress.parse("fe80::1%4294967295").scopeId)
+    }
+
+    @Test
+    fun `socket address text is unambiguous and validates numeric boundaries`() {
+        for (text in ["127.0.0.1:0", "255.255.255.255:65535", "[::1]:80", "[fe80::1%7]:443"]) {
+            val address = SocketAddress.parse(text)
+            assertEquals(address, SocketAddress.parse(address.toString()))
+            assertEquals(address.hash(), SocketAddress(address.address, address.port).hash())
+        }
+        for (text in ["localhost:80", "::1:80", "127.0.0.1:-1", "127.0.0.1:+1", "127.0.0.1:65536", "[::1]", "[127.0.0.1]:80"]) {
+            assertFailsWith<IllegalArgumentException> { SocketAddress.parse(text) }
+        }
+        assertFailsWith<IllegalArgumentException> { SocketAddress(IpAddress.IPV4_ANY, -1) }
+        assertFailsWith<IllegalArgumentException> { SocketAddress(IpAddress.IPV4_ANY, 65536) }
+    }
+
+    @Test
+    fun `IP parsing rejects hostnames malformed literals and invalid scopes`() {
+        for (text in ["", "localhost", "127.0.0.256", "127.1", "2001::db8::1", "::1%", "::1%+1", "::1%4294967296", "127.0.0.1%1"]) {
+            assertFailsWith<IllegalArgumentException> { IpAddress.parse(text) }
+        }
+        assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(Array<Byte>(5L) { 0.toInt8() }) }
+        assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(IpAddress.IPV4_ANY.toBytes(), 1u) }
+    }
+
+    @Test
+    fun `blocking resolution uses local names and honors family and port`() {
+        for (family in [AddressFamily.IPv4, AddressFamily.IPv6]) {
+            val results = resolve("localhost", 4321, Some(family))
+            assertTrue(results.size > 0L)
+            for (address in results) {
+                assertTrue(address.address.family == family)
+                assertEquals(4321, address.port)
+            }
+        }
+        assertEquals(IpAddress.IPV4_LOOPBACK, resolve(OsString.fromString("127.0.0.1"), 0)[0L].address)
+        assertFailsWith<IllegalArgumentException> { resolve("localhost", -1) }
+        assertFailsWith<IllegalArgumentException> { resolve(OsString.fromBytes(Array<Byte>(1L) { 0.toInt8() }), 80) }
+    }
+}

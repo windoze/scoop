@@ -1,0 +1,110 @@
+package scoop.platform.net
+
+import scoop.platform.fs.File
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class TcpStream internal constructor(private val file: File) : ByteSource, ByteSink, Disposable {
+    public val isDisposed: Boolean get() = file.isDisposed
+    public val localAddress: SocketAddress get() = file.socketAddress(false)
+    public val peerAddress: SocketAddress get() = file.socketAddress(true)
+    public val noDelay: Boolean get() = option(true, false, false)
+    public val keepAlive: Boolean get() = option(false, false, false)
+
+    public companion object {
+        public fun connect(address: SocketAddress): TcpStream {
+            val file = File.newOwner()
+            val stream = TcpStream(file)
+            @Unsafe {
+                val (descriptor, error) = nativeConnect(nativeAddress(address))
+                checkNativeStatus(descriptor, error, "TCP connect")
+                file.adoptDescriptor(descriptor)
+            }
+            return stream
+        }
+    }
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.withDescriptor { descriptor ->
+        requireTransfer(count, buffer.readableBytes)
+        if (count == 0L) return@withDescriptor 0L
+        @Unsafe {
+            val written = buffer.withReadableBytes { pointer, _ ->
+                @Unsafe {
+                    val (result, error) = nativeWrite(descriptor, pointer!!, count)
+                    return@withReadableBytes checkNative(result, error, "TCP write")
+                }
+            }
+            if (written == 0L) throw WriteZeroException()
+            buffer.skip(written)
+            return@withDescriptor written
+        }
+    }
+
+    public fun setNoDelay(value: Boolean) { option(true, true, value) }
+    public fun setKeepAlive(value: Boolean) { option(false, true, value) }
+    private fun option(noDelay: Boolean, set: Boolean, value: Boolean): Boolean = file.withDescriptor { descriptor ->
+        @Unsafe {
+            val (result, error) = nativeOption(descriptor, noDelay, set, value)
+            checkNativeStatus(result, error, "socket option")
+            return@withDescriptor result != 0
+        }
+    }
+
+    public fun shutdownInput() { shutdown(false) }
+    public fun shutdownOutput() { shutdown(true) }
+    private fun shutdown(output: Boolean) {
+        file.withDescriptor { descriptor ->
+            @Unsafe {
+                val (status, error) = nativeShutdown(descriptor, output)
+                checkNativeStatus(status, error, "TCP shutdown")
+            }
+        }
+    }
+    public override fun flush() { file.flush() }
+    public override fun dispose() { file.dispose() }
+    public fun close() { dispose() }
+}
+
+public class TcpListener private constructor(private val file: File) : Disposable {
+    public val localAddress: SocketAddress get() = file.socketAddress(false)
+    public val isDisposed: Boolean get() = file.isDisposed
+
+    public companion object {
+        public fun bind(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): TcpListener {
+            if (backlog <= 0) throw IllegalArgumentException(Some("backlog must be positive"))
+            val file = File.newOwner()
+            val listener = TcpListener(file)
+            @Unsafe {
+                val (descriptor, error) = nativeSocketBind(nativeAddress(address), false, reuseAddress, backlog)
+                checkNativeStatus(descriptor, error, "TCP bind/listen")
+                file.adoptDescriptor(descriptor)
+            }
+            return listener
+        }
+    }
+
+    public fun accept(): TcpStream = file.withDescriptor { listener ->
+        val accepted = File.newOwner()
+        val stream = TcpStream(accepted)
+        @Unsafe {
+            val (descriptor, error) = nativeAccept(listener)
+            checkNativeStatus(descriptor, error, "TCP accept")
+            accepted.adoptDescriptor(descriptor)
+        }
+        stream
+    }
+    public override fun dispose() { file.dispose() }
+    public fun close() { dispose() }
+}
+
+@Extern(name = "scoop_platform_tcp_connect", captureErrno = true)
+private fun nativeConnect(address: NativeSocketAddress): (Int, Int)
+@Extern(name = "scoop_platform_tcp_accept", captureErrno = true)
+private fun nativeAccept(listener: Int): (Int, Int)
+@Extern(name = "scoop_platform_tcp_write", captureErrno = true)
+private fun nativeWrite(descriptor: Int, bytes: Ptr<Byte>, count: Long): (Long, Int)
+@Extern(name = "scoop_platform_socket_option", captureErrno = true)
+private fun nativeOption(descriptor: Int, noDelay: Boolean, set: Boolean, value: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_tcp_shutdown", captureErrno = true)
+private fun nativeShutdown(descriptor: Int, output: Boolean): (Int, Int)

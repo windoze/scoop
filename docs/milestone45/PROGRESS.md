@@ -107,3 +107,13 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - 下游 `.slib` 增加子进程与管道组合，普通／moving 通过；该用例最后的数组参数修正只重跑自身。格式化、workspace all-targets clippy、C 严格告警与 diff 检查通过。库源码的数组构造、元组、闭包局部变量与安全调用前置修复均已闭合；runtime ABI 不变。
 
 下一批为 M45-9。Linux GNU／musl 留至所有本机功能完成后的 M45-10，当前结果不代表其 libc 差异已通过。原始输出保留仓库外，清理结束的 fixture 工作目录并保留复用缓存。
+
+
+## M45-9：阻塞 DNS、TCP 与 UDP
+
+2026-10-16 完成本机实现。地址保留 IPv4／IPv6 位、scope 和端口；getaddrinfo 复制结果后释放，EAI_SYSTEM 保存同次 errno。socket 复用 File owner、NativeByteBuffer 与 NativeSafe，创建与配置失败回滚，活动调用保活。TCP 支持部分传输与半关闭；UDP 保留空包、实际复制长度及截断标志。Linux 使用 MSG_NOSIGNAL，Darwin 使用 SO_NOSIGPIPE，不改全局信号状态；没有新增编译器或 runtime 协议。
+
+- 本库新增 10 项行为测试，当前 99 项在 debug、release、debug moving GC 全部闭合。覆盖两种地址族、解析／DNS、socket 选项、缓冲／线程组合、半关闭、UDP 空包／截断／大包失败及游标。debug 首轮 98/99，修正半关闭测试的对端生存期后，仅补跑受影响的 3 项 TCP 测试；release 与 moving 均一次 99/99。
+- native 专测在 debug/release、普通／moving 全部通过。覆盖创建／配置／bind／connect 失败回滚、已消费 close 的 EINTR、真实短发送与 EINTR、DNS 错误域／释放、CLOEXEC、SIGPIPE，以及实际 accept/read/send/recv/DNS 边界触发 GC 的 owner 保活。
+- 本机未监听端口的连接受网络策略影响会等待超时，因此连接拒绝错误通过实际 connect 边界注入，避免依赖主机防火墙行为；成功传输仍使用真实 loopback 和动态端口。fixture 的 readBytes 参数遗漏及失败诊断已修正，只复跑该专测。
+- 下游 `.slib` UDP 组合在普通／moving 通过；Rust 格式化、workspace all-targets clippy、C 格式化与严格告警通过。原始记录保留在仓库外；Linux 留到 M45-10 集中运行。
