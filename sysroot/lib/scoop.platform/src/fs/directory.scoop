@@ -1,0 +1,85 @@
+package scoop.platform.fs
+
+import scoop.platform.io.checkNativeStatus
+import scoop.platform.io.failNative
+import scoop.platform.system.OsString
+
+public struct DirectoryEntry(val name: OsString, val path: Path)
+
+public class DirectoryEntries private constructor(private val path: Path)
+    : Iterable<DirectoryEntry>, Iterator<DirectoryEntry>, Disposable {
+    private var directory: Ptr<Unit>? = None
+    private var finished: Boolean = false
+    private var active: Boolean = false
+    public val isDisposed: Boolean get() = directory == None
+
+    public companion object {
+        internal fun open(path: Path): DirectoryEntries {
+            val result = DirectoryEntries(path)
+            @Unsafe {
+                val (pointer, error) = path.withNativePath { name ->
+                    @Unsafe { return@withNativePath nativeDirectoryOpen(name) }
+                }
+                if (pointer == None) failNative("open directory", error, Some(path.toOsString()))
+                result.directory = pointer
+            }
+            return result
+        }
+    }
+
+    public override operator fun iterator(): Iterator<DirectoryEntry> = this
+
+    public override fun next(): DirectoryEntry? {
+        if (finished) return None
+        if (directory == None) throw IllegalStateException(Some("directory is disposed"))
+        if (active) throw IllegalStateException(Some("directory operation is active"))
+        active = true
+        try {
+            @Unsafe {
+                val (pointer, error) = nativeDirectoryNext(directory!!)
+                if (pointer == None) {
+                    if (error != 0) failNative("read directory", error, Some(path.toOsString()))
+                    finished = true
+                    closeNative()
+                    return None
+                }
+                val name = copyNativeString(pointer!!)
+                return Some(DirectoryEntry(name, path.resolve(Path.fromOsString(name))))
+            }
+        } finally { active = false }
+    }
+
+    private fun closeNative() {
+        val owned = directory
+        directory = None
+        when (owned) {
+            case Some(pointer) -> @Unsafe {
+                val (status, error) = nativeDirectoryClose(pointer)
+                checkNativeStatus(status, error, "close directory", Some(path.toOsString()))
+            }
+            case None -> {}
+        }
+    }
+
+    public override fun dispose() {
+        if (directory == None) return
+        if (active) throw IllegalStateException(Some("directory operation is active"))
+        closeNative()
+    }
+
+    public fun close() { dispose() }
+
+    release {
+        when (directory) {
+            case Some(pointer) -> @Unsafe { nativeDirectoryClose(pointer) }
+            case None -> {}
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_directory_open", captureErrno = true)
+private fun nativeDirectoryOpen(path: Ptr<Byte>): (Ptr<Unit>?, Int)
+@Extern(name = "scoop_platform_directory_next", captureErrno = true)
+private fun nativeDirectoryNext(directory: Ptr<Unit>): (Ptr<Byte>?, Int)
+@Extern(name = "scoop_platform_directory_close", captureErrno = true)
+private fun nativeDirectoryClose(directory: Ptr<Unit>): (Int, Int)

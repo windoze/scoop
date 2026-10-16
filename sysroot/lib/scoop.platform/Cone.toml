@@ -21,3 +21,14 @@ path = "native/errors.c"
 
 [[native.sources]]
 path = "native/memory.c"
+
+[[native.sources]]
+path = "native/io.c"
+[[native.sources]]
+path = "native/files.c"
+[[native.sources]]
+path = "native/file_metadata.c"
+[[native.sources]]
+path = "native/paths.c"
+[[native.sources]]
+path = "native/directory.c"

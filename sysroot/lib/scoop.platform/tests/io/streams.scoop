@@ -1,0 +1,95 @@
+package scoop.platform.io
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class ByteStreamsTest {
+    @Test
+    fun `full transfers loop over short operations and zero does not call the endpoint`() {
+        val source = TestSource([1, 2, 3, 4, 5])
+        val sink = TestSink()
+        NativeByteBuffer.allocate(5L).use { buffer ->
+            source.readFully(buffer, 0L)
+            assertEquals(0, source.calls)
+            source.readFully(buffer)
+            assertEquals(3, source.calls)
+            assertEquals(5L, buffer.writePosition)
+            sink.writeFully(buffer)
+            assertEquals(5L, buffer.readPosition)
+            assertEquals(5L, sink.bytes.size)
+            assertEquals(5.toInt8(), sink.bytes.toByteArray()[4L])
+        }
+    }
+
+    @Test
+    fun `EOF and errors preserve earlier progress`() {
+        NativeByteBuffer.allocate(5L).use { buffer ->
+            val short = TestSource([1, 2, 3])
+            assertFailsWith<UnexpectedEofException> { short.readFully(buffer) }
+            assertEquals(3L, buffer.writePosition)
+            val sink = TestSink()
+            sink.failAfter = 2L
+            assertSame(sink.failure, assertFailsWith<Throwable> { sink.writeFully(buffer) })
+            assertEquals(2L, buffer.readPosition)
+            assertEquals(2L, sink.bytes.size)
+            buffer.clear()
+            val source = TestSource([4, 5, 6])
+            source.failAfter = 2L
+            assertSame(source.failure, assertFailsWith<Throwable> { source.readFully(buffer, 3L) })
+            assertEquals(2L, buffer.writePosition)
+            sink.zero = true
+            assertFailsWith<WriteZeroException> { sink.writeFully(buffer) }
+            assertEquals(0L, buffer.readPosition)
+        }
+    }
+
+    @Test
+    fun `copy and array convenience operations preserve bytes`() {
+        val sink = TestSink(1L)
+        assertEquals(5L, TestSource([1, 2, 3, 4, 5]).copyTo(sink, 3L))
+        assertEquals(5L, sink.bytes.size)
+        val destination = MutableArray<Byte>(4L) { 0.toInt8() }
+        assertEquals(2L, TestSource([9, 8]).readInto(destination, 1L, 2L))
+        assertEquals(0.toInt8(), destination[0L])
+        assertEquals(9.toInt8(), destination[1L])
+        assertEquals(8.toInt8(), destination[2L])
+        assertEquals(0.toInt8(), destination[3L])
+        assertFailsWith<IllegalArgumentException> { TestSource([]).copyTo(sink, 0L) }
+        assertFailsWith<IndexOutOfBoundsException> { TestSource([]).readInto(destination, 4L, 1L) }
+        assertFailsWith<IllegalArgumentException> { sink.writeFrom(destination, 0L, -1L) }
+        assertEquals(0L, sink.writeFrom(destination, 0L, 0L))
+    }
+
+    @Test
+    fun `UTF8 spans short reads and lines distinguish EOF from empty input`() {
+        val text = "中\n😀\r\nlast\r"
+        BufferedSource(TestSource(text.toByteArray().toArray(), 1L), 2L).use { source ->
+            assertEquals("中", source.readLine()!!)
+            assertEquals("😀", source.readLine()!!)
+            assertEquals("last\r", source.readLine()!!)
+            assertTrue(source.readLine() == None)
+        }
+        assertEquals("", TestSource([10]).readLine()!!)
+        assertTrue(TestSource([]).readLine() == None)
+        assertEquals("中😀", TestSource("中😀".toByteArray().toArray(), 1L).readText())
+        assertEquals(1L, assertFailsWith<CharacterCodingException> { TestSource([65, -1]).readText() }.byteOffset)
+        assertEquals("A�", TestSource([65, -1]).readTextLossy())
+        assertEquals("A�", TestSource([65, -1, 10]).readLineLossy()!!)
+    }
+
+    @Test
+    fun `UTF8 writer uses the ordinary TextWriter protocol and explicit flush`() {
+        val sink = TestSink(1L)
+        val writer = Utf8Writer(sink)
+        val protocol: TextWriter = writer
+        protocol.write("中")
+        sink.writeLine("😀")
+        assertEquals("中😀\n", OsString.fromBytes(sink.bytes.toByteArray()).decodeUtf8())
+        assertEquals(0, sink.flushes)
+        writer.flush()
+        assertEquals(1, sink.flushes)
+        assertFalse(sink.closed)
+    }
+}

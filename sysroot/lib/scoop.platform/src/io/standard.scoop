@@ -1,0 +1,20 @@
+package scoop.platform.io
+
+import scoop.platform.fs.File
+import scoop.platform.memory.NativeByteBuffer
+
+private class StandardSource : ByteSource {
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = readDescriptor(0, buffer, count)
+}
+
+private class StandardSink(private val descriptor: Int) : ByteSink {
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = writeDescriptor(descriptor, buffer, count)
+    public override fun flush() {}
+}
+
+public val standardInput: ByteSource = StandardSource()
+public val standardOutput: ByteSink = StandardSink(1)
+public val standardError: ByteSink = StandardSink(2)
+public fun duplicateStandardInput(): File = File.duplicateDescriptor(0)
+public fun duplicateStandardOutput(): File = File.duplicateDescriptor(1)
+public fun duplicateStandardError(): File = File.duplicateDescriptor(2)

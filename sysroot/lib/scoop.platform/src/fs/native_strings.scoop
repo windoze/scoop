@@ -1,0 +1,26 @@
+package scoop.platform.fs
+
+import scoop.platform.system.OsString
+
+@Unsafe
+internal fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
+    val source = toBytes()
+    for (byte in source) {
+        if (byte == 0) throw IllegalArgumentException(Some("native string contains NUL"))
+    }
+    if (source.size == Long.MAX_VALUE) throw ArithmeticException()
+    val bytes = Array<Byte>(source.size + 1L) { index -> if (index == source.size) 0.toInt8() else source[index] }
+    return bytes.withDataPointer { pointer, _ -> block(pointer) }
+}
+
+@Unsafe
+internal fun <R> Path.withNativePath(block: (Ptr<Byte>) -> R): R = toOsString().withNativeString(block)
+
+@Unsafe
+internal fun copyNativeString(pointer: Ptr<Byte>): OsString {
+    val length = nativeStringLength(pointer)
+    return OsString.fromBytes(Array<Byte>(length) { index -> @Unsafe { return@Array pointer.load(index) } })
+}
+
+@GCLeaf @Extern(name = "scoop_platform_string_length")
+private fun nativeStringLength(pointer: Ptr<Byte>): Long

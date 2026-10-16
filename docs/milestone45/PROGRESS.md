@@ -52,4 +52,14 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - 独立 no-op 专测只链接真实 pressure 操作与 facade，不初始化 runtime，从主线程及四个未 attach pthread 反复传入零和 Long 极值；通过。下游 `.slib` 消费新增 buffer/use/借用组合，普通与 moving 通过。
 - 首轮新代码有 lambda Unsafe 上下文、局部返回及可变捕获用法错误，已按既有语言规则修正；只复验受影响的 13 项库测试和两个 fixture，未重跑已通过的整批，也未进行 Linux 验收。
 
-下一批为 M45-5；Linux GNU／musl 仍集中安排在全部本机功能稳定后。
+## M45-5：同步 IO、文件／目录、缓冲与文本
+
+2026-10-16 完成本机实现。普通 ByteSource／ByteSink 与扩展提供部分／完整传输、数组、复制、UTF-8 文本及 TextWriter 组合；缓冲包装默认借用，显式工厂接管关闭责任，flush 失败保留未写后缀。File、DirectoryEntries 与标准流遵守各自所有权，关闭先终结 owner、再执行一次 raw close；活动 File 使用原子计数保活并允许 OS 支持的并发 IO。C 仅处理 native ABI、真实系统操作和信号边界，没有编译器／runtime 改动。
+
+- 58 项 scoop.test 在 debug、release、debug moving GC 全部通过，其中本批新增 19 项，覆盖短传输、EOF／失败进度、缓冲重试／双失败／重入、文件偏移与复制／排他移动、目录提前退出、symlink 增长读取、临时路径与 UTF-8。
+- 文件／目录 GC 专测通过 debug/release 与普通／moving：从实际 read/write/readdir 回调触发收集，临时 owner 保活；两个 native 线程重叠读取同一 File；fd 已消费但 close 返回 EINTR 后不重复关闭。标准输入／输出／错误和独立副本实际运行通过。
+- native 专测通过真实短 IO、EINTR 重试、close-on-exec 副本／临时文件，以及 BrokenPipe 不调用或替换用户 SIGPIPE handler、保留原 mask/pending。Darwin fd 使用 F_SETNOSIGPIPE；Linux 线程局部屏蔽／消费的实现留待最终目标运行。
+- 下游 `.slib` 消费新增文件、缓冲、泛型接管与文本组合，普通和 moving 均通过。Rust 格式化、workspace all-targets clippy、C 格式化与严格告警通过；没有重跑无影响的 Rust 测试或全 fixture。
+- 首轮库测试 55/56：本机文件系统拒绝非法 UTF-8 名称，已把原假定改为 C 与 Scoop 同路径实际结果对照；保留原始 errno/context。后续新增的重入／并发测试一并通过。fixture 中 Option<Throwable> 相等及泛型 lambda 末尾无结果的错误按现有语言规则修正后，仅复验受影响用例。
+
+下一批为 M45-6；Linux GNU／musl 仍集中安排在全部本机功能稳定后。所有原始记录在仓库外，docs/validation 未纳入原始输出。

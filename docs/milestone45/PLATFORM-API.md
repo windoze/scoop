@@ -210,9 +210,9 @@ UDP 的零字节接收不是 EOF。接收缓冲不足时按 OS 报文规则消�
 
 ### 8.3 SIGPIPE 与线程规则
 
-safe pipe／socket 输出不能因为对端关闭而默认杀死整个进程，应该返回 BrokenPipe。Linux socket 使用 MSG_NOSIGNAL，Darwin 使用相应 socket 选项；普通 pipe／fd 写入通过目标 C shim 的线程局部信号屏蔽与处理实现。
+safe pipe／socket 输出不能因为对端关闭而默认杀死整个进程，应该返回 BrokenPipe。Linux socket 使用 MSG_NOSIGNAL，Darwin 使用相应 socket 选项；普通 pipe／fd 写入在 Linux 使用线程局部屏蔽与消费，在 Darwin 使用实际 F_SETNOSIGPIPE 文件状态选项。Darwin 的 fd 写入产生进程定向 SIGPIPE，不能仅靠屏蔽当前线程保证安全；选项对同一打开文件描述的别名可见，包括标准流的 native 别名。
 
-该 shim 保存／恢复本线程原有 mask，只消费本次写入产生且此前未 pending 的 SIGPIPE，保留已有 pending 信号与原始 errno；不全局安装 SIG_IGN、不覆盖用户 signal handler。spawn 使用明确的子进程信号状态，不把临时屏蔽泄漏给子进程。
+Linux shim 保存／恢复本线程原有 mask，只消费本次写入产生且此前未 pending 的 SIGPIPE，保留已有 pending 信号与原始 errno；不全局安装 SIG_IGN、不覆盖用户 signal handler。spawn 使用明确的子进程信号状态，不把临时屏蔽泄漏给子进程。
 
 本期不公开任意 signal handler、SIGCHLD 回调或异步通知框架。必要的 SIGPIPE 原始行为通过隔离子进程／native 专测验证，普通 BrokenPipe 行为仍由 scoop.test 断言。
 

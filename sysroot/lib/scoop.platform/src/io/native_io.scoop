@@ -1,0 +1,56 @@
+package scoop.platform.io
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+
+@Extern(name = "scoop_platform_fd_read", captureErrno = true)
+internal fun nativeRead(fd: Int, data: Ptr<Byte>, count: Long): (Long, Int)
+@Extern(name = "scoop_platform_fd_write", captureErrno = true)
+internal fun nativeWrite(fd: Int, data: Ptr<Byte>, count: Long): (Long, Int)
+@Extern(name = "scoop_platform_fd_close", captureErrno = true)
+internal fun nativeClose(fd: Int): (Int, Int)
+@Extern(name = "scoop_platform_fd_duplicate", captureErrno = true)
+internal fun nativeDuplicate(fd: Int): (Int, Int)
+
+internal fun failNative(operation: String, code: Int, context: OsString? = None): Nothing {
+    val error = NativeError(NativeErrorDomain.PosixErrno, code)
+    throw PlatformException(operation, error.kind, Some(error), context)
+}
+
+internal fun checkNative(value: Long, code: Int, operation: String, context: OsString? = None): Long {
+    if (value < 0L) failNative(operation, code, context)
+    return value
+}
+
+internal fun checkNativeStatus(value: Int, code: Int, operation: String, context: OsString? = None) {
+    if (value < 0) failNative(operation, code, context)
+}
+
+internal fun readDescriptor(fd: Int, buffer: NativeByteBuffer, count: Long, context: OsString? = None): Long {
+    requireTransfer(count, buffer.writableBytes)
+    if (count == 0L) return 0L
+    @Unsafe {
+        return buffer.withWritableBytes { pointer, _ ->
+            @Unsafe {
+                val (read, error) = nativeRead(fd, pointer!!, count)
+                return@withWritableBytes checkNative(read, error, "read", context)
+            }
+        }
+    }
+}
+
+internal fun writeDescriptor(fd: Int, buffer: NativeByteBuffer, count: Long, context: OsString? = None): Long {
+    requireTransfer(count, buffer.readableBytes)
+    if (count == 0L) return 0L
+    @Unsafe {
+        val written = buffer.withReadableBytes { pointer, _ ->
+            @Unsafe {
+                val (result, error) = nativeWrite(fd, pointer!!, count)
+                return@withReadableBytes checkNative(result, error, "write", context)
+            }
+        }
+        if (written == 0L) throw WriteZeroException()
+        buffer.skip(written)
+        return written
+    }
+}

@@ -1,0 +1,221 @@
+package scoop.platform.fs
+
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.memory.nativeMemoryFree
+import scoop.platform.system.*
+
+public object Files {
+    public fun readAllBytes(path: Path): Array<Byte> = File.open(path).use { it.readAllBytes() }
+    public fun readText(path: Path): String = File.open(path).use { it.readText() }
+    public fun readTextLossy(path: Path): String = File.open(path).use { it.readTextLossy() }
+
+    public fun writeAllBytes(path: Path, bytes: Array<Byte>, append: Boolean = false) {
+        File.open(path, outputOptions(append)).use { it.writeAllBytes(bytes) }
+    }
+
+    public fun writeAllBytes(path: Path, bytes: MutableArray<Byte>, append: Boolean = false) {
+        File.open(path, outputOptions(append)).use { it.writeAllBytes(bytes) }
+    }
+
+    public fun writeText(path: Path, text: String, append: Boolean = false) {
+        File.open(path, outputOptions(append)).use { it.writeText(text) }
+    }
+
+    public fun copy(source: Path, destination: Path, replaceExisting: Boolean = false): Long {
+        return File.open(source).use { input ->
+            val options = OpenOptions(read = false, write = true, create = true, createNew = !replaceExisting)
+            File.open(destination, options).use { output ->
+                input.withDescriptor { sourceFd ->
+                    output.withDescriptor { destinationFd ->
+                        @Unsafe {
+                            val (same, error) = nativeSameFile(sourceFd, destinationFd)
+                            checkNativeStatus(same, error, "compare files", Some(destination.toOsString()))
+                            if (same != 0) throw IllegalArgumentException(Some("cannot copy a file onto itself"))
+                        }
+                    }
+                }
+                output.truncate(0L)
+                input.copyTo(output)
+            }
+        }
+    }
+
+    public fun move(source: Path, destination: Path, replaceExisting: Boolean = false) {
+        @Unsafe {
+            source.withNativePath { from ->
+                @Unsafe {
+                    destination.withNativePath { to ->
+                        @Unsafe {
+                            val (status, error) = nativePathMove(from, to, replaceExisting)
+                            checkNativeStatus(status, error, "move", Some(destination.toOsString()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public fun metadata(path: Path, followLinks: Boolean = true): FileMetadata {
+        @Unsafe {
+            return path.withNativePath { pointer ->
+                @Unsafe {
+                    val (data, error) = nativeMetadata(-1, Some(pointer), followLinks)
+                    return@withNativePath fileMetadata(data, error, Some(path.toOsString()))
+                }
+            }
+        }
+    }
+
+    public fun exists(path: Path, followLinks: Boolean = true): Boolean {
+        try { metadata(path, followLinks); return true }
+        catch (error: PlatformException) {
+            if (error.kind == PlatformErrorKind.NotFound || error.kind == PlatformErrorKind.NotDirectory) return false
+            throw error
+        }
+    }
+
+    public fun createDirectory(path: Path, mode: Int = 0x1ff) {
+        requireMode(mode)
+        @Unsafe {
+            path.withNativePath { pointer ->
+                @Unsafe {
+                    val (status, error) = nativePathMkdir(pointer, mode)
+                    checkNativeStatus(status, error, "create directory", Some(path.toOsString()))
+                }
+            }
+        }
+    }
+
+    public fun createDirectories(path: Path, mode: Int = 0x1ff) {
+        try { createDirectory(path, mode); return }
+        catch (error: PlatformException) {
+            if (error.kind == PlatformErrorKind.AlreadyExists) {
+                if (metadata(path).kind == FileKind.Directory) return
+                throw error
+            }
+            if (error.kind != PlatformErrorKind.NotFound || path.parent == None) throw error
+        }
+        createDirectories(path.parent!!, mode)
+        try { createDirectory(path, mode) }
+        catch (error: PlatformException) {
+            if (error.kind != PlatformErrorKind.AlreadyExists || metadata(path).kind != FileKind.Directory) throw error
+        }
+    }
+
+    public fun delete(path: Path) {
+        @Unsafe {
+            path.withNativePath { pointer ->
+                @Unsafe {
+                    val (status, error) = nativePathDelete(pointer)
+                    checkNativeStatus(status, error, "delete", Some(path.toOsString()))
+                }
+            }
+        }
+    }
+
+    public fun deleteRecursively(path: Path) {
+        if (metadata(path, followLinks = false).kind == FileKind.Directory) {
+            entries(path).use { directory -> for (entry in directory) deleteRecursively(entry.path) }
+        }
+        delete(path)
+    }
+
+    public fun entries(path: Path): DirectoryEntries = DirectoryEntries.open(path)
+
+    public fun createSymbolicLink(link: Path, target: Path) {
+        @Unsafe {
+            link.withNativePath { name ->
+                @Unsafe {
+                    target.withNativePath { destination ->
+                        @Unsafe {
+                            val (status, error) = nativePathSymlink(name, destination)
+                            checkNativeStatus(status, error, "create symbolic link", Some(link.toOsString()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public fun readSymbolicLink(path: Path): Path {
+        return NativeByteBuffer.allocate(256L).use { buffer ->
+            @Unsafe {
+                return@use path.withNativePath { name ->
+                    @Unsafe {
+                        while (true) {
+                            buffer.clear()
+                            val count = buffer.withWritableBytes { pointer, capacity ->
+                                @Unsafe {
+                                    val (read, error) = nativePathReadlink(name, pointer!!, capacity)
+                                    return@withWritableBytes checkNative(read, error, "read symbolic link", Some(path.toOsString()))
+                                }
+                            }
+                            if (count < buffer.capacity) return@withNativePath Path.fromOsString(OsString.fromBytes(buffer.readBytes(count)))
+                            if (buffer.capacity == Long.MAX_VALUE) throw ArithmeticException()
+                            val needed = buffer.capacity + 1L
+                            buffer.clear()
+                            buffer.ensureWritable(needed)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public fun canonicalize(path: Path): Path {
+        @Unsafe {
+            return path.withNativePath { name ->
+                @Unsafe {
+                    val (pointer, error) = nativePathRealpath(name)
+                    if (pointer == None) failNative("canonicalize", error, Some(path.toOsString()))
+                    try { return@withNativePath Path.fromOsString(copyNativeString(pointer!!)) }
+                    finally { nativeMemoryFree(pointer!!) }
+                }
+            }
+        }
+    }
+
+    public fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): Path = temporaryPath(parent, prefix, false)
+    public fun createTempDirectory(parent: Path? = None, prefix: String = "scoop-"): Path = temporaryPath(parent, prefix, true)
+}
+
+private fun outputOptions(append: Boolean): OpenOptions =
+    OpenOptions(read = false, write = true, create = true, append = append, truncate = !append)
+
+private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Path {
+    val bytes = prefix.toByteArray()
+    for (byte in bytes) {
+        if (byte == 0 || byte == 47) throw IllegalArgumentException(Some("invalid temporary path prefix"))
+    }
+    @Unsafe {
+        val base = parent ?: Path.fromOsString(copyNativeString(nativeTemporaryDirectory()))
+        val pattern = base.resolve(Path.fromString(prefix + "XXXXXX")).toOsString().toBytes()
+        if (pattern.size == Long.MAX_VALUE) throw ArithmeticException()
+        val writable = MutableArray<Byte>(pattern.size + 1L) { index -> if (index == pattern.size) 0.toInt8() else pattern[index] }
+        return writable.withDataPointer { pointer, _ ->
+            @Unsafe {
+                val (status, error) = nativePathTemporary(pointer, directory)
+                checkNativeStatus(status, error, "create temporary path", Some(base.toOsString()))
+                return@withDataPointer Path.fromOsString(copyNativeString(pointer))
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_path_mkdir", captureErrno = true)
+private fun nativePathMkdir(path: Ptr<Byte>, mode: Int): (Int, Int)
+@Extern(name = "scoop_platform_path_delete", captureErrno = true)
+private fun nativePathDelete(path: Ptr<Byte>): (Int, Int)
+@Extern(name = "scoop_platform_path_move", captureErrno = true)
+private fun nativePathMove(source: Ptr<Byte>, destination: Ptr<Byte>, replace: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_path_symlink", captureErrno = true)
+private fun nativePathSymlink(link: Ptr<Byte>, target: Ptr<Byte>): (Int, Int)
+@Extern(name = "scoop_platform_path_readlink", captureErrno = true)
+private fun nativePathReadlink(path: Ptr<Byte>, buffer: Ptr<Byte>, capacity: Long): (Long, Int)
+@Extern(name = "scoop_platform_path_realpath", captureErrno = true)
+private fun nativePathRealpath(path: Ptr<Byte>): (Ptr<Byte>?, Int)
+@Extern(name = "scoop_platform_temporary_directory")
+internal fun nativeTemporaryDirectory(): Ptr<Byte>
+@Extern(name = "scoop_platform_path_temporary", captureErrno = true)
+private fun nativePathTemporary(pattern: Ptr<Byte>, directory: Boolean): (Int, Int)

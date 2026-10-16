@@ -1,0 +1,73 @@
+package scoop.platform.io
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.fs.Files
+import scoop.platform.fs.Path
+import scoop.platform.memory.NativeByteBuffer
+
+internal class TestSource(private val data: Array<Byte>, private val chunk: Long = 2L) : ByteSource, Disposable {
+    var position: Long = 0L
+    var closed: Boolean = false
+    var closes: Int = 0
+    var calls: Int = 0
+    var failAfter: Long = Long.MAX_VALUE
+    val failure: Throwable = Throwable()
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        requireTransfer(count, buffer.writableBytes)
+        if (closed) throw IllegalStateException()
+        if (count == 0L) return 0L
+        calls += 1
+        if (position >= failAfter) throw failure
+        val available = data.size - position
+        val requested = if (count < chunk) count else chunk
+        val copied = if (requested < available) requested else available
+        buffer.writeBytes(data, position, copied)
+        position += copied
+        gcCollect()
+        return copied
+    }
+
+    public override fun dispose() { if (!closed) { closed = true; closes += 1 } }
+}
+
+internal class TestSink(private val chunk: Long = 2L) : ByteSink, Disposable {
+    val bytes: ByteArrayBuilder = ByteArrayBuilder()
+    var closed: Boolean = false
+    var closes: Int = 0
+    var flushes: Int = 0
+    var failAfter: Long = Long.MAX_VALUE
+    var failFlush: Boolean = false
+    var failClose: Boolean = false
+    var zero: Boolean = false
+    val failure: Throwable = Throwable()
+    val cleanup: Throwable = Throwable()
+
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        requireTransfer(count, buffer.readableBytes)
+        if (closed) throw IllegalStateException()
+        if (count == 0L || zero) return 0L
+        if (bytes.size >= failAfter) throw failure
+        val copied = if (count < chunk) count else chunk
+        bytes.append(buffer.readBytes(copied))
+        gcCollect()
+        return copied
+    }
+
+    public override fun flush() { flushes += 1; if (failFlush) throw failure }
+    public override fun dispose() {
+        if (closed) return
+        closed = true
+        closes += 1
+        if (failClose) throw cleanup
+    }
+}
+
+internal class TestDirectory : Disposable {
+    val path: Path = Files.createTempDirectory(prefix = "scoop-platform-test-")
+    private var disposed: Boolean = false
+    fun child(name: String): Path = path.resolve(Path.fromString(name))
+    public override fun dispose() {
+        if (!disposed) { disposed = true; Files.deleteRecursively(path) }
+    }
+}

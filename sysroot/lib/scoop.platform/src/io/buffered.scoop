@@ -1,0 +1,131 @@
+package scoop.platform.io
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class BufferedSource private constructor(
+    private val source: ByteSource,
+    private val buffer: NativeByteBuffer,
+    private val owner: Disposable?
+) : ByteSource, Disposable {
+    private var disposed: Boolean = false
+    private var active: Boolean = false
+    private var eof: Boolean = false
+    public val isDisposed: Boolean get() = disposed
+
+    public constructor(source: ByteSource, capacity: Long = 8192L) : this(source, newIoBuffer(capacity), None) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, capacity: Long = 8192L): BufferedSource
+            where T : ByteSource, T : Disposable = BufferedSource(source, newIoBuffer(capacity), Some(source))
+    }
+
+    public override fun readInto(destination: NativeByteBuffer, count: Long): Long {
+        requireIdle(disposed, active)
+        requireTransfer(count, destination.writableBytes)
+        if (count == 0L) return 0L
+        active = true
+        try {
+            if (buffer.readableBytes == 0L && !eof) {
+                buffer.clear()
+                val received = source.readInto(buffer)
+                requireProgress(received, buffer.capacity)
+                eof = received == 0L
+            }
+            val available = buffer.readableBytes
+            val copied = if (count < available) count else available
+            transferBytes(buffer, destination, copied)
+            return copied
+        } finally { active = false }
+    }
+
+    public override fun dispose() {
+        if (disposed) return
+        requireIdle(disposed, active)
+        disposed = true
+        disposeBufferAndOwner(buffer, owner, None)
+    }
+
+    public fun close() { dispose() }
+}
+
+public class BufferedSink private constructor(
+    private val sink: ByteSink,
+    private val buffer: NativeByteBuffer,
+    private val owner: Disposable?
+) : ByteSink, Disposable {
+    private var disposed: Boolean = false
+    private var active: Boolean = false
+    public val isDisposed: Boolean get() = disposed
+
+    public constructor(sink: ByteSink, capacity: Long = 8192L) : this(sink, newIoBuffer(capacity), None) {}
+
+    public companion object {
+        public fun <T> takeOwnership(sink: T, capacity: Long = 8192L): BufferedSink
+            where T : ByteSink, T : Disposable = BufferedSink(sink, newIoBuffer(capacity), Some(sink))
+    }
+
+    public override fun writeFrom(source: NativeByteBuffer, count: Long): Long {
+        requireIdle(disposed, active)
+        requireTransfer(count, source.readableBytes)
+        if (count == 0L) return 0L
+        active = true
+        try {
+            if (buffer.writableBytes == 0L) drain()
+            val available = buffer.writableBytes
+            val copied = if (count < available) count else available
+            transferBytes(source, buffer, copied)
+            return copied
+        } finally { active = false }
+    }
+
+    private fun drain() {
+        try { sink.writeFully(buffer) }
+        finally { buffer.compact() }
+    }
+
+    public override fun flush() {
+        requireIdle(disposed, active)
+        active = true
+        try { drain(); sink.flush() }
+        finally { active = false }
+    }
+
+    public override fun dispose() {
+        if (disposed) return
+        requireIdle(disposed, active)
+        disposed = true
+        var failure: Throwable? = None
+        try { drain(); sink.flush() }
+        catch (error: Throwable) { failure = Some(error) }
+        disposeBufferAndOwner(buffer, owner, failure)
+    }
+
+    public fun close() { dispose() }
+}
+
+private fun requireIdle(disposed: Boolean, active: Boolean) {
+    if (disposed) throw IllegalStateException(Some("stream is disposed"))
+    if (active) throw IllegalStateException(Some("stream operation is active"))
+}
+
+private fun disposeBufferAndOwner(buffer: NativeByteBuffer, owner: Disposable?, initial: Throwable?) {
+    var failure = initial
+    try { buffer.dispose() }
+    catch (error: Throwable) { failure = Some(appendCleanupFailure(failure, error)) }
+    when (owner) {
+        case Some(value) -> {
+            try { value.dispose() }
+            catch (error: Throwable) { failure = Some(appendCleanupFailure(failure, error)) }
+        }
+        case None -> {}
+    }
+    when (failure) {
+        case Some(error) -> throw error
+        case None -> {}
+    }
+}
+
+private fun appendCleanupFailure(previous: Throwable?, next: Throwable): Throwable = when (previous) {
+    case Some(error) -> ResourceUseException(error, next)
+    case None -> next
+}

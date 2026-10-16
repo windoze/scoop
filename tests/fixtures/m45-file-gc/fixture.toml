@@ -1,0 +1,44 @@
+schema = 1
+name = "m45-file-gc"
+inputs = ["consumer", "probe.c"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m45", "platform", "gc", "release-blocks", "io"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${sysroot}/lib/scoop.platform", to = "${work}/platform"}},
+    {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/probe.c"}},
+    {replace = {path = "${work}/platform/native/io.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define read m45_file_read\n#define write m45_file_write\n#define close m45_file_close"}},
+    {replace = {path = "${work}/platform/native/directory.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define readdir m45_directory_next\n#define closedir m45_directory_close"}},
+    {replace = {path = "${work}/platform/Cone.toml", old = 'path = "native/io.c"', new = "path = \"native/io.c\"\n\n[[native.sources]]\npath = \"native/probe.c\""}},
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+stdin = "input 中\n"
+exit = 0
+stdout = "file and directory ownership, close consumption and raw paths passed\nstdout 中\nduplicate\nstill open\n"
+stderr = "stderr 😀\n"
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+stdin = "input 中\n"
+exit = 0
+stdout = "file and directory ownership, close consumption and raw paths passed\nstdout 中\nduplicate\nstill open\n"
+stderr = "stderr 😀\n"

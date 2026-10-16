@@ -93,3 +93,53 @@ pointer 不得逃出 callback、保留给异步操作或跨挂起使用；writab
 成功提交容量 c 后通过 core `gcAdjustPressure(+c)` 提示，增长只报告 new-old；实际释放后报告 -c。失败、clear、compact、读写和借用不报告变化；同一份所有权不得重复扣减。显式关闭先清空字段，hook 只读字段并在 collector reclaim 路径释放，二者共用同一个 GC-free 入口。
 
 提示遵守语言规范 14.1 与运行时规范 3.1；首版 GC 完全忽略提示是合法实现。buffer 不触发 GC，也不在 malloc/realloc 失败后收集重试，不维护 RSS、分配峰值、通用预算或资源账本。
+
+## 5. 同步字节流、缓冲与 UTF-8
+
+`scoop.platform.io.ByteSource` 声明 `readInto(buffer: NativeByteBuffer, count: Long): Long`；ByteSink 声明 `writeFrom(buffer: NativeByteBuffer, count: Long): Long` 与 flush()。协议不包含关闭；拥有资源的实现另实现 Disposable。count 非负且不超过当前可写／可读区间，零请求不执行 native IO、返回零，也不表示 EOF。正请求允许短传输；read 返回零表示 EOF，write 无进度抛 WriteZeroException。成功 read 提交 writer，成功 write 提交 reader；失败不撤销之前已经发生的外部进度。
+
+普通扩展提供省略 count 的调用、readFully/writeFully、copyTo、readAllBytes、readText/readTextLossy、readLine/readLineLossy、writeText/writeLine。完整读取遇到 EOF 抛 UnexpectedEofException；两种 IO 异常直接继承 Exception。完整操作逐次提交进度，后续失败保留此前游标，不忙循环。copyTo 返回复制的 Long 字节数；bufferSize 默认 8192，必须为正，不是总数据配额。Array/MutableArray 字节直接传输重载检查数组区间，File 的实现直接借用数组。flush 只提交用户态缓冲，不等于文件持久化。
+
+UTF-8 在完整结果或整行组装后解码，跨 native 分块的编码序列不会被提前判错。默认严格解码；有损版本显式命名。readLine 去除 LF 及紧邻它的 CR，EOF 前无 LF 的最后一行保留全部字节；仅 EOF 且本行无字节返回 None。writeLine 追加 LF。`Utf8Writer(sink: ByteSink)` 是借用 sink 的 TextWriter 适配器，write 转交 UTF-8 完整写入，flush 转交 sink，不拥有或关闭 sink。
+
+`BufferedSource(source, capacity: Long = 8192L)`、`BufferedSink(sink, capacity: Long = 8192L)` 为 final class 和 Disposable，容量必须为正。默认仅拥有自己的 NativeByteBuffer，借用 endpoint。`takeOwnership<T>(endpoint: T, capacity)` 要求 T 同时符合对应 IO 协议与 Disposable；成功返回才移交逻辑关闭责任。没有共享使用／并发关闭保证，调用方须同步；重入操作在修改前拒绝。关闭后操作抛 IllegalStateException，isDisposed 可查询，dispose/close 幂等。
+
+BufferedSource 不把未读数据交回 endpoint；BufferedSink.dispose 尝试 flush，随后无论是否失败都释放 buffer 并关闭明确接管的 endpoint。多个失败以 ResourceUseException 按发生顺序组合；逻辑关闭后不重复清理或报告旧异常。flush 失败保留尚未输出的缓冲和已发生的外部进度，允许未关闭的 caller 明确重试。GC hook 不 flush 或访问 managed endpoint，内部 buffer 自行兜底释放。
+
+standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的借用视图，不实现 Disposable。duplicateStandardInput/Output/Error 返回独立拥有、close-on-exec 的 File 副本，与原描述符共享 OS 文件位置／状态，关闭副本不关闭标准 fd。标准流重定向后，后续操作使用新 fd；与 core libc stdio 混用时需要显式 flush，不承诺自动排序。
+
+## 6. 文件与目录
+
+### 6.1 File 与 OpenOptions
+
+`scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Disposable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
+
+除字节协议外，File 提供 position、size、isDisposed，只读／写数组重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、dispose/close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
+
+显式关闭先清除 owned fd，再调用一次 close；成功或失败均终结 owner，不无条件重试，包括 EINTR。当前 Linux 的 fd 在 close 错误报告前已被消费；Darwin 的普通 fd 关闭同样沿实际内核消费路径，不能由错误码假定仍可重试。hook 只兜底尝试 raw close，不重放已消费的 fd，不 flush 或等待用户代码。close 结果不能证明远程文件已经持久化，必要时先显式 sync。
+
+### 6.2 文件系统操作
+
+`Files` 普通 object 提供 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copy、move、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink、canonicalize、entries、createTempFile/createTempDirectory。
+
+- writeAllBytes/writeText 默认创建或截断，支持显式 append；copy 默认不替换，replaceExisting=true 才允许覆盖。copy 不承诺原子性或复制全部 metadata，不允许把同一 OS 文件作为源与目标后先截断源内容。
+- move 默认不替换，使用 Darwin renamex_np(RENAME_EXCL) 或 Linux renameat2(RENAME_NOREPLACE) 的真实排他操作；replaceExisting=true 使用 rename。跨文件系统与不支持的错误照常报告，不以有竞争的 exists 预检查模拟排他，不暗中 copy+delete。
+- metadata(path, followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
+- exists 仅把 NotFound 和路径组件的 NotDirectory 转为 false，权限与其他 IO 错误继续抛出。查询不消除之后操作的文件系统竞争。
+- createDirectory 默认 mode=0777，受 umask 影响；createDirectories 接受已存在目录，其他类型照常报错。delete 删除单个文件、symlink 或空目录；deleteRecursively 不主动跟随 symlink，调用方须排除并发替换目录树，API 不提供抵抗恶意路径替换的来源审计或安全沙箱。
+- createSymbolicLink(link, target) 保留 target 字节；readSymbolicLink 不解析目标，canonicalize 才解析实际路径与 symlink。所有 Path 都保留原始名称字节；实际文件系统可以拒绝非法编码，库保留该 OS 错误与原始 context，不提前损坏或重新编码路径。
+- createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。
+
+### 6.3 DirectoryEntries
+
+`DirectoryEntries` 实现 Iterable<DirectoryEntry>、Iterator<DirectoryEntry> 和 Disposable，是共享 native 枚举状态的单遍对象；由 Files.entries(path) 创建。iterator 返回自身，next 返回 Option；跳过点目录，不排序。DirectoryEntry 保存独立 OsString name 与组合后的 Path path，不把 readdir 临时指针交给调用者。
+
+EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 dispose 后再 next 抛 IllegalStateException。提前退出循环或正文失败由 use 清理，for 不自动关闭 iterator。native 枚举和复制名称期间保活 owner；不支持重入／并发枚举或关闭。hook 只兜底 closedir。
+
+### 6.4 native 传输、信号与错误
+
+阻塞 open/read/write、文件 metadata／同步、目录和路径操作使用 NativeSafe。read/write 只在没有交付字节的 EINTR 时重试，一次传输受平台 ssize_t／实际 syscall 上限限制。errno 在本次失败后立即保存，任何信号状态恢复或返回握手都不能覆盖它。
+
+safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd 写入仅屏蔽当前线程的 SIGPIPE，保存旧 mask/pending，只消费本次写入新增的 SIGPIPE，再恢复 mask；不消费已有 pending，也不安装进程级 handler。Darwin 内核的普通 fd 写入发出进程定向 SIGPIPE，使用真实 F_SETNOSIGPIPE 选项抑制；该选项属于打开文件描述，同一描述的别名可见，标准输出也在实际写入当前 fd 时设置。socket 专用输出使用对应 MSG_NOSIGNAL/SO_NOSIGPIPE。所有目标保持用户 signal handler，不以成功 no-op 模拟保护。
+
+目标依据：[Linux close](https://man7.org/linux/man-pages/man2/close.2.html)、[Linux rename](https://man7.org/linux/man-pages/man2/rename.2.html)、[Darwin fd 生命周期](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_descrip.c)、[Darwin 写入与 SIGPIPE](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_generic.c)。这些边界按实际 OS 合同实现，不推导新的 compiler/runtime 协议。

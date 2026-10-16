@@ -1,0 +1,116 @@
+package scoop.platform.io
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class BufferedStreamsTest {
+    @Test
+    fun `buffer wrappers borrow by default and owned factories close exactly once`() {
+        val source = TestSource([1, 2, 3, 4])
+        val borrowed = BufferedSource(source, 3L)
+        NativeByteBuffer.allocate(1L).use { buffer -> assertEquals(1L, borrowed.readInto(buffer)) }
+        borrowed.close()
+        assertFalse(source.closed)
+        BufferedSource.takeOwnership(source).use { it.readAllBytes() }
+        assertTrue(source.closed)
+        assertEquals(1, source.closes)
+        val sink = TestSink()
+        BufferedSink(sink, 2L).use { it.writeAllBytes(Array<Byte>(3L) { 7.toInt8() }) }
+        assertEquals(3L, sink.bytes.size)
+        assertFalse(sink.closed)
+        val owned = BufferedSink.takeOwnership(sink)
+        owned.dispose()
+        owned.close()
+        assertTrue(sink.closed)
+        assertEquals(1, sink.closes)
+        assertTrue(owned.isDisposed)
+        assertFailsWith<IllegalStateException> { owned.flush() }
+        NativeByteBuffer.allocate().use { buffer ->
+            assertFailsWith<IllegalStateException> { borrowed.readInto(buffer, 0L) }
+            assertFailsWith<IllegalStateException> { owned.writeFrom(buffer, 0L) }
+        }
+    }
+
+    @Test
+    fun `failed flush retains only the unwritten suffix for an explicit retry`() {
+        val sink = TestSink(2L)
+        val buffered = BufferedSink(sink, 4L)
+        buffered.writeAllBytes(Array<Byte>(4L) { (it + 1L).toInt8() })
+        assertEquals(0L, sink.bytes.size)
+        sink.failAfter = 2L
+        assertSame(sink.failure, assertFailsWith<Throwable> { buffered.flush() })
+        assertEquals(2L, sink.bytes.size)
+        sink.failAfter = Long.MAX_VALUE
+        buffered.flush()
+        assertEquals(4L, sink.bytes.size)
+        var index = 0L
+        while (index < 4L) {
+            assertEquals((index + 1L).toInt8(), sink.bytes.toByteArray()[index])
+            index += 1L
+        }
+        buffered.close()
+    }
+
+    @Test
+    fun `dispose attempts owned cleanup after flush failure and preserves both objects`() {
+        val sink = TestSink()
+        sink.failFlush = true
+        sink.failClose = true
+        val buffered = BufferedSink.takeOwnership(sink, 4L)
+        buffered.writeAllBytes(Array<Byte>(2L) { 1.toInt8() })
+        val failure = assertFailsWith<ResourceUseException> { buffered.dispose() }
+        assertSame(sink.failure, failure.primaryFailure)
+        assertSame(sink.cleanup, failure.cleanupFailure)
+        assertEquals(2L, sink.bytes.size)
+        assertEquals(1, sink.closes)
+        assertTrue(buffered.isDisposed)
+        buffered.dispose()
+        assertEquals(1, sink.closes)
+    }
+
+    @Test
+    fun `invalid capacity does not take ownership`() {
+        val source = TestSource([])
+        val sink = TestSink()
+        assertFailsWith<IllegalArgumentException> { BufferedSource.takeOwnership(source, 0L) }
+        assertFailsWith<IllegalArgumentException> { BufferedSink.takeOwnership(sink, -1L) }
+        assertFalse(source.closed)
+        assertFalse(sink.closed)
+    }
+
+    @Test
+    fun `buffered callbacks cannot reenter operations or dispose active storage`() {
+        val source = ReentrantSource()
+        BufferedSource(source, 1L).use { wrapper ->
+            source.wrapper = Some(wrapper)
+            NativeByteBuffer.allocate(1L).use { buffer -> assertEquals(0L, wrapper.readInto(buffer)) }
+        }
+        val sink = ReentrantSink()
+        BufferedSink(sink, 1L).use { wrapper ->
+            sink.wrapper = Some(wrapper)
+            wrapper.writeAllBytes(Array<Byte>(1L) { 7.toInt8() })
+            wrapper.flush()
+        }
+    }
+}
+
+private class ReentrantSource : ByteSource {
+    var wrapper: BufferedSource? = None
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        assertFailsWith<IllegalStateException> { wrapper!!.dispose() }
+        assertFailsWith<IllegalStateException> { wrapper!!.readInto(buffer, 0L) }
+        return 0L
+    }
+}
+
+private class ReentrantSink : ByteSink {
+    var wrapper: BufferedSink? = None
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        assertFailsWith<IllegalStateException> { wrapper!!.dispose() }
+        assertFailsWith<IllegalStateException> { wrapper!!.flush() }
+        buffer.skip(count)
+        return count
+    }
+    public override fun flush() {}
+}

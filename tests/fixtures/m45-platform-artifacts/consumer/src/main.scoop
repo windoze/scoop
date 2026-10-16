@@ -1,5 +1,6 @@
 import scoop.platform.memory.NativeByteBuffer
-import scoop.platform.fs.Path
+import scoop.platform.fs.*
+import scoop.platform.io.*
 import scoop.platform.system.*
 
 fun main() {
@@ -24,4 +25,15 @@ fun main() {
         }
     })
     println(buffer.isDisposed)
+    val directory = Files.createTempDirectory(prefix = "scoop-artifact-")
+    try {
+        val file = directory.resolve(Path.fromString("text"))
+        BufferedSink.takeOwnership(File.open(file, OpenOptions(write = true, createNew = true))).use {
+            it.writeLine("artifact 中")
+        }
+        BufferedSource.takeOwnership(File.open(file)).use {
+            if (it.readLine()!! != "artifact 中" || it.readLine() != None) throw IllegalStateException()
+            Unit
+        }
+    } finally { Files.deleteRecursively(directory) }
 }

@@ -1,0 +1,41 @@
+package scoop.platform.io
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+public fun ByteSource.readText(): String = decodeBytes(readAllBytes(), false)
+public fun ByteSource.readTextLossy(): String = decodeBytes(readAllBytes(), true)
+public fun ByteSource.readLine(): String? = readLineBytes(this, false)
+public fun ByteSource.readLineLossy(): String? = readLineBytes(this, true)
+public fun ByteSink.writeText(text: String) { writeAllBytes(text.toByteArray()) }
+public fun ByteSink.writeLine(text: String) { writeText(text); writeText("\n") }
+
+public class Utf8Writer public constructor(private val sink: ByteSink) : TextWriter {
+    public override fun write(text: String) { sink.writeText(text) }
+    public fun flush() { sink.flush() }
+}
+
+internal fun decodeBytes(bytes: Array<Byte>, lossy: Boolean): String {
+    val unsigned = Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() }
+    return if (lossy) String.fromUtf8Lossy(unsigned) else String.fromUtf8(unsigned)
+}
+
+private fun readLineBytes(source: ByteSource, lossy: Boolean): String? {
+    val bytes = ByteArrayBuilder()
+    val newline = NativeByteBuffer.allocate(1L).use { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = source.readInto(buffer, 1L)
+            requireProgress(count, 1L)
+            if (count == 0L) break
+            val byte = buffer.readByte()
+            if (byte == 10) return@use true
+            bytes.append(byte)
+        }
+        false
+    }
+    val data = bytes.toByteArray()
+    if (data.size == 0L && !newline) return None
+    val trim = newline && data.size > 0L && data[data.size - 1L] == 13
+    return Some(decodeBytes(if (trim) Array<Byte>(data.size - 1L) { index -> data[index] } else data, lossy))
+}
