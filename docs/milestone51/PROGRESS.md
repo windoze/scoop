@@ -29,6 +29,8 @@
 
 - 同步 TLS：普通多接口泛型接管传输，真实 TCP 短传输、明文前缀、flush、close_notify、截断和显式关闭已闭合。状态／参数错误不接管或破坏现有连接；已接受明文在输出失败后仍提交游标，正文及关闭失败组合保留。新增 4 项普通测试、相同 4 项 moving GC、生产外部消费者 1 项通过。未消费明文在已缓冲及尚未读入 SSL 两种情况下均拒绝优雅关闭；强制关闭对端可能收到平台 connection reset，测试按底层实际合同断言。
 
+- 异步集成发现并修复短路 lowering 缺陷：MIR 为右操作数生成的 unwrap／cast／bounds prelude 原先提前执行，导致合法的 `present(value) && value!!.field` 抛异常。现按既有语言规则将 setup 放在右侧条件内。格式化、workspace clippy、MIR crate 117 项通过；新增及既有短路正式 CLI 共 2 项／4 变体／12 进程通过，包含 debug／release／moving、未进入分支无副作用、实际进入后的求值顺序与异常。修复后的异步 TLS 双向与握手背压测试通过。
+
 ## 验证与工作目录
 
 本机逐功能格式化、lint 和定向验证；最后在 nuc12 的 `~/repos/scoop` 执行 Linux 完整验证。日志、报告及工作目录使用两端 `~/.cache/scoop-m51`，临时目录显式设为其中的 `scratch`，不使用 `/tmp`。定期清理无用 target 产物，保留正在复用的 release 工具。M47 文档修改不属于本任务。
