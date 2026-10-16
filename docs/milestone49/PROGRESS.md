@@ -10,7 +10,8 @@
 | asyncio 事件循环、定时等待与投递 | 已实现，本机 debug／release／moving GC 八项 scoop.test 通过 |
 | 异步字节流协议与组合扩展 | 已实现，本机 debug／release／moving GC 六项 scoop.test 通过 |
 | TCP | 已实现，本机 debug／release／moving GC 定向验收通过 |
-| 文件、DNS、UDP | 待实施 |
+| DNS | 已实现，本机三项 scoop.test 通过；其他 profile 随后续组合验证 |
+| 文件、UDP | 实施中 |
 | 三目标组合及完整验收 | 待实施 |
 
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
@@ -48,3 +49,9 @@ NativeByteBorrow 使用普通公开 Unsafe API 持有 owner，提交已知进度
 新增 connect／listen／accept、IPv4／IPv6 双向字节流、输出半关闭、取消和幂等关闭。run 收尾等待未关闭资源与全部 native callback；未交付的迟到连接／listener 成功先关闭。监听复用 platform 的普通 C socket_bind helper，保持 reuseAddress=false 与原始 PosixErrno；其余 libuv 错误保留负码。Linux 在线程局部屏蔽／恢复 SIGPIPE，Darwin 使用 SO_NOSIGPIPE。
 
 新增十二项同 Cone 测试，覆盖短读写、EOF 后写入、同方向互斥、跨线程提交、真实排队写取消后的精确前缀与继续写入、关闭竞争、取消后 shutdown 终止、原生错误与 SIGPIPE handler／mask／pending 保留。写取消通过 libuv 公开同步 API 先观察真实排队状态，不依靠任意延迟。全部二十六项（包含既有 loop／stream）通过 moving GC；debug／release 首轮各二十五项通过，修正一个测试的越界异常预期后定向补验闭合。C11 警告检查、workspace clippy 与差异检查通过；实现文件最长 143 行。target 仍约 2.4 GB，保留正在复用的构建缓存。Linux 三目标组合验证仍待全部功能完成。
+
+## 原始 DNS 与平台 helper 复用
+
+公开 platform 的同步 Unsafe 原始字符串／路径借用、已验证的 OpenOptions helper flags、普通 C helper 头文件及共享 NativeSocketAddress 类型。两个新增平台测试通过普通与 moving GC；asyncio 直接消费这些普通产物声明。首次 DNS 链接显示同形 nominal 不能替代同一 native 合同的 exact type，已改为共享 platform 定义，未改编译器 ABI 规则。
+
+resolve 通过 uv_queue_work 调用原始 getaddrinfo helper，提交时复制原始名称，after-work 释放输入，managed 消费或取消时释放 addrinfo。保留 AddressResolution 与同次 EAI_SYSTEM errno；原生队列撤销和执行后完成共用已登记请求的单次完成路径。本机三项 scoop.test 通过，覆盖 IPv4／IPv6／localhost 与实际 TCP 组合、NUL／port／真实 EAI 失败，以及提交前后反复取消和后续解析。文件将复用同一工作请求队列；release、moving GC 及 Linux 在后续组合验证中闭合。

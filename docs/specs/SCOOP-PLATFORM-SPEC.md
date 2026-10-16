@@ -260,7 +260,7 @@ socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置
 
 ### 12.4 普通 native helper 复用
 
-`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。Scoop 对应的公开 `@CLayout NativeSocketAddress(family: Int, port: Int, scopeId: UInt, a: UInt, b: UInt, c: UInt, d: UInt)` 由 platform 定义，复用同一 C 符号的 Scoop 声明使用该类型身份，不自行重声明同形 nominal。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
 
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
 

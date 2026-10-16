@@ -1,0 +1,80 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncResolveTest {
+    @Test
+    fun `numeric IPv4 IPv6 and local resolution feed real connections`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val ipv4 = scope.async<Array<SocketAddress>> suspend {
+                loop.resolve(OsString.fromString("127.0.0.1"), listener.localAddress.port, Some(AddressFamily.IPv4))
+            }
+            val ipv6 = scope.async<Array<SocketAddress>> suspend {
+                loop.resolve(OsString.fromString("::1"), 4321, Some(AddressFamily.IPv6))
+            }
+            gcCollect()
+            val addresses = ipv4.await()
+            assertTrue(addresses.size > 0L)
+            assertEquals(listener.localAddress, addresses[0L])
+            assertEquals(SocketAddress(IpAddress.IPV6_LOOPBACK, 4321), ipv6.await()[0L])
+            assertTrue(loop.resolve(OsString.fromString("localhost"), 0).size > 0L)
+            val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(addresses[0L]) }
+            val peer = listener.accept()
+            val client = connecting.await()
+            NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                bytes.writeByte(42)
+                peer.writeFully(bytes)
+                bytes.clear()
+                client.readFully(bytes)
+                assertEquals(42.toInt8(), bytes.readByte())
+            }
+        }
+    }
+
+    @Test
+    fun `invalid inputs and resolver failures keep the original error and host`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val invalid: Array<Byte> = [49, 0, 50]
+            try { loop.resolve(OsString.fromBytes(invalid), 1); fail(Some("NUL accepted")) }
+            catch (_: IllegalArgumentException) {}
+            try { loop.resolve(OsString.fromString("127.0.0.1"), -1); fail(Some("negative port accepted")) }
+            catch (_: IllegalArgumentException) {}
+            try { loop.resolve(OsString.fromString("::1"), 65536); fail(Some("large port accepted")) }
+            catch (_: IllegalArgumentException) {}
+            val host = OsString.fromString("::1")
+            try { loop.resolve(host, 42, Some(AddressFamily.IPv4)); fail(Some("IPv6 literal resolved as IPv4")) }
+            catch (error: PlatformException) {
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.AddressResolution)
+                assertTrue(error.nativeError!!.code != 0)
+                assertEquals(host, error.context!!)
+            }
+        }
+    }
+
+    @Test
+    fun `cancellation before and after native submission drains work and resolution results`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        loop.run suspend { scope ->
+            val host = OsString.fromString("127.0.0.1")
+            for (_ in 0..<16) {
+                val before = scope.launch suspend { loop.resolve(host, 42) }
+                before.cancel()
+                before.join()
+                val submitted = scope.launch suspend { loop.resolve(host, 43) }
+                backend.state.post { submitted.cancel() }
+                submitted.join()
+                assertTrue(submitted.isCancelled)
+                gcCollect()
+            }
+            assertEquals(SocketAddress(IpAddress.IPV4_LOOPBACK, 44), loop.resolve(host, 44)[0L])
+        }
+    }
+}

@@ -56,7 +56,7 @@ ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop) {
 }
 
 int scoop_io_loop_destroy(ScoopIoLoop *loop) {
-    if (loop->head || loop->timers || loop->connections)
+    if (loop->head || loop->timers || loop->connections || loop->work)
         return UV_EBUSY;
     uv_close((uv_handle_t *)&loop->wake, NULL);
     uv_run(&loop->uv, UV_RUN_DEFAULT);

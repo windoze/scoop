@@ -8,7 +8,7 @@ internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: Int)
 internal struct NativeRecord(val id: Long, val kind: Int, val code: Int, val count: Long, val resource: Ptr<Unit>?)
 
 internal enum IoResult {
-    Done, Bytes(Long), Eof, Created(Ptr<Unit>), Failed(NativeError, Long)
+    Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Failed(NativeError, Long)
 }
 internal struct NativeEvent(val id: Long, val result: IoResult)
 internal enum IoStart { Pending, Finished(NativeEvent) }
@@ -24,16 +24,19 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent = NativeEvent(record
     case 3 -> IoResult.Created(record.resource!!)
     case 4 -> IoResult.Failed(NativeError(NativeErrorDomain.Libuv, record.code), record.count)
     case 5 -> IoResult.Failed(NativeError(NativeErrorDomain.PosixErrno, record.code), record.count)
+    case 6 -> IoResult.Addresses(record.resource)
+    case 7 -> IoResult.Failed(NativeError(NativeErrorDomain.AddressResolution, record.code,
+        if (record.count < 0L) None else Some(record.count.toInt32())), 0L)
     else -> throw IllegalStateException(Some("invalid native I/O event"))
 })
 
-internal fun resultFailure(operation: String, result: IoResult): Throwable? = when (result) {
-    case Failed(error, _) -> Some(PlatformException(operation, error.kind, Some(error)))
+internal fun resultFailure(operation: String, result: IoResult, context: OsString? = None): Throwable? = when (result) {
+    case Failed(error, _) -> Some(PlatformException(operation, error.kind, Some(error), context))
     case _ -> None
 }
 
-internal fun completionFailure(operation: String, result: IoResult, selected: Throwable?): Throwable? =
-    when (selected) { case Some(_) -> selected; case None -> resultFailure(operation, result) }
+internal fun completionFailure(operation: String, result: IoResult, selected: Throwable?, context: OsString? = None): Throwable? =
+    when (selected) { case Some(_) -> selected; case None -> resultFailure(operation, result, context) }
 
 internal fun resultProgress(result: IoResult): Long = when (result) {
     case Bytes(count) -> count

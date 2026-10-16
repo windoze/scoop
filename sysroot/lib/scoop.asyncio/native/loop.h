@@ -20,7 +20,9 @@ enum {
     SCOOP_IO_EOF,
     SCOOP_IO_RESOURCE,
     SCOOP_IO_UV_ERROR,
-    SCOOP_IO_POSIX_ERROR
+    SCOOP_IO_POSIX_ERROR,
+    SCOOP_IO_ADDRESSES,
+    SCOOP_IO_ADDRESS_ERROR
 };
 
 typedef struct ScoopIoCompletion {
@@ -30,6 +32,7 @@ typedef struct ScoopIoCompletion {
 
 typedef struct ScoopIoTimer ScoopIoTimer;
 typedef struct ScoopIoConnect ScoopIoConnect;
+typedef struct ScoopIoWork ScoopIoWork;
 
 typedef struct ScoopIoLoop {
     uv_loop_t uv;
@@ -38,6 +41,7 @@ typedef struct ScoopIoLoop {
     ScoopIoCompletion *tail;
     ScoopIoTimer *timers;
     ScoopIoConnect *connections;
+    ScoopIoWork *work;
 } ScoopIoLoop;
 
 typedef struct ScoopIoCreated {

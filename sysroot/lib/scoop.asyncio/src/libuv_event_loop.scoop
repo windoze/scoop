@@ -1,7 +1,8 @@
 package scoop.asyncio
 
 import scoop.time.Duration
-import scoop.platform.net.SocketAddress
+import scoop.platform.net.*
+import scoop.platform.system.OsString
 
 public class LibuvEventLoop public constructor() : EventLoop {
     private val accepted: AtomicBoolean = AtomicBoolean(false)
@@ -48,6 +49,9 @@ public class LibuvEventLoop public constructor() : EventLoop {
             state.submit(operation)
         }
     }
+
+    public override suspend fun resolve(host: OsString, port: Int, family: AddressFamily?): Array<SocketAddress> =
+        resolveOnLoop(this, host, port, family)
 
     public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
     public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =

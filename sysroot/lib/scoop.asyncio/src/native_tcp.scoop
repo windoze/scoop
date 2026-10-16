@@ -2,9 +2,7 @@ package scoop.asyncio
 
 import scoop.platform.net.*
 
-@CLayout
-internal struct IoAddress(val family: Int, val port: Int, val scope: UInt,
-    val a: UInt, val b: UInt, val c: UInt, val d: UInt)
+internal typealias IoAddress = NativeSocketAddress
 @CLayout
 internal struct NativeSocketName(val address: IoAddress, val status: Int)
 
@@ -26,13 +24,16 @@ internal fun tcpAddress(pointer: Ptr<Unit>, peer: Boolean): SocketAddress {
     @Unsafe {
         val result = nativeTcpAddress(pointer, peer)
         if (result.status < 0) throw uvFailure("TCP address", result.status)
-        val value = result.address
-        val bytes = Array<Byte>(if (value.family == 4) 4L else 16L) { index ->
-            val word = when (index / 4L) { case 0L -> value.a; case 1L -> value.b; case 2L -> value.c; case _ -> value.d }
-            ((word shr ((3L - index % 4L) * 8L)) and 255u).toInt8()
-        }
-        return SocketAddress(IpAddress.fromBytes(bytes, value.scope), value.port)
+        return ioSocketAddress(result.address)
     }
+}
+
+internal fun ioSocketAddress(value: IoAddress): SocketAddress {
+    val bytes = Array<Byte>(if (value.family == 4) 4L else 16L) { index ->
+        val word = when (index / 4L) { case 0L -> value.a; case 1L -> value.b; case 2L -> value.c; case _ -> value.d }
+        ((word shr ((3L - index % 4L) * 8L)) and 255u).toInt8()
+    }
+    return SocketAddress(IpAddress.fromBytes(bytes, value.scopeId), value.port)
 }
 
 @Extern(name = "scoop_io_tcp_connect")

@@ -25,6 +25,12 @@ path = "native/loop.c"
 path = "native/timer.c"
 
 [[native.sources]]
+path = "native/work.c"
+
+[[native.sources]]
+path = "native/resolve.c"
+
+[[native.sources]]
 path = "native/tcp.c"
 
 [[native.sources]]

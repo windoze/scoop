@@ -71,7 +71,7 @@ count 非负且不超过 buffer 当前可用区间。零长度字节流请求在
 
 省略 count 的基本操作扩展取 buffer 当前可用长度后转发。readFully／writeFully 先检查取消与 buffer 范围，零长度不调用端点；copyTo 要求 bufferSize 为正，内部 buffer 在退出时释放。组合扩展检查端点返回的进度在本次请求范围内，不把非法返回值当作正常结束。
 
-read 推进 writer，write 推进 reader，返回前解除平台规范 4.5 的 NativeByteBorrow。取消／关闭也提交已知实际前缀。单次 native 调用选择后端可表示的合法前缀，不溢出截断。借用期间拒绝释放、扩容、清空、游标变更及重复借用；native 只保存稳定 allocation 指针，managed 表保活 owner。路径、DNS 等 managed 字节在挂起前复制到请求自有 native 存储。
+read 推进 writer，write 推进 reader，返回前解除平台规范 4.5 的 NativeByteBorrow。取消／关闭也提交已知实际前缀。单次 native 调用选择后端可表示的合法前缀，不溢出截断。借用期间拒绝释放、扩容、清空、游标变更及重复借用；native 只保存稳定 allocation 指针，managed 表保活 owner。路径、DNS 等 managed 字节在提交 worker 前复制到请求自有 native 存储。
 
 AsyncByteStream 允许使用不同 buffer 各一个 read 和 write 同时在途，同方向并发报状态错误。flush 负责本层已接受的积压输出向下游推进，不表示持久化；无用户态缓存的原始 TCP／文件仅检查状态及输出方向空闲。封装层可拥有自己的缓冲及关闭责任，接口不要求 fd 或 TCP 能力；可实现需要双向进展的后续 TLS stream。
 
@@ -108,7 +108,7 @@ libuv 错误保留 NativeErrorDomain.Libuv 与原码；UV_EOF 按 EOF 解释，�
 
 ## 7. DNS 与文件
 
-resolve 保留 OsString 原始名称字节，port 检查 0..65535，family None 表示双族。使用 uv_queue_work 调用 platform 的 getaddrinfo helper，保留 AddressResolution code 和 EAI_SYSTEM 的立即 errno；不执行额外 IDNA 转换。无效内嵌 NUL 同步报参数错误。
+resolve 保留 OsString 原始名称字节，port 检查 0..65535，family None 表示双族。使用 uv_queue_work 调用 platform 的 getaddrinfo helper，保留 AddressResolution code 和 EAI_SYSTEM 的立即 errno；不执行额外 IDNA 转换。无效内嵌 NUL 在提交 worker 前报参数错误。
 
 ```scoop
 public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
