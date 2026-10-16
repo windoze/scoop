@@ -1,4 +1,5 @@
 mod macho;
+mod record;
 mod semantic;
 
 use scoop_lir::{
@@ -18,17 +19,6 @@ use crate::link_object::{
     verify_builtin_object_strong_relocations_v1, verify_scoop_lir_digest_patch_sites_v1,
 };
 
-#[derive(Clone, Copy)]
-pub(super) enum Corruption {
-    None,
-    CellByte,
-    OldAbiVersion,
-    RegistrationByte,
-    StorageRegistrationTarget,
-    GatewayTarget,
-    DiagnosticByte,
-}
-
 pub(super) struct Fixture {
     pub(super) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(super) foundation: ConeLirFoundation,
@@ -42,7 +32,7 @@ pub(super) struct Fixture {
 }
 
 impl Fixture {
-    pub(super) fn new(lazy: bool, corruption: Corruption) -> Self {
+    pub(super) fn new(lazy: bool) -> Self {
         let inputs = semantic::inputs(lazy);
         let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&inputs.foundation).unwrap();
         let partition = ProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
@@ -65,7 +55,6 @@ impl Fixture {
             symbol_plan.member(member).unwrap(),
             &inputs.plan,
             &inputs.callable_plan,
-            corruption,
         );
         let profile = c_bridge_profile();
         let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);

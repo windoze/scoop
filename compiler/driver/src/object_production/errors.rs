@@ -18,7 +18,7 @@ pub enum BuiltinObjectProductionError {
     CallableRegistrations(MissingDigestPatchSiteV1),
     TypeRegistrations(StrongTypeRegistrationValidationError),
     StaticStorageRegistrations(MissingDigestPatchSiteV1),
-    InitializationRegistrations(StrongInitializationRegistrationValidationError),
+    InitializationRegistrations(MissingDigestPatchSiteV1),
     SafepointFingerprints(StrongSafepointFingerprintError),
     DefinedSymbols(DefinedLinkSymbolOwnerBuildError),
     CurrentConeRequirements(CurrentConeUndefinedRequirementValidationError),

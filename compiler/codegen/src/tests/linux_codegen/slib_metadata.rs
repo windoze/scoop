@@ -1,4 +1,4 @@
-use super::slib_support::{SlibObjects, candidates, set_rela_addend};
+use super::slib_support::SlibObjects;
 use super::*;
 use scoop_slib::*;
 
@@ -16,7 +16,6 @@ fn elf_static_immortal_and_initialization_registrations() {
         let builtins = fixture.builtins(&fixture.objects);
         let sites = fixture.sites(builtins.clone(), &fixture.objects);
         let production = fixture.emitted.production().registration_production();
-        let objects = candidates(&fixture.objects);
         let immortals = compute_strong_immortal_object_fingerprints_v1(
             production.immortal_objects().clone(),
             fixture.emitted.production().canonical_shape_definitions(),
@@ -28,32 +27,26 @@ fn elf_static_immortal_and_initialization_registrations() {
                 .expect("ELF static storage digest slots");
         assert_eq!(storages.registrations().len(), 7);
         assert_storage_slots(&storages, &fixture.objects);
-        let initializations = verify_strong_initialization_registrations_v1(
-            sites,
-            production.initialization_units().clone(),
-            &objects,
-        )
-        .expect("ELF initialization diagnostic and callable pointers");
+        let initializations =
+            bind_initialization_registrations_v1(&sites, production.initialization_units().clone())
+                .unwrap();
         assert_eq!(initializations.registrations().len(), 2);
-        let diagnostic = initializations.registrations()[0].registration_diagnostic_relocation();
-        let mut damaged = fixture.objects.clone();
-        set_rela_addend(
-            &mut damaged,
-            &builtins,
-            diagnostic.member(),
-            diagnostic.containing_atom(),
-            diagnostic.offset_within_atom(),
-            -1,
-        );
-        let damaged_sites = fixture.sites(fixture.builtins(&damaged), &damaged);
-        assert!(
-            verify_strong_initialization_registrations_v1(
-                damaged_sites,
-                production.initialization_units().clone(),
-                &candidates(&damaged),
-            )
-            .is_err()
-        );
+        let patches = initializations
+            .registrations()
+            .iter()
+            .filter_map(|registration| registration.gateway_definition_patch())
+            .collect::<Vec<_>>();
+        assert_eq!(patches.len(), 1);
+        for patch in patches {
+            let bytes = &fixture
+                .objects
+                .iter()
+                .find(|(member, _)| *member == patch.member())
+                .unwrap()
+                .1;
+            let offset = usize::try_from(patch.checked_offset()).unwrap();
+            assert_eq!(&bytes[offset..offset + 32], &[0; 32]);
+        }
     }
 }
 

@@ -1748,39 +1748,9 @@ typed callable id与entry relocation进入canonical record，并不因为被引�
 同理由typed static-registration identity进入。完整计划按unit id排序并保留全部definition/atom/node/patch id，后端
 不得按owner、符号前缀或arena ordinal二次推断。
 
-initialization registration自身的ObjectDefinition leaf只能经
-`compute_strong_initialization_registration_object_fingerprints_v1`消费上述完整registration proof与再次匹配
-content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确352-byte
-provisional record、按atom offset排序的六条Lazy或七条Eager canonical `Unsigned64` relocation及direct-input
-count 0；全部pointer载荷在hash前按verified encoded value归零。cell、storage registration、failure-root
-registration与initializer/ensure/gateway分别编码为精确typed `IntraConeStrong` owner。diagnostic path relocation
-不得伪装成strong definition target，而以canonical target tag 10编码`OwningAssociatedAtomOffset`，随后写
-associated atom id、`AddressTakenConstant` role tag 7及atom内offset 0；member、section ordinal、symbol-table
-index、Mach-O symbol spelling与最终地址均不进入hash。该target tag只授权同一ObjectDefinition plan拥有的
-associated atom，不能用于跨definition引用、无owner section或任意local symbol；不保留忽略diagnostic relocation
-或把它降格为物理索引的旧hash路径。
+初始化登记的 ABI 与 gateway 指纹直接消费已有计划、canonical shape ABI 和已计算的 callable body 指纹。ODR cell 按 definition 查询 canonical ABI；Eager gateway 按 typed body id 查询实际指纹，Lazy 没有 gateway。body、node 和指纹作为同一个完整值保存，不为计算建立物理资格包装或比较重复的生产数据。
 
-initialization cell与coordinator descriptor的ObjectDefinition leaf只能经
-`compute_strong_initialization_definition_fingerprints_v1`继续消费registration-object proof与再次匹配content
-digest的object全集成对产生。cell使用通用单Primary编码，内容固定为16-byte zero cell、relocation count 0和
-direct-input count 0。descriptor先编码Primary role tag 1、精确88-byte provisional coordinator、六条canonical
-`Unsigned64` relocation与direct-input count 0，再追加associated-atom sequence count 1；唯一元素依次编码
-diagnostic atom id、`AddressTakenConstant` role tag 7、`diagnostic_path || NUL` byte span和relocation count 0。
-Primary中的diagnostic/cell/storage/failure-root/initializer/ensure relocation分别规范化为同一associated atom、
-`InitializationCell`、两个`StaticStorage`与两个`CallableBody` typed target。associated atom序列是该descriptor
-leaf的专用、不可省略后缀；不能把path bytes并入Primary byte span、只靠StrongRegistration间接承诺、另算
-无graph node的辅助digest或继续接受只hash Primary的旧格式。
-
-initialization的StrongRegistration只能经`compute_strong_initialization_fingerprints_v1`消费上述成对definition
-proof，并借用同一完整object/patch/stackmap/undefined-requirement闭包产生的callable-body ObjectDefinition proof。
-canonical record依次编码record-kind `InitializationUnit=3`、Strong linkage、unit id、三个零own/ODR digest、
-schedule、无NUL的diagnostic path byte span、`OwnInitializationCell=3`及unit id、storage/failure storage id、
-`CallableEntry=4`及initializer body id、`CallableEntry=4`及ensure body id，最后编码
-`None=0 | Unit=1 { UnitGateway=5, startup gateway body id, gateway ObjectDefinition fingerprint }`。三项
-registration/cell/descriptor ObjectDefinition direct input始终存在；Eager再加入gateway body ObjectDefinition，
-Lazy固定只有三项，全部按`(kind, node id)`排序。Eager gateway digest必须从typed callable-body proof中按精确
-body/node取得，且同时进入record字段与direct input；不能接受裸digest、仅按body id自报映射、缺少完整callable
-proof的临时body hash或保留不承诺gateway实现的旧Eager key。
+RuntimeImage 编码 record kind 3、登记身份、schedule、diagnostic path byte span、OwnInitializationCell 及 unit id、storage／failure storage id、initializer／ensure callable id，最后编码 `None=0 | Unit=1 { UnitGateway=5, body id, gateway fingerprint }`。Eager 的实际 gateway 指纹同时用于登记槽位回填。诊断数据与对象由现有 emitter 生成，不通过重建对象、读回字节或再次遍历 digest 图证明生成正确。
 
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
@@ -1911,14 +1881,7 @@ definition、Primary atom、LLVM owner、offset和width；已有同type external
 直接失败。不保留`scoop.init.cell.<arena-index>`、`scoop.init.descriptor.<arena-index>`、连续
 `scoop_image_initialization_units`或接受裸unit/address/offset的旧发射路径。
 
-Link侧唯一经`verify_strong_initialization_registrations_v1`消费完整初始化计划、全量digest patch proof与同一批
-content-digest绑定的Scoop LIR object bytes。验证器逐unit重建16-byte可写全零cell、88-byte只读coordinator、
-352-byte provisional registration及`diagnostic_path + NUL` CString associated atom；两条diagnostic relocation
-必须指向该atom起点，coordinator其余五条与registration的五条或Eager六条pointer relocation必须逐项命中计划中的
-cell、实际storage、static-storage registration、callable entry与gateway entry，且target definition、owner、
-member、symbol、`Unsigned64`形状和零encoded value全部一致。offset 120及Eager offset 312只接受对应typed patch，
-三项ObjectDefinition leaf、StrongRegistration direct input和schedule-specific gateway writer集合必须保持精确；
-调用方不能用裸地址、私有diagnostic副本、额外relocation或自报digest关系绕过验证。
+Link 通过 `bind_initialization_registrations_v1` 关联初始化计划和已经物化的 Eager gateway 槽位。实际写入保留范围检查，Lazy 不执行 gateway 回填。不再次核对 cell、coordinator、诊断字符串、登记字节及全部 relocation，也不重数生产 coverage 或重放 digest graph。
 
 type registration唯一经`emit_strong_type_registrations_v1`消费完整type plan set。入口先对全集做无副作用
 预检，再发射任一record；每条record使用`ConeStrong`外部linkage、magic、ABI version 1、size 240、Strong

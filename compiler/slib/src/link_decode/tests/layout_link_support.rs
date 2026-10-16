@@ -41,10 +41,9 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
         &objects,
     )
     .unwrap();
-    let initializations = crate::verify_strong_initialization_registrations_v2(
-        patch_sites.clone(),
+    let initializations = crate::bind_initialization_registrations_v1(
+        patch_sites,
         surface.initialization_units().clone(),
-        &objects,
     )
     .unwrap();
     let previous_image = previous.runtime_images().fingerprint();

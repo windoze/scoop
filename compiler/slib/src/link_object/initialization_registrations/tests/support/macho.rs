@@ -14,7 +14,7 @@ use scoop_lir::{
 
 use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1};
 
-use super::Corruption;
+use super::record::{callable_record, initialization_record};
 
 const COMMAND_BYTES: u32 = 72 + 4 * 80 + 24 + 80;
 const CALLABLE_REGISTRATION_SIZE: u64 = 176;
@@ -36,7 +36,6 @@ pub(super) fn object_bytes(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     plans: &StrongInitializationUnitRegistrationPlanSetV1,
     callable_plans: &StrongCallableRegistrationPlanSetV1,
-    corruption: Corruption,
 ) -> ObjectFixture {
     let plan = &plans.registrations()[0];
     let callables = callable_refs(plan);
@@ -135,36 +134,15 @@ pub(super) fn object_bytes(
     }
     readonly[usize::try_from(registration_relative).unwrap()
         ..usize::try_from(registration_relative + 320).unwrap()]
-        .copy_from_slice(&super::super::super::record::expected_record(plan));
+        .copy_from_slice(&initialization_record(plan));
     let mut cstring = vec![0; usize::try_from(cstring_size).unwrap()];
     cstring[..diagnostic.len()].copy_from_slice(&diagnostic);
-    let mut writable = vec![0; usize::try_from(writable_size).unwrap()];
-    match corruption {
-        Corruption::CellByte => writable[16] ^= 1,
-        Corruption::OldAbiVersion => {
-            readonly[usize::try_from(registration_relative + 8).unwrap()] = 2;
-        }
-        Corruption::RegistrationByte => {
-            readonly[usize::try_from(registration_relative).unwrap()] ^= 1;
-        }
-        Corruption::DiagnosticByte => {
-            cstring[0] ^= 1;
-        }
-        Corruption::None | Corruption::StorageRegistrationTarget | Corruption::GatewayTarget => {}
-    }
-
+    let writable = vec![0; usize::try_from(writable_size).unwrap()];
     let readonly_file_offset = u64::from(TEXT_FILE_OFFSET) + text_size;
     let cstring_file_offset = readonly_file_offset + readonly_size;
     let writable_file_offset = cstring_file_offset + cstring_size;
     let relocation_file_offset = writable_file_offset + writable_size;
-    let relocations = relocations(
-        symbols,
-        plans,
-        callable_plans,
-        plan,
-        registration_relative,
-        corruption,
-    );
+    let relocations = relocations(symbols, callable_plans, plan, registration_relative);
     let symbol_file_offset = relocation_file_offset + u64::try_from(relocations.len()).unwrap() * 8;
     let (strings, string_indexes) = strings(symbols);
     let symbol_count = 1 + symbols.symbols().len();
@@ -289,18 +267,12 @@ pub(super) fn object_bytes(
 
 fn relocations(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
-    plans: &StrongInitializationUnitRegistrationPlanSetV1,
     callable_plans: &StrongCallableRegistrationPlanSetV1,
     plan: &StrongInitializationUnitRegistrationPlanV1,
     registration: u64,
-    corruption: Corruption,
 ) -> Vec<(u32, u32)> {
     let local_diagnostic = 0;
     let cell = primary_symbol_index(symbols, plan.cell_definition_plan());
-    let storage = primary_symbol_index(
-        symbols,
-        static_storage_definition(plans.producer(), plan.storage().storage()),
-    );
     let initializer = primary_symbol_index(symbols, plan.initializer().body_definition_plan());
     let ensure = primary_symbol_index(symbols, plan.ensure().body_definition_plan());
     let mut items = vec![
@@ -308,11 +280,7 @@ fn relocations(
         (registration + 144, cell),
         (
             registration + 152,
-            if matches!(corruption, Corruption::StorageRegistrationTarget) {
-                storage
-            } else {
-                primary_symbol_index(symbols, plan.storage().registration_definition_plan())
-            },
+            primary_symbol_index(symbols, plan.storage().registration_definition_plan()),
         ),
         (
             registration + 160,
@@ -326,11 +294,7 @@ fn relocations(
     {
         items.push((
             registration + 312,
-            if matches!(corruption, Corruption::GatewayTarget) {
-                initializer
-            } else {
-                primary_symbol_index(symbols, gateway.body_definition_plan())
-            },
+            primary_symbol_index(symbols, gateway.body_definition_plan()),
         ));
     }
     for callable in callable_plans.registrations() {
@@ -546,19 +510,4 @@ fn push_u64(bytes: &mut Vec<u8>, value: u64) {
 
 const fn align_to(value: u64, alignment: u64) -> u64 {
     (value + alignment - 1) & !(alignment - 1)
-}
-
-fn callable_record(plan: scoop_lir::StrongCallableRegistrationPlanV1) -> [u8; 176] {
-    let mut bytes = [0; 176];
-    bytes[0..8].copy_from_slice(&0x5343_4f4f_5043_414c_u64.to_le_bytes());
-    bytes[8..12].copy_from_slice(&scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1.to_le_bytes());
-    bytes[12..16].copy_from_slice(&176_u32.to_le_bytes());
-    bytes[168..176].copy_from_slice(&plan.context_key_count().to_le_bytes());
-    bytes[16..120].copy_from_slice(
-        &crate::link_object::registration_identity::provisional_registration_identity(
-            plan.body().as_array(),
-            plan.definition_owner(),
-        ),
-    );
-    bytes
 }

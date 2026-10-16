@@ -1,16 +1,10 @@
-//! Exact provisional-object verification and digest production for strong
-//! initialization-unit registrations.
+//! Initialization registration slots and gateway fingerprints.
 
-mod error;
-mod physical;
+mod binding;
 pub(in crate::link_object) mod record;
-mod relocations;
 mod strong_fingerprints;
-mod verification;
-
-pub use error::*;
+pub use binding::*;
 pub use strong_fingerprints::*;
-pub use verification::*;
 
 #[cfg(test)]
 mod tests;

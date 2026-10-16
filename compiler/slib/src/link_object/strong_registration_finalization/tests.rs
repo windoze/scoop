@@ -3,15 +3,16 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    ImmortalObjectFingerprintSetV1, ScoopLirObjectCandidateV1, StaticStorageFingerprintSetV1,
-    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
+    ImmortalObjectFingerprintSetV1, InitializationFingerprintSetV1, ScoopLirObjectCandidateV1,
+    StaticStorageFingerprintSetV1, VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongTypeFingerprintSetV1, bind_callable_registrations_v1,
-    bind_safepoint_registrations_v1, bind_static_storage_registrations_v1,
-    compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
-    compute_strong_immortal_object_fingerprints_v1, compute_strong_initialization_fingerprints_v1,
-    compute_strong_safepoint_fingerprints_v1, compute_strong_static_storage_fingerprints_v1,
+    bind_initialization_registrations_v1, bind_safepoint_registrations_v1,
+    bind_static_storage_registrations_v1, compute_strong_callable_body_object_fingerprints_v1,
+    compute_strong_callable_fingerprints_v1, compute_strong_immortal_object_fingerprints_v1,
+    compute_strong_initialization_fingerprints_v1, compute_strong_safepoint_fingerprints_v1,
+    compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
-    verify_strong_initialization_registrations_v1, verify_strong_type_registrations_v1,
+    verify_strong_type_registrations_v1,
 };
 use scoop_wire::sha256;
 
@@ -181,7 +182,7 @@ fn verified_fingerprints(
     VerifiedStrongTypeFingerprintSetV1,
     ImmortalObjectFingerprintSetV1,
     StaticStorageFingerprintSetV1,
-    VerifiedStrongInitializationFingerprintSetV1,
+    InitializationFingerprintSetV1,
 ) {
     let stackmaps = fixture.verified_stackmaps();
     let patch_sites = fixture.verified_patch_sites();
@@ -205,7 +206,6 @@ fn verified_fingerprints(
     .unwrap();
     let initializations = verified_initialization_fingerprints(
         fixture,
-        objects,
         fixture.verified_patch_sites(),
         &body_objects,
     );
@@ -227,20 +227,17 @@ fn verified_fingerprints(
 
 fn verified_initialization_fingerprints(
     fixture: &Fixture,
-    objects: &[ScoopLirObjectCandidateV1<'_>],
     patch_sites: crate::link_object::VerifiedScoopLirDigestPatchSiteSetV1,
     callable_bodies: &crate::link_object::VerifiedStrongCallableBodyObjectFingerprintSetV1,
-) -> VerifiedStrongInitializationFingerprintSetV1 {
-    let registrations = verify_strong_initialization_registrations_v1(
-        patch_sites,
+) -> InitializationFingerprintSetV1 {
+    let registrations = bind_initialization_registrations_v1(
+        &patch_sites,
         fixture.initialization_registration_plan.clone(),
-        objects,
     )
     .unwrap();
-    let registration_objects = registrations;
-    let definitions = registration_objects;
+
     compute_strong_initialization_fingerprints_v1(
-        definitions,
+        registrations,
         callable_bodies,
         &fixture.canonical_shapes,
     )

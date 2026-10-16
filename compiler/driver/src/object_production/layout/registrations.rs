@@ -91,10 +91,9 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
 
-    let initializations = slib::verify_strong_initialization_registrations_v2(
-        patches.clone(),
+    let initializations = slib::bind_initialization_registrations_v1(
+        patches,
         production.initialization_registrations().clone(),
-        &candidates,
     )
     .map_err(BuiltinObjectProductionError::InitializationRegistrations)?;
     let initializations = slib::compute_strong_initialization_fingerprints_v2(

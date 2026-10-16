@@ -18,8 +18,9 @@
 12. Callable／safepoint：直接关联 registration 计划与 digest 槽位，删除记录／context key／entry relocation 回放与资格包装。body 指纹统一读取实际 associated atoms，删除 runtime scan 重生成比较、计划／对象副本深比较和已读 relocation value 的重复比较；同步清理 Linux 专用的旧机器码破坏测试。
 13. Immortal object：登记 ABI 直接使用生产计划与 canonical shape ABI，删除 String payload、登记字节、指针目标和 digest 图的发布复查，移除专属破坏测试与辅助分支。
 14. 静态存储：计划直接关联 scan／layout 槽位，shape 指纹使用既有语义数据，删除初值、scan、空哨兵、登记字节、relocation 与 digest 图的重复回放及专属测试。
-15. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
-16. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+15. 初始化：直接关联 Eager gateway 槽位，复用实际 callable body 指纹；gateway 的 body／node／指纹改为单个可选完整值。删除 cell、诊断文本、登记记录和 relocation 回放、生产副本深比较及独占破坏测试。
+16. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
+17. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -50,3 +51,5 @@ Callable／safepoint 批次：格式化、workspace clippy 无警告；release s
 Immortal object 批次：格式化、workspace clippy 无警告；release slib link_object 196 项通过，实际登记 ABI、ODR 和最终回填路径继续覆盖。
 
 静态存储批次：格式化、workspace clippy 无警告；release slib link_object 185 项通过，layout／scan 固定向量与最终回填结果保持通过。Linux 编码初值和零初始化的实际槽位用例待目标环境执行。
+
+初始化批次：格式化、workspace clippy 无警告；release slib link_object 180 项通过，Eager 的实际 gateway 指纹回填和 Lazy 无 gateway 行为继续覆盖。

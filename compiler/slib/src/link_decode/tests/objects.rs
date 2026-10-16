@@ -162,10 +162,9 @@ pub(super) fn finalized_link_object_fixture() -> (
         production.canonical_shape_definitions(),
     )
     .unwrap();
-    let initialization_registrations = crate::verify_strong_initialization_registrations_v1(
-        patch_sites.clone(),
+    let initialization_registrations = crate::bind_initialization_registrations_v1(
+        &patch_sites,
         registrations.initialization_units().clone(),
-        &objects,
     )
     .unwrap();
     let initialization_objects = initialization_registrations;

@@ -4,7 +4,7 @@ use scoop_identity::{DigestNodeId, PersistentCallableBodyId, PersistentInitializ
 use scoop_lir::StrongInitializationUnitRegistrationPlan;
 use scoop_wire::{HashError, RuntimeEncodeError, RuntimeEncoder};
 
-use super::VerifiedStrongInitializationRegistrationSetV1;
+use super::InitializationRegistrationDataV1;
 use crate::link_object::{
     ObjectDefinitionFingerprintV1, OdrMemberAbiV1, RegistrationAbiV1,
     VerifiedStrongCallableBodyObjectFingerprintSetV1,
@@ -18,31 +18,38 @@ const NO_GATEWAY: u32 = 0;
 const UNIT_GATEWAY: u32 = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongInitializationFingerprintV1 {
+pub struct InitializationFingerprintV1 {
     unit: PersistentInitializationUnitId,
 
-    gateway_body: Option<PersistentCallableBodyId>,
-    gateway_definition_node: Option<DigestNodeId>,
-    gateway_definition: Option<ObjectDefinitionFingerprintV1>,
+    gateway: Option<GatewayDefinitionV1>,
 
     registration: RegistrationAbiV1,
 }
 
-impl VerifiedStrongInitializationFingerprintV1 {
+impl InitializationFingerprintV1 {
     pub const fn unit(self) -> PersistentInitializationUnitId {
         self.unit
     }
 
     pub const fn gateway_body(self) -> Option<PersistentCallableBodyId> {
-        self.gateway_body
+        match self.gateway {
+            Some(gateway) => Some(gateway.body),
+            None => None,
+        }
     }
 
     pub const fn gateway_definition_node(self) -> Option<DigestNodeId> {
-        self.gateway_definition_node
+        match self.gateway {
+            Some(gateway) => Some(gateway.node),
+            None => None,
+        }
     }
 
     pub const fn gateway_definition(self) -> Option<ObjectDefinitionFingerprintV1> {
-        self.gateway_definition
+        match self.gateway {
+            Some(gateway) => Some(gateway.fingerprint),
+            None => None,
+        }
     }
 
     pub const fn registration(self) -> RegistrationAbiV1 {
@@ -50,20 +57,18 @@ impl VerifiedStrongInitializationFingerprintV1 {
     }
 }
 
-/// Actual gateway fingerprints and shared ABIs of verified initialization units.
+/// Actual gateway fingerprints and shared ABIs of initialization units.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongInitializationFingerprintSetV1<
-    D = scoop_identity::PersistentInitializationUnitId,
-> {
-    registrations: VerifiedStrongInitializationRegistrationSetV1<D>,
-    fingerprints: Vec<VerifiedStrongInitializationFingerprintV1>,
+pub struct InitializationFingerprintSetV1<D = scoop_identity::PersistentInitializationUnitId> {
+    registrations: InitializationRegistrationDataV1<D>,
+    fingerprints: Vec<InitializationFingerprintV1>,
     odr_definitions: Vec<OdrMemberAbiV1>,
 }
 
-pub type VerifiedStrongInitializationFingerprintSetV2 =
-    VerifiedStrongInitializationFingerprintSetV1<scoop_lir::StrongInitializationDependencyRefV2>;
+pub type InitializationFingerprintSetV2 =
+    InitializationFingerprintSetV1<scoop_lir::StrongInitializationDependencyRefV2>;
 
-impl<D> VerifiedStrongInitializationFingerprintSetV1<D> {
+impl<D> InitializationFingerprintSetV1<D> {
     pub fn odr_definitions(&self) -> &[OdrMemberAbiV1] {
         &self.odr_definitions
     }
@@ -71,53 +76,43 @@ impl<D> VerifiedStrongInitializationFingerprintSetV1<D> {
         self.registrations.producer()
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongInitializationRegistrationSetV1<D> {
+    pub const fn registrations(&self) -> &InitializationRegistrationDataV1<D> {
         &self.registrations
     }
 
-    pub fn fingerprints(&self) -> &[VerifiedStrongInitializationFingerprintV1] {
+    pub fn fingerprints(&self) -> &[InitializationFingerprintV1] {
         &self.fingerprints
     }
 }
 
 pub fn compute_strong_initialization_fingerprints_v1(
-    registrations: VerifiedStrongInitializationRegistrationSetV1,
+    registrations: InitializationRegistrationDataV1,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
     canonical: &scoop_lir::CanonicalShapeAbisV1,
-) -> Result<VerifiedStrongInitializationFingerprintSetV1, StrongInitializationFingerprintError> {
+) -> Result<InitializationFingerprintSetV1, StrongInitializationFingerprintError> {
     compute_strong_initialization_fingerprints(registrations, callable_bodies, canonical)
 }
 
 pub fn compute_strong_initialization_fingerprints_v2(
-    registrations: super::VerifiedStrongInitializationRegistrationSetV2,
+    registrations: super::InitializationRegistrationDataV1<
+        scoop_lir::StrongInitializationDependencyRefV2,
+    >,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
     canonical: &scoop_lir::CanonicalShapeAbisV1,
-) -> Result<VerifiedStrongInitializationFingerprintSetV2, StrongInitializationFingerprintError> {
+) -> Result<InitializationFingerprintSetV2, StrongInitializationFingerprintError> {
     compute_strong_initialization_fingerprints(registrations, callable_bodies, canonical)
 }
 
 fn compute_strong_initialization_fingerprints<D>(
-    registrations: VerifiedStrongInitializationRegistrationSetV1<D>,
+    registrations: InitializationRegistrationDataV1<D>,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
     canonical: &scoop_lir::CanonicalShapeAbisV1,
-) -> Result<VerifiedStrongInitializationFingerprintSetV1<D>, StrongInitializationFingerprintError> {
-    let callable_registrations = callable_bodies.registrations();
-    if registrations.patch_sites() != callable_registrations.patch_sites() {
-        return Err(StrongInitializationFingerprintError::CallableProofMismatch);
-    }
-    let verified = registrations.registrations();
+) -> Result<InitializationFingerprintSetV1<D>, StrongInitializationFingerprintError> {
     let planned = registrations.plan().registrations();
-    if verified.len() != planned.len() {
-        return Err(StrongInitializationFingerprintError::ProofCoverageMismatch);
-    }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
+    let mut fingerprints = Vec::with_capacity(planned.len());
     let mut odr_definitions = Vec::new();
-    for (verified, plan) in verified.iter().zip(planned) {
+    for plan in planned {
         let unit = plan.semantic().unit();
-        if verified.unit() != unit {
-            return Err(StrongInitializationFingerprintError::RegistrationObjectMismatch { unit });
-        }
         let gateway = gateway_definition(plan, callable_bodies)?;
         if let scoop_lir::RegistrationDefinitionOwner::Odr { group, .. } = plan.definition_owner() {
             let content = canonical
@@ -138,25 +133,23 @@ fn compute_strong_initialization_fingerprints<D>(
             scoop_lir::RegistrationTableV1::InitializationUnit,
         )
         .map_err(|source| StrongInitializationFingerprintError::Hash { unit, source })?;
-        fingerprints.push(VerifiedStrongInitializationFingerprintV1 {
+        fingerprints.push(InitializationFingerprintV1 {
             unit,
 
-            gateway_body: gateway.map(|gateway| gateway.body),
-            gateway_definition_node: gateway.map(|gateway| gateway.node),
-            gateway_definition: gateway.map(|gateway| gateway.fingerprint),
+            gateway,
 
             registration,
         });
     }
 
-    Ok(VerifiedStrongInitializationFingerprintSetV1 {
+    Ok(InitializationFingerprintSetV1 {
         registrations,
         fingerprints,
         odr_definitions,
     })
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct GatewayDefinitionV1 {
     body: PersistentCallableBodyId,
     node: DigestNodeId,
@@ -181,12 +174,6 @@ fn gateway_definition<D>(
             body: gateway.body(),
         });
     };
-    if fingerprint.node() != gateway.body_definition_node() {
-        return Err(StrongInitializationFingerprintError::GatewayBodyMismatch {
-            unit: plan.semantic().unit(),
-            body: gateway.body(),
-        });
-    }
     Ok(Some(GatewayDefinitionV1 {
         body: fingerprint.body(),
         node: fingerprint.node(),
@@ -230,19 +217,10 @@ pub(in crate::link_object) fn runtime_encode_strong_initialization_record_v1<D>(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongInitializationFingerprintError {
-    CallableProofMismatch,
-    ProofCoverageMismatch,
-    RegistrationObjectMismatch {
-        unit: PersistentInitializationUnitId,
-    },
     DefinitionMismatch {
         unit: PersistentInitializationUnitId,
     },
     MissingGatewayBody {
-        unit: PersistentInitializationUnitId,
-        body: PersistentCallableBodyId,
-    },
-    GatewayBodyMismatch {
         unit: PersistentInitializationUnitId,
         body: PersistentCallableBodyId,
     },

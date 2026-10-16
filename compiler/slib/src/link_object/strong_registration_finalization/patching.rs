@@ -131,7 +131,7 @@ pub(super) fn patch_static_storages(
 }
 
 pub(super) fn patch_initializations<I>(
-    fingerprints: &VerifiedStrongInitializationFingerprintSetV1<I>,
+    fingerprints: &InitializationFingerprintSetV1<I>,
     object_indexes: &BTreeMap<SlibMemberId, usize>,
     objects: &mut [(SlibMemberId, Vec<u8>)],
 ) -> Result<(), StrongRegistrationPatchError> {
@@ -143,12 +143,12 @@ pub(super) fn patch_initializations<I>(
         .zip(fingerprints.fingerprints())
     {
         let owner = StrongRegistrationPatchOwnerV1::InitializationUnit(plan.semantic().unit());
-        let index = object_indexes.get(&verified.member()).copied().ok_or(
-            StrongRegistrationPatchError::MissingObject(verified.member()),
-        )?;
-        let bytes = &mut objects[index].1;
-
         if let Some(patch) = verified.gateway_definition_patch() {
+            let index = object_indexes
+                .get(&patch.member())
+                .copied()
+                .ok_or(StrongRegistrationPatchError::MissingObject(patch.member()))?;
+            let bytes = &mut objects[index].1;
             let digest = computed.gateway_definition().ok_or(
                 StrongRegistrationPatchError::MissingGatewayDigest(plan.semantic().unit()),
             )?;
@@ -166,7 +166,7 @@ pub(super) fn patch_initializations<I>(
 
 #[cfg(test)]
 pub(in crate::link_object) fn patch_initializations_for_test(
-    fingerprints: &VerifiedStrongInitializationFingerprintSetV1,
+    fingerprints: &InitializationFingerprintSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<Vec<(SlibMemberId, Vec<u8>)>, StrongRegistrationPatchError> {
     let mut objects = scoop_objects
