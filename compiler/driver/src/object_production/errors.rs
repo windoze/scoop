@@ -41,8 +41,8 @@ pub enum BuiltinObjectProductionError {
     StaticStorageFingerprints(StrongStaticStorageFingerprintError),
 
     InitializationFingerprints(StrongInitializationFingerprintError),
-    ConeImage(ConeImageValidationError),
-    EntryProduction(EntryProductionValidationError),
+    ConeImage(MissingDigestPatchSiteV1),
+    EntryProduction(MissingDigestPatchSiteV1),
     RegistrationPatch(StrongRegistrationPatchError),
     Compatibility(scoop_wire::HashError),
     RuntimeImageFingerprint(RuntimeImageFingerprintError),

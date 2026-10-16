@@ -6,14 +6,14 @@ use scoop_identity::{
     MainCallableBodyId, PersistentCallableBodyId, PersistentStaticStorageId,
     SourceSignatureFingerprint,
 };
-use scoop_lir::{ConeProductionSectionV1, EntryProductionPlanV1, RegistrationIdentitySurfaceV1};
+use scoop_lir::{ConeProductionSectionV1, RegistrationIdentitySurfaceV1};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, RuntimeImageFingerprint};
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalOdrMemberDirectoryV1, FinalCodeObjectSetV1, ObjectDefinitionFingerprintV1,
-    OdrMemberDirectoryProjectionError, VerifiedCodeFingerprintV1, VerifiedEntryProductionBranchV1,
+    CanonicalOdrMemberDirectoryV1, EntryProductionBranchV1, FinalCodeObjectSetV1,
+    ObjectDefinitionFingerprintV1, OdrMemberDirectoryProjectionError, VerifiedCodeFingerprintV1,
 };
 
 mod projection;

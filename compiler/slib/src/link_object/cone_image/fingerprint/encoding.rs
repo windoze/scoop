@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) struct RuntimeImageFingerprintInputV1<'proof, D, C, I> {
-    pub(super) image: &'proof VerifiedConeImageV1,
+    pub(super) image: &'proof ConeImageDataV1,
     pub(super) registrations: &'proof VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     pub(super) runtime_abi: RuntimeAbiFingerprint,
     pub(super) target_profile: TargetProfileFingerprint,

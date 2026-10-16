@@ -2261,14 +2261,9 @@ node的全部`StrongRegistration` direct input必须与六表中的fingerprint n
 
 core bootstrap的dependencies为空；普通manifest/single-file当前恰为`[core]`。它们按identity bytes编码，不从manifest声明顺序取得。image symbol hidden strong且只能由一个member定义。image中的pointer table只列当前Cone实际生产的strong record；外部core record不复制进来。
 
-全部LinkObject联合验证后必须：
-
-- image definition恰好一个；
-- manifest `image_owner_member`指向该member；
-- 其余member没有任何当前或其他Cone image descriptor；
-- coordinate bytes/identity/dependency table/六张pointer table与plan逐项一致；
-- 每个pointer relocation命中正确registration record symbol；
-- runtime image slot是唯一32-byte patch并与manifest Available值相等。
+image 使用 codegen 的成功产出及已物化 `RuntimeImage` patch，member 直接取自该 patch。
+不重新读取 coordinate、诊断文字、依赖和六张指针表与同一计划比较，也不另建 image owner 资格证明。
+生成布局、实际符号／引用连接和 runtime image 编码继续负责各自的转换。
 
 ### 13.5 executable entry plan
 
@@ -2312,10 +2307,9 @@ descriptor的Primary atom；gateway body Primary atom的`ObjectDefinition` node�
 `GatewayDefinition`语义字段写入同一atom。两个patch intent id都从这些完整typed key
 重算，不保存offset或member。
 
-reader不单项提升decoded id；它从expected source、foundation、registration surface和digest
-plan独立重建整个branch并逐byte比较。Library分支要求foundation中同时不存在
-root-entry failure storage、root gateway body、`re`符号或RootEntryDescriptor definition plan；
-Executable分支要求这四类root-only实体各恰一个且全部属于当前Cone/main。
+对象生产直接将 entry 计划与两个实际 patch 关联；Library 与 Executable 采用单一枚举，
+Executable 同时保存完整计划及 source-signature／gateway-definition 槽位，不再存两份独立分支。
+不重建 root descriptor 字节、failure-root／gateway relocation 或 root-only 实体全集进行资格复核。
 
 ## 14. digest与fingerprint
 

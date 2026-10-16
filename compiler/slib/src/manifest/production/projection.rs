@@ -20,7 +20,7 @@ where
     let registrations = runtime_image.registrations();
 
     let distribution = link_distribution(cone, dependency_identities)?;
-    let output = output(cone, final_objects)?;
+    let output = output(final_objects)?;
     let odr_members = CanonicalOdrMemberDirectoryV1::from_patch_set(registrations)
         .map_err(ProductionCodeProjectionError::OdrMembers)?;
     let projection = SingleConeProductionCodeProjectionV1 {
@@ -75,28 +75,16 @@ fn link_distribution(
 }
 
 fn output<D, C, I>(
-    cone: &ConeRecord,
     final_objects: &crate::link_object::VerifiedEntryPatchSetV1<D, C, I>,
 ) -> Result<SingleConeProductionOutputV1, ProductionCodeProjectionError>
 where
     D: scoop_lir::StrongDescriptorReference,
     C: Clone,
 {
-    match (
-        cone.kind(),
-        final_objects.entry().plan(),
-        final_objects.entry().branch(),
-    ) {
-        (
-            ConeKind::Library,
-            EntryProductionPlanV1::Library,
-            VerifiedEntryProductionBranchV1::Library,
-        ) => Ok(SingleConeProductionOutputV1::Library),
-        (
-            ConeKind::Executable,
-            EntryProductionPlanV1::Executable(plan),
-            VerifiedEntryProductionBranchV1::Executable(entry),
-        ) => {
+    match final_objects.entry().branch() {
+        EntryProductionBranchV1::Library => Ok(SingleConeProductionOutputV1::Library),
+        EntryProductionBranchV1::Executable(entry) => {
+            let plan = entry.plan();
             let gateway = final_objects
                 .runtime_images()
                 .fingerprint()
@@ -120,6 +108,5 @@ where
                 },
             )))
         }
-        _ => Err(ProductionCodeProjectionError::OutputMismatch),
     }
 }

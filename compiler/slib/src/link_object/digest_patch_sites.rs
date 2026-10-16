@@ -159,6 +159,16 @@ impl VerifiedScoopLirDigestPatchSiteSetV1 {
         &self.digest_plan
     }
 
+    pub fn require_site(
+        &self,
+        intent: DigestPatchIntentId,
+    ) -> Result<VerifiedMaterializedPatchSiteV1, MissingDigestPatchSiteV1> {
+        self.sites
+            .binary_search_by_key(&intent, |site| site.intent())
+            .map(|index| self.sites[index])
+            .map_err(|_| MissingDigestPatchSiteV1(intent))
+    }
+
     pub fn sites(&self) -> &[VerifiedMaterializedPatchSiteV1] {
         &self.sites
     }
@@ -199,3 +209,14 @@ pub fn verify_scoop_lir_digest_patch_sites_v1(
 
 #[cfg(test)]
 mod tests;
+
+/// A digest intent without a physical slot in the generated object set.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MissingDigestPatchSiteV1(pub DigestPatchIntentId);
+
+impl std::fmt::Display for MissingDigestPatchSiteV1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "missing generated digest patch site: {:?}", self.0)
+    }
+}
+impl std::error::Error for MissingDigestPatchSiteV1 {}

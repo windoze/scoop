@@ -187,15 +187,10 @@ pub(super) fn finalized_link_object_fixture() -> (
         production.canonical_shape_definitions(),
     )
     .unwrap();
-    let image = crate::verify_cone_image_v1(
-        patch_sites.clone(),
-        production.image_plan().clone(),
-        &objects,
-    )
-    .unwrap();
+    let image =
+        crate::bind_cone_image_v1(&patch_sites.clone(), production.image_plan().clone()).unwrap();
     let entry =
-        crate::verify_entry_production_v1(patch_sites, production.entry_plan().clone(), &objects)
-            .unwrap();
+        crate::bind_entry_production_v1(patch_sites, production.entry_plan().clone()).unwrap();
     let patched = crate::patch_strong_registration_fingerprints_v1(
         safepoints,
         callables,

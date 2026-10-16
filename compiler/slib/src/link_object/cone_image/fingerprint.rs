@@ -7,7 +7,7 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{RuntimeAbiFingerprint, TargetProfileFingerprint};
 use scoop_wire::{HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
-use super::VerifiedConeImageV1;
+use super::ConeImageDataV1;
 use crate::link_object::{
     runtime_encode_callable_record_v1, runtime_encode_safepoint_record_v1,
     runtime_encode_strong_immortal_object_record_v1,
@@ -22,7 +22,7 @@ pub struct VerifiedRuntimeImageFingerprintV1<
     C = scoop_lir::StrongTypeDispatchCallableRefV1,
     I = scoop_identity::PersistentInitializationUnitId,
 > {
-    image: VerifiedConeImageV1,
+    image: ConeImageDataV1,
     registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     compatibility: CompatibilityRecord,
     fingerprint: RuntimeImageFingerprint,
@@ -42,7 +42,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
         self.image.producer()
     }
 
-    pub const fn image(&self) -> &VerifiedConeImageV1 {
+    pub const fn image(&self) -> &ConeImageDataV1 {
         &self.image
     }
 
@@ -64,7 +64,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
 }
 
 pub fn compute_runtime_image_fingerprint_v1(
-    image: VerifiedConeImageV1,
+    image: ConeImageDataV1,
     registrations: VerifiedStrongRegistrationPatchSetV1,
     compatibility: CompatibilityRecord,
 ) -> Result<VerifiedRuntimeImageFingerprintV1, RuntimeImageFingerprintError> {
@@ -72,7 +72,7 @@ pub fn compute_runtime_image_fingerprint_v1(
 }
 
 pub fn compute_runtime_image_fingerprint_v2(
-    image: VerifiedConeImageV1,
+    image: ConeImageDataV1,
     registrations: crate::VerifiedStrongRegistrationPatchSetV2,
     compatibility: CompatibilityRecord,
 ) -> Result<VerifiedRuntimeImageFingerprintV2, RuntimeImageFingerprintError> {
@@ -80,7 +80,7 @@ pub fn compute_runtime_image_fingerprint_v2(
 }
 
 fn compute_runtime_image_fingerprint<D, C, I>(
-    image: VerifiedConeImageV1,
+    image: ConeImageDataV1,
     registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     compatibility: CompatibilityRecord,
 ) -> Result<VerifiedRuntimeImageFingerprintV1<D, C, I>, RuntimeImageFingerprintError>

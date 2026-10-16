@@ -48,17 +48,14 @@ impl PreparedLayoutObjects {
         &self,
         undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     ) -> Result<slib::VerifiedEntryPatchSetV2, BuiltinObjectProductionError> {
-        let candidates = self.candidates();
-        let image = verify_cone_image_v1(
-            self.patch_sites.clone(),
+        let image = bind_cone_image_v1(
+            &self.patch_sites.clone(),
             self.production.image_plan().clone(),
-            &candidates,
         )
         .map_err(BuiltinObjectProductionError::ConeImage)?;
-        let entry = verify_entry_production_v1(
+        let entry = bind_entry_production_v1(
             self.patch_sites.clone(),
             self.production.entry_plan().clone(),
-            &candidates,
         )
         .map_err(BuiltinObjectProductionError::EntryProduction)?;
         let registrations = registrations::finalize(self, undefined)?;

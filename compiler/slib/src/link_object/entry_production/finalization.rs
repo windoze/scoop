@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{VerifiedEntryProductionBranchV1, VerifiedEntryProductionV1};
+use super::{EntryProductionBranchV1, EntryProductionDataV1};
 use crate::SlibMemberId;
 use crate::link_object::{
     ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1,
@@ -37,7 +37,7 @@ pub struct VerifiedEntryPatchSetV1<
     I = scoop_identity::PersistentInitializationUnitId,
 > {
     runtime_images: VerifiedRuntimeImagePatchSetV1<D, C, I>,
-    entry: VerifiedEntryProductionV1,
+    entry: EntryProductionDataV1,
     objects: Vec<VerifiedEntryPatchedScoopLirObjectV1>,
 }
 
@@ -52,7 +52,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> VerifiedEntryPatchSet
         &self.runtime_images
     }
 
-    pub const fn entry(&self) -> &VerifiedEntryProductionV1 {
+    pub const fn entry(&self) -> &EntryProductionDataV1 {
         &self.entry
     }
 
@@ -63,21 +63,21 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> VerifiedEntryPatchSet
 
 pub fn patch_entry_production_v1(
     runtime_images: VerifiedRuntimeImagePatchSetV1,
-    entry: VerifiedEntryProductionV1,
+    entry: EntryProductionDataV1,
 ) -> Result<VerifiedEntryPatchSetV1, EntryPatchError> {
     patch_entry_production(runtime_images, entry)
 }
 
 pub fn patch_entry_production_v2(
     runtime_images: crate::VerifiedRuntimeImagePatchSetV2,
-    entry: VerifiedEntryProductionV1,
+    entry: EntryProductionDataV1,
 ) -> Result<VerifiedEntryPatchSetV2, EntryPatchError> {
     patch_entry_production(runtime_images, entry)
 }
 
 fn patch_entry_production<D, C, I>(
     runtime_images: VerifiedRuntimeImagePatchSetV1<D, C, I>,
-    entry: VerifiedEntryProductionV1,
+    entry: EntryProductionDataV1,
 ) -> Result<VerifiedEntryPatchSetV1<D, C, I>, EntryPatchError>
 where
     D: scoop_lir::StrongDescriptorReference,
@@ -89,13 +89,8 @@ where
         .map(|object| (object.member(), object.bytes().to_vec()))
         .collect::<Vec<_>>();
 
-    if let VerifiedEntryProductionBranchV1::Executable(verified) = entry.branch() {
-        let plan = match entry.plan() {
-            scoop_lir::EntryProductionPlanV1::Executable(plan) => plan.as_ref(),
-            scoop_lir::EntryProductionPlanV1::Library => {
-                return Err(EntryPatchError::BranchMismatch);
-            }
-        };
+    if let EntryProductionBranchV1::Executable(verified) = entry.branch() {
+        let plan = verified.plan();
         let gateway = runtime_images
             .fingerprint()
             .registrations()
@@ -118,13 +113,11 @@ where
             gateway.body_definition().as_array(),
             EntryPatchFieldV1::GatewayDefinition,
         )?;
-    } else if !matches!(entry.plan(), scoop_lir::EntryProductionPlanV1::Library) {
-        return Err(EntryPatchError::BranchMismatch);
     }
 
     let mut finalized = Vec::with_capacity(objects.len());
     for ((member, bytes), source) in objects.into_iter().zip(source_objects) {
-        let envelope = if matches!(entry.branch(), VerifiedEntryProductionBranchV1::Executable(entry) if entry.member() == member)
+        let envelope = if matches!(entry.branch(), EntryProductionBranchV1::Executable(entry) if entry.member() == member)
         {
             ValidatedScoopLirObjectEnvelopeV1::after_digest_patch(
                 source.envelope().sections().clone(),
@@ -189,7 +182,6 @@ pub enum EntryPatchFieldV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EntryPatchError {
-    BranchMismatch,
     MissingGatewayFingerprint(scoop_identity::PersistentCallableBodyId),
     MissingEntryObject(SlibMemberId),
     PatchRange(EntryPatchFieldV1),
