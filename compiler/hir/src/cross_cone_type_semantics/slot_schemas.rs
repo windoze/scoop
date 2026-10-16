@@ -7,12 +7,8 @@ use scoop_wire::{Encoder, WireEncode};
 use super::wire;
 
 mod decode;
-mod interface_expansion;
-mod validation;
-pub(crate) use interface_expansion::InterfaceSlotExpansion;
 
 pub use decode::*;
-pub use validation::*;
 
 /// Ordering matches canonical role bytes: the leaf ClassVtable tag precedes
 /// the Interface payload tag, whose ids have a fixed byte length.

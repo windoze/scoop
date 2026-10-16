@@ -1,5 +1,5 @@
-use super::InheritanceSourceSlotSelectionV1;
 use crate::DecodedInheritanceCallableDeclarationV1;
+use crate::InheritanceCallableDeclarationV1;
 use crate::cross_cone_type_semantics::wire as codec;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -53,6 +53,23 @@ impl WireDecode for DecodedInheritanceSourceSlotSelectionV1 {
                 })
             }
             tag => Err(codec::error(decoder, WireErrorKind::UnknownTag { tag })),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InheritanceSourceSlotSelectionV1 {
+    Abstract(InheritanceCallableDeclarationV1),
+    Concrete(InheritanceCallableDeclarationV1),
+    InterfaceDefault(InheritanceCallableDeclarationV1),
+}
+
+impl InheritanceSourceSlotSelectionV1 {
+    pub const fn declaration(self) -> InheritanceCallableDeclarationV1 {
+        match self {
+            Self::Abstract(declaration)
+            | Self::Concrete(declaration)
+            | Self::InterfaceDefault(declaration) => declaration,
         }
     }
 }

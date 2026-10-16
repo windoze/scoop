@@ -39,8 +39,9 @@
 33. MIR foundation：从完整 Module 直接投影身份，删除全模块类型／CFG／ABI／coroutine／callback／release／constant 验证器、专用破坏测试和错误包装；保留 lowering 的实际结构断言与初始化绑定 fixture。
 34. MIR 输入组装：删除 foundation／entry surface 副本比较与已完成 production 关系重验；初始化从实际 unit 和 callable 索引绑定，删除 generated ID／ODR key／签名重建与对应破坏测试，保留缺失 body 引用诊断。
 35. HIR representation：删除只由专门测试调用的来源 inventory／字段／variant／CLayout 比较与 Checked 包装；保留实际数据、typed 引用和编码，测试直接验证顺序、intrinsic family 与布局策略。
-36. 待完成：继承／slot 复核、归档读取、历史文档一致性及最终验收。
-37. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+36. HIR 继承／slot：删除没有生产调用者的 checked graph、来源／签名／继承关系重放和独占测试；保留实际 ancestry 查询、slot selection 编码、局部记录与 wire 引用解析，并精简测试 fixture。
+37. 待完成：残留 IR 复核、归档读取、历史文档一致性及最终验收。
+38. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -121,3 +122,5 @@ MIR foundation 批次：格式化、workspace clippy 无警告；release MIR 256
 MIR 输入组装批次：格式化、workspace clippy 无警告；release MIR 的 cone input 4 项与 production 编解码 13 项通过，真实角色绑定、缺失引用和固定 wire 编码继续覆盖。
 
 HIR representation 批次：格式化、workspace clippy 无警告；release HIR representation 相关 17 项通过，实际字段／variant 顺序、类型身份、CLayout 和 wire 边界继续覆盖。
+
+HIR 继承／slot 批次：格式化、workspace clippy 无警告；release HIR 继承 4 项、slot 9 项通过。测试辅助函数的三处冗余返回绑定已按 lint 简化，实际签名、modality、顺序和缺失引用覆盖保留。

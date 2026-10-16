@@ -14,7 +14,6 @@ mod table;
 mod target;
 #[cfg(test)]
 pub(in crate::cross_cone_type_semantics) mod tests;
-mod validation;
 
 pub use declaration::*;
 pub use decode::*;
@@ -22,10 +21,9 @@ pub use resolution::*;
 pub use signature::*;
 pub use table::*;
 pub use target::*;
-pub use validation::*;
 
 /// A complete root-slot contract with a separate selected implementation.
-/// Construction checks local shape only; source and graph joins are separate.
+/// Construction checks the local signature, modality, and declaration role.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InheritanceSlotContractV1 {
     role: InheritanceSlotSchemaRoleV1,

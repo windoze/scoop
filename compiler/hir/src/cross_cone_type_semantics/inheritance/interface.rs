@@ -9,15 +9,15 @@ use std::collections::BTreeSet;
 
 mod decode;
 mod errors;
+mod selection;
 mod table;
 #[cfg(test)]
 pub(in crate::cross_cone_type_semantics) mod tests;
-mod validation;
 
 pub use decode::*;
 pub use errors::*;
+pub use selection::*;
 pub use table::*;
-pub use validation::*;
 
 /// Complete inheritance edges, protected member references and dispatch slots.
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -18,9 +18,9 @@ where
 {
     let mut pending = Vec::new();
     scoop_wire::allocation::try_reserve(&mut pending, 1, path)?;
-    pending.push((receiver, 1));
+    pending.push(receiver);
     let mut seen = BTreeSet::new();
-    while let Some((current, depth)) = pending.pop() {
+    while let Some(current) = pending.pop() {
         if seen.contains(&current) {
             continue;
         }
@@ -32,7 +32,7 @@ where
         }
         for parent in parents {
             scoop_wire::allocation::try_reserve(&mut pending, 1, path)?;
-            pending.push((parent, depth + 1));
+            pending.push(parent);
         }
     }
     Ok(false)
