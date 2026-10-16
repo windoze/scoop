@@ -4,7 +4,7 @@
 
 | 批次 | 状态 |
 | --- | --- |
-| core 任务树、失败传播与取消 | 已实现，本机定向验收通过；Linux 留到整体完整验收 |
+| core 任务树、失败传播与取消 | 已实现，本机及 Linux GNU／musl 定向验收通过 |
 | 可取消挂起协调 | 已实现，本机同步／挂起／跨线程竞争与 GC 验收通过 |
 | platform 异步 buffer 借用与 Libuv 错误域 | 已实现，本机 debug／release 与 moving GC 定向验收通过 |
 | asyncio 事件循环、定时等待与投递 | 已实现，本机 debug／release／moving GC 八项 scoop.test 通过 |
@@ -13,7 +13,7 @@
 | DNS | 已实现，本机 debug／release／moving GC 验收通过 |
 | 文件 | 已实现，本机八项定向及完整 asyncio release／moving GC 验收通过 |
 | UDP | 已实现，本机完整四十五项 debug／release／moving GC 通过 |
-| 三目标组合及完整验收 | Linux GNU／musl 完整验收进行中 |
+| 三目标组合及完整验收 | 三目标库与外部消费、Linux Rust、musl 定向 CLI 已通过；GNU 完整 CLI 进行中 |
 
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
 
@@ -31,31 +31,29 @@ NativeByteBorrow 使用普通公开 Unsafe API 持有 owner，提交已知进度
 
 本机 scoop.test 的 NativeByteBuffer 17 项和 PlatformError 3 项在 debug／release 全部通过；buffer 17 项另通过 moving GC。覆盖跨真实挂起、跨线程、借用竞争、非法长度回滚、重复完成、零指针及全部旧同步 buffer 用例。格式化、native lint 与 workspace clippy 通过。
 
-下一批实现 TCP 与异步流组合；整个 M49 尚未完成。
-
 接入未修改的 libuv C 源码时发现第二个底层缺口：Darwin 将 libc 的 `__cxa_atexit` 误判为 C++ ABI，同时两种对象格式拒绝普通 C 初始化／析构段。先修订实现及 runtime 规范，允许目标 CRT 的标准 C 初始化／清理，保留真实 C++ EH、动态 TLS、LTO 等边界。旧 constructor 拒绝 fixture 改为独立的实际初始化和退出清理回归，本机 debug／release 两变体、四进程通过；链接器相关两项 Rust 测试及 workspace clippy 通过。未为 libuv 添加特判。
 
 ## 事件循环基础验收
 
-新增普通 asyncio Cone、[公开规范](../specs/SCOOP-ASYNCIO-SPEC.md)及未修改的 libuv 1.53.0 三目标源码清单。已交付 EventLoop.run、runWithResult、currentEventLoop 与 sleep；网络和工作请求接口按后续批次实现，规范中的完整接口表不表示提前交付。managed 命令队列与完成选择使用普通同步；C callback 只记录事件，返回 NativeSafe 后才恢复 continuation。定时器使用单调时间，支持向上舍入及超长 Duration 的分段等待。
+新增普通 asyncio Cone、[公开规范](../specs/SCOOP-ASYNCIO-SPEC.md)及未修改的 libuv 1.53.0 三目标源码清单。实现 EventLoop.run、runWithResult、currentEventLoop 与 sleep。managed 命令队列与完成选择使用普通同步；C callback 只记录事件，返回 NativeSafe 后才恢复 continuation。定时器使用单调时间，支持向上舍入及超长 Duration 的分段等待。
 
-同 Cone 八项 scoop.test 在本机 debug、release、moving GC 全部通过：值／引用结果、根与未 await 子任务失败、精确 Context binding、嵌套／重复／并发 run 拒绝、跨线程后续 I/O、合并唤醒、多定时器、取消登记前后与真实 native close 收尾。主动编写的 Scoop／C 实现文件最长 110 行；vendor 保持上游原文件。workspace clippy 与 shim 的 C11 警告检查通过。`target` 检查约 2.4 GB，仍远低于开始时的 103 GB；Linux 全量留到功能组合完成后。
+同 Cone 八项 scoop.test 在本机 debug、release、moving GC 全部通过：值／引用结果、根与未 await 子任务失败、精确 Context binding、嵌套／重复／并发 run 拒绝、跨线程后续 I/O、合并唤醒、多定时器、取消登记前后与真实 native close 收尾。主动编写的 Scoop／C 实现文件最长 110 行；vendor 保持上游原文件。workspace clippy 与 shim 的 C11 警告检查通过。`target` 检查约 2.4 GB，仍远低于开始时的 103 GB。
 
 ## 异步流组合验收
 
-新增 AsyncByteSource／Sink／Stream、AsyncCloseable、readFully／writeFully／copyTo 和泛型 useAsync，分别放在 70 行流文件和 14 行资源文件。六项 scoop.test 在 debug／release／moving GC 通过；端点通过真实定时器逐次挂起，覆盖短传输、EOF、读写失败前缀、零进度、范围与容量错误、接口包装后的 flush 转发、关闭责任及正文／清理双失败。未增加执行器或测试专用生产后端。下一步接入实际 TCP 双向流。
+新增 AsyncByteSource／Sink／Stream、AsyncCloseable、readFully／writeFully／copyTo 和泛型 useAsync，分别放在 70 行流文件和 14 行资源文件。六项 scoop.test 在 debug／release／moving GC 通过；端点通过真实定时器逐次挂起，覆盖短传输、EOF、读写失败前缀、零进度、范围与容量错误、接口包装后的 flush 转发、关闭责任及正文／清理双失败。未增加执行器或测试专用生产后端。
 
 ## TCP 与资源收尾验收
 
 新增 connect／listen／accept、IPv4／IPv6 双向字节流、输出半关闭、取消和幂等关闭。run 收尾等待未关闭资源与全部 native callback；未交付的迟到连接／listener 成功先关闭。监听复用 platform 的普通 C socket_bind helper，保持 reuseAddress=false 与原始 PosixErrno；其余 libuv 错误保留负码。Linux 在线程局部屏蔽／恢复 SIGPIPE，Darwin 使用 SO_NOSIGPIPE。
 
-新增十二项同 Cone 测试，覆盖短读写、EOF 后写入、同方向互斥、跨线程提交、真实排队写取消后的精确前缀与继续写入、关闭竞争、取消后 shutdown 终止、原生错误与 SIGPIPE handler／mask／pending 保留。写取消通过 libuv 公开同步 API 先观察真实排队状态，不依靠任意延迟。全部二十六项（包含既有 loop／stream）通过 moving GC；debug／release 首轮各二十五项通过，修正一个测试的越界异常预期后定向补验闭合。C11 警告检查、workspace clippy 与差异检查通过；实现文件最长 143 行。target 仍约 2.4 GB，保留正在复用的构建缓存。Linux 三目标组合验证仍待全部功能完成。
+新增十二项同 Cone 测试，覆盖短读写、EOF 后写入、同方向互斥、跨线程提交、真实排队写取消后的精确前缀与继续写入、关闭竞争、取消后 shutdown 终止、原生错误与 SIGPIPE handler／mask／pending 保留。写取消通过 libuv 公开同步 API 先观察真实排队状态，不依靠任意延迟。全部二十六项（包含既有 loop／stream）通过 moving GC；debug／release 首轮各二十五项通过，修正一个测试的越界异常预期后定向补验闭合。C11 警告检查、workspace clippy 与差异检查通过；实现文件最长 143 行。target 仍约 2.4 GB，保留正在复用的构建缓存。
 
 ## 原始 DNS 与平台 helper 复用
 
 公开 platform 的同步 Unsafe 原始字符串／路径借用、已验证的 OpenOptions helper flags、普通 C helper 头文件及共享 NativeSocketAddress 类型。两个新增平台测试通过普通与 moving GC；asyncio 直接消费这些普通产物声明。首次 DNS 链接显示同形 nominal 不能替代同一 native 合同的 exact type，已改为共享 platform 定义，未改编译器 ABI 规则。
 
-resolve 通过 uv_queue_work 调用原始 getaddrinfo helper，提交时复制原始名称，after-work 释放输入，managed 消费或取消时释放 addrinfo。保留 AddressResolution 与同次 EAI_SYSTEM errno；原生队列撤销和执行后完成共用已登记请求的单次完成路径。本机三项 scoop.test 通过，覆盖 IPv4／IPv6／localhost 与实际 TCP 组合、NUL／port／真实 EAI 失败，以及提交前后反复取消和后续解析。文件将复用同一工作请求队列；release、moving GC 及 Linux 在后续组合验证中闭合。
+resolve 通过 uv_queue_work 调用原始 getaddrinfo helper，提交时复制原始名称，after-work 释放输入，managed 消费或取消时释放 addrinfo。保留 AddressResolution 与同次 EAI_SYSTEM errno；原生队列撤销和执行后完成共用已登记请求的单次完成路径。本机三项 scoop.test 通过，覆盖 IPv4／IPv6／localhost 与实际 TCP 组合、NUL／port／真实 EAI 失败，以及提交前后反复取消和后续解析。文件复用同一工作请求队列；release、moving GC 及 Linux 已在后续组合验证中闭合。
 
 ## native include 路径修订
 
@@ -67,7 +65,7 @@ manifest／toolchain 共九十项 Rust 测试及三项 manifest cache 测试通�
 
 open／顺序 read、write／sync／close 复用 platform 原始 helper，经实际 libuv worker 执行。一个文件只允许一个活动操作；关闭先请求取消并等待 worker 与 buffer 借用结束，再提交一次 raw close。open 预留关闭请求，迟到成功在报告取消前释放 fd；路径和原始 errno 随异常保留。实现文件最长 96 行。
 
-新增八项同 Cone scoop.test，本机定向全部通过；完整三十七项 asyncio 在 release 和 moving GC 全部通过，也闭合 DNS 的对应 profile。覆盖 append／EOF／sync／原始路径与失败、文件到 TCP 的短 buffer copy、并发关闭、取消 finally、真实排队请求和阻塞 FIFO 执行中取消、迟到 open 的 fd 清理。工作线程占位器只存在于普通 test-dependency，使用实际 uv_queue_work 与 syscall 建立确定顺序，不增加生产后端。C11 警告检查、workspace clippy 和差异检查通过。target 约 1.9 GB；Linux 完整验证仍留在 UDP 完成后。
+新增八项同 Cone scoop.test，本机定向全部通过；完整三十七项 asyncio 在 release 和 moving GC 全部通过，也闭合 DNS 的对应 profile。覆盖 append／EOF／sync／原始路径与失败、文件到 TCP 的短 buffer copy、并发关闭、取消 finally、真实排队请求和阻塞 FIFO 执行中取消、迟到 open 的 fd 清理。工作线程占位器只存在于普通 test-dependency，使用实际 uv_queue_work 与 syscall 建立确定顺序，不增加生产后端。C11 警告检查、workspace clippy 和差异检查通过。target 约 1.9 GB。
 
 ## 共享常量段前置修复
 
@@ -81,13 +79,13 @@ UDP 的 debug 测试通过后，release 对象暴露已有边界缺口：LLVM �
 
 八项同 Cone debug 测试及整个 asyncio 四十五项 debug／release／moving GC 测试通过。覆盖整包与超大报文失败、每方向互斥、取消后继续使用、同时收发时关闭、迟到 bind 释放端口，以及文件／DNS／定时器组合。常量段前置修复已先独立验收和提交。workspace clippy、C11 严格告警与差异检查通过。两个新增 platform helper 测试另通过 release 补验。
 
-Linux 已清理旧 target 55.5 GiB，同步已提交的编译器并完成 fmt／clippy／release 构建，Rust 全量正在运行。musl-gcc 原环境缺少 libuv 所需 Linux UAPI；在仓库外通过普通 --cc 包装脚本加入系统 linux／asm／asm-generic 头文件路径，vendor 未修改，未混用 glibc 用户态头文件。GNU／musl 完整库与 CLI 验收随后执行。
+Linux 清理旧 target 55.5 GiB 后，同步已提交的编译器并完成 fmt／clippy／release 构建，再开始完整验收。musl-gcc 原环境缺少 libuv 所需 Linux UAPI；在仓库外通过普通 --cc 包装脚本加入系统 linux／asm／asm-generic 头文件路径，vendor 未修改，未混用 glibc 用户态头文件。
 
 ## Linux Rust 测试输入修正
 
 全量 Rust 在 HIR lower 的 1,474 项中发现三项结构测试把完整 core 源码标记为外部 Cone，却未提供外部 MIR 依赖；core 新增实际协程调用后显露此问题。将已有正式 core bootstrap 测试 helper 移到共用位置，三项继续降到 MIR 的测试改用完整 core Cone 输入，保留原结构断言。生产实现和 pipeline 契约不变。
 
-本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组并继续尚未执行的 crate；GNU／musl asyncio debug 各四十五项通过，后续 profile 与完整 CLI 验收继续运行。
+本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组并继续尚未执行的 crate。
 
 Linux 链接器的 archive 延后检查测试还保留了拒绝普通 C constructor 的旧断言。将未选中成员改为仍被禁止的 C++ EH 输入，继续验证普通归档索引与选中后检查；初始化的实际运行回归不变。格式化、两机 workspace clippy 与 Linux 单项补验通过，原十六项链接器通过结果继续有效；没有修改生产代码。
 
@@ -95,14 +93,18 @@ Linux 链接器的 archive 延后检查测试还保留了拒绝普通 C construc
 
 新增普通 `consumer-tests` Cone，以正常依赖消费 asyncio 生产产物，用一个 scoop.test 组合公开泛型引用结果、泛型 useAsync 值结果、接口、Job、buffer 与真实 UDP。它补充同 Cone 功能测试的产物边界，不增加专用 runner、后端或 fixture。本机 debug／release／moving GC 全部通过，格式化、workspace clippy 与差异检查通过。
 
-GNU／musl 的完整 asyncio 在 debug／release／moving GC 均为四十五项通过；platform 全库、外部消费者、Rust 剩余端到端用例及完整 CLI 继续验收。
+GNU／musl 的完整 asyncio 在 debug／release／moving GC 均为四十五项通过。
 
 外部消费者在三目标的 debug／release／moving GC 全部通过。为避免重复既有前端检查，最终保留 GNU 完整 CLI，musl CLI 聚焦 M49、native C 和 musl 专属用例；两个 libc 的库测试仍保留三模式全库。Rust 已通过的 debug 结果不重跑，driver 保留十一项 debug 通过记录，其余七十二项改用 release 测试二进制并核对完整清单。公共 fixture 规则五十项通过。
 
-GNU／musl 的 platform 全库三模式均为一百零六项通过；musl 定向 CLI 四十一项全部通过。GNU 完整 CLI 保留首批一百六十一项通过及二十九项不适用，复用原源码与缓存后以八并发执行剩余三千九百九十八项，结束时按名称合并核对覆盖。
+GNU／musl 的 platform 全库三模式均为一百零六项通过；musl 定向 CLI 四十一项全部通过。GNU 完整 CLI 保留已完成结果，复用原源码与缓存，随其他验收结束提高剩余用例的并发度，结束时按名称合并核对全部 4,188 项覆盖。
 
-driver 的十九项布局产物测试共用旧描述符分类，只将 closure 视为本地生成类型，误要求新增 core 协程的 frame／恢复适配器进入公开布局表。按实际 GeneratedNominalKey 修正测试分类，保留导出与 ABI 断言；描述符检查拆入 141 行子模块，原文件 168 行。本机格式化、workspace clippy 及独立／组合 alias 回归通过，Linux 该组补验继续执行。生产实现与规范合同不变。
+driver 的十九项布局产物测试共用旧描述符分类，只将 closure 视为本地生成类型，误要求新增 core 协程的 frame／恢复适配器进入公开布局表。按实际 GeneratedNominalKey 修正测试分类，保留导出与 ABI 断言；描述符检查拆入 141 行子模块，原文件 168 行。本机格式化、workspace clippy 及独立／组合 alias 回归通过，Linux 该组十九项补验也全部通过。生产实现与规范合同不变。
 
 上述十九项 Linux 补验全部通过。有限类型测试另有一项只从源码类型表查找协程槽位字段身份；改为同时使用已有 context／frame 的生成类型身份，继续逐字段精确比较，没有增加生产 API。本机与 Linux 的格式化、workspace clippy 和该组两项测试通过。
 
-真实 core 的缺失 metadata 负例还保留了旧错误顺序：删除槽位／装箱记录后，新协程会先在 saved value／slot 的实际引用处拒绝。更新这一项测试的精确错误位置类别和原因，不改变生产检查。本机格式化、workspace clippy 与单项补验通过，Linux 补验随后核对 driver 全部八十三项覆盖。
+真实 core 的缺失 metadata 负例还保留了旧错误顺序：删除槽位／装箱记录后，新协程会先在 saved value／slot 的实际引用处拒绝。更新这一项测试的精确错误位置类别和原因，不改变生产检查。本机和 Linux 的格式化、workspace clippy 与单项补验通过，随后核对 driver 全部八十三项覆盖无遗漏。
+
+Linux Rust 最终共 5,348 项单元／集成测试、2 项 doctest 通过，包含全部 driver 用例和七项 binary 测试。复用各批已通过结果并只补验失败组，没有重复完整 workspace 测试。
+
+GNU 完整 CLI 发现五项 M34 优化专测仍保存基线已删除的 `scoop_rt_materialize_exception`。按现行 runtime 规范 5.3～5.4 更新其 MIR／LIR 预期；差异为直接保存 Throwable 引用及关联临时值、调用和 safepoint 编号，没有修改生产实现。Darwin 五项、十变体、五十八进程全部通过，包含正常、moving 和 minor GC；Linux 正在补齐两种 libc 的对应验证。
