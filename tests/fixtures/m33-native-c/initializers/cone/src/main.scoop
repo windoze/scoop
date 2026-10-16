@@ -1,0 +1,6 @@
+@Extern(name = "native_initialized")
+fun nativeInitialized(): Int
+
+fun main() {
+    @Unsafe { println(nativeInitialized()) }
+}

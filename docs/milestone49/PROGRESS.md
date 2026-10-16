@@ -29,3 +29,5 @@ NativeByteBorrow 使用普通公开 Unsafe API 持有 owner，提交已知进度
 本机 scoop.test 的 NativeByteBuffer 17 项和 PlatformError 3 项在 debug／release 全部通过；buffer 17 项另通过 moving GC。覆盖跨真实挂起、跨线程、借用竞争、非法长度回滚、重复完成、零指针及全部旧同步 buffer 用例。格式化、native lint 与 workspace clippy 通过。
 
 下一批实现 asyncio 事件循环与定时器；整个 M49 尚未完成。
+
+接入未修改的 libuv C 源码时发现第二个底层缺口：Darwin 将 libc 的 `__cxa_atexit` 误判为 C++ ABI，同时两种对象格式拒绝普通 C 初始化／析构段。先修订实现及 runtime 规范，允许目标 CRT 的标准 C 初始化／清理，保留真实 C++ EH、动态 TLS、LTO 等边界。旧 constructor 拒绝 fixture 改为独立的实际初始化和退出清理回归，本机 debug／release 两变体、四进程通过；链接器相关两项 Rust 测试及 workspace clippy 通过。未为 libuv 添加特判。

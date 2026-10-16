@@ -131,7 +131,7 @@ pub(crate) fn read(
     }
     for symbol in file.symbols().filter(|symbol| symbol.is_undefined()) {
         let name = symbol.name().map_err(error)?;
-        if name.starts_with("___cxa_")
+        if (name.starts_with("___cxa_") && !matches!(name, "___cxa_atexit" | "___cxa_finalize"))
             || name.starts_with("___gxx_personality")
             || name.starts_with("___gcc_personality")
         {

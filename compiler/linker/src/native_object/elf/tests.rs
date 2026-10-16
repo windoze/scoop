@@ -56,13 +56,8 @@ fn elf_native_objects_keep_tls_visibility_weakness_and_debug_relocations() {
 }
 
 #[test]
-fn elf_native_inputs_reject_initializers_common_storage_and_cpp_eh() {
+fn elf_native_inputs_reject_common_storage_and_cpp_eh() {
     for (source, flags, expected) in [
-        (
-            "__attribute__((constructor)) void init(void) {}",
-            &[][..],
-            "initialization",
-        ),
         ("int tentative;", &["-fcommon"][..], "common/tentative"),
         (
             "extern void __cxa_throw(void); void f(void) { __cxa_throw(); }",
