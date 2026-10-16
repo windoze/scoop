@@ -735,6 +735,7 @@ enum Option<T> {
 - `a?.b`：脱糖为 `when (a) { case Some(v) -> Some(v.b); case None -> None }`（结果类型为 `Option<B>`，其中 `B` 是 `b` 的类型）。
 - `a?.f(args...)`：脱糖为 `when (a) { case Some(v) -> Some(v.f(args...)); case None -> None }`。receiver `a`先求值且只求值一次；只有运行期进入`Some`分支后才会求值显式实参、物化`vararg`、执行缺省表达式并进入callee。方法、extension与property-like `invoke`的选择均在payload静态类型上按第8章完成。
 - 安全调用**不展平**结果。若`f`返回`Option<R>`，`a?.f()`的类型是`Option<Option<R>>`；若返回`Unit`，结果是`Option<Unit>`。这遵守7.1的逐层`Option`语义，不采用Kotlin nullable type的幂等合并。
+- 安全调用也可作为丢弃结果的调用语句，例如 `resource?.dispose()`；是否为调用按源程序的调用形式判定，不能因脱糖结果是临时 Option 而拒绝。接收者、参数与缺省值仍遵守上述按分支求值规则，单纯的安全字段读取不会因此成为调用语句。
 - `a ?: b`：脱糖为 `when (a) { case Some(v) -> v; case None -> b }`，按 5.7 合并正常分支结果。右侧 `return`、`throw` 或 Nothing 调用不贡献正常值，结果来自 Some 的 payload；普通右值使用期望类型适配或最小上界，不能要求 exact type 相等。左侧只求值一次，右侧仅在 None 路径执行。Elvis 右结合。
 - `a!!`：`a` 为 `Some` 时取值；为 `None` 时抛出核心库异常 `UnwrapException`。
 - 空安全表达式可以出现在`while`条件中；条件脱糖产生的临时绑定与其他条件求值步骤一起在每次条件检查时重新执行，不能提升到循环外。

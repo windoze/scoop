@@ -43,6 +43,15 @@ impl Lowerer {
                 // here.
                 if self.is_nothing_ty(lowered.ty)
                     || matches!(expr, ast::Expr::Update { .. })
+                    // Safe calls execute inside their desugaring sink and
+                    // leave only an Option-valued local as the expression.
+                    || matches!(
+                        expr,
+                        ast::Expr::MethodCall {
+                            navigation: ast::Navigation::Safe,
+                            ..
+                        }
+                    )
                     || matches!(
                         lowered.kind,
                         hir::ExprKind::Call { .. }

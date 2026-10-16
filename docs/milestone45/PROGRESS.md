@@ -90,3 +90,9 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - 下游 `.slib` 组合新增线程、锁及条件变量，普通／moving 通过。格式化、workspace all-targets clippy、C 严格告警通过。首轮源码的初始化接收者捕获、泛型回调结果及 fixture 直接依赖已修正并闭合，无编译器或 runtime 协议变更。
 
 下一批为 M45-8。Linux GNU／musl 继续留到所有本机功能完成后的统一验收；只记录结果概要，不提交原始日志或机器报告。
+
+## M45-8 前置：安全调用语句
+
+实现进程端点清理时，`endpoint?.dispose()` 暴露语句检查缺口：安全调用已经展开到条件分支，表达式只剩 Option 临时变量，旧检查错误地拒绝丢弃结果。按语言规范 7.3 修复源调用形式的识别，保留 receiver／实参／缺省值的分支求值与异常传播；没有放开单纯安全字段读取。
+
+2026-10-16 本机格式化、workspace all-targets clippy、HIR 全 crate 1474 项通过。新增正／负 Rust 回归；正式 CLI 5 项、8 variants、19 processes 通过，包含新的方法／扩展／callable property／泛型清理调用及既有安全调用、挂起组合和 Unit lambda 回归。新例 debug/release、普通／moving GC 全部通过。Linux 随 M45-10 验收；产物结构及 runtime ABI 无变更。
