@@ -43,13 +43,6 @@ impl ExpectedRoots {
             .map(ExpectedRoot::key)
             .collect()
     }
-
-    pub(super) fn group_keys(&self) -> BTreeSet<BTreeSet<(u8, u32, u64)>> {
-        self.groups
-            .iter()
-            .map(|group| group.iter().copied().map(ExpectedRoot::key).collect())
-            .collect()
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

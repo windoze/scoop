@@ -33,9 +33,7 @@ use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
 use inkwell::targets::{FileType, TargetMachine};
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
-use inkwell::values::{
-    BasicValue, BasicValueEnum, GlobalValue, InstructionValue, IntValue, PointerValue, ValueKind,
-};
+use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
 use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
@@ -138,19 +136,6 @@ pub use runtime_metadata_v1::{
 use target::ManagedAddressSpace;
 pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};
 pub(crate) use type_descriptors::{TypeDescriptorGlobals, type_descriptor_global};
-
-fn mark_typed_managed_pointer_boundary(
-    context: &Context,
-    instruction: InstructionValue<'_>,
-    boundary: statepoint::TypedManagedPointerBoundary,
-) -> Result<(), CodegenError> {
-    instruction
-        .set_metadata(
-            context.metadata_node(&[context.metadata_string(boundary.name()).into()]),
-            context.get_kind_id(statepoint::TYPED_MANAGED_POINTER_BOUNDARY_METADATA),
-        )
-        .map_err(|error| CodegenError(format!("mark typed managed pointer boundary: {error}")))
-}
 
 #[cfg(test)]
 mod tests;

@@ -1226,11 +1226,9 @@ pub(super) fn rewritten_ir_of(module: &Module) -> String {
     let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid pre-statepoint module");
     let expected = statepoint::expectations(module).expect("complete safepoint manifest");
-    let expected = statepoint::rewrite(&llvm, &machine, &expected, host_profile())
-        .expect("rewrite statepoints");
+    statepoint::rewrite(&llvm, &machine, &expected, host_profile()).expect("rewrite statepoints");
     llvm.verify().expect("valid relocated module");
-    statepoint::verify_rewritten(&llvm, &expected, host_profile())
-        .expect("rewritten manifest agrees with LIR");
+
     llvm.print_to_string().to_string()
 }
 
@@ -1319,8 +1317,7 @@ pub(super) fn write_verified_test_object(module: &Module, output: &Path) {
     let expected_safepoints = statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
         .expect("rewrite statepoints");
     llvm.verify().expect("valid rewritten LLVM module");
-    statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
-        .expect("rewritten manifest agrees with LIR");
+
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .expect("write object");

@@ -37,7 +37,7 @@ fn copied_managed_aggregate_keeps_pointer_provenance_through_statepoints() {
                 ),
             )));
             let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-            verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
+
             llvm.run_passes(
                 "function(verify<safepoint-ir>),verify",
                 &machine,

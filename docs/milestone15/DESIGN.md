@@ -36,7 +36,7 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 8. 当前对象起点只记录 bit，不记录精确 allocation size。可变长 String/Array 及 large object 不能只靠 TypeDescriptor 固定 size 正确复制；
 9. 当前全局 managed storage 没有编译器生成的完备 root 描述登记，静态 String 等 immortal managed object 也没有精确地址域登记；保守扫描会掩盖其中一部分问题；
 10. runtime 中会再次分配的 Scoop ABI/native helper 必须在分配前发布输入 direct ref 或含 ref payload，并在 GC 后从 slot reload。把 C local 中碰巧存在的旧指针当作保活手段在 M15 中非法；
-11. LLVM 22.1 RS4GC 会把普通call的AS1直接实参加入`gc-live`，即使该source在caller continuation中已经死亡；它不会递归拆解含AS1 leaf的aggregate实参。LIR必须显式给出post-site live source与可移动实参载体的并集，post verifier不能只拿普通live-after数量猜最终root count；
+11. LLVM 22.1 RS4GC 会把普通call的AS1直接实参加入`gc-live`，即使该source在caller continuation中已经死亡；它不会递归拆解含AS1 leaf的aggregate实参。LIR必须显式给出post-site live source与可移动实参载体的并集，最终根计划不能只拿普通live-after数量猜root count；
 12. 同一行为使带AS1实参的普通LLVM `invoke`经RS4GC必然获得`gc-live`并触发不可用的exceptional relocation。managed invoke必须由codegen直接发射零`gc-live`的显式`gc.statepoint` invoke，不能先发射普通invoke再期待RS4GC自动得到设计要求的形态。
 
 这些不是独立 backlog，而是 M15 正确性闭环的一部分。
@@ -79,7 +79,8 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 | `Code` | `ptr addrspace(0)` | 函数入口/trampoline |
 | `Metadata` | `ptr addrspace(0)` | TypeDescriptor、scan program 等 immortal metadata |
 
-`Managed` 与其他三类不能因 LLVM opaque pointer 而合并。所有涉及AS1的`addrspacecast`、`ptrtoint`与`inttoptr`都必须来自完备的typed来源；M15正常LIR不提供managed-to-raw cast或managed `PtrToInt`。codegen自身只有两个需要pointer-conversion witness的封闭internal boundary：TLAB地址发布为新object，以及write-barrier计算card index；它们分别携带不同的非可选metadata witness，post verifier按operation kind精确匹配。C++ EH的`BeginCatch`是独立的typed operation，其ABI声明直接产生已登记、稳定的AS1 exception ref，不经过address-space cast。witness不能由源码/LIR构造，也不能把转换开放成通用pointer escape。pin返回的raw地址经现有`UInt`/`Ptr` boundary取得，不以任意addrspacecast冒充。
+`Managed` 与其他三类保持不同的地址空间语义。TLAB 发布、写屏障地址计算与借用数据地址使用其已确定的普通 typed 操作发射转换；不附加 pointer-conversion witness 或 post-RS4GC 证明标记。语言可见的指针／借用规则及异常 ABI 见现行语言和运行时规范。
+
 
 managed ref 的非 null 值只能指向：
 
@@ -317,7 +318,7 @@ CallTarget<Destination, SignatureRef> {
 3. 发射 call；
 4. 在 call 后使用每个 leaf 重建 source storage/SSA value；
 5. 完成 SSA/SROA/mem2reg 后运行 RS4GC；
-6. verifier 确认每个预期 leaf 有 `gc.relocate`，且调用后不再使用原地址值。
+6. RS4GC 产生实际 relocation，后续使用恢复后的根；专测验证该转换及运行结果。
 
 direct ref / aggregate 参数即使只被callee使用而不在caller continuation活跃，也属于该call的`StatepointLiveSet`。这是LLVM 22.1实际statepoint模型的一部分：direct AS1参数会被RS4GC列入caller的`gc-live`，而含ref aggregate需要Scoop主动拆叶。callee入口poll仍建立callee自己的参数根，但它不能替代callsite参数根。
 
@@ -363,28 +364,11 @@ Scoop ABI callee若在内部进入`NativeBorrowedEntry`，仍必须先发布自�
 
 AS1 value 只表示 object start。字段/数组元素地址是短生命周期 derived address，只能在同一无 safepoint instruction region 内用于 load/store。跨 managed call/invoke、poll、allocation slow path 或 native transition存活时，LIR lowering必须保留 base managed ref，并在 relocate/reload后重新计算地址。
 
-post-RS4GC verifier 拒绝：
+根计划不把派生地址、raw/code/metadata pointer 当成 managed 根，含引用 aggregate 的 leaf 按实际类型提供。跨 safepoint 使用恢复后的对象地址；这些规则由实际 lowering 实现和运行回归覆盖。
 
-- base/derived index不同的 `gc.relocate`；
-- AS1 GEP结果跨 safepoint；
-- 没有与operation kind匹配的internal typed witness的AS1 `ptrtoint`/`inttoptr`/`addrspacecast`，以及任何由普通LIR `PtrToInt`产生的managed转换；
-- raw/code/metadata pointer进入 `gc-live`；
-- aggregate 内含 AS1 leaf却没有对应 `StatepointLiveSet` leaf。
+### 5.7 codegen pass
 
-### 5.7 codegen pass 与 verifier
-
-IR pass顺序固定为：完成LLVM IR → verifier → 必需的SSA construction/SROA → `rewrite-statepoints-for-gc` → M15 post-RS4GC verifier → object emission。RS4GC必须在SSA construction后运行；不得继续依赖“只跑RS4GC，LLVM也许会顺手处理alloca”。object emission使用LLVM 22.1标准SelectionDAG/TargetMachine machine pipeline；其中register allocation后的`FixupStatepointCallerSaved`是stack-only root契约的一部分，不是可选优化pass。
-
-post-RS4GC verifier 至少检查：
-
-- managed function具有 GC strategy、frame-pointer与disable-tail-calls属性；`@NoGC`函数无 strategy/poll；
-- 每个 `SafepointId` 恰好对应预期 statepoint；
-- statepoint没有deopt输入且未设置`DeoptLiveIn`；编译器不解析或透传可改变GC root machine location的LLVM command-line option；
-- 普通call及入口/回边poll的root count/leaf identity/relocate dominance完整；
-- managed invoke 的 gc-live/relocate均为空，显式 root frame在两个edge对称清理；
-- native-safe/native-borrowed call的gc-live/relocate均为空，跨边界value与含ref result只从caller-root storage reload；
-- AS1/AS0 provenance、tagged-enum typed ref slot与封闭internal pointer-boundary witness规则；
-- 不存在未处理的 managed aggregate live-through。
+IR 顺序为完整 LLVM IR → 必需的 SSA construction/SROA 与所选优化 → 最终根分组 → `rewrite-statepoints-for-gc` → object emission。生产路径使用 LLVM 的成功结果，不重复完整验证自产 module，不维护 post-RS4GC verifier 或其专属负例。对象发射沿 LLVM 22.1 TargetMachine 的正常机器流水线执行。
 
 object-level test再解析Mach-O relocation与stack map，先验证前三个header location及deopt count，再锁定`3 + 2 * root_count` location数、每个GC pair的AArch64 stack-indirect location、stack size与return-PC offset。该测试必须经inkwell 0.10实际使用的LLVM 22.1 `TargetMachine::write_to_file`路径，在O0与项目优化配置下分别覆盖零/单个/多个AS1 root；仅搜索section name或只调用独立`llc`不算主线验收。若任一GC root成为`Register`，测试应将其归类为backend invariant failure，并证明不会把前三个constant或live-out误判为root。
 
@@ -530,7 +514,6 @@ Scoop ABI外部实现继续遵守runtime spec 4.2：native-borrowed代码在调�
 - struct/tuple/tagged enum/closure/coroutine aggregate每个ref leaf单独relocate；GC-free leaf不进入；
 - managed invoke由codegen直接发射唯一ID的显式statepoint、零gc-live、零exceptional relocate，normal/unwind按各自edge flag reload并pop显式frame；
 - native-safe/native-borrowed transition入口有唯一statepoint ID、零gc-live/relocate，平台薄入口捕获精确冻结段anchor，实际native call无statepoint；含ref实参在入口返回后、native call之前从caller-root storage重建，transition前后root/result publication与reload顺序完整；
-- derived address跨safepoint、无typed witness或witness kind错误的managed pointer转换为verifier negative；
 - Mach-O v3 parser golden覆盖所有location编码、alignment、constant pool和truncated/corrupt输入；Darwin profile对unsupported root shape给出确定错误；
 - linked executable runtime检查dyld fixup后的function address和return PC均落在预期代码范围；离线测试用`dyld_info`/Mach-O parser确认chained fixup，而不把磁盘编码误读为指针；
 - AArch64反汇编锁定frame chain、return address等于stack-map PC、root为8-byte indirect SP/FP slot；O0与项目优化配置的真实AS1 fixture均不得产生GC register root。
@@ -567,7 +550,7 @@ Scoop ABI外部实现继续遵守runtime spec 4.2：native-borrowed代码在调�
 1. 同步runtime/impl spec与ROADMAP，固定LLVM 22.1与DarwinAarch64唯一profile、AS1、stack-only exact root及moving契约；
 2. 拆出codegen target/statepoint模块和runtime gc/platform模块，先保持M13行为等价；
 3. LIR加入按effect类型隔离的managed poll/call/invoke root plan、唯一`SafepointId`、managed global scan与niche pointer provenance，并由LIR lowering显式插入入口/回边poll；
-4. codegen完成AS1映射、frame属性、aggregate leaf materialization、invoke显式root frame、native transition caller-root/result协议和post-RS4GC verifier；
+4. codegen完成AS1映射、frame属性、aggregate leaf materialization、invoke显式root frame、native transition caller-root/result协议；
 5. 实现通用v3 parser与DarwinAarch64 section/frame/location adapter，先用非移动collector精确枚举所有root并与测试期影子结果对照；
 6. 删除conservative scan，加入global/immortal/external精确地址域和runtime managed-input root审计；
 7. 把heap block/object/free-run元数据迁出arena并记录exact allocation size；

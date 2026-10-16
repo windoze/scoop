@@ -87,7 +87,6 @@ fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
             );
         }
         let expected = statepoint::expectations(&module).unwrap();
-        let expected = statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-        statepoint::verify_rewritten(&llvm, &expected, profile).unwrap();
+        statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
     }
 }

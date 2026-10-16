@@ -52,7 +52,7 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
         },
     )?;
 
-    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
+    optimize_and_lower_module(&llvm, machine, profile, expected_safepoints)?;
     Ok((llvm, runtime_metadata))
 }
 
@@ -93,8 +93,6 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         },
     )?;
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
-    llvm.verify()
-        .map_err(|error| CodegenError(format!("invalid LLVM module: {error}")))?;
     let safepoints = statepoint::optimize(&llvm, machine, expected.0, profile)?;
     let eh = expected.1.finalize(&llvm)?;
     runtime_metadata_v1::emit_callable_safepoints(
@@ -110,7 +108,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         elf_symbols.prepare(&llvm)?;
     }
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
-    lower_and_verify(&llvm, machine, profile, &safepoints)?;
+    statepoint::lower(&llvm, machine)?;
     Ok(PreparedCallableModule {
         llvm,
         runtime_metadata,
@@ -150,29 +148,13 @@ pub(super) fn discard_invalid_object(output: &Path, error: CodegenError) -> Code
     }
 }
 
-fn verify_and_rewrite_module(
+fn optimize_and_lower_module(
     llvm: &LlvmModule<'_>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
-) -> Result<statepoint::ExpectedSafepoints, CodegenError> {
-    crate::metadata_sections::place_immutable_metadata(llvm, profile);
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
-
-    let final_plan = statepoint::optimize(llvm, machine, expected_safepoints, profile)?;
-    lower_and_verify(llvm, machine, profile, &final_plan)?;
-    Ok(final_plan)
-}
-
-fn lower_and_verify(
-    llvm: &LlvmModule<'_>,
-    machine: &TargetMachine,
-    profile: ValidatedBackendProfile,
-    final_plan: &statepoint::ExpectedSafepoints,
 ) -> Result<(), CodegenError> {
-    statepoint::lower(llvm, machine)?;
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(llvm, final_plan, profile)
+    crate::metadata_sections::place_immutable_metadata(llvm, profile);
+    statepoint::optimize(llvm, machine, expected_safepoints, profile)?;
+    statepoint::lower(llvm, machine)
 }

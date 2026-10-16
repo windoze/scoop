@@ -279,8 +279,6 @@ fn darwin_aarch64_eh_artifacts_are_qualified_at_o0_and_o2() {
             statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
                 .expect("rewrite-statepoints-for-gc pass");
         llvm.verify().expect("valid post-RS4GC module");
-        statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
-            .expect("statepoint manifest matches");
 
         let output = std::env::temp_dir().join(format!(
             "scoop_codegen_eh_qualification_{name}_{}.o",

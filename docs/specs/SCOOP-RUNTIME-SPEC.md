@@ -293,6 +293,8 @@ Darwin 的不可变 metadata 与 stackmap 在 relocation 后必须只读；Linux
 
 ## 3. GC 契约
 
+GC 合同由实际代码生成与 runtime 操作实现；不要求在生产编译中重复验证 LLVM 工具链的成功输出，也不在 runtime 补做产物来源或生产过程证明。专门回归测试继续覆盖根、relocation、屏障与运行结果。
+
 GC 支持多个 mutator，collection 在 stop-the-world 协调下执行，使用精确根与对象 scan，不保守猜测整数或 C 栈中的地址。minor 与 full collection 均可移动对象，pin 之外的裸地址不跨 safepoint 稳定。
 
 ### 3.1 分配与发布

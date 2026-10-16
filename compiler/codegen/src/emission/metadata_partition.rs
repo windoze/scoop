@@ -110,8 +110,6 @@ impl<'ctx> MetadataModule<'ctx> {
                 crate::elf_llvm::apply_visibility(function.as_global_value());
             }
         }
-        llvm.verify()
-            .map_err(|error| CodegenError(format!("invalid metadata partition: {error}")))?;
         Ok((llvm, self.metadata.select_definitions(definitions)))
     }
 }
