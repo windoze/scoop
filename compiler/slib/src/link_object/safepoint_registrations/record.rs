@@ -4,8 +4,6 @@ use super::StrongSafepointRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
 pub(in crate::link_object) const ABI_VERSION: u32 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1;
-pub(super) const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 168;
-const DIGEST_WIDTH: usize = 32;
 pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 200;
 
 pub(super) fn validate_record_bytes(
@@ -55,17 +53,6 @@ pub(super) fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; D
     write_u32(&mut bytes, 128, plan.role().tag());
     write_u32(&mut bytes, 132, plan.root_pair_count());
     bytes[136..168].copy_from_slice(plan.owner().as_array());
-    bytes
-}
-
-pub(in crate::link_object) fn expected_final_record(
-    plan: StrongSafepointRegistrationPlanV1,
-    stackmap: &[u8; DIGEST_WIDTH],
-) -> [u8; DESCRIPTOR_SIZE] {
-    let mut bytes = expected_record(plan);
-    bytes[NORMALIZED_STACKMAP_FINGERPRINT_OFFSET
-        ..NORMALIZED_STACKMAP_FINGERPRINT_OFFSET + DIGEST_WIDTH]
-        .copy_from_slice(stackmap);
     bytes
 }
 

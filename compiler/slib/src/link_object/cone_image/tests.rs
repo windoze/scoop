@@ -15,8 +15,8 @@ use scoop_lir::{
     ObjectSymbolSurfaceV1, ProducerUnitPartitionV1, RegistrationIdentitySurfaceV1,
 };
 
-use super::finalization::patch_image_bytes_for_test;
-use super::record::{expected_final_image_record, expected_image_record};
+use super::finalization::write_runtime_image_digest;
+use super::record::expected_image_record;
 use super::*;
 use crate::link_object::generated_c_objects::tests::profile;
 use crate::link_object::{
@@ -185,7 +185,7 @@ fn verifies_a_nonempty_registration_table_and_strong_target() {
 }
 
 #[test]
-fn patches_only_the_verified_runtime_image_slot_and_rechecks_the_record() {
+fn patches_the_runtime_image_digest_slot() {
     let mut fixture = fixture(Corruption::None, false);
     let verified = verify_cone_image_v1(
         fixture.patch_sites,
@@ -197,29 +197,11 @@ fn patches_only_the_verified_runtime_image_slot_and_rechecks_the_record() {
     )
     .unwrap();
     let fingerprint = [0xa5; 32];
-    let expected = expected_final_image_record(&fixture.plan, &fingerprint);
 
-    patch_image_bytes_for_test(
-        &mut fixture.bytes,
-        verified.primary().checked_offset(),
-        verified.image_patch(),
-        &fingerprint,
-        &expected,
-    )
-    .unwrap();
+    write_runtime_image_digest(&mut fixture.bytes, verified.image_patch(), &fingerprint).unwrap();
 
     let start = usize::try_from(verified.image_patch().checked_offset()).unwrap();
     assert_eq!(&fixture.bytes[start..start + 32], &fingerprint);
-    assert!(matches!(
-        patch_image_bytes_for_test(
-            &mut fixture.bytes,
-            verified.primary().checked_offset(),
-            verified.image_patch(),
-            &fingerprint,
-            &expected,
-        ),
-        Err(RuntimeImagePatchError::NonZeroPatchSlot { offset: 0 })
-    ));
 }
 
 #[test]

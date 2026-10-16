@@ -17,16 +17,6 @@ pub(super) fn expected_root_entry_record(
     bytes
 }
 
-pub(super) fn expected_final_root_entry_record(
-    plan: &ExecutableEntryPlanV1,
-    gateway_definition: &[u8; 32],
-) -> [u8; ROOT_ENTRY_DESCRIPTOR_SIZE] {
-    let mut bytes = expected_root_entry_record(plan);
-    bytes[80..112].copy_from_slice(plan.source_signature_fingerprint().as_array());
-    bytes[144..176].copy_from_slice(gateway_definition);
-    bytes
-}
-
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }

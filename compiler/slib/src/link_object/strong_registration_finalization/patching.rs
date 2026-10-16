@@ -13,9 +13,6 @@ pub(super) fn patch_safepoints(
         .zip(fingerprints.fingerprints())
     {
         let owner = StrongRegistrationPatchOwnerV1::Safepoint(plan.site());
-        if verified.site() != plan.site() || verified.site() != computed.site() {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
-        }
         let index = object_indexes.get(&verified.member()).copied().ok_or(
             StrongRegistrationPatchError::MissingObject(verified.member()),
         )?;
@@ -27,8 +24,6 @@ pub(super) fn patch_safepoints(
             owner,
             StrongRegistrationPatchFieldV1::NormalizedStackmap,
         )?;
-
-        validate_final_safepoint(bytes, verified.checked_offset(), *plan, computed)?;
     }
     Ok(())
 }
@@ -46,9 +41,6 @@ pub(super) fn patch_callables(
         .zip(fingerprints.fingerprints())
     {
         let owner = StrongRegistrationPatchOwnerV1::Callable(plan.body());
-        if verified.body() != plan.body() || verified.body() != computed.body() {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
-        }
         let index = object_indexes.get(&verified.member()).copied().ok_or(
             StrongRegistrationPatchError::MissingObject(verified.member()),
         )?;
@@ -60,8 +52,6 @@ pub(super) fn patch_callables(
             owner,
             StrongRegistrationPatchFieldV1::CallableBodyDefinition,
         )?;
-
-        validate_final_callable(bytes, verified.checked_offset(), *plan, computed)?;
     }
     Ok(())
 }
@@ -83,11 +73,6 @@ where
         .zip(fingerprints.fingerprints())
     {
         let owner = StrongRegistrationPatchOwnerV1::Type(plan.exact_type());
-        if verified.exact_type() != plan.exact_type()
-            || verified.exact_type() != computed.exact_type()
-        {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
-        }
         let index = object_indexes.get(&verified.member()).copied().ok_or(
             StrongRegistrationPatchError::MissingObject(verified.member()),
         )?;
@@ -106,34 +91,6 @@ where
             owner,
             StrongRegistrationPatchFieldV1::Layout,
         )?;
-
-        validate_final_type(bytes, verified.checked_offset(), plan, computed)?;
-    }
-    Ok(())
-}
-
-pub(super) fn patch_immortal_objects(
-    fingerprints: &VerifiedStrongImmortalObjectFingerprintSetV1,
-    object_indexes: &BTreeMap<SlibMemberId, usize>,
-    objects: &mut [(SlibMemberId, Vec<u8>)],
-) -> Result<(), StrongRegistrationPatchError> {
-    let registrations = fingerprints.registrations();
-    for ((verified, plan), computed) in registrations
-        .registrations()
-        .iter()
-        .zip(registrations.plan().registrations())
-        .zip(fingerprints.fingerprints())
-    {
-        let owner = StrongRegistrationPatchOwnerV1::ImmortalObject(plan.object());
-        if verified.object() != plan.object() || verified.object() != computed.object() {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
-        }
-        let index = object_indexes.get(&verified.member()).copied().ok_or(
-            StrongRegistrationPatchError::MissingObject(verified.member()),
-        )?;
-        let bytes = &mut objects[index].1;
-
-        validate_final_immortal_object(bytes, verified.checked_offset(), *plan)?;
     }
     Ok(())
 }
@@ -151,11 +108,6 @@ pub(super) fn patch_static_storages(
         .zip(fingerprints.fingerprints())
     {
         let owner = StrongRegistrationPatchOwnerV1::StaticStorage(plan.semantic().storage());
-        if verified.storage() != plan.semantic().storage()
-            || verified.storage() != computed.storage()
-        {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
-        }
         let index = object_indexes.get(&verified.member()).copied().ok_or(
             StrongRegistrationPatchError::MissingObject(verified.member()),
         )?;
@@ -174,8 +126,6 @@ pub(super) fn patch_static_storages(
             owner,
             StrongRegistrationPatchFieldV1::Layout,
         )?;
-
-        validate_final_static_storage(bytes, verified, plan, computed)?;
     }
     Ok(())
 }
@@ -193,17 +143,15 @@ pub(super) fn patch_initializations<I>(
         .zip(fingerprints.fingerprints())
     {
         let owner = StrongRegistrationPatchOwnerV1::InitializationUnit(plan.semantic().unit());
-        if verified.unit() != plan.semantic().unit() || verified.unit() != computed.unit() {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
-        }
         let index = object_indexes.get(&verified.member()).copied().ok_or(
             StrongRegistrationPatchError::MissingObject(verified.member()),
         )?;
         let bytes = &mut objects[index].1;
 
-        let gateway_patch = verified.gateway_definition_patch();
-        let gateway_definition = computed.gateway_definition();
-        if let (Some(patch), Some(digest)) = (gateway_patch, gateway_definition) {
+        if let Some(patch) = verified.gateway_definition_patch() {
+            let digest = computed.gateway_definition().ok_or(
+                StrongRegistrationPatchError::MissingGatewayDigest(plan.semantic().unit()),
+            )?;
             write_digest(
                 bytes,
                 patch,
@@ -211,10 +159,7 @@ pub(super) fn patch_initializations<I>(
                 owner,
                 StrongRegistrationPatchFieldV1::GatewayDefinition,
             )?;
-        } else if gateway_patch.is_some() || gateway_definition.is_some() {
-            return Err(StrongRegistrationPatchError::ProofOwnerMismatch { owner });
         }
-        validate_final_initialization(bytes, verified.checked_offset(), plan, computed)?;
     }
     Ok(())
 }
@@ -252,13 +197,6 @@ pub(super) fn write_digest(
     let slot = object
         .get_mut(start..end)
         .ok_or(StrongRegistrationPatchError::PatchRange { owner, field })?;
-    if let Some(offset) = slot.iter().position(|byte| *byte != 0) {
-        return Err(StrongRegistrationPatchError::NonZeroPatchSlot {
-            owner,
-            field,
-            offset: u8::try_from(offset).expect("digest width fits u8"),
-        });
-    }
     slot.copy_from_slice(digest);
     Ok(())
 }

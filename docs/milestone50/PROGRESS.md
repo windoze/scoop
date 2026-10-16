@@ -13,8 +13,9 @@
 7. 自产机器对象：删除 codegen 完整机器对象／frame chain／stackmap／LSDA 验证器及独占破坏测试；优化后按实际 invoke 保留 EH atom，删除独立 EH manifest 和仅用于验证的 target 字段。终结调用去重等回归直接断言机器 stackmap 数量。
 8. 发布入口：删除无生产调用的旧 single-Cone 资格流水线；C bridge 改为实际成员数据读取，删除 profile/template/flags/unit 和 SDK/tool 版本凭证比对。Code 目录直接投影已生成的 member records，production 投影不深比较计划副本；同步删除独占错误、测试和历史资格要求。
 9. Stackmap：以实际符号地址与 LLVM instruction offset 计算返回地址，删除 slib 的第二套 AArch64／x86-64 指令和 frame chain 扫描、member/function/site 覆盖证明及其独占测试；移除两个反汇编依赖。保留实际 section／relocation 读取、根记录归一化和未知引用诊断。
-10. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
-11. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+10. Digest 回填：删除六类 registration 结果深比较、coverage 重数、回填后完整记录重建和字节比较；RuntimeImage／root entry 同步清理。仅按实际槽位写入并检查范围，复用对象结构、更新内容摘要。
+11. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
+12. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -35,3 +36,5 @@ Native 对象批次：格式化、workspace clippy 通过，release linker 3 项
 发布入口批次：格式化、workspace clippy 无警告，release slib 334 项全部通过。配套 release CLI 重建后，C ABI、Scoop ABI、回调重入和 native storage 4 项／8 变体／40 进程通过，保留 8 个专门链接 plan golden。
 
 Stackmap 批次：格式化、workspace clippy 无警告；release slib link_object 定向 215 项通过，包含实际返回地址、根记录与后续指纹回填。
+
+Digest 回填批次：格式化、workspace clippy 无警告，release slib link_object 215 项通过；实际各槽位内容及非槽位字节保持的回归继续通过。

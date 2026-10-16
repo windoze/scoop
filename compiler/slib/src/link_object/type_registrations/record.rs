@@ -53,17 +53,6 @@ pub(super) fn expected_record<D: Copy, C>(
     bytes
 }
 
-pub(in crate::link_object) fn expected_final_record<D: Copy, C>(
-    plan: &StrongTypeRegistrationPlan<D, C>,
-    descriptor_definition: &[u8; 32],
-    layout: &[u8; 32],
-) -> [u8; DESCRIPTOR_SIZE] {
-    let mut bytes = expected_record(plan);
-    bytes[144..176].copy_from_slice(descriptor_definition);
-    bytes[176..208].copy_from_slice(layout);
-    bytes
-}
-
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }

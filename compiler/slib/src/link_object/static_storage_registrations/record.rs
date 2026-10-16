@@ -83,19 +83,6 @@ pub(super) fn expected_record(
     bytes
 }
 
-pub(in crate::link_object) fn expected_final_record(
-    plan: &StrongStaticStorageRegistrationPlanV1,
-    template_addend: u64,
-    relocation_table_addend: u64,
-    scan: &[u8; 32],
-    layout: &[u8; 32],
-) -> [u8; DESCRIPTOR_SIZE] {
-    let mut bytes = expected_record(plan, template_addend, relocation_table_addend);
-    bytes[168..200].copy_from_slice(scan);
-    bytes[200..232].copy_from_slice(layout);
-    bytes
-}
-
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }

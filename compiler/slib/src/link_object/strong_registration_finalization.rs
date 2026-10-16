@@ -6,10 +6,7 @@ use scoop_identity::{
     PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
 };
 
-use super::initialization_registrations::record::expected_final_record as expected_final_initialization_record;
-use super::safepoint_registrations::physical::{validate_objects, verified_member};
-use super::safepoint_registrations::record::expected_final_record as expected_final_safepoint_record;
-use super::static_storage_registrations::record::expected_final_record as expected_final_static_storage_record;
+use super::safepoint_registrations::physical::verified_member;
 use super::{StrongSafepointRegistrationValidationError, VerifiedStrongSafepointFingerprintSetV1};
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -17,20 +14,13 @@ use crate::link_object::{
     VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
     VerifiedStrongInitializationFingerprintSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
     VerifiedStrongTypeFingerprintSetV1,
-    callable_registrations::record::expected_final_record as expected_final_callable_record,
-    immortal_registrations::record::expected_final_record as expected_final_immortal_object_record,
-    type_registrations::record::expected_final_record as expected_final_type_record,
 };
 
-mod coverage;
 mod patching;
-mod records;
 
-use coverage::validate_proof_coverage;
 #[cfg(test)]
 pub(in crate::link_object) use patching::patch_initializations_for_test;
 use patching::*;
-use records::*;
 
 const DIGEST_WIDTH: usize = 32;
 
@@ -171,33 +161,7 @@ where
     D: scoop_lir::StrongDescriptorReference,
     C: Clone,
 {
-    let safepoint_registrations = safepoints.registrations();
-    let callable_body_objects = callables.body_objects();
-    let callable_registrations = callable_body_objects.registrations();
-    let type_registrations = types.registrations();
-    let immortal_registrations = immortal_objects.registrations();
-    let static_storage_registrations = static_storages.shapes().registrations();
-    let initialization_registrations = initializations.registrations();
-    if safepoint_registrations.patch_sites() != callable_registrations.patch_sites()
-        || safepoint_registrations.patch_sites() != type_registrations.patch_sites()
-        || safepoint_registrations.patch_sites() != immortal_registrations.patch_sites()
-        || safepoint_registrations.patch_sites() != static_storage_registrations.patch_sites()
-        || safepoint_registrations.patch_sites() != initialization_registrations.patch_sites()
-        || safepoint_registrations.stackmaps() != callable_body_objects.stackmaps()
-    {
-        return Err(StrongRegistrationPatchError::ProofMismatch);
-    }
-    let builtins = safepoint_registrations.stackmaps().builtins();
-    validate_objects(builtins, scoop_objects)
-        .map_err(StrongRegistrationPatchError::ObjectValidation)?;
-    validate_proof_coverage(
-        &safepoints,
-        &callables,
-        &types,
-        &immortal_objects,
-        &static_storages,
-        &initializations,
-    )?;
+    let builtins = safepoints.registrations().patch_sites().builtins();
 
     let mut objects = scoop_objects
         .iter()
@@ -212,7 +176,6 @@ where
     patch_safepoints(&safepoints, &object_indexes, &mut objects)?;
     patch_callables(&callables, &object_indexes, &mut objects)?;
     patch_types(&types, &object_indexes, &mut objects)?;
-    patch_immortal_objects(&immortal_objects, &object_indexes, &mut objects)?;
     patch_static_storages(&static_storages, &object_indexes, &mut objects)?;
     patch_initializations(&initializations, &object_indexes, &mut objects)?;
 
@@ -264,28 +227,12 @@ pub enum StrongRegistrationPatchFieldV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongRegistrationPatchError {
-    ProofMismatch,
     ObjectValidation(StrongSafepointRegistrationValidationError),
-    ProofCoverageMismatch,
-    ProofOwnerMismatch {
-        owner: StrongRegistrationPatchOwnerV1,
-    },
     MissingObject(SlibMemberId),
+    MissingGatewayDigest(PersistentInitializationUnitId),
     PatchRange {
         owner: StrongRegistrationPatchOwnerV1,
         field: StrongRegistrationPatchFieldV1,
-    },
-    NonZeroPatchSlot {
-        owner: StrongRegistrationPatchOwnerV1,
-        field: StrongRegistrationPatchFieldV1,
-        offset: u8,
-    },
-    RecordRange(StrongRegistrationPatchOwnerV1),
-    FinalRecordMismatch {
-        owner: StrongRegistrationPatchOwnerV1,
-        offset: u16,
-        expected: u8,
-        actual: u8,
     },
 }
 

@@ -4,8 +4,6 @@ use super::{InitializationArtifactRoleV1, StrongInitializationRegistrationValida
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
 pub(in crate::link_object) const ABI_VERSION: u32 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1;
-const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: usize = 280;
-const DIGEST_WIDTH: usize = 32;
 pub(super) const CELL_SIZE: usize = 16;
 pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 320;
 
@@ -96,19 +94,6 @@ pub(super) fn expected_record<D>(
     bytes[200..232].copy_from_slice(semantic.ensure().as_array());
     if let Some(gateway) = semantic.schedule().gateway() {
         bytes[248..280].copy_from_slice(gateway.as_array());
-    }
-    bytes
-}
-
-pub(in crate::link_object) fn expected_final_record<D>(
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-    gateway_definition: Option<&[u8; DIGEST_WIDTH]>,
-) -> [u8; DESCRIPTOR_SIZE] {
-    let mut bytes = expected_record(plan);
-    if let Some(gateway) = gateway_definition {
-        bytes[GATEWAY_DEFINITION_FINGERPRINT_OFFSET
-            ..GATEWAY_DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
-            .copy_from_slice(gateway);
     }
     bytes
 }

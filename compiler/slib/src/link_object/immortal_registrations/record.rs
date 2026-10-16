@@ -60,12 +60,6 @@ pub(super) fn expected_record(
     bytes
 }
 
-pub(in crate::link_object) fn expected_final_record(
-    plan: StrongImmortalObjectRegistrationPlanV1,
-) -> [u8; DESCRIPTOR_SIZE] {
-    expected_record(plan)
-}
-
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }

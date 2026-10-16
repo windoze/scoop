@@ -2187,26 +2187,14 @@ fingerprint；body Primary指向top-level scan的Page/GOT/Unsigned relocation也
 member、section ordinal、symbol table index与raw symbol spelling均不进入hash；未命中已计划associated atom的
 local/section-base target仍直接拒绝，不能退回hash物理索引。
 
-`compute_strong_safepoint_fingerprints_v1`只能消费上述完整proof与同一member全集的exact object bytes；
-入口先再次核对每个member的长度与content digest，再按site一次性产生typed
-`ObjectDefinitionFingerprintV1`、既有`StackmapRecordFingerprintV1`和
-`StrongRegistrationFingerprintV1`。输出继续拥有输入proof，后续patch writer不能从三份互不关联的
-digest或裸bytes重新拼装写入计划。
+`compute_strong_safepoint_fingerprints_v1` 使用实际归一化 stackmap 与 registration 计划计算后续所需摘要。
+`patch_strong_registration_fingerprints_v1/v2` 按已物化的槽位回填 safepoint normalized-stackmap、
+callable body-definition、type descriptor-definition/layout、static storage scan/layout 和 eager
+initialization gateway-definition。immortal registration 无需 digest 写入。
 
-`patch_strong_registration_fingerprints_v1`是当前已实现strong registration slot的唯一writer入口，必须
-同时消费完整safepoint、callable、type、immortal-object、static-storage与initialization fingerprint proof；旧的较少参数公开
-patch入口不存在。六份proof必须拥有逐项相等的完整patch-site proof，且safepoint/callable共享同一stackmap proof，从而绑定
-同一built-in object closure和digest graph。
-入口再次匹配provisional content digest的完整Scoop object member集合，先复制bytes，再只按proof中的
-`VerifiedMaterializedPatchSiteV1`写入：safepoint的normalized-stackmap/registration digest，以及callable的
-body-definition/registration digest、type的descriptor-definition/layout/registration digest与immortal-object
-的registration digest、static storage的scan/layout/registration digest，以及initialization的registration digest
-和Eager专属gateway-definition镜像；不暴露接受
-裸member、offset或digest的公共写函数。写后分别逐record重建最终232-byte safepoint、192-byte callable与
-240-byte type、184-byte immortal-object、296-byte static-storage与352-byte initialization ABI并比较，同时把全部已写slot归零后要求member
-长度/content digest精确回到provisional envelope，再重新解析Mach-O并要求section、symbol、relocation及
-deployment形状逐项未变。输出拥有六份fingerprint proof和final object副本，明确仍是当前registration
-覆盖面的typed中间proof，不冒充完成其余registration kind与整个digest graph后的`VerifiedLinkObjectMember`。
+writer 保留本次写入的范围检查，复用已解析对象结构并更新内容摘要。不比较前置结果副本、重数覆盖、
+重建完整最终 registration 字节或重复检查已处理的零槽状态；不清零整包回放或重新解析对象。
+RuntimeImage 与 executable entry 回填同样直接使用实际计划、摘要和槽位，不增加完成资格链。
 
 ### 13.3 registration完备性
 
@@ -2214,7 +2202,7 @@ deployment形状逐项未变。输出拥有六份fingerprint proof和final objec
 - 每个只读immortal object恰一条immortal registration并引用当前/允许external type registration；
 - 每个M21 initialization unit恰一条init registration，cell/storage/failure root/initializer/ensure及Eager gateway完整；
 - 每个runtime-materialized exact type恰一条type registration，TD/runtime type/layout/descriptor fingerprint一致；
-- 每个LIR safepoint site恰一条safepoint registration并由normalized LLVM v3 record反证；
+- 每个LIR safepoint site恰一条safepoint registration并使用实际 normalized LLVM v3 record；
 - 每个`RegisteredCallableBody`恰一条callable registration，即使没有safepoint；native extern/runtime函数不因有地址而混入；
 - root gateway、initialization startup gateway和compiler adapter只要是Scoop machine body，同样登记callable/safepoint；
 - 所有record由实际producer member拥有；普通external reference不在consumer image重复登记。
