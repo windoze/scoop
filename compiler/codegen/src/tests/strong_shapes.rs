@@ -111,7 +111,7 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
             assert_eq!(
                 global.unwrap().get_alignment(),
                 8,
-                "layout definition `{symbol}` must carry its verifier-required alignment"
+                "layout definition `{symbol}` must carry its ABI alignment"
             );
         }
         for boundary in plan.atom_boundaries() {

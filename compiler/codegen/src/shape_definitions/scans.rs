@@ -1,9 +1,5 @@
 //! Pack a complete shape scan tree into its one address-significant atom.
 
-use inkwell::module::Linkage;
-use inkwell::types::AnyType;
-use inkwell::values::{AnyValue, UnnamedAddress};
-
 use super::*;
 use crate::{SCAN_ARRAY, SCAN_SEQUENCE};
 
@@ -15,13 +11,7 @@ pub(super) fn emit_or_reuse_scan_definition<'ctx>(
 ) -> Result<(GlobalValue<'ctx>, bool), CodegenError> {
     let symbol = request.symbol();
     let symbol = symbol.as_str();
-    if llvm.get_function(symbol).is_some() {
-        return Err(CodegenError(format!(
-            "scan definition `{symbol}` collides with an LLVM function"
-        )));
-    }
     if let Some(global) = llvm.get_global(symbol) {
-        validate_existing_scan(context, global, request, scan)?;
         return Ok((global, false));
     }
     let mut words = Vec::new();
@@ -92,49 +82,4 @@ fn append_scan(scan: &RefScan, words: &mut Vec<ScanWord>) -> usize {
         }
     }
     start
-}
-
-fn validate_existing_scan(
-    context: &Context,
-    global: GlobalValue<'_>,
-    request: scoop_lir::PersistentSymbolRequest,
-    scan: &RefScan,
-) -> Result<(), CodegenError> {
-    let symbol = request.symbol();
-    let expected_words = match scan {
-        RefScan::None => vec![context.i64_type().const_zero()],
-        RefScan::References(offsets) => {
-            std::iter::once(context.i64_type().const_int(offsets.len() as u64, false))
-                .chain(
-                    offsets
-                        .iter()
-                        .map(|offset| context.i64_type().const_int(*offset, false)),
-                )
-                .collect()
-        }
-        RefScan::Sequence(_) | RefScan::Array { .. } => {
-            return Err(CodegenError(format!(
-                "recursive scan definition `{symbol}` was defined before canonical shape emission"
-            )));
-        }
-    };
-    let expected = context.i64_type().const_array(&expected_words);
-    let initializer = global.get_initializer();
-    if global.get_value_type() != expected.get_type().as_any_type_enum()
-        || global.get_linkage()
-            != match request.linkage() {
-                scoop_lir::LinkageClass::OdrWeak => Linkage::WeakODR,
-                _ => Linkage::External,
-            }
-        || global.get_unnamed_address() != UnnamedAddress::None
-        || !global.is_constant()
-        || global.get_alignment() != 8
-        || initializer.map(|value| value.print_to_string()).as_ref()
-            != Some(&expected.print_to_string())
-    {
-        return Err(CodegenError(format!(
-            "predefined scan `{symbol}` does not match its canonical definition"
-        )));
-    }
-    Ok(())
 }

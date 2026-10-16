@@ -254,13 +254,6 @@ pub(super) fn emit_function<'ctx>(
         | scoop_lir::AbiReturn::Direct(_) => None,
     };
     let (unwind_root_sources, compiler_unwind_blocks) = compiler_unwind_plan(function);
-    if runtime_scan_plan.body() != function.callable_body.id() {
-        return Err(CodegenError(format!(
-            "runtime scan plan {} does not belong to callable {}",
-            runtime_scan_plan.body(),
-            function.callable_body.id()
-        )));
-    }
     let mut runtime_scans = crate::callable_runtime_scans::CallableRuntimeScanEmitter::new(
         context,
         llvm,

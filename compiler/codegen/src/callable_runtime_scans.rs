@@ -82,7 +82,7 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
                 ]
             }
         };
-        self.emit_planned_atom(scan, i64.const_array(&words).into())
+        self.emit_planned_atom(i64.const_array(&words).into())
             .map(Some)
     }
 
@@ -113,7 +113,6 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
 
     fn emit_planned_atom(
         &mut self,
-        scan: &RefScan,
         value: BasicValueEnum<'ctx>,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         let planned = self.plan.atoms().get(self.next).ok_or_else(|| {
@@ -122,34 +121,14 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
                 self.plan.body()
             ))
         })?;
-        if planned.scan() != scan {
-            return Err(CodegenError(format!(
-                "callable {} runtime scan atom {} diverges from its closed LIR plan",
-                self.plan.body(),
-                planned.atom()
-            )));
-        }
         let boundary = self.surface.atom_boundary(planned.atom()).ok_or_else(|| {
             CodegenError(format!(
                 "callable runtime scan atom {} has no strong boundary plan",
                 planned.atom()
             ))
         })?;
-        if boundary.atom_role() != scoop_lir::DefinitionAtomRole::RuntimeRecord {
-            return Err(CodegenError(format!(
-                "callable runtime scan atom {} has role {:?}",
-                planned.atom(),
-                boundary.atom_role()
-            )));
-        }
         let symbol = boundary.start().symbol();
         let name = symbol.as_str();
-        if self.llvm.get_global(name).is_some() || self.llvm.get_function(name).is_some() {
-            return Err(CodegenError(format!(
-                "callable runtime scan symbol `{}` collides with an LLVM value",
-                name
-            )));
-        }
         let global: GlobalValue<'ctx> = self.llvm.add_global(value.get_type(), None, name);
         global.set_constant(true);
         crate::emission::apply_persistent_linkage(&global, boundary.start(), true)?;
@@ -161,14 +140,6 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
     }
 
     pub(crate) fn finish(&mut self) -> Result<(), CodegenError> {
-        if self.next != self.plan.atoms().len() {
-            return Err(CodegenError(format!(
-                "callable {} emitted {} runtime scan atoms, but its closed LIR plan requires {}",
-                self.plan.body(),
-                self.next,
-                self.plan.atoms().len()
-            )));
-        }
         emit_global_atom_boundaries_v1(
             self.llvm,
             self.surface,
