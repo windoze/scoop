@@ -103,4 +103,6 @@ GNU／musl 的 platform 全库三模式均为一百零六项通过；musl 定向
 
 driver 的十九项布局产物测试共用旧描述符分类，只将 closure 视为本地生成类型，误要求新增 core 协程的 frame／恢复适配器进入公开布局表。按实际 GeneratedNominalKey 修正测试分类，保留导出与 ABI 断言；描述符检查拆入 141 行子模块，原文件 168 行。本机格式化、workspace clippy 及独立／组合 alias 回归通过，Linux 该组补验继续执行。生产实现与规范合同不变。
 
-上述十九项 Linux 补验全部通过。有限类型测试另有一项只从源码类型表查找协程槽位字段身份；改为同时使用已有 context／frame 的生成类型身份，继续逐字段精确比较，没有增加生产 API。本机格式化、workspace clippy 和该组两项测试通过，Linux 进行对应补验。
+上述十九项 Linux 补验全部通过。有限类型测试另有一项只从源码类型表查找协程槽位字段身份；改为同时使用已有 context／frame 的生成类型身份，继续逐字段精确比较，没有增加生产 API。本机与 Linux 的格式化、workspace clippy 和该组两项测试通过。
+
+真实 core 的缺失 metadata 负例还保留了旧错误顺序：删除槽位／装箱记录后，新协程会先在 saved value／slot 的实际引用处拒绝。更新这一项测试的精确错误位置类别和原因，不改变生产检查。本机格式化、workspace clippy 与单项补验通过，Linux 补验随后核对 driver 全部八十三项覆盖。

@@ -81,23 +81,22 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
     let error = invalid_module(|module| module.meta.coroutine_slots.clear());
     assert!(matches!(
         error.location,
-        scoop_mir::MirValidationLocation::GeneratedExactType { .. }
+        scoop_mir::MirValidationLocation::CoroutineSavedValue { .. }
     ));
     assert_eq!(
         error.kind,
-        scoop_mir::MirValidationErrorKind::InvalidGeneratedExactType {
-            reason: "the exact-type relation contains an unclaimed generated nominal",
+        scoop_mir::MirValidationErrorKind::InvalidCoroutineMetadata {
+            reason: "saved field is not the exact CoroutineSlot<T> named by its metadata",
         }
     );
     let error = invalid_module(|module| module.meta.boxed_types.clear());
+    assert!(matches!(
+        error.location,
+        scoop_mir::MirValidationLocation::CoroutineSlot { .. }
+    ));
     assert_eq!(
-        *error,
-        scoop_mir::MirValidationError {
-            location: scoop_mir::MirValidationLocation::BoxingAdjust { adjust: 0 },
-            kind: scoop_mir::MirValidationErrorKind::InvalidBoxingAdjust {
-                reason: "the boxing adjust class is not a materialized value box",
-            },
-        }
+        error.kind,
+        scoop_mir::MirValidationErrorKind::InvalidCoroutineSlot
     );
 }
 
