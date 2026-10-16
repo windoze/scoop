@@ -34,7 +34,7 @@ HTTP、DTLS、QUIC、连接池、Happy Eyeballs、代理、自动重连、TLS �
 
 依据见 [core 同步数据借用](../../sysroot/lib/scoop.core/src/data_borrow.scoop)、[Base64 声明](../../sysroot/lib/scoop.std/src/io/encoding/base64.scoop)、[JSON Cone](../../sysroot/lib/scoop.json/Cone.toml)、[M49 验收](../milestone49/ACCEPTANCE.md)、[EventLoop 声明](../../sysroot/lib/scoop.asyncio/src/event_loop.scoop)、[异步流声明](../../sysroot/lib/scoop.asyncio/src/streams.scoop)与[跨挂起借用](../../sysroot/lib/scoop.platform/src/memory/native_byte_borrow.scoop)。M49 已有外部消费者验证公开泛型、资源辅助函数与真实 native I/O；无需将这些基础能力重新列为 TLS 的待实现项目。
 
-当前未验证 OpenSSL 经 Scoop 的完整三目标构建、链接和 TLS 互操作。M51 的第一步必须执行这条实际路径。M50 的 COMMON、native 输入及 runtime 清理在调研时仍有目标验证待完成，见 [M50 进度](../milestone50/PROGRESS.md)；M51 记录自己实际使用的提交和结果，不继承一个未经复测的“全通过”结论。
+三目标 OpenSSL 构建、链接与最小握手已通过实际 Scoop CLI 验证，见 [M51 进度](PROGRESS.md)；完整库功能及互操作仍按各批次验收。基线使用 M50 合并后的 `8dad7d42e`，不继承历史结果作为本期通过记录。
 
 若合法的 FFI、Cone 或普通 native 链接暴露底层缺陷，先在所属层建立最小复现，按需修订对应 spec、修复并回归，再继续受影响的 TLS 工作。不能通过访问私有状态、复制一套 buffer／任务实现或修改上游协议行为绕过缺陷。
 
@@ -102,7 +102,7 @@ vendor 包含固定版本的上游源码、许可证和必要的构建说明；�
 2. crypto 和 TLS 的 shim include 输入明确指向上述当前目标的 include 目录；crypto 只声明 `crypto` 静态库需求，TLS 声明 `ssl` 并消费 crypto 的传递依赖，异步适配不重复声明另一套后端。需求通过 native.libraries 记录，最终链接使用指向同一目标 lib 目录的现有显式 library roots。只使用 crypto 的程序不要求 libssl；目标、头文件与库来自同一份实际构建。
 3. 目标包必须同时提供这些头文件、archive 和普通路径配置；musl 消费者不需自行寻找或编译另一份 OpenSSL。生产 `.slib` 含 shim 对象及逻辑 native 库需求，不假定 `native.libraries` 会自动把整个第三方 archive 嵌入 `.slib`；native 目标资源是完整交付的一部分。
 4. 源码构建先通过普通依赖准备命令生成所选目标的 OpenSSL 产物；使用发行包时直接消费随包产物。必要输入未准备时报缺失输入并指明准备步骤，不以宿主库或系统 OpenSSL 搜索结果替代。依赖准备不在每次应用构建中重新下载、配置或编译未变化的源码。
-5. include 配置如何传入现有 Cone 构建、目标资源如何随包安装，以及具体准备命令，在 M51-1 通过真实构建后定稿；vendor 与目标包自带库是已确定的交付要求。路径均是现有工具接受的实际路径，不假设 manifest 已支持目标变量插值或任意构建脚本；如发现普通构建能力缺口，按第 2 节处理，不扩展为通用依赖插件系统。
+5. `scripts/build_openssl.py --target <triple>` 调用上游构建并安装上述目标资源；生成头文件通过普通 `native.include` 条件路径表选择，最终命令传入该目标 lib 目录作为 `--library-path`。发行包包含同一目标目录；不使用目标变量插值或任意构建脚本入口。musl 工具链需要其 libc 开发头和隔离的 Linux UAPI 头目录，具体包装方式见 vendor README。
 6. libc、线程库等系统依赖按所选目标的真实构建声明，与自带 OpenSSL 的选择分开。构造／析构、COMMON、native 线程局部存储与 archive 选择交给现有工具链。缓存继续只判断输入更新，不增加产物复核、来源审计或 OpenSSL 专属链接白名单。
 
 最小验证分别包含仅依赖 libcrypto 的摘要／签名运行，以及 libssl 上下文／连接创建和一轮客户端／服务端握手。仅编译头文件、生成 `.slib` 或成功调用版本函数不足以证明接入可用。普通源码、工具和原产物始终保留；外部消费者测试不通过删除或隐藏输入来验收复用。
