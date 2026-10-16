@@ -82,8 +82,7 @@ pub(super) fn prepare(
     search.extend(roots.system.clone());
     search.extend(
         config
-            .include()
-            .iter()
+            .include_paths(target)
             .map(|p| roots.cone.join(p.as_path())),
     );
     for language in &languages {
@@ -120,7 +119,7 @@ pub(super) fn prepare(
                 target_facts.env.to_ascii_uppercase()
             ),
         ]);
-        command::configure_preprocessor(&mut command, config, *language, &roots.cone);
+        command::configure_preprocessor(&mut command, config, target, *language, &roots.cone);
         command
             .current_dir(&roots.cone)
             .arg("-I")
@@ -172,18 +171,21 @@ pub(super) fn prepare(
         ));
     }
     if languages.contains(&NativeSourceLanguage::C) {
-        result.flags = flags(config, NativeSourceLanguage::C);
+        result.flags = flags(config, target, NativeSourceLanguage::C);
     }
     if languages.contains(&NativeSourceLanguage::Cxx) {
-        result.cxx_flags = flags(config, NativeSourceLanguage::Cxx);
+        result.cxx_flags = flags(config, target, NativeSourceLanguage::Cxx);
     }
     Ok(result)
 }
 
-fn flags(config: &NativeConfig, language: NativeSourceLanguage) -> Vec<String> {
+fn flags(
+    config: &NativeConfig,
+    target: TargetProfileId,
+    language: NativeSourceLanguage,
+) -> Vec<String> {
     config
-        .include()
-        .iter()
+        .include_paths(target)
         .flat_map(|path| ["-I".to_owned(), path.to_string_lossy().into_owned()])
         .chain(config.flags(language).iter().flat_map(|flag| match flag {
             NativeCompileFlag::Argument(argument) => vec![argument.clone()],

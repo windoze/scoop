@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use scoop_lir::OptimizationMode;
+use scoop_lir::{OptimizationMode, TargetProfileId};
 use scoop_manifest::{NativeCompileFlag, NativeConfig, NativeSourceLanguage};
 use scoop_process::CommandExt;
 
@@ -30,10 +30,11 @@ pub(super) fn base(
 pub(super) fn configure_preprocessor(
     command: &mut Command,
     config: &NativeConfig,
+    target: TargetProfileId,
     language: NativeSourceLanguage,
     root: &Path,
 ) {
-    for include in config.include() {
+    for include in config.include_paths(target) {
         command.arg("-I").arg(root.join(include.as_path()));
     }
     for flag in config.flags(language) {

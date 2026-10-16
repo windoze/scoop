@@ -35,10 +35,13 @@ pub(super) fn configuration(
         .map(scoop_wire::encode)
         .collect::<Result<Vec<_>, _>>()
         .map_err(error)?;
-    let directories: Vec<_> = config
-        .include()
-        .iter()
+    let include: Vec<_> = config
+        .include_paths(target.id())
         .filter(|_| !sources.is_empty())
+        .collect();
+    let directories: Vec<_> = include
+        .iter()
+        .copied()
         .chain(
             flags(NativeSourceLanguage::C)
                 .iter()
@@ -62,11 +65,7 @@ pub(super) fn configuration(
         HostPathCarrier::from_path(manifest.real_root()).map_err(error)?,
         &sources,
         directories,
-        if sources.is_empty() {
-            &[]
-        } else {
-            config.include()
-        },
+        include,
         flags(NativeSourceLanguage::C),
         flags(NativeSourceLanguage::Cxx),
         compiler.cxx_fingerprint().map(|fp| *fp.as_array()),

@@ -49,7 +49,7 @@ impl ArtifactCacheRoot {
             catalog,
         ))
         .map_err(|error| record_error(source_path, ManifestRootIoOperation::Write, error.into()))?;
-        let directory = self.as_path().join("manifests-v2");
+        let directory = self.as_path().join("manifests-v3");
         let name = sha256(&input).to_string();
         let record_path = directory.join(format!("{name}.json"));
         if let Some((source, parsed)) = read_record(&record_path)? {

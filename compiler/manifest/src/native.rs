@@ -1,9 +1,11 @@
 //! Native source configuration; filesystem checks follow target selection.
 
 use crate::ConditionalSourcePath;
+use scoop_identity::TargetProfileId;
 use std::path::PathBuf;
 
 mod flags;
+mod include;
 mod language;
 mod libraries;
 mod parse;
@@ -16,7 +18,7 @@ pub(crate) use parse::RawNativeConfig;
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NativeConfig {
     sources: Vec<ConditionalSourcePath>,
-    include: Vec<PathBuf>,
+    include: Vec<include::ConditionalInclude>,
     c_flags: Vec<NativeCompileFlag>,
     cxx_flags: Vec<NativeCompileFlag>,
     cxx: bool,
@@ -28,8 +30,11 @@ impl NativeConfig {
         &self.sources
     }
 
-    pub fn include(&self) -> &[PathBuf] {
-        &self.include
+    pub fn include_paths(&self, target: TargetProfileId) -> impl Iterator<Item = &PathBuf> {
+        self.include
+            .iter()
+            .filter(move |entry| entry.predicate.matches(target))
+            .map(|entry| &entry.path)
     }
 
     pub fn c_flags(&self) -> &[NativeCompileFlag] {

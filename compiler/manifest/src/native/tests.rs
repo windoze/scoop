@@ -12,7 +12,15 @@ fn native_sources_do_not_change_the_default_scoop_source_set() {
     let parsed = parse_cone_manifest(&source).unwrap();
     assert_eq!(parsed.semantic().sources(), &SourceSelection::Default);
     let native = parsed.semantic().native();
-    assert_eq!(native.include()[0].to_str().unwrap(), "native/include");
+    assert_eq!(
+        native
+            .include_paths(scoop_target_data::DARWIN_AARCH64_ID)
+            .next()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "native/include"
+    );
     assert_eq!(native.sources()[0].path().as_str(), "native/file.c");
     assert!(
         native.sources()[0]
@@ -179,8 +187,11 @@ fn native_header_paths_follow_normal_filesystem_resolution() {
     let parsed = parse_cone_manifest(&source).unwrap();
     let native = parsed.semantic().native();
     assert_eq!(
-        native.include(),
-        &[
+        native
+            .include_paths(scoop_target_data::DARWIN_AARCH64_ID)
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![
             PathBuf::from("../shared"),
             PathBuf::from("/sdk/include"),
             PathBuf::from("link/../headers")
