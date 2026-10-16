@@ -2,6 +2,7 @@ use super::*;
 
 mod parents;
 mod primitives;
+mod relationships;
 
 #[derive(Clone, Copy)]
 pub enum StaticNominalOrigin {
@@ -142,6 +143,9 @@ impl<'a> StaticNominalShape<'a> {
     }
     pub const fn kind(self) -> StaticNominalKind {
         self.kind
+    }
+    pub fn is_final_class(self) -> bool {
+        matches!(self.definition, Definition::Class(value) if value.modifier == ClassModifier::Final)
     }
     pub const fn application_type(self) -> TypeId {
         self.ty

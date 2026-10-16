@@ -1,0 +1,25 @@
+import keys.bridge.*
+import keys.bridge.Label as ImportedLabel
+import keys.bridge.label as importedLabel
+annotation class Label(val text: String = "consumer")
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val key = annotationKey<ImportedLabel>()
+    check(key == importedLabel())
+    check(key == defaulted() && key == Keyed().key)
+    check(key != annotationKey<Label>())
+    val description = key.describe()
+    check(description.key == key && description.parameters.size == 1L)
+    check(when (description.parameters[0L].defaultValue!!) { case AnnotationValue.String(value) -> value == "provider"; else -> false })
+    val hidden = forwarded<Long>()
+    check(hidden == built() && hidden == genericKey<String>())
+    check(hidden.describe().visibility == DeclarationVisibility.Private)
+    check(hidden != key && hidden.describe().parameters.size == 1L)
+    check(Stored<Long>().key == hidden && Stored<Int>().key == builtStored())
+    check(BuiltKey().key == key)
+    val closure = callback<Long>()
+    gcCollect()
+    check(closure() == hidden)
+    check(when (hidden.describe().parameters[0L].defaultValue!!) { case AnnotationValue.Integer(IntegerValue.Int(value)) -> value == 9; else -> false })
+    println("artifact-annotation-query-ok")
+}

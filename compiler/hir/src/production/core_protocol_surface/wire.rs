@@ -237,7 +237,7 @@ wire_protocol_product!(
 
 impl WireEncode for CoreCompilerProtocolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.fundamental_types.encode(encoder)?;
         encoder.field(2)?;
@@ -255,13 +255,16 @@ impl WireEncode for CoreCompilerProtocolSurfaceV1 {
         encoder.field(8)?;
         self.source_location_protocol.encode(encoder)?;
         encoder.field(9)?;
-        self.program_arguments.encode(encoder)
+        self.program_arguments.encode(encoder)?;
+        encoder.field(10)?;
+        self.type_reference.encode(encoder)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedCoreCompilerProtocolSurfaceV1 {
     program_arguments: crate::DecodedCoreProtocolCallableV1,
+    type_reference: crate::DecodedCoreProtocolCallableV1,
     fundamental_types: DecodedCoreFundamentalTypeProtocolV1,
     option_protocol: DecodedCoreOptionProtocolV1,
     iteration_protocol: DecodedCoreIterationProtocolV1,
@@ -288,6 +291,10 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
                 .foreign_callback_protocol
                 .validate_against(foundation)?,
             source_location_protocol: self.source_location_protocol.validate_against(foundation)?,
+            type_reference: self
+                .type_reference
+                .validate_against(foundation)
+                .map_err(CoreCompilerProtocolSurfaceValidationError::Callable)?,
             program_arguments: self
                 .program_arguments
                 .validate_against(foundation)
@@ -299,7 +306,7 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
 
 impl WireEncode for DecodedCoreCompilerProtocolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.fundamental_types.encode(encoder)?;
         encoder.field(2)?;
@@ -317,13 +324,15 @@ impl WireEncode for DecodedCoreCompilerProtocolSurfaceV1 {
         encoder.field(8)?;
         self.source_location_protocol.encode(encoder)?;
         encoder.field(9)?;
-        self.program_arguments.encode(encoder)
+        self.program_arguments.encode(encoder)?;
+        encoder.field(10)?;
+        self.type_reference.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCoreCompilerProtocolSurfaceV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(10)?;
         Ok(Self {
             fundamental_types: decoder.field(1, DecodedCoreFundamentalTypeProtocolV1::decode)?,
             option_protocol: decoder.field(2, DecodedCoreOptionProtocolV1::decode)?,
@@ -336,6 +345,7 @@ impl WireDecode for DecodedCoreCompilerProtocolSurfaceV1 {
             source_location_protocol: decoder
                 .field(8, DecodedCoreSourceLocationProtocolV1::decode)?,
             program_arguments: decoder.field(9, crate::DecodedCoreProtocolCallableV1::decode)?,
+            type_reference: decoder.field(10, crate::DecodedCoreProtocolCallableV1::decode)?,
         })
     }
 }

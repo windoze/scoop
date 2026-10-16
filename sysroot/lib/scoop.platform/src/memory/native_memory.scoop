@@ -1,0 +1,12 @@
+package scoop.platform.memory
+
+@Extern(name = "scoop_platform_memory_resize", captureErrno = true)
+internal fun nativeMemoryResize(pointer: Ptr<Byte>?, capacity: Long): (Ptr<Byte>?, Int)
+
+@GCLeaf
+@Extern(name = "scoop_platform_memory_free")
+internal fun nativeMemoryFree(pointer: Ptr<Byte>)
+
+@GCLeaf
+@Extern(name = "scoop_platform_memory_move")
+internal fun nativeMemoryMove(destination: Ptr<Byte>, source: Ptr<Byte>, count: Long)

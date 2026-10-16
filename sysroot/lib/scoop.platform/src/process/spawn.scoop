@@ -1,0 +1,96 @@
+package scoop.platform.process
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.Map
+import scoop.platform.fs.*
+import scoop.platform.system.OsString
+
+internal class SpawnInput internal constructor(
+    executable: Path, arguments: Array<OsString>, environment: Map<OsString, OsString>,
+    private val directory: Path
+) {
+    private val argumentCount: Long = arguments.size + 1L
+    private val environmentCount: Long = environment.size
+    private val argumentBytes: Array<Byte> = packArguments(executable, arguments)
+    private val environmentBytes: Array<Byte> = packEnvironment(environment)
+
+    internal fun spawn(path: Path, input: Stdio, output: Stdio, error: Stdio, merge: Boolean,
+                       result: MutableArray<Int>): (Int, Int) = withRedirect(input) inputScope@ { inputFd ->
+        withRedirect(output) outputScope@ { outputFd ->
+            withRedirect(error) errorScope@ { errorFd ->
+                val redirects: Array<Int> = [inputFd, outputFd, if (merge) -4 else errorFd]
+                @Unsafe {
+                    return@errorScope path.withNativePath pathScope@ { executable ->
+                        @Unsafe {
+                            return@pathScope directory.withNativePath directoryScope@ { cwd ->
+                                @Unsafe {
+                                    return@directoryScope argumentBytes.withDataPointer argumentScope@ { argv, _ ->
+                                        @Unsafe {
+                                            return@argumentScope environmentBytes.withDataPointer environmentScope@ { envp, _ ->
+                                                @Unsafe {
+                                                    return@environmentScope redirects.withDataPointer redirectScope@ { fds, _ ->
+                                                        @Unsafe {
+                                                            return@redirectScope result.withDataPointer resultScope@ { values, _ ->
+                                                                @Unsafe {
+                                                                    return@resultScope nativeSpawn(executable, argv, argumentCount,
+                                                                        envp, environmentCount, cwd, fds, values)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun <R> withRedirect(value: Stdio, block: (Int) -> R): R = when (value) {
+    case Stdio.Inherit -> block(-1)
+    case Stdio.Null -> block(-2)
+    case Stdio.Pipe -> block(-3)
+    case Stdio.Redirect(file) -> file.withDescriptor(block)
+}
+
+private fun appendString(builder: ByteArrayBuilder, value: OsString) {
+    val bytes = value.toBytes()
+    for (byte in bytes) { if (byte == 0) throw IllegalArgumentException(Some("process string contains NUL")) }
+    builder.append(bytes)
+    builder.append(0.toInt8())
+}
+
+private fun packArguments(executable: Path, arguments: Array<OsString>): Array<Byte> {
+    if (executable.toOsString().toBytes().size == 0L) throw IllegalArgumentException(Some("empty executable"))
+    if (arguments.size == Long.MAX_VALUE) throw ArithmeticException()
+    val builder = ByteArrayBuilder()
+    appendString(builder, executable.toOsString())
+    for (argument in arguments) appendString(builder, argument)
+    return builder.toByteArray()
+}
+
+private fun packEnvironment(environment: Map<OsString, OsString>): Array<Byte> {
+    val builder = ByteArrayBuilder()
+    for ((name, value) in environment) {
+        val bytes = name.toBytes()
+        if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
+        for (byte in bytes) {
+            if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
+        }
+        builder.append(bytes)
+        builder.append(61.toInt8())
+        appendString(builder, value)
+    }
+    return builder.toByteArray()
+}
+
+@Extern(name = "scoop_platform_process_spawn", captureErrno = true)
+private fun nativeSpawn(executable: Ptr<Byte>, arguments: Ptr<Byte>, argumentCount: Long,
+                        environment: Ptr<Byte>, environmentCount: Long, directory: Ptr<Byte>,
+                        redirects: Ptr<Int>, result: Ptr<Int>): (Int, Int)

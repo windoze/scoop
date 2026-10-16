@@ -1,0 +1,11 @@
+schema = 1
+
+[cone]
+group = "test"
+name = "type-model-consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:type-model-provider" = "0.1.0"

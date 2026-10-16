@@ -1,0 +1,56 @@
+package scoop.platform.process
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class CommunicationTest {
+    @Test
+    fun `communicate drains both outputs while writing input larger than pipe capacity`() {
+        val command = shell("dd if=/dev/zero bs=4096 count=32 2>/dev/null; " +
+            "(dd if=/dev/zero bs=4096 count=32 2>/dev/null) >&2; cat", Stdio.Pipe)
+        val input = Array<Byte>(131072L) { (it % 251L).toInt8() }
+        command.spawn().use { child ->
+            val result = child.communicate(Some(input))
+            exited(result.status)
+            assertEquals(262144L, result.stdout.size)
+            assertEquals(131072L, result.stderr.size)
+            for (index in 0L..<131072L) {
+                assertEquals(0.toInt8(), result.stdout[index])
+                assertEquals(0.toInt8(), result.stderr[index])
+                assertEquals(input[index], result.stdout[index + 131072L])
+            }
+            exited(child.wait())
+        }
+    }
+
+    @Test
+    fun `manual owned pipes compose with threads and child disposal`() {
+        shell("cat", Stdio.Pipe).spawn().use { child ->
+            assertFalse(child.stdin!! is Disposable)
+            val sink = child.takeStdin()!!
+            val source = child.takeStdout()!!
+            Thread.start { sink.use { it.writeLine("pipe 中"); gcCollect() } }.use {
+                source.use { assertEquals("pipe 中\n", it.readText()) }
+            }
+            exited(child.wait())
+        }
+    }
+
+    @Test
+    fun `communication failure closes pipes and kills and reaps its child`() {
+        shell("exec 0<&-; printf 'ready\\n'; kill -STOP $$", Stdio.Pipe).spawn().use { child ->
+            assertEquals("ready", child.stdout!!.readLine()!!)
+            val error = assertFailsWith<PlatformException> {
+                child.communicate(Some(Array<Byte>(16384L) { 1.toInt8() }))
+            }
+            assertTrue(error.kind == PlatformErrorKind.BrokenPipe)
+            when (child.wait()) {
+                case ExitStatus.Signaled(signal) -> assertEquals(9, signal)
+                case ExitStatus.Exited(_) -> fail(Some("expected killed child"))
+            }
+        }
+    }
+}

@@ -62,9 +62,9 @@ impl CanonicalHirFoundation {
                     && matches!(record.key(), GeneratedCallableKey::DerivedEquality { .. })
             })
         {
-            // Derived bodies are owned by an exact type, without a lexical source
-            // body. Their locations can belong to an uninstantiated provider
-            // template, while the exact helper is defined in the current Cone.
+            // These helpers have no lexical source body. Their locations can
+            // belong to a provider declaration, while the ordinary generated
+            // function is defined in the current Cone.
             return match root.context() {
                 CallableMaterializationContext::NoSubstitution => Ok(()),
                 _ => Err(Error::Materialization(root)),

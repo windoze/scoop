@@ -1,0 +1,35 @@
+fun check(condition: Boolean): Unit {
+    if (!condition) { throw IllegalStateException() }
+}
+
+fun main() {
+    val writer = StringWriter()
+    check(writer.build() == "")
+    val output: TextWriter = writer
+    output.write("A")
+    output.write("")
+    output.write("雪\u0000🚀")
+    val first = writer.build()
+    check(first == "A雪\u0000🚀")
+    check(first.length == 4L)
+    check(writer.build() == first)
+    output.write("\n")
+    gcCollect()
+    check(first == "A雪\u0000🚀")
+    check(writer.build() == first + "\n")
+
+    val many = StringWriter()
+    var expected = ""
+    for (index in 0L until 130L) {
+        val part = index.toString()
+        many.write(part)
+        expected = expected + part
+    }
+    val snapshot = many.build()
+    gcCollect()
+    many.write("tail")
+    check(snapshot == expected)
+    check(many.build() == expected + "tail")
+    check(writer.build() == first + "\n")
+    println("writer-ok")
+}

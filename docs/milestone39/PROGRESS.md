@@ -1,5 +1,7 @@
 # M39 实施记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 基线：`e88f7d73`（仓库历史压缩后的实际 HEAD），2026-10-12 开始。工作区初始干净，无 target 目录。
 
 ## 顺序与当前状态
@@ -22,7 +24,7 @@
 - `ValidatedCBridgeToolchainInvocation`、宿主路径检查、命令与环境移入 toolchain；按 invocation、command、tests 拆分，单文件最大 257 行。
 - driver 持有 generated-C 的实际编译动作；codegen 复用现有发射流程渲染源码、完成对象边界，不依赖 toolchain 实现 crate。LIR 只保存持久化合同。
 - 已通过本机 fmt、workspace clippy；工具链 7 项、generated-C 对象 4 项、持久化合同与固定指纹 6 项测试；debug/release 三个 CLI 均构建成功。
-- 真实 CLI 选择 errno 独立／组合／跨 Cone、callback 及 global/TLS，共 24 项；本机全部通过（34 变体、132 进程、10 次 golden 检查），没有更新期望；报告见 [01-darwin.json](validation/01-darwin.json)。
+- 真实 CLI 选择 errno 独立／组合／跨 Cone、callback 及 global/TLS，共 24 项；本机全部通过（34 变体、132 进程、10 次 golden 检查），没有更新期望；报告见 01-darwin.json。
 - 清理首次构建的 `target/debug/incremental`，释放约 6.20 GiB；保留编译二进制、依赖库、私有 fixture cache 与日志。
 
 ## 功能 2：runtime 的 OS、image 与 arch 组件
@@ -31,14 +33,14 @@
 - 浮点环境初始化移到两个现有架构的专用 C 文件；通用 `floating.c` 不含架构宏或机器寄存器操作。`-mno-red-zone` 属于 x86-64 组件，ELF visibility／SHA 配置属于 image 组件。
 - 保留原 `scoop_float_init_environment` 入口与 fesetenv／FPCR／MXCSR 行为，不改公共 runtime ABI。移植后的纯 frame decoder 仍能在其他宿主运行结构测试。
 - 本机 fmt、workspace clippy、22 项 toolchain 测试、29 项 runtime collector／线程／初始化回归通过；release CLI 构建成功。
-- 浮点环境扰动恢复、值类型、FFI、协程、JSON 及跨 Cone 6 项 CLI 全部通过（9 变体、54 进程），见 [02-darwin.json](validation/02-darwin.json)。无快照更新。
+- 浮点环境扰动恢复、值类型、FFI、协程、JSON 及跨 Cone 6 项 CLI 全部通过（9 变体、54 进程），见 02-darwin.json。无快照更新。
 
 ## 功能 3：消费提供方的物理 ABI
 
 - 外部 callable 直接将提供方的 canonical ABI 绑定到消费者本地存储与类型，不再先重新分类后比较；保留参数数量、尺寸／对齐、carrier 范围及既有 exact signature、GC root 协议校验。
 - 删除重复的 ABI 比较模块；存储绑定与测试分开。新增隐藏 sret 导致 SysV aggregate 整组回退、后续浮点参数和短 carrier 的精确测试，并覆盖错误存储诊断。
 - 本机 fmt、workspace clippy、476 项 LIR 测试、6 项 lowering 外部调用测试、3 项 codegen 外部调用测试通过；release CLI 构建成功。
-- 小值跨库产物、suspend member、泛型 release 及 native aggregate release 四项正式 CLI 通过（5 变体、40 进程、4 次 golden 检查），无期望更新，见 [03-darwin.json](validation/03-darwin.json)。
+- 小值跨库产物、suspend member、泛型 release 及 native aggregate release 四项正式 CLI 通过（5 变体、40 进程、4 次 golden 检查），无期望更新，见 03-darwin.json。
 
 ## 功能 4：Linux 工具链的机器与 libc 事实
 
@@ -60,7 +62,7 @@
 - manifest 解析入口接收 SourceTarget 数据目录，源码／native source／native library 条件共用该输入；不再读取 identity 的支持列表或隐含宿主目标。
 - toolchain 作为 driver 共用入口，明确提供当前三个 target 的 os／arch／env／triple。谓词保存匹配到的 typed identity 与 canonical triple；按 triple 排序，保持现有编码及目录重排稳定性。
 - 本机 fmt、workspace clippy、45 项 manifest 与 5 项编译缓存键测试通过；新增子目录支持范围与目录顺序不影响编码的验证。
-- 34 项源码选择、非法条件／路径、symlink、选择后缺失源码及缓存正式 CLI 全部通过（35 变体、45 进程），见 [06-darwin.json](validation/06-darwin.json)，未更新 golden。
+- 34 项源码选择、非法条件／路径、symlink、选择后缺失源码及缓存正式 CLI 全部通过（35 变体、45 进程），见 06-darwin.json，未更新 golden。
 
 ## 功能 7：由后端统一规划全部物理调用 ABI
 
@@ -69,14 +71,14 @@
 - 计划覆盖函数／Scoop extern、interface receiver、closure／function bridge／suspend continuation、errno bridge、root／startup gateway、release 与 runtime／safepoint；Scoop extern 规范合同与实际声明共用物理计划。删除旧 LIR／lowering 分类器及重复 runtime 原型构造。
 - 聚合准备按 typed storage ID 共享字段节点，保留 tagged payload 的完整整数存储描述；后端仅展开可能直接传递的聚合。新增大型 payload 不按字节展开、sret 与前序参数导致整组回退、后续 SSE 容量保留、ZST／扫描存储等验证。新增模块最长 192 行。
 - 本机 fmt、workspace clippy 通过；5 项 ABI planner、154 项 LIR lowering 测试通过，迁移过程中的 473 项 LIR 数据测试通过。首次回归发现的 Alloc machine-byte-size 与非法 C 类型检查顺序已修正，没有修改任何 golden。
-- 32 项正式 CLI（43 变体、179 进程、6 次 golden）通过，覆盖 native／Scoop 小值、跨 Cone、接口默认方法、闭包、suspend、context 及 errno；字段节点共享调整后又定向复跑全部 5 项小值 CLI（10 变体、50 进程、6 次 golden），全部通过。报告见 [07-darwin.json](validation/07-darwin.json) 与 [07b-darwin.json](validation/07b-darwin.json)。
+- 32 项正式 CLI（43 变体、179 进程、6 次 golden）通过，覆盖 native／Scoop 小值、跨 Cone、接口默认方法、闭包、suspend、context 及 errno；字段节点共享调整后又定向复跑全部 5 项小值 CLI（10 变体、50 进程、6 次 golden），全部通过。报告见 07-darwin.json 与 07b-darwin.json。
 
 ## 功能 8：静态目标合同与 LLVM 配置登记
 
 - LIR 只保留完整布局、backend 合同与 canonical 编码；当前三个 target 的 data layout、CPU/features、C profile 构造集中到 codegen 所属的 `scoop-target-data`。该静态模块不含 LLVM、ABI 分类器或工具执行，供真实 artifact-only 消费者复用。新增源文件最长 72 行。
 - backend identity 改为 canonical name/version 数据；codegen 明确拒绝未知身份、修改后的 CPU 合同及不匹配的目标组合。slib 兼容性读取同时核对所选 target/backend 身份与各自指纹，拒绝未知身份搭配已知指纹。
 - 本机 fmt、workspace clippy；344 项 identity、473 项 LIR、23 项 toolchain、9 项兼容性读取、5 项 backend 选择测试通过。既有布局／backend／C toolchain 固定向量未改。
-- release 三个 CLI 构建成功；5 项小值／跨库／native 正式 CLI 通过（10 变体、50 进程、6 次 golden），见 [08-darwin.json](validation/08-darwin.json)。已清理 9.27 GiB debug incremental。
+- release 三个 CLI 构建成功；5 项小值／跨库／native 正式 CLI 通过（10 变体、50 进程、6 次 golden），见 08-darwin.json。已清理 9.27 GiB debug incremental。
 
 ## 功能 9：C producer 身份与工具执行支持范围
 
@@ -96,7 +98,7 @@
 - codegen、ABI planner、对象／stackmap reader、C/runtime toolchain 与缓存分别明确拒绝未知或不匹配的目标。driver 区分 ABI 规划错误与 lowering 错误；runtime 保存选中的完整组件，final-link 复用 invocation 保存的目标描述。旧缓存标签仍由缓存消费者编码，不改变 wire。
 - target wire identity 用共享不可变数据保存，避免身份开放后放大错误值和重复克隆字符串；LIR 仍只存完整描述，不依赖任何目标登记模块。新增 ABI planner 目标选择每批请求只执行一次。
 - 本机 fmt、workspace clippy 通过。定向测试：345 identity、473 LIR、154 lowering、45 manifest、567 slib、25 toolchain、6 ABI planner、6 codegen target、9 cache、4 driver pipeline，全部通过。固定编码／指纹和负向诊断未更新。
-- release CLI 构建成功；源码选择／缓存、非法条件、错误目标 core、errno callback／跨库、小值 native／artifact 组合共 58 项通过、1 项不适用于本机（67 变体、155 进程、6 次 golden），见 [11-darwin.json](validation/11-darwin.json)。
+- release CLI 构建成功；源码选择／缓存、非法条件、错误目标 core、errno callback／跨库、小值 native／artifact 组合共 58 项通过、1 项不适用于本机（67 变体、155 进程、6 次 golden），见 11-darwin.json。
 - 生产依赖树确认 `scoop`、`scoop-linker`、`scoop-toolchain` 均不包含 `scoop-codegen`、`scoop-abi-plan`、inkwell 或 llvm-sys；公共 identity/LIR/lir-lower 中的具体 ABI 搜索仅剩数据注释和 provider-storage 测试名称。
 
 ## Linux 验收修复：对象测试文件名
@@ -114,20 +116,20 @@
 ## Linux 完整 Rust 验证
 
 - 两次失败均已闭合：terminal poll 定向补验通过；REALGCC 修复后 Linux toolchain 全部 29 项通过。
-- 首轮、未执行包续跑及补验按测试目标／名称去重，最新 toolchain 包结果替换旧包（含重命名测试）；最终 5,576 项不同测试全部通过，0 failed、0 ignored。见 [汇总](validation/rust-linux.json)、[逐项来源](validation/rust-linux-coverage.json.gz)及汇总所列原始日志。
+- 首轮、未执行包续跑及补验按测试目标／名称去重，最新 toolchain 包结果替换旧包（含重命名测试）；最终 5,576 项不同测试全部通过，0 failed、0 ignored。见 汇总、逐项来源及汇总所列原始日志。
 - driver 的 82 项真实构建／产物组合全部通过，耗时 3,895.55 秒，仅执行一轮。最后一个 core 属性初始化测试运行期间，用空闲 CPU 构建未变化的 release stage 库，并同步工具链修复完成独立补验；该修复不改变正在运行的测试二进制或其 Scoop/runtime 输入。
 - Linux 最终 fmt、workspace clippy、三个 release CLI 和 47 项公共 runner 测试通过；本机公共 runner 同为 47 项通过，最新 release CLI 已重建。没有更改测试超时或更新 golden。
-- 本机各功能 CLI 按最终同名结果去重为 83 项通过、1 项不适用，105 变体、376 进程、16 次 golden；这是定向范围，见 [覆盖报告](validation/darwin-coverage.json)，不计为 Darwin 全量。
+- 本机各功能 CLI 按最终同名结果去重为 83 项通过、1 项不适用，105 变体、376 进程、16 次 golden；这是定向范围，见 覆盖报告，不计为 Darwin 全量。
 
 ## Linux GNU 完整 CLI 验证
 
-- 全部 3,771 项均纳入选择：3,741 项通过，30 项按目标声明不适用，0 failed；4,203 变体、15,731 进程、71 次 golden 检查。见 [完整报告](validation/linux-gnu.json)及 [原始日志](validation/linux-gnu.log.gz)。
+- 全部 3,771 项均纳入选择：3,741 项通过，30 项按目标声明不适用，0 failed；4,203 变体、15,731 进程、71 次 golden 检查。见 完整报告及 原始日志。
 - 使用最终代码 `e7f2fb7d` 的 release CLI，8 个并行 worker；未更新期望，没有补验或重复运行。
 - 全部通过的 case 目录已按完成状态分批清理。musl 随后自动启动，按 GNU 的资源余量将并行数由预定 4 调为 8；同样保留完整适用范围。
 
 ## Linux musl 验证与最终验收
 
-- 全部 3,771 项均纳入选择：3,739 项通过，32 项按目标声明不适用，0 failed；4,201 变体、15,727 进程、71 次 golden 检查。见 [完整报告](validation/linux-musl.json)及 [原始日志](validation/linux-musl.log.gz)。
+- 全部 3,771 项均纳入选择：3,739 项通过，32 项按目标声明不适用，0 failed；4,201 变体、15,727 进程、71 次 golden 检查。见 完整报告及 原始日志。
 - 使用最终代码 `e7f2fb7d` 的 release CLI，8 个并行 worker；全部五项小值 ABI 用例、默认静态与显式动态 PIE 均通过。两个 CLI 全量各执行一轮，没有补验或更新 golden。
-- 本机最后清理约 699 MiB fixture 私有缓存，Linux 在逐批清理成功 case 后清理 GNU 约 6 GiB 缓存和 musl 等约 6,116 MiB 工作数据；报告、日志、release 命令、编译依赖与 native unwind 安装保留。见 [清理记录](validation/cleanup.json)。
+- 本机最后清理约 699 MiB fixture 私有缓存，Linux 在逐批清理成功 case 后清理 GNU 约 6 GiB 缓存和 musl 等约 6,116 MiB 工作数据；报告、日志、release 命令、编译依赖与 native unwind 安装保留。见 清理记录。
 - 最终边界复核：parser 至 MIR lowering 无变更，新增代码文件最长 285 行，无新增 TODO、todo! 或 unimplemented! 占位。完整结论与后续架构移植位置见 [验收记录](ACCEPTANCE.md)。

@@ -1,0 +1,79 @@
+public interface Inspectable<T> {
+    public fun inspect(value: T): ValueView
+}
+
+public class InspectFunction<T> public constructor(private val body: (T) -> ValueView)
+    : Inspectable<T> {
+    public override fun inspect(value: T): ValueView = body(value)
+}
+
+public interface ValueView {
+    public val type: TypeRef
+    public val referenceIdentity: Option<Any>
+    public fun shape(): ValueShape
+}
+
+public class ValueObservation public constructor(
+    public override val type: TypeRef,
+    public override val referenceIdentity: Option<Any>,
+    private val describeBody: () -> ValueShape
+) : ValueView {
+    public override fun shape(): ValueShape = describeBody()
+}
+
+public enum ValueShape {
+    Scalar(ScalarValue),
+    Record(RecordView),
+    Variant(VariantView),
+    IntegerEnum(IntegerEnumView),
+    Tuple(TupleView),
+    Sequence(SequenceView),
+    Opaque(OpaqueValue)
+}
+
+public enum ScalarValue {
+    Boolean(Boolean),
+    Signed(Long),
+    Unsigned(ULong),
+    Float(Float),
+    Double(Double),
+    Char(Char),
+    String(String),
+    Unit
+}
+
+public enum ObservedMember {
+    Field(FieldInfo),
+    Property(PropertyInfo)
+}
+
+public struct MemberView(val info: ObservedMember, val readBody: () -> ValueView) {
+    public fun read(): ValueView = readBody()
+}
+
+public struct RecordView(val members: Array<MemberView>, val base: Option<ValueView> = None)
+
+public struct VariantView(val info: VariantInfo, val members: Array<MemberView>)
+
+public struct IntegerEnumView(val info: IntegerEnumVariantInfo)
+
+public struct TupleView(val size: Long, val elementBody: (Long) -> ValueView) {
+    public fun element(index: Long): ValueView = elementBody(index)
+}
+
+public struct SequenceView(val size: Long, val elementBody: (Long) -> ValueView) {
+    public fun element(index: Long): ValueView = elementBody(index)
+}
+
+public struct OpaqueValue(val description: String)
+
+public class OpaqueInspector<T> public constructor(private val description: String)
+    : Inspectable<T> {
+    public override fun inspect(value: T): ValueView =
+        ValueObservation(typeInfo<T>().type, None, { ValueShape.Opaque(OpaqueValue(description)) })
+}
+
+public object UnitInspector : Inspectable<Unit> {
+    public override fun inspect(value: Unit): ValueView =
+        ValueObservation(typeInfo<Unit>().type, None, { ValueShape.Scalar(ScalarValue.Unit) })
+}

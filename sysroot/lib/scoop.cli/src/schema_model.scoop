@@ -1,0 +1,143 @@
+package scoop.cli
+
+internal struct CliModelField(
+    val name: String, val type: TypeRef, val annotations: Array<AnnotationInfo>,
+    val optionalAtDeclaration: Boolean, val parameter: Option<ParameterRef>, val member: ObservedMember
+)
+
+internal fun automaticEntries(type: TypeRef): Array<CliEntry> {
+    val fields = ArrayList<CliModelField>()
+    val constructors = when (type.describe().shape) {
+        case TypeShape.Struct(info) -> {
+            for (field in info.fields) {
+                val name = when (field.name) {
+                    case MemberName.Named(text) -> text
+                    else -> configuration("CLI record fields must have names")
+                }
+                fields.add(CliModelField(name, field.type, field.annotations, field.isOptionAtDeclaration,
+                    field.constructorParameter, ObservedMember.Field(field)))
+            }
+            info.constructors
+        }
+        case TypeShape.Class(info) -> {
+            if (!info.isFinal || when (info.base) { case Some(_) -> true; case None -> false }) {
+                configuration("automatic CLI schema requires a final class without a class base")
+            }
+            for (field in info.storage) {
+                when (field.origin) {
+                    case StorageOrigin.Backing(_) -> {}
+                    else -> configuration("class storage requires an explicit CLI schema")
+                }
+            }
+            for (property in info.properties) {
+                when (property.storage) {
+                    case PropertyStorage.Computed -> { continue }
+                    case PropertyStorage.Delegated(_) -> configuration("delegated property requires an explicit CLI schema: " + property.name)
+                    case PropertyStorage.Stored(_) -> {}
+                }
+                if (property.getter.kind != AccessorKind.Storage) {
+                    configuration("custom getter requires an explicit CLI schema: " + property.name)
+                }
+                when (property.setter) {
+                    case Some(setter) -> {
+                        if (setter.kind != AccessorKind.Storage) {
+                            configuration("custom setter requires an explicit CLI schema: " + property.name)
+                        }
+                    }
+                    case None -> {}
+                }
+                fields.add(CliModelField(property.name, property.type, property.annotations,
+                    property.isOptionAtDeclaration, property.constructorParameter, ObservedMember.Property(property)))
+            }
+            info.constructors
+        }
+        else -> configuration("automatic CLI schema requires a record: " + type.displayName)
+    }
+    val primary = primaryConstructor(constructors)
+    for (parameter in primary.parameters) {
+        when (parameter.member) {
+            case ParameterMember.None -> configuration("constructor parameter has no member: " + parameter.name)
+            else -> {}
+        }
+    }
+    val entries = ArrayList<CliEntry>()
+    for (field in fields) {
+        val parameter = mappedParameter(field, primary)
+        when (automaticEntry(field, parameter)) {
+            case Some(entry) -> entries.add(entry)
+            case None -> {}
+        }
+    }
+    return entries.toArray()
+}
+
+internal fun primaryConstructor(constructors: Array<ConstructorInfo>): ConstructorInfo {
+    for (constructor in constructors) {
+        when (constructor.kind) { case ConstructorKind.Primary -> { return constructor }; else -> {} }
+    }
+    return configuration("automatic CLI schema requires a primary constructor")
+}
+
+internal fun mappedParameter(field: CliModelField, primary: ConstructorInfo): ParameterInfo {
+    when (field.parameter) {
+        case Some(id) -> {
+            for (parameter in primary.parameters) { if (parameter.id == id) { return parameter } }
+        }
+        case None -> {}
+    }
+    return configuration("member has no primary constructor parameter: " + field.name)
+}
+
+internal fun automaticEntry(field: CliModelField, parameter: ParameterInfo): Option<CliEntry> {
+    val serialization = annotation(field.annotations, annotationKey<Serialize>())
+    if (annotationBoolean(serialization, "ignore")) { return None }
+    val option = annotation(field.annotations, annotationKey<CliOption>())
+    val flag = annotation(field.annotations, annotationKey<CliFlag>())
+    val positional = annotation(field.annotations, annotationKey<CliArgument>())
+    var count = 0
+    for (role in [option, flag, positional]) {
+        when (role) { case Some(_) -> { count = count + 1 }; case None -> {} }
+    }
+    if (count > 1) { configuration("conflicting CLI roles on " + field.name) }
+    val role = when (positional) {
+        case Some(_) -> CliRole.Argument(annotationPosition(positional))
+        case None -> when (flag) {
+            case Some(_) -> CliRole.Flag
+            case None -> when (option) {
+                case Some(_) -> CliRole.Option
+                case None -> if (field.type == typeInfo<Boolean>().type) { CliRole.Flag } else { CliRole.Option }
+            }
+        }
+    }
+    val settings = when (role) {
+        case CliRole.Option -> option
+        case CliRole.Flag -> flag
+        case CliRole.Argument(_) -> positional
+    }
+    val shape = when (role) {
+        case CliRole.Flag -> {
+            if (field.type != typeInfo<Boolean>().type) { configuration("CliFlag requires exact Boolean: " + field.name) }
+            CliValueShape.Flag
+        }
+        else -> valueShape(field.type)
+    }
+    val names = when (role) {
+        case CliRole.Argument(_) -> []
+        else -> {
+            val supplied = annotationNames(settings, "names")
+            if (supplied.size == 0L) { ["--" + field.name] } else { supplied }
+        }
+    }
+    val rename = annotationText(serialization, "rename")
+    val label = annotationText(settings, "valueName")
+    val defaultLabel = when (shape) {
+        case CliValueShape.Choice(_) -> ""
+        case CliValueShape.Repeated(CliElementShape.Choice(_)) -> ""
+        else -> valueLabel(field.type)
+    }
+    return Some(CliEntry(field.name, if (rename == "") { field.name } else { rename }, role, shape,
+        names, annotationNames(settings, "negativeNames"), annotationText(settings, "help"),
+        if (label == "") { defaultLabel } else { label }, annotationText(settings, "defaultText"),
+        annotationBoolean(serialization, "required") || (!parameter.hasDefault && !field.optionalAtDeclaration),
+        parameter.hasDefault, Some(field.member)))
+}

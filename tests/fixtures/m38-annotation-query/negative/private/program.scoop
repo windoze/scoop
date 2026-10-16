@@ -1,0 +1,2 @@
+class Owner { private annotation class Hidden }
+fun main() { annotationKey<Owner.Hidden>() }

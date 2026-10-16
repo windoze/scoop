@@ -1,0 +1,62 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.platform"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+
+[native]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native/errors.c"
+
+[[native.sources]]
+path = "native/memory.c"
+
+[[native.sources]]
+path = "native/io.c"
+[[native.sources]]
+path = "native/files.c"
+[[native.sources]]
+path = "native/file_metadata.c"
+[[native.sources]]
+path = "native/paths.c"
+[[native.sources]]
+path = "native/directory.c"
+[[native.sources]]
+path = "native/environment.c"
+[[native.sources]]
+path = "native/system.c"
+[[native.sources]]
+path = "native/time.c"
+[[native.sources]]
+path = "native/random.c"
+[[native.sources]]
+path = "native/threads.c"
+[[native.sources]]
+path = "native/mutex.c"
+[[native.sources]]
+path = "native/condition.c"
+[[native.sources]]
+path = "native/pipes.c"
+[[native.sources]]
+path = "native/process.c"
+[[native.sources]]
+path = "native/process_wait.c"
+[[native.sources]]
+path = "native/socket_addresses.c"
+[[native.sources]]
+path = "native/socket_open.c"
+[[native.sources]]
+path = "native/socket_io.c"
+[[native.sources]]
+path = "native/resolve.c"

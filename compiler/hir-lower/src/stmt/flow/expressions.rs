@@ -115,6 +115,7 @@ impl Flow<'_> {
             | E::CharLiteral(_)
             | E::FloatLiteral(_)
             | E::Unreachable
+            | E::AnnotationKey(_)
             | E::UnitLiteral
             | E::ConstructorParam(_)
             | E::ConstructorReceiver

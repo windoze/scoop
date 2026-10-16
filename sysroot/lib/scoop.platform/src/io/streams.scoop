@@ -1,0 +1,147 @@
+package scoop.platform.io
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.memory.nativeMemoryMove
+
+public interface ByteSource {
+    public fun readInto(buffer: NativeByteBuffer, count: Long): Long
+}
+
+public interface ByteSink {
+    public fun writeFrom(buffer: NativeByteBuffer, count: Long): Long
+    public fun flush()
+}
+
+public class UnexpectedEofException public constructor() : Exception(Some("unexpected end of input"))
+public class WriteZeroException public constructor() : Exception(Some("output made no progress"))
+
+public fun ByteSource.readInto(buffer: NativeByteBuffer): Long = readInto(buffer, buffer.writableBytes)
+public fun ByteSink.writeFrom(buffer: NativeByteBuffer): Long = writeFrom(buffer, buffer.readableBytes)
+
+public fun ByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) {
+    requireTransfer(count, buffer.writableBytes)
+    var remaining = count
+    while (remaining > 0L) {
+        val progress = readInto(buffer, remaining)
+        requireProgress(progress, remaining)
+        if (progress == 0L) throw UnexpectedEofException()
+        remaining -= progress
+    }
+}
+
+public fun ByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes) {
+    requireTransfer(count, buffer.readableBytes)
+    var remaining = count
+    while (remaining > 0L) {
+        val progress = writeFrom(buffer, remaining)
+        requireProgress(progress, remaining)
+        if (progress == 0L) throw WriteZeroException()
+        remaining -= progress
+    }
+}
+
+public fun ByteSource.copyTo(sink: ByteSink, bufferSize: Long = 8192L): Long {
+    return newIoBuffer(bufferSize).use { buffer ->
+        var total = 0L
+        while (true) {
+            buffer.clear()
+            val count = readInto(buffer)
+            requireProgress(count, buffer.capacity)
+            if (count == 0L) break
+            if (count > Long.MAX_VALUE - total) throw ArithmeticException()
+            sink.writeFully(buffer, count)
+            total += count
+        }
+        total
+    }
+}
+
+public fun ByteSource.readAllBytes(): Array<Byte> {
+    val result = ByteArrayBuilder()
+    NativeByteBuffer.allocate(8192L).use { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = readInto(buffer)
+            requireProgress(count, buffer.capacity)
+            if (count == 0L) break
+            result.append(buffer.readBytes(count))
+        }
+    }
+    return result.toByteArray()
+}
+
+public fun ByteSource.readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+    requireArrayTransfer(array.size, offset, count)
+    if (count == 0L) return 0L
+    return NativeByteBuffer.allocate(count).use { buffer ->
+        val read = readInto(buffer, count)
+        requireProgress(read, count)
+        buffer.readInto(array, offset, read)
+        read
+    }
+}
+
+public fun ByteSink.writeFrom(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+    requireArrayTransfer(array.size, offset, count)
+    if (count == 0L) return 0L
+    return NativeByteBuffer.allocate(count).use { buffer ->
+        buffer.writeBytes(array, offset, count)
+        val written = writeFrom(buffer, count)
+        requireProgress(written, count)
+        if (written == 0L) throw WriteZeroException()
+        written
+    }
+}
+
+public fun ByteSink.writeFrom(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+    requireArrayTransfer(array.size, offset, count)
+    if (count == 0L) return 0L
+    return NativeByteBuffer.allocate(count).use { buffer ->
+        buffer.writeBytes(array, offset, count)
+        val written = writeFrom(buffer, count)
+        requireProgress(written, count)
+        if (written == 0L) throw WriteZeroException()
+        written
+    }
+}
+
+public fun ByteSink.writeAllBytes(bytes: Array<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use { buffer -> buffer.writeBytes(bytes); writeFully(buffer) }
+}
+
+public fun ByteSink.writeAllBytes(bytes: MutableArray<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use { buffer -> buffer.writeBytes(bytes); writeFully(buffer) }
+}
+
+internal fun requireTransfer(count: Long, available: Long) {
+    if (count < 0L) throw IllegalArgumentException(Some("negative transfer count"))
+    if (count > available) throw IndexOutOfBoundsException()
+}
+
+internal fun requireArrayTransfer(size: Long, offset: Long, count: Long) {
+    if (count < 0L) throw IllegalArgumentException(Some("negative transfer count"))
+    if (offset < 0L || offset > size || count > size - offset) throw IndexOutOfBoundsException()
+}
+
+internal fun requireProgress(count: Long, requested: Long) {
+    if (count < 0L || count > requested) throw IllegalStateException(Some("invalid IO progress"))
+}
+
+internal fun newIoBuffer(capacity: Long): NativeByteBuffer {
+    if (capacity <= 0L) throw IllegalArgumentException(Some("buffer capacity must be positive"))
+    return NativeByteBuffer.allocate(capacity)
+}
+
+internal fun transferBytes(source: NativeByteBuffer, destination: NativeByteBuffer, count: Long) {
+    if (count == 0L) return
+    @Unsafe {
+        destination.withWritableBytes { output, _ ->
+            @Unsafe {
+                source.withReadableBytes { input, _ -> @Unsafe { nativeMemoryMove(output!!, input!!, count) } }
+            }
+            count
+        }
+    }
+    source.skip(count)
+}

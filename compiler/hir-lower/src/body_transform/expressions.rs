@@ -194,6 +194,7 @@ pub(crate) fn walk(
         | hir::ExprKind::FloatLiteral(_)
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::Unreachable
+        | hir::ExprKind::AnnotationKey(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
         | hir::ExprKind::ConstructorReceiver

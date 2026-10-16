@@ -38,13 +38,6 @@ void scoop_gc_mark_begin(bool minor, size_t block_count) {
     atomic_store_explicit(&scoop_gc_marker.pending, 1, memory_order_relaxed);
 }
 
-static void scan_external(const void *object, void *context) {
-    ScoopGcMarkVisit *visit = context;
-    visit->worker->traced++;
-    const uint64_t *scan = scoop_gc_object_scan(object);
-    scoop_gc_scan_descriptor((void *)object, scan, scoop_gc_mark_slot, context, 0, UINTPTR_MAX);
-}
-
 static void scan_region(void *base, const uint64_t *scan, void *context) {
     scoop_gc_scan_descriptor(base, scan, scoop_gc_mark_slot, context, 0, UINTPTR_MAX);
 }
@@ -53,7 +46,6 @@ void scoop_gc_mark_roots(void) {
     ScoopGcMarkVisit visit = {&scoop_gc_marker.workers[0], SCOOP_MARK_ROOT};
     scoop_gc_scan_roots((ScoopGcRootVisitor){
         .visit_slot = scoop_gc_mark_slot,
-        .visit_external_object = scan_external,
         .visit_region = scan_region,
         .context = &visit,
     });

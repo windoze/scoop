@@ -26,6 +26,7 @@ pub enum DefaultBodyReferenceTargetV1<'a> {
     Constructor(DefaultConstructorReferenceTargetViewV1<'a>),
     Type(&'a SignatureTypeKey),
     Global(PersistentPropertyId),
+    Annotation(scoop_identity::PersistentAnnotationId),
     GenericDelegate(&'a crate::DefaultGenericDelegateReferenceV1),
     Singleton(PersistentObjectValueId),
     Field(DefaultFieldReferenceTargetViewV1<'a>),

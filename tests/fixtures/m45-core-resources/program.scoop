@@ -1,0 +1,41 @@
+class Resource(val name: String) : Disposable {
+    var calls: Int = 0
+    fun number(): Int = 7
+    public override fun dispose() { calls += 1; println(name); gcCollect() }
+}
+class FailedResource(val failure: Throwable) : Disposable {
+    public override fun dispose() { throw failure }
+}
+class Gate(var waiter: Continuation<Int>? = None)
+class Completion : Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(exception: Throwable) { println("unexpected") }
+}
+
+fun main() {
+    val ordinary = Resource("ordinary close")
+    println(ordinary.use { it.number() })
+    println(ordinary.calls)
+    val primary = Throwable()
+    val cleanup = Throwable()
+    try {
+        FailedResource(cleanup).use { throw primary }
+    } catch (failure: ResourceUseException) {
+        println(failure.primaryFailure === primary)
+        println(failure.cleanupFailure === cleanup)
+    }
+    val gate = Gate()
+    val suspended = Resource("suspend close")
+    startCoroutine(suspend {
+        suspended.use(suspend { current ->
+            val resumed: Int = suspendCoroutine { continuation -> gate.waiter = Some(continuation) }
+            current.number() + resumed
+        })
+    }, Completion())
+    println(suspended.calls)
+    gcCollect()
+    val continuation = gate.waiter!!
+    gate.waiter = None
+    continuation.resume(35)
+    println(suspended.calls)
+}

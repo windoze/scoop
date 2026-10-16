@@ -396,7 +396,7 @@ fn finish_output(
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let local = concretize::lower_output(&mut export, selected)?;
+    let local = concretize::lower_output(&mut export, selected, dependencies)?;
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
             .map_err(native_boundary_diagnostic)?;
@@ -511,7 +511,10 @@ pub fn concretize_export(
 pub fn concretize_output(
     export: &hir::ExportHirOutput,
 ) -> Result<hir::LocalConcreteHirOutput, Vec<ast::Diagnostic>> {
-    concretize::lower_output(&mut export.clone(), None)
+    let world =
+        hir::ImportedSemanticWorld::from_dependencies(export.module().cone, Vec::new(), Vec::new())
+            .expect("a source-only world has no dependency conflicts");
+    concretize::lower_output(&mut export.clone(), None, &world)
 }
 
 #[derive(Clone)]
@@ -720,6 +723,7 @@ pub(crate) struct Lowerer {
     /// the selected core protocol declaration.
     derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    derived_inspection_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     interface_delegates: HashMap<ClassId, Vec<class::InterfaceDelegateSource>>,
     interface_forwarders: HashMap<FunctionId, class::InterfaceForwarder>,
     invalid_override_methods: HashSet<FunctionId>,

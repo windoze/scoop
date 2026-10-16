@@ -1,0 +1,88 @@
+package scoop.platform.process
+
+import scoop.collections.Map
+import scoop.collections.toMap
+import scoop.platform.env.currentDirectory
+import scoop.platform.env.environment as currentEnvironment
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.system.*
+
+public enum Stdio { Inherit, Null, Pipe, Redirect(val file: File) }
+
+public class Command public constructor(
+    public val executable: Path,
+    arguments: Array<OsString> = [],
+    environment: Map<OsString, OsString> = currentEnvironment(),
+    public val workingDirectory: Path = currentDirectory(),
+    public val stdin: Stdio = Stdio.Inherit,
+    public val stdout: Stdio = Stdio.Inherit,
+    public val stderr: Stdio = Stdio.Inherit,
+    public val mergeError: Boolean = false
+) {
+    public val arguments: Array<OsString> = Array<OsString>(arguments.size) { arguments[it] }
+    public val environment: Map<OsString, OsString> = environment.toMap()
+
+    init {
+        if (mergeError) {
+            when (stderr) {
+                case Stdio.Inherit -> {}
+                case _ -> throw IllegalArgumentException(Some("merged stderr cannot be redirected separately"))
+            }
+        }
+    }
+
+    public fun spawn(): ChildProcess = start(false)
+    public fun searchPath(): ChildProcess = start(true)
+
+    private fun start(search: Boolean): ChildProcess {
+        val packed = SpawnInput(executable, arguments, environment, workingDirectory)
+        val child = ChildProcess(isPipe(stdin), isPipe(stdout), isPipe(stderr))
+        val result = MutableArray<Int>(4L) { -1 }
+        var denied: PlatformException? = None
+        var missing: PlatformException? = None
+        val paths = if (search) searchCandidates(executable, environment) else Array<Path>(1L) { executable }
+        for (path in paths) {
+            val (status, code) = packed.spawn(path, stdin, stdout, stderr, mergeError, result)
+            if (status == 0) {
+                child.adopt(result)
+                return child
+            }
+            val error = NativeError(NativeErrorDomain.PosixErrno, code)
+            val failure = PlatformException("spawn", error.kind, Some(error), Some(path.toOsString()))
+            if (!search) throw failure
+            when (error.kind) {
+                case PlatformErrorKind.PermissionDenied -> denied = Some(failure)
+                case PlatformErrorKind.NotFound -> missing = Some(failure)
+                case PlatformErrorKind.NotDirectory -> missing = Some(failure)
+                case _ -> throw failure
+            }
+        }
+        throw denied ?: missing!!
+    }
+}
+
+internal fun isPipe(value: Stdio): Boolean = when (value) {
+    case Stdio.Pipe -> true
+    case _ -> false
+}
+
+private fun searchCandidates(executable: Path, environment: Map<OsString, OsString>): Array<Path> {
+    val name = executable.toOsString().toBytes()
+    for (byte in name) { if (byte == 47) return [executable] }
+    val path = (environment[OsString.fromString("PATH")] ?: OsString.fromString("/bin:/usr/bin")).toBytes()
+    val result = ArrayList<Path>()
+    var start = 0L
+    var index = 0L
+    while (index <= path.size) {
+        if (index == path.size || path[index] == 58) {
+            val from = start
+            val length = index - start
+            val directory = Path.fromOsString(OsString.fromBytes(Array<Byte>(length) { path[from + it] }))
+            result.add(directory.resolve(executable))
+            start = index + 1L
+        }
+        index += 1L
+    }
+    return Array<Path>(result.size) { result[it] }
+}

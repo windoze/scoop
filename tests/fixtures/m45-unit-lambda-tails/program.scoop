@@ -1,0 +1,15 @@
+class Box<T>(public val value: T)
+fun <T> boxed(block: () -> T): Box<T> = Box(block())
+fun discard(block: () -> Unit) { block() }
+
+fun main() {
+    val calls = AtomicInt(0)
+    discard { boxed { calls.fetchAdd(1); "one" } }
+    discard { if (true) boxed { calls.fetchAdd(1); 2 } }
+    discard { when (true) { case true -> boxed { calls.fetchAdd(1); "three" }; case false -> boxed { 0 } } }
+    discard { try { boxed { calls.fetchAdd(1); 4 } } finally { boxed { calls.fetchAdd(1); 5 } } }
+    val action: () -> Unit = { if (true) boxed { calls.fetchAdd(1); "six" } }
+    action()
+    discard { calls.fetchAdd(1) + 100 }
+    println(calls.load())
+}

@@ -1,0 +1,56 @@
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.process.*
+
+fun transferApplication() {
+    val directory = Files.createTempDirectory(prefix = "scoop-transfer-")
+    try {
+        val input = directory.resolve(Path.fromString("input bytes"))
+        val output = directory.resolve(Path.fromString("received bytes"))
+        val bytes = Array<Byte>(16385L) { (it % 251L).toInt8() }
+        NativeByteBuffer.allocate(bytes.size).use { buffer ->
+            buffer.writeBytes(bytes)
+            File.open(input, OpenOptions(read = false, write = true, createNew = true)).use {
+                it.writeFully(buffer)
+            }
+        }
+        val command = Command(Path.fromString("/bin/cat"), [input.toOsString()],
+            workingDirectory = directory, stdout = Stdio.Pipe, stderr = Stdio.Pipe)
+        val result = command.spawn().use { it.communicate() }
+        when (result.status) {
+            case ExitStatus.Exited(code) -> if (code != 0) throw IllegalStateException()
+            case ExitStatus.Signaled(_) -> throw IllegalStateException()
+        }
+        if (result.stderr.size != 0L) throw IllegalStateException()
+        TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
+            Thread.start {
+                listener.accept().use { stream ->
+                    val count = File.open(output, OpenOptions(read = false, write = true, createNew = true)).use {
+                        gcCollect()
+                        stream.copyTo(it, 257L)
+                    }
+                    stream.writeLine(count.toString())
+                    stream.shutdownOutput()
+                }
+            }.use {
+                TcpStream.connect(listener.localAddress).use { stream ->
+                    stream.writeAllBytes(result.stdout)
+                    stream.shutdownOutput()
+                    if (stream.readLine() != Some(bytes.size.toString()) || stream.readLine() != None) {
+                        throw IllegalStateException()
+                    }
+                    Unit
+                }
+            }
+        }
+        val received = Files.readAllBytes(output)
+        if (received.size != bytes.size) throw IllegalStateException()
+        for (index in 0L..<bytes.size) {
+            if (received[index] != bytes[index]) throw IllegalStateException()
+        }
+    } finally { Files.deleteRecursively(directory) }
+    println("platform transfers passed")
+}

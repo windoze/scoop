@@ -1,0 +1,56 @@
+package scoop.platform.time
+
+import scoop.time.*
+import scoop.test.*
+
+private class TestTimeSource : TimeSource {
+    var reads: Long = 0L
+    public override fun markNow(): TimeMark {
+        val value = reads
+        reads += 1L
+        return TimeMark(this, Duration.seconds(value))
+    }
+}
+
+@Test
+private class ClocksTest {
+    @Test
+    fun `system clocks compose with standard time types`() {
+        val wall: Clock = SystemClock
+        val instant = wall.now()
+        assertTrue(instant.nanosecondsOfSecond >= 0 && instant.nanosecondsOfSecond < 1000000000)
+        assertEquals(instant, Instant.fromEpochSeconds(instant.epochSeconds, instant.nanosecondsOfSecond.toInt64()))
+        val monotonic: TimeSource = MonotonicTimeSource
+        val first = monotonic.markNow()
+        val second = monotonic.markNow()
+        assertSame(monotonic, first.source)
+        assertTrue(second >= first)
+        assertTrue(first.elapsedNow() >= Duration.ZERO)
+    }
+
+    @Test
+    fun `measurement calls the body once and preserves generic result and failure`() {
+        val source = TestTimeSource()
+        val calls = AtomicInt(0)
+        val identity = Throwable()
+        val result = measureTimedValue(source) { calls.fetchAdd(1); identity }
+        assertSame(identity, result.value)
+        assertEquals(Duration.seconds(1L), result.duration)
+        assertEquals(1, calls.load())
+        assertEquals(Duration.seconds(1L), measureTime(source) { calls.fetchAdd(1) })
+        assertEquals(2, calls.load())
+        assertSame(identity, assertFailsWith<Throwable> { measureTimedValue(source) { throw identity } })
+        assertEquals(5L, source.reads)
+        assertFailsWith<IllegalArgumentException> { TimeMark(source, Duration.ZERO) - MonotonicTimeSource.markNow() }
+    }
+
+    @Test
+    fun `sleep validates its duration and waits in the monotonic domain`() {
+        assertFailsWith<IllegalArgumentException> { sleep(Duration.nanoseconds(-1L)) }
+        sleep(Duration.ZERO)
+        val duration = Duration.milliseconds(1L)
+        val before = MonotonicTimeSource.markNow()
+        sleep(duration)
+        assertTrue(before.elapsedNow() >= duration)
+    }
+}

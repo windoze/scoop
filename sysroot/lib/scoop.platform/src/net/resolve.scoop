@@ -1,0 +1,47 @@
+package scoop.platform.net
+
+import scoop.platform.fs.withNativeString
+import scoop.platform.system.*
+
+public fun resolve(host: String, port: Int, family: AddressFamily? = None): Array<SocketAddress> =
+    resolve(OsString.fromString(host), port, family)
+
+public fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress> {
+    requirePort(port)
+    val selector = when (family) {
+        case Some(AddressFamily.IPv4) -> 4
+        case Some(AddressFamily.IPv6) -> 6
+        case None -> 0
+    }
+    val addresses = ArrayList<SocketAddress>()
+    @Unsafe {
+        val result = host.withNativeString { pointer ->
+            @Unsafe { return@withNativeString nativeResolve(pointer, port, selector) }
+        }
+        if (result.code != 0) {
+            val error = NativeError(NativeErrorDomain.AddressResolution, result.code,
+                if (result.hasSystemCode) Some(result.systemCode) else None)
+            throw PlatformException("resolve", error.kind, Some(error), Some(host))
+        }
+        var current = result.head
+        try {
+            while (current != None) {
+                val (address, error) = nativeResolveAddress(current!!)
+                addresses.add(socketAddress(address, error))
+                current = nativeResolveNext(current!!)
+            }
+            return addresses.toArray()
+        } finally {
+            when (result.head) { case Some(head) -> nativeResolveFree(head); case None -> {} }
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_resolve")
+private fun nativeResolve(host: Ptr<Byte>, port: Int, family: Int): NativeResolution
+@Extern(name = "scoop_platform_resolve_next")
+private fun nativeResolveNext(entry: Ptr<Unit>): Ptr<Unit>?
+@Extern(name = "scoop_platform_resolve_address", captureErrno = true)
+private fun nativeResolveAddress(entry: Ptr<Unit>): (NativeSocketAddress, Int)
+@Extern(name = "scoop_platform_resolve_free")
+private fun nativeResolveFree(head: Ptr<Unit>)

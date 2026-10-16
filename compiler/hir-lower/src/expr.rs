@@ -51,6 +51,7 @@ use crate::{
 
 mod atomics;
 mod callable_literals;
+pub(crate) use callable_literals::ExpressionExpectation;
 mod callable_references;
 mod callables;
 mod callbacks;
@@ -245,6 +246,20 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        self.lower_expr_with_expectation(expr, sink, expected.map(ExpressionExpectation::Type))
+    }
+
+    pub(crate) fn lower_expr_with_expectation(
+        &mut self,
+        expr: &ast::Expr,
+        sink: &mut Vec<hir::Statement>,
+        expectation: Option<ExpressionExpectation>,
+    ) -> Option<hir::Expr> {
+        let (expected, lambda_expectation) = match expectation {
+            Some(ExpressionExpectation::Type(ty)) => (Some(ty), None),
+            Some(ExpressionExpectation::Lambda(signature)) => (None, Some(signature)),
+            None => (None, None),
+        };
         if self.reject_release_expression(expr) {
             return None;
         }
@@ -400,7 +415,7 @@ impl Lowerer {
                 parameters.as_deref(),
                 body,
                 *span,
-                expected,
+                lambda_expectation.or_else(|| expected.and_then(|ty| self.lambda_expectation(ty))),
             ),
             ast::Expr::AnonymousFunction {
                 label,

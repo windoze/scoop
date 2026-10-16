@@ -61,6 +61,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::Local(_)
             | DefaultExpressionKindV1::Capture(_)
             | DefaultExpressionKindV1::NoneLiteral => Ok(()),
+            DefaultExpressionKindV1::AnnotationKey(annotation) => self.observe(
+                super::Target::Annotation(*annotation),
+                origin,
+                ExportDefaultReferenceOccurrenceSiteV1::Expression,
+            ),
             DefaultExpressionKindV1::GlobalRead(property) => self.push_global(
                 pending,
                 *property,

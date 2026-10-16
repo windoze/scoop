@@ -20,9 +20,6 @@ pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFu
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::GcCollect)
         }
         mir::RuntimeFn::GcStats => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::GcStats),
-        mir::RuntimeFn::MaterializeException => {
-            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::MaterializeException)
-        }
         mir::RuntimeFn::StringConcat => {
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::StringConcat)
         }

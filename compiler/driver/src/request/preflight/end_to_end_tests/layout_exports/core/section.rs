@@ -127,6 +127,7 @@ fn reject_missing_application(
     assert!(
         matches!(error,
         mir::MirTypeBridgeSectionError::MissingDependency(mir::MirTypeBridgeTargetV1::Type(exact))
+        | mir::MirTypeBridgeSectionError::References(mir::MirTypeBridgeReferenceError::MissingType(exact))
         if exact == missing),
         "{error:?}"
     );

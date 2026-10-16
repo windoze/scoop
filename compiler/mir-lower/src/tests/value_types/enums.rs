@@ -227,6 +227,7 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
     check_mir_snapshot(
         "option_consumers_become_guarded_representation_independent_primitives",
         &module,
+        &["main"],
     );
     assert_eq!(module.validate(), Ok(()));
 }
@@ -271,7 +272,11 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // The operand is evaluated once into `$opt.1`; the semantic variant test
     // guards the representation-independent extraction, and the else branch throws
     // `UnwrapException()` (M8) — an ordinary constructor call.
-    check_mir_snapshot("trapping_unwrap_becomes_a_guarded_extraction", &module);
+    check_mir_snapshot(
+        "trapping_unwrap_becomes_a_guarded_extraction",
+        &module,
+        &["main"],
+    );
     assert_eq!(module.validate(), Ok(()));
 }
 

@@ -38,6 +38,11 @@ impl Lowerer {
                 })?;
         }
         let kind = match expression.kind() {
+            Kind::AnnotationKey(annotation) => {
+                self.prepare_type_reference_factory()
+                    .map_err(ImportedDefaultMaterializationError::Plan)?;
+                hir::ExprKind::AnnotationKey(*annotation)
+            }
             Kind::ForeignCallbackRegister {
                 registration,
                 closure,

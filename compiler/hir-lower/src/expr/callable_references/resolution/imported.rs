@@ -33,6 +33,14 @@ impl ImportedReferenceDeclaration {
         ) {
             return Err(crate::expr::atomics::ATOMIC_REFERENCE_ERROR.into());
         }
+        if interface.effects().implementation()
+            == hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::AnnotationKey)
+        {
+            return Err(
+                "annotationKey is a declaration query and cannot be used as a callable reference"
+                    .into(),
+            );
+        }
         if candidate.callable_body().is_some()
             || matches!(
                 interface.owner(),

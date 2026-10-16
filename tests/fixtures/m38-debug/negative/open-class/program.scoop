@@ -1,0 +1,3 @@
+open class Record(val value: Int)
+object Inspector : Inspectable<Record>
+fun main() {}

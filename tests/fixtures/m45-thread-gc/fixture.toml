@@ -1,0 +1,43 @@
+schema = 1
+name = "m45-thread-gc"
+inputs = ["consumer", "probe.c"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m45", "platform", "gc", "threads", "release-blocks"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${sysroot}/lib/scoop.platform", to = "${work}/platform"}},
+    {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/thread_probe.c"}},
+    {replace = {path = "${work}/platform/native/threads.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define pthread_create m45_thread_create\n#define pthread_detach m45_thread_detach\n#define free m45_thread_free"}},
+    {replace = {path = "${work}/platform/native/mutex.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define pthread_mutex_init m45_mutex_init\n#define malloc m45_mutex_malloc\n#define free m45_mutex_free"}},
+    {replace = {path = "${work}/platform/native/condition.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define pthread_cond_init m45_condition_init\n#define free m45_condition_free"}},
+    {replace = {path = "${work}/platform/Cone.toml", old = 'path = "native/threads.c"', new = "path = \"native/threads.c\"\n\n[[native.sources]]\npath = \"native/thread_probe.c\""}},
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "thread and synchronization ownership passed\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "thread and synchronization ownership passed\n"
+stderr = ""

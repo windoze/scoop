@@ -1,0 +1,3 @@
+interface Inspectable<T> { fun inspect(value: T): ValueView }
+struct Record(val value: Int) { companion object : Inspectable<Record> }
+fun main() {}

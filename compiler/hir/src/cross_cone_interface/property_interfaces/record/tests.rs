@@ -22,7 +22,7 @@ fn property_record_has_fixed_field_wire_and_accessors() {
     let fixture = Fixture::new();
     let record = fixture.record();
     let expected = [
-        b"\xa3\x01\xa8\x01".as_slice(),
+        b"\xa3\x01\xa9\x01".as_slice(),
         encode(&record.declaration()).unwrap().as_slice(),
         b"\x02".as_slice(),
         encode(&record.owner()).unwrap().as_slice(),
@@ -42,6 +42,7 @@ fn property_record_has_fixed_field_wire_and_accessors() {
         encode(&record.representation()).unwrap().as_slice(),
         b"\x08".as_slice(),
         encode(&record.declared_visibility()).unwrap().as_slice(),
+        b"\x09\x80".as_slice(),
         b"\x02".as_slice(),
         encode(&record.access()).unwrap().as_slice(),
         b"\x03".as_slice(),

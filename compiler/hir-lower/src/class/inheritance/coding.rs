@@ -22,6 +22,7 @@ pub(super) struct CodingContext {
 pub(super) enum CodingDirection {
     Encode,
     Decode,
+    Inspect(super::inspection::InspectionTypeFactory),
 }
 
 impl CodingDirection {
@@ -29,36 +30,42 @@ impl CodingDirection {
         match self {
             Self::Encode => "encode",
             Self::Decode => "decode",
+            Self::Inspect(_) => "inspect",
         }
     }
     fn factory(self) -> &'static str {
         match self {
             Self::Encode => "encoder",
             Self::Decode => "decoder",
+            Self::Inspect(_) => "inspector",
         }
     }
     fn protocol(self) -> &'static str {
         match self {
             Self::Encode => "Encodable",
             Self::Decode => "Decodable",
+            Self::Inspect(_) => "Inspectable",
         }
     }
     fn stream(self) -> &'static str {
         match self {
             Self::Encode => "Encoder",
             Self::Decode => "Decoder",
+            Self::Inspect(_) => "ValueView",
         }
     }
     fn unit_codec(self) -> &'static str {
         match self {
             Self::Encode => "UnitEncoder",
             Self::Decode => "UnitDecoder",
+            Self::Inspect(_) => "UnitInspector",
         }
     }
     fn function_codec(self) -> &'static str {
         match self {
             Self::Encode => "EncodeFunction",
             Self::Decode => "DecodeFunction",
+            Self::Inspect(_) => "InspectFunction",
         }
     }
 }

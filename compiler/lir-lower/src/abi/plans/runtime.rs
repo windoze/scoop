@@ -21,7 +21,6 @@ pub(crate) fn runtime_signature(
             ),
             Managed::BoxZst => (vec![M], P),
             Managed::BoxValue => (vec![M, R], P),
-            Managed::MaterializeException => (vec![P], P),
             Managed::StringConcat => (vec![P, P], P),
             Managed::InitializationEnter => (
                 vec![M],

@@ -1,0 +1,38 @@
+class Counter {
+    var calls: Int = 0
+    var total: Int = 0
+    fun next(): Int { calls += 1; return calls }
+}
+class Resource(val counter: Counter) : Disposable {
+    fun add(value: Int = counter.next()): Int { counter.total += value; gcCollect(); return value }
+    fun fail() { throw Throwable() }
+    public override fun dispose() { counter.total += 1 }
+}
+class Holder(val resource: Resource)
+class Action(val call: () -> Int)
+fun Resource.extra(value: Int): Int = add(value)
+fun <T : Disposable> cleanup(value: T?) { value?.dispose() }
+
+fun main() {
+    val counter = Counter()
+    val resource = Resource(counter)
+    val none: Resource? = None
+    none?.add(counter.next())
+    none?.add()
+    val some: Resource? = Some(resource)
+    some?.add()
+    some?.extra(counter.next())
+    val holder: Holder? = Some(Holder(resource))
+    holder?.resource?.add(4)
+    val missing: Holder? = None
+    missing?.resource?.add(counter.next())
+    val action: Action? = Some(Action { counter.next() })
+    action?.call()
+    try { some?.fail() }
+    catch (error: Throwable) { counter.total += 8 }
+    finally { some?.add(1) }
+    cleanup(some)
+    cleanup(none)
+    if (counter.calls != 3) throw IllegalStateException()
+    println(counter.total)
+}

@@ -102,31 +102,17 @@ fn rejects_wrong_signature_and_unclosed_statuses() {
 }
 
 #[test]
-fn rejects_unbalanced_and_unmaterialized_root_exceptions() {
+fn rejects_unbalanced_and_unpublished_root_exceptions() {
     let mut module = root(true);
-    failure(gateway(&mut module)).instructions.swap(2, 4);
-    rejects(&module, "materialize, store and then end");
+    failure(gateway(&mut module)).instructions.swap(2, 3);
+    rejects(&module, "store the exception before ending");
     let mut module = root(true);
     let instructions = &mut failure(gateway(&mut module)).instructions;
-    let Instruction::BeginCatch { out, .. } = instructions[1] else {
-        panic!("fixture catch");
-    };
-    let Instruction::GlobalStore { value, .. } = &mut instructions[3] else {
+    let Instruction::GlobalStore { value, .. } = &mut instructions[2] else {
         panic!("fixture store");
     };
-    *value = Value::Temp(out);
-    rejects(&module, "materialized exception");
-    let mut module = root(true);
-    let function = gateway(&mut module);
-    function
-        .call_targets
-        .managed_targets
-        .direct
-        .values_mut()
-        .next()
-        .unwrap()
-        .destination = ManagedCallDestination::Runtime(ManagedRuntimeFunction::StringConcat);
-    rejects(&module, "materialized exception");
+    *value = Value::NullPointer(PointerKind::Managed);
+    rejects(&module, "original exception");
     let mut module = root(true);
     let Instruction::BeginCatch { raw, .. } = &mut failure(gateway(&mut module)).instructions[1]
     else {
@@ -136,7 +122,7 @@ fn rejects_unbalanced_and_unmaterialized_root_exceptions() {
     rejects(&module, "landingpad payload");
     let mut module = root(true);
     failure(gateway(&mut module)).instructions.pop();
-    rejects(&module, "materialize, store and then end");
+    rejects(&module, "store the exception before ending");
     let mut module = eager();
     failure(gateway(&mut module))
         .instructions

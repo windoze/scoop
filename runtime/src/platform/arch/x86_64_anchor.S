@@ -24,7 +24,6 @@ SCOOP_MANAGED_ENTRY scoop_runtime_alloc_slow, scoop_runtime_alloc_slow_impl, %rd
 SCOOP_MANAGED_ENTRY scoop_rt_string_concat, scoop_rt_string_concat_impl, %rdx, %rcx, %r8
 SCOOP_MANAGED_ENTRY scoop_rt_box_zst, scoop_rt_box_zst_impl, %rsi, %rdx, %rcx
 SCOOP_MANAGED_ENTRY scoop_rt_box_value, scoop_rt_box_value_impl, %rdx, %rcx, %r8
-SCOOP_MANAGED_ENTRY scoop_rt_materialize_exception, scoop_rt_materialize_exception_impl, %rsi, %rdx, %rcx
 SCOOP_MANAGED_ENTRY scoop_rt_init_enter, scoop_rt_init_enter_impl, %rsi, %rdx, %rcx
 SCOOP_MANAGED_ENTRY scoop_rt_init_succeed, scoop_rt_init_succeed_impl, %rsi, %rdx, %rcx
 SCOOP_MANAGED_ENTRY scoop_rt_init_fail, scoop_rt_init_fail_impl, %rdx, %rcx, %r8

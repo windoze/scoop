@@ -55,6 +55,7 @@ macro_rules! test_identity {
 }
 
 test_identity!(crate::ConeIdentity);
+test_identity!(crate::PersistentAnnotationId);
 test_identity!(PersistentFunctionId);
 test_identity!(PersistentGenericFunctionId);
 test_identity!(PersistentConstructorId);
@@ -127,6 +128,10 @@ fn all_generated_callable_records_round_trip_and_resolve() {
             role: InitializationCallableRole::Ensure,
         },
         GeneratedCallableKey::DerivedEquality { exact_owner: exact },
+        GeneratedCallableKey::AnnotationDescription {
+            annotation: crate::PersistentAnnotationId::expected(),
+            parent: source_callable.template(),
+        },
         GeneratedCallableKey::FunctionAdapter {
             source: signature.clone(),
             target: signature.clone(),
@@ -229,8 +234,8 @@ fn generated_callable_resolution_rejects_nonlexical_generated_parent() {
 
 #[test]
 fn generated_callable_decoder_rejects_unknown_tags_and_roles() {
-    let outer = decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x12").unwrap_err();
-    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 18 });
+    let outer = decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x13").unwrap_err();
+    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 19 });
 
     let parent_bytes = [b"\xa2\x00\x07\x01\x58\x20".as_slice(), &[0; 32]].concat();
     let parent = decode_canonical::<DecodedLexicalCallableParent>(&parent_bytes).unwrap_err();

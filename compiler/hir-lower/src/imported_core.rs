@@ -6,6 +6,7 @@ mod intrinsics;
 mod members;
 mod nominals;
 mod pointers;
+mod type_info;
 
 use scoop_ast::Span;
 use scoop_hir as hir;

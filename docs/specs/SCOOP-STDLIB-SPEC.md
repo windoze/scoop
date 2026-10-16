@@ -30,6 +30,8 @@
 
 core 不依赖 std。现有 Iterator、Iterable、List、MutableList、ArrayList、StringBuilder、Option、编码协议与运算符接口保持原实体；`scoop.collections` 可通过普通 `public import` 再发布 core 的集合类型。JSON 继续是独立 Cone；M42 不要求迁移 JSON 或让 std 依赖 JSON。
 
+系统字符串、路径及 OS 错误属于独立的普通 `scoop.platform` Cone，见[平台库规范](SCOOP-PLATFORM-SPEC.md)。platform 依赖 std／core，std 不反向依赖 platform；字节序、集合、时间与随机源接口等平台无关类型保持原实体。
+
 ### 1.2 命名、类型与失败
 
 类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、mapNotNull、getOrNull、sortedWith、Random、Duration、Instant、LocalDate、Uuid。以下 Scoop 规则优先：
@@ -268,7 +270,7 @@ public val 字段名为 mostSignificantBits、leastSignificantBits，类型均�
 
 `getOrThrow` 只适用于 `E : Throwable`；`runCatching(block)` 返回 Result<T,Throwable>，捕获普通可抛出的 Throwable，不捕获 runtime fatal、进程信号或终止。结果方法通过普通模式匹配实现，不改变 try/throw、Option 或 Nothing 的语言规则。采用 Kotlin 的 Result/Success/Failure/getOrThrow 命名，但保留 Scoop 的显式错误类型 E；不新增隐式异常转换。
 
-runCatching 保存普通 catch 物化后的 managed 异常；getOrThrow 与直接 throw 使用同一既有异常契约。运行时规范 5.1～5.4 的 payload 复制和 catch 物化仍适用，不额外承诺 throw 前后保持对象 identity；动态类型、值字段和 payload 中引用字段的浅复制语义保持。
+runCatching 保存普通 catch 捕获的原 managed 异常；getOrThrow 与直接 throw 使用运行时规范 5.1～5.4 的同一异常契约，保持引用身份、动态类型与字段别名，不复制异常对象。
 
 Option 增加 map/flatMap/filter/fold/getOrElse/orElse、toResult(errorProducer)，Result 提供 toOption。Some(None) 保留层次；懒缺省只在缺失／失败分支调用一次。无约束的 T/E 不因此取得 Equals、Hash、ToString 或编码能力。
 

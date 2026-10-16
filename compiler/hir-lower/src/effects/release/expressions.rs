@@ -18,7 +18,7 @@ impl Lowerer {
                     self.release_expression(operand, values, facts);
                 }
             }
-            E::ContextLookup(_) => {
+            E::AnnotationKey(_) | E::ContextLookup(_) => {
                 facts.requirements = None;
                 facts.violation.get_or_insert(expression.span);
             }

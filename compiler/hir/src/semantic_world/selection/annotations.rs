@@ -9,6 +9,21 @@ pub struct ImportedAnnotationDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    pub fn annotation_value_types(
+        &self,
+    ) -> impl Iterator<Item = &scoop_identity::SignatureTypeKey> {
+        self.catalog.annotations.values().flat_map(|annotation| {
+            annotation
+                .declaration
+                .parameters
+                .iter()
+                .filter_map(|parameter| match &parameter.value_type {
+                    crate::AnnotationParameterType::Value(ty) => Some(ty),
+                    _ => None,
+                })
+        })
+    }
+
     pub fn annotated_type(
         &self,
         target: AnnotationTargetV1,

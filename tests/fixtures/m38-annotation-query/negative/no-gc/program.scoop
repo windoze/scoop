@@ -1,0 +1,3 @@
+annotation class Label
+@NoGC fun invalid() { annotationKey<Label>() }
+fun main() {}

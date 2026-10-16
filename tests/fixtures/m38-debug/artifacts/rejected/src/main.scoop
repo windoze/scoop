@@ -1,0 +1,16 @@
+import observed.*
+
+object PrivateInspector : Inspectable<Secret>
+object InternalInspector : Inspectable<InternalState>
+object ProtectedInspector : Inspectable<ProtectedState>
+
+class LocalSecret(private val token: String) {
+    fun fromInside(): ValueView = IllegalReader.inspect(this)
+}
+object IllegalReader : Inspectable<LocalSecret> {
+    public inline override fun inspect(value: LocalSecret): ValueView {
+        if (false) { return String.inspect(value.token) }
+        return OpaqueInspector<LocalSecret>("hidden").inspect(value)
+    }
+}
+fun main() {}

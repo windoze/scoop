@@ -1,0 +1,57 @@
+package scoop.cli
+
+internal struct CliSource(val index: Long, val spelling: String)
+internal class CliInput(internal val node: CliNode, internal val source: Option<CliSource>)
+internal enum CliNode { Text(String), BooleanValue(Boolean), Record(Array<CliMember>), Sequence(Array<CliInput>) }
+internal struct CliMember(val name: String, val value: CliInput)
+internal enum CliInputResult { Help, Value(CliInput) }
+internal struct CliAlias(val index: Long, val negative: Boolean)
+
+internal fun childPath(path: String, name: String): String {
+    val result = StringBuilder().add(path).add("/")
+    for (character in name) {
+        when (character) {
+            case '~' -> { result.add("~0") }
+            case '/' -> { result.add("~1") }
+            else -> { result.add(character) }
+        }
+    }
+    return result.build()
+}
+
+internal fun inputError(path: String, source: Option<CliSource>, message: String): Nothing {
+    val detail = when (source) {
+        case Some(location) -> message + " at token " + location.index.toString() + " (" + location.spelling + ")"
+        case None -> message
+    }
+    throw DecodingException(path, detail)
+}
+
+internal fun optionToken(text: String): Boolean = text.length >= 2L && text[0L] == '-' &&
+    (text[1L] == '-' || asciiLetter(text[1L]))
+
+internal fun findAlias(entries: Array<CliEntry>, name: String): Option<CliAlias> {
+    for (index in 0L until entries.size) {
+        for (alias in entries[index].names) { if (alias == name) { return Some(CliAlias(index, false)) } }
+        for (alias in entries[index].negativeNames) { if (alias == name) { return Some(CliAlias(index, true)) } }
+    }
+    return None
+}
+
+internal fun choiceInput(choices: Array<CliChoice>, text: String, source: CliSource, path: String): CliInput {
+    for (choice in choices) {
+        if (choice.spelling == text) {
+            val payload = CliInput(CliNode.Record([]), Some(source))
+            return CliInput(CliNode.Record([CliMember(choice.wireName, payload)]), Some(source))
+        }
+    }
+    return inputError(path, Some(source), "unknown choice " + text)
+}
+
+internal fun textInput(entry: CliEntry, text: String, source: CliSource): CliInput = when (entry.valueShape) {
+    case CliValueShape.Text -> CliInput(CliNode.Text(text), Some(source))
+    case CliValueShape.Repeated(CliElementShape.Text) -> CliInput(CliNode.Text(text), Some(source))
+    case CliValueShape.Choice(choices) -> choiceInput(choices, text, source, childPath("", entry.wireKey))
+    case CliValueShape.Repeated(CliElementShape.Choice(choices)) -> choiceInput(choices, text, source, childPath("", entry.wireKey))
+    case CliValueShape.Flag -> inputError(childPath("", entry.wireKey), Some(source), "flag does not accept a value")
+}

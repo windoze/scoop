@@ -44,3 +44,46 @@ impl<'input> ImportedProviderView<'_, 'input> {
             .canonical_for_semantic_authority()
     }
 }
+
+impl<'input> ImportedSemanticWorld<'input> {
+    pub(crate) fn static_annotation_declaration(
+        &self,
+        id: scoop_identity::PersistentAnnotationId,
+    ) -> Option<crate::StaticAnnotationDeclaration<'input>> {
+        self.providers.iter().find_map(|provider| {
+            let annotations = provider.interface().annotations();
+            let declaration = annotations.declaration(id)?;
+            let key = provider
+                .foundation()
+                .canonical_for_semantic_authority()
+                .annotation(id)?
+                .key();
+            Some(crate::StaticAnnotationDeclaration::Dependency {
+                key,
+                declaration,
+                annotations,
+            })
+        })
+    }
+}
+
+impl<'input> ImportedSemanticWorld<'input> {
+    pub(crate) fn static_nominal_annotations(
+        &self,
+        id: crate::SourceNominalId,
+    ) -> Option<crate::StaticAnnotations<'input>> {
+        let provider = self.nominal_source_provider(id)?;
+        let id = match id {
+            crate::SourceNominalId::Concrete(id) => {
+                scoop_identity::NominalDeclarationOwner::Concrete(id)
+            }
+            crate::SourceNominalId::GenericTemplate(id) => {
+                scoop_identity::NominalDeclarationOwner::GenericTemplate(id)
+            }
+        };
+        Some(crate::StaticAnnotations::published(
+            provider.source_interface().annotations(),
+            crate::AnnotationTargetV1::Nominal(id),
+        ))
+    }
+}

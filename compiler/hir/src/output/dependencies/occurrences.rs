@@ -222,7 +222,7 @@ fn validate_origins(
 ) -> Result<(), DependencyCallOccurrenceError> {
     let export = output.export.module();
     let root = occurrence.position.root;
-    let type_owned = matches!(
+    let generated_body = matches!(
         root.context(),
         scoop_identity::CallableMaterializationContext::NoSubstitution
     ) && matches!(root.template(), scoop_identity::CallableTemplateOwner::Generated(id)
@@ -230,6 +230,22 @@ fn validate_origins(
         record.id() == id && matches!(record.key(),
             scoop_identity::GeneratedCallableKey::DerivedEquality { .. })
     }));
+    let template =
+        match root.template() {
+            scoop_identity::CallableTemplateOwner::Generated(id) => output
+                .local
+                .module()
+                .generated_callable_identities
+                .iter()
+                .find_map(|record| match record.key() {
+                    scoop_identity::GeneratedCallableKey::AnnotationDescription {
+                        parent, ..
+                    } if record.id() == id => Some(*parent),
+                    _ => None,
+                })
+                .unwrap_or(root.template()),
+            template => template,
+        };
     let origin = occurrence.expression.origin;
     let evaluation = crate::DefinitionOrigin {
         provider: origin.evaluation.provider,
@@ -251,19 +267,19 @@ fn validate_origins(
             })?;
         if side == DependencyCallOrigin::Evaluation
             && projected.origin().source().cone() != export.cone
-            && !type_owned
+            && !generated_body
         {
-            let origin = export.imported_generic_templates.iter().find_map(|(_, template)| {
-                let matches = match (occurrence.position.root.template(), template.declaration.body_owner()) {
+            let origin = export.imported_generic_templates.iter().find_map(|(_, source_template)| {
+                let matches = match (template, source_template.declaration.body_owner()) {
                     (scoop_identity::CallableTemplateOwner::GenericFunction(expected), crate::DefaultCallableDeclarationV1::GenericFunction(actual)) => expected == actual,
                     (scoop_identity::CallableTemplateOwner::Function(expected), crate::DefaultCallableDeclarationV1::Function(actual)) => expected == actual,
                     (scoop_identity::CallableTemplateOwner::Accessor(expected), crate::DefaultCallableDeclarationV1::PropertyAccessor(actual)) => expected == actual,
                     (scoop_identity::CallableTemplateOwner::Generated(expected), crate::DefaultCallableDeclarationV1::Generated(actual)) => expected == actual,
                     _ => false,
                 };
-                matches.then_some(template.origin)
-            }).or_else(|| export.imported_constructor_templates.iter().find_map(|(_, template)| {
-                matches!(occurrence.position.root.template(), scoop_identity::CallableTemplateOwner::Constructor(declaration) if declaration == template.declaration).then_some(template.origin)
+                matches.then_some(source_template.origin)
+            }).or_else(|| export.imported_constructor_templates.iter().find_map(|(_, constructor)| {
+                matches!(template, scoop_identity::CallableTemplateOwner::Constructor(declaration) if declaration == constructor.declaration).then_some(constructor.origin)
             })).or_else(|| output.local.module().release_hooks.iter().find_map(|(_, hook)| {
                 (occurrence.position.root == hook.materialization).then_some(hook.origin)
             }));

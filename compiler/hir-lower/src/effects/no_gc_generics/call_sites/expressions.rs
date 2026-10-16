@@ -70,6 +70,7 @@ impl Lowerer {
             | ExprKind::FloatLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::Unreachable
+            | ExprKind::AnnotationKey(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
             | ExprKind::ConstructorReceiver

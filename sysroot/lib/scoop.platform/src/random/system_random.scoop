@@ -1,0 +1,63 @@
+package scoop.platform.random
+
+import scoop.platform.io.checkNative
+import scoop.platform.io.requireTransfer
+import scoop.platform.memory.NativeByteBuffer
+import scoop.random.Random
+
+public object SystemRandom : Random {
+    public override fun nextBits(bitCount: Int): Int {
+        if (bitCount < 0 || bitCount > 32) throw IllegalArgumentException(Some("invalid random bit count"))
+        if (bitCount == 0) return 0
+        val bytes = nextBytes(4L)
+        var result = 0u
+        for (byte in bytes) result = (result shl 8) or byte.toUInt8().toUInt32()
+        return (result shr (32L - bitCount.toInt64())).toInt32()
+    }
+
+    public override fun nextBytes(size: Long): Array<Byte> {
+        if (size < 0L) throw IllegalArgumentException(Some("negative byte count"))
+        val array = MutableArray<Byte>(size) { 0.toInt8() }
+        nextBytes(array)
+        return array.toArray()
+    }
+
+    public override fun nextBytes(array: MutableArray<Byte>, fromIndex: Long, toIndex: Long): MutableArray<Byte> {
+        if (fromIndex < 0L || toIndex < 0L || fromIndex > array.size || toIndex > array.size) throw IndexOutOfBoundsException()
+        if (fromIndex > toIndex) throw IllegalArgumentException(Some("reversed byte range"))
+        if (fromIndex == toIndex) return array
+        @Unsafe {
+            array.withDataPointer { pointer, _ ->
+                @Unsafe {
+                    var offset = fromIndex
+                    while (offset < toIndex) offset += entropy(pointer + offset, toIndex - offset)
+                }
+            }
+        }
+        return array
+    }
+
+    public fun fill(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long {
+        requireTransfer(count, buffer.writableBytes)
+        var remaining = count
+        while (remaining > 0L) {
+            val requested = remaining
+            @Unsafe {
+                val written = buffer.withWritableBytes { pointer, _ ->
+                    @Unsafe { return@withWritableBytes entropy(pointer!!, requested) }
+                }
+                remaining -= written
+            }
+        }
+        return count
+    }
+}
+
+@Unsafe
+private fun entropy(pointer: Ptr<Byte>, count: Long): Long {
+    val (written, error) = nativeEntropy(pointer, count)
+    return checkNative(written, error, "system entropy")
+}
+
+@Extern(name = "scoop_platform_entropy", captureErrno = true)
+private fun nativeEntropy(pointer: Ptr<Byte>, count: Long): (Long, Int)

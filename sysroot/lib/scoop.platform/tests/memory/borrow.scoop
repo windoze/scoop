@@ -1,0 +1,130 @@
+package scoop.platform.memory
+
+import scoop.test.*
+
+@Test
+private class NativeByteBufferBorrowTest {
+    @Test
+    fun `empty borrows use None and invoke each callback once`() {
+        NativeByteBuffer.allocate().use { buffer ->
+            val calls = MutableArray<Int>(1L) { 0 }
+            @Unsafe {
+                val result = buffer.withReadableBytes { pointer, count ->
+                    assertTrue(pointer == None)
+                    assertEquals(0L, count)
+                    calls[0L] += 1
+                    "empty"
+                }
+                assertEquals("empty", result)
+                assertEquals(0L, buffer.withWritableBytes { pointer, count ->
+                    assertTrue(pointer == None)
+                    assertEquals(0L, count)
+                    calls[0L] += 1
+                    0L
+                })
+            }
+            assertEquals(2, calls[0L])
+            buffer.ensureWritable(1L)
+            buffer.writeByte(3.toInt8())
+            @Unsafe {
+                buffer.withWritableBytes { pointer, count ->
+                    assertTrue(pointer == None)
+                    assertEquals(0L, count)
+                    0L
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `native tails commit only the initialized prefix and readable borrows do not consume`() {
+        NativeByteBuffer.allocate(8L).use { buffer ->
+            buffer.writeByte(1.toInt8())
+            @Unsafe {
+                assertEquals(2L, buffer.withWritableBytes { pointer, count ->
+                    assertEquals(7L, count)
+                    @Unsafe {
+                        pointer!!.store(0L, 2.toInt8())
+                        gcCollect()
+                        pointer!!.store(1L, 3.toInt8())
+                    }
+                    2L
+                })
+                buffer.skip(1L)
+                assertEquals(5, buffer.withReadableBytes { pointer, count ->
+                    assertEquals(2L, count)
+                    gcCollect()
+                    @Unsafe {
+                        return@withReadableBytes pointer!!.load().toInt32() + pointer!!.load(1L).toInt32()
+                    }
+                })
+            }
+            assertEquals(1L, buffer.readPosition)
+            assertEquals(3L, buffer.writePosition)
+            assertEquals(2.toInt8(), buffer.readByte())
+        }
+    }
+
+    @Test
+    fun `throwing and invalid callbacks clear borrowing without committing bytes`() {
+        NativeByteBuffer.allocate(4L).use { buffer ->
+            val failure = Throwable()
+            @Unsafe {
+                assertSame(failure, assertFailsWith<Throwable> {
+                    @Unsafe {
+                        buffer.withWritableBytes { pointer, _ ->
+                            @Unsafe { pointer!!.store(9.toInt8()) }
+                            throw failure
+                        }
+                    }
+                })
+                assertFailsWith<IllegalArgumentException> { @Unsafe { buffer.withWritableBytes { _, _ -> -1L } } }
+                assertFailsWith<IllegalArgumentException> { @Unsafe { buffer.withWritableBytes { _, _ -> 5L } } }
+                assertSame(failure, assertFailsWith<Throwable> {
+                    @Unsafe { buffer.withReadableBytes { _, _ -> throw failure } }
+                })
+            }
+            assertEquals(0L, buffer.writePosition)
+            assertFailsWith<IndexOutOfBoundsException> { buffer.getByte(0L) }
+            buffer.writeByte(7.toInt8())
+            assertEquals(7.toInt8(), buffer.readByte())
+        }
+    }
+
+    @Test
+    fun `readable and writable borrows reject mutations and nested borrows`() {
+        NativeByteBuffer.allocate(4L).use { buffer ->
+            buffer.writeByte(1.toInt8())
+            @Unsafe {
+                buffer.withReadableBytes { _, _ -> rejectMutations(buffer) }
+                buffer.withWritableBytes { _, _ -> rejectMutations(buffer); 0L }
+            }
+            assertEquals(1.toInt8(), buffer.readByte())
+            buffer.clear()
+        }
+    }
+
+    private fun rejectMutations(buffer: NativeByteBuffer) {
+        assertEquals(4L, buffer.capacity)
+        assertEquals(0L, buffer.readPosition)
+        assertEquals(1L, buffer.writePosition)
+        assertEquals(1L, buffer.readableBytes)
+        assertEquals(3L, buffer.writableBytes)
+        assertFalse(buffer.isDisposed)
+        assertEquals(1.toInt8(), buffer.getByte(0L))
+        assertFailsWith<IllegalStateException> { buffer.dispose() }
+        assertFailsWith<IllegalStateException> { buffer.close() }
+        assertFailsWith<IllegalStateException> { buffer.ensureWritable(0L) }
+        assertFailsWith<IllegalStateException> { buffer.clear() }
+        assertFailsWith<IllegalStateException> { buffer.compact() }
+        assertFailsWith<IllegalStateException> { buffer.skip(0L) }
+        assertFailsWith<IllegalStateException> { buffer.readBytes(0L) }
+        assertFailsWith<IllegalStateException> { buffer.readByte() }
+        assertFailsWith<IllegalStateException> { buffer.writeByte(2.toInt8()) }
+        assertFailsWith<IllegalStateException> { buffer.setByte(0L, 2.toInt8()) }
+        @Unsafe {
+            assertFailsWith<IllegalStateException> { @Unsafe { buffer.withReadableBytes { _, _ -> 0 } } }
+            assertFailsWith<IllegalStateException> { @Unsafe { buffer.withWritableBytes { _, _ -> 0L } } }
+        }
+    }
+}

@@ -539,6 +539,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 `inline`、`crossinline`、`noinline`、`reified`、`tailrec` 只解析后完全忽略。interface 方法自身泛型、任何泛型虚方法和外层词法局部 `var` 捕获为明确排除项；non-local control flow 暂缓。
 
+### M38 TypeInfo、结构化调试输出与 CLI 参数解析（已完成并验收，[设计](milestone38/DESIGN.md)、[验收](milestone38/ACCEPTANCE.md)、[进度](milestone38/PROGRESS.md)）
+
+- 在 M46／M48 完成后交付 TextWriter／StringWriter、typeInfo／annotationKey、typed 声明与注解描述、Inspectable 普通访问及合成、DebugPrinter，以及独立 scoop.cli 的 schema／argv／稳定 Decoder／help。
+- 52 项新增正式 fixture 在三个目标全部通过，包含真实跨 Cone 产物、组合 codec／debug、精确负例及 moving GC。当前 Rust 覆盖本机 5,305／Linux 5,341 项；正式 CLI 本机 4,141、GNU 4,130、musl 4,126 项通过，完整轮次与受影响补验均已闭合。
+- 修正 Linux manifest 大小写，并将 GC 指针查询改为实际使用链及共享 CFG 位置，CLI 基本组合恢复默认超时。逐功能提交，原始日志在仓库外，只保留验收概要；后续按用户要求推进 M45。
+
 ### M39 目标平台边界重构（已完成并验收，[设计](milestone39/DESIGN.md)，[验收记录](milestone39/ACCEPTANCE.md)）
 
 - 保持 Darwin/AArch64、Linux GNU/musl x86-64 三个现有 target，不新增架构支持。
@@ -583,13 +589,20 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 先建立当前同机基线和完整停顿口径，再按功能分别提交优化与模块迁移；通过实际性能对照、共享路径集成回归、三目标和无源码产物消费验收。
 - M44-1～6 全部交付。Darwin 工作区通过 5629 项测试及 2 项 doctest，正式 CLI 全量通过 4037 项；Linux GNU／musl 适用组合分别通过 1163／1167 项。零搬迁、实际移动、minor、线程进度和四程序性能对照完成，回退修复、原始失败及测量限制均保留。
 
+### M45 平台库、确定性资源释放与 native IO buffer（已完成，[设计](milestone45/DESIGN.md)，[验收记录](milestone45/ACCEPTANCE.md)）
+
+- 在 M38 完成后实施；首先修复泛型扩展回调的参数／返回类型联合推断，再接入普通 `scoop.platform` Cone。
+- core 提供 Disposable、普通／挂起 use 与 GC-free pressure 提示；platform 提供 native buffer、同步 IO、文件、进程、线程、网络、系统时间与熵。
+- M45-1～10 按顺序完成并逐功能提交，已交付推断修复、系统字符串／路径／错误、资源协议、NativeByteBuffer、同步 IO、文件／目录、环境／系统信息、时钟、系统熵、线程／同步原语、进程／管道及阻塞 DNS／TCP／UDP；真实下游应用完成 buffer → 文件 → 子进程管道 → TCP → 文件的传输与独立链接。过程见[实施记录](milestone45/PROGRESS.md)。
+- 2026-10-16 三目标验收完成：平台库各 99 项在 debug／release／debug moving GC 通过；正式 CLI 组合 Darwin／GNU／musl 分别 335／337／342 项通过，另有 7／5／0 项不适用；Linux 完整 Rust 5350 项闭合。本机稳定后集中运行 Linux，最后的测试期望修改仅补验受影响用例；原始日志在仓库外，只保留验收概要。
+
 ### M46 序列化基础协议与 DTO 合成（已完成，[设计](milestone46/DESIGN.md)）
 
 - 按 M46-1～6 完成稳定解码视图、null 查询、编码共享容器、统一 Serialize 与 Option 默认值、不可变 JsonValue，以及 API／Cone 离线数据形状验收。
 - core 与格式库保持普通 Scoop 实现；字段规则在 HIR 生成普通 typed body，不增加专用 runtime ABI、JSON IR 或运行期反射。
 - M46-1～6 已分批实现、提交并验收；四组离线基线及组合映射见 [覆盖记录](milestone46/COVERAGE.md)。Linux GNU 全量 4061 项通过、30 项不适用；musl 本期及必要回归 224 项通过，Rust 单元／集成测试 5665 项与 2 项 doctest 通过。
 - 每项功能先同步规范、实现和针对性验证，再提交；先本机测试，再在 Linux 完整验证。M46 已完成，后续按用户要求严格先完成 M48，再推进 M38。
-- 分批执行、性能修复、原始失败与复验记录见[实施记录](milestone46/PROGRESS.md)和[验收汇总](milestone46/validation/linux-summary.json)。
+- 分批执行、性能修复、失败闭合与验收概要见[实施记录](milestone46/PROGRESS.md)。
 
 ## 3. 备注
 
@@ -632,7 +645,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### 从 M26 移出的后续事项
 
-- 通用 off-heap ByteBuffer 与 I/O 边界：容量增长、borrow/view、显式 close、失败原子性、M24 hook 兜底释放，以及 external-memory pressure accounting / managed GC 反馈 / hook 只扣减的 release-safe 入口，整体另行设计与排期；不阻塞 M26 的集合与字符串闭环。
+- off-heap NativeByteBuffer 与 I/O 边界归入 M45：连续独占容量、同步 borrow、显式 close、失败原子性和 M24 hook 兜底已在 M45-4 本机完成。容量变化共用一个 GC-free pressure 提示，首版 GC 有意忽略；不建立外部内存总账或主动收集协议。共享 view 等仍留后续；不阻塞 M26 的集合与字符串闭环。
 
 ### 来自 M1
 

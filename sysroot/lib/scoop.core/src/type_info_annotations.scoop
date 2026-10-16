@@ -1,0 +1,81 @@
+public struct AnnotationKey(
+    val identity: String,
+    val displayName: String,
+    val describeBody: () -> AnnotationDeclarationInfo
+) : Equals<AnnotationKey> {
+    public override operator fun equals(other: AnnotationKey): Boolean = identity == other.identity
+
+    public fun describe(): AnnotationDeclarationInfo = describeBody()
+}
+
+public struct AnnotationDeclarationInfo(
+    val key: AnnotationKey,
+    val visibility: DeclarationVisibility,
+    val parameters: Array<AnnotationParameterInfo>,
+    val annotations: Array<AnnotationInfo>
+)
+
+public struct AnnotationParameterInfo(
+    val id: ParameterRef,
+    val name: String,
+    val type: AnnotationParameterType,
+    val defaultValue: Option<AnnotationValue>
+)
+
+public struct AnnotationInfo(val key: AnnotationKey, val arguments: Array<AnnotationArgument>)
+
+public struct AnnotationArgument(
+    val parameter: ParameterRef,
+    val name: String,
+    val type: AnnotationParameterType,
+    val value: AnnotationValue
+)
+
+public enum AnnotationParameterType {
+    Scalar(TypeRef),
+    IntegerEnum(TypeRef),
+    Annotation(AnnotationKey),
+    Array(AnnotationAtomType)
+}
+
+public enum AnnotationAtomType {
+    Scalar(TypeRef),
+    IntegerEnum(TypeRef),
+    Annotation(AnnotationKey)
+}
+
+public enum IntegerValue {
+    Int8(Int8),
+    Int16(Int16),
+    Int(Int),
+    Long(Long),
+    UInt8(UInt8),
+    UInt16(UInt16),
+    UInt(UInt),
+    ULong(ULong)
+}
+
+public enum AnnotationValue {
+    Boolean(Boolean),
+    String(String),
+    Char(Char),
+    Integer(IntegerValue),
+    FloatBits(UInt),
+    DoubleBits(ULong),
+    IntegerEnum(TypeRef, VariantRef, IntegerValue),
+    Annotation(AnnotationInfo),
+    Array(AnnotationAtomType, Array<AnnotationValue>)
+}
+
+public fun findAnnotations(items: Array<AnnotationInfo>, key: AnnotationKey): Array<AnnotationInfo> {
+    val result = ArrayList<AnnotationInfo>()
+    for (item in items) {
+        if (item.key == key) {
+            result.add(item)
+        }
+    }
+    return result.toArray()
+}
+
+@Intrinsic("annotation_key")
+public fun <A> annotationKey(): AnnotationKey

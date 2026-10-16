@@ -16,7 +16,10 @@ public struct Char : Compare<Char>, Equals<Char>, ToString, Hash {
     public override fun toString(): String = coreCharToString(this)
     public override fun hash(): Long = code.toInt64()
 
-    public companion object : Encodable<Char>, Decodable<Char> {
+    public companion object : Encodable<Char>, Decodable<Char>, Inspectable<Char> {
+        public override fun inspect(value: Char): ValueView =
+            ValueObservation(typeInfo<Char>().type, None, { ValueShape.Scalar(ScalarValue.Char(value)) })
+
         public override fun encode(value: Char, encoder: Encoder): Unit =
             encoder.singleValue().writeString(value.toString())
 

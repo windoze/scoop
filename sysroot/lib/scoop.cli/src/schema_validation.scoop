@@ -1,0 +1,89 @@
+package scoop.cli
+
+internal struct CliLayout(val entries: Array<CliEntry>, val positions: Array<Long>)
+
+internal fun asciiLetter(value: Char): Boolean =
+    (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z')
+
+internal fun invalidNameCharacter(value: Char): Boolean {
+    val code = value.code
+    return code <= 32 || (code >= 127 && code <= 160) || code == 5760 ||
+        (code >= 8192 && code <= 8202) || code == 8232 || code == 8233 ||
+        code == 8239 || code == 8287 || code == 12288 || value == '='
+}
+
+internal fun addUnique(values: ArrayList<String>, name: String, kind: String) {
+    for (existing in values) {
+        if (existing == name) { configuration("duplicate " + kind + ": " + name) }
+    }
+    values.add(name)
+}
+
+internal fun checkOptionName(name: String) {
+    val short = name.length == 2L && name[0L] == '-' && asciiLetter(name[1L])
+    val long = name.length > 2L && name[0L] == '-' && name[1L] == '-'
+    if (!short && !long) { configuration("invalid option name: " + name) }
+    for (character in name) {
+        if (invalidNameCharacter(character)) { configuration("invalid option name: " + name) }
+    }
+}
+
+internal fun checkChoices(choices: Array<CliChoice>) {
+    if (choices.size == 0L) { configuration("CLI choices must not be empty") }
+    val names = ArrayList<String>()
+    for (choice in choices) { addUnique(names, choice.spelling, "choice") }
+}
+
+internal fun checkedEntries(entries: Array<CliEntry>): CliLayout {
+    val names = ArrayList<String>()
+    names.add("-h"); names.add("--help")
+    val wires = ArrayList<String>()
+    var positionalCount = 0L
+    for (entry in entries) {
+        addUnique(wires, entry.wireKey, "wire key")
+        when (entry.role) {
+            case CliRole.Argument(_) -> {
+                positionalCount = positionalCount + 1L
+                if (entry.names.size != 0L || entry.negativeNames.size != 0L) {
+                    configuration("positional argument cannot have option names: " + entry.sourceName)
+                }
+            }
+            else -> {
+                if (entry.names.size == 0L) { configuration("option requires a name: " + entry.sourceName) }
+            }
+        }
+        val flag = when (entry.role) { case CliRole.Flag -> true; else -> false }
+        val flagShape = when (entry.valueShape) { case CliValueShape.Flag -> true; else -> false }
+        if (flag != flagShape || (!flag && entry.negativeNames.size != 0L)) {
+            configuration("flag role and value shape disagree: " + entry.sourceName)
+        }
+        for (alias in entry.names) { checkOptionName(alias); addUnique(names, alias, "option name") }
+        for (alias in entry.negativeNames) { checkOptionName(alias); addUnique(names, alias, "option name") }
+        when (entry.valueShape) {
+            case CliValueShape.Choice(choices) -> checkChoices(choices)
+            case CliValueShape.Repeated(CliElementShape.Choice(choices)) -> checkChoices(choices)
+            else -> {}
+        }
+    }
+    val positions = MutableArray<Long>(positionalCount) { _ -> -1L }
+    for (index in 0L until entries.size) {
+        when (entries[index].role) {
+            case CliRole.Argument(position) -> {
+                if (position < 0L || position >= positionalCount) { configuration("positional indices must start at zero and be contiguous") }
+                if (positions[position] != -1L) { configuration("duplicate positional index " + position.toString()) }
+                positions[position] = index
+            }
+            else -> {}
+        }
+    }
+    var optionalSeen = false
+    for (position in 0L until positions.size) {
+        val entry = entries[positions[position]]
+        if (optionalSeen && entry.required && !isRepeated(entry.valueShape)) { configuration("required positional follows an optional argument: " + entry.sourceName) }
+        if (!entry.required) { optionalSeen = true }
+        if (isRepeated(entry.valueShape) && position != positions.size - 1L) {
+            configuration("variadic positional must be last: " + entry.sourceName)
+        }
+    }
+    return CliLayout(entries, positions.toArray())
+}

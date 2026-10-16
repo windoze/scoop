@@ -1,0 +1,197 @@
+package scoop.platform.fs
+
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.OsString
+
+public struct OpenOptions(
+    val read: Boolean = true, val write: Boolean = false, val append: Boolean = false,
+    val create: Boolean = false, val createNew: Boolean = false, val truncate: Boolean = false,
+    val mode: Int = 0x1b6
+) {
+    internal fun nativeFlags(): Int {
+        if ((!read && !write) || ((append || truncate || create || createNew) && !write) || (append && truncate)) {
+            throw IllegalArgumentException(Some("conflicting file open options"))
+        }
+        requireMode(mode)
+        return (if (read) 1 else 0) or (if (write) 2 else 0) or (if (append) 4 else 0) or
+            (if (create) 8 else 0) or (if (createNew) 16 else 0) or (if (truncate) 32 else 0)
+    }
+}
+
+public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Disposable {
+    private var descriptor: Int = -1
+    private val active: AtomicLong = AtomicLong(0L)
+    public val isDisposed: Boolean get() = descriptor < 0
+    public val position: Long get() = seekNative(0L, true)
+    public val size: Long get() = metadata().size
+
+    public companion object {
+        // Pipe/spawn callers allocate all managed owners before acquiring native descriptors.
+        internal fun newOwner(): File = File(None)
+
+        public fun open(path: Path, options: OpenOptions = OpenOptions()): File {
+            val flags = options.nativeFlags()
+            val file = File(Some(path.toOsString()))
+            @Unsafe {
+                val (fd, error) = path.withNativePath { pointer ->
+                    @Unsafe { return@withNativePath nativeFileOpen(pointer, flags, options.mode) }
+                }
+                checkNativeStatus(fd, error, "open", file.context)
+                file.descriptor = fd
+            }
+            return file
+        }
+
+        internal fun duplicateDescriptor(fd: Int, context: OsString? = None): File {
+            val file = File(context)
+            @Unsafe {
+                val (copy, error) = nativeDuplicate(fd)
+                checkNativeStatus(copy, error, "duplicate", context)
+                file.descriptor = copy
+            }
+            return file
+        }
+    }
+
+    internal fun adoptDescriptor(owned: Int) { descriptor = owned }
+
+    internal fun <R> withDescriptor(block: (Int) -> R): R {
+        requireOpen()
+        active.fetchAdd(1L, MemoryOrder.Relaxed)
+        try { return block(descriptor) }
+        finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
+    }
+
+    private fun requireOpen() {
+        if (descriptor < 0) throw IllegalStateException(Some("file is disposed"))
+    }
+
+    public fun duplicate(): File = withDescriptor { fd -> File.duplicateDescriptor(fd, context) }
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        withDescriptor { fd -> readDescriptor(fd, buffer, count, context) }
+
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        withDescriptor { fd -> writeDescriptor(fd, buffer, count, context) }
+
+    public fun readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+        return withDescriptor { fd ->
+            requireArrayTransfer(array.size, offset, count)
+            if (count == 0L) return@withDescriptor 0L
+            @Unsafe {
+                return@withDescriptor array.withDataPointer { pointer, _ ->
+                    @Unsafe {
+                        val (read, error) = nativeRead(fd, pointer + offset, count)
+                        return@withDataPointer checkNative(read, error, "read", context)
+                    }
+                }
+            }
+        }
+    }
+
+    public fun writeFrom(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+        return withDescriptor { fd ->
+            requireArrayTransfer(array.size, offset, count)
+            if (count == 0L) return@withDescriptor 0L
+            @Unsafe {
+                return@withDescriptor array.withDataPointer { pointer, _ ->
+                    @Unsafe { return@withDataPointer writeArray(fd, pointer + offset, count) }
+                }
+            }
+        }
+    }
+
+    public fun writeFrom(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+        return withDescriptor { fd ->
+            requireArrayTransfer(array.size, offset, count)
+            if (count == 0L) return@withDescriptor 0L
+            @Unsafe {
+                return@withDescriptor array.withDataPointer { pointer, _ ->
+                    @Unsafe { return@withDataPointer writeArray(fd, pointer + offset, count) }
+                }
+            }
+        }
+    }
+
+    @Unsafe
+    private fun writeArray(fd: Int, pointer: Ptr<Byte>, count: Long): Long {
+        val (written, error) = nativeWrite(fd, pointer, count)
+        checkNative(written, error, "write", context)
+        if (written == 0L) throw WriteZeroException()
+        return written
+    }
+
+    public fun seek(position: Long) {
+        requireOpen()
+        if (position < 0L) throw IllegalArgumentException(Some("negative file position"))
+        seekNative(position, false)
+    }
+
+    private fun seekNative(offset: Long, current: Boolean): Long = withDescriptor { fd ->
+        @Unsafe {
+            val (position, error) = nativeFileSeek(fd, offset, current)
+            return@withDescriptor checkNative(position, error, "seek", context)
+        }
+    }
+
+    public fun truncate(size: Long) {
+        withDescriptor { fd ->
+            if (size < 0L) throw IllegalArgumentException(Some("negative file size"))
+            @Unsafe {
+                val (status, error) = nativeFileTruncate(fd, size)
+                checkNativeStatus(status, error, "truncate", context)
+            }
+        }
+    }
+
+    public fun syncData() { sync(true) }
+    public fun syncAll() { sync(false) }
+    private fun sync(dataOnly: Boolean) {
+        withDescriptor { fd ->
+            @Unsafe {
+                val (status, error) = nativeFileSync(fd, dataOnly)
+                checkNativeStatus(status, error, "sync", context)
+            }
+        }
+    }
+
+    public fun metadata(): FileMetadata = withDescriptor { fd ->
+        @Unsafe {
+            val (data, error) = nativeMetadata(fd, None, true)
+            return@withDescriptor fileMetadata(data, error, context)
+        }
+    }
+
+    public override fun flush() { requireOpen() }
+
+    public override fun dispose() {
+        if (descriptor < 0) return
+        if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("file operation is active"))
+        val owned = descriptor
+        descriptor = -1
+        @Unsafe {
+            val (status, error) = nativeClose(owned)
+            checkNativeStatus(status, error, "close", context)
+        }
+    }
+
+    public fun close() { dispose() }
+
+    release { if (descriptor >= 0) { @Unsafe { nativeClose(descriptor) } } }
+}
+
+internal fun requireMode(mode: Int) {
+    if (mode < 0 || mode > 0xfff) throw IllegalArgumentException(Some("invalid POSIX mode"))
+}
+
+@Extern(name = "scoop_platform_file_open", captureErrno = true)
+private fun nativeFileOpen(path: Ptr<Byte>, flags: Int, mode: Int): (Int, Int)
+@Extern(name = "scoop_platform_file_seek", captureErrno = true)
+private fun nativeFileSeek(fd: Int, offset: Long, current: Boolean): (Long, Int)
+@Extern(name = "scoop_platform_file_truncate", captureErrno = true)
+private fun nativeFileTruncate(fd: Int, size: Long): (Int, Int)
+@Extern(name = "scoop_platform_file_sync", captureErrno = true)
+private fun nativeFileSync(fd: Int, dataOnly: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_file_same", captureErrno = true)
+internal fun nativeSameFile(first: Int, second: Int): (Int, Int)

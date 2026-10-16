@@ -1,0 +1,59 @@
+package scoop.cli
+
+internal fun isOption(type: TypeRef): Boolean = type.nominal == typeInfo<Option<Unit>>().type.nominal
+internal fun isSequence(type: TypeRef): Boolean =
+    type.nominal == typeInfo<Array<Unit>>().type.nominal ||
+    type.nominal == typeInfo<MutableArray<Unit>>().type.nominal ||
+    type.nominal == typeInfo<ArrayList<Unit>>().type.nominal
+
+internal fun valueShape(type: TypeRef): CliValueShape {
+    var current = type
+    var repeated = false
+    while (isOption(current) || isSequence(current)) {
+        if (isSequence(current)) {
+            if (repeated) { configuration("nested sequences require an explicit CLI schema: " + type.displayName) }
+            repeated = true
+        }
+        current = current.arguments[0L]
+    }
+    val element = scalarShape(current)
+    if (repeated) { return CliValueShape.Repeated(element) }
+    return when (element) {
+        case CliElementShape.Text -> CliValueShape.Text
+        case CliElementShape.Choice(choices) -> CliValueShape.Choice(choices)
+    }
+}
+
+internal fun scalarShape(type: TypeRef): CliElementShape = when (type.describe().shape) {
+    case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.Boolean)) -> CliElementShape.Text
+    case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.Integer(_, _))) -> CliElementShape.Text
+    case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.Float)) -> CliElementShape.Text
+    case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.Double)) -> CliElementShape.Text
+    case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.Char)) -> CliElementShape.Text
+    case TypeShape.Intrinsic(IntrinsicInfo(IntrinsicKind.String)) -> CliElementShape.Text
+    case TypeShape.Enum(info) -> {
+        val choices = ArrayList<CliChoice>()
+        for (variant in info.variants) {
+            when (variant.payload) {
+                case VariantPayload.Unit -> {}
+                else -> configuration("payload enum requires an explicit CLI schema: " + type.displayName)
+            }
+            val serialization = annotation(variant.annotations, annotationKey<Serialize>())
+            val rename = annotationText(serialization, "rename")
+            choices.add(CliChoice(variant.name, if (rename == "") { variant.name } else { rename }))
+        }
+        CliElementShape.Choice(choices.toArray())
+    }
+    else -> configuration("type requires an explicit CLI schema: " + type.displayName)
+}
+
+internal fun isRepeated(shape: CliValueShape): Boolean = when (shape) {
+    case CliValueShape.Repeated(_) -> true
+    else -> false
+}
+
+internal fun valueLabel(type: TypeRef): String {
+    var current = type
+    while (isOption(current) || isSequence(current)) { current = current.arguments[0L] }
+    return current.displayName
+}

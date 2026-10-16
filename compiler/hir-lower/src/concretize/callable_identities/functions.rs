@@ -11,6 +11,37 @@ impl CallableIdentityBuilder<'_> {
         );
         let key = self.concretizer.function_keys[index].clone();
         let source = match self.concretizer.function_source(&key) {
+            FunctionSource::AnnotationDescription {
+                annotation, parent, ..
+            } => {
+                let parent = match parent {
+                    type_info::CallableBody::Function(id) => {
+                        self.resolve_function(id.into_raw().into_u32() as usize)
+                    }
+                    type_info::CallableBody::ClassConstructor(id) => {
+                        self.resolve_class_constructor(id.into_raw().into_u32() as usize)
+                    }
+                    type_info::CallableBody::StructConstructor(id) => {
+                        self.resolve_struct_constructor(id.into_raw().into_u32() as usize)
+                    }
+                };
+                let record =
+                    CborIdentityRecord::from_key(GeneratedCallableKey::AnnotationDescription {
+                        annotation,
+                        parent: parent.template(),
+                    })
+                    .expect("an annotation description has an exact declaration");
+                let materialization = CallableMaterialization::new(
+                    CallableTemplateOwner::Generated(record.id()),
+                    parent.context(),
+                );
+                self.generated_callable_identities
+                    .entry(record.id())
+                    .or_insert(record);
+                self.visiting[index] = false;
+                self.materializations[index] = Some(materialization);
+                return materialization;
+            }
             FunctionSource::Companion(template, role) => {
                 let record = self.concretizer.source.imported_companion_templates[template]
                     .callable(role)

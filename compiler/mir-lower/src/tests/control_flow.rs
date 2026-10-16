@@ -70,7 +70,7 @@ fn try_and_throw_become_explicit_cfg() {
     );
     let module = lower(&h.finish(main));
 
-    check_mir_snapshot("try_and_throw_become_explicit_cfg", &module);
+    check_mir_snapshot("try_and_throw_become_explicit_cfg", &module, &["main"]);
 }
 
 #[test]

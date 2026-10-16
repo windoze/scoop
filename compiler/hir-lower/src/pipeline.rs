@@ -10,6 +10,7 @@ impl Lowerer {
             substitution_slot as u32,
         );
         self.next_type_param_identity += 1;
+        self.intern_type(hir::Type::Param(parameter));
         parameter
     }
 
@@ -341,6 +342,7 @@ impl Lowerer {
             interface_delegates: HashMap::new(),
             interface_forwarders: HashMap::new(),
             derived_decoding_methods: Vec::new(),
+            derived_inspection_methods: Vec::new(),
             invalid_override_methods: HashSet::new(),
             top_level: Shared::default(),
             unit,

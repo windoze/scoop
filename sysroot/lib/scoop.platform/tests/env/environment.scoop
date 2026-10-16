@@ -1,0 +1,42 @@
+package scoop.platform.env
+
+import scoop.collections.MutableMap
+import scoop.platform.fs.Files
+import scoop.platform.fs.Path
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class EnvironmentTest {
+    @Test
+    fun `arguments and environment are independent raw snapshots`() {
+        assertTrue(arguments().size > 0L)
+        val values = environment()
+        assertFalse(values is MutableMap<OsString, OsString>)
+        for ((name, value) in values) assertEquals(value, environmentVariable(name)!!)
+        val again = environment()
+        assertEquals(values.size, again.size)
+        for ((name, value) in values) assertEquals(value, again[name]!!)
+    }
+
+    @Test
+    fun `environment names reject empty equals and NUL`() {
+        assertFailsWith<IllegalArgumentException> { environmentVariable("") }
+        assertFailsWith<IllegalArgumentException> { environmentVariable("a=b") }
+        assertFailsWith<IllegalArgumentException> { environmentVariable("a\u0000b") }
+        assertFailsWith<IllegalArgumentException> { environmentVariable(OsString.fromBytes(Array<Byte>(1L) { 0.toInt8() })) }
+    }
+
+    @Test
+    fun `directory queries use actual cwd and copy configured paths`() {
+        assertEquals(Files.canonicalize(Path.fromString(".")), Files.canonicalize(currentDirectory()))
+        val configured = environmentVariable("TMPDIR")
+        val expected = if (configured != None && configured!!.toBytes().size != 0L) configured!!
+            else OsString.fromString("/tmp")
+        assertEquals(expected, temporaryDirectory().toOsString())
+        when (environmentVariable("HOME")) {
+            case Some(value) -> if (value.toBytes().size != 0L) assertEquals(value, homeDirectory()!!.toOsString())
+            case None -> { homeDirectory() }
+        }
+    }
+}

@@ -223,6 +223,7 @@ impl CoreCompilerProtocolSurfaceV1 {
                 .map_err(CoreCompilerProtocolSurfaceBuildError::Callable)?;
         let surface = Self {
             program_arguments,
+            type_reference: callable(export, protocols, protocols.type_reference)?,
             fundamental_types,
             option_protocol,
             iteration_protocol,

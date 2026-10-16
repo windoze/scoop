@@ -43,6 +43,11 @@ impl PendingFunction {
 impl Concretizer<'_> {
     pub(super) fn is_emittable_source_function(&self, id: export::FunctionId) -> bool {
         let function = &self.source.functions[id];
+        if matches!(&function.kind, export::FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind.is_type_info())
+        {
+            return true;
+        }
         if !matches!(
             function.kind,
             export::FunctionKind::User(_)
@@ -63,6 +68,15 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn lower_function(&mut self, key: &FunctionKey) -> PendingFunction {
+        if let FunctionSource::AnnotationDescription {
+            annotation,
+            result,
+            origin,
+            ..
+        } = self.function_source(key)
+        {
+            return self.lower_annotation_description(annotation, result, origin);
+        }
         if self.type_use_site.is_none()
             && let FunctionSource::Local(id) = self.function_source(key)
         {
@@ -80,6 +94,9 @@ impl Concretizer<'_> {
         let signature = definition.signature;
         let arguments = self.function_key_arguments(key);
         let context_owner = match self.function_source(key) {
+            FunctionSource::AnnotationDescription { .. } => {
+                unreachable!("annotation helpers have no source type parameters")
+            }
             FunctionSource::Local(function) => export::ContextRequirementOwner::Source(function),
             FunctionSource::Imported(template) => export::ContextRequirementOwner::Imported(
                 self.source.imported_generic_templates[template]
@@ -118,6 +135,29 @@ impl Concretizer<'_> {
                     "a typed derived application supplies its concrete body before emission",
                 );
                 (concrete::FunctionKind::User(body), Some(locals))
+            }
+            export::FunctionKind::Intrinsic(intrinsic) if intrinsic.kind.is_type_info() => {
+                let result = self.lower_type(signature.return_ty, &arguments);
+                let origin = self.type_info_origin(key, signature.span);
+                let value = match intrinsic.kind {
+                    export::IntrinsicFunctionKind::TypeReference => {
+                        self.type_reference_data(arguments[0], result, origin)
+                    }
+                    export::IntrinsicFunctionKind::TypeDescription => {
+                        self.type_description_data(arguments[0], result, origin)
+                    }
+                    _ => unreachable!("the intrinsic branch selects metadata operations"),
+                };
+                (
+                    concrete::FunctionKind::User(concrete::Body {
+                        locals: Arena::new(),
+                        statements: vec![concrete::Statement {
+                            span: signature.span,
+                            kind: concrete::StatementKind::Return { value },
+                        }],
+                    }),
+                    None,
+                )
             }
             export::FunctionKind::Intrinsic(intrinsic) => (
                 concrete::FunctionKind::Intrinsic(concrete::IntrinsicFunction {

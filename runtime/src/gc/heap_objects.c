@@ -203,8 +203,7 @@ bool scoop_gc_is_published_object(const void *object) {
     scoop_gc_heap_lock();
     bool published = scoop_gc_is_object_start_locked(object);
     scoop_gc_roots_lock();
-    published = published || scoop_gc_is_immortal_object_locked(object) ||
-                scoop_gc_is_external_object_locked(object);
+    published = published || scoop_gc_is_immortal_object_locked(object);
     scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();
     return published;

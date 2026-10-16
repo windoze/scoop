@@ -52,6 +52,12 @@ where
                 ExternalHirReferenceRoleV1::DefaultDependency,
             )?;
         }
+        for reference in references.annotations() {
+            accumulator.observe(
+                ExternalHirTargetV1::Annotation(*reference.target()),
+                ExternalHirReferenceRoleV1::DefaultDependency,
+            )?;
+        }
         for reference in references.fields() {
             if let Some(target) = field_target(reference.target()) {
                 accumulator.observe(target, ExternalHirReferenceRoleV1::DefaultDependency)?;

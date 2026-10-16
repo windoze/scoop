@@ -109,6 +109,9 @@ impl DecodedDefaultExpressionKindV1 {
             Self::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral(value),
             Self::Unreachable => DefaultExpressionKindV1::Unreachable,
             Self::UnitLiteral => DefaultExpressionKindV1::UnitLiteral,
+            Self::AnnotationKey(annotation) => DefaultExpressionKindV1::AnnotationKey(
+                resolve_persistent(annotation, resolver, 75, 1)?,
+            ),
             Self::TupleLiteral(elements) => DefaultExpressionKindV1::TupleLiteral(
                 resolve_sequence(elements, resolver, locals, 5, 1)?,
             ),

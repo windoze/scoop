@@ -114,6 +114,10 @@ impl WireDecode for DecodedLexicalCallableParent {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedGeneratedCallableKey {
+    AnnotationDescription {
+        annotation: DecodedPersistentId<crate::PersistentAnnotationId>,
+        parent: crate::DecodedCallableTemplateOwner,
+    },
     TestEntry {
         cone: DecodedPersistentId<crate::ConeIdentity>,
     },
@@ -196,9 +200,18 @@ impl DecodedGeneratedCallableKey {
             + PersistentIdResolver<PersistentCallbackApplicationId, Error = E>
             + PersistentIdResolver<PersistentTypeId, Error = E>
             + PersistentIdResolver<PersistentDispatchSlotId, Error = E>
-            + PersistentIdResolver<crate::ConeIdentity, Error = E>,
+            + PersistentIdResolver<crate::ConeIdentity, Error = E>
+            + PersistentIdResolver<crate::PersistentAnnotationId, Error = E>,
     {
         let key = match self {
+            Self::AnnotationDescription { annotation, parent } => {
+                GeneratedCallableKey::AnnotationDescription {
+                    annotation: resolve_id(resolver, annotation)?,
+                    parent: parent
+                        .resolve(resolver)
+                        .map_err(GeneratedCallableResolutionError::Reference)?,
+                }
+            }
             Self::TestEntry { cone } => GeneratedCallableKey::TestEntry {
                 cone: resolve_id(resolver, cone)?,
             },
@@ -302,6 +315,9 @@ impl WireEncode for DecodedGeneratedCallableKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::TestEntry { cone } => encode_value_sum(encoder, 17, cone),
+            Self::AnnotationDescription { annotation, parent } => {
+                encode_two_value_sum(encoder, 18, annotation, parent)
+            }
             Self::Lexical { parent, role, path } => {
                 encoder.map(4)?;
                 encode_tag(encoder, 1)?;
@@ -362,6 +378,13 @@ impl WireDecode for DecodedGeneratedCallableKey {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             17 => decode_id_variant(decoder, fields, |cone| Self::TestEntry { cone }),
+            18 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::AnnotationDescription {
+                    annotation: decoder.field(1, DecodedPersistentId::decode)?,
+                    parent: decoder.field(2, crate::DecodedCallableTemplateOwner::decode)?,
+                })
+            }
             1 => {
                 expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::Lexical {

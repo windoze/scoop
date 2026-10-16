@@ -1,0 +1,30 @@
+internal fun <T> inspectSequence(type: TypeRef, values: List<T>, element: Inspectable<T>): ValueView =
+    ValueObservation(type, Some(values), {
+        ValueShape.Sequence(SequenceView(values.size, { index -> element.inspect(values[index]) }))
+    })
+
+internal class ArrayInspector<T>(private val element: Inspectable<T>) : Inspectable<Array<T>> {
+    public override fun inspect(value: Array<T>): ValueView =
+        inspectSequence(typeInfo<Array<T>>().type, value, element)
+}
+
+internal class MutableArrayInspector<T>(private val element: Inspectable<T>) : Inspectable<MutableArray<T>> {
+    public override fun inspect(value: MutableArray<T>): ValueView =
+        inspectSequence(typeInfo<MutableArray<T>>().type, value, element)
+}
+
+internal class ArrayListInspector<T>(private val element: Inspectable<T>) : Inspectable<ArrayList<T>> {
+    public override fun inspect(value: ArrayList<T>): ValueView =
+        inspectSequence(typeInfo<ArrayList<T>>().type, value, element)
+}
+
+public class ListInspector<T> public constructor(private val element: Inspectable<T>) : Inspectable<List<T>> {
+    public override fun inspect(value: List<T>): ValueView =
+        inspectSequence(typeInfo<List<T>>().type, value, element)
+}
+
+public class MutableListInspector<T> public constructor(private val element: Inspectable<T>)
+    : Inspectable<MutableList<T>> {
+    public override fun inspect(value: MutableList<T>): ValueView =
+        inspectSequence(typeInfo<MutableList<T>>().type, value, element)
+}

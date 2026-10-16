@@ -1,0 +1,59 @@
+package scoop.platform.time
+
+import scoop.platform.io.checkNativeStatus
+import scoop.platform.io.failNative
+import scoop.time.*
+
+public object SystemClock : Clock {
+    public override fun now(): Instant {
+        val value = readClock(false)
+        return Instant.fromEpochSeconds(value.seconds, value.nanoseconds)
+    }
+}
+
+public object MonotonicTimeSource : TimeSource {
+    public override fun markNow(): TimeMark {
+        val value = readClock(true)
+        return TimeMark(this, Duration.seconds(value.seconds, value.nanoseconds))
+    }
+}
+
+public fun sleep(duration: Duration) {
+    if (duration.seconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
+    if (duration == Duration.ZERO) return
+    @Unsafe {
+        val (status, error) = nativeSleep(duration.seconds, duration.nanosecondsOfSecond)
+        checkNativeStatus(status, error, "sleep")
+    }
+}
+
+public fun TimeMark.elapsedNow(): Duration = source.markNow() - this
+public struct TimedValue<T>(val value: T, val duration: Duration)
+
+public fun measureTime(source: TimeSource = MonotonicTimeSource, block: () -> Unit): Duration {
+    val start = source.markNow()
+    block()
+    return source.markNow() - start
+}
+
+public fun <T> measureTimedValue(source: TimeSource = MonotonicTimeSource, block: () -> T): TimedValue<T> {
+    val start = source.markNow()
+    val value = block()
+    return TimedValue(value, source.markNow() - start)
+}
+
+@CLayout
+private struct NativeTime(val seconds: Long, val nanoseconds: Long)
+
+private fun readClock(monotonic: Boolean): NativeTime {
+    @Unsafe {
+        val (value, error) = nativeClock(monotonic)
+        if (value.nanoseconds < 0L) failNative("clock read", error)
+        return value
+    }
+}
+
+@Extern(name = "scoop_platform_clock", captureErrno = true)
+private fun nativeClock(monotonic: Boolean): (NativeTime, Int)
+@Extern(name = "scoop_platform_sleep", captureErrno = true)
+private fun nativeSleep(seconds: Long, nanoseconds: Int): (Int, Int)

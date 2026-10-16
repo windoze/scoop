@@ -30,6 +30,8 @@ runtime-owned exception ABI:
 - `src/gc/mark.c` retains the first-marked live set for relocation; `mark_objects.c`
   owns atomic marking and batched scans, `mark_queue.c` owns task publication and
   stealing, and `mark_pool.c` coordinates persistent internal marker threads;
+- `src/gc/pressure.c` deliberately ignores external pressure hints; the public
+  `gc_binding/pressure.c` facade remains GC-free, including in release hooks;
 - `src/gc/statistics.c` exposes allocation, promotion, scanning, collector phase
   times and per-worker CPU counters;
 - `src/gc_binding/` adapts Scoop representation to collector visitors:
@@ -48,7 +50,7 @@ runtime-owned exception ABI:
   separates STW collection, managed/native transitions, root frames, and
   debug queries;
 - `src/eh.c` owns `ScoopExceptionRecord`, the per-thread caught stack,
-  throw/begin/end/rethrow, and stable external-root lifetime;
+  throw/begin/end/rethrow, and handles preserving exception identity;
 - `src/eh_personality.c` owns the Scoop personality; `src/eh/` contains
   the bounded LLVM 22.1 catch-all/cleanup LSDA decoder, including tables
   that omit TType for cleanup-only functions;

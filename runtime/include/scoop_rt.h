@@ -206,6 +206,9 @@ uint64_t scoop_rt_get_handle(const void *obj);
 const void *scoop_rt_release_handle(uint64_t handle);
 const void *scoop_rt_resolve_handle(uint64_t handle);
 
+/* GC-free external pressure hint; no collection, roots, or thread state. */
+void scoop_rt_gc_adjust_pressure(int64_t delta);
+
 /* Managed foreign-callback gateway (runtime spec 4.3 and 9.4). The generated
  * adapter receives the closure and registration snapshot plus C storage,
  * catches Scoop exceptions, and reports them through exception_out. */

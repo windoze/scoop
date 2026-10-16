@@ -1,0 +1,97 @@
+package scoop.platform.net
+
+import scoop.platform.fs.withNativeString
+import scoop.platform.fs.copyNativeString
+import scoop.platform.io.checkNativeStatus
+import scoop.platform.system.OsString
+import scoop.text.*
+
+public enum AddressFamily { IPv4, IPv6 }
+
+public class IpAddress private constructor(internal val native: NativeSocketAddress) : Equals<IpAddress>, Hash, ToString {
+    public val family: AddressFamily get() = if (native.family == 4) AddressFamily.IPv4 else AddressFamily.IPv6
+    public val scopeId: UInt get() = native.scopeId
+
+    public fun toBytes(): Array<Byte> = Array<Byte>(if (native.family == 4) 4L else 16L) { index ->
+        val word = when (index / 4L) {
+            case 0L -> native.a
+            case 1L -> native.b
+            case 2L -> native.c
+            case _ -> native.d
+        }
+        ((word shr ((3L - index % 4L) * 8L)) and 255u).toInt8()
+    }
+
+    public override operator fun equals(other: IpAddress): Boolean =
+        native.family == other.native.family && native.scopeId == other.native.scopeId &&
+        native.a == other.native.a && native.b == other.native.b && native.c == other.native.c && native.d == other.native.d
+
+    public override fun hash(): Long = (((native.a.hash() * 31L + native.b.hash()) * 31L +
+        native.c.hash()) * 31L + native.d.hash()) * 31L + native.scopeId.hash() + native.family.toInt64()
+
+    public override fun toString(): String {
+        val bytes = MutableArray<Byte>(46L) { 0.toInt8() }
+        @Unsafe {
+            val text = bytes.withDataPointer { pointer, _ ->
+                @Unsafe {
+                    val (status, error) = nativeFormat(native, pointer)
+                    checkNativeStatus(status, error, "format IP address")
+                    return@withDataPointer copyNativeString(pointer).decodeUtf8()
+                }
+            }
+            return if (scopeId == 0u) text else text + "%" + scopeId.toString()
+        }
+    }
+
+    public companion object {
+        public val IPV4_ANY: IpAddress = IpAddress(NativeSocketAddress(4, 0, 0u, 0u, 0u, 0u, 0u))
+        public val IPV4_LOOPBACK: IpAddress = IpAddress(NativeSocketAddress(4, 0, 0u, 0x7f000001u, 0u, 0u, 0u))
+        public val IPV6_ANY: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 0u))
+        public val IPV6_LOOPBACK: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 1u))
+
+        public fun fromBytes(bytes: Array<Byte>, scopeId: UInt = 0u): IpAddress {
+            if (bytes.size != 4L && bytes.size != 16L) throw IllegalArgumentException(Some("IP address requires 4 or 16 bytes"))
+            if (bytes.size == 4L && scopeId != 0u) throw IllegalArgumentException(Some("IPv4 does not have a scope"))
+            return IpAddress(NativeSocketAddress(if (bytes.size == 4L) 4 else 6, 0, scopeId,
+                word(bytes, 0L), word(bytes, 4L), word(bytes, 8L), word(bytes, 12L)))
+        }
+
+        public fun parse(text: String): IpAddress {
+            val separator = text.indexOf('%')
+            val literal = if (separator < 0L) text else text.slice(0L, separator)
+            val scope = if (separator < 0L) 0.toUInt32() else decimal(text.slice(separator + 1L, text.length))
+            @Unsafe {
+                val parsed = OsString.fromString(literal).withNativeString { pointer ->
+                    @Unsafe { return@withNativeString nativeParse(pointer) }
+                }
+                if (parsed.family == 0 || (separator >= 0L && parsed.family != 6)) {
+                    throw IllegalArgumentException(Some("invalid IP address"))
+                }
+                return IpAddress(NativeSocketAddress(parsed.family, 0, scope, parsed.a, parsed.b, parsed.c, parsed.d))
+            }
+        }
+
+        internal fun fromNative(value: NativeSocketAddress): IpAddress =
+            IpAddress(NativeSocketAddress(value.family, 0, value.scopeId, value.a, value.b, value.c, value.d))
+    }
+}
+
+private fun word(bytes: Array<Byte>, offset: Long): UInt {
+    if (offset >= bytes.size) return 0u
+    var value: UInt = 0u
+    for (index in offset..<offset + 4L) value = (value shl 8L) or bytes[index].toUInt8().toUInt32()
+    return value
+}
+
+internal fun decimal(text: String): UInt {
+    if (text.length == 0L) throw IllegalArgumentException(Some("empty address number"))
+    for (byte in text.toByteArray()) {
+        if (byte < 48 || byte > 57) throw IllegalArgumentException(Some("invalid address number"))
+    }
+    return text.toUIntOrNull() ?: throw IllegalArgumentException(Some("address number overflow"))
+}
+
+@Extern(name = "scoop_platform_ip_parse")
+private fun nativeParse(text: Ptr<Byte>): NativeSocketAddress
+@Extern(name = "scoop_platform_ip_format", captureErrno = true)
+private fun nativeFormat(address: NativeSocketAddress, text: Ptr<Byte>): (Int, Int)

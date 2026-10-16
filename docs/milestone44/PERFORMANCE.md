@@ -1,5 +1,7 @@
 # M44 性能记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 本文件记录已完成的 Darwin 同机测量、回退定位及最终平台调用策略。
 Linux 对照与 minor 回退修复见 [Linux 性能记录](PERFORMANCE-LINUX.md)，
 三目标最终覆盖见 [验收核对](ACCEPTANCE.md)；M44 性能与功能验收均已完成。
@@ -14,7 +16,7 @@ stress 和 full-only。两次对照必须使用同一输入和观测配置。
 
 使用现有 wide／array／chain 程序，每图 131071 个节点、每进程主动 full 五次，
 预热一次后测七次进程，共每图 35 次有效 collection。计时期间无本任务的构建、
-测试或清理；[原始报告](validation/graphs-baseline-darwin.json.gz)包含命令、工具摘要、
+测试或清理；原始报告包含命令、工具摘要、
 全部预热和正式样本、阶段时间、worker CPU、RSS／映射量及进程吞吐。
 
 | 图 | 搬迁数范围 | update 中位／p95／最大（ms） | 请求到 RUNNING 中位／p95／最大（ms） | 进程耗时中位（ms） |
@@ -36,7 +38,7 @@ stress 和 full-only。两次对照必须使用同一输入和观测配置。
 完成本批编译与测试后，对上述固定 baseline 和仅修改 collector 零搬迁分支的
 candidate 交替运行；每图每个 binary 预热一次、正式七次进程、每次五轮主动 full。
 源码 commit 加构建时差异、全部运行顺序和原始数据见
-[对照报告](validation/graphs-no-move-darwin.json.gz)。这是重新交替测得的 baseline，
+对照报告。这是重新交替测得的 baseline，
 不与上一节分开运行的数据计算加速比。
 
 | 图 | update 中位：基线 → candidate（ms） | 请求到 RUNNING 中位：基线 → candidate（ms） | candidate p95／最大（ms） | 进程耗时中位：基线 → candidate（ms） |
@@ -63,7 +65,7 @@ chain 基线 59.537–61.024 ms、candidate 41.730–42.391 ms。本批差异超
 宿主和 4 worker 配置沿用上文。全部构建／测试结束后交替运行，预热各一次、正式
 各七次进程，每进程五次增长／收缩，共每侧 35 个有效收缩 full。
 
-[最终原始对照](validation/relocation-compact-darwin.json.gz)保存源码版本／差异、
+最终原始对照保存源码版本／差异、
 binary／工具摘要、命令和全部样本。逐对逐轮核对 moved、source、target、live、traced
 数完全一致：每次从 6 个 source region 集中到 1 个 target，225002 个存活对象，
 实际搬迁 187720–187815 个对象。没有开启 moving stress。
@@ -83,9 +85,9 @@ update 中位约减少 19.1%，请求到 RUNNING 中位约减少 4.0%；七次�
 另用完全相同的两个 binary 对 wide／array／chain 各交替七次进程，每次五轮 full，
 恢复 131071 个节点的原输入。两侧各 105 轮实际搬迁和 update 均为零，三个请求到
 RUNNING 中位分别为 1.931→1.923、2.355→2.339、4.128→4.089 ms，未见整体回退；
-这些微小差异不作为零搬迁分支的新增收益。见[完整复测](validation/relocation-no-move-darwin.json.gz)。
+这些微小差异不作为零搬迁分支的新增收益。见完整复测。
 
-[最终 binary 的反汇编](validation/relocation-machine-code.txt.gz)结合真实 fixture
+最终 binary 的反汇编结合真实 fixture
 验证定位复用、条件 store 和 GC-free 提前返回。此结果仍限 Darwin／AArch64；年轻图、
 线程恢复延迟和 Linux 对照待后续批次，不能用当前结果替代。
 
@@ -95,7 +97,7 @@ RUNNING 中位分别为 1.931→1.923、2.355→2.339、4.128→4.089 ms，未�
 sysroot 副本，固定整理前和整理后的 release CLI，宿主、LLVM 和 4 worker 配置沿用
 上文。复用 allocation、arrays、old-graph、primitive，覆盖分配、数组引用写入、字段
 写入及纯计算循环 poll。编译／测试结束后，各预热一次，再按程序交替七次进程。
-[原始对照](validation/codegen-comparison-darwin.json.gz)保存全部命令、源码／工具
+原始对照保存全部命令、源码／工具
 摘要、checksum、墙钟／CPU、GC 统计、映射量／RSS、吞吐和运行顺序。
 
 | 程序 | 基线进程中位／p95／最大（ms） | 整理后进程中位／p95／最大（ms） | 根 Cone 机器指令字节数（两侧相同） |
@@ -110,7 +112,7 @@ arrays 14.659–20.699、14.360–18.476 ms；old-graph 13.871–19.962、13.723
 primitive 15.720–22.405、15.515–19.199 ms。小程序含进程启动，单个 outlier 对 p95
 影响很大；这些差异不构成加速或回退的证据，也不解释为单条 store／poll 成本。
 
-[结构记录](validation/codegen-machine-darwin.json.gz)确认两侧分别以不同 scoopc
+结构记录确认两侧分别以不同 scoopc
 摘要和编译缓存键实际编译根程序，未误用同一缓存产物。四组 LIR、根产物、完整 binary
 及全部根 Cone 函数机器指令均逐字节一致；包含生成代码的 core 也分别重新编译。
 因此这些程序没有因边界整理增加热路调用、TLS 查询或机器指令。LLVM 条件 poll、
@@ -126,13 +128,13 @@ clone／原子引用与 GC 的组合。本节限 Darwin／AArch64，不替代后
 的固定 binary。全部源码版本／差异、工具摘要、命令、binary 摘要和原始结果随报告保存。
 
 初轮引用数组暴露回退：mark 中位 1.422→1.646 ms，请求到 RUNNING 2.341→2.566 ms，
-见[首轮零搬迁报告](validation/boundary-zero-initial-darwin.json.gz)。这组差异在进程间
-持续存在，因此没有按噪声忽略。[实际 runtime object 反汇编](validation/boundary-marker-machine.json.gz)
+见首轮零搬迁报告。这组差异在进程间
+持续存在，因此没有按噪声忽略。实际 runtime object 反汇编
 显示封装改变了 marker 的内联与指令布局。仅把 null 判断移回调用方的
-[中间对照](validation/boundary-guard-zero-darwin.json.gz)仍未消除回退；最终让数组视图
+中间对照仍未消除回退；最终让数组视图
 只保存 count／elements，并在原有分段任务发布位置读取 stride，恢复原来的热路径结构。
 没有改变扫描内容、1024 元素分段、GC 参数或增加编译器专用的强制内联属性。
-[专项复验](validation/boundary-array-check-darwin.json.gz)后，再对最终版本执行完整的下列对照。
+专项复验后，再对最终版本执行完整的下列对照。
 
 | 程序 | 基线进程中位／p95／最大（ms） | 最终边界版进程中位／p95／最大（ms） |
 | --- | --- | --- |
@@ -141,7 +143,7 @@ clone／原子引用与 GC 的组合。本节限 Darwin／AArch64，不替代后
 | old-graph | 14.168／17.564／17.564 | 14.146／15.621／15.621 |
 | primitive | 15.580／19.254／19.254 | 15.698／17.619／17.619 |
 
-[四程序原始记录](validation/boundary-programs-darwin.json.gz)包含 CPU、吞吐、GC 次数、
+四程序原始记录包含 CPU、吞吐、GC 次数、
 映射量和 RSS；最小值分别为基线 9.078／14.601／13.832／15.442 ms、最终版
 8.995／14.647／13.798／15.520 ms。各组范围相交，这些含启动成本的短进程不支持
 边界整理带来加速的结论，也不能把小幅中位差异解释为单次分配或屏障成本。
@@ -153,10 +155,10 @@ clone／原子引用与 GC 的组合。本节限 Darwin／AArch64，不替代后
 | chain | 4.105／4.191／4.205 | 4.136／4.297／4.298 | 0／0 |
 | compact | 54.432／59.506／59.861 | 54.378／58.781／59.220 | 11.457／11.381 |
 
-[最终零搬迁记录](validation/boundary-zero-darwin.json.gz)的每图每侧 35 轮均为
+最终零搬迁记录的每图每侧 35 轮均为
 moved_objects=0、update_ns=0。array 的 mark 中位恢复为 1.401／1.408 ms，最小值
 1.360／1.353 ms；请求到 RUNNING 范围为 2.240–2.402／2.257–2.531 ms，没有首轮
-持续分离的分布。[最终普通搬迁记录](validation/boundary-compact-darwin.json.gz)每侧
+持续分离的分布。最终普通搬迁记录每侧
 35 轮均实际搬迁，每对轮次的 moved／live／traced／source／target 计数相同，仍为
 6 个 source、1 个 target、225002 个 live 对象；update 中位及整体区间未见明显回退。
 阶段 p95 来自 35 次收集，进程 p95 来自七次运行；均为小样本描述，不证明稳定尾延迟。
@@ -171,8 +173,8 @@ pthread：计算模式每线程一亿次整数迭代，独立 collector 每次 f
 mutator，固定 4 个 mark worker。测试观测配置在两侧 runtime 副本中启用，不改变生产快路。
 
 对照是 M44 优化前 `44a3c0bf` 与当前 `f300090b` 的整体结果，不单独归因于模块整理。
-[源码核对](validation/progress-source-audit.json.gz)逐文件确认两个 runtime 副本与对应
-提交一致，只有明确启用的测试宏不同；[完整记录](validation/progress-darwin.json.gz)
+源码核对逐文件确认两个 runtime 副本与对应
+提交一致，只有明确启用的测试宏不同；完整记录
 保存工具、源码和 binary 摘要、构建命令、64 个进程及其逐轮进度数据。每种配置预热后
 交替七次，共 56 个正式进程；期间没有并发构建、测试或清理。
 
@@ -224,13 +226,13 @@ mutator，固定 4 个 mark worker。测试观测配置在两侧 runtime 副本�
 同机交替比较 `44a3c0bf` 与当前 runtime，1／4 个 mark worker 分别预热后运行七次
 进程、每进程五轮。两组每侧的 35 轮均恰好一次 minor、没有 full 或 promotion fallback；
 逐对的 traced／moved／live、晋升字节、脏卡、旧代槽及压力分配字节完全一致，见
-[1 worker 原始记录](validation/minor-1-darwin.json.gz)、
-[4 worker 原始记录](validation/minor-4-darwin.json.gz)和[核对记录](validation/minor-audit.json.gz)。
+1 worker 原始记录、
+4 worker 原始记录和核对记录。
 
 每轮追踪 8192 个年轻对象，实际搬迁 7027 个，晋升 229376 bytes（含原地晋升），
 处理 65 张脏卡与 4096 个旧代引用槽；压力分配 835584 bytes。pin 所在 block 不作为
 minor source，因而不只单个被 pin 对象保持原址。初版测量器错误地要求几乎全部对象
-搬迁，已按现有 source 选择规则修正；[功能与诊断记录](validation/minor-functional.json.gz)
+搬迁，已按现有 source 选择规则修正；功能与诊断记录
 保留该失败、诊断复跑、原有 wide／compact 检查及最终反向环的 1／4 worker 核对。
 
 | worker／指标 | 基线中位／p95／最大（微秒） | 当前中位／p95／最大（微秒） |
@@ -256,8 +258,8 @@ worker 工作量随原始报告保留。该组证明这一实际移动场景的 
 为解决 Linux 边界拆分后的 minor 回退，隔离候选将原 forwarding 函数体移入私有头，
 使用普通 static inline，保留全部检查。Darwin 全量 CLI 结束后，固定 binary 完成六组
 串行对照；基线为已完成 P0 的 `ed5624b4`，候选为 `f300090b` 加这两处文件调整。
-[原始记录](validation/performance-forward-darwin.json.gz)保留各组七次交替进程、
-构建来源和命令；[工作量核对](validation/forward-audit-darwin.json.gz)确认六个图组
+原始记录保留各组七次交替进程、
+构建来源和命令；工作量核对确认六个图组
 每侧 35 轮的 15 个工作量字段逐对相同。
 
 | 图 | 基线／候选 update 中位（ms） | 基线／候选请求到 RUNNING 中位（ms） |
@@ -280,24 +282,24 @@ full 的配对 update 差值中位为 −218 µs，35 对中 33 对未增加；�
 请求到 RUNNING 为 2.538／2.506／2.734 ms，回退持续存在。三版实际图和工作量相同；
 当前与候选的工具、benchmark 源码完全相同，runtime 仅 forwarding 的两个文件不同。
 marker 热路径指令相同，冷错误字符串重定位和链接地址不同；不能据此宣称具体 CPU
-机制已经确定。原始复测、源码核对和反汇编见[数组回退记录](validation/forward-array-regression-darwin.json.gz)。
+机制已经确定。原始复测、源码核对和反汇编见数组回退记录。
 
 统一内联的候选未采用。后续保留该失败证据，按下一节的目标选择解决回退。
 
 ## 最终平台调用策略
 
 hot 标记、64-byte marker 入口对齐、仅内联稳定对象判断、把 forwarding 函数移到
-collector 的实验均未稳定恢复数组 mark，原始构建与对照见[实验记录](validation/forward-layout-experiments-darwin.json.gz)。最终平台层提供私有的编译期调用选择：x86-64 使用普通
+collector 的实验均未稳定恢复数组 mark，原始构建与对照见实验记录。最终平台层提供私有的编译期调用选择：x86-64 使用普通
 static inline，AArch64 保留外部函数。函数体只在 `forwarding_internal.h` 保存一份，
 原有 collection／mark／pin／source／forwarding 检查完整保留，没有强制内联或对齐属性。
 
-[产物核对](validation/forward-platform-validation.json.gz)确认 Darwin 全部 92 个 runtime
+产物核对确认 Darwin 全部 92 个 runtime
 对象和完整图程序与原生产版逐字节相同，GNU 的 94 个对象和完整图程序与已验证的内联
 候选逐字节相同。平台宏留在平台层；首次直接使用架构宏被既有边界测试拒绝，修正后的
 31 项 collector 测试和三个正式 M44 fixture（六个变体、24 步）通过，原始失败仍保留。
 
-最终 Darwin 再完成六组交替对照，命令、原始样本及全部 p95／最大值见[完整记录](validation/performance-forward-platform-darwin.json.gz)，六个图组各侧 35 轮的 15 项工作量计数
-逐对相同，见[核对](validation/forward-platform-audit-darwin.json.gz)。基线仍为 `ed5624b4`。
+最终 Darwin 再完成六组交替对照，命令、原始样本及全部 p95／最大值见完整记录，六个图组各侧 35 轮的 15 项工作量计数
+逐对相同，见核对。基线仍为 `ed5624b4`。
 
 | 图 | 基线／最终 update 中位（ms） | 基线／最终请求到 RUNNING 中位（ms） |
 | --- | ---: | ---: |

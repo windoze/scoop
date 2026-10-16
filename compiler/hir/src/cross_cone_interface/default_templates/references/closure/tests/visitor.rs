@@ -43,6 +43,7 @@ impl<'body> Visitor<'body> for Recorder {
             Target::Constructor(_) => ExportDefaultReferenceKindV1::Constructor,
             Target::Type(_) => ExportDefaultReferenceKindV1::Type,
             Target::Global(_) => ExportDefaultReferenceKindV1::Global,
+            Target::Annotation(_) => ExportDefaultReferenceKindV1::Annotation,
             Target::GenericDelegate(_) => {
                 panic!("default body fixtures must access delegated properties through accessors")
             }

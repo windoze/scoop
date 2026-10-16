@@ -10,6 +10,9 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
     match &expr.kind {
+        ExprKind::AnnotationKey(annotation) => {
+            out.push_str(&format!("{pad}AnnotationKey {annotation} : {ty}\n"))
+        }
         ExprKind::FloatUnary {
             kind,
             operation,

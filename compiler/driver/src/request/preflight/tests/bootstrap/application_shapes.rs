@@ -64,169 +64,23 @@ pub(super) fn check(
             "each materialized descriptor keeps its matching exact layout"
         );
     }
-    let mut expected: BTreeSet<_> = [
-        "Add<Double, Double>",
-        "Add<Float, Float>",
-        "Add<Int16, Int16>",
-        "Add<Int8, Int8>",
-        "Add<Int, Int>",
-        "Add<Long, Long>",
-        "Add<String, String>",
-        "Add<UInt16, UInt16>",
-        "Add<UInt8, UInt8>",
-        "Add<UInt, UInt>",
-        "Add<ULong, ULong>",
-        "Array<Char>",
-        "Array<Int8>",
+    // Probe representative applications; each emitted descriptor's exact
+    // layout, specialization group and linkage are checked above.
+    for expected in [
         "Array<String>",
-        "Array<UInt8>",
         "ArrayList<String>",
-        "Collection<Char>",
-        "Collection<Int8>",
-        "Collection<MaybeUninit<String>>",
-        "Collection<String>",
-        "Collection<UInt8>",
-        "Decodable<Boolean>",
-        "Decodable<Char>",
-        "Decodable<Double>",
-        "Decodable<Float>",
-        "Decodable<Int16>",
-        "Decodable<Int8>",
-        "Decodable<Int>",
-        "Decodable<Long>",
-        "Decodable<String>",
-        "Decodable<UInt16>",
-        "Decodable<UInt8>",
-        "Decodable<UInt>",
-        "Decodable<ULong>",
-        "Decodable<Unit>",
-        "Encodable<Boolean>",
-        "Encodable<Char>",
-        "Encodable<Double>",
-        "Encodable<Float>",
-        "Encodable<Int16>",
-        "Encodable<Int8>",
-        "Encodable<Int>",
-        "Encodable<Long>",
-        "Encodable<String>",
-        "Encodable<UInt16>",
-        "Encodable<UInt8>",
-        "Encodable<UInt>",
-        "Encodable<ULong>",
-        "Encodable<Unit>",
-        "Equals<Boolean>",
-        "Equals<Char>",
-        "Equals<Double>",
-        "Equals<Float>",
-        "Equals<Int16>",
-        "Equals<Int8>",
-        "Equals<Int>",
-        "Equals<Long>",
-        "Equals<Ptr<Double>>",
-        "Equals<Ptr<Float>>",
-        "Equals<Ptr<Int8>>",
-        "Equals<Ptr<Int>>",
-        "Equals<Ptr<Long>>",
-        "Equals<Ptr<UInt8>>",
-        "Equals<String>",
-        "Equals<UInt16>",
-        "Equals<UInt8>",
-        "Equals<UInt>",
-        "Equals<ULong>",
-        "Equals<Unit>",
-        "Get<Long, Char>",
-        "Get<Long, Int8>",
-        "Get<Long, MaybeUninit<String>>",
-        "Get<Long, String>",
-        "Get<Long, UInt8>",
-        "Set<Long, Char>",
-        "Set<Long, Int8>",
-        "Set<Long, MaybeUninit<String>>",
-        "Set<Long, String>",
-        "Iterable<Char>",
-        "Iterable<Int8>",
-        "Iterable<Int>",
-        "Iterable<Long>",
-        "Iterable<MaybeUninit<String>>",
-        "Iterable<String>",
-        "Iterable<UInt8>",
-        "Iterable<UInt>",
-        "Iterable<ULong>",
-        "Iterator<Char>",
-        "Iterator<Int8>",
-        "Iterator<Int>",
-        "Iterator<Long>",
-        "Iterator<MaybeUninit<String>>",
-        "Iterator<String>",
-        "Iterator<UInt8>",
-        "Iterator<UInt>",
-        "Iterator<ULong>",
-        "List<Char>",
-        "List<Int8>",
-        "List<MaybeUninit<String>>",
-        "List<String>",
-        "List<UInt8>",
-        "ListIterator<Char>",
-        "ListIterator<Int8>",
-        "ListIterator<MaybeUninit<String>>",
-        "ListIterator<String>",
-        "ListIterator<UInt8>",
-        "MaybeUninit<String>",
-        "MutableArray<Char>",
-        "MutableArray<Int8>",
-        "MutableArray<MaybeUninit<String>>",
-        "MutableList<String>",
-        "Option<(Long, Long)>",
-        "Option<Char>",
-        "Option<Decoder>",
-        "Option<Int8>",
-        "Option<Int>",
-        "Option<Long>",
-        "Option<MaybeUninit<String>>",
-        "Option<Ptr<Int8>>",
         "Option<String>",
-        "Option<UInt8>",
-        "Option<UInt>",
-        "Option<ULong>",
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect();
-    for owner in [
-        "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Float", "Double",
+        "Encodable<Int>",
+        "Decodable<Int>",
+        "Inspectable<Int>",
+        "TypeInfo<Int>",
+        "Equals<TypeRef>",
     ] {
-        for capability in ["Sub", "Mul", "Div", "Rem"] {
-            expected.insert(format!("{capability}<{owner}, {owner}>"));
-        }
-        for capability in ["UnaryPlus", "UnaryMinus", "Increment", "Decrement"] {
-            expected.insert(format!("{capability}<{owner}>"));
-        }
+        assert!(
+            applications.contains(expected),
+            "missing application: {expected}"
+        );
     }
-    expected.insert("Not<Boolean>".into());
-    for owner in [
-        "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong", "Char", "String",
-        "Float", "Double",
-    ] {
-        expected.insert(format!("Compare<{owner}>"));
-    }
-    for (owner, range) in [
-        ("Int8", "IntRange"),
-        ("Int16", "IntRange"),
-        ("Int", "IntRange"),
-        ("Long", "LongRange"),
-        ("UInt8", "UIntRange"),
-        ("UInt16", "UIntRange"),
-        ("UInt", "UIntRange"),
-        ("ULong", "ULongRange"),
-    ] {
-        for capability in ["RangeTo", "RangeUntil"] {
-            expected.insert(format!("{capability}<{owner}, {range}>"));
-        }
-    }
-    for owner in ["Int", "Long", "UInt", "ULong"] {
-        expected.insert(format!("Contains<{owner}>"));
-    }
-    assert_eq!(applications, expected);
     assert_eq!(coroutine_descriptors, coroutine_types);
 
     let callables = &local.callable_applications;

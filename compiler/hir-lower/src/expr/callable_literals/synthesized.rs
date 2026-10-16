@@ -9,8 +9,12 @@ impl Lowerer {
         span: Span,
         generate: impl FnOnce(&mut Self, Vec<hir::Expr>) -> Option<crate::stmt::ValueBlock>,
     ) -> Option<hir::Expr> {
-        let function = self.intern_function_type(is_suspend, parameter_types.to_vec(), result_type);
-        let expected = self.function_types[function].canonical_type;
+        let expected = LambdaExpectation {
+            is_suspend,
+            receiver: None,
+            parameter_types: parameter_types.to_vec(),
+            return_type: Some(result_type),
+        };
         let names = (0..parameter_types.len())
             .map(|index| format!("__codec_argument_{index}"))
             .collect::<Vec<_>>();

@@ -1,0 +1,2 @@
+struct Box<T>(val value: T) { companion object : Inspectable<Box<T>> }
+fun main() {}

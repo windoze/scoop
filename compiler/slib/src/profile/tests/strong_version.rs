@@ -93,9 +93,9 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
 #[test]
 fn generated_entry_formats_require_the_updated_hir_and_mir_sections() {
     for (current, version) in [
-        (hir_identity_foundation_capability(), 9),
-        (mir_identity_foundation_capability(), 7),
-        (hir_core_bootstrap_interface_capability(), 15),
+        (hir_identity_foundation_capability(), 10),
+        (mir_identity_foundation_capability(), 8),
+        (hir_core_bootstrap_interface_capability(), 16),
         (mir_core_bootstrap_bridge_capability(), 2),
     ] {
         assert_eq!(current.major_version(), version);

@@ -138,7 +138,10 @@ public struct Long :
 
     public override fun hash(): Long = coreLongHash(this)
 
-    public companion object : Encodable<Long>, Decodable<Long> {
+    public companion object : Encodable<Long>, Decodable<Long>, Inspectable<Long> {
+        public override fun inspect(value: Long): ValueView =
+            ValueObservation(typeInfo<Long>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value)) })
+
         public const val MIN_VALUE: Long = -9223372036854775808L
         public const val MAX_VALUE: Long = 9223372036854775807L
 

@@ -1,11 +1,10 @@
 # M38：TypeInfo 与相关描述类型
 
-本文件从属于 [总体设计](DESIGN.md)。下列签名表是拟定 API 目录；实现时使用普通 Scoop 声明和完整 body，只有明确登记的 intrinsic 省略 body。
+本文件从属于 [总体设计](DESIGN.md)。2026-10-14 修订补充与 [M46 默认字段规则](../milestone46/SERIALIZE.md)对齐的声明处类型事实。下列签名表列出公开 API；实现使用普通 Scoop 声明和完整 body，只有明确登记的 intrinsic 省略 body。
 
 ## 1. 查询入口
 
 ```scoop
-@Intrinsic("type_info")
 public fun <T> typeInfo(): TypeInfo<T>
 ```
 
@@ -17,9 +16,11 @@ public fun <T> typeInfo(): TypeInfo<T>
 | `TypeRef.nominal: Option<NominalRef>` | 名义类型的原声明；tuple/function 等没有名义声明 |
 | `TypeRef.arguments: Array<TypeRef>` | 当前名义 application 的实参，按声明顺序；非名义类型为空 |
 | `TypeRef.describe(): TypeDescription` | 展开当前层，不递归展开所有子类型 |
-| `TypeRef` 的 `Equality<TypeRef>` | 比较完整类型身份；不是名称、布局或实例地址比较 |
+| `TypeRef` 的 `Equals<TypeRef>` | 比较完整类型身份；不是名称、布局或实例地址比较 |
 
 `TypeInfo<T>` 是普通不可变库值，`T` 保留调用端类型关系；异构字段列表使用非泛型 `TypeRef`。`field.type` 是描述值，不能写成运行期选定的泛型实参，也不提供任意 dynamic cast。
+
+公开入口是普通 core 泛型正文。内部 `type_reference` intrinsic 生成引用的 identity、名称、名义声明和实参数据；普通 `__scoopTypeReference<T>()` 用它构造 TypeRef，并提供调用 `type_description<T>` 的普通闭包。两个 intrinsic 都在 concrete HIR 中消解；编译器登记实际引用构造函数的 typed callable identity，生成子引用时复用该函数的正常具体化请求，不新增 runtime 入口。
 
 `typeInfo<Box<Int>>()` 与 `typeInfo<Box<String>>()` 的字段类型分别替换成 Int 与 String。`fun <T> describe(): TypeInfo<T>` 中可查询 T；在单态化时生成完整具体描述，不需要 `reified`。未绑定的类型参数描述可存在于编译器内部模板中，程序取得的公开 TypeInfo 总是对应完整类型。
 
@@ -36,8 +37,8 @@ public fun <T> typeInfo(): TypeInfo<T>
 | `Struct(StructInfo)` | 本类型字段、构造关系、实现的接口；字段保持声明序 |
 | `Enum(EnumInfo)` | 声明序 variant，各自独立 payload 与构造关系 |
 | `IntegerEnum(IntegerEnumInfo)` | M37 整型枚举，底层整数类型、各 variant 的已检查静态值 |
-| `Class(ClassInfo)` | 直接 base、接口、本 owner 的 logical property 和 storage、构造器 |
-| `Object(ObjectInfo)` | singleton 自身的类型、base、property/storage；companion 另保留宿主 application |
+| `Class(ClassInfo)` | isFinal、直接 base、接口、本 owner 的 logical property 和 storage、构造器 |
+| `Object(ObjectInfo)` | singleton 自身的类型、base、property/storage；companion 的自身引用保留宿主实参，companionHost 指向宿主声明 |
 | `Interface(InterfaceInfo)` | 父接口和本 owner 的 logical property，不伪造存储 |
 | `Tuple(TupleInfo)` | 有序 TupleElementInfo，位置从 0 计，展示名从 `_1` 起 |
 | `Unit` | 空积；与任意零字段 nominal 保持不同身份 |
@@ -47,7 +48,9 @@ public fun <T> typeInfo(): TypeInfo<T>
 
 上述分支覆盖所有合法完整类型的表示类别。普通核心库类型如 ArrayList、StringBuilder 仍是 Class；其 debug 展示可以由普通 inspector 选择逻辑内容。MaybeUninit 等 compiler-represented 类型保留独立 intrinsic 类别与完整参数，不被当成已初始化的 T。
 
-泛型/inner/局部/匿名声明使用 M37 确定的 typed owner、捕获与 application。描述不把隐藏 outer/capture/delegate 存储伪装成用户声明的公开字段。需要保留的内部 storage 带明确来源种类，logical property 列表只包含实际 property。
+泛型/inner/局部/匿名声明使用 M37 确定的 typed owner、捕获与 application。`ObjectInfo.companionHost: Option<NominalRef>` 指向宿主声明，泛型宿主不凭空选择具体实参。描述不把隐藏 outer/capture/delegate 存储伪装成用户声明的公开字段。接口委托等编译器内部字段使用 Generated 来源。需要保留的内部 storage 带明确来源种类，logical property 列表只包含实际 property。
+
+AccessorInfo.kind 保留 Storage／Constant／Body／Abstract 的源码事实；普通存储 accessor 的函数体物化不产生新的公开 kind。
 
 class 的继承关系不扁平化：`ClassInfo.base: Option<TypeUseInfo>` 指向直接基类，基类字段通过其自身描述取得。同名成员仍有不同的实际成员身份，override 指向实际被覆写声明。companion 的描述不包含宿主实例的字段。
 
@@ -55,7 +58,7 @@ class 的继承关系不扁平化：`ClassInfo.base: Option<TypeUseInfo>` 指向
 
 ### 3.1 身份和可见性
 
-`NominalRef`、`FieldRef`、`PropertyRef`、`VariantRef`、`ConstructorRef`、`ParameterRef`、`AnnotationKey` 分别包装对应的 typed declaration identity，不能互相代用。泛型原声明与具体 application 由声明引用和完整 TypeRef 分开表达。
+`NominalRef`、`FieldRef`、`PropertyRef`、`AccessorRef`、`VariantRef`、`ConstructorRef`、`ParameterRef`、`AnnotationKey` 分别包装对应的 typed declaration identity，不能互相代用。泛型原声明与具体 application 由声明引用和完整 TypeRef 分开表达。
 
 引用可以比较相等，名字用于展示。跨 Cone、alias import 或 re-export 后，原声明仍是同一引用；两个同名声明不相等。内部继续区分 generic declaration、resolved application、concrete function/type 等身份，不把公开反射对象地址当作持久化身份。
 
@@ -65,8 +68,8 @@ class 的继承关系不扁平化：`ClassInfo.base: Option<TypeUseInfo>` 指向
 
 | 类型 | 主要成员 |
 | --- | --- |
-| `FieldInfo` | `id: FieldRef`、owner、源码名称或位置、`typeUse: TypeUseInfo`、声明序、注解、visibility、来源、构造参数关联 |
-| `PropertyInfo` | `id: PropertyRef`、owner、name、typeUse、val/var、visibility、注解、getter/setter 描述、存储类别、关联的 backing/delegate field |
+| `FieldInfo` | `id: FieldRef`、owner、源码名称或位置、`typeUse: TypeUseInfo`、`isOptionAtDeclaration: Boolean`、声明序、注解、visibility、来源、构造参数关联 |
+| `PropertyInfo` | `id: PropertyRef`、owner、name、typeUse、`isOptionAtDeclaration: Boolean`、val/var、visibility、注解、getter/setter 描述、存储类别、关联的 backing/delegate field |
 | `AccessorInfo` | 实际 accessor 引用、visibility、注解及普通/abstract/存储访问类别；不提供 invoke |
 | `TupleElementInfo` | index、展示名、typeUse；不伪造 FieldRef 或构造参数声明 |
 | `VariantInfo` | `id: VariantRef`、所属 enum、name、注解、声明序、payload 形状 |
@@ -92,6 +95,24 @@ struct/enum 字段按现有规则具有固定 public representation visibility�
 primary 参数与字段/property 的映射用于 CLI 的必填规则及 schema 对齐。编译器内部已有的 default template 引用继续供正常 Decodable 合成使用；公开元数据无须复制可执行 body。
 
 字段/property 的完整声明顺序与 constructor 参数顺序分别保存。CLI 必须沿构造映射确定 default，不能假设两个数组的第 n 项必然相同。
+
+### 3.4 声明处 Option 与具体化后的类型
+
+`FieldInfo.isOptionAtDeclaration` 和 `PropertyInfo.isOptionAtDeclaration` 表示：该成员的类型在原声明处完成绑定、透明 alias 展开后，外层是否已经是实际核心 `Option` application。这个布尔值在宿主泛型具体化前确定，随原成员保留；不按短名、源码是否写了 `?` 或具体化后的 TypeRef 重新判断。
+
+| 原字段类型 | 具体化后的类型示例 | isOptionAtDeclaration | 无 default、无 required 覆盖时 |
+| --- | --- | --- | --- |
+| `String?` 或 `Option<String>` | `Option<String>` | true | 默认解码允许缺失，补 None |
+| `T?`，T 取 String | `Option<String>` | true | 默认解码允许缺失，补 None |
+| `T`，T 取 `Option<String>` | `Option<String>` | false | 默认解码仍要求字段存在 |
+| 展开为 `Option<T>` 的 alias | `Option<String>` | true | 与直接声明 Option 相同 |
+| 展开为 T 的 alias，T 取 `Option<String>` | `Option<String>` | false | 与直接声明类型参数相同 |
+
+它是原成员类型的事实，不表示成员是否参与序列化，也不直接表示字段必填性。computed property 同样可以有此事实，但不会因此成为合成 codec 的字段。`Serialize.ignore`／`required`、constructor 的 hasDefault 与这个事实共同决定 CLI 默认 schema；规则见 [CLI 5.1](CLI.md#51-默认-record-schema)。实际字段 TypeRef 始终保留完整具体类型，用于值形状、类型判等和展示。
+
+生成该事实和 M46 合成中的对应判断复用同一已绑定成员类型查询。既有 HIR／产物已经保留原声明的带 binder 类型；从该事实生成一个普通 Boolean 即可，不公开未绑定的运行期 TypeRef，不复制默认表达式，也不新增通用 codec 描述协议。普通 TypeRef equality 不受此成员属性影响。
+
+这个默认字段合同属于数据成员声明，针对具体化目标直接请求缺省 codec 时也保持一致；手写 codec 可以选择其他缺失行为，此时 CLI 使用显式 schema。TypeInfo 不读取、分析或保证任意 `Decodable<T>` 正文的行为。
 
 ## 4. 类型使用位置
 
@@ -139,7 +160,7 @@ annotationKey<Help>(): AnnotationKey
 
 普通标量类型与 annotation 声明不是同一种类型。`AnnotationParameterType` 明确区分 `Scalar(TypeRef)`、`IntegerEnum(TypeRef)`、`Annotation(AnnotationKey)` 以及一维 `Array(AnnotationAtomType)`。AtomType 不含 Array，保留 M37 的一维限制。
 
-`AnnotationValue` 是封闭的带标签值：Boolean、String、Char、各有符号/无符号整数、Float、Double、整型 enum 的合法 variant、嵌套 AnnotationInfo、有序 Array。整数保留实际位宽和类型，浮点保留目标精度及 raw bits，整型 enum 不退化成裸整数。
+`AnnotationValue` 是封闭的带标签值：Boolean、String、Char、Integer(IntegerValue)、FloatBits(UInt)、DoubleBits(ULong)、整型 enum 的合法 variant、嵌套 AnnotationInfo、有序 Array。IntegerValue 的八个带类型分支保留实际位宽和符号，浮点保留目标精度及 raw bits，整型 enum 不退化成裸整数。
 
 数组携带完整元素种类及有序值，空数组仍有类型。嵌套 annotation 自己可以含数组参数；这不允许 Array<Array<T>>。M38 直接发布 M37 已检查的 typed 常量，不重新运行用户代码或常量求值。
 
@@ -149,7 +170,7 @@ annotationKey<Help>(): AnnotationKey
 
 库以实际 AnnotationKey 从某个成员的 `annotations` 中筛选应用，再按声明中的参数取值。可以提供普通 `findAnnotations(items, key): Array<AnnotationInfo>` helper；它只遍历当前列表，不沿 owner/base/accessor 自动继承或合并注解。
 
-debug 与 CLI 分别查询自己声明的注解 key。编译器不因遇到 `CliOption`、`DebugIgnore` 等名称而改变一般 annotation 绑定、读取权限或 default 求值。
+debug 与 CLI 分别查询自己声明的注解 key；CLI 的默认 schema 还查询实际核心 Serialize 的 key。Serialize 的 String／Boolean 参数全部属于现有 AnnotationValue 值域，不增加特殊反射表示。编译器不因遇到 `CliOption`、`DebugIgnore` 等名称而改变一般 annotation 绑定、读取权限或 default 求值。
 
 ## 6. 生成、存储与生命周期
 
@@ -172,5 +193,6 @@ debug 与 CLI 分别查询自己声明的注解 key。编译器不因遇到 `Cli
 - 非法类型实参、错误 annotation 查询、不可见声明、缺失必要的 `.slib` 结构信息都在对应编译边界报错，不返回内容缺失的 TypeInfo。
 - HIR 的查询结果具有确定类型；各 shape 分支所需内容由结构保证，不用 `Option<TypeInfo>` 表示“以后再补”。有意义的可选关系，例如无基类或无默认值，才使用 Option/封闭分支。
 - 字段顺序、完整替换、enum payload、constructor 关联、同名不同身份、泛型 companion、同型递归、增长型描述闭包诊断及 type-use 注解都需要本地与产物消费用例。
+- 同一具体字段类型来自原声明 T 或 Option<T> 时，isOptionAtDeclaration 的结果必须保留区别；包含透明 alias、本地查询、仅产物消费和泛型再次发布。它与 M46 默认字段分支及 CLI help 的必填状态组合验证。
 - 验证初始化计数：纯元数据查询不执行目标 constructor/default/getter/companion；metadata 自身的正常库分配允许发生。
 - 私有成员可以出现在描述中，但取得描述不能用作读取原始值的 API。实际读取错误由 [DEBUG.md](DEBUG.md) 中的普通方法检查覆盖。

@@ -122,7 +122,12 @@ impl Lowerer {
                 value: CodecValue::Tuple(elements),
             });
         }
-        self.error(span, format!("automatic {} has no {}<{}> field codec; provide a primary val dependency, a conforming companion, or an explicit {} implementation", context.direction.method(), context.direction.protocol(), self.type_name(ty), context.direction.method()));
+        let kind = if matches!(context.direction, CodingDirection::Inspect(_)) {
+            "inspector"
+        } else {
+            "codec"
+        };
+        self.error(span, format!("automatic {} has no {}<{}> field {kind}; provide a primary val dependency, a conforming companion, or an explicit {} implementation", context.direction.method(), context.direction.protocol(), self.type_name(ty), context.direction.method()));
         None
     }
 

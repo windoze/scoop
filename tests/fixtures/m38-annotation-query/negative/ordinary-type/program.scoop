@@ -1,0 +1,2 @@
+class Plain
+fun main() { annotationKey<Plain>() }

@@ -2,6 +2,7 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 use crate::Lowerer;
+use crate::expr::ExpressionExpectation;
 
 #[derive(Clone, Copy)]
 pub(crate) enum ArgumentExpression<'a> {
@@ -53,13 +54,34 @@ impl ArgumentExpression<'_> {
         }
     }
 
+    pub(super) fn expectation(
+        self,
+        state: &mut Lowerer,
+        pattern: hir::TypeId,
+        bindings: &[Option<hir::TypeId>],
+    ) -> Option<ExpressionExpectation> {
+        if let Some(ty) = state.try_substitute(pattern, bindings) {
+            return Some(ExpressionExpectation::Type(ty));
+        }
+        match self {
+            Self::Source(ast::Expr::Lambda { .. }) => state
+                .partial_lambda_expectation(pattern, bindings)
+                .map(ExpressionExpectation::Lambda),
+            _ => None,
+        }
+    }
+
     pub(super) fn lower(
         self,
         state: &mut Lowerer,
         source_index: usize,
-        expected: Option<hir::TypeId>,
+        expectation: Option<ExpressionExpectation>,
         contextual: bool,
     ) -> Result<(hir::Expr, Vec<hir::Statement>), ArgumentExpressionFailure> {
+        let expected = match &expectation {
+            Some(ExpressionExpectation::Type(ty)) => Some(*ty),
+            _ => None,
+        };
         let context_dependent = contextual
             && match self {
                 Self::Source(ast::Expr::Var(_)) => {
@@ -71,7 +93,7 @@ impl ArgumentExpression<'_> {
         let mut sink = Vec::new();
         let (value, span) = match self {
             Self::Source(expression) => (
-                state.lower_expr(expression, &mut sink, expected),
+                state.lower_expr_with_expectation(expression, &mut sink, expectation),
                 expression.span(),
             ),
             Self::Lowered(expression) => (Some(expression.clone()), expression.span),

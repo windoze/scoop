@@ -98,7 +98,7 @@ fn lowers_hello_world() {
     assert!(module.meta.dispatch_tables.is_empty());
 
     // Golden dump locks the output structure.
-    check_mir_snapshot("lowers_hello_world", &module);
+    check_mir_snapshot("lowers_hello_world", &module, &["main", "helper"]);
 }
 
 #[test]

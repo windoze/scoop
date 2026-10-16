@@ -1,5 +1,7 @@
 # M34 实施记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 开始日期：2026-10-09，完成日期：2026-10-10。基线为 `e97b40f5c9c408e2ff785e5d09c6bf9222c78979`（M33）；工作分支为 `codex/m34`。
 
 本文件区分目标规范与已实现能力；设计和路线图的原始 M34 草稿是本轮输入。各功能完成必要验证后分别提交，不以文档修订代替实现。
@@ -294,7 +296,7 @@ GNU 旧回归的 release 退出用例发现，LLVM 22.1 会在机器基本块布
 
 34 行 LLVM／63 行 Rust 回归先复现 `LLVM stackmap repeats SafepointId 8`，修复后在三个 target 的 debug／release 下完成普通优化、RS4GC、typed roots 检查与真实对象验证。两机格式化和 workspace/all-targets clippy 通过；Darwin 的 363 项、GNU 的 378 项 codegen 测试通过。Darwin 的 40 个 M34 运行 fixture 随后通过严格复验。
 
-退出用例同时拆开 debug／release 的 HIR、MIR 预期：前者的导入 arena 索引、后者的内联结果本来就不同，不能由最后运行的 profile 覆盖公共快照。三个 target 的对应 HIR／MIR 实际字节相同；各自两种 profile、28 个进程、六次快照检查均关闭更新通过，覆盖源码删除后链接、普通／moving／minor GC、缓冲输出、退出码及禁止执行 finally／release／atexit 的原断言。原始记录见[机器布局回归](validation/terminal-poll-machine.json)。机器码与最终性能已重新核对，最新同机样本见 M34-10i。
+退出用例同时拆开 debug／release 的 HIR、MIR 预期：前者的导入 arena 索引、后者的内联结果本来就不同，不能由最后运行的 profile 覆盖公共快照。三个 target 的对应 HIR／MIR 实际字节相同；各自两种 profile、28 个进程、六次快照检查均关闭更新通过，覆盖源码删除后链接、普通／moving／minor GC、缓冲输出、退出码及禁止执行 finally／release／atexit 的原断言。原始记录见机器布局回归。机器码与最终性能已重新核对，最新同机样本见 M34-10i。
 
 ## M34-10k：旧 fixture 的 profile 与 target 快照迁移
 
@@ -304,7 +306,7 @@ Darwin 的 11,442 次保存文件观测／10,904 个不同文件、GNU 的 10,85
 
 musl 对链接计划、原生符号及平台专用的 442 项旧回归进行完整执行：11 项以两路并发、431 项以四路并发通过，没有放宽时限。与已完成的 M34／String 和退出用例合并，当前覆盖 503 项；5,279 次保存文件观测／5,103 个不同文件全部一致，另有 34 次共享 native link plan 严格比较通过。189 组跨 variant 共享快照中，172 组保存文件没有覆盖冲突，17 组流输出由上述链接重放核对。
 
-相同 SysV ABI 的 805 份预期迁移单独记录，未计作 musl 执行成功。取得 musl 实际输出后，5,769 份快照中 4,932 份与本机字节相同，仅合入 837 份不同的目标专用文件，没有覆盖共享输出；15 份已无引用的旧 musl profile 文件删除。三个 target 的非更新模式配置发现均通过，各 2,920 项。具体迁移范围和核对计数见[快照迁移记录](validation/golden-migration.json)。
+相同 SysV ABI 的 805 份预期迁移单独记录，未计作 musl 执行成功。取得 musl 实际输出后，5,769 份快照中 4,932 份与本机字节相同，仅合入 837 份不同的目标专用文件，没有覆盖共享输出；15 份已无引用的旧 musl profile 文件删除。三个 target 的非更新模式配置发现均通过，各 2,920 项。具体迁移范围和核对计数见快照迁移记录。
 
 ## M34-10l：总验收完成
 

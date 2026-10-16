@@ -1,6 +1,9 @@
 use super::*;
 use scoop_identity::{DeclarationName, PersistentFieldId, PersistentPropertyId, SignatureTypeKey};
 
+mod accessors;
+pub use accessors::*;
+
 #[derive(Clone, Copy)]
 pub enum StaticPropertyDeclaration<'a> {
     Current {
@@ -60,15 +63,18 @@ impl<'a> StaticPropertyShape<'a> {
     }
 
     pub fn annotations(self, dependencies: &ImportedSemanticWorld<'a>) -> StaticAnnotations<'a> {
-        let target = match self.source {
+        self.annotation_target().resolve(self.owner, dependencies)
+    }
+
+    fn annotation_target(self) -> StaticAnnotationTarget {
+        match self.source {
             StaticPropertyDeclaration::Current { id, .. } => {
                 StaticAnnotationTarget::Current(SourceAnnotationTarget::Property(id))
             }
             StaticPropertyDeclaration::Dependency(_) => {
                 StaticAnnotationTarget::Dependency(AnnotationTargetV1::Property(self.identity))
             }
-        };
-        target.resolve(self.owner, dependencies)
+        }
     }
 }
 

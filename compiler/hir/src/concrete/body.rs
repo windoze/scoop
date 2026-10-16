@@ -149,6 +149,9 @@ pub enum ExprKind {
         value: String,
         owner: StringConstantOwner<scoop_identity::PropertyOwner>,
     },
+    /// String bytes of this complete type's persistent identity. The common
+    /// exact-type table resolves it before MIR emits an ordinary StringConst.
+    TypeIdentityLiteral(TypeId),
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     CharLiteral(char),

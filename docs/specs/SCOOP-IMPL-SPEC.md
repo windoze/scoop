@@ -74,6 +74,8 @@ smart cast 分析使用已有 BindingId、类型约束及带实际 LoopId 的控
 
 重载探测共享已经检查的声明、签名和正文；候选新增或修改的函数、局部值与词法绑定各自隔离，只有选中候选的结果进入当前状态。一次探测不复制此前所有函数正文或当前函数的全部局部值。内部共享不改变实体分配顺序、诊断与重载规则，输出仍为原有完整 HIR 数据。
 
+候选局部约束求解可以先把已确定的参数、可选 receiver 与 suspend effect 传给 lambda，再用正文推断尚未确定的返回类型。这个部分期望仅存在于 lowering 的推断上下文，不是缺少返回类型的 HIR 函数类型；提交 lambda 时其参数、返回值、捕获和正文仍全部确定。当前 Cone 与依赖模板调用使用同一推断路径，不按扩展名或库名特判。
+
 `SemanticHir` 保存已检查的声明与正文，对外有两个不同的输出合同：
 
 - **ExportHir**：跨 Cone 的声明与必要正文。区分 public/re-export lookup、protected inheritance/slot、generic hidden support 和 interface dependency；支持声明的存在不扩大可见性。保存签名、默认值、const、alias、注解、类型关系与模板，普通非泛型函数的实现正文不复制给下游。
@@ -100,6 +102,8 @@ MIR 中 intrinsic struct 与 intrinsic class 分别保存其允许的表示类�
 receiver 函数类型在源码 HIR、共享签名及 exact type identity 中保留独立的 receiver 类型槽。类型替换、lambda 参数推导和产物消费使用该形状，不从名字或普通首参数猜测 receiver。lowering 将 receiver 展平为第一个实际源码参数，复用 closure / invoke、函数值适配和既有 ABI 分类；closure environment 等隐藏参数独立处理。`this@label` 在 HIR lowering 绑定到实际不可变 receiver binding，外层 receiver 沿普通捕获路径保存，不把标签带入运行期名称查询。
 
 默认值、泛型正文及词法 callable 保存定义处绑定、完整 binder、局部值和 capture 身份。再次消费只替换实际类型与求值上下文，不重新选择名称、重载、字段或接口默认实现。局部函数和 closure 的捕获引用原绑定，不能改为消费方的同名局部变量。
+
+补齐元数据等新增依赖后再次推进导入正文队列时，已经完成的函数和构造器正文直接复用；不能重新展开构造初始化并替换其中的局部绑定，使既有闭包捕获失去对应定义。
 
 默认模板分别保存提供方参数的预期类型和正文表达式的实际类型。前端按子类型规则检查默认值；`Nothing` 正文可以满足任意参数类型，产物投影、读取及实例化必须保留这两个类型，不能要求它们逐字相同或把底类型调用改写为参数类型的成功返回。模板契约仍校验预期类型与原提供方参数一致；通用格式构造器不重复进行依赖源码类型表示的子类型判断。
 
@@ -287,7 +291,7 @@ NativeBorrowed 的调用与结果发布按返回约定一次构造：间接结�
 
 live set 包含 post-site live references 与 managed 实参，以及 aggregate 的完整 managed leaf path。普通 call/poll 的机器 relocation 与显式 invoke/native root frames 遵守运行时规范 3.2；跨 transition 的实参和结果必须使用更新后的存储。
 
-root gateway 使用运行时规范 2.8 的精确 C 原型：argc、原始 argv、指向独立 Int32 退出码槽的 raw pointer，返回 UInt32 status。其内部对 main 的调用仍使用实际 Scoop ABI；不能因外层返回 UInt32 就覆盖 main 的 Int 结果。入口 poll 先于 argv 的 managed 构造，数组、当前 String 与其他跨 safepoint 的引用使用普通 roots、relocation 和写屏障；数组构造及 main 的异常在 gateway 内完成捕获、failure-root 发布与 EndCatch。eager gateway 仍为无参数 status 返回，不能与 root gateway 共用错误的函数指针原型。codegen 在完整 LIR 边界验证实际 ABI 与 gateway 结构后，对象发布入口复用该结果，不再重放源码 main 形态检查。
+root gateway 使用运行时规范 2.8 的精确 C 原型：argc、原始 argv、指向独立 Int32 退出码槽的 raw pointer，返回 UInt32 status。其内部对 main 的调用仍使用实际 Scoop ABI；不能因外层返回 UInt32 就覆盖 main 的 Int 结果。入口 poll 先于 argv 的 managed 构造，数组、当前 String 与其他跨 safepoint 的引用使用普通 roots、relocation 和写屏障；数组构造及 main 的异常在 gateway 内完成捕获、failure-root 发布与 EndCatch。BeginCatch 返回原 managed Throwable，普通 catch、callback 和协程 lowering 直接保存该引用，不生成复制对象的调用；后续根与 relocation 沿普通引用处理。eager gateway 仍为无参数 status 返回，不能与 root gateway 共用错误的函数指针原型。codegen 在完整 LIR 边界验证实际 ABI 与 gateway 结构后，对象发布入口复用该结果，不再重放源码 main 形态检查。
 
 值类型布局使用原 exact 类型与字段身份。tagged enum 的 tag、payload slot 与 scan 一致；niche 只用于语言允许的引用／pointer Option。整数宽度与 signedness、Float/Double 精度、内部计数和 runtime ID 均保留各自类型，物理位宽相同不等于同一实体或源码类型。
 
@@ -332,6 +336,8 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；发射前的 A
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
 
 优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在最终根分组处检查该合并链没有派生地址，并以 LLVM 22.1 的 `is_base_value` 标记向 RS4GC 保留这一事实；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；原有 typed 根恢复、base=derived 与机器 stackmap 检查保持。
+
+RS4GC 后的指针活跃性检查使用 LLVM 已有的实际使用链，包括 call operand bundle 和 PHI incoming edge；同一函数的指令位置与 CFG 后继只收集一次。不得为每个 safepoint／派生指针反复扫描整函数寻找使用点。循环中重新执行定义仍截断旧动态值的活跃区间，跨 safepoint 的旧根使用与派生地址仍被拒绝；此查询优化不改变 GC 合同或产物格式。
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
@@ -415,9 +421,9 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/8` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/9`、`core-bootstrap-interface/15`、`cross-cone-interface/76`、`cross-cone-type-semantics/29` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/7`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/78`、`cross-cone-type-semantics/30` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/12`、`link-identity-closure/16`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -824,6 +830,10 @@ Option protocol 保存同一个实际 owner、Some payload 与 None variant；In
 
 ToString、Hash、普通 operator、print/println、容器和 codec 通过普通声明与接口分派使用。新增普通 core 成员不要求新增编译器角色表；intrinsic 表示不自动赋予未声明的 conformance。
 
+Disposable、普通／挂起 use 和 ResourceUseException 同样是普通 core 声明。use 的成功与失败出口由 Scoop try/catch 和函数调用表达，跨 Cone 复用已绑定的泛型正文与协程转换，不按名称生成专用 cleanup，也不把该异常加入 compiler exception protocol。
+
+gcAdjustPressure 是普通 core C ABI extern，绑定运行时规范 3.1 的 GC-free pressure 操作。沿普通 GCLeaf 调用、native 引用及链接路径处理；不添加 intrinsic、compiler-known role、buffer 特判或产物字段。NativeByteBuffer 的 owner、游标、同步借用和 release hook 使用已有普通 class、try/finally、FFI 及 release lowering。
+
 write/writeError 通过普通 String 作用域借用调用 C ABI 字节输出后备，flushOutput 通过普通 C ABI 调用刷新 stdout；编译器复用 NativeSafe 调用及 pin 帧，不为输出名称增加 intrinsic 或专用状态切换。print/println/eprint/eprintln 的 ToString bound、求值次序和跨产物泛型展开均遵守普通函数规则（语言规范 14.4）。
 
 exit 是返回实际 Nothing 的普通 core Scoop ABI extern；调用及产物保留底类型、既有返回 carrier 和无正常后继的语义，不伪装成 Unit 或添加不可达占位正文。runtime 的单向终止和刷新合同见运行时规范第 7 章。
@@ -901,7 +911,21 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 ### 2.17 静态类型描述与编码方法
 
-静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实，不构造运行期 TypeInfo 或任意 CTFE。描述查询本身不触发物化、初始化或可见性扩张。
+静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实。语言规范 9.6 的 TypeInfo/TypeRef/TypeShape 及成员、注解记录由普通 core 类型承载；编译器内部查询仍为原 HIR 数据的视图，公开描述在具体类型已知时生成普通值和当前层 describe 闭包，不引入 CTFE。引用的相等编码既有 typed persistent/exact identity，不能用名称或地址回退；成员的声明处 Option 事实复用默认 codec 的原类型查询。查询不执行被描述声明的 constructor/default/getter/companion，也不扩张可见性。
+
+公开描述的递归关系由普通 TypeRef 和闭包断开，引用构造不调用其 describe。描述函数及子引用闭包沿既有泛型具体化机制生成：同型递归复用已有请求，实参沿递归环增长时使用现有 polymorphic-recursion 诊断，不加深度预算或内容缺失的占位描述。公开模型的普通数据声明本身不改变 `.slib` wire 格式或 runtime ABI；查询的 HIR 登记及产物依赖必须使用实际声明身份。
+
+`typeInfo<T>` 是普通 core 泛型正文；内部 `__scoopTypeReference<T>()` 先调用 `type_reference` 取得 TypeReferenceData，再用普通 TypeRef constructor 和调用 `type_description<T>` 的普通闭包构造引用。引用数据由 identity、displayName、nominal、arguments 四项组成；成员引用为各自独立的普通 struct。两个 intrinsic 在 concrete HIR 中生成普通正文，不进入 MIR。引用构造函数作为 core protocol 的 field 10 保存实际 generic callable identity，下游按此身份请求模板，不按名称猜函数。intrinsic wire tags 26／27 分别表示引用数据和当前层描述；因此 HIR core-bootstrap-interface 升至 16，cross-cone-interface 升至 77。注解声明的惰性描述正文使用 `GeneratedCallableKey::AnnotationDescription`（tag 18），键保存实际 PersistentAnnotationId 与查询所在 callable template；无参数辅助函数继承该 callable 的实例化上下文，复用其普通 ODR 归属。递归注解描述保持同一查询宿主，不逐层产生新的宿主。它不是 runtime 注册表。HIR／MIR／LIR identity-foundation 分别升至 10／8／9；runtime ABI 保持。cross-cone-interface/77 的 property declaration field 9 保存已经绑定的原 property override 身份序列，供描述直接读取。
+
+`annotation_key`（intrinsic tag 28）只用于标识公开 core 查询声明。HIR lowering 先进行普通 callee 绑定，再将声明实参解析为 PersistentAnnotationId，输出 AnnotationKey 表达式；不制造普通类型实参或运行时 intrinsic 调用。共享正文使用表达式 tag 75 保存这个 typed id，默认参数的直接引用表 field 7 保存注解声明引用及其正常定义来源。引用闭包按已有声明依赖规则保留注解，具体化复用上述普通 AnnotationKey 和惰性描述辅助函数。cross-cone-interface 升至 78，cross-cone-type-semantics 升至 30；core protocol 结构、identity foundation 与 runtime ABI 不变。
+
+描述生成使用已经绑定的声明事实。正常类型加载补齐注解参数、计算属性结果和未调用构造器参数的类型，避免只有布局使用过的类型才能被描述；不调用对应正文或重新执行注解求值。
+
+语言规范 11.17 的 inspect 合成在 HIR lowering 复用普通 requirement 选择、方法签名登记、成员访问和显式依赖选择；生成普通 typed 读取、活动 variant 分支、闭包及 core 视图构造。合成作用域保持实现声明的实际 owner 与 source file，不增加成员访问许可。共享正文保存已选成员／inspector 与词法捕获，后续泛型具体化只替换参数。ValueView、集合 inspector 与 DebugPrinter 是普通 core 源码；MIR、LIR 与 runtime 不解释 DebugIgnore／DebugRedact 或读取反射字段。没有专用布局、全局 inspector 表或新的 wire 格式。
+
+语言规范 12.7 的 scoop.cli 完全由普通库源码实现：ClassInfo.isFinal 直接读取已有 class modifier；schema 使用描述中的成员／primary constructor 关联与原声明 Option 事实，在构造边界检查一次配置。argv 归一化、稳定 Decoder、数值文本及 help 不进入编译器 stage，复用已有浮点文本 extern ABI。
+
+concrete HIR 的 TypeIdentityLiteral 指向已完全绑定的 TypeId，值类型固定为 String。MIR lower 只从现成 exact-type 表读取该 id 的十六进制 bytes 并生成普通 StringConst；不重新计算身份、遍历字段或解释描述。这让描述函数沿同一实例化队列生成，身份仍由原最终关系统一建立。
 
 annotation 声明使用独立 PersistentAnnotationId。普通值参数保存完整 signature type key；annotation 原子及其数组参数使用独立的 annotation identity 和实际 core Array 模板身份，不把 annotation class 编成 runtime TypeId。应用保存实际 typed target 和按参数顺序补齐的静态值。CanonicalConstValueV1 保持原标量用途；CanonicalAnnotationValueV1 以封闭的 Scalar、IntegralEnum、Annotation、Array 保存静态值。整型枚举值保留完整 application signature、variant identity 和底层整数位型，嵌套应用保存实际 annotation identity 和完整参数；数组保存明确元素类型、有序值以及逐元素的 SourceIdentity 和 span，默认值保留定义处来源。共享 reader 在既有边界检查引用、枚举 variant/数值、嵌套参数及 tag/payload 一致性，不重放名称查找或默认值求值。参数/default 的循环依赖在源码定义处诊断。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
 
@@ -915,9 +939,9 @@ annotation 声明保存已绑定的允许目标集合与 repeatable 属性。集
 
 HIR lower 在正常类型解析过程中记录这些位置和 alias 的实际替换关系，注解值待相应 schema/常量完成后仅绑定一次。alias 与泛型替换复用原 binder 映射，合并相应路径的静态应用，不污染共享类型或重跑类型检查。annotation 参数的 annotation class 及其 Array 使用独立 annotation identity，不制造 runtime TypeId；用于确认 Array alias 转发关系的临时参数不进入静态描述。
 
-共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。cross-cone-interface 当前版本为 76，旧产物须重建；MIR/LIR 和 runtime ABI 保持不变。
+共享注解表增加类型使用记录与声明位置关联，完整类型用既有 signature key 与独立 annotation 参数类型表示，应用沿用 canonical 静态值并保留各自来源。reader 在原静态数据边界检查实际引用、binder、路径及 TYPE/Repeatable 规则，不重放 alias 展开、默认值或布局。静态查询从同一记录取得类型、各节点注解和参数替换结果。cross-cone-interface 当前版本为 78，旧产物须重建；MIR/LIR 和 runtime ABI 保持不变。
 
-property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2），generated callable tag 17 保留不用。
+property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2）；generated callable tag 17 为 TestEntry，tag 18 为 AnnotationDescription。
 
 companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 primary 参数值；ordinary static nested declaration 隔断该 binder。companion declaration、完整 application 和 concrete singleton 分别有身份，泛型状态共享规则见 2.13。
 

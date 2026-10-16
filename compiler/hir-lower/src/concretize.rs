@@ -41,6 +41,7 @@ mod run;
 mod runtime_exceptions;
 mod structs;
 mod type_conditions;
+mod type_info;
 mod types;
 mod variants;
 
@@ -73,7 +74,10 @@ pub(crate) fn lower(
     module: &export::Module,
 ) -> Result<concrete::Module, Vec<scoop_ast::Diagnostic>> {
     let automatic = AutomaticNominalRoots::new(module).map_err(nominal_root_diagnostic)?;
-    Concretizer::new(module, automatic).run()
+    let dependencies =
+        export::ImportedSemanticWorld::from_dependencies(module.cone, Vec::new(), Vec::new())
+            .expect("a source-only world has no dependency conflicts");
+    Concretizer::new(module, &dependencies, automatic).run()
 }
 
 pub(crate) use output::lower_output;
@@ -88,6 +92,7 @@ enum ConcreteApplicationRepresentation {
 
 struct Concretizer<'a> {
     source: &'a export::Module,
+    dependencies: &'a export::ImportedSemanticWorld<'a>,
     automatic: AutomaticNominalRoots,
     core: &'a export::CoreProtocols,
     coroutine_results: std::collections::BTreeSet<concrete::TypeId>,
@@ -184,6 +189,7 @@ struct Concretizer<'a> {
     checked_context_requirements:
         std::collections::HashSet<(export::ContextRequirementOwner, Vec<concrete::TypeId>)>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId, Option<SourceSite>)>,
+    current_body: Option<type_info::CallableBody>,
     pending_constructors: VecDeque<(constructor_work::ConstructorWork, Option<SourceSite>)>,
     emitted_functions: Vec<concrete::FunctionId>,
     lambdas: Arena<concrete::Lambda>,
@@ -259,7 +265,11 @@ impl<'a> Concretizer<'a> {
         format!("{prefix}.{name}")
     }
 
-    fn new(source: &'a export::Module, automatic: AutomaticNominalRoots) -> Self {
+    fn new(
+        source: &'a export::Module,
+        dependencies: &'a export::ImportedSemanticWorld<'a>,
+        automatic: AutomaticNominalRoots,
+    ) -> Self {
         let object_by_backing_class = source
             .objects
             .iter()
@@ -287,6 +297,7 @@ impl<'a> Concretizer<'a> {
             })
             .collect();
         Self {
+            dependencies,
             source,
             automatic,
             core: &source.core_protocols,
@@ -358,6 +369,7 @@ impl<'a> Concretizer<'a> {
             type_condition_errors: Vec::new(),
             checked_context_requirements: Default::default(),
             pending_functions: VecDeque::new(),
+            current_body: None,
             pending_constructors: VecDeque::new(),
             emitted_functions: Vec::new(),
             lambdas: Arena::new(),

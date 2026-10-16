@@ -253,8 +253,19 @@ pub(super) fn install_with_intrinsics_at(
             ),
         )
         .0;
+    let type_reference = builder.operation(
+        None,
+        1,
+        SignatureCallableShape::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            SignatureTypeKey::Nominal(source_location),
+        ),
+    );
     let signature_surface = CoreCompilerProtocolSurfaceV1 {
         program_arguments: program_arguments.clone(),
+        type_reference: type_reference.clone(),
         fundamental_types: fundamental_types.clone(),
         option_protocol: option_protocol.clone(),
         iteration_protocol: iteration_protocol.clone(),
@@ -269,7 +280,11 @@ pub(super) fn install_with_intrinsics_at(
         .filter(|kind| {
             !matches!(
                 kind,
-                IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_)
+                IntrinsicFunctionKind::Atomic(_)
+                    | IntrinsicFunctionKind::MaybeUninit(_)
+                    | IntrinsicFunctionKind::TypeReference
+                    | IntrinsicFunctionKind::TypeDescription
+                    | IntrinsicFunctionKind::AnnotationKey
             )
         })
         .map(|kind| {
@@ -379,6 +394,7 @@ pub(super) fn install_with_intrinsics_at(
 
     let surface = CoreCompilerProtocolSurfaceV1 {
         program_arguments,
+        type_reference,
         fundamental_types,
         option_protocol,
         iteration_protocol,

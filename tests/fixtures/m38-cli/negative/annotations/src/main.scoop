@@ -1,0 +1,6 @@
+import scoop.cli.*
+@CliOption fun wrongTarget() {}
+struct Duplicate(@CliFlag @CliFlag val value: Boolean)
+struct Names(@CliOption(names = 3) val value: String)
+struct Position(@CliArgument(position = "zero") val value: String)
+fun main() {}

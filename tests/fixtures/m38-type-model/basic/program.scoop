@@ -1,0 +1,72 @@
+fun check(condition: Boolean): Unit {
+    if (!condition) { throw IllegalStateException() }
+}
+
+class Probe public constructor() {
+    public var calls: Long = 0L
+}
+
+fun recursiveType(probe: Probe, identity: String, name: String): TypeRef =
+    TypeRef(identity, name, Some(NominalRef("declaration:1")), [], {
+        probe.calls = probe.calls + 1L
+        gcCollect()
+        val child = recursiveType(probe, identity, name)
+        TypeDescription(child, [], TypeShape.Tuple(TupleInfo([
+            TupleElementInfo(0L, "_1", TypeUseInfo(child, [], []))
+        ])))
+    })
+
+fun main() {
+    val probe = Probe()
+    val first = recursiveType(probe, "application:1", "Node")
+    val alias = recursiveType(probe, "application:1", "Alias")
+    val other = recursiveType(probe, "application:2", "Node")
+    check(first !== alias)
+    check(first == alias)
+    check(first != other)
+    check(first.displayName == other.displayName)
+    check(first.nominal!! == other.nominal!!)
+    check(first.arguments.size == 0L)
+    check(probe.calls == 0L)
+
+    val info = TypeInfo<Long>(first)
+    var reference = info.describe().type
+    check(probe.calls == 1L)
+    for (index in 0L until 20L) {
+        val description = reference.describe()
+        reference = when (description.shape) {
+            case TypeShape.Tuple(tuple) -> {
+                val element = tuple.elements[0L]
+                check(element.index == 0L && element.name == "_1")
+                check(element.typeUse.children.size == 0L)
+                element.type
+            }
+            else -> throw IllegalStateException()
+        }
+        check(reference == first)
+        check(probe.calls == index + 2L)
+    }
+    gcCollect()
+    check(reference == first)
+
+    check(NominalRef("a") == NominalRef("a"))
+    check(NominalRef("a") != NominalRef("b"))
+    check(FieldRef("a") == FieldRef("a"))
+    check(PropertyRef("a") == PropertyRef("a"))
+    check(AccessorRef("a") == AccessorRef("a"))
+    check(VariantRef("a") == VariantRef("a"))
+    check(ConstructorRef("a") == ConstructorRef("a"))
+    check(ParameterRef("a") == ParameterRef("a"))
+
+    val failing = TypeRef("failure", "Fail", None, [], {
+        throw IllegalStateException(Some("description failure"))
+    })
+    check(failing.displayName == "Fail")
+    try {
+        failing.describe()
+        throw IllegalStateException(Some("unreachable"))
+    } catch (error: IllegalStateException) {
+        check(error.message == Some("description failure"))
+    }
+    println("type-model-ok")
+}

@@ -118,6 +118,7 @@ pub enum DefaultExpressionKindV1 {
     },
     Unreachable,
     UnitLiteral,
+    AnnotationKey(scoop_identity::PersistentAnnotationId),
     TupleLiteral(Vec<DefaultExpressionV1>),
     StructInit {
         constructor: DefaultConstructorRefV1,
@@ -478,6 +479,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::FloatLiteral(_)
         | DefaultExpressionKindV1::BooleanLiteral(_)
         | DefaultExpressionKindV1::Unreachable
+        | DefaultExpressionKindV1::AnnotationKey(_)
         | DefaultExpressionKindV1::UnitLiteral
         | DefaultExpressionKindV1::VariantTest { .. }
         | DefaultExpressionKindV1::VariantPayloadProject { .. }

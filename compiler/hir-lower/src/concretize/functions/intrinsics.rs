@@ -46,7 +46,7 @@ impl Concretizer<'_> {
                         .map(|param| param.ty),
                 );
             }
-            FunctionSource::Companion(..) => {
+            FunctionSource::AnnotationDescription { .. } | FunctionSource::Companion(..) => {
                 unreachable!("an initialization companion is not an intrinsic")
             }
         }

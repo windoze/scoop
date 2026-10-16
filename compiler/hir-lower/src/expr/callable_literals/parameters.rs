@@ -10,14 +10,14 @@ impl Lowerer {
     pub(super) fn lower_lambda_parameters(
         &mut self,
         source_parameters: &[Option<&ast::LambdaParam>],
-        expected_signature: Option<&hir::FunctionType>,
+        expected_parameters: Option<&[TypeId]>,
         span: Span,
     ) -> Option<LambdaParameters> {
         let mut abi_params = Vec::with_capacity(source_parameters.len());
         let mut parameter_types = Vec::with_capacity(source_parameters.len());
         let mut prefix = Vec::new();
         for (index, parameter) in source_parameters.iter().enumerate() {
-            let expected_ty = expected_signature.map(|signature| signature.parameter_types[index]);
+            let expected_ty = expected_parameters.map(|types| types[index]);
             let explicit_ty = match parameter.and_then(|parameter| parameter.ty.as_ref()) {
                 Some(ty) => Some(self.resolve_type_ref(ty)?),
                 None => None,

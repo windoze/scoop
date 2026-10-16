@@ -5,10 +5,49 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3336,
+      "end": 3451,
       "kind": "source",
       "path": "src/array_list.scoop",
       "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `Any`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 363,
+      "kind": "source",
+      "path": "src/inspection.scoop",
+      "start": 360
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `Any`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 132,
+      "kind": "source",
+      "path": "src/debug_session.scoop",
+      "start": 129
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `Any`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 545,
+      "kind": "source",
+      "path": "src/inspection.scoop",
+      "start": 542
     },
     "severity": "error"
   },
@@ -35,6 +74,292 @@
       "kind": "source",
       "path": "src/foreign_callback.scoop",
       "start": 309
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 252,
+      "kind": "source",
+      "path": "src/sequence_inspection.scoop",
+      "start": 107
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `ValueView` has no fields",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 408,
+      "kind": "source",
+      "path": "src/debug_session.scoop",
+      "start": 391
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `identity`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 449,
+      "kind": "source",
+      "path": "src/debug_session.scoop",
+      "start": 441
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `hasIdentity`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 528,
+      "kind": "source",
+      "path": "src/debug_session.scoop",
+      "start": 517
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `hasIdentity`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 925,
+      "kind": "source",
+      "path": "src/debug_session.scoop",
+      "start": 914
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `hasIdentity`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3209,
+      "kind": "source",
+      "path": "src/debug_session.scoop",
+      "start": 3198
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 2132,
+      "kind": "source",
+      "path": "src/inspection.scoop",
+      "start": 2041
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 2338,
+      "kind": "source",
+      "path": "src/inspection.scoop",
+      "start": 2252
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1084,
+      "kind": "source",
+      "path": "src/option_inspection.scoop",
+      "start": 222
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 796,
+      "kind": "source",
+      "path": "src/characters.scoop",
+      "start": 703
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 554,
+      "kind": "source",
+      "path": "src/floating.scoop",
+      "start": 459
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 4367,
+      "kind": "source",
+      "path": "src/floating.scoop",
+      "start": 4270
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3555,
+      "kind": "source",
+      "path": "src/integer_int.scoop",
+      "start": 3451
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3699,
+      "kind": "source",
+      "path": "src/integer_int16.scoop",
+      "start": 3593
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3616,
+      "kind": "source",
+      "path": "src/integer_int8.scoop",
+      "start": 3511
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3520,
+      "kind": "source",
+      "path": "src/integer_long.scoop",
+      "start": 3425
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3473,
+      "kind": "source",
+      "path": "src/integer_uint.scoop",
+      "start": 3365
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3723,
+      "kind": "source",
+      "path": "src/integer_uint16.scoop",
+      "start": 3613
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3642,
+      "kind": "source",
+      "path": "src/integer_uint8.scoop",
+      "start": 3533
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3535,
+      "kind": "source",
+      "path": "src/integer_ulong.scoop",
+      "start": 3437
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1130,
+      "kind": "source",
+      "path": "src/types.scoop",
+      "start": 1031
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `ValueObservation` in nominal constructor candidate layer:\n  - class ValueObservation(type: TypeRef, describeBody: () -> ValueShape) — expects 2 argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 1870,
+      "kind": "source",
+      "path": "src/strings.scoop",
+      "start": 1766
     },
     "severity": "error"
   }

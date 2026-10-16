@@ -1,0 +1,2 @@
+fun <T, R> missing(block: (T) -> R): R = throw Throwable()
+fun main() { missing { value -> 1 } }

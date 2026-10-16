@@ -1,0 +1,48 @@
+import shapes.*
+
+fun check(condition: Boolean, message: String) {
+    if (!condition) { throw IllegalStateException(Some(message)) }
+}
+
+fun main() {
+    val parcel = describeParcel().describe()
+    check(parcel.type == typeInfo<Parcel<Long>>().type, "cross-Cone exact type")
+    check(parcel.annotations.size == 2L, "repeatable annotations")
+    val doc = parcel.annotations[0L]
+    check(findAnnotations(parcel.annotations, doc.key).size == 2L, "annotation identity")
+    check(doc.arguments[0L].parameter == doc.key.describe().parameters[0L].id, "annotation parameter identity")
+    val detail = when (doc.arguments[0L].value) { case AnnotationValue.Annotation(value) -> value; else -> throw IllegalStateException() }
+    check(when (detail.arguments[0L].value) { case AnnotationValue.String(value) -> value == "first"; else -> false }, "nested annotation")
+    val flag = when (detail.arguments[2L].value) { case AnnotationValue.IntegerEnum(type, variant, IntegerValue.Int8(value)) -> type; else -> throw IllegalStateException() }
+    check(when (flag.describe().shape) { case TypeShape.IntegerEnum(value) -> value.variants[0L].name == "Active"; else -> false }, "annotation-only type dependency")
+    check(when (doc.arguments[1L].value) { case AnnotationValue.Array(AnnotationAtomType.IntegerEnum(type), values) -> type == typeInfo<Level>().type && values.size == 0L; else -> false }, "empty array element type")
+    check(when (doc.arguments[3L].value) { case AnnotationValue.FloatBits(bits) -> bits == 2147483648u; else -> false }, "float bits")
+    check(when (doc.arguments[4L].value) { case AnnotationValue.DoubleBits(bits) -> bits == 9223372036854775808UL; else -> false }, "double bits")
+    val structure = when (parcel.shape) { case TypeShape.Struct(value) -> value; else -> throw IllegalStateException() }
+    check(structure.fields[0L].annotations.size == 1L, "field annotation")
+    check(structure.fields[0L].typeUse.annotations.size == 1L, "type root annotation")
+    check(structure.fields[0L].typeUse.children[0L].value.annotations.size == 1L, "type argument annotation")
+    check(structure.fields[0L].typeUse.children[0L].value.type == typeInfo<Long>().type, "substitution")
+
+    val row = when (describeRow().describe().shape) { case TypeShape.Class(value) -> value; else -> throw IllegalStateException() }
+    val base = when (typeInfo<Base>().describe().shape) { case TypeShape.Class(value) -> value; else -> throw IllegalStateException() }
+    check(row.base!!.annotations.size == 1L, "base type annotation")
+    check(row.properties.size == 5L && row.storage.size == 3L, "own properties and hidden storage")
+    check(row.isFinal && !base.isFinal, "class finality across artifacts")
+    check(row.properties[0L].getter.kind == AccessorKind.Storage, "materialized storage getter keeps its source kind")
+    check(row.properties[1L].overrides[0L] == base.properties[0L].id, "property override identity")
+    check(row.properties[2L].visibility == DeclarationVisibility.Private, "private property description")
+    check(when (row.properties[3L].storage) { case PropertyStorage.Delegated(field) -> field == row.storage[2L].id; else -> false }, "delegate storage identity")
+    check(row.constructors.size == 3L && row.constructors[1L].kind == ConstructorKind.Secondary, "secondary constructor")
+    check(row.constructors[2L].parameters[1L].typeUse.type == row.properties[4L].type, "uncalled constructor parameter")
+    check(when (row.properties[4L].type.describe().shape) { case TypeShape.Struct(value) -> value.fields[0L].type == typeInfo<String>().type; else -> false }, "unread computed property type")
+    check(when (typeInfo<View<Long>>().describe().shape) { case TypeShape.Interface(value) -> value.parents[0L].annotations.size == 1L; else -> false }, "parent interface annotation")
+    check(when (typeInfo<Parcel<Long>.Factory>().describe().shape) { case TypeShape.Object(value) -> value.companionHost!! == parcel.type.nominal!!; else -> false }, "generic companion host")
+
+    val level = when (typeInfo<Level>().describe().shape) { case TypeShape.IntegerEnum(value) -> value; else -> throw IllegalStateException() }
+    check(level.underlyingType == typeInfo<Int16>().type, "integer enum width")
+    check(when (level.variants[0L].value) { case IntegerValue.Int16(value) -> value == -3; else -> false }, "integer enum value")
+    gcCollect()
+    check(describe<Parcel<Long>>().type == parcel.type, "generic query after GC")
+    println("artifact-type-query-ok")
+}

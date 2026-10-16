@@ -142,32 +142,17 @@ fn validate_root_failure(
 ) -> Result<()> {
     let fail = |reason| error(function, reason);
     let [
-        Instruction::Call {
-            site: CallSite::Managed(call),
-        },
         Instruction::GlobalStore { global, value },
         Instruction::EndCatch,
     ] = instructions
     else {
         return Err(fail(
-            "root catch must materialize, store and then end the catch",
+            "root catch must store the exception before ending the catch",
         ));
     };
-    let ManagedTypedCall::Direct { target, out, args } = &call.call else {
-        return Err(fail("root catch needs a managed exception materialization"));
-    };
-    let target = get(&function.call_targets.managed_targets.direct, *target)
-        .ok_or_else(|| fail("root materialization target is absent"))?;
-    if target.destination
-        != ManagedCallDestination::Runtime(ManagedRuntimeFunction::MaterializeException)
-        || args.as_slice() != [AbiCallArgument::Direct(Value::Temp(payload))]
-        || *out == payload
-        || !temp_is(function, *out, &MANAGED_PTR)
-        || *global != failure_root
-        || *value != Value::Temp(*out)
-    {
+    if *global != failure_root || *value != Value::Temp(payload) {
         return Err(fail(
-            "root catch must publish the materialized exception to its own failure root",
+            "root catch must publish the original exception to its own failure root",
         ));
     }
     Ok(())

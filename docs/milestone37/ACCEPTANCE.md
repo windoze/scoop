@@ -1,5 +1,7 @@
 # M37 验收记录
 
+> 原始日志、逐次 JSON 报告和压缩归档已移出版本库。本页保留验收范围、结果与限制；文中的历史报告名称仅标识当时的验证批次。
+
 M37 已完成并验收。21 项功能分别实现并提交，Darwin、GNU、musl 三个目标的全部 680 个 M37 fixture 均通过普通比较；Linux 完整 Rust、GNU 正式 CLI 全量覆盖与 musl 受影响旧用例复验全部闭合。
 
 基线为 `ec9d8849d`（M36），工作分支为 `codex/m37`。完整设计见 [DESIGN.md](DESIGN.md)，规范修订、实现路径及每项验证见 [PROGRESS.md](PROGRESS.md)。实现使用既有类型化身份、单态化、闭包、对象、GC、异常与链接机制，没有引入授权、防伪、通用资源预算或仅供假想需求使用的框架。
@@ -51,7 +53,7 @@ body 最外层局部绑定可以在 condition 中使用，但所有真正到达 
 - Unicode/反引号名字、命名参数/尾随 lambda、整型枚举、嵌套/可重复注解和跨 Cone 类型使用位置。
 - 整型枚举的父类型参数/返回、函数值适配、直接与上转后的不同装箱身份，以及独立 C compiler 编译的 Int16 callback。
 
-这五个用例均执行 debug/release 与 normal/moving/minor 模式。连同既有整型枚举产物及默认参数回归，每个平台的 7 项普通比较均通过，12 个配置、73 个进程、71 个 golden，见 [Darwin](validation/complete-combinations-darwin.json)、[GNU](validation/complete-combinations-gnu.json)、[musl](validation/complete-combinations-musl.json)。
+这五个用例均执行 debug/release 与 normal/moving/minor 模式。连同既有整型枚举产物及默认参数回归，每个平台的 7 项普通比较均通过，12 个配置、73 个进程、71 个 golden，见 Darwin、GNU、musl。
 
 验收中发现并单独修复了四类实际问题：完整泛型 companion 的绑定引用；捕获值及构造器参数经 subject 快照传播的 smart cast；函数 smart cast 的显式判型、转换和引用相等读取原存储值；导入整型枚举时沿整数父类型继续查找接口。函数视图的修复恢复了旧协程用例原有检查顺序，没有通过交换检查次序规避问题。相关新增 fixture 和定向 Rust 测试均已完成，详细来源见实施记录。
 
@@ -59,7 +61,7 @@ body 最外层局部绑定可以在 condition 中使用，但所有真正到达 
 
 每批 Rust 修改先 fmt/workspace clippy，再执行相关测试并构建三个配套 CLI；本机验证后在 `nuc12:~/repos/scoop` 验证 Linux。公共 fixture runner 两机各 44 项通过。临时脚本、测试日志和工作目录都保存在仓库的 `target` 下，构建和测试使用 `target/m37-tmp` 作为 TMPDIR。
 
-Linux 完整 Rust 覆盖为 43 个测试目标、5,553 项不同测试通过，0 failed、0 ignored。初跑的八条旧断言在按现行语言和 wire 规则迁移后完成定向补验；随后回归修复继续使用相关 Rust 测试和正式 CLI，没有重复耗时的 driver 82 项完整组合。记录、原始日志和逐项来源见 [Linux Rust 验证](validation/rust-linux.json)。
+Linux 完整 Rust 覆盖为 43 个测试目标、5,553 项不同测试通过，0 failed、0 ignored。初跑的八条旧断言在按现行语言和 wire 规则迁移后完成定向补验；随后回归修复继续使用相关 Rust 测试和正式 CLI，没有重复耗时的 driver 82 项完整组合。记录、原始日志和逐项来源见 Linux Rust 验证。
 
 最终普通 CLI 覆盖如下。统计按 fixture 的最后一次普通比较去重，快照生成不计为普通通过；Darwin 使用各功能开发验收和受影响旧用例选集，未声称在最后一次提交上重跑整个工作区。
 
@@ -69,7 +71,7 @@ Linux 完整 Rust 覆盖为 43 个测试目标、5,553 项不同测试通过，0
 | GNU 正式 CLI 全量覆盖 | 3,741／30 | 4,203 | 16,425 | 13,747 |
 | musl 全部 M37 与受影响回归 | 1,227／0 | 1,481 | 5,342 | 5,485 |
 
-M37 的 GNU/musl 逐项记录见 [M37 覆盖](validation/m37-linux.json)。GNU 使用正式 `--all` 选择开始，接续未完成项并定向复验失败项，当前 3,771 个 fixture 均有最终普通结果，0 失败、0 遗漏，见 [GNU 全量覆盖](validation/cli-gnu.json)。[Darwin 覆盖](validation/cli-darwin.json) 保留逐功能与补验来源。musl 针对实际受影响的阶段输出、ABI、链接和运行路径选择；最后一组 253 个旧用例全部普通比较通过，见 [musl 覆盖](validation/cli-musl.json)、[232 项主体回归](validation/legacy-main-musl.json)与[21 项原生链接回归](validation/legacy-artifact-paths-musl.json)。
+M37 的 GNU/musl 逐项记录见 M37 覆盖。GNU 使用正式 `--all` 选择开始，接续未完成项并定向复验失败项，当前 3,771 个 fixture 均有最终普通结果，0 失败、0 遗漏，见 GNU 全量覆盖。Darwin 覆盖 保留逐功能与补验来源。musl 针对实际受影响的阶段输出、ABI、链接和运行路径选择；最后一组 253 个旧用例全部普通比较通过，见 musl 覆盖、232 项主体回归与21 项原生链接回归。
 
 ## 快照与产物兼容性
 
@@ -81,6 +83,6 @@ cross-cone-interface 从 72 升为 76，旧产物需要重建；MIR/LIR 与 runt
 
 ## 文件长度与工作目录
 
-新增 182 个 Rust 文件，最长 289 行；新增生产文件最长 269 行。已有超过 500 行文件的最大净增长为 55 行，具体记录见 [文件长度检查](validation/file-lengths.json)。模块按职责切分，新增编译器/runtime/core 代码未引入 TODO 或 unimplemented 占位。
+新增 182 个 Rust 文件，最长 289 行；新增生产文件最长 269 行。已有超过 500 行文件的最大净增长为 55 行，具体记录见 文件长度检查。模块按职责切分，新增编译器/runtime/core 代码未引入 TODO 或 unimplemented 占位。
 
-测试过程中持续清理通过用例的 cases、过期上传副本与编译中间文件，保留报告、当前工具及可复用缓存，见[清理记录](validation/cleanup.json)。Linux 实际验证源码与本机的 5,507 个编译器、runtime、sysroot 及 Cargo 文件逐字节一致，见[源码一致性记录](validation/source-consistency-linux.json.gz)。用户原有 M38 路线图增补和 `docs/milestone38/` 草稿保留在本地工作区中。
+测试过程中持续清理通过用例的 cases、过期上传副本与编译中间文件，保留报告、当前工具及可复用缓存，见清理记录。Linux 实际验证源码与本机的 5,507 个编译器、runtime、sysroot 及 Cargo 文件逐字节一致，见源码一致性记录。用户原有 M38 路线图增补和 `docs/milestone38/` 草稿保留在本地工作区中。

@@ -1,0 +1,79 @@
+package scoop.platform.concurrent
+
+import scoop.platform.system.PlatformException
+import scoop.test.*
+
+private class Request(val value: Int)
+context(request: Request)
+private fun requestValue(): Int = request.value
+private class SelfJoin { var thread: Thread? = None }
+
+@Test
+private class ThreadsTest {
+    @Test
+    fun `join waits for workers and publishes their writes`() {
+        val caller = currentThreadId()
+        val count = AtomicInt(0)
+        val workers = Array<Thread>(4L) { _ ->
+            Thread.start {
+                assertFalse(currentThreadId() == caller)
+                assertEquals(currentThreadId(), currentThreadId())
+                var index = 0
+                while (index < 30) { count.fetchAdd(1); yield(); index += 1 }
+                gcCollect()
+            }
+        }
+        for (worker in workers) {
+            worker.join()
+            assertTrue(worker.isFinished)
+            worker.join()
+            worker.dispose()
+        }
+        assertEquals(120, count.load())
+    }
+
+    @Test
+    fun `worker failure preserves its object and disposal consumes observation once`() {
+        val failure = Throwable()
+        val worker = Thread.start { gcCollect(); throw failure }
+        assertSame(failure, assertFailsWith<Throwable> { worker.join() })
+        assertTrue(worker.isFinished)
+        assertSame(failure, assertFailsWith<Throwable> { worker.join() })
+        worker.dispose()
+        worker.dispose()
+        val primary = Throwable()
+        val combined = assertFailsWith<ResourceUseException> {
+            Thread.start { throw failure }.use { throw primary }
+        }
+        assertSame(primary, combined.primaryFailure)
+        assertSame(failure, combined.cleanupFailure)
+    }
+
+    @Test
+    fun `threads use independent captured task contexts`() {
+        val worker = context(Request(7)) {
+            Thread.start {
+                assertEquals(7, requestValue())
+                context(Request(9)) { gcCollect(); assertEquals(9, requestValue()) }
+                assertEquals(7, requestValue())
+            }
+        }
+        context(Request(11)) { worker.join(); assertEquals(11, requestValue()) }
+    }
+
+    @Test
+    fun `self join fails without consuming the parent observation`() {
+        Mutex().use { mutex ->
+            val state = SelfJoin()
+            val worker = mutex.withLock {
+                val thread = Thread.start {
+                    mutex.withLock { assertFailsWith<PlatformException> { state.thread!!.join() } }
+                }
+                state.thread = Some(thread)
+                thread
+            }
+            worker.join()
+            worker.dispose()
+        }
+    }
+}

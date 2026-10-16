@@ -80,6 +80,7 @@ impl CoreCoroutineProtocolV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreCompilerProtocolSurfaceV1 {
     program_arguments: CoreProtocolCallableV1,
+    type_reference: CoreProtocolCallableV1,
     fundamental_types: CoreFundamentalTypeProtocolV1,
     option_protocol: CoreOptionProtocolV1,
     iteration_protocol: CoreIterationProtocolV1,
@@ -93,6 +94,10 @@ pub struct CoreCompilerProtocolSurfaceV1 {
 impl CoreCompilerProtocolSurfaceV1 {
     pub const fn program_arguments(&self) -> &CoreProtocolCallableV1 {
         &self.program_arguments
+    }
+
+    pub const fn type_reference(&self) -> &CoreProtocolCallableV1 {
+        &self.type_reference
     }
 
     pub const fn fundamental_types(&self) -> &CoreFundamentalTypeProtocolV1 {

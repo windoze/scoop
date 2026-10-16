@@ -1,0 +1,113 @@
+package scoop.platform.concurrent
+
+import scoop.platform.system.PlatformException
+import scoop.time.Duration
+import scoop.test.*
+
+private class Counter { var value: Int = 0 }
+private class ConditionState {
+    var ready: Boolean = false
+    var done: Boolean = false
+    var wakeups: Int = 0
+}
+
+@Test
+private class SynchronizationTest {
+    @Test
+    fun `mutex scope preserves results and exceptions and rejects invalid state`() {
+        val mutex = Mutex()
+        val identity = Throwable()
+        assertSame(identity, mutex.withLock { gcCollect(); identity })
+        assertSame(identity, assertFailsWith<Throwable> { mutex.withLock { throw identity } })
+        assertTrue(mutex.tryLock())
+        assertFalse(mutex.tryLock())
+        assertFailsWith<PlatformException> { mutex.lock() }
+        assertFailsWith<PlatformException> { mutex.dispose() }
+        assertFalse(mutex.isDisposed)
+        mutex.unlock()
+        assertFailsWith<PlatformException> { mutex.unlock() }
+        mutex.dispose()
+        mutex.dispose()
+        assertTrue(mutex.isDisposed)
+        assertFailsWith<IllegalStateException> { mutex.lock() }
+        assertFailsWith<IllegalStateException> { mutex.tryLock() }
+        assertFailsWith<IllegalStateException> { mutex.unlock() }
+        assertFailsWith<IllegalStateException> { ConditionVariable(mutex) }
+    }
+
+    @Test
+    fun `mutex protects ordinary shared state while other threads collect`() {
+        Mutex().use { mutex ->
+            val counter = Counter()
+            val workers = Array<Thread>(4L) { _ ->
+                Thread.start {
+                    var index = 0
+                    while (index < 50) {
+                        mutex.withLock {
+                            counter.value += 1
+                            if (counter.value % 25 == 0) gcCollect()
+                            Unit
+                        }
+                        index += 1
+                    }
+                }
+            }
+            for (worker in workers) worker.join()
+            assertEquals(200, counter.value)
+        }
+    }
+
+    @Test
+    fun `condition waits loop on predicates and keep busy owners alive`() {
+        Mutex().use { mutex ->
+            ConditionVariable(mutex).use { condition ->
+                val state = ConditionState()
+                val worker = Thread.start {
+                    mutex.withLock {
+                        state.ready = true
+                        condition.signal()
+                        while (!state.done) {
+                            condition.await()
+                            state.wakeups += 1
+                            condition.signal()
+                        }
+                        gcCollect()
+                    }
+                }
+                mutex.withLock {
+                    while (!state.ready) condition.await()
+                    assertFailsWith<IllegalStateException> { condition.dispose() }
+                    assertFailsWith<IllegalStateException> { mutex.dispose() }
+                    gcCollect()
+                    condition.signal()
+                    while (state.wakeups == 0) condition.await()
+                    assertFalse(worker.isFinished)
+                    state.done = true
+                    condition.broadcast()
+                }
+                worker.join()
+            }
+        }
+    }
+
+    @Test
+    fun `timed waits retain the lock and notification does not require ownership`() {
+        Mutex().use { mutex ->
+            val condition = ConditionVariable(mutex)
+            condition.signal()
+            condition.broadcast()
+            assertFailsWith<PlatformException> { condition.await() }
+            assertFailsWith<IllegalArgumentException> { condition.await(Duration.nanoseconds(-1L)) }
+            mutex.withLock {
+                assertFalse(condition.await(Duration.ZERO))
+                assertFalse(mutex.tryLock())
+            }
+            condition.dispose()
+            condition.dispose()
+            assertTrue(condition.isDisposed)
+            assertFailsWith<IllegalStateException> { condition.signal() }
+            assertFailsWith<IllegalStateException> { condition.broadcast() }
+            assertFailsWith<IllegalStateException> { condition.await() }
+        }
+    }
+}

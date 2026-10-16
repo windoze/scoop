@@ -1,0 +1,32 @@
+package scoop.platform.system
+
+import scoop.test.*
+
+@Test
+private class PlatformErrorTest {
+    @Test
+    fun `unknown codes keep their domains and original values`() {
+        val posix = NativeError(NativeErrorDomain.PosixErrno, Int.MAX_VALUE)
+        val address = NativeError(NativeErrorDomain.AddressResolution, Int.MAX_VALUE, Some(17))
+        assertTrue(posix.kind == PlatformErrorKind.Other)
+        assertTrue(address.kind == PlatformErrorKind.Other)
+        assertTrue(address.domain == NativeErrorDomain.AddressResolution)
+        assertEquals(Int.MAX_VALUE, address.code)
+        assertEquals(17, address.systemCode!!)
+        assertTrue(posix.systemCode == None)
+    }
+
+    @Test
+    fun `exceptions retain operation raw context and error snapshot`() {
+        val raw = NativeError(NativeErrorDomain.PosixErrno, Int.MAX_VALUE)
+        val context = OsString.fromBytes(Array<Byte>(1L) { _ -> -1 })
+        val error = assertFailsWith<PlatformException> {
+            throw PlatformException("open", raw.kind, Some(raw), Some(context))
+        }
+        assertEquals("open", error.operation)
+        assertTrue(error.kind == PlatformErrorKind.Other)
+        assertEquals(Int.MAX_VALUE, error.nativeError!!.code)
+        assertSame(context, error.context!!)
+        assertEquals(-1.toInt8(), error.context!!.toBytes()[0L])
+    }
+}

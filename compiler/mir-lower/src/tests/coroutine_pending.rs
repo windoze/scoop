@@ -110,49 +110,42 @@ fn assert_resume_leaves(
     ));
 }
 
-fn materialized_exception_at(body: &mir::Body, target: mir::CoroutineUnwindTarget) -> mir::LocalId {
+fn captured_exception_at(body: &mir::Body, target: mir::CoroutineUnwindTarget) -> mir::LocalId {
     let block = &body.blocks[target.block()];
-    let (materialize_index, destination) = block
+    let (capture_index, destination) = block
         .statements
         .iter()
         .enumerate()
         .find_map(|(index, statement)| {
-            let mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) =
-                &statement.kind
+            let mir::StatementKind::ValDecl {
+                local: destination,
+                init,
+            } = &statement.kind
             else {
                 return None;
             };
-            (matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)))
-                .then_some((index, *destination))
+            matches!(init.kind, mir::ExprKind::CaughtException).then_some((index, *destination))
         })
         .unwrap_or_else(|| {
             panic!(
-                "unwind target `{}` must materialize its exception",
+                "unwind target `{}` must save its caught exception",
                 block.name
             )
         });
+    assert!(block.statements[..capture_index].iter().any(|statement| {
+        matches!(
+            &statement.kind,
+            mir::StatementKind::Eh(mir::EhStatement::LandingPad { cleanup: false })
+        )
+    }));
+    assert!(block.statements[..capture_index].iter().any(|statement| {
+        matches!(
+            &statement.kind,
+            mir::StatementKind::Eh(mir::EhStatement::BeginCatch)
+        )
+    }));
     assert!(
-        block.statements[..materialize_index]
-            .iter()
-            .any(|statement| {
-                matches!(
-                    &statement.kind,
-                    mir::StatementKind::Eh(mir::EhStatement::LandingPad { cleanup: false })
-                )
-            })
-    );
-    assert!(
-        block.statements[..materialize_index]
-            .iter()
-            .any(|statement| {
-                matches!(
-                    &statement.kind,
-                    mir::StatementKind::Eh(mir::EhStatement::BeginCatch)
-                )
-            })
-    );
-    assert!(
-        block.statements[materialize_index + 1..]
+        block.statements[capture_index + 1..]
             .iter()
             .any(|statement| {
                 matches!(
@@ -169,9 +162,9 @@ fn assert_failure_enters_managed_catch(body: &mir::Body, point: &mir::CoroutineR
         .failure()
         .unwind()
         .expect("the suspending call is protected by its inner catch");
-    materialized_exception_at(body, target);
+    captured_exception_at(body, target);
     let mir::Terminator::Goto(dispatch) = &body.blocks[target.block()].terminator else {
-        panic!("a materialized exception enters typed catch dispatch")
+        panic!("a captured exception enters typed catch dispatch")
     };
     let mir::Terminator::Branch { then_block, .. } = &body.blocks[*dispatch].terminator else {
         panic!("the inner catch dispatch tests its declared exception type")
@@ -183,12 +176,14 @@ fn assert_per_scope_exception_storage(body: &mir::Body, minimum: usize) {
     let mut destinations = HashSet::new();
     for (block_id, block) in body.blocks.iter() {
         for statement in &block.statements {
-            let mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) =
-                &statement.kind
+            let mir::StatementKind::ValDecl {
+                local: destination,
+                init,
+            } = &statement.kind
             else {
                 continue;
             };
-            if !matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
+            if !matches!(init.kind, mir::ExprKind::CaughtException)
                 || !body.locals[*destination]
                     .name
                     .starts_with("$coroutine_exception")
@@ -200,7 +195,7 @@ fn assert_per_scope_exception_storage(body: &mir::Body, minimum: usize) {
                 "source unwind scope at {block_id:?} must own a fresh exception local"
             );
             let target = mir::CoroutineUnwindTarget::new(block_id);
-            assert_eq!(materialized_exception_at(body, target), *destination);
+            assert_eq!(captured_exception_at(body, target), *destination);
         }
     }
     assert!(

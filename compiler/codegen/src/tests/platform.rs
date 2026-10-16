@@ -213,7 +213,6 @@ fn exception_control_flow_entries_stay_runtime_private() {
         "scoop_rt_rethrow(",
         "scoop_rt_begin_catch(",
         "scoop_rt_end_catch(",
-        "scoop_rt_materialize_exception(",
     ] {
         assert!(
             !public.contains(entry),
@@ -281,10 +280,6 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
         ),
         (
-            "_scoop_rt_materialize_exception:",
-            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
-        ),
-        (
             "_scoop_rt_init_enter:",
             ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
         ),
@@ -350,7 +345,6 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_rt_string_concat_impl",
         "_scoop_rt_box_zst_impl",
         "_scoop_rt_box_value_impl",
-        "_scoop_rt_materialize_exception_impl",
         "_scoop_rt_init_enter_impl",
         "_scoop_rt_init_succeed_impl",
         "_scoop_rt_init_fail_impl",
@@ -370,5 +364,5 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "missing tail-branch relocation for {implementation}:\n{relocations}"
         );
     }
-    assert_eq!(relocations.matches("BR26").count(), 18);
+    assert_eq!(relocations.matches("BR26").count(), 17);
 }

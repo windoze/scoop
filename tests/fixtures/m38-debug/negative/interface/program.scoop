@@ -1,0 +1,3 @@
+interface View {}
+object Inspector : Inspectable<View>
+fun main() {}

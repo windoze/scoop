@@ -109,6 +109,7 @@ impl ReferenceCollector<'_> {
         let origin = expression.origin.definition();
         self.type_reference(expression.ty, origin);
         match &expression.kind {
+            hir::ExprKind::AnnotationKey(annotation) => self.annotation(*annotation, origin),
             hir::ExprKind::MaybeUninit(operation) => {
                 if let Some(operand) = operation.operand() {
                     self.expression(operand);

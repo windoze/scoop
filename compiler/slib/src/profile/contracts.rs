@@ -131,17 +131,17 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::NONE,
                 FingerprintSinkSet::ENVELOPE_ONLY,
             ),
-            ("org.scoop-lang.hir", "identity-foundation", 9) => (
+            ("org.scoop-lang.hir", "identity-foundation", 10) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "identity-foundation", 7) => (
+            ("org.scoop-lang.mir", "identity-foundation", 8) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.lir", "identity-foundation", 8) => (
+            ("org.scoop-lang.lir", "identity-foundation", 9) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
@@ -153,17 +153,17 @@ impl CapabilityContractRegistry {
                     .union(FingerprintSinkSet::RUNTIME_IMAGE)
                     .union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.hir", "core-bootstrap-interface", 15) => (
+            ("org.scoop-lang.hir", "core-bootstrap-interface", 16) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-interface", 76) => (
+            ("org.scoop-lang.hir", "cross-cone-interface", 78) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-type-semantics", 29) => (
+            ("org.scoop-lang.hir", "cross-cone-type-semantics", 30) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,

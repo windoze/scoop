@@ -10,7 +10,10 @@ public struct Float :
     Increment<Float>,
     Decrement<Float>,
     Equals<Float>, Compare<Float>, ToString {
-    public companion object : Encodable<Float>, Decodable<Float> {
+    public companion object : Encodable<Float>, Decodable<Float>, Inspectable<Float> {
+        public override fun inspect(value: Float): ValueView =
+            ValueObservation(typeInfo<Float>().type, None, { ValueShape.Scalar(ScalarValue.Float(value)) })
+
         public override fun encode(value: Float, encoder: Encoder): Unit =
             encoder.singleValue().writeFloat(value)
 
@@ -130,7 +133,10 @@ public struct Double :
     Increment<Double>,
     Decrement<Double>,
     Equals<Double>, Compare<Double>, ToString {
-    public companion object : Encodable<Double>, Decodable<Double> {
+    public companion object : Encodable<Double>, Decodable<Double>, Inspectable<Double> {
+        public override fun inspect(value: Double): ValueView =
+            ValueObservation(typeInfo<Double>().type, None, { ValueShape.Scalar(ScalarValue.Double(value)) })
+
         public override fun encode(value: Double, encoder: Encoder): Unit =
             encoder.singleValue().writeDouble(value)
 

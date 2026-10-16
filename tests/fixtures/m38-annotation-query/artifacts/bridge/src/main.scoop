@@ -1,0 +1,4 @@
+package keys.bridge
+public import keys.provider.*
+public fun <T> forwarded(): AnnotationKey = genericKey<T>()
+public fun label(): AnnotationKey = annotationKey<Label>()

@@ -36,6 +36,9 @@ pub(super) fn source_subject(
             CallableTemplateOwner::Generated(id) => {
                 let key = key(&foundation.generated_callables, id)?;
                 match key {
+                    GeneratedCallableKey::AnnotationDescription { parent, .. } => {
+                        root = *parent;
+                    }
                     GeneratedCallableKey::Lexical { parent, .. }
                     | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => {
                         root = parent.template()

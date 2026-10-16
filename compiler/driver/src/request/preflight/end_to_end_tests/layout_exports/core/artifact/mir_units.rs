@@ -18,30 +18,22 @@ pub(super) fn check(
     }
     if name.starts_with("shared-units-") {
         assert!(!units.is_empty());
-        if name.ends_with("standalone") {
-            assert_eq!(
-                (metadata.source_initialization_units().len(), units.len()),
-                (23, 18)
-            );
-            // Generic companion templates, including MaybeUninit, have no strong pairs.
-            // Scalar companions, Unit codecs and the suspend object keep their pairs.
-            assert_eq!(
-                metadata
-                    .source_initialization_units()
-                    .iter()
-                    .filter(|source| {
-                        !matches!(
-                            source.key(),
-                            InitializationUnitKey::GenericCompanionTemplate(_)
-                        )
-                    })
-                    .map(|source| source.id())
-                    .collect::<std::collections::BTreeSet<_>>(),
-                units.iter().map(|unit| unit.unit()).collect(),
-            );
-        } else {
-            assert_eq!(units.len(), 20);
-        }
+        // Generic companion templates have no strong initializer pairs.
+        // Every concrete source unit retains exactly its declared pair.
+        assert_eq!(
+            metadata
+                .source_initialization_units()
+                .iter()
+                .filter(|source| {
+                    !matches!(
+                        source.key(),
+                        InitializationUnitKey::GenericCompanionTemplate(_)
+                    )
+                })
+                .map(|source| source.id())
+                .collect::<std::collections::BTreeSet<_>>(),
+            units.iter().map(|unit| unit.unit()).collect(),
+        );
     }
     units
 }

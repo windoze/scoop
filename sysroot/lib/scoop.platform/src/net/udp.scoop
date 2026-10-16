@@ -1,0 +1,70 @@
+package scoop.platform.net
+
+import scoop.platform.fs.File
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+
+public struct Datagram(val source: SocketAddress, val count: Long, val truncated: Boolean)
+private class ReceiveResult { var value: (NativeDatagram, Int)? = None }
+
+public class UdpSocket private constructor(private val file: File) : Disposable {
+    public val localAddress: SocketAddress get() = file.socketAddress(false)
+    public val isDisposed: Boolean get() = file.isDisposed
+
+    public companion object {
+        public fun bind(address: SocketAddress, reuseAddress: Boolean = false): UdpSocket {
+            val file = File.newOwner()
+            val socket = UdpSocket(file)
+            @Unsafe {
+                val (descriptor, error) = nativeSocketBind(nativeAddress(address), true, reuseAddress, 0)
+                checkNativeStatus(descriptor, error, "UDP bind")
+                file.adoptDescriptor(descriptor)
+            }
+            return socket
+        }
+    }
+
+    public fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long =
+        file.withDescriptor { descriptor ->
+            requireTransfer(count, buffer.readableBytes)
+            @Unsafe {
+                val sent = buffer.withReadableBytes { pointer, _ ->
+                    @Unsafe {
+                        val (result, error) = nativeSend(descriptor, pointer, count, nativeAddress(destination))
+                        return@withReadableBytes checkNative(result, error, "UDP send")
+                    }
+                }
+                buffer.skip(sent)
+                if (sent != count) throw PlatformException("incomplete UDP send", PlatformErrorKind.Other)
+                return@withDescriptor sent
+            }
+        }
+
+    public fun receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram =
+        file.withDescriptor { descriptor ->
+            requireTransfer(count, buffer.writableBytes)
+            if (count == 0L) throw IllegalArgumentException(Some("UDP receive requires positive capacity"))
+            val received = ReceiveResult()
+            @Unsafe {
+                buffer.withWritableBytes { pointer, _ ->
+                    @Unsafe {
+                        val (packet, error) = nativeReceive(descriptor, pointer!!, count)
+                        checkNative(packet.count, error, "UDP receive")
+                        received.value = Some((packet, error))
+                        return@withWritableBytes packet.count
+                    }
+                }
+            }
+            val (packet, error) = received.value!!
+            Datagram(socketAddress(packet.source, error), packet.count, packet.truncated)
+        }
+
+    public override fun dispose() { file.dispose() }
+    public fun close() { dispose() }
+}
+
+@Extern(name = "scoop_platform_udp_send", captureErrno = true)
+private fun nativeSend(descriptor: Int, bytes: Ptr<Byte>?, count: Long, destination: NativeSocketAddress): (Long, Int)
+@Extern(name = "scoop_platform_udp_receive", captureErrno = true)
+private fun nativeReceive(descriptor: Int, bytes: Ptr<Byte>, count: Long): (NativeDatagram, Int)

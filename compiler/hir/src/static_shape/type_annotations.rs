@@ -7,19 +7,30 @@ impl<'a> StaticFieldShape<'a> {
         self,
         dependencies: &ImportedSemanticWorld<'a>,
     ) -> &'a [TypeAnnotationNode] {
-        match self.annotation {
-            StaticAnnotationTarget::Current(target) => self
-                .owner
+        self.annotation
+            .type_annotations(self.owner, dependencies, AnnotationTypeSlot::Value)
+    }
+}
+
+impl StaticAnnotationTarget {
+    pub(super) fn type_annotations<'a>(
+        self,
+        owner: StaticNominalShape<'a>,
+        dependencies: &ImportedSemanticWorld<'a>,
+        slot: AnnotationTypeSlot,
+    ) -> &'a [TypeAnnotationNode] {
+        match self {
+            StaticAnnotationTarget::Current(target) => owner
                 .module
                 .annotations
-                .annotated_type(target, AnnotationTypeSlot::Value)
+                .annotated_type(target, slot)
                 .map_or(&[], |usage| usage.nodes.as_slice()),
             StaticAnnotationTarget::Dependency(target) => dependencies
-                .nominal_source_provider(self.owner.declaration)
+                .nominal_source_provider(owner.declaration)
                 .expect("a loaded nominal retains its provider")
                 .source_interface()
                 .annotations()
-                .annotated_type(target, AnnotationTypeSlot::Value)
+                .annotated_type(target, slot)
                 .map_or(&[], |usage| usage.nodes.as_slice()),
         }
     }

@@ -1,0 +1,8 @@
+interface Carrier { fun read(): Int }
+class Resource(val value: Int) : Carrier {
+    public override fun read(): Int = value
+}
+fun <T : Carrier, R> T.scope(block: (T) -> R): R = block(this)
+suspend fun <T : Carrier, R> T.scope(block: suspend (T) -> R): R = block(this)
+fun <T> keep(value: T): T = value
+fun main() { Resource(1).scope { first, second -> 1 } }

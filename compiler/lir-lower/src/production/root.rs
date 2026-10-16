@@ -94,53 +94,14 @@ pub(super) fn root_gateway(
     let managed_exception = temps.alloc(scoop_lir::Temp {
         ty: scoop_lir::MANAGED_PTR,
     });
-    let payload = managed_exception;
-    let managed_exception = temps.alloc(scoop_lir::Temp {
-        ty: scoop_lir::MANAGED_PTR,
-    });
-    let runtime = signatures.runtime(scoop_lir::RuntimeFunction::Managed(
-        scoop_lir::ManagedRuntimeFunction::MaterializeException,
-    ));
-    let scoop_lir::AbiReturn::Direct(reference) = runtime.result() else {
-        unreachable!("exception materialization returns a managed reference")
-    };
-    let signature = call_targets
-        .direct_signatures
-        .alloc(scoop_lir::DirectCallSignature::new(
-            runtime.arguments().to_vec(),
-            reference.clone(),
-            runtime.calling_convention(),
-        ));
-    let target = call_targets
-        .managed_targets
-        .direct
-        .alloc(scoop_lir::CallTarget {
-            destination: scoop_lir::ManagedCallDestination::runtime(
-                scoop_lir::ManagedRuntimeFunction::MaterializeException,
-            ),
-            signature,
-        });
     blocks[unwind].instructions.extend([
         scoop_lir::Instruction::LandingPad {
             record: exception_record,
             raw: raw_exception,
         },
         scoop_lir::Instruction::BeginCatch {
-            out: payload,
+            out: managed_exception,
             raw: scoop_lir::Value::Temp(raw_exception),
-        },
-        scoop_lir::Instruction::Call {
-            site: scoop_lir::CallSite::Managed(scoop_lir::ManagedCallSite {
-                call: scoop_lir::ManagedTypedCall::Direct {
-                    target,
-                    out: managed_exception,
-                    args: vec![scoop_lir::AbiCallArgument::Direct(scoop_lir::Value::Temp(
-                        payload,
-                    ))],
-                },
-                safepoint: pending_safepoints.allocate(scoop_lir::SafepointSiteRole::ManagedCall),
-                live: scoop_lir::StatepointLiveSet::default(),
-            }),
         },
         scoop_lir::Instruction::GlobalStore {
             global: failure_root,

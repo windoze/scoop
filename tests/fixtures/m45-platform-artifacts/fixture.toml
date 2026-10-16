@@ -1,0 +1,61 @@
+schema = 1
+name = "m45-platform-artifacts"
+inputs = ["consumer"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m45", "platform", "artifacts"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "platform"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${sysroot}/lib/scoop.platform", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-platform", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${platform.result.dependencies.length}", equals = 2}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reuse"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cone-path", "${work}/artifacts", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {actual = "${reuse.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${reuse.result.output}", equals = "${consumer.result.output}"},
+]
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked", "--cache-dir", "${cache}", "--sysroot", "${sysroot}"]
+exit = 0
+stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${work}/relinked"]
+exit = 0
+stdout = "/beta\nbeta\ntrue\n-1\n1\ntrue\nopen\n7\ntrue\nplatform transfers passed\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "/beta\nbeta\ntrue\n-1\n1\ntrue\nopen\n7\ntrue\nplatform transfers passed\n"
+stderr = ""

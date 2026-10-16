@@ -1,6 +1,6 @@
 # M38：只读值视图、TextWriter 与 debug printer
 
-本文件从属于 [总体设计](DESIGN.md)，类型和成员描述见 [TYPE-INFO.md](TYPE-INFO.md)。本文件全部公共库类型放在 `scoop.core`。
+本文件从属于 [总体设计](DESIGN.md)，类型和成员描述见 [TYPE-INFO.md](TYPE-INFO.md)。本文件全部公共库类型放在 `scoop.core`。2026-10-14 修订明确与 M46 Serialize／Option 的边界；独立 inspector 和惰性观察模型保持。
 
 ## 1. 读取由普通方法提供
 
@@ -76,7 +76,7 @@ inspector 可以返回捕获 value 的读取函数。只要函数 body 的读取
 | 带自定义 accessor 的存储 property、delegated property | 要求手写 inspector；不绕过 accessor 直接读隐藏 backing storage |
 | open/abstract、有 class 基类、object/companion 作为目标 | 使用手写 inspector；M38 不扩大现有 codec 的自动 class 形状范围 |
 
-缺省 inspector 不采用 `SerialName` 或 `Transient` 改变其成员列表；debug 的源结构与序列化模型各有用途。DebugIgnore/DebugRedact 由 printer 解释。
+缺省 inspector 不采用 Serialize.rename／ignore／required／emitNull 改变其成员列表、名称或读取策略；debug 保留源码结构，序列化按其配置选择 wire 表示。DebugIgnore/DebugRedact 由 printer 解释。
 
 没有字段能力、存在不可访问读取、无法满足形状或 dependency 有歧义时，在实现声明处报错。不能生成等待运行时再抛“尚未支持”的 body。
 
@@ -114,7 +114,7 @@ public interface ValueView {
 | `ValueShape.Scalar(ScalarValue)` | Boolean、signed/unsigned 整数、Float、Double、Char、String、Unit |
 | `ValueShape.Record(RecordView)` | 有序 MemberView 和可选的显式 base 视图 |
 | `ValueShape.Variant(VariantView)` | 当前 VariantInfo 及 unit/named/positional payload |
-| `ValueShape.IntegerEnum(IntegerEnumView)` | 当前 VariantInfo 与底层整数值 |
+| `ValueShape.IntegerEnum(IntegerEnumView)` | 当前 IntegerEnumVariantInfo（含底层整数值） |
 | `ValueShape.Tuple(TupleView)` | 有序元素，按 index 惰性读取 |
 | `ValueShape.Sequence(SequenceView)` | 逻辑 size 和 `element(index): ValueView` |
 | `ValueShape.Opaque(OpaqueValue)` | 显式选择的不可展开表示，包含类型和简短的种类说明 |
@@ -133,7 +133,7 @@ core 提供这些视图的普通构造入口，使用户可手写 inspector。�
 
 ### 4.2 内建值与集合
 
-core 为 Boolean、定宽整数、Float/Double、Char、String 提供具体 inspector，Unit 提供普通 singleton inspector。Option 和序列通过显式元素 inspector 组合。
+core 为 Boolean、定宽整数、Float/Double、Char、String 提供具体 inspector，Unit 提供普通 singleton inspector。Option 和序列通过显式元素 inspector 组合。Option inspector 保留 None／Some 及其真实嵌套，不调用 M46 的 nullable Option codec；Some(None) 和 None 仍产生不同的观察结果。
 
 Array、MutableArray、ArrayList 展示逻辑元素，不展示 capacity、backing、MaybeUninit 空闲槽。List/MutableList 可以通过显式普通 helper 和公开 size/get 观察；它们没有唯一具体容器类型，不从运行期实现类选择内部字段。
 
@@ -199,15 +199,17 @@ val text = writer.build()
 | 整型 enum | `Color.Red(1)`，其中 1 是底层合法值 |
 | tuple / Unit | `("Ada", 37)`、`Unit`；单元素 tuple 保留尾逗号 |
 | Array/List | `[1, 2, 3]` |
-| Option | `Option.None`、`Option.Some("out.txt")`，保留实际 variant |
+| Option | `Option<String>.None`、`Option<String>.Some("out.txt")`，保留完整展示名与实际 variant |
 | opaque | `<opaque Ptr<Int>>` 等明确的类型说明 |
 | 环 | `<cycle Node>` |
 
-类型展示名取 TypeRef；字段与 variant 取源码名称，不采用 SerialName。String 双引号、Char 单引号，转义引号、反斜杠、换行、制表符及其他不可直接展示的控制字符。字符串截断按 Unicode scalar 进行，不截断 UTF-8 字节序列。
+类型展示名取 TypeRef；字段与 variant 取源码名称，不采用 Serialize.rename。String 双引号、Char 单引号，转义引号、反斜杠、换行、制表符及其他不可直接展示的控制字符。字符串截断按 Unicode scalar 进行，不截断 UTF-8 字节序列。
 
 Float/Double 沿用 core 的数值展示规则，保留负零；不经过整数转换。值类型名称与集合外观不依赖裸内存布局。Pretty 模式在同一结构上换行并按 indent 缩进，不改变成员选择或读取顺序。
 
 此格式用于调试，不是持久化编码合同，不替代 Encodable/Decoder。不自动实现 ToString，也不改变 `print`/`println` 的既有 ToString bound。
+
+M46 的稳定容器和编码复用没有提供本视图需要的原对象 identity、惰性成员读取或源码 variant 信息。DebugPrinter 继续使用 Inspectable／ValueView；实现可以与 codec 合成共享普通类型、成员和依赖查询，但不把 debug 改成对 Encodable 输出树的再次格式化。
 
 ### 6.2 输出选项
 
@@ -254,6 +256,7 @@ printer 在当前递归路径保存这些普通引用，以既有 `===` 比较�
 - 手写与合成 inspector 的 public/internal/private/protected 结果一致，包含同 Cone、跨 Cone、companion、继承 receiver 和 generic 再次发布。
 - 负例必须证明：把调用移入目标类型、写 inline 或在运行期分支中跳过 read，不能使外部非法成员读取合法。
 - struct、enum 活动 payload、tuple、Option、核心集合、显式 base 投影和 opaque 策略具有实际运行用例；不靠 Any.toString 回退。
+- 同一个 DTO 同时请求 Encodable／Decodable／Inspectable，验证 Serialize.rename／ignore／None 省略只改变序列化，debug 仍显示源码字段及 Option variant；Some(None) 与 None 不合并。DebugIgnore／DebugRedact 仍只控制 printer 的惰性读取。
 - 读取计数验证惰性行为：ignore/redact/深度/items 截断不执行对应 read，展示字段恰好一次；相关 inspector 依赖也不提前求值。
 - StringWriter 检查拼接文本；另一个测试 writer 在指定 write 抛异常，验证立即传播和已有部分输出，不把分块次数锁成公共 API。
 - 对象自环、互环、非循环共享、含引用的值类型、数组与 GC stress 覆盖 rooting/relocation，确认不读取未初始化槽。

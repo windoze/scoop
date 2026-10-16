@@ -51,6 +51,10 @@ impl BodyLowerer<'_> {
                 };
                 smir::ExprKind::StringConst(id)
             }
+            hir::ExprKind::TypeIdentityLiteral(ty) => {
+                let value = self.module.exact_type_identities[*ty].id().to_string();
+                smir::ExprKind::StringConst(self.intern_current_string(value))
+            }
             hir::ExprKind::IntegerLiteral(value) => {
                 smir::ExprKind::IntegerLiteral(lower_integer_constant(*value))
             }

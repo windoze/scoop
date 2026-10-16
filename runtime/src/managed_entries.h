@@ -27,9 +27,7 @@ void *scoop_rt_box_zst_impl(const ScoopTypeDescriptor *td, uintptr_t return_pc,
 void *scoop_rt_box_value_impl(const ScoopTypeDescriptor *td, const void *source,
                               uintptr_t return_pc, uintptr_t stack_pointer,
                               uintptr_t frame_pointer);
-void *scoop_rt_materialize_exception_impl(const void *caught, uintptr_t return_pc,
-                                          uintptr_t stack_pointer,
-                                          uintptr_t frame_pointer);
+
 uint64_t scoop_rt_init_enter_impl(const ScoopInitializationUnitDescriptorV1 *unit,
                                   uintptr_t return_pc, uintptr_t stack_pointer,
                                   uintptr_t frame_pointer);

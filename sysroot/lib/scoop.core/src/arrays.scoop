@@ -16,6 +16,8 @@ public class Array<T> : List<T> {
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
     public companion object {
+        public fun inspector(element: Inspectable<T>): Inspectable<Array<T>> = ArrayInspector<T>(element)
+
         public fun encoder(element: Encodable<T>): Encodable<Array<T>> = ArrayEncoder<T>(element)
 
         public fun decoder(element: Decodable<T>): Decodable<Array<T>> = ArrayDecoder<T>(element)
@@ -45,6 +47,8 @@ public class MutableArray<T> : List<T>, Set<Long, T> {
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
     public companion object {
+        public fun inspector(element: Inspectable<T>): Inspectable<MutableArray<T>> = MutableArrayInspector<T>(element)
+
         public fun encoder(element: Encodable<T>): Encodable<MutableArray<T>> = MutableArrayEncoder<T>(element)
 
         public fun decoder(element: Decodable<T>): Decodable<MutableArray<T>> =

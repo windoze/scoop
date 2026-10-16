@@ -113,6 +113,12 @@ impl CrossConeHirInterfaceSectionV1 {
                 ExportDefaultReferenceKindV1::Field,
                 references.fields(),
             );
+            observe_references(
+                &mut validator,
+                template_index,
+                ExportDefaultReferenceKindV1::Annotation,
+                references.annotations(),
+            );
         }
 
         for (body_index, body) in self.generic_callable_bodies().records().iter().enumerate() {

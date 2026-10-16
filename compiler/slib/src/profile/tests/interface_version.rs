@@ -1,20 +1,20 @@
 use super::*;
 
 #[test]
-fn source_interface_v76_preserves_type_use_annotations() {
+fn source_interface_v78_preserves_annotation_queries() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        76,
+        78,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn type_semantics_v29_preserves_unreachable_templates() {
+fn type_semantics_v30_preserves_annotation_queries() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        29,
+        30,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -31,10 +31,10 @@ fn mir_type_bridge_v19_preserves_maybe_uninit_representation() {
 }
 
 #[test]
-fn mir_foundation_v7_keeps_implementation_identities_out_of_semantic_fingerprints() {
+fn mir_foundation_v8_preserves_annotation_description_owners() {
     assert_retired_version(
         mir_identity_foundation_capability(),
-        7,
+        8,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -61,10 +61,10 @@ fn lir_param_free_v3_retains_target_coercions() {
 }
 
 #[test]
-fn compiler_protocol_v15_preserves_generated_entries() {
+fn compiler_protocol_v16_preserves_type_info_queries() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        15,
+        16,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -114,10 +114,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v9_preserves_test_entry_keys() {
+fn hir_foundation_v10_preserves_annotation_description_owners() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        9,
+        10,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

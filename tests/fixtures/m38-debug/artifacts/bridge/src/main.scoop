@@ -1,0 +1,5 @@
+package observed.bridge
+public import observed.*
+public fun <T> forwarded(value: Pack<T>, element: Inspectable<T>): () -> ValueView = {
+    observe(value, element)
+}

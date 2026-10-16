@@ -6,3 +6,6 @@
 __pycache__/
 .ruff_cache/
 .DS_Store
+/docs/**/validation/*
+!/docs/**/validation/*.md
+!/docs/**/validation/.gitignore

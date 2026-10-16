@@ -68,6 +68,7 @@ enum DecodedDefaultExpressionKindV1 {
     },
     Unreachable,
     UnitLiteral,
+    AnnotationKey(DecodedPersistentId<scoop_identity::PersistentAnnotationId>),
     TupleLiteral(Vec<DecodedDefaultExpressionV1>),
     StructInit {
         constructor: DecodedDefaultConstructorRefV1,
@@ -273,6 +274,7 @@ pub trait DefaultExpressionReferenceResolver<E>:
     DefaultNestedCallableReferenceResolver<E>
     + DefaultConstructorReferenceResolver<E>
     + DefaultFieldReferenceResolver<E>
+    + PersistentIdResolver<scoop_identity::PersistentAnnotationId, Error = E>
     + PersistentIdResolver<PersistentPropertyId, Error = E>
     + PersistentIdResolver<scoop_identity::PersistentExtensionPropertyId, Error = E>
     + PersistentIdResolver<PersistentObjectValueId, Error = E>
@@ -286,6 +288,7 @@ impl<R, E> DefaultExpressionReferenceResolver<E> for R where
     R: DefaultNestedCallableReferenceResolver<E>
         + DefaultConstructorReferenceResolver<E>
         + DefaultFieldReferenceResolver<E>
+        + PersistentIdResolver<scoop_identity::PersistentAnnotationId, Error = E>
         + PersistentIdResolver<PersistentPropertyId, Error = E>
         + PersistentIdResolver<scoop_identity::PersistentExtensionPropertyId, Error = E>
         + PersistentIdResolver<PersistentObjectValueId, Error = E>

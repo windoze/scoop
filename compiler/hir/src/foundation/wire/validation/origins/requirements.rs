@@ -209,6 +209,9 @@ impl<'a> OriginRequirements<'a> {
                         return Ok(None);
                     };
                     match key {
+                        GeneratedCallableKey::AnnotationDescription { parent, .. } => {
+                            owner = *parent;
+                        }
                         GeneratedCallableKey::Lexical { parent, .. }
                         | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => {
                             owner = parent.template();

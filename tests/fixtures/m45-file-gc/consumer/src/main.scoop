@@ -1,0 +1,115 @@
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+
+@Extern(name = "m45_file_callback") private fun setCallback(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+@Extern(name = "m45_file_clear_callback") private fun clearCallback()
+@GCLeaf @Extern(name = "m45_file_closes") private fun closes(): Int
+@GCLeaf @Extern(name = "m45_directory_closes") private fun directoryCloses(): Int
+@GCLeaf @Extern(name = "m45_file_fail_close") private fun failClose()
+@Extern(name = "m45_native_raw_path") private fun nativeRawPath(bytes: Ptr<Byte>, length: Long): Int
+@Extern(name = "m45_file_concurrent") private fun nativeConcurrent(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Int
+
+private fun verify(value: Boolean) { if (!value) throw IllegalStateException(Some("file ownership assertion failed")) }
+private fun temporaryRead(path: Path, buffer: NativeByteBuffer) { File.open(path).readInto(buffer, 1L) }
+private fun temporaryWrite(path: Path, buffer: NativeByteBuffer) {
+    File.open(path, OpenOptions(read = false, write = true)).writeFrom(buffer, 1L)
+}
+private fun temporaryDirectory(path: Path) { verify(Files.entries(path).next() != None) }
+
+private fun rawName(root: Path) {
+    val raw: Array<Byte> = [110, -1]
+    val path = root.resolve(Path.fromOsString(OsString.fromBytes(raw)))
+    @Unsafe {
+        val expected = path.toOsString().toBytes().withDataPointer { pointer, count ->
+            @Unsafe { return@withDataPointer nativeRawPath(pointer, count) }
+        }
+        try {
+            Files.writeText(path, "raw")
+            verify(expected == 0 && Files.readText(path) == "raw")
+        } catch (error: PlatformException) {
+            verify(expected != 0 && error.nativeError!!.code == expected)
+            verify(error.context!! == path.toOsString())
+        }
+    }
+}
+
+private fun lifecycle(root: Path) {
+    val path = root.resolve(Path.fromString("data"))
+    Files.writeText(path, "xy")
+    @Unsafe {
+        val before = closes()
+        val directories = directoryCloses()
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { phase -> gcCollect(); 0 }, 1, ForeignCallbackMode.Reusable
+        )
+        setCallback(callback.function, callback.context)
+        try {
+            NativeByteBuffer.allocate(1L).use { buffer ->
+                temporaryRead(path, buffer)
+                assertByte(buffer.readByte(), 120.toInt8())
+                gcCollect()
+                @Unsafe { verify(closes() == before + 1) }
+                buffer.clear()
+                buffer.writeByte(122.toInt8())
+                temporaryWrite(path, buffer)
+                gcCollect()
+                @Unsafe { verify(closes() == before + 2) }
+            }
+            temporaryDirectory(root)
+            gcCollect()
+            verify(directoryCloses() == directories + 1)
+            val file = File.open(path)
+            failClose()
+            try { file.dispose(); throw IllegalStateException(Some("expected close failure")) }
+            catch (error: PlatformException) { verify(error.kind == PlatformErrorKind.Interrupted) }
+            file.dispose()
+            gcCollect()
+            verify(closes() == before + 3 && file.isDisposed)
+            verify(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+        } finally {
+            clearCallback()
+            releaseForeignCallback(callback)
+        }
+    }
+}
+
+private fun assertByte(actual: Byte, expected: Byte) { verify(actual == expected) }
+
+private fun concurrentRead(root: Path) {
+    val path = root.resolve(Path.fromString("concurrent"))
+    Files.writeText(path, "ab")
+    File.open(path).use { file ->
+        @Unsafe {
+            val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+                { index ->
+                    NativeByteBuffer.allocate(1L).use { buffer ->
+                        file.readFully(buffer)
+                        buffer.readByte().toInt32()
+                    }
+                }, 1, ForeignCallbackMode.Reusable
+            )
+            try {
+                verify(nativeConcurrent(callback.function, callback.context) == 195)
+                verify(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+            } finally { releaseForeignCallback(callback) }
+        }
+    }
+}
+
+fun main() {
+    val root = Files.createTempDirectory(prefix = "scoop-file-gc-")
+    try { lifecycle(root); rawName(root); concurrentRead(root) }
+    finally { Files.deleteRecursively(root) }
+    println("file and directory ownership, close consumption and raw paths passed")
+    flushOutput()
+    verify(!(standardInput is Disposable) && !(standardOutput is Disposable) && !(standardError is Disposable))
+    duplicateStandardInput().use { input ->
+        verify(input.readText() == "input 中\n")
+    }
+    standardOutput.writeLine("stdout 中")
+    duplicateStandardOutput().use { it.writeText("duplicate\n") }
+    standardError.writeLine("stderr 😀")
+    standardOutput.writeLine("still open")
+}

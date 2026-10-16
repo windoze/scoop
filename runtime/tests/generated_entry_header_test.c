@@ -27,7 +27,6 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_unbox_zst;
     (void)scoop_rt_unbox_value;
     (void)scoop_rt_gc_collect;
-    (void)scoop_rt_materialize_exception;
     (void)scoop_rt_throw;
     (void)scoop_rt_rethrow;
     (void)scoop_rt_begin_catch;
@@ -48,6 +47,4 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_leave_native_borrowed;
     (void)scoop_gc_page_map;
     (void)scoop_rt_gc_add_root;
-    (void)scoop_rt_gc_add_root_object;
-    (void)scoop_rt_gc_remove_root_object;
 }

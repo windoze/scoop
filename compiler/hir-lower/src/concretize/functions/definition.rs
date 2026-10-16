@@ -41,6 +41,9 @@ impl<'input> Concretizer<'input> {
         key: &FunctionKey,
     ) -> ResolvedFunctionDefinition<'input> {
         match self.function_source(key) {
+            FunctionSource::AnnotationDescription { .. } => {
+                unreachable!("annotation helpers have a generated concrete body")
+            }
             FunctionSource::Local(id) => {
                 let source = &self.source.functions[id];
                 let receiver = match source.method {

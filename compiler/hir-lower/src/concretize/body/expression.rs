@@ -54,7 +54,13 @@ impl Concretizer<'_> {
         {
             return location;
         }
+        if let export::ExprKind::AnnotationKey(annotation) = source.kind {
+            return self.metadata_annotation_key(annotation, ty, origin);
+        }
         let kind = match &source.kind {
+            export::ExprKind::AnnotationKey(_) => {
+                unreachable!("annotation queries were lowered above")
+            }
             export::ExprKind::ContextLookup(requirement) => {
                 self.lower_missing_context_exception_type();
                 concrete::ExprKind::ContextLookup {

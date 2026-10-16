@@ -66,6 +66,12 @@ impl Lowerer {
                     .iter()
                     .map(|r| (&r.target_domain, r.origin, "a field")),
             )
+            .chain(
+                references
+                    .annotations
+                    .iter()
+                    .map(|r| (&r.target_domain, r.origin, "an annotation")),
+            )
         {
             self.check_default_reference_access(&call_domain, target_domain, origin, kind);
         }

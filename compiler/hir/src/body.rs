@@ -213,6 +213,8 @@ pub enum ExprKind {
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,
+    /// A bound annotation declaration, lowered to ordinary metadata values.
+    AnnotationKey(scoop_identity::PersistentAnnotationId),
     TupleLiteral(Vec<Expr>),
     StructInit {
         constructor: StructConstructorApplicationId,

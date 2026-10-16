@@ -428,7 +428,7 @@ static void test_frame_root_families(void) {
     assert(((TestLeaf *)compiler_region.ref)->value == 43);
 }
 
-static void test_handle_external_and_immortal_roots(void) {
+static void test_handle_and_immortal_roots(void) {
     TestLeaf *handled = new_leaf(50);
     uint64_t handle = scoop_rt_get_handle(handled);
     collect_without_stack_root();
@@ -436,19 +436,6 @@ static void test_handle_external_and_immortal_roots(void) {
     assert(moved_handled != handled);
     assert(moved_handled->value == 50);
     assert(scoop_rt_release_handle(handle) == moved_handled);
-
-    TestNode external = {
-        .header = {.td = &node_td, .gc_word = 0},
-        .child = new_leaf(51),
-        .value = 52,
-    };
-    void *external_child = external.child;
-    scoop_rt_gc_add_root_object(&external);
-    collect_without_stack_root();
-    assert(external.child != external_child);
-    assert(((TestLeaf *)external.child)->value == 51);
-    assert(external.value == 52);
-    scoop_rt_gc_remove_root_object(&external);
 
     assert(collect_with_stack_root((void *)&immortal_leaf) == (void *)&immortal_leaf);
     assert(immortal_leaf.value == UINT64_C(0xfeedface));
@@ -550,7 +537,7 @@ int main(void) {
     test_cycles_and_forwarding_identity();
     test_global_and_explicit_roots();
     test_frame_root_families();
-    test_handle_external_and_immortal_roots();
+    test_handle_and_immortal_roots();
     test_pin_and_unpin();
     test_large_exact_size_and_no_conservative_retention();
     test_variable_object_exact_sizes();

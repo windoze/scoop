@@ -22,6 +22,18 @@ pub(super) fn validate_fixed_callable_signatures(
     }
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
+    let reference = surface.type_reference();
+    if !matches!(
+        reference.definition(),
+        crate::CoreProtocolCallableDefinitionV1::GenericFunction(_)
+    ) || reference.signature().effect() != Effect::Ordinary
+        || reference.signature().receiver().is_present()
+        || !reference.signature().parameters().is_empty()
+        || !matches!(reference.signature().result(), SignatureTypeKey::Nominal(_))
+    {
+        return Err(CoreCompilerProtocolSurfaceRelationError::TypeReferenceSignature);
+    }
+
     validate(
         &surface.iteration_protocol.next,
         CoreProtocolProductKindV1::Iteration,

@@ -60,9 +60,6 @@ pub(super) fn runtime_signature(
                 Managed::BoxZst | Managed::BoxValue => unreachable!(
                     "dedicated operations are rejected before runtime signature lookup"
                 ),
-                Managed::MaterializeException => {
-                    (vec![scoop_lir::MANAGED_PTR], Some(scoop_lir::MANAGED_PTR))
-                }
                 Managed::ContextPush => (
                     vec![
                         scoop_lir::RAW_PTR,

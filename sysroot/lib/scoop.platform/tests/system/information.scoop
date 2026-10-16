@@ -1,0 +1,14 @@
+package scoop.platform.system
+
+import scoop.test.*
+
+@Test
+private class SystemInformationTest {
+    @Test
+    fun `system information reports the target and actual OS values`() {
+        assertTrue(operatingSystem == OperatingSystem.Darwin || operatingSystem == OperatingSystem.Linux)
+        assertTrue(architecture == Architecture.Aarch64 || architecture == Architecture.X86_64)
+        assertTrue(systemVersion().length > 0L)
+        assertTrue(logicalProcessorCount > 0L)
+    }
+}
