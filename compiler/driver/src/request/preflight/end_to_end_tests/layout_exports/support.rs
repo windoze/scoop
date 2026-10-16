@@ -258,22 +258,6 @@ pub(super) fn with_pair(
             &projected,
             dependency_layouts.physical_imports().records(),
         );
-    } else {
-        // The baseline has no selected descriptors or external registration edges.
-        let error = scoop_lir_lower::lower_layout_abi_dependencies(
-            input,
-            dependencies,
-            &scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap(),
-            &projected,
-            &[],
-        )
-        .err()
-        .unwrap();
-        assert!(matches!(
-            error,
-            scoop_lir_lower::LayoutAbiDependencyLoweringError::InitializationEdges(error)
-                if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
-        ));
     }
     let owners = request
         .dependencies()

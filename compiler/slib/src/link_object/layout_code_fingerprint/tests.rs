@@ -50,8 +50,6 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         v1.canonical_callable_definitions().clone(),
         scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
-    .unwrap()
-    .validate_layout_abi(&layout)
     .unwrap();
     let dependencies = vec![
         DependencyRecord::new(

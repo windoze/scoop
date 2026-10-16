@@ -1,8 +1,6 @@
 use super::*;
 use scoop_identity::{DefinitionOwnerAtom, PropertyAccessorKey, PropertyOwner};
 
-mod edges;
-
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum MirExternalInitializationCauseV1 {
     ObjectValue(PersistentObjectValueId),

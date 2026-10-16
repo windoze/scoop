@@ -112,7 +112,6 @@ impl Provider {
             scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
         )
         .unwrap();
-        let production = production.validate_layout_abi(&section).unwrap();
         let ordinary =
             CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
         Self {

@@ -7,14 +7,9 @@ pub(super) fn check(
     physical: &[lir::ExternalShapeLinkImportV1],
 ) {
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
-    let roots = scoop_lir_lower::lower_layout_abi_dependencies(
-        input,
-        dependencies,
-        &exports,
-        mir_source,
-        physical,
-    )
-    .unwrap();
+    let roots =
+        scoop_lir_lower::lower_layout_abi_dependencies(input, dependencies, &exports, mir_source)
+            .unwrap();
     assert!(!roots.is_empty());
     for root in &roots {
         match root.target() {

@@ -235,9 +235,7 @@ mod link;
 pub use decoded::*;
 pub use link::{ProgramLinkDefinition, ProgramLinkProduction};
 
-mod layout_join;
 mod registrations;
-pub use layout_join::StrongProductionLayoutJoinError;
 
 #[derive(Debug)]
 pub enum ConeProductionSectionBuildError {

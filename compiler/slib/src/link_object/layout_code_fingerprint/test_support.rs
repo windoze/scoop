@@ -75,8 +75,6 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         v1.canonical_callable_definitions().clone(),
         scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
-    .unwrap()
-    .validate_layout_abi(&layout)
     .unwrap();
     let dependencies = vec![
         DependencyRecord::new(

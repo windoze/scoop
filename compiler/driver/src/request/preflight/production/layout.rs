@@ -218,7 +218,6 @@ pub(super) fn assemble(
         export_dependencies,
         &exports,
         &mir_uses,
-        physical,
     )
     .map_err(Error::LayoutUses)?;
     let section = lir::CrossConeLayoutAbiSectionV1::try_new(
@@ -231,9 +230,6 @@ pub(super) fn assemble(
         &roots,
     )
     .map_err(Error::Selection)?;
-    let registration = registration
-        .validate_layout_abi(&section)
-        .map_err(Error::LayoutJoin)?;
     let backend = scoop_codegen::ValidatedBackendProfile::from_selection(
         request.target().lir_target_selection(),
     )

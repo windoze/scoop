@@ -41,8 +41,9 @@
 35. HIR representation：删除只由专门测试调用的来源 inventory／字段／variant／CLayout 比较与 Checked 包装；保留实际数据、typed 引用和编码，测试直接验证顺序、intrinsic family 与布局策略。
 36. HIR 继承／slot：删除没有生产调用者的 checked graph、来源／签名／继承关系重放和独占测试；保留实际 ancestry 查询、slot selection 编码、局部记录与 wire 引用解析，并精简测试 fixture。
 37. 孤立 IR 复核：删除 GC/ZST 全图重算、fact-shape transcript、访问来源副本比较与 LIR gateway 验证器及独占测试；类型事实仍从具体 HIR 投影，辅助形状收回生产模块，仅保存实际需要的子类型。
-38. 待完成：发布 layout 重复比较、归档读取、历史文档一致性及最终验收。
-39. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+38. Layout 发布：直接组合既有导出与 production，删除完整 layout／scan／dispatch／callable／shape-support 镜像比较；依赖 lowering 只投影实际语义根，移除第二套 physical inventory／初始化边比较。
+39. 待完成：Darwin 动态库内部符号审计、归档读取、历史文档一致性及最终验收。
+40. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -127,3 +128,5 @@ HIR representation 批次：格式化、workspace clippy 无警告；release HIR
 HIR 继承／slot 批次：格式化、workspace clippy 无警告；release HIR 继承 4 项、slot 9 项通过。测试辅助函数的三处冗余返回绑定已按 lint 简化，实际签名、modality、顺序和缺失引用覆盖保留。
 
 孤立 IR 复核批次：格式化、workspace clippy 无警告；release HIR facts 3 项、access 2 项、HIR lowering 类型语义生产组合 120 项通过。删除后遗留的无消费者错误变体已同步清理；GC/ZST 的真实投影、泛型、存储、继承派发和跨 Cone 组合保持通过。
+
+Layout 发布批次：格式化、workspace clippy 无警告；release LIR production 135 项、shape link 4 项通过，driver layout exports 22 项闭合。首轮发现 external boxing 留有要求 codegen 重验已完成 provider 选择的旧断言，删除该断言后仅补验对应 shape-support 组合；实际产物生成与 ABI 断言继续通过。

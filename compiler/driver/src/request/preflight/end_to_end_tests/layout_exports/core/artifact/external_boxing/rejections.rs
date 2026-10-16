@@ -150,34 +150,3 @@ pub(super) fn reference_shape(
         MANAGED_PTR,
     ), Err(LayoutExternalMaterializationError::UnavailableBoxedValue(found)) if found == shape.source_nominal()));
 }
-
-pub(super) fn codegen(
-    mut module: Module,
-    coordinate: &ConeCoordinate,
-    provider: scoop_identity::ConeIdentity,
-    profile: scoop_codegen::ValidatedBackendProfile,
-    descriptor: ExternalTypeDescriptorId,
-) {
-    let original = module.meta.external_type_descriptors[descriptor];
-    module.meta.external_type_descriptors[descriptor] = ExternalTypeDescriptor::new(
-        ConeCoordinate::new("test", "rebound-box-provider", "1.0.0")
-            .unwrap()
-            .identity()
-            .unwrap(),
-        original.target(),
-    )
-    .unwrap();
-    let output = ConeLirOutput::try_new(module, Vec::new()).unwrap();
-    let error = scoop_codegen::render_llvm_ir_members(
-        &output,
-        coordinate,
-        &[provider],
-        EntryProductionSourceV1::Library,
-        profile,
-    )
-    .unwrap_err();
-    assert!(
-        error.to_string().contains("BoxedValue descriptor"),
-        "{error}"
-    );
-}

@@ -29,8 +29,6 @@ pub enum MirObjectBridgeError {
         index: usize,
     },
     DuplicateInitializationUse,
-    DuplicateInitializationDependency,
-    InitializationDependencyInventory,
     NonCanonicalInitializationUseOrder {
         index: usize,
     },

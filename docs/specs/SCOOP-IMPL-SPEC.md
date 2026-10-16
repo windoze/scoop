@@ -541,6 +541,8 @@ Compile 的 param-free shape-support 从保存的八种 role 读取 source、exa
 
 Compile 的 layout／descriptor 导出直接读取已保存的值存储、字段偏移、enum 区域、class 完整字段和实例形状，以及 descriptor 的布局、继承、分派、注册和诊断名称引用。字段、MaybeUninit payload、box payload 和数组元素在表示中保存自己的 typed layout key 与完整存储事实，不要求这些内嵌值另外拥有物理布局导出或 symbol。reader 解析 key 中的类型引用并读取存储，不从 MIR 重新放置字段、重建继承布局、推导 GC／niche 或重生成 descriptor。保留实际格式、引用、目标配置及内存范围检查；不再次证明生产端语义。只为重建期望或修改候选后复核来源而存在的重放模块、API 和测试一并退役。生产端布局算法与 runtime ABI 保持；上述内嵌存储编码随本批 `cross-cone-layout-abi/16` 发布。
 
+发布直接组合本次生成的 layout／ABI section 与 registration 数据，不再完整比较 producer／target、layout／scan／descriptor／dispatch／callable／shape-support 副本及所选导入清单。依赖 lowering 只投影实际语义根，不重建另一份物理引用全集或初始化依赖边来复核已有结果；实际导入选择、typed 引用查询与最终符号闭合继续处理缺失依赖和链接冲突。
+
 物理 shape import 只保存 provider、typed subject、symbol 与 definition 引用，不再复制整份 ABI／layout／scan／descriptor／dispatch／storage／initialization 语义合同。消费时从已读取的选中 provider 取得实际合同并连接保存的 symbol／definition；不重编码比较合同副本。删除对应合同副本 reader、逐字段比较 API 与独占改写测试。此字段删除将 `cross-cone-layout-abi` 升至 16，旧版本产物按普通 profile 兼容规则重建；Code contribution 继续编码实际内存合同，runtime ABI 不变。
 
 归档 writer 接收同一次对象生产得到的 member 与 Code 数据后，不再逐 member 重新计算 fingerprint 与生产目录比较。member 的普通格式检查和实际归档编码保留。defined symbol owners、undefined symbol uses、ODR directory 的 consumer 已使用保存数据后，失去用途的“与重建结果比较”API 及其专用测试也一并移除。
