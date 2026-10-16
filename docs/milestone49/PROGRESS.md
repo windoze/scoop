@@ -1,6 +1,6 @@
 # M49 实施进度
 
-基线：`d233d05a5`。日期：2026-10-16。规范先行，按功能验证后提交；本机定向验证后在 Linux GNU／musl 完整验收。日志和测试工作目录位于仓库外，不使用 `/tmp`。
+基线：`d233d05a5`。日期：2026-10-16。规范先行，按功能验证后提交；本机定向验证后执行 Linux GNU 完整 CLI、GNU／musl 全库和 musl 相关 CLI 验收。日志和测试工作目录位于仓库外，不使用 `/tmp`。
 
 | 批次 | 状态 |
 | --- | --- |
@@ -96,3 +96,9 @@ Linux 链接器的 archive 延后检查测试还保留了拒绝普通 C construc
 新增普通 `consumer-tests` Cone，以正常依赖消费 asyncio 生产产物，用一个 scoop.test 组合公开泛型引用结果、泛型 useAsync 值结果、接口、Job、buffer 与真实 UDP。它补充同 Cone 功能测试的产物边界，不增加专用 runner、后端或 fixture。本机 debug／release／moving GC 全部通过，格式化、workspace clippy 与差异检查通过。
 
 GNU／musl 的完整 asyncio 在 debug／release／moving GC 均为四十五项通过；platform 全库、外部消费者、Rust 剩余端到端用例及完整 CLI 继续验收。
+
+外部消费者在三目标的 debug／release／moving GC 全部通过。为避免重复既有前端检查，最终保留 GNU 完整 CLI，musl CLI 聚焦 M49、native C 和 musl 专属用例；两个 libc 的库测试仍保留三模式全库。Rust 已通过的 debug 结果不重跑，driver 保留十一项 debug 通过记录，其余七十二项改用 release 测试二进制并核对完整清单。公共 fixture 规则五十项通过。
+
+GNU／musl 的 platform 全库三模式均为一百零六项通过；musl 定向 CLI 四十一项全部通过。GNU 完整 CLI 保留首批一百六十一项通过及二十九项不适用，复用原源码与缓存后以八并发执行剩余三千九百九十八项，结束时按名称合并核对覆盖。
+
+driver 的十九项布局产物测试共用旧描述符分类，只将 closure 视为本地生成类型，误要求新增 core 协程的 frame／恢复适配器进入公开布局表。按实际 GeneratedNominalKey 修正测试分类，保留导出与 ABI 断言；描述符检查拆入 141 行子模块，原文件 168 行。本机格式化、workspace clippy 及独立／组合 alias 回归通过，Linux 该组补验继续执行。生产实现与规范合同不变。
