@@ -167,7 +167,7 @@ load edge 与 re-export edge 必须区分：A 普通依赖 B 不使 B 的符号�
 
 相同 install name 对应不同内容或装载合同是冲突。不同 provider 的未使用同名 exports可以共存；实际显式 library binding 选择确定 provider，默认／无 library 归属的引用在多个可用 provider 之间报歧义。普通 `.tbd` 只区分 symbol/TLS，不能由其 `Symbol` 分支虚构 function/data/mutability 信息；有实际 Mach-O 可观察事实时才增加这些检查。
 
-一般 provider 的必需依赖须闭合到本次明确输入或已选 SDK 系统目录；不可见的依赖、弱库可缺失／upward／flat-namespace／dynamic-lookup 等未提供的装载模式报输入错误。weak export 的属性须保留，不能自动变成 weak import，也不能通过 stub 去掉属性来掩盖需要跨 provider weak-lookup 的输入；无法形成确定 provider binding 的情形明确拒绝。对普通 native 库不添加 C++/Objective-C/Swift runtime；现有 M25 约束保持。SDK 系统接口按其已有平台 ABI 使用，不递归证明 OS 内部实现。
+一般 provider 的必需依赖须闭合到本次明确输入或已选 SDK 系统目录，实际依赖缺失正常报错。weak export 的属性保留在所选接口中，不能自动变成 weak import；Scoop 的显式 library binding 仍必须形成确定 provider。动态库内部的 flat namespace、dynamic lookup、weak coalescing 和 C++ ABI 导入由库自身及实际 loader 处理，不以内部符号前缀、undefined ordinal 或 weak binding 表非空拒绝输入。所选 C/C++ 工具链与 native 库按正常配置提供运行库；SDK 系统接口按其已有平台 ABI 使用，不递归证明 OS 内部实现。
 
 ### 5.2 定位与装载位置
 

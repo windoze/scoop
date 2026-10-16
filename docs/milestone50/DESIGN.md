@@ -65,9 +65,11 @@
 
 关联测试：同文件的 `rejects_dependency_source_metadata_that_differs_from_its_provider` 通过把 `"abc"` 改为 `"abd"` 构造 `forged_record`，断言 `SourceRecordMismatch`；这类真实性断言及关联 helper 一并删除。跨 Cone 诊断位置和必要格式读取继续测试。
 
-### 3.4 native 对象黑名单和重复的目标格式验证器
+### 3.4 native 对象／动态库黑名单和重复的目标格式验证器
 
 实现入口：[native_object.rs](../../compiler/linker/src/native_object.rs)、[selected.rs](../../compiler/linker/src/native_object/selected.rs)、[references.rs](../../compiler/linker/src/native_object/references.rs)、[sections.rs](../../compiler/linker/src/native_object/sections.rs)、[elf.rs](../../compiler/linker/src/native_object/elf.rs) 和 [elf_dynamic.rs](../../compiler/linker/src/native_input/elf_dynamic.rs)。
+
+Darwin 动态库入口 [dynamic/read.rs](../../compiler/linker/src/dynamic/read.rs) 还对 `___cxa_*`、`___gxx_personality`、`___gcc_personality`、内部 undefined ordinal 和 namespace 做全表否决；load-command reader 因内部 weak binding 非空拒绝库。这些不参与 Scoop 所选导入的解析，随对象黑名单一起删除，保留实际 export 与 re-export 引用的读取。
 
 当前额外职责包括：按 `__objc_*`、`__swift*`、`__LLVM` 等段名拒绝输入；对 load command 使用封闭白名单并禁止嵌入的正常链接要求；拒绝 common/tentative definition；按 C++ 符号前缀施加拒绝；因可执行栈标志拒绝 ELF 对象或 DSO；逐段重解码 relocation 并自行检查 EH frame、compact unwind、TLV bootstrap、初始 key 和模板布局。
 

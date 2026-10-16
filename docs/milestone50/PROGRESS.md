@@ -42,8 +42,8 @@
 36. HIR 继承／slot：删除没有生产调用者的 checked graph、来源／签名／继承关系重放和独占测试；保留实际 ancestry 查询、slot selection 编码、局部记录与 wire 引用解析，并精简测试 fixture。
 37. 孤立 IR 复核：删除 GC/ZST 全图重算、fact-shape transcript、访问来源副本比较与 LIR gateway 验证器及独占测试；类型事实仍从具体 HIR 投影，辅助形状收回生产模块，仅保存实际需要的子类型。
 38. Layout 发布：直接组合既有导出与 production，删除完整 layout／scan／dispatch／callable／shape-support 镜像比较；依赖 lowering 只投影实际语义根，移除第二套 physical inventory／初始化边比较。
-39. 待完成：Darwin 动态库内部符号审计、归档读取、历史文档一致性及最终验收。
-40. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+39. Darwin 动态库：删除内部 undefined 符号的 C++ 前缀／ordinal 扫描及 flat namespace／weak binding 非空拒绝；保留实际 export、re-export、目标和显式库绑定。新增真实 C++ 异常与 C cleanup 组合，覆盖普通／flat、weak coalescing、moving GC 与已有产物独立链接。
+40. 待完成：归档读取、历史文档一致性及最终验收；Linux 已开始构建准备，完整测试尚未开始。
 
 ## 验证
 
@@ -130,3 +130,5 @@ HIR 继承／slot 批次：格式化、workspace clippy 无警告；release HIR 
 孤立 IR 复核批次：格式化、workspace clippy 无警告；release HIR facts 3 项、access 2 项、HIR lowering 类型语义生产组合 120 项通过。删除后遗留的无消费者错误变体已同步清理；GC/ZST 的真实投影、泛型、存储、继承派发和跨 Cone 组合保持通过。
 
 Layout 发布批次：格式化、workspace clippy 无警告；release LIR production 135 项、shape link 4 项通过，driver layout exports 22 项闭合。首轮发现 external boxing 留有要求 codegen 重验已完成 provider 选择的旧断言，删除该断言后仅补验对应 shape-support 组合；实际产物生成与 ABI 断言继续通过。
+
+Darwin 动态库批次：格式化、workspace clippy 无警告。两个新 fixture 在旧 CLI 上均复现 `___cxa_allocate_exception` 拒绝；修复后 2 项／4 变体／18 进程通过，补充实际非空 weak binding 后与既有 dynamic／C ABI 回归共 11 项通过。独立测试源码实际产生三类被误拒的 C++／C unwind 符号，异常始终在 native 库内部处理。
