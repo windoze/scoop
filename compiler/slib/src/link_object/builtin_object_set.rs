@@ -46,6 +46,14 @@ pub struct VerifiedBuiltinObjectStrongRelocationSetV1 {
 }
 
 impl VerifiedBuiltinObjectStrongRelocationSetV1 {
+    pub fn member(&self, id: SlibMemberId) -> Option<&VerifiedMemberObjectRelocationIndexV1> {
+        let members = self.strong_relocations.members();
+        members
+            .binary_search_by_key(&id, |member| member.member())
+            .ok()
+            .map(|index| &members[index])
+    }
+
     pub const fn producer(&self) -> ConeIdentity {
         self.member_plan.producer()
     }

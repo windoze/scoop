@@ -24,9 +24,6 @@ pub(crate) mod semantic;
 pub(crate) enum Corruption {
     None,
     UnknownSafepoint,
-    RegistrationMagic,
-    CallableRegistrationMagic,
-    CallableEntryRelocationTarget,
     TypeRegistrationMagic,
     TypeDescriptorRelocationTarget,
     TypeDescriptorScalar,
@@ -47,8 +44,6 @@ pub(crate) enum Corruption {
     StaticEncodedEmptyInitialState,
     StaticEncodedZeroFillSection,
     StaticAliasedSentinels,
-    WritableRegistrationSection,
-    RelocatedRegistration,
 }
 
 pub(crate) struct Fixture {

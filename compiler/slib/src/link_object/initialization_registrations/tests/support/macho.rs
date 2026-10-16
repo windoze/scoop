@@ -131,9 +131,7 @@ pub(super) fn object_bytes(
         let start = callable_registration_relative(callable_plans, callable.body());
         readonly[usize::try_from(start).unwrap()
             ..usize::try_from(start + CALLABLE_REGISTRATION_SIZE).unwrap()]
-            .copy_from_slice(
-                &crate::link_object::callable_registrations::record::expected_record(*callable),
-            );
+            .copy_from_slice(&callable_record(*callable));
     }
     readonly[usize::try_from(registration_relative).unwrap()
         ..usize::try_from(registration_relative + 320).unwrap()]
@@ -548,4 +546,19 @@ fn push_u64(bytes: &mut Vec<u8>, value: u64) {
 
 const fn align_to(value: u64, alignment: u64) -> u64 {
     (value + alignment - 1) & !(alignment - 1)
+}
+
+fn callable_record(plan: scoop_lir::StrongCallableRegistrationPlanV1) -> [u8; 176] {
+    let mut bytes = [0; 176];
+    bytes[0..8].copy_from_slice(&0x5343_4f4f_5043_414c_u64.to_le_bytes());
+    bytes[8..12].copy_from_slice(&scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1.to_le_bytes());
+    bytes[12..16].copy_from_slice(&176_u32.to_le_bytes());
+    bytes[168..176].copy_from_slice(&plan.context_key_count().to_le_bytes());
+    bytes[16..120].copy_from_slice(
+        &crate::link_object::registration_identity::provisional_registration_identity(
+            plan.body().as_array(),
+            plan.definition_owner(),
+        ),
+    );
+    bytes
 }

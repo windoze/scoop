@@ -110,15 +110,6 @@ pub(super) fn push_sections(
         }
     }
     assert_eq!(bytes.len(), usize::try_from(relocation_offset).unwrap());
-    if matches!(corruption, Corruption::RegistrationMagic) {
-        bytes[usize::try_from(registration_offset).unwrap()] ^= 1;
-    }
-    if matches!(corruption, Corruption::CallableRegistrationMagic) {
-        let offset = u64::from(registration_offset)
-            + u64::try_from(registrations.registrations().len()).unwrap()
-                * SAFEPOINT_REGISTRATION_SIZE;
-        bytes[usize::try_from(offset).unwrap()] ^= 1;
-    }
     if matches!(corruption, Corruption::TypeRegistrationMagic) {
         let offset = type_registration_base(
             stackmap.len(),

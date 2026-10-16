@@ -5,23 +5,20 @@ impl PreparedLayoutObjects {
         &self,
     ) -> Result<
         (
-            slib::VerifiedStrongCallableRegistrationSetV1,
-            slib::VerifiedStrongSafepointRegistrationSetV1,
+            slib::CallableRegistrationDataV1,
+            slib::SafepointRegistrationDataV1,
         ),
         BuiltinObjectProductionError,
     > {
-        let candidates = self.candidates();
-        let callables = verify_strong_callable_registrations_v1(
+        let callables = bind_callable_registrations_v1(
             self.patch_sites.clone(),
             self.production.callable_registrations().clone(),
-            &candidates,
         )
         .map_err(BuiltinObjectProductionError::CallableRegistrations)?;
-        let safepoints = verify_strong_safepoint_registrations_v1(
+        let safepoints = bind_safepoint_registrations_v1(
             self.stackmaps.clone(),
             self.patch_sites.clone(),
             self.production.safepoint_registrations().clone(),
-            &candidates,
         )
         .map_err(BuiltinObjectProductionError::SafepointRegistrations)?;
         Ok((callables, safepoints))
@@ -29,7 +26,7 @@ impl PreparedLayoutObjects {
 
     pub(crate) fn fingerprint_callable_objects(
         &self,
-        callables: slib::VerifiedStrongCallableRegistrationSetV1,
+        callables: slib::CallableRegistrationDataV1,
         undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     ) -> Result<slib::VerifiedStrongCallableBodyObjectFingerprintSetV1, BuiltinObjectProductionError>
     {

@@ -10,14 +10,13 @@ impl SlibObjects {
         let sites = self.sites(stackmaps.builtins().clone(), &self.objects);
         let requirements = self.requirements(sites.clone());
         let objects = candidates(&self.objects);
-        let registrations = verify_strong_callable_registrations_v1(
+        let registrations = bind_callable_registrations_v1(
             sites,
             self.emitted
                 .production()
                 .registration_production()
                 .callables()
                 .clone(),
-            &objects,
         )
         .unwrap();
         let bodies = compute_strong_callable_body_object_fingerprints_v1(

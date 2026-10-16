@@ -17,8 +17,9 @@ pub(super) fn ranges(
             | DefinitionAtomRole::Stackmap
             | DefinitionAtomRole::AddressTakenConstant
             | DefinitionAtomRole::ContextKeyCell
-            | DefinitionAtomRole::ContextKeyTable => true,
-            DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
+            | DefinitionAtomRole::ContextKeyTable
+            | DefinitionAtomRole::RuntimeRecord => true,
+            DefinitionAtomRole::Primary => false,
         })
         .copied()
         .collect();
@@ -41,35 +42,10 @@ pub(super) fn fingerprint_atoms(
             body,
             atom: range.atom(),
         };
-        let (section, start, end) = atom_file_range(member, *range).map_err(|_| invalid())?;
-        let correct_section = match range.atom_role() {
-            DefinitionAtomRole::Lsda => section == BuiltinObjectSectionRoleV1::GccExceptionTable,
-            DefinitionAtomRole::EhFrame => section == BuiltinObjectSectionRoleV1::EhFrame,
-            DefinitionAtomRole::CompactUnwind => {
-                section == BuiltinObjectSectionRoleV1::CompactUnwind
-            }
-            DefinitionAtomRole::Stackmap => section == BuiltinObjectSectionRoleV1::LlvmStackmaps,
-            DefinitionAtomRole::AddressTakenConstant => matches!(
-                section,
-                BuiltinObjectSectionRoleV1::ReadOnlyData | BuiltinObjectSectionRoleV1::CString
-            ),
-            DefinitionAtomRole::ContextKeyCell => {
-                section == BuiltinObjectSectionRoleV1::WritableData
-            }
-            DefinitionAtomRole::ContextKeyTable => {
-                section == BuiltinObjectSectionRoleV1::ReadOnlyData
-            }
-            DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
-        };
-        if !correct_section {
-            return Err(invalid());
-        }
+        let (_, start, end) = atom_file_range(member, *range).map_err(|_| invalid())?;
         let start = usize::try_from(start).map_err(|_| invalid())?;
         let end = usize::try_from(end).map_err(|_| invalid())?;
-        let bytes = object
-            .get(start..end)
-            .filter(|bytes| !bytes.is_empty())
-            .ok_or_else(invalid)?;
+        let bytes = object.get(start..end).ok_or_else(invalid)?;
         let relocations = canonicalize_relocations_with_associated_atoms(
             bytes,
             member,

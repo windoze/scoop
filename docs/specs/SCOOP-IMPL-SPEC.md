@@ -378,7 +378,7 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 发布直接接收本次 codegen 与 generated-C 的实际对象、成员分配及生成记录。C bridge 的编译器 profile、源码模板、flags 和 unit 集合不再与自行构造的生产记录重复比对；对象中的 SDK／工具版本也不作为来源证明。所需 section 与符号正常读取，Code 指纹继续消费实际生成记录。删除无生产调用的旧 single-Cone 分级资格流水线；不以另一套 `Verified` 包装保留这些入口。当前完整产物的投影直接采用已有生产计划与最终回填结果，不深比较它们的副本来证明同源。
 
-同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填使用已物化的槽位，保留当前写入的范围检查；不再次比对六类 registration 的计划／对象副本，不重数 coverage，不重建最终记录与刚写入的字节逐项比较，也不重复验证先前零槽状态。image 与 root entry 直接关联生成计划和已物化 patch；不重新读取 coordinate、诊断文字、registration 指针表或 root 记录来证明与计划相同。entry 的 Library／Executable 分支与可执行计划、实际槽位由同一枚举表示。RuntimeImage 与 root entry 沿用同一规则，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
+同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填使用已物化的槽位，保留当前写入的范围检查；不再次比对六类 registration 的计划／对象副本，不重数 coverage，不重建最终记录与刚写入的字节逐项比较，也不重复验证先前零槽状态。callable／safepoint registration 直接关联计划与实际 digest 槽位，复用规范化 stackmap 和 canonical ABI，不重新编码记录、核对 context keys 或复查 entry relocation。body 指纹按已解析的 primary／associated atom、实际 relocation 和该 body 的 stackmap 输入计算；runtime scan 同属 associated atom，不从计划重新生成 scan 字节或遍历闭合证明。归一化地址字段不重复比较已经读取的 encoded value。image 与 root entry 直接关联生成计划和已物化 patch；不重新读取 coordinate、诊断文字、registration 指针表或 root 记录来证明与计划相同。entry 的 Library／Executable 分支与可执行计划、实际槽位由同一枚举表示。RuntimeImage 与 root entry 沿用同一规则，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
 
 ### 2.6 `.slib` 格式与指纹
 

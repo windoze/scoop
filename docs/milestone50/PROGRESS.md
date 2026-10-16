@@ -15,8 +15,9 @@
 9. Stackmap：以实际符号地址与 LLVM instruction offset 计算返回地址，删除 slib 的第二套 AArch64／x86-64 指令和 frame chain 扫描、member/function/site 覆盖证明及其独占测试；移除两个反汇编依赖。保留实际 section／relocation 读取、根记录归一化和未知引用诊断。
 10. Digest 回填：删除六类 registration 结果深比较、coverage 重数、回填后完整记录重建和字节比较；RuntimeImage／root entry 同步清理。仅按实际槽位写入并检查范围，复用对象结构、更新内容摘要。
 11. Image／entry 数据：删除 image coordinate、诊断字符串、registration 指针表及 root descriptor 的完整计划回放。直接关联计划与已物化 patch；Executable 分支将计划和槽位放在同一枚举内，删除分离分支的一致性检查。退役专属破坏测试。
-12. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
-13. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+12. Callable／safepoint：直接关联 registration 计划与 digest 槽位，删除记录／context key／entry relocation 回放与资格包装。body 指纹统一读取实际 associated atoms，删除 runtime scan 重生成比较、计划／对象副本深比较和已读 relocation value 的重复比较；同步清理 Linux 专用的旧机器码破坏测试。
+13. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
+14. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -41,3 +42,5 @@ Stackmap 批次：格式化、workspace clippy 无警告；release slib link_obj
 Digest 回填批次：格式化、workspace clippy 无警告，release slib link_object 215 项通过；实际各槽位内容及非槽位字节保持的回归继续通过。
 
 Image／entry 批次：格式化、workspace clippy 无警告；release slib 322 项通过，配套 CLI 重建后两个真实链接用例／4 变体／20 进程通过。新增 ELF 槽位用例受 Linux cfg 限制，本机未执行，留待 Linux 验证。本次清理 debug target 3.0 GiB，保留 release 后 target 约 1.6 GiB。
+
+Callable／safepoint 批次：格式化、workspace clippy 无警告；release slib link_object 198 项通过，实际 body 指纹固定向量、stackmap 输入及 registration 回填继续通过。

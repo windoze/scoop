@@ -96,8 +96,7 @@ pub(super) fn macho_object(
                 )
                 .unwrap()
             })
-            .sum::<u32>()
-        + u32::from(matches!(corruption, Corruption::RelocatedRegistration));
+            .sum::<u32>();
     let writable_relocation_count = static_storage_registrations
         .registrations()
         .iter()
@@ -243,11 +242,7 @@ pub(super) fn macho_object(
         macho::S_REGULAR,
     );
     let (registration_section, registration_segment) =
-        if matches!(corruption, Corruption::WritableRegistrationSection) {
-            (b"__data".as_slice(), b"__DATA".as_slice())
-        } else {
-            (b"__const".as_slice(), b"__DATA_CONST".as_slice())
-        };
+        (b"__const".as_slice(), b"__DATA_CONST".as_slice());
     push_section(
         &mut bytes,
         registration_section,
@@ -264,29 +259,22 @@ pub(super) fn macho_object(
         registration_relocation_count,
         macho::S_REGULAR,
     );
-    let (storage_section, storage_segment, storage_offset, storage_flags) =
-        if matches!(corruption, Corruption::WritableRegistrationSection) {
-            (
-                b"__const".as_slice(),
-                b"__DATA_CONST".as_slice(),
-                writable_offset,
-                macho::S_REGULAR,
-            )
-        } else if storage_is_zero_fill {
-            (
-                b"__bss".as_slice(),
-                b"__DATA".as_slice(),
-                0,
-                macho::S_ZEROFILL,
-            )
-        } else {
-            (
-                b"__data".as_slice(),
-                b"__DATA".as_slice(),
-                writable_offset,
-                macho::S_REGULAR,
-            )
-        };
+    let (storage_section, storage_segment, storage_offset, storage_flags) = if storage_is_zero_fill
+    {
+        (
+            b"__bss".as_slice(),
+            b"__DATA".as_slice(),
+            0,
+            macho::S_ZEROFILL,
+        )
+    } else {
+        (
+            b"__data".as_slice(),
+            b"__DATA".as_slice(),
+            writable_offset,
+            macho::S_REGULAR,
+        )
+    };
     push_section(
         &mut bytes,
         storage_section,

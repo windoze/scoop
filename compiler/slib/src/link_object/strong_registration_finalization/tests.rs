@@ -6,12 +6,12 @@ use crate::link_object::{
     ScoopLirObjectCandidateV1, VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongImmortalObjectFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
     VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
+    bind_callable_registrations_v1, bind_safepoint_registrations_v1,
     compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1, compute_strong_initialization_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1, compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
-    verify_strong_callable_registrations_v1, verify_strong_immortal_object_registrations_v1,
-    verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
+    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
     verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
 };
 use scoop_wire::sha256;
@@ -186,20 +186,16 @@ fn verified_fingerprints(
 ) {
     let stackmaps = fixture.verified_stackmaps();
     let patch_sites = fixture.verified_patch_sites();
-    let safepoint_registrations = verify_strong_safepoint_registrations_v1(
+    let safepoint_registrations = bind_safepoint_registrations_v1(
         stackmaps.clone(),
         patch_sites.clone(),
         fixture.registration_plan.clone(),
-        objects,
     )
     .unwrap();
     let safepoints = compute_strong_safepoint_fingerprints_v1(safepoint_registrations).unwrap();
-    let callable_registrations = verify_strong_callable_registrations_v1(
-        patch_sites,
-        fixture.callable_registration_plan.clone(),
-        objects,
-    )
-    .unwrap();
+    let callable_registrations =
+        bind_callable_registrations_v1(patch_sites, fixture.callable_registration_plan.clone())
+            .unwrap();
     let registration_objects = callable_registrations;
     let body_objects = compute_strong_callable_body_object_fingerprints_v1(
         registration_objects,

@@ -2117,75 +2117,19 @@ slot offset和record offset，不把结构成功误当成Scoop profile成功。�
 不另建 member/function/site 全集覆盖证明，不反汇编检查 call 指令或 frame chain；这些机器行为由
 codegen 与运行回归覆盖。返回地址不进入跨链接／ASLR 稳定的归一化 stackmap fingerprint。
 
-`verify_strong_safepoint_registrations_v1(VerifiedScoopLirStackmapSetV1, VerifiedScoopLirDigestPatchSiteSetV1, StrongSafepointRegistrationPlanSetV1, &[ScoopLirObjectCandidateV1])`
-完成。stackmap与patch proof必须封装完全相同的built-in object proof，三者producer与site全集必须一致；
-入口再次按member全集和content digest绑定实际object bytes，不能让先前验证后的替换bytes进入后续hash。
-每条registration definition必须由member plan分配给Scoop LIR member，其planned `Primary` atom必须与
-verified definition一致、位于`ReadOnlyData`、范围精确为232 bytes，且整个atom不得含任何relocation或
-两个声明slot之外的digest patch。`RegistrationDefinition`与`NormalizedStackmap` patch分别必须位于
-atom内offset 120和200、宽度32，并逐项匹配plan中的intent/source/definition/atom/semantic role。
+`bind_safepoint_registrations_v1` 与 `bind_callable_registrations_v1` 将计划关联到已物化 digest 槽位。
+它们不读取或重建 registration record，不重数对象覆盖、不比对 producer／计划副本，不复查 context keys
+或 entry relocation。后续直接复用实际 stackmap 与 canonical ABI；缺少实际需要的 typed 引用正常报错。
 
-verifier按little-endian共享ABI重建完整provisional record并逐byte比较：magic、version、size、Strong
-linkage、semantic/runtime/owner identity、site role和root count取自完整registration plan，reserved、
-ODR group/member及两个fingerprint slot必须为零。输出
-`VerifiedStrongSafepointRegistrationSetV1`同时拥有stackmap、patch与production plan三份前置proof，并按
-persistent site id保留实际member、primary symbol table index、record file offset及两个typed patch site；
-其中还会在patch proof自身持有的digest plan中重建每个ObjectDefinition/StackmapRecord/
-StrongRegistration节点、精确direct input与单writer patch集合，防止同producer的另一张digest graph
-借用相同object proof。不存在接受裸record bytes、外送fingerprint或仅按符号名前缀扫描的替代入口。
+callable body 指纹读取实际 Primary 与 associated atoms，按既有 relocation 信息归一化地址字段。
+Runtime scan 与 EH、常量、Context cells 同属 associated atoms，按 atom id 排序进入摘要；不从计划重建
+scan 字节或指针树，也不重放 semantic/physical 全集闭合。直接输入为该 body 已读取的 normalized
+stackmap fingerprints，按 digest node id 排序。
 
-callable registration的object级最终提升只能经
-`verify_strong_callable_registrations_v1(VerifiedScoopLirDigestPatchSiteSetV1, StrongCallableRegistrationPlanSetV1, &[ScoopLirObjectCandidateV1])`
-完成。patch proof、plan与built-in object proof的producer必须一致，入口再次核对严格递增的Scoop member
-全集及每个object的长度/content digest。每条registration definition必须分配给Scoop LIR member，实际
-`Primary`与plan一致、位于`ReadOnlyData`且范围精确为192 bytes；offset 120的
-`RegistrationDefinition`和offset 152的`CallableBodyDefinition`必须是该atom内仅有的两个32-byte零patch。
-该atom还必须恰有一个offset 184、宽8、encoded value为零的`ARM64_RELOC_UNSIGNED64`，其strong relocation
-closure resolution必须精确落到plan指定的`CallableBody` definition、producer member、owner及实际primary
-symbol，不能接受普通external candidate、同owner下的registration definition或其他地址来源。
-
-verifier从callable plan逐byte重建magic、version、size、Strong linkage、body semantic id、全部reserved、
-ODR与digest零槽以及零地址占位；并在patch proof持有的digest plan中重新闭合registration object leaf、body
-ObjectDefinition、StrongRegistration的精确direct inputs及两个typed writer intent。输出
-`VerifiedStrongCallableRegistrationSetV1`拥有patch proof与production plan，并按body id保留member、primary
-symbol table index、record file offset、已解析entry relocation和两处typed patch site；不存在接受裸记录、
-裸重定位或按符号名前缀扫描的第二入口。
-
-callable registration自身的ObjectDefinition leaf只能经
-`compute_strong_callable_registration_object_fingerprints_v1`从上述完整registration proof与再次匹配
-content digest的object全集产生。其`scoop-object-definition-v1` RuntimeEncode依次写Primary role tag 1、
-精确192-byte provisional record、relocation count 1、唯一entry relocation和direct-input count 0；entry
-relocation使用与普通object definition完全相同的canonical relocation schema，固定编码atom内offset 184、
-`Unsigned64` form tag 1、verified encoded value 0、target count 1、`Single` slot tag 1，以及
-`IntraConeStrong` requirement tag 1；requirement内的owner固定为`CallableBody(body)` entity tag 1、body id和
-`CallableBody` role tag 1。member、section、symbol-table index、Mach-O名字与最终地址均不进入hash，不再保留
-旧的registration专用target编码。该入口只计算registration object leaf；body
-ObjectDefinition必须等完整machine body/associated record/undefined requirement归一化证明闭合后再算，不能
-用只支持无relocation body的临时算法或把registration leaf误作body fingerprint。
-
-callable body Primary的ObjectDefinition leaf经
-`compute_strong_callable_body_object_fingerprints_v1`消费同一对象集合的registration、完整Scoop stackmap、
-最终`CanonicalUndefinedSymbolRequirementSetV1`与实际object数据。undefined requirement的use-site序列
-必须与同一strong relocation closure中除object-local以外的全部binding逐项相等。后续profile可以按typed用途
-分类实际relocation；每条relocation只分类一次，联合后仍精确覆盖同一对象集合。不同用途可以引用同一实际
-callable，已解析的provider、定义和ABI直接复用，不建立额外分区proof或排斥目标交集。每个body definition/Primary
-atom从callable plan反查实际member与range，section
-role固定为`Text`。本阶段body ObjectDefinition的direct input必须精确等于owner为该body的全部
-`StackmapRecord` node并按node id排序；出现尚未有typed计算proof的其他input kind直接fail closed，不接受
-调用者传入裸digest。
-
-body bytes按已验证relocation逐项归一化：`Unsigned64/Subtractor64/PointerToGot32`清零地址载荷，AArch64
-`Branch26/Page21/PageOffset12`、GOT及TLVP对应form只清零立即数字段、保留opcode/register/寻址形状；归一化前必须
-逐项复核object bytes中的encoded value。随后`scoop-object-definition-v1` RuntimeEncode依次写Primary tag、
-normalized byte span、按atom offset排序的relocation sequence及canonical direct-input sequence。每条
-relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和
-按Single/Minuend/Subtrahend排序的target；target只允许由strong relocation closure与最终requirement proof
-对应 `IntraConeStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`，或已有共有 callable/layout import 中的实际 provider 与 typed target，或在物理target精确落入同一body已计划associated atom时提升为
-`OwningAssociatedAtomOffset { atom, role, offset_within_atom }`。每个callable runtime-scan atom的bytes与其中指向
-child scan atom的canonical relocation按plan顺序作为associated-atom sequence进入同一个body ObjectDefinition
-fingerprint；body Primary指向top-level scan的Page/GOT/Unsigned relocation也使用同一owner-relative target。
-member、section ordinal、symbol table index与raw symbol spelling均不进入hash；未命中已计划associated atom的
-local/section-base target仍直接拒绝，不能退回hash物理索引。
+`Unsigned64/Subtractor64/PointerToGot32` 清零地址载荷，AArch64 Branch/Page/GOT/TLVP 形式保留
+opcode/register 与寻址形状；归一化保留局部写入范围检查，不重复核对已解析的 encoded value。
+指纹继续保存实际 relocation 的 typed target 与 direct inputs，不以物理 member、符号表索引或 raw 地址
+代替稳定语义身份。canonical ABI 直接复用 LIR 完整结果，不重新与 registration object 互证。
 
 `compute_strong_safepoint_fingerprints_v1` 使用实际归一化 stackmap 与 registration 计划计算后续所需摘要。
 `patch_strong_registration_fingerprints_v1/v2` 按已物化的槽位回填 safepoint normalized-stackmap、

@@ -102,19 +102,17 @@ pub(super) fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let safepoint_registrations = crate::verify_strong_safepoint_registrations_v1(
+    let safepoint_registrations = crate::bind_safepoint_registrations_v1(
         stackmaps.clone(),
         patch_sites.clone(),
         registrations.safepoints().clone(),
-        &objects,
     )
     .unwrap();
     let safepoints =
         crate::compute_strong_safepoint_fingerprints_v1(safepoint_registrations).unwrap();
-    let callable_registrations = crate::verify_strong_callable_registrations_v1(
+    let callable_registrations = crate::bind_callable_registrations_v1(
         patch_sites.clone(),
         registrations.callables().clone(),
-        &objects,
     )
     .unwrap();
     let callable_objects = callable_registrations;

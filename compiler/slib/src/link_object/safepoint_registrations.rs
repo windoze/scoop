@@ -1,9 +1,5 @@
-//! Exact provisional-object verification for strong safepoint registrations.
+//! Safepoint registration data and fingerprint calculation.
 
-mod error;
-pub use error::*;
-
-pub(in crate::link_object) mod physical;
 pub(in crate::link_object) mod record;
 
 mod fingerprints;

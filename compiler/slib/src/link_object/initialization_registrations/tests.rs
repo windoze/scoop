@@ -279,10 +279,9 @@ fn callable_body_fingerprints(
     fixture: &Fixture,
     objects: &[crate::link_object::ScoopLirObjectCandidateV1<'_>],
 ) -> crate::link_object::VerifiedStrongCallableBodyObjectFingerprintSetV1 {
-    let registrations = crate::link_object::verify_strong_callable_registrations_v1(
+    let registrations = crate::link_object::bind_callable_registrations_v1(
         fixture.verified_patch_sites(),
         fixture.callable_plan.clone(),
-        objects,
     )
     .unwrap();
     let registration_objects = registrations;

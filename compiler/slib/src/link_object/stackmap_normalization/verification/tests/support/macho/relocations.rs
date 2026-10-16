@@ -41,34 +41,13 @@ pub(super) fn push_relocations(
     push_u32(bytes, 16);
     push_u32(bytes, planned_index(target) | 3 << 25 | 1 << 27);
     if registration_relocation_count != 0 {
-        if matches!(corruption, Corruption::RelocatedRegistration) {
-            push_u32(bytes, 56);
-            push_u32(bytes, planned_index(target) | 3 << 25 | 1 << 27);
-        }
         for (index, _) in callable_registrations.registrations().iter().enumerate() {
             let safepoint_bytes = u32::try_from(registrations.registrations().len()).unwrap()
                 * u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap();
             let callable_bytes =
                 u32::try_from(index).unwrap() * u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap();
             push_u32(bytes, safepoint_bytes + callable_bytes + 152);
-            let relocation_target =
-                if matches!(corruption, Corruption::CallableEntryRelocationTarget) {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::CallableRegistration,
-                                    ..
-                                }
-                            )
-                        })
-                        .unwrap()
-                } else {
-                    target
-                };
+            let relocation_target = target;
             push_u32(bytes, planned_index(relocation_target) | 3 << 25 | 1 << 27);
         }
         for (index, registration) in type_registrations.registrations().iter().enumerate() {

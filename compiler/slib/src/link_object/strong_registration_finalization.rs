@@ -6,8 +6,7 @@ use scoop_identity::{
     PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
 };
 
-use super::safepoint_registrations::physical::verified_member;
-use super::{StrongSafepointRegistrationValidationError, VerifiedStrongSafepointFingerprintSetV1};
+use super::VerifiedStrongSafepointFingerprintSetV1;
 use crate::SlibMemberId;
 use crate::link_object::{
     ScoopLirObjectCandidateV1, ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1,
@@ -181,8 +180,9 @@ where
 
     let mut finalized = Vec::with_capacity(objects.len());
     for (member, bytes) in objects {
-        let original = verified_member(builtins, member)
-            .map_err(StrongRegistrationPatchError::ObjectValidation)?
+        let original = builtins
+            .member(member)
+            .ok_or(StrongRegistrationPatchError::MissingObject(member))?
             .definitions()
             .sections();
         let envelope =
@@ -227,7 +227,6 @@ pub enum StrongRegistrationPatchFieldV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongRegistrationPatchError {
-    ObjectValidation(StrongSafepointRegistrationValidationError),
     MissingObject(SlibMemberId),
     MissingGatewayDigest(PersistentInitializationUnitId),
     PatchRange {
@@ -245,14 +244,7 @@ impl fmt::Display for StrongRegistrationPatchError {
     }
 }
 
-impl std::error::Error for StrongRegistrationPatchError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ObjectValidation(source) => Some(source),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for StrongRegistrationPatchError {}
 
 #[cfg(test)]
 mod tests;

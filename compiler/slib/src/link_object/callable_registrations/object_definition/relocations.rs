@@ -132,7 +132,6 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
         output.push(CanonicalObjectRelocationV1 {
             offset_within_atom: relocation.offset_within_atom(),
             form: relocation.shape().form(),
-            encoded_value: relocation.encoded_value(),
             canonical_value,
             targets,
         });
