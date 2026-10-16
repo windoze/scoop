@@ -48,8 +48,13 @@ private class NetworkAddressTest {
 
     @Test
     fun `blocking resolution uses local names and honors family and port`() {
+        // Local host files need not assign localhost in both address families.
+        val local = resolve("localhost", 4321)
+        assertTrue(local.size > 0L)
+        for (address in local) assertEquals(4321, address.port)
         for (family in [AddressFamily.IPv4, AddressFamily.IPv6]) {
-            val results = resolve("localhost", 4321, Some(family))
+            val host = if (family == AddressFamily.IPv4) "127.0.0.1" else "::1"
+            val results = resolve(host, 4321, Some(family))
             assertTrue(results.size > 0L)
             for (address in results) {
                 assertTrue(address.address.family == family)
