@@ -8,7 +8,7 @@ use scoop_identity::{NativeLibraryGrouping, NativeLinkRequirementId, NativeLinkR
 use scoop_toolchain::ValidatedFinalLinkProfile;
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
-use crate::{LinkError, error, native_object::NativeObjectIndex};
+use crate::{LinkError, error, native_object::NativeObjectInfo};
 
 mod archive;
 pub(crate) mod elf_dynamic;
@@ -47,7 +47,7 @@ pub(crate) struct NativeFile {
 pub(crate) enum NativeContent {
     /// Supplied by the selected target's fixed system inputs.
     System,
-    Object(NativeObjectIndex),
+    Object(NativeObjectInfo),
     Archive(Vec<archive::Member>),
     Dynamic(Vec<Arc<crate::dynamic::DynamicProvider>>),
     ElfDynamic(Arc<elf_dynamic::ElfDynamic>),

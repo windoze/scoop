@@ -1,0 +1,12 @@
+schema = 1
+[cone]
+group = "dev.m50"
+name = "native-common"
+version = "0.1.0"
+kind = "executable"
+[native]
+c_flags = ["-fcommon"]
+[[native.sources]]
+path = "first.c"
+[[native.sources]]
+path = "second.c"

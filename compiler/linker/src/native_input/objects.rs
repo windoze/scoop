@@ -57,24 +57,23 @@ impl WireEncode for NativeObjectId {
 }
 
 impl NativeFile {
-    pub fn candidate(&self, symbol: &str) -> Option<(NativeObjectId, &NativeObjectIndex)> {
+    pub fn candidate(&self, symbol: &str) -> Option<(NativeObjectId, &NativeObjectInfo)> {
         match &self.content {
             NativeContent::System | NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => {
                 None
             }
             NativeContent::Object(index) => index
-                .info
                 .definitions
                 .contains_key(symbol)
                 .then_some((NativeObjectId::Direct(self.id), index)),
             NativeContent::Archive(members) => members
                 .iter()
-                .find(|member| member.index.info.definitions.contains_key(symbol))
+                .find(|member| member.index.definitions.contains_key(symbol))
                 .map(|member| (NativeObjectId::ArchiveMember(member.id), &member.index)),
         }
     }
 
-    pub fn objects(&self) -> Vec<(NativeObjectId, &NativeObjectIndex, Range<usize>, Digest256)> {
+    pub fn objects(&self) -> Vec<(NativeObjectId, &NativeObjectInfo, Range<usize>, Digest256)> {
         match &self.content {
             NativeContent::System | NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => {
                 Vec::new()
@@ -106,7 +105,7 @@ impl NativeInputs {
     pub fn object(
         &self,
         id: NativeObjectId,
-    ) -> Result<(&NativeObjectIndex, Range<usize>), LinkError> {
+    ) -> Result<(&NativeObjectInfo, Range<usize>), LinkError> {
         self.files[&id.input()]
             .objects()
             .into_iter()

@@ -233,11 +233,9 @@ fn check_exports(target: LirTargetProfile, merged: &NativeObjectInfo) -> Result<
             } => NativeSymbolKind::Data,
             CompilerNativeContractV1::Function { .. } => NativeSymbolKind::Function,
         };
-        if !merged
-            .definitions
-            .get(&symbol)
-            .is_some_and(|definition| definition.kind == expected && !definition.weak)
-        {
+        if !merged.definitions.get(&symbol).is_some_and(|definition| {
+            definition.kind == expected && definition.binding == crate::NativeSymbolBinding::Strong
+        }) {
             return Err(error(format!(
                 "runtime is missing the {expected:?} ABI definition {symbol}"
             )));
@@ -247,11 +245,10 @@ fn check_exports(target: LirTargetProfile, merged: &NativeObjectInfo) -> Result<
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol("scoop_rt_run_program");
-    if !merged
-        .definitions
-        .get(&startup)
-        .is_some_and(|definition| definition.kind == NativeSymbolKind::Function && !definition.weak)
-    {
+    if !merged.definitions.get(&startup).is_some_and(|definition| {
+        definition.kind == NativeSymbolKind::Function
+            && definition.binding == crate::NativeSymbolBinding::Strong
+    }) {
         return Err(error(format!(
             "runtime is missing the program startup entry {startup}"
         )));

@@ -68,11 +68,6 @@ impl ElfDynamic {
         }
         let mut has_dynamic = false;
         for segment in file.elf_program_headers() {
-            if segment.p_type(file.endian()) == elf::PT_GNU_STACK
-                && segment.p_flags(file.endian()) & elf::PF_X != 0
-            {
-                return Err(error("native ELF DSO requests an executable stack"));
-            }
             if let Some(entries) = segment.dynamic(file.endian(), bytes).map_err(error)? {
                 has_dynamic = true;
                 for entry in entries {

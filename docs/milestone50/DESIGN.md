@@ -75,7 +75,7 @@
 
 Scoop 只保留自己选择对象、解析实际定义／引用和构造必要数据所需的格式读取及局部边界处理。普通 common、强／弱符号、C/C++ 运行库和 native 初始化采用目标工具链的正常规则；不能因某个内部索引尚未表示一种正常对象形态而把它永久定义为非法。新源语言入口或新 target 属于独立的真实能力工作，不以补写其元数据安全检查作为前置。
 
-关联测试：[formats-relocations fixture](../../tests/fixtures/m23-cli-native-link/formats-relocations/fixture.toml) 用固定字节偏移破坏对象，并要求 Scoop 输出自身的 relocation、load command、unwind 细节诊断；删除仅维持上述重复验证器的 case、golden 和 patch helper。对 Scoop 必须解析的范围保留少量直接格式测试，实际链接失败继续验证失败传播和不发布输出。
+关联测试：旧 `formats-relocations` fixture（M50 已删除） 用固定字节偏移破坏对象，并要求 Scoop 输出自身的 relocation、load command、unwind 细节诊断；删除仅维持上述重复验证器的 case、golden 和 patch helper。对 Scoop 必须解析的范围保留少量直接格式测试，实际链接失败继续验证失败传播和不发布输出。
 
 [ELF native 单元测试](../../compiler/linker/src/native_object/elf/tests.rs) 中以 `int tentative;` 和 `-fcommon` 断言必须拒绝的要求应改为普通 common 输入的链接行为。已有 common fixture 如果同时把数据符号提供给函数声明，函数／数据种类冲突仍是独立的合法 negative case，不能机械地把所有同名测试改成成功。
 

@@ -102,7 +102,7 @@ pub(crate) fn read(
                                 | object::SectionKind::ReadOnlyString
                         ) || section.segment_name().map_err(error)?
                             == Some("__DATA_CONST"),
-                        weak: export.weak,
+                        binding: crate::NativeSymbolBinding::from_weak(export.weak),
                     })
                 } else if thread_local {
                     ExportStorage::InterfaceOnly

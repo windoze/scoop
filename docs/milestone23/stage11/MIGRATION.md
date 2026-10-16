@@ -153,14 +153,13 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | 原 Rust 测试 | 当前用例 | 保留的断言 |
 | --- | --- | --- |
 | `direct_candidates_merge_identical_bytes_and_reject_ambiguous_or_corrupt_inputs` | `direct-candidates` | 相同对象 bytes 去重后的完整 plan／fingerprint 相等，不同内容产生歧义，坏 Mach-O 不能被另一有效候选掩盖 |
-| `direct_object_checks_real_symbol_kind_target_and_effects` | `direct-contracts` | data/function 不匹配、缺失 helper、constructor、common/tentative 和 x86_64 五种独立拒绝 |
+| `direct_object_checks_real_symbol_kind_target_and_effects` | `direct-contracts` | data/function 不匹配（含 COMMON 数据）、缺失 helper 和 x86_64 拒绝；constructor 正常运行 |
 | `archives_resolve_member_chains_and_back_edges_without_unused_effects` | `archive-chain` | 跨 archive 回边闭包、3 个 selected／1 个 unused、原 42/7 输出，完整 nm 符号列表且没有 `m23_unused` |
 | `archive_same_names_and_identical_members_keep_physical_identity` | `archive-members` | 两个同名同 bytes 成员仍有独立 ordinal/header，恰好选择一个 |
-| `archive_selected_member_conflicts_and_missing_helpers_report_chain` | `archive-conflicts` | missing chain、strong／weak 冲突和 constructor，完整消息保留 member 与 `_helper` |
-| `archive_symbol_table_offsets_and_member_definitions_are_checked` | `archive-toc` | long member name、有效 TOC 正常运行、TOC 改为 `_m23_bad` 时准确拒绝 |
+| `archive_selected_member_conflicts_and_missing_helpers_report_chain` | `archive-conflicts` | missing chain、强定义冲突、强弱绑定和 constructor 运行，完整消息保留 member 与 `_helper` |
+| `archive_symbol_table_offsets_and_member_definitions_are_checked` | `archive-toc` | long member name 与有效 TOC 正常运行 |
 | `native_calls_data_and_code_pointers_run_with_debug_and_optimized_objects` | `formats-pointers` | O0 与 O2+debug 的真实对象均运行得到 42，native 输入改变导致新 link fingerprint |
-| `selected_native_objects_reject_corrupt_relocation_tables_and_unwind_records` | `formats-relocations` | 原 11 种 symbol/load-command/relocation/unwind 错误，分别命中原拒绝原因 |
-| `native_tls_descriptors_are_checked_before_linking` | `formats-tls` | 有效 TLS control、非零 initial key、指向普通 global 的 template relocation |
+| `native_tls_descriptors_are_checked_before_linking` | `formats-tls` | 目标工具链生成的正常 TLS 运行；重复 TLV 验证及破坏字节测试已退役 |
 | `explicit_dynamic_bindings_choose_different_owners_for_overlapping_exports` | `dynamic-overlap` | 重叠 exports 仍按显式库选择不同 owner，11/22 输出、rpath 和 moving GC |
 | `native_reexport_and_framework_keep_the_declared_library_owner` | `dynamic-reexport`、`dynamic-framework` | facade／framework 保留 owner，同时记录真实 leaf 的 re-export |
 | `ordinary_dynamic_dependency_does_not_become_a_public_export` | `dynamic-ordinary` | 普通 load 不转为 public export，缺少 leaf 时报告 0 candidates |

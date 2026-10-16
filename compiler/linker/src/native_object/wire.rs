@@ -25,7 +25,11 @@ impl NativeObjectInfo {
                 NativeSymbolKind::ThreadLocal => 3,
             })?;
             e.unsigned(u64::from(definition.read_only))?;
-            e.unsigned(u64::from(definition.weak))?;
+            e.unsigned(match definition.binding {
+                NativeSymbolBinding::Strong => 0,
+                NativeSymbolBinding::Weak => 1,
+                NativeSymbolBinding::Common => 2,
+            })?;
         }
         e.field(first + 1)?;
         e.array(self.requirements.len() as u64)?;
@@ -65,13 +69,18 @@ impl NativeObjectInfo {
                     tag => return Err(wire_error(d, WireErrorKind::UnknownTag { tag })),
                 };
                 let read_only = boolean(d)?;
-                let weak = boolean(d)?;
+                let binding = match d.unsigned()? {
+                    0 => NativeSymbolBinding::Strong,
+                    1 => NativeSymbolBinding::Weak,
+                    2 => NativeSymbolBinding::Common,
+                    tag => return Err(wire_error(d, WireErrorKind::UnknownTag { tag })),
+                };
                 Ok((
                     name,
                     NativeSymbolDefinition {
                         kind,
                         read_only,
-                        weak,
+                        binding,
                     },
                 ))
             })

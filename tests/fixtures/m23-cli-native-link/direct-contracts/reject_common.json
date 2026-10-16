@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_math.o): native common/tentative definition _m23_add requires actual storage",
+    "message": "native definition _m23_add has incompatible function/data/TLS/mutability: NativeSymbolDefinition { kind: Data, read_only: false, binding: Common }; origins: dev.programlink:direct:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([141, 18, 74, 180, 227, 66, 19, 82, 220, 222, 192, 5, 128, 99, 235, 64, 0, 240, 235, 214, 180, 21, 121, 86, 218, 234, 32, 54, 216, 139, 239, 111])])",
     "notes": [],
     "origin": {
       "kind": "none"

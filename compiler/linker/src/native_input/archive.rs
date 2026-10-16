@@ -6,7 +6,7 @@ pub(crate) struct Member {
     pub name: String,
     pub range: Range<usize>,
     pub digest: Digest256,
-    pub index: NativeObjectIndex,
+    pub index: NativeObjectInfo,
 }
 
 pub(super) fn read(
@@ -24,7 +24,6 @@ pub(super) fn read(
     }
     let headers = headers(data)?;
     let mut members = Vec::new();
-    let mut offsets = BTreeMap::new();
     for member in archive.members() {
         let member = member.map_err(error)?;
         let header = member
@@ -56,12 +55,9 @@ pub(super) fn read(
                 "native archive member {ordinal} ({name}) is a nested archive"
             )));
         }
-        let index = NativeObjectIndex::read_with_toolchain(
-            payload,
-            profile.startup_toolchain().profile(),
-            profile.cxx(),
-        )
-        .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
+        let index =
+            NativeObjectInfo::read_with_toolchain(payload, profile.startup_toolchain().profile())
+                .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
         let start = slice
             .start
             .checked_add(usize::try_from(offset).map_err(error)?)
@@ -76,7 +72,6 @@ pub(super) fn read(
             payload_offset: start as u64,
             payload_length: length,
         };
-        offsets.insert(header_offset as u64, members.len());
         members.push(Member {
             id,
             name,
@@ -84,24 +79,6 @@ pub(super) fn read(
             digest: sha256(payload),
             index,
         });
-    }
-    if let Some(symbols) = archive.symbols().map_err(error)? {
-        for symbol in symbols {
-            let symbol = symbol.map_err(error)?;
-            let member = offsets
-                .get(&symbol.offset().0)
-                .map(|index| &members[*index])
-                .ok_or_else(|| {
-                    error("archive symbol table offset does not point to a physical member")
-                })?;
-            let name = std::str::from_utf8(symbol.name()).map_err(error)?;
-            if !member.index.info.definitions.contains_key(name) {
-                return Err(error(format!(
-                    "archive symbol table names {name} absent from member {} ({})",
-                    member.id.ordinal, member.name
-                )));
-            }
-        }
     }
     Ok(members)
 }

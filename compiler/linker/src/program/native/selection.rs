@@ -1,4 +1,5 @@
 use super::*;
+use crate::NativeSymbolBinding;
 
 #[cfg(test)]
 mod tests;
@@ -73,13 +74,10 @@ pub(super) fn include(
     reason: &str,
 ) -> Result<(), LinkError> {
     let file = &inputs.native.files[&id.input()];
-    let (index, range) = inputs.native.object(id)?;
+    let (index, _) = inputs.native.object(id)?;
     let origin = format!("native object {id} selected by {reason}");
     let diagnostic = format!("{origin} ({})", file.locator.display());
-    index
-        .check_selected(&file.bytes[range])
-        .map_err(|err| error(format!("{diagnostic}: {err}")))?;
-    for symbol in index.info.definitions.keys() {
+    for symbol in index.definitions.keys() {
         if inputs.compiler_owned(symbol) {
             return Err(error(format!(
                 "{diagnostic} defines compiler-owned symbol {symbol}"
@@ -88,10 +86,14 @@ pub(super) fn include(
         if let Some(previous) = inputs.definitions.get(symbol) {
             if let DefinitionOwner::Native(previous) = previous {
                 let (previous_index, _) = inputs.native.object(*previous)?;
-                let old = previous_index.info.definitions[symbol];
-                let new = index.info.definitions[symbol];
-                if old.weak || new.weak {
-                    if old.weak && !new.weak {
+                let old = previous_index.definitions[symbol];
+                let new = index.definitions[symbol];
+                if old.binding != NativeSymbolBinding::Strong
+                    || new.binding != NativeSymbolBinding::Strong
+                {
+                    if new.binding.precedence(inputs.target.native_object_format())
+                        > old.binding.precedence(inputs.target.native_object_format())
+                    {
                         inputs
                             .definitions
                             .insert(symbol.clone(), DefinitionOwner::Native(id));
@@ -114,7 +116,7 @@ pub(super) fn include(
             .definitions
             .insert(symbol.clone(), DefinitionOwner::Native(id));
     }
-    for symbol in &index.info.requirements {
+    for symbol in &index.requirements {
         inputs.requirements.insert(symbol.clone());
         inputs
             .requirement_origins
@@ -153,7 +155,7 @@ pub(super) fn resolve(
                 if !inputs.native.selected.contains_key(&id) {
                     include(inputs, id, &format!("{symbol} <- {origin}"))?;
                     let (index, _) = inputs.native.object(id)?;
-                    pending.extend(index.info.requirements.iter().cloned());
+                    pending.extend(index.requirements.iter().cloned());
                 }
             }
             Candidate::Definition => continue,
@@ -192,11 +194,7 @@ pub(super) fn resolve(
         })?;
         if let (Candidate::Object(id), Some(declaration)) = (candidate, declaration) {
             let (index, _) = inputs.native.object(id)?;
-            check_kind(
-                &symbol,
-                declaration.contract,
-                index.info.definitions[&symbol],
-            )?;
+            check_kind(&symbol, declaration.contract, index.definitions[&symbol])?;
         }
         inputs.namespace.unbind(&symbol);
     }
