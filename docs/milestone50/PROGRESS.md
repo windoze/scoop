@@ -40,8 +40,9 @@
 34. MIR 输入组装：删除 foundation／entry surface 副本比较与已完成 production 关系重验；初始化从实际 unit 和 callable 索引绑定，删除 generated ID／ODR key／签名重建与对应破坏测试，保留缺失 body 引用诊断。
 35. HIR representation：删除只由专门测试调用的来源 inventory／字段／variant／CLayout 比较与 Checked 包装；保留实际数据、typed 引用和编码，测试直接验证顺序、intrinsic family 与布局策略。
 36. HIR 继承／slot：删除没有生产调用者的 checked graph、来源／签名／继承关系重放和独占测试；保留实际 ancestry 查询、slot selection 编码、局部记录与 wire 引用解析，并精简测试 fixture。
-37. 待完成：残留 IR 复核、归档读取、历史文档一致性及最终验收。
-38. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+37. 孤立 IR 复核：删除 GC/ZST 全图重算、fact-shape transcript、访问来源副本比较与 LIR gateway 验证器及独占测试；类型事实仍从具体 HIR 投影，辅助形状收回生产模块，仅保存实际需要的子类型。
+38. 待完成：发布 layout 重复比较、归档读取、历史文档一致性及最终验收。
+39. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -124,3 +125,5 @@ MIR 输入组装批次：格式化、workspace clippy 无警告；release MIR �
 HIR representation 批次：格式化、workspace clippy 无警告；release HIR representation 相关 17 项通过，实际字段／variant 顺序、类型身份、CLayout 和 wire 边界继续覆盖。
 
 HIR 继承／slot 批次：格式化、workspace clippy 无警告；release HIR 继承 4 项、slot 9 项通过。测试辅助函数的三处冗余返回绑定已按 lint 简化，实际签名、modality、顺序和缺失引用覆盖保留。
+
+孤立 IR 复核批次：格式化、workspace clippy 无警告；release HIR facts 3 项、access 2 项、HIR lowering 类型语义生产组合 120 项通过。删除后遗留的无消费者错误变体已同步清理；GC/ZST 的真实投影、泛型、存储、继承派发和跨 Cone 组合保持通过。

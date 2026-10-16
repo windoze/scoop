@@ -2,20 +2,18 @@ use std::sync::Arc;
 
 use scoop_identity::{
     CanonicalIdentifier, ConeIdentity, DeclarationScope, DecodedPersistentId, DefinitionOrigin,
-    DefinitionOwnerAtom, DefinitionOwnerChain, NormalizedSourcePath, PackagePath,
-    PersistentGenericTypeId, PersistentIdResolver, PersistentKeyResolver,
-    PersistentSourceContextId, PersistentTypeId, SourceContextKey, SourceDeclarationKey,
-    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
+    DefinitionOwnerChain, NormalizedSourcePath, PackagePath, PersistentGenericTypeId,
+    PersistentIdResolver, PersistentKeyResolver, PersistentSourceContextId, PersistentTypeId,
+    SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
+    SourceNominalKind, SourceSpan,
 };
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1, SourceNominalId};
+use crate::{ExportDefinitionSourceV1, SourceNominalId};
 
 struct Fixture {
     owner: SourceNominalId,
-    owner_key: SourceDeclarationKey,
-    member_key: SourceDeclarationKey,
     origin: ExportDefinitionSourceV1,
     context: SourceContextKey,
 }
@@ -49,18 +47,8 @@ fn fixture(kind: SourceNominalKind) -> Fixture {
     );
     let id = PersistentTypeId::from_source_declaration(&owner_key).unwrap();
     let owner = SourceNominalId::Concrete(id);
-    let member_key = SourceDeclarationKey::nominal(
-        site(DefinitionOwnerChain::from_outer_to_inner(vec![
-            DefinitionOwnerAtom::Type(id),
-        ])),
-        CanonicalIdentifier::new("Nested").unwrap(),
-        SourceNominalKind::Struct,
-        0,
-    );
     Fixture {
         owner,
-        owner_key,
-        member_key,
         origin,
         context,
     }
@@ -107,44 +95,6 @@ impl PersistentKeyResolver<PersistentSourceContextId, SourceContextKey> for Fixt
         Ok(Arc::new(self.context.clone()))
     }
 }
-impl ExportDefinitionSourceSemanticAuthority<&'static str> for Fixture {
-    fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::CORE
-    }
-    fn validate_export_definition_source(
-        &mut self,
-        source: &ExportDefinitionSourceV1,
-    ) -> Result<(), &'static str> {
-        if source == &self.origin {
-            Ok(())
-        } else {
-            Err("unknown source origin")
-        }
-    }
-}
-impl DeclarationAccessSourceSemanticAuthority<&'static str> for Fixture {
-    fn nominal_declaration_key(
-        &self,
-        owner: SourceNominalId,
-    ) -> Result<&SourceDeclarationKey, &'static str> {
-        if owner == self.owner {
-            Ok(&self.owner_key)
-        } else {
-            Err("unknown owner")
-        }
-    }
-    fn nominal_definition_source(
-        &self,
-        owner: SourceNominalId,
-    ) -> Result<&ExportDefinitionSourceV1, &'static str> {
-        if owner == self.owner {
-            Ok(&self.origin)
-        } else {
-            Err("unknown owner")
-        }
-    }
-}
-
 #[test]
 fn declared_visibility_and_source_use_closed_wire_and_foundation_origin() {
     let mut fixture = fixture(SourceNominalKind::Class);
@@ -169,19 +119,11 @@ fn declared_visibility_and_source_use_closed_wire_and_foundation_origin() {
     let decoded: DecodedDeclarationAccessSourceV1 =
         decode_canonical(&encode(&source).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut fixture).unwrap(), source);
-    let member = fixture.member_key.clone();
-    assert_eq!(
-        source
-            .validate_for_declaration(&member, &mut fixture)
-            .unwrap()
-            .source(),
-        &source
-    );
 }
 
 #[test]
-fn invalid_owner_chains_and_nonclass_protected_access_are_rejected() {
-    let mut fixture = fixture(SourceNominalKind::Struct);
+fn access_records_reject_repeated_owners_and_top_level_protected() {
+    let fixture = fixture(SourceNominalKind::Struct);
     assert!(
         DeclarationAccessSourceV1::try_new(
             DeclaredVisibilityV1::Protected,
@@ -198,25 +140,4 @@ fn invalid_owner_chains_and_nonclass_protected_access_are_rejected() {
         )
         .is_err()
     );
-    let source = DeclarationAccessSourceV1::try_new(
-        DeclaredVisibilityV1::Protected,
-        vec![fixture.owner],
-        fixture.origin.clone(),
-    )
-    .unwrap();
-    let member = fixture.member_key.clone();
-    assert!(matches!(
-        source.validate_for_declaration(&member, &mut fixture),
-        Err(DeclarationAccessSourceSemanticError::ProtectedOwnerNotClass)
-    ));
-    let source = DeclarationAccessSourceV1::try_new(
-        DeclaredVisibilityV1::Private,
-        vec![],
-        fixture.origin.clone(),
-    )
-    .unwrap();
-    assert!(matches!(
-        source.validate_for_declaration(&member, &mut fixture),
-        Err(DeclarationAccessSourceSemanticError::OwnerChain)
-    ));
 }

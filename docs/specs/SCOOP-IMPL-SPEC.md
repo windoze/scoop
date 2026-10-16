@@ -74,6 +74,8 @@ HIR metadata 保存并直接提供已生成的来源形状与 representation 数
 
 继承边、slot schema、完整 slot contract 与已选实现同样作为普通数据消费；不另建 checked inheritance graph 重放源码身份、继承环、覆写、可见性、签名或 interface 展开。实际类型关系查询与 slot selection 编码继续使用原 typed 数据；格式构造和引用解析只处理当前记录所需的局部关系。
 
+GC/ZST facts 在生产时由具体 HIR 投影，辅助形状只属于这次投影，不保留独立的 fact-shape transcript、依赖资格包装或全图重算 API。声明访问数据直接保存实际 visibility、词法 owner 与诊断 origin；不另行重建 owner 身份或比较来源副本来证明这些数据有效。
+
 smart cast 分析使用已有 BindingId、类型约束及带实际 LoopId 的控制结果，在当前 callable 内传播正常出口事实。多个正常前驱取共同事实，局部写入撤销旧值事实，finally 按实际进入和离开结果合并；循环按条件、body 与回边求稳定结果，并确认被使用的类型视图在对应路径成立。when 和短路 lowering 保存的临时值按实际求值顺序参与分析；不可变捕获值和构造器参数按原 BindingId 关联快照，快照不会因源变量后续写入而改变。完成的 HIR 仅保留普通 typed 读取、必要拆箱与既有控制流，不向 MIR、共享元数据或 runtime 添加流分析状态，也不在后续 stage 重放该分析。
 
 函数 smart cast 的读取视图与 binding 的声明存储类型分别处理。显式类型检查、转换及引用相等读取原存储值；不需要函数适配的期望类型继续使用声明视图。产生适配闭包的读取不建立来源与新值的快照等价关系。MIR 为动态函数适配器保存来源时，先使用既有引用转换将来源适配到捕获字段的 Any 类型；typed function 来源也必须满足同一物理字段契约。
@@ -338,6 +340,8 @@ GC 代码生成模块集中实现分配、完整托管写操作、发布与 poll
 分配、单槽写入与 poll 的既有快路径仍静态内联，不为模块隔离增加外部热路调用或重复 TLS 查询；保持原内存序，地址计算、写入与屏障之间无 safepoint。根活跃度、statepoint relocation、异常控制流与调用 ABI 继续由原有模块负责。纯内部职责重组不改变共享布局、runtime ABI 或产物格式。
 
 codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端重新遍历全部类型、CFG、签名、variant 支配、callback、常量初值、safepoint 身份和根计划来复核上游语义。发射按现有 typed 数据执行实际操作，保留当前查询／计算的范围、引用与 LLVM builder 错误；相关语言和根计划规则由原有前端／lowering 完成。generated-C 同样直接渲染既有 bridge 与 C 布局，不重建 canonical layout 或 atom 计划副本作比较；真实目标 C 编译的 sizeof／alignof／offsetof 断言继续保留。
+
+启动 gateway 的完整控制流由 lowering 生成，实际入口、参数、失败根与 GC 行为通过转换和运行测试覆盖；LIR crate 不保留只由测试调用的 gateway 全体结构复核器。
 
 发射前的 ABI 规划入口只消费 LIR 定义的布局／签名数据，不读取 HIR 或重新解释 MIR 正文。具体 LLVM 初始化、CPU/features、data layout、机器栈与过程 ABI 规则归 codegen；目标布局描述与 backend contract 作为完整数据传递。Scoop producer 消费 LIR target/backend，generated-C 源码生成消费 LIR target/C toolchain 合同。宿主 compiler/SDK/sysroot 路径、环境与命令构造归 toolchain，driver 执行 generated-C 编译后将对象交回现有对象边界处理。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 

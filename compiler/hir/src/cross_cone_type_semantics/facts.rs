@@ -5,15 +5,11 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use super::wire;
 
-mod source_shapes;
 mod table;
 #[cfg(test)]
 mod tests;
-mod validation;
 
-pub use source_shapes::*;
 pub use table::*;
-pub use validation::*;
 
 /// A semantic fact produced in HIR, independent of target byte size.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

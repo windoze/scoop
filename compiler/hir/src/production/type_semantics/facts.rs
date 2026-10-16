@@ -7,6 +7,7 @@ use crate::*;
 
 mod ownership;
 mod shapes;
+use shapes::FactShape;
 
 pub(super) fn produce(
     local: &LocalConcreteHir,
@@ -108,25 +109,24 @@ impl FactProjector<'_> {
             self.visit_exact(child, self.root_exacts.contains(&child))?;
         }
         let kind = match &shape {
-            ExactTypeFactShapeV1::Unit => ExactTypeKindV1::Value {
+            FactShape::Unit => ExactTypeKindV1::Value {
                 zst: ZstStatus::ZeroSized,
             },
-            ExactTypeFactShapeV1::Scalar
-            | ExactTypeFactShapeV1::Pointer
-            | ExactTypeFactShapeV1::CLayoutStruct { .. }
-            | ExactTypeFactShapeV1::Enum { .. } => ExactTypeKindV1::Value {
+            FactShape::Scalar
+            | FactShape::Pointer
+            | FactShape::CLayoutStruct { .. }
+            | FactShape::Enum { .. } => ExactTypeKindV1::Value {
                 zst: ZstStatus::NonZero,
             },
-            ExactTypeFactShapeV1::Reference => ExactTypeKindV1::Reference,
-            ExactTypeFactShapeV1::MaybeUninit { value } => ExactTypeKindV1::Value {
+            FactShape::Reference => ExactTypeKindV1::Reference,
+            FactShape::MaybeUninit { value } => ExactTypeKindV1::Value {
                 zst: if self.is_zero_sized(*value)? {
                     ZstStatus::ZeroSized
                 } else {
                     ZstStatus::NonZero
                 },
             },
-            ExactTypeFactShapeV1::OrdinaryStruct { fields }
-            | ExactTypeFactShapeV1::Tuple { elements: fields } => {
+            FactShape::OrdinaryStruct { fields } | FactShape::Tuple { elements: fields } => {
                 let mut zero = true;
                 for field in fields {
                     zero &= self.is_zero_sized(*field)?;
@@ -237,19 +237,15 @@ fn exacts(
         .collect()
 }
 
-fn shape_children(shape: &ExactTypeFactShapeV1) -> Vec<PersistentExactTypeId> {
+fn shape_children(shape: &FactShape) -> Vec<PersistentExactTypeId> {
     match shape {
-        ExactTypeFactShapeV1::MaybeUninit { value } => vec![*value],
-        ExactTypeFactShapeV1::OrdinaryStruct { fields }
-        | ExactTypeFactShapeV1::CLayoutStruct { fields }
-        | ExactTypeFactShapeV1::Tuple { elements: fields } => fields.clone(),
-        ExactTypeFactShapeV1::Enum { variants } => variants
-            .iter()
-            .flat_map(|variant| variant.fields.iter().copied())
-            .collect(),
-        ExactTypeFactShapeV1::Unit
-        | ExactTypeFactShapeV1::Scalar
-        | ExactTypeFactShapeV1::Pointer
-        | ExactTypeFactShapeV1::Reference => Vec::new(),
+        FactShape::MaybeUninit { value } => vec![*value],
+        FactShape::OrdinaryStruct { fields }
+        | FactShape::CLayoutStruct { fields }
+        | FactShape::Tuple { elements: fields } => fields.clone(),
+        FactShape::Enum { fields } => fields.clone(),
+        FactShape::Unit | FactShape::Scalar | FactShape::Pointer | FactShape::Reference => {
+            Vec::new()
+        }
     }
 }

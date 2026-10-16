@@ -4,7 +4,7 @@ use scoop_identity::{
 };
 use scoop_wire::WireError;
 
-use crate::{ExactTypeFactsSemanticError, NominalMaterializationClosureError, SourceNominalId};
+use crate::{NominalMaterializationClosureError, SourceNominalId};
 
 #[derive(Debug)]
 pub enum SharedTypeMetadataError {
@@ -31,7 +31,6 @@ pub enum SharedTypeMetadataError {
     NonConcreteSignature,
     NominalOwner(PersistentTypeId),
     Representation(PersistentTypeId),
-    Facts(Box<ExactTypeFactsSemanticError<SharedTypeMetadataError>>),
     InheritanceSource(SourceNominalId),
     InheritanceEdges(PersistentExactTypeId),
     DeclarationMetadata(DefinitionOriginSubject),

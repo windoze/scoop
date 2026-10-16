@@ -1,18 +1,40 @@
 use super::*;
 
+pub(super) enum FactShape {
+    Unit,
+    Scalar,
+    Pointer,
+    Reference,
+    MaybeUninit {
+        value: PersistentExactTypeId,
+    },
+    OrdinaryStruct {
+        fields: Vec<PersistentExactTypeId>,
+    },
+    CLayoutStruct {
+        fields: Vec<PersistentExactTypeId>,
+    },
+    Tuple {
+        elements: Vec<PersistentExactTypeId>,
+    },
+    Enum {
+        fields: Vec<PersistentExactTypeId>,
+    },
+}
+
 impl FactProjector<'_> {
-    pub(super) fn shape(&self, ty: concrete::TypeId) -> Result<ExactTypeFactShapeV1, Error> {
+    pub(super) fn shape(&self, ty: concrete::TypeId) -> Result<FactShape, Error> {
         use concrete::TypeKind;
         let shape = match &self.local.types[ty].kind {
-            TypeKind::Unit => ExactTypeFactShapeV1::Unit,
-            TypeKind::Integer(_) | TypeKind::Boolean => ExactTypeFactShapeV1::Scalar,
+            TypeKind::Unit => FactShape::Unit,
+            TypeKind::Integer(_) | TypeKind::Boolean => FactShape::Scalar,
             TypeKind::String
             | TypeKind::Any
             | TypeKind::Class(_)
             | TypeKind::Interface(_)
-            | TypeKind::Function(_) => ExactTypeFactShapeV1::Reference,
-            TypeKind::Ptr(_) | TypeKind::FunPtr(_) => ExactTypeFactShapeV1::Pointer,
-            TypeKind::Tuple(elements) => ExactTypeFactShapeV1::Tuple {
+            | TypeKind::Function(_) => FactShape::Reference,
+            TypeKind::Ptr(_) | TypeKind::FunPtr(_) => FactShape::Pointer,
+            TypeKind::Tuple(elements) => FactShape::Tuple {
                 elements: exacts(self.local, elements)?,
             },
             TypeKind::Struct(id) => {
@@ -28,30 +50,26 @@ impl FactProjector<'_> {
                             &fields.iter().map(|field| field.ty).collect::<Vec<_>>(),
                         )?;
                         if attributes.c_layout.is_some() {
-                            ExactTypeFactShapeV1::CLayoutStruct { fields }
+                            FactShape::CLayoutStruct { fields }
                         } else {
-                            ExactTypeFactShapeV1::OrdinaryStruct { fields }
+                            FactShape::OrdinaryStruct { fields }
                         }
                     }
                     concrete::StructRepresentation::Intrinsic { application, .. } => {
                         match application {
                             concrete::IntrinsicTypeRepresentation::MaybeUninit { value } => {
-                                ExactTypeFactShapeV1::MaybeUninit {
+                                FactShape::MaybeUninit {
                                     value: exacts(self.local, &[*value])?[0],
                                 }
                             }
-                            concrete::IntrinsicTypeRepresentation::Unit => {
-                                ExactTypeFactShapeV1::Unit
-                            }
+                            concrete::IntrinsicTypeRepresentation::Unit => FactShape::Unit,
                             concrete::IntrinsicTypeRepresentation::Integer(_)
                             | concrete::IntrinsicTypeRepresentation::Float(_)
                             | concrete::IntrinsicTypeRepresentation::Char
-                            | concrete::IntrinsicTypeRepresentation::Boolean => {
-                                ExactTypeFactShapeV1::Scalar
-                            }
+                            | concrete::IntrinsicTypeRepresentation::Boolean => FactShape::Scalar,
                             concrete::IntrinsicTypeRepresentation::Ptr { .. }
                             | concrete::IntrinsicTypeRepresentation::FunPtr { .. } => {
-                                ExactTypeFactShapeV1::Pointer
+                                FactShape::Pointer
                             }
                             concrete::IntrinsicTypeRepresentation::String
                             | concrete::IntrinsicTypeRepresentation::Atomic(_)
@@ -59,7 +77,7 @@ impl FactProjector<'_> {
                             | concrete::IntrinsicTypeRepresentation::Nothing
                             | concrete::IntrinsicTypeRepresentation::Array { .. }
                             | concrete::IntrinsicTypeRepresentation::MutableArray { .. } => {
-                                ExactTypeFactShapeV1::Reference
+                                FactShape::Reference
                             }
                         }
                     }
@@ -67,26 +85,14 @@ impl FactProjector<'_> {
             }
             TypeKind::Enum(id) => {
                 let enumeration = &self.local.enums[*id];
-                let mut variants = Vec::with_capacity(enumeration.variants.len());
-                for variant in &enumeration.variants {
-                    variants.push(ExactEnumVariantFactsV1 {
-                        variant: variant.identity,
-                        fields: exacts(
-                            self.local,
-                            &variant
-                                .fields
-                                .iter()
-                                .map(|field| field.ty)
-                                .collect::<Vec<_>>(),
-                        )?,
-                        gc: if variant.gc_free {
-                            ExactTypeGcV1::GcFree
-                        } else {
-                            ExactTypeGcV1::ContainsManagedReferences
-                        },
-                    });
+                let fields = enumeration
+                    .variants
+                    .iter()
+                    .flat_map(|variant| variant.fields.iter().map(|field| field.ty))
+                    .collect::<Vec<_>>();
+                FactShape::Enum {
+                    fields: exacts(self.local, &fields)?,
                 }
-                ExactTypeFactShapeV1::Enum { variants }
             }
         };
         Ok(shape)
