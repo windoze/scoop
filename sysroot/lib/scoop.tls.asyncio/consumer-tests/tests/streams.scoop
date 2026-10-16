@@ -6,6 +6,7 @@ import scoop.crypto.x509.*
 import scoop.crypto.testdata.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
+import scoop.platform.system.OsString
 import scoop.test.*
 import scoop.tls.*
 import scoop.tls.asyncio.*
@@ -35,7 +36,9 @@ private class AsyncTlsConsumerTests {
                         }
                     }
                 }
-                asyncTlsClient(loop.connectTcp(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).useAsync suspend { client ->
+                val addresses = loop.resolve(OsString.fromString("localhost"), listener.localAddress.port, Some(AddressFamily.IPv4))
+                assertTrue(addresses.size > 0L)
+                asyncTlsClient(loop.connectTcp(addresses[0L]), clientConfig, TlsPeerName.Dns("localhost")).useAsync suspend { client ->
                     NativeByteBuffer.allocate(1L).use suspend { bytes ->
                         bytes.writeByte(42)
                         client.writeFully(bytes)

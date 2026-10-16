@@ -35,6 +35,8 @@
 
 - 独立互操作：新增 3 项测试。系统 OpenSSL CLI 验证库生成的 RSA PKCS#1／PSS、ECDSA DER 和 Ed25519 签名，并作为严格验证证书的 TLS 客户端；Python 标准库 SSL 作为独立服务端。TLS 1.2／1.3 双向数据、DNS／IP、DNS 有 SNI 而 IP 无 SNI、服务端顺序 ALPN 及双向 close_notify 均通过。本机独立对端使用 OpenSSL 4.0.3，生产仍使用 vendor 3.5.9；测试仅使用临时自有文件、动态 loopback 端口和明确就绪信号。
 
+- 验收覆盖补齐：直接验证 TLS 过期证书、错误 IP 的原始验证 code，以及不足一个完整加密记录时的 EOF；新增写请求自身取消，确认已接受的 16384 字节和借用收尾。异步外部消费者增加 M49 名称解析后连接。新增 3 项和消费者本机定向测试通过；release 已通过 crypto 17 项、TLS 13 项、async TLS 12 项及外部消费者 4／2／1 项，moving 组合正在执行。
+
 ## 验证与工作目录
 
 本机逐功能格式化、lint 和定向验证；最后在 nuc12 的 `~/repos/scoop` 执行 Linux 完整验证。日志、报告及工作目录使用两端 `~/.cache/scoop-m51`，临时目录显式设为其中的 `scratch`，不使用 `/tmp`。定期清理无用 target 产物，保留正在复用的 release 工具。M47 文档修改不属于本任务。

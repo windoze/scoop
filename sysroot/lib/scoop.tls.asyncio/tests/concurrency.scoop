@@ -7,6 +7,34 @@ import scoop.test.*
 @Test
 private class AsyncTlsConcurrencyTests {
     @Test
+    fun `cancelling the writer retains the accepted prefix and releases its borrow`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, clientRaw, serverRaw)
+            val output = NativeByteBuffer.allocate(20000L)
+            clientRaw.writeGate = Some(AsyncGate())
+            clientRaw.writeStarted = AsyncGate()
+            val cancelled = AtomicBoolean(false)
+            try {
+                output.writeBytes(Array<Byte>(20000L) { index -> index.toInt8() })
+                val writing = scope.launch suspend {
+                    try { client.writeFrom(output, 20000L); fail(Some("cancelled writer completed")) }
+                    catch (_: CancellationException) { cancelled.store(true) }
+                }
+                clientRaw.writeStarted.await()
+                assertFailsWith<IllegalStateException> { output.clear() }
+                writing.cancel(); writing.join()
+                assertTrue(cancelled.load())
+                assertEquals(16384L, output.readPosition)
+                output.clear()
+                assertTrue(client.isClosed)
+                assertEquals(1, clientRaw.closes)
+            } finally { clientRaw.writeGate!!.signal(); client.close(); server.close(); output.close() }
+        }
+    }
+
+    @Test
     fun `directions are exclusive and cancelling read closes an accepted blocked write`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->

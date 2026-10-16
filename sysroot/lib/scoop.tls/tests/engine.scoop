@@ -90,7 +90,7 @@ private class TlsEngineTests {
     }
 }
 
-private fun handshakeFailure(clientConfig: TlsClientContext, serverConfig: TlsServerContext, name: TlsPeerName): TlsException {
+internal fun handshakeFailure(clientConfig: TlsClientContext, serverConfig: TlsServerContext, name: TlsPeerName): TlsException {
     try {
         return TlsEngine.client(clientConfig, name).use { client ->
             TlsEngine.server(serverConfig).use { server -> assertFailsWith<TlsException> { handshake(client, server) } }
