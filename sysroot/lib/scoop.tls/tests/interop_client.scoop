@@ -1,0 +1,48 @@
+package scoop.tls
+
+import scoop.platform.fs.Files
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class OpenSslClientTests {
+    @Test
+    fun `Scoop clients interoperate with independent OpenSSL DNS IP ALPN and shutdown`() {
+        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) {
+            pythonServer(version, true)
+            pythonServer(version, false)
+        }
+    }
+}
+
+private fun pythonServer(version: TlsVersion, dns: Boolean) {
+    InteropDirectory().use { tree ->
+        tree.certificates()
+        val arguments: Array<String> = ["-u", "-c", pythonTlsPeer(), tree.child("server.pem").decodeUtf8(),
+            tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.TLS12) "12" else "13"]
+        val child = peerCommand("python3", arguments).searchPath()
+        try {
+            val port = child.stdout!!.readLine()!!.toIntOrNull()!!
+            val a = "proto-a".toByteArray().toArray()
+            val b = "proto-b".toByteArray().toArray()
+            clientContext(TlsOptions(version, version, [a, b])).use { context ->
+                val peer = if (dns) TlsPeerName.Dns("localhost") else TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)
+                tlsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)), context, peer).use { stream ->
+                    assertTrue(stream.connectionInfo.version == version)
+                    assertEquals(b.toHexString(), stream.connectionInfo.alpn!!.toHexString())
+                    stream.writeAllBytes("tls".toByteArray())
+                    NativeByteBuffer.allocate(4L).use { input ->
+                        stream.readFully(input)
+                        assertEquals("peer".toByteArray().toHexString(), input.readBytes(4L).toHexString())
+                    }
+                    stream.shutdownGracefully()
+                }
+            }
+            peerSucceeded(child.communicate())
+            assertEquals(if (dns) "localhost" else "none", Files.readText(tree.child("sni")))
+        } finally { child.kill(); child.wait(); child.dispose() }
+    }
+}

@@ -33,6 +33,8 @@
 
 - 异步 TLS：普通 continuation／Job 操作记录串行 SSL、分别驱动每方向一个传输，遵守 WANT 重试；调用、取消监听及恢复不在 SSL 锁内。登记前检查、同方向互斥、已接受前缀、跨线程取消／第三方恢复、挂起期间借用、并发 close、已取消 finally、握手／read／flush／shutdown 取消及未消费数据均已覆盖。无逐步骤 Job、libuv 私有调用或 GC 析构。新增 11 项、相同 11 项 moving GC 和生产外部消费者 1 项通过，包括 TLS 1.2／1.3、握手输出背压时输入并进、50000 字节双向短传输及一个停滞握手不阻塞后续 accept。
 
+- 独立互操作：新增 3 项测试。系统 OpenSSL CLI 验证库生成的 RSA PKCS#1／PSS、ECDSA DER 和 Ed25519 签名，并作为严格验证证书的 TLS 客户端；Python 标准库 SSL 作为独立服务端。TLS 1.2／1.3 双向数据、DNS／IP、DNS 有 SNI 而 IP 无 SNI、服务端顺序 ALPN 及双向 close_notify 均通过。本机独立对端使用 OpenSSL 4.0.3，生产仍使用 vendor 3.5.9；测试仅使用临时自有文件、动态 loopback 端口和明确就绪信号。
+
 ## 验证与工作目录
 
 本机逐功能格式化、lint 和定向验证；最后在 nuc12 的 `~/repos/scoop` 执行 Linux 完整验证。日志、报告及工作目录使用两端 `~/.cache/scoop-m51`，临时目录显式设为其中的 `scratch`，不使用 `/tmp`。定期清理无用 target 产物，保留正在复用的 release 工具。M47 文档修改不属于本任务。

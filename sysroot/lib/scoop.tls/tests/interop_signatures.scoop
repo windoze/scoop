@@ -1,0 +1,44 @@
+package scoop.tls
+
+import scoop.crypto.*
+import scoop.platform.fs.Files
+import scoop.test.*
+
+@Test
+private class OpenSslSignatureTests {
+    @Test
+    fun `independent OpenSSL CLI verifies all signature formats produced by crypto`() {
+        InteropDirectory().use { tree ->
+            Files.writeText(tree.child("message"), "Scoop outbound signature interoperability")
+            verifyOutput(tree, SignatureAlgorithm.RS256, KeyAlgorithm.RSA)
+            verifyOutput(tree, SignatureAlgorithm.PS256, KeyAlgorithm.RSA)
+            verifyOutput(tree, SignatureAlgorithm.ES256, KeyAlgorithm.P256)
+            verifyOutput(tree, SignatureAlgorithm.Ed25519, KeyAlgorithm.Ed25519)
+        }
+    }
+}
+
+private fun verifyOutput(tree: InteropDirectory, algorithm: SignatureAlgorithm, kind: KeyAlgorithm) {
+    PrivateKey.generate(kind).use { key ->
+        key.publicKey().use { publicKey -> Files.writeText(tree.child("public.pem"), publicKey.toPem()) }
+        Files.writeAllBytes(tree.child("signature"), sign(algorithm, key, Files.readAllBytes(tree.child("message"))))
+    }
+    val arguments = ArrayList<String>()
+    if (algorithm == SignatureAlgorithm.Ed25519) {
+        arguments.add("pkeyutl"); arguments.add("-verify"); arguments.add("-rawin"); arguments.add("-pubin")
+        arguments.add("-inkey"); arguments.add(tree.child("public.pem").decodeUtf8())
+        arguments.add("-sigfile"); arguments.add(tree.child("signature").decodeUtf8())
+        arguments.add("-in")
+    } else {
+        arguments.add("dgst"); arguments.add("-sha256"); arguments.add("-verify")
+        arguments.add(tree.child("public.pem").decodeUtf8())
+        arguments.add("-signature"); arguments.add(tree.child("signature").decodeUtf8())
+        if (algorithm == SignatureAlgorithm.PS256) {
+            arguments.add("-sigopt"); arguments.add("rsa_padding_mode:pss")
+            arguments.add("-sigopt"); arguments.add("rsa_pss_saltlen:32")
+            arguments.add("-sigopt"); arguments.add("rsa_mgf1_md:sha256")
+        }
+    }
+    arguments.add(tree.child("message").decodeUtf8())
+    peerCommand("openssl", arguments).searchPath().use { child -> peerSucceeded(child.communicate()) }
+}
