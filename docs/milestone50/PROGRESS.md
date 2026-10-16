@@ -38,8 +38,9 @@
 32. Runtime shape：删除静态 shape／inline scan 重建比较、继承语义重放与 Context 初值／顺序预检；移除完整 metadata 复核模式和专属 scan 验证器。保留实际对象大小、分配、类型查询、scan 地址边界，以及独立的动态 GC heap 验证。
 33. MIR foundation：从完整 Module 直接投影身份，删除全模块类型／CFG／ABI／coroutine／callback／release／constant 验证器、专用破坏测试和错误包装；保留 lowering 的实际结构断言与初始化绑定 fixture。
 34. MIR 输入组装：删除 foundation／entry surface 副本比较与已完成 production 关系重验；初始化从实际 unit 和 callable 索引绑定，删除 generated ID／ODR key／签名重建与对应破坏测试，保留缺失 body 引用诊断。
-35. 待完成：IR／meta 与归档其余重复证明、历史文档一致性及最终验收。
-36. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+35. HIR representation：删除只由专门测试调用的来源 inventory／字段／variant／CLayout 比较与 Checked 包装；保留实际数据、typed 引用和编码，测试直接验证顺序、intrinsic family 与布局策略。
+36. 待完成：继承／slot 复核、归档读取、历史文档一致性及最终验收。
+37. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -118,3 +119,5 @@ Runtime 清理后的 CLI 回归：7 项／9 变体／44 进程通过，保留 4 
 MIR foundation 批次：格式化、workspace clippy 无警告；release MIR 256 项、MIR lowering 117 项、release CFG 2 项、C projection 1 项及 driver shape demand 1 项通过。移除的验证器曾被初始化 fixture 借作构造 helper，现改为该用例自身的完整输入；保留真实绑定和转换覆盖。
 
 MIR 输入组装批次：格式化、workspace clippy 无警告；release MIR 的 cone input 4 项与 production 编解码 13 项通过，真实角色绑定、缺失引用和固定 wire 编码继续覆盖。
+
+HIR representation 批次：格式化、workspace clippy 无警告；release HIR representation 相关 17 项通过，实际字段／variant 顺序、类型身份、CLayout 和 wire 边界继续覆盖。
