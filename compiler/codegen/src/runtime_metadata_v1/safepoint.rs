@@ -1,6 +1,5 @@
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
-use inkwell::types::AnyType;
 use inkwell::values::{GlobalValue, StructValue};
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
@@ -131,24 +130,7 @@ fn emit_registration<'ctx>(
 ) -> Result<EmittedStrongSafepointRegistrationV1<'ctx>, CodegenError> {
     let request = plan.symbol();
     let symbol = request.symbol();
-    if llvm.get_function(symbol.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "safepoint registration `{symbol}` collides with an LLVM function"
-        )));
-    }
     let descriptor = if let Some(global) = llvm.get_global(symbol.as_str()) {
-        if global.get_value_type() != types.safepoint_registration_descriptor.as_any_type_enum()
-            || global.get_linkage() != Linkage::External
-        {
-            return Err(CodegenError(format!(
-                "safepoint registration `{symbol}` has an incompatible LLVM declaration"
-            )));
-        }
-        if global.get_initializer().is_some() {
-            return Err(CodegenError(format!(
-                "safepoint registration `{symbol}` is already defined"
-            )));
-        }
         global
     } else {
         let global = llvm.add_global(

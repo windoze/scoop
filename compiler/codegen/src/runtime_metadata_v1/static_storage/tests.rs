@@ -1,7 +1,6 @@
 use inkwell::AddressSpace;
 use inkwell::context::Context;
 use inkwell::module::Linkage;
-use inkwell::targets::TargetData;
 use inkwell::values::{AnyValue, GlobalValue, StructValue};
 use scoop_lir::{StaticStorageScanKindV1, StrongStaticStorageInitialStatePlanV1};
 
@@ -22,10 +21,8 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
     let context = Context::create();
     let llvm = context.create_module("static-storage-registration");
     declare_storage_set(&context, &llvm, &plan);
-    let target_data = target_data();
 
-    let emitted =
-        emit_strong_static_storage_registrations_v1(&context, &llvm, &target_data, &plan).unwrap();
+    let emitted = emit_strong_static_storage_registrations_v1(&context, &llvm, &plan).unwrap();
 
     assert_eq!(emitted.producer(), plan.producer());
     assert_eq!(emitted.registrations().len(), 2);
@@ -201,58 +198,6 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
     llvm.verify().unwrap();
 }
 
-#[test]
-fn validates_the_complete_storage_set_before_emitting_metadata() {
-    let plan = static_storage_plan();
-    let context = Context::create();
-    let llvm = context.create_module("atomic-static-storage-validation");
-    declare_storage(&context, &llvm, &plan.registrations()[0]);
-
-    let error = emit_strong_static_storage_registrations_v1(&context, &llvm, &target_data(), &plan)
-        .unwrap_err();
-
-    assert!(error.0.contains("is not defined"), "{error}");
-    assert!(llvm.get_global(EMPTY_TEMPLATE_SENTINEL).is_none());
-    assert!(llvm.get_global(EMPTY_RELOCATION_SENTINEL).is_none());
-    for registration in plan.registrations() {
-        assert!(
-            llvm.get_global(registration.registration_symbol().symbol().as_str())
-                .is_none()
-        );
-        assert!(
-            llvm.get_global(registration.scan_symbol().symbol().as_str())
-                .is_none()
-        );
-    }
-}
-
-#[test]
-fn rejects_wrong_storage_shape_and_descriptor_redefinition() {
-    let plan = static_storage_plan();
-    let context = Context::create();
-    let llvm = context.create_module("wrong-static-storage-shape");
-    declare_storage_set(&context, &llvm, &plan);
-    let first = llvm
-        .get_global(
-            plan.registrations()[0]
-                .semantic()
-                .symbol()
-                .symbol()
-                .as_str(),
-        )
-        .unwrap();
-    first.set_constant(true);
-    let error = emit_strong_static_storage_registrations_v1(&context, &llvm, &target_data(), &plan)
-        .unwrap_err();
-    assert!(error.0.contains("writable address-significant"), "{error}");
-
-    first.set_constant(false);
-    emit_strong_static_storage_registrations_v1(&context, &llvm, &target_data(), &plan).unwrap();
-    let error = emit_strong_static_storage_registrations_v1(&context, &llvm, &target_data(), &plan)
-        .unwrap_err();
-    assert!(error.0.contains("already defined"), "{error}");
-}
-
 fn declare_storage_set<'ctx>(
     context: &'ctx Context,
     llvm: &inkwell::module::Module<'ctx>,
@@ -294,10 +239,6 @@ fn declare_storage<'ctx>(
         AddressSpace::default()
     );
     global
-}
-
-fn target_data() -> TargetData {
-    TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout())
 }
 
 fn constant_u64(value: StructValue<'_>, index: u32) -> u64 {

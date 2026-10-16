@@ -28,8 +28,9 @@
 22. 对象定义：按计划索引实际符号和 atom 范围，删除符号全集／linkage／primary 起点比较、未归属范围与零 padding 扫描；保留缺失和歧义符号、实际范围与 literal 读取。
 23. 对象格式读取：Scoop／generated-C 共用按实际属性的 section 分类，删除来源专属白名单、flags 模板、deployment／group 副本、动态符号分区与整表布局审计。保留所需表读取、目标与实际引用边界。
 24. 符号属性与引用：读取真实绑定标志，保留未消费符号的普通条目；删除符号描述组合白名单与 undefined 表全集的使用／重名预审，实际引用继续按 table index 解析。
-25. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
-26. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+25. Runtime metadata 发射：直接查询和生成声明／登记／scan，删除 global 类型、布局、linkage、初值、producer 副本和发射数量的预检；digest 直接记录实际位置，删除 coverage 与 owner 回放。移除 preparation 包装和独占断言，拆出 image 测试控制文件长度。
+26. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
+27. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -84,3 +85,5 @@ LIR 发射后的 CLI 回归：7 项／9 变体／44 进程通过，保留 4 个�
 对象格式批次：格式化、workspace clippy 无警告；release slib link_object 140 项通过。保留真实符号／relocation、未归属段属性分类和对象表读取错误；Linux ELF 实对象用例留待目标环境执行。
 
 符号属性批次：格式化、workspace clippy 无警告；release slib link_object 139 项通过，真实弱定义、undefined 引用、atom 归属和定义位置边界继续覆盖。
+
+Runtime metadata 发射批次：格式化、workspace clippy 无警告；release codegen 首轮 222 项通过，2 项旧全量预检断言改为实际缺失引用诊断后定向补跑通过，224 项覆盖均闭合。真实 GC／异常／线程与三目标发射保持通过；未重复执行已通过的其余测试。

@@ -151,7 +151,6 @@ pub(super) fn emit_object_set_with_production<
         .map(|patch| patch.location())
         .collect::<Vec<_>>();
     patches.sort_unstable_by_key(|patch| patch.intent());
-    runtime_metadata_v1::validate_patch_coverage(&production, &patches)?;
     Ok(EmittedConeObjectSet {
         optimization: profile.optimization(),
         target_selection: profile.lir_target_selection(),

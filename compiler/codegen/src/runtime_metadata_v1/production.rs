@@ -22,7 +22,6 @@ use crate::target::ValidatedBackendProfile;
 mod callable;
 pub(crate) use callable::{emit_callable_metadata_v1, emit_callable_safepoints};
 mod digest;
-pub(crate) use digest::validate_patch_coverage;
 use digest::{PatchParts, PatchSiteParts, record_patch};
 
 /// Object-independent location of one provisional digest slot emitted by
@@ -157,7 +156,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     let static_storages = emit_strong_static_storage_registrations_v1(
         context,
         llvm,
-        target_data,
         production.registration_production().static_storages(),
     )?;
     let initialization_units = emit_strong_initialization_unit_registrations_v1(
@@ -174,23 +172,9 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
         production.registration_production().identities(),
         array_bounds_message,
         array_size_overflow_message,
-    )?;
+    );
 
     let producer = production.image_plan().cone().identity();
-    for actual in [
-        types.producer(),
-        immortal_objects.producer(),
-        static_storages.producer(),
-        initialization_units.producer(),
-        production.image_plan().cone().identity(),
-    ] {
-        if actual != producer {
-            return Err(CodegenError(format!(
-                "strong runtime metadata producer mismatch: expected {producer}, found {actual}"
-            )));
-        }
-    }
-
     let mut patches = Vec::new();
     for registration in types.registrations() {
         let registration = *registration;
@@ -220,12 +204,12 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
         record_patch(
             production,
             &mut patches,
-            PatchParts::without_atom(entry.source_signature_patch()),
+            PatchParts::from_entry(entry.source_signature_patch()),
         )?;
         record_patch(
             production,
             &mut patches,
-            PatchParts::without_atom(entry.gateway_definition_patch()),
+            PatchParts::from_entry(entry.gateway_definition_patch()),
         )?;
     }
     record_patch(production, &mut patches, image.patch().into_parts())?;
@@ -272,26 +256,12 @@ fn runtime_global_atoms<'ctx, D, C, I>(
         )
     }));
 
-    require_parallel_coverage(
-        "immortal-object registration",
-        immortal_objects.registrations().len(),
-        production
-            .registration_production()
-            .immortal_objects()
-            .registrations()
-            .len(),
-    )?;
     for (emitted, plan) in immortal_objects.registrations().iter().zip(
         production
             .registration_production()
             .immortal_objects()
             .registrations(),
     ) {
-        if emitted.object() != plan.object() {
-            return Err(CodegenError(
-                "immortal-object emission order diverges from its closed plan".to_string(),
-            ));
-        }
         atoms.push(GlobalAtomMaterializationV1::new(
             plan.registration_primary_atom(),
             emitted.descriptor(),
@@ -302,26 +272,12 @@ fn runtime_global_atoms<'ctx, D, C, I>(
         ));
     }
 
-    require_parallel_coverage(
-        "static-storage registration",
-        static_storages.registrations().len(),
-        production
-            .registration_production()
-            .static_storages()
-            .registrations()
-            .len(),
-    )?;
     for (emitted, plan) in static_storages.registrations().iter().zip(
         production
             .registration_production()
             .static_storages()
             .registrations(),
     ) {
-        if emitted.storage() != plan.semantic().storage() {
-            return Err(CodegenError(
-                "static-storage emission order diverges from its closed plan".to_string(),
-            ));
-        }
         atoms.extend([
             GlobalAtomMaterializationV1::new(
                 plan.registration_primary_atom(),
@@ -348,26 +304,12 @@ fn runtime_global_atoms<'ctx, D, C, I>(
         }
     }
 
-    require_parallel_coverage(
-        "initialization registration",
-        initialization_units.registrations().len(),
-        production
-            .registration_production()
-            .initialization_units()
-            .registrations()
-            .len(),
-    )?;
     for (emitted, plan) in initialization_units.registrations().iter().zip(
         production
             .registration_production()
             .initialization_units()
             .registrations(),
     ) {
-        if emitted.unit() != plan.semantic().unit() {
-            return Err(CodegenError(
-                "initialization emission order diverges from its closed plan".to_string(),
-            ));
-        }
         atoms.extend([
             GlobalAtomMaterializationV1::new(
                 plan.registration_primary_atom(),
@@ -379,20 +321,12 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     }
 
     if let EmittedEntryProductionV1::Executable(emitted) = entry {
-        let plan = match production.entry_plan() {
-            scoop_lir::EntryProductionPlanV1::Executable(plan) => plan,
-            scoop_lir::EntryProductionPlanV1::Library => {
-                return Err(CodegenError(
-                    "executable entry emission has a library production plan".to_string(),
-                ));
-            }
-        };
         let definition = production
             .canonical_definitions()
-            .plan(plan.root_descriptor_definition())
+            .plan(emitted.source_signature_patch().definition())
             .ok_or_else(|| {
                 CodegenError(
-                    "root entry definition is absent from canonical symbol authority".to_string(),
+                    "root entry definition is absent from canonical symbol plan".to_string(),
                 )
             })?;
         atoms.push(GlobalAtomMaterializationV1::new(
@@ -424,20 +358,6 @@ fn runtime_global_atoms<'ctx, D, C, I>(
         ));
     }
     Ok(atoms)
-}
-
-fn require_parallel_coverage(
-    kind: &str,
-    emitted: usize,
-    planned: usize,
-) -> Result<(), CodegenError> {
-    if emitted == planned {
-        Ok(())
-    } else {
-        Err(CodegenError(format!(
-            "{kind} emission coverage mismatch: planned {planned}, emitted {emitted}"
-        )))
-    }
 }
 
 #[cfg(test)]

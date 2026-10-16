@@ -131,37 +131,5 @@ fn assert_entry_emission(plan: EntryProductionPlanV1) {
     llvm.verify().unwrap();
 }
 
-#[test]
-fn executable_entry_emission_rejects_a_duplicate_descriptor() {
-    let plan = executable_plan();
-    let context = Context::create();
-    let llvm = context.create_module("duplicate-entry");
-
-    emit_entry_production_v1(&context, &llvm, &plan).unwrap();
-    let error = emit_entry_production_v1(&context, &llvm, &plan).unwrap_err();
-
-    assert!(error.0.contains("already declared"), "{error}");
-}
-
-#[test]
-fn executable_entry_emission_rejects_an_incompatible_gateway() {
-    let plan = executable_plan();
-    let EntryProductionPlanV1::Executable(entry) = &plan else {
-        panic!("fixture is executable")
-    };
-    let context = Context::create();
-    let llvm = context.create_module("bad-gateway");
-    let symbol = entry.gateway_symbol().unwrap().symbol();
-    llvm.add_function(
-        symbol.as_str(),
-        context.void_type().fn_type(&[], false),
-        None,
-    );
-
-    let error = emit_entry_production_v1(&context, &llvm, &plan).unwrap_err();
-
-    assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
-}
-
 mod support;
 use support::*;

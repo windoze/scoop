@@ -1,6 +1,5 @@
 use inkwell::context::Context;
 use inkwell::module::Linkage;
-use inkwell::values::UnnamedAddress;
 use scoop_identity::ConeIdentity;
 
 use super::{
@@ -103,7 +102,7 @@ fn emits_closed_strong_record_entry_and_zero_body_patch_site() {
 }
 
 #[test]
-fn completes_a_matching_image_declaration_then_rejects_redefinition() {
+fn completes_a_matching_image_declaration() {
     let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -136,21 +135,10 @@ fn completes_a_matching_image_declaration_then_rejects_redefinition() {
         declaration.get_name()
     );
     assert!(declaration.get_initializer().is_some());
-
-    let error = emit_strong_callable_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        &surface,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        plan.registrations()[0].body(),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("already defined"), "{error}");
 }
 
 #[test]
-fn rejects_missing_or_non_address_significant_callable_entries() {
+fn reports_missing_callable_entries() {
     let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -169,99 +157,6 @@ fn rejects_missing_or_non_address_significant_callable_entries() {
         llvm.get_global(expected.symbol().symbol().as_str())
             .is_none()
     );
-
-    let llvm = context.create_module("callable-registration-unnamed-entry");
-    let entry = llvm.add_function(
-        expected.entry_symbol().symbol().as_str(),
-        context.void_type().fn_type(&[], false),
-        None,
-    );
-    entry
-        .as_global_value()
-        .set_unnamed_address(UnnamedAddress::Global);
-    let error = emit_strong_callable_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        &surface,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        plan.registrations()[0].body(),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("address-significant"), "{error}");
-    assert!(
-        llvm.get_global(expected.symbol().symbol().as_str())
-            .is_none()
-    );
-}
-
-#[test]
-fn rejects_incompatible_prior_declarations_and_entry_linkage() {
-    let (plan, surface) = callable_plan();
-    let expected = plan.registrations()[0];
-    let context = Context::create();
-    let llvm = context.create_module("callable-registration-collision");
-    let symbol = expected.symbol().symbol();
-    let incompatible = llvm.add_global(context.i8_type(), None, symbol.as_str());
-    incompatible.set_linkage(Linkage::External);
-    llvm.add_function(
-        expected.entry_symbol().symbol().as_str(),
-        context.void_type().fn_type(&[], false),
-        None,
-    );
-    let error = emit_strong_callable_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        &surface,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        plan.registrations()[0].body(),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
-
-    let llvm = context.create_module("callable-registration-unnamed-declaration");
-    let types = RuntimeMetadataV1Types::new(&context);
-    let declaration = llvm.add_global(
-        types.callable_registration_descriptor,
-        None,
-        symbol.as_str(),
-    );
-    declaration.set_linkage(Linkage::External);
-    declaration.set_unnamed_address(UnnamedAddress::Local);
-    llvm.add_function(
-        expected.entry_symbol().symbol().as_str(),
-        context.void_type().fn_type(&[], false),
-        None,
-    );
-    let error = emit_strong_callable_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        &surface,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        plan.registrations()[0].body(),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
-
-    let llvm = context.create_module("callable-registration-private-entry");
-    let entry = llvm.add_function(
-        expected.entry_symbol().symbol().as_str(),
-        context.void_type().fn_type(&[], false),
-        None,
-    );
-    entry.set_linkage(Linkage::Private);
-    let error = emit_strong_callable_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        &surface,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        plan.registrations()[0].body(),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("external linkage"), "{error}");
 }
 
 fn constant_u64(value: inkwell::values::StructValue<'_>, index: u32) -> u64 {

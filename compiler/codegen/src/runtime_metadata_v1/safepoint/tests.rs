@@ -116,7 +116,7 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
 }
 
 #[test]
-fn completes_one_matching_image_declaration_then_rejects_redefinition() {
+fn completes_one_matching_image_declaration() {
     let plan = safepoint_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -143,36 +143,6 @@ fn completes_one_matching_image_declaration_then_rejects_redefinition() {
         declaration.get_name()
     );
     assert!(declaration.get_initializer().is_some());
-
-    let error = emit_strong_safepoint_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        plan.registrations()[0].owner(),
-        |_| Some(plan.registrations()[0].root_pair_count() as usize),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("already defined"), "{error}");
-}
-
-#[test]
-fn rejects_an_incompatible_prior_global_declaration() {
-    let plan = safepoint_plan();
-    let context = Context::create();
-    let llvm = context.create_module("safepoint-registration-collision");
-    let symbol = plan.registrations()[0].symbol().symbol();
-    let incompatible = llvm.add_global(context.i8_type(), None, symbol.as_str());
-    incompatible.set_linkage(Linkage::External);
-
-    let error = emit_strong_safepoint_registrations_v1(
-        &context,
-        &llvm,
-        &plan,
-        plan.registrations()[0].owner(),
-        |_| Some(plan.registrations()[0].root_pair_count() as usize),
-    )
-    .unwrap_err();
-    assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
 }
 
 fn constant_u64(value: inkwell::values::StructValue<'_>, index: u32) -> u64 {

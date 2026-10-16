@@ -1,10 +1,9 @@
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
-use inkwell::types::AnyType;
-use inkwell::values::{GlobalValue, UnnamedAddress};
+use inkwell::values::GlobalValue;
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentCallableBodyId, StrongCallableRegistrationPlanSetV1,
+    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    PersistentCallableBodyId, StrongCallableRegistrationPlanSetV1,
     StrongCallableRegistrationPlanV1,
 };
 
@@ -160,53 +159,12 @@ fn emit_registration<'ctx>(
     let descriptor_symbol = descriptor_request.symbol();
     let entry_request = plan.entry_symbol();
     let entry_symbol = entry_request.symbol();
-    if llvm.get_global(entry_symbol.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "callable entry `{entry_symbol}` collides with an LLVM global"
-        )));
-    }
     let entry = llvm.get_function(entry_symbol.as_str()).ok_or_else(|| {
         CodegenError(format!(
             "callable entry `{entry_symbol}` is not declared in the LLVM module"
         ))
     })?;
-    // The registration is emitted before its selected body's basic blocks.
-    // Definition linkage already comes from the body plan.
-    let entry_linkage = if entry_request.linkage() == LinkageClass::OdrWeak {
-        Linkage::WeakODR
-    } else {
-        Linkage::External
-    };
-    if entry.get_linkage() != entry_linkage {
-        return Err(CodegenError(format!(
-            "callable entry `{entry_symbol}` does not have external linkage"
-        )));
-    }
-    if entry.as_global_value().get_unnamed_address() != UnnamedAddress::None {
-        return Err(CodegenError(format!(
-            "callable entry `{entry_symbol}` is not address-significant"
-        )));
-    }
-
-    if llvm.get_function(descriptor_symbol.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "callable registration `{descriptor_symbol}` collides with an LLVM function"
-        )));
-    }
     let descriptor = if let Some(global) = llvm.get_global(descriptor_symbol.as_str()) {
-        if global.get_value_type() != types.callable_registration_descriptor.as_any_type_enum()
-            || global.get_linkage() != Linkage::External
-            || global.get_unnamed_address() != UnnamedAddress::None
-        {
-            return Err(CodegenError(format!(
-                "callable registration `{descriptor_symbol}` has an incompatible LLVM declaration"
-            )));
-        }
-        if global.get_initializer().is_some() {
-            return Err(CodegenError(format!(
-                "callable registration `{descriptor_symbol}` is already defined"
-            )));
-        }
         global
     } else {
         let global = llvm.add_global(

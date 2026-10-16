@@ -1,10 +1,10 @@
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
-use inkwell::types::{AnyType, FunctionType, StructType};
+use inkwell::types::{FunctionType, StructType};
 use inkwell::values::{FunctionValue, GlobalValue};
 use scoop_lir::{
-    DigestPatchIntentId, EntryProductionPlanV1, ExecutableEntryPlanV1, LinkageClass,
-    ObjectDefinitionPlanId, PersistentSymbolRequest,
+    DigestPatchIntentId, EntryProductionPlanV1, ExecutableEntryPlanV1, ObjectDefinitionPlanId,
+    PersistentSymbolRequest,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -104,25 +104,12 @@ fn emit_root_entry_v1<'ctx>(
 ) -> Result<EmittedRootEntryV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let descriptor_request = plan.root_descriptor_symbol();
-    require_cone_strong(descriptor_request, "root entry descriptor")?;
     let descriptor_symbol = descriptor_request.symbol();
-    if llvm.get_global(descriptor_symbol.as_str()).is_some()
-        || llvm.get_function(descriptor_symbol.as_str()).is_some()
-    {
-        return Err(CodegenError(format!(
-            "root entry descriptor `{descriptor_symbol}` is already declared"
-        )));
-    }
-
     let failure_root_request = plan.failure_root_registration_symbol().map_err(|error| {
         CodegenError(format!("derive failure-root registration symbol: {error}"))
     })?;
-    let failure_root = declare_strong_record(
-        llvm,
-        types.static_storage_descriptor,
-        failure_root_request,
-        "failure-root registration",
-    )?;
+    let failure_root =
+        declare_strong_record(llvm, types.static_storage_descriptor, failure_root_request);
 
     let gateway_request = plan
         .gateway_symbol()
@@ -132,7 +119,7 @@ fn emit_root_entry_v1<'ctx>(
         &[context.i32_type().into(), pointer.into(), pointer.into()],
         false,
     );
-    let gateway = declare_strong_gateway(llvm, gateway_type, gateway_request)?;
+    let gateway = declare_strong_gateway(llvm, gateway_type, gateway_request);
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
@@ -178,67 +165,30 @@ fn emit_root_entry_v1<'ctx>(
     })
 }
 
-fn require_cone_strong(request: PersistentSymbolRequest, role: &str) -> Result<(), CodegenError> {
-    if request.linkage() == LinkageClass::ConeStrong {
-        return Ok(());
-    }
-    Err(CodegenError(format!(
-        "{role} `{}` does not have strong Cone linkage",
-        request.symbol()
-    )))
-}
-
 fn declare_strong_record<'ctx>(
     llvm: &LlvmModule<'ctx>,
     record_type: StructType<'ctx>,
     request: PersistentSymbolRequest,
-    role: &str,
-) -> Result<GlobalValue<'ctx>, CodegenError> {
-    require_cone_strong(request, role)?;
-    let symbol = request.symbol();
-    if llvm.get_function(symbol.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "{role} `{symbol}` collides with an LLVM function"
-        )));
-    }
-    if let Some(record) = llvm.get_global(symbol.as_str()) {
-        if record.get_value_type() != record_type.as_any_type_enum()
-            || record.get_linkage() != Linkage::External
-        {
-            return Err(CodegenError(format!(
-                "{role} `{symbol}` has an incompatible LLVM declaration"
-            )));
-        }
-        return Ok(record);
-    }
-    let record = llvm.add_global(record_type, None, symbol.as_str());
-    record.set_linkage(Linkage::External);
-    Ok(record)
+) -> GlobalValue<'ctx> {
+    llvm.get_global(request.symbol().as_str())
+        .unwrap_or_else(|| {
+            let record = llvm.add_global(record_type, None, request.symbol().as_str());
+            record.set_linkage(Linkage::External);
+            record
+        })
 }
 
 fn declare_strong_gateway<'ctx>(
     llvm: &LlvmModule<'ctx>,
     gateway_type: FunctionType<'ctx>,
     request: PersistentSymbolRequest,
-) -> Result<FunctionValue<'ctx>, CodegenError> {
-    require_cone_strong(request, "root gateway")?;
-    let symbol = request.symbol();
-    if llvm.get_global(symbol.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "root gateway `{symbol}` collides with an LLVM global"
-        )));
-    }
-    if let Some(gateway) = llvm.get_function(symbol.as_str()) {
-        if gateway.get_type() != gateway_type || gateway.get_linkage() != Linkage::External {
-            return Err(CodegenError(format!(
-                "root gateway `{symbol}` has an incompatible LLVM declaration"
-            )));
-        }
-        return Ok(gateway);
-    }
-    let gateway = llvm.add_function(symbol.as_str(), gateway_type, None);
-    gateway.set_linkage(Linkage::External);
-    Ok(gateway)
+) -> FunctionValue<'ctx> {
+    llvm.get_function(request.symbol().as_str())
+        .unwrap_or_else(|| {
+            let gateway = llvm.add_function(request.symbol().as_str(), gateway_type, None);
+            gateway.set_linkage(Linkage::External);
+            gateway
+        })
 }
 
 fn digest_value<'ctx>(
