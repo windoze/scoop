@@ -7,7 +7,7 @@
 1. Native 接入：已完成三目标 OpenSSL 3.5.9 静态资源准备及真实摘要、签名、证书校验和 TLS 握手。
 2. 密码与密钥：已完成摘要、MAC、AEAD、安全随机、SecretKey、RSA／P-256／Ed25519 公私钥和签验。
 3. 证书与 JWS：X.509 解析、属性、签名与链验证、五种 JWS 算法和公钥 JWK 导入已实现。
-4. 共享 TLS 引擎与同步流：配置、上下文、有限 BIO 引擎已完成；同步传输适配待实施。
+4. 共享 TLS 引擎与同步流：已完成配置、上下文、有限 BIO 引擎及同步 ByteSource／ByteSink 适配。
 5. M49 异步 TLS：待实施。
 6. 三目标组合及外部消费者验收：待执行。
 
@@ -26,6 +26,8 @@
 - JWS／JWK：五种 Compact 算法、原始 signing input、ES256 DER／R‖S 转换，以及 RSA／P-256／Ed25519 公钥参数导入；复用 JSON 与严格无 padding Base64URL。C 格式化与严格告警检查通过；本机 5 项、相同 5 项 moving GC 和外部消费者 1 项通过，包含 RFC 8037、独立 Python cryptography 46.0.7 向量、篡改、算法／密钥角色、critical header、非法编码与私钥参数拒绝。
 
 - 共享 TLS 引擎：不可变角色配置、TLS 1.2／1.3、显式 TrustStore／DNS／IP、ALPN、有限 BIO pair 和稳定明文借用。会话保留上下文及 ALPN 配置，错误在 SSL 调用内复制，未使用 socket BIO 或 runtime 私有接口。C 格式化、严格告警及本机 4 项、相同 4 项 moving GC、生产消费者 1 项通过。短片段与 16384 字节前缀覆盖 WANT_WRITE 重试；大块内容改用摘要断言后，该 moving 用例从约 29 秒降至约 0.7 秒，仍验证完整内容与游标进度。同步阻塞边界与异步背压并进的职责已明确。
+
+- 同步 TLS：普通多接口泛型接管传输，真实 TCP 短传输、明文前缀、flush、close_notify、截断和显式关闭已闭合。状态／参数错误不接管或破坏现有连接；已接受明文在输出失败后仍提交游标，正文及关闭失败组合保留。新增 4 项普通测试、相同 4 项 moving GC、生产外部消费者 1 项通过。未消费明文在已缓冲及尚未读入 SSL 两种情况下均拒绝优雅关闭；强制关闭对端可能收到平台 connection reset，测试按底层实际合同断言。
 
 ## 验证与工作目录
 

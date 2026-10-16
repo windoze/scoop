@@ -1,0 +1,51 @@
+package scoop.tls
+
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.TcpStream
+import scoop.platform.concurrent.*
+
+internal class TestTransportFailure : Exception(Some("test transport failure"))
+internal class TestCleanupFailure : Exception(Some("test cleanup failure"))
+
+internal class SyncGate : Disposable {
+    private val mutex: Mutex = Mutex()
+    private val condition: ConditionVariable = ConditionVariable(mutex)
+    private var ready: Boolean = false
+    fun signal() { mutex.withLock { ready = true; condition.broadcast() } }
+    fun awaitReady() { mutex.withLock { while (!ready) condition.await(); Unit } }
+    public override fun dispose() { condition.dispose(); mutex.dispose() }
+}
+
+internal class ShortTransport(val socket: TcpStream) : ByteSource, ByteSink, Disposable {
+    var reads: Long = 0L
+    var writes: Long = 0L
+    var closes: Int = 0
+    var failWrite: Boolean = false
+    var failClose: Boolean = false
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        reads += 1L
+        return socket.readInto(buffer, if (count > 4093L) 4093L else count)
+    }
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        writes += 1L
+        if (failWrite) throw TestTransportFailure()
+        return socket.writeFrom(buffer, if (count > 2053L) 2053L else count)
+    }
+    public override fun flush() { socket.flush() }
+    public override fun dispose() {
+        closes += 1
+        socket.dispose()
+        if (failClose) throw TestCleanupFailure()
+    }
+}
+
+internal class FailingTransport : ByteSource, ByteSink, Disposable {
+    var closes: Int = 0
+    var failClose: Boolean = false
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long { throw TestTransportFailure() }
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long { buffer.skip(count); return count }
+    public override fun flush() { throw TestTransportFailure() }
+    public override fun dispose() { closes += 1; if (failClose) throw TestCleanupFailure() }
+}

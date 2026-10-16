@@ -1,0 +1,40 @@
+package tls.consumer
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.tls.*
+import scoop.test.*
+
+@Test
+private class TlsStreamConsumerTests {
+    @Test
+    fun `production generic ownership entry points carry bidirectional TLS bytes`() {
+        consumerClientContext().use { clientConfig -> consumerServerContext().use { serverConfig ->
+            TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
+                Thread.start {
+                    tlsServer(listener.accept(), serverConfig).use { server ->
+                        NativeByteBuffer.allocate(3L).use { input ->
+                            server.readFully(input, 3L)
+                            server.writeFully(input, 3L)
+                            server.shutdownGracefully()
+                        }
+                    }
+                }.use {
+                    tlsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                        NativeByteBuffer.allocate(3L).use { bytes ->
+                            bytes.writeBytes("tls".toByteArray())
+                            client.writeFully(bytes)
+                            bytes.clear()
+                            client.readFully(bytes)
+                            assertEquals(116.toInt8(), bytes.getByte(0L))
+                            assertEquals(115.toInt8(), bytes.getByte(2L))
+                            client.shutdownGracefully()
+                        }
+                    }
+                }
+            }
+        } }
+    }
+}
