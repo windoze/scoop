@@ -1,6 +1,6 @@
-//! Member-aware relocation ownership over a verified strong-definition index.
+//! Resolve actual relocation references against definition and symbol indices.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::num::NonZeroU32;
 
@@ -215,10 +215,8 @@ impl VerifiedMemberObjectRelocationIndexV1 {
 pub fn verify_member_object_relocations_v1(
     definitions: MemberObjectDefinitionIndexV1,
 ) -> Result<VerifiedMemberObjectRelocationIndexV1, ObjectRelocationValidationError> {
-    validate_unique_undefined_symbols(&definitions)?;
     let local_symbol_owners = local_symbol_owners(&definitions);
     let envelope = definitions.sections().envelope();
-    let mut used_undefined_symbols = BTreeSet::new();
     let mut relocations = Vec::with_capacity(envelope.relocations().len());
     for relocation in envelope.relocations() {
         let section_ordinal = relocation.containing_section_ordinal();
@@ -252,12 +250,7 @@ pub fn verify_member_object_relocations_v1(
                 offset: relocation.offset(),
                 width_bytes,
             })?;
-        let shape = resolve_shape(
-            relocation.shape(),
-            &definitions,
-            &local_symbol_owners,
-            &mut used_undefined_symbols,
-        )?;
+        let shape = resolve_shape(relocation.shape(), &definitions, &local_symbol_owners)?;
         relocations.push(VerifiedRelocationUseV1 {
             member: definitions.member(),
             containing_atom: containing_atom.atom(),
@@ -267,18 +260,6 @@ pub fn verify_member_object_relocations_v1(
             width_bytes,
             encoded_value: relocation.encoded_value(),
             shape,
-        });
-    }
-    if matches!(
-        envelope.format(),
-        super::ObjectEnvelopeFormatV1::DarwinArm64
-    ) && let Some(symbol) = envelope.symbols().iter().find(|symbol| {
-        symbol.kind() == ObjectSymbolKindV1::ExternalUndefined
-            && !used_undefined_symbols.contains(&symbol.table_index())
-    }) {
-        return Err(ObjectRelocationValidationError::UnusedExternalUndefined {
-            table_index: symbol.table_index(),
-            name: symbol.name().to_vec(),
         });
     }
     Ok(VerifiedMemberObjectRelocationIndexV1 {
@@ -312,37 +293,8 @@ fn local_symbol_owners(
         .collect()
 }
 
-fn validate_unique_undefined_symbols(
-    definitions: &MemberObjectDefinitionIndexV1,
-) -> Result<(), ObjectRelocationValidationError> {
-    let mut names = BTreeMap::<Vec<u8>, u32>::new();
-    for symbol in definitions
-        .sections()
-        .envelope()
-        .symbols()
-        .iter()
-        .filter(|symbol| symbol.kind() == ObjectSymbolKindV1::ExternalUndefined)
-    {
-        if let Some(first) = names.insert(symbol.name().to_vec(), symbol.table_index()) {
-            return Err(
-                ObjectRelocationValidationError::DuplicateExternalUndefinedSymbol {
-                    name: symbol.name().to_vec(),
-                    first_table_index: first,
-                    second_table_index: symbol.table_index(),
-                },
-            );
-        }
-    }
-    Ok(())
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ObjectRelocationValidationError {
-    DuplicateExternalUndefinedSymbol {
-        name: Vec<u8>,
-        first_table_index: u32,
-        second_table_index: u32,
-    },
     UnsupportedContainingSectionOrdinal {
         section: NonZeroU32,
     },
@@ -364,10 +316,6 @@ pub enum ObjectRelocationValidationError {
     BoundaryRelocationTarget {
         atom: ObjectDefinitionAtomId,
         boundary: VerifiedBoundaryRoleV1,
-    },
-    UnusedExternalUndefined {
-        table_index: u32,
-        name: Vec<u8>,
     },
 }
 

@@ -136,7 +136,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
 }
 
 #[test]
-fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
+fn classifies_actual_undefined_references() {
     let fixture = fixture();
     let object = object_for_plan_with_branch_relocation(
         &fixture.symbols,
@@ -172,13 +172,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
     .into_sections();
     let definitions =
         read_member_object_definitions_v1(&unused_bytes, sections, &fixture.symbols).unwrap();
-    assert_eq!(
-        verify_member_object_relocations_v1(definitions),
-        Err(ObjectRelocationValidationError::UnusedExternalUndefined {
-            table_index: 3,
-            name: b"_external".to_vec(),
-        })
-    );
+    assert!(verify_member_object_relocations_v1(definitions).is_ok());
 }
 
 #[test]

@@ -27,6 +27,7 @@ impl From<ValidatedDarwinArm64ObjectEnvelopeV1> for ValidatedObjectEnvelopeV1 {
                     table_index: s.table_index(),
                     name: s.name().to_vec(),
                     kind: match s.kind() {
+                        DarwinArm64SymbolKindV1::FileMetadata => ObjectSymbolKindV1::FileMetadata,
                         DarwinArm64SymbolKindV1::LocalSectionDefinition => {
                             ObjectSymbolKindV1::LocalSectionDefinition
                         }

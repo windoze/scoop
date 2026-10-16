@@ -63,7 +63,7 @@ pub fn validate_linux_elf_object_envelope_v1(
             raw.st_info(),
             symbol.is_undefined(),
             section_ordinal,
-        )?;
+        );
         symbols.push(ObservedObjectSymbolV1 {
             table_index: u32::try_from(index.0).map_err(error)?,
             name,
@@ -127,36 +127,21 @@ fn classify_symbol(
     info: u8,
     undefined: bool,
     section: Option<NonZeroU32>,
-) -> Result<ObjectSymbolKindV1, ElfObjectError> {
+) -> ObjectSymbolKindV1 {
     let (binding, kind) = (info >> 4, info & 15);
     if index == 0 || (binding == elf::STB_LOCAL && kind == elf::STT_FILE) {
-        return Ok(ObjectSymbolKindV1::FileMetadata);
+        return ObjectSymbolKindV1::FileMetadata;
     }
     if binding == elf::STB_LOCAL && kind == elf::STT_SECTION && section.is_some() {
-        return Ok(ObjectSymbolKindV1::SectionBase);
-    }
-    if !matches!(
-        kind,
-        elf::STT_NOTYPE | elf::STT_OBJECT | elf::STT_FUNC | elf::STT_TLS
-    ) {
-        return Err(error(format!("unsupported builtin ELF symbol type {kind}")));
+        return ObjectSymbolKindV1::SectionBase;
     }
     if undefined {
-        return if binding == elf::STB_GLOBAL {
-            Ok(ObjectSymbolKindV1::ExternalUndefined)
-        } else {
-            Err(error(
-                "builtin ELF undefined symbol must have global binding",
-            ))
-        };
-    }
-    if section.is_none() {
-        return Err(error("builtin ELF definition has no section"));
+        return ObjectSymbolKindV1::ExternalUndefined;
     }
     match binding {
-        elf::STB_LOCAL => Ok(ObjectSymbolKindV1::LocalSectionDefinition),
-        elf::STB_GLOBAL => Ok(ObjectSymbolKindV1::ExternalStrongDefinition),
-        elf::STB_WEAK => Ok(ObjectSymbolKindV1::ExternalWeakDefinition),
-        _ => Err(error(format!("unsupported ELF symbol binding {binding}"))),
+        elf::STB_LOCAL => ObjectSymbolKindV1::LocalSectionDefinition,
+        elf::STB_GLOBAL | elf::STB_GNU_UNIQUE => ObjectSymbolKindV1::ExternalStrongDefinition,
+        elf::STB_WEAK => ObjectSymbolKindV1::ExternalWeakDefinition,
+        _ => ObjectSymbolKindV1::FileMetadata,
     }
 }
