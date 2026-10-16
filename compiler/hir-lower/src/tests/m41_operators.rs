@@ -12,7 +12,7 @@ fn ordinary_float_members_fit_literal_receivers_in_source_core() {
 
 #[test]
 fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
-    let output = bootstrap_sysroot();
+    let output = core::bootstrap_sysroot("").unwrap();
     let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(&output.export).unwrap();
     let classifier =
         hir::NominalExactLeafClassifierV1::try_from_nominal_interfaces(nominals.all_records())
@@ -85,7 +85,7 @@ fn intrinsic_interface_entries_retain_exact_signatures_and_effects() {
 
 #[test]
 fn concrete_bound_call_keeps_direct_integer_operation() {
-    let output = core::lower_with_sysroot(include_str!(concat!(
+    let output = core::bootstrap_sysroot(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m41-add/basic/program.scoop"
     )))
@@ -121,38 +121,4 @@ fn concrete_bound_call_keeps_direct_integer_operation() {
             }),
         "the concrete bound call remains a direct integer operation"
     );
-}
-
-fn bootstrap_sysroot() -> hir::Output {
-    let root =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/lib/scoop.core/src");
-    let mut paths = std::fs::read_dir(root)
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "scoop"))
-        .collect::<Vec<_>>();
-    paths.sort();
-    let text = paths
-        .iter()
-        .map(|path| std::fs::read_to_string(path).unwrap())
-        .collect::<Vec<_>>()
-        .join("\n");
-    let identity = core_source_identity("src/core.scoop");
-    let parsed = ast::CurrentConeParsedSources::try_new(
-        ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
-            ast::IdentifiedParsedSource::new(identity.clone(), scoop_parser::parse(&text).unwrap()),
-            Vec::new(),
-        ))
-        .unwrap(),
-        ast::NonEmptyVec::new(
-            ast::CurrentSourceText::new(identity.clone(), text),
-            Vec::new(),
-        ),
-        ast::NonEmptyVec::new(
-            ast::CurrentSourceDiagnosticContext::new(identity, std::path::PathBuf::from("<core>")),
-            Vec::new(),
-        ),
-    )
-    .unwrap();
-    crate::lower_core_bootstrap(&parsed).unwrap()
 }

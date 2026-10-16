@@ -12,8 +12,8 @@
 | TCP | 已实现，本机 debug／release／moving GC 定向验收通过 |
 | DNS | 已实现，本机 debug／release／moving GC 验收通过 |
 | 文件 | 已实现，本机八项定向及完整 asyncio release／moving GC 验收通过 |
-| UDP | 已实现，本机八项 debug 和完整四十五项 release 通过；moving GC 与 Linux 整体验收进行中 |
-| 三目标组合及完整验收 | 待实施 |
+| UDP | 已实现，本机完整四十五项 debug／release／moving GC 通过 |
+| 三目标组合及完整验收 | Linux GNU／musl 完整验收进行中 |
 
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
 
@@ -79,6 +79,12 @@ UDP 的 debug 测试通过后，release 对象暴露已有边界缺口：LLVM �
 
 新增 bind／单报文收发、IPv4／IPv6、空包、来源与截断、取消和幂等关闭。绑定通过 platform helper 与 uv_udp_open_ex 保留 reuseAddress=false；发送保留完整长度并等待真实 callback，取消不撤回已发报文。接收完成在 native 结束后释放 packet 存储，提交实际 buffer 进度；TCP／UDP 共用已有的双向预留和关闭状态，不新增执行器或后台管理框架。UDP 实现文件最长 76 行，测试最长 84 行。
 
-八项同 Cone debug 测试及整个 asyncio 四十五项 release 测试通过。覆盖整包与超大报文失败、每方向互斥、取消后继续使用、同时收发时关闭、迟到 bind 释放端口，以及文件／DNS／定时器组合。常量段前置修复已先独立验收和提交。workspace clippy、C11 严格告警与差异检查通过；moving GC 仍在运行。
+八项同 Cone debug 测试及整个 asyncio 四十五项 debug／release／moving GC 测试通过。覆盖整包与超大报文失败、每方向互斥、取消后继续使用、同时收发时关闭、迟到 bind 释放端口，以及文件／DNS／定时器组合。常量段前置修复已先独立验收和提交。workspace clippy、C11 严格告警与差异检查通过。两个新增 platform helper 测试另通过 release 补验。
 
 Linux 已清理旧 target 55.5 GiB，同步已提交的编译器并完成 fmt／clippy／release 构建，Rust 全量正在运行。musl-gcc 原环境缺少 libuv 所需 Linux UAPI；在仓库外通过普通 --cc 包装脚本加入系统 linux／asm／asm-generic 头文件路径，vendor 未修改，未混用 glibc 用户态头文件。GNU／musl 完整库与 CLI 验收随后执行。
+
+## Linux Rust 测试输入修正
+
+全量 Rust 在 HIR lower 的 1,474 项中发现三项结构测试把完整 core 源码标记为外部 Cone，却未提供外部 MIR 依赖；core 新增实际协程调用后显露此问题。将已有正式 core bootstrap 测试 helper 移到共用位置，三项继续降到 MIR 的测试改用完整 core Cone 输入，保留原结构断言。生产实现和 pipeline 契约不变。
+
+本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组并继续尚未执行的 crate；GNU／musl asyncio debug 各四十五项通过，后续 profile 与完整 CLI 验收继续运行。

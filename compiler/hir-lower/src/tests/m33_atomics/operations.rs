@@ -19,7 +19,7 @@ fn atomic_methods_normalize_through_source_generics_and_reference_types() {
         )),
     ]
     .join("\n");
-    let output = super::super::core::lower_with_sysroot(&source).unwrap();
+    let output = super::super::core::bootstrap_sysroot(&source).unwrap();
     let module = scoop_mir_lower::lower(&output.local).unwrap();
     let dump = scoop_mir::dump(&module);
     for operation in ["AtomicLoad", "AtomicStore", "AtomicRmw", "AtomicCmpXchg"] {
