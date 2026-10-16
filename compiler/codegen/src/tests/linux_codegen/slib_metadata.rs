@@ -1,5 +1,4 @@
 use super::slib_support::SlibObjects;
-use super::*;
 use scoop_slib::*;
 
 #[test]
