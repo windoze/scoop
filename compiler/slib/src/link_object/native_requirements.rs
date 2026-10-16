@@ -100,19 +100,6 @@ fn verify_source_external_requirements_from_candidates_v1(
     candidates: Vec<StrongRelocationBindingV1>,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
 ) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
-    if cross_cone_closure.producer() != native_requirements.producer() {
-        return Err(SourceExternalRequirementValidationError::ProducerMismatch {
-            object: cross_cone_closure.producer(),
-            native: native_requirements.producer(),
-        });
-    }
-    if cross_cone_closure.target() != native_requirements.target() {
-        return Err(SourceExternalRequirementValidationError::TargetMismatch {
-            object: cross_cone_closure.target(),
-            native: native_requirements.target(),
-        });
-    }
-
     let requirements = native_requirements
         .contracts()
         .iter()
@@ -166,14 +153,6 @@ fn verify_source_external_requirements_from_candidates_v1(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceExternalRequirementValidationError {
-    ProducerMismatch {
-        object: ConeIdentity,
-        native: ConeIdentity,
-    },
-    TargetMismatch {
-        object: LirTargetProfile,
-        native: LirTargetProfile,
-    },
     TlsRelocationContractMismatch {
         contract: scoop_identity::NativeExternalContractFingerprint,
         form: VerifiedObjectRelocationFormV1,

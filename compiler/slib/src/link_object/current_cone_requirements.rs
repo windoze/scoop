@@ -79,15 +79,6 @@ pub fn verify_current_cone_undefined_requirements_v1(
     VerifiedCurrentConeUndefinedRequirementClosureV1,
     CurrentConeUndefinedRequirementValidationError,
 > {
-    if strong_closure.producer() != generated_bridges.producer() {
-        return Err(
-            CurrentConeUndefinedRequirementValidationError::ProducerMismatch {
-                object: strong_closure.producer(),
-                bridge: generated_bridges.producer(),
-            },
-        );
-    }
-
     let mut bridge_atoms = BTreeMap::new();
     for unit in generated_bridges.units() {
         bridge_atoms.insert(unit.primary_atom(), unit.unit());
@@ -156,10 +147,6 @@ pub fn verify_current_cone_undefined_requirements_v1(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CurrentConeUndefinedRequirementValidationError {
-    ProducerMismatch {
-        object: ConeIdentity,
-        bridge: ConeIdentity,
-    },
     UnplannedGeneratedBridgeAtom {
         atom: GeneratedBridgeAtomId,
     },

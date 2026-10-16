@@ -23,7 +23,7 @@ pub(crate) fn complete_requirements(
         &input.c_bridge_profile,
     )
     .map_err(BuiltinObjectProductionError::CBridgeTargetSupportRequirements)?;
-    let external = seal_builtin_object_external_requirements_v1(external)
+    let external = finish_builtin_external_requirements_v1(external)
         .map_err(BuiltinObjectProductionError::UnclassifiedExternalRequirement)?;
     slib::finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, shape)
         .map_err(BuiltinObjectProductionError::UndefinedSymbols)

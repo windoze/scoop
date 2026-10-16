@@ -85,13 +85,6 @@ pub fn verify_runtime_and_eh_requirements_v1(
     source_closure: VerifiedSourceExternalRequirementClosureV1,
     selection: ValidatedLirTargetSelection,
 ) -> Result<VerifiedRuntimeAndEhRequirementClosureV1, RuntimeAndEhRequirementValidationError> {
-    if source_closure.target() != selection.target() {
-        return Err(RuntimeAndEhRequirementValidationError::TargetMismatch {
-            object: source_closure.target(),
-            selection: selection.target(),
-        });
-    }
-
     let runtime_registry = RuntimeSymbolContractRegistryV1::current(selection.target())?;
     let eh_registry = TargetEhRequirementRegistryV1::current(selection)?;
     let mut runtime_requirements = Vec::new();
@@ -174,10 +167,6 @@ fn validate_runtime_relocation(
 
 #[derive(Debug)]
 pub enum RuntimeAndEhRequirementValidationError {
-    TargetMismatch {
-        object: scoop_lir::LirTargetProfile,
-        selection: scoop_lir::LirTargetProfile,
-    },
     Registry(RuntimeRequirementRegistryError),
     AmbiguousRegisteredObjectSymbol {
         symbol: Vec<u8>,

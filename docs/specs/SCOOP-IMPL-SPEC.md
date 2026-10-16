@@ -394,6 +394,8 @@ Code 指纹直接编码已有的定义、undefined requirements、native contrac
 
 generated-C 的 external requirements 直接复用实际符号分类；target helper 从当前工具链 registry 取得合同。bridge 计划只用于区分自身 source extern 与编译器辅助调用的同名符号，不重建 definition／atom 集合、扫描必需调用覆盖或证明机器 relocation 与模板相同。Scoop LIR 自身产生的 memcpy、TLS 等正常辅助引用使用同一 registry。未知引用按普通链接需求报错。
 
+undefined requirements 完成普通分类后直接合并、排序，保留 callable／shape 的实际依赖分区。finalizer 不重建全部 relocation uses 做 coverage／重叠证明，也不比较 current／external／shape 闭包副本；查找真实 import 时保留索引边界错误。完成分类的外部需求使用同一数据类型，不再套封口资格包装。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

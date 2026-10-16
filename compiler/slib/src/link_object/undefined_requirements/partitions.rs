@@ -2,11 +2,10 @@
 
 use super::{
     CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
-    FinalUndefinedSymbolRequirementV1, UndefinedSymbolRequirementFinalizationError,
-    finalize_partitioned_undefined_symbol_requirements_inner,
+    FinalUndefinedSymbolRequirementV1, finalize_undefined_symbol_requirements_v1,
 };
 use crate::link_object::{
-    SealedBuiltinObjectExternalRequirementClosureV1, VerifiedCrossConeStrongRequirementClosureV1,
+    BuiltinExternalRequirementsV1, VerifiedCrossConeStrongRequirementClosureV1,
     VerifiedCurrentConeUndefinedRequirementClosureV1,
 };
 use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
@@ -157,12 +156,9 @@ impl FinalizedUndefinedSymbolRequirementPartitionsV1 {
 
 pub fn finalize_partitioned_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: SealedBuiltinObjectExternalRequirementClosureV1,
-) -> Result<
-    FinalizedUndefinedSymbolRequirementPartitionsV1,
-    UndefinedSymbolRequirementFinalizationError,
-> {
+    external: BuiltinExternalRequirementsV1,
+) -> FinalizedUndefinedSymbolRequirementPartitionsV1 {
     let cross_cone = external.cross_cone_closure().clone();
-    let legacy = finalize_partitioned_undefined_symbol_requirements_inner(current_cone, external)?;
-    Ok(FinalizedUndefinedSymbolRequirementPartitionsV1 { legacy, cross_cone })
+    let legacy = finalize_undefined_symbol_requirements_v1(current_cone, external);
+    FinalizedUndefinedSymbolRequirementPartitionsV1 { legacy, cross_cone }
 }

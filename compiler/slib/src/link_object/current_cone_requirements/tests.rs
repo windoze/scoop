@@ -87,27 +87,6 @@ fn maps_planned_entry_and_materialized_descriptor_to_their_unit() {
     );
 }
 
-#[test]
-fn requires_the_bridge_plan_to_belong_to_the_object_producer() {
-    let source = fixture_named("producerMismatch");
-    let closure = verify_current_cone_strong_relocation_closure_v1(vec![
-        verified_member_without_relocations(&source),
-    ])
-    .unwrap();
-    assert_eq!(
-        verify_current_cone_undefined_requirements_v1(
-            closure,
-            empty_bridge_plan(ConeIdentity::SINGLE_FILE),
-        ),
-        Err(
-            CurrentConeUndefinedRequirementValidationError::ProducerMismatch {
-                object: ConeIdentity::CORE,
-                bridge: ConeIdentity::SINGLE_FILE,
-            }
-        )
-    );
-}
-
 fn synthetic_cross_member_closure(
     owner: LinkDefinitionOwnerV1,
 ) -> VerifiedCurrentConeStrongRelocationClosureV1 {

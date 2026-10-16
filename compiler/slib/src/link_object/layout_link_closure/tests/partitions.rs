@@ -3,9 +3,7 @@ use scoop_lir::*;
 use scoop_wire::encode_runtime;
 
 use super::*;
-use crate::link_object::native_requirements::tests::{
-    contract_record, dependency_closure, native_surface,
-};
+use crate::link_object::native_requirements::tests::native_surface;
 use crate::link_object::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
@@ -75,15 +73,6 @@ fn old_callable(consumer: ConeIdentity) -> OldCallable {
     }
 }
 
-fn dependencies_for_strong(
-    strong: VerifiedCurrentConeStrongRelocationClosureV1,
-) -> VerifiedCrossConeStrongRequirementClosureV1 {
-    let producer = strong.producer();
-    let object = fixture_for_producer(producer, "layoutPartitionCoreOwnerSeed");
-    let seed = dependency_closure(verified_member_without_relocations(&object));
-    verify_dependency_strong_requirements_v1(TARGET, strong, seed.dependency_owners()).unwrap()
-}
-
 #[test]
 fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definition() {
     let consumer_id = ConeIdentity::SINGLE_FILE;
@@ -139,49 +128,7 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
     let external =
-        seal_builtin_object_external_requirements_v1(without_target_support_for_test(runtime))
-            .unwrap();
-
-    let native_collision = std::str::from_utf8(shape_symbol.strip_prefix(b"_").unwrap()).unwrap();
-    let source = verify_source_external_requirements_v1(
-        old.clone(),
-        native_surface(
-            consumer_id,
-            vec![contract_record(
-                consumer_id,
-                "shapeCollision",
-                native_collision,
-                NativeLibraryBinding::DefaultNativeNamespace,
-            )],
-            vec![],
-        ),
-    )
-    .unwrap();
-    let runtime =
-        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
-            .unwrap();
-    let overlapping_external =
-        seal_builtin_object_external_requirements_v1(without_target_support_for_test(runtime))
-            .unwrap();
-    assert!(matches!(
-        finalize_layout_partitioned_undefined_symbol_requirements_v1(
-            current.clone(),
-            overlapping_external,
-            &shape,
-        ),
-        Err(UndefinedSymbolRequirementFinalizationError::CrossConeUseOverlap { .. })
-    ));
-
-    assert!(matches!(
-        finalize_partitioned_undefined_symbol_requirements_v1(current.clone(), external.clone()),
-        Err(
-            UndefinedSymbolRequirementFinalizationError::RequirementCoverageMismatch {
-                expected: 3,
-                actual: 2,
-                ..
-            }
-        )
-    ));
+        finish_builtin_external_requirements_v1(without_target_support_for_test(runtime)).unwrap();
 
     let partitions = finalize_layout_partitioned_undefined_symbol_requirements_v1(
         current,
@@ -220,29 +167,5 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
             provider: callable.provider,
             target: callable.target,
         }
-    );
-
-    let wrong_object = fixture_for_producer(consumer_id, "wrongShapeProof");
-    let wrong_legacy = dependencies_for_strong(
-        verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
-            &wrong_object,
-            &shape_symbol,
-        )])
-        .unwrap(),
-    );
-    let wrong_shape = verify_external_shape_requirements_v1(
-        &wrong_legacy,
-        layout.selected().consumer(),
-        layout.selected().physical_imports(),
-    )
-    .unwrap();
-    assert_eq!(
-        finalize_layout_partitioned_undefined_symbol_requirements_v1(
-            verify_current_cone_undefined_requirements_v1(strong, empty_bridge_plan(consumer_id))
-                .unwrap(),
-            external,
-            &wrong_shape,
-        ),
-        Err(UndefinedSymbolRequirementFinalizationError::ExternalShapeClosureMismatch)
     );
 }

@@ -31,7 +31,7 @@ impl CBridgeTargetSupportRequirementUseV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedCBridgeTargetSupportRequirementClosureV1 {
+pub struct BuiltinExternalRequirementsV1 {
     runtime_and_eh: VerifiedRuntimeAndEhRequirementClosureV1,
     source_external_requirements: Vec<SourceExternalRequirementUseV1>,
     runtime_requirements: Vec<RuntimeAbiRequirementUseV1>,
@@ -40,7 +40,7 @@ pub struct VerifiedCBridgeTargetSupportRequirementClosureV1 {
     remaining_external_candidates: Vec<StrongRelocationBindingV1>,
 }
 
-impl VerifiedCBridgeTargetSupportRequirementClosureV1 {
+impl BuiltinExternalRequirementsV1 {
     pub const fn producer(&self) -> ConeIdentity {
         self.runtime_and_eh.producer()
     }
@@ -85,10 +85,7 @@ pub fn classify_c_bridge_target_support_requirements_v1(
     runtime_and_eh: VerifiedRuntimeAndEhRequirementClosureV1,
     bridge_plan: &scoop_lir::GeneratedBridgePlanSetV1,
     profile: &scoop_lir::CBridgeToolchainProfileV1,
-) -> Result<
-    VerifiedCBridgeTargetSupportRequirementClosureV1,
-    scoop_lir::CBridgeTargetSupportRegistryError,
-> {
+) -> Result<BuiltinExternalRequirementsV1, scoop_lir::CBridgeTargetSupportRegistryError> {
     let target = runtime_and_eh.selection().target();
     let registry = scoop_lir::CBridgeTargetSupportRegistryV1::current(target, profile)?;
     let bridges = bridge_native_contracts(&runtime_and_eh, bridge_plan);
@@ -125,7 +122,7 @@ pub fn classify_c_bridge_target_support_requirements_v1(
             remaining_external_candidates.push(binding.clone());
         }
     }
-    Ok(VerifiedCBridgeTargetSupportRequirementClosureV1 {
+    Ok(BuiltinExternalRequirementsV1 {
         source_external_requirements,
         runtime_requirements: runtime_and_eh.runtime_requirements().to_vec(),
         target_eh_requirements: runtime_and_eh.target_eh_requirements().to_vec(),
@@ -188,8 +185,8 @@ fn bridge_native_contracts(
 #[cfg(test)]
 pub(in crate::link_object) fn without_target_support_for_test(
     runtime_and_eh: VerifiedRuntimeAndEhRequirementClosureV1,
-) -> VerifiedCBridgeTargetSupportRequirementClosureV1 {
-    VerifiedCBridgeTargetSupportRequirementClosureV1 {
+) -> BuiltinExternalRequirementsV1 {
+    BuiltinExternalRequirementsV1 {
         source_external_requirements: runtime_and_eh
             .source_closure()
             .source_external_requirements()
@@ -202,31 +199,9 @@ pub(in crate::link_object) fn without_target_support_for_test(
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SealedBuiltinObjectExternalRequirementClosureV1 {
-    verified: VerifiedCBridgeTargetSupportRequirementClosureV1,
-}
-
-impl SealedBuiltinObjectExternalRequirementClosureV1 {
-    pub const fn producer(&self) -> ConeIdentity {
-        self.verified.producer()
-    }
-
-    pub const fn verified(&self) -> &VerifiedCBridgeTargetSupportRequirementClosureV1 {
-        &self.verified
-    }
-
-    pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
-        self.verified.cross_cone_closure()
-    }
-}
-
-pub fn seal_builtin_object_external_requirements_v1(
-    verified: VerifiedCBridgeTargetSupportRequirementClosureV1,
-) -> Result<
-    SealedBuiltinObjectExternalRequirementClosureV1,
-    BuiltinObjectExternalRequirementClosureError,
-> {
+pub fn finish_builtin_external_requirements_v1(
+    verified: BuiltinExternalRequirementsV1,
+) -> Result<BuiltinExternalRequirementsV1, BuiltinObjectExternalRequirementClosureError> {
     if let Some(binding) = verified.remaining_external_candidates().first() {
         return Err(
             BuiltinObjectExternalRequirementClosureError::UnclassifiedExternalRelocation {
@@ -236,7 +211,7 @@ pub fn seal_builtin_object_external_requirements_v1(
             },
         );
     }
-    Ok(SealedBuiltinObjectExternalRequirementClosureV1 { verified })
+    Ok(verified)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

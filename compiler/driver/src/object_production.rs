@@ -32,8 +32,8 @@ use scoop_slib::{
     classify_c_bridge_target_support_requirements_v1, compute_strong_callable_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1, compute_strong_safepoint_fingerprints_v1,
     compute_strong_static_storage_fingerprints_v1,
-    compute_strong_static_storage_shape_fingerprints_v1, read_generated_c_objects_v1,
-    read_scoop_stackmaps_v1, seal_builtin_object_external_requirements_v1,
+    compute_strong_static_storage_shape_fingerprints_v1, finish_builtin_external_requirements_v1,
+    read_generated_c_objects_v1, read_scoop_stackmaps_v1,
     verify_builtin_object_strong_relocations_v1, verify_current_cone_undefined_requirements_v1,
     verify_runtime_and_eh_requirements_v1,
 };

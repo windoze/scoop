@@ -1514,7 +1514,7 @@ strong relocation closure中除object-local strong以外的全部use；两个不
 - C-bridge target support 按当前目标工具链 registry 与实际辅助符号归类，generated-C 和 Scoop LIR 均可产生这些需求；
 - M23-9/M23-10在完整closure/final input上解析后五类实际provider。
 
-任何undefined symbol没有requirement、一个use命中多个requirement、requirement symbol与object不符或外部contract只剩library名字都使Link proof失败。root Cone没有直接使用某个上游extern也不能在以后丢弃该requirement。
+实际 undefined symbol 必须有普通符号／native／runtime／target requirement，真实缺失引用照常报错；root Cone 没有直接使用某个上游 extern 也不能丢弃该 requirement。已分类数据直接合并、排序，并保留 callable／shape 分区，不重建 use 全集来比较 coverage、重叠或生产闭包副本，不增加封口资格包装。
 
 object-local strong relocation已经在member verifier内完成解析，不进入undefined requirement集合；
 只有以undefined symbol形式跨member命中当前artifact定义的use才形成`IntraConeStrong`或

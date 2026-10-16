@@ -23,7 +23,7 @@ fn classifies_generated_c_target_support() {
     assert_eq!(support.use_site().symbol(), b"_memcpy");
     let producer = verified.producer();
     assert_eq!(
-        seal_builtin_object_external_requirements_v1(verified)
+        finish_builtin_external_requirements_v1(verified)
             .unwrap()
             .producer(),
         producer
@@ -74,7 +74,7 @@ fn scoop_codegen_helpers_use_the_target_registry() {
 
 pub(in crate::link_object) fn support_closure(
     include_memcpy_source_contract: bool,
-) -> VerifiedCBridgeTargetSupportRequirementClosureV1 {
+) -> BuiltinExternalRequirementsV1 {
     let fixture = if include_memcpy_source_contract {
         semantic_fixture_with_additional_contracts(
             "native_bridge",

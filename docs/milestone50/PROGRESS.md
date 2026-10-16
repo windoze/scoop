@@ -23,8 +23,9 @@
 17. Digest 槽位：统一为 intent／member／offset 数据，宽度固定 32；直接建立查询索引。删除零槽读回、relocation 扫描、graph／覆盖回放及无生产消费者的资格字段，driver 复用 codegen 的成员归属。
 18. Code 与归档组装：直接编码已有定义／引用／imports，删除闭包深比较、定义表重建比较和各组件 producer／target 副本检查；数据类型改为实际指纹结果，保留编码与往返测试。
 19. generated-C requirements：删除 definition／atom／必需调用／机器 relocation 的 semantic proof 回放及其测试；按实际引用和工具链 registry 分类 helper，复用 bridge 计划处理同名 source extern，Scoop LIR 正常 helper 同样可用。
-20. 待完成：其余对象与阶段输出重复证明、同类要求及最终验收。
-21. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+20. Undefined requirements：直接合并既有分类并保留依赖分区，删除 use 全集重建／coverage／重叠回放、producer／target 副本检查及封口包装；保持实际未知符号和 import 索引诊断。
+21. 待完成：其余对象与阶段输出重复证明、同类要求及最终验收。
+22. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -67,3 +68,5 @@ Digest 槽位批次：格式化、workspace clippy 无警告；release slib link
 Code 与组装批次：格式化、workspace clippy 无警告；release slib 全部 275 项通过。上一批后已清理 debug target 1.7 GiB，保留 release 工具。
 
 generated-C requirements 批次：格式化、workspace clippy 无警告；release slib link_object 157 项通过，覆盖实际 helper 分类和同名 source extern。Linux 专用 helper 调用已同步，执行留待目标验证。
+
+Undefined requirements 批次：格式化、workspace clippy 无警告；release slib link_object 154 项通过，实际 requirement 固定编码与跨 Cone 分区结果保持通过。
