@@ -58,12 +58,8 @@ fn dependency_descriptor_keeps_provider_in_semantics_and_exact_identity_in_reloc
 
 #[test]
 fn dispatch_fingerprint_encoding_preserves_local_tags_and_binds_external_provider() {
-    use crate::link_object::stackmap_normalization::verification::tests::support::{
-        Corruption, semantic,
-    };
-    let body = semantic::inputs(Corruption::None).module.functions[0]
-        .callable_body
-        .id();
+    use crate::link_object::stackmap_normalization::verification::tests::support::semantic;
+    let body = semantic::inputs().module.functions[0].callable_body.id();
     let (old, current, tag) = (
         StrongTypeDispatchCallableRefV1::Local(body),
         StrongTypeDispatchCallableRefV2::Local(body),

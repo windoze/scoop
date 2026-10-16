@@ -118,35 +118,4 @@ pub(super) fn push_sections(
         )
         .unwrap()] ^= 1;
     }
-    if matches!(
-        corruption,
-        Corruption::StaticRegistrationMagic | Corruption::StaticScanProgram
-    ) {
-        let registration = &static_storage_registrations.registrations()[0];
-        let virtual_offset = if matches!(corruption, Corruption::StaticRegistrationMagic) {
-            static_registration_start(
-                registration,
-                stackmap.len(),
-                registrations,
-                callable_registrations,
-                type_registrations,
-                immortal_registrations,
-                static_storage_registrations,
-            )
-        } else {
-            static_scan_start(
-                registration,
-                stackmap.len(),
-                registrations,
-                callable_registrations,
-                type_registrations,
-                immortal_registrations,
-                static_storage_registrations,
-            )
-        };
-        let file_offset = u64::from(registration_offset) + virtual_offset
-            - TEXT_SIZE
-            - u64::try_from(stackmap.len()).unwrap();
-        bytes[usize::try_from(file_offset).unwrap()] ^= 1;
-    }
 }

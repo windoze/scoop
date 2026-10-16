@@ -96,7 +96,7 @@ where
 }
 
 pub(super) fn patch_static_storages(
-    fingerprints: &VerifiedStrongStaticStorageFingerprintSetV1,
+    fingerprints: &StaticStorageFingerprintSetV1,
     object_indexes: &BTreeMap<SlibMemberId, usize>,
     objects: &mut [(SlibMemberId, Vec<u8>)],
 ) -> Result<(), StrongRegistrationPatchError> {

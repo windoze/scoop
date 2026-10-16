@@ -8,7 +8,7 @@ use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
-use super::VerifiedStrongStaticStorageRegistrationSetV1;
+use super::StaticStorageRegistrationDataV1;
 use crate::link_object::{LayoutFingerprintV1, ScanFingerprintV1};
 
 const LAYOUT_DOMAIN: &str = "scoop-layout-v1";
@@ -16,7 +16,7 @@ const SCAN_DOMAIN: &str = "scoop-scan-v1";
 const STATIC_VALUE_LAYOUT_KIND: u32 = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongStaticStorageShapeFingerprintV1 {
+pub struct StaticStorageShapeFingerprintV1 {
     storage: PersistentStaticStorageId,
     layout: PersistentLayoutId,
     layout_node: DigestNodeId,
@@ -26,7 +26,7 @@ pub struct VerifiedStrongStaticStorageShapeFingerprintV1 {
     scan_fingerprint: ScanFingerprintV1,
 }
 
-impl VerifiedStrongStaticStorageShapeFingerprintV1 {
+impl StaticStorageShapeFingerprintV1 {
     pub const fn storage(self) -> PersistentStaticStorageId {
         self.storage
     }
@@ -56,47 +56,35 @@ impl VerifiedStrongStaticStorageShapeFingerprintV1 {
     }
 }
 
-/// Layout and scan leaves rebuilt from the same closed static-storage plan
-/// whose complete physical artifacts produced the storage definition leaves.
+/// Layout and scan fingerprints computed from the generated static-storage plan.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongStaticStorageShapeFingerprintSetV1 {
-    registrations: VerifiedStrongStaticStorageRegistrationSetV1,
-    fingerprints: Vec<VerifiedStrongStaticStorageShapeFingerprintV1>,
+pub struct StaticStorageShapeFingerprintSetV1 {
+    registrations: StaticStorageRegistrationDataV1,
+    fingerprints: Vec<StaticStorageShapeFingerprintV1>,
 }
 
-impl VerifiedStrongStaticStorageShapeFingerprintSetV1 {
+impl StaticStorageShapeFingerprintSetV1 {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.registrations.producer()
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
+    pub const fn registrations(&self) -> &StaticStorageRegistrationDataV1 {
         &self.registrations
     }
 
-    pub fn fingerprints(&self) -> &[VerifiedStrongStaticStorageShapeFingerprintV1] {
+    pub fn fingerprints(&self) -> &[StaticStorageShapeFingerprintV1] {
         &self.fingerprints
     }
 }
 
 pub fn compute_strong_static_storage_shape_fingerprints_v1(
-    registrations: VerifiedStrongStaticStorageRegistrationSetV1,
-) -> Result<
-    VerifiedStrongStaticStorageShapeFingerprintSetV1,
-    StrongStaticStorageShapeFingerprintError,
-> {
-    let verified = registrations.registrations();
+    registrations: StaticStorageRegistrationDataV1,
+) -> Result<StaticStorageShapeFingerprintSetV1, StrongStaticStorageShapeFingerprintError> {
     let planned = registrations.plan().registrations();
-    if verified.len() != planned.len() {
-        return Err(StrongStaticStorageShapeFingerprintError::ProofCoverageMismatch);
-    }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
-    for (verified, plan) in verified.iter().zip(planned) {
+    let mut fingerprints = Vec::with_capacity(planned.len());
+    for plan in planned {
         let semantic = plan.semantic();
         let storage = semantic.storage();
-        if verified.storage() != storage {
-            return Err(StrongStaticStorageShapeFingerprintError::InputProofMismatch { storage });
-        }
         let layout_fingerprint = static_layout_fingerprint(
             semantic.layout(),
             semantic.byte_size(),
@@ -108,7 +96,7 @@ pub fn compute_strong_static_storage_shape_fingerprints_v1(
         let scan_fingerprint = scan_fingerprint(semantic.scan_program()).map_err(|source| {
             StrongStaticStorageShapeFingerprintError::ScanHash { storage, source }
         })?;
-        fingerprints.push(VerifiedStrongStaticStorageShapeFingerprintV1 {
+        fingerprints.push(StaticStorageShapeFingerprintV1 {
             storage,
             layout: semantic.layout(),
             layout_node: plan.layout_fingerprint_node(),
@@ -119,7 +107,7 @@ pub fn compute_strong_static_storage_shape_fingerprints_v1(
         });
     }
 
-    Ok(VerifiedStrongStaticStorageShapeFingerprintSetV1 {
+    Ok(StaticStorageShapeFingerprintSetV1 {
         registrations,
         fingerprints,
     })
@@ -184,10 +172,6 @@ impl RuntimeEncode for StaticScanFingerprintInputV1<'_> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongStaticStorageShapeFingerprintError {
-    ProofCoverageMismatch,
-    InputProofMismatch {
-        storage: PersistentStaticStorageId,
-    },
     LayoutHash {
         storage: PersistentStaticStorageId,
         source: HashError,
@@ -211,7 +195,6 @@ impl std::error::Error for StrongStaticStorageShapeFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::LayoutHash { source, .. } | Self::ScanHash { source, .. } => Some(source),
-            _ => None,
         }
     }
 }

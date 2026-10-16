@@ -1,19 +1,13 @@
 use super::*;
+use crate::link_object::bind_static_storage_registrations_v1;
 use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
-};
-use crate::link_object::{
-    ScoopLirObjectCandidateV1, verify_strong_static_storage_registrations_v1,
 };
 
 #[test]
 fn computes_static_layout_and_scan_leaves_from_the_closed_plan() {
     let fixture = Fixture::new(Corruption::None);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let definitions = storage_definitions(&fixture, &objects);
+    let definitions = storage_definitions(&fixture);
 
     let fingerprints = compute_strong_static_storage_shape_fingerprints_v1(definitions).unwrap();
 
@@ -57,14 +51,10 @@ fn scan_leaf_commits_the_canonical_reference_offsets() {
     assert_ne!(first, second);
 }
 
-fn storage_definitions(
-    fixture: &Fixture,
-    objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> VerifiedStrongStaticStorageRegistrationSetV1 {
-    verify_strong_static_storage_registrations_v1(
-        fixture.verified_patch_sites(),
+fn storage_definitions(fixture: &Fixture) -> StaticStorageRegistrationDataV1 {
+    bind_static_storage_registrations_v1(
+        &fixture.verified_patch_sites(),
         fixture.static_storage_registration_plan.clone(),
-        objects,
     )
     .unwrap()
 }

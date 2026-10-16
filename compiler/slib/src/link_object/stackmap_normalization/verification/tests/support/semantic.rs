@@ -31,8 +31,6 @@ use scoop_lir::{
     VtableRecord, WellKnownTypeDescriptors,
 };
 
-use super::Corruption;
-
 mod artifacts;
 mod foundation;
 mod module;
@@ -56,8 +54,8 @@ pub(crate) struct SemanticInputs {
     pub(crate) safepoint_ids: Vec<u64>,
 }
 
-pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
-    let (module, body, safepoints) = semantic_module(corruption);
+pub(crate) fn inputs() -> SemanticInputs {
+    let (module, body, safepoints) = semantic_module();
     let (
         foundation,
         registrations,
@@ -137,7 +135,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
 
 #[test]
 fn complete_registration_production_uses_the_closed_eight_field_shape() {
-    let inputs = inputs(Corruption::None);
+    let inputs = inputs();
     let encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
     assert_eq!(encoded[0], 0xa8);
     let decoded =

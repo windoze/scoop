@@ -29,16 +29,6 @@ pub(crate) enum Corruption {
     TypeDescriptorScalar,
     TypeDescriptorDiagnosticBytes,
     TypeDescriptorDiagnosticRelocationTarget,
-    StaticRegistrationMagic,
-    StaticScanProgram,
-    StaticStorageRelocationTarget,
-    StaticInitialStorageRelocationTarget,
-    StaticInitialTableRelocationTarget,
-    StaticZeroedInitialState,
-    StaticZeroedWritableSection,
-    StaticEncodedEmptyInitialState,
-    StaticEncodedZeroFillSection,
-    StaticAliasedSentinels,
 }
 
 pub(crate) struct Fixture {
@@ -61,7 +51,7 @@ pub(crate) struct Fixture {
 
 impl Fixture {
     pub(crate) fn new(corruption: Corruption) -> Self {
-        let inputs = semantic::inputs(corruption);
+        let inputs = semantic::inputs();
         let canonical_callables =
             scoop_lir::CanonicalCallableAbisV1::from_module(&inputs.module, &inputs.foundation)
                 .unwrap();

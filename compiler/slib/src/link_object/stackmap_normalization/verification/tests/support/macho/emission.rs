@@ -57,22 +57,16 @@ pub(super) fn macho_object(
             .sum::<usize>(),
     )
     .unwrap();
-    let storage_is_zero_fill = if matches!(corruption, Corruption::StaticZeroedWritableSection) {
-        false
-    } else if matches!(corruption, Corruption::StaticEncodedZeroFillSection) {
-        true
-    } else {
-        !static_storage_registrations.registrations().is_empty()
-            && static_storage_registrations
-                .registrations()
-                .iter()
-                .all(|registration| {
-                    matches!(
-                        registration.initial_artifacts(),
-                        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
-                    )
-                })
-    };
+    let storage_is_zero_fill = !static_storage_registrations.registrations().is_empty()
+        && static_storage_registrations
+            .registrations()
+            .iter()
+            .all(|registration| {
+                matches!(
+                    registration.initial_artifacts(),
+                    StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
+                )
+            });
     let writable_file_size = if storage_is_zero_fill {
         0
     } else {

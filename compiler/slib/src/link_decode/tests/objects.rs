@@ -147,10 +147,9 @@ pub(super) fn finalized_link_object_fixture() -> (
         production.canonical_shape_definitions(),
     )
     .unwrap();
-    let static_storage_registrations = crate::verify_strong_static_storage_registrations_v1(
-        patch_sites.clone(),
+    let static_storage_registrations = crate::bind_static_storage_registrations_v1(
+        &patch_sites,
         registrations.static_storages().clone(),
-        &objects,
     )
     .unwrap();
     let static_storage_objects = static_storage_registrations;

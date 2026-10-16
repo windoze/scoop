@@ -239,26 +239,14 @@ pub(super) fn push_relocations(
                 .symbols()
                 .iter()
                 .position(|symbol| {
-                    if matches!(corruption, Corruption::StaticStorageRelocationTarget) && index == 0
-                    {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition,
-                                definition_role: StrongDefinitionRole::RootRegistration,
-                                ..
-                            } if definition == registration.registration_definition_plan()
-                        )
-                    } else {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition,
-                                definition_role: StrongDefinitionRole::StaticStorage,
-                                ..
-                            } if definition == registration.storage_definition_plan()
-                        )
-                    }
+                    matches!(
+                        symbol.role(),
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition,
+                            definition_role: StrongDefinitionRole::StaticStorage,
+                            ..
+                        } if definition == registration.storage_definition_plan()
+                    )
                 })
                 .unwrap();
             let scan_target = symbols
@@ -279,17 +267,7 @@ pub(super) fn push_relocations(
                 (128, planned_index(storage_target)),
                 (160, planned_index(scan_target)),
                 (232, u32::try_from(index * 2).unwrap()),
-                (
-                    248,
-                    u32::try_from(
-                        if matches!(corruption, Corruption::StaticAliasedSentinels) {
-                            index * 2
-                        } else {
-                            index * 2 + 1
-                        },
-                    )
-                    .unwrap(),
-                ),
+                (248, u32::try_from(index * 2 + 1).unwrap()),
             ] {
                 push_u32(
                     bytes,
@@ -323,27 +301,14 @@ pub(super) fn push_relocations(
                     .symbols()
                     .iter()
                     .position(|symbol| {
-                        if matches!(corruption, Corruption::StaticInitialTableRelocationTarget)
-                            && index == 0
-                            && relocation_index == 0
-                        {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::ImmortalObject,
-                                    ..
-                                }
-                            )
-                        } else {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition,
-                                    definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                    ..
-                                } if definition == immortal_registration_definition
-                            )
-                        }
+                        matches!(
+                            symbol.role(),
+                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                definition,
+                                definition_role: StrongDefinitionRole::ImmortalRegistration,
+                                ..
+                            } if definition == immortal_registration_definition
+                        )
                     })
                     .unwrap();
                 push_u32(
@@ -360,11 +325,7 @@ pub(super) fn push_relocations(
         }
     }
     let mut storage_base = 0_u64;
-    for (static_index, registration) in static_storage_registrations
-        .registrations()
-        .iter()
-        .enumerate()
-    {
+    for registration in static_storage_registrations.registrations() {
         for relocation in registration
             .semantic()
             .initial_state()
@@ -380,26 +341,14 @@ pub(super) fn push_relocations(
                 .symbols()
                 .iter()
                 .position(|symbol| {
-                    if matches!(corruption, Corruption::StaticInitialStorageRelocationTarget)
-                        && static_index == 0
-                    {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                ..
-                            }
-                        )
-                    } else {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition,
-                                definition_role: StrongDefinitionRole::ImmortalObject,
-                                ..
-                            } if definition == immortal_object_definition
-                        )
-                    }
+                    matches!(
+                        symbol.role(),
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition,
+                            definition_role: StrongDefinitionRole::ImmortalObject,
+                            ..
+                        } if definition == immortal_object_definition
+                    )
                 })
                 .unwrap();
             push_u32(

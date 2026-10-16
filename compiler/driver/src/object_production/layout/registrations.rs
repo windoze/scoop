@@ -78,10 +78,9 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
 
-    let storages = verify_strong_static_storage_registrations_v1(
-        patches.clone(),
+    let storages = bind_static_storage_registrations_v1(
+        patches,
         production.static_storage_registrations().clone(),
-        &candidates,
     )
     .map_err(BuiltinObjectProductionError::StaticStorageRegistrations)?;
     let storages = compute_strong_static_storage_shape_fingerprints_v1(storages)

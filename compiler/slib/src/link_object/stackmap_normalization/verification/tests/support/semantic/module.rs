@@ -1,8 +1,6 @@
 use super::*;
 
-pub(super) fn semantic_module(
-    corruption: Corruption,
-) -> (Module, CallableBodyIdentity, Vec<SafepointIdentity>) {
+pub(super) fn semantic_module() -> (Module, CallableBodyIdentity, Vec<SafepointIdentity>) {
     let body = CallableBodyIdentity::for_function(function_id("stackmapOwner")).unwrap();
     let safepoints = vec![
         SafepointIdentity::new(body.id(), SafepointSiteRole::ManagedPoll, 0).unwrap(),
@@ -72,27 +70,11 @@ pub(super) fn semantic_module(
             value: "stage3".to_string(),
         },
     });
-    let initial_state = if matches!(
-        corruption,
-        Corruption::StaticZeroedInitialState
-            | Corruption::StaticZeroedWritableSection
-            | Corruption::StaticAliasedSentinels
-    ) {
-        LirStaticInitialState::ZeroedForRuntimeUnit
-    } else if matches!(
-        corruption,
-        Corruption::StaticEncodedEmptyInitialState | Corruption::StaticEncodedZeroFillSection
-    ) {
-        LirStaticInitialState::EncodedStaticValue {
-            payload: LirConstantImage::NullPointer(PointerKind::Managed),
-        }
-    } else {
-        LirStaticInitialState::EncodedStaticValue {
-            payload: LirConstantImage::GlobalPointer {
-                global: immortal,
-                kind: PointerKind::Managed,
-            },
-        }
+    let initial_state = LirStaticInitialState::EncodedStaticValue {
+        payload: LirConstantImage::GlobalPointer {
+            global: immortal,
+            kind: PointerKind::Managed,
+        },
     };
     globals.alloc(Global {
         address_kind: PointerKind::Raw,

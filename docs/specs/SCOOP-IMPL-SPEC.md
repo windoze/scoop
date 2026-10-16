@@ -382,6 +382,8 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 canonical shape ABI；RuntimeImage 编码同一计划中的对象大小、对齐与 type registration 引用。不为了取得发布资格再次读取 String payload、重建登记记录、核对指针目标或比较 digest 依赖图。实际对象生成、普通符号引用与 ODR 选择继续使用既有数据。
 
+静态存储登记直接关联计划和 scan／layout digest 槽位；按同一计划计算 layout 与 scan 指纹，并复用 canonical ODR ABI。发布不再次核对初值、scan 字节、空哨兵或所有物理指针，也不为 shape 计算保留物理验证资格链。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

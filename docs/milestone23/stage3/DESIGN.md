@@ -1700,54 +1700,11 @@ typed sentinel。descriptor的RegistrationDefinition、Scan、Layout三个32-byt
 120、200、232的typed patch site；发射前先验证完整storage集合及所有既有声明，因此任一错误不得留下部分
 descriptor、scan或initial-state support global。
 
-Link侧唯一经`verify_strong_static_storage_registrations_v1`消费完整static-storage生产计划、全量digest patch
-proof与同一批content-digest绑定的Scoop LIR object bytes。验证器逐项重建registration、storage、layout、scan及
-initial-state associated atom，重验296-byte provisional descriptor、物理section/extent/effective alignment、
-canonical scan words、template/table exact bytes、writable storage初值，以及descriptor offset 160/192/264/280
-和全部初值/table relocation的精确target、owner、member、symbol与形状；offset 120/200/232只接受计划中的三项
-typed patch。digest graph必须仍由registration/storage两个ObjectDefinition leaf、Layout、Scan和
-StrongRegistration五类节点按既定edge/writer关系闭合，调用方不能自报byte、target或digest关系。
+静态存储登记通过 `bind_static_storage_registrations_v1` 将既有计划关联到 scan／layout digest 槽位。直接复用生产数据，不重建登记、storage、scan、template 或 relocation table，不重复读取初值、空哨兵和全部指针来证明生成正确。
 
-两个typed empty sentinel不是definition atom：它们只允许由section-base relocation或`owner_atom=None`的
-object-local definition relocation解析到当前member的只读、全零、未被任何计划atom占用的exact extent，template
-sentinel固定1-byte/align 1，relocation sentinel固定16-byte/align 8；同一typed sentinel在整个Cone中必须共享，
-两种sentinel不得重叠或互相冒充。底层`VerifiedRelocationTargetV1::LocalDefinition`因此直接以可选atom owner表达
-物理事实；`None`只是一条“尚未被typed atom认领”的证据，不构成消费授权，必须由本专用验证器认领，generated
-bridge等其他consumer继续显式拒绝。原先“所有local definition都必须伪装成atom owner”的模型直接删除，不保留
-alias、兼容构造器或双路径验证。
+LayoutFingerprint 使用 `scoop-layout-v1`，编码 static-value kind 1、layout id、byte size 与 alignment。ScanFingerprint 使用 `scoop-scan-v1`，编码 `None=0 | References=1 { count, offsets }`。结果对应计划中的 Layout／Scan node；ODR 定义查询现有 canonical shape ABI，不要求物理 proof 作为计算资格。
 
-static-storage registration自身的ObjectDefinition leaf只能经
-`compute_strong_static_storage_registration_object_fingerprints_v1`消费上述完整registration proof与再次匹配
-content digest的object全集产生。计算器把descriptor的四个pointer载荷按verified relocation清零，再以通用
-`scoop-object-definition-v1`编码精确296-byte provisional record、四条offset 160/192/264/280的canonical
-`Unsigned64` relocation和零direct input。storage/scan target使用`IntraConeStrong`；有定义的template/table
-分别使用canonical target tag 8下的typed role 1/2与storage id，共享空template/table则使用tag 9下的typed
-sentinel role 1/2。物理member、atom id、symbol-table index、section-base addend与sentinel地址均不进入hash；
-调用方不能传入裸target或自行选择local target种类。
-
-storage本体的ObjectDefinition leaf只能经
-`compute_strong_static_storage_definition_fingerprints_v1`继续消费registration-object proof与再次匹配
-content digest的object全集产生。计算器从proof持有的精确writable Primary range读取
-`allocation_extent` bytes，逐项核对并清零managed pointer载荷，再把每项按offset排序编码为
-`Unsigned64 + IntraConeStrong ImmortalObject(target)` relocation；零/非零 relocation 集合都显式编码count，
-direct input固定为空。registration verifier已经把template、relocation table及storage初值逐byte绑定到同一
-semantic plan，因此该leaf不能脱离完整initial-state artifact proof单独从裸writable bytes构造。
-
-本阶段static storage所需的两个semantic leaf由
-`compute_strong_static_storage_shape_fingerprints_v1`继续消费上述storage-definition proof产生，不开放裸
-layout/scan输入。LayoutFingerprint使用domain `scoop-layout-v1`，依次编码static-value layout kind tag 1、
-`PersistentLayoutId`、logical `byte_size`与`required_alignment`；identity已经封闭exact type、target与
-representation。ScanFingerprint使用domain `scoop-scan-v1`和总设计的`None=0 | References=1 { count,
-offsets }` runtime encoding；static plan已拒绝Sequence及非canonical offsets。输出把两个digest分别绑定到
-plan中的Layout/Scan node id，并继续拥有同一完整物理proof。
-
-static storage的StrongRegistration只能经`compute_strong_static_storage_fingerprints_v1`消费上述完整shape
-proof产生。canonical record严格使用record-kind `StaticStorage=1`一次，随后编码Strong registration identity、
-`OwnStorageAtom=1`、size/extent/alignment、`EmptyScan=0 | ScanProgram=1 { scan fingerprint }`、独立scan/layout
-fingerprint，以及`ZeroedForRuntimeUnit=1 | EncodedStaticValue=2 { template byte span, sorted
-{pointer_offset, immortal object id} sequence }`。own definition槽与ODR字段固定为零；四项direct input精确为
-registration/storage ObjectDefinition、Layout、Scan并按`(kind,node id)`排序。initial-state物理support地址、
-member和symbol不进入hash，任一输入proof owner/node不一致都在hash前失败。
+RuntimeImage 的 static storage record 编码 kind 1、登记身份、scan kind、OwnStorageAtom、size／extent／alignment、scan／layout fingerprint 和初始状态。初始状态为 `ZeroedForRuntimeUnit=1 | EncodedStaticValue=2 { template byte span, sorted {pointer_offset, immortal object id} sequence }`。物理支持数据地址、member 与 symbol 不进入该编码；实际对象仍由 codegen 正常生成并参与 Code 指纹和链接。
 
 initialization unit先由唯一、非wire入口`StrongInitializationUnitSemanticPlanSetV1::from_module(module)`
 从最终LIR闭合。入口按`PersistentInitializationUnitId`排序且拒绝重复，逐项重算`Initializer`/`Ensure`

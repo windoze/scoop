@@ -27,11 +27,11 @@ use scoop_slib::{
     StrongCallableFingerprintError, StrongImmortalObjectFingerprintError,
     StrongInitializationFingerprintError, StrongInitializationRegistrationValidationError,
     StrongObjectSymbolPlanningError, StrongRegistrationPatchError, StrongSafepointFingerprintError,
-    StrongStaticStorageFingerprintError, StrongStaticStorageRegistrationValidationError,
-    StrongStaticStorageShapeFingerprintError, StrongTypeFingerprintError,
-    StrongTypeRegistrationValidationError, UndefinedSymbolRequirementFinalizationError,
-    VerifiedScoopLirDigestPatchSiteSetV1, bind_callable_registrations_v1, bind_cone_image_v1,
-    bind_entry_production_v1, bind_safepoint_registrations_v1,
+    StrongStaticStorageFingerprintError, StrongStaticStorageShapeFingerprintError,
+    StrongTypeFingerprintError, StrongTypeRegistrationValidationError,
+    UndefinedSymbolRequirementFinalizationError, VerifiedScoopLirDigestPatchSiteSetV1,
+    bind_callable_registrations_v1, bind_cone_image_v1, bind_entry_production_v1,
+    bind_safepoint_registrations_v1, bind_static_storage_registrations_v1,
     compute_strong_callable_fingerprints_v1, compute_strong_immortal_object_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1, compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, read_generated_c_objects_v1,
@@ -39,7 +39,6 @@ use scoop_slib::{
     verify_builtin_object_strong_relocations_v1, verify_c_bridge_target_support_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_generated_c_bridge_semantics_v1,
     verify_runtime_and_eh_requirements_v1, verify_scoop_lir_digest_patch_sites_v1,
-    verify_strong_static_storage_registrations_v1,
 };
 
 mod errors;
