@@ -1,8 +1,8 @@
 use super::super::symbol_verification::tests::{fixture, object_for_plan_with_branch_relocation};
 use super::*;
 use crate::{
-    PlannedStrongObjectSymbolRoleV1, validate_scoop_lir_llvm_22_1_object_envelope_v1,
-    verify_member_strong_object_definitions_v1,
+    PlannedStrongObjectSymbolRoleV1, read_member_object_definitions_v1,
+    validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
 
 #[test]
@@ -21,8 +21,7 @@ fn assigns_relocations_to_exact_atoms_and_resolves_primary_targets() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&object.bytes, sections, &fixture.symbols).unwrap();
 
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
 
@@ -73,8 +72,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&object.bytes, sections, &fixture.symbols).unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert!(matches!(
         verified.relocations()[0].shape(),
@@ -105,8 +103,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&object.bytes, sections, &fixture.symbols).unwrap();
     assert_eq!(
         verify_member_object_relocations_v1(definitions),
         Err(ObjectRelocationValidationError::BoundaryRelocationTarget {
@@ -127,8 +124,7 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&object.bytes, sections, &fixture.symbols).unwrap();
     assert_eq!(
         verify_member_object_relocations_v1(definitions),
         Err(ObjectRelocationValidationError::OrphanRelocation {
@@ -155,8 +151,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&used_bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&used_bytes, sections, &fixture.symbols).unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
         verified.relocations()[0].shape(),
@@ -176,8 +171,7 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&unused_bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&unused_bytes, sections, &fixture.symbols).unwrap();
     assert_eq!(
         verify_member_object_relocations_v1(definitions),
         Err(ObjectRelocationValidationError::UnusedExternalUndefined {
@@ -203,8 +197,7 @@ fn assigns_local_machine_symbols_to_atom_owners() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&local_bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&local_bytes, sections, &fixture.symbols).unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
         verified.relocations()[0].shape(),
@@ -227,8 +220,7 @@ fn assigns_local_machine_symbols_to_atom_owners() {
     .unwrap()
     .into_sections();
     let definitions =
-        verify_member_strong_object_definitions_v1(&unowned_bytes, sections, &fixture.symbols)
-            .unwrap();
+        read_member_object_definitions_v1(&unowned_bytes, sections, &fixture.symbols).unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
         verified.relocations()[0].shape(),

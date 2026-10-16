@@ -6,7 +6,7 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
     atom: scoop_identity::ObjectDefinitionAtomId,
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     requirements: &VerifiedObjectDefinitionRequirementSetV1,
-    associated_atoms: &[VerifiedDefinitionAtomRangeV1],
+    associated_atoms: &[DefinitionAtomRangeV1],
 ) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
     let mut output = Vec::new();
     for relocation in member

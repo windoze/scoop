@@ -1167,7 +1167,7 @@ unit set、重新配对其中任意部分或把两次独立adapter结果事后�
 - capability允许的section/flags/relocation/symbol kind closed allowlist；
 - 明确拒绝`LC_LINKER_OPTION`、autolink directive、embedded linker option/script、dylib load command、unexpected constructor/destructor与target不允许的debug/linkedit输入；
 - `MH_SUBSECTIONS_VIA_SYMBOLS`与每个受检atom的stable start/end boundary；
-- boundary同section、有序、不重叠，padding为canonical zero并归前一atom；
+- 按实际需要读取同 section、有序且可用于引用归属的 atom boundary；不扫描 padding 或未归属 section 证明零值，也不把 padding 归入 definition；
 - 每个受检relocation完全落入一个typed atom，width/kind/addend/target满足plan；
 - 所有linker-visibledefinition和undefined symbol use都有唯一typed解释；
 - provisional digest slot初始全零，非patch byte与canonical plan相符。
@@ -2360,8 +2360,8 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - 任意物理basename/无`.o`后缀的LinkObject仍验证；同bytes登记为opaque blob绝不进入Link；
 - non-Mach-O、wrong arch/filetype/profile、truncated table、overlap/overflow；
 - `LC_LINKER_OPTION`、autolink、constructor/destructor、unexpected section/symbol/relocation；
-- boundary错section/顺序/重叠、nonzero padding、orphan relocation；
-- weak/linkonce/ODR symbol与未认领strong definition；
+- 实际读取的 boundary section／范围／重叠和 relocation 引用错误；
+- 普通 Strong／ODR 定义读取和链接选择，不把多余符号或预期 linkage 副本比较作为生产门禁；
 - generated bridge缺/multiple primary、跨producer atom、signature/context/contract错配、伪StaticAssert atom；
 - provisional patch非零、错width/offset/member、双writer；final patch后再次验证成功。
 

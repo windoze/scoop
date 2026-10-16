@@ -10,8 +10,7 @@ use scoop_identity::{
 
 use super::{
     BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    ObjectSymbolKindV1, PlannedStrongObjectSymbolRoleV1,
-    VerifiedMemberStrongObjectDefinitionIndexV1,
+    MemberObjectDefinitionIndexV1, ObjectSymbolKindV1, PlannedStrongObjectSymbolRoleV1,
 };
 use crate::SlibMemberId;
 
@@ -191,7 +190,7 @@ impl VerifiedRelocationUseV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedMemberObjectRelocationIndexV1 {
-    definitions: VerifiedMemberStrongObjectDefinitionIndexV1,
+    definitions: MemberObjectDefinitionIndexV1,
     relocations: Vec<VerifiedRelocationUseV1>,
 }
 
@@ -204,7 +203,7 @@ impl VerifiedMemberObjectRelocationIndexV1 {
         self.definitions.member()
     }
 
-    pub const fn definitions(&self) -> &VerifiedMemberStrongObjectDefinitionIndexV1 {
+    pub const fn definitions(&self) -> &MemberObjectDefinitionIndexV1 {
         &self.definitions
     }
 
@@ -214,7 +213,7 @@ impl VerifiedMemberObjectRelocationIndexV1 {
 }
 
 pub fn verify_member_object_relocations_v1(
-    definitions: VerifiedMemberStrongObjectDefinitionIndexV1,
+    definitions: MemberObjectDefinitionIndexV1,
 ) -> Result<VerifiedMemberObjectRelocationIndexV1, ObjectRelocationValidationError> {
     validate_unique_undefined_symbols(&definitions)?;
     let local_symbol_owners = local_symbol_owners(&definitions);
@@ -289,7 +288,7 @@ pub fn verify_member_object_relocations_v1(
 }
 
 fn local_symbol_owners(
-    definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
+    definitions: &MemberObjectDefinitionIndexV1,
 ) -> BTreeMap<u32, ObjectDefinitionAtomId> {
     definitions
         .sections()
@@ -314,7 +313,7 @@ fn local_symbol_owners(
 }
 
 fn validate_unique_undefined_symbols(
-    definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
+    definitions: &MemberObjectDefinitionIndexV1,
 ) -> Result<(), ObjectRelocationValidationError> {
     let mut names = BTreeMap::<Vec<u8>, u32>::new();
     for symbol in definitions

@@ -97,7 +97,7 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
             let member_id = members
                 .member_for_generated_bridge_unit(member.unit())
                 .unwrap();
-            let definitions = scoop_slib::verify_member_strong_object_definitions_v1(
+            let definitions = scoop_slib::read_member_object_definitions_v1(
                 &bytes,
                 envelope,
                 symbols.member(member_id).unwrap(),

@@ -4,9 +4,8 @@ use std::num::NonZeroU32;
 
 use super::{
     BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    ObjectRelocationShapeV1, ObjectSymbolKindV1, ObservedObjectSectionV1,
-    StrongObjectDefinitionValidationError as Error, ValidatedBuiltinObjectSectionInventoryV1,
-    VerifiedStrongObjectDefinitionV1,
+    ObjectDefinitionReadError as Error, ObjectDefinitionV1, ObjectRelocationShapeV1,
+    ObjectSymbolKindV1, ObservedObjectSectionV1, ValidatedBuiltinObjectSectionInventoryV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -52,7 +51,7 @@ impl LiteralPools {
     pub(super) fn read(
         object: &[u8],
         sections: &ValidatedBuiltinObjectSectionInventoryV1,
-        definitions: &[VerifiedStrongObjectDefinitionV1],
+        definitions: &[ObjectDefinitionV1],
     ) -> Result<Self, Error> {
         let mut pools = Vec::new();
         for (index, section) in sections.envelope().sections().iter().enumerate() {
@@ -89,17 +88,6 @@ impl LiteralPools {
         Ok(Self(pools))
     }
 
-    pub(super) fn contains_range(&self, section: NonZeroU32, start: u64, end: u64) -> bool {
-        self.0.iter().any(|pool| {
-            pool.section == section
-                && start >= pool.address
-                && start <= end
-                && end
-                    .checked_sub(pool.address)
-                    .is_some_and(|size| size <= pool.bytes.len() as u64)
-        })
-    }
-
     pub(super) fn at(&self, section: NonZeroU32, address: u64) -> Option<ObjectLiteral> {
         let pool = self.0.iter().find(|pool| pool.section == section)?;
         let offset = usize::try_from(address.checked_sub(pool.address)?).ok()?;
@@ -119,7 +107,7 @@ impl LiteralPools {
 fn local_table_size(
     sections: &ValidatedBuiltinObjectSectionInventoryV1,
     ordinal: NonZeroU32,
-    definitions: &[VerifiedStrongObjectDefinitionV1],
+    definitions: &[ObjectDefinitionV1],
 ) -> Option<u64> {
     let envelope = sections.envelope();
     let section = &envelope.sections()[ordinal.get() as usize - 1];

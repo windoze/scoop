@@ -5,11 +5,11 @@ use scoop_identity::{
 
 use crate::link_object::{
     CanonicalObjectDefinitionRequirementV1, CanonicalUndefinedRelocationUseV1,
-    FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectDefinitionRequirementSetV1,
-    VerifiedObjectRelocationFormV1, VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
+    DefinitionAtomRangeV1, FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1,
+    RelocationTargetSlotV1, StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
+    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedObjectDefinitionRequirementSetV1, VerifiedObjectRelocationFormV1,
+    VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
 };
 
 const PRIMARY_ATOM_ROLE: u32 = 1;

@@ -1,6 +1,5 @@
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMemberObjectRelocationIndexV1,
+    BuiltinObjectSectionRoleV1, DefinitionAtomRangeV1, VerifiedMemberObjectRelocationIndexV1,
 };
 
 #[derive(Debug)]
@@ -12,7 +11,7 @@ pub(super) enum AtomFileRangeError {
 
 pub(super) fn atom_file_range(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    atom: VerifiedDefinitionAtomRangeV1,
+    atom: DefinitionAtomRangeV1,
 ) -> Result<(BuiltinObjectSectionRoleV1, u64, u64), AtomFileRangeError> {
     let index = (atom.section_ordinal().get() as usize) - 1;
     let section = member

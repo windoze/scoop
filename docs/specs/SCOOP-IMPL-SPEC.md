@@ -398,6 +398,8 @@ generated-C 的 external requirements 直接复用实际符号分类；target he
 
 undefined requirements 完成普通分类后直接合并、排序，保留 callable／shape 的实际依赖分区。finalizer 不重建全部 relocation uses 做 coverage／重叠证明，也不比较 current／external／shape 闭包副本；查找真实 import 时保留索引边界错误。完成分类的外部需求使用同一数据类型，不再套封口资格包装。
 
+物理 definition 读取只查询实际需要的符号和 atom 边界，建立供地址、relocation 和内容指纹使用的索引。保留缺失符号、歧义定义和本次读取范围的诊断；不比较所有生成符号与计划的全集、重验既定 linkage／primary 位置，也不扫描未归属 section 或 padding 来证明零值及生产覆盖。padding 不属于 definition 的语义内容，不再保存无消费者的 padding-end 资格字段。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

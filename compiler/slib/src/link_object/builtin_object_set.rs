@@ -5,14 +5,13 @@ use std::fmt;
 use scoop_identity::ConeIdentity;
 
 use super::{
-    GeneratedCBridgeObjectCandidateV1, GeneratedCObjectSetV1, ObjectRelocationValidationError,
-    PlannedLinkObjectMemberSetV1, PlannedMemberStrongObjectSymbolsV1,
-    PlannedStrongObjectSymbolSetV1, ScoopLirObjectEnvelopeValidationError,
-    StrongObjectDefinitionValidationError, StrongRelocationClosureValidationError,
+    GeneratedCBridgeObjectCandidateV1, GeneratedCObjectSetV1, ObjectDefinitionReadError,
+    ObjectRelocationValidationError, PlannedLinkObjectMemberSetV1,
+    PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolSetV1,
+    ScoopLirObjectEnvelopeValidationError, StrongRelocationClosureValidationError,
     VerifiedCurrentConeStrongRelocationClosureV1, VerifiedMemberObjectRelocationIndexV1,
-    validate_scoop_lir_llvm_22_1_object_envelope_v1,
+    read_member_object_definitions_v1, validate_scoop_lir_llvm_22_1_object_envelope_v1,
     verify_current_cone_strong_relocation_closure_v1, verify_member_object_relocations_v1,
-    verify_member_strong_object_definitions_v1,
 };
 use crate::SlibMemberId;
 
@@ -130,7 +129,7 @@ fn verify_member(
     sections: super::ValidatedBuiltinObjectSectionInventoryV1,
     symbols: &PlannedMemberStrongObjectSymbolsV1,
 ) -> Result<VerifiedMemberObjectRelocationIndexV1, BuiltinObjectSetValidationError> {
-    let definitions = verify_member_strong_object_definitions_v1(bytes, sections, symbols)
+    let definitions = read_member_object_definitions_v1(bytes, sections, symbols)
         .map_err(|source| BuiltinObjectSetValidationError::StrongDefinitions { member, source })?;
     verify_member_object_relocations_v1(definitions)
         .map_err(|source| BuiltinObjectSetValidationError::Relocations { member, source })
@@ -145,7 +144,7 @@ pub enum BuiltinObjectSetValidationError {
     },
     StrongDefinitions {
         member: SlibMemberId,
-        source: StrongObjectDefinitionValidationError,
+        source: ObjectDefinitionReadError,
     },
     Relocations {
         member: SlibMemberId,

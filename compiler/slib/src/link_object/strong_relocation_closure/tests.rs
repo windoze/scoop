@@ -4,8 +4,8 @@ use super::super::symbol_verification::tests::{
 };
 use super::*;
 use crate::{
-    PlannedStrongObjectSymbolRoleV1, validate_scoop_lir_llvm_22_1_object_envelope_v1,
-    verify_member_object_relocations_v1, verify_member_strong_object_definitions_v1,
+    PlannedStrongObjectSymbolRoleV1, read_member_object_definitions_v1,
+    validate_scoop_lir_llvm_22_1_object_envelope_v1, verify_member_object_relocations_v1,
 };
 
 #[test]
@@ -228,8 +228,7 @@ fn verified_member(fixture: &Fixture, bytes: &[u8]) -> VerifiedMemberObjectReloc
         validate_scoop_lir_llvm_22_1_object_envelope_v1(scoop_target_data::DARWIN_AARCH64, bytes)
             .unwrap()
             .into_sections();
-    let definitions =
-        verify_member_strong_object_definitions_v1(bytes, sections, &fixture.symbols).unwrap();
+    let definitions = read_member_object_definitions_v1(bytes, sections, &fixture.symbols).unwrap();
     verify_member_object_relocations_v1(definitions).unwrap()
 }
 

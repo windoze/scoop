@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) fn resolve_shape(
     shape: crate::link_object::ObjectRelocationShapeV1,
-    definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
+    definitions: &MemberObjectDefinitionIndexV1,
     local_symbol_owners: &BTreeMap<u32, ObjectDefinitionAtomId>,
     used_undefined_symbols: &mut BTreeSet<u32>,
 ) -> Result<VerifiedObjectRelocationShapeV1, ObjectRelocationValidationError> {
@@ -147,7 +147,7 @@ pub(super) fn resolve_shape(
 
 fn resolve_target(
     target: DarwinArm64RelocationTargetV1,
-    definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
+    definitions: &MemberObjectDefinitionIndexV1,
     local_symbol_owners: &BTreeMap<u32, ObjectDefinitionAtomId>,
     used_undefined_symbols: &mut BTreeSet<u32>,
 ) -> Result<VerifiedRelocationTargetV1, ObjectRelocationValidationError> {

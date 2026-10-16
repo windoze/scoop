@@ -1,12 +1,10 @@
 use super::*;
 use crate::link_object::{
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedStrongObjectDefinitionV1,
+    DefinitionAtomRangeV1, ObjectDefinitionV1, VerifiedCurrentConeStrongRelocationClosureV1,
+    VerifiedMemberObjectRelocationIndexV1,
 };
 
-pub(super) fn ranges(
-    definition: &VerifiedStrongObjectDefinitionV1,
-) -> Vec<VerifiedDefinitionAtomRangeV1> {
+pub(super) fn ranges(definition: &ObjectDefinitionV1) -> Vec<DefinitionAtomRangeV1> {
     let mut ranges: Vec<_> = definition
         .atoms()
         .iter()
@@ -30,8 +28,8 @@ pub(super) fn ranges(
 pub(super) fn fingerprint_atoms(
     object: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
-    ranges: &[VerifiedDefinitionAtomRangeV1],
-    associated: &[VerifiedDefinitionAtomRangeV1],
+    ranges: &[DefinitionAtomRangeV1],
+    associated: &[DefinitionAtomRangeV1],
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     requirements: &VerifiedObjectDefinitionRequirementSetV1,
     body: PersistentCallableBodyId,
