@@ -48,6 +48,8 @@ readInto 返回已初始化的明文数量并推进 buffer writer，writeFrom �
 
 AsyncTlsStream 实现 AsyncByteStream、AsyncCloseable，固定归属建立它的 EventLoop。普通操作检查当前 Job 与所属 Context；允许不同 buffer 各一个应用 read 和 write 在途，同方向并发报状态错误，flush 占输出方向。连接协调底层每方向至多一个操作。通知在状态更新后、锁外执行，无活动请求时不遗留无归属后台任务，不为每次 SSL 步骤创建 Job。
 
+异步入口为 `asyncTlsClient(transport, context, peer)` 和 `asyncTlsServer(transport, context)`；返回的 AsyncTlsStream 提供 connectionInfo、isClosed 和 shutdownGracefully。连接以普通操作记录保留 continuation、所属 Job、进度和借用，每次实际传输通过公开 startCoroutine／Continuation 完成，传输结束后再决定可执行步骤与应用结果；不创建私有调度器、全局服务或逐步骤 Job。WANT_READ 的应用读可让写进入 SSL；待重试写及 WANT_WRITE 的读遵循上游重试次序。SSL 与错误提取在短锁内，实际传输、关闭、取消监听回调和 continuation 通知在锁外。
+
 跨线程取消与第三方恢复使用连接自身的普通同步，不能调用 libuv 私有状态／投递函数；传输等待通过公开异步流。服务端逐连接握手，listener 的后续 accept 不依赖前一握手完成。
 
 ## 6. 取消与关闭

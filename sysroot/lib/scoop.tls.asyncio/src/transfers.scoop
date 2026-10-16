@@ -1,0 +1,108 @@
+package scoop.tls.asyncio
+
+import scoop.platform.io.WriteZeroException
+import scoop.tls.*
+
+internal fun planTransfers(state: TlsConnection, actions: ArrayList<() -> Unit>): Boolean {
+    try { return planAvailable(state, actions) }
+    catch (error: Throwable) {
+        terminate(state, Some(outputRequest(state)), error)
+        return true
+    }
+}
+
+private fun planAvailable(state: TlsConnection, actions: ArrayList<() -> Unit>): Boolean {
+    var changed = false
+    if (!state.outputBusy) {
+        if (state.output.readableBytes == 0L && state.engine.pendingOutput > 0L) {
+            state.output.clear()
+            state.engine.takeCiphertext(state.output)
+            state.outputEpoch += 1L
+            if (present(state.writer)) state.writer!!.flushed = false
+            changed = true
+        }
+        if (state.output.readableBytes > 0L) {
+            val entry = outputRequest(state)
+            val count = state.output.readableBytes
+            state.outputBusy = true
+            actions.add { startTransfer(state, entry, false, count) }
+        } else if (present(state.writer) && state.writer!!.kind == RequestKind.Flush && !state.writer!!.flushed) {
+            val entry = state.writer!!
+            state.outputBusy = true
+            actions.add { startFlush(state, entry) }
+        }
+    }
+    val reader = inputRequest(state)
+    if (!state.inputBusy && present(reader)) {
+        if (state.inputEnded) throw TlsException("TLS read", TlsFailureKind.Truncated, 0UL, 0L, 0, "TLS requested data after transport EOF")
+        val count = state.engine.inputCapacity
+        if (count == 0L) throw IllegalStateException(Some("TLS input retry has no BIO space"))
+        state.input.clear()
+        state.inputBusy = true
+        state.inputOwner = reader
+        val entry = reader!!
+        actions.add { startTransfer(state, entry, true, count) }
+    }
+    return changed
+}
+
+private fun startTransfer(state: TlsConnection, entry: TlsRequest, input: Boolean, count: Long) {
+    val completion = TransferCompletion(state, entry, input, count)
+    val closing = state.lock.withLock { state.closing }
+    if (closing) { completion.resume(0L); return }
+    val job = entry.job
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Long>(suspend {
+            if (input) state.transport.readInto(state.input, count)
+            else state.transport.writeFrom(state.output, count)
+        }, completion)
+    } }
+}
+
+private class TransferCompletion(val state: TlsConnection, val entry: TlsRequest, val input: Boolean, val requested: Long) : Continuation<Long> {
+    public override fun resume(value: Long) { finish(value, None) }
+    public override fun resumeWithException(exception: Throwable) { finish(0L, Some(exception)) }
+
+    private fun finish(count: Long, failure: Throwable?) {
+        state.lock.withLock {
+            if (input) { state.inputBusy = false; state.inputOwner = None }
+            else state.outputBusy = false
+            if (!state.closing) {
+                try {
+                    if (present(failure)) throw failure!!
+                    if (count < 0L || count > requested) throw IllegalStateException(Some("invalid TLS transport progress"))
+                    if (input) {
+                        if (count == 0L) { state.inputEnded = true; state.engine.endInput() }
+                        else state.engine.receiveCiphertext(state.input)
+                        state.inputEpoch += 1L
+                    } else if (count == 0L) throw WriteZeroException()
+                } catch (error: Throwable) { terminate(state, Some(entry), error) }
+            }
+            Unit
+        }
+        drive(state)
+    }
+}
+
+private fun startFlush(state: TlsConnection, entry: TlsRequest) {
+    val job = entry.job
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Unit>(suspend { state.transport.flush() }, FlushCompletion(state, entry))
+    } }
+}
+
+private class FlushCompletion(val state: TlsConnection, val entry: TlsRequest) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.lock.withLock {
+            state.outputBusy = false
+            entry.flushed = true
+            if (!state.closing && present(failure)) terminate(state, Some(entry), failure!!)
+            Unit
+        }
+        drive(state)
+    }
+}

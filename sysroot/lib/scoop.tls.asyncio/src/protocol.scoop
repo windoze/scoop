@@ -1,0 +1,91 @@
+package scoop.tls.asyncio
+
+import scoop.tls.*
+import scoop.tls.native.*
+
+internal fun advanceProtocol(state: TlsConnection): Boolean {
+    if (present(state.exclusive)) return advanceRequest(state, state.exclusive!!)
+    val read = state.reader
+    val write = state.writer
+    var changed = false
+    if (present(read) && read!!.waiting == RetryKind.Output) {
+        changed = advanceRequest(state, read!!)
+        if (read!!.waiting == RetryKind.Output || state.closing) return changed
+    }
+    if (present(write) && write!!.kind == RequestKind.Write) {
+        changed = advanceRequest(state, write!!) || changed
+        if (write!!.waiting != RetryKind.Finished || state.closing) return changed
+    }
+    if (present(read)) changed = advanceRequest(state, read!!) || changed
+    return changed
+}
+
+private fun advanceRequest(state: TlsConnection, entry: TlsRequest): Boolean {
+    if (entry.selected) return false
+    val ready = when (entry.waiting) {
+        case Ready -> true
+        case Input -> state.inputEpoch != entry.lastInput
+        case Output -> state.outputEpoch != entry.lastOutput
+        case Finished -> false
+    }
+    if (!ready) return false
+    try {
+        val step = stepRequest(state, entry)
+        entry.progress = step.count
+        entry.lastInput = state.inputEpoch
+        entry.lastOutput = state.outputEpoch
+        entry.waiting = when (step.kind) {
+            case Done -> RetryKind.Finished
+            case WantRead -> RetryKind.Input
+            case WantWrite -> RetryKind.Output
+            case Closed -> {
+                if (entry.kind != RequestKind.Read)
+                    throw TlsException("TLS protocol", TlsFailureKind.Protocol, 0UL, 0L, 0, "unexpected close_notify")
+                RetryKind.Finished
+            }
+        }
+    } catch (error: Throwable) { terminate(state, Some(entry), error) }
+    return true
+}
+
+private fun stepRequest(state: TlsConnection, entry: TlsRequest): TlsStep {
+    @Unsafe { return when (entry.kind) {
+        case Handshake -> state.engine.handshake()
+        case Read -> state.engine.read(entry.borrow ?: throw IllegalStateException(Some("TLS read has no active borrow")))
+        case Write -> state.engine.write(entry.borrow ?: throw IllegalStateException(Some("TLS write has no active borrow")))
+        case Shutdown -> state.engine.shutdown()
+        case Flush -> throw IllegalStateException(Some("flush does not execute an SSL step"))
+    } }
+}
+
+internal fun inputRequest(state: TlsConnection): TlsRequest? {
+    if (present(state.exclusive) && state.exclusive!!.waiting == RetryKind.Input) return state.exclusive
+    if (present(state.writer) && state.writer!!.waiting == RetryKind.Input) return state.writer
+    if (present(state.reader) && state.reader!!.waiting == RetryKind.Input) return state.reader
+    return None
+}
+
+internal fun outputRequest(state: TlsConnection): TlsRequest {
+    if (present(state.exclusive)) return state.exclusive!!
+    if (present(state.writer)) return state.writer!!
+    return state.reader ?: throw IllegalStateException(Some("TLS output has no active request"))
+}
+
+internal fun finishRequests(state: TlsConnection, actions: ArrayList<() -> Unit>): Boolean {
+    if (state.outputBusy || state.output.readableBytes != 0L || state.engine.pendingOutput != 0L) return false
+    var changed = false
+    for (entry in requests(state)) {
+        if (entry.waiting != RetryKind.Finished || entry.selected) continue
+        if (present(state.inputOwner) && state.inputOwner!! === entry) continue
+        if (entry.kind == RequestKind.Flush && !entry.flushed) continue
+        entry.selected = true
+        if (entry.kind == RequestKind.Shutdown) {
+            state.closeJob = entry.job
+            state.closing = true
+            return true
+        }
+        releaseRequest(state, entry, actions)
+        changed = true
+    }
+    return changed
+}

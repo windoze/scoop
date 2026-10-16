@@ -1,0 +1,93 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.IoClosedException
+
+internal suspend fun closeConnection(state: TlsConnection) {
+    if (state.lock.withLock { state.closed }) return
+    val job = requireJob(state.loop, false)
+    suspendCoroutine<Unit> { continuation ->
+        val closed = state.lock.withLock {
+            if (state.closed) true
+            else {
+                state.closeWaiters.add(continuation)
+                if (!state.closing) state.closeJob = job
+                terminate(state, None, IoClosedException())
+                false
+            }
+        }
+        if (closed) continuation.resume(Unit)
+        else drive(state)
+    }
+}
+
+internal fun advanceClose(state: TlsConnection, actions: ArrayList<() -> Unit>): Boolean {
+    if (!state.transportClosing) {
+        state.transportClosing = true
+        actions.add { startClose(state) }
+        return true
+    }
+    if (!state.transportClosed || state.inputBusy || state.outputBusy) return false
+    try { state.engine.close() }
+    catch (error: Throwable) { addCloseFailure(state, error) }
+    val pending = requests(state)
+    for (entry in pending) {
+        try { finishBorrow(entry) }
+        catch (error: Throwable) { addCloseFailure(state, error) }
+    }
+    try { state.input.close() }
+    catch (error: Throwable) { addCloseFailure(state, error) }
+    try { state.output.close() }
+    catch (error: Throwable) { addCloseFailure(state, error) }
+    state.closed = true
+    for (entry in pending) {
+        if (present(state.closeFailure)) entry.failure = Some(when (entry.failure) {
+            case Some(primary) -> ResourceUseException(primary, state.closeFailure!!)
+            case None -> state.closeFailure!!
+        })
+        releaseRequest(state, entry, actions)
+    }
+    val failure = state.closeFailure
+    for (waiter in state.closeWaiters) {
+        actions.add {
+            when (failure) {
+                case Some(error) -> waiter.resumeWithException(error)
+                case None -> waiter.resume(Unit)
+            }
+        }
+    }
+    state.closeWaiters.clear()
+    return true
+}
+
+private fun startClose(state: TlsConnection) {
+    val job = state.closeJob
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Unit>(suspend { state.owner.close() }, CloseCompletion(state))
+    } }
+}
+
+private class CloseCompletion(val state: TlsConnection) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.lock.withLock {
+            state.transportClosed = true
+            if (present(failure)) addCloseFailure(state, failure!!)
+            Unit
+        }
+        drive(state)
+    }
+}
+
+private fun addCloseFailure(state: TlsConnection, error: Throwable) {
+    state.closeFailure = Some(when (state.closeFailure) {
+        case Some(primary) -> ResourceUseException(primary, error)
+        case None -> error
+    })
+}
+
+internal fun releaseUnadopted(state: TlsConnection) {
+    try { state.engine.close() }
+    finally { try { state.input.close() } finally { state.output.close() } }
+}

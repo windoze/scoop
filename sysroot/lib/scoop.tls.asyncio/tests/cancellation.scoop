@@ -1,0 +1,114 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.tls.*
+
+@Test
+private class AsyncTlsCancellationTests {
+    @Test
+    fun `cancellation waits for close and releases borrows before resuming`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, clientRaw, serverRaw)
+            val buffer = NativeByteBuffer.allocate(1L)
+            val releaseClose = AsyncGate()
+            clientRaw.closeGate = Some(releaseClose)
+            clientRaw.readStarted = AsyncGate()
+            val returned = AtomicBoolean(false)
+            try {
+                val reading = scope.launch suspend {
+                    try { client.readInto(buffer, 1L); fail(Some("cancelled read succeeded")) }
+                    catch (_: CancellationException) { returned.store(true) }
+                    finally { buffer.clear(); client.close() }
+                }
+                clientRaw.readStarted.await()
+                val canceller = Thread.start { reading.cancel() }
+                clientRaw.closeStarted.await()
+                assertFalse(returned.load())
+                assertFalse(reading.isCompleted)
+                assertFailsWith<IllegalStateException> { buffer.clear() }
+                val firstClose = scope.launch suspend { client.close() }
+                val secondClose = scope.launch suspend { client.close() }
+                assertFalse(firstClose.isCompleted || secondClose.isCompleted)
+                releaseClose.signal()
+                reading.join(); firstClose.join(); secondClose.join()
+                canceller.join()
+                assertTrue(returned.load())
+                assertTrue(client.isClosed)
+                assertEquals(1, clientRaw.closes)
+                buffer.clear()
+                client.close()
+                assertEquals(1, clientRaw.closes)
+            } finally { releaseClose.signal(); client.close(); server.close(); buffer.close() }
+        }
+    }
+
+    @Test
+    fun `cancellation also drains an in-flight transport flush`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (a, b) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, a, b)
+            a.flushGate = Some(AsyncGate())
+            try {
+                val flushing = scope.launch suspend {
+                    try { client.flush(); fail(Some("blocked flush completed")) }
+                    catch (_: CancellationException) { assertTrue(client.isClosed) }
+                }
+                a.flushStarted.await()
+                flushing.cancel()
+                flushing.join()
+                assertEquals(1, a.closes)
+                assertTrue(client.isClosed)
+            } finally { a.flushGate!!.signal(); client.close(); server.close() }
+        }
+    }
+
+    @Test
+    fun `pre-cancelled handshake and invalid peer retain caller ownership`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val context = clientContext(TlsOptions())
+            try {
+                try { asyncTlsClient(clientRaw, context, TlsPeerName.Dns("")); fail(Some("empty peer accepted")) }
+                catch (_: IllegalArgumentException) { assertEquals(0, clientRaw.closes) }
+                val cancelled = scope.launch suspend {
+                    currentJobOrNull()!!.cancel()
+                    try { asyncTlsClient(clientRaw, context, TlsPeerName.Dns("localhost")); fail(Some("cancelled handshake started")) }
+                    catch (_: CancellationException) { assertEquals(0L, clientRaw.reads + clientRaw.writes) }
+                }
+                cancelled.join()
+                assertEquals(0, clientRaw.closes)
+            } finally { context.close(); clientRaw.close(); serverRaw.close() }
+        }
+    }
+
+    @Test
+    fun `accepted write prefix and both failures survive asynchronous cleanup`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, clientRaw, serverRaw)
+            val buffer = NativeByteBuffer.allocate(5L)
+            try {
+                buffer.writeBytes("hello".toByteArray())
+                clientRaw.failWrite = true
+                clientRaw.failClose = true
+                try { client.writeFrom(buffer, 5L); fail(Some("transport failure was ignored")) }
+                catch (error: ResourceUseException) {
+                    assertTrue(error.primaryFailure is TransportFailure)
+                    assertTrue(error.cleanupFailure is CleanupFailure)
+                }
+                assertEquals(5L, buffer.readPosition)
+                buffer.clear()
+                assertTrue(client.isClosed)
+                assertEquals(1, clientRaw.closes)
+            } finally { client.close(); server.close(); buffer.close() }
+        }
+    }
+}

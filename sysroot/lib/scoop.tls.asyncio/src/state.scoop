@@ -1,0 +1,88 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.*
+import scoop.tls.native.*
+
+internal class TlsLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) { }
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+}
+
+internal enum RequestKind { Handshake, Read, Write, Flush, Shutdown }
+internal enum RetryKind { Ready, Input, Output, Finished }
+
+internal class TlsRequest(
+    val kind: RequestKind,
+    val job: Job,
+    val continuation: Continuation<Long>,
+    var borrow: NativeByteBorrow?
+) {
+    var waiting: RetryKind = if (kind == RequestKind.Flush) RetryKind.Finished else RetryKind.Ready
+    var lastInput: Long = -1L
+    var lastOutput: Long = -1L
+    var progress: Long = 0L
+    var selected: Boolean = false
+    var failure: Throwable? = None
+    var released: Boolean = false
+    var flushed: Boolean = false
+    var listener: Disposable? = None
+}
+
+internal class TlsConnection(
+    val engine: TlsEngine,
+    val transport: AsyncByteStream,
+    val owner: AsyncCloseable,
+    val loop: EventLoop,
+    var closeJob: Job,
+    val input: NativeByteBuffer,
+    val output: NativeByteBuffer
+) {
+    val lock: TlsLock = TlsLock()
+    var reader: TlsRequest? = None
+    var writer: TlsRequest? = None
+    var exclusive: TlsRequest? = None
+    var inputBusy: Boolean = false
+    var inputOwner: TlsRequest? = None
+    var outputBusy: Boolean = false
+    var inputEnded: Boolean = false
+    var inputEpoch: Long = 0L
+    var outputEpoch: Long = 0L
+    var driving: Boolean = false
+    var adopted: Boolean = false
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var transportClosing: Boolean = false
+    var transportClosed: Boolean = false
+    var closeFailure: Throwable? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+}
+
+internal fun requireJob(loop: EventLoop, active: Boolean): Job {
+    if (currentEventLoop() !== loop) throw IllegalStateException(Some("TLS operation belongs to another event loop"))
+    val job = currentJobOrNull() ?: throw IllegalStateException(Some("TLS I/O requires a Job"))
+    if (job.isCompleted) throw IllegalStateException(Some("TLS I/O requires an active Job"))
+    if (active) job.ensureActive()
+    return job
+}
+
+internal fun <T> present(value: T?): Boolean = when (value) {
+    case Some(_) -> true
+    case None -> false
+}
+
+internal fun requests(state: TlsConnection): ArrayList<TlsRequest> {
+    val result = ArrayList<TlsRequest>()
+    when (state.exclusive) { case Some(value) -> result.add(value); case None -> return directions(state, result) }
+    return result
+}
+
+private fun directions(state: TlsConnection, result: ArrayList<TlsRequest>): ArrayList<TlsRequest> {
+    if (present(state.reader)) result.add(state.reader!!)
+    if (present(state.writer)) result.add(state.writer!!)
+    return result
+}

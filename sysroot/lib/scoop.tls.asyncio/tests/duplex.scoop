@@ -1,0 +1,64 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.*
+
+@Test
+private class AsyncTlsDuplexTests {
+    @Test
+    fun `pending read permits write and a single handshake drives both transport directions`() {
+        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) duplex(version)
+    }
+}
+
+private fun duplex(version: TlsVersion) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val (clientRaw, serverRaw) = rawPair(loop, scope)
+        clientRaw.gateFirstWrite = true
+        val (client, server) = tlsPair(scope, clientRaw, serverRaw, TlsOptions(version, version))
+        try {
+            assertTrue(client.connectionInfo.version == version)
+            val input = NativeByteBuffer.allocate(3L)
+            val output = NativeByteBuffer.allocate(3L)
+            try {
+                val before = clientRaw.reads + clientRaw.writes
+                assertEquals(0L, client.readInto(input, 0L))
+                assertEquals(0L, client.writeFrom(output, 0L))
+                assertEquals(before, clientRaw.reads + clientRaw.writes)
+                try { client.readInto(input, -1L); fail(Some("negative count accepted")) }
+                catch (_: IllegalArgumentException) { assertFalse(client.isClosed) }
+                try { client.writeFrom(output, 1L); fail(Some("unavailable byte accepted")) }
+                catch (_: IndexOutOfBoundsException) { assertFalse(client.isClosed) }
+                val otherLoop: EventLoop = LibuvEventLoop()
+                context(otherLoop) {
+                    try { client.flush(); fail(Some("wrong loop accepted")) }
+                    catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                }
+                val reading = scope.async<Long> suspend { client.readInto(input, 3L) }
+                assertFalse(reading.isCompleted)
+                val echo = scope.launch suspend {
+                    NativeByteBuffer.allocate(3L).use suspend { bytes ->
+                        server.readFully(bytes, 3L)
+                        server.writeFully(bytes, 3L)
+                    }
+                }
+                output.writeBytes("tls".toByteArray())
+                client.writeFully(output)
+                client.flush()
+                assertEquals(3L, reading.await())
+                echo.join()
+                assertEquals(116.toInt8(), input.getByte(0L))
+                assertEquals(115.toInt8(), input.getByte(2L))
+                val ending = scope.launch suspend { server.shutdownGracefully() }
+                client.shutdownGracefully()
+                ending.join()
+                assertTrue(client.isClosed && server.isClosed)
+                assertEquals(1, clientRaw.closes)
+                assertEquals(1, serverRaw.closes)
+            } finally { input.close(); output.close() }
+        } finally { client.close(); server.close() }
+    }
+}

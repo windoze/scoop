@@ -1,0 +1,26 @@
+package scoop.tls.asyncio
+
+internal fun drive(state: TlsConnection) {
+    val start = state.lock.withLock {
+        if (state.driving) false else { state.driving = true; true }
+    }
+    if (!start) return
+    while (true) {
+        val actions = ArrayList<() -> Unit>()
+        val keepGoing = state.lock.withLock {
+            var changed = false
+            if (!state.closed) {
+                if (state.closing) changed = advanceClose(state, actions)
+                else {
+                    changed = advanceProtocol(state)
+                    if (!state.closing) changed = planTransfers(state, actions) || changed
+                    if (!state.closing) changed = finishRequests(state, actions) || changed
+                }
+            }
+            if (!changed && actions.size == 0L) state.driving = false
+            changed || actions.size != 0L
+        }
+        if (!keepGoing) return
+        for (action in actions) action()
+    }
+}

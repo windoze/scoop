@@ -1,0 +1,39 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.*
+import scoop.tls.native.TlsEngine
+
+public suspend fun <T> asyncTlsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): AsyncTlsStream
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val loop = currentEventLoop()
+    val job = requireJob(loop, true)
+    return adoptAsync(TlsEngine.client(context, peer), transport, loop, job)
+}
+
+public suspend fun <T> asyncTlsServer(transport: T, context: TlsServerContext): AsyncTlsStream
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val loop = currentEventLoop()
+    val job = requireJob(loop, true)
+    return adoptAsync(TlsEngine.server(context), transport, loop, job)
+}
+
+private suspend fun <T> adoptAsync(engine: TlsEngine, transport: T, loop: EventLoop, job: Job): AsyncTlsStream
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val state = allocateState(engine, transport, transport, loop, job)
+    try {
+        request(state, RequestKind.Handshake, None, 0L)
+        return AsyncTlsStream(state)
+    } catch (error: Throwable) {
+        if (!state.adopted) releaseUnadopted(state)
+        throw error
+    }
+}
+
+private fun allocateState(engine: TlsEngine, stream: AsyncByteStream, owner: AsyncCloseable, loop: EventLoop, job: Job): TlsConnection {
+    val input = try { NativeByteBuffer.allocate(16384L) }
+    catch (error: Throwable) { engine.close(); throw error }
+    try { return TlsConnection(engine, stream, owner, loop, job, input, NativeByteBuffer.allocate(16384L)) }
+    catch (error: Throwable) { input.close(); engine.close(); throw error }
+}

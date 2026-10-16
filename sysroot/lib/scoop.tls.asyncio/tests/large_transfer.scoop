@@ -1,0 +1,49 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.platform.concurrent.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.text.toHexString
+
+@Test
+private class AsyncTlsTransferTests {
+    @Test
+    fun `short ciphertext writes retain retry buffers across moving GC and foreign resume`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val ownerThread = currentThreadId()
+        val observed = ArrayList<ObservedTransport>()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            observed.add(clientRaw)
+            val (client, server) = tlsPair(scope, clientRaw, serverRaw)
+            val bytes = Array<Byte>(50000L) { index -> (index % 241L).toInt8() }
+            val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
+            val input = NativeByteBuffer.allocate(bytes.size)
+            val output = NativeByteBuffer.allocate(bytes.size)
+            try {
+                val echo = scope.launch suspend {
+                    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+                        server.readFully(buffer, bytes.size)
+                        server.writeFully(buffer, bytes.size)
+                    }
+                }
+                clientRaw.foreignRead = true
+                val reading = scope.launch suspend { client.readFully(input, bytes.size) }
+                output.writeBytes(bytes)
+                client.writeFully(output, bytes.size)
+                client.flush()
+                gcCollect()
+                reading.join(); echo.join()
+                assertEquals(bytes.size, input.writePosition)
+                assertEquals(bytes.size, output.readPosition)
+                assertEquals(expected, digest(DigestAlgorithm.SHA256, input.readBytes(bytes.size)).toHexString())
+                assertTrue(clientRaw.foreignThread!! != ownerThread)
+                reading.cancel()
+                assertFalse(client.isClosed)
+            } finally { client.close(); server.close(); input.close(); output.close() }
+        }
+        for (transport in observed) if (present(transport.worker)) transport.worker!!.join()
+    }
+}
