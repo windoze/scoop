@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::{ToolchainError, error};
-use scoop_manifest::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
 
 pub(super) struct InputRoots {
     pub(super) cone: PathBuf,
@@ -11,51 +10,16 @@ pub(super) struct InputRoots {
 }
 
 impl InputRoots {
-    pub(super) fn checked_path(
-        &self,
-        relative: &Path,
-        directory: bool,
-    ) -> Result<PathBuf, ToolchainError> {
+    pub(super) fn check_source(&self, relative: &Path) -> Result<(), ToolchainError> {
         let path = self.cone.join(relative);
-        let resolved = path
-            .canonicalize()
+        let metadata = path
+            .metadata()
             .map_err(|e| error(format!("{}: {e}", path.display())))?;
-        let metadata = resolved.metadata().map_err(error)?;
-        if (directory && !metadata.is_dir()) || (!directory && !metadata.is_file()) {
+        if !metadata.is_file() {
             return Err(error(format!(
-                "{} must be a {}",
-                relative.display(),
-                if directory {
-                    "directory"
-                } else {
-                    "regular file"
-                }
+                "{} must be a regular file",
+                relative.display()
             )));
-        }
-        Ok(resolved)
-    }
-
-    pub(super) fn validate_includes(
-        &self,
-        config: &NativeConfig,
-        languages: &std::collections::BTreeSet<NativeSourceLanguage>,
-    ) -> Result<(), ToolchainError> {
-        for include in config.include() {
-            self.checked_path(include, true)?;
-        }
-        for flag in languages
-            .iter()
-            .flat_map(|language| config.flags(*language))
-        {
-            if let NativeCompileFlag::Include { kind, path } = flag {
-                self.checked_path(
-                    path,
-                    !matches!(
-                        kind,
-                        NativeIncludeFlag::ForcedHeader | NativeIncludeFlag::Macros
-                    ),
-                )?;
-            }
         }
         Ok(())
     }

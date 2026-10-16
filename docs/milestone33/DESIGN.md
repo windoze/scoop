@@ -540,7 +540,7 @@ kind = "framework"
 when = { os = "darwin" }
 ```
 
-- `native.sources` 始终是带 `path` 和可选 `when` 的表数组，不再与字符串数组混用；`path` 使用 Scoop source 的 Cone 相对选择规则。M49 修订：`include` 及 C flags 中的头文件路径采用普通文件系统路径，可含 `..` 或使用绝对路径；相对路径以 Cone 根为基准，不限制头文件归属。
+- `native.sources` 始终是带 `path` 和可选 `when` 的表数组，不再与字符串数组混用；`path` 使用 Scoop source 的 Cone 相对选择规则。M49 修订：`include` 及 C flags 中的头文件路径采用普通文件系统路径，可含 `..` 或使用绝对路径；相对路径以 Cone 根为基准，不限制头文件归属；搜索目录可以不存在，由编译器实际查找。
 - `cxx` 是默认 `false` 的 Boolean 开关，显式声明当前 Cone 需要 C++ 支持；仅出现 C++ 后缀或 `cxx_flags` 不会隐式开启。选中 C++ 源码而未启用时，在 native 编译前报错。C++ 工具链和支持矩阵见 7.4。
 - `c_flags` 和 `cxx_flags` 是 argv 字符串数组，分别作用于本 Cone 的 C 和 C++ 源码，保持声明顺序，不做 shell 展开，不向依赖者传播。允许语言标准、宏定义和常规编译选项；不能覆盖 driver 管理的 target、sysroot、输入语言、编译阶段和输出位置，也不改变 generated-C bridge 或 runtime 的编译配置。
 - `native.libraries` 按第 8 节的 `when` 筛选后进入 `.slib` 的逻辑 native library requirement，沿依赖闭包传递，与 `@Extern(lib = ...)` 共用合并和冲突规则。D6 已确定允许从所选 target 的系统目录/SDK 解析，细则见 7.3；C++ 开关产生的运行库需求也进入产物。
@@ -551,10 +551,10 @@ when = { os = "darwin" }
 - `.c` 源码交给当前 target 的 C 编译器；启用 `cxx` 后，`.cc`、`.cpp`、`.cxx` 和 `.C` 源码交给同一工具链的配套 C++ 编译器。混合 Cone 按各文件的语言编译，不能把全部 `.c` 改按 C++ 解释。generated-C bridge、runtime 和启动 C 代码继续使用各自的 C 编译配置。
 - profile 提供 debug O0、release O2 的 native 编译默认选项，并附加相应的 `c_flags`／`cxx_flags`；driver 保持 `-fPIC` 等 target 必需配置。C++ 使用独立的语言配置，不能把 `-std=c11` 等 C 专属默认参数传给 C++ driver。
 - 注入 target 宏：编译器自带的宏（`__linux__`、`__APPLE__`、`__aarch64__`、`__x86_64__`）加上 Scoop 提供的 `SCOOP_TARGET_OS_*`、`SCOOP_TARGET_ARCH_*`、`SCOOP_TARGET_ENV_GNU`/`SCOOP_TARGET_ENV_MUSL`，使 glibc 与 musl 可以区分。
-- native 代码可以 include 公开 FFI 头 [scoop_rt.h](../../runtime/include/scoop_rt.h)，driver 自动加上它的 include 路径；公开头必须能被 C/C++ 编译器消费，并为 C ABI 声明提供相应的 C linkage。不能 include runtime 的内部头文件。
+- native 代码可以 include 公开 FFI 头 [scoop_rt.h](../../runtime/include/scoop_rt.h)，driver 自动加上它的 include 路径；公开头必须能被 C/C++ 编译器消费，并为 C ABI 声明提供相应的 C linkage。runtime 内部头文件不属于公开支持的 API，不审计其物理来源。
 - 每个源码文件产出一个 object，作为普通 native `LinkObject` 成员写入 `.slib`，object format 按 target 选择。C++ 编译模式、所需标准库／ABI 运行库与最终链接要求同时写入产物，不通过 object 后缀或 C++ 符号拼写反推。
-- 缓存 key 包含：实际选中的 C/C++ 源码、include 到的头文件（含公开的 `scoop_rt.h`）、`cxx`、实际生效的编译参数与顺序、target、profile、C/C++ toolchain／SDK／标准库 ABI 配置及宏。头文件依赖必须在外层 Cone 缓存命中前发现或校验，不能仅在子编译器执行后才写 depfile；系统头由相应工具链／SDK 内容配置覆盖。
-- **输入一致性**：按原 Cone 的相对 include 布局完成预处理和 depfile 发现，把完整 `.i`／`.ii` 字节、源码和实际头文件摘要及生效配置纳入既有构建输入快照。缓存查询和子编译器使用同一预处理内容；子编译器不再读取工作区头文件。准备期间发现输入变化时丢弃受影响结果并重新准备，不以旧 key 发布新内容的产物。行标记与内建文件名保留稳定逻辑路径和源行号，系统 SDK/toolchain 头文件的实际内容进入同一输入。已确认的不变快照与依赖结果直接复用。状态与验收任务见 10.2。
+- 构建更新先比较已有记录中的源码、实际头文件及搜索候选、工具和有效配置；输入未变化且对象存在时直接复用，不先预处理或读取内容。需要更新时完成预处理、depfile 与实际编译，成功后发布普通对象和记录。行标记与内建文件名保留稳定逻辑路径和源行号；不制作输入隔离快照、不复核读取前后的文件身份。当前职责见实现规范 2.7。
+- C/C++ driver 的完整版本号及目标名称字符串不必一致；采用所选目标的可用工具、标准库和实际编译／链接结果，不建立文本配对资格。
 
 ### 7.3 链接与符号
 

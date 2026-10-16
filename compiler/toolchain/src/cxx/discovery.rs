@@ -55,15 +55,6 @@ pub(super) fn inputs(
         inputs.insert(library);
         return Ok(());
     }
-    for option in ["-dumpmachine", "-dumpfullversion"] {
-        let expected = text(c.driver_command().arg(option))?;
-        let actual = text(c.driver_command_with(driver).arg(option))?;
-        if actual != expected {
-            return Err(error(format!(
-                "paired C++ driver {option} mismatch: {actual:?}, expected {expected:?}"
-            )));
-        }
-    }
     let command = c.driver_command();
     let search = command
         .get_envs()

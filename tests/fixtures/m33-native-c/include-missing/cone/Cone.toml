@@ -6,5 +6,6 @@ version = "0.1.0"
 kind = "executable"
 [native]
 include = ["absent"]
+c_flags = ["-I", "absent-i", "-iquote", "absent-quote", "-isystem", "absent-system", "-idirafter", "absent-after"]
 [[native.sources]]
 path = "native.c"

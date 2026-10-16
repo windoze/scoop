@@ -601,13 +601,15 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 C 工具链的版本、SDK／libc 配置和实际调用参数保存在 `native-tools-v1` 普通记录。更新依据为请求、影响工具选择的配置以及实际程序、探测所用头文件、specs 和相关搜索目录的路径／mtime／大小；命中不启动 xcrun、版本查询、预处理或探测编译。Darwin 记录选中的 developer／SDK 路径、SDK 版本和 deployment；Linux 记录 GCC 版本及实际预处理宏配置，不读取整个 GCC、cc1 或 assembler 内容来构造身份。Linux CBridge 合同中的 compiler inputs 摘要表示探测得到的编译配置；本机路径和文件 metadata 只进入构建更新键，不进入产物语义指纹。首次探测仍检查实际目标／libc 能力；失败不发布记录，普通输入缺失和工具执行失败正常报告。
 
-C++ 配套 driver、标准库配置、宏及搜索输入保存在 `cxx-tools-v1`；只在实际 C++ 请求和相关输入变化时发现，不完整读取工具或标准库二进制来计算更新键。C++ 与 native 的本机输入 metadata 仅用于本机构建更新，不进入语言身份或 runtime ABI。
+C++ 配套 driver、标准库配置、宏及搜索输入保存在 `cxx-tools-v1`；只在实际 C++ 请求和相关输入变化时发现，不完整读取工具或标准库二进制来计算更新键。C++ 与 native 的本机输入 metadata 仅用于本机构建更新，不进入语言身份或 runtime ABI。工具版本与目标名称的文本不作为配对资格，不通过比较 `-dumpfullversion`／`-dumpmachine` 的字符串拒绝可用的编译器。
 
 最终链接工具使用 `final-tools-v1` 普通发现记录，按已选 C 调用配置、最终链接选项（含实际生效的 unwind prefix）及 C++ 需求定位；保存实际 linker、版本、运行库选择、系统输入摘要、探测头文件与搜索候选，Darwin 同时保存已解析的 SDK 导出目录。输入未变化时直接复用发现结果，即使 Scoop 源码变化需要重新链接，也不重复 xcrun／版本／搜索目录查询、探测编译、探测链接或读取系统库内容。实际工具、SDK／系统输入、搜索候选或配置变化时重新发现；普通锁协调同键请求，失败不发布记录。SDK stub 的摘要和长度在首次读取时保存，不保留供身份重算或输入复制使用的完整原始字节；首次工具探测直接使用选中的 SDK 文件，实际程序链接仍按本次符号选择生成必要 stub。
 
 `scoop link` 与独立 `scoop-link` 同样复用 C／C++／最终链接工具发现记录；两者支持 `--cache-dir`，并沿用普通构建的 `SCOOP_CACHE_DIR` 与平台默认缓存位置。显式 artifact 输入的读取和必要链接工作继续按实际请求执行。
 
 native 预处理同时取得实际 include 名称及其所在文件，按该次 include 的名称、引号查找目录和配置搜索根记录候选；不把所有头文件的父目录互相交叉展开。预处理器输出的 include 观察指令不进入后续预处理单元编译，原有行号与诊断映射保持。
+
+搜索目录不要求预先存在，不在预处理前 canonicalize 或核验每个 include 参数。缺失候选仍可作为普通更新观察，新增实际头文件后按原搜索顺序重新选择；实际文件读取失败由执行读取的工具报告。
 
 用户 native 源码的普通对象结果保存在 `native-objects-v1`，记录实际选中的源码、上次预处理得到的头文件、include 搜索配置与相关候选路径、编译参数和 C／C++ 工具输入。记录命中且对象存在时直接返回对象路径，不预处理、不读头文件、不复制预处理结果或对象。更新时由构建编排调用 native 工具预处理并编译一次，全部成功后发布对象和记录；不同输入的对象使用不同位置。仅 Scoop 源码变化时复用 native 对象。更新判断观察实际头文件及可改变其选择的候选路径；不因同目录新增无关文件而重新预处理。parent 将这些对象交给 scoopc 打包，child 不再次发现 C++ 工具或编译同一 native 源码；独立 scoopc 仍从实际源码完成正常 native 编译。native 路径只用于输入选择与诊断，不比较 inode、审计符号链接来源或限制头文件的物理归属。头文件搜索和 forced include 接受含 `..` 的相对路径及绝对路径，使用普通 PathBuf 按 Cone 根解析，不套用 Scoop source identity 的 ConeRelativePath。
 

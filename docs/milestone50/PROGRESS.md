@@ -7,8 +7,9 @@
 1. 工作文件生命周期：删除 generated-C 源码／对象及 LLVM 对象的只读封存和权限断言；保留实际编译、对象使用和失败清理。
 2. CBOR：删除解码后的整包重编码比较、只服务比较的输出限额及解码 trait 对编码 trait 的依赖。现行字段读取、内存边界和 deterministic writer 保留。
 3. 诊断源码：删除 source record／context 与 provider 副本的逐项来源证明、专属错误和两项证明测试；保留正常诊断数据和引用。
-4. 待完成：native 工具选择与 include 路径、自产 LLVM／对象复核、native 对象额外拒绝、发布证明链及关联历史要求。
-5. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+4. Native 工具输入：include 搜索参数直接交给 C/C++ 工具；删除目录存在性／类型预审，将缺失目录和文件搜索路径改为运行正例，组合覆盖共享头文件与 forced include。删除仅比较 C/C++ 完整版本号／目标名称的配对拒绝及两个伪造文本的 fixture。实际选中源码、工具、头文件、目标和链接失败继续覆盖。
+5. 待完成：自产 LLVM／对象复核、native 对象额外拒绝、发布证明链及关联历史要求。
+6. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -17,3 +18,5 @@
 CBOR 批次：格式化、workspace clippy 通过；release wire／identity 共 368 项测试和 1 项 doctest 通过。
 
 诊断源码批次：格式化、workspace clippy 与 release slib 的 layout compile 10 项通过。跨 Cone 源码诊断的 CLI 组合将在工具链批次构建配套命令后验证。
+
+Native 输入批次：格式化与 workspace clippy 通过；native 工具链 9 项测试通过，C++ 修改后定向补验混合语言／头文件变化 1 项通过。本机正式 CLI 41 项、45 变体、101 进程通过，包含 native C、共享头文件和跨 Cone 迭代诊断；无需重复前一批的全量 Rust 测试。

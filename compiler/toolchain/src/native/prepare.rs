@@ -65,9 +65,8 @@ pub(super) fn prepare(
         public: public_include.canonicalize().map_err(error)?,
         system,
     };
-    roots.validate_includes(config, &languages)?;
     for (source, _) in &sources {
-        roots.checked_path(source.path().as_path(), false)?;
+        roots.check_source(source.path().as_path())?;
     }
     let directory = tempfile::Builder::new()
         .prefix("scoop-preprocess-")
