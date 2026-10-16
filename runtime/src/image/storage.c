@@ -16,11 +16,9 @@ static void check_storage(ScoopImageRegistry *registry, size_t index) {
         scoop_metadata_fatal(&check,
                              "allocation extent, alignment or fingerprint");
     }
-    scoop_metadata_writable(&check, storage->writable_base, extent,
-                            storage->required_alignment,
-                            "writable allocation range");
-    scoop_metadata_readonly(&check, storage->scan_program, 1, 8, 8,
-                            "scan header range");
+    scoop_metadata_range(&check, storage->writable_base, 1, extent, storage->required_alignment,
+                         "writable allocation range");
+    scoop_metadata_range(&check, storage->scan_program, 1, 8, 8, "scan header range");
     scoop_metadata_scan(registry, &check, storage->scan_program);
     if (storage->scan_kind == SCOOP_STATIC_SCAN_NONE_V1) {
         if (storage->scan_program[0] != 0) {

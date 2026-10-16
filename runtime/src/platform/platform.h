@@ -23,16 +23,9 @@ typedef struct ScoopPlatformStackBounds {
     const char *high;
 } ScoopPlatformStackBounds;
 
-enum {
-    SCOOP_IMAGE_READ = 1,
-    SCOOP_IMAGE_WRITE = 2,
-    SCOOP_IMAGE_EXECUTE = 4,
-};
-
 typedef struct ScoopPlatformImageRange {
     uintptr_t start;
     uintptr_t end;
-    uint32_t permissions;
 } ScoopPlatformImageRange;
 
 typedef struct ScoopPlatformMetadataImages {
@@ -43,8 +36,7 @@ typedef struct ScoopPlatformMetadataImages {
 } ScoopPlatformMetadataImages;
 
 bool scoop_image_range_contains(const ScoopPlatformMetadataImages *images, const void *pointer,
-                                uint64_t size, uint64_t alignment, uint32_t required,
-                                uint32_t forbidden);
+                                uint64_t size, uint64_t alignment);
 
 typedef struct ScoopManagedAnchor {
     uintptr_t return_pc;

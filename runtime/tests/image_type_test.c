@@ -80,10 +80,9 @@ static void setup(Fixture *fixture) {
         if (address > high)
             high = address;
     }
-    fixture->ranges[0] = (ScoopPlatformImageRange){
-        (uintptr_t)data, (uintptr_t)data + fixture->size, SCOOP_IMAGE_READ};
-    fixture->ranges[1] = (ScoopPlatformImageRange){
-        low, high + 4, SCOOP_IMAGE_READ | SCOOP_IMAGE_EXECUTE};
+    fixture->ranges[0] =
+        (ScoopPlatformImageRange){(uintptr_t)data, (uintptr_t)data + fixture->size};
+    fixture->ranges[1] = (ScoopPlatformImageRange){low, high + 4};
     qsort(fixture->ranges, 2, sizeof *fixture->ranges, range_order);
     fixture->loaded = (ScoopPlatformMetadataImages){.ranges = fixture->ranges,
                                                     .range_count = 2};
@@ -251,8 +250,8 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->types[0].reserved_zero = 1;
         return "reserved field";
     case 19:
-        data->callables[0].entry = (ScoopCallableAddressV1)(uintptr_t)data;
-        return "entry executable range";
+        data->callables[0].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
+        return "entry range";
     case 20:
         td(data, 1)->instance_shape = (ScoopTypeInstanceShapeV1){
             .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
@@ -276,15 +275,14 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->types[0].registration.semantic_id.bytes[0] = 250;
         return "release hook callable registration";
     case 26:
-        data->callables[2].entry = (ScoopCallableAddressV1)(uintptr_t)data;
-        return "entry executable range";
+        data->callables[2].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
+        return "entry range";
     default:
         abort();
     }
 }
 
 static void check(Fixture *fixture) {
-    assert(mprotect(fixture->data, fixture->size, PROT_READ) == 0);
     ScoopImageRegistry *registry = scoop_image_collect(
         &fixture->loaded, fixture->data->input, 1, &fixture->data->root);
     scoop_image_validate_code_and_types(registry);

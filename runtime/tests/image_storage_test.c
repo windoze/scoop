@@ -42,7 +42,6 @@ static void aggregate_value(ScoopStorageFixture *fixture) {
 }
 
 static ScoopImageRegistry *check(ScoopStorageFixture *fixture) {
-    assert(mprotect(fixture->data, fixture->size, PROT_READ) == 0);
     ScoopImageRegistry *registry = scoop_image_collect(
         &fixture->loaded, fixture->data->input, 1, &fixture->data->root);
     scoop_image_validate_code_and_types(registry);
@@ -131,10 +130,7 @@ static const char *corrupt(ScoopStorageFixture *fixture, unsigned test) {
     case 9:
         data->string_object.length = UINT64_MAX;
         return "physical count exceeds INT64_MAX";
-    case 10:
-        data->immortals[0].object_start = state;
-        return "object readonly range";
-    case 11: {
+    case 10: {
         ScoopTypeDescriptor *td = (ScoopTypeDescriptor *)data->td_bytes;
         td->instance_shape = (ScoopTypeInstanceShapeV1){
             .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
@@ -143,44 +139,44 @@ static const char *corrupt(ScoopStorageFixture *fixture, unsigned test) {
         td->object_scan = data->reference_scan;
         return "object size, alignment or reference scan";
     }
-    case 12:
+    case 11:
         data->image.static_storage_count++;
         return "zeroed storage has no initialization or failure role";
-    case 13:
+    case 12:
         data->units[0].storage = &data->storages[ZST_TOKEN];
         return "shared storage role, initial state";
-    case 14:
+    case 13:
         data->units[0].schedule_kind = 0;
         return "unknown schedule kind";
-    case 15:
+    case 14:
         data->units[1].startup_gateway = data->units[0].startup_gateway;
         return "lazy unit has a startup gateway";
-    case 16:
+    case 15:
         data->units[0].storage = guard;
         return "unregistered storage";
-    case 17:
+    case 16:
         data->storages[PROPERTY_A].scan_program = data->reference_scan;
         return "None scan has references";
-    case 18:
+    case 17:
         data->storages[PROPERTY_A].scan_program = guard;
         return "scan header range";
-    case 19:
+    case 18:
         data->storages[FAILURE_A].required_alignment = 4;
         return "dedicated reference slot";
-    case 20:
+    case 19:
         data->storages[PROPERTY_A].byte_size =
             data->storages[PROPERTY_A].allocation_extent = UINT64_MAX;
         return "writable allocation range";
-    case 21:
+    case 20:
         data->root.callable_id.bytes[0] = 200;
         return "source callable owner";
-    case 22:
+    case 21:
         data->immortals[1] = data->immortals[0];
         data->immortals[1].registration.semantic_id.bytes[0] = 2;
         data->immortal_table[1] = &data->immortals[1];
         data->image.immortal_object_count = 2;
         return "overlapping immortal ranges";
-    case 23:
+    case 22:
         aggregate_value(fixture);
         data->scan_nodes[1][4] = 0;
         return "scan header range";
@@ -228,7 +224,7 @@ int main(void) {
     positive(false);
     positive(true);
     positive_aggregate();
-    for (unsigned test = 0; test < 24; test++)
+    for (unsigned test = 0; test < 23; test++)
         negative(test);
     puts("image storage and initialization tests passed");
 }

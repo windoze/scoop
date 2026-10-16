@@ -59,8 +59,7 @@ static void collect_images(ScoopImageRegistry *registry,
     if (image_count == 0) {
         scoop_metadata_fatal(&check, "empty input closure");
     }
-    scoop_metadata_readonly(&check, images, image_count, sizeof *images, 8,
-                            "input pointer span");
+    scoop_metadata_range(&check, images, image_count, sizeof *images, 8, "input pointer span");
     registry->image_count = (size_t)image_count;
     registry->images = scoop_metadata_allocate((size_t)image_count, sizeof *images);
     for (size_t index = 0; index < image_count; index++) {
@@ -75,9 +74,9 @@ static void collect_images(ScoopImageRegistry *registry,
             scoop_digest_zero(&image->runtime_image_fingerprint)) {
             scoop_metadata_fatal(&check, "empty coordinate, identity or fingerprint");
         }
-        scoop_metadata_readonly(&check, image->dependencies, image->dependency_count,
-                                sizeof *image->dependencies, _Alignof(ScoopDigest256V1),
-                                "dependency span");
+        scoop_metadata_range(&check, image->dependencies, image->dependency_count,
+                             sizeof *image->dependencies, _Alignof(ScoopDigest256V1),
+                             "dependency span");
         registry->images[index] = image;
     }
     qsort(registry->images, registry->image_count, sizeof *registry->images,

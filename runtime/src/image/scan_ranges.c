@@ -28,7 +28,7 @@ static size_t enter(struct ScoopScanRanges *ranges, const ScoopMetadataCheck *ch
             return parent;
         }
     }
-    scoop_metadata_readonly(check, program, 1, 8, 8, "scan header range");
+    scoop_metadata_range(check, program, 1, 8, 8, "scan header range");
     ScanRange node = {.program = program, .parent = parent};
     uint64_t tag = program[0];
     uint64_t words;
@@ -37,7 +37,7 @@ static size_t enter(struct ScoopScanRanges *ranges, const ScoopMetadataCheck *ch
         node.child_count = 1;
         node.child_offset = 4;
     } else if (tag == SCOOP_REFS_SEQUENCE) {
-        scoop_metadata_readonly(check, program, 2, 8, 8, "scan sequence header range");
+        scoop_metadata_range(check, program, 2, 8, 8, "scan sequence header range");
         if (program[1] < 2 || program[1] > UINT64_MAX - 2) {
             scoop_metadata_fatal(check, "scan sequence count");
         }
@@ -47,7 +47,7 @@ static size_t enter(struct ScoopScanRanges *ranges, const ScoopMetadataCheck *ch
     } else {
         words = 1 + tag;
     }
-    scoop_metadata_readonly(check, program, words, 8, 8, "scan program range");
+    scoop_metadata_range(check, program, words, 8, 8, "scan program range");
     if (ranges->count == ranges->capacity) {
         size_t capacity = ranges->capacity == 0 ? 16 : ranges->capacity * 2;
         if (capacity < ranges->capacity ||

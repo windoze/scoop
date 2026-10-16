@@ -33,11 +33,9 @@ static void collect_types(ScoopImageRegistry *registry) {
             scoop_metadata_fatal(&check, "reserved field, runtime ID or fingerprint");
         }
         const ScoopTypeDescriptor *td = type->descriptor;
-        scoop_metadata_readonly(&check, td, 1, sizeof *td, 8,
-                                "TypeDescriptor header range");
-        scoop_metadata_readonly(&check, td,
-                                sizeof *td + (uint64_t)td->related_type_count * 8, 1, 8,
-                                "TypeDescriptor related types range");
+        scoop_metadata_range(&check, td, 1, sizeof *td, 8, "TypeDescriptor header range");
+        scoop_metadata_range(&check, td, sizeof *td + (uint64_t)td->related_type_count * 8, 1, 8,
+                             "TypeDescriptor related types range");
         if (td->type_id != type->runtime_type_id) {
             scoop_metadata_fatal(&check, "TypeDescriptor runtime ID mirror");
         }
@@ -68,7 +66,8 @@ static void collect_callables(ScoopImageRegistry *registry) {
         if (scoop_digest_zero(&callable->body_definition_fingerprint)) {
             scoop_metadata_fatal(&check, "empty body fingerprint");
         }
-        scoop_metadata_executable(&check, callable->entry, "entry executable range");
+        scoop_metadata_range(&check, (const void *)(uintptr_t)callable->entry, 1, 1, 1,
+                             "entry range");
         registry->callable_addresses[index] =
             (ScoopRecordAddress){(uintptr_t)callable->entry, index};
     }

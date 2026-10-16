@@ -44,8 +44,7 @@ static void check_unit(const ScoopImageRegistry *registry, size_t index,
         scoop_metadata_fatal(&check, "reserved field or empty diagnostic");
     }
     scoop_metadata_bytes(&check, unit->diagnostic_path, "diagnostic path span");
-    scoop_metadata_writable(&check, unit->cell, sizeof *unit->cell, 8,
-                            "cell writable range");
+    scoop_metadata_range(&check, unit->cell, 1, sizeof *unit->cell, 8, "cell writable range");
     claim_storage(registry, &check, unit->storage, entry, claimed, false);
     claim_storage(registry, &check, unit->failure_root, entry, claimed, true);
     if (unit->schedule_kind == SCOOP_INITIALIZATION_EAGER_STARTUP_V1) {

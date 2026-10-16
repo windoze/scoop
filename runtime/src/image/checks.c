@@ -40,53 +40,29 @@ bool scoop_digest_equal(const ScoopDigest256V1 *left,
     return memcmp(left->bytes, right->bytes, sizeof left->bytes) == 0;
 }
 
-void scoop_metadata_readonly(const ScoopMetadataCheck *check,
-                             const void *pointer, uint64_t count, size_t size,
-                             size_t alignment, const char *field) {
+void scoop_metadata_range(const ScoopMetadataCheck *check, const void *pointer, uint64_t count,
+                          size_t size, size_t alignment, const char *field) {
     if (size == 0 || count > SIZE_MAX / size ||
-        !scoop_image_range_contains(check->loaded, pointer, count * size,
-                                    alignment, SCOOP_IMAGE_READ,
-                                    SCOOP_IMAGE_WRITE)) {
-        scoop_metadata_fatal(check, field);
-    }
-}
-
-void scoop_metadata_writable(const ScoopMetadataCheck *check, void *pointer,
-                             uint64_t size, uint64_t alignment,
-                             const char *field) {
-    if (!scoop_image_range_contains(check->loaded, pointer, size, alignment,
-                                    SCOOP_IMAGE_READ | SCOOP_IMAGE_WRITE,
-                                    SCOOP_IMAGE_EXECUTE)) {
-        scoop_metadata_fatal(check, field);
-    }
-}
-
-void scoop_metadata_executable(const ScoopMetadataCheck *check,
-                               ScoopCallableAddressV1 entry,
-                               const char *field) {
-    if (!scoop_image_range_contains(
-            check->loaded, (const void *)(uintptr_t)entry, 1, 1,
-            SCOOP_IMAGE_READ | SCOOP_IMAGE_EXECUTE, SCOOP_IMAGE_WRITE)) {
+        !scoop_image_range_contains(check->loaded, pointer, count * size, alignment)) {
         scoop_metadata_fatal(check, field);
     }
 }
 
 void scoop_metadata_prefix(const ScoopMetadataCheck *check, const void *record,
                            uint64_t magic, size_t size) {
-    scoop_metadata_readonly(check, record, 1, sizeof(ScoopDescriptorPrefixV1),
-                            8, "prefix range");
+    scoop_metadata_range(check, record, 1, sizeof(ScoopDescriptorPrefixV1), 8, "prefix range");
     const ScoopDescriptorPrefixV1 *prefix = record;
     if (prefix->magic != magic ||
         prefix->abi_version != SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 ||
         prefix->struct_size != size) {
         scoop_metadata_fatal(check, "prefix magic, ABI or exact size");
     }
-    scoop_metadata_readonly(check, record, 1, size, 8, "record range");
+    scoop_metadata_range(check, record, 1, size, 8, "record range");
 }
 
 void scoop_metadata_bytes(const ScoopMetadataCheck *check,
                           ScoopByteSpanV1 bytes, const char *field) {
-    scoop_metadata_readonly(check, bytes.data, bytes.length, 1, 1, field);
+    scoop_metadata_range(check, bytes.data, bytes.length, 1, 1, field);
 }
 
 ScoopMetadataCheck scoop_record_check(const ScoopImageRegistry *registry,

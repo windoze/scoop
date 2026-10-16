@@ -70,12 +70,11 @@ static void check_relations(const ScoopImageRegistry *registry, size_t index) {
     }
     if (td->vtable != NULL) {
         /* Slot count and ABI belong to compiler/reader validation. */
-        scoop_metadata_readonly(&check, td->vtable, 0, sizeof(void *), 8,
-                                "vtable range");
+        scoop_metadata_range(&check, td->vtable, 0, sizeof(void *), 8, "vtable range");
     }
     if (td->itables != NULL || td->itable_count != 0) {
-        scoop_metadata_readonly(&check, td->itables, td->itable_count,
-                                sizeof *td->itables, 8, "itable entries range");
+        scoop_metadata_range(&check, td->itables, td->itable_count, sizeof *td->itables, 8,
+                             "itable entries range");
     }
     for (size_t slot = 0; slot < td->itable_count; slot++) {
         const ScoopItableEntryV1 *entry = &td->itables[slot];
@@ -89,8 +88,7 @@ static void check_relations(const ScoopImageRegistry *registry, size_t index) {
             }
         }
         if (entry->slots != NULL) {
-            scoop_metadata_readonly(&check, entry->slots, 0, sizeof(void *), 8,
-                                    "itable slots range");
+            scoop_metadata_range(&check, entry->slots, 0, sizeof(void *), 8, "itable slots range");
         }
     }
 }

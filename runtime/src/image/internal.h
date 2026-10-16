@@ -15,18 +15,12 @@ void *scoop_metadata_allocate(size_t count, size_t size);
 bool scoop_digest_zero(const ScoopDigest256V1 *digest);
 bool scoop_digest_equal(const ScoopDigest256V1 *left,
                         const ScoopDigest256V1 *right);
-void scoop_metadata_readonly(const ScoopMetadataCheck *check,
-                             const void *pointer, uint64_t count, size_t size,
-                             size_t alignment, const char *field);
-void scoop_metadata_writable(const ScoopMetadataCheck *check, void *pointer,
-                             uint64_t size, uint64_t alignment,
-                             const char *field);
+void scoop_metadata_range(const ScoopMetadataCheck *check, const void *pointer, uint64_t count,
+                          size_t size, size_t alignment, const char *field);
 void scoop_metadata_prefix(const ScoopMetadataCheck *check, const void *record,
                            uint64_t magic, size_t size);
 void scoop_metadata_bytes(const ScoopMetadataCheck *check,
                           ScoopByteSpanV1 bytes, const char *field);
-void scoop_metadata_executable(const ScoopMetadataCheck *check,
-                               ScoopCallableAddressV1 entry, const char *field);
 ScoopMetadataCheck scoop_record_check(const ScoopImageRegistry *registry,
                                       ScoopRecordKind kind, size_t index);
 int scoop_record_address_compare(const void *left, const void *right);

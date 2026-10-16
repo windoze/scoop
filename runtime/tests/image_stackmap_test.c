@@ -11,8 +11,6 @@
 #include "image_stackmap_fixture.h"
 
 static ScoopImageRegistry *check(ScoopStackmapFixture *fixture) {
-    assert(mprotect(fixture->storage.data, fixture->storage.size, PROT_READ) ==
-           0);
     ScoopImageRegistry *registry = scoop_image_collect(
         &fixture->storage.loaded, fixture->storage.data->input, 1,
         &fixture->storage.data->root);
@@ -103,7 +101,7 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
         return "ODR raw records differ in PC or canonical payload";
     case 12:
         fixture->image.section = (const uint8_t *)data + fixture->storage.size;
-        return "complete section readonly range";
+        return "complete section range";
     case 13:
         scoop_test_stackmap_write(fixture, first.start + 12, UINT32_MAX, 4);
         return "function and record counts disagree";

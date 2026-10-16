@@ -1,8 +1,7 @@
 #include "../platform/platform.h"
 
-bool scoop_image_range_contains(const ScoopPlatformMetadataImages *images,
-                                const void *pointer, uint64_t size, uint64_t alignment,
-                                uint32_t required, uint32_t forbidden) {
+bool scoop_image_range_contains(const ScoopPlatformMetadataImages *images, const void *pointer,
+                                uint64_t size, uint64_t alignment) {
     uintptr_t start = (uintptr_t)pointer;
     if (images == NULL || pointer == NULL || alignment == 0 ||
         (alignment & (alignment - 1)) != 0 || start % alignment != 0 ||
@@ -22,8 +21,7 @@ bool scoop_image_range_contains(const ScoopPlatformMetadataImages *images,
     }
     for (size_t index = low; index < images->range_count; index++) {
         const ScoopPlatformImageRange *range = &images->ranges[index];
-        if (range->start > start || (range->permissions & required) != required ||
-            (range->permissions & forbidden) != 0) {
+        if (range->start > start) {
             return false;
         }
         if (end <= range->end) {

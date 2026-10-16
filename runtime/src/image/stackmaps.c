@@ -55,8 +55,8 @@ void scoop_image_stackmaps(ScoopImageRegistry *registry,
     ScoopMetadataCheck check = {.loaded = registry->loaded, .kind = "stackmap"};
     for (size_t index = 0; index < registry->loaded->count; index++) {
         const ScoopStackMapImage *image = &registry->loaded->images[index];
-        scoop_metadata_readonly(&check, image->section, image->section_size, 1, 8,
-                                "complete section readonly range");
+        scoop_metadata_range(&check, image->section, image->section_size, 1, 8,
+                             "complete section range");
     }
     ScoopStackMapIndex raw;
     ScoopStackMapError error;

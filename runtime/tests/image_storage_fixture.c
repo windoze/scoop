@@ -134,8 +134,7 @@ static void setup_records(ScoopStorageFixture *fixture, bool both_eager) {
         if (address > high)
             high = address;
     }
-    fixture->ranges[2] = (ScoopPlatformImageRange){
-        low, high + 4, SCOOP_IMAGE_READ | SCOOP_IMAGE_EXECUTE};
+    fixture->ranges[2] = (ScoopPlatformImageRange){low, high + 4};
     for (size_t index = 0; index < 2; index++) {
         bool eager = index == 0 || both_eager;
         data->units[index] = (ScoopInitializationUnitDescriptorV1){
@@ -175,12 +174,10 @@ void scoop_test_storage_setup(ScoopStorageFixture *fixture, bool both_eager) {
     assert(fixture->data != MAP_FAILED && fixture->state != MAP_FAILED);
     assert(mprotect((uint8_t *)fixture->data + fixture->size, fixture->page,
                     PROT_NONE) == 0);
-    fixture->ranges[0] = (ScoopPlatformImageRange){
-        (uintptr_t)fixture->data, (uintptr_t)fixture->data + fixture->size,
-        SCOOP_IMAGE_READ};
-    fixture->ranges[1] = (ScoopPlatformImageRange){
-        (uintptr_t)fixture->state, (uintptr_t)fixture->state + fixture->page,
-        SCOOP_IMAGE_READ | SCOOP_IMAGE_WRITE};
+    fixture->ranges[0] = (ScoopPlatformImageRange){(uintptr_t)fixture->data,
+                                                   (uintptr_t)fixture->data + fixture->size};
+    fixture->ranges[1] = (ScoopPlatformImageRange){(uintptr_t)fixture->state,
+                                                   (uintptr_t)fixture->state + fixture->page};
     StorageMetadata *data = fixture->data;
     strcpy(data->text, "test");
     setup_records(fixture, both_eager);

@@ -1,8 +1,6 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 #include "../src/platform/platform.h"
 
@@ -27,14 +25,10 @@ int main(void) {
     ScoopPlatformError error = {0};
     assert(scoop_elf_metadata_image_ops.loaded_images(&images, &error));
     assert(images.range_count != 0 && images.count == 1);
-    assert(scoop_image_range_contains(&images, &descriptor, sizeof descriptor,
-                                      _Alignof(void *), SCOOP_IMAGE_READ,
-                                      SCOOP_IMAGE_WRITE));
-    assert(scoop_image_range_contains(
-        &images, &mutable_storage, sizeof mutable_storage, _Alignof(uint64_t),
-        SCOOP_IMAGE_WRITE, SCOOP_IMAGE_EXECUTE));
-    assert(scoop_image_range_contains(&images, (const void *)main, 1, 1,
-                                      SCOOP_IMAGE_EXECUTE, SCOOP_IMAGE_WRITE));
+    assert(scoop_image_range_contains(&images, &descriptor, sizeof descriptor, _Alignof(void *)));
+    assert(scoop_image_range_contains(&images, &mutable_storage, sizeof mutable_storage,
+                                      _Alignof(uint64_t)));
+    assert(scoop_image_range_contains(&images, (const void *)main, 1, 1));
     assert(images.images[0].section == (const uint8_t *)stackmap_words);
     assert(images.images[0].section_size == sizeof stackmap_words);
     assert(stackmap_words[0] == (uintptr_t)managed_function);
@@ -44,20 +38,5 @@ int main(void) {
     scoop_elf_metadata_image_ops.dispose_images(&images);
     assert(images.ranges == NULL && images.images == NULL);
 
-    /* Prove that the next snapshot observes actual permissions, not ELF flags.
-     */
-    long page_size = sysconf(_SC_PAGESIZE);
-    assert(page_size > 0);
-    uintptr_t page =
-        (uintptr_t)stackmap_words - (uintptr_t)stackmap_words % page_size;
-    assert(mprotect((void *)page, (size_t)page_size, PROT_READ | PROT_WRITE) ==
-           0);
-    assert(!scoop_elf_metadata_image_ops.loaded_images(&images, &error));
-    assert(error.code == SCOOP_PLATFORM_METADATA_UNAVAILABLE);
-    assert(images.ranges == NULL && images.images == NULL);
-    assert(mprotect((void *)page, (size_t)page_size, PROT_READ) == 0);
-    assert(scoop_elf_metadata_image_ops.loaded_images(&images, &error));
-    scoop_elf_metadata_image_ops.dispose_images(&images);
-    puts("ELF load bias, stackmap bounds and actual metadata permissions "
-         "passed");
+    puts("ELF load bias, stackmap bounds and metadata ranges passed");
 }
