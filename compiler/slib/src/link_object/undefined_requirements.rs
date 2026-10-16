@@ -92,30 +92,6 @@ impl CanonicalUndefinedSymbolRequirementSetV1 {
     pub fn requirements(&self) -> &[CanonicalUndefinedSymbolRequirementV1] {
         &self.requirements
     }
-
-    pub(in crate::link_object) fn matches_strong_closure(
-        &self,
-        closure: &super::VerifiedCurrentConeStrongRelocationClosureV1,
-    ) -> bool {
-        if self.producer != closure.producer() || self.selection.target() != closure.target() {
-            return false;
-        }
-        let expected = closure
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                !matches!(
-                    binding.resolution(),
-                    StrongRelocationResolutionV1::ObjectLocalStrong { .. }
-                )
-            })
-            .map(CanonicalUndefinedRelocationUseV1::from);
-        let actual = self
-            .requirements
-            .iter()
-            .map(|requirement| requirement.use_site().clone());
-        actual.eq(expected)
-    }
 }
 
 pub fn finalize_undefined_symbol_requirements_v1(

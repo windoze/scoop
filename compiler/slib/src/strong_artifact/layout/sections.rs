@@ -10,7 +10,7 @@ use scoop_mir::{
 use super::CrossConeLayoutArtifactWriteError;
 use crate::strong_artifact::{LayerAssembly, StrongArtifactSectionV1, build_section};
 use crate::{
-    LinkIdentityClosureSectionV1, MemberPurposeSet, MetadataLocation, VerifiedCodeFingerprintV2,
+    CodeFingerprintDataV2, LinkIdentityClosureSectionV1, MemberPurposeSet, MetadataLocation,
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_cross_cone_type_semantics_capability, hir_identity_foundation_capability,
     lir_cone_production_capability, lir_cross_cone_layout_abi_capability,
@@ -32,7 +32,7 @@ pub(super) struct LayoutMetadataInput<'section, 'ir> {
     pub lir_foundation: &'section ConeLirFoundation,
     pub lir_cross_cone: &'section CrossConeLirBridgeSectionV1,
     pub lir_layout_abi: &'section CrossConeLayoutAbiSectionV1<'ir>,
-    pub code: &'section VerifiedCodeFingerprintV2,
+    pub code: &'section CodeFingerprintDataV2,
     pub link_identity_closure: &'section LinkIdentityClosureSectionV1,
     pub link_support: &'section crate::LirLinkSupportSectionV1,
 }

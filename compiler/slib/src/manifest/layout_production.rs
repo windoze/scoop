@@ -9,7 +9,7 @@ use super::{
     production::{ProductionPlanInputs, build_production_code_projection_common},
 };
 use crate::link_object::FinalCodeObjectSetV2;
-use crate::{CodeFingerprint, RuntimeImageFingerprint, VerifiedCodeFingerprintV2};
+use crate::{CodeFingerprint, CodeFingerprintDataV2, RuntimeImageFingerprint};
 
 /// V2 metadata and final object bytes producing the shared manifest projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -69,15 +69,15 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
 /// whose production input is V2.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeLayoutProductionManifestV1 {
-    code: VerifiedCodeFingerprintV2,
+    code: CodeFingerprintDataV2,
 }
 
 impl CrossConeLayoutProductionManifestV1 {
-    pub const fn from_verified_code(code: VerifiedCodeFingerprintV2) -> Self {
+    pub const fn from_verified_code(code: CodeFingerprintDataV2) -> Self {
         Self { code }
     }
 
-    pub const fn code_proof(&self) -> &VerifiedCodeFingerprintV2 {
+    pub const fn code_proof(&self) -> &CodeFingerprintDataV2 {
         &self.code
     }
 

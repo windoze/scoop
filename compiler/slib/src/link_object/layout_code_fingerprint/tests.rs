@@ -106,29 +106,6 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, &shape)
             .unwrap();
 
-    let wrong_strong = crate::verify_current_cone_strong_relocation_closure_v1(vec![
-        verified_member_without_relocations(&fixture_for_producer(producer, "wrongLayoutCode")),
-    ])
-    .unwrap();
-    let wrong_callable = legacy_closure(wrong_strong);
-    let wrong_shape = verify_external_shape_requirements_v1(
-        &wrong_callable,
-        layout.selected().consumer(),
-        layout.selected().physical_imports(),
-    )
-    .unwrap();
-    assert!(matches!(
-        compute_cross_cone_layout_code_fingerprint_v1(
-            production.clone(),
-            native.clone(),
-            defined.clone(),
-            partitions.clone(),
-            &wrong_shape,
-            crate::LirLinkSupportSectionV1::default(),
-        ),
-        Err(LayoutCodeFingerprintError::ExternalShapeClosureMismatch)
-    ));
-
     let proof = compute_cross_cone_layout_code_fingerprint_v1(
         production,
         native,

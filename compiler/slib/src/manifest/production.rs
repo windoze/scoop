@@ -12,8 +12,8 @@ use scoop_wire::{Encoder, WireEncode};
 use super::{ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, RuntimeImageFingerprint};
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalOdrMemberDirectoryV1, EntryProductionBranchV1, FinalCodeObjectSetV1,
-    ObjectDefinitionFingerprintV1, OdrMemberDirectoryProjectionError, VerifiedCodeFingerprintV1,
+    CanonicalOdrMemberDirectoryV1, CodeFingerprintDataV1, EntryProductionBranchV1,
+    FinalCodeObjectSetV1, ObjectDefinitionFingerprintV1, OdrMemberDirectoryProjectionError,
 };
 
 mod projection;
@@ -220,15 +220,15 @@ impl VerifiedSingleConeProductionCodeProjectionV1 {
 /// Production manifest fields derived from the compilation result.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SingleConeProductionManifestV1 {
-    code: VerifiedCodeFingerprintV1,
+    code: CodeFingerprintDataV1,
 }
 
 impl SingleConeProductionManifestV1 {
-    pub const fn from_verified_code(code: VerifiedCodeFingerprintV1) -> Self {
+    pub const fn from_verified_code(code: CodeFingerprintDataV1) -> Self {
         Self { code }
     }
 
-    pub const fn code_proof(&self) -> &VerifiedCodeFingerprintV1 {
+    pub const fn code_proof(&self) -> &CodeFingerprintDataV1 {
         &self.code
     }
 

@@ -21,8 +21,9 @@
 15. 初始化：直接关联 Eager gateway 槽位，复用实际 callable body 指纹；gateway 的 body／node／指纹改为单个可选完整值。删除 cell、诊断文本、登记记录和 relocation 回放、生产副本深比较及独占破坏测试。
 16. 类型登记：直接关联 descriptor／layout 槽位，按已解析 atom 范围读取 descriptor、diagnostic 与 itable 数据计算实际指纹。删除预期字节重建、relocation／digest 图回放及 requirement 闭包深比较，清理独占错误和破坏测试；共用已有 atom 范围转换。
 17. Digest 槽位：统一为 intent／member／offset 数据，宽度固定 32；直接建立查询索引。删除零槽读回、relocation 扫描、graph／覆盖回放及无生产消费者的资格字段，driver 复用 codegen 的成员归属。
-18. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
-19. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+18. Code 与归档组装：直接编码已有定义／引用／imports，删除闭包深比较、定义表重建比较和各组件 producer／target 副本检查；数据类型改为实际指纹结果，保留编码与往返测试。
+19. 待完成：其余对象与桥接生产证明、同类要求及最终验收。
+20. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -61,3 +62,5 @@ Immortal object 批次：格式化、workspace clippy 无警告；release slib l
 登记清理后的 CLI 定向回归：配套 release 命令重建，7 项／9 变体／44 进程通过，保留 4 个专门链接 plan golden；覆盖泛型初始化派发、类型物化、GC 静态根、Scoop ABI、回调重入和 COMMON 初始化。
 
 Digest 槽位批次：格式化、workspace clippy 无警告；release slib link_object 164 项通过，实际登记／image／entry 槽位回填继续通过。
+
+Code 与组装批次：格式化、workspace clippy 无警告；release slib 全部 275 项通过。上一批后已清理 debug target 1.7 GiB，保留 release 工具。

@@ -11,7 +11,7 @@ use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalUndefinedSymbolRequirementSetV1,
-    DefinedLinkSymbolOwnerBuildError, VerifiedEntryPatchSetV1,
+    VerifiedEntryPatchSetV1,
 };
 use crate::{
     CodeFingerprint, LinkMemberFingerprint, SingleConeProductionCodeProjectionV1, SlibMemberId,
@@ -131,10 +131,9 @@ where
     })
 }
 
-/// A code digest together with every proof and canonical projection from
-/// which its nine-field input was encoded.
+/// A Code digest and the data used by its canonical encoding.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedCodeFingerprintV1 {
+pub struct CodeFingerprintDataV1 {
     production: VerifiedSingleConeProductionCodeProjectionV1,
     link_extension_contributions: CanonicalKnownLinkExtensionCodeContributionSetV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
@@ -144,7 +143,7 @@ pub struct VerifiedCodeFingerprintV1 {
     fingerprint: CodeFingerprint,
 }
 
-impl VerifiedCodeFingerprintV1 {
+impl CodeFingerprintDataV1 {
     pub const fn producer(&self) -> ConeIdentity {
         self.production.link_objects().producer()
     }
@@ -196,16 +195,7 @@ pub fn compute_code_fingerprint_v1(
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
-) -> Result<VerifiedCodeFingerprintV1, CodeFingerprintError> {
-    let builtins = production
-        .link_objects()
-        .final_objects()
-        .entry()
-        .patch_sites()
-        .builtins();
-    if !undefined_symbols.matches_strong_closure(builtins.strong_relocations()) {
-        return Err(CodeFingerprintError::UndefinedSymbolSetMismatch);
-    }
+) -> Result<CodeFingerprintDataV1, CodeFingerprintError> {
     compute_code_fingerprint_with_contributions_v1(
         production,
         CanonicalKnownLinkExtensionCodeContributionSetV1::empty(),
@@ -221,41 +211,7 @@ fn compute_code_fingerprint_with_contributions_v1(
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
-) -> Result<VerifiedCodeFingerprintV1, CodeFingerprintError> {
-    let producer = production.link_objects().producer();
-    let target = production
-        .link_objects()
-        .final_objects()
-        .entry()
-        .patch_sites()
-        .builtins()
-        .strong_relocations()
-        .target();
-    if native_requirements.producer() != producer {
-        return Err(CodeFingerprintError::NativeProducerMismatch {
-            expected: producer,
-            actual: native_requirements.producer(),
-        });
-    }
-    if native_requirements.target() != target
-        || undefined_symbols.producer() != producer
-        || undefined_symbols.selection().target() != target
-    {
-        return Err(CodeFingerprintError::TargetMismatch);
-    }
-    let builtins = production
-        .link_objects()
-        .final_objects()
-        .entry()
-        .patch_sites()
-        .builtins();
-    let expected_defined = CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
-        builtins.strong_relocations(),
-    )
-    .map_err(CodeFingerprintError::DefinedSymbols)?;
-    if defined_symbols != expected_defined {
-        return Err(CodeFingerprintError::DefinedSymbolSetMismatch);
-    }
+) -> Result<CodeFingerprintDataV1, CodeFingerprintError> {
     let native_contracts =
         CanonicalNativeExternalContractCodeSetV1::from_requirement_surface(&native_requirements)
             .map_err(CodeFingerprintError::NativeContracts)?;
@@ -272,7 +228,7 @@ fn compute_code_fingerprint_with_contributions_v1(
     )
     .map(|digest| CodeFingerprint::from_array(*digest.as_array()))
     .map_err(CodeFingerprintError::Hash)?;
-    Ok(VerifiedCodeFingerprintV1 {
+    Ok(CodeFingerprintDataV1 {
         production,
         link_extension_contributions,
         native_requirements,
@@ -358,15 +314,6 @@ fn encode_native_library_requirements(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CodeFingerprintError {
-    NativeProducerMismatch {
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
-    TargetMismatch,
-    DefinedSymbols(DefinedLinkSymbolOwnerBuildError),
-    DefinedSymbolSetMismatch,
-    UndefinedSymbolSetMismatch,
-    LinkContributionEncoding(scoop_wire::cbor::EncodeError),
     NativeContracts(NativeExternalContractCodeSetBuildError),
     Hash(HashError),
 }
@@ -380,11 +327,8 @@ impl fmt::Display for CodeFingerprintError {
 impl std::error::Error for CodeFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::DefinedSymbols(source) => Some(source),
-            Self::LinkContributionEncoding(source) => Some(source),
             Self::NativeContracts(source) => Some(source),
             Self::Hash(source) => Some(source),
-            _ => None,
         }
     }
 }

@@ -1,13 +1,12 @@
 mod support;
 
-use scoop_identity::ConeCoordinate;
 use scoop_mir::*;
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
-    CrossConeLayoutProductionManifestV1, DecodedSingleConeProductionManifestV1,
-    DecodedSlibEnvelope, ValidatedGraphArtifact,
+    CodeFingerprintDataV2, CrossConeLayoutProductionManifestV1,
+    DecodedSingleConeProductionManifestV1, DecodedSlibEnvelope, ValidatedGraphArtifact,
 };
 use crate::{EmptyLayoutCodeFixture, with_empty_layout_code_fixture};
 use support::{
@@ -15,10 +14,10 @@ use support::{
 };
 
 #[test]
-fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projection() {
-    let (first, code) = write_artifact(WriterMutation::None);
+fn layout_writer_is_reproducible_and_sections_round_trip() {
+    let (first, code) = write_artifact();
     let first = first.unwrap();
-    let (second, _) = write_artifact(WriterMutation::None);
+    let (second, _) = write_artifact();
     let second = second.unwrap();
     assert_eq!(first.as_bytes(), second.as_bytes());
     assert_eq!(first.target_selection(), selection());
@@ -56,42 +55,19 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
     );
 }
 
-#[test]
-fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
-    let (result, _) = write_artifact(WriterMutation::ManifestIdentity);
-    assert!(matches!(
-        result,
-        Err(
-            CrossConeLayoutArtifactWriteError::ComponentProducerMismatch {
-                component: "Code",
-                ..
-            }
-        )
-    ));
-}
-
-#[derive(Clone, Copy)]
-enum WriterMutation {
-    None,
-    ManifestIdentity,
-}
-
-fn write_artifact(
-    mutation: WriterMutation,
-) -> (
+fn write_artifact() -> (
     Result<AssembledCrossConeLayoutArtifactV1, CrossConeLayoutArtifactWriteError>,
-    VerifiedCodeFingerprintV2,
+    CodeFingerprintDataV2,
 ) {
     with_empty_layout_code_fixture(|lir| {
         let code = lir.code.code().clone();
-        let result = write_artifact_from_fixture(lir, mutation);
+        let result = write_artifact_from_fixture(lir);
         (result, code)
     })
 }
 
 fn write_artifact_from_fixture(
-    mut lir: EmptyLayoutCodeFixture<'_>,
-    mutation: WriterMutation,
+    lir: EmptyLayoutCodeFixture<'_>,
 ) -> Result<AssembledCrossConeLayoutArtifactV1, CrossConeLayoutArtifactWriteError> {
     let provider = lir.cone.identity();
     let (hir_foundation, hir_production) = hir_foundation_and_production(&lir.cone);
@@ -101,15 +77,6 @@ fn write_artifact_from_fixture(
         .finish()
         .unwrap();
     let mir_type_bridge = empty_mir_type_bridge(provider, &mir_production, &mir_ordinary, &graph);
-
-    if matches!(mutation, WriterMutation::ManifestIdentity) {
-        lir.cone = crate::ConeRecord::new(
-            ConeCoordinate::new("test", "wrong-layout-writer", "0.0.0").unwrap(),
-            crate::ConeKind::Library,
-            crate::ConeSourceForm::Manifest,
-        )
-        .unwrap();
-    }
 
     AssembledCrossConeLayoutArtifactV1::write(CrossConeLayoutArtifactInputV1::new(
         crate::ProducerRecord::new("layout-writer-test").unwrap(),

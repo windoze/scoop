@@ -2156,16 +2156,11 @@ source/diagnostic provenance。它编码为array，元素`NativeExternalContract
 `CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>`另由native library
 requirement array按requirement id严格递增编码。多个source声明归并为同一contract时，增删或重排
 其source identity不改变Code fingerprint；symbol key、contract fingerprint、contract payload或
-library requirement任一变化都必须改变Code fingerprint。reader从已验证LIR native requirement
-surface重建该集合，不从hash input提升decoded identity。
+library requirement 任一变化都必须改变 Code fingerprint。writer 从现有 LIR native requirements 构造实际编码，直接消费已有定义、引用和 imports，不重建集合或闭包来比较副本。
 
 `CodeLinkObjectMemberSetV1`编码为按`SlibMemberId`严格递增的
 `LinkMemberFingerprint` array；排序key不另行编码，因为每个fingerprint已经覆盖完整
-`SlibMemberRecord`（包括member id、stable key、role、byte length与content digest）。构造该集合前，
-packager必须把directory中的全部`LinkObject`与最终`VerifiedEntryPatchSetV1`逐member一一对应：Scoop
-LIR member使用完成全部registration/image/entry patch并重验后的bytes，generated-C member使用同一
-`CBridgeProductionSet`已经验证的最终envelope。缺失、额外、重复member，stable key/role不等，或
-directory length/digest与最终proof不等都失败。M23-3没有known Link-required extension handler；
+`SlibMemberRecord`（包括 member id、stable key、role、byte length 与 content digest）。packager 直接投影最终成员目录，Scoop LIR member 使用完成 registration/image/entry patch 的 bytes，generated-C 使用本次成功产出的 bytes；不逐 member 比较另一份生产记录或重验其摘要。归档组装直接编码已有 metadata，不重复核对各组件 producer／target。M23-3 没有 known Link-required extension handler；
 directory出现任一`ExtensionBlob(requirement=Link)`直接失败，不能把它当optional blob忽略。
 
 domain固定为`scoop-code-v1`。optional blob、diagnostic attachment、physical ar name、host path和producer临时目录不进入。只改object分片会改变member/Code fingerprint但不改变LIR semantic fingerprint；只改optional附件只改变Artifact fingerprint。

@@ -4,12 +4,12 @@ use std::collections::BTreeSet;
 
 use scoop_identity::OdrMemberId;
 use scoop_slib::{
-    CrossConeLayoutProductionManifestV1, DecodedCanonicalOdrMemberDirectoryV1,
-    DecodedSingleConeProductionManifestV1, VerifiedCodeFingerprintV2,
+    CodeFingerprintDataV2, CrossConeLayoutProductionManifestV1,
+    DecodedCanonicalOdrMemberDirectoryV1, DecodedSingleConeProductionManifestV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
-pub(super) fn check(code: &VerifiedCodeFingerprintV2, expected: &BTreeSet<OdrMemberId>) {
+pub(super) fn check(code: &CodeFingerprintDataV2, expected: &BTreeSet<OdrMemberId>) {
     let projection = code.production().projection();
     let directory = projection.odr_members();
     let actual = directory

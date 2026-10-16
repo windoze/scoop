@@ -26,7 +26,7 @@ pub(crate) struct EmptyLayoutCodeFixture<'a> {
     pub foundation: &'a ConeLirFoundation,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layout: &'a CrossConeLayoutAbiSectionV1<'a>,
-    pub code: VerifiedCrossConeLayoutCodeFingerprintV1,
+    pub code: CrossConeLayoutCodeDataV1,
     pub link_objects: Vec<SlibMember>,
 }
 
