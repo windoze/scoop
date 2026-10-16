@@ -40,6 +40,10 @@ PrivateKey 与 PublicKey 通过 fromPem(String)／fromDer(List<Byte>) 导入、t
 
 `scoop.crypto.x509` 提供 Certificate 的内存 PEM／DER 解析、导出、subject／issuer、序列号、有效期、DNS／IP SAN 和独立 PublicKey；证书算法按 OpenSSL 正常支持范围处理。
 
+Certificate 使用 fromPem／fromDer 和 toPem／toDer；单次导入恰好一张证书，拒绝尾随非空数据。subject／issuer 使用 RFC 2253 名称文本，serialNumber 使用十六进制文本，notBefore／notAfter 为 Instant。subjectAlternativeNames() 返回 `SubjectAlternativeName { Dns(String), Ip(Array<Byte>) }` 数组，其他 SAN 类别不投影到该数组；publicKey() 返回独立拥有的公钥引用。
+
+`TrustStore.fromCertificates(anchors)` 保留锚的 native 引用，创建后不再修改。`verify(certificate, at, purpose, intermediates, identity)` 要求明确的时间和 `CertificatePurpose { ServerAuth, ClientAuth, Any }`，中间证书默认空数组，identity 默认 None；返回 `CertificateVerification { Verified, Failed(CertificateValidationFailure) }`。失败数据含 code、depth、detail。DNS 身份匹配禁止部分标签通配符，其他链与名称规则由 OpenSSL 执行。
+
 Certificate.verifySignature(issuerKey) 只检查证书签名。TrustStore 从显式锚建立，verify 接收叶证书、中间证书、明确 Instant、用途与可选 `PeerIdentity { Dns(String), Ip(Array<Byte>) }`。DNS 必须非空 ASCII／A-label 且无 NUL，IP 必须为 4／16 字节。结果区分 Verified 和 Failure，失败保存验证 code、depth 及原因。上游执行签名、时间、链约束与用途检查；最后提交的证书不隐式成为根，不读取系统信任、不执行 AIA／OCSP／CRL 网络获取。
 
 ## 6. JWS

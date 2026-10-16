@@ -11,6 +11,7 @@ kind = "library"
 "scoop:scoop.json" = "0.1.0"
 
 [test-dependencies]
+"scoop.tests:crypto-certificates" = { version = "0.1.0", path = "test-certificates" }
 "scoop:scoop.test" = "0.1.0"
 
 [native]
@@ -45,3 +46,12 @@ path = "native/key_io.c"
 
 [[native.sources]]
 path = "native/signature.c"
+
+[[native.sources]]
+path = "native/certificate.c"
+
+[[native.sources]]
+path = "native/certificate_names.c"
+
+[[native.sources]]
+path = "native/trust.c"

@@ -1,0 +1,17 @@
+package scoop.crypto.testdata
+
+// Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
+
+public fun expiredPem(): String =
+    "-----BEGIN CERTIFICATE-----\n" +
+    "MIIByjCCAXCgAwIBAgICEAMwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWU2Nvb3Ag\n" +
+    "TTUxIEludGVybWVkaWF0ZTAeFw0yNDAxMDEwMDAwMDBaFw0yNTAxMDEwMDAwMDBa\n" +
+    "MBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\n" +
+    "BHCYaYKtSeyChRhAFcg+z3DnesEKKl5HsCDLMTEOi/fT9nZl+Xrb0LsZ+9+5BKob\n" +
+    "+mBRkwdOU2m3EC3dErYvHMijgaQwgaEwDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8E\n" +
+    "BAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwLAYDVR0RBCUwI4IJbG9jYWxob3N0\n" +
+    "hwR/AAABhxAAAAAAAAAAAAAAAAAAAAABMB0GA1UdDgQWBBTTRIyKAvg3MKv79lcl\n" +
+    "ODEw/IAsqTAfBgNVHSMEGDAWgBT6FL1X6RDBKiQ16AfJWtEEEybFUTAKBggqhkjO\n" +
+    "PQQDAgNIADBFAiEAgXQovRXxxBDG6IltBDDdbGjg+4f9pLk5Fr6wnx3uZqoCIH+H\n" +
+    "FMvUHjdAsNcI+FVr91o0q1iNPvWgXcWCZOzwWyOj\n" +
+    "-----END CERTIFICATE-----\n"

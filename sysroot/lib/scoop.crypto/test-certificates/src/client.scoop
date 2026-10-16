@@ -1,0 +1,17 @@
+package scoop.crypto.testdata
+
+// Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
+
+public fun clientPem(): String =
+    "-----BEGIN CERTIFICATE-----\n" +
+    "MIIBsjCCAVigAwIBAgICEAQwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWU2Nvb3Ag\n" +
+    "TTUxIEludGVybWVkaWF0ZTAeFw0yNDAxMDEwMDAwMDBaFw0zNDAxMDEwMDAwMDBa\n" +
+    "MBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\n" +
+    "BHCYaYKtSeyChRhAFcg+z3DnesEKKl5HsCDLMTEOi/fT9nZl+Xrb0LsZ+9+5BKob\n" +
+    "+mBRkwdOU2m3EC3dErYvHMijgYwwgYkwDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8E\n" +
+    "BAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwIwFAYDVR0RBA0wC4IJbG9jYWxob3N0\n" +
+    "MB0GA1UdDgQWBBTTRIyKAvg3MKv79lclODEw/IAsqTAfBgNVHSMEGDAWgBT6FL1X\n" +
+    "6RDBKiQ16AfJWtEEEybFUTAKBggqhkjOPQQDAgNIADBFAiA+OU9oe/3Ef2dppL+5\n" +
+    "MYaB0z65fKCm/USZBEovHHG4nAIhAIIAozJmS1eTq+jAqOT0OZxjlSpmyMyqmB2k\n" +
+    "kbzs91jg\n" +
+    "-----END CERTIFICATE-----\n"

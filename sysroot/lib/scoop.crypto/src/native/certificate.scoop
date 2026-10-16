@@ -1,0 +1,48 @@
+package scoop.crypto.native
+
+import scoop.crypto.x509.Certificate
+import scoop.crypto.x509.TrustStore
+import scoop.crypto.x509.PeerIdentity
+
+@Unsafe public fun certificateHandle(value: Certificate): ULong = value.nativeHandle()
+@Unsafe public fun trustStoreHandle(value: TrustStore): ULong = value.nativeHandle()
+
+public fun peerIdentityData(identity: PeerIdentity): (Int, Array<Byte>) {
+    when (identity) {
+        case PeerIdentity.Dns(name) -> {
+            val bytes = name.toByteArray().toArray()
+            if (bytes.size == 0L) throw IllegalArgumentException(Some("DNS identity must not be empty"))
+            for (byte in bytes) {
+                val code = byte.toUInt8().toInt32()
+                if (code == 0 || code > 127) throw IllegalArgumentException(Some("DNS identity must be ASCII without NUL"))
+            }
+            return (0, bytes)
+        }
+        case PeerIdentity.Ip(bytes) -> {
+            if (bytes.size != 4L && bytes.size != 16L) throw IllegalArgumentException(Some("IP identity must contain 4 or 16 bytes"))
+            return (1, bytes)
+        }
+    }
+}
+
+@CLayout internal struct CertificateCheck(val code: Long, val depth: Int, val error: ULong)
+
+@Extern(name = "scoop_crypto_certificate_import") internal fun certificateImport(pem: Int, data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_certificate_export") internal fun certificateExport(handle: ULong, pem: Int): CryptoResult
+@Extern(name = "scoop_crypto_certificate_text") internal fun certificateText(handle: ULong, field: Int): CryptoResult
+@Extern(name = "scoop_crypto_certificate_time") internal fun certificateTime(handle: ULong, after: Int): CryptoResult
+@Extern(name = "scoop_crypto_certificate_key") internal fun certificateKey(handle: ULong): CryptoResult
+@Extern(name = "scoop_crypto_certificate_signature") internal fun certificateSignature(handle: ULong, key: ULong): CryptoResult
+@Extern(name = "scoop_crypto_certificate_free") internal fun certificateFree(handle: ULong)
+@Extern(name = "scoop_crypto_certificate_names") internal fun certificateNames(handle: ULong): CryptoResult
+@Extern(name = "scoop_crypto_names_count") internal fun namesCount(handle: ULong): Int
+@Extern(name = "scoop_crypto_name_kind") internal fun nameKind(handle: ULong, index: Int): Int
+@Extern(name = "scoop_crypto_name_bytes") internal fun nameBytes(handle: ULong, index: Int): CryptoResult
+@Extern(name = "scoop_crypto_names_free") internal fun namesFree(handle: ULong)
+@Extern(name = "scoop_crypto_store_new") internal fun storeNew(): CryptoResult
+@Extern(name = "scoop_crypto_store_add") internal fun storeAdd(handle: ULong, certificate: ULong): CryptoResult
+@Extern(name = "scoop_crypto_store_free") internal fun storeFree(handle: ULong)
+@Extern(name = "scoop_crypto_certificate_verify") internal fun certificateVerify(leaf: ULong, store: ULong,
+    intermediates: Ptr<ULong>, count: Long, time: Long, purpose: Int, nameKind: Int,
+    name: Ptr<Byte>?, nameSize: Long): CertificateCheck
+@Extern(name = "scoop_crypto_verify_message") internal fun verifyMessage(code: Long): Ptr<Byte>

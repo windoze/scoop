@@ -9,4 +9,5 @@ kind = "library"
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.crypto" = { version = "0.1.0", path = ".." }
 [test-dependencies]
+"scoop.tests:crypto-certificates" = { version = "0.1.0", path = "../test-certificates" }
 "scoop:scoop.test" = "0.1.0"

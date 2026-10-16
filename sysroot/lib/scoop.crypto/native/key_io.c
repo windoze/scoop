@@ -2,7 +2,7 @@
 #include <ctype.h>
 #include <limits.h>
 
-static int no_password(char *buffer, int size, int writing, void *user) {
+int scoop_crypto_no_password(char *buffer, int size, int writing, void *user) {
   (void)buffer;
   (void)size;
   (void)writing;
@@ -32,12 +32,13 @@ ScoopCryptoResult scoop_crypto_key_import(int private_key, int pem,
   PKCS8_PRIV_KEY_INFO *info = NULL;
   const unsigned char *cursor = data;
   if (private_key) {
-    info = pem ? PEM_read_bio_PKCS8_PRIV_KEY_INFO(bio, NULL, no_password, NULL)
+    info = pem ? PEM_read_bio_PKCS8_PRIV_KEY_INFO(
+                     bio, NULL, scoop_crypto_no_password, NULL)
                : d2i_PKCS8_PRIV_KEY_INFO(NULL, &cursor, (long)count);
     if (info)
       key = EVP_PKCS82PKEY(info);
   } else {
-    key = pem ? PEM_read_bio_PUBKEY(bio, NULL, no_password, NULL)
+    key = pem ? PEM_read_bio_PUBKEY(bio, NULL, scoop_crypto_no_password, NULL)
               : d2i_PUBKEY(NULL, &cursor, (long)count);
   }
   int complete = pem ? only_space(bio) : cursor == data + count;

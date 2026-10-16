@@ -1,0 +1,117 @@
+package scoop.crypto
+
+import scoop.crypto.x509.*
+import scoop.crypto.testdata.*
+import scoop.test.*
+import scoop.text.*
+import scoop.time.Instant
+
+@Test
+private class CertificateTests {
+    @Test
+    fun `PEM DER fields alternative names and independent public key`() {
+        Certificate.fromPem(serverPem()).use { certificate ->
+            assertEquals("CN=localhost", certificate.subject)
+            assertEquals("CN=Scoop M51 Intermediate", certificate.issuer)
+            assertEquals("1002", certificate.serialNumber)
+            assertEquals(1704067200L, certificate.notBefore.epochSeconds)
+            assertTrue(certificate.notAfter.epochSeconds > 1800000000L)
+            Certificate.fromDer(certificate.toDer()).use { copy -> assertEquals(certificate.toPem(), copy.toPem()) }
+            val names = certificate.subjectAlternativeNames()
+            assertEquals(3L, names.size)
+            assertEquals("localhost", when (names[0L]) { case SubjectAlternativeName.Dns(name) -> name; else -> "" })
+            assertEquals("7f000001", when (names[1L]) { case SubjectAlternativeName.Ip(bytes) -> bytes.toHexString(); else -> "" })
+        }
+        val certificate = Certificate.fromPem(serverPem())
+        val publicKey = certificate.publicKey()
+        certificate.close()
+        certificate.close()
+        publicKey.use { key ->
+            PrivateKey.fromPem(serverKeyPem()).use { signer ->
+                val message = "retained public key".toByteArray()
+                assertTrue(verify(SignatureAlgorithm.ES256, key, message, sign(SignatureAlgorithm.ES256, signer, message)))
+            }
+        }
+        assertFailsWith<IllegalStateException> { certificate.toPem() }
+        assertFailsWith<CryptoException> { Certificate.fromPem("not a certificate") }
+        assertFailsWith<CryptoException> { Certificate.fromPem(serverPem() + "trailing") }
+    }
+
+    @Test
+    fun `certificate signature does not imply chain trust`() {
+        Certificate.fromPem(serverPem()).use { leaf ->
+            Certificate.fromPem(intermediatePem()).use { issuer ->
+                issuer.publicKey().use { key -> assertTrue(leaf.verifySignature(key)) }
+                PrivateKey.fromPem(rootKeyPem()).use { wrong ->
+                    wrong.publicKey().use { key -> assertFalse(leaf.verifySignature(key)) }
+                }
+                val empty: Array<Certificate> = []
+                TrustStore.fromCertificates(empty).use { store ->
+                    requireFailure(store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer]), 20L)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `explicit anchors intermediates time purpose and DNS IP identities`() {
+        val root = Certificate.fromPem(rootPem())
+        val store = TrustStore.fromCertificates([root])
+        root.close()
+        store.use { trusted ->
+            Certificate.fromPem(intermediatePem()).use { intermediate ->
+                Certificate.fromPem(serverPem()).use { leaf -> checkChain(trusted, intermediate, leaf) }
+                Certificate.fromPem(expiredPem()).use { expired ->
+                    requireFailure(trusted.verify(expired, instant(), CertificatePurpose.ServerAuth, [intermediate]), 10L)
+                }
+                Certificate.fromPem(clientPem()).use { client ->
+                    requireFailure(trusted.verify(client, instant(), CertificatePurpose.ServerAuth, [intermediate]), 26L)
+                    requireVerified(trusted.verify(client, instant(), CertificatePurpose.ClientAuth, [intermediate]))
+                }
+            }
+        }
+        store.close()
+        Certificate.fromPem(serverPem()).use { leaf ->
+            assertFailsWith<IllegalStateException> { store.verify(leaf, instant(), CertificatePurpose.ServerAuth) }
+        }
+    }
+}
+
+private fun instant(): Instant = Instant.fromEpochSeconds(1800000000L)
+
+private fun checkChain(store: TrustStore, issuer: Certificate, leaf: Certificate) {
+    requireVerified(store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Dns("localhost"))))
+    requireVerified(store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Ip("7f000001".hexToByteArray()))))
+    requireVerified(store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Ip("00000000000000000000000000000001".hexToByteArray()))))
+    requireFailure(store.verify(leaf, instant(), CertificatePurpose.ServerAuth), 20L)
+    requireFailure(store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Dns("wrong.example"))), 62L)
+    requireFailure(store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Ip("7f000002".hexToByteArray()))), 64L)
+    assertFailsWith<IllegalArgumentException> {
+        store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Dns("")))
+    }
+    assertFailsWith<IllegalArgumentException> {
+        store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Dns("local\u{0000}host")))
+    }
+    assertFailsWith<IllegalArgumentException> {
+        val bytes: Array<Byte> = []
+        store.verify(leaf, instant(), CertificatePurpose.ServerAuth, [issuer], Some(PeerIdentity.Ip(bytes)))
+    }
+}
+
+private fun requireVerified(result: CertificateVerification) {
+    when (result) {
+        case Verified -> return
+        case Failed(error) -> fail(Some(error.detail))
+    }
+}
+
+private fun requireFailure(result: CertificateVerification, code: Long) {
+    when (result) {
+        case Verified -> fail(Some("unexpected trusted certificate"))
+        case Failed(error) -> {
+            assertEquals(code, error.code)
+            assertTrue(error.depth >= 0)
+            assertTrue(error.detail.length > 0L)
+        }
+    }
+}
