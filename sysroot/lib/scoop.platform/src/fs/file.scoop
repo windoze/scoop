@@ -27,6 +27,9 @@ public class File private constructor(private val context: OsString?) : ByteSour
     public val size: Long get() = metadata().size
 
     public companion object {
+        // Pipe/spawn callers allocate all managed owners before acquiring native descriptors.
+        internal fun newOwner(): File = File(None)
+
         public fun open(path: Path, options: OpenOptions = OpenOptions()): File {
             val flags = options.nativeFlags()
             val file = File(Some(path.toOsString()))
@@ -50,6 +53,8 @@ public class File private constructor(private val context: OsString?) : ByteSour
             return file
         }
     }
+
+    internal fun adoptDescriptor(owned: Int) { descriptor = owned }
 
     internal fun <R> withDescriptor(block: (Int) -> R): R {
         requireOpen()

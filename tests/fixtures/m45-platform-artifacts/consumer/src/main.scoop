@@ -6,6 +6,7 @@ import scoop.platform.random.SystemRandom
 import scoop.platform.time.*
 import scoop.platform.system.*
 import scoop.platform.concurrent.*
+import scoop.platform.process.*
 
 fun main() {
     val path = Path.fromString("/alpha/../beta//").normalizeLexically()
@@ -57,5 +58,15 @@ fun main() {
             mutex.withLock { while (!completed.load()) condition.await() }
             worker.join()
         }
+    }
+    Command(Path.fromString("/bin/cat"), stdin = Stdio.Pipe, stdout = Stdio.Pipe,
+        stderr = Stdio.Pipe).spawn().use { child ->
+        val output = child.communicate(Some("artifact process 中".toByteArray().toArray()))
+        if (OsString.fromBytes(output.stdout).decodeUtf8() != "artifact process 中") throw IllegalStateException()
+        when (output.status) {
+            case ExitStatus.Exited(code) -> if (code != 0) throw IllegalStateException()
+            case ExitStatus.Signaled(_) -> throw IllegalStateException()
+        }
+        Unit
     }
 }

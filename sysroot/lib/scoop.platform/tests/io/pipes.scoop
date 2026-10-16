@@ -1,0 +1,37 @@
+package scoop.platform.io
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class PipesTest {
+    @Test
+    fun `pipe endpoints own their descriptors and transfer beyond kernel capacity`() {
+        val pipe = Pipe.open()
+        val bytes = Array<Byte>(131072L) { (it % 251L).toInt8() }
+        Thread.start { pipe.sink.use { it.writeAllBytes(bytes); gcCollect() } }.use {
+            pipe.source.use { source ->
+                val read = source.readAllBytes()
+                assertEquals(bytes.size, read.size)
+                for (index in 0L..<bytes.size) assertEquals(bytes[index], read[index])
+                assertEquals(0L, source.readAllBytes().size)
+            }
+        }
+        assertTrue(pipe.source.isDisposed && pipe.sink.isDisposed)
+        pipe.source.dispose()
+        pipe.sink.dispose()
+        assertFailsWith<IllegalStateException> { pipe.source.readAllBytes() }
+        assertFailsWith<IllegalStateException> { pipe.sink.flush() }
+    }
+
+    @Test
+    fun `pipe write reports broken pipe without terminating the process`() {
+        val pipe = Pipe.open()
+        pipe.source.dispose()
+        pipe.sink.use { sink ->
+            val error = assertFailsWith<PlatformException> { sink.writeText("closed") }
+            assertTrue(error.kind == PlatformErrorKind.BrokenPipe)
+        }
+    }
+}

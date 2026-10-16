@@ -46,3 +46,9 @@ path = "native/threads.c"
 path = "native/mutex.c"
 [[native.sources]]
 path = "native/condition.c"
+[[native.sources]]
+path = "native/pipes.c"
+[[native.sources]]
+path = "native/process.c"
+[[native.sources]]
+path = "native/process_wait.c"

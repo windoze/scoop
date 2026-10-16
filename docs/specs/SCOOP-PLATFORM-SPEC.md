@@ -185,3 +185,35 @@ ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、a
 同步对象的活动调用保活 owner；ConditionVariable.await 同时保活相关 Mutex，native 等待使用 NativeSafe。dispose 要求没有并发操作，mutex 未持有、cond 无等待者；不满足时拒绝并保留对象。关闭成功才清除 owner，重复关闭无操作。Mutex 的 native 持有状态避免对忙碌 mutex 调用具有未定义行为的 destroy；hook 不解锁、不唤醒，只在合法销毁前提满足时释放，忙碌对象不被强行 free。禁止外部 native 代码直接操作这些私有同步句柄。
 
 依据：[POSIX mutex 销毁前提](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutex_destroy.html)、[条件等待](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_cond_clockwait.html)、[Darwin 相对条件等待](https://github.com/apple-oss-distributions/libpthread/blob/main/src/pthread_cond.c)。这些 API 复用既有 callback、Context、原子与 GC 合同，不新增线程 runtime 协议或强制停止机制。
+
+## 11. 匿名管道与子进程
+
+### 11.1 管道与命令快照
+
+`scoop.platform.io.Pipe.open()` 返回 source: PipeSource 与 sink: PipeSink，分别实现 ByteSource／ByteSink 及 Disposable，各自拥有一个 close-on-exec 描述符。端点提供 isDisposed、dispose/close；sink.flush 只检查状态。关闭最后一个写端后读取返回 EOF；读端全部关闭后写入按第 6.4 节报告 BrokenPipe。端点没有文件定位语义；借用视图只实现 IO 协议，关闭责任由 owner 保持。
+
+`scoop.platform.process.Command(executable: Path, arguments: Array<OsString> = [], environment: Map<OsString, OsString> = 当前环境快照, workingDirectory: Path = 当前目录, stdin: Stdio = Inherit, stdout: Stdio = Inherit, stderr: Stdio = Inherit, mergeError: Boolean = false)` 保存不可变配置与输入集合的副本。Stdio 区分 Inherit、Null、Pipe 和 Redirect(file: File)；File 只借用至 spawn 完成。mergeError 将 child fd 2 复制为配置后的 fd 1，与非 Inherit 的 stderr 配置冲突。
+
+spawn(): ChildProcess 按明确 executable 启动；searchPath(): ChildProcess 是显式 PATH 搜索入口。含 `/` 的 executable 仍按路径启动，否则按命令环境中的 PATH 从左至右尝试，空项为 child cwd，缺失 PATH 使用 `/bin:/usr/bin`。NotFound／NotDirectory 继续，PermissionDenied 保留到全部候选失败后报告；其他错误立即报告。argv[0] 保留原始 executable，其余参数逐项传递，不拼接 shell 命令。环境名非空且不含 NUL／`=`，其他系统字符串不含 NUL；空参数与非 UTF-8 字节原样传递。
+
+使用 posix_spawn 和真实 cwd file action，不在 managed 进程中 fork 后执行 Scoop。输入字符串只在本次同步 native 调用期间借用；pipe、临时 fd、副本、argv/env 指针表及 file actions 在失败时回滚。重定向先复制到非标准 fd，再设置 child 的 0/1/2，避免别名覆盖。Darwin 使用 CLOEXEC_DEFAULT 与显式标准流动作，Linux 使用 O_CLOEXEC 管道；库不提供继承任意 fd 的接口。child 使用空信号屏蔽集与默认 SIGPIPE，父进程 mask／handler 保持原样，不把临时屏蔽传给 child。
+
+### 11.2 观察、端点转移与释放
+
+ChildProcess 实现 Disposable，拥有子进程观察／reap 责任和本次创建的父端 pipes。stdin: ByteSink?、stdout/stderr: ByteSource? 返回借用视图；takeStdin/Stdout/Stderr 返回相应 owned 端点并清除 child 的关闭责任，缺失或已取出返回 None。对象操作与配置／关闭由调用方串行化，不提供竞争回收同一 pid 的保证。
+
+等待与发送信号的活动 native 调用保活 ChildProcess 至返回清理完成，不能只保留整数 pid；活动观察期间重入 dispose 会拒绝。GC hook 不得提前回收该观察权，尤其不能在 kill 的 native 调用中先 reap 再让系统复用 pid。
+
+wait(): ExitStatus 等待并回收；tryWait(): ExitStatus? 非阻塞查询。ExitStatus 区分 Exited(code: Int) 和 Signaled(signal: Int)，非零退出不是系统调用失败。成功后缓存结果，重复等待不再次调用 waitpid；terminate/kill 显式请求 SIGTERM/SIGKILL，已回收时无操作，不能对旧 pid 发信号。外部代码不得回收该 child；若 OS 报 ECHILD，则清除观察权并保存该失败，防止后续操作误用复用的 pid。
+
+dispose 逐一关闭仍拥有的父端 pipes，再尝试 wait；关闭失败也不能跳过后续关闭／回收，多个失败按 ResourceUseException 组合。dispose 不隐式终止进程，可能阻塞；成功后重复关闭无操作。hook 最多尝试一次 waitpid(WNOHANG)，不等待、不终止、不启动后台 reap，pipe owners 各自负责 raw close。因此 GC 不能替代显式 wait/use。
+
+### 11.3 communicate
+
+communicate(input: Array<Byte>? = None): ProcessOutput 收集 stdout/stderr 的独立字节数组及 ExitStatus。提供输入要求配置 stdin Pipe，已经 take 的配置 pipe 拒绝自动通信；错误发生在消费任何端点之前。未配置输出 pipe 时对应数组为空，合并 stderr 时只收集 stdout。
+
+通信接管仍拥有的 pipes，用 poll 与 nonblocking fd 同时推进 stdin 写入、stdout/stderr 排空，写完立即关闭 stdin，读至 EOF 分别关闭输出，最后 wait。该驱动只服务当前通信，不引入事件循环或异步框架；等待通过 NativeSafe，EINTR 重试，EAGAIN 回到 poll，不忙循环。所有数据在 Scoop 中积累，C shim 只封装系统调用，不预计算业务结果。
+
+通信驱动失败时关闭其端点，显式 kill 并 reap 本次负责的 child，再传播原异常及必要清理失败；没有遗留工作线程或跨调用 buffer 借用。正常 communicate 不终止 child。普通用户自管 pipes／wait 仍需安排三方向进度；继承管道的后代进程可能延迟 EOF，API 不承诺超时或管理整个进程树。
+
+依据：[POSIX spawn 与 file actions](https://pubs.opengroup.org/onlinepubs/9799919799/functions/posix_spawn.html)、[Linux posix_spawn](https://man7.org/linux/man-pages/man3/posix_spawn.3.html) 以及当前 Darwin SDK 的 spawn 扩展。上述能力均为普通 platform 库，不增加 runtime 进程管理协议。

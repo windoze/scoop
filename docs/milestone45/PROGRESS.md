@@ -96,3 +96,14 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 实现进程端点清理时，`endpoint?.dispose()` 暴露语句检查缺口：安全调用已经展开到条件分支，表达式只剩 Option 临时变量，旧检查错误地拒绝丢弃结果。按语言规范 7.3 修复源调用形式的识别，保留 receiver／实参／缺省值的分支求值与异常传播；没有放开单纯安全字段读取。
 
 2026-10-16 本机格式化、workspace all-targets clippy、HIR 全 crate 1474 项通过。新增正／负 Rust 回归；正式 CLI 5 项、8 variants、19 processes 通过，包含新的方法／扩展／callable property／泛型清理调用及既有安全调用、挂起组合和 Unit lambda 回归。新例 debug/release、普通／moving GC 全部通过。Linux 随 M45-10 验收；产物结构及 runtime ABI 无变更。
+
+## M45-8：进程、匿名管道与同步通信
+
+2026-10-16 完成本机实现。Command 保存参数／环境／cwd 快照，posix_spawn 配置标准流与 child 信号状态，PATH 搜索使用命令环境。ChildProcess 明确拥有观察／reap 与父端 pipes，借用视图不提供关闭，take 转移端点；退出与信号分开表示，wait 缓存结果，ECHILD 终结观察权。communicate 用 poll 与 nonblocking pipes 同时推进三个方向，错误时关闭、kill 并 reap，不建立后台工作线程。
+
+- scoop.test 共 89 项在 debug、release、debug moving GC 全部通过，本批新增 12 项。覆盖超过管道容量的三向传输、原始参数、环境快照、child cwd/PATH、文件重定向／stderr 合并、EOF／BrokenPipe、显式信号、重复 wait/dispose、take 与线程组合、通信失败回收。
+- native fixture 在 debug/release、普通／moving GC 全部通过：真实入口注入 argv 分配、file action、spawn 失败并确认 fd 回滚；close 已消费后返回 EINTR 仍继续关闭和 reap；wait/poll EINTR、读写 EAGAIN 正确恢复；raw argv／环境／cwd、CLOEXEC、child 信号默认值与父信号状态均由辅助子进程检查。
+- 同一 native 专测从 spawn、wait、signal、poll、read/write 边界回调 GC，覆盖临时 owner；已退出 child 的 hook reap，仍停止运行的 child hook 不等待或终止，探针随后清理。外部 reap 造成 ECHILD 后不再 wait 或 signal 旧 pid。最后补强活动 wait/signal 的 owner 保活后，仅重跑受影响 process 10 项的 debug/release/moving 和本专测，全部通过。
+- 下游 `.slib` 增加子进程与管道组合，普通／moving 通过；该用例最后的数组参数修正只重跑自身。格式化、workspace all-targets clippy、C 严格告警与 diff 检查通过。库源码的数组构造、元组、闭包局部变量与安全调用前置修复均已闭合；runtime ABI 不变。
+
+下一批为 M45-9。Linux GNU／musl 留至所有本机功能完成后的 M45-10，当前结果不代表其 libc 差异已通过。原始输出保留仓库外，清理结束的 fixture 工作目录并保留复用缓存。
