@@ -2,7 +2,7 @@ use super::slib_support::SlibObjects;
 use scoop_slib::*;
 
 #[test]
-fn elf_static_immortal_and_initialization_registrations() {
+fn elf_static_immortal_and_lazy_initialization_registrations() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -30,22 +30,12 @@ fn elf_static_immortal_and_initialization_registrations() {
             bind_initialization_registrations_v1(&sites, production.initialization_units().clone())
                 .unwrap();
         assert_eq!(initializations.registrations().len(), 2);
-        let patches = initializations
-            .registrations()
-            .iter()
-            .filter_map(|registration| registration.gateway_definition_patch())
-            .collect::<Vec<_>>();
-        assert_eq!(patches.len(), 1);
-        for patch in patches {
-            let bytes = &fixture
-                .objects
+        assert!(
+            initializations
+                .registrations()
                 .iter()
-                .find(|(member, _)| *member == patch.member())
-                .unwrap()
-                .1;
-            let offset = usize::try_from(patch.checked_offset()).unwrap();
-            assert_eq!(&bytes[offset..offset + 32], &[0; 32]);
-        }
+                .all(|registration| registration.gateway_definition_patch().is_none())
+        );
     }
 }
 
