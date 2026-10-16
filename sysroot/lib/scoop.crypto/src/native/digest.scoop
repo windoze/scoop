@@ -1,0 +1,13 @@
+package scoop.crypto.native
+
+@Extern(name = "scoop_crypto_digest_new") internal fun digestNew(algorithm: Int): CryptoResult
+@Extern(name = "scoop_crypto_digest_update") internal fun digestUpdate(handle: ULong, data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_digest_finish") internal fun digestFinish(handle: ULong): CryptoResult
+@Extern(name = "scoop_crypto_digest_free") internal fun digestFree(handle: ULong)
+@Extern(name = "scoop_crypto_secret_import") internal fun secretImport(data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_secret_export") internal fun secretExport(handle: ULong): CryptoResult
+@Extern(name = "scoop_crypto_hmac") internal fun nativeHmac(algorithm: Int, key: ULong, data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_equal") internal fun nativeEqual(left: Ptr<Byte>, right: Ptr<Byte>, count: Long): Int
+@Extern(name = "scoop_crypto_random") internal fun nativeRandom(count: Long): CryptoResult
+@Extern(name = "scoop_crypto_aead") internal fun nativeAead(algorithm: Int, encrypt: Int, key: ULong,
+    nonce: Ptr<Byte>, aad: Ptr<Byte>, aadCount: Long, input: Ptr<Byte>, inputCount: Long, tag: Ptr<Byte>?): CryptoResult

@@ -1,0 +1,50 @@
+package scoop.crypto
+
+import scoop.crypto.native.*
+
+public enum AeadAlgorithm { AES128GCM, AES256GCM }
+public struct AeadCiphertext(val ciphertext: Array<Byte>, val tag: Array<Byte>)
+
+private fun aeadCode(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>): Int {
+    val size = if (algorithm == AeadAlgorithm.AES128GCM) 16L else 32L
+    if (key.size != size) throw IllegalArgumentException(Some("AES-GCM key length does not match algorithm"))
+    if (nonce.size != 12L) throw IllegalArgumentException(Some("AES-GCM nonce must contain 12 bytes"))
+    return if (algorithm == AeadAlgorithm.AES128GCM) 0 else 1
+}
+
+public fun encrypt(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, plaintext: List<Byte>, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toInt8() }): AeadCiphertext {
+    val code = aeadCode(algorithm, key, nonce)
+    val bytes = transform(code, true, key, nonce, aad, plaintext, Array<Byte>(0L) { _ -> 0.toInt8() })!!
+    val count = bytes.size - 16L
+    return AeadCiphertext(Array<Byte>(count) { index -> bytes[index] },
+        Array<Byte>(16L) { index -> bytes[count + index] })
+}
+
+public fun decrypt(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, encrypted: AeadCiphertext, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toInt8() }): Array<Byte>? {
+    val code = aeadCode(algorithm, key, nonce)
+    if (encrypted.tag.size != 16L) throw IllegalArgumentException(Some("AES-GCM tag must contain 16 bytes"))
+    return transform(code, false, key, nonce, aad, encrypted.ciphertext, encrypted.tag)
+}
+
+private fun transform(code: Int, encrypting: Boolean, key: SecretKey, nonce: List<Byte>, aad: List<Byte>, input: List<Byte>, tag: List<Byte>): Array<Byte>? {
+    val iv = nonce.toArray()
+    val associated = aad.toArray()
+    val bytes = input.toArray()
+    val auth = tag.toArray()
+    val handle = key.nativeHandle()
+    @Unsafe { return iv.withDataPointer { ivPointer, _ ->
+        @Unsafe { return@withDataPointer associated.withDataPointer { aadPointer, aadCount ->
+            @Unsafe { return@withDataPointer bytes.withDataPointer { dataPointer, count ->
+                @Unsafe { return@withDataPointer auth.withDataPointer { tagPointer, _ ->
+                    @Unsafe {
+                        val result = nativeAead(code, if (encrypting) 1 else 0, handle,
+                            ivPointer, aadPointer, aadCount, dataPointer, count,
+                            if (encrypting) None else Some(tagPointer))
+                        val owned = cryptoValue(result, "AES-GCM")
+                        return@withDataPointer if (owned == 0UL) None else Some(consumeCryptoBytes(owned))
+                    }
+                } }
+            } }
+        } }
+    } }
+}

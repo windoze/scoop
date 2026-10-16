@@ -1,0 +1,47 @@
+package scoop.crypto
+
+import scoop.crypto.native.*
+
+public class SecretKey private constructor(private var handle: ULong) : Disposable {
+    public val size: Long get() { @Unsafe { return bytesSize(nativeHandle()) } }
+
+    public companion object {
+        public fun fromBytes(data: List<Byte>): SecretKey {
+            val bytes = data.toArray()
+            @Unsafe { return bytes.withDataPointer { pointer, count ->
+                @Unsafe { return@withDataPointer SecretKey(cryptoValue(secretImport(pointer, count), "import secret key")) }
+            } }
+        }
+    }
+
+    internal fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("secret key is closed"))
+        return handle
+    }
+
+    public fun exportBytes(): Array<Byte> { @Unsafe { return cryptoBytes(secretExport(nativeHandle()), "export secret key") } }
+
+    public override fun dispose() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { bytesFree(owned) }
+    }
+    public fun close() { dispose() }
+}
+
+public fun hmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>): Array<Byte> {
+    val handle = key.nativeHandle()
+    val bytes = data.toArray()
+    @Unsafe { return bytes.withDataPointer { pointer, count ->
+        @Unsafe { return@withDataPointer cryptoBytes(nativeHmac(digestCode(algorithm), handle, pointer, count), "HMAC") }
+    } }
+}
+
+public fun verifyHmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>, expected: List<Byte>): Boolean {
+    val actual = hmac(algorithm, key, data)
+    val other = expected.toArray()
+    if (actual.size != other.size) return false
+    @Unsafe { return actual.withDataPointer { left, count ->
+        @Unsafe { return@withDataPointer other.withDataPointer { right, _ -> @Unsafe { return@withDataPointer nativeEqual(left, right, count) == 1 } } }
+    } }
+}

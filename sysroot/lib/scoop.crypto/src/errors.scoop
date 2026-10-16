@@ -1,0 +1,7 @@
+package scoop.crypto
+
+public class CryptoException public constructor(
+    public val operation: String,
+    public val code: ULong,
+    public val detail: String
+) : Exception(Some(operation + ": " + detail))

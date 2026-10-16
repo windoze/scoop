@@ -1,0 +1,38 @@
+package scoop.crypto.native
+
+import scoop.crypto.CryptoException
+
+@CLayout
+public struct CryptoResult(val value: ULong, val error: ULong)
+
+@Unsafe
+public fun cryptoValue(result: CryptoResult, operation: String): ULong {
+    if (result.error != 0UL) {
+        val code = errorCode(result.error)
+        val detail = try { String.fromCString(errorText(result.error)) }
+            finally { errorFree(result.error) }
+        throw CryptoException(operation, code, detail)
+    }
+    return result.value
+}
+
+@Unsafe
+public fun cryptoBytes(result: CryptoResult, operation: String): Array<Byte> {
+    return consumeCryptoBytes(cryptoValue(result, operation))
+}
+
+@Unsafe
+public fun consumeCryptoBytes(handle: ULong): Array<Byte> {
+    try {
+        val count = bytesSize(handle)
+        val data = bytesData(handle)
+        return Array<Byte>(count) { index -> @Unsafe { return@Array data.load(index) } }
+    } finally { bytesFree(handle) }
+}
+
+@Extern(name = "scoop_crypto_error_code") private fun errorCode(handle: ULong): ULong
+@Extern(name = "scoop_crypto_error_text") private fun errorText(handle: ULong): Ptr<Byte>
+@Extern(name = "scoop_crypto_error_free") private fun errorFree(handle: ULong)
+@Extern(name = "scoop_crypto_bytes_size") internal fun bytesSize(handle: ULong): Long
+@Extern(name = "scoop_crypto_bytes_data") private fun bytesData(handle: ULong): Ptr<Byte>
+@Extern(name = "scoop_crypto_bytes_free") internal fun bytesFree(handle: ULong)
