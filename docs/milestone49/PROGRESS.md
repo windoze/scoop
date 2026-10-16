@@ -88,3 +88,5 @@ Linux 已清理旧 target 55.5 GiB，同步已提交的编译器并完成 fmt／
 全量 Rust 在 HIR lower 的 1,474 项中发现三项结构测试把完整 core 源码标记为外部 Cone，却未提供外部 MIR 依赖；core 新增实际协程调用后显露此问题。将已有正式 core bootstrap 测试 helper 移到共用位置，三项继续降到 MIR 的测试改用完整 core Cone 输入，保留原结构断言。生产实现和 pipeline 契约不变。
 
 本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组并继续尚未执行的 crate；GNU／musl asyncio debug 各四十五项通过，后续 profile 与完整 CLI 验收继续运行。
+
+Linux 链接器的 archive 延后检查测试还保留了拒绝普通 C constructor 的旧断言。将未选中成员改为仍被禁止的 C++ EH 输入，继续验证普通归档索引与选中后检查；初始化的实际运行回归不变。格式化、两机 workspace clippy 与 Linux 单项补验通过，原十六项链接器通过结果继续有效；没有修改生产代码。
