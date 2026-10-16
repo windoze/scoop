@@ -4,7 +4,6 @@ pub(super) fn foundation(
     module: &Module,
     body: &CallableBodyIdentity,
     safepoints: &[SafepointIdentity],
-    corruption: Corruption,
 ) -> (
     ConeLirFoundation,
     Vec<RegistrationArtifacts>,
@@ -30,11 +29,7 @@ pub(super) fn foundation(
     .unwrap();
     let stackmap = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
         definition.id(),
-        if matches!(corruption, Corruption::WrongStackmapAtomRole) {
-            DefinitionAtomRole::AddressTakenConstant
-        } else {
-            DefinitionAtomRole::Stackmap
-        },
+        DefinitionAtomRole::Stackmap,
         DefinitionAtomSubkey::Singleton,
     ))
     .unwrap();

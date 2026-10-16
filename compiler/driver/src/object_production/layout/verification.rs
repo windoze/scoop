@@ -51,7 +51,7 @@ pub(crate) fn prepare(
         &bindings.digest_patches,
     )
     .map_err(BuiltinObjectProductionError::DigestPatchSites)?;
-    let stackmaps = verify_scoop_lir_stackmaps_v1(
+    let stackmaps = read_scoop_stackmaps_v1(
         patch_sites.builtins().clone(),
         production.safepoint_semantics(),
         &candidates,

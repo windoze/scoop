@@ -66,38 +66,7 @@ pub(crate) fn object_bytes(
         record_ids[0] = u64::MAX;
     }
     let stackmap = stackmap_blob(&record_ids);
-    let text = match corruption {
-        Corruption::MissingFrameChain => [0xd503_201f, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
-        Corruption::NonCallReturnPc => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0xd503_201f],
-        Corruption::None
-        | Corruption::UnknownSafepoint
-        | Corruption::WrongStackmapAtomRole
-        | Corruption::RegistrationMagic
-        | Corruption::CallableRegistrationMagic
-        | Corruption::CallableEntryRelocationTarget
-        | Corruption::TypeRegistrationMagic
-        | Corruption::TypeDescriptorRelocationTarget
-        | Corruption::TypeDescriptorScalar
-        | Corruption::TypeDescriptorDiagnosticBytes
-        | Corruption::TypeDescriptorDiagnosticRelocationTarget
-        | Corruption::ImmortalRegistrationMagic
-        | Corruption::ImmortalObjectLength
-        | Corruption::ImmortalObjectDescriptorRelocationTarget
-        | Corruption::ImmortalObjectRelocationTarget
-        | Corruption::ImmortalTypeRegistrationRelocationTarget
-        | Corruption::StaticRegistrationMagic
-        | Corruption::StaticScanProgram
-        | Corruption::StaticStorageRelocationTarget
-        | Corruption::StaticInitialStorageRelocationTarget
-        | Corruption::StaticInitialTableRelocationTarget
-        | Corruption::StaticZeroedInitialState
-        | Corruption::StaticZeroedWritableSection
-        | Corruption::StaticEncodedEmptyInitialState
-        | Corruption::StaticEncodedZeroFillSection
-        | Corruption::StaticAliasedSentinels
-        | Corruption::WritableRegistrationSection
-        | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
-    };
+    let text = [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000];
     macho_object(
         module,
         symbols,

@@ -13,7 +13,7 @@ pub enum BuiltinObjectProductionError {
     StrongSymbolPlan(StrongObjectSymbolPlanningError),
     StrongRelocations(BuiltinObjectSetValidationError),
     DigestPatchSites(DigestPatchSiteValidationError),
-    Stackmaps(ScoopLirStackmapValidationError),
+    Stackmaps(ScoopStackmapReadError),
     SafepointRegistrations(StrongSafepointRegistrationValidationError),
     CallableRegistrations(StrongCallableRegistrationValidationError),
     TypeRegistrations(StrongTypeRegistrationValidationError),

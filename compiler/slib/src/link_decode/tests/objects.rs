@@ -96,7 +96,7 @@ pub(super) fn finalized_link_object_fixture() -> (
         )
         .unwrap();
     let registrations = production.registration_production();
-    let stackmaps = crate::verify_scoop_lir_stackmaps_v1(
+    let stackmaps = crate::read_scoop_stackmaps_v1(
         patch_sites.builtins().clone(),
         registrations.safepoint_semantics(),
         &objects,

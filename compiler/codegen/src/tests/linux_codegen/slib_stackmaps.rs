@@ -21,7 +21,7 @@ fn elf_stackmaps_validate_actual_member_definitions_roots_and_return_pcs() {
         let fixture = SlibObjects::new(module, directory.path());
         let objects = &fixture.objects;
         let verify = |objects: &[(SlibMemberId, Vec<u8>)]| {
-            verify_scoop_lir_stackmaps_v1(
+            read_scoop_stackmaps_v1(
                 fixture.builtins(objects),
                 semantics.clone(),
                 &candidates(objects),
@@ -90,7 +90,7 @@ fn elf_stackmaps_validate_actual_member_definitions_roots_and_return_pcs() {
         damaged[index].1[start] = 0x90;
         assert!(matches!(
             verify(&damaged),
-            Err(ScoopLirStackmapValidationError::MachineCode {
+            Err(ScoopStackmapReadError::MachineCode {
                 source: StackmapMachineCodeError::X86_64(
                     X86_64StackmapMachineCodeError::MissingManagedFrameChain
                 ),

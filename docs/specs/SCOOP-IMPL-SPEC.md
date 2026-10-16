@@ -339,7 +339,7 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；发射前的 A
 
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
 
-优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在最终根分组处检查该合并链没有派生地址，并以 LLVM 22.1 的 `is_base_value` 标记向 RS4GC 保留这一事实；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；原有 typed 根恢复、base=derived 与机器 stackmap 检查保持。
+优化后的 AS1 根若通过 phi／select 合并 immortal 常量与动态对象，仍表示对象起点。codegen 在最终根分组处检查该合并链没有派生地址，并以 LLVM 22.1 的 `is_base_value` 标记向 RS4GC 保留这一事实；不能让常量分支被替换为 null base 而产生不符合当前 runtime 的 base／derived pair。纯常量选择仍不参与 relocation；typed 根恢复、base=derived 与实际 stackmap 数据生成保持。
 
 LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径不在变换前后完整验证自产 module，也不另写 RS4GC 后的策略、指针活跃性和 root restoration 复核器。优化后从实际 SSA 形成根分组、保留必要的根身份并发射 GC 元数据，继续执行真实转换。GC 与 ABI 回归通过实际 IR、机器输出和运行测试验证，不为内部转换添加证明专用的指针边界标记。
 
@@ -374,7 +374,7 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 摘要依赖必须无环，节点仅依赖实际内容所需的上游摘要。规范化对象时，自身与不属于传递依赖的 digest slots 归零，上游 slots 使用已确定值；不能用执行顺序决定哪些 bytes 入 hash。Code、RuntimeImage 与 Artifact 分别覆盖自己的内容，不能建立自引用。
 
-对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。LLVM 机器发射成功后直接使用产出，不执行自建的机器指令、frame chain、stackmap 或 LSDA 全面验证；只读取后续地址、GC 数据和补丁计算实际需要的字段，并复用结果。优化后的 invoke 是否仍存在决定 EH atom 是否保留，不为此重建或比对独立 EH manifest；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
+对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。LLVM 机器发射成功后直接使用产出，不执行自建的机器指令、frame chain、stackmap 或 LSDA 全面验证；只读取后续地址、GC 数据和补丁计算实际需要的字段，并复用结果。stackmap 按实际 function relocation 关联 callable，以符号地址加 LLVM instruction offset 取得返回地址，读取并归一化实际根记录；不再次反汇编检查 call/frame chain，也不重建预期 member/function/site 全集做覆盖证明。优化后的 invoke 是否仍存在决定 EH atom 是否保留，不为此重建或比对独立 EH manifest；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
 
 发布直接接收本次 codegen 与 generated-C 的实际对象、成员分配及生成记录。C bridge 的编译器 profile、源码模板、flags 和 unit 集合不再与自行构造的生产记录重复比对；对象中的 SDK／工具版本也不作为来源证明。所需 section 与符号正常读取，Code 指纹继续消费实际生成记录。删除无生产调用的旧 single-Cone 分级资格流水线；不以另一套 `Verified` 包装保留这些入口。当前完整产物的投影直接采用已有生产计划与最终回填结果，不深比较它们的副本来证明同源。
 

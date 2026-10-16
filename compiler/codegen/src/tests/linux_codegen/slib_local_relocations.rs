@@ -20,7 +20,7 @@ fn elf_callable_fingerprints_normalize_section_bases_and_preserve_rela_addends()
         let semantics = scoop_lir::StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
         let mut fixture = SlibObjects::new(module, directory.path());
         let fingerprints = |fixture: &SlibObjects| {
-            let stackmaps = verify_scoop_lir_stackmaps_v1(
+            let stackmaps = read_scoop_stackmaps_v1(
                 fixture.builtins(&fixture.objects),
                 semantics.clone(),
                 &candidates(&fixture.objects),

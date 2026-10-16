@@ -24,7 +24,7 @@ fn elf_exception_personality_pointer_belongs_to_its_callable() {
             let fixture = SlibObjects::new(module, directory.path());
             let builtins = fixture.builtins(&fixture.objects);
             let stackmaps =
-                verify_scoop_lir_stackmaps_v1(builtins, semantics, &candidates(&fixture.objects))
+                read_scoop_stackmaps_v1(builtins, semantics, &candidates(&fixture.objects))
                     .unwrap();
             let callables = fixture.callables(stackmaps);
             assert!(!callables.fingerprints().is_empty());

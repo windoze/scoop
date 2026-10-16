@@ -63,7 +63,7 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                 )
                 .expect("shared slib ELF envelope");
                 assert_eq!(envelope.sections().envelope().target(), target);
-                scoop_slib::verify_object_stackmap_section_v3(&bytes, envelope.sections())
+                scoop_slib::read_object_stackmap_section_v3(&bytes, envelope.sections())
                     .expect("shared ELF stackmap section and function relocations");
                 let file = object::File::parse(bytes.as_slice()).unwrap();
                 for symbol in file.symbols() {

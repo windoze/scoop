@@ -19,7 +19,7 @@ pub(crate) struct PreparedLayoutObjects {
     pub(crate) production: ConeProductionSectionV2,
     pub(crate) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(crate) patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     bindings: PlannedObjectBindings,
 }
 

@@ -13,10 +13,9 @@ use crate::SlibMemberId;
 use crate::link_object::{
     CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
     PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
-    ScoopLirObjectCandidateV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
-    read_generated_c_objects_v1, verify_builtin_object_strong_relocations_v1,
-    verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
+    ScoopLirObjectCandidateV1, ScoopStackmapSetV1, VerifiedBuiltinObjectStrongRelocationSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1, read_generated_c_objects_v1, read_scoop_stackmaps_v1,
+    verify_builtin_object_strong_relocations_v1, verify_scoop_lir_digest_patch_sites_v1,
 };
 
 #[derive(Clone, Copy)]
@@ -116,8 +115,8 @@ impl Fixture {
         .unwrap()
     }
 
-    pub(super) fn verified_stackmaps(&self) -> VerifiedScoopLirStackmapSetV1 {
-        verify_scoop_lir_stackmaps_v1(
+    pub(super) fn verified_stackmaps(&self) -> ScoopStackmapSetV1 {
+        read_scoop_stackmaps_v1(
             self.builtins.clone(),
             self.safepoints.clone(),
             &self.objects(),

@@ -17,8 +17,7 @@ use crate::link_object::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
     FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     FinalizedUndefinedSymbolRequirementPartitionsV1, ObjectDefinitionFingerprintV1,
-    ScoopLirObjectCandidateV1, VerifiedObjectDefinitionRequirementSetV1,
-    VerifiedScoopLirStackmapSetV1,
+    ScoopLirObjectCandidateV1, ScoopStackmapSetV1, VerifiedObjectDefinitionRequirementSetV1,
 };
 
 mod associated;
@@ -56,7 +55,7 @@ impl VerifiedStrongCallableBodyObjectFingerprintV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongCallableBodyObjectFingerprintSetV1 {
     registrations: VerifiedStrongCallableRegistrationSetV1,
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     fingerprints: Vec<VerifiedStrongCallableBodyObjectFingerprintV1>,
 }
@@ -70,7 +69,7 @@ impl VerifiedStrongCallableBodyObjectFingerprintSetV1 {
         &self.registrations
     }
 
-    pub const fn stackmaps(&self) -> &VerifiedScoopLirStackmapSetV1 {
+    pub const fn stackmaps(&self) -> &ScoopStackmapSetV1 {
         &self.stackmaps
     }
 
@@ -91,7 +90,7 @@ impl VerifiedStrongCallableBodyObjectFingerprintSetV1 {
 
 pub fn compute_strong_callable_body_object_fingerprints_v1(
     registrations: VerifiedStrongCallableRegistrationSetV1,
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     undefined_requirements: CanonicalUndefinedSymbolRequirementSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
@@ -105,7 +104,7 @@ pub fn compute_strong_callable_body_object_fingerprints_v1(
 
 pub fn compute_cross_cone_strong_callable_body_object_fingerprints_v1(
     registrations: VerifiedStrongCallableRegistrationSetV1,
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     undefined_requirements: FinalizedUndefinedSymbolRequirementPartitionsV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
@@ -119,7 +118,7 @@ pub fn compute_cross_cone_strong_callable_body_object_fingerprints_v1(
 
 pub fn compute_layout_strong_callable_body_object_fingerprints_v1(
     registrations: VerifiedStrongCallableRegistrationSetV1,
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     undefined_requirements: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
@@ -133,7 +132,7 @@ pub fn compute_layout_strong_callable_body_object_fingerprints_v1(
 
 fn compute_strong_callable_body_object_fingerprints_inner_v1(
     registrations: VerifiedStrongCallableRegistrationSetV1,
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
@@ -321,7 +320,7 @@ fn validate_undefined_requirements(
 }
 
 fn stackmap_inputs(
-    stackmaps: &VerifiedScoopLirStackmapSetV1,
+    stackmaps: &ScoopStackmapSetV1,
 ) -> Result<
     BTreeMap<DigestNodeId, (PersistentCallableBodyId, [u8; 32])>,
     StrongCallableBodyFingerprintError,

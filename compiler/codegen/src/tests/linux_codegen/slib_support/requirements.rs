@@ -5,7 +5,7 @@ use super::*;
 impl SlibObjects {
     pub fn callables(
         &self,
-        stackmaps: VerifiedScoopLirStackmapSetV1,
+        stackmaps: ScoopStackmapSetV1,
     ) -> VerifiedStrongCallableFingerprintSetV1 {
         let sites = self.sites(stackmaps.builtins().clone(), &self.objects);
         let requirements = self.requirements(sites.clone());

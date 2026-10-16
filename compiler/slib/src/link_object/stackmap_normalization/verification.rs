@@ -1,15 +1,13 @@
-//! Complete member-aware stackmap coverage against final LIR semantics.
+//! Read emitted stackmaps and join them to their callable and safepoint identities.
 
-use scoop_identity::{
-    DefinitionAtomRole, PersistentCallableBodyId, StrongDefinitionEntityKind, StrongDefinitionRole,
-};
+use scoop_identity::{StrongDefinitionEntityKind, StrongDefinitionRole};
 use scoop_lir::{StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use super::{
-    ProvisionalLlvmStackmapRecordHeaderV3, ProvisionalLlvmStackmapRecordV3,
-    VerifiedNormalizedStackmapRecordV1, VerifiedObjectStackmapSectionV3,
-    normalize_stackmap_record_v1, verify_object_stackmap_section_v3,
+    ObjectStackmapSectionV3, ProvisionalLlvmStackmapRecordHeaderV3,
+    ProvisionalLlvmStackmapRecordV3, VerifiedNormalizedStackmapRecordV1,
+    normalize_stackmap_record_v1, read_object_stackmap_section_v3,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -17,26 +15,18 @@ use crate::link_object::{
     VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedMemberObjectRelocationIndexV1,
 };
 
-mod aarch64;
-pub use aarch64::DarwinAarch64StackmapMachineCodeError;
-mod machine;
-pub use machine::StackmapMachineCodeError;
-use machine::validate_stackmap_function_machine_code;
-mod x86_64;
-pub use x86_64::X86_64StackmapMachineCodeError;
-
 mod error;
-pub use error::ScoopLirStackmapValidationError;
+pub use error::ScoopStackmapReadError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedScoopLirStackmapRecordV1 {
+pub struct ScoopStackmapRecordV1 {
     member: SlibMemberId,
     function_symbol_table_index: u32,
     object_return_pc: u64,
     normalized: VerifiedNormalizedStackmapRecordV1,
 }
 
-impl VerifiedScoopLirStackmapRecordV1 {
+impl ScoopStackmapRecordV1 {
     pub const fn member(&self) -> SlibMemberId {
         self.member
     }
@@ -56,13 +46,13 @@ impl VerifiedScoopLirStackmapRecordV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedScoopLirStackmapSetV1 {
+pub struct ScoopStackmapSetV1 {
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     semantic_plan: StrongSafepointSemanticPlanSetV1,
-    records: Vec<VerifiedScoopLirStackmapRecordV1>,
+    records: Vec<ScoopStackmapRecordV1>,
 }
 
-impl VerifiedScoopLirStackmapSetV1 {
+impl ScoopStackmapSetV1 {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.semantic_plan.producer()
     }
@@ -75,295 +65,90 @@ impl VerifiedScoopLirStackmapSetV1 {
         &self.semantic_plan
     }
 
-    pub fn records(&self) -> &[VerifiedScoopLirStackmapRecordV1] {
+    pub fn records(&self) -> &[ScoopStackmapRecordV1] {
         &self.records
     }
 }
 
-pub fn verify_scoop_lir_stackmaps_v1(
+pub fn read_scoop_stackmaps_v1(
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     semantic_plan: StrongSafepointSemanticPlanSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> Result<VerifiedScoopLirStackmapSetV1, ScoopLirStackmapValidationError> {
-    if builtins.producer() != semantic_plan.producer() {
-        return Err(ScoopLirStackmapValidationError::ProducerMismatch {
-            object: builtins.producer(),
-            semantic: semantic_plan.producer(),
-        });
-    }
-    validate_object_coverage(&builtins, scoop_objects)?;
-    let expected_by_member = expected_sites_by_member(&builtins, &semantic_plan)?;
-    let mut records = Vec::with_capacity(semantic_plan.sites().len());
+) -> Result<ScoopStackmapSetV1, ScoopStackmapReadError> {
+    let sites = semantic_plan
+        .sites()
+        .iter()
+        .map(|site| (site.safepoint().get(), *site))
+        .collect::<BTreeMap<_, _>>();
+    let mut records = Vec::with_capacity(sites.len());
     for object in scoop_objects {
-        let member = verified_member(&builtins, object.member())?;
-        let section =
-            verify_object_stackmap_section_v3(object.bytes(), member.definitions().sections())
-                .map_err(|source| ScoopLirStackmapValidationError::PhysicalSection {
+        let members = builtins.strong_relocations().members();
+        let index = members
+            .binary_search_by_key(&object.member(), |member| member.member())
+            .map_err(|_| ScoopStackmapReadError::MissingMember(object.member()))?;
+        let member = &members[index];
+        if let Some(section) =
+            read_object_stackmap_section_v3(object.bytes(), member.definitions().sections())
+                .map_err(|source| ScoopStackmapReadError::PhysicalSection {
                     member: object.member(),
                     source,
-                })?;
-        let expected = expected_by_member
-            .get(&object.member())
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        records.extend(verify_member_records(
-            object.bytes(),
-            member,
-            section,
-            expected,
-        )?);
+                })?
+        {
+            read_member_records(member, section, &sites, &mut records)?;
+        }
     }
     records.sort_unstable_by_key(|record| record.normalized.canonical().site());
-    if let Some(pair) = records
-        .windows(2)
-        .find(|pair| pair[0].normalized.canonical().site() == pair[1].normalized.canonical().site())
-    {
-        return Err(ScoopLirStackmapValidationError::DuplicateSite(
-            pair[0].normalized.canonical().site(),
-        ));
-    }
-    if records.len() != semantic_plan.sites().len() {
-        return Err(ScoopLirStackmapValidationError::GlobalRecordCoverage {
-            expected: semantic_plan.sites().len(),
-            actual: records.len(),
-        });
-    }
-    Ok(VerifiedScoopLirStackmapSetV1 {
+    Ok(ScoopStackmapSetV1 {
         builtins,
         semantic_plan,
         records,
     })
 }
 
-fn validate_object_coverage(
-    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> Result<(), ScoopLirStackmapValidationError> {
-    for (index, pair) in objects.windows(2).enumerate() {
-        if pair[0].member() >= pair[1].member() {
-            return Err(if pair[0].member() == pair[1].member() {
-                ScoopLirStackmapValidationError::DuplicateObjectMember(pair[0].member())
-            } else {
-                ScoopLirStackmapValidationError::NonCanonicalObjectOrder { index: index + 1 }
-            });
-        }
-    }
-    let expected = builtins
-        .member_plan()
-        .scoop_lir_members()
-        .iter()
-        .map(|member| member.member_id())
-        .collect::<BTreeSet<_>>();
-    let actual = objects
-        .iter()
-        .map(|object| object.member())
-        .collect::<BTreeSet<_>>();
-    if let Some(member) = actual.difference(&expected).next() {
-        return Err(ScoopLirStackmapValidationError::UnexpectedObjectMember(
-            *member,
-        ));
-    }
-    if let Some(member) = expected.difference(&actual).next() {
-        return Err(ScoopLirStackmapValidationError::MissingObjectMember(
-            *member,
-        ));
-    }
-    Ok(())
-}
-
-fn expected_sites_by_member(
-    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    semantic_plan: &StrongSafepointSemanticPlanSetV1,
-) -> Result<
-    BTreeMap<SlibMemberId, Vec<StrongSafepointSemanticPlanV1>>,
-    ScoopLirStackmapValidationError,
-> {
-    let scoop_members = builtins
-        .member_plan()
-        .scoop_lir_members()
-        .iter()
-        .map(|member| member.member_id())
-        .collect::<BTreeSet<_>>();
-    let mut by_member = BTreeMap::<SlibMemberId, Vec<_>>::new();
-    let assignments = builtins
-        .strong_relocations()
-        .members()
-        .iter()
-        .flat_map(|member| {
-            member
-                .definitions()
-                .symbols()
-                .iter()
-                .filter_map(move |symbol| match symbol.role() {
-                    PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                        owner,
-                        definition_role: StrongDefinitionRole::CallableBody,
-                        ..
-                    } => match owner.kind() {
-                        StrongDefinitionEntityKind::CallableBody(body) => {
-                            Some((body, member.member()))
-                        }
-                        _ => None,
-                    },
-                    _ => None,
-                })
-        })
-        .collect::<BTreeMap<_, _>>();
-    for site in semantic_plan.sites() {
-        let member = assignments.get(&site.owner()).copied().ok_or(
-            ScoopLirStackmapValidationError::MissingOwnerDefinitionAssignment {
-                site: site.site(),
-                owner: site.owner(),
-            },
-        )?;
-        if !scoop_members.contains(&member) {
-            return Err(
-                ScoopLirStackmapValidationError::OwnerAssignedToNonScoopMember {
-                    site: site.site(),
-                    member,
-                },
-            );
-        }
-        by_member.entry(member).or_default().push(*site);
-    }
-    Ok(by_member)
-}
-
-fn verified_member(
-    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    member: SlibMemberId,
-) -> Result<&VerifiedMemberObjectRelocationIndexV1, ScoopLirStackmapValidationError> {
-    builtins
-        .strong_relocations()
-        .members()
-        .binary_search_by_key(&member, |item| item.member())
-        .ok()
-        .map(|index| &builtins.strong_relocations().members()[index])
-        .ok_or(ScoopLirStackmapValidationError::MissingVerifiedMember(
-            member,
-        ))
-}
-
-fn verify_member_records(
-    object_bytes: &[u8],
+fn read_member_records(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    section: Option<VerifiedObjectStackmapSectionV3>,
-    expected: &[StrongSafepointSemanticPlanV1],
-) -> Result<Vec<VerifiedScoopLirStackmapRecordV1>, ScoopLirStackmapValidationError> {
-    let Some(section) = section else {
-        return if expected.is_empty() {
-            Ok(Vec::new())
-        } else {
-            Err(ScoopLirStackmapValidationError::MissingStackmapSection(
-                member.member(),
-            ))
-        };
-    };
-    if expected.is_empty() {
-        return Err(ScoopLirStackmapValidationError::UnexpectedStackmapSection(
-            member.member(),
-        ));
-    }
-    validate_stackmap_atom_roles(member, &section)?;
-    if section.record_count() != expected.len() {
-        return Err(ScoopLirStackmapValidationError::MemberRecordCoverage {
-            member: member.member(),
-            expected: expected.len(),
-            actual: section.record_count(),
-        });
-    }
-
-    let mut expected_by_owner = BTreeMap::<PersistentCallableBodyId, Vec<_>>::new();
-    let mut expected_by_runtime_id = BTreeMap::new();
-    for site in expected {
-        expected_by_owner
-            .entry(site.owner())
-            .or_default()
-            .push(*site);
-        expected_by_runtime_id.insert(site.safepoint().get(), *site);
-    }
-    if section.functions().len() != expected_by_owner.len() {
-        return Err(ScoopLirStackmapValidationError::MemberFunctionCoverage {
-            member: member.member(),
-            expected: expected_by_owner.len(),
-            actual: section.functions().len(),
-        });
-    }
-
-    let mut seen_owners = BTreeSet::new();
-    let mut seen_sites = BTreeSet::new();
-    let mut records = Vec::with_capacity(expected.len());
+    section: ObjectStackmapSectionV3,
+    sites: &BTreeMap<u64, StrongSafepointSemanticPlanV1>,
+    records: &mut Vec<ScoopStackmapRecordV1>,
+) -> Result<(), ScoopStackmapReadError> {
     for function in section.functions() {
         let symbol = member
             .definitions()
             .strong_symbol_by_table_index(function.target_symbol_table_index())
-            .ok_or(ScoopLirStackmapValidationError::UnplannedFunctionTarget {
+            .ok_or(ScoopStackmapReadError::UnplannedFunctionTarget {
                 member: member.member(),
                 table_index: function.target_symbol_table_index(),
             })?;
         let PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-            definition,
             owner,
             definition_role: StrongDefinitionRole::CallableBody,
             ..
         } = symbol.role()
         else {
-            return Err(ScoopLirStackmapValidationError::NonCallableFunctionTarget {
+            return Err(ScoopStackmapReadError::NonCallableFunctionTarget {
                 member: member.member(),
                 table_index: function.target_symbol_table_index(),
             });
         };
         let StrongDefinitionEntityKind::CallableBody(owner) = owner.kind() else {
-            return Err(ScoopLirStackmapValidationError::NonCallableFunctionTarget {
+            return Err(ScoopStackmapReadError::NonCallableFunctionTarget {
                 member: member.member(),
                 table_index: function.target_symbol_table_index(),
             });
         };
-        let expected_for_owner = expected_by_owner.get(&owner).ok_or(
-            ScoopLirStackmapValidationError::UnexpectedFunctionOwner {
-                member: member.member(),
-                owner,
-            },
-        )?;
-        if !seen_owners.insert(owner) {
-            return Err(ScoopLirStackmapValidationError::DuplicateFunctionOwner {
-                member: member.member(),
-                owner,
-            });
-        }
-        if function.parsed().records().len() != expected_for_owner.len() {
-            return Err(ScoopLirStackmapValidationError::FunctionRecordCoverage {
-                member: member.member(),
-                owner,
-                expected: expected_for_owner.len(),
-                actual: function.parsed().records().len(),
-            });
-        }
-        let definition = member.definitions().definition(definition).ok_or(
-            ScoopLirStackmapValidationError::MissingVerifiedCallableDefinition {
-                member: member.member(),
-                definition,
-            },
-        )?;
-        let return_pcs = validate_stackmap_function_machine_code(
-            object_bytes,
-            member.definitions().sections(),
-            definition,
-            &symbol,
-            function.parsed(),
-        )
-        .map_err(|source| ScoopLirStackmapValidationError::MachineCode {
-            member: member.member(),
-            owner,
-            source,
-        })?;
-        for (parsed, object_return_pc) in function.parsed().records().iter().zip(return_pcs) {
-            let plan = expected_by_runtime_id
-                .get(&parsed.safepoint_id())
-                .copied()
-                .ok_or(ScoopLirStackmapValidationError::UnexpectedSafepointId {
+        for parsed in function.parsed().records() {
+            let plan = sites.get(&parsed.safepoint_id()).copied().ok_or(
+                ScoopStackmapReadError::UnexpectedSafepointId {
                     member: member.member(),
                     owner,
+                    safepoint_id: parsed.safepoint_id(),
+                },
+            )?;
+            let object_return_pc = symbol
+                .value()
+                .checked_add(u64::from(parsed.instruction_offset()))
+                .ok_or(ScoopStackmapReadError::ReturnAddressOverflow {
+                    member: member.member(),
                     safepoint_id: parsed.safepoint_id(),
                 })?;
             let provisional = ProvisionalLlvmStackmapRecordV3::new(
@@ -383,62 +168,16 @@ fn verify_member_records(
                 section.constants(),
                 provisional,
             )
-            .map_err(|source| ScoopLirStackmapValidationError::Normalization {
+            .map_err(|source| ScoopStackmapReadError::Normalization {
                 member: member.member(),
                 safepoint_id: parsed.safepoint_id(),
                 source,
             })?;
-            if !seen_sites.insert(normalized.canonical().site()) {
-                return Err(ScoopLirStackmapValidationError::DuplicateSite(
-                    normalized.canonical().site(),
-                ));
-            }
-            records.push(VerifiedScoopLirStackmapRecordV1 {
+            records.push(ScoopStackmapRecordV1 {
                 member: member.member(),
                 function_symbol_table_index: function.target_symbol_table_index(),
                 object_return_pc,
                 normalized,
-            });
-        }
-    }
-    if let Some(owner) = expected_by_owner
-        .keys()
-        .find(|owner| !seen_owners.contains(owner))
-    {
-        return Err(ScoopLirStackmapValidationError::MissingFunctionOwner {
-            member: member.member(),
-            owner: *owner,
-        });
-    }
-    if let Some(site) = expected
-        .iter()
-        .map(|site| site.site())
-        .find(|site| !seen_sites.contains(site))
-    {
-        return Err(ScoopLirStackmapValidationError::MissingSite {
-            member: member.member(),
-            site,
-        });
-    }
-    Ok(records)
-}
-
-fn validate_stackmap_atom_roles(
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    section: &VerifiedObjectStackmapSectionV3,
-) -> Result<(), ScoopLirStackmapValidationError> {
-    for atom in member
-        .definitions()
-        .definitions()
-        .iter()
-        .flat_map(|definition| definition.atoms())
-        .filter(|atom| atom.section_ordinal().get() == section.section_ordinal().get())
-    {
-        if atom.atom_role() != DefinitionAtomRole::Stackmap {
-            return Err(ScoopLirStackmapValidationError::NonStackmapAtomInSection {
-                member: member.member(),
-                atom: atom.atom(),
-                actual: atom.atom_role(),
             });
         }
     }

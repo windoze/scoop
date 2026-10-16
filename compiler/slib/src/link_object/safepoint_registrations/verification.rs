@@ -8,9 +8,8 @@ use super::{
 };
 use crate::SlibMemberId;
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, ScoopLirObjectCandidateV1, VerifiedMaterializedPatchSiteV1,
-    VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapRecordV1,
-    VerifiedScoopLirStackmapSetV1,
+    BuiltinObjectSectionRoleV1, ScoopLirObjectCandidateV1, ScoopStackmapRecordV1,
+    ScoopStackmapSetV1, VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole,
@@ -57,7 +56,7 @@ impl VerifiedStrongSafepointRegistrationV1 {
 /// registration record in the verified Scoop object set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongSafepointRegistrationSetV1 {
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     plan: StrongSafepointRegistrationPlanSetV1,
     registrations: Vec<VerifiedStrongSafepointRegistrationV1>,
@@ -68,7 +67,7 @@ impl VerifiedStrongSafepointRegistrationSetV1 {
         self.plan.producer()
     }
 
-    pub const fn stackmaps(&self) -> &VerifiedScoopLirStackmapSetV1 {
+    pub const fn stackmaps(&self) -> &ScoopStackmapSetV1 {
         &self.stackmaps
     }
 
@@ -86,7 +85,7 @@ impl VerifiedStrongSafepointRegistrationSetV1 {
 }
 
 pub fn verify_strong_safepoint_registrations_v1(
-    stackmaps: VerifiedScoopLirStackmapSetV1,
+    stackmaps: ScoopStackmapSetV1,
     patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     plan: StrongSafepointRegistrationPlanSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
@@ -125,7 +124,7 @@ pub fn verify_strong_safepoint_registrations_v1(
 
 fn validate_site_coverage(
     plan: &StrongSafepointRegistrationPlanSetV1,
-    stackmaps: &VerifiedScoopLirStackmapSetV1,
+    stackmaps: &ScoopStackmapSetV1,
 ) -> Result<(), StrongSafepointRegistrationValidationError> {
     let expected = plan
         .registrations()
@@ -147,7 +146,7 @@ fn validate_site_coverage(
 
 fn validate_stackmap_semantics(
     plan: StrongSafepointRegistrationPlanV1,
-    stackmap: &VerifiedScoopLirStackmapRecordV1,
+    stackmap: &ScoopStackmapRecordV1,
 ) -> Result<(), StrongSafepointRegistrationValidationError> {
     let actual = stackmap.normalized().canonical();
     let mismatch = if actual.safepoint_id() != plan.safepoint().get() {

@@ -2106,30 +2106,17 @@ little-endian scalar/count encoder，typed `StackmapRecordFingerprintV1`只能�
 字节下界，检查version、function/constant/record count及function record总数、所有reserved byte/word、
 8-byte alignment padding与精确EOF；它保留原始location kind、section级constant pool、function address
 slot offset和record offset，不把结构成功误当成Scoop profile成功。结构合法的空v3 blob可由parser表示，
-但后续object coverage verifier依据LIR proof决定section应缺失、必须非空或记录全集是否吻合。
+读取结果直接用于实际 GC 元数据，不另建 section 覆盖证明。
 
-`verify_darwin_arm64_stackmap_section_v3`只接受与已验证Scoop LIR envelope的length/content digest完全
-相同的object bytes。若section存在，它必须是inventory中唯一的`LlvmStackmaps` role；每个function
-address slot在relocatable input中为零，并在该slot恰有一个`ARM64_RELOC_UNSIGNED64`指向symbol table中
-的external strong definition，section中不得有其他relocation。输出同时封装section ordinal、原始function
-分组及target symbol table index；尚未与strong definition/LIR owner互证前不能提升为normalized record。
+`read_object_stackmap_section_v3` 从同次生产共享的 section／relocation 数据读取 LLVM stackmap，
+将实际 function-address relocation 关联到 callable 符号。读取处理字段长度、偏移、引用和地址溢出，
+不比较对象内容摘要或复核 producer profile。
 
-最终提升只能经
-`verify_scoop_lir_stackmaps_v1(VerifiedBuiltinObjectStrongRelocationSetV1, StrongSafepointSemanticPlanSetV1, &[ScoopLirObjectCandidateV1])`
-完成。入口要求Scoop object candidate与member plan按`SlibMemberId`严格递增且全集相等，并以每个site
-的`CallableBody` strong definition plan从member assignment反查唯一producer member；有site的member
-必须存在非空stackmap section，无site的member不得夹带该section。section的全部已验证atom必须是
-`DefinitionAtomRole::Stackmap`。每个function-address relocation只能绑定该member中role与entity均为
-`CallableBody`的primary definition symbol，且function owner、record count、SafepointId与LIR site全集
-逐项闭合。Darwin/AArch64 verifier以`function symbol value + instruction offset`得到relocatable object
-内的原始return PC，要求它4-byte对齐、落在primary text atom内并紧随`bl`/`blr`，且首个site前已经保存
-x29/x30 frame record并建立x29 frame pointer。输出`VerifiedScoopLirStackmapSetV1`同时持有完整built-in
-object proof与LIR semantic proof；record按persistent site id排序，保留member、function symbol table
-index和已验证的object-relative return PC。该PC是link-time provenance，不进入跨链接/ASLR稳定的
-normalized fingerprint；最终链接后的原始PC仍由M23-9 artifact verifier从相同function relocation与
-instruction offset重建，runtime不得改用`PC-4`。
+`read_scoop_stackmaps_v1` 直接归一化实际记录，以函数符号地址加 LLVM instruction offset 计算返回地址。
+输出保存 member、function symbol index、返回地址与归一化记录，供后续 GC 数据和内容指纹使用。
+不另建 member/function/site 全集覆盖证明，不反汇编检查 call 指令或 frame chain；这些机器行为由
+codegen 与运行回归覆盖。返回地址不进入跨链接／ASLR 稳定的归一化 stackmap fingerprint。
 
-safepoint registration的object级最终提升只能经
 `verify_strong_safepoint_registrations_v1(VerifiedScoopLirStackmapSetV1, VerifiedScoopLirDigestPatchSiteSetV1, StrongSafepointRegistrationPlanSetV1, &[ScoopLirObjectCandidateV1])`
 完成。stackmap与patch proof必须封装完全相同的built-in object proof，三者producer与site全集必须一致；
 入口再次按member全集和content digest绑定实际object bytes，不能让先前验证后的替换bytes进入后续hash。

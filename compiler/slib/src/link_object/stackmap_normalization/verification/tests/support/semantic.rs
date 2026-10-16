@@ -65,7 +65,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         type_registration,
         immortal_registration,
         static_storage,
-    ) = foundation(&module, &body, &safepoints, corruption);
+    ) = foundation(&module, &body, &safepoints);
     let digest_plan = digest_plan(
         &foundation,
         body.id(),
