@@ -374,7 +374,7 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 摘要依赖必须无环，节点仅依赖实际内容所需的上游摘要。规范化对象时，自身与不属于传递依赖的 digest slots 归零，上游 slots 使用已确定值；不能用执行顺序决定哪些 bytes 入 hash。Code、RuntimeImage 与 Artifact 分别覆盖自己的内容，不能建立自引用。
 
-对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。对象的必要后端检查在首次产生时完成，后续打包和链接复用已有结果；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
+对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。LLVM 机器发射成功后直接使用产出，不执行自建的机器指令、frame chain、stackmap 或 LSDA 全面验证；只读取后续地址、GC 数据和补丁计算实际需要的字段，并复用结果。优化后的 invoke 是否仍存在决定 EH atom 是否保留，不为此重建或比对独立 EH manifest；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
 
 同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填保留局部范围与槽位检查，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
 

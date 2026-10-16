@@ -8,7 +8,7 @@ mod integers;
 fn emits_non_empty_object_file() {
     let module = values_module();
     let output = std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
-    write_verified_test_object(&module, &output);
+    write_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();

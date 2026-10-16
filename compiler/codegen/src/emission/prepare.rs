@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct CallableCodePlan {
     pub safepoints: statepoint::ExpectedSafepoints,
-    pub eh: artifact::ExpectedEh,
+    pub has_unwind: bool,
 }
 
 pub(super) struct PreparedCallableModule<'ctx> {
@@ -64,7 +64,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     elf_symbols: &crate::elf_llvm::SymbolPlanIndex,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
-    expected: (&statepoint::ExpectedSafepoints, &artifact::ExpectedEh),
+    expected: &statepoint::ExpectedSafepoints,
     body: scoop_lir::PersistentCallableBodyId,
 ) -> Result<PreparedCallableModule<'ctx>, CodegenError> {
     let (llvm, mut runtime_metadata) = emit_llvm_module_with_surface(
@@ -93,8 +93,8 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         },
     )?;
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
-    let safepoints = statepoint::optimize(&llvm, machine, expected.0, profile)?;
-    let eh = expected.1.finalize(&llvm)?;
+    let safepoints = statepoint::optimize(&llvm, machine, expected, profile)?;
+    let has_unwind = prune_unused_personalities(&llvm);
     runtime_metadata_v1::emit_callable_safepoints(
         context,
         &llvm,
@@ -112,7 +112,10 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     Ok(PreparedCallableModule {
         llvm,
         runtime_metadata,
-        plan: CallableCodePlan { safepoints, eh },
+        plan: CallableCodePlan {
+            safepoints,
+            has_unwind,
+        },
     })
 }
 
@@ -124,18 +127,6 @@ pub(super) fn write_object(
     machine
         .write_to_file(llvm, FileType::Object, output)
         .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))
-}
-
-pub(super) fn verify_object(
-    output: &Path,
-    profile: ValidatedBackendProfile,
-    expected_safepoints: &statepoint::ExpectedSafepoints,
-    expected_eh: &artifact::ExpectedEh,
-) -> Result<(), CodegenError> {
-    if let Err(error) = profile.verify_object(output, expected_safepoints, expected_eh) {
-        return Err(discard_invalid_object(output, error));
-    }
-    Ok(())
 }
 
 pub(super) fn discard_invalid_object(output: &Path, error: CodegenError) -> CodegenError {
@@ -157,4 +148,28 @@ fn optimize_and_lower_module(
     crate::metadata_sections::place_immutable_metadata(llvm, profile);
     statepoint::optimize(llvm, machine, expected_safepoints, profile)?;
     statepoint::lower(llvm, machine)
+}
+
+/// Remove empty personality metadata after ordinary optimization deletes invokes.
+fn prune_unused_personalities(module: &LlvmModule<'_>) -> bool {
+    use inkwell::values::{AsValueRef, InstructionOpcode};
+    let mut has_unwind = false;
+    for function in module.get_functions() {
+        if function.get_basic_blocks().iter().any(|block| {
+            block
+                .get_instructions()
+                .any(|instruction| instruction.get_opcode() == InstructionOpcode::Invoke)
+        }) {
+            has_unwind = true;
+        } else if function.get_personality_function().is_some() {
+            // SAFETY: this function has no remaining local unwind edges.
+            unsafe {
+                inkwell::llvm_sys::core::LLVMSetPersonalityFn(
+                    function.as_value_ref(),
+                    std::ptr::null_mut(),
+                );
+            }
+        }
+    }
+    has_unwind
 }

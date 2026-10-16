@@ -25,7 +25,7 @@ fn reference_array_scan_children_belong_to_their_primary_atom() {
         "scoop_codegen_array_scan_atoms_{}.o",
         std::process::id()
     ));
-    write_verified_test_object(&module, &output);
+    write_test_object(&module, &output);
     std::fs::remove_file(output).unwrap();
 }
 

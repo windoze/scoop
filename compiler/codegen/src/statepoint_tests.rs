@@ -63,3 +63,19 @@ fn one_root() -> ExpectedStatepoint {
         .into(),
     )
 }
+
+fn assert_machine_site_count(path: &std::path::Path, expected: usize) {
+    use object::{Object, ObjectSection};
+    let bytes = std::fs::read(path).unwrap();
+    let object = object::File::parse(bytes.as_slice()).unwrap();
+    let section = object
+        .section_by_name("__llvm_stackmaps")
+        .or_else(|| object.section_by_name(".llvm_stackmaps"))
+        .unwrap();
+    let data = section.data().unwrap();
+    assert_eq!(data[0], 3);
+    assert_eq!(
+        u32::from_le_bytes(data[12..16].try_into().unwrap()) as usize,
+        expected
+    );
+}

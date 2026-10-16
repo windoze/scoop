@@ -1304,24 +1304,20 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
     Ok(llvm.print_to_string().to_string())
 }
 
-pub(super) fn write_verified_test_object(module: &Module, output: &Path) {
+pub(super) fn write_test_object(module: &Module, output: &Path) {
     validation::validate_module(module).expect("valid test LIR");
     let profile = host_profile();
     let expected_safepoints =
         statepoint::expectations(module).expect("complete safepoint manifest");
-    let expected_eh = artifact::eh_expectations(module).expect("complete EH manifest");
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let llvm = emit_llvm_module(&context, module, &machine, profile).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    let expected_safepoints = statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
+    statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
         .expect("rewrite statepoints");
     llvm.verify().expect("valid rewritten LLVM module");
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .expect("write object");
-    profile
-        .verify_object(output, &expected_safepoints, &expected_eh)
-        .expect("verified object");
 }

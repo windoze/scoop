@@ -58,9 +58,7 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
             machine
                 .write_to_file(&llvm, FileType::Object, &output)
                 .unwrap();
-            profile
-                .verify_object(&output, &plan, &crate::artifact::ExpectedEh::default())
-                .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
+            assert_machine_site_count(&output, plan.site_count());
         }
     }
 }

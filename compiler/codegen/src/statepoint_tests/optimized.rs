@@ -174,8 +174,6 @@ attributes #1 = { "statepoint-id"="7" }
         machine
             .write_to_file(&llvm, inkwell::targets::FileType::Object, &output)
             .unwrap();
-        profile
-            .verify_object(&output, &plan, &crate::artifact::ExpectedEh::default())
-            .unwrap();
+        assert_machine_site_count(&output, plan.site_count());
     }
 }

@@ -17,7 +17,6 @@ pub fn render_llvm_ir_members(
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
     let expected_safepoints = statepoint::expectations(module)?;
-    let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
     let mut callables = BTreeMap::new();
     let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
@@ -25,7 +24,6 @@ pub fn render_llvm_ir_members(
         let context = Context::create();
         let body = function.callable_body.id();
         let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
-        let selected_eh = expected_eh.for_function(function.symbol());
         let prepared = prepare_callable_strong_llvm_module(
             &context,
             module,
@@ -33,7 +31,7 @@ pub fn render_llvm_ir_members(
             &elf_symbols,
             &machine,
             profile,
-            (&selected_safepoints, &selected_eh),
+            &selected_safepoints,
             body,
         )?;
         callables.insert(

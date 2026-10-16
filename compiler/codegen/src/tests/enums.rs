@@ -528,7 +528,7 @@ fn emits_m4_enums() {
     );
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
-    write_verified_test_object(&module, &output);
+    write_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
