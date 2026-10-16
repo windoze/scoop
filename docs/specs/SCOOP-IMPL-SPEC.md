@@ -399,6 +399,8 @@ writer 按上述目录与 header 规则生成归档。普通 reader 根据目录
 
 所有 wire metadata 使用 RFC 8949 deterministic CBOR 的明确 schema：最短整数与长度编码、定长容器、严格有序且无重复的整数 field tags、声明的封闭 variant、完整 typed 引用。不能序列化 Rust discriminant、arena index 或 hash-map 遍历顺序。消费者按所需 schema 解码，传播解码库自然返回的错误，不增加 canonical 重编码比较、生产语义 replay 或损坏检测合同。
 
+解码入口只要求解码能力，成功消费当前记录后直接返回。最短编码、字段顺序、截断与尾随输入由当前字段或记录的读取处理；不分配第二份完整编码来比较，也不为这种比较设置输出长度额度。
+
 ```text
 ByteSpan(bytes) = little_endian_u64(length(bytes)) || bytes
 H(domain, value) = SHA-256(ByteSpan(ASCII(domain)) || WireCborV1(value))

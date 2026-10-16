@@ -1,8 +1,5 @@
 use crate::{PathSegment, WireError, WireErrorKind, WirePath, WireType};
 
-use super::encode::encode_with_limit;
-use super::{EncodeError, WireEncode};
-
 /// Type-directed strict decoder for the Wire CBOR v1 subset.
 pub struct Decoder<'input> {
     input: &'input [u8],
@@ -263,13 +260,12 @@ impl<'input> Decoder<'input> {
     }
 }
 
-pub trait WireDecode: WireEncode + Sized {
+pub trait WireDecode: Sized {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError>;
 }
 
-/// Strict decoding for documents that retain borrowed carrier byte strings.
-/// Every implementation still uses [`Decoder`]'s canonical primitives, so it
-/// does not need to copy the complete document for a re-encode check.
+/// Decoding for documents that retain borrowed carrier byte strings.
+/// Uses the same field readers as owned documents without copying carriers.
 pub trait BorrowedWireDecode<'input>: Sized {
     fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError>;
 }
@@ -278,22 +274,6 @@ pub fn decode_canonical<T: WireDecode>(input: &[u8]) -> Result<T, WireError> {
     let mut decoder = Decoder::new(input)?;
     let value = T::decode(&mut decoder)?;
     decoder.finish()?;
-    let canonical = encode_with_limit(&value, input.len()).map_err(|error| {
-        let kind = match error {
-            EncodeError::Allocation => WireErrorKind::Allocation,
-            EncodeError::LengthLimit | EncodeError::OutputSinkMismatch => {
-                WireErrorKind::NonCanonicalCbor
-            }
-        };
-        WireError::new(kind, WirePath::root(), None)
-    })?;
-    if canonical != input {
-        return Err(WireError::new(
-            WireErrorKind::NonCanonicalCbor,
-            WirePath::root(),
-            None,
-        ));
-    }
     Ok(value)
 }
 
@@ -338,11 +318,11 @@ fn encode_head(output: &mut [u8; 9], major: u8, argument: u64) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Encoder, WireErrorKind, encode};
+    use crate::cbor::EncodeError;
+    use crate::{Encoder, WireEncode, WireErrorKind, encode};
 
     use super::{
-        BorrowedWireDecode, Decoder, EncodeError, WireDecode, WireEncode, decode_canonical,
-        decode_canonical_borrowed,
+        BorrowedWireDecode, Decoder, WireDecode, decode_canonical, decode_canonical_borrowed,
     };
 
     #[derive(Debug, Eq, PartialEq)]
