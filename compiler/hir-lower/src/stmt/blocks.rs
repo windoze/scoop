@@ -1,6 +1,43 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn lower_lambda_body(
+        &mut self,
+        body: &ast::Block,
+        expected: Option<TypeId>,
+    ) -> Option<crate::stmt::ValueBlock> {
+        if !expected.is_some_and(|ty| self.types_equal(ty, self.unit)) {
+            return self.lower_value_block(body, expected);
+        }
+        self.push_scope();
+        let lowered = (|| {
+            let mut statements = Vec::new();
+            if let Some((last, prefix)) = body.statements.split_last() {
+                for statement in prefix {
+                    self.lower_statement(statement, &mut statements);
+                }
+                if let ast::StatementKind::Expr(expression) = &last.kind {
+                    let value = self.lower_expr(expression, &mut statements, None)?;
+                    if !matches!(value.kind, hir::ExprKind::UnitLiteral) {
+                        statements.push(hir::Statement {
+                            span: value.span,
+                            kind: hir::StatementKind::Expr(value),
+                        });
+                    }
+                } else {
+                    self.lower_statement(last, &mut statements);
+                }
+            }
+            let value = self
+                .statements_control_outcomes(&statements)
+                .can_fall_through()
+                .then(|| self.unit_expression(body.span));
+            Some(crate::stmt::ValueBlock { statements, value })
+        })();
+        self.pop_scope();
+        lowered
+    }
+
     /// Lower a block in a fresh scope: declarations inside are not
     /// visible after the block ends.
     pub(crate) fn lower_block(&mut self, block: &ast::Block) -> Vec<hir::Statement> {

@@ -62,4 +62,12 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - 下游 `.slib` 消费新增文件、缓冲、泛型接管与文本组合，普通和 moving 均通过。Rust 格式化、workspace all-targets clippy、C 格式化与严格告警通过；没有重跑无影响的 Rust 测试或全 fixture。
 - 首轮库测试 55/56：本机文件系统拒绝非法 UTF-8 名称，已把原假定改为 C 与 Scoop 同路径实际结果对照；保留原始 errno/context。后续新增的重入／并发测试一并通过。fixture 中 Option<Throwable> 相等及泛型 lambda 末尾无结果的错误按现有语言规则修正后，仅复验受影响用例。
 
+## M45-6 前置修复：Unit lambda 末尾推断
+
+平台时间测量测试暴露一个合法调用被拒绝的问题：期望返回 Unit 的 lambda 会把 Unit 错当成末尾泛型调用的结果约束。语言规范已明确，末尾值正常求值后丢弃，内部泛型推断不使用该 Unit；末尾控制语句遵守丢弃结果的规则，显式局部 return 仍检查 Unit 类型。实现只调整 HIR 的 lambda 正文入口和块处理，没有新增 IR／runtime 合同。
+
+- 格式化、workspace all-targets clippy 与 scoop-hir-lower 1472 项测试通过，含新增泛型／控制末尾和显式 return 拒绝回归；已有算术尾值与嵌套 callable 作用域测试保持通过。
+- 新 CLI 用例在 debug/release、普通／moving GC 通过；core 资源用例也通过。其余 67 个函数适配、返回标签、尾随参数、M45 推断、系统边界及产物消费用例统一通过（76 variants、231 processes，无新结构 golden），没有重跑全仓库。
+- 首轮回归捕获过度使用普通语句检查而拒绝任意末尾值的问题，已保留其求值后丢弃路径并复验；新增 Boolean when 测试补齐既有穷尽规则。平台库直接使用原本合法的泛型测量调用，没有补显式类型或库侧绕行。
+
 下一批为 M45-6；Linux GNU／musl 仍集中安排在全部本机功能稳定后。所有原始记录在仓库外，docs/validation 未纳入原始输出。

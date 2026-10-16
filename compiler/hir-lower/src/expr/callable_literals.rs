@@ -25,7 +25,7 @@ impl Lowerer {
                 body.span,
                 span,
                 expected,
-                |state, expected| state.lower_value_block(body, expected),
+                |state, expected| state.lower_lambda_body(body, expected),
             )
         })
     }

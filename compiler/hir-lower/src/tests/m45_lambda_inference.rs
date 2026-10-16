@@ -99,3 +99,34 @@ fn partial_lambda_hints_do_not_relax_effects_arity_or_missing_constraints() {
         );
     }
 }
+
+#[test]
+fn unit_lambdas_discard_generic_and_control_tails_without_result_constraints() {
+    check(
+        r#"
+        struct Box<T>(val value: T)
+        fun <T> boxed(block: () -> T): Box<T> = Box(block())
+        fun discard(block: () -> Unit) { block() }
+        fun main() {
+            discard { boxed { 1 } }
+            discard { if (true) boxed { 2 } }
+            discard { when (true) { case true -> boxed { 3 }; case false -> boxed { 0 } } }
+            discard { try { boxed { 4 } } finally { boxed { 5 } } }
+            val suspended: suspend () -> Unit = suspend { boxed { 6 } }
+        }
+        "#,
+    );
+}
+
+#[test]
+fn unit_lambdas_still_check_explicit_return_values() {
+    let source = scoop_parser::parse(
+        "fun discard(block: () -> Unit) {}\nfun main() { discard { return@discard 7 } }",
+    )
+    .unwrap();
+    let errors = lower_user(source).unwrap_err();
+    assert!(
+        errors.iter().any(|error| error.message.contains("Unit")),
+        "{errors:#?}"
+    );
+}
