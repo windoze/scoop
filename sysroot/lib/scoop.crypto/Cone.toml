@@ -36,3 +36,12 @@ path = "native/digest.c"
 
 [[native.sources]]
 path = "native/cipher.c"
+
+[[native.sources]]
+path = "native/keys.c"
+
+[[native.sources]]
+path = "native/key_io.c"
+
+[[native.sources]]
+path = "native/signature.c"

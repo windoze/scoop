@@ -1,0 +1,94 @@
+package scoop.crypto
+
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class KeyTests {
+    @Test
+    fun `RSA P256 and Ed25519 generation and PEM DER round trips`() {
+        roundTrip(KeyAlgorithm.RSA, SignatureAlgorithm.RS256)
+        roundTrip(KeyAlgorithm.RSA, SignatureAlgorithm.PS256)
+        roundTrip(KeyAlgorithm.P256, SignatureAlgorithm.ES256)
+        roundTrip(KeyAlgorithm.Ed25519, SignatureAlgorithm.Ed25519)
+    }
+
+    @Test
+    fun `RFC 8032 Ed25519 empty message vector`() {
+        val seed = "302e020100300506032b6570042204209d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60".hexToByteArray()
+        PrivateKey.fromDer(seed).use { key ->
+            val message: Array<Byte> = []
+            val signature = sign(SignatureAlgorithm.Ed25519, key, message)
+            assertEquals("e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155" +
+                "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b", signature.toHexString())
+            key.publicKey().use { publicKey ->
+                assertEquals("302a300506032b6570032100d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", publicKey.toDer().toHexString())
+                assertTrue(verify(SignatureAlgorithm.Ed25519, publicKey, message, signature))
+            }
+        }
+    }
+
+    @Test
+    fun `OpenSSL CLI signatures and key roles`() {
+        val message = "Scoop M51 signature interoperability\n".toByteArray()
+        PublicKey.fromPem(rsaPublicPem()).use { key ->
+            assertTrue(verify(SignatureAlgorithm.RS256, key, message, rs256Signature().hexToByteArray()))
+            assertTrue(verify(SignatureAlgorithm.PS256, key, message, ps256Signature().hexToByteArray()))
+            assertFalse(verify(SignatureAlgorithm.RS256, key, "changed".toByteArray(), rs256Signature().hexToByteArray()))
+            assertFailsWith<IllegalArgumentException> { verify(SignatureAlgorithm.ES256, key, message, es256Signature().hexToByteArray()) }
+        }
+        PrivateKey.fromPem(rsaPrivatePem()).use { key ->
+            assertEquals(rs256Signature(), sign(SignatureAlgorithm.RS256, key, message).toHexString())
+        }
+        PublicKey.fromPem(ecPublicPem()).use { key ->
+            assertTrue(verify(SignatureAlgorithm.ES256, key, message, es256Signature().hexToByteArray()))
+        }
+    }
+
+    @Test
+    fun `invalid formats mismatched algorithms and disposed keys`() {
+        assertFailsWith<IllegalArgumentException> { PrivateKey.generate(KeyAlgorithm.RSA, 1024) }
+        assertFailsWith<IllegalArgumentException> { PrivateKey.generate(KeyAlgorithm.Other) }
+        assertFailsWith<CryptoException> { PrivateKey.fromPem(rsaPublicPem()) }
+        assertFailsWith<CryptoException> { PublicKey.fromPem(rsaPrivatePem()) }
+        val error = assertFailsWith<CryptoException> { PrivateKey.fromPem("invalid") }
+        assertEquals("import key", error.operation)
+        assertTrue(error.detail.length > 0L)
+        assertFailsWith<CryptoException> { PublicKey.fromPem(rsaPublicPem() + "trailing") }
+        val privateKey = PrivateKey.generate(KeyAlgorithm.Ed25519)
+        val publicKey = privateKey.publicKey()
+        val message = "lifetime".toByteArray()
+        val signature = sign(SignatureAlgorithm.Ed25519, privateKey, message)
+        privateKey.close()
+        privateKey.close()
+        assertTrue(verify(SignatureAlgorithm.Ed25519, publicKey, message, signature))
+        assertFailsWith<IllegalStateException> { privateKey.toDer() }
+        publicKey.close()
+        publicKey.close()
+        assertFailsWith<IllegalStateException> { publicKey.toPem() }
+    }
+}
+
+private fun roundTrip(kind: KeyAlgorithm, algorithm: SignatureAlgorithm) {
+    PrivateKey.generate(kind).use { key ->
+        assertTrue(key.algorithm == kind)
+        val message = "key round trip".toByteArray()
+        val signature = sign(algorithm, key, message)
+        key.publicKey().use { publicKey ->
+            assertTrue(publicKey.algorithm == kind)
+            assertTrue(verify(algorithm, publicKey, message, signature))
+            assertFalse(verify(algorithm, publicKey, "changed".toByteArray(), signature))
+            val changed = signature.toMutableArray()
+            changed[changed.size - 1L] = (changed[changed.size - 1L].toInt32() xor 1).toInt8()
+            assertFalse(verify(algorithm, publicKey, message, changed))
+            PrivateKey.fromDer(key.toDer()).use { imported ->
+                assertTrue(verify(algorithm, publicKey, message, sign(algorithm, imported, message)))
+            }
+            PrivateKey.fromPem(key.toPem()).use { imported ->
+                assertTrue(verify(algorithm, publicKey, message, sign(algorithm, imported, message)))
+            }
+            PublicKey.fromDer(publicKey.toDer()).use { imported -> assertTrue(verify(algorithm, imported, message, signature)) }
+            PublicKey.fromPem(publicKey.toPem()).use { imported -> assertTrue(verify(algorithm, imported, message, signature)) }
+        }
+    }
+}

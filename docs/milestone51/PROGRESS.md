@@ -5,7 +5,7 @@
 ## 分批状态
 
 1. Native 接入：已完成三目标 OpenSSL 3.5.9 静态资源准备及真实摘要、签名、证书校验和 TLS 握手。
-2. 密码与密钥：摘要、MAC、AEAD、安全随机与 SecretKey 已完成；公私钥与签名待实施。
+2. 密码与密钥：已完成摘要、MAC、AEAD、安全随机、SecretKey、RSA／P-256／Ed25519 公私钥和签验。
 3. 证书与 JWS：待实施。
 4. 共享 TLS 引擎与同步流：待实施。
 5. M49 异步 TLS：待实施。
@@ -18,6 +18,8 @@
 - OpenSSL vendor 与目标资源：未修改的 3.5.9 上游源码归档、许可证、普通准备脚本及两个正式 CLI fixture 已落地。Darwin、GNU、musl 各 2 项／4 进程通过；每项均执行真实程序。纯 crypto 覆盖 SHA-256 标准向量、Ed25519 签验与篡改，TLS 覆盖显式信任、名称验证、有限 BIO 握手及传输。musl 首轮缺 Linux UAPI 头，改用已有隔离 UAPI 包装器后通过，没有使用 GNU 用户态头文件或系统 OpenSSL。Python Ruff 与 C 警告检查通过。
 
 - 内存密码第一批：SHA-256／384／512 增量与一次性摘要、HMAC、AES-128／256-GCM、安全随机及显式 SecretKey 生命周期。错误在 C 调用内保存，FFI 只用同步借用；认证失败不交付明文。C 格式化与严格告警检查通过；本机 5 项标准／组合测试、相同 5 项 moving GC、生产外部消费者 1 项通过。OpenSSL 准备命中直接返回，未重跑工具。
+
+- 密钥与签名：PKCS#8／SPKI 的 PEM／DER、独立公钥提取、RSA PKCS#1／PSS、ECDSA DER 与 Ed25519；关闭后状态及 native 引用保留。PSS 固定 SHA-256／MGF1 SHA-256／32 字节 salt，不启用口令交互。C 格式化与严格告警检查通过；本机 4 项、相同 4 项 moving GC 和生产消费者 1 项通过，包含 RFC 8032 与 OpenSSL 3.6.5 CLI 固定向量、改变消息／签名、格式与算法错误。
 
 ## 验证与工作目录
 
