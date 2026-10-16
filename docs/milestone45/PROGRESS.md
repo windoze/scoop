@@ -117,3 +117,10 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - native 专测在 debug/release、普通／moving 全部通过。覆盖创建／配置／bind／connect 失败回滚、已消费 close 的 EINTR、真实短发送与 EINTR、DNS 错误域／释放、CLOEXEC、SIGPIPE，以及实际 accept/read/send/recv/DNS 边界触发 GC 的 owner 保活。
 - 本机未监听端口的连接受网络策略影响会等待超时，因此连接拒绝错误通过实际 connect 边界注入，避免依赖主机防火墙行为；成功传输仍使用真实 loopback 和动态端口。fixture 的 readBytes 参数遗漏及失败诊断已修正，只复跑该专测。
 - 下游 `.slib` UDP 组合在普通／moving 通过；Rust 格式化、workspace all-targets clippy、C 格式化与严格告警通过。原始记录保留在仓库外；Linux 留到 M45-10 集中运行。
+
+
+## M45-10：本机最终组合与产物消费
+
+2026-10-16 本机修改和组合验收完成。下游应用通过普通 platform `.slib` 把 NativeByteBuffer 数据写入文件，经子进程管道和 TCP 传输，再写回文件并逐字节核对；临时目录与各层 owner 确定性清理。debug/release、普通／moving GC、独立 scoop-link 和未变输入的零编译子调用复用全部通过。生产 platform 闭包只依赖 core／std。
+
+最终集中运行 M45、M38、GC 与异常相关正式 CLI：335 通过、7 项目标不适用，429 variants、1978 processes、3 项既有结构 golden，零失败。平台库最终 99 项已由上一批 debug／release／moving 结果覆盖，没有因新增应用再次重跑。fmt、workspace all-targets clippy、全部 platform C 严格告警与 50 项 runner 规则通过。Linux GNU／musl 在本批提交后统一运行；当前结果见 [验收概要](ACCEPTANCE.md)。
