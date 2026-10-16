@@ -107,4 +107,6 @@ driver 的十九项布局产物测试共用旧描述符分类，只将 closure �
 
 Linux Rust 最终共 5,348 项单元／集成测试、2 项 doctest 通过，包含全部 driver 用例和七项 binary 测试。复用各批已通过结果并只补验失败组，没有重复完整 workspace 测试。
 
-GNU 完整 CLI 发现五项 M34 优化专测仍保存基线已删除的 `scoop_rt_materialize_exception`。按现行 runtime 规范 5.3～5.4 更新其 MIR／LIR 预期；差异为直接保存 Throwable 引用及关联临时值、调用和 safepoint 编号，没有修改生产实现。Darwin 五项、十变体、五十八进程全部通过，包含正常、moving 和 minor GC；Linux 正在补齐两种 libc 的对应验证。
+GNU 完整 CLI 发现五项 M34 优化专测仍保存基线已删除的 `scoop_rt_materialize_exception`。按现行 runtime 规范 5.3～5.4 更新其 MIR／LIR 预期；差异为直接保存 Throwable 引用及关联临时值、调用和 safepoint 编号，没有修改生产实现。三目标各五项、十变体、五十八进程全部通过，包含正常、moving 和 minor GC；快照修正分批独立提交。
+
+M43 生命周期失败测试还保留了一条末尾 try 中的多余 Unit 语句，不符合语言规范 8.1.2 的 Unit lambda 丢弃结果规则。删除该行，保留各阶段失败与 finally 次数断言；本机 debug／release 两变体、六进程通过，GNU 定向补验随后闭合。
