@@ -14,8 +14,7 @@ pub(super) fn location(error: &Error) -> Option<(ConeIdentity, String)> {
             slib::CrossConeClosureIdentityError::Allocation { .. } => return None,
         },
         Error::Foundation(error) => match error.as_ref() {
-            slib::CrossConeClosureFoundationError::Artifact { identity, .. }
-            | slib::CrossConeClosureFoundationError::SourceProvenance { identity, .. } => {
+            slib::CrossConeClosureFoundationError::Artifact { identity, .. } => {
                 (*identity, "foundation")
             }
             slib::CrossConeClosureFoundationError::Allocation { .. } => return None,
