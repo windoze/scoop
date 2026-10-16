@@ -20,7 +20,7 @@ Digest、SecretKey、PrivateKey、PublicKey、Certificate、TrustStore 均为显
 
 ## 3. 摘要、MAC、AEAD 与随机
 
-`scoop.crypto` 提供 `DigestAlgorithm { SHA256, SHA384, SHA512 }`，一次性 `digest(algorithm, data)` 和 `Digest(algorithm).update(data).finish()` 结果相同，允许空输入。update 返回 Unit，finish 返回字节数组并结束上下文的计算状态。
+`scoop.crypto` 提供 `DigestAlgorithm { SHA256, SHA384, SHA512 }`；一次性 `digest(algorithm, data)` 与 `Digest(algorithm)` 上连续 update 后调用 finish 的结果相同，允许空输入。update 返回 Unit，finish 返回字节数组并结束上下文的计算状态。
 
 SecretKey 从字节建立自有 native 副本，支持显式导出及关闭时清除自有存储。`hmac(algorithm, key, data)` 与 `verifyHmac(algorithm, key, data, expected)` 支持以上三种 SHA；校验长度一致时使用 CRYPTO_memcmp，不使用字符串或提前退出的逐字节比较。
 
@@ -44,7 +44,7 @@ Certificate 使用 fromPem／fromDer 和 toPem／toDer；单次导入恰好一�
 
 `TrustStore.fromCertificates(anchors)` 保留锚的 native 引用，创建后不再修改。`verify(certificate, at, purpose, intermediates, identity)` 要求明确的时间和 `CertificatePurpose { ServerAuth, ClientAuth, Any }`，中间证书默认空数组，identity 默认 None；返回 `CertificateVerification { Verified, Failed(CertificateValidationFailure) }`。失败数据含 code、depth、detail。DNS 身份匹配禁止部分标签通配符，其他链与名称规则由 OpenSSL 执行。
 
-Certificate.verifySignature(issuerKey) 只检查证书签名。TrustStore 从显式锚建立，verify 接收叶证书、中间证书、明确 Instant、用途与可选 `PeerIdentity { Dns(String), Ip(Array<Byte>) }`。DNS 必须非空 ASCII／A-label 且无 NUL，IP 必须为 4／16 字节。结果区分 Verified 和 Failure，失败保存验证 code、depth 及原因。上游执行签名、时间、链约束与用途检查；最后提交的证书不隐式成为根，不读取系统信任、不执行 AIA／OCSP／CRL 网络获取。
+Certificate.verifySignature(issuerKey) 只检查证书签名。TrustStore 从显式锚建立，verify 接收叶证书、中间证书、明确 Instant、用途与可选 `PeerIdentity { Dns(String), Ip(Array<Byte>) }`。DNS 必须非空 ASCII／A-label 且无 NUL，IP 必须为 4／16 字节。结果区分 Verified 和 Failed，失败保存验证 code、depth 及原因。上游执行签名、时间、链约束与用途检查；最后提交的证书不隐式成为根，不读取系统信任、不执行 AIA／OCSP／CRL 网络获取。
 
 ## 6. JWS
 
