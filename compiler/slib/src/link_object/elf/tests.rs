@@ -3,9 +3,7 @@
 use std::process::Command;
 
 use super::*;
-use crate::link_object::{
-    ObjectEnvelopeFormatV1, ObjectRelocationShapeV1, ObjectSymbolAttributesV1, ObjectSymbolKindV1,
-};
+use crate::link_object::{ObjectRelocationShapeV1, ObjectSymbolAttributesV1, ObjectSymbolKindV1};
 
 #[test]
 fn builtin_elf_preserves_large_section_indices_names_groups_and_signed_addends() {
@@ -82,17 +80,12 @@ odr: .quad 7
             matches!(tls.attributes(), ObjectSymbolAttributesV1::Elf { size: 8, info, other }
             if info & 15 == object::elf::STT_TLS && other == object::elf::STV_HIDDEN)
         );
-        let ObjectEnvelopeFormatV1::Elf64 { groups, .. } = envelope.format() else {
-            panic!("ELF facts")
-        };
-        assert_eq!(groups.len(), 1);
         let odr = envelope
             .symbols()
             .iter()
             .find(|s| s.name() == b"odr")
             .unwrap();
-        assert_eq!(groups[0].signature_symbol, odr.table_index());
-        assert!(groups[0].sections.contains(&odr.section_ordinal().unwrap()));
+        assert_eq!(odr.kind(), ObjectSymbolKindV1::ExternalWeakDefinition);
         for relocation in envelope.relocations() {
             assert_eq!(relocation.encoded_value(), 0);
             let ObjectRelocationShapeV1::ElfX86_64Rela {

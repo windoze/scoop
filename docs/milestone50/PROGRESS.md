@@ -26,8 +26,9 @@
 20. Undefined requirements：直接合并既有分类并保留依赖分区，删除 use 全集重建／coverage／重叠回放、producer／target 副本检查及封口包装；保持实际未知符号和 import 索引诊断。
 21. LIR → codegen：删除全模块类型／CFG／ABI／callback／variant 支配／safepoint／根计划预检与专属破坏测试；保留实际发射查询和错误。generated-C 直接渲染现有布局与 bridge，删除 atom／canonical layout 比较，保留真实 C ABI 静态断言；runtime scan 的正向发射测试移入独立短文件。
 22. 对象定义：按计划索引实际符号和 atom 范围，删除符号全集／linkage／primary 起点比较、未归属范围与零 padding 扫描；保留缺失和歧义符号、实际范围与 literal 读取。
-23. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
-24. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+23. 对象格式读取：Scoop／generated-C 共用按实际属性的 section 分类，删除来源专属白名单、flags 模板、deployment／group 副本、动态符号分区与整表布局审计。保留所需表读取、目标与实际引用边界。
+24. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
+25. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -78,3 +79,5 @@ LIR 发射批次：格式化、workspace clippy 无警告；release codegen 全�
 LIR 发射后的 CLI 回归：7 项／9 变体／44 进程通过，保留 4 个专门链接 plan golden。GC 静态根初次因保留工作目录内已有 symlink 在准备阶段失败，改用新目录补跑通过；未发生编译失败。本次已清理 debug target 1.8 GiB，保留 release 工具。
 
 对象定义批次：格式化、workspace clippy 无警告；release slib link_object 152 项通过，缺失／重复符号、空／重叠 atom 与真实定义读取继续覆盖。
+
+对象格式批次：格式化、workspace clippy 无警告；release slib link_object 140 项通过。保留真实符号／relocation、未归属段属性分类和对象表读取错误；Linux ELF 实对象用例留待目标环境执行。

@@ -59,7 +59,6 @@ impl ObservedMachOSymbolV1 {
 
 pub(super) fn validate_darwin_arm64_symbol_inventory_v1(
     symtab: &macho::SymtabCommand<Endianness>,
-    dysymtab: &macho::DysymtabCommand<Endianness>,
     endian: Endianness,
     bytes: &[u8],
     sections: &[ObservedMachOSectionV1],
@@ -87,7 +86,6 @@ pub(super) fn validate_darwin_arm64_symbol_inventory_v1(
             sections,
         )?);
     }
-    validate_partition(dysymtab, endian, &symbols)?;
     Ok(symbols)
 }
 
@@ -210,71 +208,15 @@ fn validate_definition_description(
     }
 }
 
-fn validate_partition(
-    record: &macho::DysymtabCommand<Endianness>,
-    endian: Endianness,
-    symbols: &[ObservedMachOSymbolV1],
-) -> Result<(), DarwinArm64SymbolInventoryValidationError> {
-    let local_end = record.nlocalsym.get(endian);
-    let external_end = local_end
-        .checked_add(record.nextdefsym.get(endian))
-        .ok_or(DarwinArm64SymbolInventoryValidationError::MalformedSymbolTable)?;
-    for symbol in symbols {
-        let expected = if symbol.table_index < local_end {
-            DarwinArm64SymbolKindV1::LocalSectionDefinition
-        } else if symbol.table_index < external_end {
-            DarwinArm64SymbolKindV1::ExternalStrongDefinition
-        } else {
-            DarwinArm64SymbolKindV1::ExternalUndefined
-        };
-        let actual = match symbol.kind {
-            DarwinArm64SymbolKindV1::ExternalWeakDefinition => {
-                DarwinArm64SymbolKindV1::ExternalStrongDefinition
-            }
-            kind => kind,
-        };
-        if actual != expected {
-            return Err(
-                DarwinArm64SymbolInventoryValidationError::DynamicPartitionKindMismatch {
-                    index: symbol.table_index,
-                    expected,
-                    actual: symbol.kind,
-                },
-            );
-        }
-    }
-    Ok(())
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinArm64SymbolInventoryValidationError {
     MalformedSymbolTable,
-    InvalidSymbolName {
-        index: u32,
-    },
-    UnsupportedSymbolType {
-        index: u32,
-        actual: u8,
-    },
-    InvalidDefinitionSection {
-        index: u32,
-        section_ordinal: u8,
-    },
-    DefinitionValueOutOfBounds {
-        index: u32,
-    },
-    UnsupportedSymbolDescription {
-        index: u32,
-        actual: u16,
-    },
-    InvalidUndefinedSymbol {
-        index: u32,
-    },
-    DynamicPartitionKindMismatch {
-        index: u32,
-        expected: DarwinArm64SymbolKindV1,
-        actual: DarwinArm64SymbolKindV1,
-    },
+    InvalidSymbolName { index: u32 },
+    UnsupportedSymbolType { index: u32, actual: u8 },
+    InvalidDefinitionSection { index: u32, section_ordinal: u8 },
+    DefinitionValueOutOfBounds { index: u32 },
+    UnsupportedSymbolDescription { index: u32, actual: u16 },
+    InvalidUndefinedSymbol { index: u32 },
 }
 
 impl fmt::Display for DarwinArm64SymbolInventoryValidationError {

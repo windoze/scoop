@@ -1125,10 +1125,7 @@ relocation index。缺失/多余backend section、符号冲突、越界、scatte
 布局都必须在改写前失败；callable-owned C string的`AddressTakenConstant`边界仍由LLVM global
 alias直接发射；callable-owned recursive scan的`RuntimeRecord`也必须已有同样的精确global boundary，两者均在
 此门禁复核为同section的非空范围，不能由section整体或临近local symbol代替。
-LLVM/Mach-O可把与相邻定义同地址的end alias标为`N_ALT_ENTRY`，也可把hidden primary或global alias标为
-`N_PEXT`；object envelope必须显式保留这两个属性，只允许它们出现在section definition，不能把weak/reference
-flags一并放宽。`__TEXT,__text`必须含`S_ATTR_PURE_INSTRUCTIONS`，`S_ATTR_SOME_INSTRUCTIONS`是LLVM可省略的
-冗余提示位；其余flag仍按封闭section矩阵精确匹配。
+LLVM/Mach-O 的 symbol flags 按实际位读取；section 根据实际属性和所需特殊名称分类。Scoop LIR 与 generated-C 不设来源专属段矩阵，不要求 header／section flags 精确等于某套 producer 模板。读取 section、symbol 与 relocation 所需的局部边界仍由实际 reader 处理；未消费的 deployment、linker hints、动态符号分区与其他元数据交给目标工具链，不另作资格审查。
 
 ### 11.2 member id在finalization前确定
 

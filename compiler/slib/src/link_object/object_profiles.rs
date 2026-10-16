@@ -1,11 +1,10 @@
-//! Producer profiles over Mach-O and ELF object facts.
+//! Read Mach-O and ELF facts used by object production.
 
 use std::fmt;
 
 use super::{
-    BuiltinLinkObjectSectionProfileV1, BuiltinObjectSectionValidationError,
     ObjectEnvelopeValidationError, ValidatedBuiltinObjectSectionInventoryV1,
-    validate_builtin_object_section_inventory_v1, validate_darwin_arm64_object_envelope_v1,
+    read_builtin_object_sections_v1, validate_darwin_arm64_object_envelope_v1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -42,21 +41,13 @@ pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
         return Err(ScoopLirObjectEnvelopeValidationError::UnsupportedTarget);
     }
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        return crate::link_object::elf::builtin::sections(
-            bytes,
-            target.id(),
-            BuiltinLinkObjectSectionProfileV1::ScoopLir,
-        )
-        .map(|sections| ValidatedScoopLirObjectEnvelopeV1 { sections })
-        .map_err(ScoopLirObjectEnvelopeValidationError::Elf);
+        return crate::link_object::elf::builtin::sections(bytes, target.id())
+            .map(|sections| ValidatedScoopLirObjectEnvelopeV1 { sections })
+            .map_err(ScoopLirObjectEnvelopeValidationError::Elf);
     }
     let envelope = validate_darwin_arm64_object_envelope_v1(bytes)
         .map_err(ScoopLirObjectEnvelopeValidationError::Envelope)?;
-    let sections = validate_builtin_object_section_inventory_v1(
-        envelope,
-        BuiltinLinkObjectSectionProfileV1::ScoopLir,
-    )
-    .map_err(ScoopLirObjectEnvelopeValidationError::Sections)?;
+    let sections = read_builtin_object_sections_v1(envelope);
     Ok(ValidatedScoopLirObjectEnvelopeV1 { sections })
 }
 
@@ -69,19 +60,11 @@ pub fn read_generated_c_object_sections_v1(
         scoop_target_data::DARWIN_AARCH64_ID => {
             let envelope = validate_darwin_arm64_object_envelope_v1(bytes)
                 .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Envelope)?;
-            validate_builtin_object_section_inventory_v1(
-                envelope,
-                BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
-            )
-            .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Sections)
+            Ok(read_builtin_object_sections_v1(envelope))
         }
         scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-            crate::link_object::elf::builtin::sections(
-                bytes,
-                target,
-                BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
-            )
-            .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Elf)
+            crate::link_object::elf::builtin::sections(bytes, target)
+                .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Elf)
         }
         _ => Err(GeneratedCBridgeObjectEnvelopeValidationError::UnsupportedTarget),
     }
@@ -92,7 +75,6 @@ pub enum ScoopLirObjectEnvelopeValidationError {
     UnsupportedTarget,
     Elf(crate::link_object::ElfObjectError),
     Envelope(ObjectEnvelopeValidationError),
-    Sections(BuiltinObjectSectionValidationError),
 }
 
 impl fmt::Display for ScoopLirObjectEnvelopeValidationError {
@@ -111,7 +93,6 @@ pub enum GeneratedCBridgeObjectEnvelopeValidationError {
     UnsupportedTarget,
     Elf(crate::link_object::ElfObjectError),
     Envelope(ObjectEnvelopeValidationError),
-    Sections(BuiltinObjectSectionValidationError),
 }
 
 impl fmt::Display for GeneratedCBridgeObjectEnvelopeValidationError {

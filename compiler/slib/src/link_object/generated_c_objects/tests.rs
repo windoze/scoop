@@ -41,18 +41,9 @@ fn reads_generated_member_sections() {
     assert_eq!(verified.production(), &production);
     assert_eq!(verified.members().len(), 1);
     assert_eq!(verified.members()[0].member(), bridge_member);
-    let super::super::ObjectEnvelopeFormatV1::DarwinArm64 { deployment, .. } =
-        verified.members()[0].sections().envelope().format()
-    else {
-        panic!("Darwin envelope")
-    };
     assert_eq!(
-        deployment.as_ref(),
-        Some(&super::super::DarwinDeploymentCommandV1::BuildVersion {
-            minimum_os: MINIMUM_OS,
-            sdk: SDK,
-            tools: Vec::new(),
-        })
+        verified.members()[0].sections().envelope().target(),
+        scoop_target_data::DARWIN_AARCH64_ID
     );
 }
 

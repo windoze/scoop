@@ -14,8 +14,8 @@ use scoop_lir::{
 
 use super::*;
 use crate::{
-    CanonicalScoopLirObjectUnitSetV1, DarwinBuildToolVersionV1, PlannedLinkObjectMemberSetV1,
-    PlannedStrongObjectSymbolSetV1, validate_scoop_lir_llvm_22_1_object_envelope_v1,
+    CanonicalScoopLirObjectUnitSetV1, PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1,
+    validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
 
 #[test]
@@ -288,15 +288,13 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     plan: &PlannedMemberStrongObjectSymbolsV1,
     value: impl Fn(PlannedStrongObjectSymbolRoleV1) -> u64,
     relocations: &[(u32, PlannedStrongObjectSymbolRoleV1)],
-    deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>,
+    deployment: Option<(u32, u32)>,
     section_bytes: &[u8],
 ) -> ObjectFixture {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
-    let deployment_size = deployment
-        .map(|(_, _, tools)| 24 + u32::try_from(tools.len()).unwrap() * 8)
-        .unwrap_or(0);
+    let deployment_size = deployment.map(|_| 24).unwrap_or(0);
     let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let section_offset = 32 + command_bytes;
     let section_size = u32::try_from(section_bytes.len()).unwrap();
@@ -376,17 +374,13 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     push_u32(&mut bytes, 0);
     bytes.extend_from_slice(&[0; 48]);
 
-    if let Some((minimum_os, sdk, tools)) = deployment {
+    if let Some((minimum_os, sdk)) = deployment {
         push_u32(&mut bytes, macho::LC_BUILD_VERSION);
         push_u32(&mut bytes, deployment_size);
         push_u32(&mut bytes, macho::PLATFORM_MACOS);
         push_u32(&mut bytes, minimum_os);
         push_u32(&mut bytes, sdk);
-        push_u32(&mut bytes, u32::try_from(tools.len()).unwrap());
-        for tool in tools {
-            push_u32(&mut bytes, tool.tool());
-            push_u32(&mut bytes, tool.version());
-        }
+        push_u32(&mut bytes, 0);
     }
 
     bytes.extend_from_slice(section_bytes);

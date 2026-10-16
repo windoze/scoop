@@ -6,10 +6,7 @@ impl From<ValidatedDarwinArm64ObjectEnvelopeV1> for ValidatedObjectEnvelopeV1 {
         Self {
             byte_length: envelope.byte_length(),
             content_digest: envelope.content_digest(),
-            format: ObjectEnvelopeFormatV1::DarwinArm64 {
-                load_command_count: envelope.load_command_count(),
-                deployment: envelope.deployment().cloned(),
-            },
+            format: ObjectEnvelopeFormatV1::DarwinArm64,
             sections: envelope
                 .sections()
                 .iter()

@@ -138,7 +138,7 @@ fn preserves_external_weak_definition_flags_and_rejects_local_weak_symbols() {
 }
 
 #[test]
-fn rejects_invalid_definition_locations_and_partition_kinds() {
+fn rejects_invalid_definition_locations() {
     let mut bad_section = super::super::tests::object_with_text_section();
     bad_section[SYMBOL_OFFSET + 5] = 2;
     assert_symbol_error(
@@ -154,17 +154,6 @@ fn rejects_invalid_definition_locations_and_partition_kinds() {
     assert_symbol_error(
         &bad_value,
         DarwinArm64SymbolInventoryValidationError::DefinitionValueOutOfBounds { index: 0 },
-    );
-
-    let mut local_in_external_partition = super::super::tests::object_with_text_section();
-    local_in_external_partition[SYMBOL_OFFSET + 4] = macho::N_SECT;
-    assert_symbol_error(
-        &local_in_external_partition,
-        DarwinArm64SymbolInventoryValidationError::DynamicPartitionKindMismatch {
-            index: 0,
-            expected: DarwinArm64SymbolKindV1::ExternalStrongDefinition,
-            actual: DarwinArm64SymbolKindV1::LocalSectionDefinition,
-        },
     );
 }
 

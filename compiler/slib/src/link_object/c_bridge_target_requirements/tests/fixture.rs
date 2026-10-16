@@ -73,7 +73,7 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
         bridge_symbols,
         canonical_value,
         &relocations,
-        Some((MINIMUM_OS, SDK, &[])),
+        Some((MINIMUM_OS, SDK)),
         &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;

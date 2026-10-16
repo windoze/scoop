@@ -400,6 +400,9 @@ undefined requirements 完成普通分类后直接合并、排序，保留 calla
 
 物理 definition 读取只查询实际需要的符号和 atom 边界，建立供地址、relocation 和内容指纹使用的索引。保留缺失符号、歧义定义和本次读取范围的诊断；不比较所有生成符号与计划的全集、重验既定 linkage／primary 位置，也不扫描未归属 section 或 padding 来证明零值及生产覆盖。padding 不属于 definition 的语义内容，不再保存无消费者的 padding-end 资格字段。
 
+Mach-O／ELF 对象按实际目标格式读取 section、符号及 relocation，按标志与本次使用的特殊段分类；Scoop LIR 与 generated-C 使用同一规则，不设来源专属段名／flags 白名单或必须含 text 的资格。版本、优化提示和其他未消费的 load command、section group 不另行审计或保存证明副本；不比较整张物理表的覆盖、分区、padding 与重叠。格式库负责读取所需表，实际地址／索引／内容访问保留局部边界错误。
+
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

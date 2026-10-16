@@ -34,7 +34,7 @@ fn verifies_the_complete_mixed_builtin_member_set() {
         symbol_plan.member(bridge_member).unwrap(),
         canonical_value,
         &[],
-        Some((MINIMUM_OS, SDK, &[])),
+        Some((MINIMUM_OS, SDK)),
         &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
     )
     .bytes;
@@ -60,25 +60,16 @@ fn verifies_the_complete_mixed_builtin_member_set() {
     assert_eq!(verified.strong_relocations().members().len(), 2);
     assert!(verified.strong_relocations().bindings().is_empty());
     assert_eq!(verified.c_bridge_production().members().len(), 1);
-    let mut expected_profiles = vec![
-        (
-            scoop_member,
-            super::super::BuiltinLinkObjectSectionProfileV1::ScoopLir,
-        ),
-        (
-            bridge_member,
-            super::super::BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
-        ),
-    ];
-    expected_profiles.sort_unstable_by_key(|(member, _)| *member);
+    let mut expected_members = vec![scoop_member, bridge_member];
+    expected_members.sort_unstable();
     assert_eq!(
         verified
             .strong_relocations()
             .members()
             .iter()
-            .map(|member| (member.member(), member.definitions().sections().profile()))
+            .map(|member| member.member())
             .collect::<Vec<_>>(),
-        expected_profiles
+        expected_members
     );
 }
 

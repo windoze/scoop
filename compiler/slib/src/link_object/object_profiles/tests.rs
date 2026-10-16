@@ -1,5 +1,4 @@
 use super::*;
-use crate::link_object::DarwinBuildToolVersionV1;
 
 #[test]
 fn reads_scoop_object_sections() {
@@ -14,13 +13,11 @@ fn reads_scoop_object_sections() {
     );
 }
 
-fn object(deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>) -> Vec<u8> {
+fn object(deployment: Option<(u32, u32)>) -> Vec<u8> {
     let segment_size = 152_u32;
     let symtab_size = 24_u32;
     let dysymtab_size = 80_u32;
-    let deployment_size = deployment
-        .map(|(_, _, tools)| 24 + u32::try_from(tools.len()).unwrap() * 8)
-        .unwrap_or(0);
+    let deployment_size = deployment.map(|_| 24).unwrap_or(0);
     let command_count = 3 + u32::from(deployment.is_some());
     let command_bytes = segment_size + symtab_size + dysymtab_size + deployment_size;
     let section_offset = 32 + command_bytes;
@@ -77,17 +74,13 @@ fn object(deployment: Option<(u32, u32, &[DarwinBuildToolVersionV1])>) -> Vec<u8
     push_u32(&mut bytes, dysymtab_size);
     bytes.extend_from_slice(&[0; 72]);
 
-    if let Some((minimum_os, sdk, tools)) = deployment {
+    if let Some((minimum_os, sdk)) = deployment {
         push_u32(&mut bytes, object::macho::LC_BUILD_VERSION);
         push_u32(&mut bytes, deployment_size);
         push_u32(&mut bytes, object::macho::PLATFORM_MACOS);
         push_u32(&mut bytes, minimum_os);
         push_u32(&mut bytes, sdk);
-        push_u32(&mut bytes, u32::try_from(tools.len()).unwrap());
-        for tool in tools {
-            push_u32(&mut bytes, tool.tool());
-            push_u32(&mut bytes, tool.version());
-        }
+        push_u32(&mut bytes, 0);
     }
 
     bytes.extend_from_slice(&[0xaa, 0xbb, 0xcc, 0xdd]);

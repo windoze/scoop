@@ -1,76 +1,6 @@
 use super::*;
 
 #[test]
-fn optimization_hints_are_bounded_linkedit_data() {
-    let mut bytes = object_without_deployment();
-    let command_end = 32 + 72 + 24 + 80;
-    bytes.splice(command_end..command_end, [0; 16]);
-    write_u32(&mut bytes, 16, 4);
-    write_u32(&mut bytes, 20, (command_end - 32 + 16) as u32);
-    for field in [32 + 72 + 8, 32 + 72 + 16] {
-        write_u32(&mut bytes, field, (command_end + 16) as u32);
-    }
-    let payload = bytes.len();
-    bytes.extend_from_slice(&[0, 0, 0, 0]);
-    write_u32(&mut bytes, command_end, macho::LC_LINKER_OPTIMIZATION_HINT);
-    write_u32(&mut bytes, command_end + 4, 16);
-    write_u32(&mut bytes, command_end + 8, payload as u32);
-    write_u32(&mut bytes, command_end + 12, 4);
-    assert!(validate_darwin_arm64_object_envelope_v1(&bytes).is_ok());
-    write_u32(&mut bytes, command_end + 8, u32::MAX);
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&bytes),
-        Err(ObjectEnvelopeValidationError::LinkeditDataOutOfBounds)
-    );
-    write_u32(&mut bytes, command_end + 8, 0);
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&bytes),
-        Err(ObjectEnvelopeValidationError::OverlappingFileRanges)
-    );
-}
-
-#[test]
-fn accepts_the_closed_relocatable_object_envelope() {
-    let bytes = object_bytes_with_tools(&[
-        (macho::TOOL_CLANG, 0x0f00_0100),
-        (macho::TOOL_LD, 0x0402_0000),
-    ]);
-
-    let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
-
-    assert_eq!(envelope.byte_length(), bytes.len() as u64);
-    assert_eq!(envelope.load_command_count(), 4);
-    assert_eq!(envelope.section_count(), 0);
-    assert_eq!(envelope.symbol_count(), 0);
-    assert_eq!(envelope.relocation_count(), 0);
-    assert_eq!(
-        envelope.deployment(),
-        Some(&DarwinDeploymentCommandV1::BuildVersion {
-            minimum_os: 0x000d_0000,
-            sdk: 0x000d_0000,
-            tools: vec![
-                DarwinBuildToolVersionV1 {
-                    tool: macho::TOOL_CLANG,
-                    version: 0x0f00_0100,
-                },
-                DarwinBuildToolVersionV1 {
-                    tool: macho::TOOL_LD,
-                    version: 0x0402_0000,
-                },
-            ],
-        })
-    );
-}
-
-#[test]
-fn raw_envelope_preserves_an_absent_deployment_command() {
-    let bytes = object_without_deployment();
-    let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
-    assert_eq!(envelope.load_command_count(), 3);
-    assert_eq!(envelope.deployment(), None);
-}
-
-#[test]
 fn rejects_wrong_header_contracts() {
     let mut wrong_file_type = object_bytes();
     write_u32(&mut wrong_file_type, 12, macho::MH_EXECUTE);
@@ -78,37 +8,6 @@ fn rejects_wrong_header_contracts() {
         validate_darwin_arm64_object_envelope_v1(&wrong_file_type),
         Err(ObjectEnvelopeValidationError::WrongFileType(
             macho::MH_EXECUTE
-        ))
-    );
-
-    let mut missing_subsections = object_bytes();
-    write_u32(&mut missing_subsections, 24, 0);
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&missing_subsections),
-        Err(ObjectEnvelopeValidationError::MissingSubsectionsViaSymbols)
-    );
-}
-
-#[test]
-fn rejects_embedded_linker_inputs_and_unknown_commands() {
-    let deployment_offset = 32 + 72 + 24 + 80;
-    let mut linker_option = object_bytes();
-    write_u32(
-        &mut linker_option,
-        deployment_offset,
-        macho::LC_LINKER_OPTION,
-    );
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&linker_option),
-        Err(ObjectEnvelopeValidationError::EmbeddedLinkerOption)
-    );
-
-    let mut dylib = object_bytes();
-    write_u32(&mut dylib, deployment_offset, macho::LC_LOAD_DYLIB);
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&dylib),
-        Err(ObjectEnvelopeValidationError::UnsupportedLoadCommand(
-            macho::LC_LOAD_DYLIB
         ))
     );
 }
@@ -122,7 +21,9 @@ fn rejects_out_of_bounds_tables() {
 
     assert_eq!(
         validate_darwin_arm64_object_envelope_v1(&bytes),
-        Err(ObjectEnvelopeValidationError::SymbolTableOutOfBounds)
+        Err(ObjectEnvelopeValidationError::SymbolInventory(
+            DarwinArm64SymbolInventoryValidationError::MalformedSymbolTable
+        ))
     );
 }
 
@@ -141,31 +42,6 @@ fn validates_section_relocation_and_symbol_ranges_as_one_layout() {
     assert_eq!(
         envelope.symbols()[0].kind(),
         DarwinArm64SymbolKindV1::ExternalStrongDefinition
-    );
-}
-
-#[test]
-fn rejects_overlapping_physical_tables() {
-    let mut bytes = object_with_text_section();
-    let symtab_offset = 32 + 152;
-    let section_offset = 32 + 152 + 24 + 80 + 24;
-    write_u32(&mut bytes, symtab_offset + 8, section_offset as u32);
-
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&bytes),
-        Err(ObjectEnvelopeValidationError::OverlappingFileRanges)
-    );
-}
-
-#[test]
-fn rejects_noncanonical_section_name_padding() {
-    let mut bytes = object_with_text_section();
-    let section_name_offset = 32 + 72;
-    bytes[section_name_offset + 7] = b'x';
-
-    assert_eq!(
-        validate_darwin_arm64_object_envelope_v1(&bytes),
-        Err(ObjectEnvelopeValidationError::NonCanonicalSectionName)
     );
 }
 
@@ -226,18 +102,6 @@ fn object_bytes_with_tools(tools: &[(u32, u32)]) -> Vec<u8> {
     }
 
     bytes.push(0);
-    bytes
-}
-
-fn object_without_deployment() -> Vec<u8> {
-    let mut bytes = object_bytes();
-    let deployment_offset = 32 + 72 + 24 + 80;
-    bytes.drain(deployment_offset..deployment_offset + 24);
-    write_u32(&mut bytes, 16, 3);
-    write_u32(&mut bytes, 20, 72 + 24 + 80);
-    write_u64(&mut bytes, 32 + 40, (32 + 72 + 24 + 80) as u64);
-    write_u32(&mut bytes, 32 + 72 + 8, (32 + 72 + 24 + 80) as u32);
-    write_u32(&mut bytes, 32 + 72 + 16, (32 + 72 + 24 + 80) as u32);
     bytes
 }
 
@@ -359,10 +223,6 @@ fn push_relocation(
 
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_u64(bytes: &mut [u8], offset: usize, value: u64) {
-    bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
 }
 
 fn push_fixed_name(bytes: &mut Vec<u8>, name: &[u8]) {

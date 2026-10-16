@@ -271,7 +271,7 @@ pub fn verify_member_object_relocations_v1(
     }
     if matches!(
         envelope.format(),
-        super::ObjectEnvelopeFormatV1::DarwinArm64 { .. }
+        super::ObjectEnvelopeFormatV1::DarwinArm64
     ) && let Some(symbol) = envelope.symbols().iter().find(|symbol| {
         symbol.kind() == ObjectSymbolKindV1::ExternalUndefined
             && !used_undefined_symbols.contains(&symbol.table_index())
