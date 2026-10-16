@@ -55,5 +55,4 @@ fn mir_records_exact_identities_without_materializing_unused_types() {
             ]))
             .is_some()
     );
-    module.validate().unwrap();
 }

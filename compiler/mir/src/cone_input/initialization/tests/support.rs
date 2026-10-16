@@ -25,10 +25,7 @@ pub(super) fn unit_identity(name: &str) -> InitializationUnitIdentityRecord {
     CborIdentityRecord::from_key(InitializationUnitKey::TopLevelProperty(property)).unwrap()
 }
 pub(super) fn fixture() -> Module {
-    let (mut module, _) = crate::validation::tests::module_with_variants(vec![]);
-    module.output = MirOutput::Library;
-    crate::validation::tests::register_test_exact_type(&mut module, &Type::Any);
-    crate::validation::tests::register_test_exact_type(&mut module, &Type::String);
+    let mut module = base_module();
     let unit = unit_identity("setting");
     let unit_exact = module
         .meta
@@ -138,7 +135,6 @@ pub(super) fn fixture() -> Module {
         dependencies: vec![],
         cycle_thrower: InitializationCycleThrower::Local(cycle_thrower),
     });
-    module.validate().unwrap();
     module
 }
 
@@ -176,4 +172,121 @@ pub(super) fn seal(module: Module) -> Result<ConeMirInput, ConeMirInputError> {
     )
     .unwrap();
     ConeMirInput::try_new(output, production, Vec::new())
+}
+
+fn base_module() -> Module {
+    use scoop_identity::{
+        CoreBuiltinNominal, PersistentFunctionId, PersistentTypeId, SourceNominalKind,
+    };
+    let mut functions = Arena::new();
+    let entry = functions.alloc(Function {
+        gc_effect: GcEffect::NoGc,
+        name: "cycle".to_string(),
+        params: Vec::new(),
+        return_ty: Type::Unit,
+        body: Body::unreachable(Arena::new()),
+    });
+    let mut module = Module {
+        release_hooks: Arena::new(),
+        cone: ConeIdentity::SINGLE_FILE,
+        functions,
+        extern_functions: Arena::new(),
+        globals: Arena::new(),
+        initialization_units: Arena::new(),
+        initialization_failure_roots: Arena::new(),
+        objects: Arena::new(),
+        object_types: Arena::new(),
+        singleton_values: Arena::new(),
+        singleton_published_roots: Arena::new(),
+        callback_bridges: Arena::new(),
+        foreign_callback_adapters: Arena::new(),
+        foreign_callback_families: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
+        function_types: Arena::new(),
+        closure_classes: Arena::new(),
+        closure_invoke_functions: Arena::new(),
+        top_level: vec![entry],
+        strings: Arena::new(),
+        structs: Arena::new(),
+        enums: Arena::new(),
+        classes: Arena::new(),
+        interfaces: Arena::new(),
+        option_core: Vec::new(),
+        output: MirOutput::Library,
+        meta: MirMeta::default(),
+    };
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let string = PersistentTypeId::from_source_declaration(&SourceDeclarationKey::nominal(
+        site,
+        CanonicalIdentifier::new("TestString").unwrap(),
+        SourceNominalKind::Class,
+        0,
+    ))
+    .unwrap();
+    module.meta.source_exact_types = SourceExactTypeIdentities::checked(
+        [
+            (
+                Type::Unit,
+                CoreBuiltinNominal::Unit.identity_record().id(),
+                ConeIdentity::CORE,
+            ),
+            (
+                Type::Any,
+                CoreBuiltinNominal::Any.identity_record().id(),
+                ConeIdentity::CORE,
+            ),
+            (Type::String, string, ConeIdentity::SINGLE_FILE),
+        ]
+        .into_iter()
+        .map(|(ty, nominal, owner)| {
+            SourceExactTypeIdentity::checked(
+                ty,
+                CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap(),
+                SourceExactTypeOrigin::Nominal(owner),
+            )
+            .unwrap()
+        })
+        .collect(),
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("cycle").unwrap(),
+        0,
+        None,
+        vec![],
+    );
+    replace_source(
+        &mut module,
+        SourceCallableMaterialization::new(
+            entry,
+            CallableMaterialization::new(
+                CallableTemplateOwner::Function(
+                    PersistentFunctionId::from_source_declaration(&declaration).unwrap(),
+                ),
+                CallableMaterializationContext::NoSubstitution,
+            ),
+            ExactCallableSignature::new(
+                Effect::Ordinary,
+                None,
+                vec![],
+                crate::core_unit_exact_type(),
+            ),
+            None,
+        )
+        .unwrap(),
+    );
+    module
 }

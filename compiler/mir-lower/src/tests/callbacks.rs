@@ -84,7 +84,6 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
         mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(found))
             if found == bridge.identity().callable_record().id()
     ));
-    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]

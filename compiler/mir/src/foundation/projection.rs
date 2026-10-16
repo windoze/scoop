@@ -6,12 +6,8 @@ use super::*;
 use crate::{ExactOwnerRoot, LocalValueIdentityAuthority, Module};
 
 impl CanonicalMirFoundation {
-    /// Build the complete MIR identity delta from a validated module.
+    /// Build the complete MIR identity delta from the completed module.
     pub fn from_module(module: &Module) -> Result<Self, MirFoundationBuildError> {
-        module
-            .validate()
-            .map_err(|error| MirFoundationBuildError::InvalidModule(Box::new(error)))?;
-
         let mut foundation = Self::empty();
         foundation.set_exact_types(
             module

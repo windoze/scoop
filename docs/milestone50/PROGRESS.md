@@ -36,8 +36,9 @@
 30. Runtime 装载范围：Darwin 使用 loader segment、Linux 使用 PT_LOAD，删除 VM region／proc maps 权限审计与只读／不可执行封口；统一实际范围检查，保留溢出、对齐和跨段边界。
 31. Runtime 摘要：删除 release hook 身份重编码与地址副本比较，以及未消费摘要的非零断言；移除失去用途的 SHA-256 平台后备、Mbed TLS 源码与专属测试，保留编译／链接摘要编码及实际 runtime 索引。
 32. Runtime shape：删除静态 shape／inline scan 重建比较、继承语义重放与 Context 初值／顺序预检；移除完整 metadata 复核模式和专属 scan 验证器。保留实际对象大小、分配、类型查询、scan 地址边界，以及独立的动态 GC heap 验证。
-33. 待完成：IR／meta 与归档其余重复证明、历史文档一致性及最终验收。
-34. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+33. MIR foundation：从完整 Module 直接投影身份，删除全模块类型／CFG／ABI／coroutine／callback／release／constant 验证器、专用破坏测试和错误包装；保留 lowering 的实际结构断言与初始化绑定 fixture。
+34. 待完成：IR／meta 与归档其余重复证明、历史文档一致性及最终验收。
+35. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -110,3 +111,7 @@ Runtime 装载范围批次：格式化、workspace clippy 无警告；image 4 �
 Runtime 摘要批次：格式化、workspace clippy 无警告；release codegen image 4 项通过。runtime object index 集成测试受 Linux cfg 限制，本机筛选为 0 项，留待目标环境验证；不将其记作已验收。
 
 Runtime shape 批次：格式化、workspace clippy 无警告；image 4 项与 collector 30 项通过，覆盖 ZST／装拆箱／数组、根与搬迁、初始化、Context、pin、线程握手和 release hook。首轮遗留的 interface 继承循环断言已随静态语义重放删除并定向补验，未重复运行其余已通过 image 测试。
+
+Runtime 清理后的 CLI 回归：7 项／9 变体／44 进程通过，保留 4 个专门链接 plan golden；覆盖 COMMON、初始化、GC 静态根、泛型派发、物化、Scoop ABI 和回调。已再次清理 debug target 1.5 GiB，保留 release 工具。
+
+MIR foundation 批次：格式化、workspace clippy 无警告；release MIR 256 项、MIR lowering 117 项、release CFG 2 项、C projection 1 项及 driver shape demand 1 项通过。移除的验证器曾被初始化 fixture 借作构造 helper，现改为该用例自身的完整输入；保留真实绑定和转换覆盖。

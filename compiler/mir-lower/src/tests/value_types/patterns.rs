@@ -87,7 +87,6 @@ fn when_lowers_to_a_decision_sequence() {
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
     check_mir_snapshot("when_lowers_to_a_decision_sequence", &module, &["main"]);
-    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]
@@ -259,7 +258,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
     };
     assert_eq!(field.variant(), *nested_variant);
     assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
-    assert_eq!(module.validate(), Ok(()));
+
     let rendered = dump(&module);
     let main = rendered
         .split("  fun ")
@@ -316,7 +315,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
 
     for explicit_else in [false, true] {
         let module = lower_case(explicit_else);
-        assert_eq!(module.validate(), Ok(()));
+
         let body = &module.functions[module
             .output
             .executable_entry()
@@ -467,7 +466,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
         },
     );
     let module = lower(&h.finish(main));
-    assert_eq!(module.validate(), Ok(()));
+
     let body = &module.functions[module
         .output
         .executable_entry()
@@ -666,7 +665,6 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
         &module,
         &["main"],
     );
-    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]
@@ -768,7 +766,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
         },
     );
     let module = lower(&h.finish(main));
-    assert_eq!(module.validate(), Ok(()));
+
     let body = &module.functions[module
         .output
         .executable_entry()

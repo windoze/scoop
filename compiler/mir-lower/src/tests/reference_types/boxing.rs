@@ -193,7 +193,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
             mir::InterfaceAdjustIdentity::boxed_receiver(payload_exact).unwrap()
         )
     );
-    assert_eq!(module.validate(), Ok(()));
+
     assert_eq!(thunk_name, "thunk<S> Describable.describe()");
 
     // The thunk takes the boxed object as `this`, unboxes it and
@@ -211,72 +211,6 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(call.args.len(), 1);
     assert!(matches!(&call.args[0].kind, mir::ExprKind::Unbox(operand)
             if matches!(operand.kind, mir::ExprKind::Local(local) if local == thunk.params[0].local)));
-
-    let mut erased = module;
-    erased.functions[thunk_id].params[0].ty = mir::Type::Any;
-    assert!(matches!(
-        erased.validate(),
-        Err(mir::MirValidationError {
-            kind: mir::MirValidationErrorKind::InvalidBoxingAdjust {
-                reason: "the adjust receiver is not the concrete object type",
-            },
-            ..
-        })
-    ));
-}
-
-#[test]
-fn every_boxed_itable_slot_requires_one_persistent_adjust_identity() {
-    let mut h = Harness::new();
-    let int = h.int;
-    let iface = h.interface("Describable", &["describe"]);
-    let iface_ty = h.interface_ty(iface);
-    let s = h.strukt_with("S", &[("x", int)], &[iface]);
-    let s_ty = h.struct_ty(s);
-    let _describe = empty_method(&mut h, "S", "describe", s_ty);
-    let mut locals = Arena::new();
-    let value = locals.alloc(local("value", iface_ty));
-    let main = h.user_fn(
-        "main",
-        hir::Body {
-            locals,
-            statements: vec![val_decl(
-                value,
-                expr(
-                    hir::ExprKind::Box(Box::new(struct_init(&h, s_ty, vec![int_lit(&h, 1)]))),
-                    iface_ty,
-                ),
-            )],
-        },
-    );
-    let mut module = lower(&h.finish(main));
-    assert_eq!(module.meta.interface_adjusts.len(), 1);
-    let adjust = module.meta.interface_adjusts[0].clone();
-    for target in [
-        mir::InterfaceAdjustTarget::Local(mir::FunctionId::from_raw(u32::MAX.into())),
-        mir::InterfaceAdjustTarget::External(mir::ExternalCallableUseId::from_raw(u32::MAX.into())),
-    ] {
-        module.meta.interface_adjusts[0] =
-            mir::InterfaceAdjust::new(adjust.location(), target, adjust.identity().clone());
-        assert!(matches!(
-            module.validate(),
-            Err(mir::MirValidationError {
-                kind: mir::MirValidationErrorKind::InvalidBoxingAdjust { .. },
-                ..
-            })
-        ));
-    }
-    module.meta.interface_adjusts.clear();
-
-    assert!(matches!(
-        module.validate(),
-        Err(mir::MirValidationError {
-            location: mir::MirValidationLocation::BoxingAdjust { adjust: 0 },
-            kind: mir::MirValidationErrorKind::InvalidBoxingAdjust {
-                reason: "a boxed itable slot has no persistent adjust identity"
-            }
-        })
-    ));
 }
 
 #[test]

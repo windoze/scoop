@@ -183,7 +183,7 @@ return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正
 
 ### 2.3 MIR
 
-MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。
+MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。foundation 从已生成的 Module 提取实际身份记录，不先完整重放类型、CFG、ABI、coroutine、callback、release、constant image 或 GC 语义检查；IR/meta crate 不保留独立的语言验证器及其测试专用入口。具体转换的查询与格式／引用边界继续在实际使用处处理。
 
 调用与短路控制流从表达式提取为 CFG 时，必须先完成并保存此前操作数的取值，再执行后续操作数的调用或分支。没有显式调用的表达式仍可能读取可变字段、全局、指针或原子存储，或执行分配；不能因此延后其求值。聚合元素、调用实参和其他多操作数节点共享这一顺序规则，提前终止的操作数保留此前副作用并阻止后续求值。
 
@@ -193,7 +193,7 @@ errno 捕获调用保留 HIR 已确定的结果适配和 native 合同，表达�
 
 when 的普通谓词、多条件、模式、guard 与 fallback 降为既有 CFG；模式投影仅在匹配成功后执行，guard 失败继续下一 arm，合法落空保留正常边，终止分支不提供结果。return/throw 表达式使用相同 transfer 与 cleanup 通路。
 
-MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Return、Break、Continue 只执行真正退出的 scope 清理；Throw/Rethrow 保持异常路径；finally 的覆盖规则和挂起不退出作用域的规则遵守语言规范。variant payload 只在同一值、同一 variant 的有效分支内读取。开放派生比较中的嵌套 enum 字段在其 tag 检查到达时保存为一个 immutable local，同一短路分支内对应的 test／payload projection 复用该 local；每层 payload 的取值仍处于外层 tag 的成功分支，不能提前到分支外。MIR 与后端继续校验同一稳定值的支配关系，不通过放宽校验来接受重复字段求值形成的不同值。
+MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Return、Break、Continue 只执行真正退出的 scope 清理；Throw/Rethrow 保持异常路径；finally 的覆盖规则和挂起不退出作用域的规则遵守语言规范。variant payload 只在同一值、同一 variant 的有效分支内读取。开放派生比较中的嵌套 enum 字段在其 tag 检查到达时保存为一个 immutable local，同一短路分支内对应的 test／payload projection 复用该 local；每层 payload 的取值仍处于外层 tag 的成功分支，不能提前到分支外。MIR lowering 在生成时保持同一稳定值的支配关系，相关转换由专门的 CFG／运行结果测试覆盖；后续投影与后端直接使用完整输出，不重新遍历全部表达式证明支配关系。
 
 语言规范 13.11 的数据借用 intrinsic 在 MIR lowering 中展开为一次 receiver/block 求值、typed pin 帧 push、按精确对象种类取得数据指针与长度、普通 closure 调用以及所有正常／异常出口的 pop cleanup。block 为普通非 suspend 函数，帧不跨挂起保存。MIR/LIR 明确区分帧操作与数据地址操作，不把栈帧创建伪装成返回 native callee 栈地址的 runtime 函数。LIR 按实际 Array/String layout 计算元素区和长度字段；codegen 在 caller 入口分配帧存储，调用运行时规范 3.4 的 NoGC push/pop。数据地址按已确定的借用操作发射为 AS1→AS0 转换，不另附供自产 LLVM 复核的证明标记。原始数据指针是借用域中的 GC-free 值，帧中的对象承担保活与禁止移动职责；零长度数据地址不要求实际存在可解引用的元素。
 

@@ -344,7 +344,6 @@ impl MirFoundationTable {
 
 #[derive(Debug)]
 pub enum MirFoundationBuildError {
-    InvalidModule(Box<crate::MirValidationError>),
     ExactTypeOrder(StableIdentityOrderError<PersistentExactTypeId>),
     GeneratedCallableOrder(StableIdentityOrderError<PersistentGeneratedCallableId>),
     DuplicateIdentity {
@@ -364,7 +363,6 @@ pub enum MirFoundationBuildError {
 impl fmt::Display for MirFoundationBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidModule(error) => error.fmt(formatter),
             Self::ExactTypeOrder(error) => error.fmt(formatter),
             Self::GeneratedCallableOrder(error) => error.fmt(formatter),
             Self::DuplicateIdentity { table, identity } => write!(
