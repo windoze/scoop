@@ -46,6 +46,7 @@
 40. Archive 读取：直接使用普通 reader 的成员序列与实际范围，删除第二次完整 header／padding 扫描和成员名前缀黑名单。member ordinal 统一排除 TOC／名称表，相关精简链接计划同步。
 41. 文档与平台收尾：同步 M23、M28、M44 历史设计中的权限审计、完整 metadata 重验、SHA 复算和源码隔离要求，修正退役入口链接；移除 Linux cfg 下遗留的 unused import。
 42. 最终验收进行中：本机定向回归及公共 runner 规则，Linux release workspace、完整 GNU CLI 与 musl 目标组合。
+43. 最终工具探测：删除 Darwin／Linux 探测 executable 的整体复核、EH 前缀拒绝及 Linux unwind map 比对；保留真实工具调用、系统输入发现与运行测试，退役 API 不迁入测试。
 
 ## 验证
 
@@ -140,3 +141,5 @@ Archive 批次：格式化、workspace clippy 无警告。8 个定向 CLI 用例
 本机最终组合：公共 fixture runner 50 项规则通过；7 项／9 变体／44 进程 CLI 通过，覆盖 COMMON、泛型派发、初始化、静态 GC 根、物化、Scoop ABI 和 callback。三轮同机性能复测共 24 次 build 成功，冷构建中位数降低 29.8%～35.6%，暖构建均零编译子进程，见 [性能记录](PERFORMANCE.md)。
 
 Linux 验收发现并修正两类测试期望：ELF metadata fixture 实际只有两个 lazy 单元，迁移时误加的 eager gateway 槽预期已改为无槽；移除 `/proc/self/maps` 读取后不再导入 `getline`、`sscanf`、`feof`，40 个 GNU／musl 精简链接计划的系统导入数相应减三。实体选择、归档范围、ABI 与运行断言均保留，按受影响用例补验。
+
+最终工具探测批次：本机格式化、workspace clippy 无警告；6 项／11 变体／54 进程 CLI 通过，覆盖 C++ 值、析构、产物消费、模式缓存及两个 Darwin 动态库用例。全量 Linux 使用此前工具继续运行；本批在目标环境单独补验，避免重新执行已完成的全量用例。

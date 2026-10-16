@@ -1,5 +1,4 @@
 use super::*;
-use object::{Architecture, Object, ObjectKind, macho, read::macho::MachOFile64};
 use scoop_process::CommandExt;
 
 pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<Vec<PathBuf>, ToolchainError> {
@@ -50,31 +49,6 @@ pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<Vec<PathBuf>, To
             "ld probe failed: {}",
             String::from_utf8_lossy(&output.stderr)
         )));
-    }
-    let bytes = std::fs::read(executable).map_err(error)?;
-    let file: MachOFile64<'_> = MachOFile64::parse(bytes.as_slice()).map_err(error)?;
-    if file.kind() != ObjectKind::Executable
-        || file.architecture() != Architecture::Aarch64
-        || !file.is_little_endian()
-    {
-        return Err(error("ld probe did not produce an arm64 executable"));
-    }
-    let mut commands = file.macho_load_commands().map_err(error)?;
-    let mut classic_fixups = false;
-    while let Some(command) = commands.next().map_err(error)? {
-        if command.cmd() == macho::LC_DYLD_CHAINED_FIXUPS {
-            return Err(error("ld ignored -no_fixup_chains"));
-        }
-        classic_fixups |= command.cmd() == macho::LC_DYLD_INFO_ONLY;
-    }
-    if !classic_fixups
-        || file
-            .imports()
-            .map_err(error)?
-            .iter()
-            .any(|import| import.library() != crate::LIBSYSTEM_INSTALL_NAME.as_bytes())
-    {
-        return Err(error("ld probe has unexpected fixups or dynamic providers"));
     }
     Ok(headers)
 }

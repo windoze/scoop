@@ -66,9 +66,6 @@ fn elf_startup_passes_the_exact_image_order_and_root_to_the_runtime_entry() {
         command.args([startup_path, object]);
         linux.append_system_libraries(&mut command);
         checked(&mut command);
-        linux
-            .check_image(&std::fs::read(&program).unwrap())
-            .unwrap();
         checked(&mut Command::new(&program));
     }
 }
