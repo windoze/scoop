@@ -418,6 +418,8 @@ GC release hook 不承担以上任何生命周期责任，仅是防 native 资�
 
 `scoop.asyncio` 是普通 Cone，以 `scoop.test` 为主要验证方式。测试计划放在 `sysroot/lib/scoop.asyncio/tests/`，通过 `[test-dependencies]` 引用 `scoop:scoop.test:0.1.0`，使用 `scoop test sysroot/lib/scoop.asyncio` 运行；测试源码与测试依赖不进入生产构建。文件取消测试另用普通 test-dependency `scoop.tests:asyncio-native` 在真实 libuv worker queue 中建立排队／执行同步点，不替换生产 I/O。普通测试函数以 EventLoop 接口类型持有 LibuvEventLoop，通过 run／runWithResult 驱动 suspend 场景，沿用既有测试发现与断言能力。
 
+`scoop test sysroot/lib/scoop.asyncio/consumer-tests` 另以普通外部 Cone 依赖 asyncio 的生产产物，组合公开泛型结果、useAsync、Job、buffer 和实际 UDP，验证外部消费；它同样使用 scoop.test，不引入专项 runner 或 fixture。
+
 只有 `scoop.test` 无法满足某一具体验证需求时才使用最小的专项 fixture，并说明所缺能力和该 fixture 验证的边界；涉及 native、GC／FFI、竞争或跨 Cone 本身不构成改用 fixture 的理由。若原因是 `scoop.test` 或测试基础设施的缺陷，须先在所属层修复并建立回归，再继续 I/O 验证，不能以 fixture 绕过该缺陷。
 
 | 类别 | 必须覆盖的行为 |

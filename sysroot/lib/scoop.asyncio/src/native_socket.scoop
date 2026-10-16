@@ -27,4 +27,3 @@ internal fun ioSocketAddress(value: IoAddress): SocketAddress {
     }
     return SocketAddress(IpAddress.fromBytes(bytes, value.scopeId), value.port)
 }
-

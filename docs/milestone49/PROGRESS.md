@@ -90,3 +90,9 @@ Linux 已清理旧 target 55.5 GiB，同步已提交的编译器并完成 fmt／
 本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组并继续尚未执行的 crate；GNU／musl asyncio debug 各四十五项通过，后续 profile 与完整 CLI 验收继续运行。
 
 Linux 链接器的 archive 延后检查测试还保留了拒绝普通 C constructor 的旧断言。将未选中成员改为仍被禁止的 C++ EH 输入，继续验证普通归档索引与选中后检查；初始化的实际运行回归不变。格式化、两机 workspace clippy 与 Linux 单项补验通过，原十六项链接器通过结果继续有效；没有修改生产代码。
+
+## 外部产物消费验收
+
+新增普通 `consumer-tests` Cone，以正常依赖消费 asyncio 生产产物，用一个 scoop.test 组合公开泛型引用结果、泛型 useAsync 值结果、接口、Job、buffer 与真实 UDP。它补充同 Cone 功能测试的产物边界，不增加专用 runner、后端或 fixture。本机 debug／release／moving GC 全部通过，格式化、workspace clippy 与差异检查通过。
+
+GNU／musl 的完整 asyncio 在 debug／release／moving GC 均为四十五项通过；platform 全库、外部消费者、Rust 剩余端到端用例及完整 CLI 继续验收。
