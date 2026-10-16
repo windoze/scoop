@@ -51,11 +51,11 @@
 
 ### 3.2 发布阶段的生产过程证明链
 
-正常 [artifact assemble](../../compiler/driver/src/artifact_production/layout.rs) 会进入 [layout object verification](../../compiler/driver/src/object_production/layout/verification.rs)，构造和传递多层 `Verified...`。其中 [C bridge production](../../compiler/slib/src/link_object/c_bridge_production.rs) 再次核对 profile ID、编译器 profile 指纹、源码模板指纹和编译参数指纹，将自己构造的生产记录当作需要证明的事实。
+正常 [artifact assemble](../../compiler/driver/src/artifact_production/layout.rs) 会进入 [layout object verification](../../compiler/driver/src/object_production/layout/verification.rs)，构造和传递多层 `Verified...`。其中 旧 C bridge production（现为 [generated C objects](../../compiler/slib/src/link_object/generated_c_objects.rs)） 再次核对 profile ID、编译器 profile 指纹、源码模板指纹和编译参数指纹，将自己构造的生产记录当作需要证明的事实。
 
 删除这类生产凭证核对、仅用于验证资格转换的包装和深比较，以及已无真实调用者的平行证明流水线。实际输出数据直接传递；需要的定义、引用、stackmap 和补丁位置以普通完整数据保存，不要求附带“已通过前一道认证”的对象。
 
-关联测试：[c_bridge_production/tests.rs](../../compiler/slib/src/link_object/c_bridge_production/tests.rs) 的 `rejects_manifest_profile_even_when_object_deployment_would_validate`。该用例仅改变记录中的 Clang 版本指纹，就要求原本目标条件可以通过的对象被拒绝，必须移除。其他专门构造生产凭证不一致、验证资格缺失或不可达内部状态以维持证明链的测试一并清理；真实工具失败、目标和实际 ABI 测试保留。
+关联测试：旧 `c_bridge_production/tests.rs` 的 `rejects_manifest_profile_even_when_object_deployment_would_validate`。该用例仅改变记录中的 Clang 版本指纹，就要求原本目标条件可以通过的对象被拒绝，必须移除。其他专门构造生产凭证不一致、验证资格缺失或不可达内部状态以维持证明链的测试一并清理；真实工具失败、目标和实际 ABI 测试保留。
 
 ### 3.3 跨产物的源码元数据来源核对
 

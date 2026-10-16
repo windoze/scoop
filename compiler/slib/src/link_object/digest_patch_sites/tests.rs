@@ -8,11 +8,11 @@ use scoop_lir::{
 
 use super::*;
 use crate::{
-    PlannedStrongObjectSymbolRoleV1, PlannedStrongObjectSymbolSetV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    PlannedStrongObjectSymbolRoleV1, PlannedStrongObjectSymbolSetV1, read_generated_c_objects_v1,
+    verify_builtin_object_strong_relocations_v1,
 };
 
-use super::super::c_bridge_production::tests::{fixture, member_plan, profile};
+use super::super::generated_c_objects::tests::{fixture, member_plan, profile};
 use super::super::symbol_verification::tests::object_for_plan_with_deployment;
 
 const MINIMUM_OS: u32 = 0x000d_0100;
@@ -300,14 +300,7 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     let scoop_objects = [ScoopLirObjectCandidateV1::new(member, &object.bytes)];
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let production = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &profile,
-        &member_plan,
-        &[],
-    )
-    .unwrap();
+    let production = read_generated_c_objects_v1(production, &profile, &[]).unwrap();
     let builtins = verify_builtin_object_strong_relocations_v1(
         &member_plan,
         &symbol_plan,

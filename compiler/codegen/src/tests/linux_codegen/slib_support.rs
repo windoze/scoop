@@ -10,7 +10,7 @@ pub(super) struct SlibObjects {
     pub objects: Vec<(SlibMemberId, Vec<u8>)>,
     plans: PlannedLinkObjectMemberSetV1,
     symbols: PlannedStrongObjectSymbolSetV1,
-    bridge_objects: VerifiedCBridgeProductionEnvelopeSetV1,
+    bridge_objects: GeneratedCObjectSetV1,
     patches: Vec<ProvisionalDigestPatchSiteV1>,
     profile: scoop_lir::CBridgeToolchainProfileV1,
     c_objects: Vec<(SlibMemberId, Vec<u8>)>,
@@ -91,11 +91,9 @@ impl SlibObjects {
             &bridges,
             invocation.profile(),
         );
-        let bridge_objects = verify_c_bridge_production_envelopes_v1(
-            bridges,
+        let bridge_objects = read_generated_c_objects_v1(
             production,
             invocation.profile(),
-            &plans,
             &c_candidates(&c_objects),
         )
         .unwrap();

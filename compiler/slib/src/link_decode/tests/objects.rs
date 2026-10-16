@@ -41,14 +41,8 @@ pub(super) fn link_object_fixture() -> LinkObjectFixture {
     let profile = c_bridge_profile();
     let bridge_production =
         CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let bridge_production = crate::verify_c_bridge_production_envelopes_v1(
-        bridge_plan,
-        bridge_production,
-        &profile,
-        &plan,
-        &[],
-    )
-    .unwrap();
+    let bridge_production =
+        crate::read_generated_c_objects_v1(bridge_production, &profile, &[]).unwrap();
     let builtins = crate::verify_builtin_object_strong_relocations_v1(
         &plan,
         &symbols,

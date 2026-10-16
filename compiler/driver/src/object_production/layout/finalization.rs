@@ -1,7 +1,6 @@
 use super::*;
 
 pub(crate) struct FinalizedLayoutObjects {
-    pub(crate) target_selection: ValidatedLirTargetSelection,
     pub(crate) foundation: ConeLirFoundation,
     pub(crate) projection: slib::VerifiedSingleConeProductionCodeProjectionV2,
     pub(crate) members: Vec<SlibMember>,
@@ -28,7 +27,7 @@ impl PreparedLayoutObjects {
             .iter()
             .map(|member| member.record().clone())
             .collect::<Vec<_>>();
-        let objects = slib::verify_code_link_object_members_v2(objects, &directory)
+        let objects = slib::build_code_link_object_members_v2(objects, &directory)
             .map_err(BuiltinObjectProductionError::CodeLinkObjects)?;
         let projection = slib::verify_cross_cone_layout_production_code_projection_v1(
             cone,
@@ -39,7 +38,6 @@ impl PreparedLayoutObjects {
         )
         .map_err(BuiltinObjectProductionError::ProductionCodeProjection)?;
         Ok(FinalizedLayoutObjects {
-            target_selection: self.target_selection,
             foundation: self.foundation,
             projection,
             members,

@@ -6,16 +6,16 @@ use scoop_wire::{Encoder, WireEncode};
 use super::{
     ConeRecord, DependencyRecord, ProductionCodeProjectionError,
     SingleConeProductionCodeProjectionV1,
-    production::{ProductionPlanInputs, verify_production_code_projection_common},
+    production::{ProductionPlanInputs, build_production_code_projection_common},
 };
-use crate::link_object::VerifiedCodeLinkObjectMemberSetV2;
+use crate::link_object::FinalCodeObjectSetV2;
 use crate::{CodeFingerprint, RuntimeImageFingerprint, VerifiedCodeFingerprintV2};
 
 /// V2 metadata and final object bytes producing the shared manifest projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV2 {
     strong_production: ConeProductionSectionV2,
-    link_objects: VerifiedCodeLinkObjectMemberSetV2,
+    link_objects: FinalCodeObjectSetV2,
     projection: SingleConeProductionCodeProjectionV1,
 }
 
@@ -29,7 +29,7 @@ impl VerifiedSingleConeProductionCodeProjectionV2 {
         &self.strong_production
     }
 
-    pub const fn link_objects(&self) -> &VerifiedCodeLinkObjectMemberSetV2 {
+    pub const fn link_objects(&self) -> &FinalCodeObjectSetV2 {
         &self.link_objects
     }
 
@@ -45,14 +45,14 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
     strong_production: ConeProductionSectionV2,
-    link_objects: VerifiedCodeLinkObjectMemberSetV2,
+    link_objects: FinalCodeObjectSetV2,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV2, ProductionCodeProjectionError> {
     let dependency_identities = direct_dependencies
         .iter()
         .map(DependencyRecord::identity)
         .collect::<Vec<_>>();
     super::production::distribution(cone, &dependency_identities, source_count)?;
-    let projection = verify_production_code_projection_common(
+    let projection = build_production_code_projection_common(
         cone,
         &dependency_identities,
         ProductionPlanInputs::from(&strong_production),

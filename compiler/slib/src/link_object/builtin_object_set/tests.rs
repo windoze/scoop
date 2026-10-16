@@ -3,10 +3,10 @@ use scoop_lir::{CBridgeProductionSetV1, GeneratedBridgePlanSetV1, ObjectSymbolSu
 use super::*;
 use crate::{
     GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
-    PlannedStrongObjectSymbolSetV1, verify_c_bridge_production_envelopes_v1,
+    PlannedStrongObjectSymbolSetV1, read_generated_c_objects_v1,
 };
 
-use super::super::c_bridge_production::tests::{fixture, member_plan, profile};
+use super::super::generated_c_objects::tests::{fixture, member_plan, profile};
 use super::super::symbol_verification::tests::object_for_plan_with_deployment;
 
 const MINIMUM_OS: u32 = 0x000d_0100;
@@ -44,14 +44,8 @@ fn verifies_the_complete_mixed_builtin_member_set() {
         &bridge_bytes,
     )];
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let production_proof = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &profile,
-        &member_plan,
-        &bridge_objects,
-    )
-    .unwrap();
+    let production_proof =
+        read_generated_c_objects_v1(production, &profile, &bridge_objects).unwrap();
 
     let verified = verify_builtin_object_strong_relocations_v1(
         &member_plan,
@@ -86,94 +80,6 @@ fn verifies_the_complete_mixed_builtin_member_set() {
             .collect::<Vec<_>>(),
         expected_profiles
     );
-}
-
-#[test]
-fn rejects_missing_scoop_members_before_partial_verification() {
-    let fixture = fixture(None);
-    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
-    let member_plan = member_plan(&fixture, &bridge_plan);
-    let symbol_plan = symbol_plan(&fixture.foundation, &member_plan);
-    let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
-    let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let production_proof = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &profile,
-        &member_plan,
-        &[],
-    )
-    .unwrap();
-    let missing = member_plan.scoop_lir_members()[0].member_id();
-
-    assert!(matches!(
-        verify_builtin_object_strong_relocations_v1(
-            &member_plan,
-            &symbol_plan,
-            &[],
-            production_proof,
-            &[],
-        ),
-        Err(BuiltinObjectSetValidationError::MissingMember {
-            kind: MemberSetKind::ScoopObjects,
-            member,
-        }) if member == missing
-    ));
-}
-
-#[test]
-fn rejects_wrong_object_format_profile() {
-    let fixture = fixture(Some("native_bridge"));
-    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
-    let member_plan = member_plan(&fixture, &bridge_plan);
-    let symbol_plan = symbol_plan(&fixture.foundation, &member_plan);
-    let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
-    let scoop_member = member_plan.scoop_lir_members()[0].member_id();
-    let bridge_member = member_plan.generated_bridge_members()[0].member_id();
-    let scoop_bytes = object_for_plan_with_deployment(
-        symbol_plan.member(scoop_member).unwrap(),
-        canonical_value,
-        &[],
-        Some((MINIMUM_OS, SDK, &[])),
-        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
-    )
-    .bytes;
-    let bridge_bytes = object_for_plan_with_deployment(
-        symbol_plan.member(bridge_member).unwrap(),
-        canonical_value,
-        &[],
-        Some((MINIMUM_OS, SDK, &[])),
-        &[0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0],
-    )
-    .bytes;
-    let bridge_objects = [GeneratedCBridgeObjectCandidateV1::new(
-        bridge_member,
-        &bridge_bytes,
-    )];
-    let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let production_proof = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &profile,
-        &member_plan,
-        &bridge_objects,
-    )
-    .unwrap();
-    let wrong_scoop = [ScoopLirObjectCandidateV1::new(scoop_member, &scoop_bytes)];
-
-    assert!(matches!(
-        verify_builtin_object_strong_relocations_v1(
-            &member_plan,
-            &symbol_plan,
-            &wrong_scoop,
-            production_proof.clone(),
-            &bridge_objects,
-        ),
-        Err(BuiltinObjectSetValidationError::ScoopEnvelope {
-            member,
-            source: super::super::ScoopLirObjectEnvelopeValidationError::UnexpectedDeployment(_),
-        }) if member == scoop_member
-    ));
 }
 
 fn symbol_plan(

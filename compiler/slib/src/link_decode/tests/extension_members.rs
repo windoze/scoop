@@ -18,12 +18,12 @@ fn optional_members_round_trip_without_changing_link_objects_or_semantic_fingerp
         baseline.manifest().semantic_fingerprints(),
         extended.manifest().semantic_fingerprints()
     );
-    let baseline_objects = crate::verify_code_link_object_members_v1(
+    let baseline_objects = crate::build_code_link_object_members_v1(
         finalized_link_object_fixture().1,
         baseline.manifest().members(),
     )
     .unwrap();
-    let extended_objects = crate::verify_code_link_object_members_v1(
+    let extended_objects = crate::build_code_link_object_members_v1(
         finalized_link_object_fixture().1,
         extended.manifest().members(),
     )
@@ -47,11 +47,11 @@ fn link_required_member_is_rejected_after_valid_archive_readback() {
         .find(|member| matches!(member.role(), SlibMemberRole::ExtensionBlob { .. }))
         .unwrap();
     assert!(matches!(
-        crate::verify_code_link_object_members_v1(
+        crate::build_code_link_object_members_v1(
             finalized_link_object_fixture().1,
             extended.manifest().members(),
         ),
-        Err(crate::CodeLinkObjectMemberValidationError::UnsupportedLinkExtension {
+        Err(crate::CodeObjectProjectionError::UnsupportedLinkExtension {
             member, capability
         }) if member == extension.id() && capability == extension_capability()
     ));

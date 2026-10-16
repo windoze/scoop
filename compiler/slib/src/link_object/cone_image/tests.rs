@@ -18,12 +18,12 @@ use scoop_lir::{
 use super::finalization::patch_image_bytes_for_test;
 use super::record::{expected_final_image_record, expected_image_record};
 use super::*;
-use crate::link_object::c_bridge_production::tests::profile;
+use crate::link_object::generated_c_objects::tests::profile;
 use crate::link_object::{
     CanonicalScoopLirObjectUnitSetV1, PlannedLinkObjectMemberSetV1,
     PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
     PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    read_generated_c_objects_v1, verify_builtin_object_strong_relocations_v1,
     verify_scoop_lir_digest_patch_sites_v1,
 };
 
@@ -357,14 +357,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
 
     let c_profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &c_profile);
-    let production = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &c_profile,
-        &member_plan,
-        &[],
-    )
-    .unwrap();
+    let production = read_generated_c_objects_v1(production, &c_profile, &[]).unwrap();
     let builtins = verify_builtin_object_strong_relocations_v1(
         &member_plan,
         &symbol_plan,

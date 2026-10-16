@@ -1,12 +1,11 @@
 use object::macho;
 use scoop_identity::{
     CborIdentityRecord, ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey,
-    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitId,
-    GeneratedBridgeUnitKey, LinkageClass, NativeExternalContract,
-    NativeExternalContractFingerprint, NativeExternalSymbolKey, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentNativeExternalSymbolId, PersistentSymbolRequest, PersistentSymbolRequestTable,
-    SourceNativeSymbol, StrongDefinitionEntity, StrongDefinitionRole,
+    GeneratedBridgeAtomKey, GeneratedBridgeAtomRoleKey, GeneratedBridgeUnitKey, LinkageClass,
+    NativeExternalContract, NativeExternalContractFingerprint, NativeExternalSymbolKey,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PersistentNativeExternalSymbolId, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, SourceNativeSymbol, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
@@ -15,13 +14,16 @@ use scoop_lir::{
 };
 
 use super::*;
-use crate::{CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1};
+use crate::{
+    CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
+    PlannedLinkObjectMemberSetV1,
+};
 
 const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 
 #[test]
-fn binds_profile_production_plan_members_and_object_envelopes() {
+fn reads_generated_member_sections() {
     let fixture = fixture(Some("native_bridge"));
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
@@ -34,25 +36,14 @@ fn binds_profile_production_plan_members_and_object_envelopes() {
         &bytes,
     )];
 
-    let verified = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production.clone(),
-        &profile,
-        &member_plan,
-        &objects,
-    )
-    .unwrap();
+    let verified = read_generated_c_objects_v1(production.clone(), &profile, &objects).unwrap();
 
-    assert_eq!(verified.producer(), ConeIdentity::CORE);
     assert_eq!(verified.production(), &production);
     assert_eq!(verified.members().len(), 1);
-    assert_eq!(verified.members()[0].plan().member_id(), bridge_member);
-    let super::super::ObjectEnvelopeFormatV1::DarwinArm64 { deployment, .. } = verified.members()
-        [0]
-    .envelope()
-    .sections()
-    .envelope()
-    .format() else {
+    assert_eq!(verified.members()[0].member(), bridge_member);
+    let super::super::ObjectEnvelopeFormatV1::DarwinArm64 { deployment, .. } =
+        verified.members()[0].sections().envelope().format()
+    else {
         panic!("Darwin envelope")
     };
     assert_eq!(
@@ -66,170 +57,21 @@ fn binds_profile_production_plan_members_and_object_envelopes() {
 }
 
 #[test]
-fn accepts_explicit_not_used_only_when_plan_and_members_are_empty() {
+fn reads_an_empty_generated_object_set() {
     let fixture = fixture(None);
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
-    let member_plan = member_plan(&fixture, &bridge_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
 
-    let verified = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production.clone(),
-        &profile,
-        &member_plan,
-        &[],
-    )
-    .unwrap();
+    let verified = read_generated_c_objects_v1(production.clone(), &profile, &[]).unwrap();
 
     assert_eq!(verified.production(), &CBridgeProductionSetV1::NotUsed);
     assert!(verified.members().is_empty());
 }
 
-#[test]
-fn rejects_used_for_an_empty_plan_and_not_used_for_a_nonempty_plan() {
-    let empty = fixture(None);
-    let empty_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&empty.foundation).unwrap();
-    let empty_member_plan = member_plan(&empty, &empty_bridge_plan);
-    let used = fixture(Some("native_bridge"));
-    let used_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&used.foundation).unwrap();
-    let used_member_plan = member_plan(&used, &used_bridge_plan);
-    let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
-    let used_production =
-        CBridgeProductionSetV1::from_generated_bridge_plan(&used_bridge_plan, &profile);
-
-    assert_eq!(
-        verify_c_bridge_production_envelopes_v1(
-            empty_bridge_plan,
-            used_production,
-            &profile,
-            &empty_member_plan,
-            &[],
-        ),
-        Err(CBridgeProductionEnvelopeValidationError::UnexpectedProduction)
-    );
-    assert_eq!(
-        verify_c_bridge_production_envelopes_v1(
-            used_bridge_plan,
-            CBridgeProductionSetV1::NotUsed,
-            &profile,
-            &used_member_plan,
-            &[],
-        ),
-        Err(CBridgeProductionEnvelopeValidationError::MissingProduction)
-    );
-}
-
-#[test]
-fn rejects_manifest_profile_even_when_object_deployment_would_validate() {
-    let fixture = fixture(Some("native_bridge"));
-    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
-    let member_plan = member_plan(&fixture, &bridge_plan);
-    let manifest_profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
-    let request_profile = profile("clang-2100.1.1.102", MINIMUM_OS, SDK);
-    let production =
-        CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &manifest_profile);
-    let bytes = object(MINIMUM_OS, SDK);
-    let objects = [GeneratedCBridgeObjectCandidateV1::new(
-        member_plan.generated_bridge_members()[0].member_id(),
-        &bytes,
-    )];
-
-    assert_eq!(
-        verify_c_bridge_production_envelopes_v1(
-            bridge_plan,
-            production,
-            &request_profile,
-            &member_plan,
-            &objects,
-        ),
-        Err(CBridgeProductionEnvelopeValidationError::ProfileFingerprintMismatch)
-    );
-}
-
-#[test]
-fn rejects_missing_duplicate_and_wrong_deployment_objects() {
-    let fixture = fixture(Some("native_bridge"));
-    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
-    let member_plan = member_plan(&fixture, &bridge_plan);
-    let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
-    let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let member = member_plan.generated_bridge_members()[0].member_id();
-    let bytes = object(MINIMUM_OS, SDK);
-
-    assert_eq!(
-        verify_c_bridge_production_envelopes_v1(
-            bridge_plan.clone(),
-            production.clone(),
-            &profile,
-            &member_plan,
-            &[],
-        ),
-        Err(CBridgeProductionEnvelopeValidationError::MissingObjectMember(member))
-    );
-
-    let duplicate = [
-        GeneratedCBridgeObjectCandidateV1::new(member, &bytes),
-        GeneratedCBridgeObjectCandidateV1::new(member, &bytes),
-    ];
-    assert_eq!(
-        verify_c_bridge_production_envelopes_v1(
-            bridge_plan.clone(),
-            production.clone(),
-            &profile,
-            &member_plan,
-            &duplicate,
-        ),
-        Err(CBridgeProductionEnvelopeValidationError::DuplicateObjectMember(member))
-    );
-
-    let wrong_bytes = object(MINIMUM_OS, SDK + 0x100);
-    let wrong = [GeneratedCBridgeObjectCandidateV1::new(member, &wrong_bytes)];
-    assert!(matches!(
-        verify_c_bridge_production_envelopes_v1(
-            bridge_plan.clone(),
-            production.clone(),
-            &profile,
-            &member_plan,
-            &wrong,
-        ),
-        Err(CBridgeProductionEnvelopeValidationError::ObjectEnvelope {
-            member: actual,
-            source: super::super::GeneratedCBridgeObjectEnvelopeValidationError::DeploymentMismatch { .. },
-        }) if actual == member
-    ));
-}
-
-#[test]
-fn rejects_member_plan_for_a_different_generated_unit() {
-    let first = fixture(Some("native_bridge_a"));
-    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&first.foundation).unwrap();
-    let other = fixture(Some("native_bridge_b"));
-    let other_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&other.foundation).unwrap();
-    let other_member_plan = member_plan(&other, &other_bridge_plan);
-    let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
-    let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-
-    assert_eq!(
-        verify_c_bridge_production_envelopes_v1(
-            bridge_plan,
-            production,
-            &profile,
-            &other_member_plan,
-            &[],
-        ),
-        Err(
-            CBridgeProductionEnvelopeValidationError::UnexpectedPlannedUnit(
-                other.bridge_unit.unwrap(),
-            )
-        )
-    );
-}
-
 pub(in crate::link_object) struct Fixture {
     pub(in crate::link_object) foundation: ConeLirFoundation,
     pub(in crate::link_object) lir_plan: ObjectDefinitionPlanId,
-    pub(in crate::link_object) bridge_unit: Option<GeneratedBridgeUnitId>,
 }
 
 pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
@@ -246,7 +88,7 @@ pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
     let mut definitions = vec![lir_definition];
     let mut atoms = vec![definition_atom(lir_plan)];
     let mut foundation = CanonicalLirFoundation::empty();
-    let bridge_unit = native_name.map(|native_name| {
+    if let Some(native_name) = native_name {
         let native_symbol = NativeExternalSymbolKey::for_target(
             scoop_identity::TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
             scoop_identity::NativeSymbolNormalization::MachOExternalUnderscore,
@@ -288,8 +130,7 @@ pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
         atoms.push(definition_atom(bridge_definition.id()));
         foundation.set_bridge_units(vec![unit.clone()]).unwrap();
         foundation.set_bridge_atoms(vec![bridge_atom]).unwrap();
-        unit.id()
-    });
+    }
     let symbol_requests = definitions
         .iter()
         .map(|definition| {
@@ -307,7 +148,6 @@ pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
     Fixture {
         foundation,
         lir_plan,
-        bridge_unit,
     }
 }
 

@@ -11,8 +11,9 @@
 5. LLVM IR：删除生产路径完整 module 验证、自建 RS4GC verifier、专用 pointer witness 和独占 negative tests；保留优化后实际根分组、RS4GC、GC 元数据发射及直接输出／运行回归。
 6. Native 对象：删除段名、load command、C++ 符号和可执行栈黑名单及完整 relocation/EH/TLS 复查；删除选择阶段资格包装。支持普通 COMMON 合并和平台强弱绑定；runtime index／缓存规则相应升级。重复 archive TOC 比较及其破坏测试退役。
 7. 自产机器对象：删除 codegen 完整机器对象／frame chain／stackmap／LSDA 验证器及独占破坏测试；优化后按实际 invoke 保留 EH atom，删除独立 EH manifest 和仅用于验证的 target 字段。终结调用去重等回归直接断言机器 stackmap 数量。
-8. 待完成：发布证明链及关联历史要求。
-9. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+8. 发布入口：删除无生产调用的旧 single-Cone 资格流水线；C bridge 改为实际成员数据读取，删除 profile/template/flags/unit 和 SDK/tool 版本凭证比对。Code 目录直接投影已生成的 member records，production 投影不深比较计划副本；同步删除独占错误、测试和历史资格要求。
+9. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
+10. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -29,3 +30,5 @@ LLVM IR 批次：格式化、workspace clippy 无警告；本机 release codegen
 Native 对象批次：格式化、workspace clippy 通过，release linker 3 项测试通过。本机 CLI 66 项中 65 项首次通过；新增 COMMON／弱定义组合暴露 Darwin 与 ELF 的优先级差异，按目标规则修正后两个新增用例复测通过。完整批次为 87 变体、505 进程、53 个专门链接 plan golden；补验 2 变体、4 进程。Linux COMMON 行为留待最终目标验证。
 
 自产机器对象批次：格式化、workspace clippy 无警告，本机 release codegen 331 项全部通过；含真实 GC／异常运行、三目标机器发射、终结调用与条件 poll 的实际 site 数量。
+
+发布入口批次：格式化、workspace clippy 无警告，release slib 334 项全部通过。配套 release CLI 重建后，C ABI、Scoop ABI、回调重入和 native storage 4 项／8 变体／40 进程通过，保留 8 个专门链接 plan golden。

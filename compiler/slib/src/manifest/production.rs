@@ -3,27 +3,22 @@
 use std::fmt;
 
 use scoop_identity::{
-    MainCallableBodyId, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    PersistentStaticStorageId, SourceSignatureFingerprint,
+    MainCallableBodyId, PersistentCallableBodyId, PersistentStaticStorageId,
+    SourceSignatureFingerprint,
 };
-use scoop_lir::{
-    ConeProductionSectionV1, EntryProductionPlanV1, RegistrationIdentitySurfaceV1,
-    RegistrationIdentityV1,
-};
+use scoop_lir::{ConeProductionSectionV1, EntryProductionPlanV1, RegistrationIdentitySurfaceV1};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, RuntimeImageFingerprint};
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalOdrMemberDirectoryV1, ObjectDefinitionFingerprintV1,
-    OdrMemberDirectoryProjectionError, VerifiedCodeFingerprintV1,
-    VerifiedCodeLinkObjectMemberSetV1, VerifiedEntryProductionBranchV1,
-    VerifiedStrongRegistrationPatchSetV1,
+    CanonicalOdrMemberDirectoryV1, FinalCodeObjectSetV1, ObjectDefinitionFingerprintV1,
+    OdrMemberDirectoryProjectionError, VerifiedCodeFingerprintV1, VerifiedEntryProductionBranchV1,
 };
 
 mod projection;
 pub(crate) use projection::distribution;
-pub(crate) use projection::{ProductionPlanInputs, verify_production_code_projection_common};
+pub(crate) use projection::{ProductionPlanInputs, build_production_code_projection_common};
 
 mod wire;
 pub use wire::DecodedSingleConeProductionManifestV1;
@@ -199,7 +194,7 @@ impl WireEncode for SingleConeProductionCodeProjectionV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV1 {
     strong_production: ConeProductionSectionV1,
-    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    link_objects: FinalCodeObjectSetV1,
     projection: SingleConeProductionCodeProjectionV1,
 }
 
@@ -213,7 +208,7 @@ impl VerifiedSingleConeProductionCodeProjectionV1 {
         &self.strong_production
     }
 
-    pub const fn link_objects(&self) -> &VerifiedCodeLinkObjectMemberSetV1 {
+    pub const fn link_objects(&self) -> &FinalCodeObjectSetV1 {
         &self.link_objects
     }
 
@@ -279,7 +274,7 @@ pub fn verify_single_cone_production_code_projection_v1(
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
     strong_production: ConeProductionSectionV1,
-    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    link_objects: FinalCodeObjectSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     let dependency_identities = direct_dependencies
         .iter()
@@ -301,7 +296,7 @@ pub fn verify_cross_cone_production_code_projection_v1(
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
     strong_production: ConeProductionSectionV1,
-    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    link_objects: FinalCodeObjectSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     verify_single_cone_production_code_projection_v1(
         cone,
@@ -317,10 +312,10 @@ fn verify_production_code_projection_v1(
     dependency_identities: &[scoop_identity::ConeIdentity],
     source_count: usize,
     strong_production: ConeProductionSectionV1,
-    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    link_objects: FinalCodeObjectSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     projection::distribution(cone, dependency_identities, source_count)?;
-    let projection = verify_production_code_projection_common(
+    let projection = build_production_code_projection_common(
         cone,
         dependency_identities,
         ProductionPlanInputs::from(&strong_production),
@@ -342,13 +337,6 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProductionCodeProjectionError {
     InvalidSingleFileLinkRoot,
-    ConeMismatch,
-    DependencyMismatch,
-    DigestPlanMismatch,
-    ImagePlanMismatch,
-    EntryPlanMismatch,
-    GeneratedBridgePlanMismatch,
-    RegistrationIdentityMismatch,
     InvalidSingleFileRoot {
         kind: ConeKind,
         source_count: usize,

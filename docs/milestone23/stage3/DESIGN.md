@@ -1038,28 +1038,7 @@ writer先从strong/object/image/entry proof构造这六个字段并计算Code fi
 byte比较。不存在含`Option<CodeFingerprint>`的中间manifest、全零占位digest或“encode时临时忽略field
 7”的入口。
 
-writer侧`SingleConeProductionManifestV1`拥有`VerifiedCodeFingerprintV1`，十个getter与wire字段都从
-这条proof链派生，不复制出可分别修改的第二套状态。bootstrap `SemanticFingerprintRecordV1`的production
-构造入口接收该manifest proof并同时写入Code/RuntimeImage两个`Available`槽；不提供接收两个裸digest的
-production构造器。
-
-manifest field 8的精确类型是去除source/diagnostic provenance的
-`CanonicalNativeExternalContractCodeSetV1`；field 9是按`NativeLinkRequirementId`严格递增的
-`CanonicalVec<CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>>`；field 10的
-精确类型是`CBridgeProductionSetV1`。三者都从同一个已经验证的native/C-bridge production proof
-重建，decoded payload不能直接提升为authority。
-
-为打破generated-C envelope验证与完整Code proof之间的依赖环，reader可以先把decoded field 10收窄为
-`CBridgeCheckedSingleConeProductionManifestV1`：它只能用已验证的`GeneratedBridgePlanSetV1`和请求级
-`CBridgeToolchainProfileV1`重建expected `CBridgeProductionSetV1`并做canonical byte等值，同时继续拥有
-其余九个未验证字段。该状态只授权C-bridge object envelope验证，不授权读取其他manifest语义；最终仍
-必须从同一`VerifiedCodeFingerprintV1`重建并核对完整十字段manifest。
-
-`VerifiedCBridgeProductionEnvelopeSetV1`必须拥有它已经验证的
-`GeneratedBridgePlanSetV1`和`CBridgeProductionSetV1`，不能只留下producer摘要；验证入口消费这两个
-值，成功后由proof独占保存。这样manifest/Code构造器才能把C bridge envelopes逐byte绑定回
-`ConeProductionSectionV1.generated_bridge_plan`。旧的借用后丢弃plan的proof结构和构造签名直接
-删除，不提供兼容重载。
+writer 从同一编译的 Code、RuntimeImage、native contract、library requirement 和 C bridge 生成记录构造完整 manifest。字段直接采用已有结果，不建立 source/profile 凭证或中间授权状态。字段 8～10 分别保存 native contract、library requirement 与 `CBridgeProductionSetV1`；消费者按实际用途读取，不重建 production 证明。
 
 ### 9.6 wire字段与tag冻结
 
@@ -1377,124 +1356,11 @@ environment product固定为`1=inherited_names=[]`、`2=locale="C"`、`3=timezon
 `GeneratedBridgePlanSet`，非空并按`GeneratedBridgeUnitId`严格递增；没有任意units构造入口，
 producer不能自行排序、删减或补造unit。
 
-packager在进入generated-C symbol/relocation验证前，先原子构造
-`VerifiedCBridgeProductionEnvelopeSetV1`。该proof同时接收请求级
-`CBridgeToolchainProfileV1`、`GeneratedBridgePlanSetV1`、已经冻结member id的
-`PlannedLinkObjectMemberSetV1`、manifest中的`CBridgeProductionSetV1`以及按member id严格递增的
-actual object bytes，并按以下顺序fail closed：
+packager 直接读取本次 codegen 与 generated-C 对象的必要 section、定义和引用，复用成员分配、digest patch 与实际 stackmap 数据。C bridge 生成记录参与 Code 指纹，不与 compiler profile、template、flags、unit 或对象 SDK/version 重复比对。
 
-1. bridge plan与member plan的producer逐值相等；
-2. plan为空时production只能是`NotUsed`且actual generated-C member为空；plan非空时production只能
-   是`Used`，其中profile id/fingerprint、source-template fingerprint、canonical-flag fingerprint与
-   请求profile逐值相等，unit array与bridge plan逐值相等；
-3. 全部planned generated-C member的unit并集与bridge plan相等，既不重复也不缺失/多出；
-4. actual member id集合与planned generated-C member id集合相等，输入中重复、错序、缺失或额外member
-   均失败；
-5. 每个actual bytes使用同一个请求profile的deployment contract通过generated-C Mach-O envelope
-   qualifier，proof保留该member plan与包含byte length/content digest的envelope。
+普通对象处理解析定义与引用、计算实际 ABI/ODR 和 runtime 所需摘要、回填局部槽位，然后用已生成的成员目录构造 Code 投影。目录不与另建的预期目录或对象摘要副本反向互证，production 投影不深比较同一次计划与最终结果的副本。
 
-driver adapter必须以消耗完整planned built-in production的单一typed转换调用这一入口，并把返回proof与原
-production绑定；不能公开裸generated-C candidate builder、object bytes accessor或一组可由caller重新组合的
-参数来旁路该转换。
-
-这一步只产生profile/unit/member/envelope绑定证明，不冒充完整generated-C object verifier；随后仍须
-按本节其余规则验证atom、symbol、relocation与requirement。不得先用某个deployment验证object，再把
-另一个compiler/template/flags profile写入manifest。
-
-producer侧的provisional member随后由单一
-`VerifiedBuiltinObjectStrongRelocationSetV1`入口闭合。输入必须分别是按member id严格递增且完整覆盖
-member plan的`ScoopLirObjectCandidateV1`与`GeneratedCBridgeObjectCandidateV1`；strong symbol plan也
-必须完整覆盖两类member，三者producer相同。Scoop candidate只能通过无deployment的LLVM 22.1
-qualifier，generated-C candidate只能复用上述C-bridge production envelope proof；不能把同一bytes换
-一个capability重试。每个member随后依次完成expected external strong symbol、atom range/zero padding、
-relocation shape/atom owner验证，最后在全部member的联合定义空间解析current-Cone strong target。
-该proof止于provisional strong-relocation closure；digest patch、stackmap leaf、requirement finalization与
-final bytes re-verification仍由后续typed阶段完成。
-
-driver中的`CBridgeEnvelopeVerifiedObjectProductionV1`必须被消耗后才能进入该统一入口：adapter从Scoop
-producer保留的精确`LirTargetProfile`、同一strong production的canonical symbol surface及统一member plan
-内部构造`PlannedStrongObjectSymbolSetV1`，再从私有immutable bytes生成两类candidate。成功状态必须同时
-拥有原planned production、完整symbol plan与`VerifiedBuiltinObjectStrongRelocationSetV1`；不得由caller传入
-target、symbol plan或任一类candidate，也不存在只验证Scoop member或只验证generated-C member的分支。
-
-发布后Link reader面对的是archive中的final bytes，不得把它直接冒充上述provisional输入。reader先以
-identity-closure中已经完成intent/member/coverage检查的完整32-byte site集合构造
-`VerifiedNormalizedProvisionalScoopLirObjectSetV1`：逐member复制final bytes，只归零这些互不重叠且边界合法的
-site，并同时保留原始final副本。全部object/registration/image/entry verifier只消费该proof生成的provisional
-candidate；finalizer重建全部digest后必须与保留的archive副本逐member、逐byte相等。不存在接受final/provisional
-裸bytes混用的重载或兼容分支。
-
-Scoop producer的digest落槽先由`VerifiedScoopLirDigestPatchSiteSetV1`收窄。输入是上述联合object
-proof、同producer的`OdrFreeLirFoundation`、已经对该foundation闭合的
-`DigestFinalizationPlanV1`、同一批按member id严格递增的Scoop object bytes，以及按
-`DigestPatchIntentId`严格递增的`ProvisionalDigestPatchSiteV1`。foundation只通过窄的
-`resolve_definition_atom(definition_plan, atom_role)`查询暴露唯一target，不向slib开放内部authority table。
-verifier要求每个intent恰一个site、site member等于definition plan的既定Scoop member、width精确32、
-checked file offset完整位于目标atom的非padding范围内、原始object length/digest仍等于前序proof、槽内
-32 bytes全零，且没有任何relocation或其他patch site与该范围相交。zero-fill/non-file-backed atom、
-generated-C member落槽、错序/重复/漏项/额外intent、错member/offset/width及验后换bytes全部失败。
-验证结果保留member-independent source node/semantic field与物理member/definition/atom/section/offset的
-完整关联，但wire投影仍只编码`{1=intent, 2=member, 3=checked_offset}`；固定width与其余字段由reader重建。
-这一步只闭合digest slot的物理materialization，不替代后续对registration/image/entry canonical record
-非patch bytes以及stackmap语义的独立验证。
-
-producer adapter的对应转换必须消耗`StrongRelocationVerifiedObjectProductionV1`，从Scoop emitted set一直
-保留的同一`OdrFreeLirFoundation`、strong production内的digest plan、私有Scoop bytes和已绑定typed patch
-sites原子调用上述入口。成功的`DigestPatchVerifiedObjectProductionV1`继续拥有原planned production、symbol
-plan与`VerifiedScoopLirDigestPatchSiteSetV1`；不得公开provisional patch array或允许caller替换foundation、
-digest plan、candidate bytes。
-
-随后`DigestPatchVerifiedObjectProductionV1`必须以同一批私有Scoop bytes和strong production中重建的
-`StrongSafepointSemanticPlanSetV1`验证完整LLVM v3 stackmap集合；object proof只能从digest-site proof内部
-取得，caller不能传入另一份。成功状态同时保留digest-site proof与`VerifiedScoopLirStackmapSetV1`，供
-safepoint registration验证逐项交叉核对。
-
-`StackmapVerifiedObjectProductionV1`随后必须被一个原子转换消耗，内部从同一strong production取得
-safepoint、callable、type、immortal-object、static-storage与initialization六类registration plan，并以
-同一批私有Scoop bytes和同一digest-site proof依次完成六类object验证。safepoint验证必须消费前一步的
-stackmap proof；其余五类分别消费从同一proof克隆出的typed patch authority，最后一类消费原proof。
-成功的`RegistrationObjectVerifiedObjectProductionV1`必须同时拥有原planned production、symbol plan和
-六份registration proof；任一类失败都不产生可继续使用的部分状态，也不公开单类验证入口、裸candidate、
-patch proof或可由caller重新组合的兼容路径。
-
-该状态再由单一consuming转换以同一批私有Scoop bytes依次计算safepoint完整叶子集合，以及callable、type、
-immortal-object、static-storage、initialization五类registration object leaf集合。成功的
-`RegistrationObjectLeafFingerprintedProductionV1`拥有六份fingerprint proof及原production/symbol plan，
-原始registration proof只作为各自fingerprint proof的内部authority继续存在；任一叶子计算失败时不返回部分
-结果，也不存在逐类公开转换或接受caller外送digest的旧路径。
-
-registration依赖指纹计算前，producer adapter必须消耗上述叶子状态并闭合全部link symbol requirement。
-Scoop codegen输出保留完整`ValidatedLirTargetSelection`而不只保留LIR target，使runtime/EH registry验证使用
-发射该object的同一backend选择。adapter只额外接收已经验证的core defined-owner authority；current-Cone、
-source-native、runtime/EH、generated-C semantic与target-support requirement都从私有strong-relocation proof、
-foundation、production、C-bridge profile和同一patch-site proof内部重建，随后拒绝未分类external relocation并
-形成唯一canonical undefined-symbol集合。成功的`LinkSymbolVerifiedObjectProductionV1`同时拥有defined/undefined
-集合、六份registration leaf proof、原production和symbol plan；不允许caller替换target、backend、bridge
-profile、native requirement surface或任一中间closure。
-
-`LinkSymbolVerifiedObjectProductionV1`再以一个原子转换计算全部registration依赖与最终strong指纹：callable
-body绑定同一stackmap及final undefined-requirement proof，type闭合descriptor/layout，immortal object闭合
-实际对象definition，static storage闭合storage/scan/layout，initialization闭合cell/descriptor/gateway并引用
-同一callable-body proof。输出`RegistrationDependencyFingerprintedProductionV1`只保留六类最终fingerprint
-proof、defined/undefined集合及原production/symbol plan；中间依赖proof不形成可重排或可跳过的公开状态，
-任一类失败不返回部分结果。
-
-最终对象事务消耗上述dependency-fingerprinted状态：先以共享patch-site proof和私有provisional Scoop bytes
-验证Cone image与entry record，再原子写入六类registration digest。runtime image fingerprint所需
-compatibility必须在adapter内部由retained `ValidatedLirTargetSelection`与唯一
-`SingleConeStrongProfile`重建，不能由caller送入；随后只经typed image writer与entry writer逐层复制、写槽、
-重验record、Mach-O envelope及未修改bytes。成功的`FinalizedStrongObjectProductionV1`拥有最终Scoop object
-proof、defined/undefined集合及原production/symbol plan，所有可写中间状态均已被消费，不保留旧的裸bytes
-patch入口或未验证final object分支。
-
-Code阶段消耗final-object状态并直接构造正式`SlibMember`集合：Scoop payload只取
-`VerifiedEntryPatchSetV1`的final bytes，generated-C payload只取同一planned production中已通过完整envelope
-与relocation closure的immutable bytes；两类stable key与role都只取统一member plan。构造出的member id必须
-逐项回等plan，完整directory再由`verify_code_link_object_members_v1`与final proof反向互证。随后以调用请求中
-的typed Cone/dependency/source-count投影重建production code projection，并从retained foundation重建native
-requirement surface后计算唯一Code fingerprint。`CodeFingerprintedObjectProductionV1`只保留target selection、
-LIR foundation、C-bridge profile、final members和拥有完整code proof的production manifest；provisional bytes、
-symbol plan及各中间proof全部被消费，不存在从临时路径或未finalize bytes直接打包的旧入口。
+旧 driver 的 `PlannedBuiltinObjectProductionV1`、分级 `...VerifiedObjectProductionV1`、逐级消费 proof 和 Strong-only 指纹流水线已退役。当前 layout 生产路径直接传递完整数据；Link reader 不复制 final bytes、清零槽位、重算并比较 provisional/final 结果。不公开或保留另一套资格 API 来承接退役职责。
 
 M23-3 的 Strong-only 打包入口已经由 M23-7 的共同生产路径替代。现行归档由
 `CrossConeLayoutArtifactInputV1` 进入 `AssembledCrossConeLayoutArtifactV1::write`，消费同一份
@@ -1539,8 +1405,7 @@ CBridgeTargetSupportRequirementId =
 
 `Memcpy`的logical symbol固定为`memcpy`，object symbol只能经同一target的
 `NativeSymbolNormalization`得到。registry由请求级完整toolchain profile构造；profile的target id或
-fingerprint与请求target不相等即失败。只有同一个`VerifiedCBridgeProductionEnvelopeSetV1`证明的
-generated-C member可以产生该requirement，Scoop LIR member中的同名use不得借用它；改变compiler、
+fingerprint与请求target不相等即失败。实际 generated-C member 的引用可以产生该 requirement，Scoop LIR member中的同名use不得借用它；改变compiler、
 template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
 只含`Memcpy`，未知helper保持未分类并使artifact失败。
 
@@ -2898,7 +2763,7 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 5. 在 HIR/MIR/LIR crate 保存三层完整声明、typed 引用、Strong production 与 entry 数据；
 6. 在LIR形成strong definition、registration、image、entry与digest plan，并加入四层ODR拒绝；
 7. 生成共享runtime metadata v1 header，改造codegen输出per-Cone image、六表、root descriptor、boundary与zero patch；
-8. 实现Scoop LIR/generated C两种LinkObject verifier、member-awareowner/requirement及C-bridge production proof；
+8. 实现Scoop LIR/generated C两种LinkObject verifier、member-awareowner/requirement及 C bridge 实际生成记录；
 9. 实现digest finalizer、final re-verification、Code/RuntimeImage fingerprint和Link closure/manifest section；
 10. 注册完整 production profile，读取实际 Link 对象，并直接原子发布同次完成的归档；
 11. 切换正式`scoopc build`只产`.slib`，移除其runtime/link依赖，并在同一批变更中删除旧直编直链入口及其专用fixture；

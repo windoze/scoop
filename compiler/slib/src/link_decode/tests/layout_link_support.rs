@@ -3,8 +3,7 @@ use super::*;
 /// Replay the versioned registration path from provisional bytes. Only the
 /// unchanged registration domains reuse V1 proofs; type and initialization
 /// proofs are independently constructed with the V2 semantic surface.
-pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeLinkObjectMemberSetV2
-{
+pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObjectSetV2 {
     let fixture = link_object_fixture();
     let (production, previous, _, _) = finalized_link_object_fixture();
     let (canonical, _) =
@@ -86,5 +85,5 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeL
         final_objects.objects()[0].bytes().to_vec(),
     )
     .unwrap();
-    crate::verify_code_link_object_members_v2(final_objects, &[member.record().clone()]).unwrap()
+    crate::build_code_link_object_members_v2(final_objects, &[member.record().clone()]).unwrap()
 }

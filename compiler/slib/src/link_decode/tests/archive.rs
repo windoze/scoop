@@ -42,7 +42,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
     )
     .unwrap();
     let link_objects =
-        crate::verify_code_link_object_members_v1(final_objects, &[link_member.record().clone()])
+        crate::build_code_link_object_members_v1(final_objects, &[link_member.record().clone()])
             .unwrap();
     let code_projection = crate::verify_single_cone_production_code_projection_v1(
         &cone(),

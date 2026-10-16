@@ -14,7 +14,7 @@ use crate::link_object::{
     PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
     ScoopLirObjectCandidateV1, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedScoopLirDigestPatchSiteSetV1, VerifiedScoopLirStackmapSetV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
+    read_generated_c_objects_v1, verify_builtin_object_strong_relocations_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_scoop_lir_stackmaps_v1,
 };
 
@@ -125,14 +125,7 @@ impl Fixture {
         );
         let profile = c_bridge_profile();
         let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-        let production_proof = verify_c_bridge_production_envelopes_v1(
-            bridge_plan.clone(),
-            production,
-            &profile,
-            &member_plan,
-            &[],
-        )
-        .unwrap();
+        let production_proof = read_generated_c_objects_v1(production, &profile, &[]).unwrap();
         let objects = [ScoopLirObjectCandidateV1::new(member, &object.bytes)];
         let builtins = verify_builtin_object_strong_relocations_v1(
             &member_plan,

@@ -105,8 +105,6 @@ fn layout_profile_code_contribution_contains_both_semantic_import_projections() 
 fn link_object_projection_is_canonical_and_ignores_non_code_members() {
     let first = object_record("first", b"first");
     let second = object_record("second", b"second");
-    let mut expected = vec![expected(&first), expected(&second)];
-    expected.sort_unstable_by_key(|member| member.member);
     let metadata = SlibMemberRecord::new(
         ConeIdentity::CORE,
         MemberStableKey::HirMetadata,
@@ -115,8 +113,7 @@ fn link_object_projection_is_canonical_and_ignores_non_code_members() {
     )
     .unwrap();
 
-    let actual =
-        verify_directory_records(&expected, &[second.clone(), metadata, first.clone()]).unwrap();
+    let actual = project_directory_records(&[second.clone(), metadata, first.clone()]).unwrap();
 
     assert_eq!(actual.members().len(), 2);
     assert_eq!(actual.members()[0].member(), first.id().min(second.id()));
@@ -125,17 +122,8 @@ fn link_object_projection_is_canonical_and_ignores_non_code_members() {
 }
 
 #[test]
-fn link_object_projection_rejects_content_drift_and_link_extensions() {
+fn link_object_projection_rejects_unknown_link_extensions() {
     let record = object_record("object", b"final");
-    let expected = vec![expected(&record)];
-    let changed = object_record("object", b"changed");
-    assert_eq!(
-        verify_directory_records(&expected, &[changed]),
-        Err(CodeLinkObjectMemberValidationError::MemberContentMismatch(
-            record.id()
-        ))
-    );
-
     let capability = CapabilityId::new("example.extension", "required", 1).unwrap();
     let extension = SlibMemberRecord::new(
         ConeIdentity::CORE,
@@ -152,8 +140,8 @@ fn link_object_projection_rejects_content_drift_and_link_extensions() {
     .unwrap();
     let member = extension.id();
     assert_eq!(
-        verify_directory_records(&expected, &[record, extension]),
-        Err(CodeLinkObjectMemberValidationError::UnsupportedLinkExtension { member, capability })
+        project_directory_records(&[record, extension]),
+        Err(CodeObjectProjectionError::UnsupportedLinkExtension { member, capability })
     );
 }
 
@@ -307,14 +295,4 @@ fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberRecord {
         payload,
     )
     .unwrap()
-}
-
-fn expected(record: &SlibMemberRecord) -> ExpectedFinalLinkObjectMemberV1 {
-    ExpectedFinalLinkObjectMemberV1 {
-        member: record.id(),
-        stable_key: record.stable_key().clone(),
-        role: record.role().clone(),
-        byte_length: record.byte_length(),
-        content_digest: record.sha256(),
-    }
 }

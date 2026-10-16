@@ -5,11 +5,11 @@ use scoop_lir::{
 };
 use scoop_wire::{decode_canonical, encode};
 
-use super::super::c_bridge_production::tests::profile;
 use super::super::c_bridge_target_requirements::{
     tests::support_closure, without_generated_bridge_semantics_for_test,
 };
 use super::super::current_cone_requirements::tests::primary_bridge_requirement;
+use super::super::generated_c_objects::tests::profile;
 use super::super::native_requirements::tests::{contract_record, native_surface};
 use super::super::runtime_requirements::tests::classify;
 use super::super::strong_relocation_closure::tests::{

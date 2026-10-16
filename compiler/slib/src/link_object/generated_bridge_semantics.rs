@@ -7,10 +7,9 @@ use scoop_identity::{
     PersistentCallableBodyId,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CBridgeTargetSupportRegistryV1, CBridgeTargetSupportRequirementId,
-    CBridgeToolchainProfileV1, CanonicalNativeExternalRequirementSurfaceV1,
-    GeneratedBridgePlanSetV1, LirTargetProfile, RuntimeAbiSymbolV1, RuntimeSymbolContractId,
-    RuntimeSymbolContractV1,
+    CBridgeTargetSupportRegistryV1, CBridgeTargetSupportRequirementId, CBridgeToolchainProfileV1,
+    CanonicalNativeExternalRequirementSurfaceV1, GeneratedBridgePlanSetV1, LirTargetProfile,
+    RuntimeAbiSymbolV1, RuntimeSymbolContractId, RuntimeSymbolContractV1,
 };
 
 use super::{
@@ -119,7 +118,7 @@ pub fn verify_generated_c_bridge_semantics_v1(
     profile: &CBridgeToolchainProfileV1,
 ) -> Result<VerifiedGeneratedCBridgeSemanticSetV1, GeneratedCBridgeSemanticValidationError> {
     let builtins = scoop_patch_sites.builtins();
-    validate_outer_contracts(builtins, &bridge_plan, &native_requirements, profile)?;
+    validate_outer_contracts(builtins, &bridge_plan, &native_requirements)?;
     let target_support =
         CBridgeTargetSupportRegistryV1::current(native_requirements.target(), profile)
             .map_err(GeneratedCBridgeSemanticValidationError::TargetSupportRegistry)?;
@@ -210,7 +209,6 @@ fn validate_outer_contracts(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     bridge_plan: &GeneratedBridgePlanSetV1,
     native_requirements: &CanonicalNativeExternalRequirementSurfaceV1,
-    profile: &CBridgeToolchainProfileV1,
 ) -> Result<(), GeneratedCBridgeSemanticValidationError> {
     let producer = builtins.producer();
     if bridge_plan.producer() != producer {
@@ -228,26 +226,6 @@ fn validate_outer_contracts(
                 native: native_requirements.producer(),
             },
         );
-    }
-    match builtins.c_bridge_production().production() {
-        CBridgeProductionSetV1::NotUsed => {
-            if !bridge_plan.units().is_empty() {
-                return Err(GeneratedCBridgeSemanticValidationError::ProductionMismatch);
-            }
-        }
-        CBridgeProductionSetV1::Used(production) => {
-            if production.profile_id() != profile.id()
-                || production.profile_fingerprint() != profile.fingerprint()
-                || production.units()
-                    != bridge_plan
-                        .units()
-                        .iter()
-                        .map(|unit| unit.unit())
-                        .collect::<Vec<_>>()
-            {
-                return Err(GeneratedCBridgeSemanticValidationError::ProductionMismatch);
-            }
-        }
     }
     Ok(())
 }

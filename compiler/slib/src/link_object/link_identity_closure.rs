@@ -2,8 +2,8 @@
 
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1,
-    CanonicalUndefinedSymbolRequirementSetV1, PlannedLinkObjectMemberSetV1,
-    VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2, VerifiedCodeLinkObjectMemberSetV1,
+    CanonicalUndefinedSymbolRequirementSetV1, FinalCodeObjectSetV1, PlannedLinkObjectMemberSetV1,
+    VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2,
 };
 use crate::SlibMemberId;
 use scoop_wire::{Encoder, WireEncode};
@@ -100,7 +100,7 @@ impl LinkIdentityClosureSectionV1 {
     }
 
     fn from_code_parts<D, C, I>(
-        objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
+        objects: &FinalCodeObjectSetV1<D, C, I>,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
         undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
     ) -> Self

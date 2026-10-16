@@ -26,8 +26,8 @@ const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-un
 mod planning;
 pub use planning::*;
 
-mod c_bridge_production;
-pub use c_bridge_production::*;
+mod generated_c_objects;
+pub use generated_c_objects::*;
 
 mod builtin_object_set;
 pub use builtin_object_set::*;

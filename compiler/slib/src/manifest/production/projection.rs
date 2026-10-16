@@ -3,15 +3,13 @@
 use super::*;
 
 mod inputs;
-mod registrations;
 pub(crate) use inputs::ProductionPlanInputs;
-use registrations::registration_identities_match;
 
-pub(crate) fn verify_production_code_projection_common<D, C, I>(
+pub(crate) fn build_production_code_projection_common<D, C, I>(
     cone: &ConeRecord,
     dependency_identities: &[scoop_identity::ConeIdentity],
     plans: ProductionPlanInputs<'_>,
-    link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
+    link_objects: &FinalCodeObjectSetV1<D, C, I>,
 ) -> Result<SingleConeProductionCodeProjectionV1, ProductionCodeProjectionError>
 where
     D: scoop_lir::StrongDescriptorReference,
@@ -20,39 +18,6 @@ where
     let final_objects = link_objects.final_objects();
     let runtime_image = final_objects.runtime_images().fingerprint();
     let registrations = runtime_image.registrations();
-
-    if link_objects.producer() != cone.identity()
-        || plans.image.cone().identity() != cone.identity()
-        || plans.image.cone().coordinate() != cone.coordinate()
-    {
-        return Err(ProductionCodeProjectionError::ConeMismatch);
-    }
-    if plans.digest != final_objects.entry().patch_sites().digest_plan() {
-        return Err(ProductionCodeProjectionError::DigestPlanMismatch);
-    }
-    if plans.image != runtime_image.image().plan() {
-        return Err(ProductionCodeProjectionError::ImagePlanMismatch);
-    }
-    if plans.entry != final_objects.entry().plan() {
-        return Err(ProductionCodeProjectionError::EntryPlanMismatch);
-    }
-    if plans.generated
-        != final_objects
-            .entry()
-            .patch_sites()
-            .builtins()
-            .c_bridge_production()
-            .bridge_plan()
-    {
-        return Err(ProductionCodeProjectionError::GeneratedBridgePlanMismatch);
-    }
-    if !registration_identities_match(plans.identities, registrations) {
-        return Err(ProductionCodeProjectionError::RegistrationIdentityMismatch);
-    }
-
-    if dependency_identities != plans.image.dependencies() {
-        return Err(ProductionCodeProjectionError::DependencyMismatch);
-    }
 
     let distribution = link_distribution(cone, dependency_identities)?;
     let output = output(cone, final_objects)?;

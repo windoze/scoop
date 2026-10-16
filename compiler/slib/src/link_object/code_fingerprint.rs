@@ -1,6 +1,5 @@
 //! Canonical semantic inputs for the single-Cone code fingerprint.
 
-use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{CapabilityId, ConeIdentity};
@@ -8,15 +7,15 @@ use scoop_lir::{
     CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1,
     CanonicalNativeLibraryRequirementV1, ConeProductionSectionV1,
 };
-use scoop_wire::{Digest256, Encoder, HashError, WireEncode, domain_separated_cbor_hash};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalUndefinedSymbolRequirementSetV1,
     DefinedLinkSymbolOwnerBuildError, VerifiedEntryPatchSetV1,
 };
 use crate::{
-    CodeFingerprint, LinkMemberFingerprint, MemberStableKey, SingleConeProductionCodeProjectionV1,
-    SlibMemberId, SlibMemberRecord, SlibMemberRole, VerifiedSingleConeProductionCodeProjectionV1,
+    CodeFingerprint, LinkMemberFingerprint, SingleConeProductionCodeProjectionV1, SlibMemberId,
+    SlibMemberRecord, SlibMemberRole, VerifiedSingleConeProductionCodeProjectionV1,
 };
 
 const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
@@ -25,19 +24,17 @@ mod contributions;
 pub use contributions::*;
 
 mod directory;
-pub use directory::CodeLinkObjectMemberValidationError;
-#[cfg(test)]
-use directory::ExpectedFinalLinkObjectMemberV1;
-use directory::{expected_final_members, verify_directory_records};
+pub use directory::CodeObjectProjectionError;
+use directory::project_directory_records;
 
 /// One final LinkObject directory identity and its content-bound fingerprint.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedCodeLinkObjectMemberV1 {
+pub struct CodeObjectMemberFingerprintV1 {
     member: SlibMemberId,
     fingerprint: LinkMemberFingerprint,
 }
 
-impl VerifiedCodeLinkObjectMemberV1 {
+impl CodeObjectMemberFingerprintV1 {
     pub const fn member(self) -> SlibMemberId {
         self.member
     }
@@ -50,11 +47,11 @@ impl VerifiedCodeLinkObjectMemberV1 {
 /// Finalized built-in object bytes bound one-to-one to their directory records.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CodeLinkObjectMemberSetV1 {
-    members: Vec<VerifiedCodeLinkObjectMemberV1>,
+    members: Vec<CodeObjectMemberFingerprintV1>,
 }
 
 impl CodeLinkObjectMemberSetV1 {
-    pub fn members(&self) -> &[VerifiedCodeLinkObjectMemberV1] {
+    pub fn members(&self) -> &[CodeObjectMemberFingerprintV1] {
         &self.members
     }
 }
@@ -71,7 +68,7 @@ impl WireEncode for CodeLinkObjectMemberSetV1 {
 
 /// Finalized built-in object bytes bound one-to-one to their directory records.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedCodeLinkObjectMemberSetV1<
+pub struct FinalCodeObjectSetV1<
     D = scoop_lir::StrongTypeDescriptorRefV1,
     C = scoop_lir::StrongTypeDispatchCallableRefV1,
     I = scoop_identity::PersistentInitializationUnitId,
@@ -80,15 +77,13 @@ pub struct VerifiedCodeLinkObjectMemberSetV1<
     projection: CodeLinkObjectMemberSetV1,
 }
 
-pub type VerifiedCodeLinkObjectMemberSetV2 = VerifiedCodeLinkObjectMemberSetV1<
+pub type FinalCodeObjectSetV2 = FinalCodeObjectSetV1<
     scoop_lir::StrongTypeDescriptorRefV2,
     scoop_lir::StrongTypeDispatchCallableRefV2,
     scoop_lir::StrongInitializationDependencyRefV2,
 >;
 
-impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
-    VerifiedCodeLinkObjectMemberSetV1<D, C, I>
-{
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> FinalCodeObjectSetV1<D, C, I> {
     pub const fn producer(&self) -> ConeIdentity {
         self.final_objects.entry().patch_sites().producer()
     }
@@ -97,7 +92,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
         &self.final_objects
     }
 
-    pub fn members(&self) -> &[VerifiedCodeLinkObjectMemberV1] {
+    pub fn members(&self) -> &[CodeObjectMemberFingerprintV1] {
         self.projection.members()
     }
 
@@ -106,32 +101,31 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
     }
 }
 
-/// Bind every built-in LinkObject directory record to the final verified bytes.
-pub fn verify_code_link_object_members_v1(
+/// Pair final object data with the archive directory used by Code fingerprints.
+pub fn build_code_link_object_members_v1(
     final_objects: VerifiedEntryPatchSetV1,
     directory: &[SlibMemberRecord],
-) -> Result<VerifiedCodeLinkObjectMemberSetV1, CodeLinkObjectMemberValidationError> {
-    verify_code_link_object_members(final_objects, directory)
+) -> Result<FinalCodeObjectSetV1, CodeObjectProjectionError> {
+    build_code_link_object_members(final_objects, directory)
 }
 
-pub fn verify_code_link_object_members_v2(
+pub fn build_code_link_object_members_v2(
     final_objects: crate::VerifiedEntryPatchSetV2,
     directory: &[SlibMemberRecord],
-) -> Result<VerifiedCodeLinkObjectMemberSetV2, CodeLinkObjectMemberValidationError> {
-    verify_code_link_object_members(final_objects, directory)
+) -> Result<FinalCodeObjectSetV2, CodeObjectProjectionError> {
+    build_code_link_object_members(final_objects, directory)
 }
 
-fn verify_code_link_object_members<D, C, I>(
+fn build_code_link_object_members<D, C, I>(
     final_objects: VerifiedEntryPatchSetV1<D, C, I>,
     directory: &[SlibMemberRecord],
-) -> Result<VerifiedCodeLinkObjectMemberSetV1<D, C, I>, CodeLinkObjectMemberValidationError>
+) -> Result<FinalCodeObjectSetV1<D, C, I>, CodeObjectProjectionError>
 where
     D: scoop_lir::StrongDescriptorReference,
     C: Clone,
 {
-    let expected = expected_final_members(&final_objects)?;
-    let projection = verify_directory_records(&expected, directory)?;
-    Ok(VerifiedCodeLinkObjectMemberSetV1 {
+    let projection = project_directory_records(directory)?;
+    Ok(FinalCodeObjectSetV1 {
         final_objects,
         projection,
     })

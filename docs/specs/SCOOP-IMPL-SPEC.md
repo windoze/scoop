@@ -376,6 +376,8 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。LLVM 机器发射成功后直接使用产出，不执行自建的机器指令、frame chain、stackmap 或 LSDA 全面验证；只读取后续地址、GC 数据和补丁计算实际需要的字段，并复用结果。优化后的 invoke 是否仍存在决定 EH atom 是否保留，不为此重建或比对独立 EH manifest；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
 
+发布直接接收本次 codegen 与 generated-C 的实际对象、成员分配及生成记录。C bridge 的编译器 profile、源码模板、flags 和 unit 集合不再与自行构造的生产记录重复比对；对象中的 SDK／工具版本也不作为来源证明。所需 section 与符号正常读取，Code 指纹继续消费实际生成记录。删除无生产调用的旧 single-Cone 分级资格流水线；不以另一套 `Verified` 包装保留这些入口。当前完整产物的投影直接采用已有生产计划与最终回填结果，不深比较它们的副本来证明同源。
+
 同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填保留局部范围与槽位检查，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
 
 ### 2.6 `.slib` 格式与指纹

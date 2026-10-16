@@ -23,12 +23,11 @@ use super::*;
 use crate::{
     GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
     PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    StrongRelocationResolutionV1, VerifiedObjectRelocationFormV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
-    verify_scoop_lir_digest_patch_sites_v1,
+    StrongRelocationResolutionV1, VerifiedObjectRelocationFormV1, read_generated_c_objects_v1,
+    verify_builtin_object_strong_relocations_v1, verify_scoop_lir_digest_patch_sites_v1,
 };
 
-use super::super::c_bridge_production::tests::{fixture, member_plan, profile};
+use super::super::generated_c_objects::tests::{fixture, member_plan, profile};
 use super::super::native_requirements::tests::{contract_record, native_surface};
 use super::super::relocation_verification::tests::add_undefined_symbols;
 use super::super::strong_relocation_closure::tests::synthetic_binding;
@@ -209,21 +208,6 @@ fn validates_each_global_bridge_against_its_data_mutability_contract() {
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::Branch26,
-    ));
-}
-
-#[test]
-fn rejects_a_profile_other_than_the_one_bound_by_production() {
-    let fixture = semantic_fixture("native_bridge", &[b"_native_bridge"]);
-    let other_profile = profile("clang-2100.1.1.102", MINIMUM_OS, SDK);
-    assert!(matches!(
-        verify_generated_c_bridge_semantics_v1(
-            fixture.scoop_patch_sites,
-            fixture.bridge_plan,
-            fixture.native_requirements,
-            &other_profile,
-        ),
-        Err(GeneratedCBridgeSemanticValidationError::ProductionMismatch)
     ));
 }
 
@@ -440,14 +424,8 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
         &bridge_bytes,
     )];
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
-    let production_proof = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &profile,
-        &member_plan,
-        &bridge_objects,
-    )
-    .unwrap();
+    let production_proof =
+        read_generated_c_objects_v1(production, &profile, &bridge_objects).unwrap();
     let builtins = verify_builtin_object_strong_relocations_v1(
         &member_plan,
         &symbol_plan,

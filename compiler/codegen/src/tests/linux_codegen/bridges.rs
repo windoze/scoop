@@ -89,9 +89,9 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
         .unwrap();
         for member in emitted.members() {
             let bytes = std::fs::read(member.object_path()).unwrap();
-            let envelope = scoop_slib::validate_generated_c_object_for_profile_v1(
+            let envelope = scoop_slib::read_generated_c_object_sections_v1(
                 &bytes,
-                invocation.profile(),
+                invocation.profile().contract().target().id(),
             )
             .unwrap();
             let member_id = members
@@ -99,7 +99,7 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
                 .unwrap();
             let definitions = scoop_slib::verify_member_strong_object_definitions_v1(
                 &bytes,
-                envelope.into_sections(),
+                envelope,
                 symbols.member(member_id).unwrap(),
             )
             .unwrap();

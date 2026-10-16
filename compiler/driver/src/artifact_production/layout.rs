@@ -151,9 +151,6 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             .with_test_directory(self.test_directory),
         )
         .map_err(|error| Error::Assembly(Box::new(error)))?;
-        if artifact.target_selection() != finalized.target_selection {
-            return Err(Error::TargetSelectionMismatch);
-        }
         Ok(artifact)
     }
 }

@@ -5,9 +5,6 @@ pub(crate) fn prepare(
     generated: &EmittedGeneratedCBridgeObjectSetV1,
 ) -> Result<PreparedLayoutObjects, BuiltinObjectProductionError> {
     let production = emitted.production();
-    if production.generated_bridge_plan() != generated.sources().plan() {
-        return Err(BuiltinObjectProductionError::GeneratedBridgePlanMismatch);
-    }
     let bindings = plan_codegen_objects(
         emitted.target_selection().target(),
         emitted.partition().producer_units(),
@@ -26,11 +23,9 @@ pub(crate) fn prepare(
             GeneratedCBridgeObjectCandidateV1::new(member.plan.member_id(), &member.bytes)
         })
         .collect::<Vec<_>>();
-    let bridge_proof = verify_c_bridge_production_envelopes_v1(
-        production.generated_bridge_plan().clone(),
+    let bridge_objects = read_generated_c_objects_v1(
         generated.production().clone(),
         generated.profile(),
-        &bindings.member_plan,
         &bridges,
     )
     .map_err(BuiltinObjectProductionError::CBridgeEnvelopes)?;
@@ -44,7 +39,7 @@ pub(crate) fn prepare(
         &bindings.member_plan,
         &symbols,
         &candidates,
-        bridge_proof,
+        bridge_objects,
         &bridges,
     )
     .map_err(BuiltinObjectProductionError::StrongRelocations)?;

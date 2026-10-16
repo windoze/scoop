@@ -18,7 +18,6 @@ pub enum GeneratedCBridgeSemanticValidationError {
         object: scoop_identity::ConeIdentity,
         native: scoop_identity::ConeIdentity,
     },
-    ProductionMismatch,
     TargetSupportRegistry(CBridgeTargetSupportRegistryError),
     RuntimeRegistry(RuntimeRequirementRegistryError),
     MissingUnitMember(GeneratedBridgeUnitId),
