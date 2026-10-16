@@ -9,7 +9,7 @@
 | platform 异步 buffer 借用与 Libuv 错误域 | 已实现，本机 debug／release 与 moving GC 定向验收通过 |
 | asyncio 事件循环、定时等待与投递 | 已实现，本机 debug／release／moving GC 八项 scoop.test 通过 |
 | 异步字节流协议与组合扩展 | 已实现，本机 debug／release／moving GC 六项 scoop.test 通过 |
-| TCP | 待实施 |
+| TCP | 已实现，本机 debug／release／moving GC 定向验收通过 |
 | 文件、DNS、UDP | 待实施 |
 | 三目标组合及完整验收 | 待实施 |
 
@@ -42,3 +42,9 @@ NativeByteBorrow 使用普通公开 Unsafe API 持有 owner，提交已知进度
 ## 异步流组合验收
 
 新增 AsyncByteSource／Sink／Stream、AsyncCloseable、readFully／writeFully／copyTo 和泛型 useAsync，分别放在 70 行流文件和 14 行资源文件。六项 scoop.test 在 debug／release／moving GC 通过；端点通过真实定时器逐次挂起，覆盖短传输、EOF、读写失败前缀、零进度、范围与容量错误、接口包装后的 flush 转发、关闭责任及正文／清理双失败。未增加执行器或测试专用生产后端。下一步接入实际 TCP 双向流。
+
+## TCP 与资源收尾验收
+
+新增 connect／listen／accept、IPv4／IPv6 双向字节流、输出半关闭、取消和幂等关闭。run 收尾等待未关闭资源与全部 native callback；未交付的迟到连接／listener 成功先关闭。监听复用 platform 的普通 C socket_bind helper，保持 reuseAddress=false 与原始 PosixErrno；其余 libuv 错误保留负码。Linux 在线程局部屏蔽／恢复 SIGPIPE，Darwin 使用 SO_NOSIGPIPE。
+
+新增十二项同 Cone 测试，覆盖短读写、EOF 后写入、同方向互斥、跨线程提交、真实排队写取消后的精确前缀与继续写入、关闭竞争、取消后 shutdown 终止、原生错误与 SIGPIPE handler／mask／pending 保留。写取消通过 libuv 公开同步 API 先观察真实排队状态，不依靠任意延迟。全部二十六项（包含既有 loop／stream）通过 moving GC；debug／release 首轮各二十五项通过，修正一个测试的越界异常预期后定向补验闭合。C11 警告检查、workspace clippy 与差异检查通过；实现文件最长 143 行。target 仍约 2.4 GB，保留正在复用的构建缓存。Linux 三目标组合验证仍待全部功能完成。

@@ -26,5 +26,7 @@ struct ScoopSocketAddress scoop_socket_address_decode(const struct sockaddr *add
                                                       socklen_t length);
 int scoop_socket_prepare(int descriptor);
 int scoop_socket_failed(int descriptor);
+int scoop_platform_socket_bind(struct ScoopSocketAddress address, bool datagram, bool reuse,
+                               int backlog);
 
 #endif

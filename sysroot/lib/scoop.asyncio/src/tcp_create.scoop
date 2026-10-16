@@ -1,0 +1,61 @@
+package scoop.asyncio
+
+import scoop.platform.net.SocketAddress
+
+internal suspend fun connectTcpOnLoop(loop: LibuvEventLoop, address: SocketAddress): AsyncTcpStream {
+    val job = loop.requireJob()
+    val target = ioAddress(address)
+    return suspendCoroutine<AsyncTcpStream> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpConnect(native, id, target)) } },
+            { native, id -> @Unsafe { nativeTcpConnectCancel(native, id) } },
+            { event, selected -> finishTcpCreation<AsyncTcpStream>(loop, event.result, selected, continuation,
+                { owner -> TcpStream(owner, tcpAddress(owner.pointer, false), tcpAddress(owner.pointer, true)) }) })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}
+
+internal suspend fun listenTcpOnLoop(loop: LibuvEventLoop, address: SocketAddress, backlog: Int, reuse: Boolean): AsyncTcpListener {
+    val job = loop.requireJob()
+    if (backlog <= 0) throw IllegalArgumentException(Some("backlog must be positive"))
+    val target = ioAddress(address)
+    return suspendCoroutine<AsyncTcpListener> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpListen(native, id, target, backlog, reuse)) } },
+            { native, id -> @Unsafe { nativeTcpConnectCancel(native, id) } },
+            { event, selected -> finishTcpCreation<AsyncTcpListener>(loop, event.result, selected, continuation,
+                { owner -> TcpListener(owner, tcpAddress(owner.pointer, false)) }) })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}
+
+internal fun <T> finishTcpCreation(loop: LibuvEventLoop, result: IoResult, selected: Throwable?,
+    continuation: Continuation<T>, make: (OwnedTcp) -> T) {
+    when (result) {
+        case Created(pointer) -> {
+            val owner = OwnedTcp(loop, pointer)
+            loop.state.retain(owner)
+            when (selected) {
+                case Some(error) -> { failTcpCreation(owner, error, continuation); return }
+                case None -> {}
+            }
+            val value = try { make(owner) }
+            catch (error: Throwable) { failTcpCreation(owner, error, continuation); return }
+            continuation.resume(value)
+        }
+        case _ -> {
+            val error = completionFailure("TCP create", result, selected)
+                ?: IllegalStateException(Some("TCP creation returned no resource"))
+            continuation.resumeWithException(error)
+        }
+    }
+}
+
+private fun <T> failTcpCreation(owner: OwnedTcp, error: Throwable, continuation: Continuation<T>) {
+    owner.closeOnLoop { cleanup ->
+        val reported = when (cleanup) { case Some(value) -> ResourceUseException(error, value); case None -> error }
+        continuation.resumeWithException(reported)
+    }
+}

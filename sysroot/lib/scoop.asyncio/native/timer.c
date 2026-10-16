@@ -1,7 +1,8 @@
 #include "loop.h"
 
 struct ScoopIoTimer {
-    /* The completion is first so the queue can release the finished allocation. */
+    /* The completion is first so the queue can release the finished allocation.
+     */
     ScoopIoCompletion completion;
     uv_timer_t handle;
     ScoopIoLoop *loop;

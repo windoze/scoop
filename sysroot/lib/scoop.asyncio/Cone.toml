@@ -25,6 +25,21 @@ path = "native/loop.c"
 path = "native/timer.c"
 
 [[native.sources]]
+path = "native/tcp.c"
+
+[[native.sources]]
+path = "native/tcp_connect.c"
+
+[[native.sources]]
+path = "native/tcp_accept.c"
+
+[[native.sources]]
+path = "native/tcp_read.c"
+
+[[native.sources]]
+path = "native/tcp_write.c"
+
+[[native.sources]]
 path = "vendor/libuv/src/fs-poll.c"
 
 [[native.sources]]

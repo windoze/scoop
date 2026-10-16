@@ -1,10 +1,11 @@
 package scoop.asyncio
 
 import scoop.time.Duration
+import scoop.platform.net.SocketAddress
 
 public class LibuvEventLoop public constructor() : EventLoop {
     private val accepted: AtomicBoolean = AtomicBoolean(false)
-    private val state: LoopState = LoopState()
+    internal val state: LoopState = LoopState()
 
     public override fun run(block: suspend (CoroutineScope) -> Unit) {
         when (currentJobOrNull()) {
@@ -21,10 +22,11 @@ public class LibuvEventLoop public constructor() : EventLoop {
         state.drive(native)
     }
 
-    internal fun requireJob(): Job {
+    internal fun requireJob(cancellable: Boolean = true): Job {
         if (!hasEventLoop() || currentEventLoop() !== this) throw IllegalStateException(Some("wrong event loop"))
         val job = currentJobOrNull() ?: throw IllegalStateException(Some("I/O requires a Job"))
-        job.ensureActive()
+        if (job.isCompleted) throw IllegalStateException(Some("I/O requires an active Job"))
+        if (cancellable) job.ensureActive()
         return job
     }
 
@@ -34,21 +36,22 @@ public class LibuvEventLoop public constructor() : EventLoop {
         if (duration == Duration.ZERO) return
         suspendCoroutine<Unit> { continuation ->
             val operation = LoopOperation(state, state.nextOperation(),
-                { native, id -> @Unsafe { return@LoopOperation nativeTimerStart(native, id, duration.seconds, duration.nanosecondsOfSecond) } },
+                { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTimerStart(native, id, duration.seconds, duration.nanosecondsOfSecond)) } },
                 { native, id -> @Unsafe { nativeTimerCancel(native, id) } },
                 { event, cancelled ->
-                    when (cancelled) {
+                    when (completionFailure("sleep", event.result, cancelled)) {
                         case Some(error) -> continuation.resumeWithException(error)
-                        case None -> {
-                            if (event.status < 0) continuation.resumeWithException(uvFailure("sleep", event.status))
-                            else continuation.resume(Unit)
-                        }
+                        case None -> continuation.resume(Unit)
                     }
                 })
             operation.subscribe(job)
             state.submit(operation)
         }
     }
+
+    public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
+    public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =
+        listenTcpOnLoop(this, address, backlog, reuseAddress)
 }
 
 private class LoopCompletion(val state: LoopState) : Continuation<Unit> {

@@ -1,10 +1,13 @@
 package scoop.asyncio
 
 import scoop.time.Duration
+import scoop.platform.net.SocketAddress
 
 public interface EventLoop {
     public fun run(block: suspend (CoroutineScope) -> Unit)
     public suspend fun sleep(duration: Duration)
+    public suspend fun connectTcp(address: SocketAddress): AsyncTcpStream
+    public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
 }
 
 context(loop: EventLoop)

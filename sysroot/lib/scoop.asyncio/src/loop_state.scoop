@@ -10,6 +10,8 @@ internal class LoopState {
     private var rootEnded: Boolean = false
     private var failure: Throwable? = None
     private val operations: HashMap<Long, LoopOperation> = HashMap<Long, LoopOperation>()
+    private val resources: ArrayList<LoopResource> = ArrayList<LoopResource>()
+    private var cleaning: Boolean = false
     var ready: ArrayList<() -> Unit> = ArrayList<() -> Unit>()
 
     fun open(): Ptr<Unit> {
@@ -60,6 +62,33 @@ internal class LoopState {
         operation.complete(event)
     }
 
+    fun retain(resource: LoopResource) {
+        resources.add(resource)
+        if (cleaning) resource.closeFromLoop()
+    }
+
+    fun forget(resource: LoopResource) {
+        var index = 0L
+        while (index < resources.size) {
+            if (resources[index] === resource) { resources.removeAt(index); return }
+            index += 1L
+        }
+    }
+
+    fun cleanupFailed(error: Throwable) {
+        failure = Some(when (failure) {
+            case Some(primary) -> ResourceUseException(primary, error)
+            case None -> error
+        })
+    }
+
+    private fun startCleanup() {
+        if (cleaning || !lock.withLock { rootEnded }) return
+        cleaning = true
+        val owned = Array<LoopResource>(resources.size) { index -> resources[index] }
+        for (resource in owned) resource.closeFromLoop()
+    }
+
     fun finishRoot(error: Throwable?) {
         lock.withLock {
             failure = error
@@ -77,12 +106,16 @@ internal class LoopState {
     fun drive(native: Ptr<Unit>) {
         while (true) {
             for (command in takeCommands()) command()
-            val wait = lock.withLock { !rootEnded && commands.size == 0L && ready.size == 0L }
+            startCleanup()
+            val wait = lock.withLock {
+                commands.size == 0L && ready.size == 0L &&
+                    (!rootEnded || operations.size != 0L || resources.size != 0L)
+            }
             @Unsafe {
                 nativeLoopPoll(native, wait)
                 var event = nativeLoopNext(native)
                 while (event.id != 0L) {
-                    complete(event)
+                    complete(decodeEvent(event))
                     event = nativeLoopNext(native)
                 }
             }
@@ -90,7 +123,7 @@ internal class LoopState {
             ready = ArrayList<() -> Unit>()
             for (resume in batch) resume()
             val stopped = lock.withLock {
-                if (!rootEnded || commands.size != 0L || ready.size != 0L || operations.size != 0L) false
+                if (!rootEnded || commands.size != 0L || ready.size != 0L || operations.size != 0L || resources.size != 0L) false
                 else { pointer = None; true }
             }
             if (stopped) break

@@ -8,8 +8,20 @@
 
 typedef struct ScoopIoEvent {
     int64_t id;
-    int status;
+    int kind;
+    int code;
+    int64_t count;
+    void *resource;
 } ScoopIoEvent;
+
+enum {
+    SCOOP_IO_DONE,
+    SCOOP_IO_BYTES,
+    SCOOP_IO_EOF,
+    SCOOP_IO_RESOURCE,
+    SCOOP_IO_UV_ERROR,
+    SCOOP_IO_POSIX_ERROR
+};
 
 typedef struct ScoopIoCompletion {
     ScoopIoEvent event;
@@ -17,6 +29,7 @@ typedef struct ScoopIoCompletion {
 } ScoopIoCompletion;
 
 typedef struct ScoopIoTimer ScoopIoTimer;
+typedef struct ScoopIoConnect ScoopIoConnect;
 
 typedef struct ScoopIoLoop {
     uv_loop_t uv;
@@ -24,6 +37,7 @@ typedef struct ScoopIoLoop {
     ScoopIoCompletion *head;
     ScoopIoCompletion *tail;
     ScoopIoTimer *timers;
+    ScoopIoConnect *connections;
 } ScoopIoLoop;
 
 typedef struct ScoopIoCreated {

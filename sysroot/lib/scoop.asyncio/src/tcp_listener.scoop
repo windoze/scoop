@@ -1,0 +1,29 @@
+package scoop.asyncio
+
+import scoop.platform.net.SocketAddress
+
+public interface AsyncTcpListener : AsyncCloseable {
+    public val localAddress: SocketAddress
+    public suspend fun accept(): AsyncTcpStream
+}
+
+internal class TcpListener(private val owner: OwnedTcp, public override val localAddress: SocketAddress) : AsyncTcpListener {
+    public override suspend fun accept(): AsyncTcpStream {
+        val job = owner.loop.requireJob()
+        val reservation = owner.reserve(false)
+        try {
+            return suspendCoroutine<AsyncTcpStream> { continuation ->
+                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
+                    { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpAccept(owner.pointer, id)) } },
+                    { _, id -> @Unsafe { nativeTcpAcceptCancel(owner.pointer, id) } },
+                    { event, selected -> finishTcpCreation<AsyncTcpStream>(owner.loop, event.result, selected, continuation,
+                        { accepted -> TcpStream(accepted, tcpAddress(accepted.pointer, false), tcpAddress(accepted.pointer, true)) }) })
+                operation.subscribe(job)
+                owner.attach(operation, false)
+                owner.loop.state.submit(operation)
+            }
+        } finally { reservation.dispose() }
+    }
+
+    public override suspend fun close() { owner.close() }
+}

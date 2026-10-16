@@ -1,4 +1,5 @@
 #include "loop.h"
+#include "sigpipe.h"
 
 static void wake_callback(uv_async_t *handle) { (void)handle; }
 
@@ -23,11 +24,17 @@ ScoopIoCreated scoop_io_loop_create(void) {
 void scoop_io_loop_wake(ScoopIoLoop *loop) { uv_async_send(&loop->wake); }
 
 void scoop_io_loop_poll(ScoopIoLoop *loop, bool wait) {
-    uv_run(&loop->uv, wait ? UV_RUN_ONCE : UV_RUN_NOWAIT);
+    ScoopIoSignalGuard guard;
+    scoop_io_signal_enter(&guard);
+    uv_run(&loop->uv, wait && !loop->head ? UV_RUN_ONCE : UV_RUN_NOWAIT);
+    scoop_io_signal_leave(&guard);
 }
 
 void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int status) {
-    completion->event.status = status;
+    if (status < 0) {
+        completion->event.kind = SCOOP_IO_UV_ERROR;
+        completion->event.code = status;
+    }
     completion->next = NULL;
     if (loop->tail)
         loop->tail->next = completion;
@@ -39,7 +46,7 @@ void scoop_io_complete(ScoopIoLoop *loop, ScoopIoCompletion *completion, int sta
 ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop) {
     ScoopIoCompletion *entry = loop->head;
     if (!entry)
-        return (ScoopIoEvent){0, 0};
+        return (ScoopIoEvent){0};
     loop->head = entry->next;
     if (!loop->head)
         loop->tail = NULL;
@@ -49,7 +56,7 @@ ScoopIoEvent scoop_io_loop_next(ScoopIoLoop *loop) {
 }
 
 int scoop_io_loop_destroy(ScoopIoLoop *loop) {
-    if (loop->head || loop->timers)
+    if (loop->head || loop->timers || loop->connections)
         return UV_EBUSY;
     uv_close((uv_handle_t *)&loop->wake, NULL);
     uv_run(&loop->uv, UV_RUN_DEFAULT);

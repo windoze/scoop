@@ -1,0 +1,78 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTcpCancellationTest {
+    @Test
+    fun `read cancellation returns its borrow and preserves the connection`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (_, client, server) = tcpPair(loop, scope)
+            NativeByteBuffer.allocate(4L).use suspend { input ->
+                val pending = scope.launch suspend { server.readInto(input, 4L) }
+                loop.sleep(Duration.nanoseconds(1L))
+                assertFailsWith<IllegalStateException> { input.clear() }
+                assertFailsWith<IllegalStateException> { input.close() }
+                NativeByteBuffer.allocate(1L).use suspend { second ->
+                    try { server.readInto(second, 1L); fail(Some("concurrent read accepted")) }
+                    catch (_: IllegalStateException) {}
+                }
+                gcCollect()
+                pending.cancel()
+                pending.join()
+                assertEquals(0L, input.writePosition)
+                input.clear()
+                NativeByteBuffer.allocate(1L).use suspend { output ->
+                    output.writeByte(42)
+                    client.writeFully(output)
+                }
+                assertEquals(1L, server.readInto(input, 1L))
+                assertEquals(42.toInt8(), input.readByte())
+            }
+        }
+    }
+
+    @Test
+    fun `close wakes a pending read and concurrent close waits for the same cleanup`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val ended = AtomicBoolean(false)
+        loop.run suspend { scope ->
+            val (_, _, server) = tcpPair(loop, scope)
+            NativeByteBuffer.allocate(1L).use suspend { input ->
+                val pending = scope.launch suspend {
+                    try { server.readInto(input, 1L); fail(Some("closed read succeeded")) }
+                    catch (_: IoClosedException) { ended.store(true) }
+                }
+                loop.sleep(Duration.nanoseconds(1L))
+                val first = scope.launch suspend { server.close() }
+                val second = scope.launch suspend { server.close() }
+                first.join()
+                second.join()
+                pending.join()
+                assertTrue(ended.load())
+                input.clear()
+                server.close()
+            }
+        }
+    }
+
+    @Test
+    fun `a cancelled task can close its stream in finally`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val closed = AtomicBoolean(false)
+        loop.run suspend { scope ->
+            val (_, _, server) = tcpPair(loop, scope)
+            val child = scope.launch suspend {
+                try { loop.sleep(Duration.seconds(1000000L)) }
+                finally { server.close(); closed.store(true) }
+            }
+            loop.sleep(Duration.nanoseconds(1L))
+            child.cancel()
+            child.join()
+            assertTrue(closed.load())
+        }
+    }
+}

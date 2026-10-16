@@ -257,3 +257,9 @@ receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datag
 socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置 SO_NOSIGPIPE；错误路径不安装或修改全局 signal handler。pipe/fd 的既有策略不变。DNS、连接、accept、传输和可能阻塞的操作使用 NativeSafe，复用已有精确根、借用与 FFI ABI。地址的 C 对应结构只是普通 @CLayout 值，不新增 compiler/runtime 协议、连接池、异步调度或网络安全框架。
 
 依据：[getaddrinfo](https://man7.org/linux/man-pages/man3/getaddrinfo.3.html)、[recvmsg／MSG_TRUNC 与空包](https://man7.org/linux/man-pages/man2/recvmsg.2.html) 及目标 socket headers。验收使用 loopback、动态端口与显式线程同步。
+
+### 12.4 普通 native helper 复用
+
+`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+
+这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。

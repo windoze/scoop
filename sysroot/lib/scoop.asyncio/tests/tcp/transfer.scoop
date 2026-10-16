@@ -1,0 +1,64 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncTcpTransferTest {
+    @Test
+    fun `loopback streams compose short copies and keep output usable after input EOF`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (listener, client, server) = tcpPair(loop, scope)
+            assertEquals(listener.localAddress, client.peerAddress)
+            assertEquals(client.localAddress, server.peerAddress)
+            assertTrue(listener.localAddress.port > 0)
+            val echo = scope.async<Long> suspend {
+                val count = server.copyTo(server, 2L)
+                // Input EOF has not closed this output direction.
+                NativeByteBuffer.allocate(1L).use suspend { extra ->
+                    extra.writeByte(99)
+                    server.writeFully(extra)
+                }
+                server.shutdownOutput()
+                count
+            }
+            NativeByteBuffer.allocate(5L).use suspend { output ->
+                val bytes: Array<Byte> = [1, 2, 3, 4, 5]
+                output.writeBytes(bytes)
+                client.writeFully(output)
+                client.flush()
+            }
+            client.shutdownOutput()
+            NativeByteBuffer.allocate(7L).use suspend { input ->
+                client.readFully(input, 6L)
+                assertEquals(0L, client.readInto(input, 1L))
+                assertEquals(0L, client.readInto(input, 1L))
+                assertEquals(99.toInt8(), input.getByte(5L))
+            }
+            assertEquals(5L, echo.await())
+            listener.close()
+            client.close()
+            server.close()
+        }
+    }
+
+    @Test
+    fun `invalid listener options and bind conflicts preserve native error domains`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val address = SocketAddress(IpAddress.IPV4_LOOPBACK, 0)
+            try { loop.listenTcp(address, 0); fail(Some("zero backlog accepted")) }
+            catch (_: IllegalArgumentException) {}
+            val listener = loop.listenTcp(address)
+            try { loop.listenTcp(listener.localAddress); fail(Some("duplicate bind accepted")) }
+            catch (error: PlatformException) {
+                assertTrue(error.kind == PlatformErrorKind.AddressInUse)
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+            }
+            listener.close()
+        }
+    }
+}

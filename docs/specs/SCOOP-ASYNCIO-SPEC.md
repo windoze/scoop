@@ -100,6 +100,8 @@ public interface AsyncUdpSocket : AsyncCloseable {
 
 TCP EOF 不关闭输出。shutdownOutput 属于输出方向，提交后禁止新 write；成功后输入仍可读。真实读错误成为该方向终态，不重启失效的读订阅。listener 同时一个 accept，无等待者时保留后端待 accept 状态，不建立 managed 预接收队列。关闭 listener 不关闭已交付 stream。地址属性是创建时取得的值，不跨线程访问 native handle。
 
+listenTcp 的 backlog 必须为正。监听使用 platform 的 socket_bind helper 先按 reuseAddress 配置和绑定新的 owned fd，再移交 uv_tcp_open／uv_listen；这样 false 不被 libuv 的隐式 SO_REUSEADDR 覆盖。移交前失败按 raw close 清理，移交后按 uv_close 清理。helper 错误保留 PosixErrno，libuv 错误使用 Libuv；不接管用户已有 socket。
+
 UDP 每方向一个在途操作，发送保持完整 datagram，不拆包；空发送是真实空包。receive 要求正容量，有源地址的零字节是空包，无地址的零通知继续等待。Datagram 保留来源、实际交付长度及截断标志。超大报文保留实际错误。
 
 libuv 错误保留 NativeErrorDomain.Libuv 与原码；UV_EOF 按 EOF 解释，库主动取消／关闭不伪造 OS 错误。Linux 在实际 socket 输出提交及 uv_run 周围屏蔽线程 SIGPIPE，仅消费本段新增信号，再恢复旧 mask/pending；Darwin 输出前设置 SO_NOSIGPIPE。不改进程 signal handler。
