@@ -589,12 +589,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 先建立当前同机基线和完整停顿口径，再按功能分别提交优化与模块迁移；通过实际性能对照、共享路径集成回归、三目标和无源码产物消费验收。
 - M44-1～6 全部交付。Darwin 工作区通过 5629 项测试及 2 项 doctest，正式 CLI 全量通过 4037 项；Linux GNU／musl 适用组合分别通过 1163／1167 项。零搬迁、实际移动、minor、线程进度和四程序性能对照完成，回退修复、原始失败及测量限制均保留。
 
-### M45 平台库、确定性资源释放与 native IO buffer（实施中，[设计](milestone45/DESIGN.md)）
+### M45 平台库、确定性资源释放与 native IO buffer（已完成，[设计](milestone45/DESIGN.md)，[验收记录](milestone45/ACCEPTANCE.md)）
 
 - 在 M38 完成后实施；首先修复泛型扩展回调的参数／返回类型联合推断，再接入普通 `scoop.platform` Cone。
 - core 提供 Disposable、普通／挂起 use 与 GC-free pressure 提示；platform 提供 native buffer、同步 IO、文件、进程、线程、网络、系统时间与熵。
-- M45-1～10 本机实现与组合回归完成，已交付推断修复、系统字符串／路径／错误、资源协议、NativeByteBuffer、同步 IO、文件／目录、环境／系统信息、时钟、系统熵、线程／同步原语、进程／管道及阻塞 DNS／TCP／UDP；本机最终 CLI 335 项通过，下一步集中验收 Linux GNU／musl。结果见[实施记录](milestone45/PROGRESS.md)。
-- 库行为优先通过 `scoop.test` 验证，编译器、ABI、GC 与产物边界保留必要专测；本机批次稳定后统一验证 Linux GNU／musl。
+- M45-1～10 按顺序完成并逐功能提交，已交付推断修复、系统字符串／路径／错误、资源协议、NativeByteBuffer、同步 IO、文件／目录、环境／系统信息、时钟、系统熵、线程／同步原语、进程／管道及阻塞 DNS／TCP／UDP；真实下游应用完成 buffer → 文件 → 子进程管道 → TCP → 文件的传输与独立链接。过程见[实施记录](milestone45/PROGRESS.md)。
+- 2026-10-16 三目标验收完成：平台库各 99 项在 debug／release／debug moving GC 通过；正式 CLI 组合 Darwin／GNU／musl 分别 335／337／342 项通过，另有 7／5／0 项不适用；Linux 完整 Rust 5350 项闭合。本机稳定后集中运行 Linux，最后的测试期望修改仅补验受影响用例；原始日志在仓库外，只保留验收概要。
 
 ### M46 序列化基础协议与 DTO 合成（已完成，[设计](milestone46/DESIGN.md)）
 

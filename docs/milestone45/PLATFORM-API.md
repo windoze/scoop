@@ -1,6 +1,6 @@
 # M45：scoop.platform 公共能力
 
-状态：公共能力已完成本机实现与组合验收；Linux GNU／musl 待验收。已实施公共合同见[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)，结果见[实施记录](PROGRESS.md)。所属任务与测试要求见 [M45 设计](DESIGN.md)，所有拥有资源的类型同时遵守 [资源协议](RESOURCES.md)。以下能力面向三个现有 POSIX target，不引入新的目标平台。
+状态：公共能力已完成实现及 Darwin、Linux GNU／musl 验收。已实施公共合同见[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)，结果见[验收记录](ACCEPTANCE.md)。所属任务与测试要求见 [M45 设计](DESIGN.md)，所有拥有资源的类型同时遵守 [资源协议](RESOURCES.md)。以下能力面向三个现有 POSIX target，不引入新的目标平台。
 
 ## 1. 公共类型、错误与同步语义
 

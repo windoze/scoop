@@ -1,8 +1,8 @@
 # M45 设计：平台库、确定性资源释放与 native IO buffer
 
-状态：实施中；M38 已于 2026-10-16 完成，M45-1～10 本机实现与组合回归完成，Linux GNU／musl 集中验收待完成。设计日期：2026-10-14。调研基线：`e548b9ebe`。实际验证见 [实施记录](PROGRESS.md)。
+状态：2026-10-16 已完成。M38 验收后按 M45-1～10 顺序实施并逐功能提交，本机及 Linux GNU／musl 验收均已完成。设计日期：2026-10-14。调研基线：`e548b9ebe`。实际范围与结果见 [验收记录](ACCEPTANCE.md)，逐批过程见 [实施记录](PROGRESS.md)。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md)、[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md)与[路线图](../ROADMAP.md)。本文及配套文档记录 M45 的交付范围、API 合同、实施任务和验收要求，不表示接口已实现。每批实施前先同步对应 spec，再修改代码。
+依据：[语言规范](../specs/SCOOP-SPEC.md)、[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md)与[路线图](../ROADMAP.md)。本文及配套文档记录 M45 的交付范围、API 合同、实施任务和验收要求；已实施的公共能力以[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)及对应 core／runtime 规范为准。每批均先同步对应 spec，再修改代码。
 
 ## 0. 已确认决定
 
@@ -98,20 +98,20 @@ Scoop 负责公共对象、参数检查、异常、所有权状态、缓冲算�
 
 ## 4. 实施任务
 
-各批先修订其负责的规范，随功能提交 Scoop 测试及必要底层回归。未注明完成的批次仍待实施；Linux 验收在本机所有批次稳定后集中执行。
+以下批次均已完成，随功能提交 Scoop 测试及必要底层回归。Linux 验收在本机所有批次稳定后集中执行，最后的测试期望修正仅补验受影响用例。
 
 | 任务 | 内容 | 前置与完成出口 |
 | --- | --- | --- |
-| M45-1 | 修复泛型扩展回调参数推断（本机完成） | 普通／挂起 lambda 参数从 receiver 和候选参数类型推导，源码与跨 Cone 都通过；保留应失败的重载／effect 诊断；Linux 纳入 M45-10 |
-| M45-2 | platform Cone、系统字符串／路径及错误（本机完成） | 普通 native sources、scoop.test 宿主与下游 `.slib` 消费已通过；OsString／Path 无损往返、参数检查与错误快照通过；Linux 纳入 M45-10 |
-| M45-3 | core Disposable 与两个 use（本机完成） | 依赖 M45-1，行为测试使用 M45-2 的测试宿主；普通实现与模板可只依赖 core 使用；正常、异常、双失败、嵌套和受控挂起／恢复清理通过 |
-| M45-4 | NativeByteBuffer 与 GC pressure 提示（本机完成） | 依赖 M45-2/3；容量／游标／借用／释放闭环，增长失败保留原状态，hook 与显式路径不重复 free／反馈；delta 增减与回滚配平，GC 采用 no-op 也通过验收 |
-| M45-5 | 同步字节 IO、文件／目录、标准流与文本（本机完成） | 依赖 M45-4；实际读写、短 IO、EOF、错误进度、目录提前退出、UTF-8、并发文件 IO 与资源组合通过 |
-| M45-6 | 环境／系统信息、时钟与系统熵（本机完成） | 原始 argv／环境与 std 数据模型正确组合；sleep 不阻止其他 mutator 推进；系统熵失败保留已写前缀；不依赖 M38 |
-| M45-7 | Thread、Mutex、ConditionVariable（本机完成） | 复用 callback／Context／NativeSafe；创建失败、join／dispose、线程异常与同步语义通过；worker ownership 完成后释放 |
-| M45-8 | Command、ChildProcess、管道与 communicate（本机完成） | posix_spawn、参数／环境／cwd、退出／信号、双向管道、poll 通信及与线程的手动管道组合通过 |
-| M45-9 | 阻塞 DNS、TCP 与 UDP（本机完成） | 依赖 IO、线程；loopback、部分传输、半关闭、UDP 空包／截断和 SIGPIPE 策略通过 |
-| M45-10 | 真实应用组合、三目标与产物消费（本机完成，Linux 待验收） | 三目标运行本库测试、debug/release 代表组合；源码和工具保持存在，验证下游产物消费、链接运行及实际调用复用；记录实际结果与限制，无未实现占位或绕行；pressure no-op 按明确合同验收 |
+| M45-1 | 修复泛型扩展回调参数推断（完成） | 普通／挂起 lambda 参数从 receiver 和候选参数类型推导，源码与跨 Cone 都通过；保留应失败的重载／effect 诊断；三目标验收通过 |
+| M45-2 | platform Cone、系统字符串／路径及错误（完成） | 普通 native sources、scoop.test 宿主与下游 `.slib` 消费已通过；OsString／Path 无损往返、参数检查与错误快照通过；三目标验收通过 |
+| M45-3 | core Disposable 与两个 use（完成） | 依赖 M45-1，行为测试使用 M45-2 的测试宿主；普通实现与模板可只依赖 core 使用；正常、异常、双失败、嵌套和受控挂起／恢复清理通过 |
+| M45-4 | NativeByteBuffer 与 GC pressure 提示（完成） | 依赖 M45-2/3；容量／游标／借用／释放闭环，增长失败保留原状态，hook 与显式路径不重复 free／反馈；delta 增减与回滚配平，GC 采用 no-op 也通过验收 |
+| M45-5 | 同步字节 IO、文件／目录、标准流与文本（完成） | 依赖 M45-4；实际读写、短 IO、EOF、错误进度、目录提前退出、UTF-8、并发文件 IO 与资源组合通过 |
+| M45-6 | 环境／系统信息、时钟与系统熵（完成） | 原始 argv／环境与 std 数据模型正确组合；sleep 不阻止其他 mutator 推进；系统熵失败保留已写前缀；不依赖 M38 |
+| M45-7 | Thread、Mutex、ConditionVariable（完成） | 复用 callback／Context／NativeSafe；创建失败、join／dispose、线程异常与同步语义通过；worker ownership 完成后释放 |
+| M45-8 | Command、ChildProcess、管道与 communicate（完成） | posix_spawn、参数／环境／cwd、退出／信号、双向管道、poll 通信及与线程的手动管道组合通过 |
+| M45-9 | 阻塞 DNS、TCP 与 UDP（完成） | 依赖 IO、线程；loopback、部分传输、半关闭、UDP 空包／截断和 SIGPIPE 策略通过 |
+| M45-10 | 真实应用组合、三目标与产物消费（完成） | 三目标本库测试与 debug/release 组合通过；源码和工具保持存在，下游产物消费、链接运行及实际调用复用通过；结果与失败补验见验收记录；pressure no-op 按明确合同验收 |
 
 M45-1 修复现有语言规则的实现，不改变普通 lambda 必须显式写 `suspend` 才能成为挂起 lambda 的规则，也不开放“只相差外层 suspend”的重复签名。
 

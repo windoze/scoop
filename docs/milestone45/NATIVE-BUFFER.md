@@ -1,6 +1,6 @@
 # M45：NativeByteBuffer 与 native IO 边界
 
-状态：M45-4 本机实现与回归完成；Linux 组合验收安排在 M45-10。实际结果见[实施记录](PROGRESS.md)。范围、任务和测试规则见 [M45 设计](DESIGN.md)，资源协议见 [RESOURCES](RESOURCES.md)。
+状态：M45-4 已完成实现及 Darwin、Linux GNU／musl 验收。实际结果见[验收记录](ACCEPTANCE.md)。范围、任务和测试规则见 [M45 设计](DESIGN.md)，资源协议见 [RESOURCES](RESOURCES.md)。
 
 ## 1. 类型与所有权
 

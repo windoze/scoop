@@ -1,6 +1,6 @@
 # M45：core 资源协议与 use
 
-状态：2026-10-16 完成本机实现及回归；Linux 随 M45-10 统一验收。范围与结果见 [M45 设计](DESIGN.md)和[实施记录](PROGRESS.md)。
+状态：2026-10-16 完成实现及 Darwin、Linux GNU／musl 验收。范围与结果见 [M45 设计](DESIGN.md)和[验收记录](ACCEPTANCE.md)。
 
 ## 1. API 与归属
 
