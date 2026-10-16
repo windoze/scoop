@@ -109,4 +109,6 @@ Linux Rust 最终共 5,348 项单元／集成测试、2 项 doctest 通过，包
 
 GNU 完整 CLI 发现五项 M34 优化专测仍保存基线已删除的 `scoop_rt_materialize_exception`。按现行 runtime 规范 5.3～5.4 更新其 MIR／LIR 预期；差异为直接保存 Throwable 引用及关联临时值、调用和 safepoint 编号，没有修改生产实现。三目标各五项、十变体、五十八进程全部通过，包含正常、moving 和 minor GC；快照修正分批独立提交。
 
-M43 生命周期失败测试还保留了一条末尾 try 中的多余 Unit 语句，不符合语言规范 8.1.2 的 Unit lambda 丢弃结果规则。删除该行，保留各阶段失败与 finally 次数断言；本机 debug／release 两变体、六进程通过，GNU 定向补验随后闭合。
+M43 生命周期失败测试还保留了一条末尾 try 中的多余 Unit 语句，不符合语言规范 8.1.2 的 Unit lambda 丢弃结果规则。删除该行，保留各阶段失败与 finally 次数断言；本机和 GNU 的 debug／release 各两变体、六进程通过，包含正常和 moving GC。
+
+两项旧 native-link fixture 仍拒绝普通 C constructor。按已修订的合同改为实际初始化运行：归档的间接选中成员和 Darwin 直接对象均须把初始化结果带入程序输出；缺符号、重复定义、弱符号与失败不覆盖输出的断言保持。本机两项、三十四进程通过，GNU／musl 的归档路径补验继续。
