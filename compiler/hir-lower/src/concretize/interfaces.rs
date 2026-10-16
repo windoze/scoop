@@ -39,6 +39,11 @@ impl Concretizer<'_> {
                 } else {
                     &[]
                 },
+                automatic_private_methods: if declaration.type_params.is_empty() {
+                    &declaration.private_methods
+                } else {
+                    &[]
+                },
                 span: declaration.span,
             }
         } else {
@@ -54,6 +59,7 @@ impl Concretizer<'_> {
                 parents: &definition.parents,
                 members: source.interface_applications[definition.self_application].canonical_type,
                 automatic_methods: &[],
+                automatic_private_methods: &[],
                 span: scoop_ast::Span::new(
                     u32::try_from(span.start_byte()).expect("decoded source spans fit HIR"),
                     u32::try_from(span.end_byte()).expect("decoded source spans fit HIR"),
@@ -133,6 +139,10 @@ impl Concretizer<'_> {
                 Vec::new(),
             );
         }
+        self.request_concrete_methods(
+            definition.automatic_private_methods,
+            concrete::MethodOwner::Interface(id),
+        );
     }
 
     fn lower_interface_method(
