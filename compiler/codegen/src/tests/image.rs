@@ -21,7 +21,6 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/image/type_relations.c",
         "runtime/src/image/storage.c",
         "runtime/src/image/immortals.c",
-        "runtime/src/image/static_values.c",
         "runtime/src/image/units.c",
         "runtime/src/image/allocation_ranges.c",
         "runtime/src/image/stackmaps.c",

@@ -53,8 +53,7 @@ static ScoopImageRegistry *check(ScoopStorageFixture *fixture) {
 static void positive(bool both_eager) {
     ScoopStorageFixture fixture = {0};
     scoop_test_storage_setup(&fixture, both_eager);
-    /* Non-reference bytes are a compiler/reader responsibility. Only loaded
-     * GC leaves are resolved against the immortal directory here. */
+    /* The compiler supplies the initial bytes; registration collects roots. */
     fixture.data->image.static_storage_count++;
     fixture.data->storages[EXTRA_STORAGE].initial_state_kind =
         SCOOP_STATIC_INITIAL_ENCODED_VALUE_V1;
@@ -103,51 +102,39 @@ static const char *corrupt(ScoopStorageFixture *fixture, unsigned test) {
     const void *guard = (const uint8_t *)data + fixture->size;
     switch (test) {
     case 0:
-        state->cells[0].state = 1;
-        return "nonzero initial cell";
-    case 1:
-        state->slots[FAILURE_A] = 1;
-        return "nonzero initial storage";
-    case 2:
         data->units[1].failure_root = data->units[0].failure_root;
         return "shared storage role";
-    case 3:
+    case 1:
         data->root.failure_root = data->units[0].failure_root;
         return "shared storage role";
-    case 4:
+    case 2:
         data->units[0].storage = data->units[0].failure_root;
         return "shared storage role";
-    case 5:
+    case 3:
         data->units[1].cell = data->units[0].cell;
         return "overlapping storage or cell";
-    case 6:
+    case 4:
         data->units[0].cell = (void *)&state->slots[PROPERTY_A];
         return "overlapping storage or cell";
-    case 7:
+    case 5:
         data->storages[PROPERTY_B].writable_base = &state->slots[PROPERTY_A];
         return "overlapping storage or cell";
-    case 8:
+    case 6:
         data->storages[ZST_TOKEN].writable_base = &state->slots[PROPERTY_A];
         return "overlapping storage or cell";
-    case 9:
-        state->slots[ENCODED_REF] += 8;
-        return "not the exact immortal start";
-    case 10:
-        data->relocations[0].target = guard;
-        return "unregistered immortal target";
-    case 11:
+    case 7:
         data->string_object.header.td = guard;
         return "object header TypeDescriptor";
-    case 12:
+    case 8:
         data->immortals[0].object_size = 24;
         return "object count, alignment or side-metadata size";
-    case 13:
+    case 9:
         data->string_object.length = UINT64_MAX;
         return "physical count exceeds INT64_MAX";
-    case 14:
+    case 10:
         data->immortals[0].object_start = state;
         return "object readonly range";
-    case 15: {
+    case 11: {
         ScoopTypeDescriptor *td = (ScoopTypeDescriptor *)data->td_bytes;
         td->instance_shape = (ScoopTypeInstanceShapeV1){
             .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
@@ -156,85 +143,44 @@ static const char *corrupt(ScoopStorageFixture *fixture, unsigned test) {
         td->object_scan = data->reference_scan;
         return "object size, alignment or reference scan";
     }
-    case 16:
+    case 12:
         data->image.static_storage_count++;
         return "zeroed storage has no initialization or failure role";
-    case 17:
+    case 13:
         data->units[0].storage = &data->storages[ZST_TOKEN];
         return "shared storage role, initial state";
-    case 18:
+    case 14:
         data->units[0].schedule_kind = 0;
         return "unknown schedule kind";
-    case 19:
-        data->units[1].startup_gateway_callable_id.bytes[0] = 4;
+    case 15:
+        data->units[1].startup_gateway = data->units[0].startup_gateway;
         return "lazy unit has a startup gateway";
-    case 20:
-        data->units[0].startup_gateway_definition_fingerprint.bytes[0]++;
-        return "callable address or fingerprint mirror";
-    case 21:
+    case 16:
         data->units[0].storage = guard;
         return "unregistered storage";
-    case 22:
+    case 17:
         data->storages[PROPERTY_A].scan_program = data->reference_scan;
         return "None scan has references";
-    case 23:
-        data->relocations[0].pointer_offset = 4;
-        state->slots[ENCODED_REF] = 0;
-        return "relocations are not ordered unique scan leaves";
-    case 24:
-        data->storages[ENCODED_REF].initial_relocation_count = 2;
-        data->relocations[1] = data->relocations[0];
-        return "relocations are not ordered unique scan leaves";
-    case 25:
-        state->slots[ENCODED_REF] = 0;
-        return "not the exact immortal start";
-    case 26:
-        data->storages[ENCODED_REF].initial_relocation_count = 0;
-        return "has no immortal relocation";
-    case 27:
-        data->storages[ENCODED_REF].initial_template.data = guard;
-        return "initial template span";
-    case 28:
+    case 18:
         data->storages[PROPERTY_A].scan_program = guard;
         return "scan header range";
-    case 29:
-        state->slots[ZST_TOKEN] = 1;
-        return "ZST storage token";
-    case 30:
+    case 19:
         data->storages[FAILURE_A].required_alignment = 4;
         return "dedicated reference slot";
-    case 31:
+    case 20:
         data->storages[PROPERTY_A].byte_size =
             data->storages[PROPERTY_A].allocation_extent = UINT64_MAX;
         return "writable allocation range";
-    case 32:
-        data->storages[PROPERTY_A].initial_template.length = 1;
-        return "zeroed storage has encoded";
-    case 33:
-        data->root.gateway_definition_fingerprint.bytes[0] = 3;
-        return "callable address or fingerprint mirror";
-    case 34:
+    case 21:
         data->root.callable_id.bytes[0] = 200;
         return "source callable owner";
-    case 35:
+    case 22:
         data->immortals[1] = data->immortals[0];
         data->immortals[1].registration.semantic_id.bytes[0] = 2;
         data->immortal_table[1] = &data->immortals[1];
         data->image.immortal_object_count = 2;
         return "overlapping immortal ranges";
-    case 36:
-        aggregate_value(fixture);
-        fixture->state->aggregate[0] = UINT64_MAX;
-        return "static array scan length exceeds storage";
-    case 37:
-        aggregate_value(fixture);
-        fixture->state->aggregate[0] = 3;
-        return "duplicate static scan leaf";
-    case 38:
-        aggregate_value(fixture);
-        data->scan_nodes[1][2] = 9;
-        return "unaligned static scan leaf";
-    case 39:
+    case 23:
         aggregate_value(fixture);
         data->scan_nodes[1][4] = 0;
         return "scan header range";
@@ -282,7 +228,7 @@ int main(void) {
     positive(false);
     positive(true);
     positive_aggregate();
-    for (unsigned test = 0; test < 40; test++)
+    for (unsigned test = 0; test < 24; test++)
         negative(test);
     puts("image storage and initialization tests passed");
 }

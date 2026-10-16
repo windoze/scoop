@@ -32,38 +32,6 @@ static void check_storage(ScoopImageRegistry *registry, size_t index) {
     } else {
         scoop_metadata_fatal(&check, "unknown scan kind");
     }
-    scoop_metadata_bytes(&check, storage->initial_template,
-                         "initial template span");
-    scoop_metadata_readonly(
-        &check, storage->initial_relocations, storage->initial_relocation_count,
-        sizeof *storage->initial_relocations, 8, "initial relocation span");
-    if (storage->byte_size == 0 &&
-        (storage->scan_kind != SCOOP_STATIC_SCAN_NONE_V1 ||
-         *(const uint8_t *)storage->writable_base != 0)) {
-        scoop_metadata_fatal(&check, "ZST storage token or scan");
-    }
-    switch (storage->initial_state_kind) {
-    case SCOOP_STATIC_INITIAL_ZEROED_FOR_RUNTIME_UNIT_V1:
-        if (storage->initial_template.length != 0 ||
-            storage->initial_relocation_count != 0) {
-            scoop_metadata_fatal(&check,
-                                 "zeroed storage has encoded initial values");
-        }
-        for (uint64_t byte = 0; byte < extent; byte++) {
-            if (((const uint8_t *)storage->writable_base)[byte] != 0) {
-                scoop_metadata_fatal(&check, "nonzero initial storage");
-            }
-        }
-        break;
-    case SCOOP_STATIC_INITIAL_ENCODED_VALUE_V1:
-        if (storage->initial_template.length != storage->byte_size) {
-            scoop_metadata_fatal(&check, "encoded template size");
-        }
-        scoop_image_initial_values(registry, index);
-        break;
-    default:
-        scoop_metadata_fatal(&check, "unknown initial state kind");
-    }
 }
 
 void scoop_image_validate_storage_and_units(ScoopImageRegistry *registry) {

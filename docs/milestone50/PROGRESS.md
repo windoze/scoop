@@ -32,8 +32,9 @@
 26. 对象边界物化：使用实际 primary／section extent 写入 callable 和 generated-C 边界；删除 body／marker／backend 覆盖比较、global alias 预检与已发射边界回放。摘要槽保留写入范围计算，删除零值读回和槽位覆盖检查，移除失去消费者的 layout 参数。
 27. Shape／scan 发射：删除 layout／scan／dispatch 计划全集比较、同 id payload 副本比较和已有 scan initializer 文本重建；直接复用 LLVM global，保留实际 typed 查询与 scan／descriptor 编码。callable scan 去掉 owner／role／内容及总数重验。
 28. Runtime stackmap：删除运行期 canonical 编码与 SHA-256 复算及专属向量；直接建立实际记录索引，保留 ODR 重复记录的 PC／payload 合并和 GC 帧边界。
-29. 待完成：runtime 其余重复证明、同类要求及最终验收。
-30. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+29. Runtime 初值：删除静态初值与 immortal relocation 全量回放、cell／storage 零状态扫描及 callable 地址／指纹副本比较；保留实际根登记、存储引用、初始化排序和动态访问边界。
+30. 待完成：runtime 其余重复证明、同类要求及最终验收。
+31. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -98,3 +99,5 @@ Runtime metadata 发射批次：格式化、workspace clippy 无警告；release
 Shape／scan 批次：格式化、workspace clippy 无警告；release codegen 的 shape 3 项与 callable runtime scan 1 项定向通过，实际边界／子 scan 及缺失 typed 引用继续覆盖。
 
 Runtime stackmap 批次：格式化、workspace clippy 无警告；release codegen 的 stackmap 登记测试通过，含实际 ODR 合并、PC 冲突、记录边界和 managed frame 错误。
+
+Runtime 初值批次：格式化、workspace clippy 无警告；release codegen 静态根／immortal／初始化登记定向测试通过，保留真实对象边界、独占失败槽、引用和顺序覆盖。

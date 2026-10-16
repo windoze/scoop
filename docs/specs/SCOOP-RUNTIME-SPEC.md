@@ -243,11 +243,11 @@ storage 的 `allocation_extent == max(byte_size, 1)`。ZST storage 使用独立�
 - `ZeroedForRuntimeUnit=1`：完整 allocation extent 初始为零，template 与 relocation 为空；用于初始化单元的 storage/published root，以及 unit/root-entry failure root。
 - `EncodedStaticValue=2`：template 长度等于 allocation extent，padding、ZST token 和 managed-pointer leaf 为零；实际非 pointer 初值与 template 相同。该 storage 不再作为 runtime unit 的 storage 或 failure root。即使 template 全零，也保持此 tag。
 
-Encoded relocation 按 pointer offset 严格递增，无重复；offset 8-byte 对齐、位于 logical byte size 内且恰为 Recursive scan 的一个 leaf。每个非 null leaf 必须且只能对应一项 relocation，指向已登记、只读 immutable immortal object 的精确 object start；其余 leaf 为 null。None scan 不允许 relocation，immortal 不含可移动引用。产物边界验证初值和 relocation 内容，runtime 核对加载后的实际引用及 root 关系。
+Encoded relocation 按 pointer offset 严格递增，无重复；offset 8-byte 对齐、位于 logical byte size 内且恰为 Recursive scan 的一个 leaf。每个非 null leaf 必须且只能对应一项 relocation，指向已登记、只读 immutable immortal object 的精确 object start；其余 leaf 为 null。None scan 不允许 relocation，immortal 不含可移动引用。编译器生成初值与 relocation，链接器完成实际地址绑定；runtime 直接登记静态根，不遍历初值、重建 scan leaf 集合或逐项比较 relocation 副本。GC 在实际访问对象和根时处理必要的内存边界。
 
-failure root 必须是独占的 8-byte、8-aligned Recursive storage，scan 为 `[1, 0]`，初值为 ZeroedForRuntimeUnit；不能兼作普通属性或另一 unit/root 的失败槽。cell 初值为 `{0, null}`，不同 unit 的 cell 互不重叠，也不与 storage 重叠。所有引用与初态验证完成后，才允许 coordinator 或 gateway 修改它们。
+failure root 必须是独占的 8-byte、8-aligned Recursive storage，scan 为 `[1, 0]`，初值为 ZeroedForRuntimeUnit；不能兼作普通属性或另一 unit/root 的失败槽。cell 初值为 `{0, null}`，不同 unit 的 cell 互不重叠，也不与 storage 重叠。初态由编译器发射和链接装载保证；runtime 不在启动时扫描初值或重查 cell 零状态。登记完成后，coordinator 或 gateway 按运行契约修改它们。
 
-eager schedule=1，含已登记 startup gateway；lazy schedule=2，gateway ID、fingerprint 与 pointer 分别为全零、全零、null。initializer/ensure 的 ID 与 entry 必须解析到同一实际 callable。eager gateway 的 fingerprint 等于对应 callable body fingerprint，entry 地址逐 bit 相同；root gateway 遵守同样规则。
+eager schedule=1，含已登记 startup gateway；lazy schedule=2，gateway ID、fingerprint 与 pointer 分别为全零、全零、null。initializer/ensure 的 ID 与 entry 必须解析到同一实际 callable。eager gateway 的 fingerprint 与 entry 来自对应 callable；root gateway 遵守同样生成规则。runtime 直接调用已登记的 gateway，不再比较 callable 的地址与指纹副本。
 
 eager startup gateway 继续使用独立的 `uint32_t(void)` C ABI，成功返回 0、失败返回 1、其他状态非法；runtime 分别按精确原型调用 eager 和 root gateway，不将它们视为同一函数指针类型。root gateway 的 managed catch 覆盖 argv 构造与 main 调用，将原 Throwable 写入 root-entry failure root 并 EndCatch 后返回状态 1；eager gateway 使用 ensure 已发布的 Failed 与 failure root，不复制或覆盖异常。静态失败槽保存普通 managed 引用，不得保存 native unwind record。
 
