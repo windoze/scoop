@@ -1,0 +1,28 @@
+package scoop.asyncio
+
+import scoop.platform.system.*
+
+@CLayout
+internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: Int)
+@CLayout
+internal struct NativeEvent(val id: Long, val status: Int)
+
+internal fun uvFailure(operation: String, status: Int): PlatformException {
+    val error = NativeError(NativeErrorDomain.Libuv, status)
+    return PlatformException(operation, error.kind, Some(error))
+}
+
+@Extern(name = "scoop_io_loop_create")
+internal fun nativeLoopCreate(): NativeCreated
+@Extern(name = "scoop_io_loop_wake")
+internal fun nativeLoopWake(loop: Ptr<Unit>)
+@Extern(name = "scoop_io_loop_poll")
+internal fun nativeLoopPoll(loop: Ptr<Unit>, wait: Boolean)
+@Extern(name = "scoop_io_loop_next")
+internal fun nativeLoopNext(loop: Ptr<Unit>): NativeEvent
+@Extern(name = "scoop_io_loop_destroy")
+internal fun nativeLoopDestroy(loop: Ptr<Unit>): Int
+@Extern(name = "scoop_io_timer_start")
+internal fun nativeTimerStart(loop: Ptr<Unit>, id: Long, seconds: Long, nanos: Int): Int
+@Extern(name = "scoop_io_timer_cancel")
+internal fun nativeTimerCancel(loop: Ptr<Unit>, id: Long)

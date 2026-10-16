@@ -1,0 +1,57 @@
+package scoop.asyncio
+
+import scoop.time.Duration
+
+public class LibuvEventLoop public constructor() : EventLoop {
+    private val accepted: AtomicBoolean = AtomicBoolean(false)
+    private val state: LoopState = LoopState()
+
+    public override fun run(block: suspend (CoroutineScope) -> Unit) {
+        when (currentJobOrNull()) {
+            case Some(_) -> throw IllegalStateException(Some("run requires a caller outside a Job"))
+            case None -> {}
+        }
+        if (hasEventLoop()) throw IllegalStateException(Some("nested event loop run"))
+        if (!accepted.compareAndSet(false, true)) throw IllegalStateException(Some("event loop already used"))
+        val native = state.open()
+        val loop: EventLoop = this
+        context(loop) {
+            startCoroutine<Unit>(suspend { coroutineScope<Unit>(block) }, LoopCompletion(state))
+        }
+        state.drive(native)
+    }
+
+    internal fun requireJob(): Job {
+        if (!hasEventLoop() || currentEventLoop() !== this) throw IllegalStateException(Some("wrong event loop"))
+        val job = currentJobOrNull() ?: throw IllegalStateException(Some("I/O requires a Job"))
+        job.ensureActive()
+        return job
+    }
+
+    public override suspend fun sleep(duration: Duration) {
+        val job = requireJob()
+        if (duration.seconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
+        if (duration == Duration.ZERO) return
+        suspendCoroutine<Unit> { continuation ->
+            val operation = LoopOperation(state, state.nextOperation(),
+                { native, id -> @Unsafe { return@LoopOperation nativeTimerStart(native, id, duration.seconds, duration.nanosecondsOfSecond) } },
+                { native, id -> @Unsafe { nativeTimerCancel(native, id) } },
+                { event, cancelled ->
+                    when (cancelled) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> {
+                            if (event.status < 0) continuation.resumeWithException(uvFailure("sleep", event.status))
+                            else continuation.resume(Unit)
+                        }
+                    }
+                })
+            operation.subscribe(job)
+            state.submit(operation)
+        }
+    }
+}
+
+private class LoopCompletion(val state: LoopState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { state.finishRoot(None) }
+    public override fun resumeWithException(exception: Throwable) { state.finishRoot(Some(exception)) }
+}

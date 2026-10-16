@@ -1,0 +1,57 @@
+package scoop.asyncio
+
+internal enum OperationChoice { Pending, Cancelled(Throwable), Completed }
+
+internal class LoopOperation internal constructor(
+    val loop: LoopState,
+    val id: Long,
+    private val start: (Ptr<Unit>, Long) -> Int,
+    private val cancel: (Ptr<Unit>, Long) -> Unit,
+    private val finish: (NativeEvent, Throwable?) -> Unit
+) {
+    private val lock: IoLock = IoLock()
+    private var choice: OperationChoice = OperationChoice.Pending
+    private var subscription: Disposable? = None
+
+    fun subscribe(job: Job) {
+        val registration = job.invokeOnCancellation { requestCancellation() }
+        // Completion cannot run until this operation has been enqueued.
+        subscription = Some(registration)
+    }
+
+    private fun requestCancellation() {
+        val selected = lock.withLock {
+            when (choice) {
+                case Pending -> { choice = OperationChoice.Cancelled(CancellationException()); true }
+                case _ -> false
+            }
+        }
+        if (selected) loop.post { loop.cancel(id) }
+    }
+
+    fun begin(pointer: Ptr<Unit>) {
+        val cancelled = lock.withLock {
+            when (choice) { case Cancelled(_) -> true; case _ -> false }
+        }
+        if (cancelled) { loop.complete(NativeEvent(id, 0)); return }
+        val status = start(pointer, id)
+        if (status < 0) loop.complete(NativeEvent(id, status))
+    }
+
+    fun cancelNative(pointer: Ptr<Unit>) { cancel(pointer, id) }
+
+    fun complete(event: NativeEvent) {
+        val failure: Throwable? = lock.withLock {
+            val previous = choice
+            choice = OperationChoice.Completed
+            when (previous) {
+                case Cancelled(error) -> Some(error)
+                case Pending -> None
+                case Completed -> throw IllegalStateException(Some("operation completed twice"))
+            }
+        }
+        when (subscription) { case Some(value) -> value.dispose(); case None -> {} }
+        subscription = None
+        loop.ready.add { finish(event, failure) }
+    }
+}

@@ -375,9 +375,9 @@ GC release hook 不承担以上任何生命周期责任，仅是防 native 资�
 - [x] 核对实现规范的协程降级、2.16 与运行时规范第 8、9 章的引用，确认普通库对象可复用现有 continuation、异常、Context 与 GC 合同；如有底层缺口，按第 2 节先修复所属层并完成独立回归，再继续上层实现。
 - [x] 补充 M49 异步 I/O 设计：明确 EventLoop 接口与 LibuvEventLoop 实现、根协程启动、操作取消、显式关闭与 TLS stream 接口约束；仅完成设计，不代表实现或验收完成。
 - [x] 明确结构化并发归入 core、异步 I/O 为普通 Cone、以 Scoop／Cone 实现及先修底层的边界；区分 core 的 fixture 验证与 asyncio 的 `scoop.test` 主要验收入口。
-- [ ] 将第 8～12 节写入独立异步 I/O 库规范；定稿 EventLoop.run、普通泛型扩展 runWithResult、LibuvEventLoop、流与资源接口、I/O 关闭异常和各操作声明，明确接口合同与后端实现边界。
-- [ ] 先定稿平台规范中的异步 buffer 借用与 Libuv 错误域，列为 platform 库的前置能力；同步 core／std／platform 的相关引用。同步接口原有签名与行为保持不变，实际共享存储规则的扩展显式记录。
-- [ ] 锁定 libuv 1.53.0 的三目标 native 构建与链接输入，确认 C helper 复用、SIGPIPE 与已有 FFI／GC 边界；不要求先引入 TLS 依赖。
+- [x] 将第 8～12 节写入独立异步 I/O 库规范；定稿 EventLoop.run、普通泛型扩展 runWithResult、LibuvEventLoop、流与资源接口、I/O 关闭异常和各操作声明，明确接口合同与后端实现边界。
+- [x] 先定稿平台规范中的异步 buffer 借用与 Libuv 错误域，列为 platform 库的前置能力；同步 core／std／platform 的相关引用。同步接口原有签名与行为保持不变，实际共享存储规则的扩展显式记录。
+- [x] 锁定 libuv 1.53.0 的三目标 native 构建与链接输入，确认 C helper 复用、SIGPIPE 与已有 FFI／GC 边界；不要求先引入 TLS 依赖。
 - [ ] 确定 asyncio 的同 Cone `scoop.test` 用例与测试依赖，覆盖第 14.2 节；只有明确说明 `scoop.test` 无法满足的具体需求，才安排专项 fixture。
 
 ### 13.2 实施顺序

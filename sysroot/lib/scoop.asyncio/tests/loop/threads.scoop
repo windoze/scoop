@@ -1,0 +1,53 @@
+package scoop.asyncio
+
+import scoop.platform.concurrent.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class ThreadReturnGate { var worker: Thread? = None }
+
+@Test
+private class EventLoopThreadTest {
+    @Test
+    fun `foreign continuation queues the next IO and returns on the owning loop`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val owner = currentThreadId()
+        val gate = ThreadReturnGate()
+        loop.run suspend { scope ->
+            val child = scope.async<Int> suspend {
+                val foreign = suspendCoroutine<ThreadId> { continuation ->
+                    gate.worker = Some(Thread.start { continuation.resume(currentThreadId()) })
+                }
+                assertTrue(foreign != owner)
+                assertSame(loop, currentEventLoop())
+                gcCollect()
+                loop.sleep(Duration.nanoseconds(1L))
+                assertTrue(currentThreadId() == owner)
+                42
+            }
+            assertEquals(42, child.await())
+        }
+        gate.worker!!.join()
+    }
+
+    @Test
+    fun `foreign cancellation and concurrent run attempts wake one accepted loop`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val cleaned = AtomicBoolean(false)
+        val gate = ThreadReturnGate()
+        loop.run suspend { scope ->
+            val child = scope.launch suspend {
+                try { loop.sleep(Duration.seconds(1000000L)) }
+                finally { cleaned.store(true) }
+            }
+            gate.worker = Some(Thread.start {
+                assertFailsWith<IllegalStateException> { loop.run suspend { _ -> } }
+                child.cancel()
+            })
+            child.join()
+            assertTrue(cleaned.load())
+            loop.sleep(Duration.nanoseconds(1L))
+        }
+        gate.worker!!.join()
+    }
+}

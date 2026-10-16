@@ -1,0 +1,35 @@
+package scoop.asyncio
+
+import scoop.time.Duration
+
+public interface EventLoop {
+    public fun run(block: suspend (CoroutineScope) -> Unit)
+    public suspend fun sleep(duration: Duration)
+}
+
+context(loop: EventLoop)
+public fun currentEventLoop(): EventLoop = loop
+
+internal fun hasEventLoop(): Boolean {
+    try { currentEventLoop(); return true }
+    catch (_: MissingContextException) { return false }
+}
+
+private class LoopResult<T> { var value: MaybeUninit<T> = MaybeUninit<T>.uninit() }
+
+public fun <T> EventLoop.runWithResult(block: suspend (CoroutineScope) -> T): T {
+    val result = LoopResult<T>()
+    run suspend { scope -> result.value = MaybeUninit<T>.initialized(block(scope)) }
+    @Unsafe { return result.value.assumeInit() }
+}
+
+public class IoClosedException public constructor() : Exception(Some("I/O resource is closed"))
+
+internal class IoLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+}
