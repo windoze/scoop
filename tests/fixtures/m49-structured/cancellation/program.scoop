@@ -1,0 +1,103 @@
+fun <T> absent(value: T?): Boolean = when (value) { case None -> true; case Some(_) -> false }
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("cancellation assertion")) }
+
+class Completion<T> : Continuation<T> {
+    var done: Boolean = false
+    var error: Throwable? = None
+    public override fun resume(value: T) { check(!done); done = true }
+    public override fun resumeWithException(value: Throwable) { check(!done); error = Some(value); done = true }
+}
+
+class State {
+    var gate: Continuation<Int>? = None
+    var cancellable: CancellableContinuation<Int>? = None
+    var root: Job? = None
+    var child: Job? = None
+    var failed: Deferred<Int>? = None
+    var cleanup: Int = 0
+    var value: Int = 0
+}
+
+fun failureWaitsForCleanup() {
+    val state = State()
+    val failure = Throwable()
+    val done = Completion<Unit>()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            state.root = Some(scope.job)
+            scope.launch suspend {
+                try { suspendCoroutine<Int> { next -> state.gate = Some(next) } }
+                finally { state.cleanup += 1 }
+            }
+            scope.launch suspend {
+                try { suspendCancellableCoroutine<Int> { next -> state.cancellable = Some(next) } }
+                finally { state.cleanup += 1 }
+            }
+            state.failed = Some(scope.async<Int> suspend { throw failure })
+        }
+    }, done)
+    check(state.root!!.isCancelled && !state.root!!.isCompleted)
+    check(state.cleanup == 1 && !done.done)
+    check(!state.cancellable!!.tryResume(2))
+    state.gate!!.resume(1)
+    check(state.cleanup == 2 && done.done)
+    check(done.error!! === failure)
+    val first = Completion<Int>()
+    val second = Completion<Int>()
+    startCoroutine<Int>(suspend { state.failed!!.await() }, first)
+    startCoroutine<Int>(suspend { state.failed!!.await() }, second)
+    check(first.error!! === failure && second.error!! === failure)
+}
+
+fun cancelWaiterKeepsTarget() {
+    val state = State()
+    val done = Completion<Unit>()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            val target = scope.async<Int> suspend { suspendCoroutine<Int> { next -> state.gate = Some(next) } }
+            state.root = Some(target)
+            val waiter = scope.launch suspend { target.await(); check(false) }
+            state.child = Some(waiter)
+            scope.launch suspend { state.value = target.await(); target.join() }
+            waiter.cancel()
+            waiter.cancel()
+            check(waiter.isCompleted && waiter.isCancelled)
+            check(!target.isCancelled)
+        }
+    }, done)
+    check(!done.done)
+    state.gate!!.resume(41)
+    check(state.value == 41 && done.done && absent(done.error))
+}
+
+fun explicitCancellationAndHandlers() {
+    val state = State()
+    val done = Completion<Unit>()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            state.root = Some(scope.job)
+            scope.job.invokeOnCancellation { _ -> state.value += 1 }
+            val removed = scope.job.invokeOnCancellation { _ -> check(false) }
+            removed.dispose()
+            try {
+                suspendCoroutine<Int> { next -> state.gate = Some(next) }
+                ensureActive()
+                check(false)
+            } finally { state.cleanup += 1 }
+        }
+    }, done)
+    state.root!!.cancel()
+    state.root!!.cancel()
+    check(state.value == 1 && !done.done)
+    state.gate!!.resume(0)
+    check(done.error!! is CancellationException)
+    check(state.cleanup == 1)
+}
+
+fun main() {
+    failureWaitsForCleanup()
+    cancelWaiterKeepsTarget()
+    explicitCancellationAndHandlers()
+    println("cancellation ok")
+}

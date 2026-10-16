@@ -2117,7 +2117,7 @@ coroutineScope 建立属于当前 Job 的子作用域；当前没有 Job 时建�
 
 cancel 幂等、协作式向下传播，ensureActive 抛普通 CancellationException。原始 suspendCoroutine 不自动观察取消。join／await 的公开等待可以被等待者自身的取消撤销，不直接取消被等待任务；树关系的正常取消传播仍有效。取消通过恢复异常进入原挂起点并执行正常 finally，不丢弃 continuation。
 
-invokeOnCancellation 在首次取消时于内部锁外调用 handler 一次；登记时已经取消则同步调用，正常完成后登记则不调用。返回的 Disposable 撤销尚未开始的通知，dispose 与已开始的 handler 可以竞争，不承诺等待 handler 结束。通知结束或撤销后释放 handler 引用。handler 抛出的非取消异常按当前 Job 的失败记录并传播，其他通知及子任务取消仍继续。状态、登记和结果使用现有原子同步协调；用户回调、子任务通知及 continuation 恢复均在内部临界区外执行。
+invokeOnCancellation 在首次取消时于内部锁外调用 handler 一次；登记时已经取消则同步调用，正常完成后登记则不调用。返回的 Disposable 撤销尚未开始的通知，dispose 与已开始的 handler 可以竞争，不承诺等待 handler 结束。通知结束或撤销后释放 handler 引用。handler 抛出的非取消异常在 Job 未完成时按其失败记录并传播，其他通知及子任务取消仍继续；已取消且已完成后新登记的 handler 同步执行，其异常直接向登记方抛出，不改写已发布的结果。状态、登记和结果使用现有原子同步协调；用户回调、子任务通知及 continuation 恢复均在内部临界区外执行。
 
 #### 11.9.2 可取消挂起
 

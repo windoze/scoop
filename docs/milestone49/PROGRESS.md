@@ -4,8 +4,8 @@
 
 | 批次 | 状态 |
 | --- | --- |
-| core 任务树、失败传播与取消 | 实施中，公共合同已写入语言规范 11.9.1 |
-| 可取消挂起协调 | 合同已定稿，待实现 |
+| core 任务树、失败传播与取消 | 已实现，本机定向验收通过；Linux 留到整体完整验收 |
+| 可取消挂起协调 | 已实现，本机同步／挂起／跨线程竞争与 GC 验收通过 |
 | platform 异步 buffer 借用与 Libuv 错误域 | 待实施 |
 | asyncio 事件循环、定时等待与投递 | 待实施 |
 | TCP 与异步流组合 | 待实施 |
@@ -15,3 +15,11 @@
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
 
 core 初次跨 Cone 验证发现：普通泛型模板调用 internal suspend 成员时，HIR 已保存支持声明，但 MIR callable 导出选择遗漏该成员。已先独立修复为遍历共有完整声明目录；新增 `m49-suspend-support-export` 覆盖 private 顶层及 internal 成员的真实跨 Cone 调用，debug／release 和 moving GC 通过。相关 Rust 119 项由一轮 118 项通过及旧断言修订后的单项补验闭合；格式化和 workspace clippy 通过。未改变 wire 或 runtime ABI。
+
+## core 基础验收
+
+实现按任务状态、构建器、可取消等待和通知登记拆为四个普通 Scoop 文件，最长 192 行。公开声明与精确 Job Context binding 均由普通 core 产物消费，未新增编译器角色或 runtime 机制。
+
+本机 `m49-structured` 四组 fixture 的 debug／release 共八个变体通过，每个程序同时通过普通及 moving GC 运行。覆盖多层子树收尾、关闭后拒绝启动、值／引用结果、重复 await 与失败身份、未 await 的失败传播、finally、等待者取消与原始不可取消挂起、登记异常和迟到完成、取消回调失败、跨线程恢复及 Context、完成／取消竞争和启动／作用域关闭竞争。最终组合补验只重跑修改过的三组，六个变体全部通过；未重复无关全量测试。`target` 再次检查为约 1.9 GB。
+
+下一批先定稿并实现 platform 的异步 buffer 借用及 Libuv 错误域，再创建 asyncio Cone；整个 M49 尚未完成。

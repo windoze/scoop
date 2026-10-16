@@ -1,0 +1,113 @@
+fun <T> absent(value: T?): Boolean = when (value) { case None -> true; case Some(_) -> false }
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("task assertion")) }
+
+class Gate {
+    var continuation: Continuation<Int>? = None
+    suspend fun wait(): Int = suspendCoroutine<Int> { next -> continuation = Some(next) }
+    fun open(value: Int) {
+        val next = continuation!!
+        continuation = None
+        next.resume(value)
+    }
+}
+
+class Completion<T> : Continuation<T> {
+    var done: Boolean = false
+    var value: MaybeUninit<T> = MaybeUninit<T>.uninit()
+    var error: Throwable? = None
+    public override fun resume(result: T) {
+        check(!done)
+        value = MaybeUninit<T>.initialized(result)
+        done = true
+    }
+    public override fun resumeWithException(failure: Throwable) {
+        check(!done)
+        error = Some(failure)
+        done = true
+    }
+    fun get(): T {
+        check(done && absent(error))
+        @Unsafe { return value.assumeInit() }
+    }
+}
+
+class State {
+    var scope: CoroutineScope? = None
+    var deferred: Deferred<Int>? = None
+    var child: Job? = None
+    var count: Int = 0
+}
+
+class Label(val text: String)
+context(label: Label)
+fun labelText(): String = label.text
+
+fun main() {
+    check(absent(currentJobOrNull()))
+    ensureActive()
+    val gate = Gate()
+    val completion = Completion<Int>()
+    val state = State()
+    val parentLabel = Label("parent")
+    context(parentLabel) {
+        startCoroutine<Int>(suspend {
+            coroutineScope<Int> suspend { scope ->
+                check(currentJobOrNull()!! === scope.job)
+                state.scope = Some(scope)
+                state.deferred = Some(scope.async<Int> suspend {
+                    check(!(currentJobOrNull()!! === scope.job))
+                    check(labelText() == "parent")
+                    coroutineScope<Int> suspend { inner ->
+                        inner.launch suspend {
+                            context(Label("child")) {
+                                check(gate.wait() == 7)
+                                gcCollect()
+                                check(labelText() == "child")
+                                state.count += 1
+                            }
+                        }
+                        19
+                    }
+                })
+                val ready = scope.async<String> suspend { "ready" }
+                check(ready.isCompleted)
+                check(ready.await() == "ready")
+                check(ready.await() == "ready")
+                check(labelText() == "parent")
+                42
+            }
+        }, completion)
+        check(labelText() == "parent")
+    }
+    check(!completion.done)
+    check(!state.scope!!.job.isCompleted)
+    var rejected = false
+    try { state.scope!!.launch suspend {} }
+    catch (_: IllegalStateException) { rejected = true }
+    check(rejected)
+    context(Label("resumer")) {
+        gate.open(7)
+        check(labelText() == "resumer")
+    }
+    check(completion.get() == 42)
+    check(state.count == 1)
+    check(state.scope!!.job.isCompleted)
+    val after = Completion<Int>()
+    startCoroutine<Int>(suspend {
+        state.scope!!.job.join()
+        state.deferred!!.await() + state.deferred!!.await()
+    }, after)
+    check(after.get() == 38)
+    val reference = Label("reference result")
+    val refResult = Completion<Label>()
+    startCoroutine<Label>(suspend {
+        coroutineScope<Label> suspend { scope ->
+            val value = scope.async<Label> suspend { reference }
+            value.await()
+        }
+    }, refResult)
+    check(refResult.get() === reference)
+    check(absent(currentJobOrNull()))
+    println("tasks ok")
+}

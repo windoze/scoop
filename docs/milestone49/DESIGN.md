@@ -50,7 +50,7 @@ TLS 与 HTTP 不在本轮交付范围。TLS stream 作为明确的后续使用�
 
 ## 3. 基础 API 草案
 
-下面确定 core 结构化并发 API 的职责，最终 package、声明形式、访问性和参数签名在实施前定稿。采用已有普通方法与泛型扩展表达 API，不要求 generic virtual method 或新的函数类型规则。
+core 结构化并发的 package、声明形式、访问性和参数签名已在语言规范 11.9.1～11.9.2 定稿。采用已有普通方法与泛型扩展表达 API，不要求 generic virtual method 或新的函数类型规则。
 
 | API 方向 | 职责 |
 | --- | --- |
@@ -70,7 +70,7 @@ TLS 与 HTTP 不在本轮交付范围。TLS stream 作为明确的后续使用�
 suspend fun <A, B> readBoth(
     readLeft: suspend () -> A,
     readRight: suspend () -> B
-): (A, B) = coroutineScope { scope ->
+): (A, B) = coroutineScope suspend { scope ->
     val left = scope.async(readLeft)
     val right = scope.async(readRight)
     (left.await(), right.await())
@@ -107,7 +107,7 @@ Job 的最终结果只发布一次，为成功、失败或取消。取消请求�
 3. `async` 的失败同样参与父任务的失败传播，即使调用方尚未执行 `await`。单纯捕获一次 `await` 异常不撤销已经发生的父作用域失败。
 4. 单纯取消某个子任务只向其后代传播，不作为普通失败自动取消父任务。取消过程中实际发生的非取消异常仍按失败处理。
 
-并发发生多个失败时，至少保留首先被记录的非取消失败，取消异常不能覆盖它；并发主失败的选择不承诺固定源码顺序。其余失败的呈现方式在公共 API 定稿时明确，不以此为由预先扩展 core 的 Throwable 合同。单个正文内的 `try`／`catch`／`finally` 仍按语言原有的异常覆盖规则执行。
+并发发生多个失败时，至少保留首先被记录的非取消失败，取消异常不能覆盖它；并发主失败的选择不承诺固定源码顺序。首版仅保留首先记录的非取消失败，其余独立失败不覆盖它，不扩展 core 的 Throwable 合同。单个正文内的 `try`／`catch`／`finally` 仍按语言原有的异常覆盖规则执行。
 
 ### 5.2 取消请求与取消观察
 
@@ -134,7 +134,7 @@ core 的结构化并发实现以普通 Scoop 在 `suspendCoroutine` 上包装可
 | 取消先结束等待，稍后才收到外部完成 | 迟到事件不再次恢复协程；I/O 适配仍完成该事件所需的资源清理 |
 | 等待结束 | 移除不再需要的取消登记与等待者引用，不持续保活已结束的 frame |
 
-首版以这次完成判定决定结果，不额外承诺“成功已经选定后，执行前的取消一定覆盖成功”。公共签名和同步登记异常的处理须与 core 11.9 的既有协议一起定稿。
+首版以这次完成判定决定结果，不额外承诺“成功已经选定后，执行前的取消一定覆盖成功”。公共签名和同步登记异常按语言规范 11.9.2 定稿，保留 core 11.9 的既有协议。跨挂起 buffer 操作通过 Job.invokeOnCancellation 与原始 suspendCoroutine 协调资源收尾，不使用立即取消等待来提前归还借用。
 
 Job 状态、子任务集合、等待者和结果发布使用现有原子与同步规则协调，不能因为没有线程池就假定回调总在同一线程。实际恢复 continuation、通知用户代码或请求外部操作取消应在内部临界区之外执行，允许同步完成和重入。
 
@@ -218,9 +218,9 @@ I/O 的实际派发也经过 EventLoop 接口。以下均为普通非泛型 susp
 ```scoop
 fun main() {
     val loop: EventLoop = LibuvEventLoop()
-    val result = loop.runWithResult { scope ->
-        val left = scope.async { 20 }
-        val right = scope.async { 22 }
+    val result = loop.runWithResult suspend { scope ->
+        val left = scope.async suspend { 20 }
+        val right = scope.async suspend { 22 }
         left.await() + right.await()
     }
     println(result)
@@ -369,10 +369,10 @@ GC release hook 不承担以上任何生命周期责任，仅是防 native 资�
 
 ### 13.1 实施前定稿
 
-- [ ] 定稿 core 内结构化并发的 package 与公开声明，包括 Job、Deferred、CoroutineScope、构建器及取消异常的签名；实现放在 `sysroot/lib/scoop.core/` 的普通 Scoop 源码中。
-- [ ] 定稿多失败时的主次呈现、可取消等待的公开入口及同步登记异常规则；保留第 4～6 节的结构化完成与单次恢复要求。
-- [ ] 在语言规范的 core 库合同中记录任务树、正常／失败／取消退出、`join`／`await` 和 Context 绑定；同步 8.2、8.3、11.9，修正构建器不属于 core 的旧表述，区分既有协程原语与新增的普通库能力。取消不变成所有 suspend 调用的隐式语言行为。
-- [ ] 核对实现规范的协程降级、2.16 与运行时规范第 8、9 章的引用，确认普通库对象可复用现有 continuation、异常、Context 与 GC 合同；如有底层缺口，按第 2 节先修复所属层并完成独立回归，再继续上层实现。
+- [x] 定稿 core 内结构化并发的 package 与公开声明，包括 Job、Deferred、CoroutineScope、构建器及取消异常的签名；实现放在 `sysroot/lib/scoop.core/` 的普通 Scoop 源码中。
+- [x] 定稿多失败时的主次呈现、可取消等待的公开入口及同步登记异常规则；保留第 4～6 节的结构化完成与单次恢复要求。
+- [x] 在语言规范的 core 库合同中记录任务树、正常／失败／取消退出、`join`／`await` 和 Context 绑定；同步 8.2、8.3、11.9，修正构建器不属于 core 的旧表述，区分既有协程原语与新增的普通库能力。取消不变成所有 suspend 调用的隐式语言行为。
+- [x] 核对实现规范的协程降级、2.16 与运行时规范第 8、9 章的引用，确认普通库对象可复用现有 continuation、异常、Context 与 GC 合同；如有底层缺口，按第 2 节先修复所属层并完成独立回归，再继续上层实现。
 - [x] 补充 M49 异步 I/O 设计：明确 EventLoop 接口与 LibuvEventLoop 实现、根协程启动、操作取消、显式关闭与 TLS stream 接口约束；仅完成设计，不代表实现或验收完成。
 - [x] 明确结构化并发归入 core、异步 I/O 为普通 Cone、以 Scoop／Cone 实现及先修底层的边界；区分 core 的 fixture 验证与 asyncio 的 `scoop.test` 主要验收入口。
 - [ ] 将第 8～12 节写入独立异步 I/O 库规范；定稿 EventLoop.run、普通泛型扩展 runWithResult、LibuvEventLoop、流与资源接口、I/O 关闭异常和各操作声明，明确接口合同与后端实现边界。
@@ -433,4 +433,4 @@ GC release hook 不承担以上任何生命周期责任，仅是防 native 资�
 
 网络使用 loopback 和动态端口，DNS 不依赖公共外部服务。取消竞争由明确的同步点与必要的 native 测试控制安排，同时保留真实 OS 传输；不通过任意 sleep 或只手工恢复 continuation 证明完成。每项能力有独立覆盖，并有并发文件／网络、取消／关闭与 GC 的组合覆盖，不增加仅供测试使用的生产后端或插件框架。
 
-本轮文档修改只检查设计内容、引用、章节一致性与修改范围，不执行实现功能验收。后续验收文档只记录范围、结果概要、失败闭合与必要限制，原始日志和逐次报告放在仓库外。
+实施验收记录见 PROGRESS.md，最终验收文档只记录范围、结果概要、失败闭合与必要限制，原始日志和逐次报告放在仓库外。

@@ -1,0 +1,83 @@
+// Short state transitions only; callbacks and continuation resumes run unlocked.
+internal class CoroutineLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+
+    internal fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+}
+
+internal class CoroutineListeners {
+    private val lock: CoroutineLock = CoroutineLock()
+    private var entries: ArrayList<CoroutineRegistration> = ArrayList<CoroutineRegistration>()
+
+    internal fun add(action: () -> Unit): CoroutineRegistration = lock.withLock {
+        val entry = CoroutineRegistration(this, action)
+        entries.add(entry)
+        entry
+    }
+
+    internal fun remove(entry: CoroutineRegistration) {
+        lock.withLock {
+            var index = 0L
+            while (index < entries.size) {
+                if (entries[index] === entry) {
+                    entries.removeAt(index)
+                    return@withLock
+                }
+                index += 1L
+            }
+        }
+    }
+
+    internal fun take(): ArrayList<CoroutineRegistration> = lock.withLock {
+        val result = entries
+        entries = ArrayList<CoroutineRegistration>()
+        result
+    }
+}
+
+internal class CoroutineRegistration(
+    private val owner: CoroutineListeners,
+    action: () -> Unit
+) : Disposable {
+    private val lock: CoroutineLock = CoroutineLock()
+    private var action: (() -> Unit)? = Some(action)
+
+    internal fun fire() {
+        val callback = lock.withLock {
+            val result = action
+            action = None
+            result
+        }
+        owner.remove(this)
+        when (callback) {
+            case Some(invoke) -> invoke()
+            case None -> {}
+        }
+    }
+
+    public override fun dispose() {
+        lock.withLock { action = None }
+        owner.remove(this)
+    }
+}
+
+internal fun notifyCoroutineListeners(entries: ArrayList<CoroutineRegistration>) {
+    var failure: Throwable? = None
+    for (entry in entries) {
+        try { entry.fire() }
+        catch (error: Throwable) { if (coroutineAbsent(failure)) failure = Some(error) }
+    }
+    when (failure) {
+        case Some(error) -> throw error
+        case None -> {}
+    }
+}
+
+internal fun <T> coroutineAbsent(value: T?): Boolean = when (value) {
+    case None -> true
+    case Some(_) -> false
+}
