@@ -1,0 +1,9 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+
+internal class IoTestDirectory : Disposable {
+    val path: Path = Files.createTempDirectory(prefix = "scoop-asyncio-")
+    fun child(name: String): Path = path.resolve(Path.fromString(name))
+    public override fun dispose() { Files.deleteRecursively(path) }
+}

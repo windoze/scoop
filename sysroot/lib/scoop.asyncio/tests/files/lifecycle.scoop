@@ -1,0 +1,59 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncFileLifecycleTest {
+    @Test
+    fun `concurrent close drains the active worker and releases its buffer`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("data")
+            Files.writeText(path, "x")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                val file = loop.openFile(path)
+                NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                    val reader = scope.launch suspend {
+                        try { file.readInto(bytes, 1L); fail(Some("close lost before completion was delivered")) }
+                        catch (_: IoClosedException) {}
+                    }
+                    try { file.syncData(); fail(Some("concurrent operation accepted")) }
+                    catch (_: IllegalStateException) {}
+                    val first = scope.launch suspend { file.close() }
+                    val second = scope.launch suspend { file.close() }
+                    first.join()
+                    second.join()
+                    reader.join()
+                    assertTrue(bytes.writePosition == 0L || bytes.writePosition == 1L)
+                    bytes.clear()
+                    file.close()
+                    try { file.readInto(bytes, 0L); fail(Some("closed file read accepted")) }
+                    catch (_: IoClosedException) {}
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `cancelled finally and loop exit close escaped files`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("data")
+            Files.writeText(path, "x")
+            val loop: EventLoop = LibuvEventLoop()
+            val escaped = loop.runWithResult<AsyncFile> suspend { scope ->
+                val file = loop.openFile(path)
+                val child = scope.launch suspend {
+                    try { currentJobOrNull()!!.cancel(); ensureActive() }
+                    finally { file.close() }
+                }
+                child.join()
+                assertTrue(child.isCancelled)
+                loop.openFile(path)
+            }
+            val next: EventLoop = LibuvEventLoop()
+            next.run suspend { _ -> escaped.close(); escaped.close() }
+        }
+    }
+}

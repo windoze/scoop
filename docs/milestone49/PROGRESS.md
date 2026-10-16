@@ -10,8 +10,9 @@
 | asyncio 事件循环、定时等待与投递 | 已实现，本机 debug／release／moving GC 八项 scoop.test 通过 |
 | 异步字节流协议与组合扩展 | 已实现，本机 debug／release／moving GC 六项 scoop.test 通过 |
 | TCP | 已实现，本机 debug／release／moving GC 定向验收通过 |
-| DNS | 已实现，本机三项 scoop.test 通过；其他 profile 随后续组合验证 |
-| 文件、UDP | 实施中 |
+| DNS | 已实现，本机 debug／release／moving GC 验收通过 |
+| 文件 | 已实现，本机八项定向及完整 asyncio release／moving GC 验收通过 |
+| UDP | 实施中 |
 | 三目标组合及完整验收 | 待实施 |
 
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
@@ -61,3 +62,9 @@ resolve 通过 uv_queue_work 调用原始 getaddrinfo helper，提交时复制�
 文件工作请求测试的普通 native 依赖需要共享 libuv 头文件，发现 manifest 将 include／forced include 套入禁止越出 Cone 根的源码身份路径。先修订语言、实现及 M33 设计，改用普通 PathBuf，保留原始路径交给实际文件系统解析；相对路径以 Cone 根为基准，允许绝对路径，仍拒绝空路径／NUL。没有增加来源审计、复制隔离或产物验证。manifest 解析缓存更新为 manifests-v2。
 
 manifest／toolchain 共九十项 Rust 测试及三项 manifest cache 测试通过；新增共享 include／forced header 的 debug、release 实际 C 编译运行回归，并把两个旧越界路径负例改为空路径语法负例，三个 fixture／四个变体／六个进程全部通过。workspace clippy 通过。编辑器后台构建结束后用 Cargo 清理 27.2 GiB 旧 debug 数据，复建定向测试后 target 约 1.9 GB。
+
+## 异步文件与工作队列验收
+
+open／顺序 read、write／sync／close 复用 platform 原始 helper，经实际 libuv worker 执行。一个文件只允许一个活动操作；关闭先请求取消并等待 worker 与 buffer 借用结束，再提交一次 raw close。open 预留关闭请求，迟到成功在报告取消前释放 fd；路径和原始 errno 随异常保留。实现文件最长 96 行。
+
+新增八项同 Cone scoop.test，本机定向全部通过；完整三十七项 asyncio 在 release 和 moving GC 全部通过，也闭合 DNS 的对应 profile。覆盖 append／EOF／sync／原始路径与失败、文件到 TCP 的短 buffer copy、并发关闭、取消 finally、真实排队请求和阻塞 FIFO 执行中取消、迟到 open 的 fd 清理。工作线程占位器只存在于普通 test-dependency，使用实际 uv_queue_work 与 syscall 建立确定顺序，不增加生产后端。C11 警告检查、workspace clippy 和差异检查通过。target 约 1.9 GB；Linux 完整验证仍留在 UDP 完成后。

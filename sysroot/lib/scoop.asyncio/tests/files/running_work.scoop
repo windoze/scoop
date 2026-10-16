@@ -1,0 +1,87 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.test.*
+
+internal fun makeFifo(path: Path) {
+    @Unsafe {
+        path.withNativePath { pointer -> @Unsafe { assertEquals(0, createFifo(pointer, 0x180u)) } }
+    }
+}
+
+@Test
+private class AsyncFileRunningWorkTest {
+    @Test
+    fun `cancelling a running read waits for syscall completion and commits its actual prefix`() {
+        @Unsafe { assertTrue(testPoolSize() >= 2u, Some("this execution fence requires UV_THREADPOOL_SIZE >= 2")) }
+        IoTestDirectory().use { tree ->
+            val path = tree.child("fifo")
+            makeFifo(path)
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val file = loop.openFile(path, OpenOptions(write = true))
+                File.open(path, OpenOptions(read = false, write = true)).use suspend { writer ->
+                    NativeByteBuffer.allocate(4L).use suspend { bytes ->
+                        val reading = scope.launch suspend { file.readInto(bytes, 4L) }
+                        val fence = WorkFence(backend)
+                        // FIFO work is ahead of these N-1 gates in the real worker queue.
+                        fence.start(1u)
+                        fence.waitStarted()
+                        var supplied = false
+                        try {
+                            assertFailsWith<IllegalStateException> { bytes.clear() }
+                            reading.cancel()
+                            assertFalse(reading.isCompleted)
+                            gcCollect()
+                            writer.writeAllBytes(Array<Byte>(1L) { 42.toInt8() })
+                            supplied = true
+                            reading.join()
+                            assertTrue(reading.isCancelled)
+                            assertEquals(1L, bytes.writePosition)
+                            assertEquals(42.toInt8(), bytes.readByte())
+                            bytes.clear()
+                        } finally {
+                            if (!supplied) writer.writeAllBytes(Array<Byte>(1L) { 42.toInt8() })
+                            fence.close()
+                        }
+                    }
+                }
+                file.close()
+            }
+        }
+    }
+
+    @Test
+    fun `late open cancellation closes the acquired FIFO before the caller resumes`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("fifo")
+            makeFifo(path)
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val output = OpenedFifo()
+                val opening = scope.launch suspend { loop.openFile(path) }
+                backend.state.post {
+                    // O_WRONLY rendezvous proves that the real blocking O_RDONLY open ran.
+                    output.file = Some(File.open(path, OpenOptions(read = false, write = true)))
+                    opening.cancel()
+                }
+                opening.join()
+                assertTrue(opening.isCancelled)
+                output.file!!.use { writer ->
+                    val failure = assertFailsWith<PlatformException> {
+                        writer.writeAllBytes(Array<Byte>(1L) { 42.toInt8() })
+                    }
+                    assertTrue(failure.kind == PlatformErrorKind.BrokenPipe)
+                }
+            }
+        }
+    }
+}
+
+private class OpenedFifo { var file: File? = None }
+@Extern(name = "mkfifo") private fun createFifo(path: Ptr<Byte>, mode: UInt): Int

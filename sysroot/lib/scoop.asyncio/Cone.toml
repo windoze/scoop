@@ -13,6 +13,7 @@ kind = "library"
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
+"scoop.tests:asyncio-native" = { version = "0.1.0", path = "test-native" }
 
 [native]
 include = ["vendor/libuv/include", "vendor/libuv/src"]
@@ -26,6 +27,12 @@ path = "native/timer.c"
 
 [[native.sources]]
 path = "native/work.c"
+
+[[native.sources]]
+path = "native/file_open.c"
+
+[[native.sources]]
+path = "native/file_io.c"
 
 [[native.sources]]
 path = "native/resolve.c"

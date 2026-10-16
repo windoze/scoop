@@ -1,0 +1,96 @@
+package scoop.asyncio
+
+import scoop.platform.system.OsString
+
+private enum FilePhase { Open, Closing, Closed }
+
+internal class OwnedFile(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, val context: OsString) : LoopResource {
+    private val lock: IoLock = IoLock()
+    private var phase: FilePhase = FilePhase.Open
+    private var busy: Boolean = false
+    private var active: LoopOperation? = None
+    private var closing: Boolean = false
+    private var waiters: ArrayList<(Throwable?) -> Unit> = ArrayList<(Throwable?) -> Unit>()
+
+    val isClosed: Boolean get() = lock.withLock { phase == FilePhase.Closed }
+
+    fun reserve(): FileReservation {
+        lock.withLock {
+            if (phase != FilePhase.Open) throw IoClosedException()
+            if (busy) throw IllegalStateException(Some("file operation is active"))
+            busy = true
+        }
+        return FileReservation(this)
+    }
+
+    fun attach(operation: LoopOperation) {
+        val stopped = lock.withLock { active = Some(operation); phase != FilePhase.Open }
+        if (stopped) operation.selectFailure(IoClosedException())
+    }
+
+    fun releaseOperation() {
+        lock.withLock { busy = false; active = None }
+        loop.state.post { closeWhenIdle() }
+    }
+
+    suspend fun close() {
+        if (isClosed) return
+        loop.requireJob(false)
+        suspendCoroutine<Unit> { continuation ->
+            loop.state.post { closeOnLoop { error -> finishTcpUnit(continuation, error) } }
+        }
+    }
+
+    fun closeOnLoop(waiter: (Throwable?) -> Unit) {
+        val previous = lock.withLock {
+            val old = phase
+            if (old != FilePhase.Closed) waiters.add(waiter)
+            if (old == FilePhase.Open) phase = FilePhase.Closing
+            old
+        }
+        if (previous == FilePhase.Closed) { loop.state.ready.add { waiter(None) }; return }
+        if (previous == FilePhase.Closing) return
+        val operation = lock.withLock { active }
+        when (operation) { case Some(value) -> value.requestFailure(IoClosedException()); case None -> {} }
+        closeWhenIdle()
+    }
+
+    private fun closeWhenIdle() {
+        val start = lock.withLock {
+            if (phase != FilePhase.Closing || busy || closing) false
+            else { closing = true; true }
+        }
+        if (!start) return
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeFileClose(pointer, id)) } },
+            { _, _ -> },
+            { event, selected ->
+                val error = completionFailure("file close", event.result, selected, Some(context))
+                val callbacks = lock.withLock {
+                    phase = FilePhase.Closed
+                    val previous = waiters
+                    waiters = ArrayList<(Throwable?) -> Unit>()
+                    previous
+                }
+                loop.state.forget(this)
+                for (callback in callbacks) loop.state.ready.add { callback(error) }
+            })
+        loop.state.submit(operation)
+    }
+
+    public override fun closeFromLoop() {
+        closeOnLoop { error ->
+            when (error) { case Some(value) -> loop.state.cleanupFailed(value); case None -> {} }
+        }
+    }
+}
+
+internal class FileReservation(private val owner: OwnedFile) : Disposable {
+    private val released: AtomicBoolean = AtomicBoolean(false)
+    public override fun dispose() {
+        if (released.compareAndSet(false, true)) owner.releaseOperation()
+    }
+}
+
+@Extern(name = "scoop_io_file_close")
+private fun nativeFileClose(file: Ptr<Unit>, id: Long): Int
