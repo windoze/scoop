@@ -55,3 +55,9 @@ NativeByteBorrow 使用普通公开 Unsafe API 持有 owner，提交已知进度
 公开 platform 的同步 Unsafe 原始字符串／路径借用、已验证的 OpenOptions helper flags、普通 C helper 头文件及共享 NativeSocketAddress 类型。两个新增平台测试通过普通与 moving GC；asyncio 直接消费这些普通产物声明。首次 DNS 链接显示同形 nominal 不能替代同一 native 合同的 exact type，已改为共享 platform 定义，未改编译器 ABI 规则。
 
 resolve 通过 uv_queue_work 调用原始 getaddrinfo helper，提交时复制原始名称，after-work 释放输入，managed 消费或取消时释放 addrinfo。保留 AddressResolution 与同次 EAI_SYSTEM errno；原生队列撤销和执行后完成共用已登记请求的单次完成路径。本机三项 scoop.test 通过，覆盖 IPv4／IPv6／localhost 与实际 TCP 组合、NUL／port／真实 EAI 失败，以及提交前后反复取消和后续解析。文件将复用同一工作请求队列；release、moving GC 及 Linux 在后续组合验证中闭合。
+
+## native include 路径修订
+
+文件工作请求测试的普通 native 依赖需要共享 libuv 头文件，发现 manifest 将 include／forced include 套入禁止越出 Cone 根的源码身份路径。先修订语言、实现及 M33 设计，改用普通 PathBuf，保留原始路径交给实际文件系统解析；相对路径以 Cone 根为基准，允许绝对路径，仍拒绝空路径／NUL。没有增加来源审计、复制隔离或产物验证。manifest 解析缓存更新为 manifests-v2。
+
+manifest／toolchain 共九十项 Rust 测试及三项 manifest cache 测试通过；新增共享 include／forced header 的 debug、release 实际 C 编译运行回归，并把两个旧越界路径负例改为空路径语法负例，三个 fixture／四个变体／六个进程全部通过。workspace clippy 通过。编辑器后台构建结束后用 Cargo 清理 27.2 GiB 旧 debug 数据，复建定向测试后 target 约 1.9 GB。

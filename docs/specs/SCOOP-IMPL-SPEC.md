@@ -561,7 +561,7 @@ manifest 字段、路径形式及 `when` 的合法性先于 target 筛选检查�
 
 SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Executable，只依赖 core；用户 manifest 不能声明该 coordinate。build/run 此时拒绝 cone-path，scoopc 拒绝 direct/support slib 参数。其 `.slib` 可作为本次构建、缓存或显式 link 的 executable root，不能作为依赖或 manifest locator 指向的可分发 Cone。
 
-测试配置遵守语言规范 12.2.4。manifest 解码保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或展开测试依赖，缓存键不包含测试配置或测试文件摘要。manifest 未变化时使用记录的解析结果；变化时解析一次并按有效配置判断相应用途是否更新。原始文本供实际需要的诊断与编译使用，文本变化本身不等于生产语义变化。父进程的根、显式源码依赖与默认标准库使用同一 `manifests-v1` 解析记录：按实际 manifest 路径、mtime、大小和解析器 target catalog 判断更新，保存已解析的生产／测试／native 配置、locator、诊断区间及对应文本。命中不打开原 manifest 或重跑 TOML parser；缺失输入仍先报告普通定位错误。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。实际编译的 scoopc 仍读取本次自己的 manifest 输入。
+测试配置遵守语言规范 12.2.4。manifest 解码保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或展开测试依赖，缓存键不包含测试配置或测试文件摘要。manifest 未变化时使用记录的解析结果；变化时解析一次并按有效配置判断相应用途是否更新。原始文本供实际需要的诊断与编译使用，文本变化本身不等于生产语义变化。父进程的根、显式源码依赖与默认标准库使用同一 `manifests-v2` 解析记录：按实际 manifest 路径、mtime、大小和解析器 target catalog 判断更新，保存已解析的生产／测试／native 配置、locator、诊断区间及对应文本。命中不打开原 manifest 或重跑 TOML parser；缺失输入仍先报告普通定位错误。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。实际编译的 scoopc 仍读取本次自己的 manifest 输入。
 
 single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Production；直接调用 `scoopc build --test` 选择 Test，且输入必须是 manifest Cone。测试用途在解析源码前将 manifest 的生产依赖与测试依赖并为所需 direct artifact 集合，support 仍恰为其余传递闭包；scoopc 不定位或补建缺失的测试依赖。解析时使用同一 manifest 的生产／测试源码选择规则，将仅用于测试的依赖身份交给前端，并以原 ConeIdentity 产生具有 TestEntry 的 executable `.slib`，不要求改写源码 manifest kind。该字段自 machine protocol 6 加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 
@@ -601,7 +601,7 @@ C++ 配套 driver、标准库配置、宏及搜索输入保存在 `cxx-tools-v1`
 
 native 预处理同时取得实际 include 名称及其所在文件，按该次 include 的名称、引号查找目录和配置搜索根记录候选；不把所有头文件的父目录互相交叉展开。预处理器输出的 include 观察指令不进入后续预处理单元编译，原有行号与诊断映射保持。
 
-用户 native 源码的普通对象结果保存在 `native-objects-v1`，记录实际选中的源码、上次预处理得到的头文件、include 搜索配置与相关候选路径、编译参数和 C／C++ 工具输入。记录命中且对象存在时直接返回对象路径，不预处理、不读头文件、不复制预处理结果或对象。更新时由构建编排调用 native 工具预处理并编译一次，全部成功后发布对象和记录；不同输入的对象使用不同位置。仅 Scoop 源码变化时复用 native 对象。更新判断观察实际头文件及可改变其选择的候选路径；不因同目录新增无关文件而重新预处理。parent 将这些对象交给 scoopc 打包，child 不再次发现 C++ 工具或编译同一 native 源码；独立 scoopc 仍从实际源码完成正常 native 编译。native 路径只用于输入选择与诊断，不比较 inode、审计符号链接来源或限制头文件的物理归属。
+用户 native 源码的普通对象结果保存在 `native-objects-v1`，记录实际选中的源码、上次预处理得到的头文件、include 搜索配置与相关候选路径、编译参数和 C／C++ 工具输入。记录命中且对象存在时直接返回对象路径，不预处理、不读头文件、不复制预处理结果或对象。更新时由构建编排调用 native 工具预处理并编译一次，全部成功后发布对象和记录；不同输入的对象使用不同位置。仅 Scoop 源码变化时复用 native 对象。更新判断观察实际头文件及可改变其选择的候选路径；不因同目录新增无关文件而重新预处理。parent 将这些对象交给 scoopc 打包，child 不再次发现 C++ 工具或编译同一 native 源码；独立 scoopc 仍从实际源码完成正常 native 编译。native 路径只用于输入选择与诊断，不比较 inode、审计符号链接来源或限制头文件的物理归属。头文件搜索和 forced include 接受含 `..` 的相对路径及绝对路径，使用普通 PathBuf 按 Cone 根解析，不套用 Scoop source identity 的 ConeRelativePath。
 
 完成节点保存实际生成物位置和后续需要的摘要，不强制持有整份归档或多份验证结构。后续需要编译或链接时按需读取 section，命中库输出或最终 executable 时不读取产物。不同子进程各自首次读取所需依赖数据是正常工作，不增加驻留服务或共享内存协议来消除进程边界。
 

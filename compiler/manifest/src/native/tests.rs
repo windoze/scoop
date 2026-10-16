@@ -12,7 +12,7 @@ fn native_sources_do_not_change_the_default_scoop_source_set() {
     let parsed = parse_cone_manifest(&source).unwrap();
     assert_eq!(parsed.semantic().sources(), &SourceSelection::Default);
     let native = parsed.semantic().native();
-    assert_eq!(native.include()[0].as_str(), "native/include");
+    assert_eq!(native.include()[0].to_str().unwrap(), "native/include");
     assert_eq!(native.sources()[0].path().as_str(), "native/file.c");
     assert!(
         native.sources()[0]
@@ -31,21 +31,21 @@ fn native_sources_do_not_change_the_default_scoop_source_set() {
             NativeCompileFlag::Argument("-DANSWER=42".into()),
             NativeCompileFlag::Include {
                 kind: NativeIncludeFlag::Search,
-                path: ConeRelativePath::new("more").unwrap()
+                path: PathBuf::from("./more")
             },
         ]
     );
 }
 
 #[test]
-fn include_options_keep_their_kind_order_and_normalized_paths() {
+fn include_options_keep_their_kind_order_and_original_paths() {
     let source = format!(
         "{CONE}\n[native]\nc_flags = ['-iquote', './quoted', '-isystemsystem', '-idirafter', 'late', '-include', 'prefix.h', '-imacrosmacros.h']"
     );
     let parsed = parse_cone_manifest(&source).unwrap();
     let flags = parsed.semantic().native().c_flags();
     for (flag, kind, path) in [
-        (&flags[0], NativeIncludeFlag::Quote, "quoted"),
+        (&flags[0], NativeIncludeFlag::Quote, "./quoted"),
         (&flags[1], NativeIncludeFlag::System, "system"),
         (&flags[2], NativeIncludeFlag::After, "late"),
         (&flags[3], NativeIncludeFlag::ForcedHeader, "prefix.h"),
@@ -55,7 +55,7 @@ fn include_options_keep_their_kind_order_and_normalized_paths() {
             flag,
             &NativeCompileFlag::Include {
                 kind,
-                path: ConeRelativePath::new(path).unwrap()
+                path: PathBuf::from(path)
             }
         );
     }
@@ -98,8 +98,8 @@ fn flags_cannot_replace_driver_owned_inputs_or_outputs() {
 #[test]
 fn malformed_native_paths_and_tables_fail_before_source_selection() {
     for native in [
-        "[native]\ninclude = ['/outside']",
-        "[native]\nc_flags = ['-I', '../outside']",
+        "[native]\ninclude = ['']",
+        "[native]\nc_flags = ['-I', '']",
         "[native]\nc_flags = ['-include']",
         "[native]\nsources = ['file.c']",
         "[[native.sources]]\npath = '../file.c'\nwhen = {os = []}",
@@ -168,5 +168,39 @@ fn library_syntax_is_checked_before_target_selection() {
             parse_cone_manifest(&format!("{CONE}\n[[native.libraries]]\n{declaration}")).is_err(),
             "{declaration}"
         );
+    }
+}
+
+#[test]
+fn native_header_paths_follow_normal_filesystem_resolution() {
+    let source = format!(
+        "{CONE}\n[native]\ninclude = ['../shared', '/sdk/include', 'link/../headers']\nc_flags = ['-include', '../config.h', '-I/opt/include', '-iquote[headers]']"
+    );
+    let parsed = parse_cone_manifest(&source).unwrap();
+    let native = parsed.semantic().native();
+    assert_eq!(
+        native.include(),
+        &[
+            PathBuf::from("../shared"),
+            PathBuf::from("/sdk/include"),
+            PathBuf::from("link/../headers")
+        ]
+    );
+    for (flag, expected) in
+        native
+            .c_flags()
+            .iter()
+            .zip(["../config.h", "/opt/include", "[headers]"])
+    {
+        let NativeCompileFlag::Include { path, .. } = flag else {
+            panic!("expected include path");
+        };
+        assert_eq!(path, &PathBuf::from(expected));
+    }
+    for source in [
+        "[native]\ninclude = [\"\\u0000\"]",
+        "[native]\nc_flags = ['-I', \"\\u0000\"]",
+    ] {
+        assert!(parse_cone_manifest(&format!("{CONE}\n{source}")).is_err());
     }
 }

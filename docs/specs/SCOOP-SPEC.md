@@ -2627,11 +2627,11 @@ kind = "library" # 或 "executable"
 
 #### 12.2.1 Native C/C++ 源码
 
-manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是 Cone 相对的头文件搜索目录，源码与 include 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
-编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径也必须是 Cone 相对路径，在实际 native 编译时解析。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
+编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径采用同一普通文件系统路径规则，在实际 native 编译时解析；空路径与 NUL 非法，不按路径是否越出 Cone 根拒绝头文件输入。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
 
 manifest Cone 通过 `[native]` 中的 Boolean 字段 `cxx` 显式启用 C++，省略时为 `false`。例如：
 

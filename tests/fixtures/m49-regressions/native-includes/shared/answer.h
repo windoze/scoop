@@ -1,0 +1,1 @@
+#define SHARED_ANSWER 40

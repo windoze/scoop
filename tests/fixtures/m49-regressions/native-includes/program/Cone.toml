@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "test.m49"
+name = "native-includes"
+version = "0.1.0"
+kind = "executable"
+[native]
+include = ["../shared"]
+c_flags = ["-include", "../shared/prefix.h"]
+[[native.sources]]
+path = "answer.c"

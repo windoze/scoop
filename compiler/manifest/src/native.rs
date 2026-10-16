@@ -1,6 +1,7 @@
 //! Native source configuration; filesystem checks follow target selection.
 
-use crate::{ConditionalSourcePath, ConeRelativePath};
+use crate::ConditionalSourcePath;
+use std::path::PathBuf;
 
 mod flags;
 mod language;
@@ -15,7 +16,7 @@ pub(crate) use parse::RawNativeConfig;
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NativeConfig {
     sources: Vec<ConditionalSourcePath>,
-    include: Vec<ConeRelativePath>,
+    include: Vec<PathBuf>,
     c_flags: Vec<NativeCompileFlag>,
     cxx_flags: Vec<NativeCompileFlag>,
     cxx: bool,
@@ -27,7 +28,7 @@ impl NativeConfig {
         &self.sources
     }
 
-    pub fn include(&self) -> &[ConeRelativePath] {
+    pub fn include(&self) -> &[PathBuf] {
         &self.include
     }
 
