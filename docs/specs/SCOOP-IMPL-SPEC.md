@@ -380,6 +380,8 @@ GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此�
 
 同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填使用已物化的槽位，保留当前写入的范围检查；不再次比对六类 registration 的计划／对象副本，不重数 coverage，不重建最终记录与刚写入的字节逐项比较，也不重复验证先前零槽状态。callable／safepoint registration 直接关联计划与实际 digest 槽位，复用规范化 stackmap 和 canonical ABI，不重新编码记录、核对 context keys 或复查 entry relocation。body 指纹按已解析的 primary／associated atom、实际 relocation 和该 body 的 stackmap 输入计算；runtime scan 同属 associated atom，不从计划重新生成 scan 字节或遍历闭合证明。归一化地址字段不重复比较已经读取的 encoded value。image 与 root entry 直接关联生成计划和已物化 patch；不重新读取 coordinate、诊断文字、registration 指针表或 root 记录来证明与计划相同。entry 的 Library／Executable 分支与可执行计划、实际槽位由同一枚举表示。RuntimeImage 与 root entry 沿用同一规则，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
 
+immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 canonical shape ABI；RuntimeImage 编码同一计划中的对象大小、对齐与 type registration 引用。不为了取得发布资格再次读取 String payload、重建登记记录、核对指针目标或比较 digest 依赖图。实际对象生成、普通符号引用与 ODR 选择继续使用既有数据。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

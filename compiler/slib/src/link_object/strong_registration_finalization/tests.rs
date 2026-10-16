@@ -3,16 +3,16 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    ScoopLirObjectCandidateV1, VerifiedStrongCallableFingerprintSetV1,
-    VerifiedStrongImmortalObjectFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
+    ImmortalObjectFingerprintSetV1, ScoopLirObjectCandidateV1,
+    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
     VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
     bind_callable_registrations_v1, bind_safepoint_registrations_v1,
     compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1, compute_strong_initialization_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1, compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
-    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
-    verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
+    verify_strong_initialization_registrations_v1, verify_strong_static_storage_registrations_v1,
+    verify_strong_type_registrations_v1,
 };
 use scoop_wire::sha256;
 
@@ -180,7 +180,7 @@ fn verified_fingerprints(
     VerifiedStrongSafepointFingerprintSetV1,
     VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongTypeFingerprintSetV1,
-    VerifiedStrongImmortalObjectFingerprintSetV1,
+    ImmortalObjectFingerprintSetV1,
     VerifiedStrongStaticStorageFingerprintSetV1,
     VerifiedStrongInitializationFingerprintSetV1,
 ) {
@@ -214,7 +214,7 @@ fn verified_fingerprints(
         compute_strong_callable_fingerprints_v1(body_objects, &fixture.canonical_callables)
             .unwrap();
     let types = verified_type_fingerprints(fixture, objects);
-    let immortal_objects = verified_immortal_object_fingerprints(fixture, objects);
+    let immortal_objects = immortal_object_fingerprints(fixture);
     let static_storages = verified_static_storage_fingerprints(fixture, objects);
     (
         safepoints,
@@ -264,20 +264,12 @@ fn verified_static_storage_fingerprints(
     compute_strong_static_storage_fingerprints_v1(shapes, &fixture.canonical_shapes).unwrap()
 }
 
-fn verified_immortal_object_fingerprints(
-    fixture: &Fixture,
-    objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> VerifiedStrongImmortalObjectFingerprintSetV1 {
-    let registrations = verify_strong_immortal_object_registrations_v1(
-        fixture.verified_patch_sites(),
+fn immortal_object_fingerprints(fixture: &Fixture) -> ImmortalObjectFingerprintSetV1 {
+    compute_strong_immortal_object_fingerprints_v1(
         fixture.immortal_registration_plan.clone(),
-        objects,
+        &fixture.canonical_shapes,
     )
-    .unwrap();
-    let registration_objects = registrations;
-    let object_definitions = registration_objects;
-    compute_strong_immortal_object_fingerprints_v1(object_definitions, &fixture.canonical_shapes)
-        .unwrap()
+    .unwrap()
 }
 
 fn verified_type_fingerprints(

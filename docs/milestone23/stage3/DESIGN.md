@@ -2009,42 +2009,9 @@ symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
 digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
 edge/writer集合，不接受record bytes或调用方自报digest关系。
 
-immortal-object registration的Link侧唯一入口是
-`verify_strong_immortal_object_registrations_v1`，其输入固定为完整immortal plan、全量digest patch proof及同一批
-经content digest绑定的Scoop LIR object bytes。验证器重验只读Primary atom与精确184-byte provisional record；
-该atom必须恰有offset 152和176两条8-byte、zero-addend、`Unsigned64` relocation。前者必须解析到plan中同一
-immortal object definition/Primary symbol；后者在typed local分支必须解析到当前Cone同一exact type的
-TypeRegistration definition/Primary symbol，在 typed external 分支则必须保持为实际 provider 的 external
-candidate，不能用任意本地strong定义冒充。offset 120只允许同一registration definition/Primary atom的
-`RegistrationDefinition` patch，额外patch、relocation或验后换bytes均失败。验证器同时从digest plan重建
-registration object leaf、实际immortal object ObjectDefinition与StrongRegistration节点，重验leaf闭包、
-两项direct input和唯一writer；不接受调用方自报target、node、digest或兼容record格式。
+immortal object 的登记直接消费 `StrongImmortalObjectRegistrationPlanSetV1`。Strong 定义使用既有实体身份，ODR 定义按 member 查询 canonical shape ABI；登记 ABI 由同一计划中的 owner 与表种类计算。RuntimeImage 编码 record kind 2、对象身份、大小、对齐及 type registration 引用。
 
-外部 exact type 的 descriptor 与 type registration 分别通过实际 provider 和 typed target 查询已有定义，二者指向同一 exact type。String immortal metadata 使用同一共有关系；实际 relocation 按其真实目标进入 requirement 集合，不附加 descriptor bridge 授权、固定 core owner 或来源证明。
-
-immortal registration自身的ObjectDefinition leaf只能经
-`compute_strong_immortal_object_registration_object_fingerprints_v1`消费上述完整registration proof和再次
-匹配content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确
-184-byte provisional record、relocation count 2、offset 152的immortal-object relocation、offset 176的
-type-registration relocation及direct-input count 0。前者规范化为同一object id的`IntraConeStrong
-ImmortalObject` owner；后者由 plan 中的实际 provider 与 typed type-registration 引用编码，同一 exact type 的 local 与 external 定义按共有对象关系区分。member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；
-typed target、实际 provider 和 relocation 必须来自同一完整对象检查结果。
-
-实际immutable String object的ObjectDefinition只能经
-`compute_strong_immortal_object_definition_fingerprints_v1`消费registration-object proof、完整最终undefined
-requirement proof和再次匹配content digest的object全集产生。计算器反查plan指定的`ImmortalObject` definition与
-只读Primary atom，要求范围精确等于plan的object size；对象必须是`{ TypeDescriptor*; zero GC word; u64 UTF-8
-length; exact UTF-8 bytes; zero alignment padding }`，且atom中只有offset 0的一条8-byte、zero-addend、
-`Unsigned64` relocation。local分支必须解析到当前Cone同一exact type的`TypeDescriptor` strong owner；
-external 分支保留实际 provider 的 descriptor 引用，并在该 provider 的定义表中解析到同一 exact type。哈希前将指针载荷归零，并用通用canonical relocation schema连同精确对象bytes编码；
-不接受长度不闭合、非法UTF-8、非零padding、错owner或未分类external，也不从String显示值重建另一份旁路hash。
-
-immortal object的StrongRegistration只能经`compute_strong_immortal_object_fingerprints_v1`消费上述实际对象
-ObjectDefinition proof（它继续拥有同一registration-object proof）。canonical record依次编码record kind 2、
-Strong linkage、object semantic id、三个零own/ODR digest、`OwnImmortalAtom` role tag 2与同一object id、object
-size、required alignment和target exact type-registration id；最后编码registration object与实际immortal object
-两个按`(kind, node id)`排序的ObjectDefinition direct input。公共入口不接受裸digest、裸node或调用方拼装的
-direct-input数组；proof coverage、object identity或两个node任一不一致均在hash前失败。
+外部 exact type 的 descriptor 与 type registration 通过实际 provider 和 typed target 查询已有定义；实际 relocation 进入普通 requirement 集合。不附加 core 来源授权，也不再次读取 String payload、重建登记字节、比较指针目标或重放 digest 依赖图以证明生产正确。对象由 codegen 正常生成，实际对象内容与规范化 relocation 仍进入需要它们的 Code／ODR 计算。
 
 type registration自身的ObjectDefinition leaf只能经
 `compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content

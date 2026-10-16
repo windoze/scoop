@@ -25,9 +25,8 @@ use scoop_slib::{
     ScoopStackmapReadError, ScoopStackmapSetV1, SlibMember, SlibMemberId, SlibMemberRecordError,
     SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
     StrongCallableFingerprintError, StrongImmortalObjectFingerprintError,
-    StrongImmortalObjectRegistrationValidationError, StrongInitializationFingerprintError,
-    StrongInitializationRegistrationValidationError, StrongObjectSymbolPlanningError,
-    StrongRegistrationPatchError, StrongSafepointFingerprintError,
+    StrongInitializationFingerprintError, StrongInitializationRegistrationValidationError,
+    StrongObjectSymbolPlanningError, StrongRegistrationPatchError, StrongSafepointFingerprintError,
     StrongStaticStorageFingerprintError, StrongStaticStorageRegistrationValidationError,
     StrongStaticStorageShapeFingerprintError, StrongTypeFingerprintError,
     StrongTypeRegistrationValidationError, UndefinedSymbolRequirementFinalizationError,
@@ -40,7 +39,7 @@ use scoop_slib::{
     verify_builtin_object_strong_relocations_v1, verify_c_bridge_target_support_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_generated_c_bridge_semantics_v1,
     verify_runtime_and_eh_requirements_v1, verify_scoop_lir_digest_patch_sites_v1,
-    verify_strong_immortal_object_registrations_v1, verify_strong_static_storage_registrations_v1,
+    verify_strong_static_storage_registrations_v1,
 };
 
 mod errors;

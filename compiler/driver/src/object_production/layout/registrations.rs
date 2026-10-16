@@ -72,14 +72,8 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
 
-    let immortals = verify_strong_immortal_object_registrations_v1(
-        patches.clone(),
-        production.immortal_registrations().clone(),
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::ImmortalObjectRegistrations)?;
     let immortals = compute_strong_immortal_object_fingerprints_v1(
-        immortals,
+        production.immortal_registrations().clone(),
         production.canonical_shape_definitions(),
     )
     .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;

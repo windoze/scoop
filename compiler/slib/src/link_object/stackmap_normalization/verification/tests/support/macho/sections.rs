@@ -59,13 +59,8 @@ pub(super) fn push_sections(
     for registration in type_registrations.registrations() {
         push_type_registration(bytes, registration);
     }
-    let first_immortal_object_offset = bytes.len();
     for registration in immortal_registrations.registrations() {
         push_immortal_object(bytes, module, *registration);
-    }
-    if matches!(corruption, Corruption::ImmortalObjectLength) {
-        bytes[first_immortal_object_offset + 16..first_immortal_object_offset + 24]
-            .copy_from_slice(&u64::MAX.to_le_bytes());
     }
     for registration in immortal_registrations.registrations() {
         push_immortal_registration(bytes, *registration);
@@ -116,20 +111,6 @@ pub(super) fn push_sections(
             registrations,
             callable_registrations,
             type_registrations,
-        );
-        bytes[usize::try_from(
-            u64::from(registration_offset) - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap()
-                + offset,
-        )
-        .unwrap()] ^= 1;
-    }
-    if matches!(corruption, Corruption::ImmortalRegistrationMagic) {
-        let offset = immortal_registration_base(
-            stackmap.len(),
-            registrations,
-            callable_registrations,
-            type_registrations,
-            immortal_registrations,
         );
         bytes[usize::try_from(
             u64::from(registration_offset) - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap()

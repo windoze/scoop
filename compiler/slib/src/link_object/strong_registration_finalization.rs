@@ -9,8 +9,8 @@ use scoop_identity::{
 use super::VerifiedStrongSafepointFingerprintSetV1;
 use crate::SlibMemberId;
 use crate::link_object::{
-    ScoopLirObjectCandidateV1, ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1,
-    VerifiedStrongCallableFingerprintSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
+    ImmortalObjectFingerprintSetV1, ScoopLirObjectCandidateV1, ValidatedScoopLirObjectEnvelopeV1,
+    VerifiedMaterializedPatchSiteV1, VerifiedStrongCallableFingerprintSetV1,
     VerifiedStrongInitializationFingerprintSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
     VerifiedStrongTypeFingerprintSetV1,
 };
@@ -56,7 +56,7 @@ pub struct VerifiedStrongRegistrationPatchSetV1<
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
     types: VerifiedStrongTypeFingerprintSetV1<D, C>,
-    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
     initializations: VerifiedStrongInitializationFingerprintSetV1<I>,
     objects: Vec<VerifiedStrongRegistrationPatchedScoopLirObjectV1>,
@@ -87,7 +87,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
         &self.types
     }
 
-    pub const fn immortal_objects(&self) -> &VerifiedStrongImmortalObjectFingerprintSetV1 {
+    pub const fn immortal_objects(&self) -> &ImmortalObjectFingerprintSetV1 {
         &self.immortal_objects
     }
 
@@ -109,7 +109,7 @@ pub fn patch_strong_registration_fingerprints_v1(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
     types: VerifiedStrongTypeFingerprintSetV1,
-    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
     initializations: VerifiedStrongInitializationFingerprintSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
@@ -130,7 +130,7 @@ pub fn patch_strong_registration_fingerprints_v2(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
     types: crate::VerifiedStrongTypeFingerprintSetV2,
-    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
     initializations: crate::VerifiedStrongInitializationFingerprintSetV2,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
@@ -151,7 +151,7 @@ fn patch_strong_registration_fingerprints<D, C, I>(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
     types: VerifiedStrongTypeFingerprintSetV1<D, C>,
-    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
     initializations: VerifiedStrongInitializationFingerprintSetV1<I>,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],

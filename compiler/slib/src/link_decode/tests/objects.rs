@@ -142,16 +142,8 @@ pub(super) fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let immortal_registrations = crate::verify_strong_immortal_object_registrations_v1(
-        patch_sites.clone(),
-        registrations.immortal_objects().clone(),
-        &objects,
-    )
-    .unwrap();
-    let immortal_registration_objects = immortal_registrations;
-    let immortal_definitions = immortal_registration_objects;
     let immortal_objects = crate::compute_strong_immortal_object_fingerprints_v1(
-        immortal_definitions,
+        registrations.immortal_objects().clone(),
         production.canonical_shape_definitions(),
     )
     .unwrap();

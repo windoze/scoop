@@ -18,14 +18,12 @@ fn elf_static_immortal_and_initialization_registrations() {
         let sites = fixture.sites(builtins.clone(), &fixture.objects);
         let production = fixture.emitted.production().registration_production();
         let objects = candidates(&fixture.objects);
-        let immortals = verify_strong_immortal_object_registrations_v1(
-            sites.clone(),
+        let immortals = compute_strong_immortal_object_fingerprints_v1(
             production.immortal_objects().clone(),
-            &objects,
+            fixture.emitted.production().canonical_shape_definitions(),
         )
-        .expect("ELF immortal String registrations");
-        assert_eq!(immortals.registrations().len(), 2);
-        drop(immortals);
+        .expect("ELF immortal String registration ABIs");
+        assert_eq!(immortals.fingerprints().len(), 2);
         let storages = verify_strong_static_storage_registrations_v1(
             sites.clone(),
             production.static_storages().clone(),

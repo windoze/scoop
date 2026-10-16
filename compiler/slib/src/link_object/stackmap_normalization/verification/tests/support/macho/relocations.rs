@@ -138,7 +138,7 @@ pub(super) fn push_relocations(
                 };
             push_u32(bytes, planned_index(descriptor_target) | 3 << 25 | 1 << 27);
         }
-        for (index, registration) in immortal_registrations.registrations().iter().enumerate() {
+        for registration in immortal_registrations.registrations() {
             let object_start = immortal_object_start(
                 registration.object_definition_plan(),
                 stackmap.len(),
@@ -157,24 +157,6 @@ pub(super) fn push_relocations(
             );
             let section_base = TEXT_SIZE + u64::try_from(stackmap.len()).unwrap();
             let descriptor_target = if matches!(
-                corruption,
-                Corruption::ImmortalObjectDescriptorRelocationTarget
-            ) && index == 0
-            {
-                symbols
-                    .symbols()
-                    .iter()
-                    .position(|symbol| {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                ..
-                            }
-                        )
-                    })
-                    .unwrap()
-            } else if matches!(
                 registration.semantic().type_registration_ref(),
                 scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             ) {
@@ -197,37 +179,15 @@ pub(super) fn push_relocations(
             push_u32(bytes, u32::try_from(object_start - section_base).unwrap());
             push_u32(bytes, planned_index(descriptor_target) | 3 << 25 | 1 << 27);
 
-            let object_target =
-                if matches!(corruption, Corruption::ImmortalObjectRelocationTarget) && index == 0 {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                    ..
-                                }
-                            )
-                        })
-                        .unwrap()
-                } else {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::ImmortalObject,
-                                    definition,
-                                    ..
-                                } if definition == registration.object_definition_plan()
-                            )
-                        })
-                        .unwrap()
-                };
+            let object_target = symbols
+                .symbols()
+                .iter()
+                .position(|symbol| {
+                    matches!(symbol.role(), PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                    definition_role: StrongDefinitionRole::ImmortalObject, definition, ..
+                } if definition == registration.object_definition_plan())
+                })
+                .unwrap();
             push_u32(
                 bytes,
                 u32::try_from(record_start - section_base + 120).unwrap(),
@@ -239,12 +199,6 @@ pub(super) fn push_relocations(
                 scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             ) {
                 symbols.symbols().len() + 1
-            } else if matches!(
-                corruption,
-                Corruption::ImmortalTypeRegistrationRelocationTarget
-            ) && index == 0
-            {
-                object_target
             } else {
                 symbols
                     .symbols()

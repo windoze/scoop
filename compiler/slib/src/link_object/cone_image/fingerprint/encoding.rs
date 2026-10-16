@@ -58,7 +58,7 @@ where
         output: &mut crate::RuntimeImageRecords,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.immortal_objects();
-        let plans = fingerprints.registrations().plan().registrations();
+        let plans = fingerprints.plan().registrations();
         let records = plans.iter().zip(fingerprints.fingerprints());
         for (plan, _fingerprint) in records {
             let mut encoder = RuntimeEncoder::new();
