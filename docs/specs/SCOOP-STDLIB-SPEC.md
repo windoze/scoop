@@ -32,6 +32,8 @@ core 不依赖 std。现有 Iterator、Iterable、List、MutableList、ArrayList
 
 系统字符串、路径及 OS 错误属于独立的普通 `scoop.platform` Cone，见[平台库规范](SCOOP-PLATFORM-SPEC.md)。platform 依赖 std／core，std 不反向依赖 platform；字节序、集合、时间与随机源接口等平台无关类型保持原实体。
 
+core 的结构化并发合同见语言规范 11.9.1～11.9.2；native buffer 的同步与跨挂起借用见平台库规范 4.3、4.5。std 的堆内字节、时间和集合接口不因此取得 native 存储或 I/O 调度职责。
+
 ### 1.2 命名、类型与失败
 
 类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、mapNotNull、getOrNull、sortedWith、Random、Duration、Instant、LocalDate、Uuid。以下 Scoop 规则优先：

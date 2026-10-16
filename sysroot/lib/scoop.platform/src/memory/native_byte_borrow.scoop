@@ -1,0 +1,25 @@
+package scoop.platform.memory
+
+public class NativeByteBorrow internal constructor(
+    owner: NativeByteBuffer,
+    private val address: Ptr<Byte>?,
+    public val length: Long,
+    private val writable: Boolean
+) {
+    private var owner: NativeByteBuffer? = Some(owner)
+    private val active: AtomicBoolean = AtomicBoolean(true)
+
+    @Unsafe
+    public fun pointer(): Ptr<Byte>? {
+        if (!active.load()) throw IllegalStateException(Some("buffer borrow has ended"))
+        return address
+    }
+
+    @Unsafe
+    public fun complete(count: Long) {
+        if (!active.compareAndSet(true, false)) throw IllegalStateException(Some("buffer borrow has ended"))
+        val buffer = owner!!
+        owner = None
+        buffer.finishBorrow(count, length, writable)
+    }
+}

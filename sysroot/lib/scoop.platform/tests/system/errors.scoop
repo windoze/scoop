@@ -14,6 +14,20 @@ private class PlatformErrorTest {
         assertEquals(Int.MAX_VALUE, address.code)
         assertEquals(17, address.systemCode!!)
         assertTrue(posix.systemCode == None)
+        val libuv = NativeError(NativeErrorDomain.Libuv, Int.MIN_VALUE)
+        assertTrue(libuv.kind == PlatformErrorKind.Other)
+        assertTrue(libuv.domain == NativeErrorDomain.Libuv)
+        assertEquals(Int.MIN_VALUE, libuv.code)
+        assertTrue(NativeError(NativeErrorDomain.Libuv, -4095).kind == PlatformErrorKind.Other)
+    }
+
+    @Test
+    fun `libuv system errors preserve the negative code and classify the target errno`() {
+        // All supported POSIX targets define ENOENT as 2 and EACCES as 13.
+        assertTrue(NativeError(NativeErrorDomain.Libuv, -2).kind == PlatformErrorKind.NotFound)
+        assertTrue(NativeError(NativeErrorDomain.Libuv, -13).kind == PlatformErrorKind.PermissionDenied)
+        assertTrue(NativeError(NativeErrorDomain.Libuv, 2).kind == PlatformErrorKind.Other)
+        assertTrue(NativeError(NativeErrorDomain.Libuv, 0).kind == PlatformErrorKind.Other)
     }
 
     @Test
