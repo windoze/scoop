@@ -2,7 +2,7 @@
 
 记录日期：2026-10-17。测量日期：2026-10-16。代码版本：`5845250043b7e0697c1d441bea8ac56097fc379c`。
 
-状态：已有发现归档，尚未实施优化。范围是编译器及构建编排的耗时与内存，包含编译 runtime 源码的成本，不包含生成物的运行性能。本记录为 [M50 设计](DESIGN.md) 提供依据；普通性能优化先作为候选方向记录，不自动成为 M50 的新增交付要求。
+状态：前置测量已归档，M50 职责清理后的同机复测见第 5 节；普通性能候选仍未作为新增功能实施。范围是编译器及构建编排的耗时与内存，包含编译 runtime 源码的成本，不包含生成物的运行性能。本记录为 [M50 设计](DESIGN.md) 提供依据；普通性能优化先作为候选方向记录，不自动成为 M50 的新增交付要求。
 
 ## 1. 测量口径
 
@@ -44,7 +44,7 @@
 
 **采样依据：** core 的 `LLVMVerifyModule` 占 **15.45%**，自定义 `statepoint::verifier::verify_rewritten` 占 **5.11%**。这些包含在上面的 backend 时间内。整个 artifact assembly 另占约 **11.5%**，其中也包含必要的打包与连接工作，不能全算成可删除开销。
 
-**实现依据：** [prepare.rs](../../compiler/codegen/src/emission/prepare.rs) 在 LLVM 变换前后执行完整 module 验证；[statepoint verifier](../../compiler/codegen/src/statepoint/verifier.rs) 明确用于防御性检查编译器／工具链输出，[策略复核](../../compiler/codegen/src/statepoint/verifier/policies.rs) 又遍历完整函数表。对象生成后，[layout verification](../../compiler/driver/src/object_production/layout/verification.rs) 和 [registration finalize](../../compiler/driver/src/object_production/layout/registrations.rs) 继续处理对象、生产记录和指纹，并多次复制 patch-site／stackmap 数据。
+**实现依据：** [prepare.rs](../../compiler/codegen/src/emission/prepare.rs) 在 LLVM 变换前后执行完整 module 验证；当时的 `statepoint::verifier`（M50 已删除） 明确用于防御性检查编译器／工具链输出，当时的 `verifier::policies`（M50 已删除） 又遍历完整函数表。对象生成后，[layout verification](../../compiler/driver/src/object_production/layout/verification.rs) 和 [registration finalize](../../compiler/driver/src/object_production/layout/registrations.rs) 继续处理对象、生产记录和指纹，并多次复制 patch-site／stackmap 数据。
 
 **M50 清理方向：** 按设计删除仅用于证明自身或 C/C++ 工具输出正确的复核、封存与凭证；实际需要的 stackmap、符号、地址和补丁位置提取一次后复用。必要的语言检查及实际 GC/ABI 数据生成继续保留。具体清理范围不由样本占比决定。
 
@@ -91,3 +91,16 @@
 本次没有修改编译器、测试或 runtime 实现，没有执行全仓库测试，也没有做专门的堆分配跟踪、Scoop release profile 编译测量或其他目标平台测量。RSS 不足以精确归因到某个字段。M48 历史性能表使用不同机器和代码版本，不据此直接断言性能回退或计算倍数。
 
 原始日志、逐轮 JSON、调用栈、临时输入与分析脚本均保留在仓库外，不作为源码或验收归档提交。本机位置为 `/var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/scoop-compiler-perf-20261016-6u41ycwy/`，主要记录是 `baseline-llvm22/report.json`、`incremental-report.json`、`profile-application/profile-report.json` 和 `profile-application/samples-summary.json`。这些临时路径只用于定位本次原始材料，文档中的结论不依赖其长期存在。
+
+## 5. M50 清理后的同机复测
+
+2026-10-17 在同一台 M3 Ultra、LLVM 22.1.8 上复测，工作树版本为 `e84786437`，生产工具包含至 `87beaaeb0` 的实现（后续两项 Rust 测试修正不改变生产工具）。沿用同一脚本、四组源码与 3 轮冷／暖配对，Scoop 为 debug profile，工具为 release profile。原始报告保留在 `~/.cache/scoop-m50/performance-after/report.json`，工作目录通过 `TMPDIR=~/.cache/scoop-m50/tmp` 放在仓库外。
+
+| 构建 | 清理前冷构建 | 清理后冷构建 | 冷构建耗时降低 | 全命中中位数 | 冷构建峰值 RSS 中位数 | 冷／暖编译子进程数 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| core | 29.278 s | 18.842 s | 35.6% | 0.057 s | 2.27 GiB | 1 / 0 |
+| std，含 core | 49.193 s | 33.818 s | 31.3% | 0.059 s | 2.36 GiB | 2 / 0 |
+| 空程序，含 core、runtime 和链接 | 37.360 s | 25.084 s | 32.9% | 0.063 s | 2.29 GiB | 2 / 0 |
+| M42 多 Cone 应用 | 82.782 s | 58.077 s | 29.8% | 0.061 s | 2.34 GiB | 6 / 0 |
+
+24 次 build 全部成功，可执行样例均在计时外通过输出检查。全部暖构建未启动编译子进程，源码与工具始终存在。该结果是整批清理后的整体观测，不能单独归因给某个删除项；本次未重做调用栈采样或叶子源码变化测量，也不扩展成新的性能验收阈值。

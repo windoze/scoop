@@ -136,3 +136,5 @@ Layout 发布批次：格式化、workspace clippy 无警告；release LIR produ
 Darwin 动态库批次：格式化、workspace clippy 无警告。两个新 fixture 在旧 CLI 上均复现 `___cxa_allocate_exception` 拒绝；修复后 2 项／4 变体／18 进程通过，补充实际非空 weak binding 后与既有 dynamic／C ABI 回归共 11 项通过。独立测试源码实际产生三类被误拒的 C++／C unwind 符号，异常始终在 native 库内部处理。
 
 Archive 批次：格式化、workspace clippy 无警告。8 个定向 CLI 用例中 7 项首轮通过；截断输入仍正确报错，诊断现由普通 archive reader 给出，更新三个目标的期望后仅补验该用例并通过。覆盖普通／长成员名、TOC、递归抽取、重名／冲突、C ABI／callback／TLS 组合及失败不发布；新增 `__.SYMDEF_extra.o` 普通成员正常链接运行。
+
+本机最终组合：公共 fixture runner 50 项规则通过；7 项／9 变体／44 进程 CLI 通过，覆盖 COMMON、泛型派发、初始化、静态 GC 根、物化、Scoop ABI 和 callback。三轮同机性能复测共 24 次 build 成功，冷构建中位数降低 29.8%～35.6%，暖构建均零编译子进程，见 [性能记录](PERFORMANCE.md)。
