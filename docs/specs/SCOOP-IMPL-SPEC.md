@@ -907,6 +907,8 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 协程 frame 保存完整 TaskContext 与跨挂起 mark。只有取得实际恢复权的入口切换到 frame context，所有 driver 出口恢复 previous context。普通 closure 只捕获实际词法值，callback 注册另按语言规定捕获 binding snapshot。
 
+语言规范 11.9.1～11.9.2 的 Job、任务树和取消适配是普通 core 源码，使用精确 Job Context binding、已有原子、异常与 continuation。编译器不按这些库名称生成专用身份、调度或取消路径；跨 Cone 按普通泛型模板、可见性与调用规则消费。
+
 每个 body 的 Context key uses 与 slot cells 属于该 body 的物理选择，callable registration 保存完整关联。最终登记在首个 gateway 前填充 cells，同一 exact key 在程序中映射到同一 slot。
 
 ### 2.17 静态类型描述与编码方法

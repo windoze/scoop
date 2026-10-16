@@ -681,6 +681,8 @@ completion 的成功、失败与恢复具有唯一获胜方和 release/acquire �
 
 每次真正进入或恢复协程正文时使用 frame 保存的 TaskContext，退出或传播异常时恢复调用者 Context。其语言行为见语言规范 8.3、11.9，Context 契约见第 9 章。
 
+语言规范 11.9.1～11.9.2 的结构化并发及取消由普通 core 对象实现。Job 树、等待者与结果沿普通 managed 扫描和原子发布；取消以普通异常恢复，不新增 runtime 任务、取消 ABI 或线程调度职责。
+
 ## 9. Task-local Context
 
 ### 9.1 动态绑定操作
