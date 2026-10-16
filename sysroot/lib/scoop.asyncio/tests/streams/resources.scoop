@@ -1,0 +1,35 @@
+package scoop.asyncio
+
+import scoop.test.*
+
+@Test
+private class AsyncResourceUseTest {
+    @Test
+    fun `use returns typed results and preserves both body and cleanup errors`() {
+        val success = ShortSink()
+        val loop: EventLoop = LibuvEventLoop()
+        assertEquals(42, loop.runWithResult<Int> suspend { _ -> success.useAsync suspend { _ -> 42 } })
+        assertEquals(1, success.closes)
+        val failed = ShortSink()
+        failed.failClose = true
+        val failureLoop: EventLoop = LibuvEventLoop()
+        val error = assertFailsWith<ResourceUseException> {
+            failureLoop.run suspend { _ -> failed.useAsync suspend { _ -> throw failed.failure } }
+        }
+        assertSame(failed.failure, error.primaryFailure)
+        assertSame(failed.cleanup, error.cleanupFailure)
+        assertEquals(1, failed.closes)
+    }
+
+    @Test
+    fun `use still performs cleanup after current job cancellation`() {
+        val resource = ShortSink()
+        val loop: EventLoop = LibuvEventLoop()
+        assertFailsWith<CancellationException> {
+            loop.run suspend { scope ->
+                resource.useAsync suspend { _ -> scope.job.cancel(); ensureActive() }
+            }
+        }
+        assertEquals(1, resource.closes)
+    }
+}

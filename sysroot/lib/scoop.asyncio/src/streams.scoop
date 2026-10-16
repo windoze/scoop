@@ -1,0 +1,70 @@
+package scoop.asyncio
+
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+
+public interface AsyncByteSource {
+    public suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long
+}
+
+public interface AsyncByteSink {
+    public suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long
+    public suspend fun flush()
+}
+
+public interface AsyncByteStream : AsyncByteSource, AsyncByteSink {}
+
+public suspend fun AsyncByteSource.readInto(buffer: NativeByteBuffer): Long = readInto(buffer, buffer.writableBytes)
+public suspend fun AsyncByteSink.writeFrom(buffer: NativeByteBuffer): Long = writeFrom(buffer, buffer.readableBytes)
+
+public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) {
+    ensureActive()
+    requireTransfer(count, buffer.writableBytes)
+    var remaining = count
+    while (remaining > 0L) {
+        val progress = readInto(buffer, remaining)
+        requireProgress(progress, remaining)
+        if (progress == 0L) throw UnexpectedEofException()
+        remaining -= progress
+    }
+}
+
+public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes) {
+    ensureActive()
+    requireTransfer(count, buffer.readableBytes)
+    var remaining = count
+    while (remaining > 0L) {
+        val progress = writeFrom(buffer, remaining)
+        requireProgress(progress, remaining)
+        if (progress == 0L) throw WriteZeroException()
+        remaining -= progress
+    }
+}
+
+public suspend fun AsyncByteSource.copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
+    ensureActive()
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("buffer capacity must be positive"))
+    val buffer = NativeByteBuffer.allocate(bufferSize)
+    try {
+        var total = 0L
+        while (true) {
+            buffer.clear()
+            val count = readInto(buffer, bufferSize)
+            requireProgress(count, bufferSize)
+            if (count == 0L) return total
+            if (count > Long.MAX_VALUE - total) throw ArithmeticException()
+            destination.writeFully(buffer, count)
+            total += count
+        }
+    } finally { buffer.dispose() }
+}
+
+internal fun requireTransfer(count: Long, available: Long) {
+    if (count < 0L) throw IllegalArgumentException(Some("negative transfer count"))
+    if (count > available) throw IndexOutOfBoundsException()
+}
+
+internal fun requireProgress(count: Long, requested: Long) {
+    if (count < 0L || count > requested) throw IllegalStateException(Some("invalid I/O progress"))
+}

@@ -59,13 +59,17 @@ public interface AsyncByteSink {
     public suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long
     public suspend fun flush()
 }
-public interface AsyncByteStream : AsyncByteSource, AsyncByteSink
-public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Long)
-public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Long)
+public interface AsyncByteStream : AsyncByteSource, AsyncByteSink {}
+public suspend fun AsyncByteSource.readInto(buffer: NativeByteBuffer): Long
+public suspend fun AsyncByteSink.writeFrom(buffer: NativeByteBuffer): Long
+public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.writableBytes)
+public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes)
 public suspend fun AsyncByteSource.copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long
 ```
 
 count 非负且不超过 buffer 当前可用区间。零长度字节流请求在状态及取消检查后返回零，不执行 native I/O、不表示 EOF。正 read 允许短读，零表示 EOF；正 write 允许短写，零抛平台 WriteZeroException。readFully 不足抛平台 UnexpectedEofException；各扩展保留已提交进度，不回滚或重发。copyTo 不接管任一端关闭责任，不自动 flush。
+
+省略 count 的基本操作扩展取 buffer 当前可用长度后转发。readFully／writeFully 先检查取消与 buffer 范围，零长度不调用端点；copyTo 要求 bufferSize 为正，内部 buffer 在退出时释放。组合扩展检查端点返回的进度在本次请求范围内，不把非法返回值当作正常结束。
 
 read 推进 writer，write 推进 reader，返回前解除平台规范 4.5 的 NativeByteBorrow。取消／关闭也提交已知实际前缀。单次 native 调用选择后端可表示的合法前缀，不溢出截断。借用期间拒绝释放、扩容、清空、游标变更及重复借用；native 只保存稳定 allocation 指针，managed 表保活 owner。路径、DNS 等 managed 字节在挂起前复制到请求自有 native 存储。
 

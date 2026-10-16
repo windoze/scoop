@@ -1,0 +1,94 @@
+package scoop.asyncio
+
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncStreamsTest {
+    @Test
+    fun `full transfers handle short suspended operations and preserve cursors`() {
+        val source = ShortSource([1, 2, 3, 4, 5])
+        val sink = ShortSink()
+        val loop: EventLoop = LibuvEventLoop()
+        NativeByteBuffer.allocate(5L).use { buffer ->
+            loop.run suspend { _ ->
+                source.readFully(buffer, 0L)
+                assertEquals(0, source.calls)
+                source.readFully(buffer)
+                assertEquals(3, source.calls)
+                sink.writeFully(buffer)
+                assertEquals(5L, buffer.readPosition)
+                assertEquals(5L, buffer.writePosition)
+            }
+        }
+        assertEquals(5L, sink.bytes.size)
+        assertEquals(5.toInt8(), sink.bytes.toByteArray()[4L])
+    }
+
+    @Test
+    fun `EOF and failures leave transferred prefixes visible`() {
+        NativeByteBuffer.allocate(5L).use { buffer ->
+            val short = ShortSource([1, 2, 3])
+            val input: EventLoop = LibuvEventLoop()
+            assertFailsWith<UnexpectedEofException> { input.run suspend { _ -> short.readFully(buffer) } }
+            assertEquals(3L, buffer.writePosition)
+            val sink = ShortSink()
+            sink.failAfter = 2L
+            val output: EventLoop = LibuvEventLoop()
+            assertSame(sink.failure, assertFailsWith<Throwable> { output.run suspend { _ -> sink.writeFully(buffer) } })
+            assertEquals(2L, buffer.readPosition)
+            assertEquals(2L, sink.bytes.size)
+            val stalled = ShortSink()
+            stalled.zero = true
+            val zero: EventLoop = LibuvEventLoop()
+            assertFailsWith<WriteZeroException> { zero.run suspend { _ -> stalled.writeFully(buffer) } }
+            assertEquals(2L, buffer.readPosition)
+        }
+    }
+
+    @Test
+    fun `copy composes interfaces without taking ownership and flush forwards explicitly`() {
+        val source: AsyncByteSource = ShortSource([10, 20, 30, 40, 50])
+        val sink = ShortSink()
+        val forwarded: AsyncByteSink = ForwardSink(sink)
+        val loop: EventLoop = LibuvEventLoop()
+        assertEquals(5L, loop.runWithResult<Long> suspend { _ ->
+            val count = source.copyTo(forwarded, 3L)
+            assertEquals(0, sink.flushes)
+            assertEquals(0, sink.closes)
+            forwarded.flush()
+            count
+        })
+        assertEquals(1, sink.flushes)
+        assertEquals(0, sink.closes)
+        assertEquals(50.toInt8(), sink.bytes.toByteArray()[4L])
+    }
+
+    @Test
+    fun `invalid ranges do not call endpoints and read errors keep their prefix`() {
+        val source = ShortSource([1, 2, 3])
+        NativeByteBuffer.allocate(3L).use { buffer ->
+            val negative: EventLoop = LibuvEventLoop()
+            assertFailsWith<IllegalArgumentException> {
+                negative.run suspend { _ -> source.readFully(buffer, -1L) }
+            }
+            val oversized: EventLoop = LibuvEventLoop()
+            assertFailsWith<IndexOutOfBoundsException> {
+                oversized.run suspend { _ -> source.readFully(buffer, 4L) }
+            }
+            assertEquals(0, source.calls)
+            source.failAfter = 2L
+            val failed: EventLoop = LibuvEventLoop()
+            assertSame(source.failure, assertFailsWith<Throwable> {
+                failed.run suspend { _ -> source.readFully(buffer) }
+            })
+            assertEquals(2L, buffer.writePosition)
+        }
+        val copy: EventLoop = LibuvEventLoop()
+        assertFailsWith<IllegalArgumentException> {
+            copy.run suspend { _ -> source.copyTo(ShortSink(), 0L) }
+        }
+    }
+}

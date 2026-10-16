@@ -8,7 +8,8 @@
 | 可取消挂起协调 | 已实现，本机同步／挂起／跨线程竞争与 GC 验收通过 |
 | platform 异步 buffer 借用与 Libuv 错误域 | 已实现，本机 debug／release 与 moving GC 定向验收通过 |
 | asyncio 事件循环、定时等待与投递 | 已实现，本机 debug／release／moving GC 八项 scoop.test 通过 |
-| TCP 与异步流组合 | 待实施 |
+| 异步字节流协议与组合扩展 | 已实现，本机 debug／release／moving GC 六项 scoop.test 通过 |
+| TCP | 待实施 |
 | 文件、DNS、UDP | 待实施 |
 | 三目标组合及完整验收 | 待实施 |
 
@@ -37,3 +38,7 @@ NativeByteBorrow 使用普通公开 Unsafe API 持有 owner，提交已知进度
 新增普通 asyncio Cone、[公开规范](../specs/SCOOP-ASYNCIO-SPEC.md)及未修改的 libuv 1.53.0 三目标源码清单。已交付 EventLoop.run、runWithResult、currentEventLoop 与 sleep；网络和工作请求接口按后续批次实现，规范中的完整接口表不表示提前交付。managed 命令队列与完成选择使用普通同步；C callback 只记录事件，返回 NativeSafe 后才恢复 continuation。定时器使用单调时间，支持向上舍入及超长 Duration 的分段等待。
 
 同 Cone 八项 scoop.test 在本机 debug、release、moving GC 全部通过：值／引用结果、根与未 await 子任务失败、精确 Context binding、嵌套／重复／并发 run 拒绝、跨线程后续 I/O、合并唤醒、多定时器、取消登记前后与真实 native close 收尾。主动编写的 Scoop／C 实现文件最长 110 行；vendor 保持上游原文件。workspace clippy 与 shim 的 C11 警告检查通过。`target` 检查约 2.4 GB，仍远低于开始时的 103 GB；Linux 全量留到功能组合完成后。
+
+## 异步流组合验收
+
+新增 AsyncByteSource／Sink／Stream、AsyncCloseable、readFully／writeFully／copyTo 和泛型 useAsync，分别放在 70 行流文件和 14 行资源文件。六项 scoop.test 在 debug／release／moving GC 通过；端点通过真实定时器逐次挂起，覆盖短传输、EOF、读写失败前缀、零进度、范围与容量错误、接口包装后的 flush 转发、关闭责任及正文／清理双失败。未增加执行器或测试专用生产后端。下一步接入实际 TCP 双向流。
