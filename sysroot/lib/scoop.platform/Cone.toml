@@ -40,3 +40,9 @@ path = "native/system.c"
 path = "native/time.c"
 [[native.sources]]
 path = "native/random.c"
+[[native.sources]]
+path = "native/threads.c"
+[[native.sources]]
+path = "native/mutex.c"
+[[native.sources]]
+path = "native/condition.c"

@@ -5,6 +5,7 @@ import scoop.platform.env.*
 import scoop.platform.random.SystemRandom
 import scoop.platform.time.*
 import scoop.platform.system.*
+import scoop.platform.concurrent.*
 
 fun main() {
     val path = Path.fromString("/alpha/../beta//").normalizeLexically()
@@ -46,5 +47,15 @@ fun main() {
     if (MonotonicTimeSource.markNow() < mark) throw IllegalStateException()
     for ((name, value) in environment()) {
         if (environmentVariable(name)!! != value) throw IllegalStateException()
+    }
+    Mutex().use { mutex ->
+        ConditionVariable(mutex).use { condition ->
+            val completed = AtomicBoolean(false)
+            val worker = Thread.start {
+                mutex.withLock { completed.store(true); condition.signal() }
+            }
+            mutex.withLock { while (!completed.load()) condition.await() }
+            worker.join()
+        }
     }
 }

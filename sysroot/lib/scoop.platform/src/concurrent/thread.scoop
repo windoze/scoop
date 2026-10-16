@@ -1,0 +1,90 @@
+package scoop.platform.concurrent
+
+import scoop.platform.io.checkNativeStatus
+import scoop.platform.io.failNative
+
+public struct ThreadId(val value: ULong) : Equals<ThreadId>, Hash {
+    public override operator fun equals(other: ThreadId): Boolean = value == other.value
+    public override fun hash(): Long = value.hash()
+}
+
+public fun currentThreadId(): ThreadId {
+    @Unsafe { return ThreadId(nativeCurrentThreadId()) }
+}
+
+public fun yield() {
+    @Unsafe {
+        val (status, error) = nativeYield()
+        checkNativeStatus(status, error, "thread yield")
+    }
+}
+
+private class ThreadCompletion {
+    val finished: AtomicBoolean = AtomicBoolean(false)
+    var failure: Throwable? = None
+    fun run(block: () -> Unit): Int {
+        try { block() }
+        catch (error: Throwable) { failure = Some(error) }
+        finally { finished.store(true, MemoryOrder.Release) }
+        return 0
+    }
+}
+
+public class Thread private constructor(private val completion: ThreadCompletion) : Disposable {
+    private var native: Ptr<Unit>? = None
+    public val isFinished: Boolean get() = completion.finished.load(MemoryOrder.Acquire)
+
+    public companion object {
+        public fun start(block: () -> Unit): Thread {
+            val completion = ThreadCompletion()
+            val thread = Thread(completion)
+            @Unsafe {
+                val callback = foreignCallback<(Ptr<Unit>) -> Int>(
+                    { completion.run(block) }, 0, ForeignCallbackMode.OneShot
+                )
+                val (pointer, error) = nativeThreadStart(callback.function, callback.context)
+                if (pointer == None) {
+                    releaseForeignCallback(callback)
+                    failNative("thread start", error)
+                }
+                thread.native = pointer
+            }
+            return thread
+        }
+    }
+
+    public fun join() {
+        when (native) {
+            case Some(pointer) -> @Unsafe {
+                val (status, error) = nativeThreadJoin(pointer)
+                checkNativeStatus(status, error, "thread join")
+                native = None
+            }
+            case None -> {}
+        }
+        when (completion.failure) {
+            case Some(error) -> throw error
+            case None -> {}
+        }
+    }
+
+    public override fun dispose() { if (native != None) join() }
+
+    release {
+        when (native) {
+            case Some(pointer) -> @Unsafe { nativeThreadAbandon(pointer) }
+            case None -> {}
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_thread_start", captureErrno = true)
+private fun nativeThreadStart(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>): (Ptr<Unit>?, Int)
+@Extern(name = "scoop_platform_thread_join", captureErrno = true)
+private fun nativeThreadJoin(thread: Ptr<Unit>): (Int, Int)
+@Extern(name = "scoop_platform_thread_abandon")
+private fun nativeThreadAbandon(thread: Ptr<Unit>)
+@GCLeaf @Extern(name = "scoop_platform_current_thread_id")
+private fun nativeCurrentThreadId(): ULong
+@Extern(name = "scoop_platform_thread_yield", captureErrno = true)
+private fun nativeYield(): (Int, Int)

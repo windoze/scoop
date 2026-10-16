@@ -1,0 +1,82 @@
+package scoop.platform.concurrent
+
+import scoop.platform.io.checkNativeStatus
+import scoop.platform.io.failNative
+import scoop.time.Duration
+
+public class ConditionVariable public constructor(public val mutex: Mutex) : Disposable {
+    private var native: Ptr<Unit>? = None
+    private val active: AtomicLong = AtomicLong(0L)
+    public val isDisposed: Boolean get() = native == None
+
+    init {
+        native = mutex.withNative { _ ->
+            @Unsafe {
+                val (created, error) = nativeConditionCreate()
+                if (created == None) failNative("create condition variable", error)
+                return@withNative created
+            }
+        }
+    }
+
+    private fun <R> withNative(block: (Ptr<Unit>) -> R): R {
+        if (native == None) throw IllegalStateException(Some("condition variable is disposed"))
+        active.fetchAdd(1L, MemoryOrder.Relaxed)
+        try { return block(native!!) }
+        finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
+    }
+
+    public fun await() { wait(None) }
+    public fun await(timeout: Duration): Boolean {
+        if (timeout.seconds < 0L) throw IllegalArgumentException(Some("negative condition timeout"))
+        return wait(Some(timeout))
+    }
+
+    private fun wait(timeout: Duration?): Boolean = withNative { condition ->
+        mutex.withNative lockScope@ { lock ->
+            @Unsafe {
+                val (status, error) = nativeConditionWait(condition, lock,
+                    timeout != None, timeout?.seconds ?: 0L, timeout?.nanosecondsOfSecond ?: 0)
+                checkNativeStatus(status, error, "condition wait")
+                return@lockScope status == 0
+            }
+        }
+    }
+
+    public fun signal() { notify(false) }
+    public fun broadcast() { notify(true) }
+    private fun notify(all: Boolean) {
+        withNative { pointer ->
+            @Unsafe {
+                val (status, error) = nativeConditionSignal(pointer, all)
+                checkNativeStatus(status, error, "condition notification")
+            }
+        }
+    }
+
+    public override fun dispose() {
+        if (native == None) return
+        if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("condition wait is active"))
+        @Unsafe {
+            val (status, error) = nativeConditionDestroy(native!!)
+            checkNativeStatus(status, error, "dispose condition variable")
+            native = None
+        }
+    }
+
+    release {
+        when (native) {
+            case Some(pointer) -> @Unsafe { nativeConditionDestroy(pointer) }
+            case None -> {}
+        }
+    }
+}
+
+@Extern(name = "scoop_platform_condition_create", captureErrno = true)
+private fun nativeConditionCreate(): (Ptr<Unit>?, Int)
+@Extern(name = "scoop_platform_condition_wait", captureErrno = true)
+private fun nativeConditionWait(condition: Ptr<Unit>, mutex: Ptr<Unit>, timed: Boolean, seconds: Long, nanoseconds: Int): (Int, Int)
+@Extern(name = "scoop_platform_condition_signal", captureErrno = true)
+private fun nativeConditionSignal(condition: Ptr<Unit>, all: Boolean): (Int, Int)
+@Extern(name = "scoop_platform_condition_destroy", captureErrno = true)
+private fun nativeConditionDestroy(condition: Ptr<Unit>): (Int, Int)

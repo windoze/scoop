@@ -80,3 +80,13 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - 下游 `.slib` 组合增加原始环境、系统信息、时钟和随机调用，普通／moving 通过。格式化、workspace all-targets clippy 和 C 严格告警通过。库侧首轮的导入、整数宽度、数组初始化及 argv 可空指针绑定已修正；argv 与既有 native contract 对齐，runtime ABI 不变。
 
 下一批为 M45-7；Linux GNU／musl 仍集中安排在全部本机功能稳定后。Linux getrandom 的实际短读取与其目标 ABI 随最终验收运行。所有原始记录在仓库外，docs/validation 未纳入原始输出。
+
+## M45-7：线程与同步
+
+2026-10-16 完成本机实现。Thread 复用 OneShot callback 与 TaskContext，普通 completion 保存原始 Throwable；join 回收整个 pthread，hook 仅 detach 并释放原生观察权。Mutex 使用非递归 ERRORCHECK 锁；ConditionVariable 绑定并保活 Mutex，超时使用 monotonic／相对等待。活动调用保活 owner，忙碌同步对象不会被 hook 强行销毁。
+
+- scoop.test 共 77 项在 debug、release、debug moving GC 全部通过，本批新增 8 项。覆盖共享写入、锁内 GC、原始异常与 use 双失败、重复 join/dispose、self-join、独立 TaskContext、谓词循环、等待中保活、零／负超时、错误持锁状态和关闭后操作。
+- 新增 native 生命周期 fixture 在 debug/release、普通／moving GC 均通过。实际创建入口注入 pthread／mutex／condition 初始化失败，检查回滚；真实 worker 阻塞时丢弃 Thread，确认 detach 不提前释放 worker 记录，完成后恰好释放；临时 withLock owner 跨 GC 保活，忙碌锁的 hook 不销毁存储，探针随后显式清理。
+- 下游 `.slib` 组合新增线程、锁及条件变量，普通／moving 通过。格式化、workspace all-targets clippy、C 严格告警通过。首轮源码的初始化接收者捕获、泛型回调结果及 fixture 直接依赖已修正并闭合，无编译器或 runtime 协议变更。
+
+下一批为 M45-8。Linux GNU／musl 继续留到所有本机功能完成后的统一验收；只记录结果概要，不提交原始日志或机器报告。

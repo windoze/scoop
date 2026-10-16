@@ -1,6 +1,6 @@
 # M45 设计：平台库、确定性资源释放与 native IO buffer
 
-状态：实施中；M38 已于 2026-10-16 完成，M45-1～6 本机实现与回归完成，下一批为 M45-7。设计日期：2026-10-14。调研基线：`e548b9ebe`。实际验证见 [实施记录](PROGRESS.md)。
+状态：实施中；M38 已于 2026-10-16 完成，M45-1～7 本机实现与回归完成，下一批为 M45-8。设计日期：2026-10-14。调研基线：`e548b9ebe`。实际验证见 [实施记录](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)、[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md)与[路线图](../ROADMAP.md)。本文及配套文档记录 M45 的交付范围、API 合同、实施任务和验收要求，不表示接口已实现。每批实施前先同步对应 spec，再修改代码。
 
@@ -108,7 +108,7 @@ Scoop 负责公共对象、参数检查、异常、所有权状态、缓冲算�
 | M45-4 | NativeByteBuffer 与 GC pressure 提示（本机完成） | 依赖 M45-2/3；容量／游标／借用／释放闭环，增长失败保留原状态，hook 与显式路径不重复 free／反馈；delta 增减与回滚配平，GC 采用 no-op 也通过验收 |
 | M45-5 | 同步字节 IO、文件／目录、标准流与文本（本机完成） | 依赖 M45-4；实际读写、短 IO、EOF、错误进度、目录提前退出、UTF-8、并发文件 IO 与资源组合通过 |
 | M45-6 | 环境／系统信息、时钟与系统熵（本机完成） | 原始 argv／环境与 std 数据模型正确组合；sleep 不阻止其他 mutator 推进；系统熵失败保留已写前缀；不依赖 M38 |
-| M45-7 | Thread、Mutex、ConditionVariable | 复用 callback／Context／NativeSafe；创建失败、join／dispose、线程异常与同步语义通过；worker ownership 完成后释放 |
+| M45-7 | Thread、Mutex、ConditionVariable（本机完成） | 复用 callback／Context／NativeSafe；创建失败、join／dispose、线程异常与同步语义通过；worker ownership 完成后释放 |
 | M45-8 | Command、ChildProcess、管道与 communicate | 依赖文件、线程；posix_spawn、参数／环境／cwd、退出／信号、双向管道和无死锁输出收集通过 |
 | M45-9 | 阻塞 DNS、TCP 与 UDP | 依赖 IO、线程；loopback、部分传输、半关闭、UDP 空包／截断和 SIGPIPE 策略通过 |
 | M45-10 | 真实应用组合、三目标与产物消费 | 三目标运行本库测试、debug/release 代表组合；源码和工具保持存在，验证下游产物消费、链接运行及实际调用复用；记录实际结果与限制，无未实现占位或绕行；pressure no-op 按明确合同验收 |

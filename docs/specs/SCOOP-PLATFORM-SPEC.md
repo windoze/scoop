@@ -169,3 +169,19 @@ TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSo
 Linux 使用 getrandom、Darwin 使用 getentropy，按目标单次上限分块并重试未产生数据的 EINTR；允许短结果后继续。NativeByteBuffer 每次只提交本次成功的前缀，后续失败保留已提交进度，未初始化尾部仍不可读；数组失败保留已写区间。native 正请求无进度作为 IO 错误处理，不忙循环或退化为 PRNG。所有系统熵操作使用 NativeSafe，可以与 GC 并行。Uuid.random(SystemRandom) 与既有 Random 默认方法沿普通接口组合，不增加隐式随机源或密码学算法。
 
 目标依据：[getentropy](https://man7.org/linux/man-pages/man3/getentropy.3.html)、[nanosleep](https://man7.org/linux/man-pages/man2/nanosleep.2.html)、[clock_nanosleep](https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html) 以及当前目标 SDK。环境、时钟和熵均不新增 runtime ABI。
+
+## 10. 线程与同步
+
+`scoop.platform.concurrent.Thread.start(block: () -> Unit): Thread` 启动 owned native 线程，捕获启动时 TaskContext。普通 completion 对象保存正文原始 Throwable 和原子完成标志；OneShot callback 自行捕获失败，worker ownership 在调用中消费，不额外保留只能由 dispose 清理的 callback observer。创建失败释放未转移的 callback ownership 和 native 控制记录。
+
+Thread 实现 Disposable，提供 isFinished、join、dispose。isFinished 表示 managed 正文已完成，以 release/acquire 发布；join 仍等待整个 pthread 退出并回收 native 观察权，再抛出正文原始异常。重复 join 使用缓存结果，失败也保留对象身份；dispose 在未回收时 join，已回收时不重复抛旧异常。self-join 报 native 错误且不消费观察权。调用方串行化 join/dispose；isFinished 不访问可能被 join 释放的 native 记录。
+
+Thread hook 只做非阻塞 pthread_detach 并释放 native 观察权。控制记录由 worker 与观察者分别持有原生存活权，最后一方释放；不保存 managed 指针、不等待正文、不操作 callback ownership。丢弃 Thread 不承诺 worker 已完成或 runtime 正常退出；程序需显式 join/use。currentThreadId(): ThreadId 返回有 Equals/Hash 的不透明 pthread 标识，线程结束后允许复用，不等同于进程 id；yield() 请求让出当前 native 线程。
+
+Mutex() 为 final Disposable class，使用非递归 ERRORCHECK mutex，提供 lock、tryLock、unlock、withLock<T>(block: () -> T)、isDisposed。tryLock 忙时返回 false；重入 lock 和非持有者 unlock 报 native 错误。withLock 在 finally 解锁，支持泛型结果和异常，只有普通同步回调，没有 suspend 重载。
+
+ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、await(timeout: Duration): Boolean、signal、broadcast、dispose 和 isDisposed。await 要求当前线程持有该 mutex，原子释放／等待／重新取得；超时重载 true 表示唤醒，false 表示超时。任何返回都不能证明谓词成立，调用方使用 while 循环。负时长拒绝，零超时仍执行释放／重新取得；Linux 使用 CLOCK_MONOTONIC cond clock，Darwin 使用相对等待接口，避免 realtime 校时改变超时。超出目标时间表示范围按实际错误报告。
+
+同步对象的活动调用保活 owner；ConditionVariable.await 同时保活相关 Mutex，native 等待使用 NativeSafe。dispose 要求没有并发操作，mutex 未持有、cond 无等待者；不满足时拒绝并保留对象。关闭成功才清除 owner，重复关闭无操作。Mutex 的 native 持有状态避免对忙碌 mutex 调用具有未定义行为的 destroy；hook 不解锁、不唤醒，只在合法销毁前提满足时释放，忙碌对象不被强行 free。禁止外部 native 代码直接操作这些私有同步句柄。
+
+依据：[POSIX mutex 销毁前提](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutex_destroy.html)、[条件等待](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_cond_clockwait.html)、[Darwin 相对条件等待](https://github.com/apple-oss-distributions/libpthread/blob/main/src/pthread_cond.c)。这些 API 复用既有 callback、Context、原子与 GC 合同，不新增线程 runtime 协议或强制停止机制。
