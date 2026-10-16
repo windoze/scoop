@@ -28,7 +28,7 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/gc_binding/stackmap.c",
         "runtime/src/gc_binding/stackmap/parser.c",
         "runtime/src/gc_binding/stackmap/records.c",
-        "runtime/src/gc_binding/stackmap/fingerprint.c",
+        "runtime/src/gc_binding/stackmap/payload.c",
         "runtime/src/platform/arch/aarch64.c",
         "runtime/src/value_shape.c",
         "runtime/src/value_scan.c",
@@ -52,7 +52,6 @@ fn run_image_test(fixture: &str, expected: &str) {
     let compile = command
         .arg(workspace.join("runtime/tests/image_storage_fixture.c"))
         .arg(workspace.join("runtime/tests/image_stackmap_fixture.c"))
-        .arg(workspace.join("runtime/tests/stackmap_fingerprint_test.c"))
         .arg(workspace.join(format!("runtime/tests/{fixture}.c")))
         .arg("-o")
         .arg(&binary)

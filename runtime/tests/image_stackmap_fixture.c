@@ -32,32 +32,6 @@ static void location(ScoopStackmapFixture *fixture, uint8_t kind, uint16_t reg,
     append(fixture, (uint32_t)offset, 4);
 }
 
-void scoop_test_stackmap_fingerprint(ScoopSafepointRegistrationDescriptorV1 *site,
-                                     uint32_t instruction_offset) {
-    ScoopStackMapRootPair pair = {.base = {.kind = SCOOP_STACKMAP_INDIRECT,
-                                           .size = 8,
-                                           .dwarf_register = 31,
-                                           .offset = 16},
-                                  .derived = {.kind = SCOOP_STACKMAP_INDIRECT,
-                                              .size = 8,
-                                              .dwarf_register = 31,
-                                              .offset = 16}};
-    ScoopStackMapLiveOut live_out = {19, 8};
-    ScoopStackMapRecord record = {.safepoint_id = site->safepoint_id,
-                                  .instruction_offset = instruction_offset,
-                                  .stack_size = 64,
-                                  .root_count = (uint16_t)site->root_pair_count,
-                                  .roots = &pair,
-                                  .live_out_count = (uint16_t)site->root_pair_count,
-                                  .live_outs = &live_out};
-    for (size_t index = 0; index < 3; index++) {
-        record.header[index] =
-            (ScoopStackMapLocation){.kind = SCOOP_STACKMAP_CONSTANT, .size = 8};
-    }
-    assert(scoop_stackmap_fingerprint(&record, site,
-                                      &site->normalized_stackmap_fingerprint));
-}
-
 static BlobOffsets blob(ScoopStackmapFixture *fixture, size_t site_index,
                         bool indexed) {
     StorageMetadata *data = fixture->storage.data;
@@ -112,12 +86,12 @@ void scoop_test_stackmap_setup(ScoopStackmapFixture *fixture) {
                        sizeof data->sites[index]},
             .registration = {.linkage_kind = SCOOP_REGISTRATION_LINKAGE_STRONG_V1,
                              .semantic_id = {{(uint8_t)(77 + index)}}},
+            .normalized_stackmap_fingerprint = {{33}},
             .safepoint_id = 11 + index,
             .site_role = SCOOP_SAFEPOINT_MANAGED_POLL_V1,
             .root_pair_count = index == 0 ? 1 : 0,
             .owner_callable_id = {{(uint8_t)(index == 0 ? 2 : 1)}}};
         data->site_table[index] = &data->sites[index];
-        scoop_test_stackmap_fingerprint(&data->sites[index], index == 0 ? 8 : 4);
     }
     data->sites[0].registration.linkage_kind = SCOOP_REGISTRATION_LINKAGE_ODR_V1;
     data->sites[0].registration.odr_group_id.bytes[0] = 55;

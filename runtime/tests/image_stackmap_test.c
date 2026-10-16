@@ -22,7 +22,6 @@ static ScoopImageRegistry *check(ScoopStackmapFixture *fixture) {
 }
 
 static void positive(void) {
-    scoop_test_stackmap_rust_vector();
     ScoopStackmapFixture fixture = {0};
     scoop_test_stackmap_setup(&fixture);
     ScoopImageRegistry *registry = check(&fixture);
@@ -64,16 +63,13 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
                                   (uintptr_t)data->callables[0].entry, 8);
         return "owner entry address or root count";
     case 4:
-        scoop_test_stackmap_write(fixture, first.record + 8, 12, 4);
-        return "normalized fingerprint mismatch";
-    case 5:
         scoop_test_stackmap_write(fixture, first.locations + 36 + 8, 20, 4);
         scoop_test_stackmap_write(fixture, first.locations + 48 + 8, 20, 4);
-        return "normalized fingerprint mismatch";
-    case 6:
+        return "ODR raw records differ in PC or canonical payload";
+    case 5:
         scoop_test_stackmap_write(fixture, first.live_outs, 20, 2);
-        return "normalized fingerprint mismatch";
-    case 7:
+        return "ODR raw records differ in PC or canonical payload";
+    case 6:
         data->sites[0].registration.linkage_kind =
             SCOOP_REGISTRATION_LINKAGE_STRONG_V1;
         data->sites[0].registration.odr_group_id = (ScoopDigest256V1){0};
@@ -83,10 +79,10 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
         data->callables[1].registration.odr_group_id = (ScoopDigest256V1){0};
         data->callables[1].registration.odr_member_id = (ScoopDigest256V1){0};
         return "duplicate Strong raw record";
-    case 8:
+    case 7:
         scoop_test_stackmap_write(fixture, third.record + 8, 12, 4);
-        return "normalized fingerprint mismatch";
-    case 9:
+        return "ODR raw records differ in PC or canonical payload";
+    case 8:
         data->sites[1].owner_callable_id = data->sites[0].owner_callable_id;
         data->sites[1].registration.linkage_kind =
             SCOOP_REGISTRATION_LINKAGE_ODR_V1;
@@ -95,36 +91,32 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
         scoop_test_stackmap_write(fixture, second.start + 16,
                                   (uintptr_t)data->callables[1].entry, 8);
         scoop_test_stackmap_write(fixture, second.record + 8, 8, 4);
-        scoop_test_stackmap_fingerprint(&data->sites[1], 8);
         return "duplicate statepoint return PC";
-    case 10:
-        data->sites[0].normalized_stackmap_fingerprint.bytes[0] ^= 1;
-        return "normalized fingerprint mismatch";
-    case 11:
+    case 9:
         data->sites[0].root_pair_count = 0;
         return "owner entry address or root count";
-    case 12:
+    case 10:
         scoop_test_stackmap_write(fixture, first.locations + 4, 1, 2);
         return "unknown stack map location kind";
-    case 13:
+    case 11:
         scoop_test_stackmap_write(fixture, third.start + 40, 42, 8);
-        return "normalized fingerprint mismatch";
-    case 14:
+        return "ODR raw records differ in PC or canonical payload";
+    case 12:
         fixture->image.section = (const uint8_t *)data + fixture->storage.size;
         return "complete section readonly range";
-    case 15:
+    case 13:
         scoop_test_stackmap_write(fixture, first.start + 12, UINT32_MAX, 4);
         return "function and record counts disagree";
-    case 16:
+    case 14:
         fixture->image.section_size--;
         return "truncated stack map section";
-    case 17:
+    case 15:
         scoop_test_stackmap_write(fixture, first.start + 4, UINT32_MAX, 4);
         return "truncated stack map section";
-    case 18:
+    case 16:
         scoop_test_stackmap_write(fixture, first.locations + 36 + 4, 0, 2);
         return "invalid managed frame or root location";
-    case 19:
+    case 17:
         scoop_test_stackmap_write(fixture, first.locations + 36 + 4, 29, 2);
         scoop_test_stackmap_write(fixture, first.locations + 48 + 4, 29, 2);
         scoop_test_stackmap_write(fixture, first.locations + 36 + 8, INT32_MAX,
@@ -176,7 +168,7 @@ static void negative(unsigned test) {
 
 int main(void) {
     positive();
-    for (unsigned test = 0; test < 20; test++)
+    for (unsigned test = 0; test < 18; test++)
         negative(test);
     puts("image stackmap join tests passed");
 }

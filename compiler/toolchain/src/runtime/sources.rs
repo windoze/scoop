@@ -75,7 +75,7 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/gc_binding/stackmap.c",
     "runtime/src/gc_binding/stackmap/parser.c",
     "runtime/src/gc_binding/stackmap/records.c",
-    "runtime/src/gc_binding/stackmap/fingerprint.c",
+    "runtime/src/gc_binding/stackmap/payload.c",
     "runtime/src/gc_binding/stack_roots.c",
     "runtime/src/thread.c",
     "runtime/src/thread/collection.c",
