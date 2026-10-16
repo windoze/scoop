@@ -188,54 +188,6 @@ pub(super) fn candidates(
         .collect()
 }
 
-pub(super) fn set_rela_addend(
-    objects: &mut [(SlibMemberId, Vec<u8>)],
-    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    member_id: SlibMemberId,
-    atom_id: scoop_identity::ObjectDefinitionAtomId,
-    offset_within_atom: u64,
-    addend: i64,
-) {
-    use object::read::elf::SectionHeader;
-    let member = builtins
-        .strong_relocations()
-        .members()
-        .iter()
-        .find(|member| member.member() == member_id)
-        .unwrap();
-    let atom = member
-        .definitions()
-        .definitions()
-        .iter()
-        .flat_map(|definition| definition.atoms())
-        .find(|atom| atom.atom() == atom_id)
-        .unwrap();
-    let (_, bytes) = objects
-        .iter_mut()
-        .find(|(member, _)| *member == member_id)
-        .unwrap();
-    let file = object::read::elf::ElfFile64::<object::Endianness>::parse(bytes.as_slice()).unwrap();
-    let endian = file.endian();
-    let mut field = None;
-    for (_, section) in file.elf_section_table().enumerate() {
-        if section.sh_type(endian) != object::elf::SHT_RELA
-            || section.sh_info(endian) != atom.section_ordinal().get()
-        {
-            continue;
-        }
-        let start = section.sh_offset(endian) as usize;
-        for offset in (start..start + section.sh_size(endian) as usize).step_by(24) {
-            if u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap())
-                == atom.start() + offset_within_atom
-            {
-                field = Some(offset + 16);
-            }
-        }
-    }
-    let field = field.expect("metadata pointer RELA");
-    bytes[field..field + 8].copy_from_slice(&addend.to_le_bytes());
-}
-
 fn c_candidates(objects: &[(SlibMemberId, Vec<u8>)]) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {
     objects
         .iter()

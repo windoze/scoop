@@ -77,7 +77,6 @@ pub(crate) fn object_bytes(
         type_registrations,
         immortal_registrations,
         static_storage_registrations,
-        corruption,
     )
 }
 

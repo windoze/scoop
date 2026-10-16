@@ -15,6 +15,7 @@ use crate::{
 
 mod wire;
 pub(crate) use wire::DecodedFixedBytesV1;
+mod atom_range;
 mod registration_identity;
 
 const SCOOP_LIR_UNIT_SET_DOMAIN: &str = "scoop-lir-object-unit-set-v1";

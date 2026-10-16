@@ -386,6 +386,8 @@ immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 can
 
 初始化登记直接关联计划和 Eager gateway 的 digest 槽位；Lazy 分支没有 gateway。gateway body、node 与指纹作为同一完整值保存，实际指纹按 body id 查询已计算的 callable 结果。发布不重读 cell、诊断文本和登记指针，不深比较 callable／initialization 的生产副本或重放 digest 图。
 
+Type registration 直接关联 descriptor／layout 槽位。descriptor 指纹按已解析 atom 范围读取实际 descriptor、诊断数据及 itable directory，并使用现有 typed 语义归一化指针；layout 指纹消费现有 instance shape。保留读取范围和缺失引用诊断，不再重建预期字节、重验 relocation 全集、对照计划副本或比较 undefined-requirement 闭包来取得计算资格。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

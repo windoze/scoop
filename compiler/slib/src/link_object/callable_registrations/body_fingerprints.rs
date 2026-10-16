@@ -10,8 +10,8 @@ use super::object_definition::{
     ObjectDefinitionFingerprintInputV1, ObjectDefinitionLeafWithAssociatedAtomsInputV1,
     ObjectDefinitionRelocationFailureV1, canonicalize_relocations_with_associated_atoms,
 };
-use super::physical::atom_file_range;
 use crate::SlibMemberId;
+use crate::link_object::atom_range::atom_file_range;
 use crate::link_object::{
     CanonicalUndefinedSymbolRequirementSetV1,
     FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,

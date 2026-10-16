@@ -4,16 +4,13 @@ use super::*;
 pub(super) fn push_sections(
     bytes: &mut Vec<u8>,
     module: &scoop_lir::Module,
-    stackmap: &[u8],
     registrations: &StrongSafepointRegistrationPlanSetV1,
     callable_registrations: &StrongCallableRegistrationPlanSetV1,
     type_registrations: &StrongTypeRegistrationPlanSetV1,
     immortal_registrations: &StrongImmortalObjectRegistrationPlanSetV1,
     static_storage_registrations: &StrongStaticStorageRegistrationPlanSetV1,
-    registration_offset: u32,
     relocation_offset: u32,
     storage_is_zero_fill: bool,
-    corruption: Corruption,
 ) {
     for registration in registrations.registrations() {
         push_registration(bytes, *registration);
@@ -24,32 +21,8 @@ pub(super) fn push_sections(
     for registration in type_registrations.registrations() {
         push_type_descriptor(bytes, registration);
     }
-    if matches!(corruption, Corruption::TypeDescriptorScalar) {
-        let descriptor_offset = usize::try_from(
-            type_descriptor_base(stackmap.len(), registrations, callable_registrations)
-                - TEXT_SIZE
-                - u64::try_from(stackmap.len()).unwrap(),
-        )
-        .unwrap()
-            + usize::try_from(registration_offset).unwrap();
-        bytes[descriptor_offset + 16] ^= 1;
-    }
     for registration in type_registrations.registrations() {
         bytes.extend_from_slice(registration.semantic().diagnostic_name().as_bytes());
-    }
-    if matches!(corruption, Corruption::TypeDescriptorDiagnosticBytes) {
-        let diagnostic_offset = usize::try_from(
-            type_diagnostic_base(
-                stackmap.len(),
-                registrations,
-                callable_registrations,
-                type_registrations,
-            ) - TEXT_SIZE
-                - u64::try_from(stackmap.len()).unwrap(),
-        )
-        .unwrap()
-            + usize::try_from(registration_offset).unwrap();
-        bytes[diagnostic_offset] ^= 1;
     }
     align_zero(bytes, 8);
     bytes.extend(std::iter::repeat_n(
@@ -105,17 +78,4 @@ pub(super) fn push_sections(
         }
     }
     assert_eq!(bytes.len(), usize::try_from(relocation_offset).unwrap());
-    if matches!(corruption, Corruption::TypeRegistrationMagic) {
-        let offset = type_registration_base(
-            stackmap.len(),
-            registrations,
-            callable_registrations,
-            type_registrations,
-        );
-        bytes[usize::try_from(
-            u64::from(registration_offset) - TEXT_SIZE - u64::try_from(stackmap.len()).unwrap()
-                + offset,
-        )
-        .unwrap()] ^= 1;
-    }
 }

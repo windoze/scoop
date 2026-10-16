@@ -286,7 +286,6 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
     assert!(partitions.legacy().requirements().is_empty());
     assert_eq!(partitions.cross_cone().requirements().len(), 1);
     let object_requirements = VerifiedObjectDefinitionRequirementSetV1::from(partitions.clone());
-    assert!(object_requirements.matches_strong_closure(&strong));
     assert_eq!(
         object_requirements.requirement_for(partitions.cross_cone().requirements()[0].use_site()),
         Some(CanonicalObjectDefinitionRequirementV1::DependencyStrong {

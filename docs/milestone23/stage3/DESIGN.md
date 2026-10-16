@@ -1913,72 +1913,15 @@ ODR字段和object semantic id；offset 152写入从managed pointer显式转换�
 typed intent、LLVM owner、offset与width。已有同type image-table声明可以补全；不开放接受裸object id、
 object pointer、size/alignment、type-registration pointer或patch offset的旧入口，也不发射兼容alias。
 
-Link侧唯一经`verify_strong_type_registrations_v1`消费完整type plan、全量digest patch proof与同一批精确object
-bytes；它重验240-byte provisional record、只读Primary atom、offset 168处唯一8-byte unsigned
-TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation必须解析到同一exact type的
-`TypeDescriptor` strong definition/Primary symbol；该descriptor必须是精确128-byte只读Primary，并精确拥有plan
-指定的只读diagnostic associated atom，其bytes必须等于LIR中的UTF-8 diagnostic name；非空itable分支还必须精确
-拥有plan指定的只读itable-directory associated atom。descriptor offset 112必须
-恰有一条8-byte、zero-addend、`Unsigned64` relocation，解析到该diagnostic atom起点的object-local symbol；用其他
-local atom、section base、boundary symbol或任意合法strong定义代替都失败。验证结果直接携带descriptor Primary与
-diagnostic atom的member、checked file range及已验证relocation，后续专用fingerprint计算器不得重新按物理邻接或
-symbol拼写反查。descriptor offset 64在semantic为`Defined(scan)`时必须恰好解析到该scan的
-`ScanProgram` definition plan，在`Null`时不得出现；相同payload的其他scan、任意本地constant或其他合法
-strong definition均不能替代。layout definition也必须由既定Scoop member物化；record指向其他合法strong定义、错owner/member/
-symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
-digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
-edge/writer集合，不接受record bytes或调用方自报digest关系。
+Type registration 通过 `bind_type_registrations_v1` 关联已有计划与 descriptor／layout digest 槽位。发布不重复核对登记记录、descriptor scalar、诊断文字、itable 指针全集或 digest 图。所需实际对象数据依据已有 definition／atom 索引读取，局部范围和缺失引用正常报错。
 
 immortal object 的登记直接消费 `StrongImmortalObjectRegistrationPlanSetV1`。Strong 定义使用既有实体身份，ODR 定义按 member 查询 canonical shape ABI；登记 ABI 由同一计划中的 owner 与表种类计算。RuntimeImage 编码 record kind 2、对象身份、大小、对齐及 type registration 引用。
 
 外部 exact type 的 descriptor 与 type registration 通过实际 provider 和 typed target 查询已有定义；实际 relocation 进入普通 requirement 集合。不附加 core 来源授权，也不再次读取 String payload、重建登记字节、比较指针目标或重放 digest 依赖图以证明生产正确。对象由 codegen 正常生成，实际对象内容与规范化 relocation 仍进入需要它们的 Code／ODR 计算。
 
-type registration自身的ObjectDefinition leaf只能经
-`compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
-digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte
-provisional record、relocation count 1、offset 168的`Unsigned64` relocation及direct-input count 0；
-relocation target使用通用canonical schema编码为同一exact type的`IntraConeStrong TypeDescriptor` owner。
-member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；不保留按物理target
-索引或登记专用target格式计算的旧路径。
+descriptor fingerprint 使用 `scoop-object-definition-v1`：读取实际 Primary、diagnostic 和非空 itable directory atom；指针载荷按既有 typed 目标归一化，编码关联 atom 与其 canonical relocations。随后编码 descriptor-semantic kind 1、exact type、runtime type、instance Layout／Scan id、TypeInstanceShape、诊断名、parent、vtable 与 itable 的 typed slots、函数关系和 release policy。物理地址及 symbol index 不进入语义编码。
 
-descriptor ObjectDefinition与managed-instance Layout两个typed dependency只能经
-`compute_strong_type_dependency_fingerprints_v1`继续消费上述registration-object proof和再次匹配content digest
-的object全集产生。计算器从proof持有的checked range读取精确128-byte descriptor，逐byte重建runtime type、
-instance/inline kind、六个size/alignment scalar、itable count与diagnostic length；全部pointer载荷必须是
-zero-addend relocation占位。Primary内relocation offset集合由非空inline/object scan、parent、非空vtable、非空
-itables及必有的diagnostic span机械导出，严格为相应的64/72/80/88/96/112子集；每项必须是只读Primary内的
-8-byte `Unsigned64`且encoded value为零，112项继续复用前述精确diagnostic-atom proof，不能出现额外pointer。
-
-descriptor fingerprint仍使用`scoop-object-definition-v1`：先编码通用Primary bytes、offset 112指向owning
-`AddressTakenConstant` atom起点的canonical relocation、零direct input及完整associated atom集合：必有diagnostic
-atom，非空itable分支另有itable-directory atom。目录extent必须精确为`16 * itable_count`，每个pointer slot的
-provisional bytes为零；每项interface relocation必须命中semantic指定的local/core-external TypeDescriptor，每项
-非空slots relocation必须命中同一itable identity的`DispatchTable` strong definition，空slots不得出现relocation。
-descriptor offset 96必须恰好指向上述目录atom起点；目录bytes与canonical relocations一并进入descriptor
-ObjectDefinition fingerprint。随后
-编码descriptor-semantic kind tag 1、exact type、runtime type、instance Layout/Scan id、完整`TypeInstanceShape`
-（两个scan均用`None=0 | References=1 | Sequence=2 | Array=3`递归编码）、diagnostic byte span、typed parent、
-vtable identity/typed callable slots及按plan顺序的itable identity/interface/typed callable slots。descriptor中的
-scan/table pointer物理地址不进入hash，其完整typed content由同一尾部semantic payload承诺；member、local symbol
-index及地址同样不进入hash。
-
-managed-instance LayoutFingerprint使用domain `scoop-layout-v1`，依次编码managed-instance layout kind tag 2、
-`PersistentLayoutId`、`PersistentExactTypeId`、`PersistentScanId`及同一完整`TypeInstanceShape`；它与
-static-value kind tag 1直接互斥。该入口直接构造字段私有的
-`VerifiedStrongTypeDependencyFingerprintSetV1`，外部不能传入裸digest、替换node或手工拼装proof；原先测试和
-finalizer中直接写入`[7; 32]`/`[11; 32]`的路径删除，不保留兼容构造器。
-
-type的StrongRegistration只能经`compute_strong_type_fingerprints_v1`消费registration object proof以及由
-专用计算器产生、绑定同一exact type/node的descriptor ObjectDefinition与Layout typed proof。canonical
-record依次编码record kind 4、Strong linkage、exact-type semantic id、三个零own/ODR digest、runtime type
-id、`TypeDescriptorAtom` role tag 6与同一exact type、descriptor fingerprint、layout fingerprint；最后编码
-registration object、descriptor ObjectDefinition和Layout三个按`(kind, node id)`排序的direct input。公共
-入口不接受裸digest、裸node或调用方拼装的direct-input数组；proof coverage、exact type及三个node任一不一致
-均在hash前失败。
-
-Link reader的registration dependency完成态直接持有`VerifiedStrongTypeFingerprintSetV1`；它在同一状态转换中
-依次调用专用dependency计算器与type StrongRegistration计算器。该完成态不再暴露未完成的type
-registration-object leaf，也不存在跳过descriptor/layout而进入六表patch的兼容分支。
+managed-instance LayoutFingerprint 使用 `scoop-layout-v1`，编码 kind 2、layout id、exact type id、scan id 与 TypeInstanceShape。计算直接使用现有计划，不重建 descriptor byte image 或重新验证全部 relocation。Strong／ODR registration ABI 复用登记身份与 canonical shape ABI；RuntimeImage 的 type record 编码 kind 4、登记身份、runtime type、TypeDescriptorAtom role 6、exact type、descriptor fingerprint 和 layout fingerprint。结果直接交给实际槽位回填，不建立物理 proof 资格链，也不比较已经消费过的 undefined-requirement 副本。
 
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`

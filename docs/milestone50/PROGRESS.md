@@ -19,8 +19,9 @@
 13. Immortal object：登记 ABI 直接使用生产计划与 canonical shape ABI，删除 String payload、登记字节、指针目标和 digest 图的发布复查，移除专属破坏测试与辅助分支。
 14. 静态存储：计划直接关联 scan／layout 槽位，shape 指纹使用既有语义数据，删除初值、scan、空哨兵、登记字节、relocation 与 digest 图的重复回放及专属测试。
 15. 初始化：直接关联 Eager gateway 槽位，复用实际 callable body 指纹；gateway 的 body／node／指纹改为单个可选完整值。删除 cell、诊断文本、登记记录和 relocation 回放、生产副本深比较及独占破坏测试。
-16. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
-17. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+16. 类型登记：直接关联 descriptor／layout 槽位，按已解析 atom 范围读取 descriptor、diagnostic 与 itable 数据计算实际指纹。删除预期字节重建、relocation／digest 图回放及 requirement 闭包深比较，清理独占错误和破坏测试；共用已有 atom 范围转换。
+17. 待完成：物理数据与 registration 的重复证明链、其余同类要求及最终验收。
+18. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -53,3 +54,5 @@ Immortal object 批次：格式化、workspace clippy 无警告；release slib l
 静态存储批次：格式化、workspace clippy 无警告；release slib link_object 185 项通过，layout／scan 固定向量与最终回填结果保持通过。Linux 编码初值和零初始化的实际槽位用例待目标环境执行。
 
 初始化批次：格式化、workspace clippy 无警告；release slib link_object 180 项通过，Eager 的实际 gateway 指纹回填和 Lazy 无 gateway 行为继续覆盖。
+
+类型登记批次：格式化、workspace clippy 无警告；release slib 全部 281 项通过，descriptor／layout 固定向量、V1／V2 编码兼容和最终回填均通过。

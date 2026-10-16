@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{CoreBuiltinNominal, ExactTypeKey};
+use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId};
 use scoop_wire::encode_runtime;
 
 fn exact() -> PersistentExactTypeId {

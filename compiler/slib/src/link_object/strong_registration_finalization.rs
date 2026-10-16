@@ -10,9 +10,8 @@ use super::VerifiedStrongSafepointFingerprintSetV1;
 use crate::SlibMemberId;
 use crate::link_object::{
     ImmortalObjectFingerprintSetV1, InitializationFingerprintSetV1, ScoopLirObjectCandidateV1,
-    StaticStorageFingerprintSetV1, ValidatedScoopLirObjectEnvelopeV1,
+    StaticStorageFingerprintSetV1, TypeFingerprintSetV1, ValidatedScoopLirObjectEnvelopeV1,
     VerifiedMaterializedPatchSiteV1, VerifiedStrongCallableFingerprintSetV1,
-    VerifiedStrongTypeFingerprintSetV1,
 };
 
 mod patching;
@@ -55,7 +54,7 @@ pub struct VerifiedStrongRegistrationPatchSetV1<
 > {
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
-    types: VerifiedStrongTypeFingerprintSetV1<D, C>,
+    types: TypeFingerprintSetV1<D, C>,
     immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: StaticStorageFingerprintSetV1,
     initializations: InitializationFingerprintSetV1<I>,
@@ -83,7 +82,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
         &self.callables
     }
 
-    pub const fn types(&self) -> &VerifiedStrongTypeFingerprintSetV1<D, C> {
+    pub const fn types(&self) -> &TypeFingerprintSetV1<D, C> {
         &self.types
     }
 
@@ -108,7 +107,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
 pub fn patch_strong_registration_fingerprints_v1(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
-    types: VerifiedStrongTypeFingerprintSetV1,
+    types: TypeFingerprintSetV1,
     immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: StaticStorageFingerprintSetV1,
     initializations: InitializationFingerprintSetV1,
@@ -129,7 +128,7 @@ pub fn patch_strong_registration_fingerprints_v1(
 pub fn patch_strong_registration_fingerprints_v2(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
-    types: crate::VerifiedStrongTypeFingerprintSetV2,
+    types: crate::TypeFingerprintSetV2,
     immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: StaticStorageFingerprintSetV1,
     initializations: crate::InitializationFingerprintSetV2,
@@ -150,7 +149,7 @@ pub fn patch_strong_registration_fingerprints_v2(
 fn patch_strong_registration_fingerprints<D, C, I>(
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
-    types: VerifiedStrongTypeFingerprintSetV1<D, C>,
+    types: TypeFingerprintSetV1<D, C>,
     immortal_objects: ImmortalObjectFingerprintSetV1,
     static_storages: StaticStorageFingerprintSetV1,
     initializations: InitializationFingerprintSetV1<I>,

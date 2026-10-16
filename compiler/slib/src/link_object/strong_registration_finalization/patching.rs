@@ -57,7 +57,7 @@ pub(super) fn patch_callables(
 }
 
 pub(super) fn patch_types<D, C>(
-    fingerprints: &VerifiedStrongTypeFingerprintSetV1<D, C>,
+    fingerprints: &TypeFingerprintSetV1<D, C>,
     object_indexes: &BTreeMap<SlibMemberId, usize>,
     objects: &mut [(SlibMemberId, Vec<u8>)],
 ) -> Result<(), StrongRegistrationPatchError>

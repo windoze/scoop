@@ -58,16 +58,12 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
 
-    let types = slib::verify_strong_type_registrations_v2(
-        patches.clone(),
-        production.type_registrations().clone(),
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::TypeRegistrations)?;
+    let types =
+        slib::bind_type_registrations_v1(patches.clone(), production.type_registrations().clone())
+            .map_err(BuiltinObjectProductionError::TypeRegistrations)?;
     let types = slib::compute_strong_type_fingerprints_v2(
         types,
         production.canonical_shape_definitions(),
-        undefined.clone(),
         &candidates,
     )
     .map_err(BuiltinObjectProductionError::TypeFingerprints)?;

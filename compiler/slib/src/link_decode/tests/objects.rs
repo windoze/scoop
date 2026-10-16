@@ -129,16 +129,12 @@ pub(super) fn finalized_link_object_fixture() -> (
         production.canonical_callable_definitions(),
     )
     .unwrap();
-    let type_registrations = crate::verify_strong_type_registrations_v1(
-        patch_sites.clone(),
-        registrations.types().clone(),
-        &objects,
-    )
-    .unwrap();
+    let type_registrations =
+        crate::bind_type_registrations_v1(patch_sites.clone(), registrations.types().clone())
+            .unwrap();
     let types = crate::compute_strong_type_fingerprints_v1(
         type_registrations,
         production.canonical_shape_definitions(),
-        requirements.clone(),
         &objects,
     )
     .unwrap();

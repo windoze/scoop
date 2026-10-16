@@ -13,7 +13,6 @@ pub(super) fn push_relocations(
     local_symbol_count: usize,
     static_local_symbol_count: usize,
     registration_relocation_count: u32,
-    corruption: Corruption,
 ) {
     let planned_index = |index: usize| u32::try_from(local_symbol_count + index).unwrap();
     let target = symbols
@@ -65,32 +64,10 @@ pub(super) fn push_relocations(
                 )
                 .unwrap(),
             );
-            let diagnostic_target = if matches!(
-                corruption,
-                Corruption::TypeDescriptorDiagnosticRelocationTarget
-            ) && index == 0
-            {
-                symbols
-                    .symbols()
-                    .iter()
-                    .position(|symbol| {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition_role: StrongDefinitionRole::TypeDescriptor,
-                                definition,
-                                ..
-                            } if definition == registration.descriptor_definition_plan()
-                        )
-                    })
-                    .map(planned_index)
-                    .unwrap()
-            } else {
-                u32::try_from(static_local_symbol_count + index).unwrap()
-            };
+            let diagnostic_target = u32::try_from(static_local_symbol_count + index).unwrap();
             push_u32(bytes, diagnostic_target | 3 << 25 | 1 << 27);
         }
-        for (index, registration) in type_registrations.registrations().iter().enumerate() {
+        for registration in type_registrations.registrations() {
             let type_start = type_registration_start(
                 registration.definition_plan(),
                 stackmap.len(),
@@ -105,37 +82,17 @@ pub(super) fn push_relocations(
                 )
                 .unwrap(),
             );
-            let descriptor_target =
-                if matches!(corruption, Corruption::TypeDescriptorRelocationTarget) && index == 0 {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::TypeRegistration,
-                                    ..
-                                }
-                            )
-                        })
-                        .unwrap()
-                } else {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::TypeDescriptor,
-                                    definition,
-                                    ..
-                                } if definition == registration.descriptor_definition_plan()
-                            )
-                        })
-                        .unwrap()
-                };
+            let descriptor_target = symbols
+                .symbols()
+                .iter()
+                .position(|symbol| {
+                    matches!(symbol.role(),
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition_role: StrongDefinitionRole::TypeDescriptor, definition, ..
+                        } if definition == registration.descriptor_definition_plan()
+                    )
+                })
+                .unwrap();
             push_u32(bytes, planned_index(descriptor_target) | 3 << 25 | 1 << 27);
         }
         for registration in immortal_registrations.registrations() {

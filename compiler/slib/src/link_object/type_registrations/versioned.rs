@@ -1,4 +1,4 @@
-use scoop_identity::{ConeIdentity, PersistentCallableBodyId, PersistentExactTypeId};
+use scoop_identity::{ConeIdentity, PersistentCallableBodyId};
 use scoop_lir::{
     RuntimeFunction, StrongDescriptorReference, StrongTypeDescriptorRefV1,
     StrongTypeDescriptorRefV2, StrongTypeDispatchCallableRefV1, StrongTypeDispatchCallableRefV2,
@@ -7,27 +7,15 @@ use scoop_wire::{RuntimeEncodeError, RuntimeEncoder};
 
 use crate::link_object::callable_registrations::object_definition::CanonicalObjectRelocationV1;
 
-#[derive(Clone, Copy)]
-pub(in crate::link_object) enum DescriptorReferenceKind {
-    Local(PersistentExactTypeId),
-    External(PersistentExactTypeId),
-}
-
 pub(in crate::link_object) trait LinkDescriptorReference:
     StrongDescriptorReference
 {
-    fn kind(self) -> DescriptorReferenceKind;
-
     fn canonical_relocation(self, offset: u64) -> CanonicalObjectRelocationV1;
 
     fn runtime_encode(self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError>;
 }
 
 impl LinkDescriptorReference for StrongTypeDescriptorRefV1 {
-    fn kind(self) -> DescriptorReferenceKind {
-        current_descriptor(self).kind()
-    }
-
     fn canonical_relocation(self, offset: u64) -> CanonicalObjectRelocationV1 {
         current_descriptor(self).canonical_relocation(offset)
     }
@@ -47,13 +35,6 @@ fn current_descriptor(reference: StrongTypeDescriptorRefV1) -> StrongTypeDescrip
 }
 
 impl LinkDescriptorReference for StrongTypeDescriptorRefV2 {
-    fn kind(self) -> DescriptorReferenceKind {
-        match self {
-            Self::Local(exact) => DescriptorReferenceKind::Local(exact),
-            Self::DependencyExternal { exact, .. } => DescriptorReferenceKind::External(exact),
-        }
-    }
-
     fn canonical_relocation(self, offset: u64) -> CanonicalObjectRelocationV1 {
         match self {
             Self::Local(exact) => {

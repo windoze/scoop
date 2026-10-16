@@ -4,15 +4,14 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 };
 use crate::link_object::{
     ImmortalObjectFingerprintSetV1, InitializationFingerprintSetV1, ScoopLirObjectCandidateV1,
-    StaticStorageFingerprintSetV1, VerifiedStrongCallableFingerprintSetV1,
-    VerifiedStrongTypeFingerprintSetV1, bind_callable_registrations_v1,
-    bind_initialization_registrations_v1, bind_safepoint_registrations_v1,
-    bind_static_storage_registrations_v1, compute_strong_callable_body_object_fingerprints_v1,
+    StaticStorageFingerprintSetV1, TypeFingerprintSetV1, VerifiedStrongCallableFingerprintSetV1,
+    bind_callable_registrations_v1, bind_initialization_registrations_v1,
+    bind_safepoint_registrations_v1, bind_static_storage_registrations_v1,
+    bind_type_registrations_v1, compute_strong_callable_body_object_fingerprints_v1,
     compute_strong_callable_fingerprints_v1, compute_strong_immortal_object_fingerprints_v1,
     compute_strong_initialization_fingerprints_v1, compute_strong_safepoint_fingerprints_v1,
     compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
-    verify_strong_type_registrations_v1,
 };
 use scoop_wire::sha256;
 
@@ -179,7 +178,7 @@ fn verified_fingerprints(
 ) -> (
     VerifiedStrongSafepointFingerprintSetV1,
     VerifiedStrongCallableFingerprintSetV1,
-    VerifiedStrongTypeFingerprintSetV1,
+    TypeFingerprintSetV1,
     ImmortalObjectFingerprintSetV1,
     StaticStorageFingerprintSetV1,
     InitializationFingerprintSetV1,
@@ -267,20 +266,13 @@ fn immortal_object_fingerprints(fixture: &Fixture) -> ImmortalObjectFingerprintS
 fn verified_type_fingerprints(
     fixture: &Fixture,
     objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> VerifiedStrongTypeFingerprintSetV1 {
-    let registrations = verify_strong_type_registrations_v1(
+) -> TypeFingerprintSetV1 {
+    let registrations = bind_type_registrations_v1(
         fixture.verified_patch_sites(),
         fixture.type_registration_plan.clone(),
-        objects,
     )
     .unwrap();
-    compute_strong_type_fingerprints_v1(
-        registrations,
-        &fixture.canonical_shapes,
-        fixture.undefined_requirements(),
-        objects,
-    )
-    .unwrap()
+    compute_strong_type_fingerprints_v1(registrations, &fixture.canonical_shapes, objects).unwrap()
 }
 
 fn digest_at(bytes: &[u8], offset: u64) -> &[u8] {

@@ -24,11 +24,6 @@ pub(crate) mod semantic;
 pub(crate) enum Corruption {
     None,
     UnknownSafepoint,
-    TypeRegistrationMagic,
-    TypeDescriptorRelocationTarget,
-    TypeDescriptorScalar,
-    TypeDescriptorDiagnosticBytes,
-    TypeDescriptorDiagnosticRelocationTarget,
 }
 
 pub(crate) struct Fixture {

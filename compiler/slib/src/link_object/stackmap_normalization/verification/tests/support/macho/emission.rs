@@ -11,7 +11,6 @@ pub(super) fn macho_object(
     type_registrations: &StrongTypeRegistrationPlanSetV1,
     immortal_registrations: &StrongImmortalObjectRegistrationPlanSetV1,
     static_storage_registrations: &StrongStaticStorageRegistrationPlanSetV1,
-    corruption: Corruption,
 ) -> ObjectFixture {
     let segment_size = 72_u32 + 4 * 80;
     let command_bytes = segment_size + 24 + 80;
@@ -302,16 +301,13 @@ pub(super) fn macho_object(
     push_sections(
         &mut bytes,
         module,
-        stackmap,
         registrations,
         callable_registrations,
         type_registrations,
         immortal_registrations,
         static_storage_registrations,
-        registration_offset,
         relocation_offset,
         storage_is_zero_fill,
-        corruption,
     );
     push_relocations(
         &mut bytes,
@@ -325,7 +321,6 @@ pub(super) fn macho_object(
         local_symbol_count,
         static_local_symbol_count,
         registration_relocation_count,
-        corruption,
     );
     let (static_local_string_indexes, diagnostic_local_string_indexes) =
         local_string_indexes.split_at(static_local_symbol_count);

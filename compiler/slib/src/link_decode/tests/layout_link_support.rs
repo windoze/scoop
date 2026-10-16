@@ -1,8 +1,6 @@
 use super::*;
 
-/// Replay the versioned registration path from provisional bytes. Only the
-/// unchanged registration domains reuse V1 proofs; type and initialization
-/// proofs are independently constructed with the V2 semantic surface.
+/// Exercise finalization with the V2 type and initialization semantic surface.
 pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObjectSetV2 {
     let fixture = link_object_fixture();
     let (production, previous, _, _) = finalized_link_object_fixture();
@@ -20,24 +18,11 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
         production.digest_finalization_plan(),
     )
     .unwrap();
-    let types = crate::verify_strong_type_registrations_v2(
-        patch_sites.clone(),
-        surface.types().clone(),
-        &objects,
-    )
-    .unwrap();
-    let requirements = previous
-        .runtime_images()
-        .fingerprint()
-        .registrations()
-        .callables()
-        .body_objects()
-        .object_definition_requirements()
-        .clone();
+    let types =
+        crate::bind_type_registrations_v1(patch_sites.clone(), surface.types().clone()).unwrap();
     let types = crate::compute_strong_type_fingerprints_v2(
         types,
         production.canonical_shape_definitions(),
-        requirements,
         &objects,
     )
     .unwrap();

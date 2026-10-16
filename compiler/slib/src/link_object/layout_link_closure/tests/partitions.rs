@@ -195,11 +195,9 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
     assert_eq!(partitions.cross_cone().requirements().len(), 1);
     assert_eq!(partitions.external_shape().len(), 1);
     let requirements = VerifiedObjectDefinitionRequirementSetV1::from(partitions.clone());
-    assert!(requirements.matches_strong_closure(&strong));
 
     let shape_requirement = partitions.external_shape()[0].use_site();
     let truncated = VerifiedObjectDefinitionRequirementSetV1::from(partitions.legacy().clone());
-    assert!(!truncated.matches_strong_closure(&strong));
     assert!(truncated.requirement_for(shape_requirement).is_none());
     let requirement = requirements.requirement_for(shape_requirement).unwrap();
     assert_eq!(

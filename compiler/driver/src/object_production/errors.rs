@@ -16,7 +16,7 @@ pub enum BuiltinObjectProductionError {
     Stackmaps(ScoopStackmapReadError),
     SafepointRegistrations(MissingDigestPatchSiteV1),
     CallableRegistrations(MissingDigestPatchSiteV1),
-    TypeRegistrations(StrongTypeRegistrationValidationError),
+    TypeRegistrations(MissingDigestPatchSiteV1),
     StaticStorageRegistrations(MissingDigestPatchSiteV1),
     InitializationRegistrations(MissingDigestPatchSiteV1),
     SafepointFingerprints(StrongSafepointFingerprintError),
