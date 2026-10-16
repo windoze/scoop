@@ -737,7 +737,7 @@ Linux 系统库选择由所选 C driver/linker 按目标配置完成。发行版
 
 musl 将数学库、pthread 等接口合入 libc；所选工具链为这些固定系统库提供的空兼容 archive 按该平台规则绑定到现有 libc provider。此别名仅适用于实际系统解析选中的固定兼容文件，显式 roots 中的空 archive 不获得额外符号。
 
-普通 archive 保留真实 member index、offset、length 与 digest，允许 BSD/GNU 命名；拒绝 thin、外部或嵌套 archive 和损坏边界。通过普通对象 reader 建立候选的定义／引用索引，不为候选或选中 member 另建完整 relocation/EH/TLS/初始化验证器。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
+普通 archive 使用既有 archive reader 返回的普通成员顺序作为从 0 开始的 member index（不包含 TOC 和名称表），保留实际 header／payload offset、length 与 digest，允许 BSD/GNU 命名；不另遍历原始 headers／padding 或按名称前缀拒绝普通成员。拒绝 thin、外部或嵌套 archive，实际读取的损坏边界由 reader 报告。通过普通对象 reader 建立候选的定义／引用索引，不为候选或选中 member 另建完整 relocation/EH/TLS/初始化验证器。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
 
 native 对象按普通目标工具链输入处理，不按段名、load command 白名单、C++ 符号前缀、COMMON 或可执行栈标志拒绝。Scoop 索引所需的格式与目标必须可读取，其余对象内容及嵌入的正常链接要求交给目标 linker 处理；实际工具失败照常报告。C/C++ 运行库按所选工具链配置参与链接。普通 C unwind、TLS 和目标 CRT 支持的初始化／析构记录沿平台规则执行，不要求额外 manifest 开关，不注册为 Scoop initialization unit 或 managed destructor。异常与初始化边界遵守运行时规范 5.5、第 7 章。普通 native 重复定义不使用 Scoop ODR 判等；Strong 覆盖 Common 和 Weak；ELF 的 Common 覆盖 Weak，Mach-O 的已有 Weak 定义覆盖 Common。同名 Common 由 native linker 合并大小与对齐，两个同名 Strong 报冲突。
 

@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m50"
+name = "archive-members"
+version = "0.1.0"
+kind = "executable"

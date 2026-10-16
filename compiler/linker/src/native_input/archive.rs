@@ -22,9 +22,9 @@ pub(super) fn read(
             "native archive must be a normal BSD/GNU archive, not thin or external-member",
         ));
     }
-    let headers = headers(data)?;
     let mut members = Vec::new();
-    for member in archive.members() {
+    for (ordinal, member) in archive.members().enumerate() {
+        let ordinal = ordinal as u64;
         let member = member.map_err(error)?;
         let header = member
             .header()
@@ -32,22 +32,11 @@ pub(super) fn read(
         let header_offset = (header as *const _ as usize)
             .checked_sub(data.as_ptr() as usize)
             .ok_or_else(|| error("native archive header is outside its input"))?;
-        let ordinal = *headers
-            .get(&header_offset)
-            .ok_or_else(|| error("native archive member has an invalid physical header offset"))?;
         let (offset, length) = member.file_range();
         let payload = member.data(data).map_err(error)?;
         let name = std::str::from_utf8(member.name())
             .map_err(error)?
             .to_owned();
-        if name.is_empty()
-            || name.starts_with("__.SYMDEF")
-            || matches!(name.as_str(), "/" | "//" | "/SYM64/")
-        {
-            return Err(error(format!(
-                "native archive has an unknown or misplaced special member {name:?}"
-            )));
-        }
         if payload.starts_with(&object::archive::MAGIC)
             || payload.starts_with(&object::archive::THIN_MAGIC)
         {
@@ -81,37 +70,4 @@ pub(super) fn read(
         });
     }
     Ok(members)
-}
-
-// ArchiveFile handles names and TOCs; this walk supplies physical ordinals and
-// checks the full container span, including skipped special-member payloads.
-fn headers(bytes: &[u8]) -> Result<BTreeMap<usize, u64>, LinkError> {
-    let mut result = BTreeMap::new();
-    let mut offset = object::archive::MAGIC.len();
-    while offset < bytes.len() {
-        let header_end = offset
-            .checked_add(60)
-            .ok_or_else(|| error("archive header overflow"))?;
-        let header = bytes
-            .get(offset..header_end)
-            .ok_or_else(|| error("archive member header exceeds file"))?;
-        if &header[58..] != b"`\n" {
-            return Err(error("invalid archive member terminator"));
-        }
-        let length: usize = std::str::from_utf8(&header[48..58])
-            .map_err(error)?
-            .trim_end()
-            .parse()
-            .map_err(error)?;
-        let end = header_end
-            .checked_add(length)
-            .and_then(|end| end.checked_add(length & 1))
-            .ok_or_else(|| error("archive member range overflow"))?;
-        if end > bytes.len() {
-            return Err(error("archive member payload/padding exceeds file"));
-        }
-        result.insert(offset, result.len() as u64);
-        offset = end;
-    }
-    Ok(result)
 }
