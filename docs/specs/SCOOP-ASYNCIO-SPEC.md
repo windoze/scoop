@@ -1,6 +1,6 @@
 # Scoop 异步 I/O 库规范
 
-版本：M49。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；实现进度见 [M49 进度](../milestone49/PROGRESS.md)。尚未实施的声明不表示已交付。
+版本：M49。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；实现及三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)。
 
 ## 1. 分层与目标
 

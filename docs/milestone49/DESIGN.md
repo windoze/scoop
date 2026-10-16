@@ -1,6 +1,6 @@
 # M49 设计：异步 I/O 与结构化并发基础
 
-状态：实施中。日期：2026-10-16。本文确定 M49 的结构化并发基础、native 异步 I/O 后端、事件循环、取消与关闭语义，以及未来 TLS stream 所需的接口约束。已定稿的 core API 见语言规范 11.9.1～11.9.2；实现和验收进度见 [PROGRESS.md](PROGRESS.md)，未完成部分不表示已经交付。
+状态：已完成。日期：2026-10-16。本文确定 M49 的结构化并发基础、native 异步 I/O 后端、事件循环、取消与关闭语义，以及未来 TLS stream 所需的接口约束。已定稿的 core API 见语言规范 11.9.1～11.9.2；实施过程见 [PROGRESS.md](PROGRESS.md)，三目标验收见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md) 8.2、8.3、11.9，[实现规范](../specs/SCOOP-IMPL-SPEC.md)的协程降级与 2.16，[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)第 8、9 章，以及[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)和[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)。实施前先将定稿的公共合同写入相应 spec，再修改代码。
 
@@ -35,7 +35,7 @@ TLS 与 HTTP 不在本轮交付范围。TLS stream 作为明确的后续使用�
 | 层次 | 责任与依赖 |
 | --- | --- |
 | `scoop.core` | 在既有挂起、启动、恢复、TaskContext 与原子能力上，用普通 Scoop 实现 Job、父子关系、作用域、结果等待、取消和挂起适配；不依赖 std、platform 或 asyncio，不包含具体 I/O 调度策略 |
-| 独立异步 I/O Cone，工作名 `scoop.asyncio` | 位于 `sysroot/lib/scoop.asyncio/`，显式依赖 core、std 和 platform；定义 EventLoop、异步字节流与资源接口，本轮提供 LibuvEventLoop 实现，通过普通 C11 shim 接入 libuv；`scoop.test` 仅作为测试依赖 |
+| 独立异步 I/O Cone `scoop.asyncio` | 位于 `sysroot/lib/scoop.asyncio/`，显式依赖 core、std 和 platform；定义 EventLoop、异步字节流与资源接口，本轮提供 LibuvEventLoop 实现，通过普通 C11 shim 接入 libuv；`scoop.test` 仅作为测试依赖 |
 | `scoop.platform` | 提供地址、路径、错误、NativeByteBuffer 和 GC-free OS helper；保留已有 core／std 依赖，不反向依赖 asyncio；自身所缺的库能力先在所属层补齐 |
 | libuv 与 Cone native 适配 | 作为 asyncio 的普通 native 构建输入，提供事件循环与 native 工作线程池；沿用既有 FFI、GC 与链接合同 |
 
@@ -48,7 +48,7 @@ TLS 与 HTTP 不在本轮交付范围。TLS stream 作为明确的后续使用�
 - 合法的 Scoop／Cone 用法若暴露底层缺陷或能力缺口，必须暂停依赖该能力的上层实现，建立最小复现，先核对并按需修订对应 spec，在所属底层修复并建立独立回归，验证通过后再回到本设计继续实现。底层修复作为独立前置工作处理，不能在库内用特例、改写语义或转移到 C 实现来绕过缺陷。
 - 第 8.2、10.3 节所需的错误域与异步 buffer 借用属于 platform 库的前置能力，须先在该普通 Cone 中完成规范、实现和验证；asyncio 只消费正常可访问的接口，不能自行延长同步指针借用、访问私有字段或复制一套 buffer 状态来绕过缺口。若这些库能力又暴露编译器或 runtime 问题，继续遵守上述先修底层的次序。
 
-## 3. 基础 API 草案
+## 3. 基础 API
 
 core 结构化并发的 package、声明形式、访问性和参数签名已在语言规范 11.9.1～11.9.2 定稿。采用已有普通方法与泛型扩展表达 API，不要求 generic virtual method 或新的函数类型规则。
 
@@ -111,7 +111,7 @@ Job 的最终结果只发布一次，为成功、失败或取消。取消请求�
 
 ### 5.2 取消请求与取消观察
 
-取消是幂等的请求，沿 Job 树向下传播，不是强制停止线程或立即销毁 frame。core 以普通异常类型表达取消，工作名 `CancellationException`，不引入特殊的 runtime 异常类别。
+取消是幂等的请求，沿 Job 树向下传播，不是强制停止线程或立即销毁 frame。core 以普通异常类型 `CancellationException` 表达取消，不引入特殊的 runtime 异常类别。
 
 任务通过 `ensureActive` 或库提供的可取消挂起点观察取消。对正在执行且不检查取消的计算，不承诺立即停止。直接使用原始 `suspendCoroutine` 的任意第三方操作也不会自动变为可取消操作；它最终恢复后才能继续执行后续检查。
 
@@ -288,7 +288,7 @@ EventLoop 实现显式拥有本次运行中尚未关闭的 I/O 资源，维护�
 | `AsyncFile` | 由 EventLoop.openFile 创建，组合 source／sink 与 close，提供显式 sync；首版顺序读写共享文件位置，读／写／sync 同时最多一个，不承诺双向网络式进展 |
 | `AsyncUdpSocket` | 由 EventLoop.bindUdp 创建，提供 sendTo／receiveFrom 与 close，复用 SocketAddress、Datagram 等平台数据类型 |
 
-提供普通 suspend 泛型扩展 `readFully`／`writeFully`／`copyTo` 和作用域资源辅助函数（工作名 `useAsync`）。完整读写循环复用上述基本操作，逐次提交进度；正文与资源清理失败按既有 `ResourceUseException` 的组合方式表达。异步 close 不能通过同步 `Disposable.dispose` 冒充完成，也不改写 core 已有 use 的语义。
+提供普通 suspend 扩展 `readFully`／`writeFully`／`copyTo` 和泛型作用域资源辅助函数 `useAsync`。完整读写循环复用上述基本操作，逐次提交进度；正文与资源清理失败按既有 `ResourceUseException` 的组合方式表达。异步 close 不能通过同步 `Disposable.dispose` 冒充完成，也不改写 core 已有 use 的语义。
 
 ### 10.2 进度、EOF、缓冲与并发
 
@@ -346,7 +346,7 @@ UDP 绑定先复用 platform socket_bind，再用 uv_udp_open_ex(handle, fd, 0) 
 
 close 的语义是终止本地资源使用并完成释放，不隐含 flush、文件 sync、向对端交付全部积压字节或 TLS 关闭握手。需要保留输出的调用方先显式完成 write／flush，需要 TCP 半关闭则显式调用 shutdownOutput；协议级优雅结束由相应协议库定义。
 
-1. 在所属 loop 把资源置为 closing，拒绝新操作；已经完成的结果不被追溯改写。尚未确定结果的活动操作以本库普通异常（工作名 `IoClosedException`）结束，若其 Job 取消已先获胜则保持取消结果；不为主动关闭伪造 OS 错误码。
+1. 在所属 loop 把资源置为 closing，拒绝新操作；已经完成的结果不被追溯改写。尚未确定结果的活动操作以本库普通异常 `IoClosedException`结束，若其 Job 取消已先获胜则保持取消结果；不为主动关闭伪造 OS 错误码。
 2. 停止接收事件并终止适用的 native request。LibuvEventLoop 对 TCP／UDP／listener 使用 `uv_close`；文件先等待已提交的工作完全结束，再由工作线程执行一次 raw close。listener 关闭不关闭已经交付给调用方的 stream。
 3. 等待该资源全部在途操作完成、借用解除和 native 关闭完成，才释放存储并完成 close。对 libuv 实现，这包括等待 handle close callback；`uv_close` 返回不等于 handle 内存可以释放，`uv_stop` 也不能替代资源清理。[handle 生命周期](https://docs.libuv.org/en/v1.x/handle.html)。
 4. close 允许在已经取消的 Job 的 finally 中发起；一旦开始，其必要的本地收尾等待不再被该 Job 的取消中断。它仍可报告实际清理错误，不等待对端配合来完成本地资源释放。

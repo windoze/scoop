@@ -1,19 +1,19 @@
 # M49 实施进度
 
-基线：`d233d05a5`。日期：2026-10-16。规范先行，按功能验证后提交；本机定向验证后执行 Linux GNU 完整 CLI、GNU／musl 全库和 musl 相关 CLI 验收。日志和测试工作目录位于仓库外，不使用 `/tmp`。
+状态：已完成，汇总见 [ACCEPTANCE.md](ACCEPTANCE.md)。基线：`d233d05a5`。日期：2026-10-16。规范先行，按功能验证后提交；本机定向验证后执行 Linux GNU 完整 CLI、GNU／musl 全库和 musl 相关 CLI 验收。日志和测试工作目录位于仓库外，不使用 `/tmp`。
 
 | 批次 | 状态 |
 | --- | --- |
-| core 任务树、失败传播与取消 | 已实现，本机及 Linux GNU／musl 定向验收通过 |
-| 可取消挂起协调 | 已实现，本机同步／挂起／跨线程竞争与 GC 验收通过 |
-| platform 异步 buffer 借用与 Libuv 错误域 | 已实现，本机 debug／release 与 moving GC 定向验收通过 |
-| asyncio 事件循环、定时等待与投递 | 已实现，本机 debug／release／moving GC 八项 scoop.test 通过 |
-| 异步字节流协议与组合扩展 | 已实现，本机 debug／release／moving GC 六项 scoop.test 通过 |
-| TCP | 已实现，本机 debug／release／moving GC 定向验收通过 |
-| DNS | 已实现，本机 debug／release／moving GC 验收通过 |
-| 文件 | 已实现，本机八项定向及完整 asyncio release／moving GC 验收通过 |
-| UDP | 已实现，本机完整四十五项 debug／release／moving GC 通过 |
-| 三目标组合及完整验收 | 三目标库与外部消费、Linux Rust、musl 定向 CLI 已通过；GNU 完整 CLI 进行中 |
+| core 任务树、失败传播与取消 | 已完成，三目标定向验收通过 |
+| 可取消挂起协调 | 已完成，三目标同步／挂起／跨线程竞争与 GC 验收通过 |
+| platform 异步 buffer 借用与 Libuv 错误域 | 已完成，三目标 buffer／错误域与 helper 验收通过 |
+| asyncio 事件循环、定时等待与投递 | 已完成，三目标 debug／release／moving GC 八项 scoop.test 通过 |
+| 异步字节流协议与组合扩展 | 已完成，三目标 debug／release／moving GC 六项 scoop.test 通过 |
+| TCP | 已完成，三目标 debug／release／moving GC 验收通过 |
+| DNS | 已完成，三目标 debug／release／moving GC 验收通过 |
+| 文件 | 已完成，三目标 debug／release／moving GC 八项文件测试通过 |
+| UDP | 已完成，三目标完整四十五项 debug／release／moving GC 通过 |
+| 三目标组合及完整验收 | 已完成，三目标库与外部消费、Linux Rust、GNU 完整 CLI、musl 定向 CLI 全部通过 |
 
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
 
@@ -85,7 +85,7 @@ Linux 清理旧 target 55.5 GiB 后，同步已提交的编译器并完成 fmt�
 
 全量 Rust 在 HIR lower 的 1,474 项中发现三项结构测试把完整 core 源码标记为外部 Cone，却未提供外部 MIR 依赖；core 新增实际协程调用后显露此问题。将已有正式 core bootstrap 测试 helper 移到共用位置，三项继续降到 MIR 的测试改用完整 core Cone 输入，保留原结构断言。生产实现和 pipeline 契约不变。
 
-本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组并继续尚未执行的 crate。
+本机格式化、workspace clippy 和 atomics／operators 共六项测试通过。Linux 保留已经通过的测试结果，仅补验受影响组；其余 crate 结果见最终汇总。
 
 Linux 链接器的 archive 延后检查测试还保留了拒绝普通 C constructor 的旧断言。将未选中成员改为仍被禁止的 C++ EH 输入，继续验证普通归档索引与选中后检查；初始化的实际运行回归不变。格式化、两机 workspace clippy 与 Linux 单项补验通过，原十六项链接器通过结果继续有效；没有修改生产代码。
 
@@ -105,7 +105,7 @@ driver 的十九项布局产物测试共用旧描述符分类，只将 closure �
 
 真实 core 的缺失 metadata 负例还保留了旧错误顺序：删除槽位／装箱记录后，新协程会先在 saved value／slot 的实际引用处拒绝。更新这一项测试的精确错误位置类别和原因，不改变生产检查。本机和 Linux 的格式化、workspace clippy 与单项补验通过，随后核对 driver 全部八十三项覆盖无遗漏。
 
-Linux Rust 最终共 5,348 项单元／集成测试、2 项 doctest 通过，包含全部 driver 用例和七项 binary 测试。复用各批已通过结果并只补验失败组，没有重复完整 workspace 测试。
+Linux Rust 共 5,349 项单元／集成测试、2 项 doctest 通过，包含全部 driver 用例和七项 binary 测试。复用各批已通过结果并只补验失败组，没有重复完整 workspace 测试。
 
 GNU 完整 CLI 发现五项 M34 优化专测仍保存基线已删除的 `scoop_rt_materialize_exception`。按现行 runtime 规范 5.3～5.4 更新其 MIR／LIR 预期；差异为直接保存 Throwable 引用及关联临时值、调用和 safepoint 编号，没有修改生产实现。三目标各五项、十变体、五十八进程全部通过，包含正常、moving 和 minor GC；快照修正分批独立提交。
 
@@ -117,4 +117,6 @@ M43 生命周期失败测试还保留了一条末尾 try 中的多余 Unit 语�
 
 GNU 完整 CLI 的最后一项失败来自接口私有方法：共有声明选择已包含它，HIR 却只自动物化接口分派方法，导致无本地调用的私有正文缺失。先修订实现规范 2.13，再复用其他 nominal 直接成员的物化逻辑，不改变私有访问域、分派槽或泛型实例化规则。新增 38 行 typed IR 回归，修复前确认缺少 Root.helper 正文；生产改动十一行，相关实现文件最长 177 行。
 
-本机格式化、workspace clippy、120 项类型／产物测试和九项接口测试通过。源码分派、接口默认方法及 M49 suspend 支持的十七项 CLI、十八变体、九十五进程通过，包含正常与 moving GC；Linux 同一修复的定向补验继续进行。
+本机格式化、workspace clippy、120 项类型／产物测试和九项接口测试通过。源码分派、接口默认方法及 M49 suspend 支持的十七项 CLI、十八变体、九十五进程通过，包含正常与 moving GC；Linux 的 129 项 Rust、GNU 同组十七项 CLI 和 musl 两项 CLI 补验全部通过。
+
+最终 GNU 报告按名称核对全部 4,188 项：4,159 项通过、29 项目标不适用，八项失败全部闭合；musl 定向及补验合计四十八项通过。结束时另清理本机 3.2 GiB、Linux 2.6 GiB 的 debug 数据，保留 release 工具；target 分别约 1.3 GB、792 MB。
