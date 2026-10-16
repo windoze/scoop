@@ -9,7 +9,7 @@
 3. 证书与 JWS：X.509 解析、属性、签名与链验证、五种 JWS 算法和公钥 JWK 导入已实现。
 4. 共享 TLS 引擎与同步流：已完成配置、上下文、有限 BIO 引擎及同步 ByteSource／ByteSink 适配。
 5. M49 异步 TLS：共享引擎适配、双向协调、取消与确定性关闭已完成。
-6. 三目标组合及外部消费者验收：待执行。
+6. 三目标组合及外部消费者验收：Darwin 已完成，Linux GNU／musl 与完整回归正在执行。
 
 ## 已完成批次
 
@@ -35,7 +35,9 @@
 
 - 独立互操作：新增 3 项测试。系统 OpenSSL CLI 验证库生成的 RSA PKCS#1／PSS、ECDSA DER 和 Ed25519 签名，并作为严格验证证书的 TLS 客户端；Python 标准库 SSL 作为独立服务端。TLS 1.2／1.3 双向数据、DNS／IP、DNS 有 SNI 而 IP 无 SNI、服务端顺序 ALPN 及双向 close_notify 均通过。本机独立对端使用 OpenSSL 4.0.3，生产仍使用 vendor 3.5.9；测试仅使用临时自有文件、动态 loopback 端口和明确就绪信号。
 
-- 验收覆盖补齐：直接验证 TLS 过期证书、错误 IP 的原始验证 code，以及不足一个完整加密记录时的 EOF；新增写请求自身取消，确认已接受的 16384 字节和借用收尾。异步外部消费者增加 M49 名称解析后连接。新增 3 项和消费者本机定向测试通过；release 已通过 crypto 17 项、TLS 13 项、async TLS 12 项及外部消费者 4／2／1 项，moving 组合正在执行。
+- 验收覆盖补齐：直接验证 TLS 过期证书、错误 IP 的原始验证 code，以及不足一个完整加密记录时的 EOF；新增写请求自身取消，确认已接受的 16384 字节和借用收尾。异步外部消费者增加 M49 名称解析后连接。Darwin 的 debug／release／moving GC 已通过 crypto 17 项、TLS 13 项、async TLS 12 项及外部消费者 4／2／1 项；debug 包含新增路径的定向补验。普通生产构建确认 crypto 仅有 core／std／json 依赖，同步 TLS 加入 crypto／platform，未触发新的 compiler 子调用。使用入口见 [USAGE.md](USAGE.md)。
+
+- 全量验收准备发现既有 M45 native I/O 用例在 C 中写死临时目录，现改用 TMPDIR，未配置时使用用例工作目录。C 格式化、严格告警检查及 Darwin 正式 CLI 1 项／2 进程通过，GNU／musl 由当前完整／相关回归覆盖。其他匹配仅为路径表示或缺省目录查询，不创建临时文件。
 
 ## 验证与工作目录
 
