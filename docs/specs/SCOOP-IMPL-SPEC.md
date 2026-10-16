@@ -846,6 +846,8 @@ HIR 将 Nothing 参与的子类型、结果合并和调用完成性质在源码�
 
 ### 2.13 跨 Cone 模板与 ODR
 
+普通泛型模板所引用的非泛型 suspend 函数／成员，按实际支持声明生成 provider 的完整 callable 导出，包括非 public 声明。选择过程使用同一共有声明目录；公开 binding 与用于模板消费的支持声明不构成不同的执行资格。消费者复用原声明的协程执行 ABI，不因其访问域遗漏 MIR 导出，也不将原正文重新单态化为另一函数。
+
 Export HIR 保存模板的已解析正文、原 binder、默认值、局部 callable/capture、字段/variant 和完整定义位置。实例化只按 actual application 替换类型，不重新执行 provider 的名称、重载、接口或 codec 选择。
 
 普通参数自由定义由原 Cone 提供，即使签名含已闭合 generic application 也仍是该 Strong 定义。泛型和 structural application 的机器实体由实际需要它的 Cone 物化，并保持程序内共享身份。
