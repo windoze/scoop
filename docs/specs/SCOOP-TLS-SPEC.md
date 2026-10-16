@@ -16,15 +16,21 @@ TlsClientContext 显式接收 crypto TrustStore；TlsServerContext 接收 Certif
 
 默认 TLS 1.2～1.3，允许显式限定为其中一个版本；使用上游正常密码配置。ALPN 为独立协议字节串列表，每项 1～255 字节，总编码长度至多 65535；服务端按自身顺序选共同项。双方配置 ALPN 而无共同项时报握手错误，未协商返回 None。协商信息提供实际 TLS 版本与可选 ALPN。
 
+`TlsVersion { TLS12, TLS13 }`，`TlsOptions(minimum = TLS12, maximum = TLS13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
+
 ## 3. 所有权与引擎
 
 同步包装入口要求普通泛型约束 ByteSource、ByteSink、Disposable；异步要求 AsyncByteStream、AsyncCloseable。参数、状态和登记前取消检查成功后、开始握手前接管底层传输。此后的失败负责关闭传输与未交付 TLS 状态；接管前失败仍归调用者。交付后调用者不得绕过包装层使用底层传输。
 
 每个会话使用固定容量 BIO pair 和独立密文 staging buffer，不使用 SSL_set_fd 或 socket BIO。`scoop.tls.native` 提供有限同步握手、明文读写、shutdown、密文输入输出步骤。结果包含进度、WANT_READ／WANT_WRITE、close_notify 或已复制的错误。
 
+公开 `TlsEngine.client(context, peer)`／`server(context)` 创建显式 Disposable 会话。handshake、read、write、shutdown 返回 `TlsStep(kind, count)`，kind 为 Done／WantRead／WantWrite／Closed；read／write 使用 Unsafe NativeByteBorrow，调用者负责串行与借用有效期。receiveCiphertext／takeCiphertext 消费／填充 NativeByteBuffer 的实际前缀；inputCapacity、pendingOutput 为 BIO 当前可写／可读量，endInput 标记传输 EOF。connectionInfo 仅在完成握手后使用。引擎不执行传输，不保留临时 managed 数据地址。适配器使用的明文前缀上限为 16384 字节，内部 BIO 容量不属于 ABI。
+
+`TlsException` 保存 operation、kind、OpenSSL code、verifyCode、systemError 和 detail；`TlsFailureKind` 区分 Configuration、Verification、Protocol、Truncated、UnconsumedData。错误数据在同次 C 调用中复制；底层 I/O 异常仍按原类型传播。
+
 同一 SSL 的调用及错误读取串行。调用前清空当前线程错误队列，调用后立即保存 errno 并执行 SSL_get_error，再提取验证 code 与错误文本。锁内不执行底层阻塞 I/O、suspend、continuation 恢复或用户代码。WANT 重试遵守上游调用顺序，写重试保留原数据、长度和地址；等待输入的应用 read 不能阻止 write 推进。
 
-先驱动协议产生的密文，再等待必要输入；WANT_READ 不得遗留握手输出。输出背压时仍允许必要输入推进。没有新输入、输出空间或操作状态变化时等待真实 I/O，不空转。
+先驱动协议产生的密文，再等待必要输入；WANT_READ 不得遗留握手输出。异步输出背压时仍允许必要输入推进；同步接口遵循底层 ByteSink 阻塞调用的返回合同，不自行增加并发 I/O 线程。没有新输入、输出空间或操作状态变化时等待真实 I/O，不空转。
 
 ## 4. 明文进度与借用
 
@@ -37,6 +43,8 @@ readInto 返回已初始化的明文数量并推进 buffer writer，writeFrom �
 ## 5. 同步与异步协调
 
 同步 TlsStream 实现 ByteSource、ByteSink、Disposable，调用者串行使用，包括关闭；不创建线程池。DNS、连接和 accept 组合既有 platform API。
+
+同步入口为 `tlsClient(transport, context, peer)` 和 `tlsServer(transport, context)`，握手成功后返回 TlsStream。其 connectionInfo 提供实际协商信息，readInto／writeFrom／flush 采用既有同步协议。状态／范围错误在登记前抛出，连接保持可用；已开始的协议或传输操作失败执行本地收尾。close 幂等，主动 shutdownGracefully 完成后同样处于已关闭状态。
 
 AsyncTlsStream 实现 AsyncByteStream、AsyncCloseable，固定归属建立它的 EventLoop。普通操作检查当前 Job 与所属 Context；允许不同 buffer 各一个应用 read 和 write 在途，同方向并发报状态错误，flush 占输出方向。连接协调底层每方向至多一个操作。通知在状态更新后、锁外执行，无活动请求时不遗留无归属后台任务，不为每次 SSL 步骤创建 Job。
 
