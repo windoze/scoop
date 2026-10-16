@@ -487,7 +487,6 @@ pub(crate) fn emit_llvm_module<'ctx>(
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
-    validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     if !module.initialization_units.is_empty() {
         return Err(CodegenError(

@@ -160,15 +160,6 @@ fn rejects_array_descriptor_without_its_exact_element_scan_definition() {
     )
     .unwrap();
 
-    let validation_error = validation::validate_module(&module)
-        .expect_err("array metadata and descriptor shape must agree before emission");
-    assert!(
-        validation_error
-            .0
-            .contains("does not match its closed element size, alignment, and scan shape"),
-        "{validation_error}"
-    );
-
     let error = try_strong_shape_ir_of(&module)
         .expect_err("descriptor inline scans require a nonempty typed LIR scan definition");
     assert!(

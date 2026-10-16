@@ -79,6 +79,7 @@ mod emission;
 mod function;
 mod generated_c_atom_boundaries;
 mod llvm_types;
+mod machine_types;
 mod module_context;
 mod object_materialization;
 mod object_partition;
@@ -87,7 +88,6 @@ mod shape_definitions;
 mod statepoint;
 mod target;
 mod type_descriptors;
-mod validation;
 
 pub use c_bridge::{
     GeneratedCBridgeSourceSetV1, GeneratedCBridgeSourceUnitV1, c_layout_assertions,

@@ -383,21 +383,3 @@ fn array_assembly_rejects_wrong_element_domain() {
         "unexpected error: {error}"
     );
 }
-
-#[test]
-fn array_metadata_rejects_recursive_machine_scalar_element() {
-    let mut module = arrays_module();
-    let (_, array) = module
-        .meta
-        .arrays
-        .iter_mut()
-        .next()
-        .expect("array metadata");
-    array.element = LirType::Aggregate(vec![LirType::MachineScalar(MachineScalarKind::EnumTag)]);
-
-    let error = array_codegen_error(&module);
-    assert!(
-        error.0.contains("array element type") && error.0.contains("machine scalar"),
-        "unexpected error: {error}"
-    );
-}

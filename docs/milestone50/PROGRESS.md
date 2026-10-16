@@ -24,8 +24,9 @@
 18. Code 与归档组装：直接编码已有定义／引用／imports，删除闭包深比较、定义表重建比较和各组件 producer／target 副本检查；数据类型改为实际指纹结果，保留编码与往返测试。
 19. generated-C requirements：删除 definition／atom／必需调用／机器 relocation 的 semantic proof 回放及其测试；按实际引用和工具链 registry 分类 helper，复用 bridge 计划处理同名 source extern，Scoop LIR 正常 helper 同样可用。
 20. Undefined requirements：直接合并既有分类并保留依赖分区，删除 use 全集重建／coverage／重叠回放、producer／target 副本检查及封口包装；保持实际未知符号和 import 索引诊断。
-21. 待完成：其余对象与阶段输出重复证明、同类要求及最终验收。
-22. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+21. LIR → codegen：删除全模块类型／CFG／ABI／callback／variant 支配／safepoint／根计划预检与专属破坏测试；保留实际发射查询和错误。generated-C 直接渲染现有布局与 bridge，删除 atom／canonical layout 比较，保留真实 C ABI 静态断言；runtime scan 的正向发射测试移入独立短文件。
+22. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
+23. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -70,3 +71,5 @@ Code 与组装批次：格式化、workspace clippy 无警告；release slib 全
 generated-C requirements 批次：格式化、workspace clippy 无警告；release slib link_object 157 项通过，覆盖实际 helper 分类和同名 source extern。Linux 专用 helper 调用已同步，执行留待目标验证。
 
 Undefined requirements 批次：格式化、workspace clippy 无警告；release slib link_object 154 项通过，实际 requirement 固定编码与跨 Cone 分区结果保持通过。
+
+LIR 发射批次：格式化、workspace clippy 无警告；release codegen 全部 235 项通过，包含三目标发射、真实 GC／异常／线程与 C ABI 运行。首轮遗留的预检断言已逐项闭合：只服务旧验证器的用例退役，实际 C 渲染循环／指针、静态 shape、根与调用操作的错误断言按现有出口更新。

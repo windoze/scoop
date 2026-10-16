@@ -17,7 +17,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let pointer_ty = function.value_ty(self.globals_arena, *pointer);
                 let out_ty = &function.temps[*out].ty;
                 if pointer_ty != scoop_lir::RAW_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, out_ty)
+                    || machine_types::contains_machine_scalar(self.structs, self.enums, out_ty)
                 {
                     return Err(CodegenError(format!(
                         "raw_load @{} requires a raw pointer and cannot produce {}, got pointer {}",
@@ -54,7 +54,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let pointer_ty = function.value_ty(self.globals_arena, *pointer);
                 let value_ty = function.value_ty(self.globals_arena, *value);
                 if pointer_ty != scoop_lir::RAW_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, &value_ty)
+                    || machine_types::contains_machine_scalar(self.structs, self.enums, &value_ty)
                 {
                     return Err(CodegenError(format!(
                         "raw_store @{} requires a raw pointer and cannot consume {}, got pointer {}",

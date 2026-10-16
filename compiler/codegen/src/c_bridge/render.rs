@@ -165,10 +165,6 @@ impl CBridgeTypeSurface {
     pub(super) fn defines_struct(&self, reference: scoop_lir::CStructRef) -> bool {
         self.struct_definitions.contains(&reference)
     }
-
-    pub(super) fn definition_count(&self) -> usize {
-        self.struct_definitions.len()
-    }
 }
 
 pub(super) fn integer_name(kind: scoop_lir::IntegerKind) -> &'static str {

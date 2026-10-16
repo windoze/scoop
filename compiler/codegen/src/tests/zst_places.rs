@@ -83,22 +83,3 @@ fn codegen_rejects_address_of_a_logical_zst_without_a_lir_token_plan() {
         "{error}"
     );
 }
-
-#[test]
-fn codegen_rejects_a_forged_zst_local_storage_proof() {
-    let mut module = places_module(false);
-    let representation =
-        scoop_lir::AbiZst::new(LirType::I64, scoop_lir::AbiZeroSizedLayout::new(8).unwrap())
-            .unwrap();
-    module.functions[0].locals.alloc(Local::new(
-        "forged",
-        scoop_lir::LocalStorage::LogicalZst(unit_zst(representation)),
-    ));
-    let machine = host_target_machine().unwrap();
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap_err();
-    assert!(
-        error.0.contains("local 3") && error.0.contains("layout"),
-        "{error}"
-    );
-}

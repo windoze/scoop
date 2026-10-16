@@ -135,23 +135,3 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
         "TLAB allocation consumes descriptor alignment:\n{ir}"
     );
 }
-
-#[test]
-fn array_clone_rejects_different_exact_elements_with_equal_storage() {
-    let mut module = arrays::arrays_module();
-    let (_, target) = module
-        .meta
-        .arrays
-        .iter_mut()
-        .find(|(_, array)| {
-            array.kind == scoop_lir::ArrayKind::Mutable && array.element == LirType::I64
-        })
-        .unwrap();
-    target.element_exact = test_exact_type("DifferentExactInteger");
-    let error = validation::validate_module(&module)
-        .expect_err("equal physical layouts cannot replace exact array element identity");
-    assert!(
-        error.0.contains("array clone exact element type"),
-        "{error}"
-    );
-}

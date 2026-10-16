@@ -45,60 +45,6 @@ fn emits_runtime_string_and_ordinary_descriptors_as_shared_external_declarations
     );
 }
 
-#[test]
-fn rejects_duplicate_external_exact_types_even_across_providers() {
-    let mut module = values_module();
-    let first = descriptor(ConeIdentity::CORE, "Shared");
-    module.meta.external_type_descriptors.alloc(first);
-    module
-        .meta
-        .external_type_descriptors
-        .alloc(ExternalTypeDescriptor::new(ordinary_provider(), first.target()).unwrap());
-    let error = validation::validate_module(&module).unwrap_err();
-    assert_eq!(
-        error.0,
-        format!(
-            "duplicate external TypeDescriptor target {}",
-            first.target()
-        )
-    );
-}
-
-#[test]
-fn rejects_current_provider_and_local_external_descriptor_overlap() {
-    let mut module = values_module();
-    let current = descriptor(module.cone, "Current");
-    module.meta.external_type_descriptors.alloc(current);
-    let error = validation::validate_module(&module).unwrap_err();
-    assert_eq!(
-        error.0,
-        format!(
-            "external TypeDescriptor {} names the current Cone as provider",
-            current.target()
-        )
-    );
-
-    module.meta.external_type_descriptors.clear();
-    let exact = module
-        .meta
-        .type_descriptors
-        .iter()
-        .next()
-        .unwrap()
-        .1
-        .identity
-        .exact_type();
-    module
-        .meta
-        .external_type_descriptors
-        .alloc(ExternalTypeDescriptor::new(ordinary_provider(), exact).unwrap());
-    let error = validation::validate_module(&module).unwrap_err();
-    assert_eq!(
-        error.0,
-        format!("external TypeDescriptor target {exact} is also defined locally")
-    );
-}
-
 fn ordinary_provider() -> ConeIdentity {
     ConeCoordinate::new("test", "descriptor-provider", "1.0.0")
         .unwrap()

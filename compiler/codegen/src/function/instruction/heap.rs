@@ -46,7 +46,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if !matches!(
                     object_ty,
                     LirType::Ptr(PointerKind::Managed | PointerKind::Metadata)
-                ) || validation::contains_machine_scalar(
+                ) || machine_types::contains_machine_scalar(
                     self.structs,
                     self.enums,
                     &function.temps[*out].ty,
@@ -178,7 +178,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let object_ty = function.value_ty(self.globals_arena, *object);
                 let value_ty = function.value_ty(self.globals_arena, *value);
                 if object_ty != scoop_lir::MANAGED_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, &value_ty)
+                    || machine_types::contains_machine_scalar(self.structs, self.enums, &value_ty)
                 {
                     return Err(CodegenError(format!(
                         "heap_store @{} requires a managed object and cannot consume {}, got object {}",

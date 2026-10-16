@@ -76,30 +76,6 @@ fn empty_module_does_not_emit_legacy_image_sentinels() {
 }
 
 #[test]
-fn raw_thread_local_global_rejects_managed_references() {
-    let mut module = values_module();
-    let identity = static_storage_identity("managedTls");
-    module.globals.alloc(Global {
-        address_kind: PointerKind::Raw,
-        scan: RefScan::References(vec![0]),
-        init: GlobalInit::RawStorage {
-            identity,
-            ty: MANAGED_PTR,
-            initializer: LirConstantImage::NullPointer(PointerKind::Managed),
-            thread_local: true,
-        },
-    });
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("raw TLS cannot contain managed references");
-    assert!(
-        error.0.contains("raw storage must be GC-free"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     let mut module = exceptions_module();
     module.functions[1].signature = plain_scoop_signature(vec![LirType::I64], LirType::I64);
@@ -108,9 +84,7 @@ fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("the local declaration and typed call target disagree");
     assert!(
-        error
-            .0
-            .contains("signature or physical convention does not match"),
+        error.0.contains("ABI does not match"),
         "unexpected error: {error}"
     );
 }

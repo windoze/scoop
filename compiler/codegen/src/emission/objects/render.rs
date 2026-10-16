@@ -9,7 +9,7 @@ pub fn render_llvm_ir_members(
     entry_source: scoop_lir::EntryProductionSourceV1,
     profile: ValidatedBackendProfile,
 ) -> Result<Vec<RenderedConeObjectModuleV1>, CodegenError> {
-    validate_object_set_input(input, profile)?;
+    profile.validate_lir_target_profile(input.module().meta.target_profile)?;
     let module = input.module();
     let mut production = input
         .build_production_section(coordinate.clone(), direct_dependencies, entry_source)

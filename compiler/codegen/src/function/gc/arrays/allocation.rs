@@ -20,7 +20,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let element_lir_ty = array_metadata.element.clone();
                 let layout = array_metadata.layout.clone();
                 if function.temps[*out].ty != scoop_lir::MANAGED_PTR
-                    || validation::contains_machine_scalar(
+                    || machine_types::contains_machine_scalar(
                         self.structs,
                         self.enums,
                         &element_lir_ty,

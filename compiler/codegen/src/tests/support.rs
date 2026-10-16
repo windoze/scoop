@@ -1305,7 +1305,6 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
 }
 
 pub(super) fn write_test_object(module: &Module, output: &Path) {
-    validation::validate_module(module).expect("valid test LIR");
     let profile = host_profile();
     let expected_safepoints =
         statepoint::expectations(module).expect("complete safepoint manifest");

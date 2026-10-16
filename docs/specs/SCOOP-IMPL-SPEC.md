@@ -295,7 +295,7 @@ NativeBorrowed 的调用与结果发布按返回约定一次构造：间接结�
 
 live set 包含 post-site live references 与 managed 实参，以及 aggregate 的完整 managed leaf path。普通 call/poll 的机器 relocation 与显式 invoke/native root frames 遵守运行时规范 3.2；跨 transition 的实参和结果必须使用更新后的存储。
 
-root gateway 使用运行时规范 2.8 的精确 C 原型：argc、原始 argv、指向独立 Int32 退出码槽的 raw pointer，返回 UInt32 status。其内部对 main 的调用仍使用实际 Scoop ABI；不能因外层返回 UInt32 就覆盖 main 的 Int 结果。入口 poll 先于 argv 的 managed 构造，数组、当前 String 与其他跨 safepoint 的引用使用普通 roots、relocation 和写屏障；数组构造及 main 的异常在 gateway 内完成捕获、failure-root 发布与 EndCatch。BeginCatch 返回原 managed Throwable，普通 catch、callback 和协程 lowering 直接保存该引用，不生成复制对象的调用；后续根与 relocation 沿普通引用处理。eager gateway 仍为无参数 status 返回，不能与 root gateway 共用错误的函数指针原型。codegen 在完整 LIR 边界验证实际 ABI 与 gateway 结构后，对象发布入口复用该结果，不再重放源码 main 形态检查。
+root gateway 使用运行时规范 2.8 的精确 C 原型：argc、原始 argv、指向独立 Int32 退出码槽的 raw pointer，返回 UInt32 status。其内部对 main 的调用仍使用实际 Scoop ABI；不能因外层返回 UInt32 就覆盖 main 的 Int 结果。入口 poll 先于 argv 的 managed 构造，数组、当前 String 与其他跨 safepoint 的引用使用普通 roots、relocation 和写屏障；数组构造及 main 的异常在 gateway 内完成捕获、failure-root 发布与 EndCatch。BeginCatch 返回原 managed Throwable，普通 catch、callback 和协程 lowering 直接保存该引用，不生成复制对象的调用；后续根与 relocation 沿普通引用处理。eager gateway 仍为无参数 status 返回，不能与 root gateway 共用错误的函数指针原型。LIR lowering 生成完整 ABI 与 gateway 结构，codegen 直接发射；对象发布不重放源码 main 或已完成的 gateway 检查。
 
 值类型布局使用原 exact 类型与字段身份。tagged enum 的 tag、payload slot 与 scan 一致；niche 只用于语言允许的引用／pointer Option。整数宽度与 signedness、Float/Double 精度、内部计数和 runtime ID 均保留各自类型，物理位宽相同不等于同一实体或源码类型。
 
@@ -333,7 +333,9 @@ GC 代码生成模块集中实现分配、完整托管写操作、发布与 poll
 
 分配、单槽写入与 poll 的既有快路径仍静态内联，不为模块隔离增加外部热路调用或重复 TLS 查询；保持原内存序，地址计算、写入与屏障之间无 safepoint。根活跃度、statepoint relocation、异常控制流与调用 ABI 继续由原有模块负责。纯内部职责重组不改变共享布局、runtime ABI 或产物格式。
 
-codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；发射前的 ABI 规划入口只消费 LIR 定义的布局／签名数据，不读取 HIR 或重新解释 MIR 正文。具体 LLVM 初始化、CPU/features、data layout、机器栈与过程 ABI 规则归 codegen；目标布局描述与 backend contract 作为完整数据传递。Scoop producer 消费 LIR target/backend，generated-C 源码生成消费 LIR target/C toolchain 合同。宿主 compiler/SDK/sysroot 路径、环境与命令构造归 toolchain，driver 执行 generated-C 编译后将对象交回现有对象边界处理。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
+codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端重新遍历全部类型、CFG、签名、variant 支配、callback、常量初值、safepoint 身份和根计划来复核上游语义。发射按现有 typed 数据执行实际操作，保留当前查询／计算的范围、引用与 LLVM builder 错误；相关语言和根计划规则由原有前端／lowering 完成。generated-C 同样直接渲染既有 bridge 与 C 布局，不重建 canonical layout 或 atom 计划副本作比较；真实目标 C 编译的 sizeof／alignof／offsetof 断言继续保留。
+
+发射前的 ABI 规划入口只消费 LIR 定义的布局／签名数据，不读取 HIR 或重新解释 MIR 正文。具体 LLVM 初始化、CPU/features、data layout、机器栈与过程 ABI 规则归 codegen；目标布局描述与 backend contract 作为完整数据传递。Scoop producer 消费 LIR target/backend，generated-C 源码生成消费 LIR target/C toolchain 合同。宿主 compiler/SDK/sysroot 路径、环境与命令构造归 toolchain，driver 执行 generated-C 编译后将对象交回现有对象边界处理。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 
 元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
 
