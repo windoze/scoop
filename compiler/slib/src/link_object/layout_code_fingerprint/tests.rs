@@ -99,7 +99,7 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
     let external = seal_builtin_object_external_requirements_v1(
-        crate::link_object::without_generated_bridge_semantics_for_test(runtime),
+        crate::link_object::without_target_support_for_test(runtime),
     )
     .unwrap();
     let partitions =

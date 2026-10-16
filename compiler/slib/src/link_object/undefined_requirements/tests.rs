@@ -6,7 +6,7 @@ use scoop_lir::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::super::c_bridge_target_requirements::{
-    tests::support_closure, without_generated_bridge_semantics_for_test,
+    tests::support_closure, without_target_support_for_test,
 };
 use super::super::current_cone_requirements::tests::primary_bridge_requirement;
 use super::super::generated_c_objects::tests::profile;
@@ -287,10 +287,7 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
 fn seal_without_generated(
     external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {
-    seal_builtin_object_external_requirements_v1(without_generated_bridge_semantics_for_test(
-        external,
-    ))
-    .unwrap()
+    seal_builtin_object_external_requirements_v1(without_target_support_for_test(external)).unwrap()
 }
 
 pub(in crate::link_object) fn empty_bridge_plan(

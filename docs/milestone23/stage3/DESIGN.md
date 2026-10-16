@@ -1346,37 +1346,11 @@ CBridgeTargetSupportRequirementId =
                             CBridgeTargetSupportRequirementV1)
 ```
 
-`Memcpy`的logical symbol固定为`memcpy`，object symbol只能经同一target的
-`NativeSymbolNormalization`得到。registry由请求级完整toolchain profile构造；profile的target id或
-fingerprint与请求target不相等即失败。实际 generated-C member 的引用可以产生该 requirement，Scoop LIR member中的同名use不得借用它；改变compiler、
-template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
-只含`Memcpy`，未知helper保持未分类并使artifact失败。
+target helper 的逻辑符号经目标的 `NativeSymbolNormalization` 转为对象符号，registry 按当前目标工具链建立；Memcpy、Memset、TLS、浮点与 errno 等支持项采用现行 LIR registry。generated-C 和 Scoop LIR 产生的实际辅助引用均可使用这些合同，不要求来源资格。
 
-generated-C semantic 数据直接使用同次生产的对象和符号索引，不以 Scoop digest 槽位的零值验证作为资格。
-它从validated bridge plan保留的full
-unit/atom key重建每个materialized atom的`GeneratedBridge` definition plan与singleton primary object
-atom，要求它们全部出现在unit被分配的generated-C member中，并要求这些member不存在额外definition、
-额外object atom或由associated descriptor发起的relocation。object-local machine symbol只允许回指同一
-object atom；跨atom local与无法归属到typed atom的section-base relocation失败。
+source extern、runtime 与 EH 先按实际符号分类。bridge 计划用于同名歧义：当前 unit 直接调用自己的 source extern 时保留该合同；同 unit 的其他 helper 按 registry 分类。这样源码 extern 名为 `memcpy` 时仍使用其源合同，其他 bridge 的编译器 memcpy 调用不会被无关源声明覆盖。
 
-每个primary atom的semantic relocation按unit kind闭合：outbound function只能以call relocation命中同一
-fingerprint的C-function source contract；global read/address只能命中data/TLS contract，write只能命中
-mutable data/TLS contract；managed callback必须同时命中`CallbackInvoke` runtime contract和自己的
-signature descriptor definition；static callback必须命中由`StaticNoGcCallbackStorageBridgeId`重建的
-strong callable-body definition。每个unit的必需target至少出现一次，其他external/strong target失败。
-profile target support只在未命中当前unit的typed semantic target后分类，因此源码extern本身名为
-`memcpy`时仍归入该extern contract，不能被同名support抢先吞掉。proof按physical use保留unit、完整
-member/atom/offset/relocation form/symbol及上述typed semantic分类，供后续requirement closure逐项复用。
-
-`VerifiedCBridgeTargetSupportRequirementClosureV1`同时消费上述semantic proof与完成source extern、
-runtime/EH分类的closure，并要求两者来自逐字段相等的同一strong relocation closure且target相同。它按
-`(member, containing atom, offset, target slot)`逐条对齐：`NativeExternal`必须已经归入同一contract的
-`SourceExtern`，`RuntimeCallbackInvoke`必须已经归入同一runtime contract，strong descriptor/body use
-不得出现在external分类中；`TargetSupport`则从未分类集合或generic SourceExtern同名命中中取回，并以
-semantic proof保留的完整registry record形成typed requirement。后一分支只修正该generated-C physical
-use，因此其他unit真正以`memcpy`为源码extern target时仍保持`SourceExtern`。generated-C member中缺少
-semantic use、proof closure混用或对齐后仍有external candidate都会失败；finalizer只能消费封口后的
-重整集合，并从中发射第7类final requirement。
+后续直接消费既有定义、引用和 registry，不重建 bridge 定义全集、检查必需调用覆盖或回放所有机器 relocation，也不比较两份生产闭包或 semantic proof。未知引用继续报告普通未分类符号错误。
 
 ### 11.6 finalization顺序
 
@@ -1537,8 +1511,7 @@ strong relocation closure中除object-local strong以外的全部use；两个不
   `Requirement(id)`则必须在同target的canonical native library requirement集中唯一存在，
   不得为default namespace伪造requirement id；
 - runtime/EH requirement只验证为当前target/runtime ABI的known contract，不构建runtime；
-- C-bridge target support只接受由同一production envelope、请求profile与target共同产生的typed
-  requirement，并且use的source member必须属于该generated-C member全集；
+- C-bridge target support 按当前目标工具链 registry 与实际辅助符号归类，generated-C 和 Scoop LIR 均可产生这些需求；
 - M23-9/M23-10在完整closure/final input上解析后五类实际provider。
 
 任何undefined symbol没有requirement、一个use命中多个requirement、requirement symbol与object不符或外部contract只剩library名字都使Link proof失败。root Cone没有直接使用某个上游extern也不能在以后丢弃该requirement。

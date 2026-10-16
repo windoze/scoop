@@ -7,7 +7,7 @@ impl SlibObjects {
         &self,
         stackmaps: ScoopStackmapSetV1,
     ) -> VerifiedStrongCallableFingerprintSetV1 {
-        let sites = self.sites(stackmaps.builtins().clone(), &self.objects);
+        let sites = self.sites(stackmaps.builtins().clone());
         let requirements = self.requirements(sites.clone());
         let objects = candidates(&self.objects);
         let registrations = bind_callable_registrations_v1(
@@ -55,11 +55,9 @@ impl SlibObjects {
         let runtime =
             verify_runtime_and_eh_requirements_v1(source, self.emitted.target_selection())
                 .expect("runtime and EH requirements");
-        let semantics =
-            verify_generated_c_bridge_semantics_v1(sites, bridges, native, &self.profile)
-                .expect("generated bridge requirements");
-        let external = verify_c_bridge_target_support_requirements_v1(runtime, semantics)
-            .expect("target support requirements");
+        let external =
+            classify_c_bridge_target_support_requirements_v1(runtime, &bridges, &self.profile)
+                .expect("target support requirements");
         let external = seal_builtin_object_external_requirements_v1(external)
             .expect("all external references classified");
         finalize_undefined_symbol_requirements_v1(current, external)

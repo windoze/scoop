@@ -75,9 +75,6 @@ pub use entry_production::*;
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
 
-mod generated_bridge_semantics;
-pub use generated_bridge_semantics::*;
-
 mod symbol_planning;
 pub use symbol_planning::*;
 

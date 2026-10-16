@@ -21,7 +21,7 @@ use crate::link_object::{
     finalize_partitioned_undefined_symbol_requirements_v1,
     finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
-    verify_source_external_requirements_v1, without_generated_bridge_semantics_for_test,
+    verify_source_external_requirements_v1, without_target_support_for_test,
 };
 
 struct CallableFixture {
@@ -267,10 +267,9 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = seal_builtin_object_external_requirements_v1(
-        without_generated_bridge_semantics_for_test(runtime),
-    )
-    .unwrap();
+    let external =
+        seal_builtin_object_external_requirements_v1(without_target_support_for_test(runtime))
+            .unwrap();
 
     assert!(matches!(
         finalize_undefined_symbol_requirements_v1(current.clone(), external.clone()),

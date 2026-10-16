@@ -22,8 +22,9 @@
 16. 类型登记：直接关联 descriptor／layout 槽位，按已解析 atom 范围读取 descriptor、diagnostic 与 itable 数据计算实际指纹。删除预期字节重建、relocation／digest 图回放及 requirement 闭包深比较，清理独占错误和破坏测试；共用已有 atom 范围转换。
 17. Digest 槽位：统一为 intent／member／offset 数据，宽度固定 32；直接建立查询索引。删除零槽读回、relocation 扫描、graph／覆盖回放及无生产消费者的资格字段，driver 复用 codegen 的成员归属。
 18. Code 与归档组装：直接编码已有定义／引用／imports，删除闭包深比较、定义表重建比较和各组件 producer／target 副本检查；数据类型改为实际指纹结果，保留编码与往返测试。
-19. 待完成：其余对象与桥接生产证明、同类要求及最终验收。
-20. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+19. generated-C requirements：删除 definition／atom／必需调用／机器 relocation 的 semantic proof 回放及其测试；按实际引用和工具链 registry 分类 helper，复用 bridge 计划处理同名 source extern，Scoop LIR 正常 helper 同样可用。
+20. 待完成：其余对象与阶段输出重复证明、同类要求及最终验收。
+21. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -64,3 +65,5 @@ Immortal object 批次：格式化、workspace clippy 无警告；release slib l
 Digest 槽位批次：格式化、workspace clippy 无警告；release slib link_object 164 项通过，实际登记／image／entry 槽位回填继续通过。
 
 Code 与组装批次：格式化、workspace clippy 无警告；release slib 全部 275 项通过。上一批后已清理 debug target 1.7 GiB，保留 release 工具。
+
+generated-C requirements 批次：格式化、workspace clippy 无警告；release slib link_object 157 项通过，覆盖实际 helper 分类和同名 source extern。Linux 专用 helper 调用已同步，执行留待目标验证。

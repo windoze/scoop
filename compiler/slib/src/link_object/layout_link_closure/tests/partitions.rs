@@ -138,10 +138,9 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = seal_builtin_object_external_requirements_v1(
-        without_generated_bridge_semantics_for_test(runtime),
-    )
-    .unwrap();
+    let external =
+        seal_builtin_object_external_requirements_v1(without_target_support_for_test(runtime))
+            .unwrap();
 
     let native_collision = std::str::from_utf8(shape_symbol.strip_prefix(b"_").unwrap()).unwrap();
     let source = verify_source_external_requirements_v1(
@@ -161,10 +160,9 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let overlapping_external = seal_builtin_object_external_requirements_v1(
-        without_generated_bridge_semantics_for_test(runtime),
-    )
-    .unwrap();
+    let overlapping_external =
+        seal_builtin_object_external_requirements_v1(without_target_support_for_test(runtime))
+            .unwrap();
     assert!(matches!(
         finalize_layout_partitioned_undefined_symbol_requirements_v1(
             current.clone(),
