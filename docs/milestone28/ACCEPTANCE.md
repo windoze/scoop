@@ -64,6 +64,6 @@ musl 全量中的普通用例采用默认静态模式。显式动态 PIE 由 `m2
 
 23 个既有用例保留 Darwin 条件：16 个验证 dylib / framework / two-level namespace / Darwin loader，7 个使用 Mach-O 对象字段、归档布局或损坏向量。ELF 对象、归档和最终 image 的损坏检查由 slib、driver、linker 的实际对象测试及 Linux 专用 fixture 覆盖。glibc 的另外两项不适用是 musl PIE 专用用例；Darwin 的六项不适用是 M28 Linux 专用用例。
 
-本阶段不提供 Linux arm64、glibc 全静态或 musl static PIE，也未验证旧 glibc 发行版的最低部署版本。Linux runtime 使用 `/proc/self/maps` 核对实际 metadata 权限。后续 arm64 可复用 Linux OS/VM、ELF image、metadata 脚本与共有链接编排，补充相应 ABI、机器帧 / relocation、入口和工具链输入。
+本阶段不提供 Linux arm64、glibc 全静态或 musl static PIE，也未验证旧 glibc 发行版的最低部署版本。M50 已移除启动时的 `/proc/self/maps` 权限审计，Linux runtime 直接使用已加载的 `PT_LOAD` 地址范围。后续 arm64 可复用 Linux OS/VM、ELF image、metadata 脚本与共有链接编排，补充相应 ABI、机器帧 / relocation、入口和工具链输入。
 
 测试结束后清理本轮临时用例、重复 cache / sysroot 和探针构建产物，保留工具、unwind 安装产物、日志和报告。

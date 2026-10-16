@@ -59,7 +59,7 @@
 
 ### 3.3 跨产物的源码元数据来源核对
 
-实现入口：[source_provenance.rs](../../compiler/slib/src/cross_cone_closure/source_provenance.rs) 的 `validate_imported_source_metadata`，由 [layout closure foundations](../../compiler/slib/src/layout_compile_closure/foundations.rs) 在依赖读取中调用。它遍历复制的 source record 和 source context，查找 provider 并要求两边记录完全相同。
+实现入口：旧 `source_provenance.rs`（M50 已删除） 的 `validate_imported_source_metadata`，由 [layout closure foundations](../../compiler/slib/src/layout_compile_closure/foundations.rs) 在依赖读取中调用。它遍历复制的 source record 和 source context，查找 provider 并要求两边记录完全相同。
 
 删除为诊断资料建立的跨产物来源证明。SourceLocation、源码记录和 context 继续服务诊断与实际引用，不为证明“原样复制自正确 provider”再遍历比对整套资料。实际需要的字段、偏移和引用在读取边界处理，实体归属和语言访问性继续使用普通符号与类型规则。
 
@@ -67,7 +67,7 @@
 
 ### 3.4 native 对象／动态库黑名单和重复的目标格式验证器
 
-实现入口：[native_object.rs](../../compiler/linker/src/native_object.rs)、[selected.rs](../../compiler/linker/src/native_object/selected.rs)、[references.rs](../../compiler/linker/src/native_object/references.rs)、[sections.rs](../../compiler/linker/src/native_object/sections.rs)、[elf.rs](../../compiler/linker/src/native_object/elf.rs) 和 [elf_dynamic.rs](../../compiler/linker/src/native_input/elf_dynamic.rs)。
+实现入口：[native_object.rs](../../compiler/linker/src/native_object.rs)、旧 `selected.rs`／`references.rs`／`sections.rs`（M50 已删除）、[elf.rs](../../compiler/linker/src/native_object/elf.rs) 和 [elf_dynamic.rs](../../compiler/linker/src/native_input/elf_dynamic.rs)。
 
 Darwin 动态库入口 [dynamic/read.rs](../../compiler/linker/src/dynamic/read.rs) 还对 `___cxa_*`、`___gxx_personality`、`___gcc_personality`、内部 undefined ordinal 和 namespace 做全表否决；load-command reader 因内部 weak binding 非空拒绝库。这些不参与 Scoop 所选导入的解析，随对象黑名单一起删除，保留实际 export 与 re-export 引用的读取。
 
@@ -87,7 +87,7 @@ Scoop 只保留自己选择对象、解析实际定义／引用和构造必要�
 
 删除仅凭完整版本号不同就拒绝的条件。目标兼容和实际编译／链接能力由正常工具选择与调用完成；版本与有效配置可以参与输入变化记录，不构成来源资格或配对认证。目标名称的不同拼写也不能代替实际目标兼容性判断。
 
-关联测试：[version-mismatch fixture](../../tests/fixtures/m33-native-cxx/negative/version-mismatch/fixture.toml) 通过 wrapper 只改变 `-dumpfullversion` 的输出、其余操作仍转发真实工具，却要求构建失败。删除这一拒绝要求及只服务它的 wrapper/golden；保留工具缺失、实际目标不兼容、编译失败和链接依赖缺失的覆盖。
+关联测试：旧 `version-mismatch` fixture（M50 已删除） 通过 wrapper 只改变 `-dumpfullversion` 的输出、其余操作仍转发真实工具，却要求构建失败。删除这一拒绝要求及只服务它的 wrapper/golden；保留工具缺失、实际目标不兼容、编译失败和链接依赖缺失的覆盖。
 
 ### 3.6 include 搜索目录必须预先存在
 
@@ -95,7 +95,7 @@ Scoop 只保留自己选择对象、解析实际定义／引用和构造必要�
 
 删除搜索目录必须存在的前置条件，把 include 参数交给 C/C++ 编译器按正常查找规则使用。实际源文件、被引用的头文件和显式 `-include` 文件读取失败仍按工具诊断处理。为增量构建观察影响头文件选择的输入变化不要求先把所有搜索目录判为有效实体。
 
-关联测试：[include-missing fixture](../../tests/fixtures/m33-native-c/negative/include-missing/fixture.toml) 的 C 源码没有 `#include`，只是配置不存在的搜索目录，仍断言 `SourceSnapshot` 失败。该拒绝要求改为正常编译成功。调研时使用同一份 `native.c` 和缺失目录运行本机 `cc -fsyntax-only -I ...`，退出码为 0，stdout/stderr 均为空；该观察未生成对象文件。
+关联测试：[include-missing fixture](../../tests/fixtures/m33-native-c/include-missing/fixture.toml) 的 C 源码没有 `#include`，只是配置不存在的搜索目录，仍断言 `SourceSnapshot` 失败。该拒绝要求改为正常编译成功。调研时使用同一份 `native.c` 和缺失目录运行本机 `cc -fsyntax-only -I ...`，退出码为 0，stdout/stderr 均为空；该观察未生成对象文件。
 
 ### 3.7 仍要求拒绝普通 C constructor 的 fixture
 
@@ -105,7 +105,7 @@ Scoop 只保留自己选择对象、解析实际定义／引用和构造必要�
 
 ### 3.8 自产 LLVM 输出复核与整包重编码比较
 
-性能采样补充确认了两条现行路径：[prepare.rs](../../compiler/codegen/src/emission/prepare.rs) 在变换前后完整验证自产 LLVM module，并调用 [statepoint verifier](../../compiler/codegen/src/statepoint/verifier.rs) 复核工具链结果与全量函数策略；[decode_canonical](../../compiler/wire/src/cbor/decode.rs) 在完整解码后重编码整份记录，再比较全部字节。
+性能采样补充确认了两条现行路径：[prepare.rs](../../compiler/codegen/src/emission/prepare.rs) 在变换前后完整验证自产 LLVM module，并调用 旧 statepoint verifier（M50 已删除） 复核工具链结果与全量函数策略；[decode_canonical](../../compiler/wire/src/cbor/decode.rs) 在完整解码后重编码整份记录，再比较全部字节。
 
 按第 1、2 节清理仅用于证明前一步产出正确的复核和整包往返比较，不将同一套机制移到严格模式或另一条生产入口。LLVM 变换、statepoint／stackmap 的实际生成与提取，以及读取当次字段所需的局部格式和引用处理继续承担正常职责。已有输入或输出数据未变化时复用结果，不为取得下一阶段的验证资格重复遍历。
 

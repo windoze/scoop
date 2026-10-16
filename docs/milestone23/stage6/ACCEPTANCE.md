@@ -37,7 +37,7 @@
 | compiler protocol | 前端识别 intrinsic 和语言角色，完整 typed 声明、签名、effect 和依赖进入 IR；删除 CORE 来源资格、Core/NotCore 外层、重复 operation/String 协议及阶段资格包装 |
 | String、初始化与 Link | String descriptor 使用真实 nominal exact；初始化服务进入普通 callable 支持记录；selected、ABI、definition、registration 和 relocation 通过共有 typed target 解析，删除独立服务 ABI、bridge、Link requirement/owner/proof 通道 |
 | 通用预算与计费 | compiler、wire、slib、构建调度和 runtime 不再包含 `BudgetMeter`、逻辑 work/byte/node 计费或扫描展开配额；保留实际容量分配失败、整数溢出、格式宽度、对象范围与局部环检测；成本策略不进入 profile、fingerprint 或 runtime ABI |
-| 重复证明与完整验证 | 发布直接使用同次完整结果；外部 reader 按边界检查后复用声明、继承图、类型、签名和布局；runtime 热点不重放不可变 scan，重型静态检查仅由显式 `SCOOP_VERIFY_METADATA=1` 或测试调用 |
+| 重复证明与完整验证 | 发布直接使用同次完整结果；外部 reader 按边界检查后复用声明、继承图、类型、签名和布局；runtime 热点不重放不可变 scan，不另设完整静态 metadata 复核模式；动态 heap 验证由 `SCOOP_GC_VERIFY_HEAP=1` 控制 |
 | 无生产用途的框架 | 删除测试来源工厂、平行 identity-only reader/writer、访问证明表、默认值来源副本、发布凭证状态机和其专用测试；保留完整声明、默认值正文与定义位置、普通缓存摘要及 typed ID 查询 |
 
 主要入口包括：

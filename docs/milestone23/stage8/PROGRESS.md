@@ -50,7 +50,7 @@
 ## 7. 完整 stackmap 规范化与登记关联
 
 - 将原 579 行 parser 按 blob、record 和索引职责拆分。保留前三个 location、全部 root pairs/live-outs、function address、instruction offset 及 blob offset；读取 count 后按剩余实际字节检查再分配。
-- CommonCrypto SHA-256 消费与 Rust normalizer 相同的 domain-separated runtime scalar/count 编码。C 测试逐字锁定已有 Rust 固定向量，并验证 ConstantIndex 解析后与 Constant 产生相同摘要。
+- M23-8 当时实现了 CommonCrypto SHA-256 规范化复算及与 Rust 对照的固定向量。M50 已删除该重复计算和专属测试；实际 stackmap 解析、GC root 边界与 ODR 重复记录的 PC／payload 比较保留。
 - raw records 经 typed safepoint/callable 关联、平台 root/frame 校验和 normalized fingerprint 比较后生成唯一 PC 索引。合法 ODR 多 blob 仅同 PC/完整 canonical payload 合并；额外或缺失 site、Strong 重复、owner/PC/location/live-out/fingerprint 错误均拒绝。
 - 修复 AArch64 frame offset 在极大已加载 stack size 与正 offset 组合下的有符号加法溢出，使用边界内无符号计算。
 - 新增三个连续 blob、零 root、ODR/ConstantIndex 组合及 20 个故障注入用例。格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 307 项、toolchain 9 项全部通过。此索引将在下一功能直接交给 GC。

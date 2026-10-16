@@ -81,7 +81,7 @@ synthetic single-file `.slib` 可以作为显式唯一 root，继续遵守 `Loca
 | runtime 对象读入 | 实际对象内容、target、符号、编译器可见 ABI 和 native 依赖 |
 | 系统链接前 | Cone/runtime/program/system 定义与需求合并、固定 provider 选择和完整输入顺序 |
 | 最终 Mach-O | 入口、绑定、实际地址合并、section/fixup/load command 与禁止依赖 |
-| Stage 8 runtime | 加载后的地址／权限、registration、初始化初态及精确 PC/root payload |
+| Stage 8 runtime | 加载后的地址范围、registration 引用、初始化状态访问及精确 PC/root payload |
 
 同次编译和发布复用已有 IR/对象结果；外部 bytes 新读入时检查其负责边界。不能为获得 Link 类型而重新跑整个 HIR/MIR，也不把整套 runtime registry 移植一遍到 final verifier。
 
@@ -224,7 +224,7 @@ final-link profile 携带实际 startup C compiler invocation；复用 toolchain
 
 libSystem 使用已解析 SDK stub、install name、版本/target 和实际 export 目录；其实际 re-export 输入同样列入工具链解析结果。profile 选择物理 provider，export 目录由输入读取，不维护供 core 使用的函数子集。只读入／物化实际选中的必要 stub 文件，不复制整个 SDK 或系统 dylib。SDK stub 的内容摘要不声称是运行时 dyld shared cache 的字节摘要；目标平台提供系统 ABI 的正常承诺，本阶段不建立 OS 来源认证或 platform pinning 协议。
 
-当前固定 runtime 使用的 Level I unwind、C memory/stdio、pthread、Darwin VM/image 和 CommonCrypto 等入口均由该系统输入闭合。所需符号不存在、SDK 不兼容或出现需额外物理输入的 compiler helper 时，报告明确 toolchain/input 错误；不能静默加入 compiler-rt、另一个库或任意搜索目录。若实际支持的 toolchain 确实需要额外 helper，先把其对象及真实调用合同补入同一 profile，并完成对应 fixture；普通 SourceExtern 的解析规则不变。
+当前固定 runtime 使用的 Level I unwind、C memory/stdio、pthread、Darwin VM/image 等入口均由该系统输入闭合。所需符号不存在、SDK 不兼容或出现需额外物理输入的 compiler helper 时，报告明确 toolchain/input 错误；不能静默加入 compiler-rt、另一个库或任意搜索目录。若实际支持的 toolchain 确实需要额外 helper，先把其对象及真实调用合同补入同一 profile，并完成对应 fixture；普通 SourceExtern 的解析规则不变。
 
 当前 Darwin profile 明确传入 `-no_fixup_chains`，采用 `LC_DYLD_INFO_ONLY` 的 rebase/bind 操作流；final verifier 读取该实际格式。没有使用 chained fixup 的输入或调用方，因此本阶段不增加其备用解析器。SDK v4 stub 的目标选择遵循 Darwin 的 arm64／arm64e stub 兼容规则，并以实际 `ld` 探针验证；读取完整 re-export 闭包，不按使用到的函数过滤 exports。
 

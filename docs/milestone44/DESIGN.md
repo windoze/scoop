@@ -68,7 +68,7 @@ mark 产生的存活集合保留至规划、必要的更新和验证结束；继
 - 存活性由 mark 结果和实际搬迁关系决定，不能由 scanned 位定义。
 - 无搬迁路径在显式验证模式下仍检查精确 roots、当前存活对象与引用合法性，但不要求这条路径执行过 relocation，也不为满足该断言伪造 scanned 位。
 - 有搬迁路径保留对需要扫描的当前副本的覆盖检查；无托管引用对象无需出站引用扫描。存活清单唯一性等重型交叉检查放在已有验证模式或专测中，不在正常路径完整重放标记。
-- `SCOOP_VERIFY_METADATA` 与 moving stress 的必要检查继续有效；有 eligible movement 的 stress 仍验证发生了应有的移动。
+- `SCOOP_GC_VERIFY_HEAP` 与 moving stress 的必要检查继续有效；有 eligible movement 的 stress 仍验证发生了应有的移动。
 
 正常构建的零搬迁路径不执行整轮 reference update。诊断不为该路径累计未执行的更新工作；若保留分支选择本身的计时，明确它不代表扫描耗时。
 
@@ -261,9 +261,9 @@ M44-2、M44-3 不等待整个模块隔离完成才交付收益。性能改动与
 | pin/release | 显式重复 pin、作用域 pin frame、handle 保活/移动、ready/unready、回滚后 release 不重复、移动旧副本不重复释放 |
 | 多线程 | attach/detach、NativeSafe 返回、NativeBorrowed safepoint、pending 激活、连续 epoch、单/多 marker、worker 失败退回及 shutdown |
 | 写入与发布 | 字段/数组/aggregate copy、构造/clone、runtime/native 写入、AtomicRef 初始化/store/exchange/成功与失败 CAS、发布内存序 |
-| 校验模式 | 正常构建、SCOOP_VERIFY_METADATA、moving stress 都适用；保留非法地址/无效 forwarding 等既有必要失败检查 |
+| 校验模式 | 正常构建、SCOOP_GC_VERIFY_HEAP、moving stress 都适用；保留非法地址/无效 forwarding 等既有必要失败检查 |
 | 代码生成 | 分配、单槽/范围屏障、poll、ready 操作的代表 LLVM/机器码；无新增热路调用、重复 TLS 查询或错误的 safepoint/内存序变化 |
-| 产物与目标 | 真实 provider/consumer 分离编译、无源码 `.slib` 消费和 artifact-only 链接；Darwin/AArch64、Linux/amd64 GNU/musl 的适用组合 |
+| 产物与目标 | 真实 provider/consumer 分离编译、保持源码和工具存在的 `.slib` 消费及独立链接；Darwin/AArch64、Linux/amd64 GNU/musl 的适用组合 |
 
 复用并定向扩展现有 [moving collector](../../runtime/tests/moving_collector_test.c)、[evacuation fallback](../../runtime/tests/evacuation_fallback_test.c)、[nursery](../../runtime/tests/nursery_test.c)、[parallel mark](../../runtime/tests/parallel_mark_test.c)等测试。新增独立 fixture 锁定本期改动，再用少量真实程序覆盖组合；普通功能验证运行和诊断，只有 GC/ABI/codegen 专测保留必要精确结构断言，不复制全套 IR 快照。
 

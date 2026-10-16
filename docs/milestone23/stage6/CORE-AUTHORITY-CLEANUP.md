@@ -50,7 +50,7 @@ primitive 与 String 的接口默认方法使用前端识别的实际声明及�
 
 产物 reader 的 MIR 类型和 callable 校验使用同一次 HIR 类型基础与继承图构建。按真实依赖顺序解析完整 MIR 类型、callable 和 dispatch，并在每个 provider 的实际依赖范围内检查类型基础与父类型引用；随后为整个不可变依赖闭包构建一次继承图及槽关系，各 provider 共用这张图核对类型表示、有限 shape、方法、构造器、object、派发、equality 与初始化契约。不得因处理另一个 provider、类型或 callable 而完整重建已检查的上游继承图；继承环、实际声明、槽及依赖引用检查继续保留。后续 LIR 消费完整的 MIR 结果，保留各自需要的格式、引用、签名、ABI 与对象检查。此调整不改变 wire、profile、runtime C ABI 或 String 表示，也不增加来源工厂、资格状态或缓存凭证。
 
-完整 LIR 输出已保存 canonical foundation，codegen 不从同一未变化的模块再次构造该 foundation。LIR 在既有 Strong 能力边界检查 ODR 后，只追加当前 Cone 的 Strong 定义，不再次扫描未变化的 callable/ODR 记录。production 的符号表直接使用本次生成的定义表，对象分区直接使用 production 的符号记录；这些数据在 production 组合边界检查后，codegen 按 typed definition、atom 和 symbol 解析每项实际发射引用，复用完整记录，不重建整份预期表或再次完整比较。C bridge 与 C layout 入口只检查实际 C ABI、callback 声明及所需类型关系；callback 指令的 typed 引用与操作结果、Scoop CFG、dispatch、safepoint 与 root plan 在对象代码生成边界检查；不在每个无关入口重复完整验证。外部产物读取的格式与引用检查保持，wire、fingerprint 字段和 runtime ABI 不变。
+完整 LIR 输出已保存 canonical foundation，codegen 不从同一未变化的模块再次构造该 foundation。LIR 在既有 Strong 能力边界检查 ODR 后，只追加当前 Cone 的 Strong 定义，不再次扫描未变化的 callable/ODR 记录。production 的符号表直接使用本次生成的定义表，对象分区直接使用 production 的符号记录；这些数据在 production 组合边界检查后，codegen 按 typed definition、atom 和 symbol 解析每项实际发射引用，复用完整记录，不重建整份预期表或再次完整比较。C bridge 与 C layout 入口只检查实际 C ABI、callback 声明及所需类型关系；lowering 产生完整的 callback、CFG、dispatch、safepoint 与 root plan，codegen 按实际发射所需引用消费这些结果，不独立重演上游语义或全模块验证。外部产物读取的格式与引用检查保持，wire、fingerprint 字段和 runtime ABI 不变。
 
 依赖 companion 与 static nested 访问复用共有 reader 的静态命名空间和原 typed binding，前端在值遮蔽之后沿实际 owner 逐段解析限定类型与表达式。转发调用、属性和默认参数使用实际 object receiver，并沿普通 singleton ensure/root 路径消费；限定 host 和 const 访问不额外初始化。限定或直接导入的 companion 属性赋值、复合赋值与自增复用共有 getter/setter 路径，保存一次实际接收者，在右值之前完成接收者求值与初始化。验收覆盖命名 companion、Companion 别名、转发、跨 facade、类型别名及可见性错误，由真实源码产生四 Cone 产物后链接运行。此项补齐真实声明关系及其消费路径，不引入来源凭证。
 
@@ -188,7 +188,7 @@ Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合�
 
 同次编译完成的归档直接保存完整产物及其普通摘要；摘要由已有 manifest、语义 fingerprint、最终对象和生产记录产生，只记录后续构建与缓存实际需要的信息。原子发布直接写入这些归档 bytes，回读仅核对字节一致后替换目标，不重新创建语义会话或把当前产物和全部依赖再次交给 reader。外部输入的产物仍由共有 reader 检查格式、引用、ABI、符号和实际对象。删除已退出正式路径的 M23-5 归档 writer、双版本发布包装及其专用测试；发布接口只接收正常编译结果，不保留用于取得发布资格的 raw-bytes 重放入口。此清理不改变 wire、runtime ABI 或 String 表示。
 
-M23-6 的 runtime 复用编译器或 artifact reader 已验证的静态类型、布局与 scan，分配、装箱、数组及 GC 不反复完整校验。动态对象范围、length/size、TD 归属、对齐和 GC 根仍检查；装箱根直接引用 TD 的 inline scan，不重发射和逐项比较第二份 scan。完整静态检查保留为 `scoop_shape_validate`，`SCOOP_VERIFY_METADATA=1` 可在 runtime 操作入口显式启用。M23-8 才引入多 image 登记边界，本阶段不为此新建 registry 或不可变指针缓存。
+M23-6 的 runtime 复用编译器或 artifact reader 已验证的静态类型、布局与 scan，分配、装箱、数组及 GC 不反复完整校验。动态对象范围、length/size、TD 归属、对齐和 GC 根仍检查；装箱根直接引用 TD 的 inline scan，不重发射和逐项比较第二份 scan。M50 已删除独立的完整静态 shape/scan 验证器及其显式重验入口；`SCOOP_GC_VERIFY_HEAP=1` 只验证正在运行的动态堆。M23-8 才引入多 image 登记边界，本阶段不为此新建 registry 或不可变指针缓存。
 
 ### 2.7 无生产用途的框架和重复实现
 

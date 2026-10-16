@@ -44,7 +44,8 @@
 38. Layout 发布：直接组合既有导出与 production，删除完整 layout／scan／dispatch／callable／shape-support 镜像比较；依赖 lowering 只投影实际语义根，移除第二套 physical inventory／初始化边比较。
 39. Darwin 动态库：删除内部 undefined 符号的 C++ 前缀／ordinal 扫描及 flat namespace／weak binding 非空拒绝；保留实际 export、re-export、目标和显式库绑定。新增真实 C++ 异常与 C cleanup 组合，覆盖普通／flat、weak coalescing、moving GC 与已有产物独立链接。
 40. Archive 读取：直接使用普通 reader 的成员序列与实际范围，删除第二次完整 header／padding 扫描和成员名前缀黑名单。member ordinal 统一排除 TOC／名称表，相关精简链接计划同步。
-41. 待完成：历史文档一致性及最终验收；Linux 构建准备完成，完整测试尚未开始。
+41. 文档与平台收尾：同步 M23、M28、M44 历史设计中的权限审计、完整 metadata 重验、SHA 复算和源码隔离要求，修正退役入口链接；移除 Linux cfg 下遗留的 unused import。
+42. 最终验收进行中：本机定向回归及公共 runner 规则，Linux release workspace、完整 GNU CLI 与 musl 目标组合。
 
 ## 验证
 
