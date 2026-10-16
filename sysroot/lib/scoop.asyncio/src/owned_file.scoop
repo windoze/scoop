@@ -37,7 +37,7 @@ internal class OwnedFile(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, val c
         if (isClosed) return
         loop.requireJob(false)
         suspendCoroutine<Unit> { continuation ->
-            loop.state.post { closeOnLoop { error -> finishTcpUnit(continuation, error) } }
+            loop.state.post { closeOnLoop { error -> finishUnit(continuation, error) } }
         }
     }
 

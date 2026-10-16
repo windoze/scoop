@@ -1,0 +1,49 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncUdpCombinationTest {
+    @Test
+    fun `datagrams compose with file workers DNS timers and bidirectional network progress`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("packets")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                val left = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+                val right = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+                val addresses = loop.resolve(OsString.fromString("127.0.0.1"), right.localAddress.port)
+                val file = loop.openFile(path, OpenOptions(write = true, createNew = true))
+                val collecting = scope.launch suspend {
+                    NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                        assertEquals(1L, right.receiveFrom(bytes, 1L).count)
+                        file.writeFully(bytes)
+                        bytes.clear()
+                        bytes.writeByte(43)
+                        right.sendTo(bytes, left.localAddress, 1L)
+                    }
+                    file.syncAll()
+                    file.close()
+                }
+                NativeByteBuffer.allocate(1L).use suspend { input ->
+                    val reply = scope.async<Datagram> suspend { left.receiveFrom(input, 1L) }
+                    loop.sleep(Duration.nanoseconds(1L))
+                    gcCollect()
+                    NativeByteBuffer.allocate(1L).use suspend { output ->
+                        output.writeByte(42)
+                        left.sendTo(output, addresses[0L], 1L)
+                    }
+                    assertEquals(1L, reply.await().count)
+                    assertEquals(43.toInt8(), input.readByte())
+                }
+                collecting.join()
+            }
+            assertEquals(42.toInt8(), Files.readAllBytes(path)[0L])
+        }
+    }
+}

@@ -27,7 +27,7 @@ internal class WorkerFile(private val owner: OwnedFile) : AsyncFile {
                 val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
                     { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeFileSync(owner.pointer, id, dataOnly)) } },
                     { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
-                    { event, selected -> finishTcpUnit(continuation,
+                    { event, selected -> finishUnit(continuation,
                         completionFailure("file sync", event.result, selected, Some(owner.context))) })
                 operation.subscribe(job)
                 owner.attach(operation)

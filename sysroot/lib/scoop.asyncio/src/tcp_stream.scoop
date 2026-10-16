@@ -11,7 +11,7 @@ public interface AsyncTcpStream : AsyncByteStream, AsyncCloseable {
 
 private class ShutdownProgress { var submitted: Boolean = false }
 
-internal class TcpStream(private val owner: OwnedTcp,
+internal class TcpStream(private val owner: OwnedSocket,
     public override val localAddress: SocketAddress, public override val peerAddress: SocketAddress) : AsyncTcpStream {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         transferTcp(owner, buffer, count, false)
@@ -53,9 +53,9 @@ internal class TcpStream(private val owner: OwnedTcp,
                                     })
                                     case None -> error
                                 }
-                                finishTcpUnit(continuation, reported)
+                                finishUnit(continuation, reported)
                             }
-                        } else finishTcpUnit(continuation, error)
+                        } else finishUnit(continuation, error)
                     })
                 operation.subscribe(job)
                 owner.attach(operation, true)
@@ -65,11 +65,4 @@ internal class TcpStream(private val owner: OwnedTcp,
     }
 
     public override suspend fun close() { owner.close() }
-}
-
-internal fun finishTcpUnit(continuation: Continuation<Unit>, failure: Throwable?) {
-    when (failure) {
-        case Some(error) -> continuation.resumeWithException(error)
-        case None -> continuation.resume(Unit)
-    }
 }

@@ -53,6 +53,15 @@ path = "native/tcp_read.c"
 path = "native/tcp_write.c"
 
 [[native.sources]]
+path = "native/udp.c"
+
+[[native.sources]]
+path = "native/udp_receive.c"
+
+[[native.sources]]
+path = "native/udp_send.c"
+
+[[native.sources]]
 path = "vendor/libuv/src/fs-poll.c"
 
 [[native.sources]]

@@ -1,8 +1,7 @@
 #ifndef SCOOP_ASYNCIO_TCP_H
 #define SCOOP_ASYNCIO_TCP_H
 
-#include "../../scoop.platform/native/socket_native.h"
-#include "loop.h"
+#include "socket.h"
 
 typedef struct ScoopIoRead ScoopIoRead;
 typedef struct ScoopIoWrite ScoopIoWrite;
@@ -29,11 +28,6 @@ struct ScoopIoConnect {
     ScoopIoTcp *tcp;
     ScoopIoConnect *next;
 };
-
-typedef struct ScoopIoSocketName {
-    struct ScoopSocketAddress address;
-    int status;
-} ScoopIoSocketName;
 
 ScoopIoTcp *scoop_io_tcp_new(ScoopIoLoop *loop, int *status);
 int scoop_io_tcp_no_sigpipe(ScoopIoTcp *tcp);

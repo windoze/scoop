@@ -12,7 +12,7 @@
 | TCP | 已实现，本机 debug／release／moving GC 定向验收通过 |
 | DNS | 已实现，本机 debug／release／moving GC 验收通过 |
 | 文件 | 已实现，本机八项定向及完整 asyncio release／moving GC 验收通过 |
-| UDP | 实施中 |
+| UDP | 已实现，本机八项 debug 和完整四十五项 release 通过；moving GC 与 Linux 整体验收进行中 |
 | 三目标组合及完整验收 | 待实施 |
 
 开始时清理旧 debug 构建数据，保留 release 工具，`target` 从约 103 GB 降至 1.3 GB。M47 的已有文档改动不属于本任务提交。
@@ -74,3 +74,11 @@ open／顺序 read、write／sync／close 复用 platform 原始 helper，经实
 UDP 的 debug 测试通过后，release 对象暴露已有边界缺口：LLVM 数值跳转表与已命名字符串共享 __TEXT,__const，原 literal reader 仅接受整段独占表。以普通多分支算术和数组构造建立 17 行最小复现，先修订实现规范，再让表的实际范围止于首个已有 atom；保留表内无 relocation、代码实际引用及既有 atom 边界检查，不忽略未知段或关闭优化。
 
 九项相关 Rust 测试、workspace clippy，以及独立 CLI fixture 的 debug／release 两变体、四个进程通过。诊断用对象提取代码已移除。该修复不修改格式或 runtime ABI，作为独立底层提交；随后继续 UDP 组合验收。
+
+## UDP 实现与本机验收
+
+新增 bind／单报文收发、IPv4／IPv6、空包、来源与截断、取消和幂等关闭。绑定通过 platform helper 与 uv_udp_open_ex 保留 reuseAddress=false；发送保留完整长度并等待真实 callback，取消不撤回已发报文。接收完成在 native 结束后释放 packet 存储，提交实际 buffer 进度；TCP／UDP 共用已有的双向预留和关闭状态，不新增执行器或后台管理框架。UDP 实现文件最长 76 行，测试最长 84 行。
+
+八项同 Cone debug 测试及整个 asyncio 四十五项 release 测试通过。覆盖整包与超大报文失败、每方向互斥、取消后继续使用、同时收发时关闭、迟到 bind 释放端口，以及文件／DNS／定时器组合。常量段前置修复已先独立验收和提交。workspace clippy、C11 严格告警与差异检查通过；moving GC 仍在运行。
+
+Linux 已清理旧 target 55.5 GiB，同步已提交的编译器并完成 fmt／clippy／release 构建，Rust 全量正在运行。musl-gcc 原环境缺少 libuv 所需 Linux UAPI；在仓库外通过普通 --cc 包装脚本加入系统 linux／asm／asm-generic 头文件路径，vendor 未修改，未混用 glibc 用户态头文件。GNU／musl 完整库与 CLI 验收随后执行。

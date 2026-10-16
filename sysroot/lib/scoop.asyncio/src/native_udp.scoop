@@ -1,0 +1,36 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+
+@CLayout
+internal struct IoPacket(val source: IoAddress, val count: Long, val truncated: Boolean)
+
+internal fun udpAddress(pointer: Ptr<Unit>): SocketAddress {
+    @Unsafe {
+        val result = nativeUdpAddress(pointer)
+        if (result.status < 0) throw uvFailure("UDP address", result.status)
+        return ioSocketAddress(result.address)
+    }
+}
+
+internal fun takeDatagram(pointer: Ptr<Unit>): Datagram {
+    @Unsafe {
+        val value = nativeUdpTakePacket(pointer)
+        return Datagram(ioSocketAddress(value.source), value.count, value.truncated)
+    }
+}
+
+@Extern(name = "scoop_io_udp_bind")
+internal fun nativeUdpBind(loop: Ptr<Unit>, id: Long, address: IoAddress, reuse: Boolean): Int
+@Extern(name = "scoop_io_udp_address")
+private fun nativeUdpAddress(udp: Ptr<Unit>): NativeSocketName
+@Extern(name = "scoop_io_udp_close")
+internal fun nativeUdpClose(udp: Ptr<Unit>, id: Long): Int
+@Extern(name = "scoop_io_udp_receive")
+internal fun nativeUdpReceive(udp: Ptr<Unit>, id: Long, bytes: Ptr<Byte>?, count: Long): Int
+@Extern(name = "scoop_io_udp_receive_cancel")
+internal fun nativeUdpReceiveCancel(udp: Ptr<Unit>, id: Long)
+@Extern(name = "scoop_io_udp_take_packet")
+private fun nativeUdpTakePacket(packet: Ptr<Unit>): IoPacket
+@Extern(name = "scoop_io_udp_send")
+internal fun nativeUdpSend(udp: Ptr<Unit>, id: Long, bytes: Ptr<Byte>?, count: Long, address: IoAddress): Int

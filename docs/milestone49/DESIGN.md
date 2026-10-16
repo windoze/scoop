@@ -340,6 +340,8 @@ libuv 1.53.0 才提供本设计使用的 write 取消及进度接口；不能退
 
 定时等待复用现有时间值类型，负时长非法，零时长在取消检查后可立即完成。正时长按单调截止时间判断；更新 libuv 的缓存时间并处理毫秒精度转换，回调仍核对是否确已到期，不能因舍入或旧时间提前结束等待。UDP 每方向最多一个在途操作；发送允许零长度 datagram，接收要求正容量，过大报文报实际错误而不拆成多次发送。
 
+UDP 绑定先复用 platform socket_bind，再用 uv_udp_open_ex(handle, fd, 0) 移交，避免 uv_udp_open 隐式开启 SO_REUSEADDR。发送统一提交单个 uv_udp_send_t；即使 libuv 内部立即写出，也等实际 callback 后处理取消与完整报文进度。
+
 ### 11.3 显式 close 的完成条件
 
 close 的语义是终止本地资源使用并完成释放，不隐含 flush、文件 sync、向对端交付全部积压字节或 TLS 关闭握手。需要保留输出的调用方先显式完成 write／flush，需要 TCP 半关闭则显式调用 shutdownOutput；协议级优雅结束由相应协议库定义。
@@ -378,7 +380,7 @@ GC release hook 不承担以上任何生命周期责任，仅是防 native 资�
 - [x] 将第 8～12 节写入独立异步 I/O 库规范；定稿 EventLoop.run、普通泛型扩展 runWithResult、LibuvEventLoop、流与资源接口、I/O 关闭异常和各操作声明，明确接口合同与后端实现边界。
 - [x] 先定稿平台规范中的异步 buffer 借用与 Libuv 错误域，列为 platform 库的前置能力；同步 core／std／platform 的相关引用。同步接口原有签名与行为保持不变，实际共享存储规则的扩展显式记录。
 - [x] 锁定 libuv 1.53.0 的三目标 native 构建与链接输入，确认 C helper 复用、SIGPIPE 与已有 FFI／GC 边界；不要求先引入 TLS 依赖。
-- [ ] 确定 asyncio 的同 Cone `scoop.test` 用例与测试依赖，覆盖第 14.2 节；只有明确说明 `scoop.test` 无法满足的具体需求，才安排专项 fixture。
+- [x] 确定 asyncio 的同 Cone `scoop.test` 用例与测试依赖，覆盖第 14.2 节；只有明确说明 `scoop.test` 无法满足的具体需求，才安排专项 fixture。
 
 ### 13.2 实施顺序
 
@@ -414,7 +416,7 @@ GC release hook 不承担以上任何生命周期责任，仅是防 native 资�
 
 ### 14.2 异步 I/O
 
-`scoop.asyncio` 是普通 Cone，以 `scoop.test` 为主要验证方式。测试计划放在 `sysroot/lib/scoop.asyncio/tests/`，通过 `[test-dependencies]` 引用 `scoop:scoop.test:0.1.0`，使用 `scoop test sysroot/lib/scoop.asyncio` 运行；测试源码与测试依赖不进入生产构建。普通测试函数以 EventLoop 接口类型持有 LibuvEventLoop，通过 run／runWithResult 驱动 suspend 场景，沿用既有测试发现与断言能力。
+`scoop.asyncio` 是普通 Cone，以 `scoop.test` 为主要验证方式。测试计划放在 `sysroot/lib/scoop.asyncio/tests/`，通过 `[test-dependencies]` 引用 `scoop:scoop.test:0.1.0`，使用 `scoop test sysroot/lib/scoop.asyncio` 运行；测试源码与测试依赖不进入生产构建。文件取消测试另用普通 test-dependency `scoop.tests:asyncio-native` 在真实 libuv worker queue 中建立排队／执行同步点，不替换生产 I/O。普通测试函数以 EventLoop 接口类型持有 LibuvEventLoop，通过 run／runWithResult 驱动 suspend 场景，沿用既有测试发现与断言能力。
 
 只有 `scoop.test` 无法满足某一具体验证需求时才使用最小的专项 fixture，并说明所缺能力和该 fixture 验证的边界；涉及 native、GC／FFI、竞争或跨 Cone 本身不构成改用 fixture 的理由。若原因是 `scoop.test` 或测试基础设施的缺陷，须先在所属层修复并建立回归，再继续 I/O 验证，不能以 fixture 绕过该缺陷。
 

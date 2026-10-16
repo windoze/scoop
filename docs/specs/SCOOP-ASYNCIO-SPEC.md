@@ -8,6 +8,8 @@
 
 首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP、异步目录遍历、文件监听、进程／TTY 和任意 fd 接管不在本版范围。
 
+Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
+
 ## 2. 根入口与事件循环
 
 ```scoop
@@ -103,6 +105,8 @@ TCP EOF 不关闭输出。shutdownOutput 属于输出方向，提交后禁止新
 listenTcp 的 backlog 必须为正。监听使用 platform 的 socket_bind helper 先按 reuseAddress 配置和绑定新的 owned fd，再移交 uv_tcp_open／uv_listen；这样 false 不被 libuv 的隐式 SO_REUSEADDR 覆盖。移交前失败按 raw close 清理，移交后按 uv_close 清理。helper 错误保留 PosixErrno，libuv 错误使用 Libuv；不接管用户已有 socket。
 
 UDP 每方向一个在途操作，发送保持完整 datagram，不拆包；空发送是真实空包。receive 要求正容量，有源地址的零字节是空包，无地址的零通知继续等待。Datagram 保留来源、实际交付长度及截断标志。超大报文保留实际错误。
+
+bindUdp 同样先由 platform socket_bind 配置 reuseAddress 并绑定新的 fd，再通过 uv_udp_open_ex(handle, fd, 0) 移交；不使用隐式开启 SO_REUSEADDR 的 uv_udp_open。移交前后失败的关闭责任与 TCP 相同。sendTo 提交单个 uv_udp_send_t，成功 callback 表示完整报文已交给 OS；取消仍等待 callback 并提交实际发送长度，不能把取消当作撤回报文。
 
 libuv 错误保留 NativeErrorDomain.Libuv 与原码；UV_EOF 按 EOF 解释，库主动取消／关闭不伪造 OS 错误。Linux 在实际 socket 输出提交及 uv_run 周围屏蔽线程 SIGPIPE，仅消费本段新增信号，再恢复旧 mask/pending；Darwin 输出前设置 SO_NOSIGPIPE。不改进程 signal handler。
 

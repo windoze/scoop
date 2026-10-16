@@ -6,7 +6,7 @@ import scoop.platform.io.WriteZeroException
 
 private class TcpProgress { var count: Long = 0L }
 
-internal suspend fun transferTcp(owner: OwnedTcp, buffer: NativeByteBuffer, count: Long, writing: Boolean): Long {
+internal suspend fun transferTcp(owner: OwnedSocket, buffer: NativeByteBuffer, count: Long, writing: Boolean): Long {
     val job = owner.loop.requireJob()
     val reservation = owner.reserve(writing)
     try {

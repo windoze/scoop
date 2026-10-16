@@ -1,0 +1,30 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+
+internal typealias IoAddress = NativeSocketAddress
+@CLayout
+internal struct NativeSocketName(val address: IoAddress, val status: Int)
+
+internal fun ioAddress(address: SocketAddress): IoAddress {
+    val bytes = address.address.toBytes()
+    return IoAddress(if (address.address.family == AddressFamily.IPv4) 4 else 6,
+        address.port, address.address.scopeId, addressWord(bytes, 0L), addressWord(bytes, 4L),
+        addressWord(bytes, 8L), addressWord(bytes, 12L))
+}
+
+private fun addressWord(bytes: Array<Byte>, offset: Long): UInt {
+    if (offset >= bytes.size) return 0u
+    var word = 0u
+    for (index in offset..<offset + 4L) word = (word shl 8L) or bytes[index].toUInt8().toUInt32()
+    return word
+}
+
+internal fun ioSocketAddress(value: IoAddress): SocketAddress {
+    val bytes = Array<Byte>(if (value.family == 4) 4L else 16L) { index ->
+        val word = when (index / 4L) { case 0L -> value.a; case 1L -> value.b; case 2L -> value.c; case _ -> value.d }
+        ((word shr ((3L - index % 4L) * 8L)) and 255u).toInt8()
+    }
+    return SocketAddress(IpAddress.fromBytes(bytes, value.scopeId), value.port)
+}
+

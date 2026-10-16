@@ -60,6 +60,9 @@ public class LibuvEventLoop public constructor() : EventLoop {
     public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
     public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =
         listenTcpOnLoop(this, address, backlog, reuseAddress)
+
+    public override suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean): AsyncUdpSocket =
+        bindUdpOnLoop(this, address, reuseAddress)
 }
 
 private class LoopCompletion(val state: LoopState) : Continuation<Unit> {
