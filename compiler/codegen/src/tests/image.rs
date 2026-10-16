@@ -34,20 +34,6 @@ fn run_image_test(fixture: &str, expected: &str) {
     ] {
         command.arg(workspace.join(source));
     }
-    if cfg!(target_os = "macos") {
-        command.arg(workspace.join("runtime/src/platform/image/darwin_sha256.c"));
-    } else {
-        let vendor = workspace.join("runtime/third_party/mbedtls");
-        command
-            .arg("-DMBEDTLS_CONFIG_FILE=\"scoop_sha256_config.h\"")
-            .arg("-I")
-            .arg(&vendor)
-            .arg("-I")
-            .arg(vendor.join("include"))
-            .arg(vendor.join("library/sha256.c"))
-            .arg(vendor.join("library/platform_util.c"))
-            .arg(workspace.join("runtime/src/platform/image/portable_sha256.c"));
-    }
     let compile = command
         .arg(workspace.join("runtime/tests/image_storage_fixture.c"))
         .arg(workspace.join("runtime/tests/image_stackmap_fixture.c"))

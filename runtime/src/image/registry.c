@@ -13,12 +13,9 @@ ScoopImageRegistry *scoop_image_collect(const ScoopPlatformMetadataImages *loade
     }
     scoop_metadata_prefix(&check, root, SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1,
                           sizeof *root);
-    if (scoop_digest_zero(&root->owner_cone_identity) ||
-        scoop_digest_zero(&root->callable_id) ||
-        scoop_digest_zero(&root->source_signature_fingerprint) ||
-        scoop_digest_zero(&root->gateway_callable_id) ||
-        scoop_digest_zero(&root->gateway_definition_fingerprint)) {
-        scoop_metadata_fatal(&check, "missing identity or fingerprint");
+    if (scoop_digest_zero(&root->owner_cone_identity) || scoop_digest_zero(&root->callable_id) ||
+        scoop_digest_zero(&root->gateway_callable_id)) {
+        scoop_metadata_fatal(&check, "missing identity");
     }
     ScoopImageRegistry *registry = scoop_metadata_allocate(1, sizeof *registry);
     registry->loaded = loaded;

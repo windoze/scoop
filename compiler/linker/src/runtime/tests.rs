@@ -87,7 +87,6 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             Some(&SymbolKind::Text)
         );
         assert!(!definitions.contains_key("main"));
-        assert!(!definitions.keys().any(|name| name.starts_with("mbedtls_")));
         let runtime = RuntimeObjectSet::from_paths(
             target,
             invocation.profile(),

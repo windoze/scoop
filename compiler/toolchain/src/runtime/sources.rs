@@ -87,16 +87,8 @@ pub(super) const COMMON: &[&str] = &[
 
 pub(super) const DARWIN_OS: &[&str] = &["runtime/src/platform/os/darwin.c"];
 pub(super) const LINUX_OS: &[&str] = &["runtime/src/platform/os/linux.c"];
-pub(super) const MACHO_IMAGE: &[&str] = &[
-    "runtime/src/platform/image/macho.c",
-    "runtime/src/platform/image/darwin_sha256.c",
-];
-pub(super) const ELF_IMAGE: &[&str] = &[
-    "runtime/src/platform/image/elf.c",
-    "runtime/src/platform/image/portable_sha256.c",
-    "runtime/third_party/mbedtls/library/sha256.c",
-    "runtime/third_party/mbedtls/library/platform_util.c",
-];
+pub(super) const MACHO_IMAGE: &[&str] = &["runtime/src/platform/image/macho.c"];
+pub(super) const ELF_IMAGE: &[&str] = &["runtime/src/platform/image/elf.c"];
 pub(super) const AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",
     "runtime/src/platform/arch/aarch64_anchor.S",

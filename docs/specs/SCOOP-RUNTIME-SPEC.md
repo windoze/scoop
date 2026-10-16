@@ -279,7 +279,7 @@ scan kind 为 None=0 或 Recursive=1；scan choice 为 `Empty=0 | Program=1 { sc
 
 `RuntimeImageFingerprint = SHA-256(ByteSpan("scoop-runtime-image-v2") || RuntimeAbiFingerprint || TargetProfileFingerprint || canonical Cone record || sorted direct dependencies || six canonical record sequences)`。两个输入 fingerprint 各为 32 bytes；canonical Cone record 依次编码 group、name、version ByteSpan 和 ConeIdentity。自身 fingerprint slot、物理对象分片和 ASLR 地址不进入此编码。body、descriptor、layout、scan 与 stackmap fingerprints 的产物规则见编译器与产物规范 2.6。
 
-`PersistentCallableBodyId = SHA-256(ByteSpan("scoop-callable-body-v2") || canonical(CallableBodyKey))`。key 的 u32 tag 与字段为 Strong=1 `{owner}`、Odr=2 `{member}`、RootGateway=3 `{root_cone, main_body_id}`、InitializationStartupGateway=4 `{unit_id}`、ReleaseHook=5 `{owner_exact_type_id}`。这些 body 的身份不能互换。
+`PersistentCallableBodyId = SHA-256(ByteSpan("scoop-callable-body-v2") || canonical(CallableBodyKey))`。key 的 u32 tag 与字段为 Strong=1 `{owner}`、Odr=2 `{member}`、RootGateway=3 `{root_cone, main_body_id}`、InitializationStartupGateway=4 `{unit_id}`、ReleaseHook=5 `{owner_exact_type_id}`。这些 body 的身份不能互换。身份与内容摘要由编译、链接过程生成；runtime 使用实际登记记录及引用，不重新生成摘要，也不以摘要非零断言替代实际索引和引用处理。
 
 stackmap 使用 LLVM v3 record。规范化内容依次为 `{format_version=3, site_id, safepoint_id:u64, owner_callable_id, site_role:u32, root_pair_count:u32, instruction_offset:u32, stack_size:u64, locations, live_outs}`。location tag 为 Register=1 `{size:u32, dwarf_register:u32}`、Direct=2 或 Indirect=3 `{size, dwarf_register, signed_offset_bits:u64}`、Constant=4 `{size, value_bits:u64}`；live-out 为 `{dwarf_register:u32, size:u32}`。保留原 sequence 顺序和数量，i32 offset/constant 符号扩展到 i64 bits，ConstantIndex 解析为 pool 中的 u64 Constant；reserved/flags/padding 为零。
 
@@ -461,7 +461,7 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 ### 3.8 GC-free release hook
 
-release hook 仅属于符合语言规范 9.1.6 的 FixedObject 类型。启动时其函数地址必须解析到该 exact type 对应的 ReleaseHook callable；随后 GC 使用已登记的合同。
+release hook 仅属于符合语言规范 9.1.6 的 FixedObject 类型。编译器为该 exact type 生成 ReleaseHook callable 并绑定 descriptor 入口；GC 直接使用已登记的入口，不在启动时重新编码 body ID、计算 hash 或比较另一份 callable 地址。
 
 正常 collection 决定回收 ready 对象时，在 storage 失效前清除 ready 并尝试调用一次 hook。未完成构造的对象不调用；移动副本和旧地址回收不额外调用。ready 的 release/acquire 配对保证构造写入可见，显式 close 的 inert-state 写入也必须在 park 前完成；hook 不为有数据竞争的程序补充同步。
 

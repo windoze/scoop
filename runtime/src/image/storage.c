@@ -10,11 +10,8 @@ static void check_storage(ScoopImageRegistry *registry, size_t index) {
         registry->tables[SCOOP_RECORD_STORAGE].entries[index].record;
     uint64_t extent = storage->byte_size == 0 ? 1 : storage->byte_size;
     if (storage->allocation_extent != extent ||
-        storage->required_alignment > SCOOP_MAXIMUM_MANAGED_ALIGNMENT ||
-        scoop_digest_zero(&storage->scan_fingerprint) ||
-        scoop_digest_zero(&storage->layout_fingerprint)) {
-        scoop_metadata_fatal(&check,
-                             "allocation extent, alignment or fingerprint");
+        storage->required_alignment > SCOOP_MAXIMUM_MANAGED_ALIGNMENT) {
+        scoop_metadata_fatal(&check, "allocation extent or alignment");
     }
     scoop_metadata_range(&check, storage->writable_base, 1, extent, storage->required_alignment,
                          "writable allocation range");

@@ -162,13 +162,7 @@ static void setup(Fixture *fixture) {
             .entry = bodies[index]};
         data->callable_table[index] = &data->callables[index];
     }
-    /* Fixed vector for the exact type ID {1, 0, ...} and body-v2 tag 5. */
-    static const ScoopDigest256V1 release_id = {
-        {0x57, 0x11, 0x36, 0xa6, 0x01, 0xe0, 0x19, 0x2d, 0x1c, 0x3e, 0x15,
-         0x9c, 0x26, 0x77, 0x92, 0x76, 0x9b, 0x7b, 0x8a, 0xab, 0xa6, 0x7c,
-         0x73, 0xf7, 0x48, 0x89, 0x16, 0x8e, 0x21, 0x0b, 0xec, 0x53}};
     td(data, 0)->release_hook = release0;
-    data->callables[2].registration.semantic_id = release_id;
     for (size_t index = 0; index < 2; index++) {
         data->sites[index] = (ScoopSafepointRegistrationDescriptorV1){
             .prefix = prefix(SCOOP_SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC_V1,
@@ -263,18 +257,6 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         td(data, 3)->related_types[0] = NULL;
         return "unregistered TypeDescriptor";
     case 22:
-        data->callables[2].registration.semantic_id.bytes[0] ^= 0xff;
-        return "release hook callable registration";
-    case 23:
-        td(data, 0)->release_hook = (ScoopReleaseHookV1)body0;
-        return "release hook entry disagrees with exact owner";
-    case 24:
-        td(data, 1)->release_hook = release0;
-        return "release hook requires a fixed object";
-    case 25:
-        data->types[0].registration.semantic_id.bytes[0] = 250;
-        return "release hook callable registration";
-    case 26:
         data->callables[2].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
         return "entry range";
     default:
@@ -342,7 +324,7 @@ int main(void) {
         assert(munmap(fixture.data,
                       fixture.size + (size_t)sysconf(_SC_PAGESIZE)) == 0);
     }
-    for (unsigned test = 0; test < 27; test++)
+    for (unsigned test = 0; test < 23; test++)
         negative(test);
     puts("image type and scan tests passed");
 }

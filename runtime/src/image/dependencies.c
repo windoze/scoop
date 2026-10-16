@@ -70,9 +70,8 @@ static void collect_images(ScoopImageRegistry *registry,
         scoop_metadata_bytes(&check, image->cone.name, "name span");
         scoop_metadata_bytes(&check, image->cone.version, "version span");
         if (image->cone.name.length == 0 || image->cone.version.length == 0 ||
-            scoop_digest_zero(&image->cone.identity) ||
-            scoop_digest_zero(&image->runtime_image_fingerprint)) {
-            scoop_metadata_fatal(&check, "empty coordinate, identity or fingerprint");
+            scoop_digest_zero(&image->cone.identity)) {
+            scoop_metadata_fatal(&check, "empty coordinate or identity");
         }
         scoop_metadata_range(&check, image->dependencies, image->dependency_count,
                              sizeof *image->dependencies, _Alignof(ScoopDigest256V1),

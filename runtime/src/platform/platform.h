@@ -108,7 +108,6 @@ typedef struct ScoopPlatformBundle {
 /* The selected target profile supplies exactly one complete immutable
  * bundle. Generic runtime code must not select components with host macros. */
 const ScoopPlatformBundle *scoop_platform_bundle(void);
-bool scoop_platform_sha256(const void *bytes, size_t length, uint8_t digest[32]);
 const char *scoop_platform_error_message(ScoopPlatformErrorCode code);
 
 /* Convenience wrapper retained for thread registration. It still dispatches
