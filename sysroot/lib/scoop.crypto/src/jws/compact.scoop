@@ -1,0 +1,77 @@
+package scoop.crypto.jws
+
+import scoop.crypto.*
+import scoop.crypto.native.*
+import scoop.text.split
+
+public enum JwsAlgorithm { HS256, RS256, PS256, ES256, EdDSA }
+public enum JwsSigningKey { Mac(SecretKey), Signature(PrivateKey) }
+public enum JwsVerificationKey { Mac(SecretKey), Signature(PublicKey) }
+public struct VerifiedJws(val protectedHeader: String, val payload: Array<Byte>, val keyId: String?)
+
+internal fun algorithmName(algorithm: JwsAlgorithm): String = when (algorithm) {
+    case HS256 -> "HS256"
+    case RS256 -> "RS256"
+    case PS256 -> "PS256"
+    case ES256 -> "ES256"
+    case EdDSA -> "EdDSA"
+}
+
+private fun signatureAlgorithm(algorithm: JwsAlgorithm): SignatureAlgorithm = when (algorithm) {
+    case RS256 -> SignatureAlgorithm.RS256
+    case PS256 -> SignatureAlgorithm.PS256
+    case ES256 -> SignatureAlgorithm.ES256
+    case EdDSA -> SignatureAlgorithm.Ed25519
+    case HS256 -> throw IllegalArgumentException(Some("HS256 requires a MAC key"))
+}
+
+private fun requireMac(algorithm: JwsAlgorithm, key: SecretKey) {
+    if (algorithm != JwsAlgorithm.HS256) throw IllegalArgumentException(Some("signature algorithm requires an asymmetric key"))
+    if (key.size < 32L) throw IllegalArgumentException(Some("HS256 key must contain at least 32 bytes"))
+}
+
+public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: JwsAlgorithm, key: JwsSigningKey): String {
+    parseHeader(protectedHeader, algorithm)
+    val input = urlEncoding.encode(protectedHeader.toByteArray()) + "." + urlEncoding.encode(payload)
+    val bytes = input.toByteArray()
+    val signature = when (key) {
+        case Mac(secret) -> {
+            requireMac(algorithm, secret)
+            hmac(DigestAlgorithm.SHA256, secret, bytes)
+        }
+        case Signature(privateKey) -> {
+            val der = sign(signatureAlgorithm(algorithm), privateKey, bytes)
+            if (algorithm == JwsAlgorithm.ES256) convertEcdsa(der, true) else der
+        }
+    }
+    return input + "." + urlEncoding.encode(signature)
+}
+
+public fun verifyCompact(token: String, algorithm: JwsAlgorithm, key: JwsVerificationKey): VerifiedJws? {
+    val parts = token.split('.')
+    if (parts.size != 3L) throw JwsException("compact JWS must contain three segments")
+    val header = headerText(decodePart(parts[0L]))
+    val parsed = parseHeader(header, algorithm)
+    val payload = decodePart(parts[1L])
+    val signature = decodePart(parts[2L])
+    val input = (parts[0L] + "." + parts[1L]).toByteArray()
+    val valid = when (key) {
+        case Mac(secret) -> {
+            requireMac(algorithm, secret)
+            verifyHmac(DigestAlgorithm.SHA256, secret, input, signature)
+        }
+        case Signature(publicKey) -> {
+            val selected = signatureAlgorithm(algorithm)
+            val der = if (algorithm == JwsAlgorithm.ES256) convertEcdsa(signature, false) else signature
+            verify(selected, publicKey, input, der)
+        }
+    }
+    return if (valid) Some(VerifiedJws(header, payload, parsed.keyId)) else None
+}
+
+private fun convertEcdsa(signature: Array<Byte>, toRaw: Boolean): Array<Byte> {
+    if (!toRaw && signature.size != 64L) throw JwsException("ES256 signature must contain 64 bytes")
+    @Unsafe { return signature.withDataPointer { data, count ->
+        @Unsafe { return@withDataPointer cryptoBytes(ecdsaConvert(data, count, if (toRaw) 1 else 0), "convert ES256 signature") }
+    } }
+}

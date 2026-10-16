@@ -1,0 +1,56 @@
+package scoop.crypto.jws
+
+import scoop.crypto.PublicKey
+import scoop.crypto.native.*
+
+internal struct JwkParameters(val kind: Int, val first: Array<Byte>, val second: Array<Byte>)
+
+private object JwkDecoder : Decodable<JwkParameters> {
+    public override fun decode(decoder: Decoder): JwkParameters {
+        val fields = decoder.keyed()
+        for (name in fields.keys) {
+            if (name == "d" || name == "p" || name == "q" || name == "dp" || name == "dq" || name == "qi" || name == "oth" || name == "k")
+                throw JwsException("private JWK parameters are not accepted")
+        }
+        val kind = fields.required("kty").singleValue().readString()
+        val parameters = when (kind) {
+            case "RSA" -> JwkParameters(0, unsignedInteger(fields, "n"), unsignedInteger(fields, "e"))
+            case "EC" -> {
+                requireCurve(fields, "P-256")
+                JwkParameters(1, fixedParameter(fields, "x"), fixedParameter(fields, "y"))
+            }
+            case "OKP" -> {
+                requireCurve(fields, "Ed25519")
+                JwkParameters(2, fixedParameter(fields, "x"), Array<Byte>(0L) { _ -> 0.toInt8() })
+            }
+            else -> throw JwsException("unsupported JWK key type")
+        }
+        fields.end()
+        return parameters
+    }
+}
+
+private fun requireCurve(fields: KeyedDecodingContainer, expected: String) {
+    if (fields.required("crv").singleValue().readString() != expected) throw JwsException("unsupported JWK curve")
+}
+
+private fun fixedParameter(fields: KeyedDecodingContainer, name: String): Array<Byte> {
+    val value = decodePart(fields.required(name).singleValue().readString())
+    if (value.size != 32L) throw JwsException("JWK coordinate must contain 32 bytes")
+    return value
+}
+
+private fun unsignedInteger(fields: KeyedDecodingContainer, name: String): Array<Byte> {
+    val value = decodePart(fields.required(name).singleValue().readString())
+    if (value.size == 0L || value[0L] == 0.toInt8()) throw JwsException("invalid JWK unsigned integer")
+    return value
+}
+
+public fun importJwk(json: String): PublicKey {
+    val parameters = decodeJson(json, JwkDecoder)
+    @Unsafe { return parameters.first.withDataPointer { first, firstSize ->
+        @Unsafe { return@withDataPointer parameters.second.withDataPointer { second, secondSize ->
+            @Unsafe { return@withDataPointer PublicKey(cryptoValue(jwkImport(parameters.kind, first, firstSize, second, secondSize), "import JWK")) }
+        } }
+    } }
+}

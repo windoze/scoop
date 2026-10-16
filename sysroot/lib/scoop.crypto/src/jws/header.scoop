@@ -1,0 +1,53 @@
+package scoop.crypto.jws
+
+import scoop.json.Json
+import scoop.io.encoding.Base64
+
+public class JwsException public constructor(public val detail: String) : Exception(Some(detail))
+
+internal val urlEncoding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
+internal struct ProtectedHeader(val algorithm: String, val keyId: String?)
+
+private object HeaderDecoder : Decodable<ProtectedHeader> {
+    public override fun decode(decoder: Decoder): ProtectedHeader {
+        val fields = decoder.keyed()
+        val algorithm = fields.required("alg").singleValue().readString()
+        val keyId = optionalText(fields, "kid")
+        for (name in fields.keys) {
+            if (name == "crit") throw JwsException("critical header extensions are unsupported")
+        }
+        val encoded = when (fields.optional("b64")) {
+            case Some(value) -> value.singleValue().readBoolean()
+            case None -> true
+        }
+        if (!encoded) throw JwsException("unencoded JWS payload is unsupported")
+        fields.end()
+        return ProtectedHeader(algorithm, keyId)
+    }
+}
+
+internal fun optionalText(fields: KeyedDecodingContainer, name: String): String? = when (fields.optional(name)) {
+    case Some(value) -> Some(value.singleValue().readString())
+    case None -> None
+}
+
+internal fun <T> decodeJson(text: String, codec: Decodable<T>): T {
+    try { return Json.decode(text, codec) }
+    catch (error: DecodingException) { throw JwsException("invalid JWS JSON at " + error.path + ": " + (error.message ?: "decoding failed")) }
+}
+
+internal fun parseHeader(text: String, algorithm: JwsAlgorithm): ProtectedHeader {
+    val header = decodeJson(text, HeaderDecoder)
+    if (header.algorithm != algorithmName(algorithm)) throw JwsException("protected alg does not match the required algorithm")
+    return header
+}
+
+internal fun decodePart(text: String): Array<Byte> = when (urlEncoding.decodeOrNull(text)) {
+    case Some(value) -> value
+    case None -> throw JwsException("invalid unpadded Base64URL")
+}
+
+internal fun headerText(bytes: Array<Byte>): String {
+    try { return String.fromUtf8(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() }) }
+    catch (error: CharacterCodingException) { throw JwsException("protected header is not UTF-8") }
+}

@@ -6,7 +6,7 @@
 
 1. Native 接入：已完成三目标 OpenSSL 3.5.9 静态资源准备及真实摘要、签名、证书校验和 TLS 握手。
 2. 密码与密钥：已完成摘要、MAC、AEAD、安全随机、SecretKey、RSA／P-256／Ed25519 公私钥和签验。
-3. 证书与 JWS：X.509 解析、属性、签名与链验证已完成；JWS 待实施。
+3. 证书与 JWS：X.509 解析、属性、签名与链验证、五种 JWS 算法和公钥 JWK 导入已实现。
 4. 共享 TLS 引擎与同步流：待实施。
 5. M49 异步 TLS：待实施。
 6. 三目标组合及外部消费者验收：待执行。
@@ -22,6 +22,8 @@
 - 密钥与签名：PKCS#8／SPKI 的 PEM／DER、独立公钥提取、RSA PKCS#1／PSS、ECDSA DER 与 Ed25519；关闭后状态及 native 引用保留。PSS 固定 SHA-256／MGF1 SHA-256／32 字节 salt，不启用口令交互。C 格式化与严格告警检查通过；本机 4 项、相同 4 项 moving GC 和生产消费者 1 项通过，包含 RFC 8032 与 OpenSSL 3.6.5 CLI 固定向量、改变消息／签名、格式与算法错误。
 
 - X.509：证书 PEM／DER、RFC 2253 名称、序列号、时间、DNS／IP SAN、公钥提取及证书签名检查；TrustStore 保留显式锚，按给定时间、用途、链和身份验证。纯 core 测试素材 Cone 提供固定 CA／中间／服务端／过期／错误用途证书。C 格式化与严格告警检查通过；本机 3 项、相同 3 项 moving GC 及外部消费者 1 项通过，覆盖源码内存输入、已关闭原锚后的引用保留、缺链／未知根／过期／用途／DNS／IP 错误。
+
+- JWS／JWK：五种 Compact 算法、原始 signing input、ES256 DER／R‖S 转换，以及 RSA／P-256／Ed25519 公钥参数导入；复用 JSON 与严格无 padding Base64URL。C 格式化与严格告警检查通过；本机 5 项、相同 5 项 moving GC 和外部消费者 1 项通过，包含 RFC 8037、独立 Python cryptography 46.0.7 向量、篡改、算法／密钥角色、critical header、非法编码与私钥参数拒绝。
 
 ## 验证与工作目录
 

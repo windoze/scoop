@@ -55,3 +55,9 @@ path = "native/certificate_names.c"
 
 [[native.sources]]
 path = "native/trust.c"
+
+[[native.sources]]
+path = "native/jws.c"
+
+[[native.sources]]
+path = "native/jwk.c"

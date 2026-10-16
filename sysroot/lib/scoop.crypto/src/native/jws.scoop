@@ -1,0 +1,4 @@
+package scoop.crypto.native
+
+@Extern(name = "scoop_crypto_ecdsa_convert") internal fun ecdsaConvert(data: Ptr<Byte>, size: Long, toRaw: Int): CryptoResult
+@Extern(name = "scoop_crypto_jwk_import") internal fun jwkImport(kind: Int, first: Ptr<Byte>, firstSize: Long, second: Ptr<Byte>, secondSize: Long): CryptoResult

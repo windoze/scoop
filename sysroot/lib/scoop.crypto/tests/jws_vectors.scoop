@@ -1,0 +1,35 @@
+package scoop.crypto.jws
+
+// Independent Python cryptography 46.0.7 and RFC 8037 interoperability inputs.
+
+internal fun rsaJwk(): String =
+    "{\"kty\":\"RSA\",\"n\":\"oQd8jNySYtqVlFdl7XPN-TJPtO9Yl4wnH1LReVHy_6IfOMzfQcuvSR6L4rbYBW8ZwQFjKCpvgAogWa" +
+    "l8IbfLhjqpDihMVUumFvML2q-KYcKN14nSOi08UO47nKW6pZ4hLDoD_I-tEBt2dP2WplKpudcsvOG27lpFmerADIos2WJuBc" +
+    "_Nyci8egA1SZpAskCcsOxoD7WAzZp1rl6l8CXELOYR6FfCRw4P5SpHByyQjicA6Diljz_TQXwmnVeco_dIP_3n6mI7tLeM3Z" +
+    "cydXiurQsgntAiztxX5sFohzaOP5rc-uVY4jHrwnS4ISEPQ7SWzT0dpR1vw7fz53u0s1FqhQ\",\"e\":\"AQAB\"}"
+
+internal fun ecJwk(): String =
+    "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"1ljryVhhFSQaKv1AxT3VJc9-AV4oDdG06rSDnL4aUsk\",\"y\":\"OpMEyriS2W1IGBL" +
+    "6Wu3c6u4P6UFlA3Kda5a9T8r9IdA\"}"
+
+internal fun hs256Token(): String =
+    "eyAia2lkIjogImludGVyb3AiLCAiYWxnIjogIkhTMjU2IiB9.U2Nvb3AgSldTIGludGVyb3BlcmFiaWxpdHk.NvY9tWRY0_c" +
+    "3HUscoV3lH2-ICIqBAyDS2eTGgn79VfE"
+
+internal fun rs256Token(): String =
+    "eyAia2lkIjogImludGVyb3AiLCAiYWxnIjogIlJTMjU2IiB9.U2Nvb3AgSldTIGludGVyb3BlcmFiaWxpdHk.QknDUIsQPBE" +
+    "MhLeL2rMlFfSheJz0QpogLGLn2BuD09gO95sObAB_8Ojtv3FAy8EiT4AgfJzdxpSTwj8pKfZvU2KpIzJmYOdfujZcl2m7tQk" +
+    "1dyXOBNI9P-hmv4_Rw59v1VUbrDQ2AOHeaA3c-u0eF6xaovKu3EcJdlBlakeq1FQevLeNKQRPOohtrJD7sFOevyDVsNx-smS" +
+    "dpnPdQNNf5CV_mT9slSXBO8-lQ2aF_fgXJxt8Ux80VdOLHQbdBoMoD0YRo8wX2233euM-DjNbv38TCjy6dY2An3svXYRrUvq" +
+    "iPtkvan0eu0e6l70clIxbAQ8oQIl5VkAMQwAHTOku4w"
+
+internal fun ps256Token(): String =
+    "eyAia2lkIjogImludGVyb3AiLCAiYWxnIjogIlBTMjU2IiB9.U2Nvb3AgSldTIGludGVyb3BlcmFiaWxpdHk.Gk0e6VIYtwJ" +
+    "s9ZBqrSFEKsrawFptu__qModB6n1kZLYYsNnIg3POhwaRQThlOtLJglsrQCqde6iWXil5TpDbbLdiaKRLNnnjw1Hdz8v2cti" +
+    "ckjpRzEVI0U7uwcFoV8D4U2Z6_AxcmiK54YwqzkrJCGAFOCuXIQGFSWWHfFBA1KuiJ1WGrpO6xQ7uw1yqiN4qWobzC0ruaEO" +
+    "v-uv-dEEwjFiwfPL128shxV6tANg6EwaSNunnppKRHMcldnR4TmPJ0f5tRl9WnVX8RdIOPPLZ__vK2gMbwrTs3rZWYCK_u1l" +
+    "YrZnei7TT04dWlj8IbapMnc_I6rsFnJgNknwU1Cxp0A"
+
+internal fun es256Token(): String =
+    "eyAia2lkIjogImludGVyb3AiLCAiYWxnIjogIkVTMjU2IiB9.U2Nvb3AgSldTIGludGVyb3BlcmFiaWxpdHk.PADTzNfCskn" +
+    "u7vC0QX4C-OkN-AFH00MXUrQwZyOWCk2rkiKwZODG0cuKnTvGQOYCdKeuFaGZW7oTVGkBObT4bQ"

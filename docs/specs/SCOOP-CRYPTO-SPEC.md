@@ -54,6 +54,10 @@ Certificate.verifySignature(issuerKey) 只检查证书签名。TrustStore 从显
 
 ES256 在 JWS 边界转换为固定 64 字节 R || S，普通签名 API 仍使用 DER。PS256 保持第 4 节参数。公钥 JWK 仅支持 RSA n/e、EC P-256 x/y、OKP Ed25519 x，进行正常公钥参数检查；拒绝私钥字段，kid 只作为调用者的选择数据，不按 token 地址取密钥。
 
+公开入口为 `signCompact(protectedHeader, payload, algorithm, key)` 与 `verifyCompact(token, algorithm, key)`。`JwsAlgorithm { HS256, RS256, PS256, ES256, EdDSA }`，签名密钥为 `JwsSigningKey { Mac(SecretKey), Signature(PrivateKey) }`，验证密钥为 `JwsVerificationKey { Mac(SecretKey), Signature(PublicKey) }`。成功值 `VerifiedJws(protectedHeader, payload, keyId)` 保留原 header 文本、独立 payload 数组和可选 kid。HS256 密钥至少 32 字节，其他密钥匹配第 4 节算法。JSON 必须是对象，alg 必须为匹配的字符串；kid 若出现须为字符串。任何 crit 字段均拒绝；b64 若出现须为 true。Compact 必须恰好三段，所有段使用无 padding、规范末尾比特的 Base64URL，允许空 payload。格式、编码和 header 错误为 JwsException，密钥角色或类型错误为 IllegalArgumentException，后端错误保持 CryptoException。
+
+`importJwk(json)` 返回独立 PublicKey；RSA n/e 为非空、无多余前导零的 Base64urlUInt，P-256 x/y 和 Ed25519 x 各为 32 字节。导入只消费公钥参数，不以可选 alg／use／key_ops 元数据选择算法或决定应用策略；调用者仍必须在每次验证中给出算法。拒绝 d、p、q、dp、dq、qi、oth、k 私密参数和不支持的 kty／crv。JSON 解析与重复字段规则复用 scoop.json，不另设解析器。
+
 ## 7. 跨 Cone native 边界
 
 必要的 CLayout 返回类型、已复制错误和 Unsafe 对象引用入口集中在 `scoop.crypto.native`，TLS 直接使用这些实际类型与 native 引用。Unsafe 使用者在借用有效期内调用，跨对象保留由 OpenSSL 引用计数承担；不通过导出再解析 PEM 传递，也不重声明同形 nominal 类型。该 package 不导出全部 OpenSSL API，不改变 runtime ABI。
